@@ -122,7 +122,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
 
@@ -209,7 +209,7 @@ jobs:
           echo "::error::the hub image never appeared — cannot build the cell image"
           exit 1
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
         if: ${{ steps.hub.outputs.hub != '' }}
 
       - name: Build the cell image into the local daemon
@@ -217,7 +217,7 @@ jobs:
         # builds an image (header). `github.ref_type == 'tag'` is named here as
         # well as upstream so the guard is readable at the step that matters.
         if: ${{ steps.hub.outputs.hub != '' && (github.ref_type == 'tag' || github.event_name == 'workflow_dispatch') }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: infra/cell/Dockerfile
