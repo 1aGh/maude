@@ -120,7 +120,7 @@
   ],
   "devDependencies": {
     "@biomejs/biome": "^2.5.3",
-    "@changesets/cli": "^2.27.10",
+    "@changesets/cli": "^3.0.1",
     "@playwright/test": "^1.61.1",
     "lucide-react": "^1.24.0"
   },
