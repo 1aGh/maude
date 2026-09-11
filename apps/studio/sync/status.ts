@@ -19,7 +19,11 @@ import type { SeedProgress } from './seed-progress.ts';
 // `cold-start-hub-wins` stays in the union for OLD payload readers (additive
 // evolution — the NoSyncablePayload discriminator pattern); new conflicts are
 // recorded as `cold-start-diverged` with the DDR-102 winner + snapshot refs.
-export type ConflictKind = 'cold-start-hub-wins' | 'cold-start-diverged' | 'git-pull';
+export type ConflictKind =
+  | 'cold-start-hub-wins'
+  | 'cold-start-diverged'
+  | 'git-pull'
+  | 'body-rejected';
 
 export interface SyncConflict {
   slug: string;
@@ -33,6 +37,8 @@ export interface SyncConflict {
   /** DDR-102 fail-closed (F1) — the local snapshot didn't land, so a hub-wins
    *  overwrite was refused (local kept). Surfaces the degraded `_history/` write. */
   snapshotFailed?: boolean;
+  /** #121 — source refused before materializing or importing. */
+  reason?: 'invalid-source' | 'local-edit' | 'history-failed' | 'merge-budget';
 }
 
 export interface SyncStatusPayload extends SyncStatusSnapshot {
@@ -205,6 +211,8 @@ export interface SyncStatusStore {
    *  `id` — the notice sites fire once per boot, and a repeat is a no-op
    *  rather than a duplicate row. */
   notice(notice: Omit<SyncNotice, 'at'>): void;
+  /** Remove a resolved source-sync warning; consent notices are untouched. */
+  clearSourceConflict(slug: string): void;
   /** Current payload (defensive copy). */
   get(): SyncStatusPayload;
 }
@@ -350,6 +358,13 @@ export function createSyncStatusStore(opts: SyncStatusStoreOptions): SyncStatusS
     notice(next) {
       if (notices.some((n) => n.id === next.id)) return;
       notices.push({ ...next, at: now() });
+      flush(true);
+    },
+    clearSourceConflict(slug) {
+      const id = `source-conflict-${slug}`;
+      const index = notices.findIndex((n) => n.id === id);
+      if (index < 0) return;
+      notices.splice(index, 1);
       flush(true);
     },
     get: payload,

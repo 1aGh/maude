@@ -35,6 +35,7 @@ import path from 'node:path';
 import type * as Y from 'yjs';
 
 import { Y_TYPES } from '../collab/persistence.ts';
+import { atomicWrite } from './atomic-write.ts';
 import {
   annotationsEditAtFromDoc,
   applyAnnotationsToDoc,
@@ -53,12 +54,16 @@ import {
   decideAnnotationsColdStart,
   decideColdStart,
   decideCssColdStart,
+  isExactRepeat,
   unionCommentsById,
 } from './cold-start.ts';
 import { applyColdStart, type ColdStartSnapshotReason } from './cold-start-apply.ts';
 import { hashBytes } from './echo-guard.ts';
 import type { SyncJournal } from './journal.ts';
 import { ORIGINS } from './origins.ts';
+import { rememberSeed } from './seed-repair.ts';
+import { lastValidSource, saveRecoveryBody } from './source-recovery.ts';
+import { sourceError } from './source-validation.ts';
 
 export interface MigrateSeedPaths {
   html: string;
@@ -146,7 +151,9 @@ export function docIsEmpty(doc: Y.Doc): boolean {
 export async function migrateSeed(opts: MigrateSeedOptions): Promise<MigrateSeedResult> {
   const { slug, doc, paths } = opts;
 
-  const localHtml = readLocal(paths.html);
+  const diskHtml = readLocal(paths.html);
+  const localHtml =
+    diskHtml !== null && sourceError(paths.html, diskHtml) === null ? diskHtml : null;
   const localComments = readLocal(paths.comments);
   const localAnnotations = readLocal(paths.annotations);
   const localMeta = paths.meta ? readLocal(paths.meta) : null;
@@ -182,6 +189,7 @@ export async function migrateSeed(opts: MigrateSeedOptions): Promise<MigrateSeed
 
     doc.transact(() => {
       if (localHtml) {
+        rememberSeed(doc, localHtml, localCss, ORIGINS.MIGRATION);
         if (applyHtmlToDoc(doc, localHtml, ORIGINS.MIGRATION)) {
           stampBodyEdit(doc, ORIGINS.MIGRATION);
         }
@@ -219,6 +227,16 @@ export async function migrateSeed(opts: MigrateSeedOptions): Promise<MigrateSeed
   // boot — not spam) so non-body files keep their pre-cutover backup too.
   snapshotLocal(opts);
 
+  // Invalid hub source must reach the projector's quarantine unchanged. Never
+  // checkpoint it, elect it by timestamp, or merge a healthy local file into it
+  // merely because the connection restarted. A deliberate file edit can repair it.
+  if (
+    sourceError(paths.html, doc.getText(Y_SYNC_TYPES.html).toString()) !== null &&
+    !(localHtml && isExactRepeat(doc.getText(Y_SYNC_TYPES.html).toString(), localHtml))
+  ) {
+    return 'hub-wins';
+  }
+
   // Body resolution via the DDR-102 decision table.
   const docHtml = doc.getText(Y_SYNC_TYPES.html).toString();
   const decision = decideColdStart({
@@ -235,6 +253,7 @@ export async function migrateSeed(opts: MigrateSeedOptions): Promise<MigrateSeed
    *  below (decideAnnotationsColdStart), independent of the body winner. */
   const rebuildBodyFromLocal = (): void => {
     doc.transact(() => {
+      if (docHtml === '' && localHtml) rememberSeed(doc, localHtml, localCss, ORIGINS.MIGRATION);
       if (applyHtmlToDoc(doc, localHtml as string, ORIGINS.MIGRATION)) {
         stampBodyEdit(doc, ORIGINS.MIGRATION);
       }
@@ -394,7 +413,19 @@ function snapshotLocal(opts: MigrateSeedOptions): void {
       opts.paths.css,
     ]) {
       if (p && existsSync(p)) {
-        copyFileSync(p, path.join(dir, path.basename(p)));
+        const target = path.join(dir, path.basename(p));
+        if (p === opts.paths.html) {
+          const current = readLocal(p);
+          const valid =
+            current?.trim() && sourceError(p, current) === null
+              ? current
+              : lastValidSource(opts.historyDir, p);
+          if (valid) {
+            saveRecoveryBody(opts.historyDir, p, 'last-valid', valid);
+            const prior = readLocal(target);
+            if (!prior || sourceError(p, prior) !== null) atomicWrite(target, valid);
+          }
+        } else copyFileSync(p, target);
       }
     }
   } catch {

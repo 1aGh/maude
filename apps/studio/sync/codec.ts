@@ -22,7 +22,7 @@
 // in the unchanged regions.
 
 import { hostname } from 'node:os';
-
+import { diffChars } from 'diff';
 import type * as Y from 'yjs';
 
 import { Y_TYPES } from '../collab/persistence.ts';
@@ -97,8 +97,8 @@ export function htmlFromDoc(doc: Y.Doc): string {
 }
 
 /**
- * Apply `next` to one Y.Text lane as a minimal common-prefix / common-suffix
- * replace, so peers see a small op rather than a full replace.
+ * Apply `next` as bounded text hunks, preserving unchanged interior CRDT
+ * anchors as well as the common prefix/suffix (#121).
  *
  * THIS SHAPE IS A CONVERGENCE PROPERTY, NOT AN OPTIMIZATION (issue #114).
  * Collapsing a concurrency-duplicated lane — `X + X` back to `X` — comes out of
@@ -137,12 +137,37 @@ function applyTextLane(doc: Y.Doc, lane: string, next: string, origin?: unknown)
     suffix++;
   }
 
+  // Y.Text offsets are UTF-16; never leave half a surrogate outside a hunk.
+  if (prefix > 0 && /[\uD800-\uDBFF]/.test(current[prefix - 1] ?? '')) prefix--;
+  if (suffix > 0 && /[\uDC00-\uDFFF]/.test(current[current.length - suffix] ?? '')) suffix--;
   const deleteLen = current.length - prefix - suffix;
   const insertStr = next.slice(prefix, next.length - suffix);
 
+  // Keep pure inserts/deletes (especially repeat collapse) as one operation.
+  // For replacements preserve interior anchors: one prefix/suffix splice can
+  // move a concurrent insertion inside an unrelated JSX attribute (#121).
+  const changes =
+    deleteLen > 0 && insertStr.length > 0
+      ? diffChars(current.slice(prefix, current.length - suffix), insertStr, {
+          maxEditLength: 4096,
+          timeout: 50,
+        })
+      : null;
+  if (changes === undefined) throw new Error('Source diff exceeds the safe merge budget');
   doc.transact(() => {
-    if (deleteLen > 0) yText.delete(prefix, deleteLen);
-    if (insertStr.length > 0) yText.insert(prefix, insertStr);
+    if (changes) {
+      let offset = prefix;
+      for (const change of changes) {
+        if (change.removed) yText.delete(offset, change.value.length);
+        else {
+          if (change.added) yText.insert(offset, change.value);
+          offset += change.value.length;
+        }
+      }
+    } else {
+      if (deleteLen > 0) yText.delete(prefix, deleteLen);
+      if (insertStr.length > 0) yText.insert(prefix, insertStr);
+    }
   }, origin);
 
   return true;

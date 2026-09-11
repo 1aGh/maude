@@ -52,12 +52,10 @@ import {
   cssFromDoc,
   htmlFromDoc,
   isEmptyAnnotationsSvg,
-  markSeeded,
   mergeSharedMetaIntoLocal,
   metaFromDoc,
   movedToFromDoc,
   repairSharedMeta,
-  seededByFromDoc,
   stampAnnotationsEdit,
   stampBodyEdit,
   Y_SYNC_TYPES,
@@ -66,13 +64,13 @@ import {
   decideAnnotationsColdStart,
   decideColdStart,
   decideCssColdStart,
-  isExactRepeat,
   unionCommentsById,
 } from './cold-start.ts';
 import { applyColdStart, type ColdStartSnapshotReason } from './cold-start-apply.ts';
 import { dedupeCommentsById, hasDuplicateComments } from './comment-identity.ts';
 import { type EchoGuard, hashBytes } from './echo-guard.ts';
 import type { SyncJournal } from './journal.ts';
+import { rememberSeed, repairSeedDuplication } from './seed-repair.ts';
 
 export const DOC_FLUSH_MS = 800;
 
@@ -82,7 +80,7 @@ export const DOC_FLUSH_MS = 800;
  * the cold-start race — a genuine peer edit that arrives minutes later is NEVER
  * collapsed back to our original seed. Generous relative to the hub sync RTT.
  */
-export const SEED_REPAIR_WINDOW_MS = 10_000;
+export { SEED_REPAIR_WINDOW_MS } from './seed-repair.ts';
 
 export interface CanvasSyncPaths {
   /** Absolute path to <designRoot>/<canvas>.html. */
@@ -187,18 +185,6 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
   let lastMeta: string | null = null;
   let lastCss: string | null = null;
 
-  // F1 — the content this agent pushed on `seed-local-up`, plus the deadline
-  // past which the de-dup repair stops firing. Set on seed; nulled only when the
-  // window lapses (after convergence the repair is a cheap no-op — the
-  // `=== seedInfo.x` guards short-circuit, so we don't bother clearing).
-  // Null = this agent never seeded (so it never repairs).
-  //
-  // `css` rides along with the body (issue #114): a seed writes BOTH lanes in
-  // the same breath, so both can collide with a concurrent peer's identical
-  // seed, and repairing only the body left the canvas un-buildable anyway —
-  // duplicated css is as fatal to the build as a duplicated `export default`.
-  let seedInfo: { body: string; css: string | null; until: number } | null = null;
-
   function onDocUpdate(_update: Uint8Array, updateOrigin: unknown): void {
     if (stopped) return;
     // Self-applied (we just synced from disk) — disk is already current.
@@ -246,45 +232,14 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
    * variant is an accepted follow-up, not handled in-flight.
    */
   function maybeRepairSeedDuplication(): void {
-    if (!seedInfo) return;
-    if (Date.now() > seedInfo.until) {
-      seedInfo = null;
-      return;
+    const repaired = repairSeedDuplication(doc, origin);
+    if (repaired.includes('body')) {
+      lastHtml = htmlFromDoc(doc);
+      opts.journal?.record(slug, { bodyHash: hashBytes(lastHtml) });
     }
-    const owner = seededByFromDoc(doc);
-    if (owner === null || owner !== doc.clientID) return; // not the elected writer
-    const seeded = seedInfo;
-    const repaired: string[] = [];
-
-    const body = htmlFromDoc(doc);
-    // `=== seeded.body` → already a single copy; not an exact repeat → a
-    // divergent edit, which carries genuine bytes and belongs to the conflict
-    // path, not to a silent collapse.
-    if (body !== seeded.body && isExactRepeat(body, seeded.body)) {
-      const canonical = seeded.body;
-      doc.transact(() => {
-        if (applyHtmlToDoc(doc, canonical, origin)) stampBodyEdit(doc, origin);
-      }, origin);
-      lastHtml = canonical;
-      opts.journal?.record(slug, { bodyHash: hashBytes(canonical) });
-      repaired.push('body');
-    }
-
-    // The css half of the same collision (issue #114). Same proof obligation as
-    // the body — an exact integer repeat of what WE seeded — and the same
-    // idempotence: the collapse deletes the same CRDT items on every peer that
-    // runs it, so concurrent recoveries converge instead of fighting.
-    if (paths.css && seeded.css !== null) {
-      const css = cssFromDoc(doc);
-      if (css !== null && css !== seeded.css && isExactRepeat(css, seeded.css)) {
-        const canonicalCss = seeded.css;
-        doc.transact(() => {
-          applyCssToDoc(doc, canonicalCss, origin);
-        }, origin);
-        lastCss = canonicalCss;
-        opts.journal?.record(slug, { cssHash: hashBytes(canonicalCss) });
-        repaired.push('css');
-      }
+    if (repaired.includes('css')) {
+      lastCss = cssFromDoc(doc);
+      if (lastCss !== null) opts.journal?.record(slug, { cssHash: hashBytes(lastCss) });
     }
 
     if (repaired.length > 0) {
@@ -518,9 +473,8 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
           // F1 — adopt is also a "seed local up" (first link / fresh hub); claim
           // it + arm the repair window so two peers adopting the same draft into
           // one hub at once self-heal the same way the decision-table seed does.
-          markSeeded(doc, origin);
+          rememberSeed(doc, localHtml, localCss, origin);
         }, origin);
-        seedInfo = { body: localHtml, css: localCss, until: Date.now() + SEED_REPAIR_WINDOW_MS };
       }
       if (localComments !== null) {
         const parsed = tryParseJsonArray(localComments);
@@ -575,15 +529,13 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
         if (applyHtmlToDoc(doc, body, origin)) stampBodyEdit(doc, origin);
         // F1 — claim the seed (clientID marker) in the SAME update so a
         // concurrent second seeder's merge resolves a single elected writer.
-        markSeeded(doc, origin);
+        rememberSeed(doc, body, localCss, origin);
       }, origin);
       lastHtml = body;
       // Arm the de-dup repair window: if another peer seeded the same content at
       // the same instant, the merged Y.Text will double — maybeRepairSeedDuplication
       // (on the elected owner) collapses it back during this window. `localCss`
-      // is armed too: the css lane is seeded by the same cold start a few lines
-      // below and collides identically (issue #114).
-      seedInfo = { body, css: localCss, until: Date.now() + SEED_REPAIR_WINDOW_MS };
+      // is remembered too, since it collides identically (issue #114).
       opts.journal?.record(slug, { bodyHash: hashBytes(body) });
     };
 

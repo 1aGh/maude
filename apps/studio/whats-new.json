@@ -2,6 +2,15 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "source-sync-preserves-valid-canvases",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Safer canvas source syncing",
+      "summary": "Sync now holds incoming canvas code with syntax errors or duplicate declarations and warns you in the Sync panel. Concurrent edits preserve more unchanged code, and recovery copies help you recover local work when a conflicting update is held.",
+      "surface": "design-ui"
+    },
+    {
       "id": "sticky-notes-take-a-second-line",
       "version": null,
       "date": null,

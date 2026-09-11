@@ -2915,6 +2915,25 @@ export function createSyncRuntime(
                 paths: canvasPaths,
                 echoGuard,
                 journal: journal ?? undefined,
+                historyDir: path.join(ctx.paths.historyDir, canvas.slug),
+                waitForReconcile: true,
+                onRecovered: () => store.clearSourceConflict(canvas.slug),
+                onConflict: (info) => {
+                  store.addConflict(info);
+                  store.notice({
+                    id: `source-conflict-${canvas.slug}`,
+                    severity: 'warn',
+                    text: `Source sync blocked for ${canvas.slug}. The local file was kept because ${
+                      info.reason === 'invalid-source'
+                        ? 'the source has syntax errors or duplicate declarations'
+                        : info.reason === 'local-edit'
+                          ? 'a local edit overlaps an incoming change'
+                          : info.reason === 'merge-budget'
+                            ? 'the edit is too large to merge safely'
+                            : 'a recovery copy could not be saved'
+                    }. ${info.snapshotFailed ? 'Recovery could not be saved; check disk space and history write access.' : `Recovery copies are in _history/${canvas.slug}/sync-recovery/.`}`,
+                  });
+                },
                 // Cell pairing only — see the DocProjectionOptions.onWrote doc.
                 // The synthetic event is delayed by the same margin the container
                 // write bridge uses, so a watcher that DOES fire wins the race and

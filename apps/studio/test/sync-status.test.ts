@@ -272,3 +272,12 @@ describe('F-12 (post-1.0 burn-down) — the reconnect trigger is cooled', () => 
     expect(src).toMatch(/void repromoteOnReconnect\(canvas\.slug, provider\);/);
   });
 });
+
+test('#121 clearing a recovered source warning preserves consent notices', () => {
+  const { store, writes } = makeStore();
+  store.notice({ id: 'shared-doc', severity: 'warn', text: 'shared doc' });
+  store.notice({ id: 'source-conflict-screen', severity: 'warn', text: 'blocked' });
+  store.clearSourceConflict('screen');
+  expect(store.get().notices?.map((n) => n.id)).toEqual(['shared-doc']);
+  expect(writes.at(-1)?.notices?.map((n) => n.id)).toEqual(['shared-doc']);
+});

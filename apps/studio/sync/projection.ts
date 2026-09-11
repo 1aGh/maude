@@ -47,6 +47,9 @@ import { type EchoGuard, hashBytes } from './echo-guard.ts';
 import type { SyncJournal } from './journal.ts';
 import { MAX_CSS_BYTES, MAX_HTML_BYTES, MAX_META_BYTES, withinByteCap } from './limits.ts';
 import { ORIGINS } from './origins.ts';
+import { repairSeedDuplication } from './seed-repair.ts';
+import { saveRecoveryBody } from './source-recovery.ts';
+import { sourceError } from './source-validation.ts';
 
 export const PROJECT_FLUSH_MS = 800;
 export const CIRCUIT_MAX_STRIKES = 3;
@@ -62,6 +65,13 @@ export interface ProjectionPaths {
   meta?: string;
   /** Absolute path to the canvas `.css` sibling (optional). */
   css?: string;
+}
+
+export interface BodyRejection {
+  slug: string;
+  kind: 'body-rejected';
+  reason: 'invalid-source' | 'local-edit' | 'history-failed' | 'merge-budget';
+  snapshotFailed: boolean;
 }
 
 export interface DocProjectionOptions {
@@ -97,6 +107,12 @@ export interface DocProjectionOptions {
   /** DDR-102 — per-machine sync journal; every successful disk↔doc body/css
    *  traversal checkpoints here (same discipline as the agent). Optional. */
   journal?: SyncJournal;
+  /** Bounded recovery slots, separate from rolling history. */
+  historyDir?: string;
+  onConflict?: (info: BodyRejection) => void;
+  onRecovered?: () => void;
+  /** Runtime waits for cold-start snapshots before allowing any projection. */
+  waitForReconcile?: boolean;
 }
 
 export interface DocProjection {
@@ -131,6 +147,56 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
   let started = false;
   let stopped = false;
   let dirty = false;
+  let ready = !opts.waitForReconcile;
+  let observedBody = readLocal(paths.html);
+  let rejectedKey: string | null = null;
+  let validationCache: { body: string; error: string | null } | null = null;
+
+  function recovered(): void {
+    if (rejectedKey !== null) opts.onRecovered?.();
+    rejectedKey = null;
+  }
+
+  function validation(body: string): string | null {
+    if (validationCache?.body === body) return validationCache.error;
+    const error = sourceError(paths.html, body);
+    validationCache = { body, error };
+    return error;
+  }
+
+  function preserveLocal(body: string | null): void {
+    if (opts.historyDir && body?.trim()) {
+      // An invalid local draft can still contain authored work. Keep its raw
+      // bytes too before accepting a valid remote replacement.
+      saveRecoveryBody(opts.historyDir, paths.html, 'local', body);
+      if (validation(body) === null)
+        saveRecoveryBody(opts.historyDir, paths.html, 'last-valid', body);
+    }
+  }
+
+  function reject(
+    reason: BodyRejection['reason'],
+    local: string | null,
+    incoming: string,
+    file = paths.html
+  ): void {
+    const key = `${file}:${reason}:${hashBytes(local ?? '')}:${hashBytes(incoming)}`;
+    if (key === rejectedKey) return;
+    rejectedKey = key;
+    let snapshotFailed = false;
+    try {
+      if (file === paths.html) preserveLocal(local);
+      if (opts.historyDir) {
+        if (local !== null) saveRecoveryBody(opts.historyDir, file, 'local', local);
+        saveRecoveryBody(opts.historyDir, file, 'incoming', incoming);
+      }
+    } catch {
+      snapshotFailed = true;
+    }
+    console.warn(`[projection/${slug}] source sync blocked (${reason}); local file kept.`);
+    opts.onConflict?.({ slug, kind: 'body-rejected', reason, snapshotFailed });
+  }
+
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
   // doc→file last-written hashes (skip redundant writes).
@@ -157,6 +223,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     ) {
       return;
     }
+    repairSeedDuplication(doc, ORIGINS.DISK_PROJECTION);
     scheduleFlush();
   }
 
@@ -216,20 +283,38 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
 
   // ----- doc → file (html / css / meta only; room owns comments/annotations)
 
-  function writeHtmlIfChanged(): void {
+  function writeHtmlIfChanged(): boolean {
     const next = htmlFromDoc(doc);
-    if (next === lastHtml) return;
+    if (next === lastHtml) return true;
     // Don't clobber a non-empty local body with an empty doc (cold-start before
     // the doc is seeded — the safe-reconcile invariant; full adopt is Phase E).
     if (next === '') {
       lastHtml = next;
-      return;
+      return true;
     }
-    if (!withinCap(paths.html, next, MAX_HTML_BYTES)) return;
-    recordEcho(paths.html, next);
+    if (!withinCap(paths.html, next, MAX_HTML_BYTES)) return false;
+    const local = readLocal(paths.html);
+    if (validation(next) !== null) {
+      reject('invalid-source', local, next);
+      return false;
+    }
+    if (local !== observedBody && local !== next) {
+      reject('local-edit', local, next);
+      return false;
+    }
+    try {
+      preserveLocal(local);
+    } catch {
+      reject('history-failed', local, next);
+      return false;
+    }
     writeAndAnnounce(paths.html, next);
+    recordEcho(paths.html, next);
+    observedBody = next;
+    recovered();
     lastHtml = next;
     opts.journal?.record(slug, { bodyHash: hashBytes(next) }); // DDR-102 checkpoint
+    return true;
   }
 
   function writeCssIfChanged(): void {
@@ -259,7 +344,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
   }
 
   async function flush(): Promise<void> {
-    if (!dirty || stopped) return;
+    if (!dirty || stopped || !ready) return;
     // A RETIRED document is write-inert — its canvas moved to a new path in a
     // new document, and materialising this one is how a moved canvas
     // resurrected itself at its old path (see codec stampMovedTo).
@@ -273,8 +358,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       flushTimer = null;
     }
     try {
-      writeHtmlIfChanged();
-      writeCssIfChanged();
+      if (writeHtmlIfChanged()) writeCssIfChanged();
       writeMetaIfChanged();
     } catch (err) {
       dirty = true;
@@ -320,23 +404,58 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     const str = bytesToString(evt.bytes);
 
     if (evt.path === paths.html) {
+      if (!withinCap(paths.html, str, MAX_HTML_BYTES)) return false;
+      if (validation(str) !== null) {
+        strike(evt.path, evt.hash);
+        reject('invalid-source', str, htmlFromDoc(doc));
+        return false;
+      }
       clearStrike(evt.path);
+      // Keep both sides when a watcher arrives after a remote update. A user's
+      // explicit file edit may repair corrupt state, but must remain recoverable.
+      if (lastHtml !== null && htmlFromDoc(doc) !== lastHtml && htmlFromDoc(doc) !== str) {
+        reject('local-edit', str, htmlFromDoc(doc));
+      }
+      try {
+        preserveLocal(str);
+      } catch {
+        reject('history-failed', str, htmlFromDoc(doc));
+        return false;
+      }
       // Body import + syncMeta stamp in ONE transaction (same FILE_IMPORT
       // origin) — peers get a single update carrying the newest-wins stamp.
       let changed = false;
-      doc.transact(() => {
-        changed = applyHtmlToDoc(doc, str, importOrigin);
-        if (changed) stampBodyEdit(doc, importOrigin);
-      }, importOrigin);
-      if (changed) {
-        lastHtml = htmlFromDoc(doc);
+      try {
+        doc.transact(() => {
+          changed = applyHtmlToDoc(doc, str, importOrigin);
+          if (changed) stampBodyEdit(doc, importOrigin);
+        }, importOrigin);
+      } catch {
+        reject('merge-budget', str, htmlFromDoc(doc));
+        return false;
+      }
+      observedBody = str;
+      lastHtml = str;
+      recovered();
+      if (htmlFromDoc(doc) !== str) {
+        // A synchronous peer update can land during the import transaction.
+        // Only bytes actually on disk count as the projection's baseline.
+        scheduleFlush();
+      } else if (changed) {
         opts.journal?.record(slug, { bodyHash: evt.hash }); // DDR-102 checkpoint
       }
       return changed;
     }
     if (paths.css && evt.path === paths.css) {
+      let changed: boolean;
+      try {
+        changed = applyCssToDoc(doc, str, importOrigin);
+      } catch {
+        strike(evt.path, evt.hash);
+        reject('merge-budget', str, cssFromDoc(doc) ?? '', paths.css);
+        return false;
+      }
       clearStrike(evt.path);
-      const changed = applyCssToDoc(doc, str, importOrigin);
       if (changed) {
         lastCss = str;
         opts.journal?.record(slug, { cssHash: evt.hash }); // DDR-102 checkpoint
@@ -383,12 +502,12 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     if (stopped) return;
     // A retired doc materialises NOTHING (see codec stampMovedTo).
     if (movedToFromDoc(doc) !== null) return;
+    ready = true;
     // Materialize the converged doc to disk (html/css/meta). The *IfChanged
     // writers already guard against clobbering non-empty local with empty doc
     // values, so this is safe to run at cold start before the authoritative
     // seed (Phase E) — it only writes what the doc actually holds.
-    writeHtmlIfChanged();
-    writeCssIfChanged();
+    if (writeHtmlIfChanged()) writeCssIfChanged();
     writeMetaIfChanged();
   }
 
@@ -397,6 +516,13 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     importOrigin,
     start() {
       if (started) return;
+      // Snapshot before a provider can replace disk. Failure remains fail-closed
+      // at the write boundary and is surfaced when a write is attempted.
+      try {
+        preserveLocal(observedBody);
+      } catch {
+        /* checked before writes */
+      }
       doc.on('update', onDocUpdate);
       started = true;
     },

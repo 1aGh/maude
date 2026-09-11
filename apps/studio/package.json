@@ -42,6 +42,7 @@
     "@remotion/player": "4.0.507",
     "@remotion/transitions": "4.0.507",
     "@remotion/web-renderer": "4.0.507",
+    "diff": "8.0.4",
     "dom-to-pptx": "^1.1.10",
     "dom-to-svg": "^0.12.2",
     "gifenc": "^1.0.3",

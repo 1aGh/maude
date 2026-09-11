@@ -11,12 +11,8 @@
 //     Y-types — the cross-type no-clobber guarantee);
 //   - an unparseable file is quarantined after 3 strikes (circuit breaker).
 //
-// NB: true char-level merge of CONCURRENT edits to the SAME body region is
-// Phase 10 (structured CRDT). Here the body is opaque Y.Text + prefix/suffix
-// diff: it preserves untouched regions, but a whole-file /design:edit that omits
-// a concurrent browser body edit will still supersede it. Browsers edit
-// comments/annotations (separate types), so that residual is out of Phase C
-// scope by design.
+// Same-body concurrency and source validity are covered by
+// sync-source-safety.test.ts (#121); this suite covers the other projection laws.
 
 import { describe, expect, test } from 'bun:test';
 import * as Y from 'yjs';

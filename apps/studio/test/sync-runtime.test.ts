@@ -637,10 +637,11 @@ describe('createSyncRuntime', () => {
 
     // A provider that behaves like HocuspocusProvider: `synced` is reset ONLY
     // by the close event, and `attach()` registers that listener.
+    // Explicit `this` keeps Biome from rewriting constructor fakes to arrows.
     const made: Array<{ synced: boolean }> = [];
     const { createDefaultProviderFactory } = await import('../sync/index.ts');
     const factory = createDefaultProviderFactory(async () => ({
-      HocuspocusProviderWebsocket: function () {
+      HocuspocusProviderWebsocket: function (this: unknown) {
         return socket;
       } as unknown as new () => unknown,
       HocuspocusProvider: function (this: Record<string, unknown>) {
@@ -841,10 +842,10 @@ describe('createSyncRuntime', () => {
     const self = { isSynced: true };
     const { createDefaultProviderFactory } = await import('../sync/index.ts');
     const factory = createDefaultProviderFactory(async () => ({
-      HocuspocusProviderWebsocket: function () {
+      HocuspocusProviderWebsocket: function (this: unknown) {
         return socket;
       } as unknown as new () => unknown,
-      HocuspocusProvider: function () {
+      HocuspocusProvider: function (this: unknown) {
         return {
           document: new Y.Doc(),
           attach() {},
@@ -925,11 +926,17 @@ describe('createSyncRuntime', () => {
     const socket = new FakeSocket();
     const { createDefaultProviderFactory } = await import('../sync/index.ts');
     const factory = createDefaultProviderFactory(async () => ({
-      HocuspocusProviderWebsocket: function () {
+      HocuspocusProviderWebsocket: function (this: unknown) {
         return socket;
       } as unknown as new () => unknown,
-      HocuspocusProvider: function () {
-        return { document: new Y.Doc(), attach() {}, on() {}, off() {}, destroy() {} };
+      HocuspocusProvider: function (this: unknown) {
+        return {
+          document: new Y.Doc(),
+          attach() {},
+          on() {},
+          off() {},
+          destroy() {},
+        };
       } as unknown as new () => unknown,
     }));
     await factory({ url: 'https://hub.example.com', token: 't', documentName: 'd' });
@@ -1085,6 +1092,44 @@ describe('shared-doc convergence (MAUDE_SHARED_DOC ON)', () => {
     };
     return wrapped;
   }
+
+  test('#121 shared runtime refuses corrupt source and publishes recovery notice', async () => {
+    const url = 'https://hub.example.com';
+    writeHubsConfig(url, 'mau_test');
+    const ctx = makeCtx({ url, linkedAt: 1 }, 'http://localhost:9');
+    ctx.sharedDoc = true;
+    const file = join(ctx.paths.designRoot, 'ui', 'screen.tsx');
+    const clean = 'export default function Canvas(){return <main>Healthy</main>}';
+    writeFileSync(file, clean);
+    const registry = countingRegistry();
+    const { factory, peerOf } = inMemoryProviderFactory();
+    const runtime = createSyncRuntime(ctx, { providerFactory: factory, registry });
+    try {
+      await runtime?.start();
+      const peer = peerOf('ui-screen');
+      const body = peer.getText('html');
+      peer.transact(() => {
+        body.delete(0, body.length);
+        body.insert(0, 'export default <div title="broken');
+      });
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      expect(readFileSync(file, 'utf8')).toBe(clean);
+      const status = JSON.parse(readFileSync(join(ctx.paths.designRoot, '_sync.json'), 'utf8'));
+      expect(status.conflicts.some((c: { kind: string }) => c.kind === 'body-rejected')).toBe(true);
+      expect(
+        status.notices.some((n: { text: string }) => n.text.includes('Source sync blocked'))
+      ).toBe(true);
+      expect(
+        readFileSync(
+          join(ctx.paths.historyDir, 'ui-screen', 'sync-recovery', 'last-valid.tsx'),
+          'utf8'
+        )
+      ).toBe(clean);
+    } finally {
+      await runtime?.stop();
+      registry.destroyAll();
+    }
+  });
 
   test('browser edit on the shared doc reaches the hub peer with NO relay', async () => {
     const url = 'https://hub.example.com';
