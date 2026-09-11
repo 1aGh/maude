@@ -125,9 +125,10 @@ export interface SyncProvider {
 /* ------------------------------------------------- auth-failure classification */
 
 /** DDR-102 — rejection classes the runtime distinguishes. `rate-limit` and
- *  `generic` are transient (provider backoff keeps retrying); `not-authorized`
- *  and `invalid-token` are permanent (retrying spams the hub bucket — destroy
- *  the provider and re-probe on a slow timer instead). */
+ *  `generic` are transient (the runtime re-authenticates the refused document
+ *  after one hub window, paced and backed off — see `AUTH_TRANSIENT_RETRY_MS`);
+ *  `not-authorized` and `invalid-token` are permanent (retrying spams the hub
+ *  bucket — destroy the provider and re-probe on a slow timer instead). */
 export type AuthFailureClass = 'rate-limit' | 'not-authorized' | 'invalid-token' | 'generic';
 
 /** Map a raw hub rejection reason to a class. New hubs send distinct reasons
@@ -148,6 +149,33 @@ export function classifyAuthFailure(raw: string): AuthFailureClass {
 
 export const AUTH_WARN_DEBOUNCE_MS = 2_000;
 export const AUTH_REPROBE_MS = 5 * 60 * 1000;
+/**
+ * How long a transiently-refused document (`rate-limit` / `generic`) waits
+ * before the runtime asks the hub again — one full hub window, since the
+ * refusal itself says "retry in up to 60s".
+ *
+ * The runtime owns this retry because nothing else will do it. These classes
+ * used to be left to "the provider's built-in backoff", which does not exist
+ * per document under DDR-102 multiplexing: a provider re-sends its token only
+ * when the SHARED socket opens, and a partial refusal never closes a socket
+ * that the documents which did authenticate keep busy. 16 of 112 canvases sat
+ * `auth-rejected` for the life of the process that way (RCA
+ * issue-sync-rate-limited-docs-never-retried, 2026-09-11).
+ *
+ * Repeat refusals of the same document double this, capped at the re-probe
+ * interval; a handshake that lands resets it.
+ */
+export const AUTH_TRANSIENT_RETRY_MS = 60_000;
+/** Random spread added to each transient retry, so peers refused in the same
+ *  burst do not all come back on the window boundary together. */
+export const AUTH_TRANSIENT_JITTER_MS = 15_000;
+/**
+ * Most transient re-authentications inside any `AUTH_TRANSIENT_RETRY_MS` span.
+ * A quarter of the hub's default valid-token ceiling (600/min): a 16-document
+ * retry never notices it, and a 1 000-canvas project cannot turn its own
+ * recovery into the next burst (the F1 lesson, applied to this lane).
+ */
+export const AUTH_TRANSIENT_BATCH = 150;
 export const BOOT_SETTLE_TIMEOUT_MS = 15_000;
 /** F1 — minimum wall-clock between renewal attempts. A burst of rejections
  *  collapses to one renewal (single-flight); the NEXT burst waits this out. */
@@ -311,13 +339,13 @@ export function validExpiry(raw: unknown, nowMs: number = Date.now()): number | 
 
 const AUTH_CLASS_HINT: Record<AuthFailureClass, string> = {
   'rate-limit':
-    'boot burst hit the hub rate limit — sync settles as providers back off; if persistent, raise HUB_CONN_RATE_LIMIT on the hub (DDR-102 hubs default to 600/min for valid tokens).',
+    'refused on volume — retrying these in ~60 s, in paced batches (no restart needed). If this repeats every boot, the hub’s HUB_CONN_RATE_LIMIT is below this project’s size (DDR-102 hubs default to 600/min for valid tokens; every canvas authenticates separately).',
   'not-authorized':
     "the token's scope does not cover these canvases — mint a hub-wide token (`maude hub token generate --scope '*'` or an admin-UI invite) and re-link. Retries stopped; re-probing in 5 min.",
   'invalid-token':
     'the stored token was rejected — re-run `maude design link <url> --token …` on this machine. Retries stopped; re-probing in 5 min.',
   generic:
-    'the hub refused auth without a specific reason (older hub?) — check `maude design status` and the hub logs.',
+    'the hub refused auth without a specific reason (older hub?) — retrying these in ~60 s; if it keeps refusing, check `maude design status` and the hub logs.',
 };
 
 /**
@@ -490,6 +518,14 @@ export interface CreateSyncRuntimeOptions {
     renewMinIntervalMs?: number;
     /** F1 — consecutive no-progress renewals before giving up. Default RENEW_MAX_WITHOUT_PROGRESS. */
     renewMaxWithoutProgress?: number;
+    /** Base wait before a transient refusal is retried. Default AUTH_TRANSIENT_RETRY_MS. */
+    transientRetryMs?: number;
+    /** Max random spread per transient retry. Default AUTH_TRANSIENT_JITTER_MS. */
+    transientJitterMs?: number;
+    /** Transient re-auths allowed per `transientRetryMs` span. Default AUTH_TRANSIENT_BATCH. */
+    transientBatch?: number;
+    /** Jitter source (test injection). Default Math.random. */
+    random?: () => number;
   };
 }
 
@@ -878,6 +914,39 @@ export function createSyncRuntime(
     string,
     { canvas: CanvasDescriptor; canvasPaths: import('./agent.ts').CanvasSyncPaths; doc: Y.Doc }
   >();
+  /**
+   * Transiently-refused docs (`rate-limit` / `generic`) awaiting the paced
+   * retry — see `AUTH_TRANSIENT_RETRY_MS`. Unlike `rejectedPermanent` the
+   * provider is KEPT until the retry swaps it (a refused provider sends nothing
+   * more, so there is no storm to stop), and the retry acts only if `provider`
+   * is still the live one: a release or another recovery path that replaced it
+   * in the meantime owns the document now. `dueAt` is on the `renewNow` clock.
+   */
+  const rejectedTransient = new Map<
+    string,
+    {
+      canvas: CanvasDescriptor;
+      canvasPaths: import('./agent.ts').CanvasSyncPaths;
+      doc: Y.Doc;
+      provider: SyncProvider;
+      dueAt: number;
+    }
+  >();
+  /** Consecutive transient refusals per slug — the backoff exponent. Emptied
+   *  by `clearRejection`, i.e. by a handshake the hub completed. */
+  const transientStrikes = new Map<string, number>();
+  /** When each transient re-auth of the last window went out — the sliding
+   *  budget. Never longer than `transientBatch`. */
+  const transientSpent: number[] = [];
+  let transientRetryTimer: TimerHandle | null = null;
+  /**
+   * First-connect setup still OWED to a pulled canvas whose first handshake
+   * has not landed (`connectCanvas` defers it — the body path is unknown until
+   * the document arrives). Every reconnect passes it back in: without it a
+   * refusal at that first handshake stranded the setup, and the hub's eventual
+   * yes synced the document into memory while nothing ever wrote it to disk.
+   */
+  const owedSetups = new Map<string, (provider: SyncProvider) => void>();
   let authWarnTimer: TimerHandle | null = null;
   let reprobeTimer: TimerHandle | null = null;
   let renewTimer: TimerHandle | null = null;
@@ -894,6 +963,10 @@ export function createSyncRuntime(
   const renewNow = opts.auth?.now ?? (() => Date.now());
   const renewMinIntervalMs = opts.auth?.renewMinIntervalMs ?? RENEW_MIN_INTERVAL_MS;
   const renewMaxWithoutProgress = opts.auth?.renewMaxWithoutProgress ?? RENEW_MAX_WITHOUT_PROGRESS;
+  const transientRetryMs = opts.auth?.transientRetryMs ?? AUTH_TRANSIENT_RETRY_MS;
+  const transientJitterMs = opts.auth?.transientJitterMs ?? AUTH_TRANSIENT_JITTER_MS;
+  const transientBatch = Math.max(1, opts.auth?.transientBatch ?? AUTH_TRANSIENT_BATCH);
+  const authRandom = opts.auth?.random ?? Math.random;
   /** Wall-clock of the last renewal attempt (0 = never). The floor. */
   let lastRenewAt = 0;
   /** Successful renewals since the last completed handshake. The cap: a
@@ -1452,6 +1525,9 @@ export function createSyncRuntime(
     // payload would be a permanent "still syncing" the user can never clear.
     monitor?.forgetDoc(slug);
     rejectedPermanent.delete(slug);
+    rejectedTransient.delete(slug);
+    transientStrikes.delete(slug);
+    owedSetups.delete(slug);
     rejectedReasons.delete(slug);
     return true;
   }
@@ -1968,7 +2044,12 @@ export function createSyncRuntime(
       rejectedPermanent.clear();
       for (const entry of entries) {
         mon.noteDocState(entry.canvas.slug, 'pending');
-        void connectCanvas(entry.canvas, entry.canvasPaths, entry.doc).catch((err) => {
+        void connectCanvas(
+          entry.canvas,
+          entry.canvasPaths,
+          entry.doc,
+          owedSetups.get(entry.canvas.slug)
+        ).catch((err) => {
           console.error(`[sync/${entry.canvas.slug}] re-probe failed:`, err);
         });
       }
@@ -1980,6 +2061,72 @@ export function createSyncRuntime(
         reprobeTimer = null;
         reprobeNow();
       }, reprobeMs);
+    };
+
+    /**
+     * Arm the transient lane's ONE timer (single-flight) for the earliest due
+     * document — or, when the sliding budget is spent, for the moment its
+     * oldest re-auth leaves the window — plus jitter.
+     */
+    const armTransientRetry = (): void => {
+      if (transientRetryTimer !== null || stopped || rejectedTransient.size === 0) return;
+      let at = Number.POSITIVE_INFINITY;
+      for (const e of rejectedTransient.values()) at = Math.min(at, e.dueAt);
+      const oldestSpend = transientSpent[0];
+      if (transientSpent.length >= transientBatch && oldestSpend !== undefined) {
+        at = Math.max(at, oldestSpend + transientRetryMs);
+      }
+      const delay = Math.max(0, at - renewNow()) + Math.floor(authRandom() * transientJitterMs);
+      transientRetryTimer = authSetTimer(
+        () => {
+          transientRetryTimer = null;
+          retryTransientNow();
+        },
+        Math.min(MAX_TIMER_DELAY_MS, delay)
+      );
+    };
+
+    /**
+     * Re-authenticate the due transiently-refused documents — only those, never
+     * the shared socket — up to the budget, oldest first; the rest wait for the
+     * next arm. The swap is the re-probe's: destroy the refused provider and
+     * reconnect on the SAME doc, so the agent and projection wiring carry over.
+     * A provider attached to an already-open socket sends its token at once
+     * (`HocuspocusProviderWebsocket.attach` → `provider.onOpen`).
+     */
+    const retryTransientNow = (): void => {
+      if (stopped) return;
+      const now = renewNow();
+      while (transientSpent.length > 0 && now - (transientSpent[0] ?? now) >= transientRetryMs) {
+        transientSpent.shift();
+      }
+      const due = [...rejectedTransient.entries()]
+        .filter(([, e]) => e.dueAt <= now)
+        .sort((x, y) => x[1].dueAt - y[1].dueAt)
+        .slice(0, Math.max(0, transientBatch - transientSpent.length));
+      for (const [slug, entry] of due) {
+        rejectedTransient.delete(slug);
+        if (providers.get(slug) !== entry.provider) continue;
+        transientSpent.push(now);
+        providers.delete(slug);
+        try {
+          entry.provider.destroy();
+        } catch {
+          /* best-effort */
+        }
+        mon.noteDocState(slug, 'pending');
+        // Not a boot connect — a retry must never join the one-shot boot summary.
+        void connectCanvas(
+          entry.canvas,
+          entry.canvasPaths,
+          entry.doc,
+          owedSetups.get(slug),
+          false
+        ).catch((err) => {
+          console.error(`[sync/${slug}] transient re-auth failed:`, err);
+        });
+      }
+      armTransientRetry();
     };
 
     /**
@@ -2084,8 +2231,9 @@ export function createSyncRuntime(
       if (authWarnTimer === null) authWarnTimer = authSetTimer(flushAuthWarn, warnDebounceMs);
       // Permanent classes: retrying only spams the hub (and its rate bucket) —
       // destroy the provider and re-probe on a slow timer. Transient classes
-      // (rate-limit / generic) keep the provider's built-in backoff.
+      // (rate-limit / generic) get the paced retry below.
       if (reasonClass === 'not-authorized' || reasonClass === 'invalid-token') {
+        rejectedTransient.delete(canvas.slug);
         if (!rejectedPermanent.has(canvas.slug)) {
           rejectedPermanent.set(canvas.slug, { canvas, canvasPaths, doc: provider.document });
           providers.delete(canvas.slug);
@@ -2107,6 +2255,31 @@ export function createSyncRuntime(
             if (renewed) reprobeNow();
           });
         }
+      } else if (!rejectedTransient.has(canvas.slug)) {
+        // THE HUB MAY WELL SAY YES NEXT WINDOW — BUT NOTHING WOULD ASK IT.
+        //
+        // These classes used to be left to "the provider's built-in backoff".
+        // Under DDR-102 multiplexing that backoff is the SOCKET's reconnect
+        // loop, and a partial refusal never closes a socket the other
+        // documents keep healthy — so a refused document stayed refused until
+        // the process ended. Queue it for the runtime's own retry instead: one
+        // hub window out, doubling on each repeat (capped at the re-probe
+        // interval), reset by a handshake that lands. The `has` guard keeps a
+        // repeated event for one refusal from counting as a second strike.
+        const strikes = (transientStrikes.get(canvas.slug) ?? 0) + 1;
+        transientStrikes.set(canvas.slug, strikes);
+        const wait = Math.min(
+          Math.max(transientRetryMs, reprobeMs),
+          transientRetryMs * 2 ** (strikes - 1)
+        );
+        rejectedTransient.set(canvas.slug, {
+          canvas,
+          canvasPaths,
+          doc: provider.document,
+          provider,
+          dueAt: renewNow() + wait,
+        });
+        armTransientRetry();
       }
     };
 
@@ -2126,6 +2299,8 @@ export function createSyncRuntime(
      */
     const clearRejection = (slug: string): void => {
       rejectedPermanent.delete(slug);
+      rejectedTransient.delete(slug);
+      transientStrikes.delete(slug);
       rejectedAny.delete(slug);
       if (!rejectedReasons.delete(slug)) return;
       console.log(`[sync/${slug}] the hub accepted this document — clearing its refusal.`);
@@ -2344,8 +2519,8 @@ export function createSyncRuntime(
       // REFUSED IS REFUSED, WHATEVER THE CLASS.
       //
       // This guard read `rejectedPermanent`, and that map holds only the two
-      // PERMANENT classes — `handleAuthFailure` puts `generic` and `rate-limit`
-      // nowhere (they keep their provider and its backoff). `generic` is what
+      // PERMANENT classes — `generic` and `rate-limit` keep their provider
+      // until the transient retry swaps it, and never enter it. `generic` is what
       // EVERY pre-DDR-102 hub sends. So a refusal in a transient class passed
       // straight through this guard and got overwritten with `connected`
       // (attacker review 2026-09-03, F3): the hub was dropping this document's
@@ -2594,6 +2769,7 @@ export function createSyncRuntime(
       // the same order relative to each other.
       const deferSetup = !!setup && pulledSlugs.has(canvas.slug);
       if (!deferSetup) setup?.(provider);
+      else if (setup) owedSetups.set(canvas.slug, setup);
 
       // Task 8 — feed this provider's WS status into the offline monitor.
       // Per-provider, so a socket that never dropped never triggers a poll.
@@ -2663,6 +2839,8 @@ export function createSyncRuntime(
       // Cold-start reconcile fires once the provider has hub state.
       const synced = provider.onceSynced().then(() => {
         if (deferSetup) {
+          // Settled either way below — run, or the canvas is released.
+          owedSetups.delete(canvas.slug);
           // Abandon before `setup?.()`, so no projection and no agent is ever
           // built for a canvas we are not going to place — nothing exists that
           // could flush the document onto the provisional path on the way out.
@@ -3441,7 +3619,11 @@ export function createSyncRuntime(
     //   • `state === 'online'`  — offline already has its own recovery path.
     //   • `synced === 0 && pending > 0` — some progress means it is working,
     //     just slowly; this is only for the total stall.
-    //   • `rejected === 0` — a refusal is the auth lane's (renew + re-probe).
+    //   • `rejected === 0` — a refusal is the auth lane's: renew + re-probe for
+    //     the permanent classes, the paced per-document retry for the
+    //     transient ones. Cycling the socket would re-authenticate EVERY
+    //     document to recover a few, and a volume refusal is exactly when
+    //     that burst hurts most.
     //   • a floor between forced reconnects, so a hub that is simply down
     //     cannot be turned into a reconnect storm by its own silence.
     // The socket-cycling capability, resolved once.
@@ -3688,6 +3870,10 @@ export function createSyncRuntime(
       authClearTimer(reprobeTimer);
       reprobeTimer = null;
     }
+    if (transientRetryTimer !== null) {
+      authClearTimer(transientRetryTimer);
+      transientRetryTimer = null;
+    }
     if (renewTimer !== null) {
       authClearTimer(renewTimer);
       renewTimer = null;
@@ -3697,6 +3883,10 @@ export function createSyncRuntime(
     for (const h of announceTimers.values()) clearTimeout(h);
     announceTimers.clear();
     rejectedPermanent.clear();
+    rejectedTransient.clear();
+    transientStrikes.clear();
+    transientSpent.length = 0;
+    owedSetups.clear();
     busUnsub?.();
     busUnsub = null;
     fsReader?.stop();

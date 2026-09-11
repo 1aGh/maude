@@ -529,3 +529,96 @@ describe('the fresh-link relaxation closes behind itself', () => {
     expect(existsSync(join(ctx.paths.designRoot, 'screens', 'a.tsx'))).toBe(false);
   });
 });
+
+// A pulled canvas builds its agent AFTER the handshake — the body path is not
+// known before the document arrives — so its setup is deferred. A refusal at
+// that first handshake used to strand the setup: every reconnect (the paced
+// transient retry, the permanent re-probe) re-created the provider WITHOUT it,
+// so the hub's eventual yes synced the document into memory and nothing ever
+// wrote it to disk (RCA issue-sync-rate-limited-docs-never-retried, review).
+// FAIL-FIRST: pass `undefined` instead of the owed setup on reconnect → red.
+describe('a pulled canvas refused at its first handshake still lands once the hub says yes', () => {
+  for (const [label, reason, waitMs] of [
+    ['transient (rate limit → paced retry)', 'rate limit exceeded for this token', 60_000],
+    [
+      'permanent (not authorized → re-probe)',
+      'token not authorized for this documentName',
+      300_000,
+    ],
+  ] as const) {
+    test(label, async () => {
+      hubListing([{ name: `ws/acme/main/${NESTED_SLUG}`, bytes: BODY.length }]);
+      const ctx = makeCtx();
+      let now = 0;
+      const timers = new Map<number, { cb: () => void; at: number }>();
+      let nextId = 1;
+      let round = 0;
+      const factory = (args: { documentName: string; document?: Y.Doc }): SyncProvider => {
+        const doc = args.document ?? new Y.Doc();
+        const first = round++ === 0;
+        // The hub's content, once — a reconnect reuses the same doc.
+        if (first) {
+          doc.transact(() => {
+            doc.getText('html').insert(0, BODY);
+            doc.getMap('syncMeta').set('path', NESTED_REL);
+          }, 'hub');
+        }
+        return {
+          document: doc,
+          awareness: new Awareness(doc),
+          onAuthFailed(cb: (info: { reason: string }) => void) {
+            if (first) queueMicrotask(() => cb({ reason }));
+            return () => {};
+          },
+          onceSynced: () => (first ? new Promise<void>(() => {}) : Promise.resolve()),
+          destroy() {},
+        };
+      };
+      const origWarn = console.warn;
+      const origLog = console.log;
+      console.warn = () => {};
+      console.log = () => {};
+      try {
+        const runtime = createSyncRuntime(ctx, {
+          providerFactory: factory,
+          auth: {
+            reprobeMs: 300_000,
+            settleTimeoutMs: 15_000,
+            transientRetryMs: 60_000,
+            transientJitterMs: 0,
+            now: () => now,
+            setTimer: (cb: () => void, ms: number) => {
+              const id = nextId++;
+              timers.set(id, { cb, at: now + ms });
+              return id as unknown as ReturnType<typeof setTimeout>;
+            },
+            clearTimer: (h: ReturnType<typeof setTimeout>) => {
+              timers.delete(h as unknown as number);
+            },
+          },
+        });
+        await runtime?.start();
+        await new Promise((r) => setTimeout(r, 10));
+        const wanted = join(ctx.paths.designRoot, NESTED_REL);
+        expect(existsSync(wanted)).toBe(false);
+
+        // Let the recovery path's timer come due, then let the handshake land.
+        now = waitMs;
+        for (const [id, t] of [...timers.entries()].sort((a, b) => a[1].at - b[1].at)) {
+          if (t.at > now || !timers.has(id)) continue;
+          timers.delete(id);
+          t.cb();
+        }
+        await new Promise((r) => setTimeout(r, 50));
+        await runtime?.stop();
+
+        expect(round).toBe(2);
+        expect(existsSync(wanted)).toBe(true);
+        expect(readFileSync(wanted, 'utf8')).toBe(BODY);
+      } finally {
+        console.warn = origWarn;
+        console.log = origLog;
+      }
+    });
+  }
+});

@@ -1712,6 +1712,10 @@ describe('DDR-102 — auth-failure intelligence + boot summary', () => {
       warns.push(args.map(String).join(' '));
     };
 
+    // The transient retry checks each document's due time against this clock;
+    // the delay-bucket queue does not move one, so the test moves it with the
+    // 5-minute sweep below.
+    let nowMs = 0;
     try {
       const runtime = createSyncRuntime(ctx, {
         providerFactory: factory,
@@ -1721,6 +1725,7 @@ describe('DDR-102 — auth-failure intelligence + boot summary', () => {
           settleTimeoutMs: 15_000,
           setTimer: timers.setTimer,
           clearTimer: timers.clearTimer,
+          now: () => nowMs,
         },
       });
       await runtime?.start();
@@ -1743,7 +1748,7 @@ describe('DDR-102 — auth-failure intelligence + boot summary', () => {
       expect(status?.rejectedSlugs?.sort()).toEqual(['ui-a', 'ui-b', 'ui-c']);
 
       // Permanent classes destroyed (retry storm stopped); transient keeps its
-      // provider (built-in backoff).
+      // provider until the paced retry swaps it (asserted below).
       expect(bySlug('ui-a').destroyed).toBe(true);
       expect(bySlug('ui-b').destroyed).toBe(true);
       expect(bySlug('ui-c').destroyed).toBe(false);
@@ -1761,13 +1766,20 @@ describe('DDR-102 — auth-failure intelligence + boot summary', () => {
       expect(authWarns[0]).toContain('HUB_CONN_RATE_LIMIT');
 
       // Re-probe (5 min): the two permanently-rejected docs reconnect with the
-      // SAME doc instance (agent wiring survives the provider swap).
+      // SAME doc instance (agent wiring survives the provider swap) — and so
+      // does the rate-limited one, on its own shorter timer. This used to pin
+      // only a + b: nothing ever asked whether ui-c came back, and it didn't
+      // (RCA issue-sync-rate-limited-docs-never-retried).
       const docA = bySlug('ui-a').document;
+      const docC = bySlug('ui-c').document;
+      nowMs = 300_000;
       timers.fire(300_000);
       await new Promise((res) => setTimeout(res, 10));
       const reprobed = made.slice(3);
-      expect(reprobed.map((m) => m.documentName).sort()).toEqual(['ui-a', 'ui-b']);
+      expect(reprobed.map((m) => m.documentName).sort()).toEqual(['ui-a', 'ui-b', 'ui-c']);
       expect(reprobed.find((m) => m.documentName === 'ui-a')?.document).toBe(docA);
+      expect(reprobed.find((m) => m.documentName === 'ui-c')?.document).toBe(docC);
+      expect(bySlug('ui-c').destroyed).toBe(true);
 
       await runtime?.stop();
     } finally {
@@ -2228,5 +2240,295 @@ describe('DDR-102 — auth-failure intelligence + boot summary', () => {
       console.log = origLog;
       console.warn = origWarn;
     }
+  });
+});
+
+// ── A transient refusal on the shared socket is retried by the runtime ───────
+//
+// RCA `issue-sync-rate-limited-docs-never-retried` (2026-09-11). `rate-limit`
+// and `generic` refusals were parked on "the provider's built-in backoff" —
+// and under DDR-102 multiplexing there is none: a provider re-sends its token
+// only when the SHARED socket opens, and the socket never closes while the
+// documents that did authenticate keep it busy. 16 of 112 canvases stayed
+// `auth-rejected` for the life of the process on design.studyfi.com.
+// FAIL-FIRST: every test below except the stop-safety one goes red on the
+// pre-fix runtime (no retry lane — `ui-c` is never re-created). Each guard is
+// also pinned on its own: dropping the batch budget, the doubling, the
+// single-flight check, the strike reset in `clearRejection`, or the timer
+// clear in `stop()` turns exactly its test red.
+describe('transient auth refusals — the runtime-owned paced retry', () => {
+  /**
+   * A clocked scheduler. `fakeTimerQueue` above fires by DELAY bucket, which
+   * cannot say "never more than N re-auths inside any 60 s" or "not before a
+   * full window": this one keeps absolute due times, fires in due order, and
+   * runs timers armed while it advances.
+   */
+  function fakeClock() {
+    let now = 1_000_000;
+    let nextId = 1;
+    const timers = new Map<number, { cb: () => void; at: number }>();
+    const flush = () => new Promise((res) => setTimeout(res, 0));
+    return {
+      now: () => now,
+      setTimer: (cb: () => void, ms: number) => {
+        const id = nextId++;
+        timers.set(id, { cb, at: now + ms });
+        return id as unknown as ReturnType<typeof setTimeout>;
+      },
+      clearTimer: (h: ReturnType<typeof setTimeout>) => {
+        timers.delete(h as unknown as number);
+      },
+      async advance(ms: number) {
+        const end = now + ms;
+        for (;;) {
+          let dueId = -1;
+          let dueAt = Number.POSITIVE_INFINITY;
+          for (const [id, t] of timers) {
+            if (t.at <= end && t.at < dueAt) {
+              dueAt = t.at;
+              dueId = id;
+            }
+          }
+          if (dueId === -1) break;
+          const t = timers.get(dueId);
+          timers.delete(dueId);
+          now = dueAt;
+          t?.cb();
+          // connectCanvas awaits the factory — let it land before moving on.
+          await flush();
+          await flush();
+        }
+        now = end;
+        await flush();
+      },
+      pending: () => timers.size,
+    };
+  }
+
+  /** Providers that refuse on demand and complete a handshake on demand. */
+  function retryStubFactory(clock: { now: () => number }) {
+    const made: Array<{
+      documentName: string;
+      at: number;
+      destroyed: boolean;
+      document: Y.Doc;
+      emitAuthFailure: (reason: string) => void;
+      sync: () => void;
+    }> = [];
+    const factory = (args: { documentName: string; document?: Y.Doc }) => {
+      const document = args.document ?? new Y.Doc();
+      const cbs = new Set<(info: { reason: string }) => void>();
+      let resolveSynced: () => void = () => {};
+      const synced = new Promise<void>((res) => {
+        resolveSynced = res;
+      });
+      const entry = {
+        documentName: args.documentName,
+        at: clock.now(),
+        destroyed: false,
+        document,
+        emitAuthFailure: (reason: string) => {
+          for (const cb of cbs) cb({ reason });
+        },
+        sync: () => resolveSynced(),
+      };
+      made.push(entry);
+      return {
+        document,
+        onAuthFailed(cb: (info: { reason: string }) => void) {
+          cbs.add(cb);
+          return () => cbs.delete(cb);
+        },
+        onceSynced: () => synced,
+        destroy() {
+          entry.destroyed = true;
+        },
+      };
+    };
+    const of = (slug: string) => made.filter((m) => m.documentName === slug);
+    const latest = (slug: string) => {
+      const all = of(slug);
+      const m = all[all.length - 1];
+      if (!m) throw new Error(`no provider for ${slug}`);
+      return m;
+    };
+    return { factory, made, of, latest };
+  }
+
+  const RATE_LIMIT = 'rate limit exceeded for this token — retry in up to 60s';
+  const WINDOW = 60_000;
+  const JITTER = 15_000;
+
+  async function boot(
+    slugs: string[],
+    auth: Record<string, unknown> = {}
+  ): Promise<{
+    runtime: ReturnType<typeof createSyncRuntime>;
+    clock: ReturnType<typeof fakeClock>;
+    stub: ReturnType<typeof retryStubFactory>;
+  }> {
+    const url = 'https://hub.example.com';
+    writeHubsConfig(url, 'mau_test');
+    const ctx = makeCtx({ url, linkedAt: 1 });
+    for (const s of slugs) writeFileSync(join(ctx.paths.designRoot, 'ui', `${s}.html`), `<${s}/>`);
+    const clock = fakeClock();
+    const stub = retryStubFactory(clock);
+    const runtime = createSyncRuntime(ctx, {
+      providerFactory: stub.factory,
+      auth: {
+        warnDebounceMs: 2_000,
+        reprobeMs: 300_000,
+        settleTimeoutMs: 15_000,
+        setTimer: clock.setTimer,
+        clearTimer: clock.clearTimer,
+        now: clock.now,
+        transientRetryMs: WINDOW,
+        transientJitterMs: JITTER,
+        random: () => 0.999,
+        ...auth,
+      },
+    });
+    await runtime?.start();
+    return { runtime, clock, stub };
+  }
+
+  let origWarn: typeof console.warn;
+  let origLog: typeof console.log;
+  beforeEach(() => {
+    origWarn = console.warn;
+    origLog = console.log;
+    console.warn = () => {};
+    console.log = () => {};
+  });
+  afterEach(() => {
+    console.warn = origWarn;
+    console.log = origLog;
+  });
+
+  test('a rate-limited document is re-authenticated after one window + jitter, alone, on its own doc', async () => {
+    const { runtime, clock, stub } = await boot(['a', 'b', 'c']);
+    expect(stub.made).toHaveLength(3);
+    const first = stub.latest('ui-c');
+    first.emitAuthFailure(RATE_LIMIT);
+    expect(runtime?.status().rejectedSlugs).toEqual(['ui-c']);
+
+    // Not inside the window the hub just refused in.
+    await clock.advance(WINDOW - 1);
+    expect(stub.of('ui-c')).toHaveLength(1);
+
+    // One window + the maximum jitter later: exactly ONE new provider, for
+    // ui-c, on the SAME Y.Doc (agent wiring survives the swap).
+    await clock.advance(JITTER + 1);
+    expect(stub.of('ui-c')).toHaveLength(2);
+    expect(stub.latest('ui-c').document).toBe(first.document);
+    expect(first.destroyed).toBe(true);
+    // The documents that authenticated are untouched.
+    expect(stub.of('ui-a')).toHaveLength(1);
+    expect(stub.of('ui-b')).toHaveLength(1);
+    expect(stub.latest('ui-a').destroyed).toBe(false);
+    expect(stub.latest('ui-b').destroyed).toBe(false);
+
+    // The hub accepts this time → the refusal clears.
+    stub.latest('ui-c').sync();
+    await clock.advance(10);
+    expect(runtime?.status().rejectedSlugs ?? []).toEqual([]);
+    expect(runtime?.status().docs?.rejected).toBe(0);
+
+    await runtime?.stop();
+  });
+
+  test('the generic class (every pre-DDR-102 hub) takes the same recovery path', async () => {
+    const { runtime, clock, stub } = await boot(['a', 'c']);
+    stub.latest('ui-c').emitAuthFailure('permission-denied');
+    await clock.advance(WINDOW + JITTER);
+    expect(stub.of('ui-c')).toHaveLength(2);
+    expect(stub.of('ui-a')).toHaveLength(1);
+    stub.latest('ui-c').sync();
+    await clock.advance(10);
+    expect(runtime?.status().rejectedSlugs ?? []).toEqual([]);
+    await runtime?.stop();
+  });
+
+  test('batch pacing: 40 refusals under a budget of 10 → never more than 10 re-auths in any 60 s', async () => {
+    const slugs = Array.from({ length: 40 }, (_, i) => `d${String(i).padStart(2, '0')}`);
+    const { runtime, clock, stub } = await boot(slugs, { transientBatch: 10 });
+    expect(stub.made).toHaveLength(40);
+    const bootCount = stub.made.length;
+    for (const m of [...stub.made]) m.emitAuthFailure(RATE_LIMIT);
+    expect(runtime?.status().docs?.rejected).toBe(40);
+
+    // First window after the refusal: exactly the budget.
+    await clock.advance(WINDOW + JITTER);
+    expect(stub.made.length - bootCount).toBe(10);
+
+    // Drain the rest, then check the sliding-window property over every retry.
+    await clock.advance(10 * WINDOW);
+    const retries = stub.made.slice(bootCount);
+    expect(retries).toHaveLength(40);
+    expect(new Set(retries.map((r) => r.documentName)).size).toBe(40);
+    for (const r of retries) {
+      const inSpan = retries.filter((x) => x.at >= r.at && x.at < r.at + WINDOW).length;
+      expect(inSpan).toBeLessThanOrEqual(10);
+    }
+    await runtime?.stop();
+  });
+
+  test('backoff: repeat refusals double the wait up to the re-probe cap; one handshake resets it', async () => {
+    const { runtime, clock, stub } = await boot(['c'], { transientJitterMs: 0 });
+    const waitFor = async (expected: number) => {
+      const before = stub.of('ui-c').length;
+      stub.latest('ui-c').emitAuthFailure(RATE_LIMIT);
+      await clock.advance(expected - 1);
+      expect(stub.of('ui-c')).toHaveLength(before);
+      await clock.advance(1);
+      expect(stub.of('ui-c')).toHaveLength(before + 1);
+    };
+    await waitFor(60_000);
+    await waitFor(120_000);
+    await waitFor(240_000);
+    await waitFor(300_000); // 480 s, capped at AUTH_REPROBE_MS
+    await waitFor(300_000);
+
+    // A handshake that lands resets the ladder.
+    stub.latest('ui-c').sync();
+    await clock.advance(10);
+    expect(runtime?.status().rejectedSlugs ?? []).toEqual([]);
+    await waitFor(60_000);
+    await runtime?.stop();
+  });
+
+  test('single-flight: a second burst while the retry is armed arms no second timer', async () => {
+    const { runtime, clock, stub } = await boot(['a', 'b', 'c']);
+    // Past the boot settle ceiling, so only the lanes under test hold timers.
+    await clock.advance(20_000);
+    const base = clock.pending();
+
+    stub.latest('ui-c').emitAuthFailure(RATE_LIMIT);
+    await clock.advance(2_500); // the aggregated warn flushes
+    expect(clock.pending()).toBe(base + 1);
+
+    stub.latest('ui-b').emitAuthFailure(RATE_LIMIT);
+    await clock.advance(2_500);
+    expect(clock.pending()).toBe(base + 1);
+
+    // Both recover, each exactly once.
+    await clock.advance(2 * (WINDOW + JITTER));
+    expect(stub.of('ui-c')).toHaveLength(2);
+    expect(stub.of('ui-b')).toHaveLength(2);
+    expect(stub.of('ui-a')).toHaveLength(1);
+    await runtime?.stop();
+  });
+
+  test('stop() with a retry armed clears it and creates no provider afterwards', async () => {
+    const { runtime, clock, stub } = await boot(['a', 'c']);
+    stub.latest('ui-c').emitAuthFailure(RATE_LIMIT);
+    await runtime?.stop();
+    // Cleared, not merely defused: asserted BEFORE advancing, because a timer
+    // left armed fires during `advance` and leaves the queue either way — and
+    // the `stopped` guard inside it would still keep the provider count flat.
+    expect(clock.pending()).toBe(0);
+    const after = stub.made.length;
+    await clock.advance(10 * WINDOW);
+    expect(stub.made).toHaveLength(after);
   });
 });
