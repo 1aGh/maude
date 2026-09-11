@@ -9,6 +9,7 @@
 // (entry.tour[]) land in Phase 3 — the panel/toast leave a hook for them.
 
 import { useCallback, useEffect, useState } from 'react';
+import { dismissNotice, notify } from '../notifications.tsx';
 import { bestSeenVersion, computeUnseen } from './whats-new-seen.js';
 
 const WN_SEEN = 'mdcc-whatsnew-seen';
@@ -143,37 +144,28 @@ export function WhatsNewBadge({ count = 0, onOpen }) {
 }
 
 export function WhatsNewToast({ wn }) {
-  if (!wn.showToast || !wn.toastEntry) return null;
-  const e = wn.toastEntry;
-  const total = wn.unseen.length;
-  // Plan C P6 — restyled to the maude `.st-toast` family (was `mdcc-wn-toast`),
-  // matching `.design/ui/Studio.tsx` AB-D. Behavior unchanged.
-  return (
-    <div className="st-toast" role="status" aria-live="polite">
-      <button
-        type="button"
-        className="st-toast-close"
-        aria-label="Dismiss"
-        onClick={wn.dismissToast}
-      >
-        ×
-      </button>
-      <div className="st-toast-hd">
-        <span aria-hidden="true">✦</span>
-        What's new{e.version ? ` · v${e.version}` : ''}
-      </div>
-      <div className="st-toast-title">{e.title}</div>
-      <div className="st-toast-txt">{e.summary}</div>
-      <div className="st-toast-actions">
-        <button type="button" className="btn btn--primary btn--sm" onClick={wn.openPanel}>
-          {total > 1 ? `See all (${total})` : 'Details'}
-        </button>
-        <button type="button" className="btn btn--ghost btn--sm" onClick={wn.dismissToast}>
-          Dismiss
-        </button>
-      </div>
-    </div>
-  );
+  const id = `whats-new-${wn.feedVersion}`;
+  useEffect(() => {
+    if (!wn.showToast || !wn.toastEntry) {
+      dismissNotice(id);
+      return;
+    }
+    notify({
+      id,
+      group: 'whats-new',
+      kind: 'info',
+      duration: 10_000,
+      title: `What's new${wn.toastEntry.version ? ` · v${wn.toastEntry.version}` : ''} — ${wn.toastEntry.title}`,
+      description: wn.toastEntry.summary,
+      action: {
+        label: wn.unseen.length > 1 ? `See all (${wn.unseen.length})` : 'Details',
+        onClick: wn.openPanel,
+      },
+      onDismiss: wn.dismissToast,
+    });
+  }, [id, wn.showToast, wn.toastEntry, wn.unseen.length, wn.openPanel, wn.dismissToast]);
+  useEffect(() => () => dismissNotice(id), [id]);
+  return null;
 }
 
 export function WhatsNewPanel({ wn, onStartTour }) {
@@ -229,7 +221,9 @@ export function WhatsNewPanel({ wn, onStartTour }) {
                   <div className="mdcc-wn-item__hd">
                     <span className={'mdcc-wn-kind mdcc-wn-kind--' + e.kind}>{e.kind}</span>
                     <span className="mdcc-wn-item__title">{e.title}</span>
-                    <span className="mdcc-wn-item__ver">{e.version ? `v${e.version}` : 'next'}</span>
+                    <span className="mdcc-wn-item__ver">
+                      {e.version ? `v${e.version}` : 'next'}
+                    </span>
                   </div>
                   <p className="mdcc-wn-item__summary">{e.summary}</p>
                   {isSafeHref(e.learnMore) && (

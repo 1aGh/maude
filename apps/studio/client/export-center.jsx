@@ -12,6 +12,7 @@
 // (`.st-exports`) and 4-components.css (`.st-export-*`).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { dismissNotice, notify, summarizeNoticeText } from '../notifications.tsx';
 import { isNativeApp, saveExport } from './github.js';
 
 const FORMAT_LABELS = {
@@ -75,6 +76,7 @@ async function saveNative(id, filename) {
 export function useExportCenter({ enabled = true } = {}) {
   const [jobs, setJobs] = useState(() => new Map());
   const [panelOpen, setPanelOpen] = useState(false);
+  const [selectedJobId, setSelectedJobId] = useState(null);
   const [toastQueue, setToastQueue] = useState([]);
   const [savingIds, setSavingIds] = useState(() => new Set());
   const prevStatusRef = useRef(new Map());
@@ -149,7 +151,7 @@ export function useExportCenter({ enabled = true } = {}) {
     if (toSurface.length) {
       setToastQueue((q) => {
         const merged = q.filter((id) => !toSurface.includes(id));
-        return [...toSurface, ...merged].slice(0, 8);
+        return [...toSurface, ...merged];
       });
     }
 
@@ -169,14 +171,22 @@ export function useExportCenter({ enabled = true } = {}) {
 
   const list = useMemo(
     () =>
-      Array.from(jobs.values()).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
+      Array.from(jobs.values()).sort((a, b) =>
+        (b.createdAt || '').localeCompare(a.createdAt || '')
+      ),
     [jobs]
   );
   const runningCount = list.filter((j) => j.status === 'running').length;
   const queuedCount = list.filter((j) => j.status === 'queued').length;
 
-  const dismissToast = useCallback(() => setToastQueue((q) => q.slice(1)), []);
-  const openPanel = useCallback(() => setPanelOpen(true), []);
+  const dismissToast = useCallback(
+    (id) => setToastQueue((q) => q.filter((item) => item !== (id ?? q[0]))),
+    []
+  );
+  const openPanel = useCallback((jobId) => {
+    setSelectedJobId(typeof jobId === 'string' ? jobId : null);
+    setPanelOpen(true);
+  }, []);
   const closePanel = useCallback(() => setPanelOpen(false), []);
 
   const withSaving = useCallback(async (job, fn) => {
@@ -221,6 +231,8 @@ export function useExportCenter({ enabled = true } = {}) {
     queuedCount,
     busyCount: runningCount + queuedCount,
     panelOpen,
+    selectedJobId,
+    toastJobs: toastQueue.map((id) => jobs.get(id)).filter(Boolean),
     openPanel,
     closePanel,
     showToast: !!toastJobId,
@@ -248,7 +260,9 @@ function saveActionLabel(saving) {
 
 function ProgressBar({ progress }) {
   if (!progress || !progress.total) {
-    return <div className="st-export-progress st-export-progress--indeterminate" aria-hidden="true" />;
+    return (
+      <div className="st-export-progress st-export-progress--indeterminate" aria-hidden="true" />
+    );
   }
   const pct = Math.max(0, Math.min(100, Math.round((progress.current / progress.total) * 100)));
   return (
@@ -331,7 +345,7 @@ function StatusPill({ job }) {
  * back degraded — in the panel row and in the completion toast, because the
  * whole failure mode of this bug was that neither surface said anything.
  */
-function DegradedNote({ degraded }) {
+function DegradedNote({ degraded, compact = false }) {
   if (!degraded) return null;
   // The font case names the fonts, because "reduced fidelity" is useless to
   // someone about to send this to a printer — what they need is which faces
@@ -344,8 +358,12 @@ function DegradedNote({ degraded }) {
       : 'Exported with reduced fidelity.';
   return (
     <div className="st-export-degraded" data-testid="export-degraded-note">
-      <span aria-hidden="true">⚠</span> {headline}
-      {degraded.remedy ? <div className="st-export-degraded__fix">{degraded.remedy}</div> : null}
+      <span aria-hidden="true">!</span> {compact ? summarizeNoticeText(headline) : headline}
+      {degraded.remedy ? (
+        <div className="st-export-degraded__fix">
+          {compact ? summarizeNoticeText(degraded.remedy) : degraded.remedy}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -372,65 +390,88 @@ export function ExportBadge({ center }) {
   );
 }
 
-export function ExportToast({ center }) {
-  if (!center.showToast || !center.toastJob) return null;
-  const job = center.toastJob;
+function ExportJobNotice({ job, center }) {
   const pending = job.status === 'queued' || job.status === 'running';
   const ok = job.status === 'done';
   const saving = center.savingIds.has(job.id);
-  const finalize = () => {
-    if (isNativeApp()) void center.save(job);
-    else void center.download(job);
-  };
-  return (
-    <div className="st-toast" role="status" aria-live="polite">
-      <button type="button" className="st-toast-close" aria-label="Dismiss" onClick={center.dismissToast}>
-        ×
-      </button>
-      <div className="st-toast-hd">
-        <span aria-hidden="true">{pending ? '⋯' : ok && !job.degraded ? '⬇' : '⚠'}</span>
-        {pending
-          ? 'Exporting…'
-          : ok
-            ? job.degraded
-              ? 'Export ready — with a problem'
-              : 'Export ready'
-            : 'Export failed'}
-      </div>
-      <div className="st-toast-title">{jobLabel(job)}</div>
-      {pending ? (
+  const id = `export-${job.id}`;
+  useEffect(() => {
+    notify({
+      id,
+      group: 'exports',
+      title: pending
+        ? 'Exporting…'
+        : ok
+          ? job.degraded
+            ? 'Export ready — with a problem'
+            : 'Export ready'
+          : 'Export failed',
+      description: pending
+        ? 'Running in the background — you can keep working.'
+        : ok
+          ? (job.filename ?? 'Ready to download.')
+          : (job.error ?? 'Something went wrong.'),
+      kind: pending ? 'info' : ok ? (job.degraded ? 'warning' : 'success') : 'error',
+      duration: pending ? Infinity : undefined,
+      timerKey: pending ? 'active' : job.status,
+      paused: saving,
+      onDismiss: () => center.dismissToast(job.id),
+      content: (
         <>
-          <div className="st-toast-txt">Running in the background — you can keep working.</div>
-          <ProgressBar progress={job.progress} />
+          <div className="maude-notice-summary">{jobLabel(job)}</div>
+          {pending && <ProgressBar progress={job.progress} />}
+          {ok && <DegradedNote degraded={job.degraded} compact />}
+          <div className="st-toast-actions">
+            {ok && (
+              <button
+                type="button"
+                className="btn btn--primary btn--sm"
+                disabled={saving}
+                onClick={() => (isNativeApp() ? void center.save(job) : void center.download(job))}
+              >
+                {saving && <span className="st-btn-spin" aria-hidden="true" />}
+                {saveActionLabel(saving)}
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={() => center.openPanel(job.id)}
+            >
+              View in history
+            </button>
+          </div>
         </>
-      ) : (
-        <div className="st-toast-txt">
-          {ok ? (job.filename ?? 'Ready to download.') : (job.error ?? 'Something went wrong.')}
-        </div>
-      )}
-      {ok && <DegradedNote degraded={job.degraded} />}
-      {ok && (
-        <div className="st-toast-actions">
-          <button
-            type="button"
-            className="btn btn--primary btn--sm"
-            onClick={finalize}
-            disabled={saving}
-          >
-            {saving && <span className="st-btn-spin" aria-hidden="true" />}
-            {saveActionLabel(saving)}
-          </button>
-          <button type="button" className="btn btn--ghost btn--sm" onClick={center.dismissToast}>
-            Dismiss
-          </button>
-        </div>
-      )}
-    </div>
-  );
+      ),
+    });
+  }, [
+    id,
+    job,
+    pending,
+    ok,
+    saving,
+    center.dismissToast,
+    center.openPanel,
+    center.save,
+    center.download,
+  ]);
+  useEffect(() => () => dismissNotice(id), [id]);
+  return null;
+}
+
+export function ExportToast({ center }) {
+  return center.toastJobs.map((job) => <ExportJobNotice key={job.id} job={job} center={center} />);
 }
 
 export function ExportPanel({ center }) {
-  const { panelOpen, closePanel } = center;
+  const { panelOpen, closePanel, selectedJobId } = center;
+  const selectedRow = useRef(null);
+  useEffect(() => {
+    if (panelOpen && selectedJobId) {
+      selectedRow.current?.scrollIntoView?.({ block: 'nearest' });
+      selectedRow.current?.focus();
+    }
+  }, [panelOpen, selectedJobId]);
   useEffect(() => {
     if (!panelOpen) return;
     function onKey(e) {
@@ -474,7 +515,13 @@ export function ExportPanel({ center }) {
           ) : (
             <ul className="st-export-list">
               {center.jobs.map((job) => (
-                <li key={job.id} className="st-export-item">
+                <li
+                  key={job.id}
+                  className="st-export-item"
+                  data-testid={`export-job-${job.id}`}
+                  ref={job.id === selectedJobId ? selectedRow : null}
+                  tabIndex={-1}
+                >
                   <div className="st-export-item__hd">
                     <span className="st-export-item__label">{jobLabel(job)}</span>
                     <StatusPill job={job} />
@@ -501,7 +548,10 @@ export function ExportPanel({ center }) {
                   )}
                   {job.status === 'failed' && (
                     <div className="st-export-item__ft">
-                      <span className="st-export-item__error">{job.error ?? 'Export failed.'}</span>
+                      <details className="st-export-item__error">
+                        <summary>Show error details</summary>
+                        <pre>{job.error ?? 'Export failed.'}</pre>
+                      </details>
                     </div>
                   )}
                 </li>

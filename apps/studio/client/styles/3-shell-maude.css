@@ -584,25 +584,7 @@
 .st-pal-icon { width: 26px; height: 26px; border-radius: var(--radius-sm); background: var(--bg-4); display: grid; place-items: center; color: var(--fg-1); flex: none; }
 .st-pal-item.is-active .st-pal-icon { background: var(--accent); color: var(--accent-fg); }
 
-/* ─── What's-new toast (Plan C P6) ─────────────────────────────────────────
- * Lifted from Studio.css `.st-toast*`; repositioned fixed bottom-left for the
- * real shell (the mockup floated it inside the stage). Mirrors ai-banner. */
-.st-toast {
-  /* bottom raised above the in-canvas zoom pill (`.dc-zoom-tb`, bottom-left). */
-  position: fixed; left: 16px; bottom: 84px; width: 320px; z-index: 8000;
-  background: var(--bg-2); border: 1px solid var(--border-default); border-left: 3px solid var(--accent);
-  border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: var(--space-4);
-  display: flex; flex-direction: column; gap: var(--space-2);
-  animation: st-toast-in var(--dur-route) var(--ease-out);
-}
-@keyframes st-toast-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .st-toast { animation-duration: 1ms; } }
-.st-toast-hd { display: flex; align-items: center; gap: var(--space-2); color: var(--accent); font-family: var(--font-mono); font-size: var(--type-xs); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
-.st-toast-title { font-size: var(--type-md); font-weight: 600; color: var(--fg-0); }
-.st-toast-txt { font-size: var(--type-sm); color: var(--fg-1); line-height: 1.5; }
 .st-toast-actions { display: flex; gap: var(--space-2); margin-top: var(--space-1); }
-.st-toast-close { position: absolute; top: var(--space-2); right: var(--space-2); appearance: none; border: 0; background: transparent; color: var(--fg-3); cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: var(--radius-xs); }
-.st-toast-close:hover { background: var(--bg-3); color: var(--fg-0); }
 
 /* ─── Export & handoff dialog (Plan C P9/P10) ──────────────────────────────
  * Lifted from Studio.css `.st-dialog*` / `.st-fmt*`. Rendered inside `.st-scrim`. */

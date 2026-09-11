@@ -2,6 +2,15 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "shared-toast-stack-export-errors",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "Notifications stack and clear themselves",
+      "summary": "Export updates, canvas messages and Undo now share a stack that expands when you hover or use the keyboard. Notifications dismiss automatically; long export errors stay short, with the complete message available on demand in export history.",
+      "surface": "design-ui"
+    },
+    {
       "id": "source-sync-preserves-valid-canvases",
       "version": null,
       "date": null,

@@ -7,11 +7,12 @@
 //      (not the silent-empty-export shape `export * from <cjs>` produces).
 
 import { describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
 
 import { getRuntimeBundle, packageForSlug, RUNTIME_PACKAGES, slugFor } from '../runtime-bundle.ts';
 
 describe('runtime-bundle', () => {
-  test('builds all four sub-bundles successfully', async () => {
+  test('loads every runtime bundle successfully', async () => {
     for (const p of RUNTIME_PACKAGES) {
       const b = await getRuntimeBundle(p);
       expect(b.js.length).toBeGreaterThan(0);
@@ -65,5 +66,24 @@ describe('runtime-bundle', () => {
       expect(packageForSlug(`${s}.js`)).toBe(p);
     }
     expect(packageForSlug('nope.js')).toBeNull();
+  });
+  test('Sonner ships as a standalone runtime with React kept external', async () => {
+    const b = await getRuntimeBundle('sonner');
+    expect(b.js.length).toBeGreaterThan(25000);
+    expect(b.js).toMatch(/export\s*\{[\s\S]*\bToaster\b[\s\S]*\}/);
+    expect(b.js).toMatch(/from\s*["']react["']/);
+    expect(b.js).toMatch(/from\s*["']react-dom["']/);
+  });
+
+  test('canvas import map resolves every external runtime to its shipped bundle', () => {
+    const shell = readFileSync(
+      new URL('../../../plugins/design/templates/_shell.html', import.meta.url),
+      'utf8'
+    );
+    const block = shell.match(/<script type="importmap">([\s\S]*?)<\/script>/)?.[1];
+    if (!block) throw new Error('Canvas shell importmap missing');
+    const imports = JSON.parse(block).imports as Record<string, string>;
+    for (const pkg of RUNTIME_PACKAGES)
+      expect(imports[pkg]).toBe(`./_canvas-runtime/${slugFor(pkg)}.js`);
   });
 });

@@ -1757,14 +1757,14 @@ export function AnnotationsLayer() {
             // chain-driven setStrokesState queued in the same batch.
             setStrokesState((prev) => prev.filter((s) => s.id !== id));
             deletedStrokeIdsRef.current.delete(id); // never reached the chain — nothing to consume there
-            showCanvasToast(`Image upload failed — ${res.error}`);
+            showCanvasToast(`Image upload failed — ${res.error}`, 'error');
           }
           URL.revokeObjectURL(blobUrl);
         });
       };
       probe.onerror = () => {
         URL.revokeObjectURL(blobUrl);
-        showCanvasToast('Could not read that image file');
+        showCanvasToast('Could not read that image file', 'error');
       };
       probe.src = blobUrl;
     },
@@ -1809,7 +1809,7 @@ export function AnnotationsLayer() {
       const h = mediaKind === 'video' ? MEDIAREF_VIDEO_H : MEDIAREF_DEFAULT_H;
       void uploadAsset(file).then((res) => {
         if (!('path' in res)) {
-          showCanvasToast(`Couldn't add ${mediaKind}: ${res.error}`);
+          showCanvasToast(`Couldn't add ${mediaKind}: ${res.error}`, 'error');
           return;
         }
         const id = rid();

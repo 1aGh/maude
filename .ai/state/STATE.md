@@ -24,6 +24,8 @@ Phase A of the gate set found six silent bugs by pointing a typechecker at 52 fi
 **Active plan:** —
 **Active task:** —
 
+_2026-09-11:_ **issue #103 — implementation complete; quick gate PASS; commit and push authorized.** Shared Sonner stack, compact export diagnostics with full history disclosure, bounded canvas traffic and coalesced Undo. 101 affected tests pass; repository format/lint and Studio typecheck/coverage pass; independent defender/attacker PASS. Changeset and What’s New ready. Decision `maude/shared-sonner-notifications`; review `.ai/logs/code-reviews/main-issue-103.md`; RCA `.ai/logs/rca/issue-103.md`. User authorized commit and push on the current main branch; no PR requested. Full validate (site build, full suite, scenario, a11y, design guard) deferred. No active plan for this ad hoc issue to archive.
+
 **Carried debt:** the doručenka's per-file rows reach `_sync.json` and the panel shows aggregates plus holds, but not per-file state; the `sync-doruceka-panel` scenario was never written; adopt/detach is CLI-only, so DDR-177's terminal-free desktop dialog is unbuilt; new-machine clone→link→pull parity is unit-covered, not run on a second machine; no live fleet drill, because the fleet only picks this up on a release tag. Version is still 0.60.7 — nothing here has shipped.
 
 

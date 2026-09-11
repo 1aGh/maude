@@ -19,7 +19,7 @@ afterAll(() => {
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
-import { useExportCenter } from '../client/export-center.jsx';
+import { ExportPanel, useExportCenter } from '../client/export-center.jsx';
 
 function mount(el: HTMLElement) {
   let root!: Root;
@@ -283,5 +283,54 @@ describe('useExportCenter', () => {
     expect(center.savingIds.has('j1')).toBe(false);
 
     act(() => root.unmount());
+  });
+  test('dismissal targets a job ID and preserves every export in history', () => {
+    document.hasFocus = () => false;
+    const root = mount(document.createElement('div'));
+    let center!: ReturnType<typeof useExportCenter>;
+    function Probe() {
+      center = useExportCenter({ enabled: false });
+      return null;
+    }
+    act(() => root.render(createElement(Probe)));
+    act(() => {
+      for (let n = 0; n < 10; n++) center.upsert(job({ id: `j${n}`, status: 'failed' }));
+    });
+    expect(center.toastJobs).toHaveLength(10);
+    act(() => center.dismissToast('j4'));
+    expect(center.toastJobs.some((j) => j.id === 'j4')).toBe(false);
+    expect(center.toastJobs.some((j) => j.id === 'j9')).toBe(true);
+    expect(center.jobs).toHaveLength(10);
+    act(() => center.upsert(job({ id: 'j4', status: 'failed' })));
+    expect(center.toastJobs).toHaveLength(9);
+    act(() => root.unmount());
+  });
+
+  test('history focuses the requested job and reveals complete diagnostics only on expansion', () => {
+    document.hasFocus = () => false;
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = mount(host);
+    let center!: ReturnType<typeof useExportCenter>;
+    const error = `${'long/path/'.repeat(1000)}\nFULL TRACE TAIL`;
+    function Probe() {
+      center = useExportCenter({ enabled: false });
+      return createElement(ExportPanel, { center });
+    }
+    act(() => root.render(createElement(Probe)));
+    act(() => center.upsert(job({ id: 'failed', status: 'failed', error })));
+    act(() => center.openPanel('failed'));
+    const row = host.querySelector('[data-testid="export-job-failed"]');
+    expect(document.activeElement).toBe(row);
+    const details = row?.querySelector('details');
+    expect(details?.open).toBe(false);
+    act(() => details?.querySelector('summary')?.click());
+    expect(details?.open).toBe(true);
+    expect(details?.querySelector('pre')?.textContent).toBe(error);
+    act(() => center.closePanel());
+    expect(center.toastJobs).toHaveLength(1);
+    expect(center.jobs[0].error).toBe(error);
+    act(() => root.unmount());
+    host.remove();
   });
 });

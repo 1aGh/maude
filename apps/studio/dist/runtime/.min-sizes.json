@@ -1,6 +1,7 @@
 {
   "$comment": "Per-bundle minimum byte sizes for /_canvas-runtime/*.js. Derived from Bun.build --release --minify output × 0.70 (rounded down). Floors are intentionally conservative — any future minifier improvement that drops a bundle below the floor needs an explicit manifest bump + investigation. Read by check-runtime-bundles.sh (CI pre-publish guard) AND runtime-health.sh (user-side install guard). See DDR-FUTURE on shipping defective motion_react.js in v0.22.0.",
   "react.js": 7000,
+  "sonner.js": 25000,
   "react-dom.js": 3500,
   "react-dom_client.js": 130000,
   "react_jsx-runtime.js": 400,

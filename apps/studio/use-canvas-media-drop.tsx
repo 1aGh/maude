@@ -22,6 +22,9 @@
  */
 
 import { useEffect } from 'react';
+import { showCanvasToast } from './canvas-notifications.tsx';
+
+export { showCanvasToast } from './canvas-notifications.tsx';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pure helpers (exported for unit tests)
@@ -194,25 +197,6 @@ export async function uploadAsset(file: Blob): Promise<{ path: string } | { erro
 // Transient toast (no React state — self-contained DOM, mirrors ensure*Styles)
 
 const TOAST_CSS = `
-.dc-media-toast {
-  position: fixed;
-  left: 50%;
-  bottom: 108px;
-  transform: translateX(-50%);
-  z-index: 9;
-  max-width: 360px;
-  padding: 8px 14px;
-  border-radius: 8px;
-  background: #26262b;
-  color: #fff;
-  font-family: var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 12px;
-  box-shadow: 0 8px 28px rgba(0,0,0,0.34);
-  opacity: 0;
-  transition: opacity 140ms ease;
-  pointer-events: none;
-}
-.dc-media-toast[data-show="1"] { opacity: 1; }
 /* Drop affordance — a focus-accent inset frame while a media drag is over the
    canvas, so the surface reads as a drop target. */
 .dc-media-dragover::after {
@@ -223,9 +207,6 @@ const TOAST_CSS = `
   border: 2px dashed var(--maude-hud-accent, #d63b1f);
   border-radius: 12px;
   pointer-events: none;
-}
-@media (prefers-reduced-motion: reduce) {
-  .dc-media-toast { transition: none; }
 }
 /* feature-4 (2026-07-19) — sandbox-safe confirm dialog (window.confirm is
    silently blocked in the allow-modals-less canvas iframe). HUD-token styled. */
@@ -364,22 +345,6 @@ export function canvasConfirm(
   });
 }
 
-/** Show a brief auto-dismissing toast in the canvas (e.g. an upload failure). */
-export function showCanvasToast(message: string): void {
-  if (typeof document === 'undefined') return;
-  ensureMediaStyles();
-  const el = document.createElement('div');
-  el.className = 'dc-media-toast';
-  el.setAttribute('role', 'status');
-  el.textContent = message;
-  document.body.appendChild(el);
-  requestAnimationFrame(() => el.setAttribute('data-show', '1'));
-  setTimeout(() => {
-    el.setAttribute('data-show', '0');
-    setTimeout(() => el.remove(), 200);
-  }, 2600);
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Hook
 
@@ -414,7 +379,7 @@ export async function uploadAndAnnounceMedia(
   const sizeMb = file.size / (1024 * 1024);
   const res = await uploadAsset(file);
   if ('error' in res) {
-    showCanvasToast(`Couldn't add ${mediaKind}: ${res.error}`);
+    showCanvasToast(`Couldn't add ${mediaKind}: ${res.error}`, 'error');
     return;
   }
   const snippet = mediaSnippet(mediaKind, res.path);

@@ -47,6 +47,8 @@ export const RUNTIME_PACKAGES = [
   'react-dom/client',
   'react/jsx-runtime',
   'react/jsx-dev-runtime',
+  // Toasts in standalone canvases resolve without node_modules in packaged installs.
+  'sonner',
   // Pixi.js v8 — per-iframe runtime bundle for the non-destructive photo editor
   // (feature-photo-editor). The canvas-lib `<PhotoLayer>` reaches the WebGL
   // compositor (`photo/pipeline.ts`) through a LAZY runtime `import('pixi.js')`,

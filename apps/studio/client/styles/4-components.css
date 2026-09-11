@@ -1454,7 +1454,7 @@
     animation-duration: 1ms;
   }
 }
-.st-toast .st-export-progress {
+.maude-notice .st-export-progress {
   margin-top: var(--space-1, 4px);
 }
 /* Busy state for the Save…/Download button — the bytes fetch + (native) the
@@ -2183,3 +2183,9 @@
   opacity: 0.6;
   font-size: 0.9em;
 }
+
+/* Issue #103: full export diagnostics are opt-in and stay inside the panel. */
+.st-export-item__error { min-width: 0; width: 100%; }
+.st-export-item__error summary { cursor: pointer; }
+.st-export-item__error pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 320px; overflow: auto; font: inherit; }
+.st-export-item:focus { outline: 2px solid var(--accent); outline-offset: -2px; }

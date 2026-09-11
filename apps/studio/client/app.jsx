@@ -119,6 +119,8 @@ import { COLLAB_TOUR } from './tour/collab-tour.js';
 import { TourOverlay } from './tour/overlay.jsx';
 import { QUICK_SETUP_TOUR } from './tour/quick-setup-tour.js';
 import { USAGE_TOUR } from './tour/usage-tour.js';
+import { dismissNotice, NotificationHost, notify, notifyCanvasText } from '../notifications.tsx';
+import { acceptCanvasNotice } from '../canvas-notice-message.ts';
 import { ExportBadge, ExportPanel, ExportToast, useExportCenter } from './export-center.jsx';
 import { ReportBugDialog } from './report-bug.jsx';
 import { useWhatsNew, WhatsNewPanel, WhatsNewToast } from './whats-new.jsx';
@@ -331,58 +333,9 @@ function basename(p) {
   return p.split('/').pop();
 }
 
-// DDR-150 dogfood — a transient shell toast for timeline/inline-edit op results.
-// The clip ops used to console.warn their failures (a 422 "series clip can't
-// move" looked like "the button does nothing"). Self-contained DOM (no React
-// state), mirrors the canvas-side showCanvasToast.
-// `action` (feature-file-tree-drag-drop-folders, Task 10) — optional
-// `{ label, onClick }` for an inline undo affordance (the move toast). Absent
-// for every other caller, so their toast stays the plain auto-dismissing text
-// bubble this always was.
+// Keep call sites (including Undo actions) on the shared notification stack.
 function shellToast(message, ok = false, action) {
-  if (typeof document === 'undefined') return;
-  let el = document.getElementById('st-op-toast');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'st-op-toast';
-    el.setAttribute('role', 'status');
-    el.style.cssText =
-      'position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:80;' +
-      'display:flex;align-items:center;gap:10px;max-width:440px;padding:8px 14px;' +
-      'border-radius:8px;font:12px/1.45 var(--font-mono,monospace);' +
-      'box-shadow:0 8px 28px rgba(0,0,0,.34);pointer-events:none;opacity:0;transition:opacity 140ms ease;';
-    document.body.appendChild(el);
-  }
-  el.style.background = ok ? '#1d3524' : '#3a1d1d';
-  el.style.color = ok ? '#b7e4c0' : '#f1b8b8';
-  el.textContent = '';
-  const text = document.createElement('span');
-  text.textContent = message;
-  el.appendChild(text);
-  if (action) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.textContent = action.label;
-    btn.style.cssText =
-      'pointer-events:auto;background:none;border:0;text-decoration:underline;' +
-      'color:inherit;font:inherit;cursor:pointer;padding:0;';
-    btn.onclick = () => {
-      action.onClick();
-      el.style.opacity = '0';
-      el.style.pointerEvents = 'none';
-    };
-    el.appendChild(btn);
-  }
-  el.style.opacity = '1';
-  el.style.pointerEvents = action ? 'auto' : 'none';
-  clearTimeout(shellToast._t);
-  shellToast._t = setTimeout(
-    () => {
-      el.style.opacity = '0';
-      el.style.pointerEvents = 'none';
-    },
-    action ? 6000 : 3200
-  );
+  notify({ title: message, kind: ok ? 'success' : 'error', action });
 }
 
 // DDR-223 (issue #93, supersedes DDR-187's boot half) — one-time first-run
@@ -402,48 +355,24 @@ function browseFirstRunHint(readOnly = false) {
   } catch {
     return;
   }
-  if (document.getElementById('st-browse-hint')) return;
-  const el = document.createElement('div');
-  el.id = 'st-browse-hint';
-  el.setAttribute('role', 'status');
-  el.style.cssText =
-    'position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:81;' +
-    'display:flex;align-items:center;gap:10px;max-width:520px;padding:10px 14px;border-radius:10px;' +
-    'font:12px/1.5 var(--font-ui,system-ui,sans-serif);background:var(--surface-2,#1b1e24);' +
-    'color:var(--text-1,#e7eaf0);border:1px solid var(--border-1,#333a45);' +
-    'box-shadow:0 10px 34px rgba(0,0,0,.42);opacity:0;transition:opacity 160ms ease;';
-  const kbd =
-    '<kbd style="padding:1px 6px;border-radius:5px;border:1px solid var(--border-1,#333a45);' +
-    'background:var(--surface-3,#262b33);font-family:var(--font-mono,monospace)">V</kbd>';
-  el.innerHTML =
-    // Cloud Phase 25 C2 — a viewer selects to inspect, never to edit; the
-    // hint must not promise an editor the role doesn't have.
-    (readOnly
-      ? `<span>Your mock is <strong>live</strong> — click things to try it. Press ${kbd} to select &amp; inspect.</span>`
-      : '<span>You’re in <strong>Edit</strong> — click selects, like Figma. ' +
-        'Switch to <strong>Preview</strong> in the toolbar to use the live mock.</span>') +
-    '<button type="button" aria-label="Dismiss" style="background:none;border:none;color:inherit;' +
-    'cursor:pointer;font-size:15px;line-height:1;opacity:.65;padding:2px">×</button>';
+  if (browseFirstRunHint.active) return;
+  browseFirstRunHint.active = true;
   const dismiss = () => {
-    try {
-      localStorage.setItem(MODE_HINT_SEEN, '1');
-    } catch {
-      /* private mode */
-    }
-    el.style.opacity = '0';
-    setTimeout(() => el.remove(), 200);
+    browseFirstRunHint.active = false;
+    try { localStorage.setItem(MODE_HINT_SEEN, '1'); } catch {}
     document.removeEventListener('keydown', onV, true);
   };
   const onV = (e) => {
-    if ((e.key === 'v' || e.key === 'V') && !e.metaKey && !e.ctrlKey && !e.altKey) dismiss();
+    if ((e.key === 'v' || e.key === 'V') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      dismissNotice('mode-hint');
+      dismiss();
+    }
   };
-  el.querySelector('button')?.addEventListener('click', dismiss);
   if (readOnly) document.addEventListener('keydown', onV, true);
-  document.body.appendChild(el);
-  requestAnimationFrame(() => {
-    el.style.opacity = '1';
-  });
-  setTimeout(dismiss, 9000);
+  notify({ id: 'mode-hint', title: readOnly ? 'Your mock is live' : 'You’re in Edit',
+    description: readOnly ? 'Click things to try it. Press V to select & inspect.'
+      : 'Click selects, like Figma. Switch to Preview in the toolbar to use the live mock.',
+    onDismiss: dismiss });
 }
 
 // Strip canvas extensions for display. `Canvas Viewport.tsx` → `Canvas Viewport`.
@@ -12582,6 +12511,13 @@ function App() {
       if (e.origin !== expectedOrigin) return;
       const m = e.data;
       if (!m || typeof m !== 'object' || !m.dgn) return;
+      if (m.dgn === 'canvas-notice') {
+        const activeWin = activePath && activePath !== SYSTEM_TAB
+          ? iframesRef.current.get(activePath)?.contentWindow : null;
+        const notice = acceptCanvasNotice(e, expectedOrigin, activeWin);
+        if (notice) notifyCanvasText(notice.title, notice.kind);
+        return;
+      }
       if (m.dgn === 'tool-cursor') {
         // Phase 24 — show the active canvas tool's cursor across the WHOLE app
         // shell (sidebar, top bar, everything) so the custom cursor is visible
@@ -15317,8 +15253,10 @@ function App() {
           only appears if you happen to open the Sync panel is not consent.
           Skipped during first-run onboarding so two flows don't stack. */}
       {!firstRun && <SyncConsentDialog status={syncStatus} cloud={cfg.cloud} />}
-      {!usageNudge && !tourSteps && <WhatsNewToast wn={whatsNew} />}
-      {!usageNudge && !tourSteps && <ExportToast center={exportCenter} />}
+      <NotificationHost paused={!!usageNudge || !!tourSteps}
+        hiddenGroups={exportCenter.panelOpen ? ['exports'] : []} />
+      <WhatsNewToast wn={whatsNew} />
+      <ExportToast center={exportCenter} />
       {gitLifecycle && (
         <div role="status" aria-live="polite" className="st-banner st-banner--info">
           <span className="st-banner-dot" aria-hidden="true" />
