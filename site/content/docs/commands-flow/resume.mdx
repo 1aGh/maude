@@ -1,6 +1,6 @@
 ---
 title: /flow:resume
-description: "Resume a previously paused workflow from HANDOFF.md and STATE.md"
+description: "Resume a paused workflow from its handoff and saved state."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Resume a previously paused workflow from HANDOFF.md and STATE.md"
 
 ## Description
 
-Resume a previously paused workflow from HANDOFF.md and STATE.md
+Resume a paused workflow from its handoff and saved state.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /flow:resume
 ```
 
-## Summary
+**Codex**
 
-Resume a previously paused workflow from where it left off. Reads the handoff and state artifacts, verifies branch context, and announces the resumption brief so you can pick up immediately.
+```text
+$flow:source-command-resume
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/flow/commands/resume.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/resume.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/resume.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/resume.md).
 
 </Callout>

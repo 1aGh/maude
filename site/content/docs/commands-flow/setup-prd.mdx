@@ -1,6 +1,6 @@
 ---
 title: /flow:setup-prd
-description: "Create a PRD, then auto-generate phase plans and an execution README"
+description: "Create a product requirements document with phase plans and an execution index."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Create a PRD, then auto-generate phase plans and an execution READ
 
 ## Description
 
-Create a PRD, then auto-generate phase plans and an execution README
+Create a product requirements document with phase plans and an execution index.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /flow:setup-prd output-filename
 ```
 
-## Summary
+**Codex**
 
-Generate a Product Requirements Document (PRD) based on the current conversation, then automatically break it into executable phase plans with a README for running them.
+```text
+$flow:source-command-setup-prd output-filename
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/flow/commands/setup-prd.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/setup-prd.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/setup-prd.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/setup-prd.md).
 
 </Callout>

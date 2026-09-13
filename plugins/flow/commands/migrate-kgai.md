@@ -1,11 +1,13 @@
 ---
 name: migrate-kgai
 category: setup
-description: Migrate this repo's .ai/decisions/ into the kgai knowledge graph (one-time, idempotent, archive-preserving)
+description: "Import project decisions into kgai with idempotence and archive preservation."
 argument-hint: "[--dry-run]"
 ---
 
 # /flow:migrate-kgai — import existing decisions into kgai
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 One-time migration of the file-based decision store (`.ai/decisions/DDR-*.md`) into the kgai knowledge graph, so an existing repo keeps its decision history when it switches the backend on. The old files are **kept as a read-only archive — never deleted** (DDR-044 safety).
 

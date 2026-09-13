@@ -1,9 +1,11 @@
 ---
 name: ui-kit
-description: Reference UI prototypes and shared components for the project's surfaces (desktop / mobile / tablet). Auto-load when designing or implementing any UI for this repo. Content lives in the project's design root (default `.design/ui/`) — this skill is a pointer.
+description: "Use project UI prototypes, shared components and artboard conventions for desktop, mobile, tablet and print."
 ---
 
 # UI kit — pointer skill
+
+Follow [host conventions](../../HARNESS.md) for Claude Code or Codex.
 
 This skill is a **thin pointer**. The actual UI-kit content lives under the project's design root, defined in `<repo>/.design/config.json`:
 

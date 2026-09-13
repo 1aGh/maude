@@ -2,11 +2,13 @@
 name: pause
 category: daily
 type: command
-description: Pause the current workflow, write HANDOFF.md and update STATE.md for session continuity
+description: "Save workflow state and a handoff for a later session."
 keywords: [pause, stop, save, session, handoff, continuity, break]
 ---
 
 # Pause Work: Save Session State
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 ## Objective
 

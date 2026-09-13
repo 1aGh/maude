@@ -2,11 +2,13 @@
 name: utils-verify
 category: utils
 type: command
-description: "Light verification of touched files during /flow:execute — scoped gates (qualityScoped) + affected tests + agent-browser/agent-device smoke for UI changes; repo-wide gates defer to /flow:validate"
+description: "Verify touched files with scoped quality gates, affected tests and applicable UI smoke checks."
 keywords: [verify, check, smoke, edit-verify, agent-browser, agent-device]
 ---
 
 # /flow:utils-verify — focused check
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Use during `/execute` after each task (Edit-Verify Loop). For a full cross-platform sweep before merge, use `/validate`.
 

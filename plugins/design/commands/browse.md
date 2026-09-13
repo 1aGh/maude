@@ -1,13 +1,15 @@
 ---
 name: browse
 category: daily
-description: Launch the local design browser — file tree of every canvas + tabbed iframe preview on a free port
+description: "Open the local Maude canvas browser."
 argument-hint: "[--port <n>]"
 ---
 
 # /design:browse — local design canvas
 
-Launches a mini Node server (zero deps) that scans the project's design root (`<designRoot>` from `.design/config.json`, default `.design/`) and builds a 2-pane UI in the browser:
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
+
+Starts the Maude Studio server through the installed `maude` CLI that scans the project's design root (`<designRoot>` from `.design/config.json`, default `.design/`) and builds a 2-pane UI in the browser:
 
 - **Left column** — file tree (collapsible by hierarchy + group labels from the config)
 - **Right side** — tabbed iframe preview, like in an editor
@@ -22,20 +24,35 @@ The server reads `<repo>/.design/config.json` at boot. Auto-finds a free port fr
 
 ## Procedure
 
+Use the target project root explicitly. The plugin cache contains Markdown;
+the executable Studio runtime is resolved by `maude`.
+
 ```bash
-# Direct boot (Bun-based server, reads $CLAUDE_PROJECT_DIR if set, otherwise cwd):
-bun ${CLAUDE_PLUGIN_ROOT}/dev-server/server.ts --root "$CLAUDE_PROJECT_DIR"
-
-# With explicit port:
-bun ${CLAUDE_PLUGIN_ROOT}/dev-server/server.ts --root "$CLAUDE_PROJECT_DIR" --port 4400
-
-# Headless (no auto-open browser, useful in CI / SSH):
-NO_OPEN=1 bun ${CLAUDE_PLUGIN_ROOT}/dev-server/server.ts --root "$CLAUDE_PROJECT_DIR"
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+PORT=$(maude design server-up --root "$REPO_ROOT")
 ```
 
-`--root` is an explicit option — if omitted, the server falls back to `$CLAUDE_PROJECT_DIR` and then to `process.cwd()`. It always points at the **user's project**, not the plugin's install dir (`${CLAUDE_PLUGIN_ROOT}` is used only to locate `server.ts`).
+`server-up` is idempotent: it verifies the project's existing server and returns
+its port. Open the returned local Studio URL with the host browser tools or the
+system browser when the user requested it. It does not accept `--port`.
 
-The repo may have a wrapper script in `package.json` (e.g. `pnpm design:browse`) — if it exists, use it. Otherwise the direct invocation above.
+For an explicit `--port <n>`, first check the project's `_server.json` and health.
+Reuse an existing healthy instance; do not start a second server for the project.
+If none is running, bind the requested port to `REQUESTED_PORT` and start:
+
+```bash
+maude design serve --root "$REPO_ROOT" --port "$REQUESTED_PORT"
+```
+
+For a headless start, prefix the same CLI call with `NO_OPEN=1`. Start a
+foreground server with the host's long-running-process facility, then wait for
+`/_health` before reporting readiness. Run development probes with
+`MAUDE_NO_AUTOBUILD=1` to preserve existing release bundles.
+
+The project root is where the user's `.design/` lives, never the plugin cache.
+Neither Codex nor Claude needs a `dev-server/server.ts` inside the plugin or a
+`CLAUDE_PROJECT_DIR` environment variable. A repo-owned wrapper may be used when
+it implements this same project-root and lifecycle contract.
 
 ## What the server supports
 
@@ -64,7 +81,7 @@ The orchestrator (`/design:edit`, `/design:new`, etc.) auto-starts the server it
 
 ## Failure modes
 
-- **Ports 4321–4420 all taken** → the server throws `no free port`. Run with `PORT=<free>`.
-- **Node < 18** → top-level `await` doesn't work. The server requires Node 18+.
+- **Ports 4321–4420 all taken** → the server throws `no free port`. Choose a free port with `--port <n>`.
+- **Missing runtime** → install the `maude` CLI and its platform runtime. Source development uses Bun; there is no supported Node-only Studio server.
 - **Spaces in filenames** — the server URL-decodes, link generation encodes. It works.
 - **`.design/config.json` missing or invalid** — the server warns in the log and uses defaults.

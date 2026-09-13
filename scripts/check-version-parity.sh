@@ -17,6 +17,8 @@ PKG_PATH="$ROOT/package.json"
 PLUGIN_PATHS=(
   "$ROOT/plugins/design/.claude-plugin/plugin.json"
   "$ROOT/plugins/flow/.claude-plugin/plugin.json"
+  "$ROOT/plugins/design/.codex-plugin/plugin.json"
+  "$ROOT/plugins/flow/.codex-plugin/plugin.json"
 )
 SUBPACKAGE_PATHS=(
   "$ROOT/packages/maude-darwin-arm64/package.json"

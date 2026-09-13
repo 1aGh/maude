@@ -62,6 +62,8 @@ grep -qE '^\s*--fg-[1-3]\b' "$TOKENS" || echo "C6 fail: --fg-1..3 missing"
 grep -qE '^\s*--dur-'       "$TOKENS" || echo "C6 fail: no --dur-* token"
 
 # C7 — accent-strategy gate (discovery-driven, default single)
+
+Follow [host conventions](../HARNESS.md) for the active host; retain this role's restrictions.
 ACCENT_STRATEGY="${CONFIG_ACCENT_STRATEGY:-single}"
 ACCENT_FAMILIES=$(grep -oE '^\s*--accent[a-z0-9-]*\b' "$TOKENS" | sed -E 's/-(fg|hover|active|glow|edge|muted)$//' | sort -u | wc -l)
 case "$ACCENT_STRATEGY" in

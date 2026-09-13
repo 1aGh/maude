@@ -2,11 +2,13 @@
 name: record-execution
 category: record
 type: command
-description: Generate implementation report for system review
+description: "Write an implementation report for system review."
 keywords: [report, reflection, implementation, analysis, retrospective]
 ---
 
 # Execution Report
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Review and deeply analyze the implementation you just completed.
 

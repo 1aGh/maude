@@ -1,6 +1,6 @@
 ---
 title: /flow:pause
-description: "Pause the current workflow, write HANDOFF.md and update STATE.md for session continuity"
+description: "Save workflow state and a handoff for a later session."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Pause the current workflow, write HANDOFF.md and update STATE.md f
 
 ## Description
 
-Pause the current workflow, write HANDOFF.md and update STATE.md for session continuity
+Save workflow state and a handoff for a later session.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /flow:pause
 ```
 
-## Summary
+**Codex**
 
-Safely pause the current workflow with full context preserved. Writes a handoff artifact and updates workflow state so the next session (or another developer) can pick up exactly where you left off.
+```text
+$flow:source-command-pause
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/flow/commands/pause.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/pause.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/pause.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/pause.md).
 
 </Callout>

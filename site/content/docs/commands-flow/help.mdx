@@ -1,6 +1,6 @@
 ---
 title: /flow:help
-description: "List all flow commands grouped by category."
+description: "List available flow workflows and their invocation names."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "List all flow commands grouped by category."
 
 ## Description
 
-List all flow commands grouped by category.
+List available flow workflows and their invocation names.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /flow:help
 ```
 
-## Summary
+**Codex**
 
-Print every `/flow:*` command grouped by its `category:` frontmatter field. Use this whenever you forget a name — type `/flow:help` for the live index, or use the group prefix (e.g. `/flow:bug-`) to narrow autocomplete.
+```text
+$flow:source-command-help
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/flow/commands/help.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/help.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/help.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/help.md).
 
 </Callout>

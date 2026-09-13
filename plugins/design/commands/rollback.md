@@ -1,11 +1,13 @@
 ---
 name: rollback
 category: daily
-description: Restore the last snapshot of the active canvas (undo the last /design:edit). --steps N to go further back.
+description: "Restore one or more snapshots of the active canvas."
 argument-hint: "[--steps N] [--list]"
 ---
 
 # /design:rollback — undo edit
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Restores the previous state of the active canvas from `.design/_history/<slug>/`. Every `/design:edit "<feedback>"` took a snapshot **before** the edit; rollback restores that snapshot.
 

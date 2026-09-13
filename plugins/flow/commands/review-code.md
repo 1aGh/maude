@@ -2,11 +2,13 @@
 name: review-code
 category: review
 type: command
-description: Pre-commit self-review of uncommitted changes
+description: "Review uncommitted code changes before commit."
 keywords: [review, code-review, diff, quality, pre-commit, audit]
 ---
 
 # Code Review (Self)
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Perform a thorough self-review of all uncommitted changes before committing.
 

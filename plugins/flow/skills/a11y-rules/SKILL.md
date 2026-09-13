@@ -1,10 +1,12 @@
 ---
 name: a11y-rules
-description: WCAG 2.1 AA hard-stops — color contrast, keyboard navigation, semantic HTML, form labels, focus indicators, touch targets, motion, skip nav, landmarks. Reads `theme` and `ux.bilingual` from `.ai/workflows.config.json`. Use when auditing accessibility (a11y-auditor subagent), reviewing UI changes during /flow:utils-verify and /flow:validate, or when writing components that touch user input, focus, or screen-reader semantics.
+description: "Apply WCAG 2.1 AA checks for contrast, keyboard access, semantics, forms, focus and reduced motion."
 user-invocable: false
 ---
 
 # Accessibility Rules
+
+Follow [host conventions](../../HARNESS.md) for Claude Code or Codex.
 
 Hard-stop rules for WCAG 2.1 AA compliance. Violations require the AI agent to refuse, rewrite, or block the artifact. Web (Next.js / Vite / vanilla) and React Native (Expo) — RN equivalents in parentheses.
 

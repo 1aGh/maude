@@ -1,6 +1,6 @@
 ---
 title: /design:chat
-description: "Open (focus) the native ACP chat sidepanel in the Maude window — an agent chat running on your own `claude` CLI subscription (DDR-123). Native-app only."
+description: "Open the existing native Studio ACP chat panel. ACP harness support is a separate integration."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Open (focus) the native ACP chat sidepanel in the Maude window —
 
 ## Description
 
-Open (focus) the native ACP chat sidepanel in the Maude window — an agent chat running on your own `claude` CLI subscription (DDR-123). Native-app only.
+Open the existing native Studio ACP chat panel. ACP harness support is a separate integration.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /design:chat
 ```
 
-## Summary
+**Codex**
 
-Opens (or focuses) the **Assistant** sidepanel in the running native Maude window, where you can drive `/design:edit`, `/design:new`, `/design:critic`, `/design:screenshot` and watch the canvas change — without leaving the same shared surface. The panel runs on **your own `claude` install on a Pro/Max subscription** (n
+```text
+$design:source-command-chat
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/design/commands/chat.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/chat.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/design/commands/chat.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/chat.md).
 
 </Callout>

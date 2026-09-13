@@ -1,0 +1,6 @@
+interface:
+  display_name: "flow:utils-verify"
+  short_description: "Verify touched files with scoped quality gates, affected…"
+  default_prompt: "Use $flow:source-command-utils-verify with the task details I provide."
+policy:
+  allow_implicit_invocation: false

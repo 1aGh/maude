@@ -90,6 +90,8 @@ Standard contract (see `design-critic.md`).
 ```markdown
 # copy-critic — iter {iter_n}
 
+Follow [host conventions](../HARNESS.md) for the active host; retain this role's restrictions.
+
 _<ISO ts> · canvas: `{canvas_path}` · voice POV: {short summary} · strings reviewed: N_
 
 ## TL;DR

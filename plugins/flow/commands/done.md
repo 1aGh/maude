@@ -1,11 +1,13 @@
 ---
 name: done
 category: daily
-description: Close out a feature — /validate gate (incl. cross-platform scenario) → DDR sweep → commit → push → PR → retro → archive. `--quick` trims the gate to affected-scope checks only.
+description: "Validate and close a feature: decision capture, delivery, retrospective and archive within authorized scope."
 argument-hint: "[--quick] [path to plan]"
 ---
 
 # /done — close out a feature
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 This is the **final gate**. Run it after `/execute` when all tasks pass. It consolidates verification, commit, and push into a single action.
 

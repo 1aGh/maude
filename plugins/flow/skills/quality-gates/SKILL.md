@@ -1,11 +1,13 @@
 ---
 name: quality-gates
 category: shared
-description: How flow commands read project quality gates from `.ai/workflows.config.json` → `quality` (outer gate) and `qualityScoped` (implementation inner loop). Use when wiring or running a quality gate (lint, format, typecheck, tests, build), when a command needs the `config.quality` read pattern, when deciding whether a gate belongs in the inner loop or in `/flow:validate`, or when a `lint script` / `tests script` / `format script` must run. Data-shape reference, NOT a runner.
+description: "Resolve project quality commands, scoped checks, gate failures and validation fallbacks from workflow config."
 user-invocable: false
 ---
 
 # Quality Gates
+
+Follow [host conventions](../../HARNESS.md) for Claude Code or Codex.
 
 Reference for the `quality` block in `.ai/workflows.config.json`. This skill documents a **data shape and a read pattern** — it is not an execution contract and defines no output format. The data IS a plain shell-command string; `eval` is the runner.
 

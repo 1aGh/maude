@@ -1,10 +1,12 @@
 ---
 name: help
 category: daily
-description: List all design commands grouped by category.
+description: "List available design workflows and their invocation names."
 ---
 
 # /design:help — grouped command index
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Print every `/design:*` command grouped by its `category:` frontmatter field. Use this whenever you forget a name — type `/design:help` for the live index, or use the group prefix (e.g. `/design:setup-`) to narrow autocomplete.
 

@@ -1,0 +1,6 @@
+interface:
+  display_name: "flow:maintain-discover"
+  short_description: "Find skills, agents and other capabilities for a task…"
+  default_prompt: "Use $flow:source-command-maintain-discover with the task details I provide."
+policy:
+  allow_implicit_invocation: false

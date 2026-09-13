@@ -1,11 +1,13 @@
 ---
 name: to-rn
 category: daily
-description: FALLBACK — generate a native react-native-svg + Reanimated component from the IR for LIGHT/occasional animation. For rich/continuous morph use `/design:to-lottie` (rn-svg has a perf ceiling, `feTurbulence` has no native impl).
+description: "Create a React Native SVG animation fallback for light motion."
 argument-hint: "\"<animated mark | IR handle | canvas>\" [--out <Component.tsx>]"
 ---
 
 # /design:to-rn — native rn-svg/Reanimated renderer (FALLBACK)
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 The **fallback** motion handoff for **light / occasional** animation where you want
 a native `react-native-svg` + Reanimated component instead of a Lottie runtime

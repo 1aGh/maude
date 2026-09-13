@@ -9,6 +9,13 @@ Four steps and you're in. (Maybe five. Depends on your shell.) `npm install`, a 
 The [desktop app](/docs/desktop) auto-loads the `design` + `flow` plugins into its built-in chat panel, so with only **Claude Code installed** `/design:*` and `/flow:*` work out of the box — no marketplace, no `/plugin install`. The steps below are the **manual / power-user path**: for the `maude` CLI, the web `maude design serve` flow, or driving `/design:*` from your own terminal Claude Code.
 </Callout>
 
+<Callout type="info" title="Using Codex in your terminal?">
+Follow the [native Codex installation guide](/docs/codex). It covers the plugin
+marketplace, equivalent workflow invocations, kgai and controlling Design Studio.
+The instructions below use Claude Code's command syntax. Codex inside Studio's
+built-in ACP chat is a separate follow-up.
+</Callout>
+
 ## Install the CLI
 
 `maude` is required, not optional. Several skills shell out to it.
@@ -38,7 +45,7 @@ Inside Claude Code:
 /plugin install flow@maude
 ```
 
-Install one or both, they're independent.
+Install both for the complete workflow set. Design uses flow's question, debate and decision-memory skills; installing Markdown does not install the external CLI/MCP dependencies.
 
 ## Init the workspace
 
@@ -57,7 +64,7 @@ It auto-detects your stack, writes `workflows.config.json`, and asks the right q
 
 `/design:init` scaffolds `.design/` and writes a skeleton `.design/config.json`. Skip it if you don't want the canvas loop.
 
-For `CLAUDE.md`, use Claude Code's built-in `/init`. Don't write it by hand.
+For `CLAUDE.md`, use Claude Code's built-in `/init`. Codex uses `AGENTS.md`; see the [Codex guide](/docs/codex#project-instructions).
 
 ## Run a slash command
 

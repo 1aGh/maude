@@ -2,11 +2,13 @@
 name: maintain-docs
 category: maintain
 type: command
-description: Documentation freshness check — scan for stale references across all docs and content
+description: "Check documentation freshness and stale references."
 keywords: [documentation, freshness, stale, references, scan]
 ---
 
 # Maintain: Documentation Freshness
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 > Scans content, AGENTS files, READMEs, and AI docs for references that have drifted from actual code.
 

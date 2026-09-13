@@ -1,11 +1,13 @@
 ---
 name: setup-docs
 category: setup
-description: Refresh designRoot/README.md + INDEX.md — Claude-Design-compatible "READ THIS FIRST" docs that live in the design root and stay current. Auto-runs after /design:edit and /design:new; manual trigger when you want to force a refresh.
+description: "Refresh the design root README and canvas index."
 argument-hint: "[--full]"
 ---
 
 # /design:setup-docs — refresh design root docs
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 The plugin runs in the **same repo** where the implementation lives. There's no zip / external bundle — `<designRoot>/` itself IS the always-current handoff target.
 

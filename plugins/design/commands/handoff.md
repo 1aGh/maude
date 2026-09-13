@@ -1,11 +1,13 @@
 ---
 name: handoff
 category: daily
-description: Emit a shadcn `registry-item.json` sidecar for the active canvas (production-ready drop for Next.js / Vite / Bun)
+description: "Create a shadcn registry handoff for the active canvas."
 argument-hint: "[--canvas <path>] [--force]"
 ---
 
 # /design:handoff — shadcn registry-item.json sidecar
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Converts the active canvas (from `_active.json`) into **`<Slug>.registry.json`** next to the TSX file. The target project consumes it via `bunx shadcn add file://./<Slug>.registry.json` — works for Next.js / Vite / Astro / Remix / Bun, any framework that has the `shadcn` CLI.
 

@@ -88,6 +88,8 @@ Standard contract (see `design-critic.md`).
 ```markdown
 # info-architecture-critic — iter {iter_n}
 
+Follow [host conventions](../HARNESS.md) for the active host; retain this role's restrictions.
+
 _<ISO ts> · canvas: `{canvas_path}` · sibling surfaces: {N}_
 
 ## TL;DR

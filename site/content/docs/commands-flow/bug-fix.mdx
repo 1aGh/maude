@@ -1,6 +1,6 @@
 ---
 title: /flow:bug-fix
-description: "Implement fix from RCA document for a ticket"
+description: "Implement and verify the fix specified by a ticket root-cause analysis."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Implement fix from RCA document for a ticket"
 
 ## Description
 
-Implement fix from RCA document for a ticket
+Implement and verify the fix specified by a ticket root-cause analysis.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /flow:bug-fix ticket-id
 ```
 
-## Summary
+**Codex**
 
-- RCA document exists at `logs/rca/issue-$ARGUMENTS.md` (produced by `/flow:bug-rca`). The `issue-` filename prefix is provider-agnostic — `$ARGUMENTS` may be a GitHub number, a ClickUp ID like `CU-abc123`, or any slug.
+```text
+$flow:source-command-bug-fix ticket-id
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/flow/commands/bug-fix.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/bug-fix.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/bug-fix.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/bug-fix.md).
 
 </Callout>

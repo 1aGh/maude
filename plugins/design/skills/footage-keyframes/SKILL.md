@@ -1,9 +1,11 @@
 ---
 name: footage-keyframes
-description: Scene-AWARE keyframe extraction for video analysis — the standalone engine behind `maude design smart-frames`. Instead of blind frame-rate screenshots (which straddle and miss short but meaningful beats), it selects frames at scene cuts + semantic action beats + the true endpoints, so a downstream analyzer (the footage-analyst, /design:video-analyze, /design:reel, or any Claude vision pass) gets fewer, sharper, context-rich frames. Three tiers, auto-detected — gemma (opt-in Gemma-4 MLX scout) → ffmpeg (scene-detect, the default) → blind (probe-footage / Chromium floor) — so nobody is forced to download a model. Auto-load when a task extracts keyframes from a clip for analysis, when the request is "analyze this video"/"zanalyzuj tohle video", or when wiring footage frame-selection. Owns the `smart-frames` contract, the three-tier fallback model, the manifest schema, and the env knobs.
+description: "Extract scene-aware video keyframes for footage analysis, including cuts, action and edit decisions."
 ---
 
 # footage-keyframes — understand the video's dynamics, extract only the frames that matter
+
+Follow [host conventions](../../HARNESS.md) for Claude Code or Codex.
 
 Blind frame-rate sampling is the problem this skill exists to fix. `probe-footage`
 pulls N evenly-spaced frames; a sub-interval shot (a <0.25 s action flash before an

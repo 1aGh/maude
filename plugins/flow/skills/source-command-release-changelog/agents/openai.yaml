@@ -1,0 +1,6 @@
+interface:
+  display_name: "flow:release-changelog"
+  short_description: "Write a changelog entry using the project changelog conventions."
+  default_prompt: "Use $flow:source-command-release-changelog with the task details I provide."
+policy:
+  allow_implicit_invocation: false

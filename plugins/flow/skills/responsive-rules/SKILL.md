@@ -1,10 +1,12 @@
 ---
 name: responsive-rules
-description: Responsive layout hard-stops — mobile-first, fluid typography, container queries, breakpoint tokens, no horizontal overflow, density-per-platform. Reads `platforms` + `responsive` from `.ai/workflows.config.json`. Use when designing/reviewing layouts that span multiple form factors. Triggers on grid/flex/layout work, breakpoint decisions, typography sizing.
+description: "Check responsive layouts, typography, breakpoints, overflow and density across device sizes."
 user-invocable: false
 ---
 
 # Responsive Rules
+
+Follow [host conventions](../../HARNESS.md) for Claude Code or Codex.
 
 Hard-stop rules for responsive layout. Violations require the AI agent to refuse, rewrite, or block the artifact.
 

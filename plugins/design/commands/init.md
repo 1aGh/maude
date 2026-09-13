@@ -1,11 +1,18 @@
 ---
 name: init
 category: setup
-description: One-time project-level environment init for the design plugin. Detects missing dependencies (node ≥ 20, git, agent-browser, maude), prints install hints for soft deps, offers to run /init for CLAUDE.md and /flow:init for .ai/, and writes a skeleton .design/config.json. Does NOT create a design system — use /design:setup-ds <name> for that. Mirrors /flow:init.
+description: "Initialize project design configuration and check dependencies."
 argument-hint: "[--skip-prompts]"
 ---
 
 # /design:init — bootstrap the design plugin's environment
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
+
+**Instruction-file selection:** bind `INSTRUCTIONS_FILE` to `CLAUDE.md` in
+Claude Code or `AGENTS.md` in Codex before running the examples. Report and
+recommend the selected filename. Do not require a Claude file in a Codex project.
+
 
 Project-level environment init for the `design` plugin. Mirrors `/flow:init` in shape and purpose: detect what's already in place, print actionable install / next-step hints for what's missing, and write the minimal skeleton config so subsequent commands have something to read.
 
@@ -46,8 +53,8 @@ else
 fi
 
 # Environment state (NOT dependencies — stays inline)
-CLAUDE_MD_OK=false
-[[ -f "$REPO_ROOT/CLAUDE.md" || -f "$REPO_ROOT/.claude/CLAUDE.md" ]] && CLAUDE_MD_OK=true
+INSTRUCTIONS_OK=false
+[[ -f "$REPO_ROOT/$INSTRUCTIONS_FILE" || ( "$INSTRUCTIONS_FILE" == "CLAUDE.md" && -f "$REPO_ROOT/.claude/CLAUDE.md" ) ]] && INSTRUCTIONS_OK=true
 
 AI_WORKSPACE_OK=false
 [[ -f "$REPO_ROOT/.ai/workflows.config.json" ]] && AI_WORKSPACE_OK=true
@@ -70,7 +77,7 @@ Pre-flight summary
   git           ✓ initialized
   maude         ✓ v0.7.0                    ← scaffold via CLI available
   agent-browser ✗ missing                   ← needed for screenshot + 5 critics
-  CLAUDE.md     ✗ missing                   ← /init recommended
+  <instruction file> ✗ missing                   ← /init recommended
   .ai/          ✗ missing                   ← /flow:init recommended
   .design/      ✗ missing                   ← will create skeleton
   config.json   ✗ missing                   ← will create skeleton
@@ -112,7 +119,7 @@ What should I help with next? (multi-select; "none" is fine)
 
   [ ] Print `npm i -g agent-browser` install hint (needed for screenshot + 5 critics)
   [ ] Print `npm i -g @1agh/maude` install hint (faster scaffold via CLI helper)
-  [ ] Run `/init` to generate CLAUDE.md (recommended — agents need it)
+  [ ] Run the active host's `/init` to generate its instruction file (recommended — agents need it)
   [ ] Run `/flow:init` to scaffold .ai/ workspace (enables /flow:plan to see the design system)
   [ ] None — I'll handle setup myself
 ```
@@ -121,7 +128,7 @@ What should I help with next? (multi-select; "none" is fine)
 
 - **agent-browser hint** → print `npm i -g agent-browser` + one-liner on what it unlocks (screenshot, auto-loop, axe-core a11y).
 - **CLI hint** → print `npm i -g @1agh/maude` + note about `maude design serve` and `maude design init`.
-- **Run /init** → print "Run `/init` now — Anthropic's built-in command analyzes the codebase and writes CLAUDE.md." (cannot programmatically invoke another slash command from inside one).
+- **Run /init** → print "Run `/init` in the active host to generate its instruction file." (cannot programmatically invoke another slash command from inside one).
 - **Run /flow:init** → print "Run `/flow:init` now to scaffold `.ai/` workspace."
 - **None** → skip.
 
@@ -152,6 +159,6 @@ Next:
 ## What `/design:init` does NOT do
 
 - **No DS creation.** Use `/design:setup-ds <name> "[brief]"`.
-- **No CLAUDE.md generation.** That's Anthropic's built-in `/init` — we only surface the recommendation.
+- **Instruction-file generation stays with the active host's `/init`.** Surface the matching recommendation; no other host CLI is required.
 - **No `.ai/` scaffold.** That's `/flow:init` — we only surface the recommendation.
 - **No npm installs.** Soft-dep install hints are printed for the user to copy/paste — we never auto-install.

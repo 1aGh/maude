@@ -1,6 +1,6 @@
 ---
 title: /flow:validate-security
-description: "Security review — spawns security-auditor + ethical-hacker subagents, aggregates report, gates on severityFloor"
+description: "Run security and adversarial reviews, consolidate findings and apply the configured severity gate."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Security review — spawns security-auditor + ethical-hacker subag
 
 ## Description
 
-Security review — spawns security-auditor + ethical-hacker subagents, aggregates report, gates on severityFloor
+Run security and adversarial reviews, consolidate findings and apply the configured severity gate.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /flow:validate-security [--since <ref>] [--include-ai | --no-ai]
 ```
 
-## Summary
+**Codex**
 
-Run a focused security pass over the diff. Defender (`security-auditor`) catches OWASP-class findings against changed files; attacker (`ethical-hacker`) threat-models the change, hunts chained exploits, and covers AI/MCP attack surface (prompt injection, MCP tool poisoning, confused-deputy, the trifecta). Both run **in
+```text
+$flow:source-command-validate-security [--since <ref>] [--include-ai | --no-ai]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/flow/commands/validate-security.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/validate-security.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/validate-security.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/validate-security.md).
 
 </Callout>

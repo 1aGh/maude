@@ -1,10 +1,12 @@
 ---
 name: motion-rules
-description: Animation and motion design hard-stops — duration tokens, easing curves, prefers-reduced-motion, compositor-friendly properties, motion choreography. Reads ceilings from `.ai/workflows.config.json` → `motion`. Use when adding/reviewing transitions, page transitions, presence cursors, HUD overlays, or any animated UI.
+description: "Review animation duration, easing, reduced motion, rendering cost and motion choreography."
 user-invocable: false
 ---
 
 # Motion Rules
+
+Follow [host conventions](../../HARNESS.md) for Claude Code or Codex.
 
 Hard-stop rules for animation and motion design. Violations require the AI agent to refuse, rewrite, or block the artifact.
 

@@ -1,11 +1,13 @@
 ---
 name: self-host
 type: skill
-description: "Walk someone through standing up a self-hosted Maude workspace — one project on their own infrastructure — asking only what cannot be inferred, collecting exactly the credentials their choices need, and reading the verification back honestly. Use when the request is to self-host, deploy a hub or workspace, run Maude on their own AWS/VPS, or connect their own identity provider."
+description: "Set up and verify a self-hosted Maude hub workspace with project storage and media."
 keywords: [self-host, hub, workspace, deploy, aws, oidc, auth0, backups, credentials]
 ---
 
 # Standing up a self-hosted workspace
+
+Follow [host conventions](../../HARNESS.md) for Claude Code or Codex.
 
 A staged interview over **`maude hub workspace-up`**. Everything executable
 lives in that command (DDR-062 — plugins reach executable logic through

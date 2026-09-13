@@ -1,0 +1,6 @@
+interface:
+  display_name: "design:smoke"
+  short_description: "Screenshot UI canvases and design specimens to detect blank,…"
+  default_prompt: "Use $design:source-command-smoke with the task details I provide."
+policy:
+  allow_implicit_invocation: false

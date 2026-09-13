@@ -2,12 +2,14 @@
 name: scenario
 category: daily
 type: command
-description: "Run a cross-platform UI scenario (5 platforms: web-desktop, web-mobile, ios-phone, ios-tablet, android-phone) — screenshot proof + markdown report"
+description: "Run cross-platform web and native UI scenarios with screenshot evidence and a report."
 keywords: [scenario, validate, e2e, smoke, cross-platform, agent-browser, agent-device]
 argument-hint: "<scenario-name> | new <scenario-name>"
 ---
 
 # /scenario — cross-platform UI flow runner
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 **This is the validation backbone.** For every UI feature there must be at least one scenario that verifies it across 5 platforms. Web-only or native-only features use a subset.
 

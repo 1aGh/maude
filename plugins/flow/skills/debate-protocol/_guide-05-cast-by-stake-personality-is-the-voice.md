@@ -1,0 +1,5 @@
+## Cast by stake; personality is the voice
+
+A chair is earned ONLY by an **orthogonal failure-mode** no seated chair owns. **Personality is the delivery vehicle (conviction); the stake is the cargo — no cargo, no seat.** The standing seats (stakes) and their default voices are defined in the agent `.md` files: `flow:builder` (naive-junior), `flow:shipper` (minimalist), `flow:breaker` (regression-risk skeptic; carries the maintenance-horizon / Sisyphus lens), `flow:user-advocate` (customer), `flow:investigator` (skeptic), plus reused `ethical-hacker` (ATTACKER) and `security-auditor` (DEFENDER). Devil's advocate is the **rotating dissent role**, not a chair.
+
+**Falsifiable merge-test** (anti-theater): log each seat's binary `verdict` across runs; if two seats agree >~90% of the time, they are one seat in two hats — **merge them**, regardless of how different their prose reads. A forced dissenter that flips ~100% is also theater (a real seat disagrees *selectively*, where its stake bites).

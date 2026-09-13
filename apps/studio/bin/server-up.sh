@@ -145,9 +145,24 @@ NEEDS_START=1
 if [ -f "$STATE" ]; then
   PID=$(read_pid)
   PORT=$(read_port)
+  # Sandboxed agents may reach Studio while kill -0 returns EPERM. Verify the
+  # server's identity over HTTP instead of mistaking denied signalling for death.
+  HEALTH=""
+  if [ -n "$PORT" ]; then
+    HEALTH=$(curl -fs --max-time 2 "http://localhost:$PORT/_health" 2>/dev/null || true)
+  fi
   if [ -n "$PID" ] && [ -n "$PORT" ] \
-     && kill -0 "$PID" 2>/dev/null \
-     && curl -fs "http://localhost:$PORT/_health" >/dev/null 2>&1; then
+     && printf '%s' "$HEALTH" | node -e '
+       try {
+         const fs = require("node:fs");
+         const h = JSON.parse(fs.readFileSync(0, "utf8"));
+         const root = fs.realpathSync(process.argv[2]);
+         const id = require("node:crypto").createHash("sha256").update(root).digest("hex").slice(0, 12);
+         process.exit(h.ok === true && h.app === "design" &&
+           Number(h.pid) === Number(process.argv[1]) &&
+           (h.rootId === undefined || h.rootId === id) ? 0 : 1);
+       } catch { process.exit(1); }
+     ' "$PID" "$REPO"; then
     echo "✓ server alive pid=$PID port=$PORT" >&2
     echo "$PORT"
     exit 0

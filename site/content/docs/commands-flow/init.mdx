@@ -1,6 +1,6 @@
 ---
 title: /flow:init
-description: "Scaffold the .ai/ workspace, auto-detect project stack, populate workflows.config.json, and ensure CLAUDE.md exists (via /init)."
+description: "Scaffold the .ai workspace, detect the project stack and check host instruction files and dependencies."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Scaffold the .ai/ workspace, auto-detect project stack, populate w
 
 ## Description
 
-Scaffold the .ai/ workspace, auto-detect project stack, populate workflows.config.json, and ensure CLAUDE.md exists (via /init).
+Scaffold the .ai workspace, detect the project stack and check host instruction files and dependencies.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /flow:init
 ```
 
-## Summary
+**Codex**
 
-Sets up everything the `flow` plugin needs to operate on a new (or existing) repo. Does **not** duplicate Claude Code's built-in `/init` — defers to it for `CLAUDE.md`. Owns three things:
+```text
+$flow:source-command-init
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/flow/commands/init.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/init.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/init.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/init.md).
 
 </Callout>

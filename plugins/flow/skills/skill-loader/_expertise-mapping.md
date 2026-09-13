@@ -4,7 +4,7 @@
 
 ## Diff candidates against loaded skills + agents
 
-For each candidate, scan the system-reminder skills list (substring + alias check). Examples:
+For each candidate, scan the active host's installed skill catalog (substring + alias check). Examples:
 
 | Candidate | Already loaded? Look for                                  |
 | --------- | --------------------------------------------------------- |

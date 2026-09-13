@@ -236,6 +236,8 @@ Write `<output_path>` with this structure:
 ```markdown
 # signature-moment-critic — iter {iter_n}
 
+Follow [host conventions](../HARNESS.md) for the active host; retain this role's restrictions.
+
 _<ISO ts> · canvas: `{canvas_path}` · type: {detected_canvas_type} · aspiration score: {normalized}/5_
 
 ## TL;DR

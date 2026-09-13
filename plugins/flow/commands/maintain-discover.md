@@ -2,12 +2,14 @@
 name: maintain-discover
 category: maintain
 type: command
-description: Search AI capabilities by natural-language task description
+description: "Find skills, agents and other capabilities for a task description."
 keywords: [search, find, discover, capability, command, agent, skill, prompt]
 argument-hint: What task are you trying to accomplish?
 ---
 
 # Discover AI Capabilities
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Search the AI capability registry to find the right command, agent, skill, or prompt for any task.
 

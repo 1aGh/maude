@@ -1,6 +1,6 @@
 ---
 title: /design:hub-workspace
-description: "Stand up a self-hosted Maude workspace — a hub that owns the project, commits autosaves, and stores media in object storage — and verify it works before saying it does"
+description: "Set up and verify a self-hosted Maude workspace."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Stand up a self-hosted Maude workspace — a hub that owns the pro
 
 ## Description
 
-Stand up a self-hosted Maude workspace — a hub that owns the project, commits autosaves, and stores media in object storage — and verify it works before saying it does
+Set up and verify a self-hosted Maude workspace.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /design:hub-workspace [--dry-run] [--domain HOST] [--config FILE]
 ```
 
-## Summary
+**Codex**
 
-Load skill **`self-host`** and follow it. It owns the interview: which shape they actually need, where it runs, the address, storage, identity, seeding, durability, the dry run, and the honest read-back of what was verified.
+```text
+$design:source-command-hub-workspace [--dry-run] [--domain HOST] [--config FILE]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/design/commands/hub-workspace.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/hub-workspace.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/design/commands/hub-workspace.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/hub-workspace.md).
 
 </Callout>

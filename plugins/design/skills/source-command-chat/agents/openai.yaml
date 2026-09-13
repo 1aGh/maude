@@ -1,0 +1,6 @@
+interface:
+  display_name: "design:chat"
+  short_description: "Open the existing native Studio ACP chat panel. ACP harness…"
+  default_prompt: "Use $design:source-command-chat with the task details I provide."
+policy:
+  allow_implicit_invocation: false

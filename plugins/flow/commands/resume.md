@@ -2,11 +2,13 @@
 name: resume
 category: daily
 type: command
-description: Resume a previously paused workflow from HANDOFF.md and STATE.md
+description: "Resume a paused workflow from its handoff and saved state."
 keywords: [resume, continue, pick-up, restore, session, handoff]
 ---
 
 # Resume Work: Restore Session State
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 ## Objective
 

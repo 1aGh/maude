@@ -53,6 +53,8 @@ The `cached_payload` short-circuit above is an **exact-brief** match the caller 
 
 ```sh
 # Domain slug: product_type + industry from the vision-brief (or the brief's core
+
+Follow [host conventions](../HARNESS.md) for the active host; retain this role's restrictions.
 # domain nouns), lowercased, non-alphanumerics → "-", repeats collapsed.
 DOMAIN_KEY="<domain-slug>--<mode>"        # e.g. finance-dashboard-fintech--discovery
 BRIEF_SHA=$(printf '%s' "<brief>" | git hash-object --stdin | cut -c1-8)

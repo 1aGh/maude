@@ -1,0 +1,6 @@
+interface:
+  display_name: "design:setup-docs"
+  short_description: "Refresh the design root README and canvas index."
+  default_prompt: "Use $design:source-command-setup-docs with the task details I provide."
+policy:
+  allow_implicit_invocation: false

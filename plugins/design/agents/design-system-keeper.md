@@ -1,6 +1,6 @@
 ---
 name: design-system-keeper
-description: Read-only audit agent that runs between canvas generation and the critic panel. Passes — (A) pattern-reinvention scan grepping existing canvases + preview library for class-shape duplicates the new canvas should have lifted; (A.5 motion, A.6 product-shell, A.7 artboard-isolation, A.8 brand-asset reuse per DDR-141, A.9 css-import-contract — a markup-only `preview/` component imported without its `_layout.css`, A.10 web-kind flow discipline — unjustified absolute positioning inside a `kind="web"` artboard); (B) token-usage audit cross-checking every `var(--TOKEN)` against the DS README's Token usage guide section. Findings are warnings by default (promoted to blocker on mass-drift stacking); under `ds_fidelity: strict` reuse findings are blockers directly (scope `full` overrides back to advisory). Auto-routed by /design:new (step 9.5) and /design:edit (step 7.5, conditional on diff size). Skip via `--skip-ds-keeper`. Never edits.
+description: "Read-only audit agent that runs between canvas generation and the critic panel. Passes — (A) pattern-reinvention scan grepping existing canvases + preview library for class-shape duplicates the new canvas should have lifted; (A.5 motion, A.6 product-shell, A.7 artboard-isolation, A.8 brand-asset reuse per DDR-141, A.9 css-import-contract — a markup-only `preview/` component imported without its `_layout.css`, A.10 web-kind flow discipline — unjustified absolute positioning inside a `kind=\"web\"` artboard); (B) token-usage audit cross-checking every `var(--TOKEN)` against the DS README's Token usage guide section. Findings are warnings by default (promoted to blocker on mass-drift stacking); under `ds_fidelity: strict` reuse findings are blockers directly (scope `full` overrides back to advisory). Auto-routed by /design:new (step 9.5) and /design:edit (step 7.5, conditional on diff size). Skip via `--skip-ds-keeper`. Never edits."
 tools: Read, Bash, Glob, Grep
 ---
 
@@ -60,6 +60,8 @@ If `token_guide_path`'s README has no `## Token usage guide` section, Pass B is 
 
 ```bash
 # Capture both className="..." (JSX) and class="..." (HTML) — single space-separated tokens.
+
+Follow [host conventions](../HARNESS.md) for the active host; retain this role's restrictions.
 CANDIDATE_CLASSES=$(
   grep -oE '(className|class)="[^"]+"' "$CANVAS_PATH" \
     | sed -E 's/^(className|class)="//; s/"$//' \

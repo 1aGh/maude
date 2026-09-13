@@ -1,32 +1,40 @@
 ---
 title: /design:to-rn
-description: "FALLBACK — generate a native react-native-svg + Reanimated component from the IR for LIGHT/occasional animation. For rich/continuous morph use `/design:to-lottie` (rn-svg has a perf ceiling, `feTurbulence` has no native impl)."
+description: "Create a React Native SVG animation fallback for light motion."
 ---
 
 | Property | Value |
 | -------- | ----- |
 | **Command** | `/design:to-rn` |
 | **Category** | `daily` (daily) |
-| **Argument hint** | `\"<animated mark \| IR handle \| canvas>\" [--out <Component.tsx>]` |
+| **Argument hint** | `"<animated mark \| IR handle \| canvas>" [--out <Component.tsx>]` |
 | **Source** | [`plugins/design/commands/to-rn.md`](https://github.com/1aGh/maude/blob/main/plugins/design/commands/to-rn.md) |
 
 ## Description
 
-FALLBACK — generate a native react-native-svg + Reanimated component from the IR for LIGHT/occasional animation. For rich/continuous morph use `/design:to-lottie` (rn-svg has a perf ceiling, `feTurbulence` has no native impl).
+Create a React Native SVG animation fallback for light motion.
 
 ## Invocation
 
+**Claude Code**
+
 ```text
-/design:to-rn \"<animated mark | IR handle | canvas>\" [--out <Component.tsx>]
+/design:to-rn "<animated mark | IR handle | canvas>" [--out <Component.tsx>]
 ```
 
-## Summary
+**Codex**
 
-The **fallback** motion handoff for **light / occasional** animation where you want a native `react-native-svg` + Reanimated component instead of a Lottie runtime ([DDR-094](../../../.ai/archive/decisions/DDR-094-draw-animation-keyframe-ir-native-authoring-lottie-export.md)).
+```text
+$design:source-command-to-rn "<animated mark | IR handle | canvas>" [--out <Component.tsx>]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/design/commands/to-rn.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/to-rn.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/design/commands/to-rn.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/to-rn.md).
 
 </Callout>

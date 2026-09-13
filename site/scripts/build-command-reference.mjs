@@ -44,7 +44,15 @@ function parseFrontmatter(raw) {
         (value.startsWith('"') && value.endsWith('"')) ||
         (value.startsWith("'") && value.endsWith("'"))
       ) {
-        value = value.slice(1, -1);
+        if (value.startsWith('"')) {
+          try {
+            value = JSON.parse(value);
+          } catch {
+            value = value.slice(1, -1);
+          }
+        } else {
+          value = value.slice(1, -1);
+        }
       }
       frontmatter[currentKey] = value;
     } else if (currentKey && line.startsWith(' ')) {
@@ -52,31 +60,6 @@ function parseFrontmatter(raw) {
     }
   }
   return { frontmatter, body: body || '' };
-}
-
-function deriveSummary(body) {
-  // First non-heading, non-blockquote paragraph after the frontmatter.
-  const lines = body.split('\n');
-  const buf = [];
-  let inFence = false;
-  for (const line of lines) {
-    if (line.startsWith('```')) {
-      inFence = !inFence;
-      continue;
-    }
-    if (inFence) continue;
-    if (!line.trim()) {
-      if (buf.length) break;
-      continue;
-    }
-    if (line.startsWith('#') || line.startsWith('>')) {
-      if (buf.length) break;
-      continue;
-    }
-    buf.push(line.trim());
-    if (buf.join(' ').length > 240) break;
-  }
-  return mdxEscape(buf.join(' ').slice(0, 320));
 }
 
 // Escape `<` that would otherwise be parsed as JSX by MDX. Cheap & sufficient
@@ -141,17 +124,21 @@ async function emitPlugin(plugin) {
     throw err;
   }
 
-  await rm(targetDir, { recursive: true, force: true });
   await mkdir(targetDir, { recursive: true });
+  const expectedPages = new Set(plugin.commands.map(({ name }) => `${name}.mdx`));
+  for (const file of await readdir(targetDir)) {
+    if (file.endsWith('.mdx') && !expectedPages.has(file)) {
+      await rm(join(targetDir, file));
+    }
+  }
 
   for (const command of plugin.commands) {
     const { name, category } = command;
     const raw = await readFile(join(sourceDir, `${name}.md`), 'utf8');
-    const { frontmatter, body } = parseFrontmatter(raw);
+    const { frontmatter } = parseFrontmatter(raw);
 
     const description = frontmatter.description || `${plugin.prefix}${name}`;
     const argHint = frontmatter['argument-hint'] || '';
-    const summary = deriveSummary(body);
     const invocation = argHint ? `${plugin.prefix}${name} ${argHint}` : `${plugin.prefix}${name}`;
     const daily = isDaily(command);
     const sourceRel = relativeSourcePath(plugin, name);
@@ -174,15 +161,26 @@ ${mdxEscape(description)}
 
 ## Invocation
 
+**Claude Code**
+
 \`\`\`text
 ${invocation}
 \`\`\`
 
-${summary ? `## Summary\n\n${summary}\n` : ''}## Source of truth
+**Codex**
+
+\`\`\`text
+$${plugin.slug}:source-command-${name}${argHint ? ` ${argHint}` : ''}
+\`\`\`
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
+## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**\`${sourceRel}\`**](${repoUrl}/${sourceRel}).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**\`${sourceRel}\`**](${repoUrl}/${sourceRel}).
 
 </Callout>
 `;

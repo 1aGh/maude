@@ -1,0 +1,19 @@
+{
+  "name": "flow",
+  "version": "1.2.0",
+  "description": "Planning, implementation, validation and decision memory.",
+  "author": {
+    "name": "1aGh"
+  },
+  "license": "MIT",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Maude Flow",
+    "shortDescription": "Planning, implementation, validation and decision memory.",
+    "longDescription": "Planning, implementation, validation and decision memory. Shared workflows for Claude Code and Codex. Install both design and flow for the full set.",
+    "developerName": "1aGh",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "defaultPrompt": ["Use $flow:source-command-help to show the available workflows."]
+  }
+}

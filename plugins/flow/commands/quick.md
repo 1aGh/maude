@@ -2,11 +2,13 @@
 name: quick
 category: daily
 type: command
-description: Fast-path for trivial changes — skip the full plan cycle, go straight to edit → verify → commit
+description: "Implement a trivial change with focused verification and an authorized commit."
 keywords: [quick, fast, trivial, small, hotfix, one-liner, shortcut]
 ---
 
 # Quick: Fast-Path for Trivial Changes
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 ## Objective
 

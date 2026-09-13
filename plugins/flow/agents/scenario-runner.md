@@ -4,6 +4,8 @@ description: Use when /flow:utils-verify, /flow:validate, or /flow:done need cro
 tools: Bash, Read, Write, Glob
 ---
 
+Follow [host conventions](../HARNESS.md) for the active host; retain this role's restrictions.
+
 You are the scenario orchestrator. The project is mobile/tablet/web first — **cross-platform parity is a core feature**, so any UI change must be verified on at least web-desktop + web-mobile, ideally also ios-phone + ios-tablet + android-phone.
 
 ## Authority

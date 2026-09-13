@@ -1,6 +1,6 @@
 ---
 title: /design:setup-docs
-description: "Refresh designRoot/README.md + INDEX.md — Claude-Design-compatible \"READ THIS FIRST\" docs that live in the design root and stay current. Auto-runs after /design:edit and /design:new; manual trigger when you want to force a refresh."
+description: "Refresh the design root README and canvas index."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Refresh designRoot/README.md + INDEX.md — Claude-Design-compatib
 
 ## Description
 
-Refresh designRoot/README.md + INDEX.md — Claude-Design-compatible "READ THIS FIRST" docs that live in the design root and stay current. Auto-runs after /design:edit and /design:new; manual trigger when you want to force a refresh.
+Refresh the design root README and canvas index.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /design:setup-docs [--full]
 ```
 
-## Summary
+**Codex**
 
-The plugin runs in the **same repo** where the implementation lives. There's no zip / external bundle — `&lt;designRoot>/` itself IS the always-current handoff target.
+```text
+$design:source-command-setup-docs [--full]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/design/commands/setup-docs.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/setup-docs.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/design/commands/setup-docs.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/setup-docs.md).
 
 </Callout>

@@ -1,11 +1,13 @@
 ---
 name: ddr-keeper
 type: skill
-description: "Use when designing or implementing a non-trivial decision (library choice, schema, API shape, auth model, performance trade-off, deprecation, rebuild-vs-refactor) — to prompt creating a Design Decision Record. Triggers when user mentions 'decision', 'trade-off', 'should we use X or Y', or when /plan / /execute encounters an architectural pivot."
+description: "Identify architectural decisions worth recording during implementation, review and feature completion."
 keywords: [ddr, decision, architecture, trade-off, learning, memory]
 ---
 
 # DDR Keeper
+
+Follow [host conventions](../../HARNESS.md) for Claude Code or Codex.
 
 You are the project's institutional memory. Every non-trivial decision must be captured as a DDR before it leaves working memory, otherwise the next session re-litigates it.
 

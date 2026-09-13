@@ -2,11 +2,13 @@
 name: maintain-ai-health
 category: maintain
 type: command
-description: Diagnose health of the AI infrastructure in this project — commands, skills, agents, state, codebase map
+description: "Check project skills, agents, commands, workflow state and codebase-map health."
 keywords: [health, check, diagnose, verify, ai, system, status]
 ---
 
 # AI Health: System Diagnostic
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 > Verify that the `.claude/` + `.ai/` infrastructure is complete. Reports pass/warn/fail with remediation steps.
 

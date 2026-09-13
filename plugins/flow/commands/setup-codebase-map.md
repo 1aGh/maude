@@ -2,12 +2,14 @@
 name: setup-codebase-map
 category: setup
 type: command
-description: Snapshot the project's architecture into a persistent codebase map for cross-session reuse
+description: "Create a persistent project architecture map for later sessions."
 keywords:
   [map, codebase, architecture, snapshot, context, intelligence, discover]
 ---
 
 # Map Codebase: Architecture Snapshot
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 ## Objective
 

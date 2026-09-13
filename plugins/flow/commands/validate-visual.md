@@ -2,11 +2,13 @@
 name: validate-visual
 category: validate
 type: command
-description: Visual regression check with screenshots
+description: "Check visual regressions with screenshots."
 keywords: [visual, screenshot, regression, ui, compare, snapshot]
 ---
 
 # Visual Validation
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Capture screenshots and compare against expected appearance.
 

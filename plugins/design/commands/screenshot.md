@@ -1,11 +1,13 @@
 ---
 name: screenshot
 category: daily
-description: Capture a screenshot of the active canvas — full, a single screen, an element, or every screen in a loop. Wrapper over `maude design screenshot` (agent-browser primary, playwright fallback).
+description: "Capture the active canvas, one artboard, an element or all screens."
 argument-hint: "[--screen|--element <id> | --selector <css> | --full | --all-screens] [--area <n>]"
 ---
 
 # /design:screenshot — capture active canvas
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Opens the active canvas (`_active.json`) via the server URL (not `file://`), captures a screenshot, saves it to `.design/_history/<slug>/screenshots/<NNN>-<area>.png` (gitignored).
 

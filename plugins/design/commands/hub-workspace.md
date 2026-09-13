@@ -1,11 +1,13 @@
 ---
 name: hub-workspace
 category: hub
-description: Stand up a self-hosted Maude workspace — a hub that owns the project, commits autosaves, and stores media in object storage — and verify it works before saying it does
+description: "Set up and verify a self-hosted Maude workspace."
 argument-hint: "[--dry-run] [--domain HOST] [--config FILE]"
 ---
 
 # /design:hub-workspace — stand up a self-hosted workspace
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Load skill **`self-host`** and follow it. It owns the interview: which shape
 they actually need, where it runs, the address, storage, identity, seeding,

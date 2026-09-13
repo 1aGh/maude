@@ -384,7 +384,7 @@ async function materializeRuntimeMarketplace({
   return root;
 }
 
-async function materializePluginSource(item, target, ownedRoot) {
+export async function materializePluginSource(item, target, ownedRoot) {
   await removeOwnedPath(target, ownedRoot);
   await assertTreeHasNoSymlinks(item.value.installPath);
   await cp(item.value.installPath, target, { recursive: true });
@@ -395,6 +395,9 @@ async function materializePluginSource(item, target, ownedRoot) {
       `plugin changed while materializing: ${item.name} (${item.sourceHash} != ${copiedHash})`
     );
   }
+  // A source-owned native package already supplies its entry points and paths.
+  // Flattening Claude commands over it would break relative reference links.
+  if (await pathExists(join(target, '.codex-plugin', 'plugin.json'))) return;
   const commands = await snapshotCommandFiles(target);
   const generatedRoot = join(target, 'skills');
   await mkdir(generatedRoot, { recursive: true });

@@ -3,6 +3,13 @@ title: Maude, how it works mostly
 description: The design tool built around Claude Code, not bolted onto one. Two plugins (design + flow), one CLI, an optional self-hosted hub. No telemetry, no signup.
 ---
 
+<Callout type="info" title="Claude Code and terminal Codex">
+The same canvas and workflow procedures are available through
+[native Codex plugins](/docs/codex). Codex can drive Studio through the Maude CLI,
+project files and browser tools. This does not switch Studio's built-in ACP chat.
+</Callout>
+
+
 Most design tools bolt AI onto a human workflow. Claude's own canvas is a chat box that forgets everything by morning. Maude is built around Claude Code from day one, so canvases are real files, and the same repo-native model runs `flow`'s plan-to-ship loop too. That's the whole pitch.
 
 Two plugins, one CLI, and the `.ai/` workspace they both pretend not to need. You're probably here for `design` or `flow`. `maude` is the plumbing. Cmd-K skips ahead.

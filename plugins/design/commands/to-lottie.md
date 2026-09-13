@@ -1,11 +1,13 @@
 ---
 name: to-lottie
 category: daily
-description: Productionize a maude animation → ONE `.lottie` FROM CODE for web and mobile (1:1 lottie-web/dotlottie-react + lottie-react-native). Emitter from keyframe data, NOT a converter of rendered SVG. Self-verify via headless lottie-web.
+description: "Export animation keyframes to a verified Lottie artifact for web and mobile."
 argument-hint: "\"<animated mark | IR handle | canvas>\" [--out <path>] [--web] [--verify]"
 ---
 
 # /design:to-lottie — emit ONE Lottie from code (web + mobile)
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 The **production-delivery** handoff for maude animation ([DDR-094](../../../.ai/archive/decisions/DDR-094-draw-animation-keyframe-ir-native-authoring-lottie-export.md)).
 You iterate the animation natively in maude (the keyframe IR → SMIL/JSX preview);

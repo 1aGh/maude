@@ -2,17 +2,24 @@
 name: init
 category: setup
 type: command
-description: Scaffold the .ai/ workspace, auto-detect project stack, populate workflows.config.json, and ensure CLAUDE.md exists (via /init).
+description: "Scaffold the .ai workspace, detect the project stack and check host instruction files and dependencies."
 keywords: [init, setup, onboard, project, configure, bootstrap, scaffold, workspace, maude, mdcc, claude.md]
 ---
 
 # /flow:init — Bootstrap the flow workspace
 
-Sets up everything the `flow` plugin needs to operate on a new (or existing) repo. Does **not** duplicate Claude Code's built-in `/init` — defers to it for `CLAUDE.md`. Owns three things:
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
+
+**Instruction-file selection:** bind `INSTRUCTIONS_FILE` to `CLAUDE.md` in
+Claude Code or `AGENTS.md` in Codex before running the examples. Report and
+recommend the selected filename. Do not require a Claude file in a Codex project.
+
+
+Sets up everything the `flow` plugin needs to operate on a new (or existing) repo. Defers to the active host's built-in `/init` for its instruction file. Owns three things:
 
 1. The `.ai/` second-brain workspace skeleton (scaffolded via `maude init`).
 2. Populating `.ai/workflows.config.json` with detected stack values.
-3. Recommending `/init` for `CLAUDE.md` if missing.
+3. Recommending the host's `/init` for its instruction file if missing.
 
 ## Pre-Flight A: dependency check (sourced from manifest)
 
@@ -66,18 +73,25 @@ fi
 - **`MAUDE_AVAILABLE=true`** → `> Found maude ($MAUDE_VERSION). Will scaffold .ai/ in Step 1.`
 - **`MAUDE_AVAILABLE=false`** → `> maude not on PATH. Run \`npm i -g @1agh/maude\` then re-run /flow:init. Continuing in degraded mode — config-file population in Step 3 will be manual.`
 
-## Pre-Flight B: `CLAUDE.md` exists?
+## Pre-Flight B: host instruction file exists?
+
+First select `CLAUDE.md` for Claude Code or `AGENTS.md` for Codex. In the
+legacy examples below, substitute that selected filename; `/init` is the active
+host's built-in command. If unavailable, explain the missing file and offer the
+same concise initialization within the user's request. Do not invoke the other
+host's CLI or copy a Claude instruction file with global name replacement.
+
 
 ```bash
-if [[ -f "$REPO_ROOT/CLAUDE.md" || -f "$REPO_ROOT/.claude/CLAUDE.md" ]]; then
-  CLAUDE_MD_EXISTS=true
+if [[ -f "$REPO_ROOT/$INSTRUCTIONS_FILE" || ( "$INSTRUCTIONS_FILE" == "CLAUDE.md" && -f "$REPO_ROOT/.claude/CLAUDE.md" ) ]]; then
+  INSTRUCTIONS_EXIST=true
 else
-  CLAUDE_MD_EXISTS=false
+  INSTRUCTIONS_EXIST=false
 fi
 ```
 
 - **Exists** → continue, will note it in Step 4 report.
-- **Missing** → at end of flow, prompt the user to run Anthropic's built-in `/init` (it analyzes the codebase and writes a `<200`-line `CLAUDE.md` tailored to the stack). **Don't** try to generate `CLAUDE.md` from here — that's `/init`'s job. We'd just duplicate it badly.
+- **Missing** → at the end, recommend the active host's `/init` for the selected instruction file. Keep the host-specific guidance in Step 5.
 
 ## Step 1: Scaffold `.ai/` via `maude init`
 
@@ -427,15 +441,15 @@ If `$ANSWER_CHANGELOG == "none"` and no runbook exists, **skip** — the user ca
 - `motion`, `responsive.densityMap`, `responsive.breakpoints`, `boundaries`, `ux`, `skills` — these are intentional choices the user makes after the project starts taking shape. Plugin skills work with defaults until the user tunes them.
 - `paths.prd` / `paths.designSystem` — derived from `name` at command-read time; no need to write explicitly.
 
-## Step 5: CLAUDE.md handoff
+## Step 5: instruction-file handoff
 
-> If `CLAUDE_MD_EXISTS=true`, skip the prompt and note in the report. If `false`, prompt:
-
-> **No `CLAUDE.md` found. Run `/init` (Anthropic's built-in) — it analyzes the codebase and writes a tailored `<200`-line `CLAUDE.md` with build commands, test instructions, and conventions. After it finishes, re-run `/flow:status` to confirm everything wired together.**
->
-> Optional: set `CLAUDE_CODE_NEW_INIT=1` before launching for the interactive multi-phase flow (asks about skills and hooks too).
->
-> For path-scoped rules (per file-type guidance like "frontend tests must mock the API"), use `.claude/rules/*.md` with `paths:` frontmatter. See Anthropic's docs on memory.
+If `INSTRUCTIONS_EXIST=true`, skip the prompt and note the file in the report.
+Otherwise recommend the active host's `/init`: `CLAUDE.md` in Claude Code,
+`AGENTS.md` in Codex. Then re-run `flow:status` to check the workflow setup.
+Claude may use `.claude/rules/*.md` for path-scoped rules; Codex uses nested
+`AGENTS.md` files. Optional `CLAUDE_CODE_NEW_INIT` applies only to Claude;
+never set it as a prerequisite for Codex. Read `flow:claude-md-keeper` when
+proposing subsequent convention updates.
 
 ## Step 6: Report
 
@@ -476,11 +490,11 @@ Integrations
   release-guide:               .ai/release-guide.md <scaffolded | skipped (provider = none)>
   (configure mcp + defaults via `maude config set integrations.<key>.*`)
 
-CLAUDE.md
+<instruction file>
   status:                      <present at <path> | missing — run /init>
 
 Next steps
-  1. <if CLAUDE.md missing> Run /init to generate CLAUDE.md tailored to this stack.
+  1. <if instruction file missing> Run the active host's /init for this stack.
   2. <if $ANSWER_TESTS == "none" and repo has source> Install a test runner — recommendation from Step 2c: $TESTS_RUNNER_HINT. Without one, /flow:utils-verify and /flow:validate skip their test gates.
   3. <if repo has source and $TESTS != "none"> (Optional) Spawn the `flow:test-coverage` subagent in `path <critical-dir>` mode — establish a baseline gap report for legacy untested code.
   4. Create .ai/$ANSWER_NAME-prd.md with your product brief.
@@ -491,7 +505,7 @@ Next steps
 
 ## Notes for plugin authors
 
-- The CLAUDE.md handoff is intentional. `/init` is the canonical Anthropic command for generating `CLAUDE.md`, and reimplementing it here would drift. If the Anthropic team adds capabilities to `/init`, we automatically benefit by deferring.
-- The split between `CLAUDE.md` (prose, auto-loaded) and `.ai/workflows.config.json` (structured, on-demand) follows Anthropic's guidance: `CLAUDE.md` for facts every session needs; structured machine-readable config for command-specific lookups.
+- Keep instruction-file initialization with the active host; this command owns the `.ai/` workflow workspace.
+- Keep shared session conventions in the host instruction file; structured workflow settings stay in `.ai/workflows.config.json` and load on demand.
 - For project-level rules that don't need to be in every session (e.g. "frontend components must use shadcn/ui"), use `.claude/rules/<topic>.md` with `paths:` frontmatter — Anthropic's path-scoped rules system loads them only when relevant.
 - This command is idempotent. Safe to re-run. Each step skips work if it's already done.

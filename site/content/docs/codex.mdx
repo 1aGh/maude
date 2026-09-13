@@ -1,0 +1,204 @@
+---
+title: Codex plugins and Design Studio
+description: Install Maude natively in terminal Codex, run the shared workflows, and drive Design Studio with the Maude CLI.
+---
+
+Maude's `design` and `flow` plugins share their workflow procedures between
+Claude Code and Codex. Codex uses native plugin manifests and short skill entry
+points. It can read and edit the same project canvases that you see in Studio.
+
+<Callout type="info" title="Distribution status">
+The native packages are prepared in the repository. Until this change is
+published, install from a checkout containing `.agents/plugins/marketplace.json`
+and both `.codex-plugin/plugin.json` files. The examples below use that local
+checkout; a released GitHub marketplace install requires those files in the
+published revision. Native discovery was verified on Codex CLI 0.154.0.
+</Callout>
+
+## Install
+
+Install the Maude CLI for rendering, screenshots, exports and other executable
+helpers. Installing a Markdown plugin alone does not provide these tools.
+
+```bash
+npm install -g @1agh/maude
+maude --version
+codex --version
+```
+
+Register the Maude **checkout root**, then install both plugins:
+
+```bash
+codex plugin marketplace add /absolute/path/to/maude
+codex plugin add flow@maude
+codex plugin add design@maude
+```
+
+Start a fresh Codex session in the project you want to work on. The Maude source
+checkout and your target project can be different directories. Design uses flow's
+question, debate and decision-memory skills, so install both for the full set.
+
+### Existing `maude codex` installations
+
+Check `type -a codex`. If it resolves to a wrapper around `maude codex`, use the
+actual Codex binary for direct native installation. The updated Maude launcher
+preserves source-owned native packages; older launcher versions can rewrite
+mirrored command entries. Use one owner for each `design@maude` / `flow@maude`
+installation. Do not layer direct installation over a conflicting managed mirror
+or delete an existing cache without reviewing how it is installed.
+
+After publishing a new revision, update the marketplace and plugins through the
+native host's plugin management, then start a new session. Updating only the npm
+CLI does not update Markdown plugins, and updating plugins does not update the
+CLI's renderer.
+
+## Project instructions
+
+Codex reads `AGENTS.md`; Claude Code reads `CLAUDE.md`. Use the active host's
+built-in `/init` when you need its initial project instructions. Keep shared
+conventions in a common referenced document where the project already uses one;
+do not produce a Codex file by globally replacing names and URLs in `CLAUDE.md`.
+
+Initialize Maude's project workspace from Codex:
+
+```text
+$flow:source-command-init
+$design:source-command-init
+```
+
+The first workflow creates/configures `.ai/`; the second prepares `.design/`.
+Design-system creation remains a separate workflow:
+
+```text
+$design:source-command-setup-ds project "Your product and design-system brief"
+```
+
+## Invoke the same workflows
+
+| Task | Claude Code | Codex |
+| --- | --- | --- |
+| Help | `/design:help`, `/flow:help` | `$design:source-command-help`, `$flow:source-command-help` |
+| Plan / execute | `/flow:plan`, `/flow:execute` | `$flow:source-command-plan`, `$flow:source-command-execute` |
+| Validate / finish | `/flow:validate`, `/flow:done` | `$flow:source-command-validate`, `$flow:source-command-done` |
+| Pause / resume | `/flow:pause`, `/flow:resume` | `$flow:source-command-pause`, `$flow:source-command-resume` |
+| New / edit canvas | `/design:new`, `/design:edit` | `$design:source-command-new`, `$design:source-command-edit` |
+| Browse / screenshot | `/design:browse`, `/design:screenshot` | `$design:source-command-browse`, `$design:source-command-screenshot` |
+| Critique / export | `/design:critic`, `/design:export` | `$design:source-command-critic`, `$design:source-command-export` |
+| Knowledge graph | `flow:kgai-backend` | `$flow:kgai-backend` |
+| Design-system expertise | `design:design-system` | `$design:design-system` |
+
+Arguments and flags are the same. The complete
+[design command reference](/docs/commands-design/help) and
+[flow command reference](/docs/commands-flow/help) show **both host invocations on
+every command page**. Codex's built-in `/plan` selects a host mode; it is not
+Maude's feature-planning workflow.
+
+The 55 command entries are explicit-only in Codex, so invoke the named workflow
+when you want it. The 30 shared expertise skills remain available for relevant
+tasks. `source-command-*` preserves names from existing Maude Codex installations;
+short labels such as `design:edit` are shown in the skill interface.
+
+## Use Design Studio from terminal Codex
+
+Studio renders the project files; Codex operates on those files and calls the
+same Maude helpers as Claude. This path does not require Codex inside the
+Studio chat panel.
+
+1. Open the **same project directory** in Codex and Studio. A local working copy
+   must be available to the terminal; a cloud-only workspace is not automatically
+   mounted into Codex by installing the plugin.
+2. Run `$design:source-command-browse`. It reuses the project's running Studio
+   server or starts one through `maude design server-up`.
+3. Open a canvas in Studio. Press **V** for Select and click the relevant element
+   when you want a scoped edit. The server records the active canvas and selection
+   in `.design/_active.json`.
+4. Ask Codex for the edit. It reads that state, snapshots the canvas, modifies the
+   source and checks the rendered output. Keep its configured critic and quality
+   gates; an unavailable check is not a passing check.
+5. Review the result in Studio or ask for a screenshot, critique or export.
+
+```text
+$design:source-command-new "Checkout" "A two-screen checkout flow"
+$design:source-command-edit "Make the selected primary button label clearer"
+$design:source-command-screenshot --screen checkout
+$design:source-command-critic
+```
+
+Replace the screenshot's `checkout` with the actual artboard ID. You can also
+start the renderer manually from the target project:
+
+```bash
+maude design serve --root /absolute/path/to/your-project
+```
+
+### What Codex needs
+
+- File access to the target project and permission to run the Maude CLI.
+- A running local Studio renderer and working browser/screenshot tooling.
+- A model with image input for visual review, plus native subagents when the
+  selected workflow requires independent critics.
+- Applicable dependencies for the specific task: browser automation, mobile SDKs,
+  export tooling, or configured media-generation providers.
+
+The plugin inherits your selected Codex model and reasoning settings. It does
+not map Claude model aliases onto guessed OpenAI model names. A text-only model
+can edit source but cannot establish visual correctness from a screenshot.
+
+### Verification boundary
+
+Native installation and discovery were verified for all 85 entries on Codex CLI
+0.154.0. A separate local probe on September 13, 2026 started the Studio renderer
+and received a healthy response. It exposed a startup-helper bug: denied process
+signalling could make a healthy server look stale. The checkout fixes reuse by
+checking the server's HTTP identity; three regression tests pass.
+
+The same environment denied Chromium startup. Opening the canvas in automation,
+reading a real selection, making a scoped edit and checking its screenshot remain
+unverified end to end. The globally installed Playwright fallback also failed to
+resolve its module; the source checkout resolved it but encountered the browser
+permission denial. A working browser setup is a prerequisite for visual workflows.
+Installing the Markdown plugin does not grant browser or operating-system permissions.
+
+These checks do not certify every design-generation, critic, video/export or mobile
+workflow on every model. Native Codex role prompts retain the role's restrictions,
+but Markdown is not an enforced per-role tool whitelist.
+
+Studio's **built-in ACP chat** is a separate follow-up. `design:chat` opens the
+existing panel; it does not switch that panel to Codex. See the
+[desktop guide](/docs/desktop) for the current in-app chat behavior.
+
+## Dependencies, kgai and fallback behavior
+
+| Dependency | Used for | If unavailable |
+| --- | --- | --- |
+| `maude`, Node/git and relevant system tools | Studio and executable workflow helpers | Tasks needing these helpers cannot complete. Limited file-only flow fallbacks remain where documented. |
+| Both Maude plugins | Shared question, debate and memory protocols | Install the missing plugin for the full workflow set. |
+| kgai >= 1.5.1 and a trusted reachable store | Prior decisions and decision capture | `auto` uses the documented `.ai/` fallback with a notice; `on` surfaces the error. |
+| `agent-browser` or the supported screenshot fallback | Browser operations and visual evidence | Report missing visual coverage; do not claim a screenshot check passed. |
+| `agent-device` and platform SDKs | Native device scenarios | Mark unavailable platforms explicitly. |
+| External skills / optional MCP tools | Additional stack expertise | Use the documented installed-skill, role or official-documentation fallback. |
+| Native subagents / messaging | Specialist review and team relay | Independent review plus consolidation when messaging is absent; required missing reviewers are reported. |
+| BYOK media providers | Maude image/audio/video generation | Preserve provider choice and paid-generation confirmation; do not silently change providers. |
+
+`dependencies.json` is a Maude preflight inventory, not a host package installer.
+Hooks also require the host's support and trust; installing the plugin is not
+proof that a hook ran.
+
+For kgai, both hosts perform explicit read/write checkpoints through
+`flow:kgai-backend`. They reuse the engine-resolved store and project capture
+rules. A pending trust decision is never auto-approved. Local-only stores do not
+sync to a remote. The separate kgai plugin's Claude JSONL Stop scanner has not
+been ported here; Codex capture must not depend on it recognizing Codex edits.
+
+## Skill size and maintenance
+
+Large skills now use concise entry files with links to the relevant workflow
+stage, schema, example or troubleshooting section. Across the 30 shared skills,
+entry bytes decreased by about 67% and discovery-description characters by about
+78%; every shared entry is under 8 KB. The procedures remain available in the
+references and applicable stages must still be followed.
+
+Do not preload every reference or increase the global context budget as a
+substitute for selecting relevant instructions. Other installed plugins can still
+cause catalog-size warnings. These byte/character counts are not a benchmark of
+model quality or a promise of equivalent savings for a complete run.

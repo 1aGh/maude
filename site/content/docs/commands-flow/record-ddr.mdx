@@ -1,6 +1,6 @@
 ---
 title: /flow:record-ddr
-description: "Record a Design Decision Record — an architectural/product decision for the future"
+description: "Record an architectural or product decision with its rationale."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Record a Design Decision Record — an architectural/product decis
 
 ## Description
 
-Record a Design Decision Record — an architectural/product decision for the future
+Record an architectural or product decision with its rationale.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /flow:record-ddr <short decision title>
 ```
 
-## Summary
+**Codex**
 
-A DDR (Design Decision Record) is a formal record of a non-trivial decision that affects future development. The next instance of Claude Code (and humans) read it to understand **why** something is the way it is.
+```text
+$flow:source-command-record-ddr <short decision title>
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/flow/commands/record-ddr.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/record-ddr.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/record-ddr.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/record-ddr.md).
 
 </Callout>

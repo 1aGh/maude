@@ -1,6 +1,6 @@
 ---
 title: /design:init
-description: "One-time project-level environment init for the design plugin. Detects missing dependencies (node ≥ 20, git, agent-browser, maude), prints install hints for soft deps, offers to run /init for CLAUDE.md and /flow:init for .ai/, and writes a skeleton .design/config.json. Does NOT create a design system — use /design:setup-ds <name> for that. Mirrors /flow:init."
+description: "Initialize project design configuration and check dependencies."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "One-time project-level environment init for the design plugin. Det
 
 ## Description
 
-One-time project-level environment init for the design plugin. Detects missing dependencies (node ≥ 20, git, agent-browser, maude), prints install hints for soft deps, offers to run /init for CLAUDE.md and /flow:init for .ai/, and writes a skeleton .design/config.json. Does NOT create a design system — use /design:setup-ds &lt;name> for that. Mirrors /flow:init.
+Initialize project design configuration and check dependencies.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /design:init [--skip-prompts]
 ```
 
-## Summary
+**Codex**
 
-Project-level environment init for the `design` plugin. Mirrors `/flow:init` in shape and purpose: detect what's already in place, print actionable install / next-step hints for what's missing, and write the minimal skeleton config so subsequent commands have something to read.
+```text
+$design:source-command-init [--skip-prompts]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/design/commands/init.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/init.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/design/commands/init.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/init.md).
 
 </Callout>

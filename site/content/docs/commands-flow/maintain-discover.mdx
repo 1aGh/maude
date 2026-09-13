@@ -1,6 +1,6 @@
 ---
 title: /flow:maintain-discover
-description: "Search AI capabilities by natural-language task description"
+description: "Find skills, agents and other capabilities for a task description."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Search AI capabilities by natural-language task description"
 
 ## Description
 
-Search AI capabilities by natural-language task description
+Find skills, agents and other capabilities for a task description.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /flow:maintain-discover What task are you trying to accomplish?
 ```
 
-## Summary
+**Codex**
 
-Search the AI capability registry to find the right command, agent, skill, or prompt for any task.
+```text
+$flow:source-command-maintain-discover What task are you trying to accomplish?
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/flow/commands/maintain-discover.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/maintain-discover.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/maintain-discover.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/maintain-discover.md).
 
 </Callout>

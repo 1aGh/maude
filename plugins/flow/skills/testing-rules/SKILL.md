@@ -1,10 +1,12 @@
 ---
 name: testing-rules
-description: Test quality hard-stops — TDD iron law, no any types, no unlinked .skip, no unjustified snapshots, colocation, one-concept-per-test, no mocking of integration boundaries declared in config. Reads `boundaries.*` from `.ai/workflows.config.json`. Use when writing or reviewing test files, evaluating coverage gaps (test-coverage subagent), or auditing testing discipline before /flow:done.
+description: "Apply test quality rules during implementation and review: meaningful assertions, isolation and coverage."
 user-invocable: false
 ---
 
 # Testing Rules
+
+Follow [host conventions](../../HARNESS.md) for Claude Code or Codex.
 
 Hard-stop rules for test file quality. These are non-negotiable.
 

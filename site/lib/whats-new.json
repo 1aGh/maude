@@ -3,6 +3,16 @@
   "version": "1.2.0",
   "entries": [
     {
+      "id": "native-codex-shared-workflows",
+      "version": null,
+      "date": null,
+      "kind": "feature",
+      "title": "Use Maude workflows in Codex",
+      "summary": "Install Maude’s design and flow plugins natively in Codex and use the shared workflows alongside Claude Code. The new guide covers setup, dependencies and the browser requirements for working with Design Studio.",
+      "learnMore": "https://maude.sh/docs/codex",
+      "surface": "design-ui"
+    },
+    {
       "id": "shared-toast-stack-export-errors",
       "version": null,
       "date": null,

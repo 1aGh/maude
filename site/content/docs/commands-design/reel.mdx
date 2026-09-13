@@ -1,32 +1,40 @@
 ---
 title: /design:reel
-description: "From a folder of raw clips (or the clips on the active canvas) to a directed, graphics-laden video cut — in one prompt. Ingests + content-addresses the footage, runs the SHARED analysis step (same as `/design:video-analyze`: scene-aware keyframes via skill footage-keyframes → optional transcribe → the Read-only footage-analyst watches + returns JSON → orchestrator persists it), has the footage-director assemble an Edit Decision List, generates a Timeline-parseable `<TransitionSeries>` video-comp, and runs the motion + design critics. Wraps `maude design ingest-footage`/`smart-frames`/`transcribe` + the footage-analyst/footage-director agents + skills footage-keyframes/footage-director."
+description: "Analyze raw footage and create a directed video cut with graphics, audio and captions."
 ---
 
 | Property | Value |
 | -------- | ----- |
 | **Command** | `/design:reel` |
 | **Category** | `daily` (daily) |
-| **Argument hint** | `<Name> [<folder-path>] \"<brief>\" [--from-canvas] [--target-seconds N] [--fps N] [--aspect 16:9\|9:16\|1:1] [--frames N] [--music assets/<sha8>.mp3] [--generate-gaps] [--no-propose] [--no-critic]` |
+| **Argument hint** | `<Name> [<folder-path>] "<brief>" [--from-canvas] [--target-seconds N] [--fps N] [--aspect 16:9\|9:16\|1:1] [--frames N] [--music assets/<sha8>.mp3] [--generate-gaps] [--no-propose] [--no-critic]` |
 | **Source** | [`plugins/design/commands/reel.md`](https://github.com/1aGh/maude/blob/main/plugins/design/commands/reel.md) |
 
 ## Description
 
-From a folder of raw clips (or the clips on the active canvas) to a directed, graphics-laden video cut — in one prompt. Ingests + content-addresses the footage, runs the SHARED analysis step (same as `/design:video-analyze`: scene-aware keyframes via skill footage-keyframes → optional transcribe → the Read-only footage-analyst watches + returns JSON → orchestrator persists it), has the footage-director assemble an Edit Decision List, generates a Timeline-parseable `&lt;TransitionSeries>` video-comp, and runs the motion + design critics. Wraps `maude design ingest-footage`/`smart-frames`/`transcribe` + the footage-analyst/footage-director agents + skills footage-keyframes/footage-director.
+Analyze raw footage and create a directed video cut with graphics, audio and captions.
 
 ## Invocation
 
+**Claude Code**
+
 ```text
-/design:reel <Name> [<folder-path>] \"<brief>\" [--from-canvas] [--target-seconds N] [--fps N] [--aspect 16:9|9:16|1:1] [--frames N] [--music assets/<sha8>.mp3] [--generate-gaps] [--no-propose] [--no-critic]
+/design:reel <Name> [<folder-path>] "<brief>" [--from-canvas] [--target-seconds N] [--fps N] [--aspect 16:9|9:16|1:1] [--frames N] [--music assets/<sha8>.mp3] [--generate-gaps] [--no-propose] [--no-critic]
 ```
 
-## Summary
+**Codex**
 
-Turns raw footage into a finished, editable cut. This is the **front half** the `video-comp` skill never had: Maude **understands the footage first** (finds the good shots, reads the character of each clip), then directs them like an editor into a `&lt;TransitionSeries>` composition with titles/graphics — which you can th
+```text
+$design:source-command-reel <Name> [<folder-path>] "<brief>" [--from-canvas] [--target-seconds N] [--fps N] [--aspect 16:9|9:16|1:1] [--frames N] [--music assets/<sha8>.mp3] [--generate-gaps] [--no-propose] [--no-critic]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/design/commands/reel.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/reel.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/design/commands/reel.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/reel.md).
 
 </Callout>

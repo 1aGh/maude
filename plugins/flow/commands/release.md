@@ -2,11 +2,13 @@
 name: release
 type: command
 category: daily
-description: Walk the project's release runbook step by step with explicit confirmation per command.
+description: "Follow the project release runbook and its action approval gates."
 keywords: [release, runbook, ship, publish, tag, version-bump, version, cut]
 ---
 
 # /flow:release — walk the release runbook
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Reads the project-owned release runbook at `integrations.changelog.releaseGuide` (default `.ai/release-guide.md`) and walks it step-by-step. **Never auto-runs** — every shell command is gated behind explicit `[run] / [skip] / [edit] / [abort]` confirmation.
 

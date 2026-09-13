@@ -1,11 +1,13 @@
 ---
 name: photo
 category: daily
-description: Edit a photo in the active canvas headlessly — parametric adjustments (brightness/contrast/saturation/exposure/hue/sepia/grayscale/invert), duotone, grain, pattern overlays, preset masks, and magic background removal — via the non-destructive PhotoEdit sidecar. Every edit is scriptable (no slider-clicking): parametric edits go straight to the /_api/photo-edit route; background removal runs client-side ML through a headless harness.
+description: "Adjust or retouch a canvas photo, apply masks, or remove its background."
 argument-hint: "--asset <assets/<sha8>.<ext> | <sha8>> [--remove-bg] [--brightness N] [--contrast N] [--saturation N] [--exposure N] [--hue N] [--sepia N] [--grayscale N] [--invert N] [--duotone \"#aabbcc,#ddeeff[,intensity]\"] [--grain \"amt[,size]\"] [--pattern \"type[,scale,opacity,blend]\"] [--mask \"preset[,strength]\"] [--replace|--reset]"
 ---
 
 # /design:photo — headless photo editing
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Applies a **non-destructive** edit to a photo already in the active canvas — an `<img>` authored in an artboard, or an `ImageStroke` dropped/pasted into the annotation layer. Every edit is stored as a `PhotoEdit` sidecar (`<designRoot>/assets/<sha8>.photo.json`) that the canvas-lib `<PhotoLayer>` WebGL compositor renders live. **The whole point is drivability:** an agent tunes a photo without opening a browser or clicking a slider.
 

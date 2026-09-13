@@ -1,0 +1,6 @@
+interface:
+  display_name: "design:screenshot"
+  short_description: "Capture the active canvas, one artboard, an element or all…"
+  default_prompt: "Use $design:source-command-screenshot with the task details I provide."
+policy:
+  allow_implicit_invocation: false

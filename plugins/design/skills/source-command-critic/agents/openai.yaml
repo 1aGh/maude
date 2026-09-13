@@ -1,0 +1,6 @@
+interface:
+  display_name: "design:critic"
+  short_description: "Review the active canvas with the selected specialist critic…"
+  default_prompt: "Use $design:source-command-critic with the task details I provide."
+policy:
+  allow_implicit_invocation: false

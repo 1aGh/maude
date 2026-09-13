@@ -1,11 +1,13 @@
 ---
 name: import
 category: daily
-description: Bring an existing design into Maude. `--figma <url>` pulls a REAL Figma document over the REST API and translates it with deterministic code — no vision model anywhere (DDR-216). `--reconstruct <image>` is the lossy fallback for when all you have is a picture (DDR-174). The two share no architecture. Token files and brand material have their own dedicated entry points — see Notes below.
+description: "Import a Figma document or reconstruct a design from an image."
 argument-hint: "--figma <url> | --fig <path.fig> | --explode <artboard-id> --canvas <path> | --reconstruct <image-path> [--name \"<title>\"] [--into <canvas-path>] [--rounds N]"
 ---
 
 # /design:import — bring an existing design into Maude
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 `/design:import` is the umbrella entry point for migration-ingestion work. It
 implements two modes, and **they share no architecture** — read the next

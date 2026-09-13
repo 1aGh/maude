@@ -2,11 +2,13 @@
 name: status
 category: daily
 type: command
-description: Unified situational awareness — show exactly where you are and what to do next
+description: "Summarize current workflow progress, blockers and the next action."
 keywords: [status, where, state, awareness, branch, progress]
 ---
 
 # Status: Where Am I?
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 > **PURPOSE:** Single-command snapshot of your entire working state. Run this
 > at the start of any session, after switching context, or whenever you lose

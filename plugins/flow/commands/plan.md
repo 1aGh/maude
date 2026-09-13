@@ -2,13 +2,15 @@
 name: plan
 category: daily
 type: command
-description: "Create a context-rich feature implementation plan grounded in the project PRD and design system"
+description: "Create a feature implementation plan grounded in project requirements and the design system."
 keywords:
   [plan, feature, design, architecture, specification, blocks, components]
 argument-hint: "feature description"
 ---
 
 # Plan: $ARGUMENTS
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 > **Output:** Create a plan file and do NOT just display in chat — the file must be created for execution.
 >

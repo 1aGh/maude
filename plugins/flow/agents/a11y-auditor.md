@@ -18,6 +18,8 @@ For the full agent-browser protocol see the agent-browser skill (bundled in flow
 
 ```bash
 # 1. Open the relevant route
+
+Follow [host conventions](../HARNESS.md) for the active host; retain this role's restrictions.
 agent-browser open http://localhost:4000/<route>
 
 # 2. Accessibility snapshot (Chrome's a11y tree)

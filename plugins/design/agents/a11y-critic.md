@@ -92,6 +92,8 @@ Footer (for symmetry with other critics): emit `"opt_out_applied": "n/a — a11y
 ```markdown
 # a11y-critic — iter {iter_n}
 
+Follow [host conventions](../HARNESS.md) for the active host; retain this role's restrictions.
+
 _<ISO ts> · canvas: `{canvas_path}` · standard: WCAG 2.1 AA + project a11y rules_
 
 ## TL;DR

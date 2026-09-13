@@ -1,10 +1,12 @@
 ---
 name: help
 category: daily
-description: List all flow commands grouped by category.
+description: "List available flow workflows and their invocation names."
 ---
 
 # /flow:help — grouped command index
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Print every `/flow:*` command grouped by its `category:` frontmatter field. Use this whenever you forget a name — type `/flow:help` for the live index, or use the group prefix (e.g. `/flow:bug-`) to narrow autocomplete.
 

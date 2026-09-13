@@ -2,11 +2,13 @@
 name: validate
 category: daily
 type: command
-description: "Full validation pipeline — static + tests + build + cross-platform scenario (5 platforms) + a11y + design consistency"
+description: "Run project quality gates, tests, build and applicable cross-platform UI validation."
 keywords: [validate, full, pipeline, scenario, cross-platform, a11y, design-system]
 ---
 
 # /validate — full pipeline
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 **This is the main validation gate.** Run it before `/done`, before push, or when reviewing older code. The cross-platform scenario is the backbone — for any multi-platform project (mobile/tablet/web) parity is a core feature.
 

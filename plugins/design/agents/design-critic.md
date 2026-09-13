@@ -98,6 +98,8 @@ Write `<output_path>` with this structure:
 ```markdown
 # design-critic — iter {iter_n}
 
+Follow [host conventions](../HARNESS.md) for the active host; retain this role's restrictions.
+
 _<ISO ts> · canvas: `{canvas_path}` · selection: {selected.selector or "—"}_
 
 ## TL;DR

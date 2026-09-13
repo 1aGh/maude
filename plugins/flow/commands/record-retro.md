@@ -2,12 +2,14 @@
 name: record-retro
 category: record
 type: command
-description: Analyze implementation against plan for process improvements
+description: "\"Compare implementation with its plan and record process improvements.\""
 keywords: [process, meta, review, plan, retrospective, improvement]
-argument-hint: [plan-path] [record-execution-path]
+argument-hint: "[plan-path] [record-execution-path]"
 ---
 
 # System Review
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Meta-level analysis: how well did the implementation follow the plan?
 

@@ -1,11 +1,13 @@
 ---
 name: record-ddr
 category: record
-description: Record a Design Decision Record — an architectural/product decision for the future
+description: "Record an architectural or product decision with its rationale."
 argument-hint: "<short decision title>"
 ---
 
 # /flow:record-ddr — record a decision
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 A DDR (Design Decision Record) is a formal record of a non-trivial decision that affects future development. The next instance of Claude Code (and humans) read it to understand **why** something is the way it is.
 

@@ -1,11 +1,13 @@
 ---
 name: workflow-state
 type: skill
-description: "Use when running /plan, /execute, /done, /pause, /resume — anything that mutates `.ai/state/STATE.md` or `.ai/state/HANDOFF.md`. Ensures phase transitions, history rows, and active-task fields stay consistent so cross-session continuity works."
+description: "Read and update workflow state when planning, executing, completing, pausing or resuming project work."
 keywords: [state, workflow, phase, handoff, continuity, session]
 ---
 
 # Workflow State
+
+Follow [host conventions](../../HARNESS.md) for Claude Code or Codex.
 
 `.ai/state/STATE.md` is the single source of truth for "what's happening right now." It's read by `/status`, `/resume`, `/done`, and any future agent that joins mid-feature. Keep it accurate.
 

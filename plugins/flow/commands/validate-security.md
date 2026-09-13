@@ -2,12 +2,14 @@
 name: validate-security
 category: validate
 type: command
-description: Security review — spawns security-auditor + ethical-hacker subagents, aggregates report, gates on severityFloor
+description: "Run security and adversarial reviews, consolidate findings and apply the configured severity gate."
 keywords: [security, owasp, prompt-injection, mcp, threat-model, audit, hacker, llm-top-10]
 argument-hint: "[--since <ref>] [--include-ai | --no-ai]"
 ---
 
 # /flow:validate-security — security review
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Run a focused security pass over the diff. Defender (`security-auditor`) catches OWASP-class findings against changed files; attacker (`ethical-hacker`) threat-models the change, hunts chained exploits, and covers AI/MCP attack surface (prompt injection, MCP tool poisoning, confused-deputy, the trifecta). Both run **in parallel**; outputs aggregate to a single report.
 

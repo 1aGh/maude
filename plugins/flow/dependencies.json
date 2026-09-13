@@ -101,11 +101,11 @@
       "hardness": "soft",
       "check": {
         "command": "kg version",
-        "expectExit": 0
+        "expectExit": 0,
+        "minVersion": "1.5.1"
       },
       "install": {
-        "preferred": "See docs/kgai-onboarding.md — download the pinned kgai release binary (kgai is capability-gated + opt-out; nothing to install to use classic .ai/ mode)",
-        "darwin": "curl -fsSL https://github.com/kgaidev/kgai/releases/download/v1.0.0/kg-darwin-arm64 -o /usr/local/bin/kg && chmod +x /usr/local/bin/kg"
+        "preferred": "Install kgai >= 1.5.1 using https://github.com/kgaidev/kgai installation instructions; reuse the existing trusted store. Classic file workflows need no kgai installation."
       },
       "autoInstall": false,
       "fallbackBehavior": "flow/design fall back to the classic .ai/decisions/ + STATE.md file path (no regression). The kgai knowledge-graph backend (kg context/ingest/sync, cross-repo company memory) is inactive.",

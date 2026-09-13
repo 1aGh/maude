@@ -1,11 +1,13 @@
 ---
 name: make-skill-template
 type: skill
-description: 'Scaffold a new AI skill with proper directory structure, SKILL.md frontmatter, and supporting files. Use when creating a new self-contained capability package for the AI system.'
+description: "Scaffold a reusable skill with a concise entry point, optional references and host-appropriate metadata."
 keywords: [scaffold, template, skill, create, new, generator]
 ---
 
 # Make Skill Template
+
+Follow [host conventions](../../HARNESS.md) for Claude Code or Codex.
 
 Creates a new self-contained AI skill package with the correct directory structure, SKILL.md frontmatter, and optional supporting directories.
 
@@ -39,7 +41,7 @@ Every `SKILL.md` must start with YAML frontmatter:
 ```yaml
 ---
 name: <skill-name>           # kebab-case, matches directory name
-type: skill                   # always "skill"
+type: skill                   # optional Maude catalog metadata
 description: '<1-2 sentences describing when to invoke this skill>'
 keywords: [keyword1, keyword2, keyword3]   # for discovery/search
 ---
@@ -50,9 +52,23 @@ keywords: [keyword1, keyword2, keyword3]   # for discovery/search
 | Field         | Required | Constraints                                                                |
 | ------------- | -------- | -------------------------------------------------------------------------- |
 | `name`        | **Yes**  | 1-64 chars, lowercase letters/numbers/hyphens only, must match folder name |
-| `type`        | **Yes**  | Always `skill`                                                             |
+| `type`        | No  | Always `skill`                                                             |
 | `description` | **Yes**  | 1-1024 chars, must describe WHAT it does AND WHEN to use it                |
-| `keywords`    | **Yes**  | Array of lowercase keywords for discovery and search                       |
+| `keywords`    | No  | Array of lowercase keywords for discovery and search                       |
+
+## Context budget and host metadata
+
+Keep the description to roughly 80–160 characters: the trigger and outcome, not
+an inventory of every feature. Prefer a short `SKILL.md` (under 8 KB / 300 lines)
+with essential constraints and explicit links saying when to read each reference.
+These are authoring budgets, not parser limits. Do not delete workflow branches
+or move everything to a reference that every invocation must read wholesale.
+
+For a shared skill, keep one Markdown procedure usable by both hosts. Claude-only
+invocation settings belong in frontmatter; Codex discovery policy belongs in
+`agents/openai.yaml`. That YAML configures a skill, not a custom subagent. Use
+`policy.allow_implicit_invocation: false` for explicit-only Codex command entries.
+Do not hardcode a model or add scripts just to translate tool names.
 
 ## Creating a New Skill
 

@@ -1,32 +1,40 @@
 ---
 title: /design:generate
-description: "Generate media with your own AI provider key (BYOK — Google/Nano Banana image; ElevenLabs audio + Veo video in later phases) and land it on the canvas. Image v1. The key is resolved server-side; this verb never handles it. Default output = splice the produced content-addressed asset into the active canvas."
+description: "Generate media through Maude BYOK providers and place the resulting asset on the canvas."
 ---
 
 | Property | Value |
 | -------- | ----- |
 | **Command** | `/design:generate` |
 | **Category** | `daily` (daily) |
-| **Argument hint** | `\"<prompt>\" [--source assets/<sha8>.<ext>] [--provider gemini] [--model <id>] [--aspect 1:1\|16:9\|9:16\|…] [--asset \| --inline [--into <canvas>]]` |
+| **Argument hint** | `"<prompt>" [--source assets/<sha8>.<ext>] [--provider gemini] [--model <id>] [--aspect 1:1\|16:9\|9:16\|…] [--asset \| --inline [--into <canvas>]]` |
 | **Source** | [`plugins/design/commands/generate.md`](https://github.com/1aGh/maude/blob/main/plugins/design/commands/generate.md) |
 
 ## Description
 
-Generate media with your own AI provider key (BYOK — Google/Nano Banana image; ElevenLabs audio + Veo video in later phases) and land it on the canvas. Image v1. The key is resolved server-side; this verb never handles it. Default output = splice the produced content-addressed asset into the active canvas.
+Generate media through Maude BYOK providers and place the resulting asset on the canvas.
 
 ## Invocation
 
+**Claude Code**
+
 ```text
-/design:generate \"<prompt>\" [--source assets/<sha8>.<ext>] [--provider gemini] [--model <id>] [--aspect 1:1|16:9|9:16|…] [--asset | --inline [--into <canvas>]]
+/design:generate "<prompt>" [--source assets/<sha8>.<ext>] [--provider gemini] [--model <id>] [--aspect 1:1|16:9|9:16|…] [--asset | --inline [--into <canvas>]]
 ```
 
-## Summary
+**Codex**
 
-Generate a **net-new image** (v1) from your own provider key and drop it onto the canvas — Maude arranges and edits media; this verb *creates* it (feature-ai-media-generation, [DDR-164](../../.ai/archive/decisions/DDR-164-byok-ai-media-generation-provider-adapter-spine.md)). The pixels are produced **server-side**: the
+```text
+$design:source-command-generate "<prompt>" [--source assets/<sha8>.<ext>] [--provider gemini] [--model <id>] [--aspect 1:1|16:9|9:16|…] [--asset | --inline [--into <canvas>]]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/design/commands/generate.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/generate.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/design/commands/generate.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/generate.md).
 
 </Callout>

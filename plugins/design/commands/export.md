@@ -1,11 +1,13 @@
 ---
 name: export
 category: daily
-description: Export the active canvas — PNG / PDF / SVG / HTML / PPTX / MP4 / GIF / WebM / Canva handoff bundle / project ZIP. Thin slash wrapper over `POST /_api/export` (same engine as the ⌘E UI dialog).
+description: "Export a canvas to images, documents, slides, video or a handoff bundle."
 argument-hint: "<png|pdf|svg|html|pptx|mp4|gif|webm|canva|zip> [--scope selection|artboard|canvas-as-separate|project-raw] [--out <path>] [--option key=value]"
 ---
 
 # /design:export — export active canvas
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Sends a request to the running dev-server (`POST /_api/export`) with the same payload the ⌘E dialog inside the canvas sends. The server writes the file and this slash command pulls it down to disk (default cwd, or `--out <path>`).
 

@@ -3,15 +3,22 @@ title: Design canvas loop
 description: The /design:* slash commands. Canvas-first iteration on TSX canvases under .design/.
 ---
 
+<Callout type="info" title="Claude Code and terminal Codex">
+The same canvas and workflow procedures are available through
+[native Codex plugins](/docs/codex). Codex can drive Studio through the Maude CLI,
+project files and browser tools. This does not switch Studio's built-in ACP chat.
+</Callout>
+
+
 The canvas is the working surface. A `.tsx` file (React 19, transpiled by Bun), under `.design/<project-or-feature>/`. Commands iterate **in place** on the active canvas (the one open in your browser tab), so feedback like "move the CTA up" lands on the file you're looking at, not a new mock somewhere else.
 
 A Bun dev server mounts every canvas in a shared shell. A canvas opens **live** (the Browse tool) — click buttons and links to try the mock. Press **V** for the Select tool, then **click any element** to select it (⌘/Ctrl-click reaches the deepest element, double-click drills in one level) and scope the next `/design:edit "<feedback>"` to that selection. The server tracks the active tab and your selection over WebSocket and writes `<designRoot>/_active.json` for the slash commands to read.
 
 <InspectorDiagram caption="Press V, click an element → it persists to _active.json → the next /design:edit reads it" />
 
-## Thirteen commands
+## Design commands
 
-Three setup verbs run once per project. Nine daily verbs drive the canvas loop. One validator (`smoke`) catches regressions. The bare `/design` form was a v0.8 one-version compat stub redirecting to `/design:edit`. **Removed in v0.9**.
+Setup verbs prepare the project; daily verbs cover canvas editing, drawing, media, import and export. `smoke` catches regressions. The [generated command index](/docs/commands-design/help) lists the current set. The bare `/design` form was a v0.8 one-version compat stub redirecting to `/design:edit`. **Removed in v0.9**.
 
 **Setup. One-shot bootstrapping.**
 

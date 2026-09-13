@@ -1,0 +1,6 @@
+interface:
+  display_name: "flow:record-execution"
+  short_description: "Write an implementation report for system review."
+  default_prompt: "Use $flow:source-command-record-execution with the task details I provide."
+policy:
+  allow_implicit_invocation: false

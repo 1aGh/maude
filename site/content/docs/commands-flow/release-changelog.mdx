@@ -1,6 +1,6 @@
 ---
 title: /flow:release-changelog
-description: "Author a changelog entry using the project's configured changelog provider."
+description: "Write a changelog entry using the project changelog conventions."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Author a changelog entry using the project's configured changelog 
 
 ## Description
 
-Author a changelog entry using the project's configured changelog provider.
+Write a changelog entry using the project changelog conventions.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /flow:release-changelog
 ```
 
-## Summary
+**Codex**
 
-Provider-dispatched authoring command. Reads `integrations.changelog.provider` from `.ai/workflows.config.json` and routes to the right tool. Phase 3 implements the `changesets` provider end-to-end; other enum values stub to a "not yet implemented" message.
+```text
+$flow:source-command-release-changelog
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/flow/commands/release-changelog.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/release-changelog.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/release-changelog.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/release-changelog.md).
 
 </Callout>

@@ -1,6 +1,6 @@
 # Maude
 
-A personal marketplace of Claude Code plugins. Two plugins today, plus a `maude` CLI for scaffolding and running the bundled dev tooling.
+A personal marketplace of Claude Code and Codex plugins. Two plugins today, plus a `maude` CLI for scaffolding and running the bundled dev tooling.
 
 <!-- Demo video lives at https://github.com/1aGh/maude/releases/download/v0.16.0/demo.mp4 once uploaded.
      Until then the inline tag below stays a soft 404; landing page at https://maude.sh autoplays the same file. -->
@@ -17,6 +17,8 @@ A personal marketplace of Claude Code plugins. Two plugins today, plus a `maude`
 Plus the **`maude`** CLI — `maude init` scaffolds a fresh `.ai/` workspace from the flow plugin skeleton; `maude design serve` boots the design dev server. The legacy `mdcc` alias still works (prints a deprecation warning) and will be removed in v0.17.x.
 
 ## Quick start
+
+**Codex CLI:** use the [native plugin installation guide](docs/native-plugins.md). It uses the same workflow procedures; Studio ACP support is a separate follow-up.
 
 > **Using Maude Desktop?** With only **Claude Code installed**, the desktop app's built-in chat panel auto-loads the `design` + `flow` plugins for its session — `/design:*` and `/flow:*` just work, nothing to install (power users who already installed the plugins see a no-op, no double-load). The steps below are the **manual / power-user path** — for the `maude` CLI, the web `maude design serve` flow, or driving `/design:*` from your own terminal Claude Code. Full detail: [maude.sh/desktop](https://maude.sh/desktop).
 

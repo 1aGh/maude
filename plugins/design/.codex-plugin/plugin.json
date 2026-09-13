@@ -1,0 +1,19 @@
+{
+  "name": "design",
+  "version": "1.2.0",
+  "description": "Canvas design, media and specialist critique.",
+  "author": {
+    "name": "1aGh"
+  },
+  "license": "MIT",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Maude Design",
+    "shortDescription": "Canvas design, media and specialist critique.",
+    "longDescription": "Canvas design, media and specialist critique. Shared workflows for Claude Code and Codex. Install both design and flow for the full set.",
+    "developerName": "1aGh",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "defaultPrompt": ["Use $design:source-command-help to show the available workflows."]
+  }
+}

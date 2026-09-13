@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { access, mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -7,6 +7,7 @@ import test from 'node:test';
 import {
   buildCodexPermissionLaunch,
   hasLegacySandboxConfig,
+  materializePluginSource,
   mcpEntryMatchesHash,
   mcpFingerprint,
   parseClaudeAgent,
@@ -161,6 +162,42 @@ test('converts rich Claude command frontmatter into a native Codex skill', () =>
   assert.match(skill, /description: "Plan work"/);
   assert.match(skill, /# Plan: \$ARGUMENTS/);
   assert.doesNotMatch(skill, /argument-hint/);
+});
+
+test('preserves a source-owned native plugin after verifying its snapshot', async (t) => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'maude-codex-native-source-')));
+  t.after(() => rm(root, { force: true, recursive: true }));
+  const source = join(root, 'source');
+  const target = join(root, 'target');
+  const files = {
+    '.codex-plugin/plugin.json': '{"name":"flow","skills":"./skills/","version":"1.0.0"}\n',
+    'commands/plan.md': '---\nname: plan\ndescription: Plan work\n---\n# Original procedure\n',
+    'skills/source-command-plan/SKILL.md':
+      '---\nname: source-command-plan\ndescription: Plan work\n---\nRead [plan](../../commands/plan.md).\n',
+    'skills/source-command-plan/agents/openai.yaml':
+      'policy:\n  allow_implicit_invocation: false\n',
+  };
+  for (const [path, contents] of Object.entries(files)) {
+    await mkdir(join(source, path, '..'), { recursive: true });
+    await writeFile(join(source, path), contents);
+  }
+  const sourceHash = sha256(
+    Object.entries(files)
+      .sort(([left], [right]) => (left < right ? -1 : 1))
+      .map(([path, contents]) => `${path}\0${sha256(contents)}`)
+      .join('\n')
+  );
+  const item = { name: 'flow@maude', sourceHash, value: { installPath: source } };
+  await materializePluginSource(item, target, root);
+  for (const [path, contents] of Object.entries(files)) {
+    assert.equal(await readFile(join(target, path), 'utf8'), contents);
+  }
+
+  await assert.rejects(
+    materializePluginSource({ ...item, sourceHash: 'changed' }, target, root),
+    /plugin changed while materializing/
+  );
+  await assert.rejects(access(target), /ENOENT/);
 });
 
 test('converts Claude agent frontmatter without carrying privilege fields', () => {

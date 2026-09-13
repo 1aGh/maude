@@ -24,6 +24,8 @@ PKG_PATH="$ROOT/package.json"
 PLUGIN_PATHS=(
   "$ROOT/plugins/design/.claude-plugin/plugin.json"
   "$ROOT/plugins/flow/.claude-plugin/plugin.json"
+  "$ROOT/plugins/design/.codex-plugin/plugin.json"
+  "$ROOT/plugins/flow/.codex-plugin/plugin.json"
 )
 # The native desktop shell (Phase 32) ships under the same release line — its
 # tauri.conf.json `version` drives the auto-updater's `{{current_version}}`, so it

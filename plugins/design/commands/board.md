@@ -1,11 +1,13 @@
 ---
 name: board
 category: daily
-description: Read the whiteboard with element-aware context, and/or author a whole tidy TEMPLATE (retro, kanban, social-media calendar, roadmap, brainstorm, checklist, user-flow) onto it. Wraps `maude design canvas-rects`/`read-annotations`/`annotate` (skill `whiteboard`) — the FigJam-style two-way surface, distinct from the one-shot `/design:edit` component-editing loop.
+description: "Read a whiteboard or create a structured board template with element-aware annotations."
 argument-hint: "[\"<feedback or template request>\"] [--from-figjam <url>] [--near <artboardId>] [--in <artboardId>] [--pin <cdId|selector>] [--dry-run]"
 ---
 
 # /design:board — read + author the whiteboard
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 The FigJam-style draw layer (`<designRoot>/<slug>.annotations.svg`) is a two-way medium — the user sketches on it, and this command both **reads** it (with artboard AND element context) and **writes** to it (answers, or a whole tidy template). Full spec: skill `whiteboard`. This command is the driving loop; it does not duplicate the skill's reference material.
 

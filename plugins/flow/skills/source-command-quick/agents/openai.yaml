@@ -1,0 +1,6 @@
+interface:
+  display_name: "flow:quick"
+  short_description: "Implement a trivial change with focused verification and an…"
+  default_prompt: "Use $flow:source-command-quick with the task details I provide."
+policy:
+  allow_implicit_invocation: false

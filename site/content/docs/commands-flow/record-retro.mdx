@@ -1,6 +1,6 @@
 ---
 title: /flow:record-retro
-description: "Analyze implementation against plan for process improvements"
+description: "\"Compare implementation with its plan and record process improvements.\""
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Analyze implementation against plan for process improvements"
 
 ## Description
 
-Analyze implementation against plan for process improvements
+"Compare implementation with its plan and record process improvements."
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /flow:record-retro [plan-path] [record-execution-path]
 ```
 
-## Summary
+**Codex**
 
-Meta-level analysis: how well did the implementation follow the plan?
+```text
+$flow:source-command-record-retro [plan-path] [record-execution-path]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/flow/commands/record-retro.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/record-retro.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/record-retro.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/record-retro.md).
 
 </Callout>

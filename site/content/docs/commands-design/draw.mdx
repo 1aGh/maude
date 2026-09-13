@@ -1,32 +1,40 @@
 ---
 title: /design:draw
-description: "Draw a production-grade SVG (logo / icon / illustration / diagram / spot) via a deterministic geometry engine — no LLM-guessed path data. Plan → generate N candidates → render via the draw-proof ladder (16/24/48/256 × light/dark/flatten) → pairwise-rank → keep-best → rubric critique → iterate (cap 3–4). Output either as an asset .svg or inline into the active canvas. Default: runs draw-critic after draw-agent. Opt out via --no-critic."
+description: "Create and verify SVG logos, icons, illustrations or diagrams with the geometry engine."
 ---
 
 | Property | Value |
 | -------- | ----- |
 | **Command** | `/design:draw` |
 | **Category** | `daily` (daily) |
-| **Argument hint** | `\"<brief>\" [--type icon\|logo\|illustration\|diagram\|spot] [--grid 0\|1\|4\|8] [--asset [<path>] \| --inline [--into <canvas>]] [--reference <url\|path>] [--perfect [N]] [--no-critic]` |
+| **Argument hint** | `"<brief>" [--type icon\|logo\|illustration\|diagram\|spot] [--grid 0\|1\|4\|8] [--asset [<path>] \| --inline [--into <canvas>]] [--reference <url\|path>] [--perfect [N]] [--no-critic]` |
 | **Source** | [`plugins/design/commands/draw.md`](https://github.com/1aGh/maude/blob/main/plugins/design/commands/draw.md) |
 
 ## Description
 
-Draw a production-grade SVG (logo / icon / illustration / diagram / spot) via a deterministic geometry engine — no LLM-guessed path data. Plan → generate N candidates → render via the draw-proof ladder (16/24/48/256 × light/dark/flatten) → pairwise-rank → keep-best → rubric critique → iterate (cap 3–4). Output either as an asset .svg or inline into the active canvas. Default: runs draw-critic after draw-agent. Opt out via --no-critic.
+Create and verify SVG logos, icons, illustrations or diagrams with the geometry engine.
 
 ## Invocation
 
+**Claude Code**
+
 ```text
-/design:draw \"<brief>\" [--type icon|logo|illustration|diagram|spot] [--grid 0|1|4|8] [--asset [<path>] | --inline [--into <canvas>]] [--reference <url|path>] [--perfect [N]] [--no-critic]
+/design:draw "<brief>" [--type icon|logo|illustration|diagram|spot] [--grid 0|1|4|8] [--asset [<path>] | --inline [--into <canvas>]] [--reference <url|path>] [--perfect [N]] [--no-critic]
 ```
 
-## Summary
+**Codex**
 
-Generates **production-grade vector graphics** via the geometry engine (`apps/studio/draw/`) and **verifies them visually** — renders, screenshots, pairwise-ranks, critiques against the 30-check rubric, and iterates to convergence. No free-hand `&lt;path d>` coordinates: the LLM decides *intent*, the engine computes *coor
+```text
+$design:source-command-draw "<brief>" [--type icon|logo|illustration|diagram|spot] [--grid 0|1|4|8] [--asset [<path>] | --inline [--into <canvas>]] [--reference <url|path>] [--perfect [N]] [--no-critic]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/design/commands/draw.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/draw.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/design/commands/draw.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/draw.md).
 
 </Callout>

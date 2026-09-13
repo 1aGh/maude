@@ -2,11 +2,13 @@
 name: validate-a11y
 category: validate
 type: command
-description: Run accessibility audit on project components
+description: "Audit project UI accessibility and report evidence."
 keywords: [accessibility, a11y, wcag, aria, audit, screen-reader]
 ---
 
 # Accessibility Validation
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Run a targeted WCAG 2.1 AA accessibility audit.
 

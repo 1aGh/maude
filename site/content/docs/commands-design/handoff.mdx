@@ -1,6 +1,6 @@
 ---
 title: /design:handoff
-description: "Emit a shadcn `registry-item.json` sidecar for the active canvas (production-ready drop for Next.js / Vite / Bun)"
+description: "Create a shadcn registry handoff for the active canvas."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Emit a shadcn `registry-item.json` sidecar for the active canvas (
 
 ## Description
 
-Emit a shadcn `registry-item.json` sidecar for the active canvas (production-ready drop for Next.js / Vite / Bun)
+Create a shadcn registry handoff for the active canvas.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /design:handoff [--canvas <path>] [--force]
 ```
 
-## Summary
+**Codex**
 
-Converts the active canvas (from `_active.json`) into **`&lt;Slug>.registry.json`** next to the TSX file. The target project consumes it via `bunx shadcn add file://./&lt;Slug>.registry.json` — works for Next.js / Vite / Astro / Remix / Bun, any framework that has the `shadcn` CLI.
+```text
+$design:source-command-handoff [--canvas <path>] [--force]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/design/commands/handoff.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/handoff.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/design/commands/handoff.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/handoff.md).
 
 </Callout>

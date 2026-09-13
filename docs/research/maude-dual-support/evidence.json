@@ -1,0 +1,50 @@
+{
+  "auditDate": "2026-09-13",
+  "sourceCommit": "d50954df2a435f7bbd45598395855305b2b0328f",
+  "sourceVersion": "1.2.0",
+  "claudeVersion": "2.1.270",
+  "codexVersion": "0.154.0",
+  "counts": {
+    "command": 55,
+    "skill": 30,
+    "reference": 3,
+    "agent": 31
+  },
+  "maudeDiscoveredSkills": 85,
+  "discoveryErrors": [],
+  "strictYamlFailures": [
+    "plugins/design/commands/draw.md",
+    "plugins/design/commands/edit.md",
+    "plugins/design/commands/photo.md",
+    "plugins/design/commands/reel.md",
+    "plugins/design/commands/video-analyze.md",
+    "plugins/design/skills/design-system/SKILL.md",
+    "plugins/design/agents/design-system-keeper.md",
+    "plugins/design/agents/footage-analyst.md",
+    "plugins/design/agents/footage-director.md",
+    "plugins/design/agents/media-generation-director.md",
+    "plugins/flow/commands/record-retro.md"
+  ],
+  "testInitial": {
+    "passed": 176,
+    "failed": 2,
+    "total": 178
+  },
+  "codexRealBinarySmoke": {
+    "passed": 1,
+    "failed": 0
+  },
+  "conformanceRecheck": {
+    "passed": 0,
+    "failed": 1
+  },
+  "scope": "Static source audit, official documentation and isolated loader/CLI probes; no LLM workflow end-to-end validation.",
+  "declaredDependencyRows": 24,
+  "lateWorkspaceObservation": {
+    "paths": ["AGENTS.md", ".codex/config.toml", ".agents/skills"],
+    "origin": "not-established",
+    "agentsMdBytes": 53564,
+    "agentsMdSha256": "7ef0eef9c2b15284a73fa99882bcc2e97e35605cbbe9192e6d3b1625d9731e58",
+    "includedInPluginDiscoveryCount": false
+  }
+}

@@ -1,6 +1,6 @@
 ---
 title: /design:video-analyze
-description: "Analyze ONE video clip (or a folder / the active canvas's clips) end to end — picture AND sound — in one command. Extracts scene-aware keyframes (skill footage-keyframes / `maude design smart-frames`: scene cuts + action beats + endpoints, not a blind frame rate), transcribes the audio (`maude design transcribe`, whisper local / cloud), then the footage-analyst watches the smart frames with the transcript folded in and writes a FootageAnalysis sidecar (shots, on-screen text, mood, tags, summary, best moment, AND a speech section) plus a human \"what is this about\" report. Analysis-only — distinct from /design:reel, which goes further and assembles a cut. Wraps `maude design smart-frames` + `maude design transcribe` + the footage-analyst agent + skill footage-keyframes."
+description: "Analyze video picture and sound using scene-aware keyframes and audio transcription."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Analyze ONE video clip (or a folder / the active canvas's clips) e
 
 ## Description
 
-Analyze ONE video clip (or a folder / the active canvas's clips) end to end — picture AND sound — in one command. Extracts scene-aware keyframes (skill footage-keyframes / `maude design smart-frames`: scene cuts + action beats + endpoints, not a blind frame rate), transcribes the audio (`maude design transcribe`, whisper local / cloud), then the footage-analyst watches the smart frames with the transcript folded in and writes a FootageAnalysis sidecar (shots, on-screen text, mood, tags, summary, best moment, AND a speech section) plus a human "what is this about" report. Analysis-only — distinct from /design:reel, which goes further and assembles a cut. Wraps `maude design smart-frames` + `maude design transcribe` + the footage-analyst agent + skill footage-keyframes.
+Analyze video picture and sound using scene-aware keyframes and audio transcription.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /design:video-analyze <clip|folder> [--from-canvas] [--engine auto|gemma|ffmpeg|blind] [--frames N] [--no-audio] [--out <path>]
 ```
 
-## Summary
+**Codex**
 
-Understand a video the way an editor would: **what happens on screen AND what is said**, distilled into structured metadata + a plain-language summary. This is the analysis front-half — it does NOT cut anything (that's `/design:reel`). The heavy
+```text
+$design:source-command-video-analyze <clip|folder> [--from-canvas] [--engine auto|gemma|ffmpeg|blind] [--frames N] [--no-audio] [--out <path>]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/design/commands/video-analyze.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/video-analyze.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/design/commands/video-analyze.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/video-analyze.md).
 
 </Callout>

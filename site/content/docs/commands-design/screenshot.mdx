@@ -1,6 +1,6 @@
 ---
 title: /design:screenshot
-description: "Capture a screenshot of the active canvas — full, a single screen, an element, or every screen in a loop. Wrapper over `maude design screenshot` (agent-browser primary, playwright fallback)."
+description: "Capture the active canvas, one artboard, an element or all screens."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Capture a screenshot of the active canvas — full, a single scree
 
 ## Description
 
-Capture a screenshot of the active canvas — full, a single screen, an element, or every screen in a loop. Wrapper over `maude design screenshot` (agent-browser primary, playwright fallback).
+Capture the active canvas, one artboard, an element or all screens.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /design:screenshot [--screen|--element <id> | --selector <css> | --full | --all-screens] [--area <n>]
 ```
 
-## Summary
+**Codex**
 
-Opens the active canvas (`_active.json`) via the server URL (not `file://`), captures a screenshot, saves it to `.design/_history/&lt;slug>/screenshots/&lt;NNN>-&lt;area>.png` (gitignored).
+```text
+$design:source-command-screenshot [--screen|--element <id> | --selector <css> | --full | --all-screens] [--area <n>]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/design/commands/screenshot.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/screenshot.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/design/commands/screenshot.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/screenshot.md).
 
 </Callout>

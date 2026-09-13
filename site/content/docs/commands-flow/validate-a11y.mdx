@@ -1,6 +1,6 @@
 ---
 title: /flow:validate-a11y
-description: "Run accessibility audit on project components"
+description: "Audit project UI accessibility and report evidence."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Run accessibility audit on project components"
 
 ## Description
 
-Run accessibility audit on project components
+Audit project UI accessibility and report evidence.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /flow:validate-a11y
 ```
 
-## Summary
+**Codex**
 
-Run a targeted WCAG 2.1 AA accessibility audit.
+```text
+$flow:source-command-validate-a11y
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/flow/commands/validate-a11y.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/validate-a11y.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/validate-a11y.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/validate-a11y.md).
 
 </Callout>

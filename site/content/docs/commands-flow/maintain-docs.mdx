@@ -1,6 +1,6 @@
 ---
 title: /flow:maintain-docs
-description: "Documentation freshness check — scan for stale references across all docs and content"
+description: "Check documentation freshness and stale references."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Documentation freshness check — scan for stale references across
 
 ## Description
 
-Documentation freshness check — scan for stale references across all docs and content
+Check documentation freshness and stale references.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /flow:maintain-docs
 ```
 
-## Summary
+**Codex**
 
-Run project-specific grep patterns and report any matches as **stale references**.
+```text
+$flow:source-command-maintain-docs
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/flow/commands/maintain-docs.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/maintain-docs.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/maintain-docs.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/maintain-docs.md).
 
 </Callout>

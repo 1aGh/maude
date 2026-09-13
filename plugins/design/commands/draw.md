@@ -1,11 +1,13 @@
 ---
 name: draw
 category: daily
-description: Draw a production-grade SVG (logo / icon / illustration / diagram / spot) via a deterministic geometry engine — no LLM-guessed path data. Plan → generate N candidates → render via the draw-proof ladder (16/24/48/256 × light/dark/flatten) → pairwise-rank → keep-best → rubric critique → iterate (cap 3–4). Output either as an asset .svg or inline into the active canvas. Default: runs draw-critic after draw-agent. Opt out via --no-critic.
+description: "Create and verify SVG logos, icons, illustrations or diagrams with the geometry engine."
 argument-hint: "\"<brief>\" [--type icon|logo|illustration|diagram|spot] [--grid 0|1|4|8] [--asset [<path>] | --inline [--into <canvas>]] [--reference <url|path>] [--perfect [N]] [--no-critic]"
 ---
 
 # /design:draw — draw a verified SVG mark
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Generates **production-grade vector graphics** via the geometry engine (`apps/studio/draw/`) and **verifies them visually** — renders, screenshots, pairwise-ranks, critiques against the 30-check rubric, and iterates to convergence. No free-hand `<path d>` coordinates: the LLM decides *intent*, the engine computes *coordinates* (this eliminates the LLM-SVG failure modes — integer quantization, coordinate drift, occlusion, color degradation).
 

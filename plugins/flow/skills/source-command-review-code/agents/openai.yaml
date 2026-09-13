@@ -1,0 +1,6 @@
+interface:
+  display_name: "flow:review-code"
+  short_description: "Review uncommitted code changes before commit."
+  default_prompt: "Use $flow:source-command-review-code with the task details I provide."
+policy:
+  allow_implicit_invocation: false

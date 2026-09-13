@@ -1,0 +1,6 @@
+interface:
+  display_name: "design:video-analyze"
+  short_description: "Analyze video picture and sound using scene-aware keyframes…"
+  default_prompt: "Use $design:source-command-video-analyze with the task details I provide."
+policy:
+  allow_implicit_invocation: false

@@ -2,12 +2,14 @@
 name: setup-prd
 category: setup
 type: command
-description: "Create a PRD, then auto-generate phase plans and an execution README"
+description: "Create a product requirements document with phase plans and an execution index."
 keywords: [prd, requirements, product, document, specification, phases, plans]
 argument-hint: "output-filename"
 ---
 
 # Create PRD
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 ## Overview
 

@@ -2,11 +2,13 @@
 name: maintain-clean
 category: maintain
 type: command
-description: Clean stale artifacts, logs, and temporary files
+description: "Clean stale workflow artifacts, logs and temporary files."
 keywords: [clean, maintenance, artifacts, stale, prune, housekeeping]
 ---
 
 # Clean Artifacts
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Remove stale or obsolete files from the project workspace.
 

@@ -2,12 +2,14 @@
 name: bug-fix
 category: bug
 type: command
-description: Implement fix from RCA document for a ticket
+description: "Implement and verify the fix specified by a ticket root-cause analysis."
 keywords: [bug, fix, implement, ticket, rca, patch]
 argument-hint: "ticket-id"
 ---
 
 # Implement Fix: Ticket $ARGUMENTS
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 ## Package Manager Auto-Detection
 

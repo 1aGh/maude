@@ -1,6 +1,6 @@
 ---
 title: /design:rollback
-description: "Restore the last snapshot of the active canvas (undo the last /design:edit). --steps N to go further back."
+description: "Restore one or more snapshots of the active canvas."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Restore the last snapshot of the active canvas (undo the last /des
 
 ## Description
 
-Restore the last snapshot of the active canvas (undo the last /design:edit). --steps N to go further back.
+Restore one or more snapshots of the active canvas.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /design:rollback [--steps N] [--list]
 ```
 
-## Summary
+**Codex**
 
-Restores the previous state of the active canvas from `.design/_history/&lt;slug>/`. Every `/design:edit "&lt;feedback>"` took a snapshot **before** the edit; rollback restores that snapshot.
+```text
+$design:source-command-rollback [--steps N] [--list]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/design/commands/rollback.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/rollback.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/design/commands/rollback.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/rollback.md).
 
 </Callout>

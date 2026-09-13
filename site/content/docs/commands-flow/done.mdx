@@ -1,6 +1,6 @@
 ---
 title: /flow:done
-description: "Close out a feature — /validate gate (incl. cross-platform scenario) → DDR sweep → commit → push → PR → retro → archive. `--quick` trims the gate to affected-scope checks only."
+description: "Validate and close a feature: decision capture, delivery, retrospective and archive within authorized scope."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Close out a feature — /validate gate (incl. cross-platform scena
 
 ## Description
 
-Close out a feature — /validate gate (incl. cross-platform scenario) → DDR sweep → commit → push → PR → retro → archive. `--quick` trims the gate to affected-scope checks only.
+Validate and close a feature: decision capture, delivery, retrospective and archive within authorized scope.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /flow:done [--quick] [path to plan]
 ```
 
-## Summary
+**Codex**
 
-This is the **final gate**. Run it after `/execute` when all tasks pass. It consolidates verification, commit, and push into a single action.
+```text
+$flow:source-command-done [--quick] [path to plan]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/flow/commands/done.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/done.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/done.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/done.md).
 
 </Callout>

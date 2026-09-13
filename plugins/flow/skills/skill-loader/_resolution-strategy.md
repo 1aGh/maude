@@ -6,7 +6,7 @@
 
 Always try in this order. Stop at the first that fits.
 
-1. **Built-in / plugin skill already loaded.** Check the system-reminder "skills available" list for a match. Examples: `pixijs-skills:*` for PixiJS, `design:design-system` for design tokens, `frontend-design:frontend-design` for production-grade UI. If a skill with the matching domain is listed, use it — do not pull a duplicate from `terminal-skills`.
+1. **Built-in / plugin skill already loaded.** Check the active host's installed skill catalog for a match. Examples: `pixijs-skills:*` for PixiJS, `design:design-system` for design tokens, `frontend-design:frontend-design` for production-grade UI. If a skill with the matching domain is listed, read its entry (unless already loaded in this session), then use it — do not pull a duplicate from `terminal-skills`.
 2. **Matching subagent.** Inspect available agents. If an agent's description matches the task (e.g. `flow:a11y-auditor` for a11y work, `claude-code-guide` for Claude Code API/SDK), delegate to it instead of asking for a generic skill.
 3. **`terminal-skills` MCP catalogue.** Search by library name + role keywords (below). Load the best match with `mcp__terminal-skills__get_skill`.
 4. **Web docs as fallback.** If nothing in the MCP catalogue matches, use `WebFetch` against the library's official docs URL — never invent API surface.

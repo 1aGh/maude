@@ -1,6 +1,6 @@
 ---
 title: /flow:plan
-description: "Create a context-rich feature implementation plan grounded in the project PRD and design system"
+description: "Create a feature implementation plan grounded in project requirements and the design system."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Create a context-rich feature implementation plan grounded in the 
 
 ## Description
 
-Create a context-rich feature implementation plan grounded in the project PRD and design system
+Create a feature implementation plan grounded in project requirements and the design system.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /flow:plan feature description
 ```
 
-## Summary
+**Codex**
 
-Transform a feature request into a **context-rich implementation plan** that enables one-pass implementation by any AI agent or developer.
+```text
+$flow:source-command-plan feature description
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/flow/commands/plan.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/plan.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/plan.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/plan.md).
 
 </Callout>

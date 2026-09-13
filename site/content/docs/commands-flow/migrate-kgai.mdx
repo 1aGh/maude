@@ -1,6 +1,6 @@
 ---
 title: /flow:migrate-kgai
-description: "Migrate this repo's .ai/decisions/ into the kgai knowledge graph (one-time, idempotent, archive-preserving)"
+description: "Import project decisions into kgai with idempotence and archive preservation."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Migrate this repo's .ai/decisions/ into the kgai knowledge graph (
 
 ## Description
 
-Migrate this repo's .ai/decisions/ into the kgai knowledge graph (one-time, idempotent, archive-preserving)
+Import project decisions into kgai with idempotence and archive preservation.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /flow:migrate-kgai [--dry-run]
 ```
 
-## Summary
+**Codex**
 
-One-time migration of the file-based decision store (`.ai/decisions/DDR-*.md`) into the kgai knowledge graph, so an existing repo keeps its decision history when it switches the backend on. The old files are **kept as a read-only archive — never deleted** (DDR-044 safety).
+```text
+$flow:source-command-migrate-kgai [--dry-run]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/flow/commands/migrate-kgai.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/migrate-kgai.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/migrate-kgai.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/migrate-kgai.md).
 
 </Callout>

@@ -67,6 +67,8 @@ Standard contract (see `design-critic.md`). Plus (DDR-141, optional): `ds_fideli
 ```markdown
 # brand-critic — iter {iter_n}
 
+Follow [host conventions](../HARNESS.md) for the active host; retain this role's restrictions.
+
 _<ISO ts> · canvas: `{canvas_path}` · brand POV: {one-line summary from project README, or "no documented POV"}_
 
 ## TL;DR

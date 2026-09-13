@@ -2,12 +2,14 @@
 name: bug-rca
 category: bug
 type: command
-description: Analyze and document root cause for a ticket
+description: "Investigate a ticket and document its root cause with evidence."
 keywords: [bug, root-cause, analysis, investigate, debug, diagnose, ticket]
 argument-hint: "ticket-id"
 ---
 
 # Root Cause Analysis: Ticket $ARGUMENTS
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 ## Objective
 

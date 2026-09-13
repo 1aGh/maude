@@ -1,0 +1,6 @@
+interface:
+  display_name: "design:new"
+  short_description: "Create a multi-artboard canvas, a blank brief board, or…"
+  default_prompt: "Use $design:source-command-new with the task details I provide."
+policy:
+  allow_implicit_invocation: false

@@ -1,11 +1,13 @@
 ---
 name: question-protocol
 type: skill
-description: "Centralize user interaction in multi-agent workflows. Use when multiple agents or skills need user input — batches questions into a single coherent interaction instead of fragmented interruptions."
+description: "Batch necessary questions from workflow participants, collect user answers and route them to the requester."
 keywords: [question, ask, clarify, batch, multi-agent, protocol, interaction]
 ---
 
 # Question Protocol
+
+Follow [host conventions](../../HARNESS.md) for Claude Code or Codex.
 
 Teaches agents how to collect, batch, and present questions from multiple sources in a single coherent interaction. Prevents the fragmented "20 questions" anti-pattern where multiple specialist agents each interrupt the user separately.
 
@@ -75,6 +77,14 @@ After invoking each subagent or skill in a phase, check for returned questions. 
 If two sources ask the same question (or very similar ones), merge them into one entry and note both sources.
 
 ### 3. Present
+
+Use the current host's question tool when available and permitted in this mode
+(Claude's `AskUserQuestion`, Codex's available user-input tool). Respect its
+question/option limits; batch across calls only if needed. Otherwise ask in chat.
+An MCP server is not required. Ask only for missing information or authorization;
+do not re-confirm what the user already authorized in this session. Continue
+independent work while waiting. A default or elapsed time is never an answer to
+a required question.
 
 Present all pending questions in a single batch:
 

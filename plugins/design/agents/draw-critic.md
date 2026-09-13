@@ -144,6 +144,8 @@ Write `<output_path>`:
 ```markdown
 # draw-critic — {type} — iter {iter_n}
 
+Follow [host conventions](../HARNESS.md) for the active host; retain this role's restrictions.
+
 _<ISO ts> · mark: `{mark_path}` · HARD floor: {pass|FAIL}_
 
 ## TL;DR

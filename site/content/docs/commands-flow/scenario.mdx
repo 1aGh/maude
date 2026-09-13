@@ -1,6 +1,6 @@
 ---
 title: /flow:scenario
-description: "Run a cross-platform UI scenario (5 platforms: web-desktop, web-mobile, ios-phone, ios-tablet, android-phone) — screenshot proof + markdown report"
+description: "Run cross-platform web and native UI scenarios with screenshot evidence and a report."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Run a cross-platform UI scenario (5 platforms: web-desktop, web-mo
 
 ## Description
 
-Run a cross-platform UI scenario (5 platforms: web-desktop, web-mobile, ios-phone, ios-tablet, android-phone) — screenshot proof + markdown report
+Run cross-platform web and native UI scenarios with screenshot evidence and a report.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /flow:scenario <scenario-name> | new <scenario-name>
 ```
 
-## Summary
+**Codex**
 
-**This is the validation backbone.** For every UI feature there must be at least one scenario that verifies it across 5 platforms. Web-only or native-only features use a subset.
+```text
+$flow:source-command-scenario <scenario-name> | new <scenario-name>
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/flow/commands/scenario.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/scenario.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/scenario.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/scenario.md).
 
 </Callout>

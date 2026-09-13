@@ -1,0 +1,6 @@
+interface:
+  display_name: "flow:validate"
+  short_description: "Run project quality gates, tests, build and applicable…"
+  default_prompt: "Use $flow:source-command-validate with the task details I provide."
+policy:
+  allow_implicit_invocation: false

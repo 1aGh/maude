@@ -2,11 +2,13 @@
 name: release-changelog
 type: command
 category: release
-description: Author a changelog entry using the project's configured changelog provider.
+description: "Write a changelog entry using the project changelog conventions."
 keywords: [changelog, release-note, changeset, release, version-bump, semver]
 ---
 
 # /flow:release-changelog — author a release-note entry
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Provider-dispatched authoring command. Reads `integrations.changelog.provider` from `.ai/workflows.config.json` and routes to the right tool. Phase 3 implements the `changesets` provider end-to-end; other enum values stub to a "not yet implemented" message.
 

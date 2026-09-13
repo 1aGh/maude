@@ -107,6 +107,8 @@ Footer: emit `"opt_out_applied": "n/a — frontend hygiene enforces at every sco
 ```markdown
 # frontend-critic — iter {iter_n}
 
+Follow [host conventions](../HARNESS.md) for the active host; retain this role's restrictions.
+
 _<ISO ts> · canvas: `{canvas_path}` · components touched: {N}_
 
 ## TL;DR

@@ -1,32 +1,40 @@
 ---
 title: /design:edit
-description: "Iterate on the active canvas — Claude reads the file you have open in the browser and applies feedback IN PLACE. Default: after the edit, auto-runs the critic panel; add --perfect [N] for N auto-fix iterations, or --no-critic to skip. --opt-out=<scope> overrides the scope from the sidecar for this iteration."
+description: "Apply feedback to the active canvas in place, then verify and run the configured critic loop."
 ---
 
 | Property | Value |
 | -------- | ----- |
 | **Command** | `/design:edit` |
 | **Category** | `daily` (daily) |
-| **Argument hint** | `\"<feedback>\" [--screenshot <path>] [--perfect [N]] [--no-critic] [--no-propose] [--opt-out=palette\|aesthetic\|full]` |
+| **Argument hint** | `"<feedback>" [--screenshot <path>] [--perfect [N]] [--no-critic] [--no-propose] [--opt-out=palette\|aesthetic\|full]` |
 | **Source** | [`plugins/design/commands/edit.md`](https://github.com/1aGh/maude/blob/main/plugins/design/commands/edit.md) |
 
 ## Description
 
-Iterate on the active canvas — Claude reads the file you have open in the browser and applies feedback IN PLACE. Default: after the edit, auto-runs the critic panel; add --perfect [N] for N auto-fix iterations, or --no-critic to skip. --opt-out=&lt;scope> overrides the scope from the sidecar for this iteration.
+Apply feedback to the active canvas in place, then verify and run the configured critic loop.
 
 ## Invocation
 
+**Claude Code**
+
 ```text
-/design:edit \"<feedback>\" [--screenshot <path>] [--perfect [N]] [--no-critic] [--no-propose] [--opt-out=palette|aesthetic|full]
+/design:edit "<feedback>" [--screenshot <path>] [--perfect [N]] [--no-critic] [--no-propose] [--opt-out=palette|aesthetic|full]
 ```
 
-## Summary
+**Codex**
 
-The design plugin's default flow. Edits the **file you currently have open in the browser tab** — not a new session, not a new file. Like a Claude Design canvas — you say "add a presence dot here", and the presence dot appears in the active canvas.
+```text
+$design:source-command-edit "<feedback>" [--screenshot <path>] [--perfect [N]] [--no-critic] [--no-propose] [--opt-out=palette|aesthetic|full]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/design/commands/edit.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/edit.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/design/commands/edit.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/edit.md).
 
 </Callout>

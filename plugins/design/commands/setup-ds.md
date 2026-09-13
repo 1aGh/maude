@@ -1,11 +1,13 @@
 ---
 name: setup-ds
 category: setup
-description: Create a new design system (first one, an additional one alongside an existing DS, or re-bootstrap an existing one with --force). Thin wrapper that loads skill `design-system` in bootstrap mode with the given target. Auto-invokes /design:init first if .design/config.json is missing.
+description: "Create or re-bootstrap a named design system."
 argument-hint: "<name> [\"<brief>\"] [--force] [--quick]"
 ---
 
 # /design:setup-ds — create / extend a design system
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Dedicated entry point for **creating a design system** in this project. Three modes the underlying skill auto-detects:
 

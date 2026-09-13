@@ -1,32 +1,40 @@
 ---
 title: /design:to-lottie
-description: "Productionize a maude animation → ONE `.lottie` FROM CODE for web and mobile (1:1 lottie-web/dotlottie-react + lottie-react-native). Emitter from keyframe data, NOT a converter of rendered SVG. Self-verify via headless lottie-web."
+description: "Export animation keyframes to a verified Lottie artifact for web and mobile."
 ---
 
 | Property | Value |
 | -------- | ----- |
 | **Command** | `/design:to-lottie` |
 | **Category** | `daily` (daily) |
-| **Argument hint** | `\"<animated mark \| IR handle \| canvas>\" [--out <path>] [--web] [--verify]` |
+| **Argument hint** | `"<animated mark \| IR handle \| canvas>" [--out <path>] [--web] [--verify]` |
 | **Source** | [`plugins/design/commands/to-lottie.md`](https://github.com/1aGh/maude/blob/main/plugins/design/commands/to-lottie.md) |
 
 ## Description
 
-Productionize a maude animation → ONE `.lottie` FROM CODE for web and mobile (1:1 lottie-web/dotlottie-react + lottie-react-native). Emitter from keyframe data, NOT a converter of rendered SVG. Self-verify via headless lottie-web.
+Export animation keyframes to a verified Lottie artifact for web and mobile.
 
 ## Invocation
 
+**Claude Code**
+
 ```text
-/design:to-lottie \"<animated mark | IR handle | canvas>\" [--out <path>] [--web] [--verify]
+/design:to-lottie "<animated mark | IR handle | canvas>" [--out <path>] [--web] [--verify]
 ```
 
-## Summary
+**Codex**
 
-The **production-delivery** handoff for maude animation ([DDR-094](../../../.ai/archive/decisions/DDR-094-draw-animation-keyframe-ir-native-authoring-lottie-export.md)). You iterate the animation natively in maude (the keyframe IR → SMIL/JSX preview);
+```text
+$design:source-command-to-lottie "<animated mark | IR handle | canvas>" [--out <path>] [--web] [--verify]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/design/commands/to-lottie.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/to-lottie.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/design/commands/to-lottie.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/to-lottie.md).
 
 </Callout>

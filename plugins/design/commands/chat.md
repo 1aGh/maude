@@ -1,11 +1,13 @@
 ---
 name: chat
 category: daily
-description: Open (focus) the native ACP chat sidepanel in the Maude window — an agent chat running on your own `claude` CLI subscription (DDR-123). Native-app only.
+description: "Open the existing native Studio ACP chat panel. ACP harness support is a separate integration."
 argument-hint: ""
 ---
 
 # /design:chat — surface the native ACP chat sidepanel
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Opens (or focuses) the **Assistant** sidepanel in the running native Maude window, where you can drive `/design:edit`, `/design:new`, `/design:critic`, `/design:screenshot` and watch the canvas change — without leaving the same shared surface. The panel runs on **your own `claude` install on a Pro/Max subscription** (no login in Maude, never metered API billing — DDR-123).
 

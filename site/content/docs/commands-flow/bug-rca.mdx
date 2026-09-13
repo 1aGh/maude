@@ -1,6 +1,6 @@
 ---
 title: /flow:bug-rca
-description: "Analyze and document root cause for a ticket"
+description: "Investigate a ticket and document its root cause with evidence."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Analyze and document root cause for a ticket"
 
 ## Description
 
-Analyze and document root cause for a ticket
+Investigate a ticket and document its root cause with evidence.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /flow:bug-rca ticket-id
 ```
 
-## Summary
+**Codex**
 
-Investigate ticket `$ARGUMENTS`, identify the root cause, and document findings for future implementation. The ticket source is whatever provider is configured in `.ai/workflows.config.json` (`integrations.tracker.provider`) — GitHub, ClickUp, Linear, Jira, Notion, Asana, Shortcut, or `none` (manual paste).
+```text
+$flow:source-command-bug-rca ticket-id
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/flow/commands/bug-rca.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/bug-rca.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/bug-rca.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/bug-rca.md).
 
 </Callout>

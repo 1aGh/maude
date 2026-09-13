@@ -1,0 +1,5 @@
+## Where the import lands — the store `kg config` resolves
+
+Since kgai v1.5.1 the migration targets **the store the engine resolves via `kg config`** — for a `.kgairc`-enrolled repo that is typically the **shared parent-folder store** (e.g. `../.kgai-shared` next to the sibling repos), NOT a per-repo `.kgai/store`. Check `kg config` → `store_root` before running; if it reports `pending_approval`, the committed `.kgairc` must be human-approved first (`kg trust` — never run by the skill; see `flow:kgai-backend` §2). A repo joining the shared graph should get its **`.kgairc` committed** (identical values to the org's — one trust fingerprint covers all repos) as part of the migration, so every future clone enrolls the same way.
+
+**Merging a legacy per-repo store into the shared one is a shard copy, not a re-import:** `cp <old>/.kgai/store/log/*.ndjson <shared>/log/` — **longest-wins per shard filename** (shards are append-only and per-install, so the longer file strictly contains the shorter) — then `kg rebuild`. Verified: this preserves graph-native decisions (no `.md` behind them) without mutations, which a wipe-and-reimport would lose (trap 2 below).

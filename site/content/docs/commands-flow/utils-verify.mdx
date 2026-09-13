@@ -1,6 +1,6 @@
 ---
 title: /flow:utils-verify
-description: "Light verification of touched files during /flow:execute — scoped gates (qualityScoped) + affected tests + agent-browser/agent-device smoke for UI changes; repo-wide gates defer to /flow:validate"
+description: "Verify touched files with scoped quality gates, affected tests and applicable UI smoke checks."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Light verification of touched files during /flow:execute — scope
 
 ## Description
 
-Light verification of touched files during /flow:execute — scoped gates (qualityScoped) + affected tests + agent-browser/agent-device smoke for UI changes; repo-wide gates defer to /flow:validate
+Verify touched files with scoped quality gates, affected tests and applicable UI smoke checks.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /flow:utils-verify
 ```
 
-## Summary
+**Codex**
 
-Use during `/execute` after each task (Edit-Verify Loop). For a full cross-platform sweep before merge, use `/validate`.
+```text
+$flow:source-command-utils-verify
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/flow/commands/utils-verify.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/utils-verify.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/flow/commands/utils-verify.md`**](https://github.com/1aGh/maude/blob/main/plugins/flow/commands/utils-verify.md).
 
 </Callout>

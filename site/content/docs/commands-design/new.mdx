@@ -1,32 +1,40 @@
 ---
 title: /design:new
-description: "Create a new multi-artboard canvas project via frontend-design — generic envelope adapted to .design/config.json. Default = --perfect (8 iter, full panel, target 4.5/5). Opt out via --quick or --no-critic. Opt out of the DS via --opt-out=palette|aesthetic|full."
+description: "Create a multi-artboard canvas, a blank brief board, or artboards from annotations; verify with the critic loop."
 ---
 
 | Property | Value |
 | -------- | ----- |
 | **Command** | `/design:new` |
 | **Category** | `daily` (daily) |
-| **Argument hint** | `<Name> \"<brief>\" [--blank] [--from-annotations] [--fresh] [--component] [--mobile] [--quick \| --no-critic] [--perfect-iter N] [--opt-out=palette\|aesthetic\|full] [--ds=<name>]` |
+| **Argument hint** | `<Name> "<brief>" [--blank] [--from-annotations] [--fresh] [--component] [--mobile] [--quick \| --no-critic] [--perfect-iter N] [--opt-out=palette\|aesthetic\|full] [--ds=<name>]` |
 | **Source** | [`plugins/design/commands/new.md`](https://github.com/1aGh/maude/blob/main/plugins/design/commands/new.md) |
 
 ## Description
 
-Create a new multi-artboard canvas project via frontend-design — generic envelope adapted to .design/config.json. Default = --perfect (8 iter, full panel, target 4.5/5). Opt out via --quick or --no-critic. Opt out of the DS via --opt-out=palette|aesthetic|full.
+Create a multi-artboard canvas, a blank brief board, or artboards from annotations; verify with the critic loop.
 
 ## Invocation
 
+**Claude Code**
+
 ```text
-/design:new <Name> \"<brief>\" [--blank] [--from-annotations] [--fresh] [--component] [--mobile] [--quick | --no-critic] [--perfect-iter N] [--opt-out=palette|aesthetic|full] [--ds=<name>]
+/design:new <Name> "<brief>" [--blank] [--from-annotations] [--fresh] [--component] [--mobile] [--quick | --no-critic] [--perfect-iter N] [--opt-out=palette|aesthetic|full] [--ds=<name>]
 ```
 
-## Summary
+**Codex**
 
-Creates a **new multi-artboard canvas file** at `&lt;designRoot>/&lt;newCanvasDir>/&lt;Name>.tsx` via the `frontend-design` plugin. The generic envelope adapts to `&lt;repo>/.design/config.json` (rootClass, themeDefault, tokensCssRel, …). The canvas envelope (`DesignCanvas` / `DCSection` / `DCArtboard`) is imported from the virtua
+```text
+$design:source-command-new <Name> "<brief>" [--blank] [--from-annotations] [--fresh] [--component] [--mobile] [--quick | --no-critic] [--perfect-iter N] [--opt-out=palette|aesthetic|full] [--ds=<name>]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/design/commands/new.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/new.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/design/commands/new.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/new.md).
 
 </Callout>

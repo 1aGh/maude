@@ -119,6 +119,8 @@ A single screenshot can PASS while nothing actually animates (a frozen `d:path()
 ```markdown
 # motion-critic — iter {iter_n}
 
+Follow [host conventions](../HARNESS.md) for the active host; retain this role's restrictions.
+
 _<ISO ts> · canvas: `{canvas_path}` · animation surface: {N transitions, K @keyframes, J prefers-reduced-motion blocks}_
 
 ## TL;DR

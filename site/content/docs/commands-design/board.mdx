@@ -1,32 +1,40 @@
 ---
 title: /design:board
-description: "Read the whiteboard with element-aware context, and/or author a whole tidy TEMPLATE (retro, kanban, social-media calendar, roadmap, brainstorm, checklist, user-flow) onto it. Wraps `maude design canvas-rects`/`read-annotations`/`annotate` (skill `whiteboard`) — the FigJam-style two-way surface, distinct from the one-shot `/design:edit` component-editing loop."
+description: "Read a whiteboard or create a structured board template with element-aware annotations."
 ---
 
 | Property | Value |
 | -------- | ----- |
 | **Command** | `/design:board` |
 | **Category** | `daily` (daily) |
-| **Argument hint** | `[\"<feedback or template request>\"] [--from-figjam <url>] [--near <artboardId>] [--in <artboardId>] [--pin <cdId\|selector>] [--dry-run]` |
+| **Argument hint** | `["<feedback or template request>"] [--from-figjam <url>] [--near <artboardId>] [--in <artboardId>] [--pin <cdId\|selector>] [--dry-run]` |
 | **Source** | [`plugins/design/commands/board.md`](https://github.com/1aGh/maude/blob/main/plugins/design/commands/board.md) |
 
 ## Description
 
-Read the whiteboard with element-aware context, and/or author a whole tidy TEMPLATE (retro, kanban, social-media calendar, roadmap, brainstorm, checklist, user-flow) onto it. Wraps `maude design canvas-rects`/`read-annotations`/`annotate` (skill `whiteboard`) — the FigJam-style two-way surface, distinct from the one-shot `/design:edit` component-editing loop.
+Read a whiteboard or create a structured board template with element-aware annotations.
 
 ## Invocation
 
+**Claude Code**
+
 ```text
-/design:board [\"<feedback or template request>\"] [--from-figjam <url>] [--near <artboardId>] [--in <artboardId>] [--pin <cdId|selector>] [--dry-run]
+/design:board ["<feedback or template request>"] [--from-figjam <url>] [--near <artboardId>] [--in <artboardId>] [--pin <cdId|selector>] [--dry-run]
 ```
 
-## Summary
+**Codex**
 
-The FigJam-style draw layer (`&lt;designRoot>/&lt;slug>.annotations.svg`) is a two-way medium — the user sketches on it, and this command both **reads** it (with artboard AND element context) and **writes** to it (answers, or a whole tidy template). Full spec: skill `whiteboard`. This command is the driving loop; it does not
+```text
+$design:source-command-board ["<feedback or template request>"] [--from-figjam <url>] [--near <artboardId>] [--in <artboardId>] [--pin <cdId|selector>] [--dry-run]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/design/commands/board.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/board.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/design/commands/board.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/board.md).
 
 </Callout>

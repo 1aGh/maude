@@ -2,12 +2,14 @@
 name: execute
 category: daily
 type: command
-description: Execute an implementation plan
+description: "Execute an implementation plan and maintain verification and workflow checkpoints."
 keywords: [implement, plan, build, run, feature]
 argument-hint: "[path-to-plan]"
 ---
 
 # Execute: Implement from Plan
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 ## Package Manager Auto-Detection
 

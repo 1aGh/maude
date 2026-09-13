@@ -1,11 +1,13 @@
 ---
 name: smoke
 category: validate
-description: Batch screenshot every UI canvas (`<designRoot>/ui/*.tsx`) + every preview specimen (`<designRoot>/system/*/preview/*.tsx`); flag blank iframes, visible error overlays, AND preview specimens that render UNSTYLED (lost their token CSS). Adds a static import-graph lint + a runtime computed-style gate on specimens. Exit non-zero on any failure. Catches the "build green ≠ user-visible green" class of regression that bypasses per-canvas hooks. See DDR-021 + DDR-068.
+description: "Screenshot UI canvases and design specimens to detect blank, broken or unstyled output."
 argument-hint: "[--include-system 0|1] [--timeout <secs>] [--out-dir <dir>]"
 ---
 
 # /design:smoke — batch render check across every canvas
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Wraps the bundled `smoke.sh` helper, invoked via `maude design smoke` (the on-PATH `maude` binary dispatches to it — DDR-062). Single source of truth lives in the helper; this command exists so you can invoke smoke as a slash, and so `/flow:execute` can call it as a phase-end gate.
 

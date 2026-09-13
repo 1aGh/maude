@@ -2,11 +2,13 @@
 name: setup-context
 category: setup
 type: command
-description: Prime agent with codebase understanding for the current project
+description: "Load relevant codebase context for the current project and task."
 keywords: [prime, onboard, codebase, understand, explore]
 ---
 
 # Prime: Load Project Context
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 ## Objective
 

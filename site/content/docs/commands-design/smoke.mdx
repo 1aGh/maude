@@ -1,6 +1,6 @@
 ---
 title: /design:smoke
-description: "Batch screenshot every UI canvas (`<designRoot>/ui/*.tsx`) + every preview specimen (`<designRoot>/system/*/preview/*.tsx`); flag blank iframes, visible error overlays, AND preview specimens that render UNSTYLED (lost their token CSS). Adds a static import-graph lint + a runtime computed-style gate on specimens. Exit non-zero on any failure. Catches the \"build green ≠ user-visible green\" class of regression that bypasses per-canvas hooks. See DDR-021 + DDR-068."
+description: "Screenshot UI canvases and design specimens to detect blank, broken or unstyled output."
 ---
 
 | Property | Value |
@@ -12,21 +12,29 @@ description: "Batch screenshot every UI canvas (`<designRoot>/ui/*.tsx`) + every
 
 ## Description
 
-Batch screenshot every UI canvas (`&lt;designRoot>/ui/*.tsx`) + every preview specimen (`&lt;designRoot>/system/*/preview/*.tsx`); flag blank iframes, visible error overlays, AND preview specimens that render UNSTYLED (lost their token CSS). Adds a static import-graph lint + a runtime computed-style gate on specimens. Exit non-zero on any failure. Catches the "build green ≠ user-visible green" class of regression that bypasses per-canvas hooks. See DDR-021 + DDR-068.
+Screenshot UI canvases and design specimens to detect blank, broken or unstyled output.
 
 ## Invocation
+
+**Claude Code**
 
 ```text
 /design:smoke [--include-system 0|1] [--timeout <secs>] [--out-dir <dir>]
 ```
 
-## Summary
+**Codex**
 
-Wraps the bundled `smoke.sh` helper, invoked via `maude design smoke` (the on-PATH `maude` binary dispatches to it — DDR-062). Single source of truth lives in the helper; this command exists so you can invoke smoke as a slash, and so `/flow:execute` can call it as a phase-end gate.
+```text
+$design:source-command-smoke [--include-system 0|1] [--timeout <secs>] [--out-dir <dir>]
+```
+
+Use the same arguments and flags. See [native Codex setup](/docs/codex) for
+installation, dependencies and the distinction from Studio's built-in chat.
+
 ## Source of truth
 
 <Callout type="note" title="Generated from frontmatter">
 
-This page is auto-generated from the command's frontmatter. The exact prompt Claude runs — including directives, edge-case handling, and tool-routing logic — lives in the source file: [**`plugins/design/commands/smoke.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/smoke.md).
+This page is auto-generated from the command's frontmatter. The shared workflow — including directives, edge-case handling and references loaded for each stage — starts in the source file: [**`plugins/design/commands/smoke.md`**](https://github.com/1aGh/maude/blob/main/plugins/design/commands/smoke.md).
 
 </Callout>

@@ -1,11 +1,13 @@
 ---
 name: critic
 category: daily
-description: Spawn critic panel (or single agent / all critics) on the active canvas — design + a11y + up to 9 specialists (graphic, brand, typography, motion, copy, frontend, info-architecture, signature-moment, draw). Default = orchestrator routes panel based on canvas content + feedback. Honors opt_out_scope from canvas .meta.json or --opt-out= flag. Use --system-only to audit the design system itself (structural completeness) instead of the active canvas.
+description: "Review the active canvas with the selected specialist critic panel."
 argument-hint: "[--agent <name>] [--all] [--panel] [--system-only [--ds=<name>] [--all-ds]] [--opt-out=palette|aesthetic|full]"
 ---
 
 # /design:critic — review active canvas
+
+Follow [host conventions](../HARNESS.md) for Claude Code or Codex.
 
 Runs one or more `*-critic` subagents on the active canvas (`_active.json`). Each critic emits a **JSON verdict block** at the end of its report — the orchestrator parses it and (if >1 critic) writes a consolidated `<NNN>-PANEL.md`.
 

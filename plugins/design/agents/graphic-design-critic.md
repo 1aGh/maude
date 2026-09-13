@@ -80,6 +80,8 @@ For each, write 1–3 sentences with element / line refs and call out specific e
 ```markdown
 # graphic-design-critic — iter {iter_n}
 
+Follow [host conventions](../HARNESS.md) for the active host; retain this role's restrictions.
+
 _<ISO ts> · canvas: `{canvas_path}` · selection: {selected.selector or "—"}_
 
 ## TL;DR

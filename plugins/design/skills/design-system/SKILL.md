@@ -1,10 +1,12 @@
 ---
 name: design-system
-description: Owns all design-system work. (1) READ mode (default) — loads the active canvas's declared DS (tokens, philosophy, hard-stops) so the agent iterates against the correct context. (2) BOOTSTRAP mode — runs when invoked via /design:setup-ds, or auto-loaded by /design:edit / /design:new on a missing target. Hard-deps pre-flight, then staged discovery (DDR-033 + DDR-147): Stage 0 scope + Stage 1 vision prompts, `design:ux-research-agent` in `discovery` mode (Stage 2 — domain reference pool from WebSearch), the Stage-3 direction gate (moodboard pick of ~`moodboard.variants` seed-composed directions), Stage-4 refinement residue, and the LOCK gate — in one of 3 sub-modes (first-bootstrap / additional-ds / re-bootstrap). Consults _MAPPING.md to compute scaffold set, generates project-flavored files using design-system-inspiration as reference, runs design-system-completeness-critic, and prints next-step block.
+description: "Read a canvas design system, bootstrap a new system, or check its completeness. Select the matching mode."
 user-invocable: true
 ---
 
 # design-system — router
+
+Follow [host conventions](../../HARNESS.md) for Claude Code or Codex.
 
 This skill has **two responsibilities** with **mode-switched flows**:
 
