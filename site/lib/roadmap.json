@@ -2181,6 +2181,17 @@
       "phaseKey": null
     },
     {
+      "id": "feature-desktop-project-tabs-and-identity-profiles",
+      "title": "Feature: Desktop project tabs + per-project identity profiles",
+      "status": "planned",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. The Rust shell is the centre of gravity here — read apps/desktop/src-tauri/src/sidecar...",
+      "planPath": ".ai/plans/feature-desktop-project-tabs-and-identity-profiles.md",
+      "archived": false,
+      "phaseKey": null
+    },
+    {
       "id": "feature-goal-unattended-pipelines",
       "title": "Feature: /goal-aware unattended pipelines for flow + design commands",
       "status": "planned",
