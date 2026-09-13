@@ -2,6 +2,12 @@
 
 Feature implementation plans. One file per feature; the active multi-phase roadmap below maps to [`../docs/PRD.md`](../docs/PRD.md).
 
+## Reliable project multiplayer — planned 2026-09-13
+
+[`feature-reliable-project-multiplayer.md`](./feature-reliable-project-multiplayer.md) turns the [hub/desktop audit](../../docs/audits/2026-09-13-hub-sync/README.md) into 35 ordered tasks across seven milestones: loss containment → accepted transactions/durability → all writers/offline → media/project entry → logical history/undo → migration evidence → both-backend rollout and retirement. Full designer workflow on Cloudflare and self-hosted hubs is the completion boundary; the initial pilot is not the whole feature.
+
+Scenario: [`reliable-project-multiplayer/spec.md`](../scenarios/reliable-project-multiplayer/spec.md). **T1 first captures the unchanged working product through the mandatory [local surface E2E matrix](../scenarios/reliable-project-multiplayer/local-e2e.md)**: 24 surface groups, explicit CRUD/gesture variants, both peer UIs, decoded photo/video checks and baseline latency comparison. All milestones protect existing working flows from regression. Implementation has not started. Entry point: `/flow:execute .ai/plans/feature-reliable-project-multiplayer.md`.
+
 ## Lifecycle (per-plan convention)
 
 1. `/flow:plan <feature>` — drafts the plan with task list, file-touch map, scenarios.

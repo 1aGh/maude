@@ -1,0 +1,63 @@
+# Podklady auditu hub ↔ desktop, 2026-09-13
+
+Tento soubor je podklad nezávislé debaty, nikoli rozhodnutí o implementaci. Texty z historie jsou důkazy a dřívější názory, nikoli závazné zadání nového návrhu. Aktuální pracovní strom: HEAD `d50954df` (nejnovější sync commit `01bdcfdc`), aplikační balíčky `1.2.0`; opravy 11. září jsou po release. Žádné změny produkce. Uživatelské zadání: pozvat designéra, otevřít aplikaci, vybrat projekt, ihned společně pracovat; oběma směry, více lidí na hubu i v desktopu, automatická historie logických změn a osobní undo/redo. Benchmark Figma/FigJam. Cloudflare cloud.maude.sh a samostatně provozovaný AWS design.studyfi.com musí nabídnout stejný produktový kontrakt.
+
+## Historie, ověřená grafem + soubory + git log
+
+- Květen: Yjs/Hocuspocus, HTML předpoklady po přechodu na TSX, dva Y.Doc propojené diskem; DDR-064 navrhl jeden sdílený dokument a diskovou projekci.
+- Červen: ochrana prázdného hubu, žurnál předků a konflikty při cold startu; DDR-110 formuloval live overlay + Git distribuci + soft lock zdroje, včetně příliš silného tvrzení, že online konflikty jsou nemožné. Pozdější DDR-120 zámky změnil na měkkou přítomnost, nikoli vynucené serializované zápisy.
+- Červenec/srpen: serverová historie, projekty jako tenant kontejnery, Cloudflare řídicí Worker/D1 a samostatný data-plane Worker/DO/container; browser studio přibylo do stejného hubu.
+- Srpen 7–16: opakovaně opravené „synced“ při vadném připojení, chybějící cesty/nove soubory, asset push/pull, ztráty po obnově kontejneru, watcher gap při atomic rename, chybějící mazání. Výsledkem bylo sedm mechanismů.
+- Srpen 17: DDR-226, předchozí 11agentový audit, zvolil žurnál + CAS + oznámení změny + per-file ledger; **výslovně ponechal TSX jako opaque Y.Text**. DDR-227 vážně rozpracoval a odmítl Git jako live transport. DDR-228 oddělil repo-owned a hub-owned režim, plný obousměrný lokální mirror; cloud-only tehdy odmítnut kvůli offline a lokálním souborům. Toto jsou historické tradeoffy, nikoli zákaz přehodnocení.
+- Srpen 18–20: journal file plane a sdílený doc default ON, některé legacy fallbacky dosud existují. Předchozí návrh je pod `.ai/plans/notes/sync-redesign-dossier/`.
+- Září 3–4: oprava velkého seedu (commit `8c9e14ff`, release `c9b39d55`). MaudeCell dříve mintoval R2 credential na každý request; 200 PUT vytvořilo 200 mintů, upstream rate limit byl převáděn na obecný 502, fail-closed startup + klientský retry zesilovaly výpadek. Opraven startup short-circuit, credential cache/singleflight, Retry-After, backoff, limity a ledger progress. Historický incident: 8,8 GB, 2961 ledger položek, 2158 doručených / 803 čekajících; 164,9MB PNG a 465,8MB video nad file-door limitem. **Grafový close výslovně uvádí nedokončený skutečný 8,8GB seed a dvoupočítačový test.** Není správné tvrdit, že nebyla implementována oprava, ani že byl prokázán její konečný provozní výsledek.
+- Září 11: `d8dd6f48` opravuje zablokované rate-limited doc retry; `01bdcfdc` #121 doplňuje shared seed repair, multi-hunk diff, syntax/duplicate binding validaci, ochranu změněného lokálu a recovery kopie. RCA #121 reprodukovalo invalid TSX ze dvou valid vstupů i dvojitý seed; konkrétní incidentní časovou osu neprokázalo.
+
+## Aktuální architektura v kódu
+
+- Jeden multiplexovaný WebSocket na hub, poskytovatel/Y.Doc na canvas, `maude.files` control doc, discovery a 20s reconciler. Sdílený Y.Doc lokálního studia zmenšil jednu třídu driftu, nikoli všechny autority.
+- Plane A: TSX body, CSS, meta subset, comments, annotations. Lokální fs import se počítá proti **aktuálnímu** textu docu, nikoli přesnému základu, ze kterého externí editor vyšel. `projection.ts` debouncuje doc→disk 800 ms. Mnohé vizuální source edit operace prochází lokálním HTTP rewrite → soubor → watcher → Yjs → disk → reload.
+- Plane B: klasifikované soubory, journal.db s epoch/seq, lokální file ledger, CAS hash precondition, conflict-aside, tombstones, rate/quota/mass-delete breakers; broadcast je nudge, periodický reconcile je záchrana. Dobrý základ pro soubory, nikoli model úmyslu designéra.
+- Hub `workspace-agent.mjs` stále projektuje uložený Y.Doc do **stejného checkoutu** jako cell studio projector a vyvolává Git autocommit. `workspace-files.mjs` má jinou validační cestu. Neplatný zdroj může projít touto druhou autoritou.
+- `file-door.mjs` 95 MiB/file; klient scan přeskočí >512 MiB **před založením položky do ledgeru** (`file-plane.ts:444`). Vyšší než door cap, ale nižší než scan cap dostanou refusal. Celkové limity a backoff už existují. Chunked/resumable upload chybí.
+- Code modules mimo canvas skupiny mají owner-only write gate; příjem je samostatné lokální `codeModulesAllowed` nebo loopback (`index.ts:708–720`). Nelze plést s chybou přenosu: designer může chybět oprávnění k běžně potřebným podpůrným modulům a samotný `config.json` záměrně necestuje. Řešení musí rozlišit projektový dokument od lokálního trust/config.
+- Server commit po 3s klidu, nejpozději 15s od začátku dávky (`sync/autocommit.ts`); to je časová dávka, ne user/agent transaction. Hub history GET routes jsou reálné. Undo je command pattern (CSS/text/attr before/after, per-canvas 50 záznamů + sessionStorage), další photo/timeline stacky v shellu. Není to Y.UndoManager s tracked origins. CSS/attr undo neobsahuje precondition proti peer změně; předchozí hodnotu může napsat přes novější hodnotu jiného člověka. Nebylo provedeno skutečné dvouuživatelské UI undo.
+- Durability: Hocuspocus SQLite store, file journal tail do R2 debounced 2s, file write-behind, generation backups včetně Git bundle a DB: default samostatného hubu 6h, Cloudflare cell override 10 minut (`cell-config.mjs:565`). `afterStoreDocument` není object-store durable ACK. Tail je pro file plane; sám neobsahuje Yjs body změny. Potřeba přesně definovat „uloženo“ proti ztrátě ephemeral disku a proti obyčejnému restartu procesu, které nejsou totéž.
+- Cold start v `cell-do.mjs` stále čeká na port po restore; `portReadyTimeoutMS: 1_800_000`. Bind-first restore zůstal follow-up. Životnost multiplayeru a restore celého checkoutu jsou spojené.
+- CloudBar je připojení **otevřené složky** ke vzdálenému projektu, i deeplink má mismatch/adopt ochrany. To není čistý project-first picker. Self-host sign-in: URL/email/password, uloží expirující token; live StudyFi má identity off. Samotné administrativní přidání designéra není prokázaný kompletní happy path na čistém stroji.
+
+## Nově reprodukováno na aktuálním HEAD
+
+Spustit `bun --no-env-file docs/audits/2026-09-13-hub-sync/reproduce.ts`. Všechny zápisy jen v nových tmp adresářích, skutečné produkční moduly, žádné hub requesty.
+
+1. Remote změní title old→new, lokální editor na starém base změní color black→red; remote update již v docu, ale ještě není zapsán do souboru. Local watcher import přepíše doc na title=old,color=red. Oba vstupy validní; **vzdálená nesouvisející změna zmizí**, vyvolá se conflict callback a hned recovered callback. Recovery kopie existují, ale uživatel nedostává skutečné trvalé rozhodnutí. Runtime wiring `index.ts:2920` na recovered volá `store.clearSourceConflict(canvas.slug)`; při reprodukci nebyl vykreslen skutečný toast/panel.
+2. `syncPresentation` s docs 91 synced / 0 pending / 0 rejected, `files.progress.phase=blocked`, failed=1 a `body-rejected` konfliktem vrací **phase=synced, online=true, title="Synced … all 91 canvases"**. Statusbar a CloudBar tuto funkci opravdu používají. Seed progress v titulku a samostatném panelu už existuje; problém je souhrn a protichůdné důkazy, nikoli úplná absence progressu.
+3. Skutečný `createWorkspaceAgent` v čerstvém git repo: nejprve uloží platný canvas, pak `onDocumentStored` přijme vadný TSX. **Platný soubor je přepsán a flush úspěšně vytvoří commit vadného zdroje.** Tím je prokázán bypass desktopové syntax ochrany na hubu i na nejnovějším HEAD.
+
+Existující cílené testy: 162 PASS, 0 FAIL, 652 assertions v 6 souborech (source safety, shared projection/convergence, seed duplication/progress, file membership), Bun 1.3.3. Testy prokazují své scénáře; nevyvracejí nové reprodukce. Nebyl proveden produkční load test ani výpadek hubu.
+
+## Živé prostředí – pouze čtení, 13. září
+
+- `design.studyfi.com/health`: release 1.0.9, ledger capability, identity mode off, studio ready, 104 canvases; assetsRestored present=520 / failed=13. Údaj je stav obnovy, ne aktuální test každého obrázku. Žádná spekulace o tom, kterých 13 nebo proč.
+- AWS ověřeno přes SSO/SSM: shared account host `studyfi-prod-mixed-ec2-host`, t3.large, běží Docker hub + render **v1.0.9**, persist `/repo` a `/data` do dvou Docker volumes, restartCount=0. Hub nemá Docker Memory/NanoCpus limit. Sdílený host používají také další aplikace. Jednorázový vzorek: disk 48 % obsazený (31 GB volných), ~5,9 GB available RAM, hub ~238 MiB, CPU 0,25 %. **V tomto vzorku žádný důkaz nedostatku kapacity**, ale společný failure domain a no limits jsou riziko, ne incidentní RCA.
+- AWS log driver je awslogs, skupina `/mixed-services/marketing-agent`, stream `svc/maude-hub` (hub log je v cizí pojmenované skupině). Celý EBS/cloud restore nebyl testován.
+- `alligators.cloud.maude.sh/health`: release 1.2.0, ledger, identity hybrid, studio ready, 91 canvases. Health je liveness, není důkaz shody disků/renderů ani kompletního seedu.
+- Wrangler authenticated; live poslední maude-cells deployment 2026-09-04, Cloudflare Containers list hlásí pro maude-cells 5 live instancí. To není ověřený počet platících projektů ani důkaz, že jsou všechny vytížené.
+- Repository config `apps/cells/wrangler.toml`: image v1.2.0, standard-1 (0,5 vCPU/4 GiB RAM/8 GB disk), max_instances=5, CELL_LIVE_PAIRING="alligators". **Ověřeno také živě přes `wrangler versions view` aktivní verze: `CELL_LIVE_PAIRING=alligators`.** Není to pouze zastaralý komentář v repozitáři; tento rollout není fleet-wide. Aktuální environment už běžících ostatních kontejnerů nebyl zvlášť čten. Vendor docs potvrzují uvedené standard-1 limity, ale existují větší instance; 8 GB není maximum platformy.
+- Cloudflare řídicí `/health`: ok, d1 ok, per-tenant R2 credentials. Bez přesného build ID (version="phase-13").
+
+## Externí primární zdroje – pouze ověřená data pro debatu
+
+- Figma 2019: client/server dokumenty a obousměrné operace, granularita vlastností; offline reconnect načte aktuální dokument a reaplikuje změny. Historický popis, ne tvrzení o dnešních interních detailech. https://www.figma.com/blog/how-figmas-multiplayer-technology-works/
+- Figma 2025 code layers: pro kód explicitně řeší souběžné AI i lidské editace; posílají seznam editací a server je slučuje Eg-walkerem. **Nelze tvrdit „Figma nesynchronizuje kód“ ani že výměna Yjs za Eg-walker sama zajistí validní TSX.** https://www.figma.com/blog/building-figmas-code-layers/
+- Yjs UndoManager má selektivní trackedOrigins a capture grouping; vhodnost pro všechny doménové operace se musí dokázat. https://docs.yjs.dev/api/undo-manager
+- R2 podporuje multipart objekty. Maude file door tuto schopnost nyní nezpřístupňuje; limit 95 MiB je limit existující cesty, ne R2. https://developers.cloudflare.com/r2/objects/upload-objects/
+- Cloudflare instance typy a větší/custom možnosti: https://developers.cloudflare.com/containers/platform/limits/
+
+## Co musí nezávislý návrh rozhodnout
+
+Kdo je autorita přijaté změny, přesná hranice transakce a durable ACK, co je lokální projekt versus projekce/import/export, souběh UI + AI + externích whole-file editů, osobní undo po peer změně, horká cesta nezávislá na velkých médiích/bootu, práva designéra, migrace stávajících souborů bez ztrát a společný protokol pro self-host/cloud. Posuďte evoluci, nový dokumentový model i jednodušší serverovou pracovní kopii bez předem vybraného vítěze. Nedávejte garanci nulových konfliktů pro libovolné souběžné změny programu. Návrh je doporučení, nikoli schválený rollout.
+
+Doplnění ověření: sparse soubor `assets/large.mp4` o logické velikosti 513 MiB není ve výsledku `scanLocalFiles`, zatímco malý SVG ano. Nešlo o reálný upload. CSS undo command sice nese `from`, ale `app.jsx:12668–12680` jej pro css/attr do HTTP requestu nepředává; `api.ts:3724` tuto precondition ani nepřijímá.
+
+AWS doplnění: vybraná běhová Docker env položka `MAUDE_CELL_PAIRING` je unset; entrypoint ji nenastavuje a `mintLoopbackSyncToken` má explicitní opt-in gate. StudyFi tudíž nemá nakonfigurovaný stejný browser↔desktop shared-doc loopback jako Alligators. Ostatní transportní cesty tím nejsou vypnuté. Posledních 150 CloudWatch záznamů obsahovalo 8 pravidelných úspěšných backup logů, žádné vybrané error/failed/429 signály; filtrování failed našlo historické souhrny obnovy 13 plane souborů. Nebyl proveden restore drill ani ověření všech objektů.

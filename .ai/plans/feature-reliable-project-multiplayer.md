@@ -1,0 +1,618 @@
+---
+name: feature-reliable-project-multiplayer
+status: planned
+created: 2026-09-13
+decisions:
+  - Complete the designer workflow on both self-hosted and Cloudflare hubs; containment fixes and prototypes are milestones, not a scope cut.
+  - Separate working candidates from server-accepted project revisions; every persistent writer must pass the same transaction boundary before publication.
+  - Preserve local files, offline work, arbitrary TSX source fidelity, and existing file-ledger investment.
+  - Freeze persistence and source-validation runtime only after bounded two-backend experiments with explicit failure oracles.
+  - History follows accepted logical actions; personal undo is a conditional compensating action.
+  - Migrate behind a persistent project epoch and retire old write paths; never run two writable authorities.
+---
+
+# Feature: Reliable project multiplayer
+
+Designers accept an invitation, open a project in Maude, and immediately work together across browser and desktop. Changes save durably, large media loads progressively, and personal undo preserves teammates' work.
+
+Validate current docs and code patterns before implementing. Recheck Git history and the working tree before treating any task as unimplemented. This plan spans packages and therefore belongs in the root `.ai/plans/` directory.
+
+## Description
+
+Implement the complete product contract requested on 2026-09-13: cloud and self-hosted invitations, project-first desktop entry, live bidirectional browser/desktop/local-editor/AI collaboration, uninterrupted local/offline work, automatic logical history, and safe personal undo/redo. Start by containing the reproducible data-loss paths, then introduce one accepted-revision contract and finish all user-facing and operational paths above it.
+
+This is a **planned implementation**, not a report that the system is already reliable. No implementation, deployment, production migration, or new paid infrastructure was performed while writing it. Deployment tasks are included so the plan does not confuse a merged protocol with a working product; they produce reviewable rollout artifacts before changing real projects.
+
+## User Story
+
+As a designer who knows nothing about Git or synchronization infrastructure, I want an invitation to give me an editable project in the desktop app, with changes immediately visible to my teammates, so I can focus on design, return to history, and undo my own actions without checking whether synchronization worked.
+
+As a collaborator using local files or an AI agent, I want my edits to enter the same project history without overwriting changes made elsewhere, including after an offline session or application restart.
+
+## Problem
+
+The [audit](../../docs/audits/2026-09-13-hub-sync/README.md) reproduced stale whole-file imports removing unrelated remote edits, the hub committing invalid source through a different validation path, misleading `synced` summaries, and omission of oversized files. CSS/attribute undo drops its expected-current-value precondition. Passing transport tests do not establish preservation of author intent or persistence after loss of a renderer disk.
+
+The existing hub `afterStoreDocument` hook runs **after** Yjs state has changed. Guarding that hook alone protects a checkout, not the accepted document or every connected renderer. A later valid-looking Yjs update may depend on an earlier rejected update. Introducing a new transaction endpoint beside writable Hocuspocus documents would preserve the central defect.
+
+Deployments also differ: the audit observed StudyFi 1.0.9 with identity off and no configured shared-doc loopback, versus Alligators 1.2.0 with cloud live pairing limited to that tenant. These are dated observations, not immutable prerequisites. Re-inventory before rollout.
+
+## Solution
+
+### Product scope and boundaries
+
+**Full scope:** both deployment families, browser studio, native desktop, local edits/AI, all currently supported persistent editing categories, invitation/membership/renewal, managed local copies, media, history, undo/redo, migration and release evidence. Use isolated projects as pilots before wider migration; do not stop the feature at a pilot.
+
+**Preserve:** arbitrary TSX bytes outside deliberately changed spans; local-only projects and advanced folder attach; user-owned repositories; local trust anchors; existing tenant isolation; durable recovery copies; path/runtime-state classifiers; ledger/CAS/tombstone/backoff work; Git as source export/history integration.
+
+**User amendment, 2026-09-13 — protect the working product:** the user currently finds sync usable and does not want the redesign to make it worse. A comprehensive **local, real-process UI E2E baseline is a prerequisite to changing sync behavior**, and the same suite is a regression gate throughout implementation. It must exercise every persistent editing surface and verify the receiving UI/render/media, not only API success or disk arrival. The authoritative operation matrix, measurement procedure and pass/fail rules are in [local-e2e.md](../scenarios/reliable-project-multiplayer/local-e2e.md). Existing successful workflows must remain successful and have no reproducible material latency degradation. A safer architecture is not permission to make routine editing slower, conflict-prone or dependent on manual resync.
+
+**Outside this feature:** a universal TSX-to-scene-graph converter, a new mobile native app, a new vector drawing engine, replacing billing, global active-active editing across regions, and shared editing of incomplete unpublished code drafts. This feature must still let each author keep and repair such a draft locally.
+
+### Accepted revision contract
+
+```text
+browser / desktop optimistic work / external edit / AI action
+                           |
+                   candidate proposal
+                           v
+       authenticate + epoch check + base/dependency checks
+            + source validation + complete blob references
+                           |
+                    durable transaction
+           (head + log + idempotency result atomically)
+                           |
+                   ACK + revision event
+                    /               \
+       accepted client replica    one checkout projector
+              |                     |             |
+        local overlay          renderer       Git export
+```
+
+Define these terms in T6 and keep them distinct in API and UI:
+
+- **Working candidate:** locally preserved work which may be incomplete, invalid or based on an older revision. It is never silently discarded.
+- **Accepted revision:** ordered project action committed by the project coordinator. This is the serving authority for persistent content.
+- **Durable ACK:** evidence that the accepted action and every referenced payload can be reconstructed after the documented failure model. It is not Hocuspocus `synced`, a socket event, or a debounced backup timer.
+- **Last successful render:** execution result for a particular accepted revision. Syntax acceptance does not guarantee runtime success. A new runtime failure must retain access to the prior working render and the failed revision.
+- **Preview/presence:** ephemeral, bounded and non-authoritative. It may show motion before final commit but may never manufacture a saved revision.
+
+The transaction envelope includes protocol version, project ID, persistent write epoch, document generation, actor/device/session origin, transaction ID, payload hash, base revision, dependency/read-write sets, parent pending IDs, action type, and preconditions. Derive identity and capabilities on the server. Do not trust an actor, role, landing path or trust setting supplied by a client.
+
+Same ID + same payload returns the original result; same ID + different payload is rejected. A dropped ACK cannot create a second action. Validate rights again when a queued action is accepted. Define a bounded idempotency retention policy covering supported offline replay; after that horizon, retain the candidate and request explicit resync instead of pretending an old action is new.
+
+### Candidate and accepted Yjs state
+
+Chosen planning direction: clients cannot directly mutate published project Y.Doc state. Proposals travel through an explicit transaction path; only the server replayer writes accepted documents. Existing Yjs/Hocuspocus may distribute accepted state and presence. The local optimistic overlay is separate from that replica.
+
+T7 proves this boundary with the installed Hocuspocus/Yjs versions and the actual browser client. It must reject raw `Update` and `SyncStep2` messages from writers as well as readers while retaining permitted awareness. Do not rely on `afterStoreDocument` rejection or attempt to reverse already-broadcast CRDT updates.
+
+If pending action U2 depends on rejected U1, pause/rebase the dependency chain against a fresh accepted generation. Do not replay raw U2 bytes assuming they are independent. Preserve original candidate bytes and undo context until resolution succeeds.
+
+### Durable storage decision gate
+
+T8 is a bounded engineering experiment with concrete outputs, not a placeholder to “choose a database later.” Implement the same tiny append/read/replay contract against candidate backends and select **one cloud adapter and one self-host adapter** before T9–T12 proceed.
+
+Start with Cloudflare SQLite-backed DO coordination plus immutable R2 payloads, and self-host persistent SQLite with a verified object-storage journal/conditional durable head using the existing S3 integration. These are **candidates**, not assumed guarantees. If the self-host candidate cannot atomically establish a fenced, replayable head without ambiguous acknowledgment, evaluate a transactional PostgreSQL metadata adapter; document its operational/dependency cost. Do not turn periodic SQLite backup into a durable commit claim. If source validation cannot run safely in a Worker, compare a portable validator with a dedicated validation service independent of renderer restore; never trust client-only validation.
+
+Required T8 outputs: executable adapter probes; validated acceptance/validation runtime; failure-model table; atomic commit sequence; split-brain proof; measured payload/snapshot bounds and ACK cost/latency; compaction/retention design; chosen dependency versions; migration/runbook requirements; graph-recorded implementation decision. Maximum two candidates per backend before revising the design with evidence. A failed gate blocks dependent production integration, not the independent P0 fixes.
+
+Failure contract: accepted actions survive process restarts and replacement of renderer/checkout disks, with **RPO 0 for acknowledged actions under those failures**. Disaster loss of the canonical storage system has separately stated RPO/RTO and restore evidence. Do not claim one proves the other.
+
+### All-writer coverage
+
+T6 expands this inventory to exact mutating functions/routes and attaches a conformance assertion to each row. No “remaining writers” catch-all task is acceptable.
+
+| Persistent input | Existing integration surface | Target owner |
+|---|---|---|
+| Browser/desktop Yjs updates and cell loopback | `apps/hub/src/server.mjs`, `apps/studio/sync/index.ts`, `apps/studio/collab/` | T12/T13: proposal channel; accepted stream read-only |
+| CSS, attributes, text edits | `apps/studio/api.ts`, `commands/edit-source-command.ts`, `client/app.jsx` | T15/T24 |
+| External editor saves and atomic renames | `sync/projection.ts`, `sync/fs-mirror.ts`, `sync/echo-guard.ts` | T15: candidate import with proven base or explicit conflict |
+| AI source and multi-file edits | `apps/studio/api.ts`, `apps/studio/acp/`, design CLI helpers | T16: begin/propose/commit action boundary |
+| Canvas create, duplicate, rename, move, delete | Studio API + hub document deletion/path/tombstone handlers | T17: project transaction, generation retirement |
+| Meta/layout and artboard positioning | `canvas-lib.tsx`, codec/meta paths, studio API | T17/T25: persistent properties only; camera remains local |
+| Comments and annotations | `sync/codec.ts`, `canvas-lib.tsx`, studio collab/annotation paths | T17: transaction adapters; presence remains ephemeral |
+| Photo and timeline actions | Existing `client/app.jsx` bridges and their API handlers | T17/T26: grouped operation adapters, no second history |
+| Styles, design-system code/dependencies and eligible support files | `sync/file-plane.ts`, hub `file-door.mjs`, membership classifiers | T18/T20: manifest + role/trust policy |
+| Assets/media upload and replacement | `sync/asset-push.ts`, file plane, hub `asset-lane.mjs`/file door | T18: durable blob then accepted reference |
+| Workspace projection/autocommit/import walks | `workspace-agent.mjs`, `workspace-files.mjs`, `journal.mjs` | T14: one projector; old writes fenced |
+| History restore, resync repair, legacy fallbacks | `history.ts`, hub `history.mjs`, sync migrations/runtime | T27/T28/T30: explicit new action or read-only repair |
+
+### Source fidelity and operation policy
+
+Use the existing source-editing vocabulary first: stable `data-cd-id`, text/CSS/attribute changes, structural edits and established meta/comment/annotation operations. T23 enumerates supported syntax before implementation; no regex-based universal JSX reconstruction.
+
+For valid independent operations preserve both authors' effects. For the same property, the initial planning policy is deterministic server acceptance order with authorship in history; deletes, missing targets and invalidated dependencies reject/require rebase rather than inventing intent. **Undo always has stronger expected-current preconditions** and cannot erase a later peer assignment even if it restores equal-looking text. Track effect/operation identity, not just string equality, to avoid ABA errors.
+
+Instrumented local edits and AI supply exact base tokens. A watcher cannot know the base of an arbitrary editor's stale in-memory buffer merely from the latest projected disk hash. A base-unknown edit is preserved and surfaced as a candidate; never silently converted into a replacement of the accepted document. For safe unambiguous ordinary saves, use a documented merge rule and prove it with independent-edit tests.
+
+## Metadata
+
+- **Type:** Bug Fix + Refactor + Enhancement
+- **Complexity:** High; staged cross-package implementation with data/migration risk
+- **Ticket:** GitHub tracker configured; no umbrella issue assigned or created in this planning pass
+- **Packages:** `apps/studio`, `apps/hub`, `apps/cells`, `apps/cloud`, `apps/desktop`, `cli`; release/scenario tooling and documentation
+- **Planning baseline:** audit source `d50954df`; planning checkout advanced concurrently to `a0193828`, with latest sync commit still `01bdcfdc`; audit on 2026-09-13
+- **Package managers:** root pnpm 11 (`pnpm-lock.yaml`); studio independently uses Bun (`apps/studio/bun.lock`); native Rust/Cargo
+- **Loaded expertise:** `flow:skill-loader`, `flow:kgai-backend`, `flow:debate-protocol`, `durable-objects`; official Yjs/Hocuspocus/Tauri docs fallback
+- **Dependencies:** current Hocuspocus 4.3/Yjs 13.6, OXC source validation, SQLite, R2/S3, Tauri 2. New runtime dependencies require T8 evidence and packaging validation; no speculative installation during planning.
+- **Scope status:** complete target planned; production execution not started
+
+**Concurrent plan boundary:** `.ai/plans/feature-share-link-deeplink.md` was created in the shared tree during this planning pass. It owns file share URLs, `?open=` navigation/return-to and file-target deep-link parsing. This plan owns invitation/project membership, managed local copies and accepted state. T21/T22 must reuse or extend its project resolver and link parser when present, not create a second competing resolver or change its URL contract incidentally. Neither plan blocks M0/M1; coordinate the shared native open/auth seams before their UI integration.
+
+## Context References
+
+### Must-Read Files
+
+Read the relevant independent files in one batched context load at each milestone. Source paths below are repository-relative. Large files should be read at the named seam; use `rg` to refresh line numbers after changes.
+
+| File | Why / relevant seam |
+|---|---|
+| `AGENTS.md`, `.ai/workflows.config.json`, `.ai/release-guide.md` | Runtime, paths, packaging, platform and quality contracts |
+| `docs/audits/2026-09-13-hub-sync/README.md`, `evidence.md`, `reproduce.ts`, `debate.md` | Evidence and limits; prior resolved audit direction |
+| `.ai/docs/PRD.md`, `.ai/docs/epic-native-collab-app.md` | Historical product/personas; current request overrides obsolete cloud/native exclusions |
+| `.design/system/maude/README.md`, `colors_and_type.css` | Actual studio design-system authority |
+| `apps/studio/sync/projection.ts`, `source-recovery.ts`, `source-validation.ts`, `codec.ts` | Source candidates, base tracking, validation and encoding |
+| `apps/studio/sync/index.ts` | Shared-doc wiring, conflict recovery, role/trust and project lifecycle |
+| `apps/studio/sync/presentation.ts`, `connection-state.ts`, `file-ledger.ts`, `file-plane.ts` | Truthful state, complete inventory, reconciliation |
+| `apps/hub/src/server.mjs` | Read-only Yjs gate around 656–747; after-store projection around 1588; document delete and auth |
+| `apps/hub/src/workspace-agent.mjs`, `workspace-files.mjs`, `journal.mjs`, `file-door.mjs`, `history.mjs` | Competing writers, persistence, file gate and history |
+| `apps/cells/cell-do.mjs`, `cell-config.mjs`, `wrangler.toml`, `apps/cloud/worker.mjs` | Cell availability, live-pairing rollout and control/data-plane routing |
+| `apps/studio/sync/workspace-signin.ts`, `hub-listing.ts`, `hub-link.ts` | Existing self-host/account/attach contracts |
+| `apps/studio/client/panels/CloudBar.jsx`, `OnboardingWizard.jsx`, `SyncPanel.jsx`, `GitPanel.jsx` | Reusable auth/project/status/history UI |
+| `apps/studio/client/app.jsx`, `commands/edit-source-command.ts`, `undo-stack.ts`, `history.ts` | UI operation bridges, current undo and history |
+| `apps/desktop/src-tauri/src/app_state.rs`, `deep_link.rs`, `lib.rs`, `sidecar.rs` | Managed project identity, native entry and sidecar switching |
+| `.claude/rules/tauri-desktop.md`, `.ai/plans/feature-share-link-deeplink.md` | Four-site native command registration/committed permission files and concurrent URL/resolver ownership |
+| `scripts/dev/local-cell.mjs`, `scripts/dev/sync-e2e.mjs`, `scripts/dev/sync-e2e/harness.mjs`, `scenarios.mjs` | Existing isolated real-process harness; extend instead of parallel tooling |
+| `apps/desktop/e2e/scenarios/cloud-attach.e2e.ts`, `onboarding.e2e.ts` and matching WDIO configs | Native harness; current cloud test uses owner/stubs/prepared folder |
+| `apps/hub/test/two-machine-workspace.test.mjs`, `journal-restore-drill.test.mjs`, `invite-flow.test.mjs` | Useful fixtures, but current KILL/restore labels do not prove renderer-disk-loss durability |
+
+Configured `.ai/maude-prd.md`, `.ai/maude-design-system.md` and `.ai/context/codebase-map.md` do not exist in this checkout. The actual PRD above is historical (May); actual DS and current source plus the September request govern this plan. T1 documents these resolved paths without treating stale config stack fields (`next.js` for the repo) as the studio framework.
+
+Prior art: DDR-064, DDR-110, DDR-115, DDR-120, DDR-126, DDR-193, DDR-214, DDR-226/227/228, DDR-240; audit graph `system-review:maude/hub-desktop-sync-audit-2026-09-13` and bookend `decision:maude/hub-sync-debate-2026-09-13`. Prior plans are historical evidence; `git log -- <their files>` determines what already shipped. Do not reopen delivered credential-cache/backoff/ledger work as new implementation.
+
+### Files to Create
+
+These are **proposed new files**, created only by their owning implementation tasks unless explicitly marked as planning artifacts. Test files below use production seams rather than duplicating algorithms.
+
+| Proposed path | Task / purpose |
+|---|---|
+| `.ai/scenarios/reliable-project-multiplayer/spec.md` | Planning artifact created with this plan |
+| `.ai/scenarios/reliable-project-multiplayer/local-e2e.md` | Planning artifact: exhaustive local surface/operation and regression contract |
+| `.ai/scenarios/reliable-project-multiplayer/runners/local-e2e.sh` | T1: baseline and candidate runs via existing real-process/UI harness, independent of cloud credentials |
+| `docs/architecture/project-transactions.md` | T6 protocol, inventory and state machine |
+| `.ai/plans/notes/reliable-project-multiplayer-spikes.md` | T7/T8 findings, chosen adapters and bounds |
+| `apps/studio/sync/project-transactions/contracts.mjs`, `kernel.mjs` | T9 pure shared ESM; no Node/Bun/Worker globals; shipped under existing npm studio surface |
+| `apps/hub/src/transaction-gateway.mjs`, `transaction-store.mjs` | T11/T12 self-host adapter + acceptance integration |
+| `apps/cells/project-store.mjs` | T10 cloud adapter; class/binding runtime chosen in T8 |
+| `apps/studio/sync/transaction-client.ts`, `pending-actions.ts`, `revision-projector.ts` | T13/T14 client, durable outbox and projection |
+| `apps/studio/sync/project-bootstrap.ts`, `project-manifest.ts` | T19/T20 bootstrap and public manifest/trust split |
+| `apps/studio/client/panels/ProjectPicker.jsx`, `SourceConflictPanel.jsx`, `ProjectHistory.jsx` | T22/T27/T28; compose existing chrome |
+| `apps/desktop/src-tauri/src/managed_projects.rs` | T21 managed copy identity/lifecycle |
+| `apps/studio/sync/structured-actions.ts` | T24/T25 typed source/meta actions |
+| `apps/hub/test/project-transactions.test.mjs`, `project-durability.test.mjs` | T7–T12 shared contract and actual failure tests |
+| `apps/cells/project-store.test.mjs` | T10 deployed-runtime adapter conformance |
+| `apps/studio/test/sync-transaction-client.test.ts`, `sync-pending-actions.test.ts`, `sync-revision-projector.test.ts` | T13/T14 replay/dependencies/projection |
+| `apps/studio/test/sync-structured-actions.test.ts`, `sync-personal-undo.test.ts`, `sync-project-bootstrap.test.ts` | T19/T24–T28 product semantics |
+| `apps/desktop/e2e/scenarios/project-multiplayer.e2e.ts`, `wdio.multiplayer.conf.ts` | T31 native clean-designer scenario |
+| `.ai/scenarios/reliable-project-multiplayer/runners/web-desktop.sh`, `native-macos.sh` | T31 thin runners around existing harnesses |
+| `scripts/dev/sync-e2e/faults.mjs`, `inventory.mjs` | T8/T18/T31 extend existing harness with fault and hash oracle |
+| `docs/operations/project-multiplayer-rollout.md` | T30 migration/rollback and backend runbooks |
+
+Additional regression cases belong in existing tests named under each task. Do not create another sync framework or publish a second hand-maintained copy of the protocol kernel. If source-validation extraction needs a shared runtime file, T3 chooses its path and verifies Node/Bun/bundled loading; T8 separately verifies the cloud validation runtime.
+
+### Design canvases
+
+Read-only sidecar discovery found the following existing input. All are under the configured/default `.design` root; no canvas was modified or server started while planning.
+
+| Canvas | Status | Tags | Use |
+|---|---|---|---|
+| `.design/ui/Onboarding.tsx` | **handed-off** | none | Reuse wizard/chrome; replace obsolete GitHub-first/folder requirement for this hub workflow |
+| `.design/ui/CreateProject.tsx` | **handed-off** | none | Project rows/actions and clear ownership; do not require repo creation to join |
+| `.design/ui/GitHubIdentity.tsx` | **handed-off** | none | Existing identity presentation; not a new GitHub dependency |
+| `.design/ui/OnboardingTour.tsx` | **handed-off** | none | Tour mechanics only; old Save/Publish/Pull teaching conflicts with automatic project saving |
+| `.design/ui/Cloud Self Service.tsx` | draft | cloud, self-service, user-flow, onboarding, billing | Invitation/account flow context; not approved pixel authority |
+| `.design/ui/Studio Hub.tsx` | unspecified | none | Existing self-host operator console reference |
+
+### Documentation
+
+- [Yjs updates](https://docs.yjs.dev/api/document-updates) — binary convergence/idempotence and origins; does not establish semantic validity of source edits.
+- [Yjs UndoManager](https://docs.yjs.dev/api/undo-manager) — tracked origins and capture boundaries; validate against project action semantics before adopting.
+- [Hocuspocus hooks](https://tiptap.dev/docs/hocuspocus/server/hooks) — identify pre-apply versus post-store integration against installed v4 source.
+- [DO SQLite storage](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/) — transaction/storage semantics for the cloud candidate; test outside the render container.
+- [R2 uploads](https://developers.cloudflare.com/r2/objects/upload-objects/) — multipart implementation and resumability.
+- [S3 conditional writes](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html) — conditional object/head candidate for T8; these primitives alone are not a multi-object transaction or a proven commit adapter.
+- [Tauri commands](https://v2.tauri.app/develop/calling-rust/) — native project creation/opening; commands and permissions must agree.
+
+### Patterns to Follow
+
+Existing factory/injection seams are useful: `createDocProjection({ slug, doc, paths, onConflict, onRecovered })`, `createWorkspaceAgent({ repoDir, designRel, log })`, pure `syncPresentation(snapshot, context)`, and `sourceError(file, body): string | null`. Extend these responsibilities explicitly; do not hide a second writer behind an observer callback.
+
+Use Bun APIs in studio runtime and `paths.ts` for filesystem-relative package assets. Hub remains Node ESM; cloud remains Workers; the shared kernel is runtime-neutral ESM. Bundle inclusion and npm tarball reachability are acceptance criteria, not assumed from workspace imports. Keep runtime classifier mirrors and all four runtime-state lists in agreement for any new `_state`/outbox paths. Use existing local per-project runtime directories and session isolation; never sync credentials, local camera or trust config.
+
+## Design Decisions
+
+### Components and screens reused
+
+| UI need | Existing source | Planned change |
+|---|---|---|
+| Account login/device flow, project list | `client/panels/CloudBar.jsx` | Extract reusable logic into picker; retain URL validation and server-held credentials |
+| First-run and returning project entry | `OnboardingWizard.jsx`, native `app_state.rs` | Hub invitation/project-first route and automatic managed copy; preserve local-folder advanced route |
+| Save summary, per-file progress | `SyncPanel.jsx`, `sync/presentation.ts`, `client/app.jsx` | One state vocabulary including conflicts, outbox and media; details remain available without becoming required workflow |
+| History and restore navigation | `GitPanel.jsx`, `history.ts`, hub `history.mjs` | ProjectHistory reads accepted actions; existing Git inspection remains advanced |
+| Conflict decision / warning | SyncPanel rows + `.design/system/maude/preview/components-dialogs.tsx`, `components-callout.tsx` | New SourceConflictPanel preserves candidate/accepted versions, explicit resolution and download recovery |
+| Empty/loading/project rows | DS `preview/empty-state.tsx`, `skeletons.tsx`, `components-list.tsx` | Reuse visual conventions; no new kit |
+| Notification and focus behavior | Existing shell notification stack and dialog styles | Persistent actionable conflict, restrained completion updates; restore focus, keyboard navigation and live-region announcements |
+
+New components are justified by missing product functions, not a new visual style. No Tailwind registry is assumed; the studio uses existing CSS class families (`gi-*`, `sp-*`, `ob-*`, `.st-*`) and CSS custom properties.
+
+### Icons and tokens
+
+Reuse existing thin inline SVG `Icon` vocabulary from CloudBar/OnboardingWizard: `check`, `folder`, `folder-open`, `download`, `server`, `globe`, `spinner`, `x`, `arrow-right`, `external`, `chevron-right`, `back`, `copy`. Sizes follow existing 15/16px chrome. These are local helpers, not invented Lucide imports; extract a shared helper only where actual reuse needs it. Any new history/undo glyph must follow DS `preview/iconography.tsx` and be recorded in T22.
+
+| Purpose | Tokens / rule |
+|---|---|
+| Panels/background/text | `--bg-0..4`, `--fg-0..3`, `--border-default`, `--radius-sm/md` |
+| Primary action / selection | `--accent`, `--accent-fg`, one accent job per surface |
+| Save/error/offline state | `--status-success/warn/error/info`; text/icon accompany color |
+| Human/agent presence | `--presence-online/away/offline/agent`; do not equate online presence with saved state |
+| Typography | `--font-body` for UI; `--font-mono` for sizes, timings and numeric details |
+| Motion | `--dur-flip`, `--dur-panel`, `--ease-out`; honor reduced motion |
+
+Dark and light theme parity; dense keyboard-first desktop, usable narrow browser layout. No decorative gradients, emoji chrome, hardcoded colors or protocol jargon in default user flows. Product copy: “Saving…”, “Saved”, “Working offline — saved on this device”, “A change needs your attention”. “Saved” refers to shared durability, not proof that every offline teammate rendered it. Device persistence failure must prevent the local-saved claim.
+
+## Planning Debate
+
+The original audit debate is retained. This plan adds a bounded independent BUILDER/SHIPPER/BREAKER bookend focused on dependencies and implementation seams. All three returned **READY for a phased plan**, not for rollout; short-circuit applied without another user choice.
+
+- **BUILDER, 0.90:** published Yjs channel must be client-read-only; durable transaction/replayer is the only author. Risk: new gateway beside an old writable channel.
+- **SHIPPER, 0.88:** reuse auth/UI/test harnesses and finish actual designer onboarding on both backends. Risk: calling P0/prototype/stubbed owner attach a completed feature.
+- **BREAKER, 0.90:** prove U1 rejection/U2 dependency replay, persistent fencing and real disk-loss recovery. Risk: invalid candidate published before a post-store gate, or dependent updates poisoned by its rejection.
+
+Resolved sequence below preserves all three concerns. Storage technology is deliberately a T8 decision gate; this is not permission to omit either adapter or stop after an experiment.
+
+## Milestones and Dependencies
+
+| Milestone | Tasks | Exit gate |
+|---|---|---|
+| M0 — contain known loss and misleading status | T1–T5 | New regressions green, candidates preserved, truthful summary; no claim of a new accepted-document protocol yet |
+| M1 — prove and implement acceptance/durability | T6–T12 | Pre-publication gate + both actual storage adapters pass identical fault oracles |
+| M2 — all authors, offline and one projection | T13–T17 | No unfenced write bypass; browser + two desktops + AI; dependent offline replay |
+| M3 — media, bootstrap, rights and project entry | T18–T22 | Large-media resume; no bulk-download prerequisite; real designer can open managed project |
+| M4 — supported operations, logical history, undo | T23–T28 | Supported operation inventory complete; peer-safe undo and restore-as-new-action |
+| M5 — observability, migration and product evidence | T29–T32 | Real storage loss, clean onboarding, large project, replay/migration proofs on both backends |
+| M6 — staged rollout and retirement | T33–T35 | Both distributions pass product contract; obsolete write paths removed; final evidence/roadmap/docs accurate |
+
+Execute serially by task ID unless explicit dependencies allow overlap. **T1's real local surface baseline must finish before any behavior-changing T2–T5 or production sync refactor.** T6–T8 isolated experiments may run alongside M0; T18/T20 can begin after M1; T21/T22 UI preparation can begin after T6, but cannot pass until T19/T20 work. T23 fidelity research can start early; production operations require the gateway. Fencing is implemented in T12–T14, **before any pilot activation**, not postponed to M6 cleanup. Run the affected local surface rows after each behavior change and the full local matrix at every milestone; T31 extends/certifies this early runner instead of introducing E2E only near the end.
+
+## Tasks
+
+Each task includes implementation plus its meaningful regression/integration checks. Future file names/commands are specified here as deliverables, not as commands already present or already run. Record task evidence against T1–T35; do not check a milestone complete with skipped required scenarios.
+
+### T1: CREATE the local surface E2E baseline before changing sync
+
+- [ ] **Do:** Recheck Git history, six audited source seams and deployed versions read-only. Resolve actual PRD/DS paths; add a dated current-scope note to existing product docs without deleting history. Establish isolated owner, two designer and viewer identities; canvas+module+asset fixture and exact expected accepted/candidate bytes. Implement `runners/local-e2e.sh` as a thin extension of existing `scripts/dev/sync-e2e/` and native WDIO fixtures. Enumerate and run **all L01–L24 operation variants** from `local-e2e.md` against the unchanged baseline with visible UI assertions and actual decodable photo/video fixtures; record unsupported/failed baseline cases honestly. Capture the native bundled lane, per-direction correctness, no-refresh behavior and latency distributions. Preserve baseline artifacts keyed by source/bundle/config/fixture hash before refactoring production sync.
+- **Pattern:** Audit `reproduce.ts`, `scripts/dev/local-cell.mjs`, hub real-client tests and WDIO fixture guards.
+- **Gotcha:** The audit's five probes are observations, not assertions to preserve broken behavior. Existing 162 passing tests and old plans do not establish product completion. Current sync-e2e has `expected-pending` deletion/history assertions, a delete settle path forcing `ok: true`, folder creation hidden by adding a child canvas, and a create+delete scenario explicitly labeled not-real-rename: none may count as a passing CRUD baseline. Separate UI-triggered tests from API/watcher tests; don't substitute a direct API call for an untested UI control.
+- **Validate:** `bash .ai/scenarios/reliable-project-multiplayer/runners/local-e2e.sh --mode baseline` (new in this task), plus the audit probe and targeted suites. Every matrix cell has evidence-backed `pass | fail | unsupported | not-run`, no false green. Preserve actual initial failures with task ownership; protect all initially passing cells from regression. No production writes or seed during baseline collection. T1 is incomplete if the receiving UI/media or native lane was not actually exercised.
+
+### T2: FIX stale local source imports and conflict lifetime
+
+- [ ] **Do:** Update `sync/projection.ts`, `source-recovery.ts`, `index.ts` and tests so a save never interprets stale untouched text as a new deletion of peer work. Track proven base/generation, preserve original candidate and accepted bytes, merge only demonstrably independent changes, and retain an unresolved conflict until actual resolution.
+- **Pattern:** Existing projection/hash/recovery factories and `sync-source-safety.test.ts`.
+- **Gotcha:** Last projected file hash alone cannot prove an external editor's buffer base. Both preserve-and-block and a correct verified merge are acceptable for an ambiguous import; silent overwrite is not.
+- **Validate:** `cd apps/studio && bun test test/sync-source-safety.test.ts test/shared-doc-projection.test.ts test/sync-incident-replay.test.ts`; title/color race in both orders, atomic rename, restart with unresolved candidate, and failed snapshot write.
+
+### T3: FIX hub checkout validation parity and package reachability
+
+- [ ] **Do:** Guard hub workspace projection/commit with the same source-validity semantics as studio; reject before overwriting valid disk, preserve the candidate/reason, and prevent Git committing the rejected source. Share implementation or generated conformance corpus rather than drift-prone duplicated regexes. Register any parser dependency at every actual package-manager root and verify the hub bundle/native studio distribution.
+- **Pattern:** `source-validation.ts`, `workspace-agent.mjs`, `workspace-files.mjs`, existing source safety tests.
+- **Gotcha:** This is checkout containment only. It does **not** yet prove that the published Y.Doc or peer render never saw invalid bytes; T7/T12 own that boundary.
+- **Validate:** `pnpm --filter @maude/hub test`; source-validity corpus in studio; repeat audit hub probe expecting no overwrite/invalid commit; bundled hub cold-load smoke and compiled studio loading if dependency surface changes.
+
+### T4: FIX complete inventory and one truthful project summary
+
+- [ ] **Do:** Extend file enumeration/ledger to account for every eligible user file, including >512MiB entries with explicit blocking reasons. Unify summary priority across conflicts, failed/pending files, auth, transport and docs; preserve unknown-state fail-closed behavior. Apply to CloudBar, SyncPanel and statusbar without separate rules.
+- **Pattern:** `sync/presentation.ts`, `file-plane.ts`, `file-ledger.ts`, `connection-state.ts`, seed progress.
+- **Gotcha:** Excluded runtime/trust files should have a policy classification, not become upload jobs. Avoid frequent hashing/reading of large files solely to populate a row. A green docs count cannot override a blocked required asset.
+- **Validate:** `cd apps/studio && bun test test/sync-presentation.test.ts test/sync-file-ledger.test.ts test/sync-file-membership.test.ts test/sync-seed-progress.test.ts test/sync-panel-surface.test.ts`; blocked+91-doc case, sparse oversized file and contradictory UI states.
+
+### T5: FIX current undo bridge preconditions
+
+- [ ] **Do:** Carry expected-current values through CSS/attr command → shell → API, enforce the precondition server-side, and acknowledge success/failure back to the command stack. Preserve the undo entry on rejection; surface a peer-change conflict. Keep this compatibility correction until T28 replaces it with effect-aware project undo.
+- **Pattern:** `commands/edit-source-command.ts`, `client/app.jsx`, `api.ts`, existing text precondition path.
+- **Gotcha:** Value comparison is only immediate containment; ABA and action identity are handled by T28. Do not advance the stack after swallowed HTTP errors.
+- **Validate:** `cd apps/studio && bun test test/edit-source-command.test.ts test/undo-stack.test.ts test/undo-sequence-byte-compare.test.ts`; wire-level CSS and attr requests, peer replacement, failed request, redo.
+
+### T6: CREATE transaction contract and exhaustive writer registry
+
+- [ ] **Do:** Write `docs/architecture/project-transactions.md` with versioned schemas, state transitions, rights, generation/epoch, retry semantics, source/candidate policy, persistent/ephemeral split, action boundaries, idempotency horizon and full writer registry above mapped to actual functions/routes. Specify bootstrap/proposal/result/events/history/upload-session APIs and errors (`base-conflict`, `source-invalid`, `dependency-missing`, `forbidden`, `epoch-stale`, `capacity`, `retryable`).
+- **Pattern:** Existing pure journal/CAS/status contracts; preserve tenant/path gates and backward-read compatibility.
+- **Gotcha:** Multi-Y.Doc events are not atomic multi-file visibility. Revision manifests define the visible unit; ordinary filesystem consumers have a documented weaker projection boundary.
+- **Validate:** Schema examples cover every input row; protocol review traces one action browser→commit→desktop→undo. Every persistent writer has an owner task and a future tripwire. Record the contract decision in kgai with scope; do not supersede unrelated DDRs.
+
+### T7: CREATE candidate/publication and dependency-replay spike
+
+- [ ] **Do:** Prototype explicit proposals and a server-written accepted Y.Doc against installed Hocuspocus v4. Separate accepted replica and optimistic candidate. Test valid base → rejected U1 → repair U2 authored with U1 present → restart/reconnect/retry. Record the chosen rebase representation and required browser persistence in spike notes.
+- **Pattern:** Hub `connectionConfig.readOnly` gate and real-provider tests; use production parser semantics.
+- **Gotcha:** Gate raw `Update` and `SyncStep2`, all existing sockets, loopback clients and document-creation paths. `onStoreDocument`/`afterStoreDocument` is not the publication barrier.
+- **Validate:** `node --test apps/hub/test/project-transactions.test.mjs` (new): zero rejected bytes in accepted replica, peer, checkout or history; U2 cannot bypass U1 rejection through CRDT dependencies; valid corrected proposal produces one revision. Gate failure blocks T9–T17 integration.
+
+### T8: CREATE real persistence, validation-runtime and crash experiments
+
+- [ ] **Do:** Exercise the bounded candidates in Solution using the same append/read/head/snapshot interface. Add subprocess kill and replaceable checkout disks to `scripts/dev/sync-e2e/faults.mjs`; compare cloud and self-host storage behavior. Select concrete adapters and source-validation runtime, limits, cost/latency envelope and recovery policy in spike notes + an implementation DDR.
+- **Pattern:** Existing backup/restore/SQLite seams, with independent durable-store fixtures.
+- **Gotcha:** Do not call destroying a provider `kill -9`, reuse the supposedly lost designRoot, or label a fileTarget fake as R2 verification. No remote I/O held inside a DO concurrency lock. Validation service availability cannot depend on restoring the entire render checkout.
+- **Validate:** Fault oracle before/after payload, head commit, ACK and publication; two coordinators with stale/current epochs; lost ACK retry; same ID/different payload; storage timeout/quota; fresh empty renderer disk; missing blob; replay after snapshot/compaction. Actual staging backend probes complement local mocks. Publish chosen adapters and evidence before T9–T12.
+
+### T9: CREATE shared transaction kernel and conformance corpus
+
+- [ ] **Do:** Implement runtime-neutral `sync/project-transactions/{contracts,kernel}.mjs`: deterministic validation/preconditions, action grouping, manifest hashes, idempotency, generation and dependency checks. Inject storage/clock/auth/validation effects. Keep one source imported by Node, Bun and the chosen cloud adapter.
+- **Pattern:** Existing pure decision-layer/effects separation and journal CAS fixtures.
+- **Gotcha:** No ambient process/env/fs/DOM imports in shared core. npm packing and compiled bundles must include it; do not introduce a workspace-only dependency unavailable to installed users.
+- **Validate:** New hub/cells transaction conformance tests execute the same fixture corpus; Node/Bun and Worker bundle imports; `bash scripts/check-tarball-shape.sh` and hub build smoke. T7/T8 are hard dependencies.
+
+### T10: CREATE Cloudflare durable project store
+
+- [ ] **Do:** Implement `apps/cells/project-store.mjs` using the adapter selected in T8; persist atomic head/log/dedup result and epoch outside the render container. Add schema migrations, snapshot replay, bounded paging and safe immutable payload references. Wire a project coordinator independently of cell renderer readiness.
+- **Pattern:** Existing tenant routing/cell config, using cloud-specific effects around the shared kernel.
+- **Gotcha:** Never put the authoritative doc log only in container SQLite or assume the file journal tail contains Yjs bodies. Old container env is not a feature-capability acknowledgment.
+- **Validate:** `pnpm --filter @maude/cells test` plus actual Worker/runtime project-store conformance from T8; empty-container reconstruction, concurrent head conflict, lost ACK and cross-tenant isolation. Dry-run deploy/config validation without production mutation.
+
+### T11: CREATE self-host durable project store
+
+- [ ] **Do:** Implement `apps/hub/src/transaction-store.mjs` with T8-selected storage, installation/migration checks and explicit durability mode. Keep required journal/payload/head outside disposable studio/checkout state. Supply a deployable standalone recipe and AWS persistent-storage configuration.
+- **Pattern:** Existing hub factory injection, SQLite/object target and Docker/systemd deployment recipes.
+- **Gotcha:** No self-host-only weakened “saved” semantics. If a deployment lacks required durable storage, refuse shared-save claims and give the operator an explicit configuration error; designers retain candidates.
+- **Validate:** `node --test apps/hub/test/project-durability.test.mjs`; actual selected backend, process kill, replacement checkout, stale coordinator, replay and storage failure. Verify installation/upgrade from the observed self-host version on a disposable instance.
+
+### T12: ADD gateway, subscriptions and mutation fencing
+
+- [ ] **Do:** Implement `transaction-gateway.mjs`, common proposal/results/revision-events APIs, server replayer, auth/capability derivation and persistent epoch checks. Make accepted Yjs content client-read-only, including loopback. Fence every legacy mutating route/document and already-open connection when project mode switches; rejected clients retain readable state and local work.
+- **Pattern:** Existing hub readOnly/auth gates and T6 registry; retain bounded awareness as a separate capability.
+- **Gotcha:** Epoch checks only at login are insufficient. Legacy delete/rename/import callbacks cannot mutate canonical state after mode switch. Snapshot SQLite is now a cache and cannot override the accepted head at boot.
+- **Validate:** T7 attack/replay cases over real sockets; each registry row exercised with stale epoch; revocation during a queued proposal; valid transaction replay published once. Both adapters pass the same project API contract.
+
+### T13: CREATE durable client outbox and accepted replica
+
+- [ ] **Do:** Implement `transaction-client.ts`/`pending-actions.ts` for studio/desktop and persistent browser storage where offline is promised. Persist action, base/generation, dependency chain and recovery bytes before local-saved acknowledgment. Manage accepted replica and optimistic overlay separately; rebase or hold dependent proposals after rejection.
+- **Pattern:** Existing supervisor/reconnect/backoff and per-machine runtime storage; no new transport retry loop competing with them.
+- **Gotcha:** sessionStorage alone is insufficient; account/project switching must not replay a queue into another project. Browser persistence eviction/quota failure must be visible. Never persist credentials inside synced project state.
+- **Validate:** `cd apps/studio && bun test test/sync-transaction-client.test.ts test/sync-pending-actions.test.ts` (new); offline edit→kill client→peer edit→reconnect; U1/U2; permission loss; stale generation; quota failure; ACK loss and duplicate callbacks.
+
+### T14: REFACTOR one checkout projector and revision visibility
+
+- [ ] **Do:** Implement `revision-projector.ts`; stage complete revision manifests and switch renderer-visible revision only after all required files are ready. Give one component write ownership of each managed checkout. Turn workspace-agent and legacy projections into adapters/readers or gate them off in transaction mode before enabling a pilot.
+- **Pattern:** Existing atomic writes/echo guard and path containment; canonical paths from `paths.ts`.
+- **Gotcha:** Multiple rename operations are not an atomic filesystem transaction for arbitrary external tools. Isolate their working tree and validate imports; renderer uses the immutable revision boundary. Projection failure cannot roll back the accepted log or erase candidate work.
+- **Validate:** `cd apps/studio && bun test test/sync-revision-projector.test.ts test/shared-doc-cell-pairing.test.ts` (new + existing); kill between staged files; canvas+module never mixed on render; stale projector cannot write after epoch change; replay to fresh checkout hashes identically.
+
+### T15: REFACTOR source UI and watcher imports into proposals
+
+- [ ] **Do:** Route text/CSS/attr/local HTTP source edits and fs watcher imports through transaction-client. Bind UI operations to accepted IDs/base tokens and preserve exact local editor bytes. Remove write→watch→second-author feedback for managed projects while retaining controlled import/export for local files.
+- **Pattern:** `api.ts`, `commands/edit-source-command.ts`, source-recovery, fs-mirror, current editor rewrite helpers.
+- **Gotcha:** Do not execute/resolve arbitrary imports to test syntax in a trusted process. Unknown editor base remains explicit candidate state, not silent replacement.
+- **Validate:** Existing source/command tests + real `sync-e2e` scenarios in both directions; title/color interleavings, editor stale buffer after remote projection, conflict resolution and unrelated TSX byte preservation.
+
+### T16: ADD explicit AI and multi-file action boundaries
+
+- [ ] **Do:** Add begin/propose/commit/abort integration to existing studio API and design CLI helpers/ACP adapters. Agent edits stage against a known manifest; one logical operation becomes one accepted history action with bounded preview. Preserve raw-tool edits via watcher candidates when an agent cannot use the structured API.
+- **Pattern:** Existing `maude design` dispatch and project path resolution; plugin callers use `maude design <verb>` per DDR-062.
+- **Gotcha:** User pause/agent crash/timeout cannot partially publish a canvas+module edit. Idle timers may suggest grouping but cannot define an atomic action. Keep both supported agent harnesses behind existing integration surfaces, not a new orchestration layer.
+- **Validate:** Real multi-file fixture: agent writes valid partial files then fails; no accepted half-state. Commit once, duplicate commit, abort and concurrent designer action all have explicit results and one logical history group.
+
+### T17: REFACTOR remaining persistent operations through the gateway
+
+- [ ] **Do:** Implement each T6 registry category: create/duplicate/move/rename/delete canvas; meta/artboard layout; comments; annotations; photo operations; timeline operations; supporting file replace/delete. Give each category a transaction adapter and fixture. Generation/tombstone semantics prevent old clients resurrecting deleted or moved canvases.
+- **Local E2E contract:** cover empty and populated folders as first-class tree operations, including move/delete with all descendants and canvas sidecars. A newly created empty folder must be visible to peers; define durable directory entries in the project manifest/transaction model instead of silently inserting a canvas to make the test pass. Distinguish removing a media instance from the canvas from deleting the project's asset; preserve other valid references and history.
+- **Pattern:** Existing codec/membership/tombstone and action handlers; retain ephemeral awareness and local viewport separation.
+- **Gotcha:** This task is complete only when every named category has a checked adapter and no direct accepted write. If implementation size requires split tasks, enumerate them in the plan before starting, preserving these IDs as acceptance parents.
+- **Validate:** Per-category write-registry tripwire plus browser/desktop/AI conformance. Rename asset + update reference, comment after target delete, artboard drag, annotation undo candidate, timeline/photo grouped edits, stale generation replay.
+
+### T18: ADD resumable media and complete asset lifecycle
+
+- [ ] **Do:** Extend existing asset/file plane and hub door with upload-session create/status/part/complete/abort, per-part retry, whole-object verification, quota reservation and completion idempotency for R2 and S3. Add immutable asset references and inventory helper; document tx commits reference only completed durable objects. Protect current/history/pending references in GC.
+- **Pattern:** Existing ledger/CAS/hash/backoff and credential singleflight. Reuse them; do not re-mint credentials for every part.
+- **Gotcha:** Avoid routing full media through the coordinator/Worker request cap or loading files into memory; preserve tenant/path/type gates and minimum authorized grants. Two concurrent sessions cannot overspend quota or delete each other's object.
+- **Validate:** 96MiB, 513MiB and representative large video fixtures; interrupted part, lost completion response, restart, hash mismatch, expiry, quota rejection, duplicate completion and GC race. `pnpm --filter @maude/hub test`, cells tests and staged R2/S3 integration evidence.
+
+### T19: ADD progressive bootstrap independent of renderer restore
+
+- [ ] **Do:** Implement project-bootstrap metadata, rights, manifest and active accepted snapshot endpoints before renderer/full checkout readiness. Desktop fetches a minimal working set, then media in priority order; add explicit full offline preparation. Separate coordinator readiness, renderer readiness and media completeness in health and UI.
+- **Pattern:** `cell-do.mjs`, workspace mode/readiness, hub listing and existing asset progress.
+- **Gotcha:** Opening the project need not wait for all blobs, but active missing modules cannot falsely appear ready. Browser render startup must hydrate only its working set and retain an actionable pending state.
+- **Validate:** `sync-project-bootstrap.test.ts` (new); renderer stopped, large bulk restore ongoing, active dependency missing, offline reopening cached canvas and insufficient disk. Record action-to-first-interaction separately from full download.
+
+### T20: UPDATE invitation, membership and project-manifest rights
+
+- [ ] **Do:** Define designer capability mapping for all supported operations and required DS dependencies. Unify cloud and self-host invitation→login→membership→project-list contract, renewal and revocation. Add a distributable project manifest with bounded dependency declarations; keep account credentials and local trust outside it. Specify self-host identity enablement/migration in the rollout recipe.
+- **Pattern:** `apps/cloud` membership/invite/device-auth modules; hub identity/invites, `workspace-signin.ts`/`hub-listing.ts`/`hub-link.ts`.
+- **Gotcha:** Designer must not require owner tokens to work, but accepting an invitation must not silently grant unrestricted code execution or project admin. Tenant identity is canonical ID+server, not display name/hostname substring.
+- **Validate:** Cloud/hub membership and invite tests with real designer/viewer/owner roles, revoked/expired invite, queued edit after removal, cross-tenant attempt, code dependency trust denied and permitted supported action. Token-only legacy self-host remains explicitly legacy until upgraded.
+
+### T21: ADD native managed project lifecycle
+
+- [ ] **Do:** Implement managed_projects using existing app-state/MRU/sidecar/deeplink facilities. Create/reuse a managed local copy keyed by server+project identity, fetch bootstrap, then open studio. Invitations on a clean install and project selection must not require choosing an existing directory. Provide advanced folder adoption without overwriting unrelated content.
+- **Pattern:** Native `app_state.rs`, `deep_link.rs`, `lib.rs`, `sidecar.rs`, Tauri command/permission generation.
+- **Gotcha:** Preserve pending edits across project switch/account logout; duplicate invitation/open requests are idempotent. Reuse the concurrent share-link plan's `project_resolve.rs` if present, extending identity from bare project name to canonical server+project without changing file-link semantics. Untrusted webviews must not choose arbitrary writable paths or broaden URL opener privileges. New native commands need registration in Rust/build.rs, committed permission TOML and default capability; avoid plugin command-name collisions.
+- **Validate:** `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml`; native command capability checks, same-name different-project, interrupted bootstrap, restart/MRU, conflicting local folder and two concurrent opens.
+
+### T22: ADD project-first UI and truthful save/recovery states
+
+- [ ] **Do:** Compose ProjectPicker with existing CloudBar/OnboardingWizard logic for cloud and self-host. Use invitation-provided server, show only authorized projects, open managed copy, preserve advanced local workflow. Show consistent shared/device save state, active media progress and a persistent conflict entry. Add stable data-testids and keyboard/focus/live-region behavior.
+- **Pattern:** Design Decisions registry and approved chrome; existing URL refusal and server-held credential behavior.
+- **Gotcha:** Do not copy old GitHub-first or Save/Publish/Pull semantics from handed-off historical canvases. Project state should not expose websockets, epochs, hashes or a mandatory resync button to designers.
+- **Validate:** Browser and actual WKWebView: clean invite, project pick, cancel/retry login, empty membership, revoked access, sign-in expiry, switch with pending edits, offline state, dark/light, keyboard-only and narrow browser layout. T19/T20/T21 required for completion.
+
+### T23: CREATE bounded source fidelity and stable-ID pilot
+
+- [ ] **Do:** Enumerate the supported source vocabulary from real projects and existing edit operations. Pilot stable identity and operations for literal text, static JSX attributes/styles and artboard layout; preserve imports, comments, formatting, expressions and custom components not being edited. Classify unsupported transforms as code candidates instead of lossy conversion.
+- **Pattern:** `data-cd-id` and existing source-edit helpers; actual DS canvas fixtures plus synthetic adversarial syntax.
+- **Gotcha:** Stable IDs survive allowed move/duplicate rules; repeating component instances need explicit addressing. Source fidelity cannot be asserted from identical screenshots alone.
+- **Validate:** Byte round-trip/no-op corpus, render parity and deterministic repeated edits. Output an explicit support matrix and source-size/performance limits. A failed representation changes implementation approach; it does not remove user-requested operations from full scope silently.
+
+### T24: IMPLEMENT text/property operations and live action previews
+
+- [ ] **Do:** Implement structured-actions for supported text, CSS, attributes and persistent layout properties, using T23 addressing and source-preserving patches. Separate transient preview from final commit; drag/edit sessions yield one logical action. Preserve unrelated concurrent properties automatically and record same-property acceptance order.
+- **Pattern:** Existing edit-source commands, canvas inspector events and shared transaction kernel.
+- **Gotcha:** Don't apply one giant opaque replacement as the implementation of independent properties. Runtime errors remain isolated per revision/canvas; an accepted syntactic change is not proof of render success.
+- **Validate:** New `sync-structured-actions.test.ts`; two designers change same/different properties, repeated component addressing, long drag with reconnect, runtime throw and last-good render access; GUI peer render latency measured under defined RTT.
+
+### T25: IMPLEMENT structural and canvas lifecycle actions
+
+- [ ] **Do:** Complete insert/duplicate/move/reorder/delete supported elements and artboards, plus canvas move/rename/delete with stable IDs and referential checks. Unsupported arbitrary TSX structural edits use the explicit code-action path with equivalent history and conflict preservation.
+- **Pattern:** T17 registry adapters, existing canvas structural commands, pathIndex and tombstone semantics.
+- **Gotcha:** A concurrent child edit after parent deletion cannot silently resurrect or disappear; return a preserved conflict. Rename/delete must update references atomically in accepted manifests, including offline client generations.
+- **Validate:** Structural operation matrix, move vs edit, delete vs reference, duplicate IDs, old client resurrection, nested paths and multi-file manifest render parity.
+
+### T26: COMPLETE action grouping for comments, annotations, photo and timeline
+
+- [ ] **Do:** Bind existing per-domain commands to accepted action IDs and authorship; complete multi-property grouping for annotation gestures, photo transforms and timeline edits. Preserve comment thread/resolve semantics. Remove duplicate product-history ownership from private shell stacks as each domain passes parity.
+- **Pattern:** Existing domain command implementations and T17 adapters; use transaction history rather than a new generalized UI framework.
+- **Gotcha:** These categories remain in scope even if they do not use the T23 source representation. Native source model pilot completion alone does not complete multiplayer.
+- **Validate:** One acceptance fixture per category in both directions, concurrent peer edits, interrupted gesture, multi-step undo/redo and deleted target. Each persistent effect has a project transaction ID.
+
+### T27: ADD logical project history and restore-as-new-action
+
+- [ ] **Do:** Extend hub/studio history endpoints and ProjectHistory to read accepted action groups with author, timestamp, bounded summary, revision preview and restore. Retain legacy Git history for browsing; map imported baseline explicitly. Restore proposes a new revision with rights/preconditions, never rewinds the canonical head destructively.
+- **Pattern:** Existing `history.mjs`, `history.ts`, GitPanel UI, snapshot/blob retention.
+- **Gotcha:** Historic media and source needed by supported retention must survive GC. Renderer errors in a revision must not make history unavailable. Large source history cannot silently inherit an unrelated old 2MiB UI limit.
+- **Validate:** Multi-file AI appears once, mixed authors stay distinct, pagination, large source preview policy, deleted assets, restore under concurrent peer changes, permissions and restart/replay consistency.
+
+### T28: ADD effect-aware personal undo/redo and conflict resolution
+
+- [ ] **Do:** Implement undo/redo as conditional compensating transactions targeting the user's session action/effect IDs. Preserve peer changes, group drag/AI actions, handle partial conflicts explicitly, and keep redo dependent on current state. Build SourceConflictPanel comparing original candidate, base and accepted version; resolution itself is a new action.
+- **Pattern:** Existing command stack/UI shortcuts plus T27 log. Adopt Y.UndoManager only where it satisfies these semantics; do not equate tracked origin with the entire solution.
+- **Gotcha:** Expected-value-only checks miss ABA. Decide and test partial undo semantics: compensate independent safe effects atomically as a new action, leave conflicting effects unchanged and clearly list them; never report an unconditional full undo. Failed requests cannot advance history cursors.
+- **Validate:** New `sync-personal-undo.test.ts` and actual two-user GUI: A color/B text/A undo; same-property peer edit; ABA; target deleted; AI canvas+module; redo after peer change; restart with candidate; explicit resolution preserves original recovery bytes.
+
+### T29: ADD protocol and product observability
+
+- [ ] **Do:** Emit bounded project/revision/transaction correlation, oldest pending age, durable ACK latency, render revision lag, conflict/rejection counts, blocked/missing media bytes and cold-open timing. Add conformance/build/capability identity to health, separate from liveness. Reuse existing operator surfaces/logging with correct service ownership.
+- **Pattern:** Current health/metrics/operator modules; no source content, tokens or private project names in telemetry payloads.
+- **Gotcha:** Metrics must not infer people from provider count, successful sync from liveness or completed restore from backup logs. Keep source debugging opt-in/local where needed.
+- **Validate:** Assertions over accepted/rejected/retry/cold-start events; bounded cardinality; fake sensitive strings absent; report explains whether latency measured through peer render or only server acknowledgment.
+
+### T30: CREATE migration, shadow comparison and rollback tooling
+
+- [ ] **Do:** Inventory source/media/history/IDs/permissions and pending candidates; dry-run exact export to the new baseline. Shadow compares only, never writes a second authority. Implement drain/write barrier, persistent epoch advance, accepted snapshot import, byte/render parity, new mode open and legacy rejection. Write backend-specific runbooks with preflight and rollback boundary.
+- **Pattern:** Existing journal generations, backups and containment; T12 fencing already implemented.
+- **Gotcha:** Before new writes, snapshot rollback can be simple; after any new accepted action, preserve/export the new log first. If old representation cannot preserve it, keep read-only recovery and fix forward. Never lose offline/pending work to downgrade.
+- **Validate:** Repeated dry-run/import, crash at every migration step, late old socket, stale loopback process, lost barrier response, both repo-owned/hub-owned fixtures, unsupported-source fidelity, rollback before/after new write and history/blob conservation.
+
+### T31: CREATE repeatable browser/native product runners
+
+- [ ] **Do:** Extend and certify the T1 local runner; do not postpone baseline E2E to this task. Implement the scenario spec's web-desktop and native-macos backend runners using existing sync-e2e and WDIO helpers. Run browser + two isolated desktop profiles/sidecars + AI with designer rights. Require every L01–L24 operation/direction/load-profile cell to pass locally and compare candidate against the immutable T1 baseline. Add real invite/account integration lane; keep stubbed UI checks labeled as such. Restore fixtures/config at teardown and capture revision/hash/GUI evidence.
+- **Pattern:** `scripts/dev/sync-e2e/`, desktop fixture-guard/evidence/canvas-frame helpers, current onboarding/cloud configs.
+- **Gotcha:** No source-server substitute for final bundled WKWebView checks. No writes to the developer's personal hubs.json. Required scenario not implemented, unavailable active display or skipped real backend is recorded as incomplete, not pass.
+- **Validate:** `bash .ai/scenarios/reliable-project-multiplayer/runners/local-e2e.sh --mode candidate --baseline <T1-evidence-dir>` (runner created in T1), then `runners/web-desktop.sh` and `runners/native-macos.sh` under that scenario directory. No `expected-pending`, forced-success timeout, missing operation, automatic recovery reload or skipped required cell can produce a green gate. Run S01–S19 on isolated projects in both directions; implement S20's runner here but execute its upgraded-production check in T33. Native debug capability must remain absent from release app.
+
+### T32: VERIFY real large-project and two-backend failure acceptance
+
+- [ ] **Do:** On disposable cloud and self-host projects, run S01–S19 and the T8 crash oracle using real persistence. S20 is explicitly owned by T33 after the initial deployments are upgraded; it is not a prerequisite cycle for this pre-rollout gate. Run the actual included Alligators inventory or a documented authorized equivalent with the same byte/file/large-object profile, not only sparse placeholders. Two clean clients must hash-match the complete included set after interrupted/resumed seed while design edits continue.
+- **Pattern:** T18 inventory helper, T31 runners, audit historical seed ledger and isolated backend targets.
+- **Gotcha:** 8.8GB raw directory size includes excluded runtime files; preserve both raw inventory and eligible byte count. Measure disk peak, transient copies, CPU and quota; choose capacity from data. Do not run destructive drills against users' production projects.
+- **Validate:** Publish machine-readable manifest/results, hashes, latency percentiles, screen evidence and actual storage-failure logs per backend. Zero unexplained missing entries, lost acknowledged actions, duplicate logical actions or peer-clobbering undo. Missing real evidence blocks rollout.
+
+### T33: PREPARE release and migrate the two initial deployments
+
+- [ ] **Do:** Build version-parity artifacts and reviewable migration/runbook outputs for AWS StudyFi and Cloudflare Alligators. Re-inventory running versions/flags. Upgrade self-host identity/config and cloud capability routing, then migrate one real project at a time with snapshots/fencing and monitored acceptance. Retain a per-project rollback/export checkpoint.
+- **Pattern:** Existing release guide, hub/cell deploy recipes and T30 runbooks. This is the first task that changes the named live deployments.
+- **Gotcha:** Finish all preflight artifacts before requesting any deployment authorization required by the active session. Never treat the planning request as production deployment approval. Do not blanket enable unknown tenant capabilities or overwrite operator-owned config.
+- **Validate:** S20: the clean designer invitation→desktop project→browser peer edit→undo→reopen flow on each upgraded deployment, protocol/build identity, normal reconnect, baseline hash parity and no new blocked-media backlog. Log exact rollout and rollback checkpoint IDs without secrets.
+
+### T34: REMOVE obsolete write authorities and complete fleet rollout
+
+- [ ] **Do:** After initial deployments pass, remove competing projector writes, managed-project Git autocommit as product authority, obsolete fallback write endpoints and superseded per-domain history stacks. Keep explicit legacy read/import compatibility only for the documented window. Complete cloud tenant and self-host distribution rollout according to capability/version support matrix.
+- **Pattern:** T6 writer registry, source reachability tests and version/capability fencing.
+- **Gotcha:** Removal does not mean deleting user Git repositories or historical revisions. Local-only projects still work. Every active project either supports the contract or is clearly labeled legacy/read-only with recoverable work; no invisible permanent pilot exception.
+- **Validate:** Registry has no unmapped persistent writer; obsolete raw writes rejected; all supported operation categories and local-only regression suite pass; cloud rollout inventory and self-host upgrade recipe validated. No manual resync required in the happy path.
+
+### T35: CLOSE validation, docs, release notes and decision memory
+
+- [ ] **Do:** Run final quality/product gates; update actual PRD/collaboration docs and reference configuration paths, publish precise user help, operator SLO/restore runbook and What's New entry via repo skill. Record implementation decisions and evidence in kgai, update plan task state and roadmap; archive only through `/flow:done` after full scope acceptance.
+- **Pattern:** `.ai/release-guide.md`, `whats-new-entry`, `site/scripts/build-roadmap.mjs`, scoped graph record-log/ingest.
+- **Gotcha:** Document residual unsupported syntax or disaster-recovery limits; do not advertise universal TSX co-editing. Do not mark missing live/native evidence complete just to archive the plan.
+- **Validate:** Full gate table below, `pnpm --filter @maude/site gen:roadmap`, no generated drift, all task evidence linked and no unresolved critical findings. Record actual confidence/outstanding limits at close.
+
+## Validation
+
+The repository has real lint/types/test/build gates despite an obsolete early paragraph in AGENTS.md. Use current scripts/config. Planning itself does not run product builds or mutate release artifacts. During implementation, capture each task's targeted tests; broaden once at milestone boundaries and final validation.
+
+The [local surface E2E contract](../scenarios/reliable-project-multiplayer/local-e2e.md) is mandatory from **T1 onward**, independent of vendor/staging credentials. After a behavior change, run affected operation/direction cells; at M0–M6 boundaries run the complete local matrix plus the fixed mixed-workload soak. Compare against the preserved working baseline on matched hardware/build mode/fixtures. An inconclusive timing sample is not a pass. Never widen timeouts, remove an assertion or regenerate the baseline merely to make the candidate green.
+
+| Gate | Command / expectation |
+|---|---|
+| Scoped verify after each task | `/flow:utils-verify` against actual touched files; preserve unrelated shared-tree changes |
+| Local surface E2E and no-regression gate | T1 `runners/local-e2e.sh --mode baseline`; subsequent `--mode candidate --baseline <T1-evidence-dir>`; paths under `.ai/scenarios/reliable-project-multiplayer/`. L01–L24 + all operation variants, real peer UI/image/video assertions and per-direction latency; full matrix at every milestone |
+| Lint | `pnpm lint` |
+| Format | Configured `pnpm format` is a whole-tree writer; run formatting on owned changed files during implementation, then verify formatting without rewriting unrelated work |
+| Studio types + coverage | `cd apps/studio && bunx tsc --noEmit`; then root `bash scripts/check-tsc-coverage.sh` |
+| Root CLI + hub tests | `pnpm test` |
+| Sync required lane | `cd apps/studio && bun test test/sync-*.test.ts --timeout 20000` |
+| Other affected studio suites | `cd apps/studio && bun test test/shared-doc-*.test.ts test/undo-*.test.ts test/edit-source-command.test.ts test/history-rollback.test.ts --timeout 20000` |
+| Cloud control and cells | `pnpm --filter @maude/cloud test`; `pnpm --filter @maude/cells test` plus actual runtime/staging adapter tests selected in T8 |
+| Native Rust | `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml`; platform build checks for shipped native targets |
+| Website/config build | `pnpm --filter @maude/site build` |
+| Client release artifacts | When client/styles change: `cd apps/studio && MAUDE_SKIP_RUNTIME_BUILD=1 bun run build.ts --release`; check resulting minified bundle/style diff, never plain dev build over committed artifacts |
+| Hub distribution | `pnpm --filter @maude/hub build`, then cold-load smoke of built bundle |
+| Native scenario build | `pnpm test:e2e:desktop:build`; targeted existing onboarding/cloud commands plus T31 multiplayer config |
+| Packaging/security invariants | `bash scripts/check-version-parity.sh`; `bash scripts/check-tarball-shape.sh`; existing canvas-origin, code trust, containment and classifier tripwires |
+| Product scenario | T31 web-desktop and native-macos runners; T32 actual AWS/self-host + Cloudflare storage, no required skips |
+| UX/DS/accessibility | scenario-runner for configured web-desktop plus explicit native lane; design-system-guard and a11y-auditor over new UI screenshots/live routes; zero blockers |
+
+Any in-session studio boot uses `MAUDE_NO_AUTOBUILD=1`. Root Bun probes use `bun --no-env-file` where needed; never read denied env/key files to make a test run. Use isolated fixtures, accounts and configuration paths. Test doubles and staged/live evidence remain separate in reports.
+
+## Scenario Coverage
+
+New planning spec: `.ai/scenarios/reliable-project-multiplayer/spec.md`, with mandatory detailed local coverage in `local-e2e.md` (L01–L24). The local regression runner is built in T1 and reused throughout; T31 adds final backend/native conformance rather than being the first E2E run. Existing reusable coverage:
+
+| Existing scenario/harness | What it covers | Gap this plan closes |
+|---|---|---|
+| `.ai/scenarios/live-multiplayer-hub-sync/README.md` | Historical real-hub cross-machine edit/presence | Ad-hoc runner, old delivery timing, no new acceptance semantics |
+| `.ai/scenarios/native-onboarding-zero-terminal/spec.md` | Existing onboarding and later automated native checks | GitHub/folder-led flow; no complete clean hub designer scenario |
+| Desktop `cloud-attach.e2e.ts` | Device login/project attach with isolated stubs | Owner + prepared directory; not real invited designer |
+| `scripts/dev/sync-e2e.mjs` | Actual cell+peer and both directions | Add transactions, more participants, failure injection and full role matrix |
+| `.ai/scenarios/structural-and-scope/spec.md` | Existing structural/source scope edits | Concurrent accepted operations and peer-safe compensation |
+
+Required platforms follow actual project config (`web-desktop`) plus the native macOS desktop explicitly required by this feature. Windows/Linux package compatibility and native opening smoke are release checks. There is no iOS/Android native Maude app; mobile authoring runners are N/A, with this scope tied to PRD desktop-authoring limits and native distribution DDR-126. Do not report five-platform parity by silently skipping the actual native desktop.
+
+## Acceptance Criteria
+
+- [ ] T1–T35 completed with evidence; P0/prototype completion is not full feature completion.
+- [ ] T1 captured the unchanged working baseline with real local hub, browser, desktop/sidecars and visible receiving UI; source/bundle/fixture hashes and baseline failures are recorded before behavior changes.
+- [ ] All L01–L24 operation variants pass locally in all required directions; file/folder/canvas/annotation create-edit-or-move-delete lifecycles are complete, including empty folders, sidecars and no resurrection. Photo/video bytes **and actual decoding/render/playback** are verified on receivers.
+- [ ] No previously passing workflow regresses, needs manual refresh/resync, gains an unexpected conflict or loses data. Full local matrix and mixed-load soak pass at milestone boundaries; initially known gaps are not relabeled as success and are closed before final rollout.
+- [ ] Per-surface/per-direction local-to-peer-visible latency is compared with T1 under matched conditions; no reproducible material regression beyond the fixed noise policy in `local-e2e.md`, and final absolute targets hold. No widened timeout or baseline reset used to hide a failure.
+- [ ] A newly invited designer opens an editable project without token, terminal, Git or folder selection on both cloud and self-host; a peer sees the first edit.
+- [ ] Every persistent writer passes the accepted transaction boundary; old writers and already-open sockets are fenced at epoch changes.
+- [ ] Invalid/rejected candidates never mutate accepted state, peer render, accepted checkout or history; repair/dependent pending actions retain their bytes and resolve safely.
+- [ ] Independent concurrent edits survive; ambiguous stale-file imports preserve work and remain visible until resolution.
+- [ ] Accepted actions survive the defined process/renderer-disk failures with RPO 0; duplicate retry has one effect. Disaster RPO/RTO is separately documented and tested.
+- [ ] Browser/desktop offline work survives restart or reports local persistence failure truthfully; reconnect respects current rights and dependencies.
+- [ ] Complete eligible inventory, resumable large-media transfer and final hash parity are proved on two clean clients; excluded/blocked files are explained.
+- [ ] Project and active document opening do not depend on full media download or bulk renderer restore.
+- [ ] Supported text/property/structural/comment/annotation/photo/timeline and AI actions all have logical history; arbitrary TSX remains preserved.
+- [ ] Personal undo/redo respects peer effects including ABA/deletion; restore creates a new accepted action.
+- [ ] All status surfaces use the same truthful state model; no known conflict/required missing media under a shared “Saved” claim.
+- [ ] Target performance measured, not assumed: local normal edit p95 ≤50ms; peer render p95 ≤300ms/p99 ≤1s with RTT ≤100ms in one region; warm active-document open ≤2s on recorded hardware. Any failed target is resolved or explicitly reviewed, not hidden behind server-only timing.
+- [ ] T32/T33 evidence demonstrates both actual backend families and bundled native UX; no required scenario left stub-only or skipped.
+- [ ] Targeted/full quality gates, origin/trust/tenant checks, packaging/version parity, DS and a11y reviews pass; no critical findings outstanding.
+- [ ] Migration preserves historical and pending work; rollback after new accepted writes cannot discard them. Old authority retirement and fleet support matrix complete.
+- [ ] Product documentation, What's New, generated roadmap and scoped decision memory accurately reflect shipped behavior and remaining limits.
+
+## Risks and Execution Confidence
+
+| Risk | Mitigation / blocking gate |
+|---|---|
+| Accepted Yjs state still writable through a bypass | T7 raw-protocol proof, T12 per-write fencing and T6 registry |
+| Rejected CRDT update poisons its dependent repairs | T7/T13 separate candidate generation and dependency-aware rebase |
+| Persistence adapter appears durable only in mocks | T8 actual adapter proof, T32 empty-renderer-disk and staged storage tests |
+| Portable source validation fails in Workers/native bundles | T3/T8 runtime proof before selecting deployment architecture |
+| Universal TSX conversion loses semantics | T23 corpus and explicit support matrix; preserved code-action alternative |
+| Work stops after a pilot | Explicit M0–M6 scope and final real designer/rollout acceptance |
+| Large media saturates disk/memory or blocks docs | T18 streaming/resume + T19 independent bootstrap + measured T32 capacity |
+| Migration resurrects old writers or loses pending work | Persistent epoch, drain barrier, preserved pending candidates and forward-safe rollback |
+| New UI duplicates login/trust or makes code unsafe | Reuse existing identity/URL/permission logic; per-operation role contract and tenant tests |
+
+**One-pass implementation confidence: 7/10 for executing this staged plan with its explicit gate-and-revise points; 4/10 for attempting the entire change as one uninterrupted rewrite.** The storage/validation runtime and source-rebase proofs are intentionally first-class tasks. Their results may refine downstream module details, while the full product acceptance remains fixed.
