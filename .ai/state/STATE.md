@@ -485,3 +485,4 @@ The pre-migration file (930 KB, 88 progress blocks + 127 history rows) is preser
 ## Loaded skills (skill-loader)
 
 - 2026-08-12 (feature-canvas-render-performance): React/browser-render perf + Tauri WKWebView + motion — covered by built-ins (`web-perf`, `flow:motion-rules`, core React expertise); no terminal-skills fetch needed.
+- 2026-09-13 (feature-share-link-deeplink, planning): `flow:skill-loader` — stack is Bun/React (built-in), Tauri deep-link plugin (official docs, already in use for `maude://open/<project>?code=`), Cloudflare cells (`cloudflare` / `durable-objects` built-ins), hub cookies (MDN). No gap needed a terminal-skills fetch. Debate ran at the reduce tier (three parallel seats + consolidation).

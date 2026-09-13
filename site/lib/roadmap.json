@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-04T00:00:00.000Z",
+  "generated": "2026-09-13T00:00:00.000Z",
   "currentPhase": null,
   "phases": [
     {
@@ -2210,6 +2210,28 @@
       "date": null,
       "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. This is the extracted Phase 5 of feature-ai-media-generation (closed at Phase 4, 2026-...",
       "planPath": ".ai/plans/feature-local-media-generation.md",
+      "archived": false,
+      "phaseKey": null
+    },
+    {
+      "id": "feature-reliable-project-multiplayer",
+      "title": "Feature: Reliable project multiplayer",
+      "status": "planned",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Designers accept an invitation, open a project in Maude, and immediately work together across browser and desktop. Changes save durably, large media loads progressively, and personal undo preserves...",
+      "planPath": ".ai/plans/feature-reliable-project-multiplayer.md",
+      "archived": false,
+      "phaseKey": null
+    },
+    {
+      "id": "feature-share-link-deeplink",
+      "title": "Feature: Share link + deep link for canvases and files (desktop · browser · cloud)",
+      "status": "planned",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
+      "planPath": ".ai/plans/feature-share-link-deeplink.md",
       "archived": false,
       "phaseKey": null
     },
