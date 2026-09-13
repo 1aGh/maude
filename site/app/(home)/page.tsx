@@ -1,28 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { CopyButton } from '@/components/mdcc/copy-button';
 import { DemoVideo } from '@/components/mdcc/demo-video';
 import { DownloadNative } from '@/components/mdcc/download-native';
+import { QuickStart } from '@/components/mdcc/quick-start';
 import { SkuLabel } from '@/components/mdcc/sku-label';
 import stats from '@/lib/stats.json';
 
 export const metadata: Metadata = {
   alternates: { canonical: '/' },
 };
-
-const INSTALL_SNIPPET = `# 0. install the CLI (skills use it)
-npm i -g @1agh/maude
-
-# 1. add the marketplace
-/plugin marketplace add 1aGh/maude
-
-# 2. install plugins
-/plugin install design@maude
-/plugin install flow@maude
-
-# 3. init the workspace
-/flow:init
-/design:init`;
 
 const CATALOG = [
   {
@@ -139,21 +125,7 @@ export default function HomePage() {
           <DownloadNative />
         </div>
 
-        <section className="mdcc-install" aria-label="Install snippet">
-          <div className="mdcc-install-head">
-            <span>
-              <strong>install.sh</strong> · inside Claude Code
-            </span>
-            <CopyButton
-              text={INSTALL_SNIPPET}
-              className="mdcc-install-copy"
-              ariaLabel="Copy install snippet"
-            >
-              COPY
-            </CopyButton>
-          </div>
-          <pre>{INSTALL_SNIPPET}</pre>
-        </section>
+        <QuickStart />
       </section>
 
       <section aria-labelledby="why-h">

@@ -274,6 +274,7 @@ html.dark .mdcc-sku {
 }
 
 .mdcc-install {
+  min-width: 0;
   background: var(--bg-1);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
@@ -281,6 +282,45 @@ html.dark .mdcc-sku {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+.mdcc-install-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-default);
+}
+.mdcc-install-tab {
+  flex: 1;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 2px solid transparent;
+  font-family: var(--font-mono);
+  font-size: var(--type-sm);
+  color: var(--fg-2);
+  cursor: pointer;
+}
+.mdcc-install-tab:hover {
+  background: var(--bg-3);
+  color: var(--fg-0);
+}
+.mdcc-install-tab[data-state="active"] {
+  background: var(--bg-2);
+  border-bottom-color: var(--accent);
+  color: var(--fg-0);
+}
+.mdcc-install-tab:focus-visible,
+.mdcc-install-panel:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+.mdcc-install-note {
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-4);
+  font-size: var(--type-xs);
+  line-height: var(--lh-md);
+  color: var(--fg-2);
+}
+.mdcc-install-note a {
+  color: var(--fg-1);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .mdcc-install-head {
   display: flex;
