@@ -8,6 +8,7 @@
 
 import type { Awareness } from 'y-protocols/awareness';
 
+import { ANNOTATION_WRITE_ID, validAnnotationWriteId } from '../annotations-sync.ts';
 import { applyCommentsToDoc } from '../sync/codec.ts';
 import { bridgeAwareness } from './awareness-bridge.ts';
 import { Y_TYPES } from './persistence.ts';
@@ -52,7 +53,7 @@ export interface Registry {
    * post-write SVG; the room replaces `Y.Map.svg` so collab peers see the
    * updated stroke set without waiting for a cold-open re-seed.
    */
-  syncRoomFromAnnotations(slug: string, svg: string): void;
+  syncRoomFromAnnotations(slug: string, svg: string, writeId?: string): void;
   /**
    * Phase 30 — project agent editing-presence onto a slug's room awareness so
    * it crosses the hub (the loopback `ai-activity` bus event does not). `null`
@@ -192,13 +193,18 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
     applyCommentsToDoc(room.doc, comments as unknown[], 'inspector-write');
   }
 
-  function syncRoomFromAnnotations(slug: string, svg: string): void {
+  function syncRoomFromAnnotations(slug: string, svg: string, writeId?: string): void {
     const room = rooms.get(slug);
     if (!room) return;
     const map = room.doc.getMap<string>(Y_TYPES.annotations);
-    if (map.get('svg') === svg) return; // no-op guard — same rationale as comments
+    // Identical disk notifications remain no-ops. A new UI operation may
+    // deliberately restore identical content while an author has pending work.
+    const id = validAnnotationWriteId(writeId) ? writeId : undefined;
+    if (map.get('svg') === svg && (!id || map.get(ANNOTATION_WRITE_ID) === id)) return;
     room.doc.transact(() => {
       map.set('svg', svg);
+      if (id) map.set(ANNOTATION_WRITE_ID, id);
+      else map.delete(ANNOTATION_WRITE_ID);
     }, 'inspector-write');
   }
 

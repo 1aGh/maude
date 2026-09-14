@@ -1,3 +1,4 @@
+import { validAnnotationWriteId } from './annotations-sync.ts';
 // HTTP layer for Bun.serve.
 //
 // Designed for extension — Phase 3.6 adds /ui/:slug + /_bun_hmr by appending to
@@ -2275,14 +2276,24 @@ export function createHttp(
         });
       }
       if (req.method === 'PUT' || req.method === 'POST') {
-        const body = await readJson<{ file?: string; svg?: string }>(req, 1024 * 1024 + 1024);
+        const body = await readJson<{ file?: string; svg?: string; writeId?: unknown }>(
+          req,
+          1024 * 1024 + 1024
+        );
         if (!body || typeof body.file !== 'string' || !body.file) {
           return new Response('body must include { file, svg }', { status: 400 });
         }
         if (typeof body.svg !== 'string') {
           return new Response('body.svg must be a string', { status: 400 });
         }
-        const ok = await api.saveAnnotations(body.file, body.svg);
+        if (body.writeId !== undefined && !validAnnotationWriteId(body.writeId)) {
+          return new Response('invalid annotation writeId', { status: 400 });
+        }
+        const ok = await api.saveAnnotations(
+          body.file,
+          body.svg,
+          body.writeId as string | undefined
+        );
         if (!ok) return new Response('rejected', { status: 400 });
         return new Response(null, { status: 204 });
       }

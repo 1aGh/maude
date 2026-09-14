@@ -284,7 +284,11 @@ export function createPersistence(deps: PersistenceDeps): RoomCallbacks {
     const svg = map.get('svg');
     if (typeof svg === 'string' && svg) {
       if (withinCap(slug, 'annotations', svg, MAX_ANNOTATIONS_BYTES)) {
-        await api.saveAnnotations(file, svg);
+        // Projection must never re-enter onAnnotationsChanged: an old flush
+        // finishing after a new edit otherwise republishes the old SVG and
+        // rolls back every peer. The API checks freshness after async IO and
+        // before its atomic rename; a later doc update schedules a new flush.
+        await api.projectAnnotations(file, svg, () => map.get('svg') === svg);
       }
     }
   }

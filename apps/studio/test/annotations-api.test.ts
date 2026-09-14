@@ -20,6 +20,28 @@ const SVG_OK =
   '</svg>';
 
 describe('/_api/annotations — GET/PUT', () => {
+  test('accepts bounded write identities without changing SVG and rejects invalid identities', async () => {
+    const { root, designRoot } = makeSandbox();
+    const port = nextPort();
+    const proc = await bootServer(root, port);
+    try {
+      const post = (writeId: unknown) =>
+        fetch(`http://localhost:${port}/_api/annotations`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: '.design/ui/Identity.tsx', svg: SVG_OK, writeId }),
+        });
+      expect((await post('session-operation-1')).status).toBe(204);
+      expect(readFileSync(join(designRoot, 'ui-identity.annotations.svg'), 'utf8')).toBe(SVG_OK);
+      for (const invalid of ['', 'a'.repeat(97), {}, 17, '<script>']) {
+        expect((await post(invalid)).status).toBe(400);
+      }
+      expect(readFileSync(join(designRoot, 'ui-identity.annotations.svg'), 'utf8')).toBe(SVG_OK);
+    } finally {
+      await killProc(proc);
+    }
+  });
+
   test('GET on a canvas with no annotations returns empty body (200)', async () => {
     const { root, designRoot } = makeSandbox();
     const port = nextPort();

@@ -98,9 +98,9 @@ const api = createApi(ctx, {
   },
   // Phase 8 Task 5 — same bridge for annotations. PUT /_api/annotations writes
   // the SVG blob to disk; we mirror it into the live Y.Map for collab peers.
-  onAnnotationsChanged: (file, svg) => {
+  onAnnotationsChanged: (file, svg, writeId) => {
     if (collab) {
-      collab.registry.syncRoomFromAnnotations(api.fileSlug(file), svg);
+      collab.registry.syncRoomFromAnnotations(api.fileSlug(file), svg, writeId);
     }
   },
   // feature-file-tree-drag-drop-folders (Task 3) — moveCanvas's collab guard

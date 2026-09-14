@@ -1,3 +1,4 @@
+import { ANNOTATION_WRITE_ID } from '../annotations-sync.ts';
 // Y.Doc ↔ disk codecs for the bidirectional file sync agent (Phase 9 Task 4).
 //
 // The agent shuttles three classes of files between disk and the Y.Doc the
@@ -331,6 +332,8 @@ export function applyAnnotationsToDoc(doc: Y.Doc, next: string | null, origin?: 
   if (currentStr === next) return false;
 
   doc.transact(() => {
+    // A filesystem import is a new operation, never the previous UI author's echo.
+    map.delete(ANNOTATION_WRITE_ID);
     if (next === null || next === '') {
       map.delete('svg');
     } else {

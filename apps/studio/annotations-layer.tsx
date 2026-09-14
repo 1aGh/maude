@@ -1,3 +1,4 @@
+import { createAnnotationEchoGuard, observeAnnotationSnapshots } from './annotations-sync.ts';
 /**
  * @file       annotations-layer.tsx — FigJam-style annotation overlay
  * @scope      apps/studio/annotations-layer.tsx
@@ -415,7 +416,7 @@ function resolveAssetHref(href: string): string {
  * recognize — keeping the `<image>` element, dropping only the attribute —
  * so the server's STORED + broadcast SVG silently diverges from whatever the
  * client just sent. That divergence defeats the collab-echo self-suppression
- * guard (the `recentSelfSvgsRef` history, near `putStrokes` below): the
+ * guard (the `annotationEchoRef` operation history, near `putStrokes` below): the
  * echo's content no longer matches anything we recorded as "already
  * applied", so a real `setStrokesState` fires from the (href-stripped)
  * server copy — which can wipe out a SIBLING stroke's still-in-flight
@@ -1113,7 +1114,7 @@ export function AnnotationsLayer() {
   // the resurrection to every collab peer). Tracked explicitly here instead
   // of inferred: `deleteStrokes` records every id it removes; the swap
   // checks (and consumes) this before assuming absence means lag. Bounded
-  // like `recentSelfSvgsRef` below — only ever holds ids a delete has
+  // like the annotation echo history below — only ever holds ids a delete has
   // touched, which is small in practice, but capped for safety.
   const DELETED_STROKE_IDS_CAP = 128;
   const deletedStrokeIdsRef = useRef<Set<string>>(new Set());
@@ -1152,29 +1153,10 @@ export function AnnotationsLayer() {
     if (!ghostCapable || !visible) setGhost(null);
   }, [ghostCapable, visible]);
 
-  // Load existing annotations on mount.
-  // Self-echo suppression (Phase 8 Task 5, hardened — feature-bulk-media-
-  // insert follow-up). A single "last applied" string only catches the MOST
-  // RECENT self-write: when the chain fires several rapid commits (a batch
-  // drop), the server's broadcast of an EARLIER commit can arrive after a
-  // LATER local commit has already moved "last applied" on — so the earlier
-  // echo no longer matches, gets misread as a foreign change, and rolls
-  // local state BACK to that stale snapshot. This is the confirmed cause of
-  // images silently vanishing after a multi-file drop (live-tested: 12
-  // mismatched/misapplied echoes correlated exactly with lost strokes across
-  // a 30-batch stress run). Track a bounded HISTORY of our own recent writes
-  // instead of just the latest one, so an out-of-order echo of any recent
-  // self-write is still recognized and suppressed.
-  const RECENT_SELF_SVG_CAP = 64;
-  const recentSelfSvgsRef = useRef<Set<string>>(new Set());
-  const rememberSelfSvg = useCallback((svg: string) => {
-    const set = recentSelfSvgsRef.current;
-    set.add(svg);
-    if (set.size > RECENT_SELF_SVG_CAP) {
-      const oldest = set.values().next().value;
-      if (oldest !== undefined) set.delete(oldest);
-    }
-  }, []);
+  // Match specific authored operations, including delayed earlier PUTs. A
+  // peer undo/delete can legitimately return to any previously rendered SVG.
+  const annotationEchoRef = useRef(createAnnotationEchoGuard());
+  const annotationsChangedRef = useRef(false);
   useEffect(() => {
     const file = deriveFile();
     fileRef.current = file;
@@ -1185,11 +1167,10 @@ export function AnnotationsLayer() {
     })
       .then((r) => (r.ok ? r.text() : ''))
       .then((text) => {
-        if (cancelled) return;
+        if (cancelled || annotationsChangedRef.current) return;
         const loaded = svgToStrokes(text);
         if (loaded.length) {
           setStrokesState(loaded);
-          rememberSelfSvg(text);
         }
       })
       .catch(() => {
@@ -1198,37 +1179,18 @@ export function AnnotationsLayer() {
     return () => {
       cancelled = true;
     };
-  }, [rememberSelfSvg]);
+  }, []);
 
-  // Phase 8 Task 5 — observe the Y.Map.annotations for live updates from
-  // other tabs. Bail when the incoming SVG STRING matches any RECENT
-  // self-write (covers the local echo round-trip, including an
-  // out-of-order one, without missing real foreign changes). The prior
-  // length+first/last-id check was wrong: a resize / move keeps the same id
-  // list, so all three predicates matched even though geometry changed —
-  // foreign edits silently disappeared.
   const collab = useCollab();
   useEffect(() => {
     if (!collab) return;
-    const map = collab.doc.getMap<string>('annotations');
-    const apply = () => {
-      const svg = map.get('svg');
-      if (typeof svg !== 'string' || !svg) return;
-      if (recentSelfSvgsRef.current.has(svg)) return;
-      rememberSelfSvg(svg);
+    return observeAnnotationSnapshots(collab.doc, (svg, writeId) => {
+      annotationsChangedRef.current = true;
+      if (annotationEchoRef.current.isOwn(svg, writeId)) return;
       const incoming = svgToStrokes(svg);
       setStrokesState((prev) => reconcileForeignEcho(prev, incoming));
-    };
-    apply();
-    map.observe(apply);
-    return () => {
-      try {
-        map.unobserve(apply);
-      } catch {
-        /* doc destroyed before unmount */
-      }
-    };
-  }, [collab, rememberSelfSvg]);
+    });
+  }, [collab]);
 
   const undoStack = useUndoStackOptional();
   const undoSinks = useUndoSinks();
@@ -1264,50 +1226,49 @@ export function AnnotationsLayer() {
    * we push a command, so the server only sees one PUT per edit instead
    * of two-step racing.
    */
-  const putStrokes = useCallback(
-    (next: readonly Stroke[], before: readonly Stroke[]) => {
-      // See reconcileCommit — a direct setStrokesState(next) here can
-      // clobber a sibling file's concurrent optimistic insert; folding
-      // blindly against `prev` (no baseline) can just as easily revert this
-      // very mutation's own delete. `before` (this command's own baseline)
-      // disambiguates the two.
-      setStrokesState((prev) => reconcileCommit(prev, before, next));
-      const file = fileRef.current;
-      if (!file) return Promise.resolve();
-      const persistable = next.some(isEphemeralHref)
-        ? next.filter((s) => !isEphemeralHref(s))
-        : next;
-      const svg = strokesToSvg(persistable);
-      // Phase 8 Task 5 — record the SVG we just authored locally so the
-      // server-broadcast echo (PUT → onAnnotationsChanged → syncRoom* →
-      // Y.Map.observe) doesn't trigger a redundant setStrokesState.
-      rememberSelfSvg(svg);
-      const dispatch = () =>
-        fetch('/_api/annotations', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ file, svg }),
+  const putStrokes = useCallback((next: readonly Stroke[], before: readonly Stroke[]) => {
+    // See reconcileCommit — a direct setStrokesState(next) here can
+    // clobber a sibling file's concurrent optimistic insert; folding
+    // blindly against `prev` (no baseline) can just as easily revert this
+    // very mutation's own delete. `before` (this command's own baseline)
+    // disambiguates the two.
+    annotationsChangedRef.current = true;
+    setStrokesState((prev) => reconcileCommit(prev, before, next));
+    const file = fileRef.current;
+    if (!file) return Promise.resolve();
+    const persistable = next.some(isEphemeralHref) ? next.filter((s) => !isEphemeralHref(s)) : next;
+    const svg = strokesToSvg(persistable);
+    // Phase 8 Task 5 — record the SVG we just authored locally so the
+    // server-broadcast echo (PUT → onAnnotationsChanged → syncRoom* →
+    // Y.Map.observe) doesn't trigger a redundant setStrokesState.
+    const writeId = crypto.randomUUID();
+    annotationEchoRef.current.remember(writeId, svg);
+    const dispatch = () =>
+      fetch('/_api/annotations', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file, svg, writeId }),
+      })
+        .then((r) => {
+          // A refused save (403 read-only, 405 at a proxy door) previously
+          // dissolved here without a trace — the user kept drawing on state
+          // that never reached disk, a peer, or a reload (the cloud
+          // canvas-writes RCA). Optimistic local state is still the right
+          // UX; a persistence failure being INVISIBLE is not.
+          if (!r.ok) {
+            annotationEchoRef.current.forget(writeId);
+            console.warn(`[annotations] save refused (${r.status}) — strokes are local-only`);
+          }
+          return undefined;
         })
-          .then((r) => {
-            // A refused save (403 read-only, 405 at a proxy door) previously
-            // dissolved here without a trace — the user kept drawing on state
-            // that never reached disk, a peer, or a reload (the cloud
-            // canvas-writes RCA). Optimistic local state is still the right
-            // UX; a persistence failure being INVISIBLE is not.
-            if (!r.ok) {
-              console.warn(`[annotations] save refused (${r.status}) — strokes are local-only`);
-            }
-            return undefined;
-          })
-          .catch(() => {
-            /* swallow — user sees uncommitted state until the next stroke */
-          });
-      const chained = putChainRef.current.then(dispatch, dispatch);
-      putChainRef.current = chained;
-      return chained;
-    },
-    [rememberSelfSvg]
-  );
+        .catch(() => {
+          annotationEchoRef.current.forget(writeId);
+          /* Pending persistence UX is handled by the project outbox work. */
+        });
+    const chained = putChainRef.current.then(dispatch, dispatch);
+    putChainRef.current = chained;
+    return chained;
+  }, []);
 
   // Register the strokes put sink with the undo provider so the rebuilt
   // AnnotationStrokesCommand (after a canvas switch + return) routes through

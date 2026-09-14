@@ -2,7 +2,7 @@
 // Returns plain objects; http.ts wraps them in Response.json().
 
 import crypto from 'node:crypto';
-import type { Dirent } from 'node:fs';
+import { type Dirent, renameSync } from 'node:fs';
 import {
   lstat,
   mkdir,
@@ -374,7 +374,9 @@ export interface Api {
   ): Promise<Record<string, unknown> | null>;
   // Annotations sidecar (Phase 5 — .design/<slug>.annotations.svg)
   loadAnnotations(file: string): Promise<string | null>;
-  saveAnnotations(file: string, svg: string): Promise<boolean>;
+  saveAnnotations(file: string, svg: string, writeId?: string): Promise<boolean>;
+  /** Materialize a document snapshot without publishing it as another user edit. */
+  projectAnnotations(file: string, svg: string, isCurrent: () => boolean): Promise<boolean>;
   // Phase 23 — content-addressed binary image write (drag-drop / paste / picker)
   saveAsset(bytes: Uint8Array): Promise<SaveAssetResult>;
   /** Stage F1 — list content-addressed image/video assets for the AssetPicker. */
@@ -738,7 +740,7 @@ export interface ApiHooks {
    */
   onCommentsChanged: (file: string, comments: Comment[]) => void | Promise<void>;
   /** Phase 8 Task 5 — fires after a successful PUT /_api/annotations write. */
-  onAnnotationsChanged?: (file: string, svg: string) => void;
+  onAnnotationsChanged?: (file: string, svg: string, writeId?: string) => void;
   /**
    * feature-file-tree-drag-drop-folders (Task 3) — is a collab room pinned
    * (a shared-doc hub provider attached, DDR-064)? `moveCanvas` refuses the
@@ -1986,7 +1988,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
   }
 
-  async function saveAnnotations(file: string, svg: string): Promise<boolean> {
+  async function saveAnnotations(file: string, svg: string, writeId?: string): Promise<boolean> {
     if (typeof svg !== 'string') return false;
     if (svg.length > 1024 * 1024) return false;
     // Cheap content gate — must look like an <svg> document. Avoids accidental
@@ -2005,7 +2007,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // polyline/text — so stripping executable constructs is zero-regression.
     const clean = sanitizeAnnotationSvg(svg);
     await Bun.write(annotationsPath(file), clean);
-    onAnnotationsChanged?.(file, clean);
+    onAnnotationsChanged?.(file, clean, writeId);
     // Annotations reach OTHER VIEWERS over the collab room, which is why this
     // never needed an `fs:any`. But the file is also a versioned, file-plane
     // sidecar (DDR-115), and the file plane learns about a cell's own writes
@@ -2014,6 +2016,32 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // of an hour later.
     announceWritten(`${fileSlug(file)}.annotations.svg`);
     return true;
+  }
+
+  async function projectAnnotations(
+    file: string,
+    svg: string,
+    isCurrent: () => boolean
+  ): Promise<boolean> {
+    if (typeof svg !== 'string' || svg.length > 1024 * 1024 || !/^\s*<svg[\s>]/i.test(svg))
+      return false;
+    if (!isCurrent()) return false;
+    const clean = sanitizeAnnotationSvg(svg);
+    // Runtime scratch stays out of the file plane. The async IO must not touch
+    // the serving file until we recheck the document; another edit may have
+    // arrived while Bun.write was pending. Check + rename have no await gap.
+    const scratch = path.join(paths.designRoot, '_state');
+    await mkdir(scratch, { recursive: true });
+    const temp = path.join(scratch, `annotations-${crypto.randomUUID()}.tmp`);
+    try {
+      await Bun.write(temp, clean);
+      if (!isCurrent()) return false;
+      renameSync(temp, annotationsPath(file));
+      announceWritten(`${fileSlug(file)}.annotations.svg`);
+      return true;
+    } finally {
+      await rm(temp, { force: true });
+    }
   }
 
   // Phase 23 — content-addressed asset write. Reachable from the (potentially
@@ -5910,6 +5938,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     patchCanvasMeta,
     loadAnnotations,
     saveAnnotations,
+    projectAnnotations,
     saveAsset,
     listAssets,
     readAssetBytes,
