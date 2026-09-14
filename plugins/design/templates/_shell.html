@@ -332,6 +332,7 @@
       //   - module: location.reload() — the canvas module re-fetches.
       //   - hard: location.reload() — _lib/* changed, everything re-bundles.
       // The WS connection retries on close (dev-server restart resilience).
+      const pendingMediaHeals = new WeakMap();
       function connectHmr() {
         const proto = location.protocol === 'https:' ? 'wss' : 'ws';
         // `base` for the same reason every other URL here carries it: on the
@@ -534,6 +535,51 @@
                 // SVG <image> exposes no broken-state flag — re-pointing a
                 // working one is a cheap refetch of now-cached bytes.
                 el.setAttribute('href', href.split('?')[0] + '?v=' + v);
+              }
+              // A reference can reach a peer before its video/audio bytes.
+              // Retry failed players when those bytes arrive, without resetting
+              // healthy playback or dropping capability parameters from the URL.
+              const arrivedUrl = new URL(withCap('/' + designRel + '/' + msg.file), document.baseURI);
+              for (const media of document.querySelectorAll('video, audio')) {
+                if (media.readyState > 0) continue;
+                const candidates = media.hasAttribute('src')
+                  ? [media]
+                  : Array.from(media.querySelectorAll('source[src]'));
+                const targets = candidates.flatMap((target) => {
+                  const src = target.getAttribute('src');
+                  if (!src) return [];
+                  try {
+                    const url = new URL(src, document.baseURI);
+                    if (url.origin !== arrivedUrl.origin || url.pathname !== arrivedUrl.pathname) return [];
+                    url.searchParams.set('v', String(v));
+                    return [{ target, src, next: url.href }];
+                  } catch { return []; }
+                });
+                if (!targets.length) continue;
+                pendingMediaHeals.get(media)?.();
+                const clear = () => {
+                  media.removeEventListener('error', retry, true);
+                  media.removeEventListener('loadedmetadata', clear);
+                  media.removeEventListener('emptied', clear);
+                  pendingMediaHeals.delete(media);
+                };
+                const retry = () => {
+                  clear();
+                  if (!media.isConnected || media.readyState > 0) return;
+                  if (targets.some(({ target, src }) => target.getAttribute('src') !== src)) return;
+                  for (const { target, next } of targets) target.setAttribute('src', next);
+                  media.load();
+                };
+                if (media.error || media.networkState === 3) {
+                  retry();
+                } else if (media.networkState === 2) {
+                  // The initial response can still be an older in-flight 404.
+                  // One arrival permits one retry; success/source change cancels it.
+                  pendingMediaHeals.set(media, clear);
+                  media.addEventListener('error', retry, true);
+                  media.addEventListener('loadedmetadata', clear);
+                  media.addEventListener('emptied', clear);
+                }
               }
             }
           } catch (e) {
