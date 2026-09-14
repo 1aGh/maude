@@ -1,0 +1,20 @@
+---
+title: Share links
+description: Open the same canvas or file in a browser or the Maude desktop app.
+---
+
+Every canvas and previewable file has an address. Open **Share link** in the topbar or **File → Share link…** to copy it. To share another file, use that row’s **⋯ → Share…** menu. **Copy share link** in the command palette copies the best available address directly.
+
+| Link | Where it opens |
+| --- | --- |
+| Web link | The project’s cloud studio, in a browser. Available when the project is connected to a hub or already open in the cloud. |
+| Open in Maude app | The Maude desktop app, using `maude://open/<project>?open=<file>`. |
+| Local link (this Mac only) | The running local studio. It works only on this computer while that studio is running. |
+
+A web address looks like `https://alligators.cloud.maude.sh/?open=ui/Studio.tsx`. The `open` value is relative to the project’s design folder and includes the extension. Spaces and other special characters are encoded automatically. The browser address follows the file you open; Back and Forward return to earlier files.
+
+If you need to sign in, the hub remembers the requested file for ten minutes and returns you there afterward. A link identifies a location; it grants no access. Recipients still need membership in the project.
+
+App links open a file immediately when its project is already open. For another project, Maude asks before switching to a remembered local folder. If the project is not on this Mac, the dialog offers its web address when the configured cloud service provides one. App links for an unlinked folder are labelled **this Mac only**.
+
+When a shared file is missing, Maude shows **Not here yet**. Check that you opened the right project and that the file has synced, then reopen the link.

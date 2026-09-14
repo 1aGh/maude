@@ -10,19 +10,22 @@ import { test } from 'node:test';
 
 import { CONN_RATE_LIMIT_MAX, checkConnRateLimit, createHub } from '../src/server.mjs';
 
-function withDataDir(fn) {
+async function withDataDir(fn) {
   const dataDir = mkdtempSync(join(tmpdir(), 'maude-hub-authh-'));
   try {
-    return fn(dataDir);
+    return await fn(dataDir);
   } finally {
+    // Hocuspocus initializes SQLite in an asynchronous onConfigure hook.
+    // Let it finish before removing the fixture directory.
+    await new Promise((resolve) => setImmediate(resolve));
     rmSync(dataDir, { recursive: true, force: true });
   }
 }
 
 // ----------------------------------------------------------- WSS boot guard
 
-test('createHub refuses plaintext HTTP to a non-loopback public host', () => {
-  withDataDir((dataDir) => {
+test('createHub refuses plaintext HTTP to a non-loopback public host', async () => {
+  await withDataDir((dataDir) => {
     assert.throws(
       () => createHub({ port: 0, dataDir, publicUrl: 'http://maude-hub.example.com' }),
       /refusing to serve a public hub over plaintext HTTP/
@@ -30,15 +33,15 @@ test('createHub refuses plaintext HTTP to a non-loopback public host', () => {
   });
 });
 
-test('createHub allows plaintext HTTP to localhost (local dev)', () => {
-  withDataDir((dataDir) => {
+test('createHub allows plaintext HTTP to localhost (local dev)', async () => {
+  await withDataDir((dataDir) => {
     assert.doesNotThrow(() => createHub({ port: 0, dataDir, publicUrl: 'http://localhost:1234' }));
     assert.doesNotThrow(() => createHub({ port: 0, dataDir, publicUrl: 'http://127.0.0.1:1234' }));
   });
 });
 
-test('createHub allows plaintext HTTP to a public host when insecureHttp=true', () => {
-  withDataDir((dataDir) => {
+test('createHub allows plaintext HTTP to a public host when insecureHttp=true', async () => {
+  await withDataDir((dataDir) => {
     assert.doesNotThrow(() =>
       createHub({
         port: 0,
@@ -50,8 +53,8 @@ test('createHub allows plaintext HTTP to a public host when insecureHttp=true', 
   });
 });
 
-test('createHub allows https:// to a public host', () => {
-  withDataDir((dataDir) => {
+test('createHub allows https:// to a public host', async () => {
+  await withDataDir((dataDir) => {
     assert.doesNotThrow(() =>
       createHub({ port: 0, dataDir, publicUrl: 'https://maude-hub.example.com' })
     );

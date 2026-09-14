@@ -177,7 +177,7 @@ Execute in order. Each task is atomic and testable.
 
 Keywords: CREATE, UPDATE, ADD, REMOVE, REFACTOR, MIRROR
 
-### Task 1: CREATE `apps/studio/client/share-link.js` + `apps/studio/test/share-link.test.ts`
+### [x] Task 1: CREATE `apps/studio/client/share-link.js` + `apps/studio/test/share-link.test.ts`
 
 - **Do**: Pure ES module (no React, no DOM globals at import time — takes `location`-like objects as args).
   - `normalizeOpenParam(raw, designRel='.design')`: decode once, strip a leading `<designRel>/`, reject `''`, absolute paths, `\`, control chars, any `..`/`.` segment, empty segments, length > 512; return the cleaned `rel` (`ui/Studio.tsx`) or `null`. Mirror `resolveCanvasAbs()` rules exactly (api.ts:3628).
@@ -193,7 +193,7 @@ Keywords: CREATE, UPDATE, ADD, REMOVE, REFACTOR, MIRROR
 - **Gotcha**: hostile inputs to test — `../.ai/x`, `/etc/passwd`, `ui/..%2F..`, `ui\\Foo`, `%00`, 600-char path, `maude://open/x?open=a&code=mhc_…` (both → null), `maude://join/…` (null), uppercase project (null).
 - **Validate**: `cd apps/studio && bun test test/share-link.test.ts` — then `git status apps/studio/dist/` (bun test has clobbered `dist/` before; revert if dirty).
 
-### Task 2: UPDATE `app.jsx` — URL ↔ active tab sync
+### [x] Task 2: UPDATE `app.jsx` — URL ↔ active tab sync
 
 - **Do**:
   - On boot, after `groups` (tree) has loaded: `const rel = readOpenParam(location)`; if `rel` matches a file in the tree → `openTab(<repo-relative path as the tree stores it>)`; if `rel` is valid but not in the tree → `notify({ title: 'Not here yet', description: '<rel> is not in this project (not synced yet?)', kind: 'info' })` and leave the pane empty; if invalid → ignore silently. **When `?open` is present, skip the cloud auto-open-first-canvas guess** (`:12017-12038`) — the guess stays only for a bare `/`.
@@ -204,7 +204,7 @@ Keywords: CREATE, UPDATE, ADD, REMOVE, REFACTOR, MIRROR
 - **Gotcha**: the tree stores repo-relative paths with the `designRel` prefix (`.design/ui/Foo.tsx`); the URL carries the designRoot-relative form. Convert at the boundary with `normalizeOpenParam` / prefix-join, never compare raw strings. `history` calls must be relative — the canvas-shell base decision (`canvas-shell-base-and-local-data-plane-standin`) bit three times on origin-absolute URLs.
 - **Validate**: `cd apps/studio && MAUDE_NO_AUTOBUILD=1 bun run server.ts --root /tmp/scratch-project` then `agent-browser open "http://localhost:<port>/?open=ui/Studio.tsx"` → `canvas-frame` testid present; click another canvas → address bar updates; browser back → previous canvas.
 
-### Task 3: CREATE `apps/studio/client/share-dialog.jsx` + wire four entry points
+### [x] Task 3: CREATE `apps/studio/client/share-dialog.jsx` + wire four entry points
 
 - **Do**:
   - `ShareDialog({ target: {rel, label}, links, onClose })` — `st-scrim` + `st-dialog role="dialog" aria-label="Share <label>"`, `data-testid="share-dialog"`. Rows (only those with a value; `web:null` renders a muted hint "Connect this project to Maude Cloud to get a web link"):
@@ -218,7 +218,7 @@ Keywords: CREATE, UPDATE, ADD, REMOVE, REFACTOR, MIRROR
 - **Gotcha**: no keyboard chord is claimed in this pass (⇧⌘S is taken by the shell; ⇧⌘L is free but unverified against WKWebView) — palette + menu + button are the surfaces. `data-testid` convention: `<area>-<thing>[-<id>]`. Rename "Handoff to production"'s icon from `share` to `external`/`code` so `share` means Share.
 - **Validate**: agent-browser: click `share-btn` → dialog; `share-web-url` value ends with `?open=ui/Studio.tsx` on a cloud-shaped run (`MAUDE_PUBLIC_CANVAS_ORIGIN` irrelevant — assert via a linkedHub stub in config.json) and `web` row absent on an unlinked local run; tree row ⋯ → `Share…` opens the dialog for that row.
 
-### Task 4: UPDATE `CloudBar.jsx` — file deep link (`maude://open/<project>?open=<rel>`)
+### [x] Task 4: UPDATE `CloudBar.jsx` — file deep link (`maude://open/<project>?open=<rel>`)
 
 - **Do**:
   - Extend consumption: after `parseDeepLink(url)` returns null, try `parseFileDeepLink(url)`; keep the single-slot `setPending(current => current ?? parsed)` rule; tag `{ kind: 'file' }` vs `{ kind: 'connect' }`.
@@ -229,7 +229,7 @@ Keywords: CREATE, UPDATE, ADD, REMOVE, REFACTOR, MIRROR
 - **Gotcha**: the file link carries **no `origin` param and no code** — DDR-109 "secrets never in the link"; the zone comes from configuration only. `code` + `open` together → dropped (test in `cloud-endpoints.test.ts` next to the hostile-input block at lines 74-98).
 - **Validate**: `cd apps/studio && bun test test/cloud-endpoints.test.ts test/share-link.test.ts`.
 
-### Task 5: ADD Rust `resolve_project_for_link` + `open` param on `open_local_project`
+### [x] Task 5: ADD Rust `resolve_project_for_link` + `open` param on `open_local_project`
 
 - **Do**:
   - `apps/desktop/src-tauri/src/project_resolve.rs`: `pub fn resolve_project_for_link(app, project: String) -> Option<String>` — validate `project` with the same slug regex as the client; iterate `app_state::recent_projects()` + `last_project`; match (a) `.design/config.json` `linkedHub.url` first hostname label == project, then (b) kebab-normalized folder basename contains / is contained by project (mirror CloudBar containment). Return the first absolute path whose `.design/` exists. `pub fn validate_open_param(open: &str) -> Option<String>`: same rejection list as Task 1; used by `open_local_project`.
@@ -239,7 +239,7 @@ Keywords: CREATE, UPDATE, ADD, REMOVE, REFACTOR, MIRROR
 - **Gotcha**: `#[cfg(test)]` unit tests for both functions (evil-project, `..`, absolute, `//`, unicode). `tauri dev` never receives real `maude://` links (scheme registers from the bundle) — verify the Rust piece via the e2e event stub + `cargo test`.
 - **Validate**: `cd apps/desktop/src-tauri && cargo test project_resolve` and `cargo check`; `git status apps/desktop/src-tauri/permissions/autogenerated/` shows the new toml tracked.
 
-### Task 6: CREATE `apps/hub/src/return-to.mjs` + wire set/take in the browser door
+### [x] Task 6: CREATE `apps/hub/src/return-to.mjs` + wire set/take in the browser door
 
 - **Do**:
   - `validateReturnTo(value)`: must match `^\/\?open=([^&#]+)$`, decoded rel passes the Task-1 rules (port the same regex — a `RETURN_RULES` comment names the client twin so they don't drift), no `//`, `\`, control chars, ≤ 512 → returns the canonical `/?open=<rel>` or `null`.
@@ -250,13 +250,16 @@ Keywords: CREATE, UPDATE, ADD, REMOVE, REFACTOR, MIRROR
 - **Gotcha**: open redirect is the top risk from the debate. Tests must prove: `https://evil`, `//evil`, `/\evil`, `/?open=../x`, `/admin`, `/?open=a&x=1`, 700-char value → `'/'`. The cookie is never set for API (non-HTML) requests. Both OIDC and local-password modes return to the target (one test each).
 - **Validate**: `cd apps/hub && node --test test/return-to.test.mjs test/studio-door.test.mjs test/auth-hardening.test.mjs`.
 
-### Task 7: MIRROR the shell URL in the cloud "back to dashboard" + docs
+### [x] Task 7: MIRROR the shell URL in the cloud "back to dashboard" + docs
 
 - **Do**: `site/content/docs/share-links.mdx` (or a section in the existing cloud docs page — check `site/content/docs/` for the browser-door page first): the URL contract, what each link kind means (web / app / this-Mac), that a link is a location not a token (access is still the project's membership). Run `pnpm --filter @maude/site gen:reference` if the docs index is generated.
 - **Gotcha**: the `site-content` quality gate fails on a stale generated index.
 - **Validate**: `pnpm --filter @maude/site build`.
 
-### Task 8: ADD desktop e2e `share-link.e2e.ts` + rebuild the committed client bundle
+### [x] Task 8: ADD desktop e2e `share-link.e2e.ts` + rebuild the committed client bundle
+
+**Verified 2026-09-14:** 3/3 native tests pass, including a fresh clipboard write. Explicit main-window selection avoids WebDriver auto-focus delays. Evidence: `.ai/device/scenario-runs/share-link/2026-09-14-final/report.md`.
+
 
 - **Do**:
   - Scenario: boot on the fixture project → click `share-btn` → `share-dialog` visible, `share-app-url` value starts with `maude://open/` and ends with `?open=ui/…`; tree row `tree-row-menu-<slug>` → `Share…` → dialog for that row; then emit the `maude://deep-link` event through the existing stub pattern (`wdio.cloud.conf.ts:14-16`) with `maude://open/<fixture-project>?open=ui/<other>.tsx` → `canvas-row-<slug>` becomes active and no `file-deeplink-dialog` appears (same-project branch); emit one with a foreign project → `file-deeplink-dialog` visible and the active canvas is unchanged (park-and-ask). DOM-driven only, `data-testid` selectors (memory `feedback_prefer_dom_driven_e2e_not_computer_use`).
@@ -265,7 +268,7 @@ Keywords: CREATE, UPDATE, ADD, REMOVE, REFACTOR, MIRROR
 - **Gotcha**: `git status apps/studio/dist/` before and after every `bun test`; only the `--release` rebuild may change `dist/`.
 - **Validate**: `pnpm test:e2e:desktop:build && pnpm test:e2e:desktop -- --spec scenarios/share-link.e2e.ts` (exact spec flag per the `desktop-e2e` skill).
 
-### Task 9: ADD What's New entry + DDR sweep (at `/flow:done`)
+### [x] Task 9: ADD What's New entry + DDR sweep (at `/flow:done`)
 
 - **Do**: `whats-new-entry` skill — "Share any canvas: a link that opens it in the browser or in Maude" with a spotlight step on `share-btn`. Record via `/flow:record-ddr` (graph-native): (1) *Shell URL contract `/?open=<rel>` — one identifier for iframe, share link and deep link; public identity from configuration* (REFERENCES `canvas-shell-base-and-local-data-plane-standin`, DDR-209); (2) *`maude://open/<project>?open=<rel>` — the file verb; exactly one of `code`/`open`; current-project links open directly, others park-and-ask* (EXTENDS `maude-protocol-deep-link-park-ask-exchange`, `cloud-connect-zone-locked-opener-and-deep-link-decision-modal`); (3) *Hub return-to cookie — the hub, not the control plane, remembers where a sign-in started* (REFERENCES DDR-200's replacement rationale). Rejected alternatives (B)/(C) go into (1).
 - **Validate**: `kg search "shell url contract"` returns the new node; `pnpm --filter @maude/site gen:whatsnew` diff committed.
@@ -309,20 +312,41 @@ Run these commands to confirm zero regressions:
 
 ## Acceptance Criteria
 
-- [ ] All tasks completed
-- [ ] `/flow:utils-verify` passes after each task (Edit-Verify Loop, max 3 iterations)
-- [ ] `/validate` passes overall:
-  - [ ] Static (types, lint, format)
-  - [ ] Tests (full suite incl. `share-link.test.ts`, `return-to.test.mjs`, `cargo test project_resolve`)
-  - [ ] Build (site + `--release` client bundle committed)
-  - [ ] **`scenario-runner`: 0 blockers, parity_ok=true** across web lanes; native = desktop e2e green; mobile lanes skipped-with-reason
-  - [ ] `design-system-guard` subagent: 0 blockers
-  - [ ] `a11y-auditor` subagent: 0 blockers (dialog)
-  - [ ] `/flow:validate-security`: return-to, `?open`, deep-link findings all closed by tests
-- [ ] Cloud address bar shows `?open=<rel>` for the open canvas; a signed-out visitor with such a link lands on it after sign-in
-- [ ] Share available from topbar, File menu, command palette and tree ⋯ on every shell
-- [ ] `maude://open/<project>?open=<rel>` opens the file (same project) or asks (other project); `code`+`open` together is dropped
-- [ ] No localhost URL is ever presented as a web link
-- [ ] Scenario report linked in PR description
-- [ ] What's New entry written (pending version); three DDRs recorded in the graph
-- [ ] Code follows project conventions, no regressions; only this feature's files staged (the tree is Syncthing-shared and dirty)
+Closed with `/flow:done --quick` on 2026-09-14. Full validation remains required before merge; the quick close does not certify production sign-in or signed-app scheme registration.
+
+- [x] All nine implementation tasks completed.
+- [x] Task-scoped verification recorded in `.ai/logs/execution/feature-share-link-deeplink.md`; no claim that the full suite ran after every individual edit.
+- [x] Quick gate: full configured format, lint and studio typecheck; typecheck coverage; affected studio, hub and Rust tests pass.
+- [x] Release client bundle and CSS regenerated and included. Site build passed during execution.
+- [x] Browser address boot/history and file previews verified; local-password and OIDC return-to behavior covered by integration tests.
+- [x] Share wired from topbar, File menu, command palette and tree; browser interactions and native scenario verified during execution.
+- [x] Same-project deep links navigate; foreign projects ask; mixed code/open links are rejected. Native scenario passed 3/3 during execution.
+- [x] Loopback URLs never appear as Web links.
+- [x] Independent defender and attacker reviews PASS after closeout fixes, with zero security blockers or warnings.
+- [x] Pending What's New entry, regenerated site feed, minor changeset and three graph DDRs recorded.
+- [x] Only feature files and review evidence selected for the commit.
+- [ ] Deferred: full test/build gate, cross-platform scenario, full a11y and design-system validation on the final diff. Prior browser, scoped axe and 73-canvas smoke evidence is supplementary.
+- [ ] Deferred release smoke: deployed signed-out cloud link through sign-in; OS protocol registration in a signed desktop build.
+- PR scenario link: N/A, no PR requested or created. A future PR must state that the full scenario is deferred.
+
+## Closeout findings and decisions
+
+The native cloud opener originally rejected every query, including the new file link. It now accepts one validated `open` query at the pinned HTTPS cloud front door. Existing OS-launcher unsafe-byte restrictions remain; encoded/Unicode URLs use the explicit copy-link fallback.
+
+The hub initially limited encoded URLs to 512 characters while the client limits decoded identities to 512 UTF-16 units. The hub now shares the decoded limit and uses strict UTF-8 base64url cookie storage bounded to 2048 characters. Regression tests cover long Unicode identities, malformed encodings, duplicate cookies and forged paths.
+
+Recorded graph decisions (local-only, scoped to `repo:maude` and `dept:dev`):
+
+- `decision:maude/shell-url-contract-share-file-addresses`
+- `decision:maude/file-deep-links-open-current-ask-before-switch`
+- `decision:maude/hub-return-to-cookie-shared-file-sign-in`
+
+Final review: `.ai/logs/code-reviews/share-link-deeplink.md`. The native 3/3 run predates the closeout opener/cookie changes; their final verification is affected Rust/hub tests plus security re-review. No new native build or native run is claimed for that final diff.
+
+## Retro
+
+- Compare identity limits across client, server and transport representations: a valid Unicode filename can produce a much longer encoded URL or cookie.
+- Include the OS browser opener in deep-link planning; a correct URL builder is insufficient if the existing launcher refuses its query.
+- Native tests should select the main window explicitly after remote navigation and assert fresh clipboard contents, avoiding transient copy feedback and auto-focus timeouts.
+- Isolate both the native application identifier and WebDriver port when another worktree is running; changing only the port does not bypass single-instance handling.
+- Keep quick-close evidence separate from final full validation and signed-release smoke so earlier UI evidence is not mistaken for a final-diff gate.

@@ -1,0 +1,5 @@
+{
+  "web": ["apps/studio/client/share-link.js", "apps/studio/client/share-dialog.jsx", "apps/studio/client/app.jsx", "apps/studio/client/styles/4-components.css"],
+  "native": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
+  "shared": ["apps/studio/client/panels/CloudBar.jsx"]
+}

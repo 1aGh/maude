@@ -14,6 +14,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+import { localIdentityMatches, parseFileDeepLink } from '../share-link.js';
+import FileDeepLinkDialog from './file-deep-link-dialog.jsx';
 import { safeName, syncPresentation } from '../../sync/presentation.ts';
 import { invoke, isNativeApp, listen, openCloudUrl } from '../github.js';
 
@@ -118,7 +120,9 @@ export function parseDeepLink(url) {
   // without this, arbitrary attacker text renders in the dialog's heading, prose
   // and aria-label. Nothing longer can name a real project anyway.
   if (m[1].length > 40) return null;
-  const code = new URLSearchParams(m[2]).get('code') ?? '';
+  const params = new URLSearchParams(m[2]);
+  if (params.has('open') || params.getAll('code').length !== 1) return null;
+  const code = params.get('code') ?? '';
   if (!/^mhc_[0-9a-f]{16,128}$/.test(code)) return null;
   return { project: m[1], code };
 }
@@ -402,7 +406,7 @@ function Icon({ name, size = 15 }) {
 // GitPanel's cloud-managed posture turns on the same `linkedHub.credentialed`
 // fact this panel's Connected row does, and CloudBar owns every action that
 // changes it (status resolve, attach, detach) — so it reports, the app decides.
-export default function CloudBar({ syncStatus, onLinkedHub }) {
+export default function CloudBar({ syncStatus, onLinkedHub, onLocalProject, onOpenFile, filesReady }) {
   const [state, setState] = useState('loading'); // loading | out | in
   const [email, setEmail] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -451,6 +455,7 @@ export default function CloudBar({ syncStatus, onLinkedHub }) {
           resolved: true,
         });
         onLinkedHub?.(r.json?.linkedHub ?? null);
+        onLocalProject?.(r.json?.project ?? null);
         if (r.ok && r.json?.connected) {
           setEmail(r.json.email);
           setState('in');
@@ -474,7 +479,9 @@ export default function CloudBar({ syncStatus, onLinkedHub }) {
   useEffect(() => {
     if (!isNativeApp()) return undefined;
     const consume = (url) => {
-      const parsed = parseDeepLink(url);
+      const connect = parseDeepLink(url);
+      const file = connect ? null : parseFileDeepLink(url);
+      const parsed = connect ? { ...connect, kind: 'connect' } : file ? { ...file, kind: 'file' } : null;
       if (!parsed) return;
       // NEVER replace a link the person is already looking at. The dialog is a
       // single slot, so an overwrite would swap the code out from under a
@@ -492,6 +499,13 @@ export default function CloudBar({ syncStatus, onLinkedHub }) {
     });
     return () => unlisten?.();
   }, []);
+
+  const fileMatches = pending?.kind === 'file' && local.resolved && localIdentityMatches(local, pending.project);
+  useEffect(() => {
+    if (!fileMatches || !filesReady || !onOpenFile) return;
+    onOpenFile(pending.rel);
+    setPending(null);
+  }, [fileMatches, filesReady, pending, onOpenFile]);
 
   async function connectPending() {
     if (!pending) return;
@@ -677,7 +691,8 @@ export default function CloudBar({ syncStatus, onLinkedHub }) {
           status fetch, and a modal rendered without the local half showed no
           warning and a primary Connect — failing OPEN in the one scenario with
           the least context (attacker pass B3). */}
-      {pending && local.resolved && (
+      {pending?.kind === 'file' && local.resolved && !fileMatches && <FileDeepLinkDialog key={pending.project + pending.rel} pending={pending} local={local} cloudUrl={cloudUrl} onClose={() => setPending(null)} />}
+      {pending?.kind === 'connect' && local.resolved && (
         <div
           className="gi-modal"
           role="dialog"

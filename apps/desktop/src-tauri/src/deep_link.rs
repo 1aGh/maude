@@ -10,9 +10,9 @@
 // navigate to maude://. The shell therefore only PARKS it (state + event);
 // the client surfaces it as an explicit "Connect?" confirmation, and the
 // dev-server exchanges the code against its OWN configured Maude Cloud
-// address, never against anything the link names. A drive-by link can at
-// most pop a question, and the code it carries is one the linker minted
-// against their own account.
+// address, never against anything the link names. File links may open a
+// validated file in the current project; another project requires confirmation.
+// File links cannot carry a connect code or change the configured cloud origin.
 
 use std::sync::Mutex;
 

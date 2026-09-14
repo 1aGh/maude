@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { rememberReturnTo } from './return-to.mjs';
+
 // Maude Hub — self-hostable Yjs sync backend.
 //
 // Phase 9 (v1.1). Hocuspocus over PartyKit — see
@@ -1479,6 +1481,7 @@ export function createHub(config = {}) {
           // a 401 it can read. Sending a fetch() to the control plane's sign-in
           // page produces a CORS error in the console and nothing on screen.
           if ((request.headers?.accept ?? '').includes('text/html')) {
+            rememberReturnTo(request, response, authPath);
             response.writeHead(302, { location: verdict.to, 'cache-control': 'no-store' });
             response.end();
           } else {

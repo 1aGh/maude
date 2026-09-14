@@ -32,6 +32,7 @@
     "allow-list-crash-logs",
     "allow-read-crash-log",
     "allow-take-pending-deep-link",
+    "allow-resolve-project-for-link",
     "allow-send-notification",
     "deep-link:default",
     "wdio-webdriver:default"

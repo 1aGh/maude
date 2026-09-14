@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-resolve-project-for-link"
+description = "Enables the resolve_project_for_link command without any pre-configured scope."
+commands.allow = ["resolve_project_for_link"]
+
+[[permission]]
+identifier = "deny-resolve-project-for-link"
+description = "Denies the resolve_project_for_link command without any pre-configured scope."
+commands.deny = ["resolve_project_for_link"]

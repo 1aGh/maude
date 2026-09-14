@@ -773,7 +773,7 @@ fn report_sidecar_gave_up(app: &AppHandle, project_root: &str) {
 /// is better UX (no window flash). The supervisor's respawn (Terminated → spawn)
 /// reads the updated `project_root`, so killing the child re-spawns it with the new
 /// root; we then re-navigate once the new `_server.json` lands.
-pub fn switch_project(app: &AppHandle, new_root: PathBuf) {
+pub fn switch_project(app: &AppHandle, new_root: PathBuf, open: Option<String>) {
     let state = app.state::<SidecarState>();
     let root = new_root.to_string_lossy().to_string();
     *state.project_root.lock().expect("sidecar mutex poisoned") = root.clone();
@@ -837,7 +837,10 @@ pub fn switch_project(app: &AppHandle, new_root: PathBuf) {
                 log_line(&format!("[maude] project switched — navigating to {url}"));
                 if let Some(window) = app.get_webview_window("main") {
                     match url.parse::<tauri::Url>() {
-                        Ok(parsed) if crate::server_json::is_loopback_url(&parsed) => {
+                        Ok(mut parsed) if crate::server_json::is_loopback_url(&parsed) => {
+                            if let Some(ref rel) = open {
+                                parsed.query_pairs_mut().append_pair("open", rel);
+                            }
                             if let Err(e) = window.navigate(parsed) {
                                 log_line(&format!("[maude] navigate failed: {e}"));
                             }
