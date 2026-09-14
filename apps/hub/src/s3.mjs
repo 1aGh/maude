@@ -82,7 +82,10 @@ export function s3ConfigFromEnv(env = process.env) {
  * Build the signed headers for one request (AWS Signature Version 4).
  * Exported so a test can assert the canonical request without a network call.
  */
-export function signRequest(cfg, { method, key, query = {}, body = null, now = new Date() }) {
+export function signRequest(
+  cfg,
+  { method, key, query = {}, body = null, now = new Date(), condition }
+) {
   const url = new URL(`${cfg.endpoint}/${cfg.bucket}${key ? `/${encodeKey(key)}` : ''}`);
   const sortedQuery = Object.keys(query)
     .sort()
@@ -98,6 +101,7 @@ export function signRequest(cfg, { method, key, query = {}, body = null, now = n
     'x-amz-content-sha256': payloadHash,
     'x-amz-date': amzDate,
     ...(cfg.sessionToken ? { 'x-amz-security-token': cfg.sessionToken } : {}),
+    ...(condition === undefined ? {} : conditionalHeaders(method, condition)),
   };
   const signedHeaderNames = Object.keys(headers).sort();
   const canonicalHeaders = signedHeaderNames.map((h) => `${h}:${headers[h]}\n`).join('');
@@ -134,8 +138,119 @@ async function send(cfg, opts) {
     method: opts.method,
     headers,
     ...(opts.body === null ? {} : { body: opts.body }),
+    ...(opts.signal ? { signal: opts.signal } : {}),
+    ...(opts.redirect ? { redirect: opts.redirect } : {}),
   });
   return res;
+}
+
+const MAX_HEAD_BYTES = 1024 * 1024;
+
+function conditionalHeaders(method, condition) {
+  if (method !== 'PUT' || !condition || typeof condition !== 'object' || Array.isArray(condition)) {
+    throw new TypeError('Conditional S3 writes require exactly one PUT precondition');
+  }
+  const keys = Object.keys(condition);
+  if (keys.length === 1 && keys[0] === 'ifNoneMatch' && condition.ifNoneMatch === '*') {
+    return { 'if-none-match': '*' };
+  }
+  if (
+    keys.length === 1 &&
+    keys[0] === 'ifMatch' &&
+    typeof condition.ifMatch === 'string' &&
+    condition.ifMatch.length <= 512 &&
+    /^"[\x21\x23-\x7e]+"$/.test(condition.ifMatch)
+  ) {
+    return { 'if-match': condition.ifMatch };
+  }
+  throw new TypeError('Use ifNoneMatch: "*" or the exact strong quoted ETag from S3');
+}
+
+/**
+ * Bounded metadata CAS primitive. No retry is automatic: an interrupted response
+ * can follow a successful write. Read the authoritative head and resolve the
+ * proposed transaction before deciding whether another write is appropriate.
+ * A 412 may be a competing writer OR our earlier unknown-outcome write.
+ */
+export async function putObjectConditional(cfg, key, body, condition, { signal } = {}) {
+  conditionalHeaders('PUT', condition); // Fail before dispatch; never fall back to plain PUT.
+  const bytes = Buffer.isBuffer(body) ? body : Buffer.from(body);
+  if (bytes.length > MAX_HEAD_BYTES) throw new RangeError('Conditional S3 metadata exceeds 1 MiB');
+  const res = await send(cfg, {
+    method: 'PUT',
+    key,
+    body: bytes,
+    condition,
+    signal: signal ?? AbortSignal.timeout(10000),
+    redirect: 'error',
+  });
+  if ([404, 409, 412].includes(res.status)) {
+    await res.body?.cancel();
+    return {
+      status: 'not-written',
+      reason:
+        res.status === 412 ? 'precondition-failed' : res.status === 409 ? 'conflict' : 'missing',
+      httpStatus: res.status,
+    };
+  }
+  if (!res.ok) {
+    await res.body?.cancel();
+    throw Object.assign(new Error(`S3 conditional PUT failed: ${res.status}`), {
+      httpStatus: res.status,
+    });
+  }
+  const etag = res.headers.get('etag');
+  await res.body?.cancel();
+  if (!etag || !/^"[\x21\x23-\x7e]+"$/.test(etag)) {
+    throw new Error(
+      'S3 conditional PUT returned no usable ETag; outcome must be resolved by reading'
+    );
+  }
+  return { status: 'written', key, bytes: bytes.length, etag };
+}
+
+/** Read bounded head bytes and their ETag from ONE response, never HEAD + GET. */
+export async function getObjectVersion(cfg, key, { signal } = {}) {
+  const res = await send(cfg, {
+    method: 'GET',
+    key,
+    signal: signal ?? AbortSignal.timeout(10000),
+    redirect: 'error',
+  });
+  if (res.status === 404) {
+    await res.body?.cancel();
+    return null;
+  }
+  if (!res.ok) {
+    await res.body?.cancel();
+    throw Object.assign(new Error(`S3 version GET failed: ${res.status}`), {
+      httpStatus: res.status,
+    });
+  }
+  const etag = res.headers.get('etag');
+  if (!etag || etag.length > 512 || !/^"[\x21\x23-\x7e]+"$/.test(etag)) {
+    await res.body?.cancel();
+    throw new Error('S3 version GET returned no usable ETag');
+  }
+  const reader = res.body?.getReader();
+  if (!reader) return { body: Buffer.alloc(0), etag };
+  const chunks = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.length;
+      if (size > MAX_HEAD_BYTES) throw new RangeError('S3 metadata exceeds 1 MiB');
+      chunks.push(value);
+    }
+  } catch (error) {
+    await reader.cancel().catch(() => {});
+    throw error;
+  } finally {
+    reader.releaseLock();
+  }
+  return { body: Buffer.concat(chunks, size), etag };
 }
 
 /** PUT one object. Throws with the service's message on a non-2xx. */
