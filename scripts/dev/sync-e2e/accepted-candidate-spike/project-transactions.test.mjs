@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
+import { fork } from 'node:child_process';
+import { once } from 'node:events';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { fork } from 'node:child_process';
-import { once } from 'node:events';
-import { HocuspocusProvider, Y, versions } from './deps.mjs';
 import { BASE, DOC, Outbox, proposal } from './candidate-kernel.mjs';
+import { HocuspocusProvider, versions, Y } from './deps.mjs';
 import { packet, start } from './server.mjs';
+
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 async function until(predicate, label) {
   const deadline = Date.now() + 3000;

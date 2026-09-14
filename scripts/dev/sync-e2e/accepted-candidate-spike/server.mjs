@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
-import { Server, Y, decoding as d, encoding as e } from './deps.mjs';
 import { DOC, Kernel } from './candidate-kernel.mjs';
+import { decoding as d, encoding as e, Server, Y } from './deps.mjs';
 export function packet(name, type, payload, syncKind) {
   const encoder = e.createEncoder();
   e.writeVarString(encoder, name);

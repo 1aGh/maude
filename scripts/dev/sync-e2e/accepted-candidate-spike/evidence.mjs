@@ -1,9 +1,10 @@
+import { readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { repo, versions } from './deps.mjs';
 import { hash } from './candidate-kernel.mjs';
+import { repo, versions } from './deps.mjs';
+
 const hub = createRequire(join(repo, 'apps/hub/package.json'));
 const own = fileURLToPath(new URL('.', import.meta.url));
 const files = [

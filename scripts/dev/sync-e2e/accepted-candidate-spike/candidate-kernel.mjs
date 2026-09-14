@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { Y, sourceError } from './deps.mjs';
+import { sourceError, Y } from './deps.mjs';
 export const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 export const BASE = 'export default function Canvas(){return <div>BASE</div>}';
 export const DOC = 'projects/p/accepted/d';

@@ -1,7 +1,8 @@
+import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
-import { existsSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+
 function findRepo(start) {
   for (let dir = resolve(start); ; dir = dirname(dir)) {
     if (existsSync(join(dir, 'apps/hub/package.json'))) return dir;
