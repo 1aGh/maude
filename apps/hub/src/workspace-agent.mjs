@@ -18,6 +18,7 @@
 // one, and does not spawn anything that could. The canvas body is a string
 // from a Y.Text to a file on disk and nothing in between ever looks inside it.
 
+import { createHash } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -117,6 +118,10 @@ export function createWorkspaceAgent(opts) {
   let auto = null;
   let ready = false;
   let pathIndex = new Map();
+  // The last body this writer observed/materialized, not an authority over a
+  // newer local save. A paired studio can project a peer edit and then save a
+  // user edit before this hub's delayed store hook runs for the peer edit.
+  const storedBodyHashes = new Map();
   /** Declared canvas groups, from the tenant's own `.design/config.json`. */
   let canvasGroups = null;
 
@@ -214,6 +219,11 @@ export function createWorkspaceAgent(opts) {
           { rel, fromPath: true },
         ])
       );
+      for (const { rel } of pathIndex.values()) {
+        const body = readIfPresent(join(designRoot, rel));
+        if (body !== null)
+          storedBodyHashes.set(rel, createHash('sha256').update(body).digest('hex'));
+      }
       canvasGroups = readCanvasGroups();
       auto = createAutoCommit({
         repoRoot: repoDir,
@@ -592,7 +602,18 @@ export function createWorkspaceAgent(opts) {
         css: readIfPresent(abs(sib.css)),
         annotations: readIfPresent(abs(sib.annotations)),
       };
-      const writes = filesForCanvas({ bodyRel, content, onDisk });
+      const bodyHash =
+        content.body === null ? null : createHash('sha256').update(content.body).digest('hex');
+      const diskBodyHash =
+        onDisk.body === null ? null : createHash('sha256').update(onDisk.body).digest('hex');
+      const awaitingBodyImport =
+        bodyHash !== null &&
+        diskBodyHash !== (storedBodyHashes.get(bodyRel) ?? null) &&
+        onDisk.body !== content.body;
+      // Keep unrelated lanes flowing. Body-coupled CSS must wait too, and the
+      // same filtered content must govern both projection and commit eligibility.
+      const projectable = awaitingBodyImport ? { ...content, body: null, css: null } : content;
+      const writes = filesForCanvas({ bodyRel, content: projectable, onDisk });
 
       // WHAT TO COMMIT IS NOT WHAT WE WROTE — desktop ↔ cloud live pairing.
       //
@@ -609,7 +630,7 @@ export function createWorkspaceAgent(opts) {
       // `committableLanes` answers "which lanes may be staged", applying the
       // SAME gates as the write path — see workspace-files.mjs for why the two
       // are neighbours and why the meta lane in particular must not diverge.
-      const committable = committableLanes({ bodyRel, content, onDisk });
+      const committable = committableLanes({ bodyRel, content: projectable, onDisk });
 
       if (writes.length === 0 && committable.length === 0 && vacated.length === 0) return null;
 
@@ -622,6 +643,7 @@ export function createWorkspaceAgent(opts) {
         atomicWrite(abs(w.relPath), w.text);
         toStage.add(w.relPath);
       }
+      if (!awaitingBodyImport && bodyHash !== null) storedBodyHashes.set(bodyRel, bodyHash);
       for (const rel of toStage) {
         // autocommit stages paths relative to the REPO root, not the design root.
         auto.note(relative(repoDir, abs(rel)).split(sep).join('/'), who);

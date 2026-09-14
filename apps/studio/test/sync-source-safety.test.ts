@@ -108,6 +108,43 @@ test('#121 pending remote flush cannot erase a local edit awaiting its watcher',
   await f.projection.flush();
   expect(readFileSync(f.paths.html, 'utf8')).toBe(repair);
 });
+
+test('an unchanged disk notification cannot roll back a newer shared body after its echo was consumed', async () => {
+  const f = fixture();
+  applyHtmlToDoc(f.doc, clean);
+  await f.projection.flush();
+  const event = { path: f.paths.html, bytes: Buffer.from(clean), hash: hashBytes(clean) };
+  f.projection.applyFromFs(event); // the first watcher delivery consumes the echo
+
+  const remote = clean.replace('Healthy', 'Remote');
+  applyHtmlToDoc(f.doc, remote, 'remote');
+  expect(f.projection.applyFromFs(event)).toBe(false); // delayed duplicate, before projection
+  expect(htmlFromDoc(f.doc)).toBe(remote);
+  await f.projection.flush();
+  expect(readFileSync(f.paths.html, 'utf8')).toBe(remote);
+});
+
+test('returning to an older body after an intervening local import is a real edit', async () => {
+  const f = fixture();
+  applyHtmlToDoc(f.doc, clean);
+  await f.projection.flush();
+  f.projection.applyFromFs({
+    path: f.paths.html,
+    bytes: Buffer.from(clean),
+    hash: hashBytes(clean),
+  });
+  for (const body of [clean.replace('Healthy', 'Local'), clean]) {
+    writeFileSync(f.paths.html, body);
+    expect(
+      f.projection.applyFromFs({
+        path: f.paths.html,
+        bytes: Buffer.from(body),
+        hash: hashBytes(body),
+      })
+    ).toBe(true);
+    expect(htmlFromDoc(f.doc)).toBe(body);
+  }
+});
 test('#121 malformed local save never enters the shared document', () => {
   const f = fixture();
   applyHtmlToDoc(f.doc, clean);

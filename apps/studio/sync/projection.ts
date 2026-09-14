@@ -404,6 +404,13 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     const str = bytesToString(evt.bytes);
 
     if (evt.path === paths.html) {
+      // Watchers can deliver the same projection more than once, including
+      // after the one-shot echo token was consumed or expired. These bytes
+      // contain no new local edit; diffing them against a newer remote body
+      // would turn a delayed notification into a rollback of peer work.
+      // Compare only the current baseline, so a deliberate A → B → A edit
+      // still imports after B advances lastHtml.
+      if (str === lastHtml) return false;
       if (!withinCap(paths.html, str, MAX_HTML_BYTES)) return false;
       if (validation(str) !== null) {
         strike(evt.path, evt.hash);

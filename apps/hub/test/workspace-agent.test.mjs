@@ -475,6 +475,70 @@ describe('write-behind (Sync v2 Increment 5)', () => {
 describe('workspace agent, end to end against real git', () => {
   const gitOk = gitAvailable();
 
+  for (const delayedPeerStore of [false, true])
+    it(`a document store preserves a local body edit awaiting its watcher (delayed peer store: ${delayedPeerStore})`, async () => {
+      const repo = tmp();
+      const agent = createWorkspaceAgent({ repoDir: repo, debounceMs: 60_000, log: silent() });
+      const doc = new Y.Doc();
+      const base = 'export default function Home(){return <main>Previous</main>}\n';
+      const local = base.replace('Previous', 'New local work');
+      const args = { documentName: 'ws/repro/main/home', document: doc };
+      try {
+        await agent.start();
+        doc.getText('html').insert(0, base);
+        doc.getText('meta').insert(0, JSON.stringify({ title: 'Before' }));
+        await agent.onDocumentStored(args);
+        assert.equal((await agent.flush()).ok, true);
+        const file = join(repo, '.design/home.tsx');
+        if (delayedPeerStore) {
+          const peer = base.replace('Previous', 'Previous peer');
+          doc.transact(() => {
+            doc.getText('html').delete(0, doc.getText('html').length);
+            doc.getText('html').insert(0, peer);
+          });
+          writeFileSync(file, peer); // studio projector arrived before the hub store hook
+        }
+        writeFileSync(file, local);
+        doc.getArray('comments').push([{ id: 'comment', text: 'Independent update' }]);
+        doc.getText('meta').delete(0, doc.getText('meta').length);
+        doc.getText('meta').insert(0, JSON.stringify({ title: 'Independent update' }));
+        const out = await agent.onDocumentStored(args);
+        assert.equal(
+          readFileSync(file, 'utf8'),
+          local,
+          'the watcher must still be able to read the edit'
+        );
+        assert.equal(
+          JSON.parse(readFileSync(join(repo, '.design/home.meta.json'), 'utf8')).title,
+          'Independent update'
+        );
+        assert.ok(
+          !out?.staged.includes('home.tsx'),
+          'do not attribute the local candidate to this store'
+        );
+        await agent.flush();
+        assert.equal(
+          execFileSync('git', ['show', 'HEAD:.design/home.tsx'], { cwd: repo, encoding: 'utf8' }),
+          base
+        );
+
+        // Once the watcher has imported the new body, history can record it.
+        doc.transact(() => {
+          doc.getText('html').delete(0, doc.getText('html').length);
+          doc.getText('html').insert(0, local);
+        });
+        await agent.onDocumentStored(args);
+        assert.equal((await agent.flush()).ok, true);
+        assert.equal(
+          execFileSync('git', ['show', 'HEAD:.design/home.tsx'], { cwd: repo, encoding: 'utf8' }),
+          local
+        );
+      } finally {
+        await agent.stop();
+        doc.destroy();
+      }
+    });
+
   it('a browser-only edit produces a server commit authored by the human', {
     skip: gitOk ? false : 'git not available',
   }, async () => {
