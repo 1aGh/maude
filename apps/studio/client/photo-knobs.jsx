@@ -231,6 +231,9 @@ export function PhotoKnobs({ asset, initialEdit, ColorPicker, onEdit, onRemoveBa
       const before = editRef.current;
       const next = clone(before);
       fn(next);
+      // Reset and a number field's blur can arrive before React renders.
+      // The next mutation (and its undo base) must already see this edit.
+      editRef.current = next;
       setEditState(next);
       onEdit?.(next);
       put(next);
