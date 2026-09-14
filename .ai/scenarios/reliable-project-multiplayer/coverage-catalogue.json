@@ -1,0 +1,3291 @@
+{
+  "version": 1,
+  "catalogueComplete": false,
+  "note": "Source-enumerated annotations/photo controls plus unresolved contract actions. Remaining domain menus, action bindings, supported/unsupported distinctions and role/load profiles still need expansion. No case is covered merely by being listed.",
+  "sources": [
+    {
+      "path": "apps/studio/tool-palette.tsx",
+      "sha256": "a49ad681bce407ca8c6a27034c532777791f6acc01447bc10e185dff6b365069"
+    },
+    {
+      "path": "apps/studio/annotations-context-toolbar.tsx",
+      "sha256": "b5a4861b1a5c27e1f011addc375f8fec518ee500f713f438190872597e900911"
+    },
+    {
+      "path": "apps/studio/client/photo-knobs.jsx",
+      "sha256": "02fa568a7baeb82a0890d44c00d3496696e6c5078e302ee98efc59e503adf9d8"
+    },
+    {
+      "path": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "sha256": "f5c3795a40d0b2d149f22cb0ae7c281567e169ba583fbea6d7ed6dd4c0ead6d8"
+    },
+    {
+      "path": "apps/studio/use-canvas-media-drop.tsx",
+      "sha256": "91423bc2a7ade50dd322f8f5924d607cafa0a571bc0314bb3dd0f2a0033cb55b"
+    }
+  ],
+  "registries": {
+    "annotationTools": [
+      "pen",
+      "highlighter",
+      "shape",
+      "sticky",
+      "section",
+      "arrow",
+      "text",
+      "eraser"
+    ],
+    "shapeKinds": [
+      "square",
+      "rounded",
+      "circle",
+      "diamond",
+      "triangle",
+      "triangle-down"
+    ]
+  },
+  "surfaces": [
+    {
+      "id": "L01",
+      "label": "Empty folders"
+    },
+    {
+      "id": "L02",
+      "label": "Populated/nested folders"
+    },
+    {
+      "id": "L03",
+      "label": "Supported non-canvas files"
+    },
+    {
+      "id": "L04",
+      "label": "Canvas lifecycle"
+    },
+    {
+      "id": "L05",
+      "label": "Open canvas / tabs"
+    },
+    {
+      "id": "L06",
+      "label": "Canvas source editing"
+    },
+    {
+      "id": "L07",
+      "label": "Elements"
+    },
+    {
+      "id": "L08",
+      "label": "Artboards/layout"
+    },
+    {
+      "id": "L09",
+      "label": "Annotation shapes and strokes"
+    },
+    {
+      "id": "L10",
+      "label": "Annotation stickers/images"
+    },
+    {
+      "id": "L11",
+      "label": "Comments"
+    },
+    {
+      "id": "L12",
+      "label": "Photo asset transfer"
+    },
+    {
+      "id": "L13",
+      "label": "Photo canvas/artboard"
+    },
+    {
+      "id": "L14",
+      "label": "Video asset transfer"
+    },
+    {
+      "id": "L15",
+      "label": "Video/timeline document"
+    },
+    {
+      "id": "L16",
+      "label": "Design system/dependencies"
+    },
+    {
+      "id": "L17",
+      "label": "Media reference lifecycle"
+    },
+    {
+      "id": "L18",
+      "label": "History and personal undo"
+    },
+    {
+      "id": "L19",
+      "label": "Presence/selection/local state"
+    },
+    {
+      "id": "L20",
+      "label": "Offline/restart/catch-up"
+    },
+    {
+      "id": "L21",
+      "label": "Concurrent UI/editor/AI"
+    },
+    {
+      "id": "L22",
+      "label": "UI save state / errors"
+    },
+    {
+      "id": "L23",
+      "label": "Mixed loaded session"
+    },
+    {
+      "id": "L24",
+      "label": "Final reopen/parity/soak"
+    }
+  ],
+  "cases": [
+    {
+      "id": "L12.upload-png.create",
+      "source": "apps/studio/use-canvas-media-drop.tsx",
+      "repairTask": "T18",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L12.upload-png.remove-reference",
+      "source": "apps/studio/use-canvas-media-drop.tsx",
+      "repairTask": "T18",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L14.upload-video.create",
+      "source": "apps/studio/use-canvas-media-drop.tsx",
+      "repairTask": "T18",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L14.upload-video.play-and-seek",
+      "source": "apps/studio/use-canvas-media-drop.tsx",
+      "repairTask": "T18",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L14.upload-video.remove-reference",
+      "source": "apps/studio/use-canvas-media-drop.tsx",
+      "repairTask": "T18",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.pen.create",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.pen.move",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.pen.resize",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.pen.delete",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.pen.undo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.pen.redo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.highlighter.create",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.highlighter.move",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.highlighter.resize",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.highlighter.delete",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.highlighter.undo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.highlighter.redo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-square.create",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-square.move",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-square.resize",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-square.delete",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-square.undo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-square.redo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-rounded.create",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-rounded.move",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-rounded.resize",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-rounded.delete",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-rounded.undo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-rounded.redo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-circle.create",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-circle.move",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-circle.resize",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-circle.delete",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-circle.undo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-circle.redo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-diamond.create",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-diamond.move",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-diamond.resize",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-diamond.delete",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-diamond.undo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-diamond.redo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-triangle.create",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-triangle.move",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-triangle.resize",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-triangle.delete",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-triangle.undo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-triangle.redo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-triangle-down.create",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-triangle-down.move",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-triangle-down.resize",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-triangle-down.delete",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-triangle-down.undo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.shape-triangle-down.redo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.sticky.create",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.sticky.move",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.sticky.resize",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.sticky.delete",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.sticky.undo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.sticky.redo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.sticky.edit-text",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.section.create",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.section.move",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.section.resize",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.section.delete",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.section.undo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.section.redo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.section.edit-text",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.arrow.create",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.arrow.move",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.arrow.resize",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.arrow.delete",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.arrow.undo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.arrow.redo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.text.create",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.text.move",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.text.resize",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.text.delete",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.text.undo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.text.redo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.text.edit-text",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.eraser.erase-stroke",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.eraser.undo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.eraser.redo",
+      "source": "apps/studio/tool-palette.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L09.arrow-head.none",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.arrow-head.line",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.arrow-head.triangle",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.arrow-head.triangle-outline",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.arrow-head.circle",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.arrow-head.diamond",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.arrow-line.straight",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.arrow-line.curved",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.arrow-line.elbow",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.text-align.left",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.text-align.center",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.text-align.right",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.selection-align.left",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.selection-align.h-center",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.selection-align.right",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.selection-align.top",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.selection-align.v-center",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.selection-align.bottom",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.selection-align.dist-h",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.selection-align.dist-v",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.context-control.text-formatting",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Text formatting",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.media-reference-properties",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Media reference properties",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.delete-media-reference",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Delete media reference",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.image-properties",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Image properties",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.image-alt-text",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Image alt text",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.delete-image",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Delete image",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.link-properties",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Link properties",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.link-url",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Link URL",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.link-title",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Link title",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.delete-link",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Delete link",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.annotation-properties",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Annotation properties",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.swatch-target",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Swatch target",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.color",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Color",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.no-fill",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "No fill",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.thin-stroke",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Thin stroke",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.thick-stroke",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Thick stroke",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.bold",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Bold",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.italic",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Italic",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.strikethrough",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Strikethrough",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.underline",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Underline",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.bulleted-list",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Bulleted list",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.numbered-list",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Numbered list",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.dashed-line",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Dashed line",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.group-selection",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Group selection",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.ungroup-selection",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Ungroup selection",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.delete-selected-annotations",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Delete selected annotations",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.font-size",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Font size",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.custom-font-size-in-pixels",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Custom font size in pixels",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L13.photo.brightness",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.photo.contrast",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.photo.saturation",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.photo.exposure",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.photo.hue",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.photo.sepia",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.photo.grayscale",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.photo.invert",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.photo.reset-adjustments",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.pattern-type.dots",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.pattern-type.grid",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.pattern-type.lines",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.pattern-type.diagonal",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.pattern-type.crosshatch",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.pattern-blend.normal",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.pattern-blend.multiply",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.pattern-blend.screen",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.pattern-blend.overlay",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.pattern-blend.soft-light",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.mask-preset.none",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.mask-preset.vignette",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.mask-preset.radial-reveal",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.mask-preset.edge-fade",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ]
+    },
+    {
+      "id": "L13.photo-control.duotone-intensity",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "label": "Duotone intensity",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L13.photo-control.grain-amount",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "label": "Grain amount",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L13.photo-control.grain-size",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "label": "Grain size",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L13.photo-control.pattern-type",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "label": "Pattern type",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L13.photo-control.pattern-blend",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "label": "Pattern blend",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L13.photo-control.pattern-scale",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "label": "Pattern scale",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L13.photo-control.pattern-opacity",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "label": "Pattern opacity",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L13.photo-control.mask-preset",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "label": "Mask preset",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L13.photo-control.mask-strength",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "label": "Mask strength",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L01.requirement.create",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "create",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L01.requirement.rename-when-implemented",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "rename when implemented",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L01.requirement.move-into-another-folder",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "move into another folder",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L01.requirement.delete",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "delete",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L02.requirement.create-nested-hierarchy",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "create nested hierarchy",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L02.requirement.move-hierarchy",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "move hierarchy",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L02.requirement.rename-when-implemented",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "rename when implemented",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L02.requirement.delete-subtree",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "delete subtree",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L03.requirement.create",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "create",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L03.requirement.edit",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "edit",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L03.requirement.move",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "move",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L03.requirement.rename-when-implemented",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "rename when implemented",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L03.requirement.delete",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "delete",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L04.requirement.create",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "create",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L04.requirement.duplicate",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "duplicate",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L04.requirement.rename",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "rename",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L04.requirement.move-across-folders",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "move across folders",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L04.requirement.remove",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "remove",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L05.requirement.peer-moves-active-canvas",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "peer moves active canvas",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L05.requirement.peer-deletes-active-canvas",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "peer deletes active canvas",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L05.requirement.switch-away-back",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "switch away/back",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L05.requirement.reopen-after-restart",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "reopen after restart",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L06.requirement.valid-text-source-save",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "valid text source save",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L06.requirement.atomic-editor-save",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "atomic editor save",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L06.requirement.ui-text-edit",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "UI text edit",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L06.requirement.css-property-edit",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "CSS/property edit",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L06.requirement.attribute-edit",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "attribute edit",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L07.requirement.insert",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "insert",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L07.requirement.duplicate",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "duplicate",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L07.requirement.move-reorder",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "move/reorder",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L07.requirement.resize",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "resize",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L07.requirement.edit-content-property",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "edit content/property",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L07.requirement.delete",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "delete",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L08.requirement.add",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "add",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L08.requirement.rename-title",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "rename/title",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L08.requirement.move",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "move",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L08.requirement.resize",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "resize",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L08.requirement.reorder",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "reorder",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L08.requirement.remove",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "remove",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.requirement.create-each-exposed-tool-type",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "create each exposed tool type",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.requirement.select-move-resize",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "select/move/resize",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.requirement.edit-available-style-text",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "edit available style/text",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.requirement.delete",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "delete",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.requirement.undo",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "undo",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L09.requirement.redo",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "redo",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L10.requirement.add-image-sticker",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "add image sticker",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L10.requirement.move-resize",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "move/resize",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L10.requirement.replace-where-supported",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "replace where supported",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L10.requirement.remove",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "remove",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L11.requirement.create-thread-pin",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "create thread/pin",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L11.requirement.reply",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "reply",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L11.requirement.edit-owned-comment",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "edit owned comment",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L11.requirement.resolve-reopen",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "resolve/reopen",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L11.requirement.delete-where-supported",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "delete where supported",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L12.requirement.upload-drop-new-image",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "upload/drop new image",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L12.requirement.replace-content",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "replace content",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L12.requirement.move-rename-supported-asset-path",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "move/rename supported asset path",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L12.requirement.delete-unreferenced-asset",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "delete unreferenced asset",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L13.requirement.create-from-image",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "create from image",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L13.requirement.crop-transform-adjust-each-exposed-non-destructive-control",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "crop/transform/adjust each exposed non-destructive control",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L13.requirement.move-resize",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "move/resize",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L13.requirement.remove-instance",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "remove instance",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L13.requirement.undo-redo",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "undo/redo",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L14.requirement.upload-drop-real-video",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "upload/drop real video",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L14.requirement.replace",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "replace",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L14.requirement.move-rename-supported-path",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "move/rename supported path",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L14.requirement.remove-instance",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "remove instance",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L14.requirement.delete-unreferenced-asset",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "delete unreferenced asset",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L15.requirement.create-open-composition",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "create/open composition",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L15.requirement.insert-clip",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "insert clip",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L15.requirement.move-reorder-clip",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "move/reorder clip",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L15.requirement.trim",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "trim",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L15.requirement.change-exposed-persistent-clip-properties",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "change exposed persistent clip properties",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L15.requirement.delete-clip",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "delete clip",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L15.requirement.undo-redo",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "undo/redo",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L16.requirement.create-edit-remove-specimen",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "create/edit/remove specimen",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L16.requirement.edit-css-token-module",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "edit CSS/token/module",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L16.requirement.move-dependency-with-reference-update",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "move dependency with reference update",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L17.requirement.reference-same-asset-from-two-canvases-sticker",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "reference same asset from two canvases/sticker",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L17.requirement.remove-one-instance",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "remove one instance",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L17.requirement.rename-move-with-refs",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "rename/move with refs",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L17.requirement.attempt-delete-of-in-use-asset",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "attempt delete of in-use asset",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L18.requirement.one-action",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "one action",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L18.requirement.gesture-group",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "gesture group",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L18.requirement.ai-multi-file-group",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "AI multi-file group",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L18.requirement.peer-interleaving",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "peer interleaving",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L18.requirement.undo-redo",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "undo/redo",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L18.requirement.preview-restore-old-revision",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "preview/restore old revision",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L19.requirement.join",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "join",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L19.requirement.move-cursor-select",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "move cursor/select",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L19.requirement.leave-reconnect",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "leave/reconnect",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L19.requirement.local-camera-change",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "local camera change",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L20.requirement.disconnect-one-desktop",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "disconnect one desktop",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L20.requirement.mutate-each-persistent-surface",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "mutate each persistent surface",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L20.requirement.restart",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "restart",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L20.requirement.peer-edits",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "peer edits",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L20.requirement.reconnect",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "reconnect",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L20.requirement.open-fresh-third-copy",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "open fresh third copy",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L21.requirement.independent-edits",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "independent edits",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L21.requirement.same-target",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "same target",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L21.requirement.folder-canvas-move-during-edit",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "folder/canvas move during edit",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L21.requirement.delete-versus-edit",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "delete versus edit",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L21.requirement.multi-file-ai-publish-abort",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "multi-file AI publish/abort",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L22.requirement.pending-edits",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "pending edits",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L22.requirement.blocked-file",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "blocked file",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L22.requirement.invalid-candidate",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "invalid candidate",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L22.requirement.auth-expiry",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "auth expiry",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L22.requirement.unavailable-storage",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "unavailable storage",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L22.requirement.successful-recovery",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "successful recovery",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L23.requirement.edit-canvas-annotations-comments-continuously-while-photos-videos-seed",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "edit canvas/annotations/comments continuously while photos/videos seed",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L23.requirement.move-delete-assets-safely",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "move/delete assets safely",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L23.requirement.switch-canvases",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "switch canvases",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L24.requirement.fresh-app-browser-reopen",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "fresh app/browser reopen",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L24.requirement.full-eligible-inventory-compare",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "full eligible inventory compare",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L24.requirement.timed-mixed-workload-soak",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "timed mixed-workload soak",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L24.requirement.final-deletion-reconciliation",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "final deletion reconciliation",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    }
+  ]
+}

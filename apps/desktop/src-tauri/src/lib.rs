@@ -680,6 +680,20 @@ pub fn run() {
     #[cfg(debug_assertions)]
     let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
 
+    // Multiplayer E2E must keep the normal cross-origin canvas containment ON:
+    // disabling it also disables TSX sync. Opt-in DOM observation in test builds
+    // lets WDIO assert the receiving canvas without changing that security gate.
+    #[cfg(debug_assertions)]
+    let builder = if std::env::var("MAUDE_E2E_FRAME_PROBE").as_deref() == Ok("1") {
+        builder.plugin(
+            tauri::plugin::Builder::<tauri::Wry>::new("e2e-frame-probe")
+                .js_init_script_on_all_frames(include_str!("e2e-frame-probe.js"))
+                .build(),
+        )
+    } else {
+        builder
+    };
+
     let app = builder
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

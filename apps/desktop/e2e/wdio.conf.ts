@@ -9,7 +9,8 @@
  * Run: `pnpm test:e2e:desktop:build` (one-time / on source change) then
  *      `pnpm test:e2e:desktop`.
  */
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, realpathSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -96,7 +97,9 @@ process.env.MAUDE_E2E_RUN_DIR ??= resolve(
 
 // ── App binary path (per platform; override with MAUDE_E2E_APP) ────────────
 function resolveAppPath(): string {
-  if (process.env.MAUDE_E2E_APP) return process.env.MAUDE_E2E_APP;
+  // Tauri's sidecar resolver rejects a StartingBinary containing symlinks on
+  // macOS (including /tmp → /private/tmp). Launch the canonical executable.
+  if (process.env.MAUDE_E2E_APP) return realpathSync(process.env.MAUDE_E2E_APP);
   const target = join(HERE, '..', 'src-tauri', 'target', 'debug');
   // `tauri build --debug` bundles per platform. productName = "Maude" (the .app),
   // but the binary is the Cargo package name `maude-desktop`. Prefer the binary
@@ -122,6 +125,18 @@ function resolveAppPath(): string {
 
 export const config: WebdriverIO.Config = {
   runner: 'local',
+  beforeSession() {
+    // The runner can install a newer Undici global dispatcher before WebDriver
+    // loads its own copy. Mixing their header representations fails POST /session
+    // with UND_ERR_INVALID_ARG (invalid content-length header) on Node 24.
+    // Resolve through WebDriver so its fetch and dispatcher share one version.
+    const require = createRequire(import.meta.url);
+    const globalsRequire = createRequire(require.resolve('@wdio/globals'));
+    const ioRequire = createRequire(globalsRequire.resolve('webdriverio'));
+    const driverRequire = createRequire(ioRequire.resolve('webdriver'));
+    const { Agent, setGlobalDispatcher } = driverRequire('undici');
+    setGlobalDispatcher(new Agent());
+  },
   tsConfigPath: join(HERE, 'tsconfig.json'),
 
   specs: DEFAULT_SPECS,
