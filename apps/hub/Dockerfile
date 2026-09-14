@@ -67,6 +67,13 @@ COPY apps/studio/git/safe-rel.ts /build/apps/studio/git/safe-rel.ts
 # at all while it calls the REAL slug function rather than a copy of it.
 COPY apps/studio/sync/canvas-path.ts /build/apps/studio/sync/canvas-path.ts
 COPY apps/studio/canvas-slug.ts /build/apps/studio/canvas-slug.ts
+# The source validator the studio projector gates disk writes with, and the
+# byte ceilings it reads. The workspace agent refuses to write or commit a body
+# it rejects (audit 2026-09-13 P0 #2) — with the SAME parser, not a hub-side
+# approximation. `oxc-parser` stays external (build.ts) and comes from this
+# image's frozen node_modules, pinned to the studio's exact version.
+COPY apps/studio/sync/source-validation.ts /build/apps/studio/sync/source-validation.ts
+COPY apps/studio/sync/limits.ts /build/apps/studio/sync/limits.ts
 # Same rule, third file: the `git log` format string, its argv (including the
 # GIT_LITERAL_PATHSPECS hardening that must travel WITH a scoped argv) and its
 # parser. `src/history.mjs` serves the cloud-managed desktop's History tab, and

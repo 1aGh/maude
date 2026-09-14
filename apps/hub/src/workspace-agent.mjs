@@ -30,6 +30,10 @@ import {
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { createAutoCommit } from '../../studio/sync/autocommit.ts';
 import { resolveCanvasBodyRel } from '../../studio/sync/canvas-path.ts';
+// The SAME validator the studio projector gates disk writes with — a second
+// spelling here is how the hub came to write and commit source the desktop
+// refuses (audit 2026-09-13 P0 #2).
+import { sourceError } from '../../studio/sync/source-validation.ts';
 import { createGitRunner, ensureRepo, gitAvailable } from './git-runner.mjs';
 import { realpathOfDeepestExisting } from './path-contain.mjs';
 import {
@@ -122,6 +126,10 @@ export function createWorkspaceAgent(opts) {
   // newer local save. A paired studio can project a peer edit and then save a
   // user edit before this hub's delayed store hook runs for the peer edit.
   const storedBodyHashes = new Map();
+  // Body rel → { hash, reason } for a document body the validator refused.
+  // The candidate itself stays in the Y.Doc; the checkout keeps the last
+  // valid body and history never records the rejected one.
+  const rejectedSources = new Map();
   /** Declared canvas groups, from the tenant's own `.design/config.json`. */
   let canvasGroups = null;
 
@@ -610,9 +618,22 @@ export function createWorkspaceAgent(opts) {
         bodyHash !== null &&
         diskBodyHash !== (storedBodyHashes.get(bodyRel) ?? null) &&
         onDisk.body !== content.body;
+      const invalidReason = content.body === null ? null : sourceError(bodyRel, content.body);
+      if (invalidReason) {
+        if (rejectedSources.get(bodyRel)?.hash !== bodyHash) {
+          log.warn?.(
+            `[workspace] refusing invalid source for ${bodyRel} (${invalidReason}); ` +
+              'the checkout keeps its last valid body and history skips this revision'
+          );
+        }
+        rejectedSources.set(bodyRel, { hash: bodyHash, reason: invalidReason });
+      } else if (content.body !== null) {
+        rejectedSources.delete(bodyRel);
+      }
       // Keep unrelated lanes flowing. Body-coupled CSS must wait too, and the
       // same filtered content must govern both projection and commit eligibility.
-      const projectable = awaitingBodyImport ? { ...content, body: null, css: null } : content;
+      const holdBody = awaitingBodyImport || invalidReason !== null;
+      const projectable = holdBody ? { ...content, body: null, css: null } : content;
       const writes = filesForCanvas({ bodyRel, content: projectable, onDisk });
 
       // WHAT TO COMMIT IS NOT WHAT WE WROTE — desktop ↔ cloud live pairing.
@@ -643,7 +664,7 @@ export function createWorkspaceAgent(opts) {
         atomicWrite(abs(w.relPath), w.text);
         toStage.add(w.relPath);
       }
-      if (!awaitingBodyImport && bodyHash !== null) storedBodyHashes.set(bodyRel, bodyHash);
+      if (!holdBody && bodyHash !== null) storedBodyHashes.set(bodyRel, bodyHash);
       for (const rel of toStage) {
         // autocommit stages paths relative to the REPO root, not the design root.
         auto.note(relative(repoDir, abs(rel)).split(sep).join('/'), who);
@@ -684,6 +705,10 @@ export function createWorkspaceAgent(opts) {
     /** Test/diagnostic surface. */
     get indexed() {
       return pathIndex.size;
+    },
+    /** Body rel → { hash, reason } of document bodies the validator refused. */
+    get rejectedSources() {
+      return rejectedSources;
     },
   };
 }

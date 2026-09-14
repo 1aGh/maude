@@ -20,6 +20,7 @@
     "@hocuspocus/server": "^4.3.0",
     "better-sqlite3": "^12.11.1",
     "jose": "6.1.0",
+    "oxc-parser": "0.139.0",
     "yjs": "^13.6.31"
   },
   "devDependencies": {

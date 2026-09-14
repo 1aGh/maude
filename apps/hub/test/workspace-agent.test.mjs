@@ -539,6 +539,97 @@ describe('workspace agent, end to end against real git', () => {
       }
     });
 
+  it('invalid source never overwrites the valid checkout or reaches history (audit P0 #2)', {
+    skip: gitOk ? false : 'git not available',
+  }, async () => {
+    const repo = tmp();
+    const agent = createWorkspaceAgent({ repoDir: repo, debounceMs: 60_000, log: silent() });
+    const doc = new Y.Doc();
+    const args = { documentName: 'ws/repro/main/home', document: doc };
+    const setBody = (text) =>
+      doc.transact(() => {
+        doc.getText('html').delete(0, doc.getText('html').length);
+        doc.getText('html').insert(0, text);
+      });
+    const good = 'export default function Home(){return <main>Good</main>}\n';
+    const bad = 'export default function Home(){return <main title="broken';
+    const fixed = good.replace('Good', 'Fixed');
+    const file = join(repo, '.design/home.tsx');
+    try {
+      await agent.start();
+      setBody(good);
+      doc.getText('meta').insert(0, JSON.stringify({ title: 'Before' }));
+      await agent.onDocumentStored(args);
+      assert.equal((await agent.flush()).ok, true);
+
+      setBody(bad);
+      doc.getText('meta').delete(0, doc.getText('meta').length);
+      doc.getText('meta').insert(0, JSON.stringify({ title: 'Independent' }));
+      const out = await agent.onDocumentStored(args);
+      assert.equal(readFileSync(file, 'utf8'), good, 'the valid checkout must survive');
+      assert.ok(!out?.staged.includes('home.tsx'), 'the rejected body must not be staged');
+      assert.equal(
+        JSON.parse(readFileSync(join(repo, '.design/home.meta.json'), 'utf8')).title,
+        'Independent',
+        'unrelated lanes keep flowing'
+      );
+      assert.equal(agent.rejectedSources.get('home.tsx')?.reason, 'Source has syntax errors or duplicate bindings');
+      await agent.flush();
+      assert.equal(
+        execFileSync('git', ['show', 'HEAD:.design/home.tsx'], { cwd: repo, encoding: 'utf8' }),
+        good
+      );
+
+      // A valid repair projects and commits normally and clears the rejection.
+      setBody(fixed);
+      await agent.onDocumentStored(args);
+      assert.equal(readFileSync(file, 'utf8'), fixed);
+      assert.equal(agent.rejectedSources.has('home.tsx'), false);
+      assert.equal((await agent.flush()).ok, true);
+      assert.equal(
+        execFileSync('git', ['show', 'HEAD:.design/home.tsx'], { cwd: repo, encoding: 'utf8' }),
+        fixed
+      );
+    } finally {
+      await agent.stop();
+      doc.destroy();
+    }
+  });
+
+  it('invalid source already on disk is never committed by a store (audit P0 #2)', {
+    skip: gitOk ? false : 'git not available',
+  }, async () => {
+    const repo = tmp();
+    const agent = createWorkspaceAgent({ repoDir: repo, debounceMs: 60_000, log: silent() });
+    const doc = new Y.Doc();
+    const args = { documentName: 'ws/repro/main/home', document: doc };
+    const good = 'export default function Home(){return <main>Good</main>}\n';
+    const bad = 'export default function Home(){return <main title="broken';
+    try {
+      await agent.start();
+      doc.getText('html').insert(0, good);
+      await agent.onDocumentStored(args);
+      assert.equal((await agent.flush()).ok, true);
+      // A paired writer already materialized the same invalid bytes, so the
+      // write path has nothing to do — the commit-eligibility path must refuse.
+      writeFileSync(join(repo, '.design/home.tsx'), bad);
+      doc.transact(() => {
+        doc.getText('html').delete(0, doc.getText('html').length);
+        doc.getText('html').insert(0, bad);
+      });
+      const out = await agent.onDocumentStored(args);
+      assert.ok(!out?.staged.includes('home.tsx'));
+      await agent.flush();
+      assert.equal(
+        execFileSync('git', ['show', 'HEAD:.design/home.tsx'], { cwd: repo, encoding: 'utf8' }),
+        good
+      );
+    } finally {
+      await agent.stop();
+      doc.destroy();
+    }
+  });
+
   it('a browser-only edit produces a server commit authored by the human', {
     skip: gitOk ? false : 'git not available',
   }, async () => {
@@ -615,14 +706,15 @@ describe('workspace agent, end to end against real git', () => {
     await agent.start();
 
     const doc = new Y.Doc();
-    doc.getText('html').insert(0, 'new\n');
+    const next = 'export default () => <p>new</p>;\n';
+    doc.getText('html').insert(0, next);
     const out = await agent.onDocumentStored({
       documentName: 'ws/a/main/ui-card',
       document: doc,
       user: null,
     });
     assert.deepEqual(out.written, ['ui/Card.tsx']);
-    assert.equal(readFileSync(join(repo, '.design/ui/Card.tsx'), 'utf8'), 'new\n');
+    assert.equal(readFileSync(join(repo, '.design/ui/Card.tsx'), 'utf8'), next);
     assert.ok(
       !existsSync(join(repo, '.design/ui-card.tsx')),
       'must not flatten an existing canvas'
@@ -876,7 +968,7 @@ describe('shutdown must not race the commit', () => {
     const agent = createWorkspaceAgent({ repoDir: repo, debounceMs: 60_000, log: silent() });
     await agent.start();
     const doc = new Y.Doc();
-    doc.getText('html').insert(0, 'late edit\n');
+    doc.getText('html').insert(0, 'export default () => <p>late edit</p>;\n');
     await agent.onDocumentStored({
       documentName: 'ws/a/main/home',
       document: doc,
@@ -1010,7 +1102,7 @@ describe('a retired document (the move protocol, studio codec stampMovedTo)', ()
     // enough: `movedTo` is peer-written, and "something exists there" answers
     // yes for `config.json` too.
     const moved = new Y.Doc();
-    moved.getText('html').insert(0, 'moved body');
+    moved.getText('html').insert(0, 'export default () => <p>moved body</p>;\n');
     moved.getMap('syncMeta').set('path', 'ui/folder/home.tsx');
     await agent.onDocumentStored({
       documentName: 'ws/acme/main/ui-folder-home',

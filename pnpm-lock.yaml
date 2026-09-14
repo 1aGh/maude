@@ -101,6 +101,9 @@ importers:
       jose:
         specifier: 6.1.0
         version: 6.1.0
+      oxc-parser:
+        specifier: 0.139.0
+        version: 0.139.0
       yjs:
         specifier: ^13.6.31
         version: 13.6.31

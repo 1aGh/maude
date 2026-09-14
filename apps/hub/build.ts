@@ -56,8 +56,10 @@ const result = await Bun.build({
   format: 'esm',
   minify: MODE === 'release',
   // Native SQLite bindings load at runtime against the host platform.
-  // Hocuspocus' sqlite extension uses better-sqlite3 by default.
-  external: ['better-sqlite3', 'bun:sqlite', 'node:sqlite'],
+  // Hocuspocus' sqlite extension uses better-sqlite3 by default. oxc-parser
+  // (the studio's source validator, shared by the workspace agent) is a napi
+  // module too: its platform binding resolves from node_modules at runtime.
+  external: ['better-sqlite3', 'bun:sqlite', 'node:sqlite', 'oxc-parser'],
   // Stable single-file emit; entry basename is `server` from `src/server.mjs`.
   // We rename below for the dist/hub.bundle.mjs contract.
 });
@@ -110,7 +112,7 @@ const rehydrate = await Bun.build({
   target: 'node',
   format: 'esm',
   minify: MODE === 'release',
-  external: ['better-sqlite3', 'bun:sqlite', 'node:sqlite'],
+  external: ['better-sqlite3', 'bun:sqlite', 'node:sqlite', 'oxc-parser'],
 });
 if (!rehydrate.success) {
   for (const log of rehydrate.logs) console.error(log);
