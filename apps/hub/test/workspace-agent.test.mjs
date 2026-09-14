@@ -573,7 +573,10 @@ describe('workspace agent, end to end against real git', () => {
         'Independent',
         'unrelated lanes keep flowing'
       );
-      assert.equal(agent.rejectedSources.get('home.tsx')?.reason, 'Source has syntax errors or duplicate bindings');
+      assert.equal(
+        agent.rejectedSources.get('home.tsx')?.reason,
+        'Source has syntax errors or duplicate bindings'
+      );
       await agent.flush();
       assert.equal(
         execFileSync('git', ['show', 'HEAD:.design/home.tsx'], { cwd: repo, encoding: 'utf8' }),
