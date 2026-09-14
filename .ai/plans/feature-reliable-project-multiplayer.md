@@ -1,6 +1,6 @@
 ---
 name: feature-reliable-project-multiplayer
-status: planned
+status: in-progress
 created: 2026-09-13
 decisions:
   - Complete the designer workflow on both self-hosted and Cloudflare hubs; containment fixes and prototypes are milestones, not a scope cut.
@@ -136,9 +136,334 @@ Instrumented local edits and AI supply exact base tokens. A watcher cannot know 
 - **Package managers:** root pnpm 11 (`pnpm-lock.yaml`); studio independently uses Bun (`apps/studio/bun.lock`); native Rust/Cargo
 - **Loaded expertise:** `flow:skill-loader`, `flow:kgai-backend`, `flow:debate-protocol`, `durable-objects`; official Yjs/Hocuspocus/Tauri docs fallback
 - **Dependencies:** current Hocuspocus 4.3/Yjs 13.6, OXC source validation, SQLite, R2/S3, Tauri 2. New runtime dependencies require T8 evidence and packaging validation; no speculative installation during planning.
-- **Scope status:** complete target planned; production execution not started
+- **Scope status:** execution in progress; T1 real UI baseline partially exercised and preserved; T2 hub/source guards pass the 60-edit lane and the completed 300-edit run; T6 executable draft, T7 socket/browser proof and T8 local storage experiments in progress
+
+### Execution checkpoint — 2026-09-14
+
+T1 remains **unchecked and incomplete**, but the environment block is resolved.
+After the user enabled full access in Codex desktop, Chromium, ordinary
+`pnpm dev:desktop`, and `pnpm test:e2e:desktop:build` succeeded. The shared WDIO
+config now uses WebDriver's own Undici dispatcher and canonical native paths.
+The multiplayer config keeps cross-origin containment ON; an explicitly opted-in,
+debug-only frame probe observes the actual native canvas without disabling TSX sync.
+
+The initial real three-participant run at `2026-09-13T21-14-16.079Z` verified
+rendered source changes in all directions and byte/pixel-correct PNG plus MP4
+playback and seeking on hub browser, bundled WKWebView, and an independent
+sidecar. New-canvas tree arrival took roughly 3–12 seconds in passing observations;
+one receiver missed the 15-second deadline. These are individual observations,
+not certified latency distributions. The corrected empty-directory assertion
+accepts zero-byte `.gitkeep`; the repeated measurement fails all six remote
+folder observations. All six open-canvas receivers also failed to follow a
+UI-originated move within 15 seconds in `2026-09-14T05-47-40.258Z`; each origin
+successfully moved its own canvas. The native screenshot still reports `synced`
+on the old path. Dependent deletes were unexercised because their move
+preconditions failed. Independent deletes subsequently reproduced all six
+receiving failures, confirmed again in clean run `2026-09-14T06-12-31.155Z`.
+Earlier annotation observations could read underneath a canvas-load overlay;
+the observer now rejects loading/error overlays and unavailable frames. Clean
+isolated-canvas run `2026-09-14T06-20-05.872Z` passes sticky create/text/move/
+resize/color/delete in every direction, but Undo-delete fails on both receivers
+for every author. A separate shared-canvas sequence retains the failed Undo and
+reproduces subsequent native/peer delete failures. These profiles cannot replace
+each other. UI text editing passes short runs, while the planned 100-actions-per-
+author run `2026-09-14T06-28-41.549Z` recorded nine failed actions out of 208
+before its whole-scenario time budget aborted the incomplete series.
+Failed/missing samples invalidate the affected percentile rather than being
+dropped. The control-only watcher profile also misses external saves at the hub
+view despite passing UI edits. Other tools/history variants remain unexercised.
+
+The completed follow-up `2026-09-14T06-56-28.401Z` performed all 300 UI text
+edits: 223 passed and 77 failed. Fifteen hub edits reverted in all three final
+TSX snapshots; from sample 70 onward the hub view also missed every native/peer
+edit despite current source on disk. Bun parsed 1,239 TSX files/snapshots with
+zero syntax errors; 45 of 900 final comparisons mismatched. This establishes
+lost edits and stale rendering, not malformed TSX or a certified timing baseline.
+Real PNG intake and reference deletion now pass every direction, and a viewer
+fixture session verifies read-only controls. Photo brightness passes; native
+reset reverted. Square/rounded-square create/move/resize pass all directions;
+rounded deletion reaches remote disk while all six remote views retain the
+shape. Empty-folder deletion fails both remote UI and disk in all directions.
+Pen/highlighter/arrow and text/section basic lifecycle actions now pass, while
+eraser undo reproduces the stale-view failure. A content-history echo guard
+identifies repeated SVG bytes as duplicate actions, explaining repeated deletion
+and undo failures. Cold video intake also records a media request before local
+bytes arrive; explicit playback and recovery are measured separately from the
+visible reference. The full evidence and harness-error qualifications are in
+the execution report.
+
+An independent UI defect is reproduced on all three participants: clicking an
+already active canvas resets the shell load state without reloading the iframe,
+then blocks the rendered canvas with a server-error overlay after 15 seconds.
+The baseline records this as L05; T22 must cover its correction. Test preparation
+now opens a canvas only when needed; it does not refresh a failed receiving edit.
+
+- Run: `bash .ai/scenarios/reliable-project-multiplayer/runners/local-e2e.sh --mode baseline`.
+  Exit 2 means **partial/incomplete**, not a passing full baseline. No `baseline.json`
+  is emitted until the full matrix, provenance and measurement gates are satisfied.
+- Clean expanded evidence: `.ai/device/scenario-runs/reliable-project-multiplayer/2026-09-14T06-12-31.155Z/`
+  (`surface-results.json`, native/screenshots, source/bundle/fixture manifests).
+  PNG/MP4 evidence remains in `2026-09-13T21-14-16.079Z`.
+- Detailed history: [T1 execution report](../scenarios/reliable-project-multiplayer/execution-2026-09-13.md).
+- Remaining T1 work: all operation variants and directions, full owner/designer/viewer
+  matrix, remaining media formats and controls, history, concurrency/offline/failure recovery,
+  standalone-hub and complete control-only profiles, exhaustive source/bundle/fixture provenance,
+  measured observer overhead, three warm timing passes and the 30-minute soak.
+  T2 has started under the dated execution amendment below. T6's contract draft
+  has started as the independent M1 preparation allowed below; it remains incomplete.
+  At that checkpoint T3–T5 and T7–T35 had not started; the newer architecture checkpoint below supersedes that progress snapshot.
+  Its first candidate rejects unchanged body notifications after an echo expires
+  or is consumed; 38 focused tests, studio typecheck and native build pass.
+  Candidate `2026-09-14T08-15-27.812Z` passes 59/60 UI text actions and all six
+  external/atomic-save actions; one hub edit still rolls back on all three peers.
+  The first hub guard also failed. Hash-only tracing in `08-32-37.391Z` proves
+  six hub writes replacing each next local edit with the preceding peer edit:
+  the hub's last stored body was older still. The current guard checks the last
+  body observed/materialized by that writer against actual disk before writing.
+  Both real-Git regression variants and all 923 hub tests pass. The temporary
+  tracing was removed; no new runtime dependency was introduced.
+  Candidate `08-50-27.936Z` passes all 60 UI text actions and six external/atomic
+  saves; all 360 TSX parse checks and final source comparisons pass. The 300-edit
+  candidate `08-53-38.316Z` passes all 300 edits; 1,311 source parses and final comparisons are clean. These guards do not yet prove
+  restart-safe conflict lifetime, arbitrary stale-buffer handling or atomic
+  multi-process projection. T6 is drafted in `docs/architecture/project-transactions.md`.
+  Annotation echo identity containment is now implemented across UI/API/registry
+  and filesystem imports (T26/T28 compatibility subpart). 153 focused tests,
+  studio typecheck and native build pass. The first native run `09-19-58.469Z`
+  fails during bootstrap (`/_index-data` 502), before annotation actions. Retry
+  `09-25-47.937Z` passes all 18 shape deletes and 12 undo/redo checks but retains
+  two annotation rollbacks and native photo reset (179 pass, 3 fail). A separate
+  stale-projection re-publication race now has three red-to-green tests and a
+  dedicated freshness-checked disk sink. The wider 401-test suite (including all
+  API cases) and typecheck pass. Native candidate `09-42-15.543Z` completes with
+  217 pass, 1 fail, 3 unsupported and 70 not-run: all executed annotation and
+  text rows pass; native `.photo.json` reset still reverts. All 240 TSX parse
+  checks/final expected-text comparisons pass. Diagnostic photo run `09-57-41.648Z`
+  reproduces native reset rollback and traces it to reset-click before field blur:
+  `PhotoKnobs` cloned stale state before React rendered. Its mutation ref now
+  advances synchronously; both event-order regressions and all 47 photo tests
+  pass, along with typecheck and rebuilt client/native artifacts. Candidate
+  `10-01-50.780Z` completed the affected annotation/text/photo matrix:
+  218 pass, 0 fail, 3 unsupported, 70 not-run, including all three photo-reset
+  directions and final disk/render checks. Peer photo reset delays of 0.93–3.59s
+  still miss the final performance goal. Cold video/audio arrival recovery now
+  has eight DOM regression cases (four observed red before the change), with
+  44 scoped tests passing. Media candidate `10-13-40.303Z` completes 29 pass,
+  0 fail, 235 not-run: all nine uploaded-video play/seek observations pass,
+  including receivers with captured initial MP4 404s. Seeded video and photo
+  rows also pass. Audio decode/large media/performance remain open. The next
+  small UX repair prevents a repeated active-canvas click from entering an
+  impossible loading state. Client/native builds and typecheck pass. Candidate
+  `10-17-57.376Z` completes 32 pass, 0 fail, 232 not-run: all three re-click
+  cases pass beyond 17 seconds, along with repeated photo/video regressions.
+  Index fetch now automatically retries transient errors and serializes refreshes.
+  Seven lifecycle tests, typecheck and client/native builds pass. Deterministic
+  502 fixture failed startup before the fix (`10-22-27.070Z`); candidate
+  `10-27-24.891Z` completes 43 pass, 0 fail, 223 not-run, including both browser
+  recovery cases, text/media/navigation rows and 132 clean source parses with
+  nine matching final texts. Structural candidate `10-30-34.935Z` completes
+  6 pass, 20 fail, 3 unsupported, 235 not-run: empty folders do not propagate,
+  two create directions exceed 15s, remote open views fail move/delete checks.
+  All three subsequent created-canvas render cases pass; logs confirm actual
+  remote retirement/quarantine, so next trace structural delivery versus active
+  view updates. T6 draft now records exact folder/retirement/deletion seams.
+  First-class manifest directories, acknowledged moves/deletes, full coverage
+  and the rest of the plan remain required.
+  Full operation coverage and accepted-revision architecture remain open.
+  No milestone is complete.
+
+### Architecture integration checkpoint — 2026-09-14
+
+- Metadata-only discovery is now wired through both ordinary and cell-owned
+  control providers. The last frozen native run `2026-09-14T11-12-06.584Z`
+  completes **32 pass / 0 fail / 232 not-run**, including all selected canvas
+  create/move/delete, UI text and uploaded-photo/reset rows. Source audit:
+  123 parses, zero errors, nine exact matches. Dedicated move/delete fixtures
+  remove unrelated folder setup dependencies; empty directories are still open.
+  Delete observations are below 637 ms in this run, but create/move and some
+  text render observations still take seconds. Full latency acceptance is open.
+- T6 now has a 93-row concrete writer registry and executable strict schemas:
+  125 tests, 25 named operation families, 69 representative variants, 146 valid
+  and 24 invalid corpus records, 11 checked writer bindings. Remaining variants,
+  permission/effect/inverse mappings and full registry conformance stay open.
+  `.footage.json`/`.edl.json` exclusion in current file membership is recorded as
+  a product surface gap; these schemas do not migrate that path.
+- T7 has four passing real socket/process cases plus an actual Chromium SDK +
+  IndexedDB U1/U2/rebase/unsaved-storage case. Accepted/private state separation
+  and exact retained candidates work in the fixture. Full production/native
+  outbox and accepted gateway integration remain required.
+- T8 has **13 passing self-host SQLite** and **3 passing local workerd/DO**
+  storage tests, including actual process death after commit/before ACK and
+  reconstruction from storage outside the renderer checkout. These are local
+  primitives, not chosen adapters or real AWS/R2/S3 durability evidence.
+- Detailed source paths, test commands, bounds and remaining gates are in
+  `notes/reliable-project-multiplayer-spikes.md`. No T1–T35 checkbox is complete.
+  Next architecture work: validation-runtime choice and one shared two-backend
+  failure corpus, then actual persistence/staging evidence before T9–T12.
+
+### Storage conformance checkpoint — 2026-09-14
+
+Shared strict ProposalV1 storage corpus now passes 22 cases across local SQLite
+and actual workerd DO storage. Warm production-parser pool passes three cohesive
+failure/recovery tests and 17 source cases; an initial cold-process benchmark
+504 is retained, while the final separate 50-sample comparison passes unchanged
+limits. Optional S3 conditional-write primitives retain 58 passing related tests;
+hub build and cold bundle import pass. AWS read-only inspection confirms v1.2.0
+image tags and local Docker data/repo volumes; Cloudflare still gates live pairing
+to Alligators. See [spike evidence](notes/reliable-project-multiplayer-spikes.md)
+for paths, measurements, failed attempts and scope limits. T8 is still open:
+object-store journal/head, real staging, blobs, snapshots, isolated validator and
+adapter selection remain prerequisites to T9–T12. All T1–T35 checkboxes stay open.
+
+### Real S3 journal checkpoint — 2026-09-14
+
+The object-journal candidate now passes 11 local HTTP/process cases and three
+actual AWS S3 cases: two-process conditional head race, live stale-owner fencing,
+and SIGKILL after real S3 commit before ACK with fresh-owner replay. The isolated
+prefix was cleaned by exact version ID: 16 deleted, zero remaining. Shared
+SQLite/workerd conformance remains 22/0 after extracting its fixture policy.
+See [candidate report](../../scripts/dev/sync-e2e/durable-store-spike/object-journal/README.md)
+and [spike evidence](notes/reliable-project-multiplayer-spikes.md). This is a
+small real S3 proof, not production adapter selection: full-chain O(N) reads,
+snapshots/compaction, cached indexes, blob readiness, DO/R2, isolation and measured
+latency/cost remain T8 gates. No product sync switch or deployment occurred.
+
+### Indexed snapshot checkpoint — 2026-09-14
+
+The object-store candidate now passes 9 local snapshot cases and 7 actual S3
+checks with bounded state/receipt reads and complete retained test history.
+Normal journal regression remains 11/0. All 53 new test object versions were
+removed, with zero left under its isolated prefix. See
+[snapshot evidence](../../scripts/dev/sync-e2e/durable-store-spike/object-journal/SNAPSHOTS.md).
+Cold state uses 2 GETs and historical receipt 3; warmed appends use 1 GET + 2 PUTs.
+Observed development-host append samples are 321–445 ms before peer rendering,
+so final latency is not established. T8 remains open for full blob-backed state,
+actual DO/R2, AWS-local performance, retention/compaction and validation isolation.
+This adds a bounded experimental snapshot/index, not a production sync switch.
 
 **Concurrent plan boundary:** `.ai/plans/feature-share-link-deeplink.md` was created in the shared tree during this planning pass. It owns file share URLs, `?open=` navigation/return-to and file-target deep-link parsing. This plan owns invitation/project membership, managed local copies and accepted state. T21/T22 must reuse or extend its project resolver and link parser when present, not create a second competing resolver or change its URL contract incidentally. Neither plan blocks M0/M1; coordinate the shared native open/auth seams before their UI integration.
+
+### Regional and paged-document checkpoint — 2026-09-14
+
+AWS-local prototype ACK medians are 91.38/98.93 ms for 1/64 KiB (20 samples
+per size, earlier inline snapshot format); this is not peer-render SLO proof.
+Current paged document snapshots remove the demonstrated whole-project 1-MiB
+cap: 160 documents / 10 MiB restore progressively, with two metadata GETs and
+two additional GETs for a selected document. Final local journal/snapshot/document
+suite: 23 pass; standalone bundle: one pass; final actual S3 suite: eight cases
+pass, all 148 created versions removed. Source bytes/code units and old receipts
+survive recovery; production UI was not changed in this block. See the latest
+execution report and `object-journal/{REGIONAL,DOCUMENTS}.md` for exact evidence.
+T8 still requires actual DO/R2, validation isolation, retention/compaction and
+final adapter selection. All T1–T35 checkboxes remain open.
+
+### Cloud DO/R2 checkpoint — 2026-09-14
+
+Fifteen local workerd/DO/R2 tests pass, including six SIGKILL boundaries,
+146 valid / 24 invalid in-Worker contract fixtures, and cold paged restoration
+of 80 documents / 5 MiB. An isolated actual Cloudflare Worker/R2 run passed
+correctness and exact retry/fencing checks. All 64 objects, diagnostic Worker,
+bucket and DO namespace were removed and absence verified.
+The current R2-first hot path **fails performance**: coordinator medians 337/444 ms
+for 1/64 KiB, excluding peer rendering. Next revise this same candidate to commit
+small operations/payloads in DO SQLite and move R2 archive work off the live ACK
+path, then repeat fault and actual backend measurement. T8 and all T1–T35 remain
+open. Exact evidence and limits are in the execution report and
+`durable-store-spike/cloud-r2/README.md`.
+
+
+### 2026-09-14 — DO SQL hot path passes actual remote correctness and storage latency probe
+
+The existing Cloudflare candidate now atomically stores exact proposal/source
+bytes, payload usage, action, head, document reference and dedup result in DO
+SQLite before acknowledging. Append/current-source reads do not call R2;
+snapshots archive source to immutable R2 objects. This changes the same candidate,
+not the product sync or its deployment. Local workerd tests: 17 pass, 0 fail,
+0 skip (27.02 s), including four SQL rollback boundaries, six append/snapshot
+SIGKILL boundaries, no-R2 acceptance/restart, archive corruption, 80-document
+cold reconstruction and bounded inline-capacity refusal without partial state.
+Evidence: `/tmp/maude-cloud-inline-proof/evidence.json` and matching `.log`.
+
+The first actual run failed before samples with a JSON parse error. Its original
+HTTP status was not captured, so its cause remains unproved. The runner now
+records HTTP status/content type and bounded redacted response detail before
+JSON decoding. Explicit `--resume-empty` preserves the failed evidence, reuses
+the private diagnostic token and requires all three projects to have epoch 1,
+revision 0, zero actions/results/documents and zero payload bytes before writes.
+All three readiness assertions passed; no unknown accepted writes were replayed.
+
+Actual run 14:01:22–14:01:39 UTC passed: twenty first submissions each at 1 KiB
+and 64 KiB, snapshot restoration, exact receipt retry, ID reuse rejection,
+membership/epoch fencing, one accepted concurrent base claimant and three SQL
+rollback injections. Coordinator median/sample p95: 49/58 ms (1 KiB), 42/62 ms
+(64 KiB). Client ACK median/sample p95: 91.40/132.21 ms and 96.21/152.41 ms.
+The prior R2-first coordinator medians were 337/444 ms. This is a promising
+storage result, not a controlled speedup estimate: the observed edge changed
+from FRA to PRG, DO location is unknown, and each size has only 20 observations.
+Timing excludes OXC validation, accepted publication and peer UI rendering;
+no native latency SLO or managed host crash guarantee is proved by this run.
+
+Tested/deployed bundle SHA-256:
+`66bffa14b1c6ee2ee9a91c7b80dad27bcc9dc3b924cbb0d165feea84a01b7785`.
+Fresh isolated Worker/bucket `maude-sync-probe-0115bcc93157` used no product
+routes/bindings. All 18 archive objects were deleted (9 + 9 + 0), all projects
+drained, then Worker and bucket deleted. Read-only checks confirm Worker 10007,
+no matching bucket and no matching DO namespace in the complete four-namespace
+list. Private token removed. Evidence, original failure, readiness, measurements
+and teardown: `/tmp/maude-cloud-inline-staging/`.
+
+T8 remains open for bounded retention/compaction and archive progress, validation
+service isolation, adapter selection and deployable recovery/runbook requirements.
+The 32-MiB inline payload guard is not a production retention policy. T7/T8 are
+still hard dependencies of T9 production integration; do not bypass them because
+this storage probe passes. Full onboarding, all writers/surfaces, history/personal
+undo, all local native E2E rows and cloud/self-host staged matrices remain open.
+All T1–T35 checkboxes remain open. No commit, push, product migration or release.
+
+
+### 2026-09-14 — bounded archive retirement and non-starving snapshots
+
+The existing DO/R2 candidate now archives at most 16 payloads / 1 MiB per call.
+It loads only selected bodies, verifies SHA-256 before upload and by R2 readback,
+then atomically records archive references, removes obsolete inline bodies and
+updates usage. Current document hashes remain inline. Retirement rechecks epoch,
+membership and drain state; concurrent batches cannot decrement usage twice.
+Exact history reads resolve proposal/source hashes from inline or verified archive
+storage; original dedup receipts remain SQL-resident and unchanged.
+
+Snapshot publication now accepts its immutable captured revision while newer edits
+continue, with a monotonic pointer and epoch/member fences. A captured old source
+can be read from the archive after inline retirement. A slower old snapshot cannot
+replace a newer completed snapshot. This removes the previous edit-induced
+snapshot-raced starvation condition without deleting the log needed to reach head.
+
+Final local actual workerd/SQLite/R2 proof: **26 pass / 0 fail / 0 skip**, 27.91 s.
+This retains the strict wire corpus, previous crash/retry/isolation cases and
+adds three archive SIGKILL boundaries, transactional rollback, corrupt/missing R2,
+24 revisions under an 8192-byte inline budget with exact cold history/receipts,
+epoch/member/edit races, overlap accounting, and 20 multibyte documents archived
+in four bounded batches with exact history. The first large-batch fixture exceeded
+the 65536-character operation limit and was correctly rejected. It was replaced
+with valid multibyte text of the same approximate byte size; no limit was relaxed.
+That failed evidence remains `/tmp/maude-cloud-archive-final-proof/`.
+Passing evidence: `/tmp/maude-cloud-archive-final-proof-v2/` and matching `.log`.
+Final bundle SHA-256:
+`f46cb539eebf6d93d9ee7e4578315b4f6f9e864975bb0cbddafdd758740b936c`.
+Scoped Biome checks had zero errors and seven existing/style suggestions.
+
+This archive revision has not been deployed or remotely measured; do not reuse
+the previous bundle's 42–49-ms Cloudflare latency as evidence for this bundle.
+No external infrastructure was created this turn. No product source was changed.
+The probe still has explicit operator invocation, no durable background scheduler,
+and growing action/result/archive metadata. Full metadata compaction, automatic
+retry, validation-service isolation and deployment/recovery decisions remain T8
+gates. RETENTION.md defines retirement/crash semantics and the requirements for
+metadata segments/dedup indexes, GC liveness and separate disaster recovery.
+Body archival alone cannot restore the SQL action/dedup index after storage loss.
+
+The full native surface matrix, accepted publication, all writers, personal undo,
+history UX, designer onboarding and cloud/self-host staged product tests remain
+open. All T1–T35 checkboxes remain open. No commit, push or product deployment.
 
 ## Context References
 
@@ -283,7 +608,11 @@ Resolved sequence below preserves all three concerns. Storage technology is deli
 | M5 — observability, migration and product evidence | T29–T32 | Real storage loss, clean onboarding, large project, replay/migration proofs on both backends |
 | M6 — staged rollout and retirement | T33–T35 | Both distributions pass product contract; obsolete write paths removed; final evidence/roadmap/docs accurate |
 
-Execute serially by task ID unless explicit dependencies allow overlap. **T1's real local surface baseline must finish before any behavior-changing T2–T5 or production sync refactor.** T6–T8 isolated experiments may run alongside M0; T18/T20 can begin after M1; T21/T22 UI preparation can begin after T6, but cannot pass until T19/T20 work. T23 fidelity research can start early; production operations require the gateway. Fencing is implemented in T12–T14, **before any pilot activation**, not postponed to M6 cleanup. Run the affected local surface rows after each behavior change and the full local matrix at every milestone; T31 extends/certifies this early runner instead of introducing E2E only near the end.
+**Execution amendment, 2026-09-14:** the user's active goal is to iterate on sync repairs with E2E verification after each change. Preserve the collected, explicitly partial baseline and begin T2 containment now; expand remaining T1 coverage alongside individual repairs. T1 remains unchecked. This changes the ordering prerequisite, not the required surface coverage or regression standard. Every repair needs a failing reproduction, focused checks and the affected real hub/native/peer UI lane. Full local coverage and the mixed workload remain mandatory before rollout; a narrow passing run is not product certification.
+
+**Containment ordering, 2026-09-14:** after the 300-edit text lane passes, address the reproduced annotation A→B→A/undo echo defect before expanding the transaction kernel. This is the compatibility portion of T26/T28 only; their accepted-action grouping and peer-safe undo requirements remain open. Preserve delayed self-echo protection, SVG bytes and legacy callers; require native/hub/peer E2E.
+
+Execute serially by task ID unless explicit dependencies allow overlap. T6–T8 isolated experiments may run alongside M0; T18/T20 can begin after M1; T21/T22 UI preparation can begin after T6, but cannot pass until T19/T20 work. T23 fidelity research can start early; production operations require the gateway. Fencing is implemented in T12–T14, **before any pilot activation**, not postponed to M6 cleanup. Run the affected local surface rows after each behavior change and the full local matrix at every milestone; T31 extends/certifies this early runner instead of introducing E2E only near the end.
 
 ## Tasks
 
@@ -414,7 +743,7 @@ Each task includes implementation plus its meaningful regression/integration che
 - [ ] **Do:** Extend existing asset/file plane and hub door with upload-session create/status/part/complete/abort, per-part retry, whole-object verification, quota reservation and completion idempotency for R2 and S3. Add immutable asset references and inventory helper; document tx commits reference only completed durable objects. Protect current/history/pending references in GC.
 - **Pattern:** Existing ledger/CAS/hash/backoff and credential singleflight. Reuse them; do not re-mint credentials for every part.
 - **Gotcha:** Avoid routing full media through the coordinator/Worker request cap or loading files into memory; preserve tenant/path/type gates and minimum authorized grants. Two concurrent sessions cannot overspend quota or delete each other's object.
-- **Validate:** 96MiB, 513MiB and representative large video fixtures; interrupted part, lost completion response, restart, hash mismatch, expiry, quota rejection, duplicate completion and GC race. `pnpm --filter @maude/hub test`, cells tests and staged R2/S3 integration evidence.
+- **Validate:** 96MiB, 513MiB and representative large video fixtures; interrupted part, lost completion response, restart, hash mismatch, expiry, quota rejection, duplicate completion and GC race. `pnpm --filter @maude/hub test`, cells tests and staged R2/S3 integration evidence. Retain the cold MP4 intake case from T1: distinct per-author content, reference before receiver-local bytes, then explicit playback without refresh. A player stranded after an early 404 fails even when the asset hash later matches.
 
 ### T19: ADD progressive bootstrap independent of renderer restore
 
@@ -470,7 +799,7 @@ Each task includes implementation plus its meaningful regression/integration che
 - [ ] **Do:** Bind existing per-domain commands to accepted action IDs and authorship; complete multi-property grouping for annotation gestures, photo transforms and timeline edits. Preserve comment thread/resolve semantics. Remove duplicate product-history ownership from private shell stacks as each domain passes parity.
 - **Pattern:** Existing domain command implementations and T17 adapters; use transaction history rather than a new generalized UI framework.
 - **Gotcha:** These categories remain in scope even if they do not use the T23 source representation. Native source model pilot completion alone does not complete multiplayer.
-- **Validate:** One acceptance fixture per category in both directions, concurrent peer edits, interrupted gesture, multi-step undo/redo and deleted target. Each persistent effect has a project transaction ID.
+- **Validate:** One acceptance fixture per category in both directions, concurrent peer edits, interrupted gesture, multi-step undo/redo and deleted target. Each persistent effect has a project transaction ID. Include annotation A→B→A and repeated empty-SVG transitions: the current content-history echo filter in `annotations-layer.tsx` suppresses legitimate second deletions/undo. Deduplicate by action/revision identity while retaining protection against out-of-order self echoes from concurrent media intake.
 
 ### T27: ADD logical project history and restore-as-new-action
 

@@ -1,6 +1,11 @@
 {
   "generated": "2026-09-13T00:00:00.000Z",
-  "currentPhase": null,
+  "currentPhase": {
+    "id": "feature-reliable-project-multiplayer",
+    "title": "Feature: Reliable project multiplayer",
+    "branch": null,
+    "status": "in-progress"
+  },
   "phases": [
     {
       "id": "phase-1-contribute-infra-changesets",
@@ -2181,6 +2186,17 @@
       "phaseKey": null
     },
     {
+      "id": "feature-reliable-project-multiplayer",
+      "title": "Feature: Reliable project multiplayer",
+      "status": "in-progress",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Designers accept an invitation, open a project in Maude, and immediately work together across browser and desktop. Changes save durably, large media loads progressively, and personal undo preserves...",
+      "planPath": ".ai/plans/feature-reliable-project-multiplayer.md",
+      "archived": false,
+      "phaseKey": null
+    },
+    {
       "id": "feature-desktop-project-tabs-and-identity-profiles",
       "title": "Feature: Desktop project tabs + per-project identity profiles",
       "status": "planned",
@@ -2221,17 +2237,6 @@
       "date": null,
       "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. This is the extracted Phase 5 of feature-ai-media-generation (closed at Phase 4, 2026-...",
       "planPath": ".ai/plans/feature-local-media-generation.md",
-      "archived": false,
-      "phaseKey": null
-    },
-    {
-      "id": "feature-reliable-project-multiplayer",
-      "title": "Feature: Reliable project multiplayer",
-      "status": "planned",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Designers accept an invitation, open a project in Maude, and immediately work together across browser and desktop. Changes save durably, large media loads progressively, and personal undo preserves...",
-      "planPath": ".ai/plans/feature-reliable-project-multiplayer.md",
       "archived": false,
       "phaseKey": null
     },

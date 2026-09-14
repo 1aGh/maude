@@ -4,6 +4,15 @@
 > **Owner:** Michal Dovrtěl (`1aGh`)
 > **Last updated:** 2026-05-12
 
+> **Current collaboration scope — 2026-09-13:** The historical roadmap below
+> predates the cloud/native product. The current requirement is designer invite
+> → desktop project selection → live browser/desktop/local-file collaboration
+> on both self-hosted and Cloudflare hubs, with logical history, personal
+> undo/redo and rendered photo/video parity. The implementation contract is
+> [Reliable project multiplayer](../plans/feature-reliable-project-multiplayer.md).
+> Capture the unchanged local UI baseline before changing sync; existing working
+> workflows and latency are protected. This is a requirement, not a shipped claim.
+
 ## 1. Executive Summary
 
 `maude` is a Claude Code marketplace that turns Claude Code into a **complete AI-driven product workshop**: a generic agentic workflow loop (`flow`) for building stable, well-tested apps, paired with a canvas-first design tool (`design`) that replaces rapid prototyping in Figma / Claude Design for repo-local work. The two plugins share one `maude` CLI for scaffolding and tooling. Everything is project-agnostic — installed once, drives any repo via `.ai/workflows.config.json` + `.design/config.json`.

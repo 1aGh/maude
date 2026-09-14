@@ -488,8 +488,10 @@ const currentPhase = (() => {
   return {
     id: found.id,
     title: found.title,
-    branch: active.branch || null,
-    status: active.status || null,
+    // A graph-era plan can be active while STATE still describes an older
+    // release. Carry its legacy detail only when it names THIS plan.
+    branch: found.id === activePlanId ? active.branch || null : null,
+    status: found.id === activePlanId ? active.status || found.status : found.status,
   };
 })();
 
