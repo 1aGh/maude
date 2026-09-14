@@ -48,6 +48,7 @@ import type { SyncJournal } from './journal.ts';
 import { MAX_CSS_BYTES, MAX_HTML_BYTES, MAX_META_BYTES, withinByteCap } from './limits.ts';
 import { ORIGINS } from './origins.ts';
 import { repairSeedDuplication } from './seed-repair.ts';
+import { mergeSource } from './source-merge.ts';
 import { saveRecoveryBody } from './source-recovery.ts';
 import { sourceError } from './source-validation.ts';
 
@@ -131,6 +132,12 @@ export interface DocProjection {
   reconcile(): void;
   /** Force the pending doc→file flush immediately. */
   flush(): Promise<void>;
+  /**
+   * Adopt `body` as the shared base before `reconcile()`. A restart that could
+   * not merge a local candidate (cold start) hands the base back here, so the
+   * write stays blocked with a visible conflict and a later save can merge.
+   */
+  adoptBase(body: string): void;
   /** Stop the doc listener + timers. */
   stop(): void;
   /** Test/inspection — the origin used on file→doc imports. */
@@ -162,6 +169,16 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     const error = sourceError(paths.html, body);
     validationCache = { body, error };
     return error;
+  }
+
+  /** Persist the agreed body beside the journal checkpoint (best-effort). */
+  function rememberBase(body: string): void {
+    if (!opts.historyDir) return;
+    try {
+      saveRecoveryBody(opts.historyDir, paths.html, 'base', body);
+    } catch {
+      /* a restart then falls back to newest-wins — the pre-existing behaviour */
+    }
   }
 
   function preserveLocal(body: string | null): void {
@@ -314,6 +331,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     recovered();
     lastHtml = next;
     opts.journal?.record(slug, { bodyHash: hashBytes(next) }); // DDR-102 checkpoint
+    rememberBase(next);
     return true;
   }
 
@@ -418,10 +436,26 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
         return false;
       }
       clearStrike(evt.path);
-      // Keep both sides when a watcher arrives after a remote update. A user's
-      // explicit file edit may repair corrupt state, but must remain recoverable.
-      if (lastHtml !== null && htmlFromDoc(doc) !== lastHtml && htmlFromDoc(doc) !== str) {
-        reject('local-edit', str, htmlFromDoc(doc));
+      // A PEER CHANGED THE DOC SINCE DISK AND DOC LAST AGREED (`lastHtml`), and
+      // this save was authored against that older body. Importing it as a
+      // whole-file diff against the doc turned every stale byte into an edit
+      // and reverted the peer's work (audit 2026-09-13 P0 #1). Merge from the
+      // shared base instead; what the merge cannot prove independent — or a
+      // merged body that no longer validates — is preserved and blocked, and
+      // the conflict stays until a later save actually resolves it.
+      const current = htmlFromDoc(doc);
+      let next = str;
+      if (lastHtml !== null && current !== lastHtml && current !== str) {
+        const merged = mergeSource(lastHtml, str, current);
+        if (!merged.ok) {
+          reject(merged.reason === 'budget' ? 'merge-budget' : 'local-edit', str, current);
+          return false;
+        }
+        if (validation(merged.merged) !== null) {
+          reject('local-edit', str, current);
+          return false;
+        }
+        next = merged.merged;
       }
       try {
         preserveLocal(str);
@@ -434,7 +468,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       let changed = false;
       try {
         doc.transact(() => {
-          changed = applyHtmlToDoc(doc, str, importOrigin);
+          changed = applyHtmlToDoc(doc, next, importOrigin);
           if (changed) stampBodyEdit(doc, importOrigin);
         }, importOrigin);
       } catch {
@@ -450,6 +484,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
         scheduleFlush();
       } else if (changed) {
         opts.journal?.record(slug, { bodyHash: evt.hash }); // DDR-102 checkpoint
+        rememberBase(str);
       }
       return changed;
     }
@@ -536,6 +571,10 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     applyFromFs,
     reconcile,
     flush,
+    adoptBase(body: string) {
+      lastHtml = body;
+      observedBody = body;
+    },
     stop() {
       stopped = true;
       doc.off('update', onDocUpdate);

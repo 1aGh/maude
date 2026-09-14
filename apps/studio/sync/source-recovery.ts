@@ -6,10 +6,16 @@ import { atomicWrite } from './atomic-write.ts';
 import { MAX_HTML_BYTES } from './limits.ts';
 import { sourceError } from './source-validation.ts';
 
+/**
+ * `base` is the body disk and doc last agreed on — the merge base a restart
+ * needs, since the journal keeps only its hash (audit 2026-09-13 P0 #1).
+ */
+export type RecoverySlot = 'last-valid' | 'local' | 'incoming' | 'base';
+
 export function saveRecoveryBody(
   historyDir: string,
   file: string,
-  slot: 'last-valid' | 'local' | 'incoming',
+  slot: RecoverySlot,
   body: string
 ): string {
   if (Buffer.byteLength(body, 'utf8') > MAX_HTML_BYTES)
@@ -17,6 +23,21 @@ export function saveRecoveryBody(
   const target = path.join(historyDir, 'sync-recovery', `${slot}${path.extname(file)}`);
   if (!existsSync(target) || readFileSync(target, 'utf8') !== body) atomicWrite(target, body);
   return target;
+}
+
+/** One recovery slot's body, or null when absent/unreadable/oversized. */
+export function readRecoveryBody(
+  historyDir: string,
+  file: string,
+  slot: RecoverySlot
+): string | null {
+  const target = path.join(historyDir, 'sync-recovery', `${slot}${path.extname(file)}`);
+  try {
+    if (statSync(target).size > MAX_HTML_BYTES) return null;
+    return readFileSync(target, 'utf8');
+  } catch {
+    return null;
+  }
 }
 
 export function lastValidSource(historyDir: string, file: string): string | null {

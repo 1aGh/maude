@@ -62,7 +62,8 @@ import { hashBytes } from './echo-guard.ts';
 import type { SyncJournal } from './journal.ts';
 import { ORIGINS } from './origins.ts';
 import { rememberSeed } from './seed-repair.ts';
-import { lastValidSource, saveRecoveryBody } from './source-recovery.ts';
+import { mergeSource } from './source-merge.ts';
+import { lastValidSource, readRecoveryBody, saveRecoveryBody } from './source-recovery.ts';
 import { sourceError } from './source-validation.ts';
 
 export interface MigrateSeedPaths {
@@ -102,6 +103,13 @@ export interface MigrateSeedOptions {
    * does not have it", which is the pre-existing behaviour.
    */
   hubHasState?: (slug: string) => boolean;
+  /**
+   * A local candidate diverged from the hub body and could not be merged from
+   * their shared base. Neither side is overwritten: the caller hands `base` to
+   * the projection (`adoptBase`) so its write stays blocked with a visible
+   * conflict until a later save resolves it (audit 2026-09-13 P0 #1 / T2).
+   */
+  onHold?: (base: string) => void;
   /** DDR-102 — divergence notification, same contract as the agent's. */
   onConflict?: (info: {
     slug: string;
@@ -128,6 +136,10 @@ export type MigrateSeedResult =
   /** DDR-102 — divergence resolved newest-wins. */
   | 'conflict-local-wins'
   | 'conflict-hub-wins'
+  /** T2 — divergence resolved by a clean three-way merge from the saved base. */
+  | 'conflict-merged'
+  /** T2 — divergence that no merge could prove independent; both kept, held. */
+  | 'conflict-held'
   /** The replica is empty but the HUB is not — its state is still in flight.
    *  Seeding here is the F1 collision (see `hubHasState`), so this seed does
    *  nothing and lets the document arrive. */
@@ -272,22 +284,61 @@ export async function migrateSeed(opts: MigrateSeedOptions): Promise<MigrateSeed
   // fail-closed refusal, the conflict report, and crucially the
   // `recover-seed-dup` row this switch used to be missing — now lives in
   // exactly one place.
-  const applied = await applyColdStart({
-    slug,
-    decision,
-    localBody: localHtml,
-    docBody: docHtml,
-    takeHub: () => {
-      /* the projection materializes the doc; nothing to do here */
-    },
-    takeLocal: rebuildBodyFromLocal,
-    checkpointIdentity: (body) => opts.journal?.record(slug, { bodyHash: hashBytes(body) }),
-    logLabel: 'shared-doc',
-    ...(opts.snapshot ? { snapshot: opts.snapshot } : {}),
-    ...(opts.onConflict ? { onConflict: opts.onConflict } : {}),
-  });
-
-  const result: MigrateSeedResult = resultFor(applied.action, applied.bodyWinner);
+  // A DIVERGENCE WITH A KNOWN BASE IS NOT A COIN TOSS. Newest-wins keeps one
+  // side and snapshots the other — recoverable, but the peer's edit is gone
+  // from the canvas. When the projection saved the body both sides last agreed
+  // on (and the journal proves it is that body), merge from it exactly as a
+  // live save does; if the edits touch, hold both and let the projection keep
+  // the conflict visible. No base (older state) keeps DDR-102's table.
+  const journalHash = opts.journal?.get(slug)?.bodyHash ?? null;
+  const savedBase =
+    decision.action === 'conflict' && opts.historyDir && journalHash !== null
+      ? readRecoveryBody(opts.historyDir, paths.html, 'base')
+      : null;
+  const base = savedBase !== null && hashBytes(savedBase) === journalHash ? savedBase : null;
+  let applied: { action: ColdStartAction; bodyWinner: 'local' | 'hub' };
+  let result: MigrateSeedResult;
+  if (base !== null && localHtml !== null) {
+    const merged = mergeSource(base, localHtml, docHtml);
+    if (opts.snapshot) {
+      try {
+        await opts.snapshot(localHtml, 'pre-sync-local');
+        await opts.snapshot(docHtml, 'pre-sync-hub');
+      } catch {
+        /* best-effort — neither branch below overwrites a side it did not merge */
+      }
+    }
+    if (merged.ok && sourceError(paths.html, merged.merged) === null) {
+      doc.transact(() => {
+        if (applyHtmlToDoc(doc, merged.merged, ORIGINS.MIGRATION)) {
+          stampBodyEdit(doc, ORIGINS.MIGRATION);
+        }
+      }, ORIGINS.MIGRATION);
+      // The projection writes the merged body and checkpoints it.
+      result = 'conflict-merged';
+    } else {
+      opts.onHold?.(base);
+      result = 'conflict-held';
+    }
+    // The coupled lanes resolve per-lane against the hub, as on a hub-wins boot.
+    applied = { action: 'conflict', bodyWinner: 'hub' };
+  } else {
+    applied = await applyColdStart({
+      slug,
+      decision,
+      localBody: localHtml,
+      docBody: docHtml,
+      takeHub: () => {
+        /* the projection materializes the doc; nothing to do here */
+      },
+      takeLocal: rebuildBodyFromLocal,
+      checkpointIdentity: (body) => opts.journal?.record(slug, { bodyHash: hashBytes(body) }),
+      logLabel: 'shared-doc',
+      ...(opts.snapshot ? { snapshot: opts.snapshot } : {}),
+      ...(opts.onConflict ? { onConflict: opts.onConflict } : {}),
+    });
+    result = resultFor(applied.action, applied.bodyWinner);
+  }
 
   // ---- annotations: PER-LANE newest-wins (the 2026-08-14 eraser fix; the
   // same table as agent.ts reconcile). Under sharedDoc the collab room's

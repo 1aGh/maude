@@ -2425,6 +2425,9 @@ export function createSyncRuntime(
             }
           },
           onConflict: (info) => store.addConflict(info),
+          // An unmergeable local candidate: keep both, and let the projection
+          // report and hold it from the shared base (T2).
+          onHold: (base) => projection.adoptBase(base),
           hubHasState: (slug) => hubHolds(hubDocIndex, docNameFor(slug)),
         });
         if (result === 'local-adopt') {
@@ -2433,6 +2436,16 @@ export function createSyncRuntime(
           console.log(
             `[sync/${canvas.slug}] shared-doc: not seeding — the hub already holds this ` +
               'document; waiting for its state to arrive.'
+          );
+        } else if (result === 'conflict-merged') {
+          console.log(
+            `[sync/${canvas.slug}] shared-doc: merged a local edit with the project's newer ` +
+              `version (both sides were in _history/${canvas.slug}/ first).`
+          );
+        } else if (result === 'conflict-held') {
+          console.warn(
+            `[sync/${canvas.slug}] shared-doc: a local edit overlaps the project's newer version — ` +
+              'both kept; the canvas waits for a resolving save.'
           );
         } else if (result === 'conflict-local-wins' || result === 'conflict-hub-wins') {
           console.warn(
