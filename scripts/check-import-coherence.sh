@@ -36,6 +36,11 @@ while IFS= read -r f; do
   while IFS= read -r imp; do
     [ -z "$imp" ] && continue
     target=$(normpath "$d/$imp")
+    # The failure mode is an UNTRACKED, un-ignored module. A target the tree
+    # deliberately ignores is a generated build output (a dev spike's `dist/`)
+    # or an installed package, and was never meant to be tracked.
+    case "$target" in */node_modules/*) continue ;; esac
+    git check-ignore -q --no-index "$target" 2>/dev/null && continue
     if ! git ls-files --error-unmatch "$target" >/dev/null 2>&1; then
       echo "MISSING $f -> $imp"
       missing=1

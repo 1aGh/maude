@@ -38,7 +38,7 @@ const hub=createRequire(${JSON.stringify(join(repo, 'apps/hub/package.json'))});
 const server=createRequire(${JSON.stringify(serverRequire)});
 export const Y=hub('yjs');export const {Server}=hub('@hocuspocus/server');
 export const encoding=server('lib0/encoding');export const decoding=server('lib0/decoding');
-export {sourceError} from './source-validator.mjs';\n`
+export {sourceError} from ${JSON.stringify('./source-validator.mjs')};\n`
 );
 // Reuse the integrated fixture source, replacing only its Node24-only dependency adapter.
 await build({
