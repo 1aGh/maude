@@ -33,6 +33,7 @@ import { sizingModeOf, sizingModePatch } from '../sizing-mode.ts';
 // above (a type-only SyncStatusSnapshot import that Bun erases).
 import { syncPresentation } from '../sync/presentation.ts';
 import { canvasUrl } from './canvas-url.js';
+import { applyEditRequest } from './apply-edit-request.ts';
 import { createIndexLoader } from './index-loader.ts';
 import {
   BROWSER_CAPTURE_FORMATS,
@@ -12672,51 +12673,42 @@ function App() {
         // Inline-edit undo/redo (DDR-103/104 follow-up). The canvas iframe's
         // `edit-source` command can't call the main-origin-only `/_api/edit-*`
         // routes (DDR-054), so it asks us to re-apply the before/after value.
-        // `value` null = reset (remove the inline prop / attr). For CSS we also
-        // optimistically repaint so the revert shows before the HMR reload.
-        const op = m.op;
+        // `value` null = reset (remove the inline prop / attr). The css/attr
+        // request carries the command's expected current value, so an undo can
+        // never overwrite a teammate's newer value (audit 2026-09-13 P1 #5);
+        // the outcome goes back to the canvas so a refused undo/redo does not
+        // advance its stack.
+        const req = applyEditRequest(m);
+        if (!req) return;
+        const replyTo = e.source;
+        const reply = (result) => {
+          if (typeof m.requestId !== 'string') return;
+          try {
+            replyTo?.postMessage({ dgn: 'apply-edit-result', requestId: m.requestId, ...result }, '*');
+          } catch {}
+        };
         const value = typeof m.value === 'string' ? m.value : null;
-        let url;
-        let body;
-        if (op === 'css') {
-          url = '/_api/edit-css';
-          body =
-            value == null
-              ? { canvas: m.canvas, id: m.id, property: m.key, reset: true }
-              : { canvas: m.canvas, id: m.id, property: m.key, value };
-          applyOptimisticStyle({ id: m.id, prop: m.key, value });
-        } else if (op === 'attr') {
-          url = '/_api/edit-attr';
-          body =
-            value == null
-              ? { canvas: m.canvas, id: m.id, attr: m.key, reset: true }
-              : { canvas: m.canvas, id: m.id, attr: m.key, value };
-        } else {
-          url = '/_api/edit-text';
-          body = { canvas: m.canvas, id: m.id, text: value ?? '' };
-          // Undo/redo of a `{variable}` text edit needs to re-target the source
-          // string: the occurrence + the value currently on disk (`from` — the
-          // side we're replacing FROM). Harmless for literal text.
-          if (typeof m.occurrence === 'number') body.occurrence = m.occurrence;
-          if (typeof m.from === 'string') body.before = m.from;
-        }
         editApplyChainRef.current = editApplyChainRef.current
           .catch(() => {})
           .then(() =>
-            fetch(url, {
+            fetch(req.url, {
               method: 'POST',
               headers: { 'content-type': 'application/json' },
-              body: JSON.stringify(body),
+              body: JSON.stringify(req.body),
             })
               .then((r) => r.json().catch(() => ({})))
               .then((j) => {
-                // Undo/redo lane (Cmd+Z/Cmd+Shift+Z re-application). The primary
-                // edit-text lane above owns the user-facing revert + toast; a
-                // refusal here is logged. (DDR-150 P1 kept this a warn after the
-                // setStatus-scope fix — setStatus is not in App's scope.)
-                if (!j.ok) console.warn('[apply-edit]', op, j.error || 'failed');
+                if (j.ok) {
+                  // Repaint only once the source accepted it: a refused undo
+                  // must not show a value the file does not hold.
+                  if (req.op === 'css') applyOptimisticStyle({ id: m.id, prop: m.key, value });
+                  reply({ ok: true });
+                  return;
+                }
+                console.warn('[apply-edit]', req.op, j.error || 'failed');
+                reply({ ok: false, error: j.error || 'failed', conflict: j.conflict === true });
               })
-              .catch(() => {})
+              .catch(() => reply({ ok: false, error: 'network error' }))
           );
       } else if (m.dgn === 'layers-tree') {
         // Phase 12 Task 4 — browsable layers tree for the active artboard.

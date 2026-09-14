@@ -3203,12 +3203,13 @@ export function createHttp(
         value?: unknown;
         reset?: unknown;
         idIndex?: unknown;
+        expected?: unknown;
       }>(req, 8 * 1024);
       if (!body) return new Response('body required', { status: 400 });
       const result = await api.editCss(body);
       if (!result.ok) {
         return Response.json(
-          { ok: false, error: result.error },
+          { ok: false, error: result.error, ...(result.conflict ? { conflict: true } : {}) },
           { status: result.status, headers: { 'Cache-Control': 'no-store' } }
         );
       }
@@ -3268,12 +3269,13 @@ export function createHttp(
         attr?: unknown;
         value?: unknown;
         reset?: unknown;
+        expected?: unknown;
       }>(req, 8 * 1024);
       if (!body) return new Response('body required', { status: 400 });
       const result = await api.editAttr(body);
       if (!result.ok) {
         return Response.json(
-          { ok: false, error: result.error },
+          { ok: false, error: result.error, ...(result.conflict ? { conflict: true } : {}) },
           { status: result.status, headers: { 'Cache-Control': 'no-store' } }
         );
       }

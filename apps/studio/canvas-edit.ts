@@ -37,12 +37,26 @@ import { parseSync } from 'oxc-parser';
 export class CanvasEditError extends Error {
   readonly canvas: string;
   readonly id: string;
-  constructor(message: string, info: { canvas: string; id: string }) {
+  /** The target no longer holds the value the caller expected (a peer changed it). */
+  readonly conflict: boolean;
+  constructor(message: string, info: { canvas: string; id: string; conflict?: boolean }) {
     super(message);
     this.name = 'CanvasEditError';
     this.canvas = info.canvas;
     this.id = info.id;
+    this.conflict = info.conflict === true;
   }
+}
+
+/**
+ * Expected-current-value guard for a single-attribute write (audit 2026-09-13
+ * P1 #5). `expected` is what the caller believes the source holds now, `next`
+ * is what it is about to write; `null` means "attribute / style key absent".
+ * Values are the RAW strings the edit routes take (not JSON-encoded).
+ */
+export interface AttributePrecondition {
+  expected: string | null;
+  next: string | null;
 }
 
 const PASCAL_CASE = /^[A-Z][A-Za-z0-9_]*$/;
@@ -280,7 +294,8 @@ export async function editAttribute(
   id: string,
   attr: string,
   value: string,
-  occurrence?: number
+  occurrence?: number,
+  precondition?: AttributePrecondition
 ): Promise<EditResult> {
   return withLock(canvasAbsPath, async () => {
     const file = Bun.file(canvasAbsPath);
@@ -291,6 +306,14 @@ export async function editAttribute(
       });
     }
     const source = await file.text();
+    // Checked under the same per-file lock as the write — no gap between the
+    // read that proves the precondition and the rename that applies the edit.
+    if (
+      precondition &&
+      checkPrecondition(canvasAbsPath, source, id, attr, occurrence, precondition) === 'already'
+    ) {
+      return { source, delta: 0, changed: false };
+    }
     const next = applyEdit(canvasAbsPath, source, id, attr, value, occurrence);
     if (next.source === source) return { source, delta: 0, changed: false };
     const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
@@ -313,7 +336,8 @@ export async function removeAttribute(
   canvasAbsPath: string,
   id: string,
   attr: string,
-  occurrence?: number
+  occurrence?: number,
+  precondition?: AttributePrecondition
 ): Promise<EditResult> {
   return withLock(canvasAbsPath, async () => {
     const file = Bun.file(canvasAbsPath);
@@ -324,6 +348,12 @@ export async function removeAttribute(
       });
     }
     const source = await file.text();
+    if (
+      precondition &&
+      checkPrecondition(canvasAbsPath, source, id, attr, occurrence, precondition) === 'already'
+    ) {
+      return { source, delta: 0, changed: false };
+    }
     const next = applyRemove(canvasAbsPath, source, id, attr, occurrence);
     if (next.source === source) return { source, delta: 0, changed: false };
     const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
@@ -331,6 +361,112 @@ export async function removeAttribute(
     const { rename } = await import('node:fs/promises');
     await rename(tmp, canvasAbsPath);
     return { ...next, changed: true };
+  });
+}
+
+/** What one plain attribute or inline style key currently holds in source. */
+export type AttributeState =
+  | { kind: 'absent' }
+  | { kind: 'literal'; value: string }
+  /** Present, but not a literal this module can compare (an expression, a spread). */
+  | { kind: 'expression' };
+
+function literalText(node: AnyNode): string | null {
+  if (!node) return null;
+  if (node.type === 'Literal' || node.type === 'StringLiteral' || node.type === 'NumericLiteral') {
+    return typeof node.value === 'string' || typeof node.value === 'number'
+      ? String(node.value)
+      : null;
+  }
+  if (node.type === 'TemplateLiteral' && node.expressions?.length === 0) {
+    return node.quasis?.[0]?.value?.cooked ?? null;
+  }
+  return null;
+}
+
+/**
+ * Read the current value of `attr` (`style.<prop>` or a plain attribute name)
+ * on the element with `data-cd-id` `id`, with the same occurrence routing as
+ * `applyEdit` / `applyRemove`. Pure — exposed for tests and preconditions.
+ */
+export function readAttributeState(
+  canvasAbsPath: string,
+  source: string,
+  id: string,
+  attr: string,
+  occurrence?: number
+): AttributeState {
+  const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
+  if (parsed.errors && parsed.errors.length > 0) {
+    throw new CanvasEditError(
+      `oxc-parser failed on ${canvasAbsPath}: ${parsed.errors[0]?.message ?? 'unknown'}`,
+      { canvas: canvasAbsPath, id }
+    );
+  }
+  if (typeof occurrence === 'number' && Number.isFinite(occurrence)) {
+    id = resolveUsageId(parsed.program, id, occurrence);
+  }
+  const hit = findOpening(parsed.program, id);
+  if (!hit) {
+    throw new CanvasEditError(`data-cd-id "${id}" not found in ${canvasAbsPath}`, {
+      canvas: canvasAbsPath,
+      id,
+    });
+  }
+  if (attr.startsWith('style.')) {
+    const style = findAttribute(hit.opening, 'style');
+    if (!style) return { kind: 'absent' };
+    const obj = style.value?.type === 'JSXExpressionContainer' ? style.value.expression : null;
+    if (obj?.type !== 'ObjectExpression') return { kind: 'expression' };
+    const prop = attr.slice('style.'.length);
+    const propCamel = prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+    for (const p of obj.properties as AnyNode[]) {
+      if (p?.type !== 'Property' && p?.type !== 'ObjectProperty') continue;
+      const k = p.key;
+      const kname =
+        k?.type === 'Identifier' ? k.name : k?.type === 'Literal' ? String(k.value) : null;
+      if (kname !== prop && kname !== propCamel) continue;
+      const text = literalText(p.value);
+      return text === null ? { kind: 'expression' } : { kind: 'literal', value: text };
+    }
+    // A spread may supply the key at runtime; "absent" would be a guess.
+    return (obj.properties as AnyNode[]).some((p) => p?.type === 'SpreadElement')
+      ? { kind: 'expression' }
+      : { kind: 'absent' };
+  }
+  const found = findAttribute(hit.opening, attr);
+  if (!found) return { kind: 'absent' };
+  if (found.value == null) return { kind: 'literal', value: '' };
+  const direct = literalText(found.value);
+  if (direct !== null) return { kind: 'literal', value: direct };
+  const inner =
+    found.value.type === 'JSXExpressionContainer' ? literalText(found.value.expression) : null;
+  return inner === null ? { kind: 'expression' } : { kind: 'literal', value: inner };
+}
+
+/**
+ * `'apply'` when the source still holds `expected`; `'already'` when it holds
+ * `next` (a retried or already-applied write — idempotent success). Anything
+ * else is a peer's newer value: refuse rather than overwrite it.
+ */
+function checkPrecondition(
+  canvasAbsPath: string,
+  source: string,
+  id: string,
+  attr: string,
+  occurrence: number | undefined,
+  pre: AttributePrecondition
+): 'apply' | 'already' {
+  const state = readAttributeState(canvasAbsPath, source, id, attr, occurrence);
+  const holds = (value: string | null) =>
+    value === null ? state.kind === 'absent' : state.kind === 'literal' && state.value === value;
+  if (holds(pre.next)) return 'already';
+  if (holds(pre.expected)) return 'apply';
+  const name = attr.startsWith('style.') ? attr.slice('style.'.length) : attr;
+  throw new CanvasEditError(`${name} was changed by someone else — kept their value`, {
+    canvas: canvasAbsPath,
+    id,
+    conflict: true,
   });
 }
 

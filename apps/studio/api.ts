@@ -313,7 +313,24 @@ export type CreateFolderResult =
 /** Phase 12 — result of an in-canvas direct edit (`editCss` / `editText`). */
 export type EditOpResult =
   | { ok: true; delta: number; seq?: number }
-  | { ok: false; status: number; error: string };
+  /** `conflict` = the target no longer held the caller's expected value. */
+  | { ok: false; status: number; error: string; conflict?: true };
+
+/**
+ * Optional expected-current value for a css/attr write (audit 2026-09-13 P1
+ * #5). An absent `expected` key keeps the unconditional legacy behaviour; a
+ * present one must be a bounded string or `null` ("currently unset").
+ */
+function expectedValueOf(input: {
+  expected?: unknown;
+}): { ok: true; expected?: string | null } | { ok: false } {
+  if (!Object.hasOwn(input, 'expected') || input.expected === undefined) return { ok: true };
+  if (input.expected === null) return { ok: true, expected: null };
+  if (typeof input.expected === 'string' && input.expected.length <= 256) {
+    return { ok: true, expected: input.expected };
+  }
+  return { ok: false };
+}
 
 /**
  * Phase 12.1 (DDR-138) — result of a node-move reorder. Carries the re-settle
@@ -444,6 +461,8 @@ export interface Api {
     value?: unknown;
     reset?: unknown;
     idIndex?: unknown;
+    /** Expected current value (string) or `null` = currently unset. Absent = unconditional. */
+    expected?: unknown;
   }): Promise<EditOpResult>;
   // Phase 12 (DDR-103) — inline text-content edit (POST /_api/edit-text). Main-origin only.
   editText(input: {
@@ -461,6 +480,8 @@ export interface Api {
     id?: unknown;
     attr?: unknown;
     value?: unknown;
+    reset?: unknown;
+    expected?: unknown;
   }): Promise<EditOpResult>;
   // Phase 12.1 (DDR-138) — node-move reorder (POST /_api/reorder). Main-origin
   // only. Moves the element with data-cd-id `id` to `position` relative to
@@ -3741,6 +3762,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       return { ok: true, delta: res.delta, seq };
     } catch (err) {
       ctx.bus.emit('activity:unsuppress', rel);
+      if (err instanceof CanvasEditError && err.conflict) {
+        return { ok: false, status: 409, error: err.message, conflict: true };
+      }
       return {
         ok: false,
         status: 422,
@@ -3756,9 +3780,12 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     value?: unknown;
     reset?: unknown;
     idIndex?: unknown;
+    expected?: unknown;
   }): Promise<EditOpResult> {
     const r = resolveCanvasAbs(input.canvas);
     if (!r.ok) return r;
+    const pre = expectedValueOf(input);
+    if (!pre.ok) return { ok: false, status: 400, error: 'invalid expected value' };
     const id = typeof input.id === 'string' ? input.id.trim() : '';
     if (!CD_ID_RE.test(id)) return { ok: false, status: 400, error: 'invalid data-cd-id' };
     // Stage H3 — optional DOM-occurrence index. Present only for a whole-instance
@@ -3783,7 +3810,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (input.reset === true) {
       return suppressedEdit(
         r.abs,
-        () => removeAttribute(r.abs, id, `style.${camel}`, idIndex),
+        () =>
+          removeAttribute(
+            r.abs,
+            id,
+            `style.${camel}`,
+            idIndex,
+            pre.expected === undefined ? undefined : { expected: pre.expected, next: null }
+          ),
         'reset failed'
       );
     }
@@ -3796,7 +3830,15 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // `#fff`, `8px`, `700`, `1.5` all ride verbatim.
     return suppressedEdit(
       r.abs,
-      () => editAttribute(r.abs, id, `style.${camel}`, JSON.stringify(value), idIndex),
+      () =>
+        editAttribute(
+          r.abs,
+          id,
+          `style.${camel}`,
+          JSON.stringify(value),
+          idIndex,
+          pre.expected === undefined ? undefined : { expected: pre.expected, next: value }
+        ),
       'edit failed'
     );
   }
@@ -3840,9 +3882,12 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     attr?: unknown;
     value?: unknown;
     reset?: unknown;
+    expected?: unknown;
   }): Promise<EditOpResult> {
     const r = resolveCanvasAbs(input.canvas);
     if (!r.ok) return r;
+    const pre = expectedValueOf(input);
+    if (!pre.ok) return { ok: false, status: 400, error: 'invalid expected value' };
     const id = typeof input.id === 'string' ? input.id.trim() : '';
     if (!CD_ID_RE.test(id)) return { ok: false, status: 400, error: 'invalid data-cd-id' };
     const attr = typeof input.attr === 'string' ? input.attr.trim() : '';
@@ -3860,7 +3905,18 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
     // Phase 12.3 — `reset: true` REMOVES the custom attribute. No-op if absent.
     if (input.reset === true) {
-      return suppressedEdit(r.abs, () => removeAttribute(r.abs, id, attr), 'reset failed');
+      return suppressedEdit(
+        r.abs,
+        () =>
+          removeAttribute(
+            r.abs,
+            id,
+            attr,
+            undefined,
+            pre.expected === undefined ? undefined : { expected: pre.expected, next: null }
+          ),
+        'reset failed'
+      );
     }
     const value = typeof input.value === 'string' ? input.value : '';
     if (!value.trim()) return { ok: false, status: 400, error: 'value required' };
@@ -3881,7 +3937,19 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // Pass the value RAW: editStringAttr quotes/escapes it itself (JSON.stringify
     // on replace, escapeAttr on insert) — pre-stringifying here double-encoded
     // the value (`data-x="\"ok\""`; knob-smoke finding, 2026-06-12).
-    return suppressedEdit(r.abs, () => editAttribute(r.abs, id, attr, value), 'edit failed');
+    return suppressedEdit(
+      r.abs,
+      () =>
+        editAttribute(
+          r.abs,
+          id,
+          attr,
+          value,
+          undefined,
+          pre.expected === undefined ? undefined : { expected: pre.expected, next: value }
+        ),
+      'edit failed'
+    );
   }
 
   // Phase 12.1 (DDR-138) — snapshot stack so a reorder is undoable via

@@ -2448,16 +2448,67 @@ function CanvasRouter({
   // sink so an `edit-source` command's do()/undo() reaches the main-origin-only
   // `/_api/edit-*` write — which the untrusted canvas iframe can't call (DDR-054).
   // It posts `dgn:'apply-edit'` to the parent shell, which performs the write.
+  //
+  // The shell answers with `dgn:'apply-edit-result'`. do()/undo() await it, so
+  // a refusal (a teammate changed the value since — audit 2026-09-13 P1 #5 —
+  // or any failed write) rejects, the stack keeps the entry instead of moving
+  // its cursor, and the user is told why.
   useEffect(() => {
-    const applyFn: EditSourceApplyFn = (apply) => {
-      try {
-        window.parent.postMessage({ dgn: 'apply-edit', ...apply }, '*');
-      } catch {
-        /* detached / cross-origin teardown — nothing to apply */
+    const pending = new Map<
+      string,
+      { resolve: () => void; reject: (err: Error) => void; timer: ReturnType<typeof setTimeout> }
+    >();
+    const onResult = (event: MessageEvent) => {
+      if (event.source !== window.parent) return;
+      const data = event.data as
+        | { dgn?: unknown; requestId?: unknown; ok?: unknown; error?: unknown; conflict?: unknown }
+        | undefined;
+      if (data?.dgn !== 'apply-edit-result' || typeof data.requestId !== 'string') return;
+      const entry = pending.get(data.requestId);
+      if (!entry) return;
+      pending.delete(data.requestId);
+      clearTimeout(entry.timer);
+      if (data.ok === true) {
+        entry.resolve();
+        return;
       }
+      const reason = typeof data.error === 'string' && data.error ? data.error : 'the edit failed';
+      // A conflict's reason already reads as a sentence ("color was changed by
+      // someone else — kept their value"); it applies to undo and redo alike.
+      showCanvasToast(data.conflict === true ? reason : `Couldn't apply — ${reason}`, 'warning');
+      entry.reject(new Error(reason));
     };
+    window.addEventListener('message', onResult);
+    let sequence = 0;
+    const applyFn: EditSourceApplyFn = (apply) =>
+      new Promise<void>((resolve, reject) => {
+        sequence += 1;
+        const requestId = `${Date.now().toString(36)}-${sequence}-${Math.random().toString(36).slice(2, 8)}`;
+        // Generous: the shell serializes these writes behind any in-flight one.
+        const timer = setTimeout(() => {
+          pending.delete(requestId);
+          reject(new Error('the edit was not confirmed'));
+        }, 30_000);
+        pending.set(requestId, { resolve, reject, timer });
+        try {
+          window.parent.postMessage({ dgn: 'apply-edit', requestId, ...apply }, '*');
+        } catch {
+          /* detached / cross-origin teardown — nothing to apply */
+          pending.delete(requestId);
+          clearTimeout(timer);
+          reject(new Error('the canvas is detached'));
+        }
+      });
     undoSinks.setSink('editSourceApplyFn', applyFn);
-    return () => undoSinks.setSink('editSourceApplyFn', undefined);
+    return () => {
+      window.removeEventListener('message', onResult);
+      for (const entry of pending.values()) {
+        clearTimeout(entry.timer);
+        entry.reject(new Error('the canvas closed'));
+      }
+      pending.clear();
+      undoSinks.setSink('editSourceApplyFn', undefined);
+    };
   }, [undoSinks]);
 
   // Phase 12.1 — reorder undo. Same origin-split shape as editSourceApplyFn:
