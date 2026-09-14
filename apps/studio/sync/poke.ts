@@ -22,6 +22,8 @@ const MAX_POKE_BYTES = 512;
 export interface Poke {
   /** The hub's journal head at emit time. A hint, never an authority. */
   head: number;
+  /** Only document membership changed; do not scan or transfer the file plane. */
+  documents?: true;
 }
 
 /**
@@ -42,9 +44,9 @@ export function parsePoke(payload: unknown): Poke | null {
     return null;
   }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-  const frame = parsed as { t?: unknown; head?: unknown };
+  const frame = parsed as { t?: unknown; head?: unknown; documents?: unknown };
   if (frame.t !== 'files') return null;
   const head = frame.head;
   if (typeof head !== 'number' || !Number.isInteger(head) || head < 0) return null;
-  return { head };
+  return frame.documents === true ? { head, documents: true } : { head };
 }

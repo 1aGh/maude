@@ -114,6 +114,8 @@ export interface Inspect {
    * when the moved canvas wasn't referenced anywhere in this state.
    */
   retarget(fromFile: string, toFile: string): boolean;
+  /** Forget a deleted canvas without moving its selection onto another file. */
+  remove(file: string): boolean;
   save(): Promise<void>;
   injectInspector(html: string): string;
 }
@@ -333,6 +335,22 @@ export function createInspect(
     ctx.bus.emit('selected', state.selected, { session: sessionKey });
   }
 
+  function remove(file: string): boolean {
+    const slug = deriveCanvasSlug(file);
+    const active = state.active === file;
+    const referenced =
+      active || state.open_tabs.includes(file) || Object.hasOwn(state.selections, slug);
+    if (!referenced) return false;
+    // setActive parks the outgoing selection; remove that memory afterwards.
+    if (active) setActive('');
+    state.open_tabs = state.open_tabs.filter((tab) => tab !== file);
+    delete state.selections[slug];
+    if (active) state.active_comments = [];
+    state.last_change = new Date().toISOString();
+    scheduleSave();
+    return true;
+  }
+
   function retarget(fromFile: string, toFile: string): boolean {
     const fromSlug = deriveCanvasSlug(fromFile);
     const toSlug = deriveCanvasSlug(toFile);
@@ -396,6 +414,7 @@ export function createInspect(
     setOpenTabs,
     setSelected,
     retarget,
+    remove,
     save,
     injectInspector,
   };

@@ -14,6 +14,7 @@
 // else binds to a port. The orchestrator (slash commands) reads _server.json
 // to detect a live instance and avoid duplicate boots.
 
+import path from 'node:path';
 import { createAcp } from './acp/index.ts';
 import { cancelInstall, cancelSignin } from './acp/login-state.ts';
 import { createActivity } from './activity.ts';
@@ -135,6 +136,19 @@ inspectHandle = inspects;
 // The shared instance is the desktop's, and a cell's fallback for anything that
 // arrives without a vouched session.
 await inspects.for('').load();
+
+// Semantic structural notifications include remote sync operations as well as
+// API actions. Keep every session's agent/inspector context on the live path.
+ctx.bus.on('canvas-list-update', (change) => {
+  if (!change?.rel) return;
+  const file = path.posix.join(ctx.paths.designRel, change.rel);
+  if (change.action === 'moved' && change.fromRel) {
+    const fromFile = path.posix.join(ctx.paths.designRel, change.fromRel);
+    for (const inspect of inspects.all()) inspect.retarget(fromFile, file);
+  } else if (change.action === 'removed') {
+    for (const inspect of inspects.all()) inspect.remove(file);
+  }
+});
 
 collab = createCollab(ctx, api);
 const aiActivity = createAiActivity(ctx);

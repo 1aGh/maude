@@ -55,6 +55,7 @@ import {
 import { createCtlProvider } from './ctl-provider.ts';
 import { createRescanScheduler, diffCanvasSet, type RescanScheduler } from './discovery.ts';
 import { createDocNameResolver } from './doc-name.ts';
+import { createDocumentDiscovery } from './document-discovery.ts';
 import { createEchoGuard } from './echo-guard.ts';
 import { createFileLedger } from './file-ledger.ts';
 import { createFilePlane, MAX_DORUCEKA_ROWS } from './file-plane.ts';
@@ -1075,6 +1076,8 @@ export function createSyncRuntime(
   let pokesSeen = 0;
   /** Assigned by `start()`; the seam `pullRemoteNow()` and tests reach. */
   let remotePull: (() => Promise<void>) | null = null;
+  let documentDiscovery: ReturnType<typeof createDocumentDiscovery> | null = null;
+  let documentDiscoveryUnsub: (() => void) | null = null;
   /**
    * Run a file-plane pass shortly, coalesced.
    *
@@ -1456,7 +1459,17 @@ export function createSyncRuntime(
         console.log(
           `[sync/${slug}] canvas was moved on another machine — stale local copy parked in _trash/ (recoverable).`
         );
-        ctx.bus.emit('canvas-list-update');
+      }
+      // The destination is materialized and the old body is gone. Receivers
+      // need the semantic move to retarget their open canvas, even if a local
+      // watcher already noticed the two filesystem changes.
+      if (movedTo && !existsSync(desc.html)) {
+        ctx.bus.emit('canvas-list-update', {
+          action: 'moved',
+          fromRel: path.relative(ctx.paths.designRoot, desc.html).split(path.sep).join('/'),
+          rel: movedTo.replace(/\\/g, '/'),
+          fromSlug: slug,
+        });
       }
     } catch (err) {
       // Quarantine is best-effort: the doc guards already made the file
@@ -3235,6 +3248,13 @@ export function createSyncRuntime(
               annotations: canvas.annotations,
             },
           });
+          if (!existsSync(canvas.html)) {
+            ctx.bus.emit('canvas-list-update', {
+              action: 'removed',
+              rel: path.relative(ctx.paths.designRoot, canvas.html).split(path.sep).join('/'),
+              slug,
+            });
+          }
         }
         descriptors.delete(slug);
       }
@@ -3265,7 +3285,7 @@ export function createSyncRuntime(
       const listing = await fetchRemoteListing(linkedHub.url, token);
       // null = unreachable, refused, or a hub without the route. Not an error
       // here any more than it is at boot — sync continues, we ask again later.
-      if (listing === null) return;
+      if (stopped || listing === null) return;
       // ABSENCE BEFORE PRESENCE. A canvas the project deleted must leave before
       // the pull runs, or a slug that is tombstoned AND still listed (the window
       // between the tombstone and the row actually going) would be trashed and
@@ -3599,13 +3619,20 @@ export function createSyncRuntime(
       });
       noteFilePull(result);
     };
+    documentDiscovery = createDocumentDiscovery({
+      run: pullRemoteOnce,
+      onError: (error) => console.error('[sync] document discovery failed:', error),
+    });
+    const discovery = documentDiscovery;
+    documentDiscoveryUnsub = ctx.bus.on('sync:documents-changed', () => discovery.schedule());
     const pollRemote = (): void => {
-      void pullRemoteOnce()
+      void discovery
+        .flush()
         .then(() => pullFilesOnce())
         .catch((err) => console.error('[sync] remote poll failed:', err));
     };
     remotePull = async () => {
-      await pullRemoteOnce();
+      await discovery.flush();
       await pullFilesOnce();
     };
     remotePollTimer = setInterval(pollRemote, REMOTE_POLL_MS);
@@ -3775,6 +3802,7 @@ export function createSyncRuntime(
           fileEventsCtl = createCtlProvider({
             url: linkedHub.url,
             token,
+            onDocuments: () => documentDiscovery?.schedule(),
             onPoke: () => {
               // Reuses `pollRemoteSoon` rather than calling the file lanes
               // directly, for two reasons: it already coalesces a burst into
@@ -3851,6 +3879,10 @@ export function createSyncRuntime(
     stallTimer = null;
     if (remotePollSoonTimer !== null) clearTimeout(remotePollSoonTimer);
     remotePollSoonTimer = null;
+    documentDiscoveryUnsub?.();
+    documentDiscoveryUnsub = null;
+    documentDiscovery?.stop();
+    documentDiscovery = null;
     remotePull = null;
     // A push pass that outlives its runtime keeps uploading a project the
     // person just closed — and `restart()` (the Resync button) calls stop() on

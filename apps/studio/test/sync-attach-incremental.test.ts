@@ -16,7 +16,7 @@
 // never connected it.
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Awareness } from 'y-protocols/awareness';
@@ -24,6 +24,7 @@ import * as Y from 'yjs';
 
 import type { Context, DevServerConfig } from '../context.ts';
 import { createBus } from '../context.ts';
+import { stampMovedTo } from '../sync/codec.ts';
 import { createSyncRuntime, MAX_PULLS_PER_POLL, type SyncProvider } from '../sync/index.ts';
 
 let dir: string;
@@ -45,10 +46,13 @@ afterEach(() => {
 });
 
 /** The hub's `GET /api/documents` — names and byte counts, never a path. */
-function hubListing(documents: Array<{ name: string; bytes: number }>): void {
+function hubListing(
+  documents: Array<{ name: string; bytes: number }>,
+  tombstones: Array<{ name: string; deletedAt: number }> = []
+): void {
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     if (String(input).endsWith('/api/documents')) {
-      return new Response(JSON.stringify({ documents }), {
+      return new Response(JSON.stringify({ documents, tombstones }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
@@ -523,5 +527,71 @@ describe('continuous canvas discovery', () => {
         },
       ])
     ).toBe(0);
+  });
+});
+
+describe('remote structural notifications', () => {
+  test('retirement publishes both paths after the old body is quarantined', async () => {
+    writeHubsConfig(HUB, 'mau_test');
+    hubListing([]);
+    const ctx = makeCtx({ url: HUB, linkedAt: 1 });
+    writeCanvas(ctx, 'before', '<h1>kept</h1>');
+    const { factory, peerOf } = inMemoryProviderFactory();
+    const runtime = createSyncRuntime(ctx, { providerFactory: factory });
+    const events: unknown[] = [];
+    ctx.bus.on('canvas-list-update', (event) => {
+      if (event?.action === 'moved')
+        events.push({
+          ...event,
+          oldExists: existsSync(join(ctx.paths.designRoot, 'ui/before.html')),
+        });
+    });
+    try {
+      await runtime?.start();
+      writeCanvas(ctx, 'after', '<h1>kept</h1>');
+      const peer = peerOf('ui-before');
+      if (!peer) throw new Error('Expected a live source provider');
+      stampMovedTo(peer, 'ui/after.html');
+      for (let i = 0; i < 50 && events.length === 0; i++) await Bun.sleep(20);
+      expect(events).toEqual([
+        expect.objectContaining({
+          action: 'moved',
+          fromRel: 'ui/before.html',
+          rel: 'ui/after.html',
+          oldExists: false,
+        }),
+      ]);
+      expect(existsSync(join(ctx.paths.designRoot, 'ui/after.html'))).toBe(true);
+    } finally {
+      await runtime?.stop();
+    }
+  });
+
+  test('cell metadata invalidation reads tombstones and publishes removal after quarantine', async () => {
+    writeHubsConfig(HUB, 'mau_test');
+    hubListing([]);
+    const ctx = makeCtx({ url: HUB, linkedAt: 1 });
+    writeCanvas(ctx, 'gone', '<h1>recoverable</h1>');
+    const { factory } = inMemoryProviderFactory();
+    const runtime = createSyncRuntime(ctx, { providerFactory: factory });
+    const events: unknown[] = [];
+    ctx.bus.on('canvas-list-update', (event) => {
+      if (event?.action === 'removed')
+        events.push({
+          ...event,
+          oldExists: existsSync(join(ctx.paths.designRoot, 'ui/gone.html')),
+        });
+    });
+    try {
+      await runtime?.start();
+      hubListing([], [{ name: 'ui-gone', deletedAt: Date.now() }]);
+      ctx.bus.emit('sync:documents-changed');
+      for (let i = 0; i < 50 && events.length === 0; i++) await Bun.sleep(20);
+      expect(events).toEqual([
+        expect.objectContaining({ action: 'removed', rel: 'ui/gone.html', oldExists: false }),
+      ]);
+    } finally {
+      await runtime?.stop();
+    }
   });
 });

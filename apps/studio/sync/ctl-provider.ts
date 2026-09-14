@@ -95,6 +95,8 @@ export interface CtlProviderOptions {
   token: string;
   /** Fired with the hub's head on every well-formed poke. */
   onPoke: (head: number) => void;
+  /** Optional fast document-list invalidation; older consumers use onPoke. */
+  onDocuments?: () => void;
   documentName?: string;
   log?: Pick<Console, 'log' | 'warn' | 'error'>;
   /** Injected in tests; production builds one from `@hocuspocus/provider`. */
@@ -155,9 +157,19 @@ export function createCtlProvider(opts: CtlProviderOptions): CtlProvider {
 
   const wire = (p: CtlProviderLike): void => {
     p.on('status', (data: { status?: string }) => {
-      if (typeof data?.status === 'string') status = data.status;
+      if (typeof data?.status !== 'string') return;
+      const reconnect = data.status === 'connected' && status !== 'connected';
+      status = data.status;
+      if (reconnect && !stopped) {
+        try {
+          opts.onDocuments?.();
+        } catch (error) {
+          log.error?.(`[sync/ctl] discovery handler threw: ${(error as Error).message}`);
+        }
+      }
     });
     p.on('stateless', (data: { payload: string }) => {
+      if (stopped) return;
       const poke = parsePoke(data?.payload);
       if (poke === null) {
         malformed += 1;
@@ -172,7 +184,8 @@ export function createCtlProvider(opts: CtlProviderOptions): CtlProvider {
       }
       received += 1;
       try {
-        opts.onPoke(poke.head);
+        if (poke.documents && opts.onDocuments) opts.onDocuments();
+        else opts.onPoke(poke.head);
       } catch (err) {
         log.error?.(`[sync/ctl] poke handler threw: ${(err as Error).message}`);
       }

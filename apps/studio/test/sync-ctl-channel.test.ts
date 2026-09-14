@@ -97,6 +97,8 @@ describe('toWsUrl', () => {
 describe('the poke frame is a TWIN — hub and studio must agree', () => {
   const corpus: unknown[] = [
     JSON.stringify({ t: 'files', head: 0 }),
+    JSON.stringify({ t: 'files', head: 0, documents: true }),
+    JSON.stringify({ t: 'files', head: 0, documents: 'true' }),
     JSON.stringify({ t: 'files', head: 1 }),
     JSON.stringify({ t: 'files', head: 999999 }),
     JSON.stringify({ t: 'files', head: -1 }),
@@ -505,4 +507,57 @@ describe('createCtlHealer — poke ⇒ journal ⇒ fs:any', () => {
     await healer.drain();
     expect(emitted).toEqual(['assets/late.png']);
   });
+});
+
+test('document invalidation uses the metadata handler, never the heavy file pass', async () => {
+  const f = fakeProvider();
+  let docs = 0;
+  let files = 0;
+  const ctl = createCtlProvider({
+    url: 'http://127.0.0.1:1',
+    token: 't',
+    connect: () => f.provider,
+    onDocuments: () => {
+      docs++;
+    },
+    onPoke: () => {
+      files++;
+    },
+  });
+  await Promise.resolve();
+  await Promise.resolve();
+  f.emit('stateless', { payload: JSON.stringify({ t: 'files', head: 0, documents: true }) });
+  expect(docs).toBe(1);
+  expect(files).toBe(0);
+  f.emit('stateless', { payload: JSON.stringify({ t: 'files', head: 4 }) });
+  expect(docs).toBe(1);
+  expect(files).toBe(1);
+  ctl.stop();
+});
+
+test('control reconnect checks membership even when an empty project has no canvas providers', async () => {
+  const f = fakeProvider();
+  let reads = 0;
+  const ctl = createCtlProvider({
+    url: 'http://127.0.0.1:1',
+    token: 't',
+    connect: () => f.provider,
+    onDocuments: () => {
+      reads++;
+    },
+    onPoke: () => {
+      throw new Error('must not walk files');
+    },
+  });
+  await Promise.resolve();
+  await Promise.resolve();
+  f.emit('status', { status: 'connected' });
+  f.emit('status', { status: 'connected' });
+  expect(reads).toBe(1);
+  f.emit('status', { status: 'disconnected' });
+  f.emit('status', { status: 'connected' });
+  expect(reads).toBe(2);
+  ctl.stop();
+  f.emit('stateless', { payload: JSON.stringify({ t: 'files', head: 0, documents: true }) });
+  expect(reads).toBe(2);
 });

@@ -89,6 +89,9 @@ export function startCellFileEvents(
     url: target.url,
     token: target.token,
     onPoke: (head) => healer.onPoke(head),
+    // The paired cell runtime does not open a second control provider. Route
+    // metadata invalidation to its bounded discovery queue, not the journal.
+    onDocuments: () => ctx.bus.emit('sync:documents-changed'),
   });
 
   // Every write this process makes surfaces here, because both synthetic-event

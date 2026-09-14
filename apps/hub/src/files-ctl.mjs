@@ -117,6 +117,7 @@ export function documentMap(instance) {
  */
 export function createFilesPoke({
   instance,
+  documentsOnly = false,
   coalesceMs = POKE_COALESCE_MS,
   log = console,
   setTimeoutImpl = setTimeout,
@@ -155,7 +156,9 @@ export function createFilesPoke({
     // anyway, so nothing is missed.
     if (!doc) return;
     try {
-      doc.broadcastStateless(JSON.stringify({ t: 'files', head }));
+      doc.broadcastStateless(
+        JSON.stringify({ t: 'files', head, ...(documentsOnly ? { documents: true } : {}) })
+      );
       sent += 1;
     } catch (err) {
       log.error?.(`[files-ctl] poke broadcast failed: ${err.message}`);
@@ -213,5 +216,5 @@ export function parsePoke(payload) {
   if (!parsed || parsed.t !== 'files') return null;
   const head = parsed.head;
   if (!Number.isInteger(head) || head < 0) return null;
-  return { head };
+  return parsed.documents === true ? { head, documents: true } : { head };
 }

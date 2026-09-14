@@ -33,6 +33,7 @@ import { sizingModeOf, sizingModePatch } from '../sizing-mode.ts';
 // above (a type-only SyncStatusSnapshot import that Bun erases).
 import { syncPresentation } from '../sync/presentation.ts';
 import { canvasUrl } from './canvas-url.js';
+import { createIndexLoader } from './index-loader.ts';
 import {
   BROWSER_CAPTURE_FORMATS,
   BROWSER_SERVABLE_FORMATS,
@@ -11518,37 +11519,46 @@ function App() {
   }, []);
 
   // ----- Tree -----
-  const loadTree = useCallback(async () => {
-    try {
-      const r = await fetch('/_index-data');
-      const data = await r.json();
-      setProject(data.project || 'Design');
-      const built = data.groups.map((g) => ({
-        ...g,
-        tree: buildTree(g.paths, g.stripPrefix, g.dirs),
-      }));
-      setGroups(built);
-      // DDR-093 — fold the server-resolved per-canvas DS map into cfg so
-      // canvasUrl() injects each UI canvas's OWN design-system tokens instead of
-      // always designSystems[0]. Functional merge to coexist with the /_config
-      // fetch (either may land first). `?? {}` keeps older servers (no map) on
-      // the ds0 fallback. Re-runs on every tree reload, so adding/retargeting a
-      // canvas refreshes the map.
-      setCfg((prev) => ({
-        ...prev,
-        canvasDesignSystems: data.canvasDesignSystems ?? {},
-        // DDR-174 (T15) — per-canvas notable `.meta.json` `kind` values (today:
-        // only `reconstructed-experimental`), folded in the same way + for the
-        // same reason as canvasDesignSystems above.
-        canvasKinds: data.canvasKinds ?? {},
-      }));
-    } catch (e) {
-      console.error('failed to load tree', e);
-    }
-  }, []);
-
+  const treeLoaderRef = useRef(null);
+  const loadTree = useCallback(() => treeLoaderRef.current?.reload() ?? Promise.resolve(), []);
   useEffect(() => {
+    const loader = createIndexLoader({
+      read: async (signal) => {
+        const r = await fetch('/_index-data', { signal, cache: 'no-store' });
+        if (!r.ok) throw Object.assign(new Error(`Project index request failed: ${r.status}`), { status: r.status });
+        const data = await r.json();
+        const built = data.groups.map((g) => ({
+          ...g,
+          tree: buildTree(g.paths, g.stripPrefix, g.dirs),
+        }));
+        return { data, built };
+      },
+      apply: ({ data, built }) => {
+        setProject(data.project || 'Design');
+        setGroups(built);
+        // DDR-093 — fold the server-resolved per-canvas DS map into cfg so
+        // canvasUrl() injects each UI canvas's OWN design-system tokens instead of
+        // always designSystems[0]. Functional merge to coexist with the /_config
+        // fetch (either may land first). `?? {}` keeps older servers (no map) on
+        // the ds0 fallback. Re-runs on every tree reload, so adding/retargeting a
+        // canvas refreshes the map.
+        setCfg((prev) => ({
+          ...prev,
+          canvasDesignSystems: data.canvasDesignSystems ?? {},
+          // DDR-174 (T15) — per-canvas notable `.meta.json` `kind` values (today:
+          // only `reconstructed-experimental`), folded in the same way + for the
+          // same reason as canvasDesignSystems above.
+          canvasKinds: data.canvasKinds ?? {},
+        }));
+      },
+      onError: (error) => console.error('failed to load tree', error),
+    });
+    treeLoaderRef.current = loader;
     loadTree();
+    return () => {
+      treeLoaderRef.current = null;
+      loader.dispose();
+    };
   }, [loadTree]);
 
   // ----- System data (lazy) -----
@@ -11597,6 +11607,7 @@ function App() {
   }, [loadAllComments]);
 
   // ----- WebSocket -----
+  const canvasListChangeRef = useRef(() => {});
   useEffect(() => {
     // KEEPALIVE. The inspector feed only pushes on events (a comment, a
     // selection, sync:status), so an idle designer's socket exchanges nothing
@@ -11708,26 +11719,8 @@ function App() {
             // Phase 9 Task 8 — hub connection state for the offline banner.
             setSyncStatus(m.payload);
           } else if (m.type === 'canvas-list-update') {
-            // Phase 30 — a canvas was created/deleted on THIS dev-server; re-read
-            // the branch-scoped tree so other open tabs reflect it without a
-            // reload. Cross-machine peers get a new canvas via git "Get latest".
             loadTree();
-            // feature-file-tree-drag-drop-folders (Task 10) — a canvas moved.
-            // moveCanvasReq already retargets the INITIATING tab locally (no
-            // need to wait for this broadcast to round-trip); this branch is
-            // for every OTHER open tab on the same dev-server, so a canvas
-            // that was open there doesn't go dead pointing at a path that no
-            // longer exists.
-            if (m.payload?.action === 'moved' && m.payload.fromRel && m.payload.rel) {
-              const designRel = (cfg?.designRel || cfg?.designRoot || '.design').replace(
-                /^\/+|\/+$/g,
-                ''
-              );
-              const fromFile = `${designRel}/${m.payload.fromRel}`;
-              const toFile = `${designRel}/${m.payload.rel}`;
-              setTabs((prev) => prev.map((t) => (t.path === fromFile ? { path: toFile } : t)));
-              setActivePath((prev) => (prev === fromFile ? toFile : prev));
-            }
+            canvasListChangeRef.current(m.payload);
           } else if (m.type === 'config-updated') {
             // Server hot-reloaded .design/config.json (/design:setup-ds rewrote
             // it) — refetch /_config so designSystems / tokensCssRel / groups
@@ -11973,20 +11966,23 @@ function App() {
   // (iframesRef, comments push, WS `tabs` message) doesn't need refactoring.
   // ARTBOARDS slot in the menubar reads `tabs.length` and reports 0 or 1.
   const openTab = useCallback((path) => {
+    setFocusedCommentId(null);
+    setPreviewPath(null);
+    // The same path keeps its mounted iframe. It will not emit a new loaded
+    // event, so keep its current loading/error state until an actual retry.
+    if (path === activePath) return;
     setTabs((prev) => {
       // Drop the previously-open iframe so we don't leak DOM nodes.
       for (const t of prev) if (t.path !== path) iframesRef.current.delete(t.path);
       return [{ path }];
     });
     setActivePath(path);
-    setFocusedCommentId(null);
-    setPreviewPath(null);
     setCanvasError(null);
     setLoadedPath(null);
     // Canvas-compile skeleton — cleared by the iframe's dgn:'loaded' message,
     // the onLoad fallback timer (legacy .html), or a hard 15s cap.
     if (path !== SYSTEM_TAB) setLoadingPath(path);
-  }, []);
+  }, [activePath]);
 
   // Retry from the #115 error panel: re-read /_config FIRST (the stale
   // `canvasOrigin` is the likeliest reason we are here at all), then remount the
@@ -12077,6 +12073,23 @@ function App() {
     },
     [activePath]
   );
+
+  // The socket stays connected while this ref follows the current config and
+  // active tab. Structural events apply to local and remote users alike.
+  canvasListChangeRef.current = (change) => {
+    if (!change?.rel) return;
+    const designRel = (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '');
+    const file = `${designRel}/${change.rel}`;
+    if (change.action === 'removed') {
+      closeTab(file);
+    } else if (change.action === 'moved' && change.fromRel) {
+      const fromFile = `${designRel}/${change.fromRel}`;
+      setTabs((prev) => prev.map((t) => t.path === fromFile ? { ...t, path: file } : t));
+      setActivePath((prev) => prev === fromFile ? file : prev);
+      setLoadingPath((prev) => prev === fromFile ? null : prev);
+      iframesRef.current.delete(fromFile);
+    }
+  };
 
   const reloadActive = useCallback(() => {
     if (!activePath || activePath === SYSTEM_TAB) {

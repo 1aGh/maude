@@ -217,3 +217,37 @@ describe('per-canvas selections — lifecycle', () => {
     expect(asOne(emitted[3]).selector).toBe('h1');
   });
 });
+
+describe('deleted canvas context', () => {
+  test('removes the active canvas and its selection without polluting another canvas', async () => {
+    const { inspect } = await mkRig();
+    inspect.setOpenTabs([A, B]);
+    inspect.setActive(B);
+    inspect.setSelected(selFor(B, 'keep B'));
+    inspect.setActive(A);
+    inspect.setSelected(selFor(A, 'remove A'));
+    expect(inspect.remove(A)).toBe(true);
+    expect(inspect.state.active).toBeNull();
+    expect(inspect.state.selected).toBeNull();
+    expect(inspect.state.open_tabs).toEqual([B]);
+    expect(inspect.state.selections['ui/fixture']).toBeUndefined();
+    inspect.setActive(B);
+    expect(asOne(inspect.state.selected).text).toBe('keep B');
+    expect(inspect.remove(A)).toBe(false);
+  });
+
+  test('deleting a background canvas keeps the current canvas and selection', async () => {
+    const { inspect } = await mkRig();
+    inspect.setOpenTabs([A, B]);
+    inspect.setActive(A);
+    inspect.setSelected(selFor(A));
+    inspect.setActive(B);
+    inspect.setSelected(selFor(B));
+    const selected = inspect.state.selected;
+    inspect.remove(A);
+    expect(inspect.state.active).toBe(B);
+    expect(inspect.state.selected).toBe(selected);
+    expect(inspect.state.open_tabs).toEqual([B]);
+    expect(inspect.state.selections['ui/fixture']).toBeUndefined();
+  });
+});

@@ -84,6 +84,7 @@ import { handleExportRoute, scheduleMirror, scheduleRevocationSweep } from './ce
 import { clientIpFor, parseTrustedProxies } from './client-ip.mjs';
 import { designRootFor } from './design-root.mjs';
 import { groupCanvases } from './doc-namespace.mjs';
+import { createDocumentEvents } from './document-events.mjs';
 import {
   DOCUMENT_PATH_PREFIX,
   DOCUMENTS_PATH,
@@ -1143,10 +1144,14 @@ export function createHub(config = {}) {
           bearer: (request.headers?.authorization ?? '').replace(/^Bearer\s+/i, '').trim() || null,
           verify: (token) => verifyToken(dataDir, token, secret),
           matchesScope,
-          deleteDocument: (name) => deleteDocument({ name, server, sqlitePath, dataDir }),
+          deleteDocument: (name) => {
+            deleteDocument({ name, server, sqlitePath, dataDir });
+            documentEvents.changed();
+          },
           reviveDocument: (name) => {
             try {
               clearTombstone(dataDir, name);
+              documentEvents.changed();
             } catch {
               /* an unwritable store degrades to today's behaviour */
             }
@@ -1586,6 +1591,7 @@ export function createHub(config = {}) {
     // silently yields undefined, and the only symptom is every server commit
     // authored by "Unknown editor" — a lie that git blame repeats forever.
     async afterStoreDocument({ documentName, document, lastContext }) {
+      documentEvents.stored({ documentName, document });
       if (!workspace) return;
       try {
         await workspace.onDocumentStored({ documentName, document, user: lastContext?.user });
@@ -1605,6 +1611,8 @@ export function createHub(config = {}) {
   // silent no-op, because "no document" is also what an unattached project
   // legitimately looks like. See `documentMap` in files-ctl.mjs.
   const filesPoke = createFilesPoke({ instance: server });
+  const documentsPoke = createFilesPoke({ instance: server, documentsOnly: true, coalesceMs: 50 });
+  const documentEvents = createDocumentEvents({ poke: documentsPoke });
 
   return {
     server,
@@ -1828,6 +1836,7 @@ export function createHub(config = {}) {
         walkImportTimer = null;
       }
       filesPoke.stop();
+      documentsPoke.stop();
       await journalTail?.stop();
       journalTail = null;
     },
