@@ -248,10 +248,10 @@ describe('scanning', () => {
     const found = first.get('system/ds/brand.css')!;
     // An old mtime is a trustworthy identity: nothing can have changed inside
     // the timestamp's resolution, because the timestamp is not recent.
-    ledger.noteLocal('system/ds/brand.css', found.hash, found.size, Date.now() - 60_000);
-    expect(ledger.cachedHash('system/ds/brand.css', found.size, Date.now() - 60_000)).toBe(
-      found.hash
-    );
+    // One stamp: two `Date.now()` calls can straddle a millisecond and differ.
+    const settled = Date.now() - 60_000;
+    ledger.noteLocal('system/ds/brand.css', found.hash, found.size, settled);
+    expect(ledger.cachedHash('system/ds/brand.css', found.size, settled)).toBe(found.hash);
   });
 
   test('a file written MOMENTS ago is re-read, whatever the stamp says', () => {
