@@ -286,3 +286,169 @@ describe('zero progress has a deadline — the stalled phase', () => {
     expect(p?.phase).toBe('connecting');
   });
 });
+
+// Audit 2026-09-13 P0 #3 / plan T4 — "synced" is a claim about the WHOLE
+// project, not about the document sockets. The audit reproduced "Synced … all
+// 91 canvases" beside a refused source change, a failed file and a blocked
+// seed. Every lane the payload already carries now counts.
+describe('one truthful summary across every lane', () => {
+  const synced91 = { docs: { synced: 91, pending: 0, rejected: 0 } };
+
+  test('the audit reproduction no longer reads synced', () => {
+    const p = at({
+      ...synced91,
+      conflicts: [{ kind: 'body-rejected', slug: 'screen', reason: 'invalid-source', at: 1 }],
+      files: {
+        synced: 99,
+        pulled: 0,
+        conflicts: 0,
+        failed: 1,
+        progress: {
+          phase: 'blocked',
+          tracked: 100,
+          delivered: 99,
+          remaining: 0,
+          bytesRemaining: 0,
+          blocked: [{ class: 'too-large', count: 1 }],
+          etaMs: null,
+          startedAt: null,
+        },
+      },
+    });
+    expect(p?.phase).toBe('attention');
+    expect(p?.online).toBe(false);
+    expect(p?.title).not.toMatch(/^Synced/);
+    expect(p?.title).toContain('1 source change');
+    expect(p?.title).toContain('too large');
+    expect(p?.names).toEqual(['screen']);
+    expect(p?.next).toBeTruthy();
+  });
+
+  test('a refused source change outranks an unreachable hub — it never self-heals', () => {
+    const p = at({
+      state: 'offline',
+      ...synced91,
+      conflicts: [{ kind: 'body-rejected', slug: 'home', reason: 'local-edit', at: 1 }],
+    });
+    expect(p?.phase).toBe('attention');
+  });
+
+  test('an auth refusal still outranks a source conflict', () => {
+    const p = at({
+      docs: { synced: 90, pending: 0, rejected: 1 },
+      conflicts: [{ kind: 'body-rejected', slug: 'home', reason: 'local-edit', at: 1 }],
+    });
+    expect(p?.phase).toBe('refused');
+  });
+
+  test.each([
+    ['a failed file', { files: { synced: 3, pulled: 0, conflicts: 0, failed: 2 } }, '2 files'],
+    [
+      'a held breaker',
+      {
+        files: {
+          synced: 3,
+          pulled: 0,
+          conflicts: 0,
+          held: [{ kind: 'delete-out', count: 4, paths: ['a'], detail: 'x' }],
+        },
+      },
+      '4 changes',
+    ],
+    [
+      'failed media uploads',
+      {
+        assets: {
+          total: 5,
+          done: 5,
+          pushed: 3,
+          skipped: 0,
+          failedCount: 2,
+          failures: [],
+          active: null,
+          finished: true,
+        },
+      },
+      '2 media',
+    ],
+  ])('%s needs attention, not a green dot', (_name, lane, text) => {
+    const p = at({ ...synced91, ...(lane as SyncStatusLike) });
+    expect(p?.phase).toBe('attention');
+    expect(p?.online).toBe(false);
+    expect(p?.title).toContain(text as string);
+  });
+
+  test('files still moving read as syncing, with the denominator', () => {
+    const p = at({
+      ...synced91,
+      files: {
+        synced: 10,
+        pulled: 0,
+        conflicts: 0,
+        progress: {
+          phase: 'seeding',
+          tracked: 2961,
+          delivered: 1412,
+          remaining: 1549,
+          bytesRemaining: 1,
+          blocked: [],
+          etaMs: null,
+          startedAt: null,
+        },
+      },
+    });
+    expect(p?.phase).toBe('syncing');
+    expect(p?.title).toContain('1412 of 2961');
+    expect(p?.next).toMatch(/Nothing to do/);
+  });
+
+  test('an upload sweep in flight is syncing too', () => {
+    const p = at({
+      ...synced91,
+      assets: {
+        total: 4,
+        done: 1,
+        pushed: 1,
+        skipped: 0,
+        failedCount: 0,
+        failures: [],
+        active: 'assets/a.png',
+        finished: false,
+      },
+    });
+    expect(p?.phase).toBe('syncing');
+  });
+
+  test('a resolved/informational conflict and a converged seed stay synced', () => {
+    const p = at({
+      ...synced91,
+      conflicts: [{ kind: 'cold-start-diverged', slug: 'home', winner: 'hub', at: 1 }],
+      files: {
+        synced: 3,
+        pulled: 0,
+        conflicts: 0,
+        failed: 0,
+        progress: {
+          phase: 'converged',
+          tracked: 3,
+          delivered: 3,
+          remaining: 0,
+          bytesRemaining: 0,
+          blocked: [],
+          etaMs: null,
+          startedAt: null,
+        },
+      },
+    });
+    expect(p?.phase).toBe('synced');
+    expect(p?.online).toBe(true);
+  });
+
+  test('malformed lane payloads never manufacture a synced claim they cannot back', () => {
+    const p = at({
+      ...synced91,
+      files: { synced: 'lots', failed: -1 } as unknown as SyncStatusLike['files'],
+    });
+    expect(p?.phase).not.toBe('synced');
+  });
+});

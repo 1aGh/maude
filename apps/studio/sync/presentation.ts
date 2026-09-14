@@ -25,7 +25,9 @@ export type SyncPhase =
   | 'stalled'
   | 'refused'
   | 'offline'
-  | 'nothing-syncable';
+  | 'nothing-syncable'
+  /** The link works, but part of the project did not get through. */
+  | 'attention';
 
 /**
  * How long `connecting…` may honestly stay on screen with ZERO documents
@@ -71,6 +73,14 @@ export interface SyncStatusLike extends Partial<SyncStatusSnapshot> {
   tsxCount?: number;
   reason?: string;
   canvases?: number;
+  /**
+   * The other lanes `_sync.json` carries (`status.ts`): source-sync conflicts,
+   * the file plane, the asset push. Typed `unknown` on purpose — they are read
+   * off disk with no schema and validated below, never trusted.
+   */
+  conflicts?: unknown;
+  files?: unknown;
+  assets?: unknown;
 }
 
 /** Hub-supplied text that reaches a UI. Bounded, never markup. */
@@ -142,6 +152,118 @@ function readCounts(
   if (!ok(docs.synced) || !ok(docs.pending) || !ok(docs.rejected)) return null;
   return { synced: docs.synced, pending: docs.pending, rejected: docs.rejected };
 }
+
+const isCount = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n) && n >= 0;
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  v !== null && typeof v === 'object' && !Array.isArray(v);
+
+/** What the non-document lanes say, validated. */
+interface LaneFacts {
+  /** A payload field we cannot read. Fail closed: never "synced". */
+  unreadable: boolean;
+  /** Canvases whose source change was refused and is waiting (#121 / T2). */
+  sourceSlugs: string[];
+  failedFiles: number;
+  tooLarge: number;
+  blockedOther: number;
+  /** Changes a breaker is holding for a person's decision. */
+  held: number;
+  failedMedia: number;
+  /** Files or media still moving on their own. */
+  moving:
+    | { delivered: number; tracked: number }
+    | { media: { done: number; total: number } }
+    | null;
+  paused: boolean;
+}
+
+/**
+ * Audit 2026-09-13 P0 #3 — "synced" is a claim about the whole project, not
+ * about the document sockets. The payload already carried refused source
+ * changes, failed files, a blocked seed and failed uploads; the summary read
+ * none of them and said "Synced … all 91 canvases" over all four.
+ */
+function readLanes(status: SyncStatusLike): LaneFacts {
+  const facts: LaneFacts = {
+    unreadable: false,
+    sourceSlugs: [],
+    failedFiles: 0,
+    tooLarge: 0,
+    blockedOther: 0,
+    held: 0,
+    failedMedia: 0,
+    moving: null,
+    paused: false,
+  };
+  const { conflicts, files, assets } = status;
+  if (conflicts !== undefined) {
+    if (!Array.isArray(conflicts)) facts.unreadable = true;
+    else {
+      for (const c of conflicts) {
+        // `body-rejected` is the only kind that stays until it is resolved
+        // (`clearSourceConflict`); cold-start notes record a decision made.
+        if (isRecord(c) && c.kind === 'body-rejected') {
+          facts.sourceSlugs.push(typeof c.slug === 'string' ? c.slug : '(unnamed)');
+        }
+      }
+    }
+  }
+  if (files !== undefined) {
+    if (!isRecord(files)) facts.unreadable = true;
+    else {
+      for (const key of ['synced', 'pulled', 'conflicts', 'pushed', 'failed'] as const) {
+        if (files[key] !== undefined && !isCount(files[key])) facts.unreadable = true;
+      }
+      if (isCount(files.failed)) facts.failedFiles = files.failed;
+      if (Array.isArray(files.held)) {
+        for (const h of files.held) facts.held += isRecord(h) && isCount(h.count) ? h.count : 1;
+      }
+      if (isRecord(files.rateLimited)) facts.paused = true;
+      const progress = files.progress;
+      if (isRecord(progress)) {
+        if (Array.isArray(progress.blocked)) {
+          for (const b of progress.blocked) {
+            if (!isRecord(b) || !isCount(b.count)) continue;
+            if (b.class === 'too-large') facts.tooLarge += b.count;
+            else facts.blockedOther += b.count;
+          }
+        }
+        if (progress.phase === 'paused') facts.paused = true;
+        if (
+          progress.phase === 'scanning' ||
+          progress.phase === 'seeding' ||
+          progress.phase === 'paused'
+        ) {
+          facts.moving =
+            isCount(progress.delivered) && isCount(progress.tracked)
+              ? {
+                  delivered: Math.min(progress.delivered, progress.tracked),
+                  tracked: progress.tracked,
+                }
+              : { delivered: 0, tracked: 0 };
+        }
+      } else if (progress !== undefined) facts.unreadable = true;
+    }
+  }
+  if (assets !== undefined) {
+    if (!isRecord(assets)) facts.unreadable = true;
+    else {
+      if (isCount(assets.failedCount)) facts.failedMedia = assets.failedCount;
+      else if (assets.failedCount !== undefined) facts.unreadable = true;
+      if (assets.finished === false && !facts.moving) {
+        facts.moving = {
+          media: {
+            done: isCount(assets.done) ? assets.done : 0,
+            total: isCount(assets.total) ? assets.total : 0,
+          },
+        };
+      }
+    }
+  }
+  return facts;
+}
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /**
  * Read a sync payload the way a person would.
@@ -224,6 +346,54 @@ export function syncPresentation(
   const queued = status.queuedOps ?? 0;
   const queueNote = queued > 0 ? ` ${queued} local edit${queued === 1 ? '' : 's'} are queued.` : '';
   const unreachable = status.state === 'offline' || status.state === 'offline-long';
+  const lanes = readLanes(status);
+
+  /**
+   * Part of the project did not get through. `sourceOnly` is the ranking
+   * split: a refused source change never heals on its own, so it outranks an
+   * unreachable hub; a failed transfer may be the outage itself, so file and
+   * media problems rank below it.
+   */
+  const attention = (sourceOnly: boolean): SyncPresentation | null => {
+    const parts: string[] = [];
+    let items = 0;
+    const add = (n: number, text: string) => {
+      if (n <= 0) return;
+      parts.push(text);
+      items += n;
+    };
+    const src = lanes.sourceSlugs.length;
+    add(src, `${plural(src, 'source change')} ${src === 1 ? 'was' : 'were'} not applied`);
+    if (!sourceOnly) {
+      add(lanes.failedFiles, `${plural(lanes.failedFiles, 'file')} could not be delivered`);
+      add(
+        lanes.tooLarge,
+        `${plural(lanes.tooLarge, 'file')} ${lanes.tooLarge === 1 ? 'is' : 'are'} too large to sync`
+      );
+      add(
+        lanes.blockedOther,
+        `${plural(lanes.blockedOther, 'file')} ${lanes.blockedOther === 1 ? 'is' : 'are'} blocked`
+      );
+      add(
+        lanes.held,
+        `${plural(lanes.held, 'change')} ${lanes.held === 1 ? 'is' : 'are'} held for your decision`
+      );
+      add(lanes.failedMedia, `${plural(lanes.failedMedia, 'media upload')} failed`);
+    }
+    if (items === 0) return null;
+    return {
+      phase: 'attention',
+      online: false,
+      label: `${items} to review`,
+      title:
+        `${items === 1 ? 'A change needs' : `${items} changes need`} your attention in ${project}: ` +
+        `${parts.join('; ')}.` +
+        (unreachable ? ' The hub is also unreachable right now.' : '') +
+        queueNote,
+      next: 'Open the Sync panel to see what is waiting and why.',
+      names: shownNames(lanes.sourceSlugs),
+    };
+  };
   // Validated, not taken on trust — see `readCounts`. `null` means "unreadable",
   // which is deliberately NOT the same as "absent" (an old payload, handled
   // below) and must never reach the synced branch.
@@ -253,6 +423,14 @@ export function syncPresentation(
     };
   }
 
+  // A refused SOURCE change outranks an unreachable hub for the same reason a
+  // refusal does: it is sticky, and it is the part that needs a person.
+  // (With the hub reachable, the same sentence lists every other lane too.)
+  if (lanes.sourceSlugs.length > 0) {
+    const sourceAttention = attention(unreachable);
+    if (sourceAttention) return sourceAttention;
+  }
+
   // Otherwise an unreachable hub outranks every count. Whatever the documents
   // last said, nothing is moving — and "72 synced" over a dead socket is the
   // exact shape of lie this module exists to stop.
@@ -270,7 +448,7 @@ export function syncPresentation(
     };
   }
 
-  if (unreadable) {
+  if (unreadable || lanes.unreadable) {
     // A payload we cannot read is not a payload that says everything is fine.
     return {
       phase: 'connecting',
@@ -289,6 +467,8 @@ export function syncPresentation(
     // Pre-DDR-102 payload — no per-document counts, so a refusal cannot be
     // ruled out and the credential hedge stays.
     if (!online && isStalled) return stalled(true);
+    const laneAttention = online ? attention(false) : null;
+    if (laneAttention) return laneAttention;
     return {
       phase: online ? 'synced' : 'connecting',
       online,
@@ -315,6 +495,10 @@ export function syncPresentation(
     };
   }
 
+  // Needs a person, so it outranks work that will finish by itself.
+  const laneAttention = attention(false);
+  if (laneAttention) return laneAttention;
+
   if (docs.pending > 0) {
     // Zero settled yet is a different fact from some settled: one is a
     // handshake in flight, the other is visible progress.
@@ -328,6 +512,30 @@ export function syncPresentation(
         ? `Syncing with ${project} — ${docs.synced} of ${total} canvas${total === 1 ? '' : 'es'} so far.`
         : `Connecting to ${project}…`,
       next: 'Nothing to do — this usually takes a moment.',
+      names: [],
+    };
+  }
+
+  // Every canvas is in step, but files or media are still moving: that is
+  // syncing, not synced. The denominator is the ledger's (seed-progress.ts).
+  if (lanes.moving) {
+    const m = lanes.moving;
+    const detail =
+      'media' in m
+        ? `uploading media (${m.media.done} of ${m.media.total})`
+        : m.tracked > 0
+          ? `files ${m.delivered} of ${m.tracked} delivered`
+          : 'checking project files';
+    return {
+      phase: 'syncing',
+      online: true,
+      label:
+        'media' in m ? 'media ↑' : m.tracked > 0 ? `${m.delivered}/${m.tracked} files` : 'files…',
+      title:
+        `Syncing with ${project} — all ${total} canvas${total === 1 ? '' : 'es'} in step, ${detail}.` +
+        (lanes.paused ? ' Paused while the hub asks us to wait.' : '') +
+        queueNote,
+      next: 'Nothing to do — this continues on its own.',
       names: [],
     };
   }
