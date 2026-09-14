@@ -13,9 +13,12 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
 import {
+  closeSync,
   existsSync,
+  ftruncateSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readdirSync,
   readFileSync,
   rmSync,
@@ -1503,5 +1506,64 @@ describe('rate limits', () => {
     expect(result.rateLimited).toBeUndefined();
     expect(result.requestsExhausted).toBeUndefined();
     expect(result.failed).toEqual([]);
+  });
+});
+
+// Audit 2026-09-13 P1 #4 / plan T4 — a file over the plane's 512 MiB ceiling
+// was dropped by the scan BEFORE the ledger. Missing from the inventory, it
+// was also indistinguishable from a local delete: a synced asset that grew past
+// the ceiling looked "gone here", and a hub copy looked "missing here".
+describe('a local file over the plane ceiling', () => {
+  const OVER = 512 * 1024 * 1024 + 1;
+  const grow = (rel: string) => {
+    const abs = join(root, rel);
+    mkdirSync(join(abs, '..'), { recursive: true });
+    const fd = openSync(abs, 'a');
+    try {
+      ftruncateSync(fd, OVER); // sparse — no real bytes on disk
+    } finally {
+      closeSync(fd);
+    }
+  };
+
+  test('is enumerated as present but unsyncable, never hashed', () => {
+    write('assets/small.svg', '<svg/>');
+    grow('assets/large.mp4');
+    const scanned = scanLocalFiles(root, ledger);
+    expect(scanned.get('assets/small.svg')?.hash).toBe(sha('<svg/>'));
+    expect(scanned.get('assets/large.mp4')).toMatchObject({
+      oversized: true,
+      hash: null,
+      size: OVER,
+    });
+  });
+
+  test('a synced asset that grows past it is never propagated as a delete', async () => {
+    const hub = fakeHub({ 'assets/clip.mp4': 'v1' });
+    const p = plane(hub, { propagateDeletes: true });
+    await p.reconcile();
+    expect(read('assets/clip.mp4')).toBe('v1');
+
+    grow('assets/clip.mp4');
+    const res = await p.reconcile();
+
+    expect(hub.deletes).toEqual([]);
+    expect(hub.puts).toEqual([]);
+    expect(res.deleted).toEqual([]);
+    expect(statSync(join(root, 'assets/clip.mp4')).size).toBe(OVER);
+    expect(ledger.row('assets/clip.mp4')).toMatchObject({
+      state: 'refused',
+      blockedClass: 'too-large',
+    });
+  });
+
+  test('a hub copy never overwrites the larger local file', async () => {
+    grow('assets/clip.mp4');
+    const hub = fakeHub({ 'assets/clip.mp4': 'small hub copy' });
+    const p = plane(hub);
+    await p.reconcile();
+    expect(statSync(join(root, 'assets/clip.mp4')).size).toBe(OVER);
+    expect(hub.puts).toEqual([]);
+    expect(ledger.row('assets/clip.mp4')?.state).toBe('refused');
   });
 });

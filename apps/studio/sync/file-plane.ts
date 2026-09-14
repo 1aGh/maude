@@ -390,14 +390,34 @@ export interface FilePlaneOptions {
   onProgress?: () => void;
 }
 
-interface LocalFile {
+interface SyncableLocalFile {
   rel: string;
   abs: string;
   hash: string;
   size: number;
   mtimeMs: number;
   cls: FileClass;
+  oversized?: undefined;
 }
+
+/**
+ * Present here, eligible, and over the plane's ceiling (audit 2026-09-13 P1
+ * #4). It is IN the inventory — absent from it, it was indistinguishable from
+ * a local delete (a grown asset was deleted on the hub) and from a missing
+ * local copy (a hub copy overwrote it). Never hashed: reading half a gigabyte
+ * to label a row it cannot move is the cost the ceiling exists to avoid.
+ */
+interface OversizedLocalFile {
+  rel: string;
+  abs: string;
+  hash: null;
+  size: number;
+  mtimeMs: number;
+  cls: FileClass;
+  oversized: true;
+}
+
+type LocalFile = SyncableLocalFile | OversizedLocalFile;
 
 const sha256 = (bytes: Uint8Array | string): string =>
   createHash('sha256').update(bytes).digest('hex');
@@ -441,7 +461,6 @@ export function scanLocalFiles(
       } catch {
         continue;
       }
-      if (st.size > MAX_FILE_BYTES) continue;
       found.push({ rel: childRel, abs: childAbs, size: st.size, mtimeMs: st.mtimeMs });
     }
   };
@@ -456,6 +475,10 @@ export function scanLocalFiles(
   for (const f of found) {
     const cls = classifyProjectFile(f.rel, opts);
     if (!isFilePlaneClass(cls)) continue;
+    if (f.size > MAX_FILE_BYTES) {
+      out.set(f.rel, { ...f, cls, hash: null, oversized: true });
+      continue;
+    }
     let hash = ledger.cachedHash(f.rel, f.size, f.mtimeMs);
     if (hash === null) {
       try {
@@ -964,7 +987,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
    * Upload one file with a compare-and-swap against the state we decided from.
    */
   async function push(
-    local: LocalFile,
+    local: SyncableLocalFile,
     expect: string | null
   ): Promise<
     | { ok: true; seq: number | null }
@@ -1316,7 +1339,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     let work: {
       rel: string;
       decision: ReturnType<typeof decideFile>;
-      local: LocalFile | undefined;
+      local: SyncableLocalFile | undefined;
       row: JournalEntry | undefined;
       remoteHash: string | null;
     }[] = [];
@@ -1331,6 +1354,12 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     for (const rel of paths) {
       const row = delta.get(rel);
       const here = local.get(rel);
+      // HELD, NOT ABSENT. A file this peer cannot move is still a file: no
+      // decision may read it as deleted here or missing here.
+      if (here?.oversized) {
+        holdOversized(out, ledger, here);
+        continue;
+      }
       // What the hub holds: this page when it spoke about the path, otherwise
       // what we last learned. `undefined` (never learned) reads as null only
       // after a full read has had the chance to say so.
@@ -1629,7 +1658,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     item: {
       rel: string;
       decision: ReturnType<typeof decideFile>;
-      local?: LocalFile;
+      local?: SyncableLocalFile;
       row?: JournalEntry;
       remoteHash: string | null;
     },
@@ -1905,7 +1934,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     }
   }
 
-  function statLocal(rel: string): LocalFile | null {
+  function statLocal(rel: string): SyncableLocalFile | null {
     const abs = path.join(designRoot, rel);
     try {
       const st = statSync(abs);
@@ -1951,6 +1980,17 @@ function drop(out: FilePlaneResult, rel: string, reason: string, ledger?: FileLe
   // would put a file in the panel's ordinary column that is in fact being
   // actively refused, which is the shape of "we didn't know it was stuck".
   ledger?.setState(rel, 'stuck', { reason });
+}
+
+function holdOversized(out: FilePlaneResult, ledger: FileLedger, file: OversizedLocalFile): void {
+  const mb = (n: number) => Math.round(n / (1024 * 1024));
+  const reason = `too big to sync — ${mb(file.size)} MB is over the ${mb(MAX_FILE_BYTES)} MB limit`;
+  out.dropped.push({ rel: file.rel, reason });
+  const row = ledger.row(file.rel);
+  // Unchanged rows stay unwritten: this runs every pass for as long as the
+  // file stays too big, and the ledger flushes on every setState.
+  if (row?.state === 'refused' && row.blockedClass === 'too-large' && row.reason === reason) return;
+  ledger.setState(file.rel, 'refused', { reason, blockedClass: 'too-large' });
 }
 
 /** `assets/<name>` referenced anywhere in the tree — the priority front-queue. */
