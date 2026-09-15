@@ -4756,6 +4756,108 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           });
         }
       }
+      // L12 / L14 — a photo and a video moved into a folder and renamed from
+      // the tree. Every copy holds the whole object at its new name and none
+      // at the old; a canvas that names the new path decodes it on every
+      // participant (so nothing serves a stale copy under the old name).
+      {
+        const kinds = [
+          { lane: 'L12', ext: 'png', input: (n: string) => run.media.uploads?.[n] },
+          { lane: 'L14', ext: 'mp4', input: (n: string) => run.media.videoUploads?.[n] },
+        ] as const;
+        for (const [k, kind] of kinds.entries()) {
+          const from = all[k % all.length] as Surface;
+          const name = `SurfaceMedia${kind.ext.toUpperCase()}-${from.name}`;
+          const dest = `SurfaceMediaDest-${kind.ext}`;
+          const original = `ui/${name}.${kind.ext}`;
+          const movedRel = `ui/${dest}/${name}.${kind.ext}`;
+          const renamedRel = `ui/${dest}/${name}-renamed.${kind.ext}`;
+          const fileRow = (r: string) => selector(`file-row-${slug(r)}`);
+          const hashAt = (p: Surface, r: string) =>
+            existsSync(join(p.root, '.design', r))
+              ? createHash('sha256').update(bytes(p.root, r)).digest('hex')
+              : null;
+          const input = kind.input(from.name);
+          await check(`${kind.lane}.asset.move-rename`, `${from.name}-to-peers`, async () => {
+            if (!input) throw new Unexercised('No media fixture');
+            const hubSide = all.find((p) => p.name === 'hub') as Surface;
+            mkdirSync(join(hubSide.root, '.design/ui', dest), { recursive: true });
+            writeFileSync(join(hubSide.root, '.design/ui', dest, '.gitkeep'), '');
+            writeFileSync(join(hubSide.root, '.design', original), readFileSync(input.path));
+            await until(() => all.every((p) => hashAt(p, original) === input.sha256), 60000);
+            for (const p of all) await expand(p, `ui/${dest}`).catch(() => {});
+            await until(async () => (await from.read(fileRow(original))) !== null, 30000);
+            await from.hover(fileRow(original));
+            await from.click(selector(`tree-row-menu-${slug(original)}`));
+            await from.menu('Move to…');
+            await from.menu(`ui/${dest}`);
+            await until(() => all.every((p) => hashAt(p, movedRel) === input.sha256), 30000);
+            await expand(from, `ui/${dest}`);
+            await until(async () => (await from.read(fileRow(movedRel))) !== null, 30000);
+            await from.hover(fileRow(movedRel));
+            await from.click(selector(`tree-row-menu-${slug(movedRel)}`));
+            await from.promptNext(`${name}-renamed`);
+            const start = performance.now();
+            await from.menu('Rename…');
+            const landed = await observeAll(
+              all,
+              `${kind.lane}-move-rename-${from.name}`,
+              start,
+              async (p) => (await p.read(fileRow(original))) === null,
+              (p) =>
+                hashAt(p, renamedRel) === input.sha256 &&
+                hashAt(p, movedRel) === null &&
+                hashAt(p, original) === null
+            );
+            // A canvas naming the new path decodes it everywhere.
+            const viewer = `ui/SurfaceMediaView-${kind.ext}-${from.name}.tsx`;
+            const tag =
+              kind.ext === 'png'
+                ? `<img data-testid="surface-moved-media" src="/.design/${renamedRel}" width={64} height={64} alt="" />`
+                : `<video data-testid="surface-moved-media" src="/.design/${renamedRel}" width={160} height={90} muted playsInline preload="auto" />`;
+            await seedCanvas(
+              from,
+              viewer,
+              elementCanvas(`Moved ${kind.ext} ${from.name}`).replace(
+                '<p>Kept paragraph</p>',
+                `<p>Kept paragraph</p>\n          ${tag}`
+              )
+            );
+            await openSeeded(
+              viewer,
+              `Moved ${kind.ext} ${from.name}`,
+              `${kind.lane}-view-${from.name}`
+            );
+            const decoded = await Promise.all(
+              all.map(async (p) => {
+                try {
+                  await until(async () => {
+                    const m = await p.probe(selector('surface-moved-media'));
+                    return (
+                      !!m?.visible &&
+                      (kind.ext === 'png'
+                        ? (m.width ?? 0) > 0
+                        : (m.readyState ?? 0) >= 1 && (m.width ?? 0) > 0)
+                    );
+                  }, 30000);
+                  return { participant: p.name, decoded: true };
+                } catch {
+                  return {
+                    participant: p.name,
+                    decoded: false,
+                    media: await p.probe(selector('surface-moved-media')),
+                  };
+                }
+              })
+            );
+            return {
+              ...landed,
+              status: landed.status === 'pass' && decoded.every((d) => d.decoded) ? 'pass' : 'fail',
+              decoded,
+            };
+          });
+        }
+      }
       // L10 — image stickers on the whiteboard: add from the Stickers picker,
       // move, resize, remove. The oracle is the receivers' decoded <image>, the
       // sidecar on disk and the sticker's asset bytes (which removal keeps).
