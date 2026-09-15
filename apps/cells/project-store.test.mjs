@@ -18,11 +18,20 @@ import { once } from 'node:events';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { after, describe, test } from 'node:test';
+import { after, before, describe, test } from 'node:test';
 
-import { createKernel } from '../hub/src/project-transactions/kernel.mjs';
-import { laneHash } from '../hub/src/project-transactions/lanes.mjs';
-import { openRemoteProjectStore } from '../hub/src/project-transactions/store-remote.mjs';
+// The hub kernel is loaded LAZILY, only when the suite actually runs: it pulls
+// the studio's source merge (and its `diff` dependency), which the data-plane
+// CI job does not install — and there the suite is skipped anyway (no
+// Miniflare), but a static import failed the whole file at load.
+let createKernel;
+let laneHash;
+let openRemoteProjectStore;
+async function loadHub() {
+  ({ createKernel } = await import('../hub/src/project-transactions/kernel.mjs'));
+  ({ laneHash } = await import('../hub/src/project-transactions/lanes.mjs'));
+  ({ openRemoteProjectStore } = await import('../hub/src/project-transactions/store-remote.mjs'));
+}
 
 function findMiniflare() {
   if (process.env.MAUDE_MINIFLARE_ENTRY) return process.env.MAUDE_MINIFLARE_ENTRY;
@@ -175,6 +184,7 @@ async function scenario(store) {
 }
 
 describe('the cloud project store (DO SQLite on local workerd)', { skip: !READY }, () => {
+  before(loadHub);
   test('the kernel scenarios hold exactly as on the self-host store', {
     timeout: 60_000,
   }, async () => {
