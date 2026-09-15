@@ -85,9 +85,73 @@ describe('putObjectFromFile', () => {
       return ok();
     };
     await assert.rejects(
-      putObjectFromFile(cfg, 'files/v.mp4', join(dir, 'v.mp4'), { threshold: 1000, partBytes: 1000, deps: { send } }),
+      putObjectFromFile(cfg, 'files/v.mp4', join(dir, 'v.mp4'), {
+        threshold: 1000,
+        partBytes: 1000,
+        deps: { send, sleep: async () => {} },
+      }),
       /part 1/
     );
     assert.equal(calls.at(-1), 'DELETE');
+  });
+
+  // A real 513 MiB upload to S3 failed before any byte moved: the pooled
+  // keep-alive socket was already closed, fetch THREW, and only non-OK
+  // responses were retried.
+  it('a thrown network error at start and on a part is retried, not fatal', async () => {
+    writeFileSync(join(dir, 'v.mp4'), Buffer.alloc(2500, 3));
+    let startThrows = 1;
+    let partThrows = 2;
+    const send = async (o) => {
+      if (o.method === 'POST' && 'uploads' in o.query) {
+        if (startThrows-- > 0) throw new TypeError('fetch failed');
+        return ok('<UploadId>U3</UploadId>');
+      }
+      if (o.method === 'PUT') {
+        if (o.query.partNumber === '2' && partThrows-- > 0) throw new TypeError('fetch failed');
+        return ok('', `"e${o.query.partNumber}"`);
+      }
+      if (o.method === 'POST') return ok('<CompleteMultipartUploadResult/>');
+      return ok();
+    };
+    const r = await putObjectFromFile(cfg, 'files/v.mp4', join(dir, 'v.mp4'), {
+      threshold: 1000,
+      partBytes: 1000,
+      deps: { send, sleep: async () => {} },
+    });
+    assert.equal(r.parts, 3);
+    assert.equal(startThrows, -1);
+    assert.equal(partThrows, -1);
+  });
+
+  it('a completion whose answer was lost is proved by the object at full size', async () => {
+    writeFileSync(join(dir, 'v.mp4'), Buffer.alloc(2500, 4));
+    let completes = 0;
+    const send = async (o) => {
+      if (o.method === 'POST' && 'uploads' in o.query) return ok('<UploadId>U4</UploadId>');
+      if (o.method === 'PUT') return ok('', `"e${o.query.partNumber}"`);
+      if (o.method === 'POST') {
+        completes++;
+        if (completes === 1) throw new TypeError('fetch failed');
+        return { ok: false, status: 404, text: async () => '<Error><Code>NoSuchUpload</Code></Error>', headers: { get: () => null } };
+      }
+      return ok();
+    };
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (_url, init) =>
+      init?.method === 'HEAD'
+        ? new Response(null, { status: 200, headers: { 'content-length': '2500' } })
+        : realFetch(_url, init);
+    try {
+      const r = await putObjectFromFile(cfg, 'files/v.mp4', join(dir, 'v.mp4'), {
+        threshold: 1000,
+        partBytes: 1000,
+        deps: { send, sleep: async () => {} },
+      });
+      assert.equal(r.bytes, 2500);
+      assert.equal(completes, 2);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
   });
 });

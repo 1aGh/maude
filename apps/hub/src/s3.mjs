@@ -153,6 +153,9 @@ async function send(cfg, opts) {
   return res;
 }
 
+/** The signed request itself — for probes that inject a failure around it. */
+export const sendSigned = send;
+
 const MAX_HEAD_BYTES = 1024 * 1024;
 
 function conditionalHeaders(method, condition) {
@@ -287,7 +290,30 @@ export async function putObjectFromFile(
   const { size } = statSync(abs);
   if (size <= threshold) return putObject(cfg, key, readFileSync(abs));
   const call = deps.send ?? ((opts) => send(cfg, opts));
-  const created = await call({ method: 'POST', key, query: { uploads: '' }, body: Buffer.alloc(0) });
+  const pause = deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+  // A large upload meets transient faults as a matter of course: a pooled
+  // keep-alive socket S3 already closed ("fetch failed"), a 503 SlowDown, a
+  // 500. Each is retried with backoff — a thrown network error included, which
+  // is what failed a real 513 MiB upload before any byte moved. A 4xx other
+  // than 429 is an answer, not a fault, and ends the attempt.
+  const retrying = async (opts, what) => {
+    let last = null;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      if (attempt) await pause(250 * 2 ** (attempt - 1));
+      try {
+        const res = await call(opts);
+        if (res.ok || (res.status < 500 && res.status !== 429)) return res;
+        last = new Error(`${what}: ${res.status}`);
+      } catch (err) {
+        last = err;
+      }
+    }
+    throw new Error(`${what} failed after retries: ${last?.message ?? last}`);
+  };
+  const created = await retrying(
+    { method: 'POST', key, query: { uploads: '' }, body: Buffer.alloc(0) },
+    `S3 multipart start ${key}`
+  );
   if (!created.ok) {
     throw new Error(`S3 multipart start ${key} failed: ${created.status} ${(await created.text()).slice(0, 300)}`);
   }
@@ -300,12 +326,11 @@ export async function putObjectFromFile(
     for (let part = 1, offset = 0; offset < size; part += 1) {
       const n = readSync(fd, buf, 0, Math.min(partBytes, size - offset), offset);
       const body = Buffer.from(buf.subarray(0, n));
-      let res = null;
-      for (let attempt = 0; attempt < 3; attempt += 1) {
-        res = await call({ method: 'PUT', key, query: { partNumber: String(part), uploadId }, body });
-        if (res.ok) break;
-      }
-      if (!res?.ok) throw new Error(`S3 part ${part} of ${key} failed: ${res?.status}`);
+      const res = await retrying(
+        { method: 'PUT', key, query: { partNumber: String(part), uploadId }, body },
+        `S3 part ${part} of ${key}`
+      );
+      if (!res.ok) throw new Error(`S3 part ${part} of ${key} failed: ${res.status}`);
       etags.push({ part, etag: res.headers.get('etag') });
       offset += n;
     }
@@ -313,8 +338,22 @@ export async function putObjectFromFile(
       '<CompleteMultipartUpload>' +
       etags.map((e) => `<Part><PartNumber>${e.part}</PartNumber><ETag>${e.etag}</ETag></Part>`).join('') +
       '</CompleteMultipartUpload>';
-    const done = await call({ method: 'POST', key, query: { uploadId }, body: Buffer.from(xml) });
-    const text = await done.text();
+    let done;
+    let completeError = null;
+    try {
+      done = await retrying({ method: 'POST', key, query: { uploadId }, body: Buffer.from(xml) }, `S3 multipart complete ${key}`);
+    } catch (err) {
+      done = null;
+      completeError = err;
+    }
+    const text = done ? await done.text() : '';
+    // A completion whose answer was lost may have landed: a retry then reads
+    // NoSuchUpload. The object at full size is the proof it did.
+    if (!done || /NoSuchUpload/.test(text)) {
+      const head = await headObject(cfg, key).catch(() => null);
+      if (head?.size === size) return { key, bytes: size, parts: etags.length };
+      throw completeError ?? new Error(`S3 multipart complete ${key} failed: ${done?.status} ${text.slice(0, 300)}`);
+    }
     // S3 can answer 200 with an <Error> body for a failed completion.
     if (!done.ok || /<Error>/.test(text)) {
       throw new Error(`S3 multipart complete ${key} failed: ${done.status} ${text.slice(0, 300)}`);

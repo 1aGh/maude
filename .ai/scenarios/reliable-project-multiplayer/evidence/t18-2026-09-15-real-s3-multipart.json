@@ -1,0 +1,46 @@
+{
+  "status": "passed",
+  "account": "797601398300",
+  "bucket": "studyfi-shared-euc1-design-assets",
+  "region": "eu-central-1",
+  "prefix": "maude-sync-conformance/t18-98796950-dfc9-4ca5-8186-03eea88e8630",
+  "node": "v24.13.0",
+  "started": "2026-09-15T11:32:27.144Z",
+  "cases": [
+    {
+      "case": "multipart round trip 96 MiB",
+      "bytes": 100663296,
+      "parts": 6,
+      "uploadMs": 10717,
+      "downloadMs": 9205,
+      "sha256Match": true
+    },
+    {
+      "case": "multipart round trip 513 MiB",
+      "bytes": 537919488,
+      "parts": 33,
+      "uploadMs": 52880,
+      "downloadMs": 53234,
+      "sha256Match": true
+    },
+    {
+      "case": "part fails twice, retried to success",
+      "injectedFailures": 2,
+      "parts": 5,
+      "sha256Match": true
+    },
+    {
+      "case": "part keeps failing → aborted",
+      "refused": true,
+      "incompleteUploads": 0,
+      "objectCreated": false
+    }
+  ],
+  "cleanup": {
+    "deletedVersions": 3,
+    "remainingVersions": 0,
+    "remainingUploads": 0
+  },
+  "limitations": "Adapter-level: the hub S3 client (multipart put, streamed get) against real S3. Not the hub HTTP upload-session door, not R2, not quota.",
+  "finished": "2026-09-15T11:35:35.188Z"
+}
