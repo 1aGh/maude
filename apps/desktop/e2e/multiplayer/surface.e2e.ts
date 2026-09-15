@@ -5241,6 +5241,46 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               after[id] = bytes(from.root, rel).toString();
               return result;
             });
+          // Create: the command palette's "New video…" — a name, a size and a
+          // frame rate asked in the shell's own prompt — makes an empty video
+          // composition that everyone receives.
+          await check('L15.video.create', `${from.name}-to-peers`, async () => {
+            const name = `SurfaceVideo-${from.name}`;
+            const made = `ui/${name}.tsx`;
+            const answer = async (title: RegExp, value: string) => {
+              await until(
+                async () =>
+                  (
+                    (await from.shell(
+                      `document.querySelector('.st-prompt')?.getAttribute('aria-label') ?? ''`
+                    )) as string
+                  ).match(title) !== null,
+                10000
+              );
+              await from.fill(selector('shell-prompt-input'), value);
+              await from.click(selector('shell-prompt-ok'));
+            };
+            await focusShell(from).catch(() => {});
+            await from.press('Meta+k');
+            const search = '[aria-label="Command palette"] input';
+            await until(async () => (await from.count(search)) > 0, 10000);
+            await from.fill(search, 'New video');
+            await from.press('Enter');
+            await answer(/^New video name/, name);
+            await answer(/^Size/, '1280x720');
+            const start = performance.now();
+            await answer(/^Frames per second/, '24');
+            return observeAll(
+              all,
+              `L15-create-${from.name}`,
+              start,
+              async (p) => (await p.read(rowOf(made))) !== null,
+              (p) =>
+                existsSync(join(p.root, '.design', made)) &&
+                /VideoComp/.test(bytes(p.root, made).toString()) &&
+                bytes(p.root, made).equals(bytes(from.root, made))
+            );
+          });
           await check('L15.timeline.open', `${from.name}-created`, async () => {
             await seedCanvas(from, rel, cutSource);
             const start = performance.now();
