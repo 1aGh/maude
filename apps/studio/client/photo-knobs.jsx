@@ -317,7 +317,7 @@ export function PhotoKnobs({ asset, initialEdit, ColorPicker, onEdit, onRemoveBa
 
       <Section
         title="Duotone"
-        right={<Toggle checked={duo.enabled} onChange={(v) => setSection('duotone', { enabled: v }, true)} label="on" />}
+        right={<Toggle checked={duo.enabled} onChange={(v) => setSection('duotone', { enabled: v }, true)} label="on" ariaLabel="Duotone on" />}
         onReset={() => clearSection('duotone')}
       >
         {duo.enabled && (
@@ -337,7 +337,7 @@ export function PhotoKnobs({ asset, initialEdit, ColorPicker, onEdit, onRemoveBa
 
       <Section
         title="Grain"
-        right={<Toggle checked={grain.enabled} onChange={(v) => setSection('grain', { enabled: v }, true)} label="on" />}
+        right={<Toggle checked={grain.enabled} onChange={(v) => setSection('grain', { enabled: v }, true)} label="on" ariaLabel="Grain on" />}
         onReset={() => clearSection('grain')}
       >
         {grain.enabled && (
@@ -358,7 +358,7 @@ export function PhotoKnobs({ asset, initialEdit, ColorPicker, onEdit, onRemoveBa
 
       <Section
         title="Pattern"
-        right={<Toggle checked={pat.enabled} onChange={(v) => setSection('pattern', { enabled: v }, true)} label="on" />}
+        right={<Toggle checked={pat.enabled} onChange={(v) => setSection('pattern', { enabled: v }, true)} label="on" ariaLabel="Pattern on" />}
         onReset={() => clearSection('pattern')}
       >
         {pat.enabled && (
