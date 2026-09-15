@@ -438,6 +438,65 @@ describe('accepted revisions on a real hub', () => {
     }
   });
 
+  test('a canvas deleted and then made again under the same name is accepted, not retried forever', {
+    timeout: 60000,
+  }, async () => {
+    // The peer that was away still had the canvas on disk; its cold start
+    // proposed it just before the deletion reached it. The store still held
+    // the old document's head rows, the create sent "expect: nothing", and
+    // the compare-and-swap answered `head-moved` — a RETRYABLE code, so the
+    // durable outbox re-sent the same bytes forever and every later change
+    // behind it (the whole desktop's outgoing sync) waited behind it.
+    const dataDir = mkdtempSync(join(tmpdir(), 'maude-tx-'));
+    dirs.push(dataDir);
+    const t = rig(dataDir);
+    const { built, http, ws } = await startHub(dataDir);
+    const epoch = { epoch: 0 };
+    const owner = client(http, t.owner, epoch);
+    const alice = client(http, t.alice, epoch);
+    const readers = [];
+    try {
+      epoch.epoch = (
+        await owner.post('/api/projects/local/v1/mode', { mode: 'transactions' })
+      ).body.epoch;
+      const doc = 'ws/local/main/ui-card';
+      await alice.propose([
+        { op: 'doc.create', doc, path: 'ui/card.tsx', lanes: { html: src('card') } },
+      ]);
+      assert.equal((await alice.propose([{ op: 'doc.delete', doc }])).status, 200);
+      const again = await alice.propose([
+        { op: 'doc.create', doc, path: 'ui/card.tsx', lanes: { html: src('card again') } },
+      ]);
+      assert.equal(again.status, 200, JSON.stringify(again.body));
+      const r = reader(ws, t.alice, doc);
+      readers.push(r);
+      await until(() => r.html() === src('card again'), 8000, 'the re-created canvas');
+      const boot = (await alice.get('/api/projects/local/v1/bootstrap')).body;
+      assert.deepEqual(
+        boot.docs.filter((d) => !d.retired).map((d) => d.path),
+        ['ui/card.tsx']
+      );
+
+      // The same rows are in the way when a canvas MOVES onto a name that was
+      // deleted before.
+      const other = 'ws/local/main/ui-other';
+      await alice.propose([
+        { op: 'doc.create', doc: other, path: 'ui/other.tsx', lanes: { html: src('other') } },
+      ]);
+      assert.equal((await alice.propose([{ op: 'doc.delete', doc }])).status, 200);
+      const onto = await alice.propose([
+        { op: 'doc.move', doc: other, to: { path: 'ui/card.tsx', doc } },
+      ]);
+      assert.equal(onto.status, 200, JSON.stringify(onto.body));
+      await until(() => r.html() === src('other'), 8000, 'the moved canvas at the freed name');
+    } finally {
+      for (const r of readers) r.close();
+      await built.stopJournal();
+      await built.server.destroy();
+      built.projectStore.close();
+    }
+  });
+
   test('personal undo is effect-aware: never erases a later peer value, even an equal one', {
     timeout: 60000,
   }, async () => {

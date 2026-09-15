@@ -364,6 +364,13 @@ export function createKernel({
       retired: false,
       movedTo: null,
       lanes: {},
+      // WHAT THE STORE STILL HOLDS FOR THIS NAME. A deleted document keeps its
+      // head rows, so a create under the same name that claimed "expect
+      // nothing" failed its compare-and-swap with `head-moved` — a retryable
+      // code, which a durable outbox re-sent forever, silencing everything
+      // queued behind it (plan T31/L20: the peer that was away still had the
+      // canvas and proposed it as the deletion arrived).
+      orig: existing?.orig ?? null,
     };
     work.docs.set(op.doc, st);
     const lanes = op.lanes && typeof op.lanes === 'object' ? op.lanes : {};
@@ -436,6 +443,9 @@ export function createKernel({
       retired: false,
       movedTo: null,
       lanes: {},
+      // The destination name may have held a deleted document; its head rows
+      // are what the swap must expect (see opDocCreate).
+      orig: target?.orig ?? null,
     };
     work.docs.set(toDoc, moved);
     for (const [lane, h] of Object.entries(st.lanes)) {
