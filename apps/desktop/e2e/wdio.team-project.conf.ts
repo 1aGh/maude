@@ -40,7 +40,9 @@ function freePort(): Promise<number> {
   });
 }
 
-function startHub(dataDir: string): Promise<{ http: string; tokens: Record<string, string> }> {
+function startHub(
+  dataDir: string
+): Promise<{ http: string; tokens: Record<string, string>; pid: number }> {
   return new Promise((ok, fail) => {
     const proc = spawn(
       'node',
@@ -62,7 +64,7 @@ function startHub(dataDir: string): Promise<{ http: string; tokens: Record<strin
       if (!line) return;
       clearTimeout(timer);
       const info = JSON.parse(line);
-      ok({ http: info.http.replace(/\/$/, ''), tokens: info.tokens });
+      ok({ http: info.http.replace(/\/$/, ''), tokens: info.tokens, pid: proc.pid ?? 0 });
     });
     proc.stderr?.on('data', (c: Buffer) => {
       buf += c.toString('utf8');
@@ -196,6 +198,10 @@ async function setUp(): Promise<string> {
     teammate,
     managedDir,
     password: TEAM_PASSWORD,
+    // The spec pauses the hub (SIGSTOP/SIGCONT) for the server-away step, and
+    // disables/enables the designer through the admin API (fixture secret).
+    hubPid: hub.pid,
+    adminSecret: 'test-secret',
   });
   const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '');
   process.env.MAUDE_E2E_RUN_DIR = resolve(

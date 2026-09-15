@@ -17,16 +17,40 @@ import { waitForSidecar } from '../helpers/sidecar';
  *   4. a teammate's change reaches the designer's copy; the designer's change
  *      reaches the teammate — both ways, no sync vocabulary anywhere
  *   5. the switcher names the project and offers the team projects again
+ *   6. keyboard + dark theme on the picker
+ *   7. the server goes away: no "synced" claim, the edit is kept and delivered
+ *      when it returns
+ *   8. access removed: the app says to sign in again (not "check your
+ *      connection"), and signing in again delivers the change it kept
  *
  * Only runs under wdio.team-project.conf.ts (real hub + seeding teammate).
  */
 const tid = (s: string) => `[data-testid="${s}"]`;
+
+/**
+ * Settle entry animations. WKWebView does not advance a CSS animation while
+ * its window is occluded (a test window behind the editor), so a dialog that
+ * fades in from opacity 0 stays invisible — present, focused, laid out, and
+ * "not displayed". The shipped reduced-motion rule already turns the dialog
+ * animation off; this is the same, for every element, in this page only.
+ */
+async function settleMotion() {
+  await browser.execute(() => {
+    if (document.getElementById('e2e-settle-motion')) return;
+    const s = document.createElement('style');
+    s.id = 'e2e-settle-motion';
+    s.textContent = '*,*::before,*::after{animation:none!important;transition:none!important}';
+    document.head.append(s);
+  });
+}
 const TEAM = process.env.MAUDE_E2E_TEAM
   ? (JSON.parse(process.env.MAUDE_E2E_TEAM) as {
       hub: string;
       teammate: string;
       managedDir: string;
       password: string;
+      hubPid: number;
+      adminSecret: string;
     })
   : null;
 
@@ -68,6 +92,16 @@ describe('team-project (native-desktop)', () => {
     if (!TEAM) this.skip();
     startReport('team-project (native-desktop) — invited designer opens the project, no folder');
     await browser.setTimeout({ script: 60_000 });
+    // @wdio/tauri-service re-checks window focus before every command through
+    // a Tauri global the studio page does not carry, so each command waits out
+    // a 5 s timeout — a menu opened by one command has closed by the next.
+    // This app has one window: name it once (an explicit switch stops the
+    // per-command focus probe).
+    await (browser as unknown as { tauri?: { switchWindow(label: string): Promise<void> } }).tauri
+      ?.switchWindow('main')
+      .catch((error: unknown) =>
+        console.warn(`[team-project] window pin failed: ${String(error)}`)
+      );
   });
 
   it('1 · first run offers the invited-project door', async () => {
@@ -144,6 +178,7 @@ describe('team-project (native-desktop)', () => {
   });
 
   it('5 · the switcher names the project and offers team projects again', async () => {
+    await settleMotion();
     const trigger = await $(tid('repo-switcher-trigger'));
     await trigger.waitForDisplayed({ timeout: 30_000 });
     await trigger.click();
@@ -152,13 +187,28 @@ describe('team-project (native-desktop)', () => {
     expect(await popup.getText()).not.toContain('--local');
     await (await $(tid('switcher-open-team'))).click();
     const dialog = await $(tid('team-projects-dialog'));
-    await dialog.waitForDisplayed({ timeout: 10_000 });
+    await dialog.waitForDisplayed({ timeout: 10_000 }).catch(async (error) => {
+      await capture('07-switcher-no-dialog');
+      const seen = await browser.execute(() => {
+        const d = document.querySelector('[data-testid="team-projects-dialog"]');
+        const r = d?.getBoundingClientRect();
+        return {
+          dialog: !!d,
+          rect: r ? [r.x, r.y, r.width, r.height] : null,
+          popup: !!document.querySelector('[data-testid="repo-switcher-popup"]'),
+          item: !!document.querySelector('[data-testid="switcher-open-team"]'),
+          active: document.activeElement?.outerHTML.slice(0, 160) ?? null,
+        };
+      });
+      throw new Error(`${String(error)} — ${JSON.stringify(seen)}`);
+    });
     await capture('07-switcher-team-projects');
     expect(await dialog.getText()).toContain('On this computer');
     await (await $(tid('team-projects-close'))).click();
   });
 
   it('6 · keyboard and dark mode: Escape closes the picker, focus returns, dark theme renders', async () => {
+    await settleMotion();
     const trigger = await $(tid('repo-switcher-trigger'));
     await trigger.click();
     await (await $(tid('switcher-open-team'))).click();
@@ -183,5 +233,79 @@ describe('team-project (native-desktop)', () => {
     await capture(`07-team-projects-${theme ?? 'theme'}`);
     await browser.keys('Escape');
     await (await $('.st-sb-theme')).click();
+  });
+
+  it('7 · the server goes away: the app stops claiming "synced", keeps the edit, delivers it on return', async () => {
+    const t = TEAM as NonNullable<typeof TEAM>;
+    const mine = join(t.managedDir, '.design', 'ui', 'welcome.tsx');
+    const theirs = join(t.teammate, '.design', 'ui', 'welcome.tsx');
+    process.kill(t.hubPid, 'SIGSTOP');
+    try {
+      writeFileSync(mine, canvas('Welcome, written while the server was away'));
+      await eventually(
+        'the status bar to say the change is not shared yet',
+        async () => {
+          const text = ((await (await $('.st-sb-sync')).getText()) ?? '').toLowerCase();
+          return /offline|reconnect|saving|pending|waiting|not shared|unsaved/.test(text);
+        },
+        60_000
+      );
+      await capture('08-server-away-edit-pending');
+      expect(read(theirs) ?? '').not.toContain('written while the server was away');
+    } finally {
+      process.kill(t.hubPid, 'SIGCONT');
+    }
+    await eventually(
+      'the edit made while the server was away at the teammate',
+      () => (read(theirs) ?? '').includes('written while the server was away'),
+      120_000
+    );
+    await capture('09-server-back-edit-delivered');
+  });
+
+  it('8 · access removed: nothing more is shared, the app asks to sign in again, and signing in resumes it', async () => {
+    const t = TEAM as NonNullable<typeof TEAM>;
+    const mine = join(t.managedDir, '.design', 'ui', 'welcome.tsx');
+    const theirs = join(t.teammate, '.design', 'ui', 'welcome.tsx');
+    const admin = (path: string) =>
+      fetch(`${t.hub}/admin/api${path}`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${t.adminSecret}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ email: 'designer@x.test' }),
+      });
+    expect((await admin('/users/disable')).status).toBe(200);
+    writeFileSync(mine, canvas('Welcome, after access was removed'));
+    // The status bar's sync slot opens the Sync panel (unless it already is).
+    const openSync = await $(tid('open-sync'));
+    if ((await openSync.getAttribute('aria-pressed')) !== 'true') await openSync.click();
+    await settleMotion();
+    const again = await $(tid('sync-signin-again'));
+    await again.waitForDisplayed({ timeout: 90_000 }).catch(async (error) => {
+      await capture('10-access-removed-no-sign-in-again');
+      const seen = await browser.execute(() => ({
+        note: document.querySelector('.sp-note')?.textContent ?? null,
+        status: document.querySelector('.st-sb-sync')?.textContent ?? null,
+        panel: !!document.querySelector('.sp-note, [data-testid="sync-panel"]'),
+      }));
+      throw new Error(`${String(error)} — ${JSON.stringify(seen)}`);
+    });
+    await capture('10-access-removed-sign-in-again');
+    expect(read(theirs) ?? '').not.toContain('after access was removed');
+
+    // The owner lets them back in; the designer signs in with their password.
+    expect((await admin('/users/enable')).status).toBe(200);
+    await again.click();
+    await (await $(tid('team-hub-email'))).waitForDisplayed({ timeout: 10_000 });
+    const url = await $(tid('team-hub-url'));
+    if (!(await url.getValue())) await url.setValue(t.hub);
+    await (await $(tid('team-hub-email'))).setValue('designer@x.test');
+    await (await $(tid('team-hub-password'))).setValue(t.password);
+    await (await $(tid('team-hub-open'))).click();
+    await eventually(
+      'the edit held while access was removed, at the teammate after signing in again',
+      () => (read(theirs) ?? '').includes('after access was removed'),
+      180_000
+    );
+    await capture('11-signed-in-again-edit-delivered');
   });
 });
