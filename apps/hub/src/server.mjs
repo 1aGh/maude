@@ -130,7 +130,7 @@ import { createAcceptedRevisions } from './project-transactions/hub-integration.
 import { openRemoteProjectStore } from './project-transactions/store-remote.mjs';
 import { openSqliteProjectStore } from './project-transactions/store-sqlite.mjs';
 import { createRateStore } from './rate-store.mjs';
-import { mintRenderToken, verifyRenderToken } from './render-token.mjs';
+import { canvasTokenTtlMs, mintRenderToken, verifyRenderToken } from './render-token.mjs';
 import { isRevoked } from './revocations.mjs';
 import { isReadOnlyRole, ROLES } from './role-matrix.mjs';
 import { defaultS3Source } from './s3-creds.mjs';
@@ -605,6 +605,7 @@ export function createHub(config = {}) {
               // The HTTP canvas lane keeps the viewer floor regardless — see
               // render-token.mjs for why this widens nothing over HTTP.
               role: session.role,
+              ttlMs: canvasTokenTtlMs(),
             });
           } catch (err) {
             if (!warnedNoCanvasToken) {

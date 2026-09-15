@@ -9,6 +9,43 @@
 // default DS's tokens — whose ladder is scoped to a different `.<rootClass>`
 // subtree — so every `var(--*)` went undefined and the canvas rendered white.
 
+// THE CANVAS CAPABILITY EXPIRES (render-token.mjs: 15 minutes) and cannot be
+// revoked, so it is short on purpose. A tab open longer than that must carry a
+// fresh one or its canvases stop loading and stop updating — every module
+// re-import after a teammate's edit answers 401. The shell re-mints it on a
+// timer (`refreshCanvasToken` in app.jsx) and records it here; a URL built
+// after that carries the fresh capability. `null` until the first refresh:
+// the one in `/_config` is then current.
+let liveCanvasToken = null;
+export function setLiveCanvasToken(token) {
+  liveCanvasToken = typeof token === 'string' && token ? token : null;
+}
+export function currentCanvasToken(cfg) {
+  return cfg?.canvasToken ? (liveCanvasToken ?? cfg.canvasToken) : null;
+}
+
+/**
+ * When to re-mint a capability: at 60% of what is left of it, read off the
+ * token's own expiry claim (`e`, ms — render-token.mjs), so the cadence
+ * follows the hub's lifetime instead of a copy of it. Never sooner than 30 s
+ * (a skewed clock cannot turn this into a busy loop) and never later than
+ * 10 minutes; an unreadable token gets the ceiling.
+ */
+export function canvasTokenRefreshDelay(token, now = Date.now()) {
+  const MIN = 30_000;
+  const MAX = 10 * 60_000;
+  try {
+    const body = String(token).slice(0, String(token).lastIndexOf('.'));
+    const b64 = body.replace(/-/g, '+').replace(/_/g, '/');
+    const claims = JSON.parse(atob(b64 + '==='.slice((b64.length + 3) % 4)));
+    const left = Number(claims?.e) - now;
+    if (!Number.isFinite(left)) return MAX;
+    return Math.min(MAX, Math.max(MIN, Math.floor(left * 0.6)));
+  } catch {
+    return MAX;
+  }
+}
+
 export function urlOf(p) {
   return '/' + p.split('/').map(encodeURIComponent).join('/');
 }
@@ -47,7 +84,8 @@ export function canvasUrl(p, cfg, opts) {
   // origin: a cookie scoped widely enough to cover it would be readable by the
   // untrusted canvas content itself, which is the one thing the DDR-054 split
   // exists to prevent — so the capability lives in the URL instead.
-  if (cfg?.canvasToken) params.set('t', cfg.canvasToken);
+  const token = currentCanvasToken(cfg);
+  if (token) params.set('t', token);
   const ds0 = cfg?.designSystems?.[0];
   // Specimen detection: anything under `system/<ds>/preview/` belongs to that
   // specific DS, so it must render with *that* DS's tokens — not always the

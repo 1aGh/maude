@@ -205,7 +205,7 @@
       // module, its tokens, its components CSS and its meta as separate
       // requests. Getting the document through and nothing else is what
       // "refused to connect" looks like from the outside.
-      const cap = params.get('t') || '';
+      let cap = params.get('t') || '';
       // THE BASE THIS DOCUMENT WAS SERVED FROM, not the origin root.
       //
       // The fleet's canvas origin puts the project in the PATH
@@ -223,7 +223,7 @@
         return cap ? abs + (abs.includes('?') ? '&' : '?') + 't=' + encodeURIComponent(cap) : abs;
       };
       const canvasQuery = shaParam ? ('?sha=' + encodeURIComponent(shaParam)) : '';
-      const canvasUrl = canvasRel ? withCap('/' + designRel + '/' + canvasRel + canvasQuery) : null;
+      let canvasUrl = canvasRel ? withCap('/' + designRel + '/' + canvasRel + canvasQuery) : null;
       const myFileKey = canvasRel ? (designRel + '/' + canvasRel) : null;
       // True while an `ai-activity` entry is live for THIS canvas (an agent is
       // running /design:edit|new on it). Mirrors ai-banner's gate: parent relays
@@ -250,6 +250,19 @@
           // The panel just optimistically applied an edit → skip the redundant
           // follow-up module reload (set here, parent-verified).
           lastCssOptimisticAt = Date.now();
+        } else if (m.dgn === 'canvas-cap') {
+          // A re-minted capability (it expires; app.jsx refreshes it). Every
+          // URL built from here on carries it, and asking for this shell
+          // document with it re-plants the origin's cookie — the one module
+          // imports, assets and the live sockets fall back to. Without this an
+          // open canvas stopped loading and updating once its first capability
+          // expired. Only a well-formed token, and only in the cloud (a
+          // desktop canvas never had one).
+          const t = m.t;
+          if (!cap || typeof t !== 'string' || t.length > 4096 || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(t)) return;
+          cap = t;
+          if (canvasRel) canvasUrl = withCap('/' + designRel + '/' + canvasRel + canvasQuery);
+          fetch(withCap('/_canvas-shell.html'), { cache: 'no-store', credentials: 'same-origin' }).catch(() => {});
         }
       });
 

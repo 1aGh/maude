@@ -23,6 +23,19 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 /** How long a render capability lives. Short: it cannot be revoked. */
 export const RENDER_TOKEN_TTL_MS = 15 * 60 * 1000;
 
+/**
+ * The canvas capability's lifetime on THIS hub. `MAUDE_CANVAS_TOKEN_TTL_MS`
+ * may only SHORTEN it (floor one minute) — a shorter unrevocable token is
+ * strictly safer — so a test rig can prove that open canvases keep working
+ * across several expiries without waiting fifteen minutes for each. The
+ * studio re-mints before expiry, reading the lifetime off the token itself.
+ */
+export function canvasTokenTtlMs(env = process.env) {
+  const v = Number(env.MAUDE_CANVAS_TOKEN_TTL_MS);
+  if (!Number.isFinite(v) || v <= 0) return RENDER_TOKEN_TTL_MS;
+  return Math.min(RENDER_TOKEN_TTL_MS, Math.max(60_000, Math.floor(v)));
+}
+
 function sign(secret, payload) {
   return createHmac('sha256', secret).update(payload).digest('base64url');
 }

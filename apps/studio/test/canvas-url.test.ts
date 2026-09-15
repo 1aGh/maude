@@ -4,9 +4,14 @@
 // (scoped to a different `.<rootClass>` subtree) so every `var(--*)` went
 // undefined and the canvas rendered white.
 
-import { describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, test } from 'bun:test';
 
-import { canvasUrl, urlOf } from '../client/canvas-url.js';
+import {
+  canvasTokenRefreshDelay,
+  canvasUrl,
+  setLiveCanvasToken,
+  urlOf,
+} from '../client/canvas-url.js';
 
 // Mirrors this repo's real multi-DS config: `project` is the default (ds0),
 // `maude` is the non-default one that the bug broke.
@@ -179,4 +184,42 @@ test('a canvasOrigin that disappears falls back to same-origin, never to the sta
 
   expect(stale.startsWith('http://localhost:51234/')).toBe(true);
   expect(fresh.startsWith('/_canvas-shell.html?')).toBe(true);
+});
+
+// The capability expires (15 min, render-token.mjs). The shell re-mints it and
+// records it here; a URL built after that carries the fresh one — a canvas
+// opened late in a long session must not be built with the page-load token.
+describe('a re-minted canvas capability', () => {
+  const cloud = {
+    designRel: '.design',
+    canvasOrigin: 'https://canvas.cloud.maude.sh/alligators',
+    canvasToken: 'boot-token',
+  };
+  afterEach(() => setLiveCanvasToken(null));
+
+  test('a URL built after a refresh carries the fresh capability', () => {
+    setLiveCanvasToken('fresh-token');
+    expect(new URL(canvasUrl('.design/ui/Home.tsx', cloud)).searchParams.get('t')).toBe(
+      'fresh-token'
+    );
+  });
+
+  test('a desktop never gains one, whatever was recorded', () => {
+    setLiveCanvasToken('fresh-token');
+    const url = canvasUrl('.design/ui/Home.tsx', { designRel: '.design' });
+    expect(new URL(url, 'http://x').searchParams.has('t')).toBe(false);
+  });
+
+  test('the refresh follows the token’s own expiry, within bounds', () => {
+    const now = 1_000_000;
+    const tok = (e: number) =>
+      `${Buffer.from(JSON.stringify({ p: 'p', s: 'a@b.c', e })).toString('base64url')}.sig`;
+    expect(canvasTokenRefreshDelay(tok(now + 15 * 60_000), now)).toBe(9 * 60_000);
+    expect(canvasTokenRefreshDelay(tok(now + 3 * 60_000), now)).toBe(108_000);
+    // Expired or skewed: never a busy loop.
+    expect(canvasTokenRefreshDelay(tok(now - 60_000), now)).toBe(30_000);
+    // Unreadable: the ceiling.
+    expect(canvasTokenRefreshDelay('not-a-token', now)).toBe(10 * 60_000);
+    expect(canvasTokenRefreshDelay(tok(now + 48 * 3600_000), now)).toBe(10 * 60_000);
+  });
 });

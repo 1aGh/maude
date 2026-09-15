@@ -32,7 +32,7 @@ import { sizingModeOf, sizingModePatch } from '../sizing-mode.ts';
 // same "pull only pure logic into the client bundle" shape as the imports
 // above (a type-only SyncStatusSnapshot import that Bun erases).
 import { syncPresentation } from '../sync/presentation.ts';
-import { canvasUrl } from './canvas-url.js';
+import { canvasTokenRefreshDelay, canvasUrl, setLiveCanvasToken } from './canvas-url.js';
 import { applyEditRequest } from './apply-edit-request.ts';
 import { createIndexLoader } from './index-loader.ts';
 import {
@@ -4684,6 +4684,28 @@ function Viewport({
   useEffect(() => {
     if (previewPath) previewRef.current?.focus();
   }, [previewPath]);
+  // An open canvas keeps the URL it was opened with. The capability in it is
+  // re-minted on a timer (canvas-url.js); letting that change the `src` of a
+  // live iframe would reload every open canvas every few minutes. The fresh
+  // capability reaches an open canvas by message instead, and a frame that is
+  // (re)created — a new tab, a Retry, a config change — is built with it.
+  // Only while the frame is open: a closed tab reopened later is a new frame
+  // and must not inherit a capability that may have expired meanwhile.
+  const srcCache = useRef(new Map());
+  const openPaths = new Set(tabs.map((t) => t.path));
+  for (const [key, entry] of srcCache.current) {
+    if (!openPaths.has(entry.path)) srcCache.current.delete(key);
+  }
+  const stableSrc = (path) => {
+    const bare = canvasUrl(path, { ...cfg, canvasToken: undefined });
+    const key = `${path}#${canvasReloadNonce}|${bare}`;
+    let entry = srcCache.current.get(key);
+    if (!entry) {
+      entry = { path, src: canvasUrl(path, cfg) };
+      srcCache.current.set(key, entry);
+    }
+    return entry.src;
+  };
   // One observable word for "what is the canvas pane actually doing" — the
   // top-frame signal the #115 E2E scenario waits on, and the only place these
   // three states are named together. `ready` is `dgn:'loaded'`-backed, so it
@@ -4776,7 +4798,7 @@ function Viewport({
             // path exactly as before.
             key={`${t.path}#${canvasReloadNonce}`}
             ref={(el) => registerIframe(t.path, el)}
-            src={canvasUrl(t.path, cfg)}
+            src={stableSrc(t.path)}
             className={t.path === activePath ? 'active' : ''}
             data-path={t.path}
             data-testid={t.path === activePath ? 'canvas-frame' : undefined}
@@ -10811,6 +10833,71 @@ function App() {
   const agentIdleRef = useRef(null);
   const wsRef = useRef(null);
   const iframesRef = useRef(new Map());
+
+  // THE CANVAS CAPABILITY OUTLIVES NO TAB (cloud only). It expires 15 minutes
+  // after the proxy minted it (render-token.mjs) and cannot be revoked, so it
+  // stays short — which left every cloud tab open longer than that with
+  // canvases that stopped updating: a teammate's edit re-imports the canvas
+  // module, and the canvas origin answered 401. Re-mint it well inside the
+  // lifetime (every `/_config` answer carries a fresh one), hand it to each
+  // open canvas, and let new frames be built with it. On waking a tab that
+  // slept past the cadence, do it at once. Desktops have no capability and
+  // never start the timer.
+  useEffect(() => {
+    if (!cfg?.canvasToken) return undefined;
+    let stopped = false;
+    let timer = null;
+    let dueAt = 0;
+    const schedule = (token) => {
+      clearTimeout(timer);
+      const delay = canvasTokenRefreshDelay(token);
+      dueAt = Date.now() + delay;
+      timer = setTimeout(refresh, delay);
+    };
+    async function refresh() {
+      let token = null;
+      try {
+        const res = await fetch('/_config', { cache: 'no-store', credentials: 'same-origin' });
+        if (res.ok) token = (await res.json())?.canvasToken;
+      } catch {
+        /* retried below; the current capability may still be valid */
+      }
+      if (stopped) return;
+      if (typeof token !== 'string' || !token) {
+        clearTimeout(timer);
+        dueAt = Date.now() + 30_000;
+        timer = setTimeout(refresh, 30_000);
+        return;
+      }
+      setLiveCanvasToken(token);
+      // To the canvas origin only, never '*': a frame the canvas content
+      // navigated elsewhere must not be handed the capability.
+      let target = null;
+      try {
+        target = new URL(cfg.canvasOrigin, location.href).origin;
+      } catch {}
+      if (target) {
+        for (const el of iframesRef.current.values()) {
+          try {
+            el.contentWindow?.postMessage({ dgn: 'canvas-cap', t: token }, target);
+          } catch {}
+        }
+      }
+      schedule(token);
+    }
+    schedule(cfg.canvasToken);
+    // A background tab's timers are throttled; one woken past its due time
+    // re-mints at once rather than on the throttled tick.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && Date.now() >= dueAt) refresh();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [cfg?.canvasToken, cfg?.canvasOrigin]);
 
   // Phase 5.1 — postMessage bridge from menubar dropdowns to the canvas iframe.
   // The canvas-shell listens for these `dgn:*` messages and dispatches into the

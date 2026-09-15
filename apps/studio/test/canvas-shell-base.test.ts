@@ -106,6 +106,24 @@ describe('the canvas shell hangs off the path it was served from', () => {
   });
 });
 
+// The capability expires; an open canvas is handed a fresh one by its parent.
+describe('a re-minted capability reaches an open canvas', () => {
+  const handler = SHELL.slice(SHELL.indexOf("m.dgn === 'canvas-cap'"));
+  test('only from the parent, only a well-formed token, only where one was issued', () => {
+    // Inside the parent-gated listener (the same gate as apply-style).
+    expect(SHELL.indexOf("m.dgn === 'canvas-cap'")).toBeGreaterThan(
+      SHELL.indexOf('if (e.source !== window.parent || window.parent === window) return;')
+    );
+    expect(handler).toContain('if (!cap ||');
+    expect(handler).toContain('/^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$/.test(t)');
+  });
+  test('every later URL carries it, and the shell document re-plants the cookie', () => {
+    expect(SHELL).toContain("let cap = params.get('t') || '';");
+    expect(handler).toContain('canvasUrl = withCap(');
+    expect(handler).toContain("fetch(withCap('/_canvas-shell.html')");
+  });
+});
+
 // Plan T31/L16 — every design system has a `tokens.css`. The css HMR branch
 // matched links by FILE NAME, so a canvas's imported `system/a/tokens.css`
 // "matched" the shell's link to `system/b/tokens.css`, swapped the wrong

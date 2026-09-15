@@ -4,7 +4,12 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 
-import { mintRenderToken, verifyRenderToken } from '../src/render-token.mjs';
+import {
+  canvasTokenTtlMs,
+  mintRenderToken,
+  RENDER_TOKEN_TTL_MS,
+  verifyRenderToken,
+} from '../src/render-token.mjs';
 import {
   createStudioProxy,
   INJECTED_HEADER_PREFIX,
@@ -782,6 +787,46 @@ test('the capability survives a URL the shell did not write', async () => {
     verifyToken: valid,
   });
   assert.equal(forged.statusCode, 401);
+});
+
+test('a re-minted capability re-plants the cookie, and an open canvas keeps loading on it', async () => {
+  // The capability expires, and the canvas module's URL still carries the
+  // first one. The studio hands an open canvas a fresh one; the shell asks for
+  // its own document with it (re-planting the cookie), and the module
+  // re-import after a teammate's edit — stale `?t=` and all — is served on
+  // the fresh cookie instead of answering 401 for the rest of the session.
+  const valid = (t) => (t === 'fresh' ? { ok: true } : { ok: false, reason: 'expired' });
+  const { proxy, forwarded } = makeProxy();
+  const shell = fakeResponse();
+  await proxy.handleCanvas({
+    request: { headers: {}, url: '/_canvas-shell.html?t=fresh' },
+    response: shell,
+    pathname: '/_canvas-shell.html',
+    method: 'GET',
+    verifyToken: valid,
+  });
+  assert.match(String(shell.preset['set-cookie']), /maude_canvas=fresh/);
+  const reimport = fakeResponse();
+  await proxy.handleCanvas({
+    request: { headers: { cookie: 'maude_canvas=fresh' }, url: '/.design/ui/Home.tsx?t=stale&v=2' },
+    response: reimport,
+    pathname: '/.design/ui/Home.tsx',
+    method: 'GET',
+    verifyToken: valid,
+  });
+  assert.equal(reimport.statusCode, 200);
+  assert.equal(forwarded.length, 2);
+});
+
+test('the canvas capability lifetime can be shortened for a rig, never lengthened', () => {
+  assert.equal(canvasTokenTtlMs({}), RENDER_TOKEN_TTL_MS);
+  assert.equal(canvasTokenTtlMs({ MAUDE_CANVAS_TOKEN_TTL_MS: '180000' }), 180_000);
+  assert.equal(canvasTokenTtlMs({ MAUDE_CANVAS_TOKEN_TTL_MS: '5' }), 60_000);
+  assert.equal(
+    canvasTokenTtlMs({ MAUDE_CANVAS_TOKEN_TTL_MS: String(24 * 3600_000) }),
+    RENDER_TOKEN_TTL_MS
+  );
+  assert.equal(canvasTokenTtlMs({ MAUDE_CANVAS_TOKEN_TTL_MS: 'soon' }), RENDER_TOKEN_TTL_MS);
 });
 
 test('only the shell document mints the cookie', async () => {
