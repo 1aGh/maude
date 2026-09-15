@@ -13,7 +13,7 @@
     },
     {
       "path": "apps/studio/client/photo-knobs.jsx",
-      "sha256": "02fa568a7baeb82a0890d44c00d3496696e6c5078e302ee98efc59e503adf9d8"
+      "sha256": "44ec5bd02a3218e517934089fa3fa82a7989f833556614b1d04f74c8d3d5cd8f"
     },
     {
       "path": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
@@ -1788,10 +1788,34 @@
       ]
     },
     {
+      "id": "L13.photo-control.duotone-on",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "label": "Duotone on",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
       "id": "L13.photo-control.duotone-intensity",
       "source": "apps/studio/client/photo-knobs.jsx",
       "repairTask": "T26",
       "label": "Duotone intensity",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L13.photo-control.grain-on",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "label": "Grain on",
       "directions": [
         "hub-to-peers",
         "native-to-peers",
@@ -1816,6 +1840,18 @@
       "source": "apps/studio/client/photo-knobs.jsx",
       "repairTask": "T26",
       "label": "Grain size",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true
+    },
+    {
+      "id": "L13.photo-control.pattern-on",
+      "source": "apps/studio/client/photo-knobs.jsx",
+      "repairTask": "T26",
+      "label": "Pattern on",
       "directions": [
         "hub-to-peers",
         "native-to-peers",

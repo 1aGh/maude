@@ -31,6 +31,8 @@ type ProbeResult = {
   height?: number;
   /** An <img>: decoded and ready (HTMLImageElement.complete). */
   complete?: boolean;
+  /** The element's outerHTML, bounded. */
+  markup?: string | null;
   pixel?: number[];
   time?: number;
   seeking?: boolean;
@@ -1833,6 +1835,228 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             return result;
           });
         }
+        // L13 — every photo control the panel exposes, driven through the real
+        // panel, each a separate step from the author's current edit. Two
+        // oracles: every participant persisted the same `.photo.json` (with the
+        // expected field), and every participant renders the same pixel as the
+        // author — plus, where the control must visibly change the corner
+        // pixel, the author's render changed.
+        {
+          const editRel = () => (assetRel ?? '').replace(/\.png$/, '.photo.json');
+          const editOf = (p: Surface): Record<string, unknown> | null => {
+            const path = join(p.root, '.design', editRel());
+            if (!assetRel || !existsSync(path)) return null;
+            try {
+              return JSON.parse(readFileSync(path, 'utf8'));
+            } catch {
+              return null;
+            }
+          };
+          const at = (edit: Record<string, unknown> | null, path: string): unknown =>
+            path
+              .split('.')
+              .reduce<unknown>(
+                (o, k) =>
+                  o && typeof o === 'object' ? (o as Record<string, unknown>)[k] : undefined,
+                edit
+              );
+          // A number field commits on blur. Moving focus to ANOTHER field is
+          // what blurs it everywhere: a click on plain text does in Chromium,
+          // not in WKWebView (the native rows never committed).
+          const setNumber = async (label: string, value: number) => {
+            await from.fill(`.st-cp-num input[aria-label="${label}"]`, String(value));
+            const other = label === 'Brightness' ? 'Contrast' : 'Brightness';
+            await from.click(`.st-cp-num input[aria-label="${other}"]`);
+          };
+          const steps: Array<{
+            id: string;
+            act: () => Promise<void>;
+            field: string;
+            value: unknown;
+            changes: boolean;
+          }> = [
+            ...(
+              [
+                ['contrast', 'Contrast', 0.5],
+                ['saturation', 'Saturation', -0.6],
+                ['exposure', 'Exposure', 0.5],
+                ['hue', 'Hue', 90],
+                ['sepia', 'Sepia', 0.8],
+                ['grayscale', 'Grayscale', 1],
+                ['invert', 'Invert', 1],
+              ] as const
+            ).flatMap(([key, label, value]) => [
+              {
+                id: `L13.photo.${key}`,
+                act: () => setNumber(label, value),
+                field: `adjustments.${key}`,
+                value,
+                changes: true,
+              },
+              {
+                id: `L13.photo.${key}-reset`,
+                act: () => from.click('[aria-label="reset Adjustments section"]'),
+                field: `adjustments.${key}`,
+                value: undefined,
+                changes: true,
+              },
+            ]),
+            {
+              id: 'L13.photo-control.duotone-on',
+              act: () => from.click('input[aria-label="Duotone on"]'),
+              field: 'duotone.enabled',
+              value: true,
+              changes: true,
+            },
+            {
+              id: 'L13.photo-control.duotone-intensity',
+              act: () => setNumber('Duotone intensity', 0.5),
+              field: 'duotone.intensity',
+              value: 0.5,
+              changes: true,
+            },
+            {
+              id: 'L13.photo-control.duotone-off',
+              act: () => from.click('input[aria-label="Duotone on"]'),
+              field: 'duotone.enabled',
+              value: false,
+              changes: true,
+            },
+            {
+              id: 'L13.photo-control.grain-on',
+              act: () => from.click('input[aria-label="Grain on"]'),
+              field: 'grain.enabled',
+              value: true,
+              changes: false,
+            },
+            {
+              id: 'L13.photo-control.grain-amount',
+              act: () => setNumber('Grain amount', 0.8),
+              field: 'grain.amount',
+              value: 0.8,
+              changes: false,
+            },
+            {
+              id: 'L13.photo-control.grain-size',
+              act: () => setNumber('Grain size', 4),
+              field: 'grain.size',
+              value: 4,
+              changes: false,
+            },
+            {
+              id: 'L13.photo-control.grain-off',
+              act: () => from.click('input[aria-label="Grain on"]'),
+              field: 'grain.enabled',
+              value: false,
+              changes: false,
+            },
+            {
+              id: 'L13.photo-control.pattern-on',
+              act: () => from.click('input[aria-label="Pattern on"]'),
+              field: 'pattern.enabled',
+              value: true,
+              changes: false,
+            },
+            ...['grid', 'lines', 'diagonal', 'crosshatch', 'dots'].map((type) => ({
+              id: `L13.pattern-type.${type}`,
+              act: () => from.select('select[aria-label="Pattern type"]', type),
+              field: 'pattern.type',
+              value: type,
+              changes: false,
+            })),
+            ...['multiply', 'screen', 'overlay', 'soft-light', 'normal'].map((blend) => ({
+              id: `L13.pattern-blend.${blend}`,
+              act: () => from.select('select[aria-label="Pattern blend"]', blend),
+              field: 'pattern.blend',
+              value: blend,
+              changes: false,
+            })),
+            {
+              id: 'L13.photo-control.pattern-scale',
+              act: () => setNumber('Pattern scale', 2),
+              field: 'pattern.scale',
+              value: 2,
+              changes: false,
+            },
+            {
+              id: 'L13.photo-control.pattern-opacity',
+              act: () => setNumber('Pattern opacity', 0.9),
+              field: 'pattern.opacity',
+              value: 0.9,
+              changes: false,
+            },
+            {
+              id: 'L13.photo-control.pattern-off',
+              act: () => from.click('input[aria-label="Pattern on"]'),
+              field: 'pattern.enabled',
+              value: false,
+              changes: false,
+            },
+            // The corner pixel: vignette darkens it, radial reveal clears it;
+            // edge fade keeps it cleared, so only the data can show that one.
+            ...(['vignette', 'radial-reveal', 'edge-fade'] as const).map((preset) => ({
+              id: `L13.mask-preset.${preset}`,
+              act: () => from.select('select[aria-label="Mask preset"]', preset),
+              field: 'mask.preset',
+              value: preset,
+              changes: preset !== 'edge-fade',
+            })),
+            {
+              id: 'L13.photo-control.mask-strength',
+              act: () => setNumber('Mask strength', 1),
+              field: 'mask.strength',
+              value: 1,
+              changes: false,
+            },
+            {
+              id: 'L13.mask-preset.none',
+              act: () => from.select('select[aria-label="Mask preset"]', 'none'),
+              field: 'mask.preset',
+              value: 'none',
+              changes: true,
+            },
+          ];
+          for (const step of steps) {
+            await check(step.id, `${from.name}-to-peers`, async () => {
+              if (!imageId || !assetRel)
+                throw new Unexercised('Photo editing requires the uploaded image');
+              const q = `image[data-id="${imageId}"]`;
+              for (const p of all)
+                if (!(await p.probe(q))?.visible)
+                  throw new Unexercised(`Photo not rendered at ${p.name}`);
+              await until(async () => (await from.read(selector('photo-knobs'))) !== null).catch(
+                () => {
+                  throw new Unexercised('The photo panel is not open for the author');
+                }
+              );
+              // Each participant against ITS OWN render before the step: WebKit
+              // and Chromium may round a blend differently, but each must show
+              // the change.
+              const before = await Promise.all(all.map(async (p) => (await p.probe(q))?.pixel));
+              const start = performance.now();
+              await step.act();
+              const moved = (a?: number[], b?: number[]) =>
+                !!a && !!b && a.some((v, i) => Math.abs(v - (b[i] ?? v)) > 3);
+              return observeAll(
+                all,
+                `${step.id.replace(/\./g, '-')}-${from.name}`,
+                start,
+                async (p) => {
+                  const now = await p.probe(q);
+                  if (!now?.visible) return false;
+                  return step.changes ? moved(now.pixel, before[all.indexOf(p)]) : true;
+                },
+                (p) => {
+                  const edit = editOf(p);
+                  return (
+                    at(edit, step.field) === step.value &&
+                    JSON.stringify(edit) === JSON.stringify(editOf(from))
+                  );
+                }
+              );
+            });
+          }
+        }
         await check('L12.upload-png.remove-reference', `${from.name}-to-peers`, async () => {
           if (!imageId || !assetRel)
             throw new Unexercised('Upload did not establish an image reference');
@@ -2690,6 +2914,283 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             (p) => bytesOf(p, doomed) === null
           );
         });
+      }
+      // L09 context controls — every annotation property the toolbar offers,
+      // driven through the toolbar itself on seeded annotations. Two oracles:
+      // every participant's annotations sidecar is byte-identical to the
+      // author's and differs from before the step; every participant's own
+      // render of the target changed (each against itself, so WebKit and
+      // Chromium never have to agree on markup).
+      for (const from of all) {
+        const name = `SurfaceCtx-${from.name}`;
+        const rel = `ui/${name}.tsx`;
+        const sidecar = `ui-${slug(name)}.annotations.svg`;
+        notesSidecar = sidecar; // the evidence dump (observeAll) copies this one
+        const disk = (p: Surface) => {
+          const path = join(p.root, '.design', sidecar);
+          return existsSync(path) ? readFileSync(path, 'utf8') : null;
+        };
+        const ids = {
+          rect: 's_ctxrect',
+          text: 's_ctxtext',
+          arrow: 's_ctxarrow',
+          g1: 's_ctxg1',
+          g2: 's_ctxg2',
+          g3: 's_ctxg3',
+        };
+        const rectOf = (id: string, x: number, y: number, w = 100, h = 70) =>
+          `<rect data-id="${id}" data-tool="rect" stroke="#1f1f1f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="#e7e7e7" x="${x}" y="${y}" width="${w}" height="${h}"/>`;
+        const seeded =
+          `<svg xmlns="http://www.w3.org/2000/svg" data-mdcc-annotations="1">` +
+          rectOf(ids.rect, 40, 120) +
+          `<text data-id="${ids.text}" data-tool="text" x="40" y="240" data-font-size="14" fill="#1f1f1f" text-anchor="start" dominant-baseline="hanging">Formatted text</text>` +
+          `<g data-id="${ids.arrow}" data-tool="arrow" stroke="#1f1f1f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="none"><line x1="200" y1="130" x2="320" y2="190"/><polyline points="302.3,186.8 320,190 311.5,174.1" fill="#1f1f1f"/></g>` +
+          rectOf(ids.g1, 380, 120, 50, 40) +
+          rectOf(ids.g2, 470, 150, 50, 40) +
+          rectOf(ids.g3, 580, 185, 50, 40) +
+          `</svg>`;
+        let ready = false;
+        await check('L09.context-controls.seed', `${from.name}-to-peers`, async () => {
+          await seedCanvas(from, rel, elementCanvas(`Context ${from.name}`));
+          writeFileSync(join(from.root, '.design', sidecar), seeded);
+          await until(() => all.every((p) => disk(p)?.includes(ids.g3) === true), 30000).catch(
+            () => {
+              throw new Unexercised('The seeded annotations did not reach everyone');
+            }
+          );
+          await openSeeded(rel, `Context ${from.name}`, `L09-ctx-open-${from.name}`);
+          const start = performance.now();
+          const result = await observeAll(
+            all,
+            `L09-ctx-seed-${from.name}`,
+            start,
+            async (p) =>
+              (
+                await Promise.all(Object.values(ids).map((id) => p.probe(`[data-id="${id}"]`)))
+              ).every((r) => !!r?.visible),
+            (p) => disk(p) === disk(from)
+          );
+          ready = result.status === 'pass';
+          return result;
+        });
+        const toolbar = '[aria-label="Annotation properties"]';
+        const select = async (targets: string[]) => {
+          await gesture(from, selector('palette-mode-edit'), 'click');
+          for (const [i, id] of targets.entries())
+            await gesture(
+              from,
+              `[data-id="${id}"]`,
+              'pointer',
+              i > 0 ? { shift: true } : undefined
+            );
+          await until(async () => !!(await from.probe(toolbar))?.visible, 15000);
+        };
+        const inToolbar = (q: string) => `${toolbar} ${q}`;
+        const step = (
+          id: string,
+          targets: string[],
+          act: () => Promise<void>,
+          expectDisk?: (svg: string) => boolean
+        ) =>
+          check(id, `${from.name}-to-peers`, async () => {
+            if (!ready) throw new Unexercised('Context controls need the seeded annotations');
+            await select(targets);
+            const markupOf = async (p: Surface) =>
+              (await Promise.all(targets.map((t) => p.probe(`[data-id="${t}"]`))))
+                .map((r) => r?.markup ?? '')
+                .join('\n');
+            const before = await Promise.all(all.map(markupOf));
+            const beforeDisk = disk(from);
+            const start = performance.now();
+            await act();
+            return observeAll(
+              all,
+              `${id.replace(/\./g, '-')}-${from.name}`,
+              start,
+              async (p) => (await markupOf(p)) !== before[all.indexOf(p)],
+              (p) => {
+                const svg = disk(p);
+                return (
+                  !!svg &&
+                  svg !== beforeDisk &&
+                  svg === disk(from) &&
+                  (expectDisk ? expectDisk(svg) : true)
+                );
+              }
+            );
+          });
+        const click = (q: string) => () => gesture(from, inToolbar(q), 'click');
+        const pick = (menu: string, trigger: string, item: string) => async () => {
+          await gesture(from, inToolbar(trigger), 'click');
+          await until(
+            async () =>
+              !!(await from.probe(inToolbar(`[role="menu"][aria-label="${menu}"]`)))?.visible
+          );
+          await gesture(
+            from,
+            inToolbar(`[role="menu"][aria-label="${menu}"] [aria-label="${item}"]`),
+            'click'
+          );
+        };
+        const r = [ids.rect];
+        await step(
+          'L09.context-control.thick-stroke',
+          r,
+          click('[aria-label="Thick stroke"]'),
+          (s) => new RegExp(`data-id="${ids.rect}"[^>]*stroke-width="6"`).test(s)
+        );
+        await step('L09.context-control.thin-stroke', r, click('[aria-label="Thin stroke"]'), (s) =>
+          new RegExp(`data-id="${ids.rect}"[^>]*stroke-width="3"`).test(s)
+        );
+        await step('L09.context-control.dashed-line', r, click('[aria-label="Dashed line"]'));
+        await step(
+          'L09.context-control.color',
+          r,
+          click('[aria-label="Color"] button[aria-pressed="false"]')
+        );
+        await step('L09.context-control.swatch-target', r, async () => {
+          await gesture(
+            from,
+            inToolbar('[aria-label="Swatch target"] button:nth-child(2)'),
+            'click'
+          );
+          await gesture(
+            from,
+            inToolbar(
+              '[aria-label="Color"] button[aria-pressed="false"]:not([aria-label="No fill"])'
+            ),
+            'click'
+          );
+        });
+        await step('L09.context-control.no-fill', r, async () => {
+          await gesture(
+            from,
+            inToolbar('[aria-label="Swatch target"] button:nth-child(2)'),
+            'click'
+          );
+          await gesture(from, inToolbar('[aria-label="No fill"]'), 'click');
+        });
+        const t = [ids.text];
+        for (const [control, label] of [
+          ['bold', 'Bold'],
+          ['italic', 'Italic'],
+          ['strikethrough', 'Strikethrough'],
+          ['underline', 'Underline'],
+          ['bulleted-list', 'Bulleted list'],
+          ['numbered-list', 'Numbered list'],
+        ] as const)
+          await step(`L09.context-control.${control}`, t, click(`[aria-label="${label}"]`));
+        for (const [value, label] of [
+          ['center', 'Align center'],
+          ['right', 'Align right'],
+          ['left', 'Align left'],
+        ] as const)
+          await step(
+            `L09.text-align.${value}`,
+            t,
+            pick('Text alignment', '[aria-label^="Text alignment:"]', label)
+          );
+        await step(
+          'L09.context-control.font-size',
+          t,
+          async () => {
+            await gesture(from, inToolbar('[aria-label^="Font size:"]'), 'click');
+            await until(
+              async () =>
+                !!(await from.probe(inToolbar('[role="menu"][aria-label="Font size"]')))?.visible
+            );
+            await gesture(
+              from,
+              inToolbar('[role="menu"][aria-label="Font size"] button:nth-child(3)'),
+              'click'
+            );
+          },
+          (s) => new RegExp(`data-id="${ids.text}"[^>]*data-font-size="24"`).test(s)
+        );
+        await step(
+          'L09.context-control.custom-font-size-in-pixels',
+          t,
+          async () => {
+            await gesture(from, inToolbar('[aria-label^="Font size:"]'), 'click');
+            const input = inToolbar('[aria-label="Custom font size in pixels"]');
+            await until(async () => !!(await from.probe(input))?.visible);
+            await gesture(from, input, 'fill', '40');
+            await gesture(from, input, 'key', { key: 'Enter' });
+          },
+          (s) => new RegExp(`data-id="${ids.text}"[^>]*data-font-size="40"`).test(s)
+        );
+        const a = [ids.arrow];
+        for (const [value, label] of [
+          ['none', 'None'],
+          ['line', 'Line'],
+          ['triangle-outline', 'Triangle (outline)'],
+          ['circle', 'Circle'],
+          ['diamond', 'Diamond'],
+          ['triangle', 'Triangle'],
+        ] as const)
+          await step(
+            `L09.arrow-head.${value}`,
+            a,
+            pick('End arrowhead', '[aria-label^="End arrowhead:"]', label)
+          );
+        await step(
+          'L09.arrow-head.start-diamond',
+          a,
+          pick('Start arrowhead', '[aria-label^="Start arrowhead:"]', 'Diamond')
+        );
+        for (const [value, label] of [
+          ['curved', 'Curved'],
+          ['elbow', 'Elbow'],
+          ['straight', 'Straight'],
+        ] as const)
+          await step(
+            `L09.arrow-line.${value}`,
+            a,
+            pick('Line type', '[aria-label^="Line type:"]', label)
+          );
+        const g = [ids.g1, ids.g2, ids.g3];
+        for (const [value, label] of [
+          ['left', 'Align left'],
+          ['h-center', 'Align horizontal centers'],
+          ['right', 'Align right'],
+          ['top', 'Align top'],
+          ['v-center', 'Align vertical centers'],
+          ['bottom', 'Align bottom'],
+          ['dist-h', 'Distribute horizontal spacing'],
+          ['dist-v', 'Distribute vertical spacing'],
+        ] as const)
+          await step(
+            `L09.selection-align.${value}`,
+            g,
+            pick('Align and distribute', '[aria-label="Align and distribute"]', label)
+          );
+        await step(
+          'L09.context-control.group-selection',
+          g,
+          click('[aria-label="Group selection"]')
+        );
+        await step(
+          'L09.context-control.ungroup-selection',
+          g,
+          click('[aria-label="Ungroup selection"]')
+        );
+        await check(
+          'L09.context-control.delete-selected-annotations',
+          `${from.name}-to-peers`,
+          async () => {
+            if (!ready) throw new Unexercised('Context controls need the seeded annotations');
+            await select([ids.rect]);
+            const start = performance.now();
+            await gesture(from, inToolbar('[aria-label="Delete selected annotations"]'), 'click');
+            return observeAll(
+              all,
+              `L09-ctx-delete-${from.name}`,
+              start,
+              async (p) => (await p.probe(`[data-id="${ids.rect}"]`)) === null,
+              (p) => disk(p)?.includes(ids.rect) === false && disk(p)?.includes(ids.text) === true
+            );
+          }
+        );
       }
       // L17 — one media file, several references: two canvases show the same
       // image; removing it from one keeps the other (and the file); renaming or

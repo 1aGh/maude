@@ -183,6 +183,7 @@
               button: 0,
               buttons,
               detail,
+              shiftKey: argument?.shift === true,
               pointerId: 1,
               pointerType: 'mouse',
               isPrimary: true,
@@ -230,6 +231,9 @@
             style.visibility !== 'hidden' &&
             style.display !== 'none',
           rect: rect.toJSON(),
+          // What this element renders, bounded — a control's effect on an
+          // annotation shows up here whatever attribute it changes.
+          markup: element.outerHTML ? element.outerHTML.slice(0, 20000) : null,
           matches: Array.from(document.querySelectorAll(data.selector))
             .slice(0, 1000)
             .map((node) => ({
