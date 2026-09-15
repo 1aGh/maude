@@ -73,3 +73,63 @@ compare after.
 
 T34 (retire old write authorities, fleet rollout) starts only after both
 initial deployments pass S20.
+
+## Rollout record — 2026-09-15 (authorized: "vydat novou verzi a migrovat prod")
+
+No secrets below; command IDs are AWS SSM run-command IDs on host `i-0e484a007adbf57a5`.
+
+### Release v1.3.0
+
+- Tag moved twice before every pipeline went green: `3e3b64cf` → `8ba6ae8a` (hub
+  image bundler stage lacked `sync/repeated-module.ts` and could not resolve
+  `diff` for borrowed studio files) → `ed2b1ebf` (npm now answers a republish
+  with "Cannot publish over previously staged version"; the idempotence match
+  was case-sensitive and did not know the wording).
+- Green at `ed2b1ebf`: build-binaries (npm `@1agh/maude@1.3.0`), build-desktop,
+  hub-image (`ghcr.io/1agh/maude-hub:v1.3.0`, amd64 + arm64), selfhost images,
+  render-deploy, cells-deploy (fleet rolled). GitHub Release published, not draft.
+- Desktop updater endpoint answers a 1.2.0 app with `version: 1.3.0`.
+
+### AWS StudyFi (`design.studyfi.com`)
+
+| Step | Result |
+|---|---|
+| Read-only inventory | `12e14bdd-a210-4735-84c2-869929082edc` — hub/render `v1.2.0`, volumes `maude-hub_hub-data` (20 MB) / `maude-hub_hub-repo` (86 MB), 25 GB free |
+| Rollback checkpoint + upgrade | `1e38dc05-7bb3-4dba-b9bb-3a8f1ad9d7df` — checkpoint dir `/opt/maude-hub/pre-v1.3.0-20260915T142530Z` (`env.bak`, `docker-compose.yml`, `hub-data.tgz`, `hub-repo.tgz`, taken with hub + render STOPPED; previous image IDs `sha256:5264d3c3…` hub, `sha256:a3c988d6…` render); `MAUDE_IMAGE_TAG` → `v1.3.0`; both containers healthy |
+| Health after upgrade | `version 1.3.0`, `coordinator {ready, mode: legacy, protocol 1, durable: true}` |
+| Dry-run import | 121 documents + 34 folders in one action, 5.1 MB, `skipped: []`, nothing collapsed |
+| Switch (`expectEpoch: 0`) | `6d20a040-e81c-4fc1-82ff-7ed2e24ed0f2` — `mode: transactions`, epoch 1, revision 1; **parity `ok: true`, 121/121**; health `ready`, `durable` |
+| Store snapshot after switch | `project-store-post-switch.sqlite` in the checkpoint dir, `integrity_check: ok` (the scheduled S3 generation — every 6 h from boot, first at ≈20:27Z — is the first to carry `project-store.sqlite`) |
+
+**Media restore baseline.** `assetsRestored` went from `present 520 / failed 13`
+to `present 521 / failed 14`. All 14 are in the `files/` plane: every one of the
+117 `files/` objects IS present in the hub checkout (checked path by path on the
+host), and the classifier admits all of them as plane files only while their
+sibling canvas is absent — the 14 are `.css` sidecars whose `.tsx` exists, i.e.
+canvas-owned (the CSS lives in the canvas document), so the restore's write-door
+admission refuses to overwrite them from the bucket (checked on the host: exactly
+14 of the 70 bucket `.css` objects have a sibling `.tsx` — 13 `ui/orbit/*` canvases
+from August plus `ui/orbit/_h7-mobile-board.css`, mirrored 07:43Z before its
+`.tsx` was written at 08:58Z). Not media, nothing missing: no new blocked-media
+backlog.
+
+**Rollback.** Project: `POST …/v1/mode {"mode":"legacy"}` (accepted state stays
+in the documents). Image: restore `env.bak` (tag `v1.2.0`) and
+`docker compose up -d hub render`; the volume tarballs restore `/data` and
+`/repo` as of the checkpoint.
+
+### Cloudflare Alligators
+
+- Fleet on `v1.3.0` with `CELL_PROJECT_STORE = "alligators"`; public `/health`:
+  `version 1.3.0`, `coordinator {ready, mode: legacy, protocol 1, durable: true}`.
+- The switch is the owner's: dashboard → project → **Saving** → Preview (check
+  `skipped`, and `collapsed` — the 4× bodies the peer reported are repaired on
+  import) → Switch. No operator cell secret is held on this machine.
+
+### Still open for T33
+
+- Alligators owner switch + parity.
+- S20 on both deployments (designer invitation → desktop project → browser peer
+  edit → undo → reopen). StudyFi runs `identity: off` (token access); the
+  email/password invitation path needs `MAUDE_IDENTITY=on` + accounts — the
+  owner's call, not done here.
