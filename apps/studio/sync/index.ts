@@ -24,6 +24,8 @@ import {
   readFileSync,
   realpathSync,
   renameSync,
+  rmdirSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { readdir } from 'node:fs/promises';
@@ -36,6 +38,8 @@ import { Y_TYPES } from '../collab/persistence.ts';
 import type { Context, LinkedHub } from '../context.ts';
 import { createHistory } from '../history.ts';
 import { SYNTHETIC_FS_DELAY_MS } from '../hmr-broadcast.ts';
+import { acceptedColdStart } from './accepted-cold-start.ts';
+import { type AcceptedLink, createAcceptedLink } from './accepted-link.ts';
 import { type CanvasSyncAgent, createCanvasSyncAgent } from './agent.ts';
 import { isPushableAssetRel, pushAssets } from './asset-push.ts';
 import { atomicWrite } from './atomic-write.ts';
@@ -43,6 +47,7 @@ import { type CellPairing, resolveCellPairing, sanitizeForLog } from './cell-pai
 import {
   canvasPathFromDoc,
   clearMovedTo,
+  laneValueFromFile,
   movedToFromDoc,
   stampCanvasPath,
   stampMovedTo,
@@ -96,6 +101,13 @@ export interface SyncProvider {
    * the bridge.
    */
   readonly awareness?: Awareness;
+  /**
+   * Did this transaction origin come off the wire from the hub? Accepted
+   * revisions use it as a tripwire: under a fenced (read-only) connection any
+   * OTHER origin is a local write the hub will drop — a replica diverging.
+   * Optional: a test stub without it is simply not checked.
+   */
+  isRemoteOrigin?(origin: unknown): boolean;
   /**
    * Resolves when the first hub sync handshake completes.
    *
@@ -451,9 +463,44 @@ export interface SyncRuntime {
    * flag-off) — the caller then proceeds with the plain local move.
    */
   retireForMove(fromSlug: string, toRel: string): Promise<boolean>;
+  /**
+   * Accepted-revisions mode (DDR-241): propose one lane value of a synced
+   * canvas that a privileged API route produced (comments, annotations).
+   * `null` when the project is not in that mode or this runtime does not carry
+   * the canvas — the caller then writes the shared document as before.
+   */
+  proposeLane?(
+    slug: string,
+    lane: 'comments' | 'annotations',
+    text: string,
+    opts?: { baseText?: string; writeId?: string }
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string }> | null;
+  /**
+   * Accepted-revisions mode: a folder operation as ONE project action. `null`
+   * when the project is not in that mode; otherwise the (possibly queued)
+   * outcome. Canvases inside are moved/deleted by the hub, not one by one.
+   */
+  proposeFolder?(
+    op:
+      | { op: 'dir.create'; path: string }
+      | { op: 'dir.delete'; path: string }
+      | {
+          op: 'dir.move';
+          from: string;
+          to: string;
+        }
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean }> | null;
+  /** True while the linked project is in accepted-revisions mode. */
+  acceptedMode?(): boolean;
+  /** Tripwire count: local writes that reached an accepted replica. */
+  acceptedWriteViolations?(): number;
 }
 
 export interface CreateSyncRuntimeOptions {
+  /** Transaction transport override (tests) — defaults to global fetch. */
+  transactionFetch?: typeof fetch;
+  /** Base backoff between re-sends of an unanswered proposal (tests). */
+  transactionRetryMs?: number;
   /** Override the HocuspocusProvider factory (test injection). */
   providerFactory?: ProviderFactory;
   /** Force-enable/disable adopt mode (overrides cfg.linkedHub.adopt). */
@@ -765,6 +812,36 @@ export function createSyncRuntime(
   // registry can hand us the canvas's single doc. Flag OFF / no registry / a
   // minimal test registry without getDoc → the proven two-doc path, unchanged.
   const useSharedDoc = !!ctx.sharedDoc && typeof opts.registry?.getDoc === 'function';
+  // ---- ACCEPTED REVISIONS (DDR-241) ----------------------------------------
+  //
+  // Asked of the hub at start and on every poll — never assumed. In
+  // `transactions` mode this runtime writes NO shared document: every local
+  // change is a proposal through the durable outbox, and the documents change
+  // when the project publishes the accepted revision. Shared-doc only: the
+  // two-doc agent path has no proposal lane and stays legacy.
+  const acceptedLink: AcceptedLink | null = useSharedDoc
+    ? createAcceptedLink({
+        hubUrl: linkedHub.url,
+        token: () => token,
+        designRoot: ctx.paths.designRoot,
+        docNameFor: (slug) => docNameFor(slug),
+        fetchImpl: opts.transactionFetch,
+        retryMs: opts.transactionRetryMs,
+      })
+    : null;
+  const acceptedOn = (): boolean => acceptedLink?.on() === true;
+  /** Canvases a folder action already moved/deleted — nothing more to propose for them. */
+  const coveredByFolderAction = new Set<string>();
+  /** Folder entries this peer has materialized from the project manifest. */
+  const knownProjectDirs = new Set<string>();
+  /** Local writes that reached an accepted replica (tripwire; should stay 0). */
+  let acceptedWriteViolations = 0;
+  const describeOrigin = (origin: unknown): string => {
+    if (origin === null || origin === undefined) return String(origin);
+    if (typeof origin === 'string') return origin.slice(0, 40);
+    if (typeof origin === 'object') return (origin as object).constructor?.name ?? 'object';
+    return typeof origin;
+  };
   let fsReader: FsReader | null = null;
   let busUnsub: (() => void) | null = null;
   let started = false;
@@ -1557,6 +1634,28 @@ export function createSyncRuntime(
   async function retireForMove(fromSlug: string, toRel: string): Promise<boolean> {
     const provider = providers.get(fromSlug);
     if (!provider) return false;
+    if (acceptedOn() && acceptedLink) {
+      // The move is a PROJECT action: the hub retires the old document (with
+      // the same `movedTo` stamp receivers already follow) and opens the new
+      // one with the same content. Answered or queued, the local rename then
+      // proceeds; a refusal (path taken, outside every group) keeps it.
+      movingLocally.add(fromSlug);
+      try {
+        if (!coveredByFolderAction.delete(fromSlug)) {
+          const r = await acceptedLink.moveDoc(fromSlug, toRel);
+          if (r.status === 'rejected') {
+            console.warn(`[sync/${fromSlug}] the project did not accept the move (${r.code})`);
+            return false;
+          }
+        }
+        retiredDocs.add(fromSlug);
+        await releaseOne(fromSlug);
+        console.log(`[sync/${fromSlug}] moved in the project → ${toRel}`);
+        return true;
+      } finally {
+        movingLocally.delete(fromSlug);
+      }
+    }
     movingLocally.add(fromSlug);
     try {
       stampMovedTo(provider.document, toRel, ORIGINS.DISK_PROJECTION);
@@ -1580,6 +1679,175 @@ export function createSyncRuntime(
     } finally {
       movingLocally.delete(fromSlug);
     }
+  }
+
+  // ---- project folders (accepted revisions) --------------------------------
+  //
+  // A folder is a manifest entry, so an EMPTY folder a peer created exists in
+  // the project and appears here — no placeholder canvas. The hub is
+  // untrusted (DDR-054): every path is re-checked against the declared canvas
+  // groups and the real design root before a directory is made, and removal
+  // only ever takes a folder that holds nothing but its `.gitkeep`.
+  const projectDirsFile = path.join(ctx.paths.designRoot, '_state', 'project-dirs.json');
+  try {
+    const saved = JSON.parse(readFileSync(projectDirsFile, 'utf8')) as unknown;
+    if (Array.isArray(saved))
+      for (const d of saved) if (typeof d === 'string') knownProjectDirs.add(d);
+  } catch {
+    /* first run — nothing materialized yet */
+  }
+  const saveProjectDirs = (): void => {
+    try {
+      mkdirSync(path.dirname(projectDirsFile), { recursive: true });
+      writeFileSync(projectDirsFile, JSON.stringify([...knownProjectDirs].sort()));
+    } catch {
+      /* best-effort — a lost file only delays one removal */
+    }
+  };
+  const projectDirAbs = (rel: string): string | null => {
+    if (typeof rel !== 'string' || !rel || rel.length > 512) return null;
+    const parts = rel.split('/');
+    if (parts.length > 16) return null;
+    for (const part of parts) {
+      if (!part || part === '.' || part === '..' || part.startsWith('_') || part.startsWith('.'))
+        return null;
+      if (/[\\\0:*?"<>|]/.test(part) || part.length > 255) return null;
+    }
+    const groups = (ctx.cfg.canvasGroups ?? []).map((g) => g.path.replace(/^\/+|\/+$/g, ''));
+    if (!groups.some((g) => g && (rel === g || rel.startsWith(`${g}/`)))) return null;
+    const abs = path.resolve(ctx.paths.designRoot, ...parts);
+    const root = path.resolve(ctx.paths.designRoot);
+    if (!abs.startsWith(`${root}${path.sep}`)) return null;
+    const real = realpathOfDeepestExisting(abs);
+    const realRoot = realpathOfDeepestExisting(root);
+    if (real !== realRoot && !real.startsWith(`${realRoot}${path.sep}`)) return null;
+    return abs;
+  };
+  const designRelPosix = ctx.paths.designRel.replace(/^\.\//, '').replace(/^\/+|\/+$/g, '');
+  function applyProjectDirs(dirs: readonly string[]): void {
+    const next = new Set(dirs);
+    let changed = false;
+    for (const rel of next) {
+      if (knownProjectDirs.has(rel)) continue;
+      const abs = projectDirAbs(rel);
+      if (!abs) continue;
+      try {
+        if (!existsSync(abs)) {
+          mkdirSync(abs, { recursive: true });
+          writeFileSync(path.join(abs, '.gitkeep'), '');
+          ctx.bus.emit('canvas-list-update', {
+            action: 'mkdir',
+            dir: path.posix.join(designRelPosix, rel),
+          });
+        }
+        knownProjectDirs.add(rel);
+        changed = true;
+      } catch (err) {
+        console.warn(`[sync] could not create project folder ${rel}:`, err);
+      }
+    }
+    // Deepest first, so a removed parent is attempted after its children.
+    const gone = [...knownProjectDirs]
+      .filter((d) => !next.has(d))
+      .sort((a, b) => b.length - a.length);
+    for (const rel of gone) {
+      const abs = projectDirAbs(rel);
+      if (abs && existsSync(abs)) {
+        let entries: string[] = [];
+        try {
+          entries = readdirSync(abs).filter((e) => e !== '.DS_Store');
+        } catch {
+          continue;
+        }
+        // Canvases inside leave through their own deletion/move first; until
+        // then the folder stays and the next poll tries again.
+        if (entries.some((e) => e !== '.gitkeep')) continue;
+        try {
+          for (const e of readdirSync(abs)) rmSync(path.join(abs, e), { force: true });
+          rmdirSync(abs);
+          ctx.bus.emit('canvas-list-update', {
+            action: 'removed-folder',
+            dir: path.posix.join(designRelPosix, rel),
+          });
+        } catch {
+          continue;
+        }
+      }
+      knownProjectDirs.delete(rel);
+      changed = true;
+    }
+    if (changed) saveProjectDirs();
+  }
+
+  /**
+   * The document listing is the hub's STORAGE view: a row appears after
+   * Hocuspocus persists the document, seconds after it exists. Under accepted
+   * revisions the manifest is the project's own statement of what exists, so a
+   * canvas accepted a moment ago is pulled on the next poll, not the one after
+   * its row is written.
+   */
+  function withAcceptedDocs(
+    listing: Awaited<ReturnType<typeof fetchRemoteListing>>
+  ): Awaited<ReturnType<typeof fetchRemoteListing>> {
+    const manifest = acceptedOn() ? acceptedLink?.manifest : null;
+    if (!manifest) return listing;
+    // A document the project RETIRED (moved away) is not a canvas to fetch,
+    // even while its storage row lingers — its successor is in the manifest.
+    const retired = new Set(manifest.docs.filter((d) => d.retired).map((d) => d.doc));
+    const documents = (listing?.documents ?? []).filter((d) => !retired.has(d.name));
+    const names = new Set(documents.map((d) => d.name));
+    for (const d of manifest.docs) {
+      if (d.retired || names.has(d.doc)) continue;
+      documents.push({ name: d.doc, bytes: 1 });
+      names.add(d.doc);
+    }
+    return { ...(listing ?? { tombstones: [] }), documents, tombstones: listing?.tombstones ?? [] };
+  }
+
+  function proposeFolder(
+    op:
+      | { op: 'dir.create'; path: string }
+      | { op: 'dir.delete'; path: string }
+      | {
+          op: 'dir.move';
+          from: string;
+          to: string;
+        }
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean }> | null {
+    if (!acceptedOn() || !acceptedLink) return null;
+    const root = op.op === 'dir.move' ? op.from : op.path;
+    const covered: string[] = [];
+    if (op.op !== 'dir.create') {
+      for (const [slug, d] of descriptors) {
+        const rel = path.relative(ctx.paths.designRoot, d.html).split(path.sep).join('/');
+        if (rel === root || rel.startsWith(`${root}/`)) covered.push(slug);
+      }
+      for (const slug of covered) coveredByFolderAction.add(slug);
+    }
+    const answer =
+      op.op === 'dir.create'
+        ? acceptedLink.dirCreate(op.path)
+        : op.op === 'dir.delete'
+          ? acceptedLink.dirDelete(op.path)
+          : acceptedLink.dirMove(op.from, op.to);
+    return answer.then((r) => {
+      if (r.status === 'rejected') {
+        for (const slug of covered) coveredByFolderAction.delete(slug);
+        return r;
+      }
+      const under = (d: string) => d === root || d.startsWith(`${root}/`);
+      if (op.op === 'dir.create') knownProjectDirs.add(op.path);
+      else {
+        for (const d of [...knownProjectDirs]) {
+          if (!under(d)) continue;
+          knownProjectDirs.delete(d);
+          if (op.op === 'dir.move') knownProjectDirs.add(`${op.to}${d.slice(op.from.length)}`);
+        }
+        if (op.op === 'dir.move') knownProjectDirs.add(op.to);
+      }
+      saveProjectDirs();
+      return r;
+    });
   }
 
   async function start(): Promise<void> {
@@ -1636,7 +1904,23 @@ export function createSyncRuntime(
     // credential in place, so reading it at call time is what every other hub
     // call here does. Identical at boot; correct if start() ever re-runs after
     // a renewal (and it types, which `resolvedToken`'s `string | null` did not).
-    const remoteListing = await fetchRemoteListing(linkedHub.url, token);
+    const remoteListingRaw = await fetchRemoteListing(linkedHub.url, token);
+    if (acceptedLink) {
+      await acceptedLink.refresh();
+      if (acceptedOn()) {
+        console.log(
+          '[sync] this project saves through accepted revisions — local changes are proposed, never written into the shared document.'
+        );
+        // Work a previous run left unanswered goes first, in creation order —
+        // before any cold start can propose something built on top of it.
+        void acceptedLink.client.drainOutbox().then((results) => {
+          if (results.length)
+            console.log(`[sync/tx] resent ${results.length} unanswered change(s).`);
+        });
+        applyProjectDirs(acceptedLink.manifest?.dirs ?? []);
+      }
+    }
+    const remoteListing = withAcceptedDocs(remoteListingRaw);
     // BOOT LEARNS THE DELETIONS BEFORE IT PULLS ANYTHING. The peer-side apply
     // lives further down (it needs the live descriptor map), so this boot pass
     // only has to make sure the pull does not fetch a canvas the project has
@@ -2326,6 +2610,8 @@ export function createSyncRuntime(
      * the canvas its sync.
      */
     const stampFromLocalFile = (doc: Y.Doc, htmlAbs: string): void => {
+      // The accepted replica carries the path the PROJECT gave the document.
+      if (acceptedOn()) return;
       try {
         const rel = path.relative(ctx.paths.designRoot, htmlAbs).split(path.sep).join('/');
         if (rel && !rel.startsWith('..')) stampCanvasPath(doc, rel, ORIGINS.DISK_PROJECTION);
@@ -2378,7 +2664,7 @@ export function createSyncRuntime(
           canvas.html &&
           path.resolve(canvas.html) === movedAbs
         ) {
-          if (clearMovedTo(provider.document, ORIGINS.MIGRATION)) {
+          if (!acceptedOn() && clearMovedTo(provider.document, ORIGINS.MIGRATION)) {
             console.log(
               `[sync/${canvas.slug}] this document is stamped as moved to its OWN path — clearing the stale retirement and keeping the canvas.`
             );
@@ -2402,7 +2688,28 @@ export function createSyncRuntime(
       mon.noteDocState(canvas.slug, 'pending');
       const projection = projections.get(canvas.slug);
       const agent = agents.get(canvas.slug);
-      if (projection) {
+      if (projection && acceptedOn() && acceptedLink) {
+        const docName = docNameFor(canvas.slug);
+        let inProject = acceptedLink.manifest?.docs.some((d) => d.doc === docName && !d.retired);
+        if (!inProject) {
+          // A canvas adopted after boot: ask again before creating anything.
+          await acceptedLink.refresh();
+          inProject = acceptedLink.manifest?.docs.some((d) => d.doc === docName && !d.retired);
+        }
+        const rel = path.relative(ctx.paths.designRoot, canvas.html).split(path.sep).join('/');
+        await acceptedColdStart({
+          slug: canvas.slug,
+          doc: provider.document,
+          paths: canvasPaths,
+          rel,
+          inProject: inProject === true,
+          projection,
+          historyDir: path.join(ctx.paths.historyDir, canvas.slug),
+          journal: journal ?? undefined,
+          createDoc: (lanes) => acceptedLink.createDoc(canvas.slug, rel, lanes),
+        });
+        projection.reconcile();
+      } else if (projection) {
         // Phase E (DDR-064 Task 9) — one-time authoritative seed BEFORE
         // materializing: escapes the duplication trap by picking ONE source
         // inside a MIGRATION transaction. DDR-102: body divergence now takes
@@ -2943,6 +3250,7 @@ export function createSyncRuntime(
                 journal: journal ?? undefined,
                 historyDir: path.join(ctx.paths.historyDir, canvas.slug),
                 waitForReconcile: true,
+                ...(acceptedLink ? { accepted: acceptedLink.laneLink(canvas.slug) } : {}),
                 onRecovered: () => store.clearSourceConflict(canvas.slug),
                 onConflict: (info) => {
                   store.addConflict(info);
@@ -2998,6 +3306,24 @@ export function createSyncRuntime(
             // agent/projection are the belt; this is the braces that also
             // cleans up.)
             watchForRetirement(canvas.slug, provider.document);
+
+            // ACCEPTED-REPLICA TRIPWIRE (DDR-241 §7, plan T6/T12). In
+            // transactions mode the hub drops every update this connection
+            // sends, so a local write here never reaches the project and the
+            // replica silently diverges. Nothing is supposed to do it; this is
+            // how we find out if something does.
+            if (acceptedLink && provider.isRemoteOrigin) {
+              const slug = canvas.slug;
+              const onAny = (_u: Uint8Array, origin: unknown) => {
+                if (!acceptedOn() || provider.isRemoteOrigin?.(origin)) return;
+                acceptedWriteViolations += 1;
+                console.error(
+                  `[sync/${slug}] a local write reached the accepted replica (origin: ${describeOrigin(origin)}) — it cannot reach the project.`
+                );
+              };
+              provider.document.on('update', onAny);
+              noteDetach(statusDetaches, slug, () => provider.document.off('update', onAny));
+            }
 
             // Count local edits (agent-origin doc updates) toward queuedOps while
             // the hub is unreachable — the banner's "N edits queued" figure. Under
@@ -3209,6 +3535,17 @@ export function createSyncRuntime(
       if (typeof slug !== 'string' || !slug) return;
       if (revive) tombstoned.delete(slug);
       else tombstoned.add(slug);
+      if (acceptedOn() && acceptedLink) {
+        // A re-created canvas is proposed by its cold start (`doc.create`); a
+        // deletion is ONE project action unless a folder action covered it.
+        if (revive || coveredByFolderAction.delete(slug)) return;
+        void acceptedLink.deleteDoc(slug).then((r) => {
+          if (r.status === 'rejected' && r.code !== 'dependency-missing') {
+            console.warn(`[sync] the project did not accept deleting ${slug} (${r.code})`);
+          }
+        });
+        return;
+      }
       void stateDocumentGone(linkedHub.url, token, docNameFor(slug), { revive }).then((ok) => {
         if (!ok) {
           console.warn(
@@ -3294,8 +3631,15 @@ export function createSyncRuntime(
     // not told the document exists.
     const pullRemoteOnce = async (): Promise<void> => {
       if (stopped) return;
+      // Accepted revisions: the save mode can change under a running peer (the
+      // hub fences every socket when it does), and folders are manifest
+      // entries — neither is in the document listing.
+      if (acceptedLink) {
+        await acceptedLink.refresh();
+        if (acceptedOn()) applyProjectDirs(acceptedLink.manifest?.dirs ?? []);
+      }
       // Read `token` at call time: a silent renewal swaps it in place.
-      const listing = await fetchRemoteListing(linkedHub.url, token);
+      const listing = withAcceptedDocs(await fetchRemoteListing(linkedHub.url, token));
       // null = unreachable, refused, or a hub without the route. Not an error
       // here any more than it is at boot — sync continues, we ask again later.
       if (stopped || listing === null) return;
@@ -3856,6 +4200,7 @@ export function createSyncRuntime(
   async function stop(): Promise<void> {
     if (stopped) return;
     stopped = true;
+    acceptedLink?.stop();
     fileEventsProbe?.abort();
     fileEventsProbe = null;
     if (filePassTimer !== null) clearTimeout(filePassTimer);
@@ -4037,6 +4382,21 @@ export function createSyncRuntime(
       return true;
     },
     retireForMove: (fromSlug, toRel) => serializeMembership(() => retireForMove(fromSlug, toRel)),
+    proposeLane: (slug, lane, text, o) => {
+      if (!acceptedOn()) return null;
+      const projection = projections.get(slug);
+      if (!projection) return null;
+      const value = laneValueFromFile(lane, text);
+      if (value === null) return null;
+      const base = o?.baseText === undefined ? undefined : laneValueFromFile(lane, o.baseText);
+      return projection.proposeLane(lane, value, {
+        ...(base !== undefined && base !== null ? { baseContent: base } : {}),
+        ...(o?.writeId ? { writeId: o.writeId } : {}),
+      });
+    },
+    proposeFolder,
+    acceptedMode: acceptedOn,
+    acceptedWriteViolations: () => acceptedWriteViolations,
   };
 }
 
@@ -4727,6 +5087,7 @@ export function createDefaultProviderFactory(
       // HocuspocusProvider creates a hub-synced Awareness by default; expose it
       // so the runtime can bridge it to the collab Room (Task 5).
       awareness: provider.awareness as Awareness | undefined,
+      isRemoteOrigin: (origin: unknown) => origin === provider,
       onStatus(cb: (status: ProviderStatus) => void): () => void {
         // The shared socket emits 'status' on every WS transition and every
         // ATTACHED provider re-emits it (forwardStatus), so per-provider

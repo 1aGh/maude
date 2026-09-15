@@ -37,9 +37,11 @@ import {
   applyMetaToDoc,
   cssFromDoc,
   htmlFromDoc,
+  laneValueFromFile,
   mergeSharedMetaIntoLocal,
   metaFromDoc,
   movedToFromDoc,
+  readLaneFromDoc,
   stampAnnotationsEdit,
   stampBodyEdit,
 } from './codec.ts';
@@ -51,8 +53,16 @@ import { repairSeedDuplication } from './seed-repair.ts';
 import { mergeSource } from './source-merge.ts';
 import { saveRecoveryBody } from './source-recovery.ts';
 import { sourceError } from './source-validation.ts';
+import { laneHash } from './transaction-client.ts';
 
 export const PROJECT_FLUSH_MS = 800;
+/**
+ * Accepted revisions arrive as whole, validated states — not a keystroke
+ * stream from a peer's editor that the 800 ms debounce exists to coalesce — so
+ * the receiving disk (and the canvas that renders from it) follows almost at
+ * once.
+ */
+export const ACCEPTED_FLUSH_MS = 30;
 export const CIRCUIT_MAX_STRIKES = 3;
 
 export interface ProjectionPaths {
@@ -114,6 +124,40 @@ export interface DocProjectionOptions {
   onRecovered?: () => void;
   /** Runtime waits for cold-start snapshots before allowing any projection. */
   waitForReconcile?: boolean;
+  /**
+   * ACCEPTED-REVISIONS MODE (DDR-241). While `accepted.on()` holds, a local
+   * change is never written into the shared document: it is PROPOSED with the
+   * value it was derived from, and the document changes only when the hub
+   * publishes the accepted (possibly merged) revision. The file is the
+   * candidate until then; a rejection keeps it and reports a conflict.
+   */
+  accepted?: AcceptedLaneLink;
+}
+
+export type ProposalLane = 'html' | 'css' | 'meta' | 'annotations' | 'comments';
+export interface ProposalOutcome {
+  status: 'accepted' | 'rejected';
+  code?: string;
+  /** On a base conflict: the hash of the accepted value that won. */
+  head?: string;
+}
+
+export interface LaneProposal {
+  lane: ProposalLane;
+  content: string;
+  /** The value this edit was derived from — the hub merges three-way from it. */
+  baseContent: string;
+  writeId?: string;
+  transactionId: string;
+  /** An earlier proposal of the same lane this one was authored on top of. */
+  dependsOn?: string[];
+}
+
+export interface AcceptedLaneLink {
+  /** Is the project in accepted-revisions mode right now? */
+  on(): boolean;
+  newTransactionId(): string;
+  propose(p: LaneProposal): Promise<ProposalOutcome>;
 }
 
 export interface DocProjection {
@@ -138,6 +182,25 @@ export interface DocProjection {
    * write stays blocked with a visible conflict and a later save can merge.
    */
   adoptBase(body: string): void;
+  /**
+   * Accepted-revisions mode: propose one lane value that did not come through
+   * the watcher (a comment/annotation API write). Resolves with the outcome;
+   * `null` when the projection is not in accepted mode.
+   */
+  proposeLane(
+    lane: ProposalLane,
+    value: string,
+    opts?: { baseContent?: string; writeId?: string }
+  ): Promise<ProposalOutcome> | null;
+  /** Lanes with an unresolved proposal (status surfaces). */
+  pendingCount(): number;
+  /**
+   * Accepted-revisions cold start: disk differs from the accepted value and
+   * nothing proves what it was derived from. Keep both — block the lane's
+   * writer, report the conflict, and let the next save (based on `base`, the
+   * accepted value shown in the conflict) resolve it.
+   */
+  hold(lane: ProposalLane, base: string, local: string): void;
   /** Stop the doc listener + timers. */
   stop(): void;
   /** Test/inspection — the origin used on file→doc imports. */
@@ -240,7 +303,9 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     ) {
       return;
     }
-    repairSeedDuplication(doc, ORIGINS.DISK_PROJECTION);
+    // The accepted replica is the hub's to change — a local repair would be a
+    // write the fenced connection drops, leaving this replica diverged.
+    if (!acceptedOn()) repairSeedDuplication(doc, ORIGINS.DISK_PROJECTION);
     scheduleFlush();
   }
 
@@ -251,10 +316,13 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       return;
     }
     if (flushTimer) clearTimeout(flushTimer);
-    flushTimer = setTimeout(() => {
-      flushTimer = null;
-      void flush();
-    }, flushMs);
+    flushTimer = setTimeout(
+      () => {
+        flushTimer = null;
+        void flush();
+      },
+      acceptedOn() ? Math.min(flushMs, ACCEPTED_FLUSH_MS) : flushMs
+    );
   }
 
   function recordEcho(path: string, value: string): void {
@@ -301,6 +369,10 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
   // ----- doc → file (html / css / meta only; room owns comments/annotations)
 
   function writeHtmlIfChanged(): boolean {
+    // A proposal for this lane is in flight: the file is our candidate and the
+    // accepted value is about to be republished. Writing the document's
+    // current value now would briefly undo the user's own edit.
+    if (pending.has('html')) return false;
     const next = htmlFromDoc(doc);
     if (next === lastHtml) return true;
     // Don't clobber a non-empty local body with an empty doc (cold-start before
@@ -337,6 +409,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
 
   function writeCssIfChanged(): void {
     if (!paths.css) return;
+    if (pending.has('css') || held.has('css')) return;
     const next = cssFromDoc(doc);
     if (next === lastCss) return;
     lastCss = next;
@@ -345,10 +418,18 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     recordEcho(paths.css, next);
     writeAndAnnounce(paths.css, next);
     opts.journal?.record(slug, { cssHash: hashBytes(next) }); // DDR-102 checkpoint
+    if (opts.historyDir) {
+      try {
+        saveRecoveryBody(opts.historyDir, paths.css, 'base', next);
+      } catch {
+        /* the journal hash still covers the common case */
+      }
+    }
   }
 
   function writeMetaIfChanged(): void {
     if (!paths.meta) return;
+    if (pending.has('meta') || held.has('meta')) return;
     const shared = metaFromDoc(doc);
     if (shared === lastMeta) return;
     lastMeta = shared;
@@ -409,6 +490,202 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     quarantine.delete(path);
   }
 
+  // ----- accepted-revisions mode (DDR-241)
+
+  const acceptedOn = (): boolean => !!opts.accepted?.on();
+  /** Per lane: proposals not yet answered, and the newest one's id + value. */
+  const pending = new Map<ProposalLane, { count: number; lastTx: string; lastValue: string }>();
+  /** Lanes whose last answer was a rejection — the local file is the held candidate. */
+  const held = new Set<ProposalLane>();
+  /** The newest value proposed per lane — its watcher redelivery is not a new edit. */
+  const lastProposed = new Map<ProposalLane, string>();
+  /** Accepted mode: file events that arrived before the cold start decided. */
+  const deferredBeforeReady = new Map<string, string>();
+
+  const REJECTION_REASON: Record<string, BodyRejection['reason']> = {
+    'source-invalid': 'invalid-source',
+    capacity: 'merge-budget',
+    // The change could not even be saved to this machine's outbox.
+    'local-persistence': 'history-failed',
+  };
+
+  function laneOfPath(p: string): ProposalLane | null {
+    if (p === paths.html) return 'html';
+    if (paths.css && p === paths.css) return 'css';
+    if (paths.meta && p === paths.meta) return 'meta';
+    if (p === paths.comments) return 'comments';
+    if (p === paths.annotations) return 'annotations';
+    return null;
+  }
+
+  function pathOfLane(lane: ProposalLane): string {
+    if (lane === 'html') return paths.html;
+    if (lane === 'css') return paths.css ?? paths.html;
+    if (lane === 'meta') return paths.meta ?? paths.html;
+    return lane === 'comments' ? paths.comments : paths.annotations;
+  }
+
+  /** The value disk and the accepted replica last agreed on for `lane`. */
+  function agreedValue(lane: ProposalLane): string {
+    if (lane === 'html') return lastHtml ?? htmlFromDoc(doc);
+    if (lane === 'css') return lastCss ?? cssFromDoc(doc) ?? '';
+    return readLaneFromDoc(doc, lane);
+  }
+
+  function onRejected(lane: ProposalLane, local: string, outcome: ProposalOutcome): void {
+    held.add(lane);
+    // The candidate stays on disk: the projection's local-edit guard protects
+    // it (html), `held` blocks the lane writer (css/meta), and the recovery
+    // slots keep the bytes whatever happens next.
+    //
+    // The NEXT save is the resolution, and it is made looking at the version
+    // the conflict reports as incoming — so that version becomes its base.
+    // Keeping the old base would make every resolution that touches the same
+    // region conflict again, forever (there is no way out but typing the
+    // other side's bytes back exactly).
+    const incoming = readLaneFromDoc(doc, lane);
+    if (lane === 'html') {
+      observedBody = null;
+      lastHtml = incoming;
+    } else if (lane === 'css') {
+      lastCss = incoming;
+    }
+    reject(
+      REJECTION_REASON[outcome.code ?? ''] ?? 'local-edit',
+      local,
+      readLaneFromDoc(doc, lane),
+      pathOfLane(lane)
+    );
+  }
+
+  /**
+   * Send one lane proposal. A proposal made while an earlier one of the same
+   * lane is unanswered was authored ON TOP of it: it is based on that value and
+   * DEPENDS on it, so a rejected U1 can never be bypassed by an accepted U2
+   * that silently carries half of it (plan T7/T13).
+   */
+  function submit(
+    lane: ProposalLane,
+    value: string,
+    baseContent: string,
+    local: string,
+    writeId?: string
+  ): Promise<ProposalOutcome> {
+    const link = opts.accepted as AcceptedLaneLink;
+    const prior = pending.get(lane);
+    const transactionId = link.newTransactionId();
+    pending.set(lane, {
+      count: (prior?.count ?? 0) + 1,
+      lastTx: transactionId,
+      lastValue: value,
+    });
+    lastProposed.set(lane, value);
+    const settle = async (outcome: ProposalOutcome): Promise<ProposalOutcome> => {
+      // A rejection can outrun the publication of the version that beat it
+      // (HTTP answer vs. WebSocket update). The conflict must report — and the
+      // resolution be based on — THAT version, so wait briefly for it.
+      if (outcome.status === 'rejected' && outcome.head) await untilLaneHash(lane, outcome.head);
+      const p = pending.get(lane);
+      if (p) {
+        p.count -= 1;
+        if (p.count <= 0) pending.delete(lane);
+      }
+      if (outcome.status === 'accepted') {
+        if (!pending.has(lane)) held.delete(lane);
+        if (lane === 'html') recovered();
+      } else {
+        onRejected(lane, local, outcome);
+      }
+      scheduleFlush();
+      return outcome;
+    };
+    return link
+      .propose({
+        lane,
+        content: value,
+        baseContent,
+        transactionId,
+        ...(prior ? { dependsOn: [prior.lastTx] } : {}),
+        ...(writeId ? { writeId } : {}),
+      })
+      .then(settle, (err: unknown) => {
+        console.error(`[projection/${slug}] proposing ${lane} failed:`, err);
+        const code = (err as { code?: unknown })?.code;
+        return settle({
+          status: 'rejected',
+          code: typeof code === 'string' ? code : 'client-error',
+        });
+      });
+  }
+
+  function untilLaneHash(lane: ProposalLane, head: string, ms = 3_000): Promise<void> {
+    const matches = () => laneHash(readLaneFromDoc(doc, lane)) === head;
+    if (matches()) return Promise.resolve();
+    return new Promise((resolve) => {
+      const done = () => {
+        clearTimeout(timer);
+        doc.off('update', onUpdate);
+        resolve();
+      };
+      const onUpdate = () => {
+        if (matches()) done();
+      };
+      const timer = setTimeout(done, ms);
+      doc.on('update', onUpdate);
+    });
+  }
+
+  /** Accepted-revisions import: propose the file's lane value; never touch the doc. */
+  function proposeFromFs(evt: { path: string; hash: string }, str: string): boolean {
+    const lane = laneOfPath(evt.path);
+    if (!lane) return false;
+    if (lane === 'html') {
+      if (str === lastHtml && !held.has('html')) return false; // a redelivered projection
+      if (!withinCap(paths.html, str, MAX_HTML_BYTES)) return false;
+      if (validation(str) !== null) {
+        strike(evt.path, evt.hash);
+        reject('invalid-source', str, htmlFromDoc(doc));
+        return false;
+      }
+    } else if (lane === 'css' && str === lastCss && !held.has('css')) {
+      return false;
+    }
+    const value = laneValueFromFile(lane, str);
+    if (value === null) {
+      strike(evt.path, evt.hash);
+      return false;
+    }
+    clearStrike(evt.path);
+    const inFlight = pending.get(lane);
+    // The watcher redelivering what we already proposed is not a new edit.
+    if (inFlight?.lastValue === value) return false;
+    const current = readLaneFromDoc(doc, lane);
+    if (value === current) {
+      if (inFlight) return false;
+      held.delete(lane);
+      if (lane === 'html') {
+        observedBody = str;
+        lastHtml = str;
+        recovered();
+      } else if (lane === 'css') {
+        lastCss = str;
+      }
+      return false;
+    }
+    if (!inFlight && !held.has(lane) && lastProposed.get(lane) === value) return false;
+    if (lane === 'html') {
+      try {
+        preserveLocal(str);
+      } catch {
+        reject('history-failed', str, current);
+        return false;
+      }
+      observedBody = str;
+    }
+    void submit(lane, value, inFlight ? inFlight.lastValue : agreedValue(lane), str);
+    return true;
+  }
+
   function applyFromFs(evt: { path: string; bytes: Uint8Array; hash: string }): boolean {
     if (stopped) return false;
     // Write-inert both ways — a local edit to a stale pre-move file must not
@@ -420,6 +697,16 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     if (isQuarantined(evt.path, evt.hash)) return false;
 
     const str = bytesToString(evt.bytes);
+    if (acceptedOn()) {
+      // Before the cold start has decided, a proposal would race it (and a
+      // brand-new canvas is not in the project yet). Remember the path; the
+      // file is re-read once the decision is made.
+      if (!ready) {
+        deferredBeforeReady.set(evt.path, evt.hash);
+        return false;
+      }
+      return proposeFromFs(evt, str);
+    }
 
     if (evt.path === paths.html) {
       // Watchers can deliver the same projection more than once, including
@@ -545,6 +832,14 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     // A retired doc materialises NOTHING (see codec stampMovedTo).
     if (movedToFromDoc(doc) !== null) return;
     ready = true;
+    if (deferredBeforeReady.size && acceptedOn()) {
+      const owed = [...deferredBeforeReady];
+      deferredBeforeReady.clear();
+      for (const [p, hash] of owed) {
+        const text = readLocal(p);
+        if (text !== null) proposeFromFs({ path: p, hash }, text);
+      }
+    }
     // Materialize the converged doc to disk (html/css/meta). The *IfChanged
     // writers already guard against clobbering non-empty local with empty doc
     // values, so this is safe to run at cold start before the authoritative
@@ -574,6 +869,33 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     adoptBase(body: string) {
       lastHtml = body;
       observedBody = body;
+    },
+    hold(lane, base, local) {
+      held.add(lane);
+      if (lane === 'html') {
+        lastHtml = base;
+        observedBody = null;
+      } else if (lane === 'css') {
+        lastCss = base;
+      }
+      reject('local-edit', local, readLaneFromDoc(doc, lane), pathOfLane(lane));
+    },
+    proposeLane(lane, value, o) {
+      if (!acceptedOn() || stopped) return null;
+      if (lane === 'html') observedBody = value;
+      const inFlight = pending.get(lane);
+      if (inFlight?.lastValue === value) return Promise.resolve({ status: 'accepted' });
+      if (!inFlight && value === readLaneFromDoc(doc, lane)) {
+        held.delete(lane);
+        return Promise.resolve({ status: 'accepted' });
+      }
+      const base = o?.baseContent ?? (inFlight ? inFlight.lastValue : agreedValue(lane));
+      return submit(lane, value, base, value, o?.writeId);
+    },
+    pendingCount() {
+      let n = 0;
+      for (const p of pending.values()) n += p.count;
+      return n;
     },
     stop() {
       stopped = true;

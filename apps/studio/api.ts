@@ -394,7 +394,7 @@ export interface Api {
   ): Promise<Record<string, unknown> | null>;
   // Annotations sidecar (Phase 5 — .design/<slug>.annotations.svg)
   loadAnnotations(file: string): Promise<string | null>;
-  saveAnnotations(file: string, svg: string, writeId?: string): Promise<boolean>;
+  saveAnnotations(file: string, svg: string, writeId?: string, base?: string): Promise<boolean>;
   /** Materialize a document snapshot without publishing it as another user edit. */
   projectAnnotations(file: string, svg: string, isCurrent: () => boolean): Promise<boolean>;
   // Phase 23 — content-addressed binary image write (drag-drop / paste / picker)
@@ -762,9 +762,21 @@ export interface ApiHooks {
    * stays". Passing the list removes the read, and `publishComments` awaits
    * this hook BEFORE touching disk so the doc is never the stale side.
    */
-  onCommentsChanged: (file: string, comments: Comment[]) => void | Promise<void>;
+  /** `base` — the list this mutation started from (a merge hint for the project). */
+  onCommentsChanged: (file: string, comments: Comment[], base?: Comment[]) => void | Promise<void>;
   /** Phase 8 Task 5 — fires after a successful PUT /_api/annotations write. */
-  onAnnotationsChanged?: (file: string, svg: string, writeId?: string) => void;
+  onAnnotationsChanged?: (file: string, svg: string, writeId?: string, base?: string) => void;
+  /**
+   * Accepted-revisions mode (DDR-241): propose a folder operation as ONE
+   * project action before touching disk. Absent, or answering `null`, means
+   * the project is not in that mode and the local operation is the whole story.
+   */
+  proposeFolder?: (
+    op:
+      | { op: 'dir.create'; path: string }
+      | { op: 'dir.delete'; path: string }
+      | { op: 'dir.move'; from: string; to: string }
+  ) => Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean }> | null;
   /**
    * feature-file-tree-drag-drop-folders (Task 3) — is a collab room pinned
    * (a shared-doc hub provider attached, DDR-064)? `moveCanvas` refuses the
@@ -1213,9 +1225,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
    * content — otherwise the file→doc import that follows the write would see a
    * difference and re-enter the loop.
    */
-  async function publishComments(file: string, list: Comment[]): Promise<void> {
+  async function publishComments(file: string, list: Comment[], base?: Comment[]): Promise<void> {
     const settled = dedupeCommentsById(list);
-    await onCommentsChanged(file, settled);
+    await onCommentsChanged(file, settled, base ? dedupeCommentsById(base) : undefined);
     await saveCommentsForFile(file, settled);
   }
 
@@ -1347,6 +1359,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (!payload || typeof payload.file !== 'string' || !payload.file) return null;
     if (typeof payload.text !== 'string' || !payload.text.trim()) return null;
     const list = await loadCommentsForFile(payload.file);
+    const base = structuredClone(list);
     const text = String(payload.text).trim().slice(0, 4000);
     const author =
       typeof payload.author === 'string' && payload.author.trim()
@@ -1395,7 +1408,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       if (anchor.clipStableId != null || anchor.frame != null) c.timeline = anchor;
     }
     list.push(c);
-    await publishComments(payload.file, list);
+    await publishComments(payload.file, list, base);
     return c;
   }
 
@@ -1410,6 +1423,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       if (i < 0) continue;
       const entry = list[i];
       if (!entry) continue;
+      const base = structuredClone(list);
       const body = payload.body.trim().slice(0, 4000);
       const author =
         typeof payload.author === 'string' && payload.author.trim()
@@ -1423,7 +1437,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       };
       entry.thread = [...entry.thread, reply];
       entry.mentions = mentionsUnion(entry);
-      await publishComments(file, list);
+      await publishComments(file, list, base);
       return entry;
     }
     return null;
@@ -1443,6 +1457,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       const matches = list.filter((c) => c.id === id);
       const first = matches[0];
       if (!first) continue;
+      const base = structuredClone(list);
       for (const entry of matches) {
         if (patch.status === 'resolved' || patch.status === 'open') {
           entry.status = patch.status;
@@ -1453,7 +1468,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           entry.mentions = mentionsUnion(entry);
         }
       }
-      await publishComments(file, list);
+      await publishComments(file, list, base);
       return first;
     }
     return null;
@@ -1464,7 +1479,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     for (const [file, list] of Object.entries(all)) {
       const remaining = list.filter((c) => c.id !== id);
       if (remaining.length === list.length) continue;
-      await publishComments(file, remaining);
+      await publishComments(file, remaining, list);
       return true;
     }
     return false;
@@ -2012,7 +2027,12 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
   }
 
-  async function saveAnnotations(file: string, svg: string, writeId?: string): Promise<boolean> {
+  async function saveAnnotations(
+    file: string,
+    svg: string,
+    writeId?: string,
+    base?: string
+  ): Promise<boolean> {
     if (typeof svg !== 'string') return false;
     if (svg.length > 1024 * 1024) return false;
     // Cheap content gate — must look like an <svg> document. Avoids accidental
@@ -2030,8 +2050,18 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // (strokesToSvg) is purely presentational — path/rect/ellipse/g/line/
     // polyline/text — so stripping executable constructs is zero-regression.
     const clean = sanitizeAnnotationSvg(svg);
+    // The edit's base travels only as a merge hint for the project — bounded
+    // and sanitized like the value itself, never written anywhere.
+    const cleanBase =
+      typeof base === 'string' &&
+      base.length <= 1024 * 1024 &&
+      (base === '' || /^\s*<svg[\s>]/i.test(base))
+        ? base === ''
+          ? ''
+          : sanitizeAnnotationSvg(base)
+        : undefined;
     await Bun.write(annotationsPath(file), clean);
-    onAnnotationsChanged?.(file, clean, writeId);
+    onAnnotationsChanged?.(file, clean, writeId, cleanBase);
     // Annotations reach OTHER VIEWERS over the collab room, which is why this
     // never needed an `fs:any`. But the file is also a versioned, file-plane
     // sidecar (DDR-115), and the file plane learns about a cell's own writes
@@ -2994,6 +3024,21 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       p.startsWith(`${drPrefix}/`) ? p.slice(drPrefix.length + 1) : p
     );
 
+    // ONE project action for the whole folder (accepted-revisions mode): the
+    // hub deletes every canvas under it and the folder entry together, so a
+    // peer never sees half a folder, and history shows one step.
+    const folderAction = await hooks.proposeFolder?.({
+      op: 'dir.delete',
+      path: relDir.replace(/\\/g, '/').replace(/^\/+|\/+$/g, ''),
+    });
+    if (folderAction?.status === 'rejected') {
+      return {
+        ok: false,
+        status: 409,
+        error: `the project did not accept deleting this folder (${folderAction.code ?? 'rejected'})`,
+      };
+    }
+
     const trashed: string[] = [];
     let lastTrashDir = '';
     for (const r of canvasRels) {
@@ -3495,6 +3540,22 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       }
     }
 
+    // ONE project action for the whole folder (accepted-revisions mode) —
+    // canvases, empty sub-folders and all. The per-canvas retire below then
+    // only lets go locally; it proposes nothing of its own.
+    const folderMove = await hooks.proposeFolder?.({
+      op: 'dir.move',
+      from: relDir.replace(/\\/g, '/').replace(/^\/+|\/+$/g, ''),
+      to: toRelDir,
+    });
+    if (folderMove?.status === 'rejected') {
+      return {
+        ok: false,
+        status: 409,
+        error: `the project did not accept this move (${folderMove.code ?? 'rejected'})`,
+      };
+    }
+
     // Collab guard for every canvas found, BEFORE any disk mutation. Same
     // coordinated retire as moveCanvas — refuse only when a pinned room could
     // not be retired, and retire even unpinned synced documents so none of
@@ -3662,6 +3723,18 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       return { ok: false, status: 409, error: `"${v.name}" already exists` };
     } catch {
       /* good — doesn't exist yet */
+    }
+
+    const folderCreate = await hooks.proposeFolder?.({
+      op: 'dir.create',
+      path: path.posix.join(parent, v.name),
+    });
+    if (folderCreate?.status === 'rejected') {
+      return {
+        ok: false,
+        status: 409,
+        error: `the project did not accept this folder (${folderCreate.code ?? 'rejected'})`,
+      };
     }
 
     await mkdir(dirAbs, { recursive: true });

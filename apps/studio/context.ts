@@ -259,6 +259,21 @@ export interface Context {
     current?(): {
       cancelAssetSweep(): boolean;
       retireForMove?(fromSlug: string, toRel: string): Promise<boolean>;
+      /** Accepted-revisions mode (DDR-241) — see SyncRuntime.proposeLane. */
+      proposeLane?(
+        slug: string,
+        lane: 'comments' | 'annotations',
+        text: string,
+        opts?: { baseText?: string; writeId?: string }
+      ): Promise<{ status: 'accepted' | 'rejected'; code?: string }> | null;
+      /** Accepted-revisions mode (DDR-241) — see SyncRuntime.proposeFolder. */
+      proposeFolder?(
+        op:
+          | { op: 'dir.create'; path: string }
+          | { op: 'dir.delete'; path: string }
+          | { op: 'dir.move'; from: string; to: string }
+      ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean }> | null;
+      acceptedMode?(): boolean;
     } | null;
   };
 }

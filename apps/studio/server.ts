@@ -79,7 +79,23 @@ let collab: ReturnType<typeof createCollab> | null = null;
 let inspectHandle: ReturnType<typeof createInspectRegistry> | null = null;
 
 const api = createApi(ctx, {
-  onCommentsChanged: (file, comments) => {
+  onCommentsChanged: (file, comments, base) => {
+    // Accepted-revisions mode (DDR-241): the change is PROPOSED; the room's
+    // document changes when the project publishes it. Fire-and-forget — the
+    // proposal is durable in the outbox before this returns, and the sidebar
+    // below already shows the author their own comment.
+    const runtime = ctx.syncControl?.current?.();
+    const proposed = runtime?.proposeLane?.(
+      api.fileSlug(file),
+      'comments',
+      JSON.stringify(comments),
+      base ? { baseText: JSON.stringify(base) } : {}
+    );
+    if (proposed) {
+      void proposed.catch(() => {});
+      ctx.bus.emit('comments', { file, comments });
+      return;
+    }
     // Phase 8 Task 3 — bridge into the live Y.Array so collab peers see the
     // change without waiting for cold-open re-seeding. No-op when no room is
     // live for this canvas slug.
@@ -99,7 +115,16 @@ const api = createApi(ctx, {
   },
   // Phase 8 Task 5 — same bridge for annotations. PUT /_api/annotations writes
   // the SVG blob to disk; we mirror it into the live Y.Map for collab peers.
-  onAnnotationsChanged: (file, svg, writeId) => {
+  onAnnotationsChanged: (file, svg, writeId, base) => {
+    const runtime = ctx.syncControl?.current?.();
+    const proposed = runtime?.proposeLane?.(api.fileSlug(file), 'annotations', svg, {
+      ...(writeId ? { writeId } : {}),
+      ...(base !== undefined ? { baseText: base } : {}),
+    });
+    if (proposed) {
+      void proposed.catch(() => {});
+      return;
+    }
     if (collab) {
       collab.registry.syncRoomFromAnnotations(api.fileSlug(file), svg, writeId);
     }
@@ -121,6 +146,7 @@ const api = createApi(ctx, {
       return false;
     }
   },
+  proposeFolder: (op) => ctx.syncControl?.current?.()?.proposeFolder?.(op) ?? null,
   flushAndDropRoom: async (slug) => {
     if (collab) await collab.registry.forceDrop(slug);
   },

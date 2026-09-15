@@ -278,13 +278,28 @@ export function createKernel({
     if (!checked.ok)
       throw new Reject(checked.code, { doc: op.doc, lane: op.lane, reason: checked.reason });
     const headHash = st.lanes[op.lane]?.hash ?? EMPTY_HASH;
-    const base = op.base === null || op.base === undefined ? EMPTY_HASH : op.base;
+    // The base may travel as CONTENT (`baseContent`): the literal value the
+    // author's edit was derived from, which need not ever have been accepted
+    // (a browser's view with its own pending strokes, an editor buffer). It
+    // grants nothing `content` does not already: the merge result is validated
+    // like any other value.
+    const inlineBase = typeof op.baseContent === 'string' ? op.baseContent : null;
+    if (inlineBase !== null && inlineBase.length > MAX_PROPOSAL_BYTES)
+      throw new Reject('capacity', { reason: 'base too large' });
+    const base =
+      inlineBase !== null
+        ? inlineBase === ''
+          ? EMPTY_HASH
+          : laneHash(inlineBase)
+        : op.base === null || op.base === undefined
+          ? EMPTY_HASH
+          : op.base;
     let next = checked.content;
     let merged = false;
     if (base !== headHash) {
       let baseContent;
       try {
-        baseContent = await work.content(base);
+        baseContent = inlineBase ?? (await work.content(base));
       } catch {
         throw new Reject('base-conflict', {
           doc: op.doc,

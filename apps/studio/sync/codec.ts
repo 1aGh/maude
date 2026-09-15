@@ -27,7 +27,7 @@ import { diffChars } from 'diff';
 import type * as Y from 'yjs';
 
 import { Y_TYPES } from '../collab/persistence.ts';
-import { commentKey } from './comment-identity.ts';
+import { commentKey, dedupeCommentsById } from './comment-identity.ts';
 import {
   MAX_ANNOTATIONS_BYTES,
   MAX_COMMENTS_BYTES,
@@ -417,6 +417,45 @@ function parsesAsObject(s: string): boolean {
 }
 
 /** The synced shared-meta JSON string held in the doc, or null when unset. */
+/**
+ * The canonical LANE value for a file's text — what the accepted-revisions
+ * kernel stores and what `readLaneFromDoc` returns once it is accepted
+ * (DDR-241). `null` when the file text cannot be a value of that lane.
+ */
+export function laneValueFromFile(
+  lane: 'html' | 'css' | 'meta' | 'annotations' | 'comments',
+  text: string
+): string | null {
+  if (lane === 'html' || lane === 'css' || lane === 'annotations') return text;
+  let parsed: unknown;
+  try {
+    parsed = parseJsonSafe(text);
+  } catch {
+    return null;
+  }
+  if (lane === 'meta') {
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    return sharedMetaCanonical(parsed as Record<string, unknown>);
+  }
+  if (!Array.isArray(parsed)) return null;
+  const list = dedupeCommentsById(parsed);
+  return list.length ? JSON.stringify(list) : '';
+}
+
+/** A lane's value as the accepted replica holds it (same canonical form). */
+export function readLaneFromDoc(
+  doc: Y.Doc,
+  lane: 'html' | 'css' | 'meta' | 'annotations' | 'comments'
+): string {
+  if (lane === 'html' || lane === 'css' || lane === 'meta') return doc.getText(lane).toString();
+  if (lane === 'annotations') {
+    const svg = doc.getMap<unknown>(Y_TYPES.annotations).get('svg');
+    return typeof svg === 'string' ? svg : '';
+  }
+  const list = doc.getArray<unknown>(Y_TYPES.comments).toArray();
+  return list.length ? JSON.stringify(list) : '';
+}
+
 export function metaFromDoc(doc: Y.Doc): string | null {
   return normalizeSharedMeta(doc.getText(Y_SYNC_TYPES.meta).toString());
 }

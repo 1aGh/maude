@@ -1238,6 +1238,12 @@ export function AnnotationsLayer() {
     if (!file) return Promise.resolve();
     const persistable = next.some(isEphemeralHref) ? next.filter((s) => !isEphemeralHref(s)) : next;
     const svg = strokesToSvg(persistable);
+    // What this edit was derived from — the project merges a peer's
+    // concurrent strokes from it instead of replacing them (DDR-241).
+    const persistableBefore = before.some(isEphemeralHref)
+      ? before.filter((s) => !isEphemeralHref(s))
+      : before;
+    const base = strokesToSvg(persistableBefore);
     // Phase 8 Task 5 — record the SVG we just authored locally so the
     // server-broadcast echo (PUT → onAnnotationsChanged → syncRoom* →
     // Y.Map.observe) doesn't trigger a redundant setStrokesState.
@@ -1247,7 +1253,7 @@ export function AnnotationsLayer() {
       fetch('/_api/annotations', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file, svg, writeId }),
+        body: JSON.stringify({ file, svg, writeId, base }),
       })
         .then((r) => {
           // A refused save (403 read-only, 405 at a proxy door) previously

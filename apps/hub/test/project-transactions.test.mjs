@@ -417,6 +417,92 @@ describe('accepted revisions on a real hub', () => {
     }
   });
 
+  test('an inline base (baseContent) merges from a value the store never accepted', {
+    timeout: 60000,
+  }, async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'maude-tx-'));
+    dirs.push(dataDir);
+    const t = rig(dataDir);
+    const { built, http } = await startHub(dataDir);
+    const epoch = { epoch: 0 };
+    try {
+      epoch.epoch = (
+        await client(http, t.owner, epoch).post('/api/projects/local/v1/mode', {
+          mode: 'transactions',
+        })
+      ).body.epoch;
+      const alice = client(http, t.alice, epoch);
+      const bob = client(http, t.bob, epoch);
+      const doc = 'ws/local/main/ui-inline';
+      const svg = (...ids) =>
+        `<svg xmlns="http://www.w3.org/2000/svg">${ids.map((i) => `<rect data-id="${i}"/>`).join('')}</svg>`;
+      assert.equal(
+        (
+          await alice.propose([
+            {
+              op: 'doc.create',
+              doc,
+              path: 'ui/inline.tsx',
+              lanes: { html: src('x'), annotations: svg('a') },
+            },
+          ])
+        ).status,
+        200
+      );
+      // Bob adds stroke b (accepted).
+      assert.equal(
+        (
+          await bob.propose([
+            {
+              op: 'lane.replace',
+              doc,
+              lane: 'annotations',
+              base: laneHash(svg('a')),
+              content: svg('a', 'b'),
+            },
+          ])
+        ).status,
+        200
+      );
+      // Alice's view was [a, c] — a value the store never saw — and she adds d
+      // on top of it. With only a hash this is 'unknown base'; with the literal
+      // base the hub merges three-way: Bob's b and Alice's d both survive, and
+      // c — present in the base, absent from the accepted head — is honoured as
+      // the head's deletion (in the product a pending c is always accepted
+      // first: the dependent proposal names it in `dependsOn`).
+      const r = await alice.propose([
+        {
+          op: 'lane.replace',
+          doc,
+          lane: 'annotations',
+          baseContent: svg('a', 'c'),
+          content: svg('a', 'c', 'd'),
+        },
+      ]);
+      assert.equal(r.status, 200, JSON.stringify(r.body));
+      const blob = await alice.get(`/api/projects/local/v1/bootstrap`);
+      const head = blob.body.docs.find((d) => d.doc === doc).lanes.annotations.hash;
+      const body = (await alice.get(`/api/projects/local/v1/blobs/${head}`)).body.body;
+      for (const id of ['a', 'b', 'd']) assert.ok(body.includes(`data-id="${id}"`), `${id} kept`);
+      assert.ok(!body.includes('data-id="c"'), 'the head never had c');
+      // An oversized inline base is refused before any merge work.
+      const huge = await alice.propose([
+        {
+          op: 'lane.replace',
+          doc,
+          lane: 'html',
+          baseContent: 'x'.repeat(16 * 1024 * 1024 + 1),
+          content: src('y'),
+        },
+      ]);
+      assert.equal(huge.body.status, 'rejected');
+    } finally {
+      await built.stopJournal();
+      await built.server.destroy();
+      built.projectStore.close();
+    }
+  });
+
   test('acknowledged actions survive losing the document cache: the store rebuilds them', {
     timeout: 60000,
   }, async () => {

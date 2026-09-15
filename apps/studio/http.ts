@@ -2276,10 +2276,14 @@ export function createHttp(
         });
       }
       if (req.method === 'PUT' || req.method === 'POST') {
-        const body = await readJson<{ file?: string; svg?: string; writeId?: unknown }>(
-          req,
-          1024 * 1024 + 1024
-        );
+        // `base` (optional) is the SVG this edit was derived from — the hub
+        // merges a concurrent peer's strokes from it (accepted revisions).
+        const body = await readJson<{
+          file?: string;
+          svg?: string;
+          writeId?: unknown;
+          base?: unknown;
+        }>(req, 2 * 1024 * 1024 + 2048);
         if (!body || typeof body.file !== 'string' || !body.file) {
           return new Response('body must include { file, svg }', { status: 400 });
         }
@@ -2289,10 +2293,14 @@ export function createHttp(
         if (body.writeId !== undefined && !validAnnotationWriteId(body.writeId)) {
           return new Response('invalid annotation writeId', { status: 400 });
         }
+        if (body.base !== undefined && typeof body.base !== 'string') {
+          return new Response('body.base must be a string', { status: 400 });
+        }
         const ok = await api.saveAnnotations(
           body.file,
           body.svg,
-          body.writeId as string | undefined
+          body.writeId as string | undefined,
+          body.base as string | undefined
         );
         if (!ok) return new Response('rejected', { status: 400 });
         return new Response(null, { status: 204 });
