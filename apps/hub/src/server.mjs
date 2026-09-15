@@ -1706,7 +1706,10 @@ export function createHub(config = {}) {
   // The store's durable home (DDR-241 §2): a cell's Durable Object through
   // the container's outbound route, or this hub's own data volume.
   const projectStore = process.env.MAUDE_PROJECT_STORE_URL
-    ? openRemoteProjectStore({ url: process.env.MAUDE_PROJECT_STORE_URL })
+    ? openRemoteProjectStore({
+        url: process.env.MAUDE_PROJECT_STORE_URL,
+        token: process.env.MAUDE_PROJECT_STORE_TOKEN || null,
+      })
     : openSqliteProjectStore(dataDir);
   // A disposable data directory (a cloud container) cannot back an
   // acknowledgement — the mode switch refuses rather than promise saves it

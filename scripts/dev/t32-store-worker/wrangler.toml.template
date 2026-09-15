@@ -1,0 +1,13 @@
+# T32 verification Worker (disposable). `name` is filled per run.
+name = "__NAME__"
+main = "worker.mjs"
+compatibility_date = "2026-07-01"
+workers_dev = true
+
+[[durable_objects.bindings]]
+name = "PROJECT_STORE"
+class_name = "ProjectStore"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ProjectStore"]
