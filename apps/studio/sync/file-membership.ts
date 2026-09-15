@@ -105,7 +105,7 @@ const INERT_MEDIA_EXTS = new Set([
   'ttf',
   'otf',
 ]);
-const COMPANION_TEXT_EXTS = new Set(['css', 'md', 'srt']);
+const COMPANION_TEXT_EXTS = new Set(['css', 'md', 'srt', 'vtt']);
 const CODE_MODULE_EXTS = new Set(['ts', 'tsx', 'js', 'mjs']);
 
 /**
@@ -118,7 +118,9 @@ const CODE_MODULE_EXTS = new Set(['ts', 'tsx', 'js', 'mjs']);
  * machine silently loses every photo edit — the exact bug class this module
  * exists to end.
  */
-const COMPANION_SIDECAR_SUFFIXES = ['.photo.json', '.audio.json'];
+// + the footage analysis, component registry, edit decision list: versioned
+// sidecars (DDR-115) the T32 scale run found never reaching a peer.
+const COMPANION_SIDECAR_SUFFIXES = ['.photo.json', '.audio.json', '.footage.json', '.registry.json', '.edl.json'];
 
 /**
  * A DIRECTORY segment must start alphanumeric — the same rule as the hub's

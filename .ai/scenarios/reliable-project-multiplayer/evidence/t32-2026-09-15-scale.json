@@ -1,0 +1,2157 @@
+{
+  "task": "T32",
+  "scenarios": [
+    "S13",
+    "S14"
+  ],
+  "plan": ".ai/plans/feature-reliable-project-multiplayer.md#T32",
+  "date": "2026-09-15T12:01:05.960Z",
+  "scale": "full",
+  "script": "scripts/dev/t32-scale.mjs",
+  "command": "node scripts/dev/t32-scale.mjs --scale full --base-port 5110 --work <path> --prior <path> --out .ai/scenarios/reliable-project-multiplayer/evidence/t32-2026-09-15-scale.json --timeout-min 60",
+  "environment": {
+    "commit": "e8265c3b383f12e8813813d95fe9fc5bd62d40a4",
+    "dirtyTrackedFiles": 12,
+    "node": "v24.13.0",
+    "bun": "1.3.3",
+    "platform": "darwin 25.5.0 arm64",
+    "cpus": 10,
+    "cpuModel": "Apple M5",
+    "memoryBytes": 17179869184
+  },
+  "topology": {
+    "hub": "serve-hub.mjs --transactions, HUB_WORKSPACE_MODE=1, MAUDE_REPO_DIR=<work>/hub-repo, MAUDE_STUDIO_CHILD=0 (self-host workspace hub, file journal on, accepted revisions on)",
+    "clients": "bun apps/studio/server.ts --root <dir> (MAUDE_NO_AUTOBUILD=1, isolated HOME/XDG/HUBS_CONFIG_PATH/MAUDE_CLOUD_CONFIG), linkedHub.syncFiles=true, owner-role hub record",
+    "ports": {
+      "hub": 5110,
+      "a": 5111,
+      "b": 5112,
+      "c": 5113
+    },
+    "limitations": [
+      "Single machine, loopback: no WAN latency, no real object storage; the self-host SQLite accepted store is the only durable store here.",
+      "Canvas \"open\" is measured through the studio index API and disk materialisation, not a rendered browser/WKWebView frame.",
+      "Edits are written to the canvas file on disk (agent/editor path), not through inspector UI gestures."
+    ]
+  },
+  "failures": [],
+  "inventory": {
+    "source": "this repository's own .design/ (complete copy) plus synthetic media",
+    "copyMs": 3895,
+    "asCopied": {
+      "raw": {
+        "files": 3368,
+        "bytes": 1077316859
+      },
+      "eligible": {
+        "files": 249,
+        "bytes": 425469307,
+        "byClass": {
+          "companion-text": {
+            "files": 17,
+            "bytes": 71497
+          },
+          "inert-media": {
+            "files": 61,
+            "bytes": 423613753
+          },
+          "canvas-owned": {
+            "files": 171,
+            "bytes": 1784057
+          }
+        },
+        "byPlane": {
+          "B": {
+            "files": 78,
+            "bytes": 423685250
+          },
+          "A": {
+            "files": 171,
+            "bytes": 1784057
+          }
+        }
+      },
+      "excluded": {
+        "files": 3119,
+        "bytes": 651847552,
+        "byReason": {
+          "shape: dotfile / dot segment": {
+            "files": 2,
+            "bytes": 8196,
+            "examples": [
+              ".DS_Store",
+              ".keep"
+            ]
+          },
+          "runtime state (DDR-115 isRuntimeStateRel)": {
+            "files": 3085,
+            "bytes": 651310492,
+            "examples": [
+              "_active.json",
+              "_canvas-state/_canvas-shell.json",
+              "_canvas-state/ui-_cv-orig.json",
+              "_canvas-state/ui-agency_hero.view.json"
+            ]
+          },
+          "extension not enumerated (default-closed): .json": {
+            "files": 30,
+            "bytes": 526962,
+            "examples": [
+              "alligators-reel.edl.json",
+              "assets/2e81036d.footage.json",
+              "assets/30783aa8.footage.json",
+              "assets/314d43a3.footage.json"
+            ]
+          },
+          "extension not enumerated (default-closed): .vtt": {
+            "files": 1,
+            "bytes": 221,
+            "examples": [
+              "assets/caaftv-local.vtt"
+            ]
+          },
+          "config.json \u2014 the trust anchor, never synced": {
+            "files": 1,
+            "bytes": 1681,
+            "examples": [
+              "config.json"
+            ]
+          }
+        }
+      },
+      "largestEligible": [
+        {
+          "rel": "assets/2e81036d.mp4",
+          "bytes": 40088684,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/a1e04fbd.mov",
+          "bytes": 33902693,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/df1fd2f2.mov",
+          "bytes": 27737040,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/3e564439.mov",
+          "bytes": 22140059,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/5edfccf7.mov",
+          "bytes": 21228645,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/c5edb01a.png",
+          "bytes": 19384020,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/314d43a3.mp4",
+          "bytes": 19356778,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/c34ec202.mov",
+          "bytes": 19258903,
+          "cls": "inert-media"
+        }
+      ]
+    },
+    "resetLinkState": {
+      "files": 92,
+      "bytes": 111943,
+      "paths": [
+        "_sync.json",
+        "_active.json",
+        "_state/**"
+      ]
+    },
+    "synthetic": {
+      "large": [
+        {
+          "rel": "assets/t32-synthetic/master-096m.mp4",
+          "bytes": 100663296,
+          "sha256": "7bf5d2c09c8882b3b26c4d970d8a0df9f1474ccdc182270ad428a82ceee76411"
+        },
+        {
+          "rel": "assets/t32-synthetic/master-513m.mp4",
+          "bytes": 537919488,
+          "sha256": "82f3bdd5aae09a7f3a39b77d7e09c5aa252c89be68fd5eaa44d418d8298f818d"
+        }
+      ],
+      "small": {
+        "files": 200,
+        "bytes": 5738470,
+        "pattern": "assets/t32-small/still-NNN.png"
+      },
+      "generator": "AES-256-CTR keystream keyed by sha256(\"t32-scale:\"+rel), after an ISO-BMFF ftyp box; streamed in 8 MiB chunks",
+      "generateMs": 1446
+    },
+    "atStart": {
+      "raw": {
+        "files": 3480,
+        "bytes": 1721526472
+      },
+      "eligible": {
+        "files": 453,
+        "bytes": 1069790840,
+        "byClass": {
+          "companion-text": {
+            "files": 17,
+            "bytes": 71497
+          },
+          "inert-media": {
+            "files": 263,
+            "bytes": 1067935007
+          },
+          "canvas-owned": {
+            "files": 173,
+            "bytes": 1784336
+          }
+        },
+        "byPlane": {
+          "B": {
+            "files": 280,
+            "bytes": 1068006504
+          },
+          "A": {
+            "files": 173,
+            "bytes": 1784336
+          }
+        }
+      },
+      "excluded": {
+        "files": 3027,
+        "bytes": 651735632,
+        "byReason": {
+          "shape: dotfile / dot segment": {
+            "files": 2,
+            "bytes": 8196,
+            "examples": [
+              ".DS_Store",
+              ".keep"
+            ]
+          },
+          "runtime state (DDR-115 isRuntimeStateRel)": {
+            "files": 2993,
+            "bytes": 651198549,
+            "examples": [
+              "_canvas-state/_canvas-shell.json",
+              "_canvas-state/ui-_cv-orig.json",
+              "_canvas-state/ui-agency_hero.view.json",
+              "_canvas-state/ui-alligators_cinematic_cut.view.json"
+            ]
+          },
+          "extension not enumerated (default-closed): .json": {
+            "files": 30,
+            "bytes": 526962,
+            "examples": [
+              "alligators-reel.edl.json",
+              "assets/2e81036d.footage.json",
+              "assets/30783aa8.footage.json",
+              "assets/314d43a3.footage.json"
+            ]
+          },
+          "extension not enumerated (default-closed): .vtt": {
+            "files": 1,
+            "bytes": 221,
+            "examples": [
+              "assets/caaftv-local.vtt"
+            ]
+          },
+          "config.json \u2014 the trust anchor, never synced": {
+            "files": 1,
+            "bytes": 1704,
+            "examples": [
+              "config.json"
+            ]
+          }
+        }
+      },
+      "largestEligible": [
+        {
+          "rel": "assets/t32-synthetic/master-513m.mp4",
+          "bytes": 537919488,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/t32-synthetic/master-096m.mp4",
+          "bytes": 100663296,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/2e81036d.mp4",
+          "bytes": 40088684,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/a1e04fbd.mov",
+          "bytes": 33902693,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/df1fd2f2.mov",
+          "bytes": 27737040,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/3e564439.mov",
+          "bytes": 22140059,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/5edfccf7.mov",
+          "bytes": 21228645,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/c5edb01a.png",
+          "bytes": 19384020,
+          "cls": "inert-media"
+        }
+      ]
+    },
+    "excludedButGitTracked": {
+      "files": 31,
+      "bytes": 527183,
+      "byExtension": {
+        ".edl.json": {
+          "files": 2,
+          "bytes": 9493,
+          "examples": [
+            "alligators-reel.edl.json",
+            "photo-editor-trailer.edl.json"
+          ]
+        },
+        ".footage.json": {
+          "files": 15,
+          "bytes": 77062,
+          "examples": [
+            "assets/2e81036d.footage.json",
+            "assets/30783aa8.footage.json",
+            "assets/314d43a3.footage.json"
+          ]
+        },
+        ".json": {
+          "files": 1,
+          "bytes": 1115,
+          "examples": [
+            "assets/caaftv-local.json"
+          ]
+        },
+        ".vtt": {
+          "files": 1,
+          "bytes": 221,
+          "examples": [
+            "assets/caaftv-local.vtt"
+          ]
+        },
+        ".registry.json": {
+          "files": 12,
+          "bytes": 439292,
+          "examples": [
+            "ui/ChatPanel.registry.json",
+            "ui/CreateProject.registry.json",
+            "ui/DiffView.registry.json"
+          ]
+        }
+      }
+    }
+  },
+  "aIndexedCanvases": 74,
+  "probeOnHubAt": 14229,
+  "seed": {
+    "aStartedAt": 9332,
+    "aHealthyAt": 10608,
+    "hubFirstPlaneBFileAt": 13362,
+    "kills": [
+      {
+        "label": "mid small-file seed",
+        "trigger": "small-files-mid-seed",
+        "killedAt": 14938,
+        "killedIncarnation": "client-a-1",
+        "restartedAs": "client-a-2",
+        "restartMs": 1641,
+        "hubAtKill": {
+          "files": 69,
+          "of": 280,
+          "bytes": 238364931,
+          "journalRows": 69
+        },
+        "aProgressLastReportedBeforeKill": null,
+        "aProgressFirstReportedAfterRestart": {
+          "at": 18654,
+          "processStartedAt": 1789473682546,
+          "incarnation": 2,
+          "phase": "seeding",
+          "tracked": 280,
+          "delivered": 270,
+          "remaining": 10,
+          "bytesRemaining": 784092085
+        },
+        "largeSessionAtKill": null,
+        "rowsLandedByRestartedIncarnation": 209,
+        "pathsTheHubAlreadyHeldWrittenAgain": [],
+        "restartedFirstPass": {
+          "down": 0,
+          "up": 200,
+          "conflicts": 0,
+          "alreadyInStep": 70
+        },
+        "restartedFirstPassNote": null,
+        "logsBeforeKill": {
+          "up": 0,
+          "down": 0,
+          "passes": [],
+          "coldStartHolds": []
+        },
+        "restartedFromZero": false
+      },
+      {
+        "label": "mid large-object upload",
+        "trigger": "large-upload-mid-session",
+        "killedAt": 22106,
+        "killedIncarnation": "client-a-2",
+        "restartedAs": "client-a-3",
+        "restartMs": 2227,
+        "hubAtKill": {
+          "files": 279,
+          "of": 280,
+          "bytes": 530087016,
+          "journalRows": 279
+        },
+        "aProgressLastReportedBeforeKill": {
+          "at": 21659,
+          "processStartedAt": 1789473682546,
+          "incarnation": 2,
+          "phase": "seeding",
+          "tracked": 280,
+          "delivered": 270,
+          "remaining": 10,
+          "bytesRemaining": 784092085
+        },
+        "aProgressFirstReportedAfterRestart": {
+          "at": 35200,
+          "processStartedAt": 1789473690049,
+          "incarnation": 3,
+          "phase": "converged",
+          "tracked": 280,
+          "delivered": 280,
+          "remaining": 0,
+          "bytesRemaining": 0
+        },
+        "largeSessionAtKill": {
+          "id": "up_43af78c7683ecf50c769e4a0e4d8becb",
+          "path": "assets/t32-synthetic/master-513m.mp4",
+          "parts": 65,
+          "partsReceived": 19
+        },
+        "rowsLandedByRestartedIncarnation": 1,
+        "pathsTheHubAlreadyHeldWrittenAgain": [],
+        "restartedFirstPass": {
+          "down": 0,
+          "up": 1,
+          "conflicts": 0,
+          "alreadyInStep": 279
+        },
+        "restartedFirstPassNote": null,
+        "logsBeforeKill": {
+          "up": 200,
+          "down": 0,
+          "passes": [
+            {
+              "down": 0,
+              "up": 200,
+              "conflicts": 0,
+              "alreadyInStep": 70
+            }
+          ],
+          "coldStartHolds": []
+        },
+        "restartedFromZero": false
+      }
+    ],
+    "incarnations": [
+      {
+        "incarnation": 1,
+        "name": "client-a-1",
+        "from": 9332,
+        "to": 14938,
+        "journalRowsLanded": 69,
+        "bytesLanded": 238364931,
+        "log": {
+          "up": 0,
+          "down": 0,
+          "passes": [],
+          "coldStartHolds": []
+        }
+      },
+      {
+        "incarnation": 2,
+        "name": "client-a-2",
+        "from": 15969,
+        "to": 22106,
+        "journalRowsLanded": 209,
+        "bytesLanded": 291713430,
+        "log": {
+          "up": 200,
+          "down": 0,
+          "passes": [
+            {
+              "down": 0,
+              "up": 200,
+              "conflicts": 0,
+              "alreadyInStep": 70
+            }
+          ],
+          "coldStartHolds": []
+        }
+      },
+      {
+        "incarnation": 3,
+        "name": "client-a-3",
+        "from": 23136,
+        "to": null,
+        "journalRowsLanded": 1,
+        "bytesLanded": 537919488,
+        "log": {
+          "up": 1,
+          "down": 0,
+          "passes": [
+            {
+              "down": 0,
+              "up": 1,
+              "conflicts": 0,
+              "alreadyInStep": 279
+            }
+          ],
+          "coldStartHolds": []
+        }
+      }
+    ],
+    "largeObjectSession": {
+      "path": "assets/t32-synthetic/master-513m.mp4",
+      "sessionId": "up_43af78c7683ecf50c769e4a0e4d8becb",
+      "partsTotal": 65,
+      "partsReceivedBeforeKill": 19,
+      "sessionsCreatedForPath": 1,
+      "sameSessionResumed": true,
+      "partsRewrittenAfterRestart": 0,
+      "preKillPartsRewritten": [],
+      "partsFirstSeenAfterRestart": 46,
+      "completedAt": 34998,
+      "landedInJournal": true
+    },
+    "otherSessions": [
+      {
+        "id": "up_6381ba265f7767b73af7f5c97d9b98f7",
+        "path": "assets/t32-synthetic/master-096m.mp4",
+        "parts": 12,
+        "firstAt": 20115,
+        "completedAt": 21426,
+        "maxHave": 12
+      },
+      {
+        "id": "up_43af78c7683ecf50c769e4a0e4d8becb",
+        "path": "assets/t32-synthetic/master-513m.mp4",
+        "parts": 65,
+        "firstAt": 21426,
+        "completedAt": 34998,
+        "maxHave": 65
+      }
+    ],
+    "hubCompleteAt": 35467,
+    "hubDelivered": {
+      "files": 280,
+      "bytes": 1068006504,
+      "of": 280
+    },
+    "journal": {
+      "rows": 280,
+      "distinctPaths": 280,
+      "duplicateWrites": []
+    },
+    "deliveryOrderSample": {
+      "first10": [
+        {
+          "rel": "assets/a44d3d60.png",
+          "size": 121657,
+          "at": 13362
+        },
+        {
+          "rel": "assets/music.mp3",
+          "size": 205470,
+          "at": 13362
+        },
+        {
+          "rel": "assets/5087c59a.mp3",
+          "size": 352802,
+          "at": 13362
+        },
+        {
+          "rel": "assets/c39386eb.png",
+          "size": 933068,
+          "at": 13362
+        },
+        {
+          "rel": "assets/f366481a.jpg",
+          "size": 984488,
+          "at": 13362
+        },
+        {
+          "rel": "assets/reel-c.mp4",
+          "size": 991017,
+          "at": 13362
+        },
+        {
+          "rel": "assets/reel-b.mp4",
+          "size": 1047059,
+          "at": 13362
+        },
+        {
+          "rel": "assets/caaftv-local.mp4",
+          "size": 1167996,
+          "at": 13362
+        },
+        {
+          "rel": "assets/fd55083e-cloud.mp4",
+          "size": 1167996,
+          "at": 13362
+        },
+        {
+          "rel": "assets/a42ba453.gif",
+          "size": 2684330,
+          "at": 13362
+        }
+      ],
+      "last5": [
+        {
+          "rel": "assets/5edfccf7.mov",
+          "size": 21228645,
+          "at": 20381
+        },
+        {
+          "rel": "assets/3e564439.mov",
+          "size": 22140059,
+          "at": 20381
+        },
+        {
+          "rel": "assets/a1e04fbd.mov",
+          "size": 33902693,
+          "at": 20381
+        },
+        {
+          "rel": "assets/t32-synthetic/master-096m.mp4",
+          "size": 100663296,
+          "at": 22105
+        },
+        {
+          "rel": "assets/t32-synthetic/master-513m.mp4",
+          "size": 537919488,
+          "at": 35467
+        }
+      ],
+      "largeObjectsLast": true
+    },
+    "aProgressTrail": [
+      {
+        "at": 18654,
+        "processStartedAt": 1789473682546,
+        "incarnation": 2,
+        "phase": "seeding",
+        "tracked": 280,
+        "delivered": 270,
+        "remaining": 10,
+        "bytesRemaining": 784092085
+      },
+      {
+        "at": 20656,
+        "processStartedAt": 1789473682546,
+        "incarnation": 2,
+        "phase": "seeding",
+        "tracked": 280,
+        "delivered": 270,
+        "remaining": 10,
+        "bytesRemaining": 784092085
+      },
+      {
+        "at": 22660,
+        "processStartedAt": 1789473682546,
+        "incarnation": 2,
+        "phase": "seeding",
+        "tracked": 280,
+        "delivered": 270,
+        "remaining": 10,
+        "bytesRemaining": 784092085
+      },
+      {
+        "at": 35699,
+        "processStartedAt": 1789473690049,
+        "incarnation": 3,
+        "phase": "converged",
+        "tracked": 280,
+        "delivered": 280,
+        "remaining": 0,
+        "bytesRemaining": 0
+      },
+      {
+        "at": 37701,
+        "processStartedAt": 1789473690049,
+        "incarnation": 3,
+        "phase": "converged",
+        "tracked": 280,
+        "delivered": 280,
+        "remaining": 0,
+        "bytesRemaining": 0
+      }
+    ]
+  },
+  "edits": {
+    "method": "rewrite ui/t32-probe.tsx on A's disk; poll the hub accepted head (bootstrap + blob) every 100 ms (latency resolution \u2248 poll interval + one bootstrap round trip) and B/C disk every 50 ms; next edit 300 ms after the previous one settled or 60 s timeout",
+    "count": 31,
+    "whileMediaMoving": 30,
+    "timedOut": 0,
+    "interruptedByKill": 2,
+    "latencyMs": {
+      "hub": {
+        "n": 29,
+        "p50": 332,
+        "p95": 556,
+        "max": 641
+      },
+      "hubWhileMediaMoving": {
+        "n": 28,
+        "p50": 332,
+        "p95": 556,
+        "max": 641
+      },
+      "b": {
+        "n": 15,
+        "p50": 337,
+        "p95": 930,
+        "max": 930
+      },
+      "c": {
+        "n": 15,
+        "p50": 336,
+        "p95": 641,
+        "max": 641
+      },
+      "peersWhileMediaMoving": {
+        "n": 28,
+        "p50": 337,
+        "p95": 742,
+        "max": 930
+      }
+    },
+    "samples": [
+      {
+        "n": 1,
+        "at": 14229,
+        "aIncarnation": 1,
+        "hubMs": 326,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 1058350621,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 2,
+        "at": 14857,
+        "aIncarnation": 1,
+        "hubMs": null,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 936242720,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null,
+        "interruptedByKill": true
+      },
+      {
+        "n": 3,
+        "at": 16771,
+        "aIncarnation": 2,
+        "hubMs": 427,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 829632918,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 4,
+        "at": 17499,
+        "aIncarnation": 2,
+        "hubMs": 316,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 829396722,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 5,
+        "at": 18117,
+        "aIncarnation": 2,
+        "hubMs": 323,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 829396722,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 6,
+        "at": 18741,
+        "aIncarnation": 2,
+        "hubMs": 316,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 784092085,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 7,
+        "at": 19357,
+        "aIncarnation": 2,
+        "hubMs": 322,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 784092085,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 8,
+        "at": 19980,
+        "aIncarnation": 2,
+        "hubMs": 357,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 761059675,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 9,
+        "at": 20638,
+        "aIncarnation": 2,
+        "hubMs": 330,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 638582784,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 10,
+        "at": 21268,
+        "aIncarnation": 2,
+        "hubMs": 316,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 638582784,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 11,
+        "at": 21885,
+        "aIncarnation": 2,
+        "hubMs": null,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 638582784,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null,
+        "interruptedByKill": true
+      },
+      {
+        "n": 12,
+        "at": 24563,
+        "aIncarnation": 3,
+        "hubMs": 479,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 13,
+        "at": 25357,
+        "aIncarnation": 3,
+        "hubMs": 388,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 14,
+        "at": 26054,
+        "aIncarnation": 3,
+        "hubMs": 556,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 15,
+        "at": 26916,
+        "aIncarnation": 3,
+        "hubMs": 330,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 1068006504,
+        "cRemainingBytes": 1068006504
+      },
+      {
+        "n": 16,
+        "at": 27551,
+        "aIncarnation": 3,
+        "hubMs": 343,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 1068006504,
+        "cRemainingBytes": 1068006504
+      },
+      {
+        "n": 17,
+        "at": 28198,
+        "aIncarnation": 3,
+        "hubMs": 337,
+        "bMs": 337,
+        "cMs": 337,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 1068006504,
+        "cRemainingBytes": 1068006504
+      },
+      {
+        "n": 18,
+        "at": 28837,
+        "aIncarnation": 3,
+        "hubMs": 332,
+        "bMs": 384,
+        "cMs": 384,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 1053546041,
+        "cRemainingBytes": 1045528952
+      },
+      {
+        "n": 19,
+        "at": 29521,
+        "aIncarnation": 3,
+        "hubMs": 370,
+        "bMs": 370,
+        "cMs": 370,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 1053546041,
+        "cRemainingBytes": 1045528952
+      },
+      {
+        "n": 20,
+        "at": 30196,
+        "aIncarnation": 3,
+        "hubMs": 336,
+        "bMs": 336,
+        "cMs": 336,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 940966263,
+        "cRemainingBytes": 956598236
+      },
+      {
+        "n": 21,
+        "at": 30838,
+        "aIncarnation": 3,
+        "hubMs": 332,
+        "bMs": 332,
+        "cMs": 332,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 874613542,
+        "cRemainingBytes": 874613542
+      },
+      {
+        "n": 22,
+        "at": 31471,
+        "aIncarnation": 3,
+        "hubMs": 333,
+        "bMs": 742,
+        "cMs": 333,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 874613542,
+        "cRemainingBytes": 874613542
+      },
+      {
+        "n": 23,
+        "at": 32514,
+        "aIncarnation": 3,
+        "hubMs": 323,
+        "bMs": 323,
+        "cMs": 323,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 831555199,
+        "cRemainingBytes": 832057164
+      },
+      {
+        "n": 24,
+        "at": 33138,
+        "aIncarnation": 3,
+        "hubMs": 325,
+        "bMs": 325,
+        "cMs": 325,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 805537579,
+        "cRemainingBytes": 805537579
+      },
+      {
+        "n": 25,
+        "at": 33764,
+        "aIncarnation": 3,
+        "hubMs": 337,
+        "bMs": 338,
+        "cMs": 337,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 672485477,
+        "cRemainingBytes": 672485477
+      },
+      {
+        "n": 26,
+        "at": 34403,
+        "aIncarnation": 3,
+        "hubMs": 641,
+        "bMs": 641,
+        "cMs": 641,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 672485477,
+        "cRemainingBytes": 672485477
+      },
+      {
+        "n": 27,
+        "at": 35345,
+        "aIncarnation": 3,
+        "hubMs": 322,
+        "bMs": 424,
+        "cMs": 424,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 638582784,
+        "cRemainingBytes": 638582784
+      },
+      {
+        "n": 28,
+        "at": 36072,
+        "aIncarnation": 3,
+        "hubMs": 323,
+        "bMs": 323,
+        "cMs": 323,
+        "aSeedRemainingBytes": 0,
+        "bRemainingBytes": 537919488,
+        "cRemainingBytes": 537919488
+      },
+      {
+        "n": 29,
+        "at": 36696,
+        "aIncarnation": 3,
+        "hubMs": 319,
+        "bMs": 320,
+        "cMs": 320,
+        "aSeedRemainingBytes": 0,
+        "bRemainingBytes": 537919488,
+        "cRemainingBytes": 537919488
+      },
+      {
+        "n": 30,
+        "at": 37316,
+        "aIncarnation": 3,
+        "hubMs": 319,
+        "bMs": 930,
+        "cMs": 320,
+        "aSeedRemainingBytes": 0,
+        "bRemainingBytes": 537919488,
+        "cRemainingBytes": 537919488
+      },
+      {
+        "n": 31,
+        "at": 38550,
+        "aIncarnation": 3,
+        "hubMs": 336,
+        "bMs": 337,
+        "cMs": 389,
+        "aSeedRemainingBytes": 0,
+        "bRemainingBytes": 0,
+        "cRemainingBytes": 0
+      }
+    ]
+  },
+  "cleanClients": {
+    "b": {
+      "spawnedAt": 24335,
+      "msFromSpawn": {
+        "health": 1906,
+        "indexFirstCanvas": 4279,
+        "indexProbeCanvas": 4279,
+        "indexAllCanvases": 4279,
+        "diskFirstCanvas": 4279,
+        "diskProbeCanvas": 4286,
+        "diskAllCanvases": 4286,
+        "firstPlaneBFile": 4294,
+        "largeObjects": {
+          "assets/t32-synthetic/master-096m.mp4": 11346,
+          "assets/t32-synthetic/master-513m.mp4": 13353
+        },
+        "planeBComplete": 13353,
+        "complete": 13353
+      },
+      "downloadStagingPeakBytes": 392429568,
+      "indexListedCanvases": 74,
+      "canvasesListedByA": 74,
+      "canvasBodiesExpectedOnDisk": 76,
+      "firstCanvasBeforeFullMedia": true,
+      "mediaBytesOutstandingAtFirstCanvas": 1053546041,
+      "progressSamples": [
+        {
+          "at": 36685,
+          "phase": "converged",
+          "tracked": 279,
+          "delivered": 279,
+          "remaining": 0,
+          "bytesRemaining": 0,
+          "blocked": [],
+          "presentB": 279
+        }
+      ],
+      "finalSyncState": {
+        "state": "online",
+        "docs": {
+          "synced": 76,
+          "pending": 0,
+          "rejected": 0
+        },
+        "files": {
+          "synced": 280,
+          "pulled": 280,
+          "conflicts": 0,
+          "pushed": 0,
+          "progress": {
+            "phase": "converged",
+            "tracked": 280,
+            "delivered": 280,
+            "remaining": 0,
+            "bytesRemaining": 0,
+            "blocked": [],
+            "etaMs": null,
+            "startedAt": null
+          }
+        }
+      }
+    },
+    "c": {
+      "spawnedAt": 24337,
+      "msFromSpawn": {
+        "health": 1895,
+        "indexFirstCanvas": 4240,
+        "indexProbeCanvas": 4240,
+        "indexAllCanvases": 4240,
+        "diskFirstCanvas": 4241,
+        "diskProbeCanvas": 4250,
+        "diskAllCanvases": 4250,
+        "firstPlaneBFile": 4258,
+        "largeObjects": {
+          "assets/t32-synthetic/master-096m.mp4": 11306,
+          "assets/t32-synthetic/master-513m.mp4": 13314
+        },
+        "planeBComplete": 13314,
+        "complete": 13314
+      },
+      "downloadStagingPeakBytes": 378077184,
+      "indexListedCanvases": 74,
+      "canvasesListedByA": 74,
+      "canvasBodiesExpectedOnDisk": 76,
+      "firstCanvasBeforeFullMedia": true,
+      "mediaBytesOutstandingAtFirstCanvas": 1045528952,
+      "progressSamples": [
+        {
+          "at": 36648,
+          "phase": "converged",
+          "tracked": 279,
+          "delivered": 279,
+          "remaining": 0,
+          "bytesRemaining": 0,
+          "blocked": [],
+          "presentB": 279
+        }
+      ],
+      "finalSyncState": {
+        "state": "online",
+        "docs": {
+          "synced": 76,
+          "pending": 0,
+          "rejected": 0
+        },
+        "files": {
+          "synced": 280,
+          "pulled": 280,
+          "conflicts": 0,
+          "pushed": 0,
+          "progress": {
+            "phase": "converged",
+            "tracked": 280,
+            "delivered": 280,
+            "remaining": 0,
+            "bytesRemaining": 0,
+            "blocked": [],
+            "etaMs": null,
+            "startedAt": null
+          }
+        }
+      }
+    }
+  },
+  "oracle": {
+    "method": "SHA-256 of every eligible file (classifier: apps/hub/src/file-membership.mjs, the pinned mirror of apps/studio/sync/file-membership.ts) on A, B, C; Plane B also against the hub checkout",
+    "a": {
+      "eligibleFiles": 453,
+      "eligibleBytes": 1069791806
+    },
+    "b": {
+      "eligibleFiles": 450,
+      "eligibleBytes": 1069791204,
+      "matching": 445,
+      "missing": [
+        {
+          "rel": "ui/Horizon Landing.meta.json",
+          "cls": "canvas-owned",
+          "bytes": 3,
+          "explained": "meta holds no shared keys (empty or per-machine only) \u2014 nothing for the meta lane to materialise",
+          "receiverState": null,
+          "senderState": null
+        },
+        {
+          "rel": "ui-canvas_viewport.annotations.svg",
+          "cls": "canvas-owned",
+          "bytes": 72,
+          "explained": "orphan annotation layer \u2014 no canvas on the sender owns it (and it is an empty wrapper)",
+          "receiverState": null,
+          "senderState": null
+        },
+        {
+          "rel": "ui-sync_hub_admin.annotations.svg",
+          "cls": "canvas-owned",
+          "bytes": 72,
+          "explained": "orphan annotation layer \u2014 no canvas on the sender owns it (and it is an empty wrapper)",
+          "receiverState": null,
+          "senderState": null
+        }
+      ],
+      "mismatched": [
+        {
+          "rel": "ui/ChatPanel.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 2959,
+          "bytes": 2801,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable \u2014 codec META_LOCAL_KEYS)"
+        },
+        {
+          "rel": "ui/Maude Showcase.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 255,
+          "bytes": 208,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable \u2014 codec META_LOCAL_KEYS)"
+        },
+        {
+          "rel": "ui/Photo Editor Trailer.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 518,
+          "bytes": 471,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable \u2014 codec META_LOCAL_KEYS)"
+        },
+        {
+          "rel": "ui/RepoBranchSwitcher.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 5160,
+          "bytes": 5004,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable \u2014 codec META_LOCAL_KEYS)"
+        },
+        {
+          "rel": "ui/Smoke TSX.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 996,
+          "bytes": 949,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable \u2014 codec META_LOCAL_KEYS)"
+        }
+      ],
+      "extra": []
+    },
+    "c": {
+      "eligibleFiles": 450,
+      "eligibleBytes": 1069791204,
+      "matching": 445,
+      "missing": [
+        {
+          "rel": "ui/Horizon Landing.meta.json",
+          "cls": "canvas-owned",
+          "bytes": 3,
+          "explained": "meta holds no shared keys (empty or per-machine only) \u2014 nothing for the meta lane to materialise",
+          "receiverState": null,
+          "senderState": null
+        },
+        {
+          "rel": "ui-canvas_viewport.annotations.svg",
+          "cls": "canvas-owned",
+          "bytes": 72,
+          "explained": "orphan annotation layer \u2014 no canvas on the sender owns it (and it is an empty wrapper)",
+          "receiverState": null,
+          "senderState": null
+        },
+        {
+          "rel": "ui-sync_hub_admin.annotations.svg",
+          "cls": "canvas-owned",
+          "bytes": 72,
+          "explained": "orphan annotation layer \u2014 no canvas on the sender owns it (and it is an empty wrapper)",
+          "receiverState": null,
+          "senderState": null
+        }
+      ],
+      "mismatched": [
+        {
+          "rel": "ui/ChatPanel.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 2959,
+          "bytes": 2801,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable \u2014 codec META_LOCAL_KEYS)"
+        },
+        {
+          "rel": "ui/Maude Showcase.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 255,
+          "bytes": 208,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable \u2014 codec META_LOCAL_KEYS)"
+        },
+        {
+          "rel": "ui/Photo Editor Trailer.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 518,
+          "bytes": 471,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable \u2014 codec META_LOCAL_KEYS)"
+        },
+        {
+          "rel": "ui/RepoBranchSwitcher.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 5160,
+          "bytes": 5004,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable \u2014 codec META_LOCAL_KEYS)"
+        },
+        {
+          "rel": "ui/Smoke TSX.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 996,
+          "bytes": 949,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable \u2014 codec META_LOCAL_KEYS)"
+        }
+      ],
+      "extra": []
+    },
+    "hubCheckout": {
+      "planeBFiles": 280,
+      "hubFiles": 280,
+      "missing": [],
+      "mismatched": [],
+      "extra": []
+    },
+    "bcIdentical": true,
+    "explainedDifferences": 16,
+    "unexplainedDifferences": 0,
+    "unexplainedList": [],
+    "planeBByteIdentical": true
+  },
+  "resources": {
+    "disk": {
+      "peakTotalBytes": 5001760768,
+      "peakAt": 37342,
+      "peakBreakdownBytes": {
+        "hubData": 14049280,
+        "hubRepo": 1083154432,
+        "a": 1735962624,
+        "b": 1084526592,
+        "c": 1084067840
+      },
+      "final": {
+        "at": 51741,
+        "kib": {
+          "hubData": 13720,
+          "hubRepo": 1057768,
+          "a": 1695276,
+          "b": 1059108,
+          "c": 1058660
+        },
+        "totalKiB": 4884532
+      },
+      "samples": 18,
+      "note": "du -sk of each scratch root (hub data incl. upload parts, hub checkout, A, B, C); sampled, so a sub-interval transient can be missed"
+    },
+    "transient": {
+      "hubUploadPartsPeakBytes": 537919488,
+      "cleanClientDownloadStagingPeakBytes": {
+        "b": 392429568,
+        "c": 378077184
+      },
+      "note": "hub parts sampled every 50 ms from <hub-data>/uploads; client staging (_state/downloads/*.part) every 1 s"
+    },
+    "processes": {
+      "hub": {
+        "samples": 34,
+        "cpuMax": 162.1,
+        "rssMaxMiB": 182,
+        "cpuMean": 50.1
+      },
+      "client-a-1": {
+        "samples": 5,
+        "cpuMax": 128.5,
+        "rssMaxMiB": 344,
+        "cpuMean": 91.8
+      },
+      "client-a-2": {
+        "samples": 6,
+        "cpuMax": 103.2,
+        "rssMaxMiB": 284,
+        "cpuMean": 55.2
+      },
+      "client-a-3": {
+        "samples": 21,
+        "cpuMax": 120,
+        "rssMaxMiB": 268,
+        "cpuMean": 22.5
+      },
+      "client-b-1": {
+        "samples": 20,
+        "cpuMax": 104.6,
+        "rssMaxMiB": 495,
+        "cpuMean": 52
+      },
+      "client-c-1": {
+        "samples": 20,
+        "cpuMax": 124.2,
+        "rssMaxMiB": 617,
+        "cpuMean": 54.2
+      }
+    },
+    "processNote": "ps pcpu (macOS decaying average, can exceed 100 on multi-core) and RSS summed over each process tree; sampled every 1 s"
+  },
+  "durationMs": 51879,
+  "hygiene": {
+    "distStatusBefore": "M apps/studio/dist/client.bundle.js",
+    "distStatusAfter": "M apps/studio/dist/client.bundle.js"
+  },
+  "processes": {
+    "hub": {
+      "startedAt": 7114,
+      "exited": {
+        "code": 0,
+        "sig": null,
+        "at": 52057
+      }
+    },
+    "client-a-1": {
+      "startedAt": 9332,
+      "exited": {
+        "code": null,
+        "sig": "SIGKILL",
+        "at": 14966
+      }
+    },
+    "client-a-2": {
+      "startedAt": 15969,
+      "exited": {
+        "code": null,
+        "sig": "SIGKILL",
+        "at": 22134
+      }
+    },
+    "client-a-3": {
+      "startedAt": 23136,
+      "exited": {
+        "code": 0,
+        "sig": null,
+        "at": 52090
+      }
+    },
+    "client-b-1": {
+      "startedAt": 24337,
+      "exited": {
+        "code": 0,
+        "sig": null,
+        "at": 52099
+      }
+    },
+    "client-c-1": {
+      "startedAt": 24346,
+      "exited": {
+        "code": 0,
+        "sig": null,
+        "at": 52101
+      }
+    }
+  },
+  "priorRuns": [
+    {
+      "scale": "small",
+      "date": "2026-09-15T11:59:09.087Z",
+      "commit": "e8265c3b383f12e8813813d95fe9fc5bd62d40a4",
+      "ok": true,
+      "failures": [],
+      "inventory": {
+        "raw": {
+          "files": 370,
+          "bytes": 188926546
+        },
+        "eligible": {
+          "files": 279,
+          "bytes": 181069124
+        },
+        "excluded": {
+          "files": 91,
+          "bytes": 7857422
+        }
+      },
+      "seed": {
+        "kills": [
+          {
+            "label": "mid small-file seed",
+            "trigger": "small-files-mid-seed",
+            "hubAtKill": {
+              "files": 38,
+              "of": 106,
+              "bytes": 12556812,
+              "journalRows": 38
+            },
+            "restartedFirstPass": null,
+            "pathsTheHubAlreadyHeldWrittenAgain": 0,
+            "restartedFromZero": false
+          },
+          {
+            "label": "mid large-object upload",
+            "trigger": "large-upload-mid-session",
+            "hubAtKill": {
+              "files": 105,
+              "of": 106,
+              "bytes": 74427188,
+              "journalRows": 105
+            },
+            "restartedFirstPass": {
+              "down": 0,
+              "up": 1,
+              "conflicts": 0,
+              "alreadyInStep": 105
+            },
+            "pathsTheHubAlreadyHeldWrittenAgain": 0,
+            "restartedFromZero": false
+          }
+        ],
+        "largeObjectSession": {
+          "path": "assets/t32-synthetic/master-100m.mp4",
+          "sessionId": "up_bb62700d1c7524980fdc09fb5d586cea",
+          "partsTotal": 13,
+          "partsReceivedBeforeKill": 4,
+          "sessionsCreatedForPath": 1,
+          "sameSessionResumed": true,
+          "partsRewrittenAfterRestart": 0,
+          "preKillPartsRewritten": [],
+          "partsFirstSeenAfterRestart": 9,
+          "completedAt": 7821,
+          "landedInJournal": true
+        },
+        "hubCompleteAt": 8237,
+        "journalDuplicateWrites": 0
+      },
+      "edits": {
+        "count": 8,
+        "whileMediaMoving": 7,
+        "latencyMs": {
+          "hub": {
+            "n": 8,
+            "p50": 314,
+            "p95": 318,
+            "max": 318
+          },
+          "hubWhileMediaMoving": {
+            "n": 7,
+            "p50": 314,
+            "p95": 318,
+            "max": 318
+          },
+          "b": {
+            "n": 6,
+            "p50": 315,
+            "p95": 368,
+            "max": 368
+          },
+          "c": {
+            "n": 6,
+            "p50": 315,
+            "p95": 368,
+            "max": 368
+          },
+          "peersWhileMediaMoving": {
+            "n": 10,
+            "p50": 315,
+            "p95": 368,
+            "max": 368
+          }
+        },
+        "timedOut": 0
+      },
+      "cleanClients": {
+        "b": {
+          "health": 411,
+          "indexFirstCanvas": 1429,
+          "indexProbeCanvas": 1429,
+          "indexAllCanvases": 1429,
+          "diskFirstCanvas": 1429,
+          "diskProbeCanvas": 1429,
+          "diskAllCanvases": 1429,
+          "firstPlaneBFile": 1430,
+          "largeObjects": {
+            "assets/t32-synthetic/master-040m.mp4": 1430,
+            "assets/t32-synthetic/master-100m.mp4": 3433
+          },
+          "planeBComplete": 3433,
+          "complete": 3433
+        },
+        "c": {
+          "health": 406,
+          "indexFirstCanvas": 1424,
+          "indexProbeCanvas": 1424,
+          "indexAllCanvases": 1424,
+          "diskFirstCanvas": 1424,
+          "diskProbeCanvas": 1424,
+          "diskAllCanvases": 1424,
+          "firstPlaneBFile": 1425,
+          "largeObjects": {
+            "assets/t32-synthetic/master-040m.mp4": 1425,
+            "assets/t32-synthetic/master-100m.mp4": 3427
+          },
+          "planeBComplete": 3427,
+          "complete": 3427
+        }
+      },
+      "oracle": {
+        "explainedDifferences": 16,
+        "unexplainedDifferences": 0,
+        "planeBByteIdentical": true,
+        "bcIdentical": true
+      },
+      "resources": {
+        "peakDiskBytes": 769941504,
+        "transient": {
+          "hubUploadPartsPeakBytes": 104857600,
+          "cleanClientDownloadStagingPeakBytes": {
+            "b": 0,
+            "c": 0
+          },
+          "note": "hub parts sampled every 50 ms from <hub-data>/uploads; client staging (_state/downloads/*.part) every 1 s"
+        },
+        "processes": {
+          "hub": {
+            "samples": 13,
+            "cpuMax": 80,
+            "rssMaxMiB": 216,
+            "cpuMean": 20.9
+          },
+          "client-a-2": {
+            "samples": 1,
+            "cpuMax": 0,
+            "rssMaxMiB": 60,
+            "cpuMean": 0
+          },
+          "client-a-3": {
+            "samples": 10,
+            "cpuMax": 63.8,
+            "rssMaxMiB": 292,
+            "cpuMean": 10.9
+          },
+          "client-b-1": {
+            "samples": 9,
+            "cpuMax": 124.9,
+            "rssMaxMiB": 430,
+            "cpuMean": 26.7
+          },
+          "client-c-1": {
+            "samples": 9,
+            "cpuMax": 116.3,
+            "rssMaxMiB": 429,
+            "cpuMean": 26.7
+          }
+        }
+      },
+      "durationMs": 16678
+    },
+    {
+      "scale": "full",
+      "date": "2026-09-15T11:59:33.459Z",
+      "commit": "e8265c3b383f12e8813813d95fe9fc5bd62d40a4",
+      "ok": true,
+      "failures": [],
+      "inventory": {
+        "raw": {
+          "files": 3480,
+          "bytes": 1721526472
+        },
+        "eligible": {
+          "files": 453,
+          "bytes": 1069790840
+        },
+        "excluded": {
+          "files": 3027,
+          "bytes": 651735632
+        }
+      },
+      "seed": {
+        "kills": [
+          {
+            "label": "mid small-file seed",
+            "trigger": "small-files-mid-seed",
+            "hubAtKill": {
+              "files": 70,
+              "of": 280,
+              "bytes": 238373586,
+              "journalRows": 71
+            },
+            "restartedFirstPass": {
+              "down": 0,
+              "up": 200,
+              "conflicts": 0,
+              "alreadyInStep": 72
+            },
+            "pathsTheHubAlreadyHeldWrittenAgain": 0,
+            "restartedFromZero": false
+          },
+          {
+            "label": "mid large-object upload",
+            "trigger": "large-upload-mid-session",
+            "hubAtKill": {
+              "files": 279,
+              "of": 280,
+              "bytes": 530087016,
+              "journalRows": 279
+            },
+            "restartedFirstPass": {
+              "down": 0,
+              "up": 1,
+              "conflicts": 0,
+              "alreadyInStep": 279
+            },
+            "pathsTheHubAlreadyHeldWrittenAgain": 0,
+            "restartedFromZero": false
+          }
+        ],
+        "largeObjectSession": {
+          "path": "assets/t32-synthetic/master-513m.mp4",
+          "sessionId": "up_157d968a5efe3719a401aacfab2a539e",
+          "partsTotal": 65,
+          "partsReceivedBeforeKill": 19,
+          "sessionsCreatedForPath": 1,
+          "sameSessionResumed": true,
+          "partsRewrittenAfterRestart": 0,
+          "preKillPartsRewritten": [],
+          "partsFirstSeenAfterRestart": 46,
+          "completedAt": 20069,
+          "landedInJournal": true
+        },
+        "hubCompleteAt": 20767,
+        "journalDuplicateWrites": 0
+      },
+      "edits": {
+        "count": 25,
+        "whileMediaMoving": 23,
+        "latencyMs": {
+          "hub": {
+            "n": 24,
+            "p50": 321,
+            "p95": 351,
+            "max": 352
+          },
+          "hubWhileMediaMoving": {
+            "n": 22,
+            "p50": 321,
+            "p95": 351,
+            "max": 352
+          },
+          "b": {
+            "n": 14,
+            "p50": 333,
+            "p95": 798,
+            "max": 798
+          },
+          "c": {
+            "n": 14,
+            "p50": 333,
+            "p95": 798,
+            "max": 798
+          },
+          "peersWhileMediaMoving": {
+            "n": 24,
+            "p50": 333,
+            "p95": 798,
+            "max": 798
+          }
+        },
+        "timedOut": 0
+      },
+      "cleanClients": {
+        "b": {
+          "health": 613,
+          "indexFirstCanvas": 2086,
+          "indexProbeCanvas": 2086,
+          "indexAllCanvases": 2086,
+          "diskFirstCanvas": 2086,
+          "diskProbeCanvas": 2093,
+          "diskAllCanvases": 2093,
+          "firstPlaneBFile": 2100,
+          "largeObjects": {
+            "assets/t32-synthetic/master-096m.mp4": 7126,
+            "assets/t32-synthetic/master-513m.mp4": 10137
+          },
+          "planeBComplete": 10137,
+          "complete": 10137
+        },
+        "c": {
+          "health": 1372,
+          "indexFirstCanvas": 1623,
+          "indexProbeCanvas": 1623,
+          "indexAllCanvases": 1623,
+          "diskFirstCanvas": 1624,
+          "diskProbeCanvas": 1628,
+          "diskAllCanvases": 1628,
+          "firstPlaneBFile": 1635,
+          "largeObjects": {
+            "assets/t32-synthetic/master-096m.mp4": 6660,
+            "assets/t32-synthetic/master-513m.mp4": 9673
+          },
+          "planeBComplete": 9673,
+          "complete": 9673
+        }
+      },
+      "oracle": {
+        "explainedDifferences": 16,
+        "unexplainedDifferences": 0,
+        "planeBByteIdentical": true,
+        "bcIdentical": true
+      },
+      "resources": {
+        "peakDiskBytes": 4977381376,
+        "transient": {
+          "hubUploadPartsPeakBytes": 537919488,
+          "cleanClientDownloadStagingPeakBytes": {
+            "b": 537919488,
+            "c": 477429760
+          },
+          "note": "hub parts sampled every 50 ms from <hub-data>/uploads; client staging (_state/downloads/*.part) every 1 s"
+        },
+        "processes": {
+          "hub": {
+            "samples": 26,
+            "cpuMax": 131.6,
+            "rssMaxMiB": 166,
+            "cpuMean": 53.8
+          },
+          "client-a-1": {
+            "samples": 2,
+            "cpuMax": 92.4,
+            "rssMaxMiB": 325,
+            "cpuMean": 79.2
+          },
+          "client-a-2": {
+            "samples": 5,
+            "cpuMax": 125.5,
+            "rssMaxMiB": 363,
+            "cpuMean": 53.5
+          },
+          "client-a-3": {
+            "samples": 17,
+            "cpuMax": 109.9,
+            "rssMaxMiB": 338,
+            "cpuMean": 17.9
+          },
+          "client-b-1": {
+            "samples": 17,
+            "cpuMax": 113.1,
+            "rssMaxMiB": 515,
+            "cpuMean": 54.1
+          },
+          "client-c-1": {
+            "samples": 17,
+            "cpuMax": 113.1,
+            "rssMaxMiB": 559,
+            "cpuMean": 53.1
+          }
+        }
+      },
+      "durationMs": 32971
+    },
+    {
+      "scale": "full",
+      "date": "2026-09-15T12:00:08.459Z",
+      "commit": "e8265c3b383f12e8813813d95fe9fc5bd62d40a4",
+      "ok": true,
+      "failures": [],
+      "inventory": {
+        "raw": {
+          "files": 3480,
+          "bytes": 1721526472
+        },
+        "eligible": {
+          "files": 453,
+          "bytes": 1069790840
+        },
+        "excluded": {
+          "files": 3027,
+          "bytes": 651735632
+        }
+      },
+      "seed": {
+        "kills": [
+          {
+            "label": "mid small-file seed",
+            "trigger": "small-files-mid-seed",
+            "hubAtKill": {
+              "files": 71,
+              "of": 280,
+              "bytes": 238382366,
+              "journalRows": 71
+            },
+            "restartedFirstPass": {
+              "down": 0,
+              "up": 200,
+              "conflicts": 0,
+              "alreadyInStep": 72
+            },
+            "pathsTheHubAlreadyHeldWrittenAgain": 0,
+            "restartedFromZero": false
+          },
+          {
+            "label": "mid large-object upload",
+            "trigger": "large-upload-mid-session",
+            "hubAtKill": {
+              "files": 279,
+              "of": 280,
+              "bytes": 530087016,
+              "journalRows": 279
+            },
+            "restartedFirstPass": {
+              "down": 0,
+              "up": 1,
+              "conflicts": 0,
+              "alreadyInStep": 279
+            },
+            "pathsTheHubAlreadyHeldWrittenAgain": 0,
+            "restartedFromZero": false
+          }
+        ],
+        "largeObjectSession": {
+          "path": "assets/t32-synthetic/master-513m.mp4",
+          "sessionId": "up_47df3df43c242c715a160df0961f0e61",
+          "partsTotal": 65,
+          "partsReceivedBeforeKill": 19,
+          "sessionsCreatedForPath": 1,
+          "sameSessionResumed": true,
+          "partsRewrittenAfterRestart": 0,
+          "preKillPartsRewritten": [],
+          "partsFirstSeenAfterRestart": 45,
+          "completedAt": 21900,
+          "landedInJournal": true
+        },
+        "hubCompleteAt": 21934,
+        "journalDuplicateWrites": 0
+      },
+      "edits": {
+        "count": 26,
+        "whileMediaMoving": 24,
+        "latencyMs": {
+          "hub": {
+            "n": 25,
+            "p50": 334,
+            "p95": 360,
+            "max": 362
+          },
+          "hubWhileMediaMoving": {
+            "n": 23,
+            "p50": 334,
+            "p95": 359,
+            "max": 362
+          },
+          "b": {
+            "n": 15,
+            "p50": 339,
+            "p95": 1240,
+            "max": 1240
+          },
+          "c": {
+            "n": 15,
+            "p50": 359,
+            "p95": 1240,
+            "max": 1240
+          },
+          "peersWhileMediaMoving": {
+            "n": 26,
+            "p50": 359,
+            "p95": 1240,
+            "max": 1240
+          }
+        },
+        "timedOut": 0
+      },
+      "cleanClients": {
+        "b": {
+          "health": 1032,
+          "indexFirstCanvas": 2688,
+          "indexProbeCanvas": 2688,
+          "indexAllCanvases": 2688,
+          "diskFirstCanvas": 2688,
+          "diskProbeCanvas": 2694,
+          "diskAllCanvases": 2694,
+          "firstPlaneBFile": 2703,
+          "largeObjects": {
+            "assets/t32-synthetic/master-096m.mp4": 8745,
+            "assets/t32-synthetic/master-513m.mp4": 11761
+          },
+          "planeBComplete": 11761,
+          "complete": 11761
+        },
+        "c": {
+          "health": 1906,
+          "indexFirstCanvas": 2599,
+          "indexProbeCanvas": 2600,
+          "indexAllCanvases": 2600,
+          "diskFirstCanvas": 2600,
+          "diskProbeCanvas": 2607,
+          "diskAllCanvases": 2607,
+          "firstPlaneBFile": 2613,
+          "largeObjects": {
+            "assets/t32-synthetic/master-096m.mp4": 8676,
+            "assets/t32-synthetic/master-513m.mp4": 11688
+          },
+          "planeBComplete": 11688,
+          "complete": 11688
+        }
+      },
+      "oracle": {
+        "explainedDifferences": 16,
+        "unexplainedDifferences": 0,
+        "planeBByteIdentical": true,
+        "bcIdentical": true
+      },
+      "resources": {
+        "peakDiskBytes": 5011460096,
+        "transient": {
+          "hubUploadPartsPeakBytes": 537919488,
+          "cleanClientDownloadStagingPeakBytes": {
+            "b": 537919488,
+            "c": 537919488
+          },
+          "note": "hub parts sampled every 50 ms from <hub-data>/uploads; client staging (_state/downloads/*.part) every 1 s"
+        },
+        "processes": {
+          "hub": {
+            "samples": 28,
+            "cpuMax": 143.2,
+            "rssMaxMiB": 228,
+            "cpuMean": 58.8
+          },
+          "client-a-1": {
+            "samples": 2,
+            "cpuMax": 87.6,
+            "rssMaxMiB": 326,
+            "cpuMean": 84.3
+          },
+          "client-a-2": {
+            "samples": 5,
+            "cpuMax": 46,
+            "rssMaxMiB": 458,
+            "cpuMean": 32.3
+          },
+          "client-a-3": {
+            "samples": 19,
+            "cpuMax": 130.7,
+            "rssMaxMiB": 383,
+            "cpuMean": 19.9
+          },
+          "client-b-1": {
+            "samples": 19,
+            "cpuMax": 131.2,
+            "rssMaxMiB": 593,
+            "cpuMean": 55.3
+          },
+          "client-c-1": {
+            "samples": 19,
+            "cpuMax": 141.8,
+            "rssMaxMiB": 513,
+            "cpuMean": 49.6
+          }
+        }
+      },
+      "durationMs": 45770
+    }
+  ],
+  "ok": true,
+  "cleanup": "client, hub and synthetic data removed; logs kept under the work dir",
+  "postRunFindings": [
+    {
+      "id": "file-limits-shared-ip-429-marks-large-media-too-large",
+      "addedBy": "operator after the run; targeted probe (scratch script, not committed): hub + one studio, 104 MiB asset",
+      "observed": {
+        "control": {
+          "precedingFileLimitsCalls": 0,
+          "result": "landed on the hub (delivery state on-hub)"
+        },
+        "treatment": {
+          "precedingFileLimitsCalls": 5,
+          "precedingStatuses": [
+            200,
+            200,
+            200,
+            200,
+            200
+          ],
+          "result": "not landed within 60 s; delivery state refused, blocked class too-large"
+        }
+      },
+      "mechanism": "GET /api/file-limits is metered by the per-IP unauthenticated bucket (RATE_LIMIT_MAX=5 per 60 s, shared by every client behind one address). ensureHubLimits() stamps hubLimitsAt before the fetch and returns on !res.ok, so hubLimits stays null for HUB_LIMITS_TTL_MS (10 min); pushCeiling() falls back to DEFAULT_HUB_MAX_FILE_BYTES (95 MiB) with no upload sessions, push() returns tooLarge, and applyOne() parks the file as refused/too-large.",
+      "pointers": [
+        "apps/hub/src/server.mjs FILE_LIMITS_PATH branch (checkRateLimit \u2192 per-IP rateBuckets/rateStore)",
+        "apps/hub/src/file-door.mjs handleFileLimits (rate check before token verification)",
+        "apps/studio/sync/file-plane.ts ensureHubLimits / pushCeiling / push (tooLarge) / applyOne (refused)"
+      ],
+      "relevanceToThisRun": "the final run made exactly 5 file-limits calls within about 30 s (A x3 incarnations, B, C); one more restart in the same minute would have tripped it"
+    },
+    {
+      "id": "git-tracked-sidecars-default-closed",
+      "observed": "see inventory.excludedButGitTracked: .footage.json, .registry.json, .edl.json, .vtt and one plain .json are versioned in the source repo but classified never, so no peer ever receives them",
+      "pointers": [
+        "apps/studio/sync/file-membership.ts COMPANION_SIDECAR_SUFFIXES / COMPANION_TEXT_EXTS",
+        "apps/hub/src/file-membership.mjs (mirror)"
+      ]
+    }
+  ]
+}

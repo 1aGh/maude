@@ -173,18 +173,21 @@ export function handleFileLimits(ctx) {
     respond(response, 405, 'method not allowed');
     return true;
   }
-  // Metered BEFORE the token verification below, which is HMAC + a SQLite
-  // lookup and therefore the expensive half. Unauthenticated by design (a
-  // client needs the ceilings before it decides to trust this hub with bytes),
-  // which is exactly why it needs the same throttle its siblings carry.
-  if (ctx.checkRateLimit && !ctx.checkRateLimit(request)) {
-    respond(response, 429, 'too many requests');
-    return true;
-  }
   // A token is OPTIONAL here — with one, the caller also learns its own quota
   // position; without one, it still learns the ceilings.
   const auth = request.headers?.authorization;
   const token = typeof auth === 'string' ? auth.replace(/^Bearer\s+/i, '').trim() : '';
+  // Only the token verification is metered — HMAC plus a SQLite lookup, the
+  // expensive half an unauthenticated caller must not drive at will. The
+  // ceilings themselves are static and public, and a 429 here used to be
+  // fatal: a whole team behind one address spent the per-IP allowance, the
+  // client fell back to the single-request ceiling, and every large video was
+  // refused as "too big" until the next boot (T32 scale run). Metered, the
+  // caller still gets the ceilings — just not its quota position.
+  if (token && ctx.checkRateLimit && !ctx.checkRateLimit(request)) {
+    respondJson(response, 200, fileLimits(null));
+    return true;
+  }
   const match = token ? verifyToken(dataDir, token, secret) : null;
   respondJson(response, 200, fileLimits(match?.label ?? null));
   return true;

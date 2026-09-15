@@ -57,13 +57,15 @@ const INERT_MEDIA_EXTS = new Set([
   'ttf',
   'otf',
 ]);
-const COMPANION_TEXT_EXTS = new Set(['css', 'md', 'srt']);
+const COMPANION_TEXT_EXTS = new Set(['css', 'md', 'srt', 'vtt']);
 const CODE_MODULE_EXTS = new Set(['ts', 'tsx', 'js', 'mjs']);
 
 /** Maude's OWN sidecar vocabulary, by full suffix — never bare `.json`
  *  (default-closed stands). See the `.ts` mirror for the acceptance finding
  *  that added these. */
-const COMPANION_SIDECAR_SUFFIXES = ['.photo.json', '.audio.json'];
+// + the footage analysis, component registry, edit decision list: versioned
+// sidecars (DDR-115) the T32 scale run found never reaching a peer.
+const COMPANION_SIDECAR_SUFFIXES = ['.photo.json', '.audio.json', '.footage.json', '.registry.json', '.edl.json'];
 
 /** A DIRECTORY segment must start alphanumeric — keeps `_*` runtime
  *  directories out structurally, before the explicit taxonomy check. */

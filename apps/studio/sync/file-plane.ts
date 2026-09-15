@@ -144,6 +144,8 @@ export const MIN_TRUSTED_MAX_FILE_BYTES = 1024 * 1024;
  *  relative to the hub's hourly quota window, so a reading can never strand a
  *  client for the rest of its life. */
 export const HUB_LIMITS_TTL_MS = 10 * 60_000;
+/** A failed limits read is asked again this soon, not after the full TTL. */
+export const HUB_LIMITS_RETRY_MS = 30_000;
 export const MAX_TRUSTED_QUOTA_PAUSE_MS = 2 * 60 * 60_000;
 
 /** How many files one pass will move. The remainder is the next pass's work. */
@@ -665,7 +667,18 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         headers: auth(),
         signal: AbortSignal.timeout(GET_TIMEOUT_MS),
       });
-      if (!res.ok) return;
+      if (res.status === 404) {
+        // A hub older than this route: its door takes one request per file
+        // and nothing more, which IS an answer.
+        hubLimits = { maxFileBytes: DEFAULT_HUB_MAX_FILE_BYTES };
+        return;
+      }
+      if (!res.ok) {
+        // Not an answer (a 429 behind a shared address, a 5xx): ask again
+        // soon instead of living on the fallback ceiling for the whole TTL.
+        hubLimitsAt = now() - HUB_LIMITS_TTL_MS + HUB_LIMITS_RETRY_MS;
+        return;
+      }
       const body = (await res.json()) as {
         maxFileBytes?: unknown;
         quotaResetsAt?: unknown;
@@ -705,7 +718,8 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         };
       }
     } catch {
-      /* the fallback is the pre-existing behaviour */
+      /* the fallback is the pre-existing behaviour — and it is asked again soon */
+      hubLimitsAt = now() - HUB_LIMITS_TTL_MS + HUB_LIMITS_RETRY_MS;
     }
   }
 
@@ -1135,6 +1149,12 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         reason: "This project's upload allowance for the hour is used up",
         ...(hubLimits?.quotaResetsAt ? { quotaResetsAt: hubLimits.quotaResetsAt } : {}),
       };
+    }
+    if (local.size > pushCeiling() && hubLimits === null) {
+      // The hub has not said what it takes (its answer was refused or lost):
+      // over the fallback ceiling is unknown, not too large. Retry; never
+      // park a file as terminally refused on a guess.
+      return { ok: false, reason: "Waiting for the workspace to say how large a file it accepts" };
     }
     if (local.size > pushCeiling()) {
       return {

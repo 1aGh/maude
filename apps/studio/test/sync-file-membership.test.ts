@@ -48,6 +48,11 @@ describe('file-membership — the RCA miss-list flows', () => {
     ['assets/066a990a.photo.json', 'companion-text'],
     ['assets/46a07c5e.audio.json', 'companion-text'],
     ['assets/47d9b6d1.srt', 'companion-text'],
+    // Found by the T32 scale run: versioned sidecars that never reached a peer.
+    ['assets/5f2a1c9e.footage.json', 'companion-text'],
+    ['ui/Card.registry.json', 'companion-text'],
+    ['ui-reel.edl.json', 'companion-text'],
+    ['assets/47d9b6d1.vtt', 'companion-text'],
   ];
 
   test.each(missList)('%s → %s', (rel, expected) => {
@@ -296,6 +301,10 @@ describe('file-membership — studio ↔ hub parity (the doc-name precedent)', (
     'assets/066a990a.photo.json',
     'assets/46a07c5e.audio.json',
     'assets/47d9b6d1.srt',
+    'assets/5f2a1c9e.footage.json',
+    'ui/Card.registry.json',
+    'ui-reel.edl.json',
+    'assets/47d9b6d1.vtt',
     'evil.photo.json.txt', // the suffix must END the name
     '',
     'dir/file.png ',

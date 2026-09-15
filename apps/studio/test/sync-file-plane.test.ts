@@ -36,6 +36,8 @@ import {
   foldRemote,
   MAX_REQUESTS_PER_PASS,
   MAX_TRUSTED_QUOTA_PAUSE_MS,
+  DEFAULT_HUB_MAX_FILE_BYTES,
+  MAX_FILE_BYTES,
   MIN_TRUSTED_MAX_FILE_BYTES,
   REANCHOR_HOLD_RECOVERY_MS,
   REANCHOR_STORM_LIMIT,
@@ -1253,6 +1255,26 @@ describe('rate limits', () => {
     }) as unknown as typeof fetch;
     const result = await plane(hub, { fetchImpl: notFound }).reconcile();
     expect(result.pushed).toContain('assets/small.png');
+  });
+
+  // T32 scale run: a whole team behind one address spent the per-IP allowance
+  // for /api/file-limits; the 429 left the client on the fallback ceiling and
+  // every large video was parked as "too big" for good.
+  test('a refused limits read never parks a large file as too big', async () => {
+    const hub = fakeHub({});
+    // Over the fallback single-request ceiling (sparse, no real bytes).
+    write('assets/big.mp4', '');
+    const fd = openSync(join(root, 'assets/big.mp4'), 'a');
+    ftruncateSync(fd, DEFAULT_HUB_MAX_FILE_BYTES + 1024);
+    closeSync(fd);
+    const wire = metered(hub, { refuse: () => null });
+    const limited = (async (url: string, init?: RequestInit) => {
+      if (String(url).endsWith('/api/file-limits')) return new Response('too many requests', { status: 429 });
+      return wire.fetchImpl(url as never, init as never);
+    }) as unknown as typeof fetch;
+    const result = await plane(hub, { fetchImpl: limited }).reconcile();
+    expect(result.dropped.some((d) => d.rel === 'assets/big.mp4')).toBe(false);
+    expect(ledger.row('assets/big.mp4')?.state).not.toBe('refused');
   });
 
   test('a 507 holds the LANE and names the allowance, not a failure', async () => {
