@@ -170,3 +170,11 @@ dry run above (created/skipped by name); the switch carries `expectEpoch` and is
 recorded on the project's Activity page. (An operator can still use the cell
 secret with the commands above.) Designers open the project from *Maude Cloud* in the app (device
 sign-in, project list, *Open*), or from the dashboard's *Open in Maude*.
+
+Two things about browser editors on a cloud project. The canvas origin's
+capability lives 15 minutes and an open tab re-mints it itself (from 1.3.1 —
+before that, a canvas open longer than that stopped showing teammates' edits
+until the page was reloaded). `MAUDE_CANVAS_TOKEN_TTL_MS` may only shorten it.
+And every browser editor saves through the cell's one credential, so History
+attributes browser changes to the workspace and personal Undo is withheld in
+the browser; desktop editors are attributed and can undo their own actions.
