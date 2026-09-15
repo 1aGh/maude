@@ -18,6 +18,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 
@@ -52,6 +53,9 @@ export type ShapeKind = 'square' | 'rounded' | 'circle' | 'diamond' | 'triangle'
  * untouched (DDR-187's decomposition stands).
  */
 export type CanvasMode = 'preview' | 'edit';
+
+/** Document event two provider instances keep one active tool through. */
+export const TOOL_SYNC_EVENT = 'maude:tool-sync';
 
 /** The resting tool each mode arms (and returns to via `resetTool`). */
 export const MODE_DEFAULT_TOOL: Readonly<Record<CanvasMode, Tool>> = Object.freeze({
@@ -230,6 +234,46 @@ export function ToolProvider({
   // FigJam v3 — soft default: a fresh Shape tool draws ROUNDED squares (the
   // FigJam look); sharp squares stay one popover click away.
   const [shapeKind, setShapeKind] = useState<ShapeKind>('rounded');
+
+  // ONE ACTIVE TOOL PER CANVAS DOCUMENT, across provider instances.
+  //
+  // A UI canvas carries TWO providers: the comment-mount layer's (it owns the
+  // comment drop) and canvas-lib's own (it owns the palette) — separate
+  // bundles, so separate contexts. They used to converge only through a tool
+  // KEYDOWN, which both routers see; a palette CLICK reached canvas-lib's
+  // provider alone. So "Comment" in the palette lit up while the comment
+  // layer stayed in browse, and clicking the canvas dropped nothing — you had
+  // to know to press C (plan T31/L11). A change here is announced on the
+  // document and every other instance adopts it. The boot posture is NOT
+  // announced (the two instances deliberately boot differently — see
+  // `initial`); only a change after mount is.
+  const syncId = useRef(Math.random().toString(36).slice(2));
+  const toolRef = useRef(tool);
+  toolRef.current = tool;
+  const announced = useRef(false);
+  useEffect(() => {
+    if (!announced.current) {
+      announced.current = true;
+      return;
+    }
+    if (typeof document === 'undefined') return;
+    document.dispatchEvent(
+      new CustomEvent(TOOL_SYNC_EVENT, { detail: { tool, from: syncId.current } })
+    );
+  }, [tool]);
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const onSync = (e: Event) => {
+      const d = (e as CustomEvent<{ tool?: unknown; from?: unknown }>).detail;
+      if (!d || d.from === syncId.current || typeof d.tool !== 'string') return;
+      // Already there: nothing to do, and — for a sticky-locked tool — not
+      // touching it keeps the lock.
+      if (d.tool === toolRef.current) return;
+      setTool(d.tool as Tool);
+    };
+    document.addEventListener(TOOL_SYNC_EVENT, onSync);
+    return () => document.removeEventListener(TOOL_SYNC_EVENT, onSync);
+  }, [setTool]);
 
   // Cursor sync — applied inside the canvas (this hook runs in the canvas
   // context). The active tool's cursor is set on <body> AND forced across the
