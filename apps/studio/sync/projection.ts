@@ -49,6 +49,7 @@ import { type EchoGuard, hashBytes } from './echo-guard.ts';
 import type { SyncJournal } from './journal.ts';
 import { MAX_CSS_BYTES, MAX_HTML_BYTES, MAX_META_BYTES, withinByteCap } from './limits.ts';
 import { ORIGINS } from './origins.ts';
+import { collapseRepeatedModule, collapseRepeatedText } from './repeated-module.ts';
 import type { RevisionBarrier } from './revision-barrier.ts';
 import { repairSeedDuplication } from './seed-repair.ts';
 import { mergeSource } from './source-merge.ts';
@@ -439,7 +440,27 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     // accepted value is about to be republished. Writing the document's
     // current value now would briefly undo the user's own edit.
     if (pending.has('html') || localWriteActive()) return false;
-    const next = htmlFromDoc(doc);
+    let next = htmlFromDoc(doc);
+    // The same module written twice or more in a row is a merge of two
+    // independent seeds, never an edit (repeated-module.ts). Keep one copy —
+    // in the shared document too, so every peer and the hub are repaired,
+    // not just this disk. (Accepted revisions: the replica is the hub's; the
+    // import there collapses it instead.)
+    if (!acceptedOn()) {
+      const repeated = collapseRepeatedModule(next);
+      if (repeated) {
+        console.warn(
+          `[projection/${slug}] the shared document held this canvas ${repeated.times}× over${
+            repeated.partialTail ? ' (the last copy cut short)' : ''
+          } — keeping one copy.`
+        );
+        doc.transact(() => {
+          applyHtmlToDoc(doc, repeated.unit, ORIGINS.DISK_PROJECTION);
+          stampBodyEdit(doc, ORIGINS.DISK_PROJECTION);
+        }, ORIGINS.DISK_PROJECTION);
+        next = repeated.unit;
+      }
+    }
     if (next === lastHtml) return true;
     // Don't clobber a non-empty local body with an empty doc (cold-start before
     // the doc is seeded — the safe-reconcile invariant; full adopt is Phase E).
@@ -481,7 +502,17 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
   function writeCssIfChanged(): void {
     if (!paths.css) return;
     if (pending.has('css') || held.has('css')) return;
-    const next = cssFromDoc(doc);
+    let next = cssFromDoc(doc);
+    if (next !== null && !acceptedOn()) {
+      const repeated = collapseRepeatedText(next);
+      if (repeated) {
+        console.warn(
+          `[projection/${slug}] the shared stylesheet held itself ${repeated.times}× over — keeping one copy.`
+        );
+        applyCssToDoc(doc, repeated.unit, ORIGINS.DISK_PROJECTION);
+        next = repeated.unit;
+      }
+    }
     if (next === lastCss) return;
     lastCss = next;
     if (next === null) return; // doc carries no css yet — nothing to write

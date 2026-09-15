@@ -46,9 +46,11 @@ function fixture(body = clean) {
   projection.start();
   return { dir, paths, doc, projection, journal, echoGuard };
 }
+// An EXACT repeat of the module is not in this list any more: it is repaired
+// to one copy (below), because refusing it left the live Alligators canvases
+// stuck at 4× with every peer holding a conflict (2026-09-15).
 for (const invalid of [
   'export default () => <div title="broken',
-  clean.repeat(2),
   'function A(){}\nfunction A(){}\nexport default A;',
   'import {x} from "x"; import {x} from "x";',
 ]) {
@@ -61,6 +63,13 @@ for (const invalid of [
     expect(f.echoGuard.consume(f.paths.html, hashBytes(invalid))).toBe(false);
   });
 }
+test('an exact repeat of the module in the document is repaired to one copy, on disk and in the doc', async () => {
+  const f = fixture();
+  applyHtmlToDoc(f.doc, clean.repeat(2), 'remote');
+  await f.projection.flush();
+  expect(readFileSync(f.paths.html, 'utf8')).toBe(clean);
+  expect(htmlFromDoc(f.doc)).toBe(clean);
+});
 test('#121 concurrent shared seeds do not double either disk', async () => {
   const a = fixture(),
     b = fixture();
@@ -204,7 +213,8 @@ test('#121 malformed candidate emits one conflict, and a valid repair can sync',
   });
   stops.push(() => p.stop());
   p.start();
-  const bad = clean.replace('Healthy', 'Other').repeat(2);
+  // Two DIFFERENT modules in one body: invalid, and not a repeat to repair.
+  const bad = clean.replace('Healthy', 'Other') + clean.replace('Healthy', 'Else');
   applyHtmlToDoc(f.doc, bad);
   await p.flush();
   p.reconcile();
@@ -300,14 +310,15 @@ test('#121 a corrupted first migration uses the newest valid existing history', 
   expect(readFileSync(join(historyDir, 'pre-shared-doc-migration', 'screen.tsx'), 'utf8')).toBe(
     clean
   );
-  expect(htmlFromDoc(f.doc)).toBe(clean.repeat(2)); // preserved for explicit repair
+  // The doubled document is repaired to one copy (an exact repeat is never an edit).
+  expect(htmlFromDoc(f.doc)).toBe(clean);
 });
 
 test('#121 rejected body cannot replace its coupled CSS', async () => {
   const f = fixture();
   writeFileSync(f.paths.css, '.healthy{}');
   f.doc.transact(() => {
-    applyHtmlToDoc(f.doc, clean.repeat(2));
+    applyHtmlToDoc(f.doc, 'export default () => <div title="broken');
     f.doc.getText('css').insert(0, '.corrupt{}');
   });
   await f.projection.flush();

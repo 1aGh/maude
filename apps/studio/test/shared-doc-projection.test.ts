@@ -232,3 +232,30 @@ describe('projection circuit breaker', () => {
     expect(doc.getText('meta').toString()).toContain('Fixed');
   });
 });
+
+// Reported live on the Alligators project (2026-09-15): two replicas seeding
+// the same file concatenated it in the shared document, and every start
+// doubled it again (38 canvases at exactly 4×). The projection keeps ONE copy —
+// on disk and in the document, so the hub and every peer are repaired too.
+describe('a canvas held k× over in the shared document', () => {
+  const mod = `import { DesignCanvas } from '@maude/canvas-lib';\nexport default function Combine() {\n  return <DesignCanvas><h1>Combine</h1></DesignCanvas>;\n}\n`;
+  const TSX = { ...PATHS, html: '/d/ui/Combine.tsx', css: '/d/ui/Combine.css' };
+
+  test('is written to disk once and repaired in the document', async () => {
+    const { doc, writes, projection } = makeProjection(TSX);
+    doc.getText('html').insert(0, mod.repeat(4));
+    await projection.flush();
+    const html = writes.filter((w) => w.path === TSX.html).at(-1)?.bytes;
+    expect(html).toBe(mod);
+    expect(doc.getText('html').toString()).toBe(mod);
+  });
+
+  test('a stylesheet repeated in the document is written once', async () => {
+    const css = '.combine { color: #0a1f44; padding: 24px; }\n';
+    const { doc, writes, projection } = makeProjection(TSX);
+    doc.getText('css').insert(0, css + css);
+    await projection.flush();
+    expect(writes.filter((w) => w.path === TSX.css).at(-1)?.bytes).toBe(css);
+    expect(doc.getText('css').toString()).toBe(css);
+  });
+});

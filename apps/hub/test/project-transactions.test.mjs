@@ -783,4 +783,54 @@ describe('accepted revisions on a real hub', () => {
       else process.env.MAUDE_PROJECT_TOKEN_KEY = saved.key;
     }
   });
+
+  // Alligators, 2026-09-15: shared documents holding their canvas 2×/4× over
+  // (two replicas seeding one file). Entering accepted revisions must import
+  // ONE copy and say so in the preview.
+  test('a document holding its canvas k× over is imported as one copy, and the preview says so', {
+    timeout: 60000,
+  }, async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'maude-tx-'));
+    dirs.push(dataDir);
+    const t = rig(dataDir);
+    const { built, http, ws } = await startHub(dataDir);
+    const epoch = { epoch: 0 };
+    const owner = client(http, t.owner, epoch);
+    const doc = 'ws/local/main/ui-doubled';
+    const writer = reader(ws, t.alice, doc);
+    try {
+      await until(() => writer.provider.isSynced, 8000, 'legacy writer synced');
+      writer.doc.transact(() => {
+        writer.doc.getText('html').insert(0, src('doubled').repeat(4));
+        writer.doc.getMap('syncMeta').set('path', 'ui/doubled.tsx');
+      });
+      await until(
+        async () =>
+          ((await owner.get('/api/documents')).body.documents ?? []).some(
+            (d) => d.name === doc && d.bytes > 0
+          ),
+        10000,
+        'legacy document persisted'
+      );
+      const preview = await owner.post('/api/projects/local/v1/mode', {
+        mode: 'transactions',
+        dryRun: true,
+      });
+      assert.equal(preview.status, 200, JSON.stringify(preview.body));
+      assert.deepEqual(preview.body.imported.collapsed, [{ doc, lane: 'html', times: 4 }]);
+      const switched = await owner.post('/api/projects/local/v1/mode', {
+        mode: 'transactions',
+        expectEpoch: 0,
+      });
+      assert.equal(switched.status, 200, JSON.stringify(switched.body));
+      const boot = (await owner.get('/api/projects/local/v1/bootstrap')).body;
+      const head = boot.docs.find((d) => d.doc === doc);
+      const body = (await owner.get(`/api/projects/local/v1/blobs/${head.lanes.html.hash}`)).body
+        .body;
+      assert.equal(body, src('doubled'));
+    } finally {
+      writer.close();
+      await built.server.destroy();
+    }
+  });
 });

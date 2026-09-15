@@ -61,6 +61,7 @@ import { applyColdStart, type ColdStartSnapshotReason } from './cold-start-apply
 import { hashBytes } from './echo-guard.ts';
 import type { SyncJournal } from './journal.ts';
 import { ORIGINS } from './origins.ts';
+import { collapseRepeatedModule, collapseRepeatedText } from './repeated-module.ts';
 import { rememberSeed } from './seed-repair.ts';
 import { mergeSource } from './source-merge.ts';
 import { lastValidSource, readRecoveryBody, saveRecoveryBody } from './source-recovery.ts';
@@ -163,13 +164,17 @@ export function docIsEmpty(doc: Y.Doc): boolean {
 export async function migrateSeed(opts: MigrateSeedOptions): Promise<MigrateSeedResult> {
   const { slug, doc, paths } = opts;
 
-  const diskHtml = readLocal(paths.html);
+  // A file already holding its module k× over (an earlier seed race) enters
+  // as ONE copy — adopting it as-is would plant the repeat in the project.
+  const readHtml = readLocal(paths.html);
+  const diskHtml = readHtml === null ? null : (collapseRepeatedModule(readHtml)?.unit ?? readHtml);
   const localHtml =
     diskHtml !== null && sourceError(paths.html, diskHtml) === null ? diskHtml : null;
   const localComments = readLocal(paths.comments);
   const localAnnotations = readLocal(paths.annotations);
   const localMeta = paths.meta ? readLocal(paths.meta) : null;
-  const localCss = paths.css ? readLocal(paths.css) : null;
+  const readCss = paths.css ? readLocal(paths.css) : null;
+  const localCss = readCss === null ? null : (collapseRepeatedText(readCss)?.unit ?? readCss);
 
   // Hub was empty → adopt local. Build the doc from the local files ONCE, inside
   // a single MIGRATION transaction. The apply* codecs delete-then-insert, so
@@ -467,14 +472,18 @@ function snapshotLocal(opts: MigrateSeedOptions): void {
         const target = path.join(dir, path.basename(p));
         if (p === opts.paths.html) {
           const current = readLocal(p);
-          const valid =
-            current?.trim() && sourceError(p, current) === null
-              ? current
-              : lastValidSource(opts.historyDir, p);
-          if (valid) {
+          // A body holding the same module twice over parses, but it is the
+          // corruption this snapshot exists to survive — never its "valid"
+          // copy, and never a reason to replace a healthy earlier snapshot.
+          const healthy = (body: string | null): body is string =>
+            !!body?.trim() &&
+            sourceError(p, body) === null &&
+            collapseRepeatedModule(body) === null;
+          const valid = healthy(current) ? current : lastValidSource(opts.historyDir, p);
+          if (valid && healthy(valid)) {
             saveRecoveryBody(opts.historyDir, p, 'last-valid', valid);
             const prior = readLocal(target);
-            if (!prior || sourceError(p, prior) !== null) atomicWrite(target, valid);
+            if (!healthy(prior)) atomicWrite(target, valid);
           }
         } else copyFileSync(p, target);
       }

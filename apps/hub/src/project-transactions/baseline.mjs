@@ -22,6 +22,10 @@
 
 import { canvasSlugFromRel } from '../../../studio/canvas-slug.ts';
 import { validateCanvasPath } from '../../../studio/sync/canvas-path.ts';
+import {
+  collapseRepeatedModule,
+  collapseRepeatedText,
+} from '../../../studio/sync/repeated-module.ts';
 import { checkLane, LANE_NAMES, laneHash, readLane } from './lanes.mjs';
 
 export const MIGRATION_ACTOR = 'maude-migration';
@@ -104,6 +108,25 @@ export async function importBaseline(deps) {
     if (!path || !validPath(slug, path)) {
       report.skipped.push({ doc: name, reason: 'no valid canvas path' });
       continue;
+    }
+    // A body (or stylesheet) the shared document holds k× over — two replicas
+    // that each seeded the same file — enters the project as ONE copy, and
+    // the report says so: the accepted baseline must not inherit the repeat.
+    if (lanes.html) {
+      const repeated = collapseRepeatedModule(lanes.html);
+      if (repeated) {
+        lanes.html = repeated.unit;
+        report.collapsed ??= [];
+        report.collapsed.push({ doc: name, lane: 'html', times: repeated.times });
+      }
+    }
+    if (lanes.css) {
+      const repeated = collapseRepeatedText(lanes.css);
+      if (repeated) {
+        lanes.css = repeated.unit;
+        report.collapsed ??= [];
+        report.collapsed.push({ doc: name, lane: 'css', times: repeated.times });
+      }
     }
     if (lanes.html) {
       const verdict = checkLane('html', lanes.html, { path });
