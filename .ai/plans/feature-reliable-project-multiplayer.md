@@ -602,6 +602,51 @@ substantially done but stay open until T23–T26 bind UI operations to effect
 ids. Still open: T1 remaining variants (27 not-run rows), T16 AI actions,
 T18–T35.
 
+### 2026-09-15 (later) — project entry, rights, revision visibility, AI actions, conflicts
+
+Commits on `main` (not pushed): `a73fa823` managed team projects (T21/T22),
+`3d47ff81` rights + sign-in again + truthful Saving + coordinator health
+(T19/T20/T22/T29), `ab7e6c86` revision visibility (T14), `fc73f0f4` AI action
+boundaries (T16), `2deb7998` SourceConflictPanel (T28).
+
+- **T21/T22 — a designer opens the project with no folder.** `/_api/projects/
+  prepare` (cloud, handoff code, team server email+password, known server) holds
+  the credential and describes the project; native `managed_project_open`
+  creates/reuses the copy under the app data folder keyed by (server, project
+  id); onboarding door, switcher "Open a team project…", `maude://open` opens as
+  its own copy. **Native E2E `pnpm test:e2e:desktop:team-project`** (real hub +
+  seeding teammate studio, first-run home): 5/5 — door → wrong password refused
+  → email/password opens the copy with the teammate's canvases → edits both
+  ways → switcher offers team projects (evidence `.ai/device/scenario-runs/
+  team-project/2026-09-15-0846/`). cargo managed tests 5/5.
+- **T20 — rights.** Capability table per accepted op in project-transactions.md;
+  a designer disabled mid-edit keeps the queued change (not applied, not
+  dropped) and it lands after a new sign-in (real hub). Cell door manifest:
+  history read, restore edit, personal undo/prepare/ai-action/conflict REFUSED
+  (shared studio credential in a cell). Join page names the desktop way in.
+- **T19/T29 — readiness + observability.** `/health` reports the coordinator
+  apart from the renderer (posture public; counters, rejections by code, ack
+  p50/p95/p99 to the cell secret; 503 when the store is unreadable in accepted
+  mode). Studio status carries pending / oldest pending / ack latency; pending
+  reads "Saving N changes", never "Saved".
+- **T14 — revision visibility.** Cohort stamp + `sync/revision-barrier.ts`: an
+  action editing A and creating B is seen as `A1 → A2+B` (was `A1 → A2 → A2+B`);
+  a fresh checkout replays byte-identically.
+- **T16 — AI actions.** Agent turn / `/design:edit` = one action (`kind: ai`);
+  failure holds (persisted, crash-safe), Sync panel Publish/Discard. Test fails
+  without the stage.
+- **T28 — conflicts.** SourceConflictPanel: keep mine (new action) / use the
+  project's; both choices driven on a real overlap.
+- Fixed on the way: project history read a stale manifest (new canvas had no
+  history).
+
+**Task state:** T14, T16, T21, T27, T28 checked. T20 checked for the self-host
+contract; the cloud half rides the existing dashboard invite + device sign-in
+and is re-proved on real Cloudflare in T32. T22 open for its remaining
+validation cells (offline state, switch with pending edits, dark/light and
+narrow layout in a real WKWebView). T19 open (media priority order and explicit
+offline preparation). T29 open (render revision lag, cold-open timing).
+
 ## Context References
 
 ### Must-Read Files
@@ -848,7 +893,7 @@ Each task includes implementation plus its meaningful regression/integration che
 
 ### T14: REFACTOR one checkout projector and revision visibility
 
-- [ ] **Do:** Implement `revision-projector.ts`; stage complete revision manifests and switch renderer-visible revision only after all required files are ready. Give one component write ownership of each managed checkout. Turn workspace-agent and legacy projections into adapters/readers or gate them off in transaction mode before enabling a pilot.
+- [x] **Do:** Implement `revision-projector.ts`; stage complete revision manifests and switch renderer-visible revision only after all required files are ready. Give one component write ownership of each managed checkout. Turn workspace-agent and legacy projections into adapters/readers or gate them off in transaction mode before enabling a pilot.
 - **Pattern:** Existing atomic writes/echo guard and path containment; canonical paths from `paths.ts`.
 - **Gotcha:** Multiple rename operations are not an atomic filesystem transaction for arbitrary external tools. Isolate their working tree and validate imports; renderer uses the immutable revision boundary. Projection failure cannot roll back the accepted log or erase candidate work.
 - **Validate:** `cd apps/studio && bun test test/sync-revision-projector.test.ts test/shared-doc-cell-pairing.test.ts` (new + existing); kill between staged files; canvas+module never mixed on render; stale projector cannot write after epoch change; replay to fresh checkout hashes identically.
@@ -862,7 +907,7 @@ Each task includes implementation plus its meaningful regression/integration che
 
 ### T16: ADD explicit AI and multi-file action boundaries
 
-- [ ] **Do:** Add begin/propose/commit/abort integration to existing studio API and design CLI helpers/ACP adapters. Agent edits stage against a known manifest; one logical operation becomes one accepted history action with bounded preview. Preserve raw-tool edits via watcher candidates when an agent cannot use the structured API.
+- [x] **Do:** Add begin/propose/commit/abort integration to existing studio API and design CLI helpers/ACP adapters. Agent edits stage against a known manifest; one logical operation becomes one accepted history action with bounded preview. Preserve raw-tool edits via watcher candidates when an agent cannot use the structured API.
 - **Pattern:** Existing `maude design` dispatch and project path resolution; plugin callers use `maude design <verb>` per DDR-062.
 - **Gotcha:** User pause/agent crash/timeout cannot partially publish a canvas+module edit. Idle timers may suggest grouping but cannot define an atomic action. Keep both supported agent harnesses behind existing integration surfaces, not a new orchestration layer.
 - **Validate:** Real multi-file fixture: agent writes valid partial files then fails; no accepted half-state. Commit once, duplicate commit, abort and concurrent designer action all have explicit results and one logical history group.
@@ -891,14 +936,14 @@ Each task includes implementation plus its meaningful regression/integration che
 
 ### T20: UPDATE invitation, membership and project-manifest rights
 
-- [ ] **Do:** Define designer capability mapping for all supported operations and required DS dependencies. Unify cloud and self-host invitation→login→membership→project-list contract, renewal and revocation. Add a distributable project manifest with bounded dependency declarations; keep account credentials and local trust outside it. Specify self-host identity enablement/migration in the rollout recipe.
+- [x] **Do:** Define designer capability mapping for all supported operations and required DS dependencies. Unify cloud and self-host invitation→login→membership→project-list contract, renewal and revocation. Add a distributable project manifest with bounded dependency declarations; keep account credentials and local trust outside it. Specify self-host identity enablement/migration in the rollout recipe.
 - **Pattern:** `apps/cloud` membership/invite/device-auth modules; hub identity/invites, `workspace-signin.ts`/`hub-listing.ts`/`hub-link.ts`.
 - **Gotcha:** Designer must not require owner tokens to work, but accepting an invitation must not silently grant unrestricted code execution or project admin. Tenant identity is canonical ID+server, not display name/hostname substring.
 - **Validate:** Cloud/hub membership and invite tests with real designer/viewer/owner roles, revoked/expired invite, queued edit after removal, cross-tenant attempt, code dependency trust denied and permitted supported action. Token-only legacy self-host remains explicitly legacy until upgraded.
 
 ### T21: ADD native managed project lifecycle
 
-- [ ] **Do:** Implement managed_projects using existing app-state/MRU/sidecar/deeplink facilities. Create/reuse a managed local copy keyed by server+project identity, fetch bootstrap, then open studio. Invitations on a clean install and project selection must not require choosing an existing directory. Provide advanced folder adoption without overwriting unrelated content.
+- [x] **Do:** Implement managed_projects using existing app-state/MRU/sidecar/deeplink facilities. Create/reuse a managed local copy keyed by server+project identity, fetch bootstrap, then open studio. Invitations on a clean install and project selection must not require choosing an existing directory. Provide advanced folder adoption without overwriting unrelated content.
 - **Pattern:** Native `app_state.rs`, `deep_link.rs`, `lib.rs`, `sidecar.rs`, Tauri command/permission generation.
 - **Gotcha:** Preserve pending edits across project switch/account logout; duplicate invitation/open requests are idempotent. Reuse the concurrent share-link plan's `project_resolve.rs` if present, extending identity from bare project name to canonical server+project without changing file-link semantics. Untrusted webviews must not choose arbitrary writable paths or broaden URL opener privileges. New native commands need registration in Rust/build.rs, committed permission TOML and default capability; avoid plugin command-name collisions.
 - **Validate:** `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml`; native command capability checks, same-name different-project, interrupted bootstrap, restart/MRU, conflicting local folder and two concurrent opens.
@@ -940,14 +985,14 @@ Each task includes implementation plus its meaningful regression/integration che
 
 ### T27: ADD logical project history and restore-as-new-action
 
-- [ ] **Do:** Extend hub/studio history endpoints and ProjectHistory to read accepted action groups with author, timestamp, bounded summary, revision preview and restore. Retain legacy Git history for browsing; map imported baseline explicitly. Restore proposes a new revision with rights/preconditions, never rewinds the canonical head destructively.
+- [x] **Do:** Extend hub/studio history endpoints and ProjectHistory to read accepted action groups with author, timestamp, bounded summary, revision preview and restore. Retain legacy Git history for browsing; map imported baseline explicitly. Restore proposes a new revision with rights/preconditions, never rewinds the canonical head destructively.
 - **Pattern:** Existing `history.mjs`, `history.ts`, GitPanel UI, snapshot/blob retention.
 - **Gotcha:** Historic media and source needed by supported retention must survive GC. Renderer errors in a revision must not make history unavailable. Large source history cannot silently inherit an unrelated old 2MiB UI limit.
 - **Validate:** Multi-file AI appears once, mixed authors stay distinct, pagination, large source preview policy, deleted assets, restore under concurrent peer changes, permissions and restart/replay consistency.
 
 ### T28: ADD effect-aware personal undo/redo and conflict resolution
 
-- [ ] **Do:** Implement undo/redo as conditional compensating transactions targeting the user's session action/effect IDs. Preserve peer changes, group drag/AI actions, handle partial conflicts explicitly, and keep redo dependent on current state. Build SourceConflictPanel comparing original candidate, base and accepted version; resolution itself is a new action.
+- [x] **Do:** Implement undo/redo as conditional compensating transactions targeting the user's session action/effect IDs. Preserve peer changes, group drag/AI actions, handle partial conflicts explicitly, and keep redo dependent on current state. Build SourceConflictPanel comparing original candidate, base and accepted version; resolution itself is a new action.
 - **Pattern:** Existing command stack/UI shortcuts plus T27 log. Adopt Y.UndoManager only where it satisfies these semantics; do not equate tracked origin with the entire solution.
 - **Gotcha:** Expected-value-only checks miss ABA. Decide and test partial undo semantics: compensate independent safe effects atomically as a new action, leave conflicting effects unchanged and clearly list them; never report an unconditional full undo. Failed requests cannot advance history cursors.
 - **Validate:** New `sync-personal-undo.test.ts` and actual two-user GUI: A color/B text/A undo; same-property peer edit; ABA; target deleted; AI canvas+module; redo after peer change; restart with candidate; explicit resolution preserves original recovery bytes.
