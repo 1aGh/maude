@@ -512,6 +512,19 @@ async function check(
 function bytes(root: string, rel: string) {
   return readFileSync(join(root, '.design', rel));
 }
+/** Every canvas source and annotations sidecar at `p` that names `asset`. */
+function referencesTo(p: { name: string; root: string }, asset: string) {
+  const design = join(p.root, '.design');
+  const sources = [
+    ...readdirSync(join(design, 'ui'))
+      .filter((f) => f.endsWith('.tsx'))
+      .map((f) => `ui/${f}`),
+    ...readdirSync(design).filter((f) => f.endsWith('.annotations.svg')),
+  ];
+  return sources
+    .filter((rel) => readFileSync(join(design, rel), 'utf8').includes(asset))
+    .map((rel) => `${p.name}:${rel}`);
+}
 async function receivers(
   id: string,
   from: Surface,
@@ -2272,12 +2285,7 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           for (const p of all)
             if (!existsSync(join(p.root, '.design', doomed)))
               throw new Unexercised(`Upload absent before delete at ${p.name}`);
-          const referenced = all.flatMap((p) =>
-            readdirSync(join(p.root, '.design/ui'))
-              .filter((f) => f.endsWith('.tsx') || f.endsWith('.annotations.svg'))
-              .filter((f) => readFileSync(join(p.root, '.design/ui', f), 'utf8').includes(doomed))
-              .map((f) => `${p.name}:${f}`)
-          );
+          const referenced = all.flatMap((p) => referencesTo(p, doomed));
           if (referenced.length)
             throw new Unexercised(`Upload still referenced: ${referenced.join(', ')}`);
           const start = performance.now();
@@ -2435,6 +2443,72 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             status: observations.every((o) => o.status === 'pass') ? 'pass' : 'fail',
             observations,
             note: 'Playback and playhead are local viewer actions, not shared persistent mutations.',
+          };
+        });
+        // L14 replace — the video's own Replace… (annotation context menu →
+        // media picker) re-points it at the project's seeded clip; every
+        // participant's player loads that clip and decodes it.
+        await check('L14.upload-video.replace', `${from.name}-to-peers`, async () => {
+          if (!videoId || !assetRel)
+            throw new Unexercised('Video upload did not establish a reference');
+          const next = 'assets/surface-colors.mp4';
+          for (const p of all)
+            if (!(await p.probe(q()))?.visible)
+              throw new Unexercised(`Video not rendered before replace at ${p.name}`);
+          await gesture(from, selector('palette-mode-edit'), 'click');
+          await gesture(from, `${q()} > text`, 'contextMenu');
+          const replace = '.dc-context-menu [data-action="replace"]';
+          await until(async () => !!(await from.probe(replace))?.visible);
+          await gesture(from, replace, 'click');
+          const cell = '[aria-label="Choose media"] .st-ap-cell[title^="surface-colors.mp4"]';
+          await until(async () => (await from.read(cell)) !== null);
+          const start = performance.now();
+          await from.click(cell);
+          const playing = `[data-mediaref-player] video[src*="surface-colors.mp4"]`;
+          return {
+            stimulus: 'annotation context menu → Replace… → media picker → seeded clip',
+            ...(await observeAll(
+              all,
+              `L14-replace-${from.name}`,
+              start,
+              async (p) => {
+                const video = await p.probe(playing);
+                return !!video?.visible && video.width === 160 && video.height === 90;
+              },
+              (p) =>
+                drawingDisk(p, videoId)?.includes(`data-src="${next}"`) === true &&
+                drawingDisk(p, videoId) === drawingDisk(from, videoId)
+            )),
+          };
+        });
+        // L14 delete unreferenced — nothing points at the upload after the
+        // replace; deleting its file removes it everywhere and the clip that
+        // replaced it keeps playing.
+        await check('L14.asset.delete-unreferenced', `${from.name}-to-peers`, async () => {
+          if (!videoId || !assetRel) throw new Unexercised('No uploaded video');
+          const doomed = assetRel;
+          for (const p of all)
+            if (!existsSync(join(p.root, '.design', doomed)))
+              throw new Unexercised(`Upload absent before delete at ${p.name}`);
+          const referenced = all.flatMap((p) => referencesTo(p, doomed));
+          if (referenced.length)
+            throw new Unexercised(`Upload still referenced: ${referenced.join(', ')}`);
+          const start = performance.now();
+          rmSync(join(from.root, '.design', doomed));
+          return {
+            stimulus: 'filesystem delete of an unreferenced uploaded video',
+            ...(await observeAll(
+              all,
+              `L14-delete-unreferenced-${from.name}`,
+              start,
+              async (p) =>
+                !!(
+                  await p.probe(`[data-mediaref-player] video[src*="surface-colors.mp4"]`)
+                )?.visible,
+              (p) =>
+                !existsSync(join(p.root, '.design', doomed)) &&
+                existsSync(join(p.root, '.design/assets/surface-colors.mp4'))
+            )),
           };
         });
         await check('L14.upload-video.remove-reference', `${from.name}-to-peers`, async () => {
