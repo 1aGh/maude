@@ -136,7 +136,7 @@ Instrumented local edits and AI supply exact base tokens. A watcher cannot know 
 - **Package managers:** root pnpm 11 (`pnpm-lock.yaml`); studio independently uses Bun (`apps/studio/bun.lock`); native Rust/Cargo
 - **Loaded expertise:** `flow:skill-loader`, `flow:kgai-backend`, `flow:debate-protocol`, `durable-objects`; official Yjs/Hocuspocus/Tauri docs fallback
 - **Dependencies:** current Hocuspocus 4.3/Yjs 13.6, OXC source validation, SQLite, R2/S3, Tauri 2. New runtime dependencies require T8 evidence and packaging validation; no speculative installation during planning.
-- **Scope status:** execution in progress; T1 real UI baseline partially exercised and preserved; T2 hub/source guards pass the 60-edit lane and the completed 300-edit run; T6 executable draft, T7 socket/browser proof and T8 local storage experiments in progress
+- **Scope status:** execution in progress; T2–T5 complete (2026-09-14/15 checkpoint below); T1 real UI baseline partially exercised and preserved; T6 executable draft, T7 socket/browser proof and T8 storage experiments in progress
 
 ### Execution checkpoint — 2026-09-14
 
@@ -465,6 +465,81 @@ The full native surface matrix, accepted publication, all writers, personal undo
 history UX, designer onboarding and cloud/self-host staged product tests remain
 open. All T1–T35 checkboxes remain open. No commit, push or product deployment.
 
+### 2026-09-14 (evening) — work committed; M0 audit reproductions closed
+
+Continued in Claude Code after the Codex session hit its usage limit. First the
+uncommitted pass above was verified (hub 930/930, studio sync+affected 1474/1474,
+typecheck, tsc coverage, lint, import coherence) and committed on `main` in
+reviewable units (`088c8a32`…`a80a6b98`, not pushed). The pre-tag import-coherence
+guard had been red on `main` already (spike `dist/` and repro `node_modules`
+imports); it now skips deliberately ignored targets and still fails an
+intent-to-add module importing a missing sibling (`0f086aec`).
+
+Re-running `docs/audits/2026-09-13-hub-sync/reproduce.ts` on that commit showed
+**all five audit probes still reproducing** — the earlier containment fixed
+E2E-observed defects, not the audit's P0 set. Each is now fixed with regression
+tests watched red first (fix reverted → named cases fail):
+
+- **T3** (`79aaa24b`) — hub workspace agent runs the studio's own
+  `sourceError()`; invalid body + coupled CSS are held (checkout keeps the valid
+  body, no commit, other lanes flow). `oxc-parser@0.139.0` registered in
+  `apps/hub/bun.lock` and the pnpm importer, external in the hub bundle, copied
+  sources in the Dockerfile. Hub 932/932; release bundle cold-imports on Node 22;
+  the built image (`node v20.20.2`, arm64) loads the bundle and the linux binding
+  rejects invalid TSX. Probe: `overwritten: false`.
+- **T5** (`0a3b19e5`) — css/attr routes accept `expected` (atomic under the file
+  lock; source already at the target = idempotent success; otherwise 409
+  `conflict`). The shell forwards the command's `from`, repaints only after
+  acceptance and answers `apply-edit-result`; the canvas sink awaits it, so a
+  refused undo/redo keeps its stack entry and toasts. 9 API + 6 wire tests.
+  **Open:** no two-user GUI case in the surface runner yet (needs inspector-knob
+  driving); ABA/effect identity stays with T28.
+- **T4** (`069575a0`, `942beda3`) — files over the 512 MiB ceiling are enumerated
+  as present-but-unsyncable and held (`refused`/`too-large`), which also closes
+  two reproduced data-loss paths: a synced asset that grew past the ceiling was
+  deleted on the hub, and a smaller hub copy overwrote the larger local file.
+  `syncPresentation` now reads every `_sync.json` lane: refused source changes,
+  failed/blocked/held files and failed uploads → `attention`; moving files/media
+  → `syncing`; unreadable lanes fail closed. Probes: `largeEnumerated: true`,
+  `phase: attention`.
+- **T2** (`a0cb75d9`) — character-level three-way merge from `lastHtml`
+  (`sync/source-merge.ts`); overlaps, invalid merged source and over-budget diffs
+  are preserved and blocked, the conflict stays until a resolving save. The
+  agreed body is saved as a `base` recovery slot, so a restart merges
+  (`conflict-merged`) or holds (`conflict-held`, `projection.adoptBase`) instead of
+  newest-wins; without a verified base DDR-102 is unchanged. Probe:
+  `remoteEditSurvives: true, localEditSurvives: true`, no conflict.
+
+Decisions recorded in kgai: `maude/hub-shares-studio-source-validator`,
+`maude/stale-import-three-way-merge`, `maude/truthful-summary-and-oversized-hold`.
+
+**Real local UI lane.** Bundled debug app rebuilt with the current sidecar
+(hash-checked against `apps/studio/dist/maude-darwin-arm64`). Full implemented
+catalogue `2026-09-14T19-13-20.807Z`: **225 pass / 9 fail / 6 unsupported / 24
+not-run** — every failure is the known `L01.empty-folder.{create,move,delete}`
+(T17 owns durable directory entries); unsupported are folder rename and text
+resize (absent controls); not-run rows are the unimplemented "remaining
+variants". L06 external, atomic-rename and UI text saves pass in all directions;
+source audit 132 parses / 0 syntax errors, 9/9 final comparisons.
+
+A new two-user GUI case `L18.css-undo.{peer-value-kept,own-value}` (inspector
+font-weight → teammate changes the same property → Cmd+Z in the canvas) found a
+second T5 defect: the inspector kept its own superseded value (a peer edit does
+not re-post the selection), so the next undo recorded a stale `before` and
+restored a value nobody had on screen. Writes now return what they replaced
+(`previous`, read under the file lock) and every css/attr undo record site uses
+it (`7ce8a55e`, `53ac5a1e`). Final `L18` run `2026-09-15T04-52-01.011Z`: 8/0 —
+the teammate value stays on all three participants in every direction and the
+author is told; an own undo reaches peers in ~1.1–1.3 s. Full re-run
+`2026-09-15T04-54-07.663Z`: **231 pass / 9 fail (same L01) / 6 unsupported /
+24 not-run**, audit 132/0, 9/9 — no regression.
+
+**Task state:** T2–T5 meet their own Validate lines and are checked. M0 is not
+complete: T1 coverage (variants, roles, media formats, offline/concurrency,
+timing passes, soak) and the empty-folder gap remain; no latency target is
+claimed. Next: M1 — close T8 with an adapter-selection DDR (validator isolation,
+retention/compaction decisions), then T9 kernel and T12 fencing.
+
 ## Context References
 
 ### Must-Read Files
@@ -627,28 +702,28 @@ Each task includes implementation plus its meaningful regression/integration che
 
 ### T2: FIX stale local source imports and conflict lifetime
 
-- [ ] **Do:** Update `sync/projection.ts`, `source-recovery.ts`, `index.ts` and tests so a save never interprets stale untouched text as a new deletion of peer work. Track proven base/generation, preserve original candidate and accepted bytes, merge only demonstrably independent changes, and retain an unresolved conflict until actual resolution.
+- [x] **Do:** Update `sync/projection.ts`, `source-recovery.ts`, `index.ts` and tests so a save never interprets stale untouched text as a new deletion of peer work. Track proven base/generation, preserve original candidate and accepted bytes, merge only demonstrably independent changes, and retain an unresolved conflict until actual resolution.
 - **Pattern:** Existing projection/hash/recovery factories and `sync-source-safety.test.ts`.
 - **Gotcha:** Last projected file hash alone cannot prove an external editor's buffer base. Both preserve-and-block and a correct verified merge are acceptable for an ambiguous import; silent overwrite is not.
 - **Validate:** `cd apps/studio && bun test test/sync-source-safety.test.ts test/shared-doc-projection.test.ts test/sync-incident-replay.test.ts`; title/color race in both orders, atomic rename, restart with unresolved candidate, and failed snapshot write.
 
 ### T3: FIX hub checkout validation parity and package reachability
 
-- [ ] **Do:** Guard hub workspace projection/commit with the same source-validity semantics as studio; reject before overwriting valid disk, preserve the candidate/reason, and prevent Git committing the rejected source. Share implementation or generated conformance corpus rather than drift-prone duplicated regexes. Register any parser dependency at every actual package-manager root and verify the hub bundle/native studio distribution.
+- [x] **Do:** Guard hub workspace projection/commit with the same source-validity semantics as studio; reject before overwriting valid disk, preserve the candidate/reason, and prevent Git committing the rejected source. Share implementation or generated conformance corpus rather than drift-prone duplicated regexes. Register any parser dependency at every actual package-manager root and verify the hub bundle/native studio distribution.
 - **Pattern:** `source-validation.ts`, `workspace-agent.mjs`, `workspace-files.mjs`, existing source safety tests.
 - **Gotcha:** This is checkout containment only. It does **not** yet prove that the published Y.Doc or peer render never saw invalid bytes; T7/T12 own that boundary.
 - **Validate:** `pnpm --filter @maude/hub test`; source-validity corpus in studio; repeat audit hub probe expecting no overwrite/invalid commit; bundled hub cold-load smoke and compiled studio loading if dependency surface changes.
 
 ### T4: FIX complete inventory and one truthful project summary
 
-- [ ] **Do:** Extend file enumeration/ledger to account for every eligible user file, including >512MiB entries with explicit blocking reasons. Unify summary priority across conflicts, failed/pending files, auth, transport and docs; preserve unknown-state fail-closed behavior. Apply to CloudBar, SyncPanel and statusbar without separate rules.
+- [x] **Do:** Extend file enumeration/ledger to account for every eligible user file, including >512MiB entries with explicit blocking reasons. Unify summary priority across conflicts, failed/pending files, auth, transport and docs; preserve unknown-state fail-closed behavior. Apply to CloudBar, SyncPanel and statusbar without separate rules.
 - **Pattern:** `sync/presentation.ts`, `file-plane.ts`, `file-ledger.ts`, `connection-state.ts`, seed progress.
 - **Gotcha:** Excluded runtime/trust files should have a policy classification, not become upload jobs. Avoid frequent hashing/reading of large files solely to populate a row. A green docs count cannot override a blocked required asset.
 - **Validate:** `cd apps/studio && bun test test/sync-presentation.test.ts test/sync-file-ledger.test.ts test/sync-file-membership.test.ts test/sync-seed-progress.test.ts test/sync-panel-surface.test.ts`; blocked+91-doc case, sparse oversized file and contradictory UI states.
 
 ### T5: FIX current undo bridge preconditions
 
-- [ ] **Do:** Carry expected-current values through CSS/attr command → shell → API, enforce the precondition server-side, and acknowledge success/failure back to the command stack. Preserve the undo entry on rejection; surface a peer-change conflict. Keep this compatibility correction until T28 replaces it with effect-aware project undo.
+- [x] **Do:** Carry expected-current values through CSS/attr command → shell → API, enforce the precondition server-side, and acknowledge success/failure back to the command stack. Preserve the undo entry on rejection; surface a peer-change conflict. Keep this compatibility correction until T28 replaces it with effect-aware project undo.
 - **Pattern:** `commands/edit-source-command.ts`, `client/app.jsx`, `api.ts`, existing text precondition path.
 - **Gotcha:** Value comparison is only immediate containment; ABA and action identity are handled by T28. Do not advance the stack after swallowed HTTP errors.
 - **Validate:** `cd apps/studio && bun test test/edit-source-command.test.ts test/undo-stack.test.ts test/undo-sequence-byte-compare.test.ts`; wire-level CSS and attr requests, peer replacement, failed request, redo.
