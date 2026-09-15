@@ -130,6 +130,42 @@ describe.skipIf(!HUB_READY)('prepareManagedProject — a team server sign-in', (
     expect(readFileSync(process.env.HUBS_CONFIG_PATH as string, 'utf8')).toBe(before);
   });
 
+  test('signing in again to the server this studio syncs with moves the running sync onto the new credential', async () => {
+    const restarts: unknown[] = [];
+    const syncing = {
+      cfg: { linkedHub: { url: `${hub.http.replace(/\/$/, '')}/` } },
+      syncControl: {
+        restart: async (...args: unknown[]) => {
+          restarts.push(args);
+          return { syncing: true, canvases: 1 };
+        },
+      },
+    } as unknown as Context;
+    const r = await prepareManagedProject(syncing, {
+      kind: 'hub',
+      url: hub.http,
+      email: 'designer@x.test',
+      password: PASSWORD,
+    });
+    expect(r.ok).toBe(true);
+    // Cycled with the link as it is — never a link read back from disk.
+    expect(restarts).toEqual([[]]);
+
+    // Another server, or an open that minted nothing, leaves the runtime alone.
+    const elsewhere = {
+      cfg: { linkedHub: { url: 'http://127.0.0.1:9' } },
+      syncControl: syncing.syncControl,
+    } as unknown as Context;
+    await prepareManagedProject(elsewhere, {
+      kind: 'hub',
+      url: hub.http,
+      email: 'designer@x.test',
+      password: PASSWORD,
+    });
+    await prepareManagedProject(syncing, { kind: 'known-hub', url: hub.http });
+    expect(restarts).toHaveLength(1);
+  });
+
   test('an unknown server without a sign-in is refused, not guessed', async () => {
     const r = await prepareManagedProject(ctx, { kind: 'known-hub', url: 'http://127.0.0.1:9' });
     expect(r.ok).toBe(false);

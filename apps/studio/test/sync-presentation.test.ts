@@ -489,6 +489,37 @@ describe('accepted revisions — Saving until the project answers', () => {
     });
     expect(hostile?.phase).toBe('synced');
   });
+
+  test('a sign-in the project refuses is a refusal that asks to sign in again — never "check your connection"', () => {
+    const p = at({
+      docs: { synced: 3, pending: 0, rejected: 0 },
+      accepted: {
+        pending: 1,
+        oldestPendingAt: Date.now() - 90_000,
+        ackMs: { last: null, p95: null, n: 0 },
+        rejected: 0,
+        credentialRefused: true,
+      },
+    });
+    expect(p?.phase).toBe('refused');
+    expect(p?.online).toBe(false);
+    expect(p?.title).toContain('alligators no longer accepts your sign-in');
+    expect(p?.title).toContain('1 change is kept on this device');
+    expect(p?.next).toBe('Sign in again to share them.');
+    expect(`${p?.title} ${p?.next}`).not.toContain('connection');
+    // Only a literal true counts — a string off disk is not a refusal.
+    const hostile = at({
+      docs: { synced: 3, pending: 0, rejected: 0 },
+      accepted: {
+        pending: 0,
+        oldestPendingAt: null,
+        ackMs: { last: null, p95: null, n: 0 },
+        rejected: 0,
+        credentialRefused: 'yes' as unknown as boolean,
+      },
+    });
+    expect(hostile?.phase).toBe('synced');
+  });
 });
 
 // Plan T16 — an AI edit that did not finish is the person's decision.

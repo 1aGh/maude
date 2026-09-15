@@ -103,6 +103,8 @@ export interface AcceptedSaveStatus {
   oldestPendingAt: number | null;
   ackMs: { last: number | null; p95: number | null; n: number };
   rejected: number;
+  /** The project refuses this sign-in — changes wait for signing in again. */
+  credentialRefused?: boolean;
 }
 
 export interface SyncNotice {
@@ -406,7 +408,9 @@ export function createSyncStatusStore(opts: SyncStatusStoreOptions): SyncStatusS
       accepted = next;
       // Going from waiting to caught-up (or back) is news; a latency tick is not.
       flush(
-        ((was?.pending ?? 0) === 0) !== (next.pending === 0) || next.rejected !== was?.rejected
+        ((was?.pending ?? 0) === 0) !== (next.pending === 0) ||
+          next.rejected !== was?.rejected ||
+          !!next.credentialRefused !== !!was?.credentialRefused
       );
     },
     updateFiles(next) {

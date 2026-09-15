@@ -207,6 +207,47 @@ describe('transaction client', () => {
     expect(outboxFiles()).toHaveLength(0);
   });
 
+  test('a sign-in the project no longer accepts is reported, the change stays kept, and a new sign-in delivers it', async () => {
+    const hub = fakeHub();
+    let token = 'revoked';
+    const auth = (async (url: string | URL, init?: RequestInit) => {
+      const bearer = new Headers(init?.headers).get('authorization');
+      if (!String(url).endsWith('/bootstrap') && bearer !== 'Bearer fresh') {
+        return new Response(
+          JSON.stringify({ error: 'sign in to this project first', code: 'unauthenticated' }),
+          { status: 401, headers: { 'content-type': 'application/json' } }
+        );
+      }
+      return hub.fetchImpl(url, init);
+    }) as unknown as typeof fetch;
+    const seen: Array<{ pending: number; credentialRefused?: boolean }> = [];
+    const client = createTransactionClient({
+      hubUrl: 'http://hub',
+      token: () => token,
+      designRoot: dir,
+      fetchImpl: auth,
+      retryMs: 5,
+      log: { log() {}, warn() {}, error() {} },
+      onStats: (s) => seen.push(s),
+    });
+    await client.bootstrap();
+    const answer = client.propose({
+      label: 'Edit',
+      operations: [{ op: 'lane.replace', doc: 'd', lane: 'html', content: 'x' }],
+    });
+    const deadline = Date.now() + 2000;
+    while (!seen.some((s) => s.credentialRefused) && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    expect(seen.at(-1)).toMatchObject({ pending: 1, credentialRefused: true });
+    expect(outboxFiles()).toHaveLength(1);
+
+    token = 'fresh';
+    expect((await answer).status).toBe('accepted');
+    expect(seen.at(-1)).toMatchObject({ pending: 0, credentialRefused: false });
+    expect(outboxFiles()).toHaveLength(0);
+  });
+
   test('a proposal made before the project is known is bound once, then sent', async () => {
     const hub = fakeHub();
     const client = createTransactionClient({

@@ -69,6 +69,15 @@ export function groupsFromBootstrap(boot: {
   return [...out].slice(0, 32);
 }
 
+function sameServer(a: string | undefined, b: string): boolean {
+  if (!a) return false;
+  try {
+    return normalizeUrl(a) === normalizeUrl(b);
+  } catch {
+    return false;
+  }
+}
+
 async function bootstrapOf(url: string, token: string): Promise<Record<string, unknown> | null> {
   try {
     const res = await fetch(`${url}/api/projects/current/v1/bootstrap`, {
@@ -135,6 +144,19 @@ export async function prepareManagedProject(
     return { ok: false, error: 'The sign-in could not be saved on this computer.', status: 500 };
   const boot = await bootstrapOf(serverUrl, token);
   if (boot && typeof boot.projectId === 'string') projectId ??= boot.projectId;
+  // SIGN IN AGAIN (T20): a new credential for the server this studio is
+  // already syncing with. Reopening the same project attaches to this very
+  // process (the shell never starts a second one for a running project), and
+  // the running runtime still holds the credential the project refused — so
+  // cycle it onto the one just stored. The link is unchanged and never re-read
+  // from disk; only the credential is new, and this process wrote it.
+  if (input.kind !== 'known-hub' && sameServer(ctx.cfg?.linkedHub?.url, serverUrl)) {
+    try {
+      await ctx.syncControl?.restart();
+    } catch (err) {
+      console.error('[managed] could not restart sync on the new sign-in:', err);
+    }
+  }
   const host = new URL(serverUrl).host;
   projectId ??= host;
   if (!/^[A-Za-z0-9._-]{1,128}$/.test(projectId)) projectId = host.replace(/[^A-Za-z0-9._-]/g, '-');

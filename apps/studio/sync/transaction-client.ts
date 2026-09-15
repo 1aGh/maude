@@ -98,6 +98,14 @@ export interface TransactionStats {
   ackMs: { last: number | null; p95: number | null; n: number };
   /** Final rejections this session (conflicts, invalid source, rights…). */
   rejected: number;
+  /**
+   * The project answered the last attempt "sign in first": this sign-in was
+   * revoked or its person disabled. The change stays in the outbox and is
+   * retried with whatever credential `token()` returns next — it is not lost,
+   * but it cannot be shared until someone signs in again, which is what a
+   * person must be told instead of "check your connection".
+   */
+  credentialRefused: boolean;
 }
 
 const sha256 = (s: string) => createHash('sha256').update(s, 'utf8').digest('hex');
@@ -139,6 +147,12 @@ export function createTransactionClient(opts: TransactionClientOptions) {
   const waiting = new Map<string, number>();
   const acks: number[] = [];
   let rejectedCount = 0;
+  let credentialRefused = false;
+  const setCredentialRefused = (next: boolean) => {
+    if (credentialRefused === next) return;
+    credentialRefused = next;
+    opts.onStats?.(stats());
+  };
   function stats(): TransactionStats {
     const sorted = [...acks].sort((a, b) => a - b);
     return {
@@ -152,6 +166,7 @@ export function createTransactionClient(opts: TransactionClientOptions) {
         n: acks.length,
       },
       rejected: rejectedCount,
+      credentialRefused,
     };
   }
   const setPending = (delta: number) => {
@@ -239,13 +254,24 @@ export function createTransactionClient(opts: TransactionClientOptions) {
         if (attempt > 0) {
           const known = await request('GET', `transactions/${entry.transactionId}`);
           if (known.status === 200 && known.json) {
+            setCredentialRefused(false);
             rmSync(file, { force: true });
             return known.json as ProposalResult;
           }
         }
         const { status, json } = await request('POST', 'proposals', entry.bytes);
+        // Not an answer about the change — about who is asking. Kept and
+        // retried (a new sign-in supplies a new token), and said out loud.
+        if (status === 401) {
+          setCredentialRefused(true);
+          throw new TransactionError(
+            'the project no longer accepts this sign-in',
+            'unauthenticated'
+          );
+        }
         const result = json as ProposalResult | null;
         if (result && (result.status === 'accepted' || result.status === 'rejected')) {
+          setCredentialRefused(false);
           if (result.status === 'rejected' && (result.code === 'retryable' || status >= 500)) {
             throw new TransactionError('hub asked to retry', 'retryable');
           }

@@ -427,6 +427,27 @@ export function syncPresentation(
     };
   }
 
+  // Accepted revisions: the project answered "sign in first" to a change —
+  // the sign-in was revoked or its person removed. The change is kept on this
+  // device and retried, but it cannot reach anyone until someone signs in
+  // again, so this is a refusal, never "Saving … check your connection".
+  const refusedSignIn = readAcceptedRefused(status.accepted);
+  if (refusedSignIn) {
+    const n = refusedSignIn.pending;
+    return {
+      phase: 'refused',
+      online: false,
+      label: 'sign in again',
+      title:
+        `${project} no longer accepts your sign-in — ` +
+        (n > 0
+          ? `${n} change${n === 1 ? ' is' : 's are'} kept on this device and not shared.`
+          : 'your changes are not shared.'),
+      next: 'Sign in again to share them.',
+      names: [],
+    };
+  }
+
   // A refused SOURCE change outranks an unreachable hub for the same reason a
   // refusal does: it is sticky, and it is the part that needs a person.
   // (With the hub reachable, the same sentence lists every other lane too.)
@@ -632,6 +653,15 @@ function readAcceptedPending(
     pending,
     oldestPendingAt: typeof at === 'number' && Number.isFinite(at) && at > 0 ? at : null,
   };
+}
+
+/** `status.accepted.credentialRefused`, validated — only a literal `true` counts. */
+function readAcceptedRefused(raw: unknown): { pending: number } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as { credentialRefused?: unknown; pending?: unknown };
+  if (r.credentialRefused !== true) return null;
+  const p = r.pending;
+  return { pending: typeof p === 'number' && Number.isInteger(p) && p > 0 && p <= 1e6 ? p : 0 };
 }
 
 /** `status.aiAction`, validated — never trusted off disk. */
