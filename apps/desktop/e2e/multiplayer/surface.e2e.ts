@@ -214,14 +214,41 @@ const native: Surface = {
     return browser.execute(`return (${script});`);
   },
   async press(chord) {
-    // WebDriver chords: modifiers held while the key goes down and up.
+    // A real chord: modifiers go down, the key goes down and up, modifiers go
+    // up — one W3C action sequence (browser.keys did not hold Shift here).
+    const KEY: Record<string, string> = {
+      Meta: '\uE03D',
+      Shift: '\uE008',
+      Control: '\uE009',
+      Alt: '\uE00A',
+      ArrowRight: '\uE014',
+      ArrowLeft: '\uE012',
+      Home: '\uE011',
+      End: '\uE010',
+      Delete: '\uE017',
+      Backspace: '\uE003',
+      Escape: '\uE00C',
+      Enter: '\uE007',
+    };
     const parts = chord.split('+');
     const key = parts.pop() as string;
-    const mods = parts.map((m) => (m === 'Meta' ? 'Meta' : m === 'Shift' ? 'Shift' : m));
-    await browser.keys([...mods, key]);
-    // Release modifiers explicitly (a held Meta leaks into the next action).
+    const code = (k: string) => KEY[k] ?? k;
+    const mods = parts.map(code);
+    await browser.performActions([
+      {
+        type: 'key',
+        id: 'surface-keyboard',
+        actions: [
+          ...mods.map((value) => ({ type: 'keyDown', value })),
+          { type: 'keyDown', value: code(key) },
+          { type: 'keyUp', value: code(key) },
+          ...[...mods].reverse().map((value) => ({ type: 'keyUp', value })),
+        ],
+      },
+    ]);
     await browser.releaseActions().catch(() => {});
   },
+
   name: 'native',
   root: run.roots.native,
   async photoTrace() {
@@ -5179,19 +5206,40 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         const focusShell = (p: Surface) => p.click(selector('timeline-readout'));
         for (const from of all) {
           const rel = `ui/SurfaceCut-${from.name}.tsx`;
-          const cut = async (id: string, act: () => Promise<void>, n: number) =>
+          // The source after each step, so undo and redo are held to the exact
+          // bytes they must restore (a clip count alone cannot tell a redo
+          // from a second undo).
+          const after: Record<string, string> = {};
+          const cut = async (id: string, act: () => Promise<void>, n: number, restores?: string) =>
             check(id, `${from.name}-to-peers`, async () => {
               if (all.some((p) => sequencesIn(p, rel) < 0))
                 throw new Unexercised('The composition is not on every participant');
+              if (restores && !after[restores])
+                throw new Unexercised(`${id} needs ${restores} to have run`);
               const start = performance.now();
               await act();
-              return observeAll(
+              const result = await observeAll(
                 all,
                 `${id.replace(/\./g, '-')}-${from.name}`,
                 start,
                 async (p) => (await beats(p)) === n,
-                (p) => sequencesIn(p, rel) === n && bytes(p.root, rel).equals(bytes(from.root, rel))
+                (p) =>
+                  sequencesIn(p, rel) === n &&
+                  bytes(p.root, rel).equals(bytes(from.root, rel)) &&
+                  (!restores || bytes(p.root, rel).toString() === after[restores])
               );
+              // The cut happened where it was aimed: the first clip keeps its length.
+              if (
+                id === 'L15.timeline.split' &&
+                !/name="beat-one" durationInFrames=\{B1\}/.test(bytes(from.root, rel).toString())
+              )
+                return {
+                  ...result,
+                  status: 'fail',
+                  error: 'split landed in the first clip, not at the playhead in the second',
+                };
+              after[id] = bytes(from.root, rel).toString();
+              return result;
             });
           await check('L15.timeline.open', `${from.name}-created`, async () => {
             await seedCanvas(from, rel, cutSource);
@@ -5213,8 +5261,11 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             async () => {
               await focusShell(from);
               await from.press('Escape');
+              // The playhead into the second clip: to its start (`.` jumps to
+              // the next clip boundary), then ten frames on.
               await from.press('Home');
-              for (let i = 0; i < 3; i++) await from.press('Shift+ArrowRight');
+              await from.press('.');
+              for (let i = 0; i < 10; i++) await from.press('ArrowRight');
               await from.press('Meta+b');
             },
             4
@@ -5234,7 +5285,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               await focusShell(from);
               await from.press('Meta+z');
             },
-            4
+            4,
+            'L15.timeline.split'
           );
           await cut(
             'L15.timeline.redo',
@@ -5242,8 +5294,59 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               await focusShell(from);
               await from.press('Meta+Shift+z');
             },
-            3
+            3,
+            'L15.timeline.delete'
           );
+          // Trim: drag the first clip's right edge — it retimes the clip.
+          await check('L15.timeline.trim', `${from.name}-to-peers`, async () => {
+            if (all.some((p) => sequencesIn(p, rel) !== 3))
+              throw new Unexercised('Trim needs the three-clip cut everywhere');
+            const titleOf = (p: Surface) =>
+              p.shell(
+                `document.querySelector('[data-testid="timeline-seq-0"]')?.getAttribute('title') ?? ''`
+              ) as Promise<string>;
+            const before = bytes(from.root, rel).toString();
+            const titlesBefore = await Promise.all(all.map((p) => titleOf(p)));
+            const start = performance.now();
+            // pointerdown on the handle, then the window moves the shell listens
+            // to (registered after the press re-renders), then the release.
+            await from.shell(`(async () => {
+              const h = document.querySelector('[data-testid="timeline-resize-0"]');
+              const r = h.getBoundingClientRect();
+              const at = (x) => ({ bubbles: true, cancelable: true, clientX: x, clientY: r.top + r.height / 2, pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1 });
+              h.dispatchEvent(new PointerEvent('pointerdown', at(r.left + 2)));
+              await new Promise((d) => setTimeout(d, 80));
+              for (let i = 1; i <= 6; i++) {
+                window.dispatchEvent(new PointerEvent('pointermove', at(r.left + 2 + i * 12)));
+                await new Promise((d) => setTimeout(d, 16));
+              }
+              window.dispatchEvent(new PointerEvent('pointerup', { ...at(r.left + 74), buttons: 0 }));
+              return true;
+            })()`);
+            await until(() => bytes(from.root, rel).toString() !== before, 15000);
+            // What the author's own timeline now says about the clip.
+            let expected = '';
+            await until(async () => {
+              expected = await titleOf(from);
+              return expected !== '' && expected !== titlesBefore[all.indexOf(from)];
+            }, 15000);
+            writeFileSync(join(run.out, `L15-trim-${from.name}-before.tsx`), before);
+            writeFileSync(
+              join(run.out, `L15-trim-${from.name}-after.tsx`),
+              bytes(from.root, rel).toString()
+            );
+            return {
+              stimulus: 'drag the first clip’s right edge in the shell timeline',
+              clip: expected,
+              ...(await observeAll(
+                all,
+                `L15-trim-${from.name}`,
+                start,
+                async (p) => (await titleOf(p)) === expected,
+                (p) => bytes(p.root, rel).equals(bytes(from.root, rel))
+              )),
+            };
+          });
         }
       }
       // T16 — an AI agent's edit is ONE project action. What it writes between
