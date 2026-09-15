@@ -681,6 +681,29 @@ rename, `906827fa` T32 kill rounds, `4e44f0bc` S3 multipart resilience,
   media in a canvas folder) rename / move / delete from the tree; a file a
   canvas still names is refused with that canvas's name.
 
+### 2026-09-15 (night) — v1.3.0 released, StudyFi migrated, surface gaps closed
+
+- **Release v1.3.0** shipped on every channel after two tag moves (hub image
+  bundler stage; npm's new "previously staged" 409 wording). Fleet rolled;
+  Alligators cell reports `durable: true` in legacy mode, awaiting the owner's
+  switch from the dashboard.
+- **StudyFi migrated (T33).** Rollback checkpoint, upgrade, dry-run (121 docs,
+  34 folders, nothing skipped), switch with `expectEpoch`, parity 121/121,
+  post-switch store snapshot `integrity ok`. Full record with SSM command IDs:
+  `.ai/scenarios/reliable-project-multiplayer/t33-preflight.md`.
+- **Product defects found by the surface rows and fixed:** palette "Comment"
+  never armed the comment layer (two tool providers, separate bundles —
+  L11); an image written beside canvases never reached the tree (L03); a
+  folder made outside the app joined the project only at next launch, and a
+  moved/removed folder lingered in a teammate's tree until the next tick
+  (L02); a change arriving during a file-plane pass waited for the 20 s tick.
+- **Harness corrections:** L02 rename oracle, L11 thread/resolve/reopen
+  oracles, L19 hover-driven cursor and close-to-leave, L22 held-status
+  wording, frame probe `hover`, catalogue timeout 4 h.
+- **T19:** `sync-project-bootstrap.test.ts` (no renderer, first canvas first,
+  cached reopen offline) on top of the earlier media-priority / offline
+  preparation work.
+
 ## Context References
 
 ### Must-Read Files
