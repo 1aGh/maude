@@ -51,6 +51,9 @@ export interface Bootstrap {
   }[];
   dirs: string[];
   you?: { actor: string; readOnly: boolean };
+  /** What the project's own config says about itself (UNTRUSTED — a copy
+   *  re-validates it; see context.ts `withProjectConfig`). */
+  projectConfig?: unknown;
 }
 
 interface OutboxAction {

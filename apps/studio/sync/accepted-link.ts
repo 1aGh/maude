@@ -41,6 +41,8 @@ export interface AcceptedLinkOptions {
   client?: TransactionClient;
   /** T16 — an AI action opened, was held, or ended. */
   onStage?: (summary: StageSummary | null) => void;
+  /** Every bootstrap the project answered (its manifest and its own config). */
+  onBootstrap?: (b: Bootstrap) => void;
 }
 
 export type StructuralOutcome = ProposalOutcome & { queued?: boolean };
@@ -96,6 +98,7 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       }
       mode = next;
       manifest = b;
+      opts.onBootstrap?.(b);
       return b;
     } catch (err) {
       if (err instanceof TransactionError && err.code === 'absent') mode = 'legacy';

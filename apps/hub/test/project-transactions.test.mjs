@@ -5,7 +5,7 @@
 // rebuilds — never the kernel's own return value alone.
 
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, describe, test } from 'node:test';
@@ -377,6 +377,61 @@ describe('accepted revisions on a real hub', () => {
       assert.equal(late.body.code, 'dependency-missing', JSON.stringify(late.body));
     } finally {
       for (const r of readers) r.close();
+      await built.stopJournal();
+      await built.server.destroy();
+      built.projectStore.close();
+    }
+  });
+
+  test('bootstrap carries the project’s own group labels and design systems, contained', {
+    timeout: 60000,
+  }, async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'maude-tx-'));
+    const repoDir = mkdtempSync(join(tmpdir(), 'maude-tx-repo-'));
+    dirs.push(dataDir, repoDir);
+    mkdirSync(join(repoDir, '.design'), { recursive: true });
+    writeFileSync(
+      join(repoDir, '.design', 'config.json'),
+      JSON.stringify({
+        canvasGroups: [
+          { label: 'Canvases', path: 'ui' },
+          { label: 'Design system', path: 'system' },
+          { label: 'Escape', path: '../etc' },
+        ],
+        designSystems: [
+          {
+            name: 'studyfi-v3',
+            path: 'system/studyfi-v3',
+            tokensCssRel: 'system/studyfi-v3/t.css',
+          },
+          { name: 'evil', path: '/etc' },
+          { name: 'bad name <x>', path: 'system/x' },
+        ],
+      })
+    );
+    const saved = process.env.MAUDE_REPO_DIR;
+    process.env.MAUDE_REPO_DIR = repoDir;
+    const t = rig(dataDir);
+    const { built, http } = await startHub(dataDir);
+    try {
+      const owner = client(http, t.owner, { epoch: 0 });
+      const boot = (await owner.get('/api/projects/local/v1/bootstrap')).body;
+      assert.deepEqual(boot.projectConfig, {
+        canvasGroups: [
+          { label: 'Canvases', path: 'ui' },
+          { label: 'Design system', path: 'system' },
+        ],
+        designSystems: [
+          {
+            name: 'studyfi-v3',
+            path: 'system/studyfi-v3',
+            tokensCssRel: 'system/studyfi-v3/t.css',
+          },
+        ],
+      });
+    } finally {
+      if (saved === undefined) delete process.env.MAUDE_REPO_DIR;
+      else process.env.MAUDE_REPO_DIR = saved;
       await built.stopJournal();
       await built.server.destroy();
       built.projectStore.close();

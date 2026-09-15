@@ -1750,6 +1750,46 @@ export function createHub(config = {}) {
     canvasGroupsCache = { at: Date.now(), groups };
     return groups;
   };
+  // The project's labels and design systems, read from the checkout's config
+  // — only names and contained relative paths travel (a copy re-checks them).
+  let projectConfigCache = { at: 0, value: null };
+  const containedRel = (p) =>
+    typeof p === 'string' &&
+    p.length > 0 &&
+    p.length <= 256 &&
+    !p.startsWith('/') &&
+    !/(^|\/)\.\.(\/|$)/.test(p) &&
+    !/[\\\0]/.test(p);
+  const acceptedProjectConfig = () => {
+    if (Date.now() - projectConfigCache.at < 5000) return projectConfigCache.value;
+    let value = null;
+    try {
+      const root = designRootFor();
+      const cfg = root ? JSON.parse(readFileSync(join(root, 'config.json'), 'utf8')) : null;
+      if (cfg && typeof cfg === 'object') {
+        const canvasGroups = (Array.isArray(cfg.canvasGroups) ? cfg.canvasGroups : [])
+          .filter((g) => g && typeof g === 'object' && containedRel(g.path))
+          .filter((g) => typeof g.label === 'string' && g.label.length <= 64)
+          .slice(0, 32)
+          .map((g) => ({ label: g.label, path: g.path }));
+        const designSystems = (Array.isArray(cfg.designSystems) ? cfg.designSystems : [])
+          .filter((d) => d && typeof d.name === 'string' && /^[\w .-]{1,64}$/.test(d.name))
+          .filter((d) => containedRel(d.path))
+          .filter((d) => d.tokensCssRel == null || containedRel(d.tokensCssRel))
+          .slice(0, 16)
+          .map((d) => ({
+            name: d.name,
+            path: d.path,
+            ...(typeof d.tokensCssRel === 'string' ? { tokensCssRel: d.tokensCssRel } : {}),
+          }));
+        value = { canvasGroups, designSystems };
+      }
+    } catch {
+      value = null;
+    }
+    projectConfigCache = { at: Date.now(), value };
+    return value;
+  };
   /** slug → design-root-relative `.tsx` path, from the checkout (workspace mode). */
   const checkoutCanvasPaths = () => {
     const root = designRootFor();
@@ -1806,6 +1846,7 @@ export function createHub(config = {}) {
     store: projectStore,
     projectId: process.env.MAUDE_TENANT_ID || 'local',
     canvasGroups: acceptedCanvasGroups,
+    projectConfig: acceptedProjectConfig,
     designRel: '.design',
     deleteDocument: (name) => {
       deleteDocument({ name, server, sqlitePath, dataDir });

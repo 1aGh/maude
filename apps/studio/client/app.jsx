@@ -3245,6 +3245,7 @@ function Sidebar({
               <button
                 type="button"
                 className={'st-tree-sec-hd' + (isRootOver ? ' is-drop-target' : '')}
+                data-testid={`tree-section-${g.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
                 onClick={() => onToggleSection(g.label, defaultOpen)}
                 aria-expanded={sectionOpen}
                 aria-dropeffect={canDropOnRoot ? 'move' : undefined}

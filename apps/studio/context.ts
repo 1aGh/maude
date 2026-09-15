@@ -329,6 +329,96 @@ function resolveRepoRoot(): string {
   return process.cwd();
 }
 
+/** Where the sync runtime keeps what the linked project says about itself. */
+export const PROJECT_CONFIG_CACHE_REL = '_state/project-config.json';
+
+export interface ProjectConfig {
+  canvasGroups: { label: string; path: string }[];
+  designSystems: { name: string; path: string; tokensCssRel?: string }[];
+}
+
+/**
+ * The project's own labels and design systems, as the hub reported them —
+ * UNTRUSTED (DDR-054): only short names and contained relative paths survive.
+ */
+export function sanitizeProjectConfig(raw: unknown): ProjectConfig | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as { canvasGroups?: unknown; designSystems?: unknown };
+  const groups = Array.isArray(r.canvasGroups) ? r.canvasGroups : [];
+  const systems = Array.isArray(r.designSystems) ? r.designSystems : [];
+  const canvasGroups = groups
+    .filter(
+      (g): g is { label: string; path: string } =>
+        !!g &&
+        typeof g === 'object' &&
+        typeof (g as { label?: unknown }).label === 'string' &&
+        (g as { label: string }).label.length > 0 &&
+        (g as { label: string }).label.length <= 64 &&
+        isContainedRel((g as { path?: unknown }).path)
+    )
+    .slice(0, 32)
+    .map((g) => ({ label: g.label, path: g.path.replace(/^\/+|\/+$/g, '') }));
+  const designSystems = systems
+    .filter(
+      (d): d is { name: string; path: string; tokensCssRel?: string } =>
+        !!d &&
+        typeof d === 'object' &&
+        typeof (d as { name?: unknown }).name === 'string' &&
+        /^[\w .-]{1,64}$/.test((d as { name: string }).name) &&
+        isContainedRel((d as { path?: unknown }).path) &&
+        ((d as { tokensCssRel?: unknown }).tokensCssRel == null ||
+          isContainedRel((d as { tokensCssRel?: unknown }).tokensCssRel))
+    )
+    .slice(0, 16)
+    .map((d) => ({
+      name: d.name,
+      path: d.path.replace(/^\/+|\/+$/g, ''),
+      ...(typeof d.tokensCssRel === 'string' ? { tokensCssRel: d.tokensCssRel } : {}),
+    }));
+  return { canvasGroups, designSystems };
+}
+
+/**
+ * What the linked project says about itself that this copy's own config does
+ * not. A managed desktop copy is declared from group PATHS alone, so its
+ * groups had no labels ("system", never "Design system") and it knew no
+ * design systems: the project's design system never appeared on a teammate's
+ * desktop (plan T31/L16). This only FILLS IN — a label the local config chose
+ * and a local design system of the same name always win — and only for a
+ * group this copy already declares.
+ */
+function withProjectConfig(cfg: DevServerConfig, repoRoot: string): DevServerConfig {
+  if (!cfg.linkedHub) return cfg;
+  let project: ProjectConfig | null = null;
+  try {
+    const designRel = String(cfg.designRoot ?? '.design').replace(/^\/+|\/+$/g, '');
+    project = sanitizeProjectConfig(
+      JSON.parse(readFileSync(path.join(repoRoot, designRel, PROJECT_CONFIG_CACHE_REL), 'utf8'))
+    );
+  } catch {
+    return cfg;
+  }
+  if (!project) return cfg;
+  const labels = new Map(project.canvasGroups.map((g) => [g.path, g.label]));
+  const canvasGroups = (cfg.canvasGroups ?? []).map((g) => {
+    const p = String(g.path ?? '').replace(/^\/+|\/+$/g, '');
+    const label = labels.get(p);
+    return label && (!g.label || g.label === p) ? { ...g, label } : g;
+  });
+  const declared = new Set((cfg.designSystems ?? []).map((d) => d.name));
+  const groupPaths = canvasGroups.map((g) => String(g.path).replace(/^\/+|\/+$/g, ''));
+  const adopted = project.designSystems.filter(
+    (d) =>
+      !declared.has(d.name) && groupPaths.some((g) => d.path === g || d.path.startsWith(`${g}/`))
+  );
+  if (adopted.length === 0 && canvasGroups.every((g, i) => g === cfg.canvasGroups[i])) return cfg;
+  return {
+    ...cfg,
+    canvasGroups,
+    ...(adopted.length ? { designSystems: [...(cfg.designSystems ?? []), ...adopted] } : {}),
+  };
+}
+
 function loadConfig(repoRoot: string): DevServerConfig {
   const configPath = path.join(repoRoot, '.design', 'config.json');
   let raw: string;
@@ -339,7 +429,9 @@ function loadConfig(repoRoot: string): DevServerConfig {
   }
   try {
     const parsed = JSON.parse(raw);
-    return normalizeConfig({ ...DEFAULT_CONFIG, ...parsed, _source: '.design/config.json' });
+    return normalizeConfig(
+      withProjectConfig({ ...DEFAULT_CONFIG, ...parsed, _source: '.design/config.json' }, repoRoot)
+    );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error(`  warn: ${configPath} is not valid JSON: ${msg}. Using defaults.`);

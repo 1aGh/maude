@@ -22,6 +22,10 @@ export function createAcceptedRevisions({
   store,
   projectId,
   canvasGroups,
+  /** The project's own labels and design systems, for copies that were
+   *  declared without them (a managed desktop copy) — `{ canvasGroups:
+   *  [{label, path}], designSystems: [{name, path, tokensCssRel?}] }`. */
+  projectConfig = () => null,
   designRel,
   deleteDocument,
   reviveDocument,
@@ -391,6 +395,7 @@ export function createAcceptedRevisions({
           // The project's declared canvas groups (workspace checkouts), so a
           // brand-new managed copy can be declared before its first pull.
           canvasGroups: (typeof canvasGroups === 'function' ? canvasGroups() : null) ?? null,
+          projectConfig: projectConfig() ?? null,
           ...manifest,
           capabilities: {
             lanes: LANE_NAMES,

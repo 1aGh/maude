@@ -228,3 +228,86 @@ describe('reloadConfig', () => {
     }
   });
 });
+
+// Plan T31/L16 — a managed desktop copy is declared from group PATHS alone:
+// no labels, no design systems. The project's own answer (kept by the sync
+// runtime in `_state/project-config.json`) fills those in, and only those.
+describe('a linked copy fills in what the project says about itself', () => {
+  const MANAGED = {
+    name: 'StudyFi',
+    designRoot: '.design',
+    canvasGroups: [
+      { label: 'ui', path: 'ui' },
+      { label: 'system', path: 'system' },
+    ],
+    linkedHub: { url: 'http://127.0.0.1:1', linkedAt: 0 },
+  };
+  const PROJECT = {
+    canvasGroups: [
+      { label: 'Canvases', path: 'ui' },
+      { label: 'Design system', path: 'system' },
+    ],
+    designSystems: [
+      { name: 'studyfi-v3', path: 'system/studyfi-v3' },
+      { name: 'evil', path: '../outside' },
+      { name: 'elsewhere', path: 'brand/elsewhere' },
+    ],
+  };
+  const setup = (config: object, project: object | null) => {
+    const { root, designRoot } = sandbox();
+    writeFileSync(join(designRoot, 'config.json'), JSON.stringify(config, null, 2));
+    if (project) {
+      mkdirSync(join(designRoot, '_state'), { recursive: true });
+      writeFileSync(join(designRoot, '_state/project-config.json'), JSON.stringify(project));
+    }
+    const ctx = mkCtx(root, designRoot);
+    reloadConfig(ctx);
+    return { root, ctx };
+  };
+
+  test('labels and design systems arrive; an escape or an undeclared group does not', () => {
+    const { root, ctx } = setup(MANAGED, PROJECT);
+    try {
+      expect(ctx.cfg.canvasGroups).toEqual([
+        { label: 'Canvases', path: 'ui' },
+        { label: 'Design system', path: 'system' },
+      ]);
+      expect(ctx.cfg.designSystems?.map((d) => d.name)).toEqual(['studyfi-v3']);
+      expect(ctx.cfg.designSystems?.[0]?.tokensCssRel).toBe(
+        'system/studyfi-v3/colors_and_type.css'
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('what this copy chose itself wins', () => {
+    const own = {
+      ...MANAGED,
+      canvasGroups: [
+        { label: 'My screens', path: 'ui' },
+        { label: 'system', path: 'system' },
+      ],
+      designSystems: [{ name: 'studyfi-v3', path: 'system/studyfi-v3', tokensCssRel: 'mine.css' }],
+    };
+    const { root, ctx } = setup(own, PROJECT);
+    try {
+      expect(ctx.cfg.canvasGroups[0]).toEqual({ label: 'My screens', path: 'ui' });
+      expect(ctx.cfg.designSystems).toHaveLength(1);
+      expect(ctx.cfg.designSystems?.[0]?.tokensCssRel).toBe('mine.css');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('an unlinked project ignores a stray cache', () => {
+    const { linkedHub: _gone, ...unlinked } = MANAGED;
+    const { root, ctx } = setup(unlinked, PROJECT);
+    try {
+      expect(ctx.cfg.canvasGroups[1]).toEqual({ label: 'system', path: 'system' });
+      expect(ctx.cfg.designSystems ?? []).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});

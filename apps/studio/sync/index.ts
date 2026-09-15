@@ -36,6 +36,7 @@ import * as Y from 'yjs';
 import { renewHubCredential } from '../cloud/renew.ts';
 import { Y_TYPES } from '../collab/persistence.ts';
 import type { Context, LinkedHub } from '../context.ts';
+import { PROJECT_CONFIG_CACHE_REL, reloadConfig, sanitizeProjectConfig } from '../context.ts';
 import { createHistory } from '../history.ts';
 import { SYNTHETIC_FS_DELAY_MS } from '../hmr-broadcast.ts';
 import { acceptedColdStart } from './accepted-cold-start.ts';
@@ -924,8 +925,39 @@ export function createSyncRuntime(
         retryMs: opts.transactionRetryMs,
         onStats: (stats) => statusStore?.updateAccepted?.(stats),
         onStage: (summary) => statusStore?.updateAiAction?.(summary),
+        onBootstrap: (b) => noteProjectConfig(b.projectConfig),
       })
     : null;
+  /**
+   * The project's own group labels and design systems, kept for this copy's
+   * config to fill in what it lacks (context.ts `withProjectConfig`) — so a
+   * managed desktop copy shows the project's design system. Written only when
+   * it changed; the live config reloads and the shells refetch it.
+   */
+  function noteProjectConfig(raw: unknown): void {
+    const clean = sanitizeProjectConfig(raw);
+    if (!clean) return;
+    const file = path.join(ctx.paths.designRoot, PROJECT_CONFIG_CACHE_REL);
+    const text = `${JSON.stringify(clean, null, 2)}\n`;
+    try {
+      if (readFileSync(file, 'utf8') === text) return;
+    } catch {
+      /* first answer */
+    }
+    try {
+      mkdirSync(path.dirname(file), { recursive: true });
+      writeFileSync(file, text);
+    } catch {
+      return; // best-effort — the next bootstrap tries again
+    }
+    if (reloadConfig(ctx)) {
+      console.log(
+        `[sync] the project's design systems: ${clean.designSystems.map((d) => d.name).join(', ') || 'none'}`
+      );
+      ctx.bus.emit('config-updated');
+      ctx.bus.emit('canvas-list-update', { action: 'config' });
+    }
+  }
   const acceptedOn = (): boolean => acceptedLink?.on() === true;
   /**
    * T26 — which accepted action carried a given canvas content of ours, so the
