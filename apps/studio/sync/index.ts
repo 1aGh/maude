@@ -3603,7 +3603,15 @@ export function createSyncRuntime(
                 // the HMR broadcaster's per-file coalescing collapses the pair
                 // into one `canvas-hmr`. The projector's own echo guard drops the
                 // resulting file→doc read, so this cannot loop.
-                ...(cellPairing ? { onWrote: announceWrite } : {}),
+                onWrote: (abs: string) => {
+                  // Tell the canvas layer this write carries the PROJECT's
+                  // version — possibly a teammate's change merged under this
+                  // person's own — so an open canvas never discards its reload
+                  // as the echo of an optimistic edit (hmr-broadcast `remote`).
+                  const rel = path.relative(ctx.paths.designRoot, abs).split(path.sep).join('/');
+                  if (rel && !rel.startsWith('..')) ctx.bus.emit('sync:projected', rel);
+                  if (cellPairing) announceWrite(abs);
+                },
               });
               projection.start();
               projections.set(canvas.slug, projection);

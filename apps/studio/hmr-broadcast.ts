@@ -46,7 +46,18 @@ export interface HmrMessage {
   version: number;
   /** Echo of `_lib`-scoped changes for debug + scope reasoning. */
   scope?: 'lib' | 'canvas';
+  /**
+   * The change was written by sync — the project's version landing on this
+   * disk — not by this person's own edit. The iframe may skip a reload it
+   * believes is the echo of an optimistic edit it already shows; it must never
+   * skip one of these, because a teammate's change can ride the same write (a
+   * lost race re-applied onto theirs).
+   */
+  remote?: boolean;
 }
+
+/** How long after a sync write its file's change still counts as remote. */
+export const REMOTE_WRITE_WINDOW_MS = 3_000;
 
 export interface HmrBroadcaster {
   /** Stop subscribing to fs-watch events. */
@@ -103,9 +114,28 @@ export function createHmrBroadcaster(
     });
   }
 
+  // Files sync just wrote (see HmrMessage.remote), with the time of the write.
+  const projectedAt = new Map<string, number>();
+  const isRemote = (rel: string | undefined): boolean => {
+    if (!rel) return false;
+    const at = projectedAt.get(rel);
+    return at !== undefined && Date.now() - at < REMOTE_WRITE_WINDOW_MS;
+  };
+  const offProjected = ctx.bus.on('sync:projected', (rel: unknown) => {
+    if (typeof rel !== 'string' || !rel) return;
+    const now = Date.now();
+    projectedAt.set(rel.replace(/\\/g, '/'), now);
+    if (projectedAt.size > 256) {
+      for (const [k, at] of projectedAt)
+        if (now - at >= REMOTE_WRITE_WINDOW_MS) projectedAt.delete(k);
+    }
+  });
+
   function enqueue(msg: HmrMessage) {
     const key = msg.mode === 'hard' ? GLOBAL_KEY : (msg.file ?? GLOBAL_KEY);
     const prev = pendingByKey.get(key);
+    // Coalescing never loses "a teammate's change is in here".
+    if (prev?.remote) msg.remote = true;
     // Same-key coalescing keeps the strongest mode (refreshing the payload for
     // equal rank, so the latest version token wins).
     if (!prev || rank[msg.mode] >= rank[prev.mode]) pendingByKey.set(key, msg);
@@ -115,12 +145,15 @@ export function createHmrBroadcaster(
 
   const offAny = ctx.bus.on('fs:any', (rel: string) => {
     const msg = classify(rel);
-    if (msg) enqueue(msg);
+    if (!msg) return;
+    if (isRemote(rel.replace(/\\/g, '/')) || isRemote(msg.file)) msg.remote = true;
+    enqueue(msg);
   });
 
   return {
     stop() {
       offAny();
+      offProjected();
       if (pending) clearTimeout(pending);
       pending = null;
       pendingByKey.clear();

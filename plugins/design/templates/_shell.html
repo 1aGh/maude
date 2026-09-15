@@ -443,7 +443,11 @@
                   // direction; it can never suppress one.)
                   var hasComps = false;
                   try { hasComps = !!(window.__maude_comps__ && window.__maude_comps__().length); } catch (err) { hasComps = false; }
-                  if (!hasComps && Date.now() - lastCssOptimisticAt < 1500) return;
+                  // …but NEVER a sync write (`remote`): it can carry a
+                  // teammate's change merged under this person's own edit (a
+                  // lost race re-applied onto theirs), and skipping it left
+                  // their change off this canvas until a manual reload.
+                  if (!hasComps && !msg.remote && Date.now() - lastCssOptimisticAt < 1500) return;
                 }
                 // Phase 30 (F4) — prefer an in-place hot-swap for ANY canvas-body
                 // (`module`) change whenever the canvas runtime is mounted: the

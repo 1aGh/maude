@@ -1,6 +1,8 @@
 // hmr-broadcast — Phase 3.6.1 Task 8. fs:any → canvas-hmr WS message classifier.
 
 import { describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { type Context, createBus } from '../context.ts';
 import {
@@ -232,5 +234,33 @@ describe('the PhotoEdit sidecar reaches open canvases', () => {
     // .meta.json keeps its dedicated lane; other json (module-ish) unchanged.
     expect(classifyChange('ui/home.meta.json', noSibling)?.mode).toBe('meta');
     expect(classifyChange('notes/data.photo.json', noSibling)).toBe(null);
+  });
+});
+
+// Plan T31/L21 — an open canvas skips a module reload right after its own
+// optimistic style edit (anti-flicker). A write by SYNC must never be skipped:
+// it can carry a teammate's change merged under that person's edit.
+describe('sync writes reach an open canvas even right after an own edit', () => {
+  test('a change sync just wrote is marked remote; an own edit is not', async () => {
+    const ctx = mkCtx();
+    const got: HmrMessage[] = [];
+    const h = createHmrBroadcaster(ctx, (m) => got.push(m));
+    ctx.bus.emit('fs:any', 'ui/Mine.tsx');
+    ctx.bus.emit('sync:projected', 'ui/Theirs.tsx');
+    ctx.bus.emit('fs:any', 'ui/Theirs.tsx');
+    await awaitNextFlush();
+    const byFile = Object.fromEntries(got.map((m) => [m.file, m]));
+    expect(byFile['ui/Mine.tsx']?.remote).toBeUndefined();
+    expect(byFile['ui/Theirs.tsx']?.remote).toBe(true);
+    h.stop();
+  });
+
+  test('the iframe skips only a non-remote module change inside the optimistic window', () => {
+    const shell = readFileSync(
+      join(import.meta.dir, '..', '..', '..', 'plugins', 'design', 'templates', '_shell.html'),
+      'utf8'
+    );
+    const skip = shell.split('\n').find((l) => l.includes('lastCssOptimisticAt < 1500'));
+    expect(skip).toContain('!msg.remote');
   });
 });
