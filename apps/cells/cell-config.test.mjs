@@ -443,3 +443,19 @@ test('cellEnv carries the pairing switch only for an allowlisted tenant', async 
   });
   assert.equal(other.MAUDE_CELL_PAIRING, undefined);
 });
+
+test('a cell declares its disk disposable, and gets the durable project store only when the fleet has the route', async () => {
+  const off = await cellEnv({
+    tenantId: 'alligators',
+    env: baseEnv,
+    hostname: 'alligators.cloud.maude.sh',
+  });
+  assert.equal(off.MAUDE_DATA_EPHEMERAL, '1', 'a container disk never backs accepted revisions');
+  assert.equal(off.MAUDE_PROJECT_STORE_URL, undefined, 'no store route until the Worker serves it');
+  const on = await cellEnv({
+    tenantId: 'alligators',
+    env: { ...baseEnv, CELL_PROJECT_STORE: 'do' },
+    hostname: 'alligators.cloud.maude.sh',
+  });
+  assert.equal(on.MAUDE_PROJECT_STORE_URL, 'http://project-store.internal');
+});

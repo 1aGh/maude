@@ -24,8 +24,14 @@
 
 import { canvasInnerRequest, canvasOriginTenant, stripCanvasOriginMarker } from './cell-config.mjs';
 import { MaudeCell, routeToCell, tenantFromHostname } from './cell-do.mjs';
+import { PROJECT_STORE_HOST, projectStoreOutbound } from './project-store.mjs';
+import { ProjectStore } from './project-store-do.mjs';
 
-export { MaudeCell };
+// The container runtime hands intercepted outbound requests to this entrypoint
+// (@cloudflare/containers). It MUST be exported, or every container start
+// fails applying the interception below.
+export { ContainerProxy } from '@cloudflare/containers';
+export { MaudeCell, ProjectStore };
 
 /**
  * A SECOND name for the same class, bound to a FRESH Durable Object namespace
@@ -47,6 +53,12 @@ export { MaudeCell };
  * DO migration touches.
  */
 export class MaudeCellB extends MaudeCell {}
+
+// Accepted revisions (DDR-241): the hub in the container reaches its durable
+// store at `http://project-store.internal/`. Registered on the class the
+// instances actually are — the registry is keyed by class NAME, so a handler
+// on MaudeCell alone would never match a MaudeCellB container.
+MaudeCellB.outboundByHost = { [PROJECT_STORE_HOST]: projectStoreOutbound };
 
 export default {
   async fetch(request, env) {

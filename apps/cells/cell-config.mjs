@@ -502,6 +502,16 @@ export async function cellEnv({ tenantId, env, hostname, config = NO_CONFIG, s3C
     // projection. Absent (service not deployed yet), the studio's lane is
     // `none` and exports refuse with a remedy instead of a 404.
     ...(env.MAUDE_RENDER_URL ? { MAUDE_RENDER_URL: env.MAUDE_RENDER_URL } : {}),
+    // A cell's own disk is disposable (replaced on every rollout), so it can
+    // never hold accepted revisions: the hub is told so, and refuses the
+    // accepted-revisions mode unless it has a durable store.
+    MAUDE_DATA_EPHEMERAL: '1',
+    // …which is the tenant's ProjectStore Durable Object, reached through the
+    // container's outbound interception (DDR-241). Rolled out by fleet var so
+    // a Worker without the route never points a container at it.
+    ...(env.CELL_PROJECT_STORE === 'do'
+      ? { MAUDE_PROJECT_STORE_URL: 'http://project-store.internal' }
+      : {}),
     ...(env.MAUDE_RENDER_SECRET ? { MAUDE_RENDER_SECRET: env.MAUDE_RENDER_SECRET } : {}),
     // The customer-facing landing shows THIS, not a generic default. Absent,
     // the cell prettifies its own tenant slug — it never falls back to the

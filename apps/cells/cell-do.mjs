@@ -80,6 +80,27 @@ export class MaudeCell extends Container {
    * wait with no way to tell whether the change took. An operator needs to be
    * able to say "apply it now".
    */
+  /**
+   * RPC from this cell's own outbound route (`projectStoreOutbound`): forward
+   * one store call to THIS tenant's ProjectStore. The tenant is the one this
+   * cell was routed for — never anything the container says.
+   */
+  async projectStore(method, args) {
+    const tenantId = this.tenantId ?? (await this.ctx.storage.get('tenantId'));
+    if (!isValidTenantId(tenantId) || !this.env.PROJECT_STORE) {
+      return {
+        ok: false,
+        error: {
+          name: 'Error',
+          code: 'store-unavailable',
+          message: 'no project store for this cell',
+        },
+      };
+    }
+    const store = this.env.PROJECT_STORE.get(this.env.PROJECT_STORE.idFromName(tenantId));
+    return store.projectStore(method, args);
+  }
+
   async restart() {
     // DROP THE CACHED CREDENTIAL TOO, not just the container.
     //

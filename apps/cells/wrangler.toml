@@ -93,6 +93,12 @@ instance_type = "standard-1"
 name = "MAUDE_CELL"
 class_name = "MaudeCellB"
 
+# Accepted revisions (DDR-241): each project's durable store, keyed by tenant.
+# Its OWN class so a container-class migration (see v2 below) never touches it.
+[[durable_objects.bindings]]
+name = "PROJECT_STORE"
+class_name = "ProjectStore"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["MaudeCell"]
@@ -105,6 +111,12 @@ new_sqlite_classes = ["MaudeCell"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["MaudeCellB"]
+
+# v3 — the accepted-revisions store (DDR-241). NEVER abandon this namespace
+# the way v2 abandoned MaudeCell: it holds the project's accepted history.
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["ProjectStore"]
 
 # The SNAPSHOTS binding is gone with the gallery it served (Cloud Phase 25 C5).
 # Nothing in this Worker reads object storage any more: a cell's own storage
