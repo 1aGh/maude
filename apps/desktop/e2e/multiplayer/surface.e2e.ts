@@ -5297,6 +5297,136 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             3,
             'L15.timeline.delete'
           );
+          // Insert, edit a clip's property, move: a Title overlay added at the
+          // playhead, its text rewritten in the clip inspector, then dragged
+          // along the timeline.
+          const overlay = (p: Surface) =>
+            p.shell(
+              `[...document.querySelectorAll('[data-testid^="timeline-seq-"]')].find((b) => /drag to move/.test(b.getAttribute('title') || ''))?.getAttribute('data-testid') ?? ''`
+            ) as Promise<string>;
+          const overlayTitle = (p: Surface) =>
+            p.shell(
+              `[...document.querySelectorAll('[data-testid^="timeline-seq-"]')].find((b) => /drag to move/.test(b.getAttribute('title') || ''))?.getAttribute('title') ?? ''`
+            ) as Promise<string>;
+          await check('L15.timeline.insert', `${from.name}-to-peers`, async () => {
+            if (all.some((p) => sequencesIn(p, rel) !== 3))
+              throw new Unexercised('Insert needs the three-clip cut everywhere');
+            await focusShell(from);
+            await from.press('Home');
+            const start = performance.now();
+            await from.click(selector('timeline-add-title'));
+            return observeAll(
+              all,
+              `L15-insert-${from.name}`,
+              start,
+              async (p) => (await beats(p)) === 4 && (await overlay(p)) !== '',
+              (p) =>
+                /<Sequence\b[^>]*from=/.test(bytes(p.root, rel).toString()) &&
+                bytes(p.root, rel).equals(bytes(from.root, rel))
+            );
+          });
+          await check('L15.timeline.clip-property', `${from.name}-to-peers`, async () => {
+            const block = await overlay(from);
+            if (!block) throw new Unexercised('No title overlay to edit');
+            const text = `Title by ${from.name}`;
+            // A double-click where a person's would land: the inspector opens
+            // beside the pointer, on screen.
+            await from.shell(`(() => {
+              const b = document.querySelector('[data-testid="${block}"]');
+              const r = b.getBoundingClientRect();
+              b.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }));
+              return true;
+            })()`);
+            try {
+              await until(
+                async () => (await from.count(selector('timeline-inspector-text'))) > 0,
+                10000
+              );
+              await from.fill(selector('timeline-inspector-text'), text);
+              const start = performance.now();
+              await from.click(selector('timeline-inspector-text-apply'));
+              return await observeAll(
+                all,
+                `L15-clip-property-${from.name}`,
+                start,
+                async (p) => ((await p.read('body', true)) ?? '').includes(text),
+                (p) =>
+                  bytes(p.root, rel).toString().includes(text) &&
+                  bytes(p.root, rel).equals(bytes(from.root, rel))
+              );
+            } finally {
+              // Never leave the inspector over the shell for the next row.
+              if ((await from.count(selector('timeline-inspector'))) > 0)
+                await from.click('[data-testid="timeline-inspector"] .tlci-x').catch(() => {});
+            }
+          });
+          await check('L15.timeline.move', `${from.name}-to-peers`, async () => {
+            const block = await overlay(from);
+            if (!block) throw new Unexercised('No title overlay to move');
+            const before = bytes(from.root, rel).toString();
+            // Evidence: every retime the author's shell sends for this drag.
+            await from.shell(`(() => {
+              window.__surfaceRetimes = [];
+              if (!window.__surfaceFetchWrapped) {
+                const f = window.fetch.bind(window);
+                window.fetch = (u, o) => {
+                  if (String(u).includes('/_api/retime-sequence')) window.__surfaceRetimes.push(o && o.body);
+                  return f(u, o);
+                };
+                window.__surfaceFetchWrapped = true;
+              }
+              return true;
+            })()`);
+            const start = performance.now();
+            await from.shell(`(async () => {
+              const b = document.querySelector('[data-testid="${block}"]');
+              const r = b.getBoundingClientRect();
+              const at = (x) => ({ bubbles: true, cancelable: true, clientX: x, clientY: r.top + r.height / 2, pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1 });
+              b.dispatchEvent(new PointerEvent('pointerdown', at(r.left + 6)));
+              await new Promise((d) => setTimeout(d, 80));
+              for (let i = 1; i <= 6; i++) {
+                window.dispatchEvent(new PointerEvent('pointermove', at(r.left + 6 + i * 15)));
+                await new Promise((d) => setTimeout(d, 16));
+              }
+              window.dispatchEvent(new PointerEvent('pointerup', { ...at(r.left + 96), buttons: 0 }));
+              return true;
+            })()`);
+            await until(() => bytes(from.root, rel).toString() !== before, 15000);
+            // Where the author's own file says the clip now starts.
+            const movedFrom = /<Sequence\b[^>]*\bfrom=\{(\d+)\}/.exec(
+              bytes(from.root, rel).toString()
+            )?.[1];
+            let expected = '';
+            await until(async () => {
+              expected = await overlayTitle(from);
+              return !!movedFrom && expected.includes(`· ${movedFrom}–`);
+            }, 15000);
+            const moved = await observeAll(
+              all,
+              `L15-move-${from.name}`,
+              start,
+              async (p) => (await overlayTitle(p)) === expected,
+              (p) => bytes(p.root, rel).equals(bytes(from.root, rel))
+            );
+            for (const p of all) {
+              const sync = join(p.root, '.design', '_sync.json');
+              if (existsSync(sync))
+                writeFileSync(
+                  join(run.out, `L15-move-${from.name}-${p.name}-sync.json`),
+                  readFileSync(sync)
+                );
+            }
+            return {
+              movedFrom,
+              clip: expected,
+              ...moved,
+              finalClips: await Promise.all(
+                all.map(async (p) => ({ participant: p.name, clip: await overlayTitle(p) }))
+              ),
+              retimesSent: await from.shell('window.__surfaceRetimes'),
+              source: /<Sequence\b[^>]*>/.exec(bytes(from.root, rel).toString())?.[0] ?? null,
+            };
+          });
           // Trim: drag the first clip's right edge — it retimes the clip.
           await check('L15.timeline.trim', `${from.name}-to-peers`, async () => {
             if (all.some((p) => sequencesIn(p, rel) !== 3))
