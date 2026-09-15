@@ -3138,32 +3138,47 @@ const ASSET_REF_RE = /assets\/[0-9a-f]{8}\.[a-z0-9]+/i;
  *  baked, the element's `src`/`href` is a `data:` URL that no longer contains
  *  the original asset path, so the substring match alone would lose track of
  *  it on the very next edit. */
-function findPhotoEl(asset: string): Element | null {
+function photoRefOf(el: Element): string {
+  return el.getAttribute('src') || el.getAttribute('href') || el.getAttribute('xlink:href') || '';
+}
+
+/**
+ * Is the element's `data-photo-asset` tag still true? The tag is this bridge's
+ * memory of a node it baked — while baked, the node shows a `data:` URL; left
+ * alone, it shows the asset. Once the canvas points the node at something
+ * else (Replace… on the image), the memory is stale: the node is no longer
+ * this photo, and acting on the tag would put the old picture back over the
+ * new one on the machine that made the replace (plan T31/L12).
+ */
+function photoTagCurrent(el: Element, tagged: string): boolean {
+  const ref = photoRefOf(el);
+  return ref.startsWith('data:') || ref.includes(tagged);
+}
+
+export function findPhotoEl(asset: string): Element | null {
   if (typeof document === 'undefined') return null;
   // Scoped to img/image (not a bare `[data-photo-asset]` attribute selector) —
   // the canvas iframe is untrusted content (DDR-054); an authored canvas could
   // otherwise stamp the tag on an arbitrary element to redirect a bake.
   for (const n of document.querySelectorAll('img[data-photo-asset], image[data-photo-asset]')) {
-    if (n.getAttribute('data-photo-asset') === asset) return n;
+    if (n.getAttribute('data-photo-asset') !== asset) continue;
+    if (photoTagCurrent(n, asset)) return n;
+    n.removeAttribute('data-photo-asset');
   }
   for (const n of document.querySelectorAll('img, image')) {
-    const src =
-      n.getAttribute('src') || n.getAttribute('href') || n.getAttribute('xlink:href') || '';
-    if (src.includes(asset)) return n;
+    if (photoRefOf(n).includes(asset)) return n;
   }
   return null;
 }
 
-function extractAssetRef(el: Element): string | null {
+export function extractAssetRef(el: Element): string | null {
   // Only trust `data-photo-asset` when it actually has the `assets/<sha8>.<ext>`
   // shape — the tag is attacker-controllable (untrusted canvas content,
   // DDR-054), and an unshaped value would otherwise ride unbounded into
   // `_active.json`/the WS broadcast via inspect.ts's `enrich()`.
   const tagged = el.getAttribute('data-photo-asset');
-  if (tagged && ASSET_REF_RE.test(tagged)) return tagged;
-  const ref =
-    el.getAttribute('src') || el.getAttribute('href') || el.getAttribute('xlink:href') || '';
-  return ref.match(ASSET_REF_RE)?.[0] ?? null;
+  if (tagged && ASSET_REF_RE.test(tagged) && photoTagCurrent(el, tagged)) return tagged;
+  return photoRefOf(el).match(ASSET_REF_RE)?.[0] ?? null;
 }
 
 function setPhotoElSrc(el: Element, url: string): void {
