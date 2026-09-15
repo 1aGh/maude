@@ -68,6 +68,7 @@ type Surface = {
   menu: (text: string) => Promise<void>;
   confirmNext: () => Promise<void>;
   fill: (q: string, value: string) => Promise<void>;
+  select: (q: string, value: string) => Promise<void>;
   dragTo: (source: string, destination: string) => Promise<void>;
   screenshot: (file: string) => Promise<void>;
   photoTrace: () => Promise<unknown>;
@@ -125,6 +126,11 @@ function web(name: string, root: string, page: Page): Surface {
     },
     async fill(q, value) {
       await page.locator(q).fill(value);
+    },
+    async select(q, value) {
+      // By value: the disabled placeholder's LABEL is the computed value, and
+      // a bare string also matches labels.
+      await page.locator(q).selectOption({ value });
     },
     async dragTo(source, destination) {
       await page.locator(source).scrollIntoViewIfNeeded();
@@ -199,6 +205,21 @@ const native: Surface = {
   },
   async fill(q, value) {
     await (await $(q)).setValue(value);
+  },
+  async select(q, value) {
+    // WKWebView's WebDriver option click does not reach React's onChange; set
+    // the real control's value and fire the change a user's pick would.
+    await browser.execute(
+      (query, next) => {
+        const element = document.querySelector(query) as HTMLSelectElement | null;
+        if (!element) throw new Error(`Select absent: ${query}`);
+        const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
+        setter?.call(element, next);
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+      },
+      q,
+      value
+    );
   },
   async dragTo(source, destination) {
     await browser.execute(`return (${treeDragSource})(arguments[0]);`, { source, destination });
@@ -704,6 +725,104 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             { sample }
           );
         }
+      }
+      // T5 / audit P1 #5 — personal CSS undo must not overwrite a teammate's
+      // newer value. Real inspector knob + real Cmd+Z in the canvas; the oracle
+      // is every participant's source file and the author's own notice.
+      // Only an enabled knob means the heading itself is the selection.
+      const weight = 'select[aria-label="font-weight"]:not(:disabled)';
+      const weightIn = (p: Surface, rel: string, value: string) =>
+        new RegExp(`fontWeight:\\s*"${value}"`).test(bytes(p.root, rel).toString());
+      const selectHeading = async (p: Surface) => {
+        await until(async () => !!(await p.probe(selector('palette-mode-edit')))?.visible);
+        await gesture(p, selector('palette-mode-edit'), 'click');
+        // Same real selection path as the text lane: clicks drill the hierarchy
+        // until the inspector offers the heading's knobs.
+        for (let level = 0; level < 6 && (await p.read(weight)) === null; level++) {
+          await gesture(p, 'h1', level === 0 ? 'click' : 'doubleClick');
+          await sleep(150);
+        }
+        if ((await p.read(weight)) === null) {
+          await p.screenshot(join(run.out, `L18-select-${p.name}-no-inspector.png`));
+          throw new Error(
+            `Inspector knob absent after selecting the heading (panel: ${
+              (await p.read(selector('inspector-panel'))) === null ? 'closed' : 'open'
+            })`
+          );
+        }
+      };
+      for (const [i, from] of all.entries()) {
+        const other = all[(i + 1) % all.length] as Surface;
+        await check(
+          'L18.css-undo.peer-value-kept',
+          `${from.name}-after-${other.name}`,
+          async () => {
+            const rel = 'ui/SurfaceText.tsx';
+            for (const p of all) await openCanvas(p, rel);
+            for (const p of all) await until(async () => (await p.read('h1', true)) !== null);
+            await selectHeading(from);
+            // Three distinct values: what the undo would restore, the author's
+            // edit, and the teammate's. A teammate value equal to the restore
+            // target would make the undo a correct no-op, not a conflict.
+            const weights = ['300', '400', '500', '600', '700', '800'];
+            const restore = weights.find((v) => weightIn(from, rel, v)) ?? null;
+            const [mine, theirs] = weights.filter((v) => v !== restore);
+            await from.select(weight, mine as string);
+            await until(() => all.every((p) => weightIn(p, rel, mine as string)));
+            await selectHeading(other);
+            await other.select(weight, theirs as string);
+            await until(() => all.every((p) => weightIn(p, rel, theirs as string)));
+            const start = performance.now();
+            await gesture(from, 'body', 'key', { key: 'z', meta: true });
+            // A refused undo changes nothing, so hold the observation window open
+            // long enough for a wrong write to have propagated everywhere.
+            let toldMs: number | null = null;
+            const told = await until(
+              async () => ((await from.read('body')) ?? '').includes('changed by someone else'),
+              8000
+            )
+              .then(() => {
+                toldMs = performance.now() - start;
+                return true;
+              })
+              .catch(() => false);
+            await sleep(3000);
+            const kept = all.map((p) => ({
+              receiver: p.name,
+              peerValueKept: weightIn(p, rel, theirs as string),
+            }));
+            for (const p of all)
+              await p.screenshot(
+                join(run.out, `L18-css-undo-${from.name}-after-${other.name}-${p.name}.png`)
+              );
+            return {
+              status: told && kept.every((k) => k.peerValueKept) ? 'pass' : 'fail',
+              authorToldMs: toldMs,
+              observations: kept,
+            };
+          }
+        );
+        await check('L18.css-undo.own-value', from.name, async () => {
+          const rel = 'ui/SurfaceText.tsx';
+          await selectHeading(from);
+          const before =
+            ['300', '400', '500', '600', '700', '800'].find((v) => weightIn(from, rel, v)) ?? null;
+          const next = before === '500' ? '600' : '500';
+          await from.select(weight, next);
+          await until(() => all.every((p) => weightIn(p, rel, next)));
+          const start = performance.now();
+          await gesture(from, 'body', 'key', { key: 'z', meta: true });
+          return {
+            stimulus: 'inspector font-weight, then Cmd+Z by the same author',
+            ...(await observeAll(
+              all,
+              `L18-css-undo-own-${from.name}`,
+              start,
+              async (p) => (before ? weightIn(p, rel, before) : !weightIn(p, rel, next)),
+              (p) => (before ? weightIn(p, rel, before) : !weightIn(p, rel, next))
+            )),
+          };
+        });
       }
       // First-class EMPTY folders. Never hide missing directory propagation by
       // creating a child canvas inside them (the old harness did that).
