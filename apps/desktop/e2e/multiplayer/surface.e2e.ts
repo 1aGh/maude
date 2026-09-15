@@ -2843,6 +2843,66 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
       // menu. Receivers keep the canvas open: their tab follows the rename.
       const rowOf = (rel: string) => selector(`canvas-row-${slug(rel.replace(/\.tsx$/, ''))}`);
       const frameOf = (rel: string) => `[data-testid="canvas-frame"][data-path=".design/${rel}"]`;
+      // L05 — switch away and back: while the others look at another canvas,
+      // one person changes the first; switching back shows the change at once,
+      // in the one tab it already had — no stale render, no second tab.
+      {
+        const away = 'ui/SurfaceSwitchAway.tsx';
+        const back = 'ui/SurfaceSwitchBack.tsx';
+        const pages: Record<string, Page | undefined> = { hub: hubPage, peer: peerPage };
+        const frames = async (p: Surface, rel: string) =>
+          pages[p.name]
+            ? await (pages[p.name] as Page).locator(frameOf(rel)).count()
+            : (await browser.$$(frameOf(rel))).length;
+        let seeded = false;
+        for (const [i, from] of all.entries()) {
+          await check(
+            'L05.switch-away-and-back',
+            `${from.name}-edits-while-others-away`,
+            async () => {
+              if (!seeded) {
+                await seedCanvas(all[0] as Surface, back, elementCanvas('Switch back v0'));
+                await seedCanvas(all[0] as Surface, away, elementCanvas('Away'));
+                seeded = true;
+              }
+              const others = all.filter((p) => p !== from);
+              for (const p of all) {
+                await until(async () => (await p.read(rowOf(back))) !== null, 30000);
+                await until(async () => (await p.read(rowOf(away))) !== null, 30000);
+                await openCanvas(p, back);
+              }
+              for (const p of others) {
+                await openCanvas(p, away);
+                await until(async () => (await p.read('h1', true)) === 'Away');
+              }
+              const title = `Switch back v${i + 1} by ${from.name}`;
+              const body = elementCanvas(title);
+              writeFileSync(join(from.root, '.design', back), body);
+              await until(
+                () => others.every((p) => bytes(p.root, back).toString() === body),
+                30000
+              );
+              const start = performance.now();
+              for (const p of others) await openCanvas(p, back);
+              const shown = await observeAll(
+                others,
+                `L05-switch-back-${from.name}`,
+                start,
+                async (p) => (await p.read('h1', true)) === title
+              );
+              const tabs = await Promise.all(
+                others.map(async (p) => ({ participant: p.name, frames: await frames(p, back) }))
+              );
+              return {
+                status:
+                  shown.status === 'pass' && tabs.every((t) => t.frames === 1) ? 'pass' : 'fail',
+                ...shown,
+                tabs,
+              };
+            }
+          );
+        }
+      }
       for (const from of all) {
         const rel = `ui/SurfaceRen-${from.name}.tsx`;
         const renamed = `ui/SurfaceRen-${from.name}-renamed.tsx`;
@@ -4264,6 +4324,43 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           return {
             stimulus: 'desktop B studio stopped, project changed, B reopened',
             ...observations,
+          };
+        });
+        // L05 — reopen after a restart: the canvas each person had open comes
+        // back open, showing what changed while they were gone — one tab, no
+        // load error, no stale render. Desktop B quits and reopens; the cloud
+        // browser reloads.
+        await check('L05.reopen-after-restart', 'peer-and-browser', async () => {
+          if (!peer || !hubSide || !nativeSide) throw new Unexercised('Missing participants');
+          const rel = 'ui/SurfaceReopen.tsx';
+          await seedCanvas(hubSide, rel, elementCanvas('Reopen v1'));
+          await openSeeded(rel, 'Reopen v1', 'L05-reopen');
+          await lifecycle('/peer/stop');
+          const body = elementCanvas('Reopen v2 while closed');
+          writeFileSync(join(nativeSide.root, '.design', rel), body);
+          await until(() => text(hubSide, rel) === body, 30000);
+          const start = performance.now();
+          await lifecycle('/peer/start');
+          await peerPage.reload();
+          await hubPage.reload();
+          const reopened = [peer, hubSide];
+          const shown = await observeAll(
+            reopened,
+            'L05-reopen',
+            start,
+            async (p) =>
+              (await p.read(frameOf(rel))) !== null &&
+              (await p.read('h1', true)) === 'Reopen v2 while closed' &&
+              (await p.read(selector('canvas-load-error'))) === null
+          );
+          const tabs = [
+            { participant: 'peer', frames: await peerPage.locator(frameOf(rel)).count() },
+            { participant: 'hub', frames: await hubPage.locator(frameOf(rel)).count() },
+          ];
+          return {
+            status: shown.status === 'pass' && tabs.every((t) => t.frames === 1) ? 'pass' : 'fail',
+            ...shown,
+            tabs,
           };
         });
         // L20 — a fresh third copy: a new machine opens the project with
