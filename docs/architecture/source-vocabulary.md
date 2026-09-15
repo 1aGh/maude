@@ -73,3 +73,26 @@ touches a concurrent change. Timeline clip operations address clips by their
 own stable id and content hash; a race on the same clip is a conflict.
 Transient previews (a drag in progress, text being typed) never propose; the
 gesture's end is one action.
+
+## Fidelity and limits (T23, checked against the whole corpus)
+
+`apps/studio/test/sync-structured-actions.test.ts` runs every canvas of this
+repo's `.design/` through the UI operations:
+
+- **No-op is byte-identical.** Setting a literal attribute to the value it has,
+  or a text to the text it shows, changes no byte — quote style, line breaks in
+  multi-line JSX text and the author's spelling survive.
+- **Types survive.** `height={400}`, `durationInFrames={30}`, `hidden={false}`
+  and `gap={-8}` stay numbers and booleans when edited to another number or
+  boolean (they used to come back as strings — a silent type change for any
+  component that does arithmetic on its prop). A number edited into words
+  (`auto`) becomes a quoted string, the only honest spelling.
+- **Round trip and determinism.** A change and its reversal return the exact
+  original bytes; the same operation on the same base yields the same bytes.
+- **Addressing by print.** Every element whose print is unique is re-found with
+  a deliberately wrong positional hint.
+- **Source-size limit.** On the largest canvas in the corpus (79.8 KB, 785 JSX
+  elements) a print lookup takes ~3 ms; the check fails above 250 ms. A re-apply
+  after a lost race is a handful of lookups, so canvases an order of magnitude
+  larger stay interactive; beyond that, edits still work but a lost race costs
+  proportionally more.

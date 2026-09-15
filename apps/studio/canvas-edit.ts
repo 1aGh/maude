@@ -696,6 +696,7 @@ export function applyTextEdit(
     const expr = (only as AnyNode).expression;
     // A single `{'string literal'}` — rewrite the literal in place (DDR-150 P1).
     if (isStringLit(expr)) {
+      if (expr.value === text) return { source, delta: 0 };
       const s = new MagicString(source);
       s.overwrite(expr.start as number, expr.end as number, JSON.stringify(text));
       const out = s.toString();
@@ -727,6 +728,10 @@ export function applyTextEdit(
   const start = only.start as number;
   const end = only.end as number;
   const raw = source.slice(start, end);
+  // The text it already shows is not an edit (plan T23): a multi-line JSX text
+  // renders as its lines joined by one space, and rewriting it with that same
+  // text used to fold the author's line breaks into one line.
+  if (jsxRenderedText(raw) === escapeJsxText(text)) return { source, delta: 0 };
   // Preserve the original indentation/newline framing; swap only the visible text.
   const lead = /^\s*/.exec(raw)?.[0] ?? '';
   const trail = /\s*$/.exec(raw)?.[0] ?? '';
@@ -745,6 +750,26 @@ export function applyTextEdit(
 // and the pre-edit text (`before`) both verifies that pick and rescues it when
 // the index drifts (`.filter().map()`, reorders). Anything we can't target
 // unambiguously returns null → the caller throws → routes to /design:edit.
+
+/**
+ * JSX's own whitespace rule for a text child, on the raw source: each line is
+ * trimmed (inner lines on both sides), empty lines drop, and the rest join with
+ * one space. Entities stay encoded — the caller compares against escaped text.
+ */
+function jsxRenderedText(raw: string): string {
+  const lines = raw.split(/\r\n|\n|\r/);
+  if (lines.length === 1) return raw.trim();
+  return lines
+    .map((line, i) => {
+      let l = line;
+      if (i !== 0) l = l.replace(/^[ \t]+/, '');
+      if (i !== lines.length - 1) l = l.replace(/[ \t]+$/, '');
+      return l;
+    })
+    .filter((l) => l.length > 0)
+    .join(' ')
+    .trim();
+}
 
 function isStringLit(n: AnyNode): boolean {
   return !!(
@@ -4871,6 +4896,28 @@ export function assembleCompSource(
 // ---------------------------------------------------------------------------
 // Edit shapes.
 
+/**
+ * The literal an attribute expression IS — a string, number or boolean (a
+ * negative number arrives as a unary minus) — or null for anything computed.
+ */
+function literalOfExpression(expr: AnyNode): string | number | boolean | null {
+  if (!expr) return null;
+  if (expr.type === 'Literal' || expr.type === 'StringLiteral') {
+    const v = expr.value;
+    return typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean' ? v : null;
+  }
+  if (expr.type === 'NumericLiteral') return typeof expr.value === 'number' ? expr.value : null;
+  if (expr.type === 'BooleanLiteral') return typeof expr.value === 'boolean' ? expr.value : null;
+  if (
+    expr.type === 'UnaryExpression' &&
+    expr.operator === '-' &&
+    (expr.argument?.type === 'Literal' || expr.argument?.type === 'NumericLiteral') &&
+    typeof expr.argument.value === 'number'
+  )
+    return -expr.argument.value;
+  return null;
+}
+
 function editStringAttr(
   s: MagicString,
   opening: AnyNode,
@@ -4897,6 +4944,9 @@ function editStringAttr(
       return;
     }
     if (v.type === 'Literal' || v.type === 'StringLiteral') {
+      // Setting the value it already has is not an edit (plan T23): keep the
+      // author's bytes, quote style included.
+      if (typeof v.value === 'string' && v.value === value) return;
       // Replace the whole `"value"` (quotes included) so we control the escaping.
       // The value lands in a JSX *attribute*, where `"` must become `&quot;` and
       // `<`/`>` their entities — NOT JS backslash escaping. `JSON.stringify` would
@@ -4920,6 +4970,25 @@ function editStringAttr(
           `"${name}" is bound to a JS expression ({…}), not a static value — edit it via /design:edit`,
           { canvas: canvasAbsPath, id }
         );
+      }
+      // A NUMBER OR BOOLEAN STAYS ONE (plan T23). `height={400}`,
+      // `durationInFrames={30}`, `aria-pressed={false}` used to come back as
+      // `"400"` / `"30"` / `"false"` — a different type, which a component that
+      // does arithmetic on its prop (every Remotion timing prop) silently
+      // mis-reads — and even an edit to the value it already had rewrote the
+      // bytes. The same value is now no edit; a new number or boolean is
+      // written into the braces it came in.
+      const lit = literalOfExpression(inner);
+      if (lit !== null) {
+        if (String(lit) === value) return;
+        if (typeof lit === 'number' && /^-?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(value)) {
+          s.overwrite(inner.start, inner.end, value);
+          return;
+        }
+        if (typeof lit === 'boolean' && (value === 'true' || value === 'false')) {
+          s.overwrite(inner.start, inner.end, value);
+          return;
+        }
       }
       // Replace the whole `{...}` with a plain quoted literal — keeps the
       // resulting JSX readable. Same JSX-attribute escaping as above (NOT
@@ -5724,6 +5793,14 @@ export function relocateElement(
   if (atHint && samePrint(atHint.print, print)) return hint;
   const matches = all.filter((e) => samePrint(e.print, print));
   return matches.length === 1 ? (matches[0] as { id: string }).id : null;
+}
+
+/** T23 — every JSX element of `source` with its id and print (corpus checks). */
+export function listElements(
+  canvasAbsPath: string,
+  source: string
+): Array<{ id: string; print: ElementPrint }> {
+  return printAll(canvasAbsPath, source, null);
 }
 
 /** T23 — how many elements of `source` carry a print no other element shares. */

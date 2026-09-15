@@ -3238,6 +3238,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       };
     }
     await rename(g.abs, toAbs);
+    // A hub's own studio has no watcher to see this rename: announce both
+    // ends, or the journal learns of it only from the walk-import belt and a
+    // teammate waits minutes for a rename that took a second here.
+    announceWritten(rel);
+    announceWritten(toRel);
     ctx.bus.emit('canvas-list-update', {
       action: 'moved',
       rel: toRel,
@@ -3272,6 +3277,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     await mkdir(trashDir, { recursive: true });
     const trashed = path.join(trashDir, path.posix.basename(rel));
     await rename(g.abs, trashed);
+    announceWritten(rel);
     ctx.bus.emit('canvas-list-update', { action: 'removed', rel, slug });
     return {
       ok: true,
