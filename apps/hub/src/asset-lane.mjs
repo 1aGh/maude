@@ -47,6 +47,8 @@ import {
   readFileSync,
   realpathSync,
   renameSync,
+  rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
@@ -54,7 +56,14 @@ import { dirname, join, resolve, sep } from 'node:path';
 import { assetObjectKey, assetPrefixFromEnv } from './asset-key.mjs';
 import { parseAssetPath } from './assets.mjs';
 import { resolveCheckoutFileWrite } from './file-manifest.mjs';
-import { getObject, listObjects, putObject } from './s3.mjs';
+import { MAX_PROJECT_FILE_BYTES } from './file-limits.mjs';
+import {
+  getObject,
+  getObjectToFile,
+  listObjects,
+  putObject,
+  putObjectFromFile,
+} from './s3.mjs';
 
 /**
  * Eligibility for the LEGACY `assets/` key layout is decided by the read
@@ -65,9 +74,9 @@ function servable(relPath) {
   return parseAssetPath(`/assets/${relPath}`) !== null;
 }
 
-/** Skip anything implausible for a design file. A 2 GB file in the plane is a
- *  mistake, and paying R2 to store it silently is the wrong response. */
-const MAX_ASSET_BYTES = 512 * 1024 * 1024;
+/** The one project-file ceiling (file-limits.mjs, plan T18): large media is
+ *  mirrored as a multipart upload; anything past the ceiling is refused. */
+const MAX_ASSET_BYTES = MAX_PROJECT_FILE_BYTES;
 
 /** Delay before the one post-failure retry pass. Long enough for a transient
  *  bucket blip to pass, short enough that the bytes stop being checkout-only
@@ -109,6 +118,8 @@ export function fileRelFromKey(key, prefix = '') {
 export function createWriteBehind({ designRoot, s3, journal, prefix, log = console, deps = {} }) {
   const scope = prefix ?? assetPrefixFromEnv();
   const put = deps.putObject ?? putObject;
+  // Large files stream from disk in parts (never read whole into memory).
+  const putFile = deps.putObjectFromFile ?? (deps.putObject ? null : putObjectFromFile);
   let running = null;
   let again = false;
   let retryTimer = null;
@@ -146,13 +157,14 @@ export function createWriteBehind({ designRoot, s3, journal, prefix, log = conso
             for (const seq of seqs) journal.markMirrored(seq); // deliberate refusal, not a retry
             continue;
           }
-          const body = readFileSync(abs);
-          if (body.length > MAX_ASSET_BYTES) {
+          const size = statSync(abs).size;
+          if (size > MAX_ASSET_BYTES) {
             log.warn?.(`[assets] ${rel} is over ${MAX_ASSET_BYTES} bytes — NOT mirrored.`);
             for (const seq of seqs) journal.markMirrored(seq); // deliberate refusal, not a retry
             continue;
           }
-          await put(s3, writeBehindKey(rel, scope), body);
+          if (putFile) await putFile(s3, writeBehindKey(rel, scope), abs);
+          else await put(s3, writeBehindKey(rel, scope), readFileSync(abs));
           mirrored += 1;
           for (const seq of seqs) journal.markMirrored(seq);
         } catch (err) {
@@ -478,22 +490,42 @@ export async function hydrateFiles({
       continue;
     }
     try {
-      const body = await get(s3, obj.key);
-      if (!body) {
-        result.failed.push({ key: rel, reason: 'not found in the bucket' });
-        continue;
-      }
-      if (body.length > MAX_ASSET_BYTES) {
-        result.failed.push({ key: rel, reason: `over ${MAX_ASSET_BYTES} bytes` });
-        continue;
+      mkdirSync(dirname(target.abs), { recursive: true });
+      const tmp = `${target.abs}.hydrating-${process.pid}`;
+      if (deps.getObject) {
+        // Injected (tests): the buffered shape.
+        const body = await get(s3, obj.key);
+        if (!body) {
+          result.failed.push({ key: rel, reason: 'not found in the bucket' });
+          continue;
+        }
+        if (body.length > MAX_ASSET_BYTES) {
+          result.failed.push({ key: rel, reason: `over ${MAX_ASSET_BYTES} bytes` });
+          continue;
+        }
+        writeFileSync(tmp, body);
+      } else {
+        // T18 — streamed to disk; a large video never sits whole in memory.
+        const n = await getObjectToFile(s3, obj.key, tmp, { maxBytes: MAX_ASSET_BYTES }).catch(
+          (err) => {
+            if (/ceiling/.test(err.message)) return -1;
+            throw err;
+          }
+        );
+        if (n === null) {
+          result.failed.push({ key: rel, reason: 'not found in the bucket' });
+          continue;
+        }
+        if (n === -1) {
+          result.failed.push({ key: rel, reason: `over ${MAX_ASSET_BYTES} bytes` });
+          continue;
+        }
       }
       if (existsSync(target.abs)) {
+        rmSync(tmp, { force: true });
         result.present += 1;
         continue;
       }
-      mkdirSync(dirname(target.abs), { recursive: true });
-      const tmp = `${target.abs}.hydrating-${process.pid}`;
-      writeFileSync(tmp, body);
       renameSync(tmp, target.abs);
       result.restored.push(rel);
       try {

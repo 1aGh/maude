@@ -93,6 +93,25 @@ never swallowed into the agent's action; one made on top of a staged file
 waits behind it (dependency). A new canvas the agent creates is added at once
 (nothing refers to it until the staged edit that uses it publishes).
 
+**Large media (T18)**: one project-file ceiling for every lane
+(`apps/hub/src/file-limits.mjs`: 2 GiB by default, `MAUDE_MAX_PROJECT_FILE_BYTES`
+up to 8 GiB). A file past one `PUT /api/file/<rel>` (95 MiB) goes up as an
+upload session (`/api/file-uploads`): created with its size and whole-object
+hash, quota reserved up front, parts of 8 MiB streamed and hash-checked,
+completed under the file door's per-path lock and compare-and-swap into the
+same journal receipt. Creation is idempotent for (person, path, bytes), so a
+restarted app resumes by asking again and sending only the missing parts; a
+lost completion answer replays; a whole-object mismatch lands nothing; an
+abort or 24 h expiry returns the reservation. Downloads stream to
+`_state/downloads/<hash>.part` past 32 MiB and resume with `Range`
+(`/_project-file` answers 206/416); hashing is chunked everywhere; the bucket
+mirror uploads large files as S3/R2 multipart (aborting on failure) and a
+cell's boot restore streams objects to disk. Canvas actions reference a file
+only by its path; the bytes land in the checkout only complete and verified.
+Nothing in the file plane deletes a bucket object (a delete is a journal
+tombstone and a quarantine), so current, historical and pending references
+all keep their bytes; only backup-generation retention deletes keys.
+
 ### Rights and project entry (T20–T22)
 
 A **designer** is the project role `member` (cloud project role, or a hub

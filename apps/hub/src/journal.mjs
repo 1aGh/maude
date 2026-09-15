@@ -38,12 +38,13 @@
 // is a nudge, never data: a peer (or the studio child) can say "look at this
 // path", and the hub looks. It cannot say what it found.
 
-import { createHash, randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { existsSync, mkdirSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { listProjectFiles, readCanvasGroups } from './file-manifest.mjs';
 import { classifyProjectFile, isFilePlaneClass, isProjectFileShape } from './file-membership.mjs';
+import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
 
 const require = createRequire(import.meta.url);
 // better-sqlite3 is a runtime-external native binding (see build.ts). Loading
@@ -61,7 +62,8 @@ export const JOURNAL_SOURCES = Object.freeze([
 ]);
 
 /** Refuse an implausible file rather than hash it — the file-manifest figure. */
-const MAX_FILE_BYTES = 512 * 1024 * 1024;
+// T18 — the one project-file ceiling (file-limits.mjs).
+const MAX_FILE_BYTES = MAX_PROJECT_FILE_BYTES;
 
 /** How many entries one `GET /api/journal` page carries. */
 export const MAX_JOURNAL_PAGE = 2000;
@@ -272,13 +274,13 @@ function makeHandle({ db, getMeta, setMeta, now }) {
       if (hit && hit.size === st.size && hit.mtime_ms === st.mtimeMs) {
         return { sha256: hit.sha256, size: st.size, mtimeMs: st.mtimeMs };
       }
-      let bytes;
+      // Chunked: a large video is hashed without being held in memory.
+      let sha256;
       try {
-        bytes = readFileSync(abs);
+        sha256 = sha256File(abs);
       } catch {
         return null;
       }
-      const sha256 = createHash('sha256').update(bytes).digest('hex');
       stmts.setSha.run(rel, st.size, st.mtimeMs, sha256);
       return { sha256, size: st.size, mtimeMs: st.mtimeMs };
     },

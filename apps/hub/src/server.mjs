@@ -85,6 +85,7 @@ import { clientIpFor, parseTrustedProxies } from './client-ip.mjs';
 import { designRootFor } from './design-root.mjs';
 import { groupCanvases } from './doc-namespace.mjs';
 import { createDocumentEvents } from './document-events.mjs';
+import { handleUploadSessions, UPLOADS_PREFIX } from './upload-sessions.mjs';
 import {
   DOCUMENT_PATH_PREFIX,
   DOCUMENTS_PATH,
@@ -1259,6 +1260,24 @@ export function createHub(config = {}) {
           checkRateLimit: rateLimit
             ? (req) => checkRateLimit(rateBuckets, req, { store: rateStore, ip: clientIp(req) })
             : undefined,
+          checkWriteRateLimit: rateLimit
+            ? (label) => checkConnRateLimit(assetWriteBuckets, label, assetWriteRateLimitMax)
+            : undefined,
+        });
+        if (handled) bailFromOnRequest();
+      }
+      // T18 — resumable upload sessions for files past one PUT.
+      if (authPath.startsWith(UPLOADS_PREFIX) && !(studioProxy && isCanvasHost(request))) {
+        const handled = await handleUploadSessions({
+          request,
+          response,
+          pathname: authPath,
+          method,
+          dataDir,
+          secret,
+          designRoot: journalDesignRoot,
+          journal,
+          onWritten: noteCheckoutWrite,
           checkWriteRateLimit: rateLimit
             ? (label) => checkConnRateLimit(assetWriteBuckets, label, assetWriteRateLimitMax)
             : undefined,

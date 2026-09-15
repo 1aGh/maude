@@ -11,12 +11,21 @@
 // DELETE, against R2 / MinIO / S3. Path-style addressing (`<endpoint>/<bucket>/<key>`),
 // because R2 and MinIO both speak it and it avoids per-bucket DNS.
 //
-// NOT a general-purpose SDK: no multipart, no streaming upload, no retries
-// beyond one. Backups are single-shot gzipped SQLite snapshots, well under the
+// NOT a general-purpose SDK. Multipart exists for one caller — the file
+// mirror's large media (`putObjectFromFile`, plan T18); no retries beyond that. Backups are single-shot gzipped SQLite snapshots, well under the
 // 5 GB single-PUT limit. If a future caller needs multipart, that is the moment
 // to reconsider the dependency, not now.
 
 import { createHash, createHmac } from 'node:crypto';
+import {
+  closeSync,
+  createWriteStream,
+  openSync,
+  readFileSync,
+  readSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
 
 const sha256Hex = (data) => createHash('sha256').update(data).digest('hex');
 const hmac = (key, data) => createHmac('sha256', key).update(data).digest();
@@ -261,6 +270,95 @@ export async function putObject(cfg, key, body) {
     throw new Error(`S3 PUT ${key} failed: ${res.status} ${(await res.text()).slice(0, 300)}`);
   }
   return { key, bytes: buf.length, etag: res.headers.get('etag') };
+}
+
+/**
+ * PUT a FILE — plan T18. Small files go up in one request; large ones as an
+ * S3 multipart upload (R2 and S3 both speak it), one part at a time, so memory
+ * stays at one part however big the video is. A failed multipart upload is
+ * aborted so the bucket keeps no orphaned parts.
+ */
+export async function putObjectFromFile(
+  cfg,
+  key,
+  abs,
+  { threshold = 64 * 1024 * 1024, partBytes = 16 * 1024 * 1024, deps = {} } = {}
+) {
+  const { size } = statSync(abs);
+  if (size <= threshold) return putObject(cfg, key, readFileSync(abs));
+  const call = deps.send ?? ((opts) => send(cfg, opts));
+  const created = await call({ method: 'POST', key, query: { uploads: '' }, body: Buffer.alloc(0) });
+  if (!created.ok) {
+    throw new Error(`S3 multipart start ${key} failed: ${created.status} ${(await created.text()).slice(0, 300)}`);
+  }
+  const uploadId = /<UploadId>([^<]+)<\/UploadId>/.exec(await created.text())?.[1];
+  if (!uploadId) throw new Error(`S3 multipart start ${key}: no UploadId`);
+  const etags = [];
+  const fd = openSync(abs, 'r');
+  try {
+    const buf = Buffer.allocUnsafe(partBytes);
+    for (let part = 1, offset = 0; offset < size; part += 1) {
+      const n = readSync(fd, buf, 0, Math.min(partBytes, size - offset), offset);
+      const body = Buffer.from(buf.subarray(0, n));
+      let res = null;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        res = await call({ method: 'PUT', key, query: { partNumber: String(part), uploadId }, body });
+        if (res.ok) break;
+      }
+      if (!res?.ok) throw new Error(`S3 part ${part} of ${key} failed: ${res?.status}`);
+      etags.push({ part, etag: res.headers.get('etag') });
+      offset += n;
+    }
+    const xml =
+      '<CompleteMultipartUpload>' +
+      etags.map((e) => `<Part><PartNumber>${e.part}</PartNumber><ETag>${e.etag}</ETag></Part>`).join('') +
+      '</CompleteMultipartUpload>';
+    const done = await call({ method: 'POST', key, query: { uploadId }, body: Buffer.from(xml) });
+    const text = await done.text();
+    // S3 can answer 200 with an <Error> body for a failed completion.
+    if (!done.ok || /<Error>/.test(text)) {
+      throw new Error(`S3 multipart complete ${key} failed: ${done.status} ${text.slice(0, 300)}`);
+    }
+    return { key, bytes: size, parts: etags.length };
+  } catch (err) {
+    await call({ method: 'DELETE', key, query: { uploadId }, body: null }).catch(() => {});
+    throw err;
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/**
+ * GET an object straight to a file — plan T18: a large video restored at a
+ * cell's boot never sits whole in memory. Returns the byte count, or null on
+ * 404. Refuses (and removes the partial file) past `maxBytes`.
+ */
+export async function getObjectToFile(cfg, key, abs, { maxBytes = Number.POSITIVE_INFINITY } = {}) {
+  const res = await send(cfg, { method: 'GET', key });
+  if (res.status === 404) return null;
+  if (!res.ok || !res.body) {
+    throw new Error(`S3 GET ${key} failed: ${res.status} ${(await res.text()).slice(0, 300)}`);
+  }
+  const declared = Number(res.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    await res.body.cancel().catch(() => {});
+    throw new Error(`S3 GET ${key}: ${declared} bytes is over the ${maxBytes}-byte ceiling`);
+  }
+  const out = createWriteStream(abs);
+  let total = 0;
+  try {
+    for await (const chunk of res.body) {
+      total += chunk.byteLength;
+      if (total > maxBytes) throw new Error(`S3 GET ${key}: over the ${maxBytes}-byte ceiling`);
+      if (!out.write(chunk)) await new Promise((r) => out.once('drain', r));
+    }
+    await new Promise((r, j) => out.end((err) => (err ? j(err) : r())));
+  } catch (err) {
+    out.destroy();
+    rmSync(abs, { force: true });
+    throw err;
+  }
+  return total;
 }
 
 /** GET one object as a Buffer, or null on 404. */

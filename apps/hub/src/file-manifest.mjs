@@ -47,6 +47,7 @@ import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { classifyProjectFile, isFilePlaneClass, isProjectFileShape } from './file-membership.mjs';
 import { isContainedReal, realpathOfDeepestExisting } from './path-contain.mjs';
 import { verifyToken } from './tokens.mjs';
+import { MAX_PROJECT_FILE_BYTES, parseRange } from './file-limits.mjs';
 
 /** `GET /api/files` — the plane-B manifest for this project. */
 export const FILES_PATH = '/api/files';
@@ -65,7 +66,8 @@ const MAX_WALK_DEPTH = 8;
 
 /** Refuse to serve an implausible file rather than stream it. Same figure as
  *  the asset lanes' MAX_PULL_BYTES / MAX_PUSH_BYTES. */
-const MAX_FILE_BYTES = 512 * 1024 * 1024;
+// T18 — the one project-file ceiling (file-limits.mjs).
+const MAX_FILE_BYTES = MAX_PROJECT_FILE_BYTES;
 
 /**
  * Conservative content types by extension — never sniffed, never
@@ -473,9 +475,20 @@ export async function handleProjectFileRoute(ctx) {
 
   const dot = rel.lastIndexOf('.');
   const ext = dot < 0 ? '' : rel.slice(dot + 1).toLowerCase();
+  // T18 — a byte range, so an interrupted download of a large file resumes
+  // where it stopped instead of starting over.
+  const range = parseRange(request?.headers?.range, st.size);
+  if (range?.invalid) {
+    response
+      .writeHead(416, { 'Content-Range': `bytes */${st.size}`, 'Cache-Control': 'no-store' })
+      .end();
+    return true;
+  }
   const headers = {
     'Content-Type': FILE_CONTENT_TYPES[ext] ?? 'application/octet-stream',
-    'Content-Length': st.size,
+    'Content-Length': range ? range.end - range.start + 1 : st.size,
+    'Accept-Ranges': 'bytes',
+    ...(range ? { 'Content-Range': `bytes ${range.start}-${range.end}/${st.size}` } : {}),
     // The peer is a program; a browser that somehow lands here downloads
     // rather than renders — an svg must not become a document on this origin.
     'Content-Disposition': 'attachment',
@@ -486,9 +499,12 @@ export async function handleProjectFileRoute(ctx) {
     response.writeHead(200, headers).end();
     return true;
   }
-  response.writeHead(200, headers);
+  response.writeHead(range ? 206 : 200, headers);
   await new Promise((resolveDone) => {
-    const stream = createReadStream(target.abs);
+    const stream = createReadStream(
+      target.abs,
+      range ? { start: range.start, end: range.end } : undefined
+    );
     stream.on('error', () => {
       // Headers are gone; all we can do is cut the connection short so the
       // peer sees a length mismatch instead of a silently short file.

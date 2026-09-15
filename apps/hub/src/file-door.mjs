@@ -44,7 +44,6 @@ import {
   createWriteStream,
   existsSync,
   mkdirSync,
-  readFileSync,
   renameSync,
   rmSync,
 } from 'node:fs';
@@ -55,13 +54,15 @@ import {
   resolveCheckoutFileWrite,
   resolveProjectFileTarget,
 } from './file-manifest.mjs';
+import { MAX_PROJECT_FILE_BYTES, PART_BYTES, SINGLE_PUT_BYTES, sha256File } from './file-limits.mjs';
 import { matchesScope, verifyToken } from './tokens.mjs';
 
 /** `PUT /api/file/<rel>` — the single door. */
 export const FILE_DOOR_PREFIX = '/api/file/';
 
-/** Per-file ceiling. Kept BELOW the platform's own body limit on purpose. */
-const MAX_FILE_BYTES = 95 * 1024 * 1024;
+/** One PUT body. Kept BELOW the platform's own body limit on purpose; a larger
+ *  file goes up as an upload session (upload-sessions.mjs, plan T18). */
+const MAX_FILE_BYTES = SINGLE_PUT_BYTES;
 
 /**
  * Per-token, per-window write quota — DDR-226 §9's "cumulative per-hub
@@ -141,6 +142,11 @@ export const FILE_LIMITS_PATH = '/api/file-limits';
 export function fileLimits(label = null, now = Date.now()) {
   const base = {
     maxFileBytes: MAX_FILE_BYTES,
+    // T18 — beyond one PUT: resumable upload sessions up to the project-file
+    // ceiling, in parts of `partBytes`.
+    uploadSessions: true,
+    maxSessionBytes: MAX_PROJECT_FILE_BYTES,
+    partBytes: PART_BYTES,
     quotaBytesPerWindow: QUOTA_BYTES_PER_WINDOW,
     quotaWindowMs: QUOTA_WINDOW_MS,
   };
@@ -662,7 +668,7 @@ function quarantineForDelete(designRoot, abs, rel) {
  */
 const publishing = new Map();
 
-async function withPathLock(rel, fn) {
+export async function withPathLock(rel, fn) {
   const prior = publishing.get(rel) ?? Promise.resolve();
   let release;
   const mine = prior.then(() => new Promise((r) => (release = r)));
@@ -678,14 +684,14 @@ async function withPathLock(rel, fn) {
 }
 
 /** The hash the hub currently holds for `rel`, or null (absent or tombstoned). */
-function currentHashFor(journal, rel) {
+export function currentHashFor(journal, rel) {
   const row = journal.latestFor(rel);
   if (!row || row.deleted) return null;
   return row.sha256 ?? null;
 }
 
 /** The seq of the hub's latest row for `rel`, or null. */
-function seqFor(journal, rel) {
+export function seqFor(journal, rel) {
   return journal.latestFor(rel)?.seq ?? null;
 }
 
@@ -693,7 +699,7 @@ function seqFor(journal, rel) {
  *  CAS truth for a file the journal has not met yet). */
 function hashFileOnDisk(abs) {
   try {
-    return createHash('sha256').update(readFileSync(abs)).digest('hex');
+    return sha256File(abs);
   } catch {
     return null;
   }

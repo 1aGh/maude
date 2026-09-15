@@ -1514,7 +1514,8 @@ describe('rate limits', () => {
 // was also indistinguishable from a local delete: a synced asset that grew past
 // the ceiling looked "gone here", and a hub copy looked "missing here".
 describe('a local file over the plane ceiling', () => {
-  const OVER = 512 * 1024 * 1024 + 1;
+  // The project-file ceiling (plan T18 raised it from 512 MiB), plus one.
+  const OVER = MAX_FILE_BYTES + 1;
   const grow = (rel: string) => {
     const abs = join(root, rel);
     mkdirSync(join(abs, '..'), { recursive: true });

@@ -46,13 +46,18 @@
 
 import { createHash } from 'node:crypto';
 import {
+  appendFileSync,
+  closeSync,
   type Dirent,
   existsSync,
   mkdirSync,
+  openSync,
   readdirSync,
   readFileSync,
+  readSync,
   realpathSync,
   renameSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs';
@@ -77,8 +82,35 @@ const PUT_TIMEOUT_MS = 120_000;
 
 /** Refuse an implausible body rather than streaming it to disk. This is the
  *  PULL/receive cap and is deliberately generous — it bounds what we will
- *  accept, not what a hub will. */
-const MAX_FILE_BYTES = 512 * 1024 * 1024;
+ *  accept, not what a hub will. Plan T18: the project-file ceiling the hub
+ *  uses too (`apps/hub/src/file-limits.mjs`), so a real video moves. */
+export const MAX_FILE_BYTES = (() => {
+  const raw = Number(process.env.MAUDE_MAX_PROJECT_FILE_BYTES);
+  return Number.isFinite(raw) && raw >= 95 * 1024 * 1024
+    ? Math.min(raw, 8192 * 1024 * 1024)
+    : 2048 * 1024 * 1024;
+})();
+
+/** T18 — above this a download streams to disk (and resumes) instead of
+ *  being held in memory. */
+export const STREAM_DOWNLOAD_ABOVE_BYTES = 32 * 1024 * 1024;
+
+/** sha256 of a file, read in 1 MiB chunks (T18 — a video is never held whole). */
+export function sha256File(abs: string): string {
+  const hash = createHash('sha256');
+  const buf = Buffer.allocUnsafe(1024 * 1024);
+  const fd = openSync(abs, 'r');
+  try {
+    for (;;) {
+      const n = readSync(fd, buf, 0, buf.length, null);
+      if (n <= 0) break;
+      hash.update(n === buf.length ? buf : buf.subarray(0, n));
+    }
+  } finally {
+    closeSync(fd);
+  }
+  return hash.digest('hex');
+}
 
 /**
  * What the door accepts, until it tells us otherwise.
@@ -482,7 +514,7 @@ export function scanLocalFiles(
     let hash = ledger.cachedHash(f.rel, f.size, f.mtimeMs);
     if (hash === null) {
       try {
-        hash = sha256(readFileSync(f.abs));
+        hash = sha256File(f.abs);
       } catch {
         continue;
       }
@@ -601,6 +633,9 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     quotaResetsAt?: number;
     quotaUsed?: number;
     quotaBytesPerWindow?: number;
+    /** T18 — the hub takes resumable upload sessions up to this size. */
+    maxSessionBytes?: number;
+    partBytes?: number;
   } | null = null;
   /** When the limits were last learned. 0 = never. */
   let hubLimitsAt = 0;
@@ -636,6 +671,9 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         quotaResetsAt?: unknown;
         quotaUsed?: unknown;
         quotaBytesPerWindow?: unknown;
+        uploadSessions?: unknown;
+        maxSessionBytes?: unknown;
+        partBytes?: unknown;
       };
       if (
         Number.isFinite(body?.maxFileBytes) &&
@@ -653,6 +691,17 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           ...(Number.isFinite(body?.quotaBytesPerWindow)
             ? { quotaBytesPerWindow: body.quotaBytesPerWindow as number }
             : {}),
+          // T18 — sessions, clamped like every other hub-supplied lever: never
+          // past our own receive cap, parts between 1 and 64 MiB.
+          ...(body?.uploadSessions === true && Number.isFinite(body?.maxSessionBytes)
+            ? {
+                maxSessionBytes: Math.min(body.maxSessionBytes as number, MAX_FILE_BYTES),
+                partBytes: Math.min(
+                  Math.max(Number(body.partBytes) || 8 * 1024 * 1024, 1024 * 1024),
+                  64 * 1024 * 1024
+                ),
+              }
+            : {}),
         };
       }
     } catch {
@@ -660,9 +709,14 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     }
   }
 
-  /** The push ceiling in force right now. */
-  function pushCeiling(): number {
+  /** The single-PUT ceiling in force right now. */
+  function singlePutCeiling(): number {
     return hubLimits?.maxFileBytes ?? DEFAULT_HUB_MAX_FILE_BYTES;
+  }
+
+  /** The push ceiling in force right now — sessions raise it (T18). */
+  function pushCeiling(): number {
+    return Math.max(singlePutCeiling(), hubLimits?.maxSessionBytes ?? 0);
   }
 
   /**
@@ -743,20 +797,38 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     expectHash: string,
     ceiling: number
   ): Promise<
-    | { ok: true; bytes: Uint8Array }
+    | { ok: true; bytes: Uint8Array; file?: undefined; size: number }
+    | { ok: true; file: string; bytes?: undefined; size: number }
     | { ok: false; reason: string; overCap?: true; rateLimited?: true }
   > {
     let res: Response;
     requestsThisPass += 1;
+    // T18 — a partial download of these exact bytes resumes where it stopped.
+    const staged = path.join(designRoot, '_state', 'downloads', `${expectHash}.part`);
+    let resumeFrom = 0;
+    try {
+      resumeFrom = statSync(staged).size;
+    } catch {
+      /* nothing staged */
+    }
     try {
       res = await fetchImpl(
         `${base}/_project-file/${rel.split('/').map(encodeURIComponent).join('/')}`,
-        { headers: auth(), signal: AbortSignal.timeout(GET_TIMEOUT_MS) }
+        {
+          headers: { ...auth(), ...(resumeFrom > 0 ? { range: `bytes=${resumeFrom}-` } : {}) },
+          signal: AbortSignal.timeout(GET_TIMEOUT_MS),
+        }
       );
     } catch (err) {
       return { ok: false, reason: transportFailure(err, rel, log) };
     }
+    if (res.status === 416) {
+      // The staged part is not a prefix of what the hub holds now: start over.
+      rmSync(staged, { force: true });
+      return { ok: false, reason: 'the partial download no longer matches — restarting it' };
+    }
     if (!res.ok) return await refusal(res);
+    const resumed = res.status === 206 && resumeFrom > 0;
 
     // The cap is consulted BEFORE the body exists, and again as it arrives.
     // Buffering first and measuring after is not a cap at all: a hub answering
@@ -773,6 +845,45 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       };
     }
 
+    // T18 — a large body streams to the staging file (appending after a
+    // resume) and is verified from disk; memory stays one chunk.
+    if (resumed || (Number.isFinite(declared) && declared > STREAM_DOWNLOAD_ABOVE_BYTES)) {
+      if (!resumed) rmSync(staged, { force: true });
+      mkdirSync(path.dirname(staged), { recursive: true });
+      const body = res.body;
+      if (!body?.getReader) return { ok: false, reason: 'no response stream' };
+      const reader = body.getReader();
+      let total = resumed ? resumeFrom : 0;
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (!value) continue;
+          total += value.byteLength;
+          if (total > cap) {
+            await reader.cancel().catch(() => {});
+            rmSync(staged, { force: true });
+            return { ok: false, reason: `over the cap mid-stream (${total} B > ${cap} B)`, overCap: true };
+          }
+          appendFileSync(staged, value);
+        }
+      } catch (err) {
+        // What arrived stays staged: the next pass asks for the rest.
+        return { ok: false, reason: transportFailure(err, '<response body>', log) };
+      }
+      let got: string;
+      try {
+        got = sha256File(staged);
+      } catch {
+        return { ok: false, reason: 'could not read the downloaded file back' };
+      }
+      if (got !== expectHash) {
+        rmSync(staged, { force: true });
+        return { ok: false, reason: 'content hash mismatch (racing a write?)' };
+      }
+      return { ok: true, file: staged, size: total };
+    }
+
     const bytes = await readCapped(res, cap);
     if (!bytes.ok) return bytes;
     // The hub may REFUSE to serve; it must never be able to SUBSTITUTE.
@@ -780,7 +891,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     if (got !== expectHash) {
       return { ok: false, reason: 'content hash mismatch (racing a write?)' };
     }
-    return { ok: true, bytes: bytes.bytes };
+    return { ok: true, bytes: bytes.bytes, size: bytes.bytes.byteLength };
   }
 
   /**
@@ -954,13 +1065,18 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     return isFilePlaneClass(cls);
   }
 
-  /** Land bytes at `rel`, atomically. Throws on failure — `adoptAfter` catches. */
-  function materialize(rel: string, bytes: Uint8Array): void {
+  /** Land bytes at `rel`, atomically. Throws on failure — `adoptAfter` catches.
+   *  A streamed download (T18) is moved into place from its staging file. */
+  function materialize(rel: string, payload: { bytes?: Uint8Array; file?: string }): void {
     const target = safeTarget(rel);
     if (!target) throw new Error(`refusing to write ${rel} — it does not resolve inside the root`);
     mkdirSync(target.parent, { recursive: true });
+    if (payload.file) {
+      renameSync(payload.file, target.abs);
+      return;
+    }
     const tmp = `${target.abs}.part`;
-    writeFileSync(tmp, bytes);
+    writeFileSync(tmp, payload.bytes ?? new Uint8Array());
     renameSync(tmp, target.abs);
   }
 
@@ -1027,6 +1143,8 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         reason: `Too big for this workspace — ${mb(local.size)}, and the limit is ${mb(pushCeiling())}`,
       };
     }
+    // T18 — past one request: a resumable session, in verified parts.
+    if (local.size > singlePutCeiling()) return pushSession(local, expect);
     let bytes: Uint8Array;
     try {
       bytes = readFileSync(local.abs);
@@ -1069,6 +1187,99 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       if (!res.ok) return await refusal(res);
       const body = (await res.json().catch(() => ({}))) as { seq?: unknown };
       return { ok: true, seq: typeof body?.seq === 'number' ? body.seq : null };
+    } catch (err) {
+      return { ok: false, reason: transportFailure(err, local.rel, log) };
+    } finally {
+      ledger.outboxDone(local.hash);
+    }
+  }
+
+  /**
+   * T18 — upload a large file as a resumable session. The hub makes creation
+   * idempotent for the same (person, path, bytes), so a restarted app resumes
+   * by asking again and sending only the parts the hub does not hold. Memory
+   * is one part; the whole object is verified by the hub before it lands.
+   */
+  async function pushSession(
+    local: SyncableLocalFile,
+    expect: string | null
+  ): Promise<Awaited<ReturnType<typeof push>>> {
+    const json = async (res: Response) => (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    ledger.outboxAdd(local.hash);
+    requestsThisPass += 1;
+    try {
+      const created = await fetchImpl(`${base}/api/file-uploads`, {
+        method: 'POST',
+        headers: { ...auth(), 'content-type': 'application/json' },
+        body: JSON.stringify({
+          path: local.rel,
+          size: local.size,
+          sha256: local.hash,
+          expectHash: expect ?? 'none',
+        }),
+        signal: AbortSignal.timeout(GET_TIMEOUT_MS),
+      });
+      if (!created.ok) return await refusal(created);
+      const s = await json(created);
+      const id = typeof s.id === 'string' ? s.id : '';
+      const partBytes = Number(s.partBytes);
+      const parts = Number(s.parts);
+      if (!/^up_[0-9a-f]{32}$/.test(id) || !(partBytes > 0) || !(parts > 0)) {
+        return { ok: false, reason: 'The workspace answered the upload with nonsense' };
+      }
+      const have = new Set(Array.isArray(s.received) ? (s.received as number[]) : []);
+      const buf = Buffer.allocUnsafe(partBytes);
+      const fd = openSync(local.abs, 'r');
+      try {
+        for (let n = 0; n < parts; n += 1) {
+          if (have.has(n)) continue;
+          const len = Math.min(partBytes, local.size - n * partBytes);
+          const read = readSync(fd, buf, 0, len, n * partBytes);
+          if (read !== len) return { ok: false, reason: 'The file changed while it was uploading' };
+          const part = Buffer.from(buf.subarray(0, len));
+          let res: Response | null = null;
+          let lastErr: unknown = null;
+          for (let attempt = 0; attempt < 3 && !res?.ok; attempt += 1) {
+            try {
+              res = await fetchImpl(`${base}/api/file-uploads/${id}/${n}`, {
+                method: 'PUT',
+                headers: {
+                  ...auth(),
+                  'content-type': 'application/octet-stream',
+                  'x-maude-part-sha256': sha256(part),
+                },
+                body: part as unknown as BodyInit,
+                signal: AbortSignal.timeout(PUT_TIMEOUT_MS),
+              });
+              if (res.status === 429 || res.status === 507) return await refusal(res);
+            } catch (err) {
+              lastErr = err;
+              res = null;
+            }
+          }
+          if (!res) return { ok: false, reason: transportFailure(lastErr, local.rel, log) };
+          if (!res.ok) return await refusal(res);
+        }
+      } finally {
+        closeSync(fd);
+      }
+      const done = await fetchImpl(`${base}/api/file-uploads/${id}/complete`, {
+        method: 'POST',
+        headers: auth(),
+        signal: AbortSignal.timeout(PUT_TIMEOUT_MS),
+      });
+      if (done.status === 409) {
+        const body = await json(done);
+        if (Array.isArray(body.received)) {
+          // Parts the hub lost between our PUTs and the completion: the next
+          // pass resumes and sends exactly those.
+          return { ok: false, reason: 'Upload interrupted — it resumes on the next pass' };
+        }
+        return { ok: false, conflict: true, current: typeof body.current === 'string' ? body.current : null };
+      }
+      if (!done.ok) return await refusal(done);
+      const body = await json(done);
+      return { ok: true, seq: typeof body.seq === 'number' ? body.seq : null };
     } catch (err) {
       return { ok: false, reason: transportFailure(err, local.rel, log) };
     } finally {
@@ -1705,10 +1916,10 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
             }
             return false;
           }
-          if (!chargeOverrun(budget, rel, got.bytes.byteLength, claim, out)) return false;
+          if (!chargeOverrun(budget, rel, got.size, claim, out)) return false;
           const copyRel = conflictCopyName(rel, now(), 'hub');
           try {
-            materialize(copyRel, got.bytes);
+            materialize(copyRel, got);
             ledger.setState(rel, 'conflict', {
               reason: 'the hub’s log restarted; their copy is parked beside yours',
               conflictCopy: copyRel,
@@ -1748,8 +1959,8 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           }
           return false;
         }
-        if (!chargeOverrun(budget, rel, got.bytes.byteLength, claim, out)) return false;
-        const landed = await ledger.adoptAfter(rel, remoteHash, () => materialize(rel, got.bytes), {
+        if (!chargeOverrun(budget, rel, got.size, claim, out)) return false;
+        const landed = await ledger.adoptAfter(rel, remoteHash, () => materialize(rel, got), {
           ...(row ? { remoteSeq: row.seq } : {}),
           state: 'on-hub',
         });
@@ -1846,8 +2057,8 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           }
           return false;
         }
-        if (!chargeOverrun(budget, rel, got.bytes.byteLength, claim, out)) return false;
-        const landed = await ledger.adoptAfter(rel, remoteHash, () => materialize(rel, got.bytes), {
+        if (!chargeOverrun(budget, rel, got.size, claim, out)) return false;
+        const landed = await ledger.adoptAfter(rel, remoteHash, () => materialize(rel, got), {
           ...(row ? { remoteSeq: row.seq } : {}),
           state: 'conflict',
         });
