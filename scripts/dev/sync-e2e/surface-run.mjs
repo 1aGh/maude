@@ -146,15 +146,24 @@ try {
   if (!['normal', 'control'].includes(watch)) throw new Error('watch must be normal or control');
   const notes = arg('notes', 'isolated');
   if (!['isolated', 'shared'].includes(notes)) throw new Error('notes must be isolated or shared');
-  start('cell', 'node', [
-    join(root, 'scripts/dev/local-cell.mjs'),
-    '--dir',
-    work,
-    '--port',
-    String(port),
-    '--keep',
-    ...(watch === 'control' ? ['--no-watch'] : []),
-  ]);
+  start(
+    'cell',
+    'node',
+    [
+      join(root, 'scripts/dev/local-cell.mjs'),
+      '--dir',
+      work,
+      '--port',
+      String(port),
+      '--keep',
+      ...(watch === 'control' ? ['--no-watch'] : []),
+    ],
+    // The canvas capability expires (15 min in production). A short one here
+    // makes every run cross several expiries, so an open cloud canvas that
+    // stops updating when its capability runs out fails a row instead of
+    // hiding behind a run shorter than the lifetime.
+    { MAUDE_CANVAS_TOKEN_TTL_MS: arg('canvas-token-ttl-ms', '') || String(3 * 60_000) }
+  );
   await ready(`http://127.0.0.1:${port}/health`);
   const data = join(work, 'data');
   for (const id of ['designer-a', 'designer-b'])
@@ -291,6 +300,9 @@ try {
     identities,
     samples,
     startupIndexFailures,
+    // L23 mixed loaded session length (the contract's full soak is 30 min:
+    // `--soak-ms 1800000`). Default keeps an ordinary run under the timeout.
+    soakMs: Number(arg('soak-ms', '')) || 120_000,
     only: arg('only', '').split(',').filter(Boolean),
   };
   const configPath = join(work, 'run.json');

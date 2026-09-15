@@ -29,6 +29,8 @@ type ProbeResult = {
   visible: boolean;
   width?: number;
   height?: number;
+  /** An <img>: decoded and ready (HTMLImageElement.complete). */
+  complete?: boolean;
   pixel?: number[];
   time?: number;
   seeking?: boolean;
@@ -412,6 +414,34 @@ function drawingDisk(p: Surface, id: string | undefined) {
   );
 }
 class Unexercised extends Error {}
+
+/**
+ * Resize handles are positioned by a requestAnimationFrame loop. A native
+ * window WebKit is not rendering — the screen is locked, the window hidden —
+ * runs no animation frames, so they never appear. That is the row not being
+ * exercised, not the product failing: say so, and let the original failure
+ * stand otherwise.
+ */
+async function unlessNotRendering(from: Surface, error: unknown): Promise<never> {
+  if (from.name === 'native') {
+    const frames = await browser.execute(
+      () =>
+        new Promise<string>((done) => {
+          let fired = false;
+          requestAnimationFrame(() => {
+            fired = true;
+            done(`fired (${document.visibilityState})`);
+          });
+          setTimeout(() => !fired && done(`paused (${document.visibilityState})`), 1500);
+        })
+    );
+    if (frames.startsWith('paused'))
+      throw new Unexercised(
+        `the native window is not rendering (animation frames ${frames}) — rerun with the screen unlocked`
+      );
+  }
+  throw error;
+}
 function record(row: Record<string, unknown>) {
   rows.push(row);
   writeFileSync(
@@ -1217,7 +1247,10 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             const old = shapeDisk(from, shapeId);
             await gesture(from, q(), 'pointer');
             const handle = '.dc-annot-resize-handle[data-corner="se"]';
-            await until(async () => !!(await from.probe(handle))?.visible);
+            await until(async () => !!(await from.probe(handle))?.visible).catch(async (error) => {
+              await from.screenshot(join(run.out, `L09-${kind}-no-handle-${from.name}.png`));
+              return unlessNotRendering(from, error);
+            });
             const start = performance.now();
             await gesture(from, handle, 'pointer', { dx: 45, dy: 45 });
             return observeAll(
@@ -1364,7 +1397,9 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
                   };
                 }
                 target = `.dc-annot-resize-handle[data-corner="${kind === 'arrow' ? 'ep2' : 'se'}"]`;
-                await until(async () => !!(await from.probe(target))?.visible);
+                await until(async () => !!(await from.probe(target))?.visible).catch((error) =>
+                  unlessNotRendering(from, error)
+                );
               }
               const start = performance.now();
               await gesture(
@@ -2509,7 +2544,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             all,
             `L11-resolve-${from.name}`,
             start,
-            async (p) => statusOf(p, id) === 'resolved' && (await p.probe(pin(id)))?.visible !== true,
+            async (p) =>
+              statusOf(p, id) === 'resolved' && (await p.probe(pin(id)))?.visible !== true,
             (p) => statusOf(p, id) === 'resolved'
           );
         });
@@ -2517,7 +2553,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         // reachable. It comes back onto every canvas.
         await check('L11.comment.reopen', `${from.name}-to-peers`, async () => {
           const id = idOf();
-          if (!id || statusOf(from, id) !== 'resolved') throw new Unexercised('reopen needs a resolved thread');
+          if (!id || statusOf(from, id) !== 'resolved')
+            throw new Unexercised('reopen needs a resolved thread');
           await from.click(selector('dock-tab-comments'));
           await from.click(selector('comment-filter-resolved'));
           const reopen = `${selector(`comment-item-${id}`)} [aria-label="Reopen"]`;
@@ -2652,6 +2689,110 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           );
         });
       }
+      // L17 — one media file, several references: two canvases show the same
+      // image; removing it from one keeps the other (and the file); renaming or
+      // deleting a file a canvas still uses is refused, naming that canvas,
+      // and nothing changes anywhere.
+      for (const from of all) {
+        const png = `ui/SharedRef-${from.name}.png`;
+        const pngBytes = Buffer.from(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+          'base64'
+        );
+        const a = `ui/SharedA-${from.name}.tsx`;
+        const b = `ui/SharedB-${from.name}.tsx`;
+        const withImg = (title: string, img: boolean) =>
+          `import { DesignCanvas, DCArtboard } from '@maude/canvas-lib';\nexport default function Shared() {\n  return (\n    <DesignCanvas>\n      <DCArtboard id="shared" label="Shared" width={400} height={240}>\n        <section style={{ padding: 24 }}>\n          <h1 style={{ fontWeight: "400" }}>${title}</h1>\n${img ? `          <img src="/.design/${png}" alt="shared" width={40} height={40} />\n` : ''}        </section>\n      </DCArtboard>\n    </DesignCanvas>\n  );\n}\n`;
+        const onDisk = (p: Surface, r: string) => existsSync(join(p.root, '.design', r));
+        const shown = async (p: Surface) => {
+          const img = await p.probe('img[alt="shared"]');
+          return !!img?.visible && (img.width ?? 0) > 0 && img.complete === true;
+        };
+        const fileRowOf = (r: string) => selector(`file-row-${slug(r)}`);
+        await check('L17.shared-asset.two-references', `${from.name}-to-peers`, async () => {
+          writeFileSync(join(from.root, '.design', png), pngBytes);
+          await until(() => all.every((p) => onDisk(p, png)), 30000).catch(() => {
+            throw new Unexercised('the shared image did not reach everyone');
+          });
+          await seedCanvas(from, b, withImg(`Shared B ${from.name}`, true));
+          await seedCanvas(from, a, withImg(`Shared A ${from.name}`, true));
+          const start = performance.now();
+          await openSeeded(a, `Shared A ${from.name}`, `L17-open-a-${from.name}`);
+          return observeAll(
+            all,
+            `L17-two-refs-${from.name}`,
+            start,
+            shown,
+            (p) => onDisk(p, png) && onDisk(p, a) && onDisk(p, b)
+          );
+        });
+        await check('L17.shared-asset.remove-one-instance', `${from.name}-to-peers`, async () => {
+          if (all.some((p) => !onDisk(p, a) || !onDisk(p, b)))
+            throw new Unexercised('both referencing canvases must exist everywhere');
+          const start = performance.now();
+          writeFileSync(join(from.root, '.design', a), withImg(`Shared A ${from.name}`, false));
+          const removed = await observeAll(
+            all,
+            `L17-remove-one-${from.name}`,
+            start,
+            async (p) => (await p.probe('img[alt="shared"]')) === null,
+            (p) =>
+              !readFileSync(join(p.root, '.design', a), 'utf8').includes('SharedRef') &&
+              readFileSync(join(p.root, '.design', b), 'utf8').includes('SharedRef') &&
+              onDisk(p, png)
+          );
+          // …and the other canvas still shows it, everywhere.
+          await openSeeded(b, `Shared B ${from.name}`, `L17-open-b-${from.name}`);
+          const kept = await Promise.all(
+            all.map((p) =>
+              until(() => shown(p), 15000).then(
+                () => true,
+                () => false
+              )
+            )
+          );
+          return {
+            ...removed,
+            status: removed.status === 'pass' && kept.every(Boolean) ? 'pass' : 'fail',
+            otherCanvasStillShows: Object.fromEntries(all.map((p, i) => [p.name, kept[i]])),
+          };
+        });
+        for (const [verb, item] of [
+          ['rename', 'Rename…'],
+          ['delete', 'Delete'],
+        ] as const) {
+          await check(`L17.in-use-asset.${verb}-refused`, `${from.name}-to-peers`, async () => {
+            if (all.some((p) => !onDisk(p, png)))
+              throw new Unexercised('the shared image must exist everywhere');
+            await until(async () => (await from.read(fileRowOf(png))) !== null, 15000);
+            await from.hover(fileRowOf(png));
+            await from.click(selector(`tree-row-menu-${slug(png)}`));
+            if (verb === 'rename') await from.promptNext(`SharedRef-${from.name}-renamed`);
+            else await from.confirmNext();
+            await from.menu(item);
+            let said = '';
+            await until(async () => {
+              said = (await from.read('body')) ?? '';
+              return said.includes('is used by');
+            }, 15000).catch(() => {});
+            await sleep(3000);
+            const intact = all.every(
+              (p) =>
+                onDisk(p, png) &&
+                !onDisk(p, `ui/SharedRef-${from.name}-renamed.png`) &&
+                readFileSync(join(p.root, '.design', png)).equals(pngBytes)
+            );
+            return {
+              status:
+                said.includes('is used by') && said.includes(`SharedB-${from.name}`) && intact
+                  ? 'pass'
+                  : 'fail',
+              refusalNamesCanvas: said.includes(`SharedB-${from.name}`),
+              fileIntactEverywhere: intact,
+            };
+          });
+        }
+      }
       // L19 — presence is ephemeral: everyone on the same canvas sees the
       // others (no duplicates), a moving cursor and a selection; leaving drops
       // the person; a camera move stays on its own machine and never becomes
@@ -2689,7 +2830,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             const others = all.filter((p) => p !== from);
             await gesture(from, selector('palette-mode-edit'), 'click');
             const start = performance.now();
-            await gesture(from, 'h1', 'click');
+            // A press, not a bare click event: the canvas selects on pointerdown.
+            await gesture(from, 'h1', 'pointer');
             return observeAll(
               others,
               `L19-select-${from.name}`,
@@ -2743,22 +2885,35 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             metaChanged,
           };
         });
-        await check('L19.presence.leave', 'all', async () => {
-          const from = all[0] as Surface;
-          const others = all.filter((p) => p !== from);
-          // Leaving is CLOSING the canvas: every open tab keeps its frame (and
-          // its presence) alive the way a background browser tab does, so
-          // switching to another canvas is not leaving this one.
-          await from.click(selector('menu-file'));
-          const start = performance.now();
-          await from.menu('Close canvas');
-          return observeAll(
-            others,
-            'L19-leave',
-            start,
-            async (p) => (await count(p, people)) === all.length - 2
-          );
-        });
+        // Leaving is CLOSING the canvas: every open tab keeps its frame (and
+        // its presence) alive the way a background browser tab does, so
+        // switching to another canvas is not leaving this one. Each surface
+        // leaves in turn — the paths differ (a browser on the hub's own studio,
+        // a desktop, the peer desktop).
+        for (const from of all) {
+          await check('L19.presence.leave', `${from.name}-leaves`, async () => {
+            const others = all.filter((p) => p !== from);
+            await openSeeded(rel, 'Presence', `L19-leave-open-${from.name}`);
+            await until(
+              async () =>
+                (await Promise.all(others.map((p) => count(p, people)))).every(
+                  (n) => n === all.length - 1
+                ),
+              30000
+            ).catch(() => {
+              throw new Unexercised('not everyone was on the canvas before leaving');
+            });
+            await from.click(selector('menu-file'));
+            const start = performance.now();
+            await from.menu('Close canvas');
+            return observeAll(
+              others,
+              `L19-leave-${from.name}`,
+              start,
+              async (p) => (await count(p, people)) === all.length - 2
+            );
+          });
+        }
       }
       // L20 — one desktop drops off the network (its hub link is cut, its own
       // app keeps running): it edits offline while the others keep working,
@@ -2865,9 +3020,7 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           return {
             ...recovered,
             status:
-              leaked.length === 0 &&
-              HELD_STATUS.test(shown) &&
-              recovered.status === 'pass'
+              leaked.length === 0 && HELD_STATUS.test(shown) && recovered.status === 'pass'
                 ? 'pass'
                 : 'fail',
             authorStatus: shown.slice(0, 160),
@@ -2961,7 +3114,10 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           const sid = id;
           await gesture(from, q(sid), 'pointer');
           const handle = '.dc-annot-resize-handle[data-corner="se"]';
-          await until(async () => !!(await from.probe(handle))?.visible);
+          await until(async () => !!(await from.probe(handle))?.visible).catch(async (error) => {
+            await from.screenshot(join(run.out, `L10-no-handle-${from.name}.png`));
+            return unlessNotRendering(from, error);
+          });
           const before = await Promise.all(all.map(async (p) => (await p.probe(q(sid)))?.rect));
           const oldDisk = node(from, sid);
           const start = performance.now();
@@ -3274,7 +3430,11 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         const src = (p: Surface) => readFileSync(join(p.root, '.design', rel), 'utf8');
         const rowsQ = '[data-testid^="project-history-row-"]';
         const openHistory = async (p: Surface) => {
-          if ((await p.read(selector('dock-tab-changes'))) !== null)
+          // A dock tab TOGGLES: pressing the one already showing closes it.
+          if (
+            (await p.read(selector('dock-tab-changes'))) !== null &&
+            (await p.read(`${selector('dock-tab-changes')}[aria-selected="true"]`)) === null
+          )
             await p.click(selector('dock-tab-changes'));
           await until(
             async () =>
@@ -3315,21 +3475,43 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           'L18.history.undo-own-keeps-teammate',
           `${author.name}-with-${teammate.name}`,
           async () => {
+            // A cloud browser proposes under the cell's ONE credential, so the
+            // project cannot tell one browser editor's action from another's:
+            // History names the cell, and personal Undo is withheld there
+            // (app.jsx `onUndoAction`, studio-manifest). Known gap — per-person
+            // attribution for cloud editors — not a regression.
+            if (author.name === 'hub')
+              return {
+                status: 'unsupported',
+                reason:
+                  'Cloud browser actions are attributed to the cell credential; personal Undo is not offered in a cloud browser yet.',
+              };
             const base = src(author);
             if (!base.includes('History v1'))
               throw new Unexercised('Undo needs the restored canvas');
             const mine = version('History mine');
+            const missing = (want: string) =>
+              all
+                .filter((p) => src(p) !== want)
+                .map((p) => p.name)
+                .join(', ');
             writeFileSync(join(author.root, '.design', rel), mine);
-            await until(() => all.every((p) => src(p) === mine), 30000);
+            await until(() => all.every((p) => src(p) === mine), 30000).catch(() => {
+              throw new Error(`the author's edit did not reach: ${missing(mine)}`);
+            });
             // The teammate's later, independent change to the same canvas.
             const theirs = version('History mine', 'Paragraph by teammate');
             writeFileSync(join(teammate.root, '.design', rel), theirs);
-            await until(() => all.every((p) => src(p) === theirs), 30000);
+            await until(() => all.every((p) => src(p) === theirs), 30000).catch(() => {
+              throw new Error(`the teammate's edit did not reach: ${missing(theirs)}`);
+            });
             await openHistory(author);
             await until(
               async () => (await author.read('[data-testid^="project-history-undo-"]')) !== null,
               30000
-            );
+            ).catch(() => {
+              throw new Error('History offers no Undo for the author’s own action');
+            });
             const expected = version('History v1', 'Paragraph by teammate');
             const start = performance.now();
             await author.click('[data-testid^="project-history-undo-"]');
@@ -3376,9 +3558,139 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           );
         });
       }
+      // L23 — a mixed loaded session: people keep editing and switching
+      // canvases while media keeps arriving. Every edit must reach every
+      // other open canvas within budget, media must not starve edits, every
+      // media file must land everywhere, and nothing may grow without bound.
+      await check('L23.mixed-session', 'all', async () => {
+        const soakMs = (run as { soakMs?: number }).soakMs ?? 120_000;
+        const a = 'ui/SurfaceSoak-a.tsx';
+        const b = 'ui/SurfaceSoak-b.tsx';
+        await seedCanvas(all[0] as Surface, b, elementCanvas('Soak B'));
+        await seedCanvas(all[0] as Surface, a, elementCanvas('Soak 0'));
+        await openSeeded(a, 'Soak 0', 'L23-open');
+        const latencies: number[] = [];
+        const misses: string[] = [];
+        const media: Array<{ rel: string; sha: string }> = [];
+        const startedAt = performance.now();
+        const rss = () => {
+          try {
+            const lines = readFileSync(join(run.out, 'resource-samples.jsonl'), 'utf8')
+              .trim()
+              .split('\n');
+            const last = JSON.parse(lines[lines.length - 1] ?? '{}');
+            return (last.processes ?? []).reduce(
+              (n: number, p: { rssKiB?: number }) => n + (p.rssKiB ?? 0),
+              0
+            );
+          } catch {
+            return 0;
+          }
+        };
+        const rssStart = rss();
+        let i = 0;
+        while (performance.now() - startedAt < soakMs) {
+          i += 1;
+          const author = all[i % all.length] as Surface;
+          // Media arriving from someone else, every few edits (file plane).
+          if (i % 3 === 0) {
+            const src = all[(i + 1) % all.length] as Surface;
+            const blob = Buffer.alloc(384 * 1024);
+            for (let k = 0; k < blob.length; k += 4096)
+              blob.writeUInt32LE((Math.random() * 2 ** 32) >>> 0, k);
+            const rel = `assets/soak-${i}.png`;
+            mkdirSync(join(src.root, '.design/assets'), { recursive: true });
+            writeFileSync(join(src.root, '.design', rel), blob);
+            media.push({ rel, sha: createHash('sha256').update(blob).digest('hex') });
+          }
+          // Someone switches away and back (the canvas must stay live for them).
+          if (i % 4 === 0) {
+            const switcher = all[(i + 2) % all.length] as Surface;
+            await openCanvas(switcher, b).catch(() => {});
+            await openCanvas(switcher, a).catch(() => {});
+          }
+          const title = `Soak ${i} by ${author.name}`;
+          const t0 = performance.now();
+          writeFileSync(join(author.root, '.design', a), elementCanvas(title));
+          const seen = await Promise.all(
+            all
+              .filter((p) => p !== author)
+              .map((p) =>
+                until(async () => (await p.read('h1', true)) === title, 15000).then(
+                  () => performance.now() - t0,
+                  () => {
+                    misses.push(`${title} @ ${p.name}`);
+                    return null;
+                  }
+                )
+              )
+          );
+          for (const ms of seen) if (ms !== null) latencies.push(ms);
+          await sleep(1500);
+        }
+        // Every media file everywhere, byte-identical.
+        const mediaMissing: string[] = [];
+        await until(
+          () =>
+            media.every((m) =>
+              all.every((p) => {
+                const path = join(p.root, '.design', m.rel);
+                return (
+                  existsSync(path) &&
+                  createHash('sha256').update(readFileSync(path)).digest('hex') === m.sha
+                );
+              })
+            ),
+          120000
+        ).catch(() => {
+          for (const m of media)
+            for (const p of all) {
+              const path = join(p.root, '.design', m.rel);
+              if (!existsSync(path)) mediaMissing.push(`${m.rel} @ ${p.name}`);
+            }
+        });
+        const sorted = [...latencies].sort((x, y) => x - y);
+        const p95 = sorted[Math.floor(sorted.length * 0.95)] ?? null;
+        const rssEnd = rss();
+        const growth = rssStart ? rssEnd / rssStart : null;
+        return {
+          status:
+            misses.length === 0 &&
+            mediaMissing.length === 0 &&
+            (p95 ?? 0) < 5000 &&
+            (growth ?? 1) < 3
+              ? 'pass'
+              : 'fail',
+          soakMs,
+          edits: i,
+          mediaFiles: media.length,
+          editVisibleMs: {
+            p50: sorted[Math.floor(sorted.length / 2)] ?? null,
+            p95,
+            max: sorted.at(-1) ?? null,
+          },
+          misses,
+          mediaMissing,
+          rssKiB: { start: rssStart, end: rssEnd, growth },
+        };
+      });
       // L24 — final parity: every eligible design file hashes the same on
       // every participant (runtime state and conflict copies excluded).
       await check('L24.final-parity', 'all', async () => {
+        // A canvas's `.meta.json` carries per-machine keys that never sync by
+        // design (`META_LOCAL_KEYS` in apps/studio/sync/codec.ts): the shared
+        // part must match byte-for-byte, those keys must not.
+        const META_LOCAL_KEYS = ['viewport', 'last_modified', 'syncable'];
+        const shared = (name: string, bytes: Buffer): Buffer | string => {
+          if (!name.endsWith('.meta.json')) return bytes;
+          try {
+            const meta = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
+            for (const k of META_LOCAL_KEYS) delete meta[k];
+            return JSON.stringify(meta);
+          } catch {
+            return bytes;
+          }
+        };
         const eligible = (root: string) => {
           const out = new Map<string, string>();
           const walk = (dir: string, rel: string) => {
@@ -3393,7 +3705,7 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
                 out.set(
                   r,
                   createHash('sha256')
-                    .update(readFileSync(join(dir, e.name)))
+                    .update(shared(e.name, readFileSync(join(dir, e.name))))
                     .digest('hex')
                 );
             }

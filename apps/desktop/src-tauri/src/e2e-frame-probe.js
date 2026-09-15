@@ -187,25 +187,29 @@
               pointerType: 'mouse',
               isPrimary: true,
             };
-            element.dispatchEvent(
+            return element.dispatchEvent(
               type.startsWith('pointer')
                 ? new PointerEvent(type, options)
                 : new MouseEvent(type, options)
             );
           };
-          dispatch('pointerdown', x, y, 1);
-          dispatch('mousedown', x, y, 1);
+          // As a browser does it: a canceled pointerdown suppresses the
+          // compatibility mousedown/mousemove/mouseup of that press (the click
+          // still fires), so a synthetic press reaches listeners exactly the
+          // way a real one does — never events a real press would not send.
+          const mouse = dispatch('pointerdown', x, y, 1);
+          if (mouse) dispatch('mousedown', x, y, 1);
           await tick();
           if (dx || dy) {
             for (let step = 1; step <= 5; step++) {
               // A real drag raises both; listeners subscribe to either.
               dispatch('pointermove', x + (dx * step) / 5, y + (dy * step) / 5, 1);
-              dispatch('mousemove', x + (dx * step) / 5, y + (dy * step) / 5, 1);
+              if (mouse) dispatch('mousemove', x + (dx * step) / 5, y + (dy * step) / 5, 1);
               await tick();
             }
           }
           dispatch('pointerup', x + dx, y + dy, 0);
-          dispatch('mouseup', x + dx, y + dy, 0);
+          if (mouse) dispatch('mouseup', x + dx, y + dy, 0);
           if (!dx && !dy) dispatch('click', x, y, 0);
           if (data.operation === 'doubleClick') {
             dispatch('mousedown', x, y, 1, 2);
