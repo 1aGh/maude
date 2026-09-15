@@ -3214,7 +3214,11 @@ export function createHttp(
         );
       }
       return Response.json(
-        { ok: true, delta: result.delta },
+        {
+          ok: true,
+          delta: result.delta,
+          ...('previous' in result ? { previous: result.previous } : {}),
+        },
         { status: 200, headers: { 'Cache-Control': 'no-store' } }
       );
     },
@@ -3280,7 +3284,12 @@ export function createHttp(
         );
       }
       return Response.json(
-        { ok: true, delta: result.delta, seq: result.seq },
+        {
+          ok: true,
+          delta: result.delta,
+          seq: result.seq,
+          ...('previous' in result ? { previous: result.previous } : {}),
+        },
         { status: 200, headers: { 'Cache-Control': 'no-store' } }
       );
     },

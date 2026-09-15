@@ -30,6 +30,7 @@ export { canvasSlugFromRel } from './canvas-slug.ts';
 
 import {
   type AssembleClip,
+  type AttributeState,
   assembleCompSource,
   CanvasEditError,
   type ClipInfo,
@@ -312,7 +313,9 @@ export type CreateFolderResult =
 
 /** Phase 12 — result of an in-canvas direct edit (`editCss` / `editText`). */
 export type EditOpResult =
-  | { ok: true; delta: number; seq?: number }
+  /** `previous` — what a css/attr write replaced (`null` = was unset); absent
+   *  when it was an expression no literal undo can restore. */
+  | { ok: true; delta: number; seq?: number; previous?: string | null }
   /** `conflict` = the target no longer held the caller's expected value. */
   | { ok: false; status: number; error: string; conflict?: true };
 
@@ -3740,7 +3743,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // genuine agent edit's rim.
   async function suppressedEdit(
     abs: string,
-    run: () => Promise<{ delta: number; changed?: boolean }>,
+    run: () => Promise<{ delta: number; changed?: boolean; previous?: AttributeState }>,
     errLabel: string
   ): Promise<EditOpResult> {
     const rel = path.relative(paths.designRoot, abs);
@@ -3751,15 +3754,21 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       // inspector edits get an undoable seq for free).
       const before = await Bun.file(abs).text();
       const res = await run();
+      const previous =
+        res.previous?.kind === 'absent'
+          ? { previous: null }
+          : res.previous?.kind === 'literal'
+            ? { previous: res.previous.value }
+            : {};
       // `changed === false` = the op collapsed to a no-op and nothing hit disk —
       // NOT `delta === 0`, which an equal-length replacement also produces.
       if (res.changed === false) {
         ctx.bus.emit('activity:unsuppress', rel);
-        return { ok: true, delta: res.delta };
+        return { ok: true, delta: res.delta, ...previous };
       }
       const after = await Bun.file(abs).text();
       const seq = after !== before ? logUndo(abs, before, after) : undefined;
-      return { ok: true, delta: res.delta, seq };
+      return { ok: true, delta: res.delta, seq, ...previous };
     } catch (err) {
       ctx.bus.emit('activity:unsuppress', rel);
       if (err instanceof CanvasEditError && err.conflict) {

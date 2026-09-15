@@ -5551,6 +5551,11 @@ const CSS_JUSTIFY = [
   'space-evenly',
 ];
 const CSS_WEIGHTS = ['300', '400', '500', '600', '700', '800'];
+/** What an edit route says the write replaced (`previous`, read under the file
+ *  lock) — the value an undo must restore. `fallback` only when the route could
+ *  not name it (an expression, or an older server). */
+const replacedValue = (j, fallback) =>
+  j && Object.hasOwn(j, 'previous') ? j.previous : fallback;
 const CSS_FONTS = [
   'inherit',
   'system-ui',
@@ -6443,12 +6448,16 @@ function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, onUndoR
   // no longer triggers a reselect that would re-post fresh `authored` values — so
   // the panel must reflect its own commits immediately or it shows the stale
   // pre-edit value until the user re-selects. Each commit/reset writes here;
-  // `null` marks a removed key. Cleared when a different element is selected.
+  // `null` marks a removed key. Cleared when a different element is selected —
+  // and whenever the canvas re-posts this selection's maps. A re-post carries
+  // the source as it is NOW (a teammate's change reloads the canvas); keeping
+  // our older commit over it showed a stale value and recorded it as the next
+  // undo's `before`, so Cmd+Z restored a value nobody had on screen.
   const [overlay, setOverlay] = useState({ a: {}, c: {}, t: {} });
-  // biome-ignore lint/correctness/useExhaustiveDependencies: clear only on element change.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clear on a fresh selection payload only.
   useEffect(() => {
     setOverlay({ a: {}, c: {}, t: {} });
-  }, [el.id]);
+  }, [el.id, el.authored, el.customStyles, el.attrs]);
   const mergeOverlay = (base, ov) => {
     const out = { ...(base || {}) };
     for (const [k, v] of Object.entries(ov)) {
@@ -6533,10 +6542,27 @@ function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, onUndoR
         ...s,
         [key]: !res.ok || !j.ok ? `err:${(j && j.error) || `HTTP ${res.status}`}` : 'saved',
       }));
+      return res.ok ? j : null;
     } catch (err) {
       setStatus((s) => ({ ...s, [key]: `err:${err && err.message ? err.message : String(err)}` }));
+      return null;
     }
   }
+  // Write, THEN record the undo entry from what the write actually replaced
+  // (`previous`, read server-side under the file lock). The panel's own value
+  // can be a teammate's edit old — it is not re-posted when a peer changes the
+  // source — and recording it made Cmd+Z restore a value nobody had on screen.
+  // Serialized so the stack keeps edit order; a failed write records nothing.
+  const writeChainRef = useRef(Promise.resolve());
+  const writeAndRecord = (url, payload, key, op, prop, fallbackBefore, after) => {
+    writeChainRef.current = writeChainRef.current.then(async () => {
+      const j = await post(url, payload, key);
+      if (!j?.ok) return;
+      const before = Object.hasOwn(j, 'previous') ? j.previous : fallbackBefore;
+      if ((before ?? null) === (after ?? null)) return; // nothing changed to undo
+      record(op, prop, before, after);
+    });
+  };
   // Optimistic preview: nudge the live element so the change shows before the
   // edit → HMR reload lands. `value` null = remove (reset path). No-op when the
   // selection has no stable id (can't be resolved in the canvas).
@@ -6570,8 +6596,15 @@ function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, onUndoR
     if (value === (before ?? '').trim()) return; // no-op
     optimistic(property, value);
     setA(property, value); // reflect in the panel immediately (no reload → no reselect)
-    post('/_api/edit-css', { canvas: el.file, id: el.id, property, value }, property);
-    record('css', property, before, value);
+    writeAndRecord(
+      '/_api/edit-css',
+      { canvas: el.file, id: el.id, property, value },
+      property,
+      'css',
+      property,
+      before,
+      value
+    );
   };
   // A custom CSS property (Advanced) — same write, but the panel surfaces it from
   // the customStyles map, so overlay THERE.
@@ -6582,8 +6615,15 @@ function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, onUndoR
     const before = customStyles[prop] ?? null;
     optimistic(prop, value);
     setC(prop, value);
-    post('/_api/edit-css', { canvas: el.file, id: el.id, property: prop, value }, prop);
-    record('css', prop, before, value);
+    writeAndRecord(
+      '/_api/edit-css',
+      { canvas: el.file, id: el.id, property: prop, value },
+      prop,
+      'css',
+      prop,
+      before,
+      value
+    );
   };
   const commitAttr = (attr, raw) => {
     const a = (attr || '').trim();
@@ -6591,8 +6631,15 @@ function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, onUndoR
     if (!editable || !a || !value) return;
     const before = attrs[a] ?? null;
     setT(a, value);
-    post('/_api/edit-attr', { canvas: el.file, id: el.id, attr: a, value }, `@${a}`);
-    record('attr', a, before, value);
+    writeAndRecord(
+      '/_api/edit-attr',
+      { canvas: el.file, id: el.id, attr: a, value },
+      `@${a}`,
+      'attr',
+      a,
+      before,
+      value
+    );
   };
   // Phase 12.3 — reset (remove the inline prop / attr → back to class/inherited).
   const reset = (property) => {
@@ -6600,23 +6647,44 @@ function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, onUndoR
     const before = authored[property] ?? null;
     optimistic(property, null);
     setA(property, null);
-    post('/_api/edit-css', { canvas: el.file, id: el.id, property, reset: true }, property);
-    record('css', property, before, null);
+    writeAndRecord(
+      '/_api/edit-css',
+      { canvas: el.file, id: el.id, property, reset: true },
+      property,
+      'css',
+      property,
+      before,
+      null
+    );
   };
   const resetCustom = (property) => {
     if (!editable) return;
     const before = customStyles[property] ?? null;
     optimistic(property, null);
     setC(property, null);
-    post('/_api/edit-css', { canvas: el.file, id: el.id, property, reset: true }, property);
-    record('css', property, before, null);
+    writeAndRecord(
+      '/_api/edit-css',
+      { canvas: el.file, id: el.id, property, reset: true },
+      property,
+      'css',
+      property,
+      before,
+      null
+    );
   };
   const resetAttr = (attr) => {
     if (!editable) return;
     const before = attrs[attr] ?? null;
     setT(attr, null);
-    post('/_api/edit-attr', { canvas: el.file, id: el.id, attr, reset: true }, `@${attr}`);
-    record('attr', attr, before, null);
+    writeAndRecord(
+      '/_api/edit-attr',
+      { canvas: el.file, id: el.id, attr, reset: true },
+      `@${attr}`,
+      'attr',
+      attr,
+      before,
+      null
+    );
   };
   // Stage M1 — apply a Fixed / Hug / Fill sizing mode to one axis. The pure
   // `sizingModePatch` returns the exact writes (context-aware Fill: flex main axis
@@ -13715,6 +13783,7 @@ function App() {
       // fix as resizeElement; also covers the keyboard nudge (L1) which reuses this.
       applyOptimisticStyle({ id, prop: 'left', value: `${left}px` });
       applyOptimisticStyle({ id, prop: 'top', value: `${top}px` });
+      let j1ref = null;
       const writeProp = (property, value) =>
         fetch('/_api/edit-css', {
           method: 'POST',
@@ -13726,6 +13795,7 @@ function App() {
         .then(() => writeProp('left', left))
         .then((j1) => {
           if (!j1.ok) throw new Error(j1.error || 'left write failed');
+          j1ref = j1;
           return writeProp('top', top);
         })
         .then((j2) => {
@@ -13737,7 +13807,7 @@ function App() {
             canvas,
             id,
             key: 'left',
-            before: `${beforeLeft}px`,
+            before: replacedValue(j1ref, `${beforeLeft}px`),
             after: `${left}px`,
           });
           recordSourceEdit({
@@ -13745,7 +13815,7 @@ function App() {
             canvas,
             id,
             key: 'top',
-            before: `${beforeTop}px`,
+            before: replacedValue(j2, `${beforeTop}px`),
             after: `${top}px`,
           });
         })
@@ -13833,11 +13903,15 @@ function App() {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ canvas, id, property, value, idIndex: occ }),
         }).then((r) => r.json().catch(() => ({})));
+      const replies = {};
       let chain = editApplyChainRef.current.catch(() => {});
       for (const p of props) {
         chain = chain.then((prev) => {
           if (prev && prev.ok === false) throw new Error(prev.error || `${p} write failed`);
-          return writeProp(p, patch[p]);
+          return writeProp(p, patch[p]).then((j) => {
+            replies[p] = j;
+            return j;
+          });
         });
       }
       editApplyChainRef.current = chain
@@ -13845,7 +13919,14 @@ function App() {
           if (last && last.ok === false) throw new Error(last.error || 'resize write failed');
           // Record one undo entry per written property (each Cmd+Z reverts one).
           for (const p of props) {
-            recordSourceEdit({ op: 'css', canvas, id, key: p, before: b[p] ?? null, after: patch[p] });
+            recordSourceEdit({
+              op: 'css',
+              canvas,
+              id,
+              key: p,
+              before: replacedValue(replies[p], b[p] ?? null),
+              after: patch[p],
+            });
           }
           // Dogfood 2026-07-07 — belt-and-suspenders reselect, mirroring the
           // structural ops' `pendingReorderRef` re-settle. The DDR-105 suppression
@@ -14082,7 +14163,14 @@ function App() {
             .then((r) => r.json().catch(() => ({})))
             .then((j) => {
               if (j.ok)
-                recordSourceEdit({ op: 'css', canvas, id, key: property, before: null, after: value });
+                recordSourceEdit({
+                  op: 'css',
+                  canvas,
+                  id,
+                  key: property,
+                  before: replacedValue(j, null),
+                  after: value,
+                });
             })
             .catch(() => {})
         );
@@ -14422,7 +14510,7 @@ function App() {
                     canvas,
                     id: req.id,
                     key: 'src',
-                    before: req.before ?? null,
+                    before: replacedValue(j, req.before ?? null),
                     after: pickedPath,
                   });
                 } else {

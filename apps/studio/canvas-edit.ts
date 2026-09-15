@@ -282,6 +282,12 @@ export interface EditResult {
    * real write with delta 0 (RC1 rim-suppression finding).
    */
   changed?: boolean;
+  /**
+   * What the target held BEFORE this write, read under the same lock. The
+   * value an undo must restore is what the write replaced — never what a
+   * client panel last believed was there (it can be a teammate's edit old).
+   */
+  previous?: AttributeState;
 }
 
 /**
@@ -306,21 +312,22 @@ export async function editAttribute(
       });
     }
     const source = await file.text();
-    // Checked under the same per-file lock as the write — no gap between the
-    // read that proves the precondition and the rename that applies the edit.
+    // Read under the same per-file lock as the write — no gap between the read
+    // that proves the precondition (and records what is replaced) and the rename.
+    const previous = readAttributeState(canvasAbsPath, source, id, attr, occurrence);
     if (
       precondition &&
-      checkPrecondition(canvasAbsPath, source, id, attr, occurrence, precondition) === 'already'
+      checkPrecondition(previous, id, attr, canvasAbsPath, precondition) === 'already'
     ) {
-      return { source, delta: 0, changed: false };
+      return { source, delta: 0, changed: false, previous };
     }
     const next = applyEdit(canvasAbsPath, source, id, attr, value, occurrence);
-    if (next.source === source) return { source, delta: 0, changed: false };
+    if (next.source === source) return { source, delta: 0, changed: false, previous };
     const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
     await Bun.write(tmp, next.source);
     const { rename } = await import('node:fs/promises');
     await rename(tmp, canvasAbsPath);
-    return { ...next, changed: true };
+    return { ...next, changed: true, previous };
   });
 }
 
@@ -348,19 +355,20 @@ export async function removeAttribute(
       });
     }
     const source = await file.text();
+    const previous = readAttributeState(canvasAbsPath, source, id, attr, occurrence);
     if (
       precondition &&
-      checkPrecondition(canvasAbsPath, source, id, attr, occurrence, precondition) === 'already'
+      checkPrecondition(previous, id, attr, canvasAbsPath, precondition) === 'already'
     ) {
-      return { source, delta: 0, changed: false };
+      return { source, delta: 0, changed: false, previous };
     }
     const next = applyRemove(canvasAbsPath, source, id, attr, occurrence);
-    if (next.source === source) return { source, delta: 0, changed: false };
+    if (next.source === source) return { source, delta: 0, changed: false, previous };
     const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
     await Bun.write(tmp, next.source);
     const { rename } = await import('node:fs/promises');
     await rename(tmp, canvasAbsPath);
-    return { ...next, changed: true };
+    return { ...next, changed: true, previous };
   });
 }
 
@@ -450,14 +458,12 @@ export function readAttributeState(
  * else is a peer's newer value: refuse rather than overwrite it.
  */
 function checkPrecondition(
-  canvasAbsPath: string,
-  source: string,
+  state: AttributeState,
   id: string,
   attr: string,
-  occurrence: number | undefined,
+  canvasAbsPath: string,
   pre: AttributePrecondition
 ): 'apply' | 'already' {
-  const state = readAttributeState(canvasAbsPath, source, id, attr, occurrence);
   const holds = (value: string | null) =>
     value === null ? state.kind === 'absent' : state.kind === 'literal' && state.value === value;
   if (holds(pre.next)) return 'already';

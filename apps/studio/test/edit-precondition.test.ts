@@ -226,3 +226,40 @@ describe('attr precondition', () => {
     expect(await read('data-tone')).toEqual({ kind: 'absent' });
   });
 });
+
+// The undo entry must record what the write REPLACED, read server-side under
+// the file lock — the inspector's own value can be a teammate's edit old
+// (the canvas does not re-post a selection when a peer changes the source).
+describe('writes report what they replaced', () => {
+  test('css set, css reset and attr set each return `previous`', async () => {
+    const { api, ids } = await mkRig();
+    const set = await api.editCss({
+      canvas: 'ui/Knob',
+      id: ids.a,
+      property: 'color',
+      value: 'blue',
+    });
+    expect(set).toMatchObject({ ok: true, previous: 'red' });
+    const fresh = await api.editCss({
+      canvas: 'ui/Knob',
+      id: ids.b,
+      property: 'color',
+      value: 'blue',
+    });
+    expect(fresh).toMatchObject({ ok: true, previous: null });
+    const reset = await api.editCss({
+      canvas: 'ui/Knob',
+      id: ids.a,
+      property: 'color',
+      reset: true,
+    });
+    expect(reset).toMatchObject({ ok: true, previous: 'blue' });
+    const attr = await api.editAttr({
+      canvas: 'ui/Knob',
+      id: ids.a,
+      attr: 'data-tone',
+      value: 'cool',
+    });
+    expect(attr).toMatchObject({ ok: true, previous: 'warm' });
+  });
+});
