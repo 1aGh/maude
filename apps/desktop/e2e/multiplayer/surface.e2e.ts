@@ -2776,7 +2776,10 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         const rel = `ui/SurfaceComments-${from.name}.tsx`;
         const text = `Comment from ${from.name}`;
         const reply = `Reply from ${from.name}`;
-        const idOf = () => commentsOf(from, rel).find((c) => c.text === text)?.id ?? null;
+        // The thread keeps its id when its author edits the text.
+        let threadId: string | null = null;
+        const idOf = () =>
+          (threadId ??= commentsOf(from, rel).find((c) => c.text === text)?.id ?? null);
         await check('L11.comment.create', `${from.name}-to-peers`, async () => {
           await seedCanvas(from, rel, elementCanvas(`Comments ${from.name}`));
           await openSeeded(rel, `Comments ${from.name}`, `L11-${from.name}`);
@@ -2828,6 +2831,40 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               !!commentsOf(p, rel)
                 .find((c) => c.id === id)
                 ?.thread?.some((r) => r.body === reply)
+          );
+        });
+        // The author corrects their own comment in place: the new text
+        // replaces the old on every canvas and disk, the thread keeps its reply.
+        await check('L11.comment.edit', `${from.name}-to-peers`, async () => {
+          const id = idOf();
+          if (!id || all.some((p) => !commentsOf(p, rel).some((c) => c.id === id)))
+            throw new Unexercised('Edit needs the thread on every participant');
+          await openThread(from, id);
+          await until(async () => !!(await from.probe(selector('comment-edit')))?.visible).catch(
+            () => {
+              throw new Error('The author is not offered Edit on their own comment');
+            }
+          );
+          await gesture(from, selector('comment-edit'), 'click');
+          const edited = `Edited by ${from.name}`;
+          await until(async () => !!(await from.probe('[aria-label="Edit comment"]'))?.visible);
+          await gesture(from, '[aria-label="Edit comment"]', 'fill', edited);
+          const start = performance.now();
+          await gesture(from, selector('comment-edit-save'), 'click');
+          return observeAll(
+            all,
+            `L11-edit-${from.name}`,
+            start,
+            async (p) => {
+              const c = commentsOf(p, rel).find((x) => x.id === id);
+              if (c?.text !== edited) return false;
+              await openThread(p, id);
+              return ((await p.read('.cm-thread', true)) ?? '').includes(edited);
+            },
+            (p) => {
+              const c = commentsOf(p, rel).find((x) => x.id === id);
+              return c?.text === edited && !!c.thread?.some((r) => r.body === reply);
+            }
           );
         });
         const statusOf = (p: Surface, id: string) =>
