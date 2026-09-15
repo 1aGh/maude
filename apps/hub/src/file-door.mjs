@@ -258,10 +258,23 @@ async function streamAndHash(request, abs, { maxBytes, budget }) {
   try {
     mkdirSync(dirname(abs), { recursive: true });
     const ws = createWriteStream(tmp);
-    ws.on('error', () => {});
+    // A DISK THAT REFUSES IS AN ANSWER. Opening the temp file fails
+    // asynchronously (a folder the hub may not write to, a full disk); the
+    // error used to be swallowed here and the loop then waited for a `drain`
+    // that never came — the peer timed out on every attempt instead of being
+    // told (plan T31/L22). The error is kept and every wait races it.
+    let streamError = null;
+    const failed = new Promise((_, reject) => {
+      ws.on('error', (err) => {
+        streamError = err;
+        reject(err);
+      });
+    });
+    failed.catch(() => {});
     const effectiveCap = Math.min(maxBytes, budget.cap - budget.used);
     try {
       for await (const chunk of request) {
+        if (streamError) throw streamError;
         total += chunk.length;
         if (total > effectiveCap) {
           const err = new Error('too large');
@@ -269,14 +282,18 @@ async function streamAndHash(request, abs, { maxBytes, budget }) {
           throw err;
         }
         hash.update(chunk);
-        if (!ws.write(chunk)) await once(ws, 'drain');
+        if (!ws.write(chunk)) await Promise.race([once(ws, 'drain'), failed]);
       }
-      await new Promise((res, rej) => {
-        ws.end((err) => (err ? rej(err) : res()));
-      });
+      if (streamError) throw streamError;
+      await Promise.race([
+        new Promise((res, rej) => {
+          ws.end((err) => (err ? rej(err) : res()));
+        }),
+        failed,
+      ]);
     } catch (err) {
       ws.destroy();
-      await once(ws, 'close');
+      if (!ws.closed) await once(ws, 'close');
       rmSync(tmp, { force: true });
       return err.tooLarge
         ? {

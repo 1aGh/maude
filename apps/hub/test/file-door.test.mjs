@@ -18,6 +18,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -177,6 +178,28 @@ describe('the door writes, and answers with a receipt', () => {
     const res = await call(exchange({ rel: 'config.json', body: '{}' }));
     assert.equal(res.status, 400);
     assert.match(readFileSync(join(designRoot, 'config.json'), 'utf8'), /canvasGroups/);
+  });
+
+  it('a disk that refuses the write is answered at once, not left hanging (plan T31/L22)', async () => {
+    // The temp file cannot be created in a folder the hub may not write to.
+    // The stream's error was swallowed and the write then waited for a
+    // `drain` that never came, so the peer timed out on every attempt and
+    // its person saw nothing but a slow "waiting".
+    mkdirSync(join(designRoot, 'system/locked'), { recursive: true });
+    chmodSync(join(designRoot, 'system/locked'), 0o555);
+    try {
+      const big = 'x'.repeat(4 * 1024 * 1024);
+      const t0 = Date.now();
+      const res = await Promise.race([
+        call(exchange({ rel: 'system/locked/brand.css', body: big })),
+        new Promise((r) => setTimeout(() => r({ status: 'hung' }), 5000)),
+      ]);
+      assert.equal(res.status, 500);
+      assert.ok(Date.now() - t0 < 5000);
+      assert.equal(existsSync(join(designRoot, 'system/locked/brand.css')), false);
+    } finally {
+      chmodSync(join(designRoot, 'system/locked'), 0o755);
+    }
   });
 
   it('refuses a method that is not PUT', async () => {
