@@ -281,3 +281,32 @@ test('#121 clearing a recovered source warning preserves consent notices', () =>
   expect(store.get().notices?.map((n) => n.id)).toEqual(['shared-doc']);
   expect(writes.at(-1)?.notices?.map((n) => n.id)).toEqual(['shared-doc']);
 });
+
+// Plan T29 — cold-open timing and the revision this checkout has written.
+describe('observability', () => {
+  test('cold open records when canvases were in step and when files converged, once', () => {
+    let t = 1000;
+    const written: unknown[] = [];
+    const store = createSyncStatusStore({
+      url: 'http://hub',
+      canvases: 2,
+      write: (p) => written.push(p),
+      flushIntervalMs: 0,
+      now: () => t,
+    });
+    t = 1400;
+    store.update({ state: 'online', queuedOps: 0, lastSyncAt: null, offlineSince: null, flash: null, updatedAt: t, docs: { synced: 1, pending: 1, rejected: 0 } } as never);
+    expect(store.get().coldOpen).toBeUndefined();
+    t = 1900;
+    store.update({ state: 'online', queuedOps: 0, lastSyncAt: null, offlineSince: null, flash: null, updatedAt: t, docs: { synced: 2, pending: 0, rejected: 0 } } as never);
+    expect(store.get().coldOpen).toEqual({ canvasesMs: 900 });
+    t = 5000;
+    store.updateFiles({ synced: 3, progress: { phase: 'converged' } } as never);
+    t = 9000;
+    store.updateFiles({ synced: 3, progress: { phase: 'converged' } } as never);
+    expect(store.get().coldOpen).toEqual({ canvasesMs: 900, filesMs: 4000 });
+    store.noteAppliedRevision(7);
+    store.noteAppliedRevision(5);
+    expect(store.get().appliedRevision).toBe(7);
+  });
+});

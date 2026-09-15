@@ -3482,6 +3482,7 @@ export function createSyncRuntime(
                       replayOp: (op: SourceOp, head: string) => replaySourceOp(canvas.html, op, head),
                       onAccepted: ({ lane, value, actionId }: { lane: string; value: string; actionId: string }) =>
                         noteAcceptedContent(canvas.slug, lane, value, actionId),
+                      onRevisionApplied: (rev: number) => store.noteAppliedRevision?.(rev),
                     }
                   : {}),
                 // A write the hub would drop is held, never made (see isWritable).

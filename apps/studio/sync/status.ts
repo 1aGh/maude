@@ -86,6 +86,14 @@ export interface SyncStatusPayload extends SyncStatusSnapshot {
    * absent until the project saves through accepted revisions.
    */
   accepted?: AcceptedSaveStatus;
+  /**
+   * Plan T29 — cold open: ms from the runtime's start until every canvas was
+   * in step, and until the file plane first converged (media complete).
+   * Additive; each appears once it happens.
+   */
+  coldOpen?: { canvasesMs?: number; filesMs?: number };
+  /** Plan T29 — the newest accepted revision this checkout has written (vs the hub's head). */
+  appliedRevision?: number;
   /** Plan T16 — an AI action open or held (unfinished). Absent when none. */
   aiAction?: { state: 'open' | 'held'; label: string; canvases: string[]; since: number };
 }
@@ -223,6 +231,8 @@ export interface SyncStatusStore {
   updateFiles(files: FilePlaneStatus): void;
   /** Plan T29 — accepted-revisions save counters. */
   updateAccepted(next: AcceptedSaveStatus): void;
+  /** Plan T29 — the newest accepted revision written to this checkout. */
+  noteAppliedRevision(revision: number): void;
   /** Plan T16 — the AI action stage (null clears it). */
   updateAiAction(next: SyncStatusPayload['aiAction'] | null): void;
   /** Record a consent-class notice (A7) + persist + broadcast. Idempotent by
@@ -266,6 +276,9 @@ export function createSyncStatusStore(opts: SyncStatusStoreOptions): SyncStatusS
   let files: FilePlaneStatus | undefined;
   let accepted: AcceptedSaveStatus | undefined;
   let aiAction: SyncStatusPayload['aiAction'] | undefined;
+  const bootAt = now();
+  const coldOpen: { canvasesMs?: number; filesMs?: number } = {};
+  let appliedRevision: number | undefined;
   const notices: SyncNotice[] = [];
 
   function payload(): SyncStatusPayload {
@@ -291,6 +304,8 @@ export function createSyncStatusStore(opts: SyncStatusStoreOptions): SyncStatusS
       ...(files ? { files } : {}),
       ...(accepted ? { accepted } : {}),
       ...(aiAction ? { aiAction } : {}),
+      ...(coldOpen.canvasesMs !== undefined || coldOpen.filesMs !== undefined ? { coldOpen: { ...coldOpen } } : {}),
+      ...(appliedRevision !== undefined ? { appliedRevision } : {}),
       ...(notices.length ? { notices: notices.slice() } : {}),
     };
   }
@@ -359,6 +374,10 @@ export function createSyncStatusStore(opts: SyncStatusStoreOptions): SyncStatusS
     update(next) {
       const changed = snapshot.state !== next.state;
       snapshot = next;
+      const d = next.docs;
+      if (coldOpen.canvasesMs === undefined && d && d.synced > 0 && d.pending === 0) {
+        coldOpen.canvasesMs = now() - bootAt;
+      }
       // A connection state CHANGE is the headline; a heartbeat is not.
       flush(changed);
     },
@@ -369,6 +388,11 @@ export function createSyncStatusStore(opts: SyncStatusStoreOptions): SyncStatusS
     },
     updateAssets(progress) {
       assets = progress;
+      flush();
+    },
+    noteAppliedRevision(revision) {
+      if (appliedRevision !== undefined && revision <= appliedRevision) return;
+      appliedRevision = revision;
       flush();
     },
     updateAiAction(next) {
@@ -383,6 +407,9 @@ export function createSyncStatusStore(opts: SyncStatusStoreOptions): SyncStatusS
     },
     updateFiles(next) {
       files = next;
+      if (coldOpen.filesMs === undefined && next.progress?.phase === 'converged') {
+        coldOpen.filesMs = now() - bootAt;
+      }
       // A finished or stalled seed is what a person is waiting to see; a
       // mid-seed tick is not.
       flush(next.progress?.phase === 'converged' || next.progress?.phase === 'blocked');

@@ -194,7 +194,12 @@ the file plane's own counts (`files`, `assets`) in the same payload. Within a
 pass the file plane pulls what a canvas references first, then smallest first,
 so one large master never holds back the images a canvas needs; *Download all*
 in the Sync panel (`POST /_api/sync/offline`) runs passes back to back until
-the whole project is on the device (explicit offline preparation).
+the whole project is on the device (explicit offline preparation). The studio
+status also carries `coldOpen {canvasesMs, filesMs}` — boot to every canvas in
+step, and to the first file-plane convergence (first interaction vs full
+download, recorded separately) — and `appliedRevision`, the newest accepted
+revision this checkout has written; against the coordinator's `revision` it is
+the render revision lag.
 
 ## User-visible guarantees
 

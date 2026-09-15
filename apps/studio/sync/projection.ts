@@ -148,6 +148,8 @@ export interface DocProjectionOptions {
   revisionBarrier?: RevisionBarrier;
   /** T24 — re-apply a UI operation onto the version that won (sync/source-ops). */
   replayOp?: (op: SourceOp, head: string) => { ok: true; source: string } | { ok: false; reason: string };
+  /** T29 — this checkout now holds a document at this accepted revision. */
+  onRevisionApplied?: (revision: number) => void;
   /** T26 — a lane value of ours was accepted as this action. */
   onAccepted?: (info: { lane: ProposalLane; value: string; actionId: string }) => void;
   /**
@@ -561,6 +563,8 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     try {
       if (writeHtmlIfChanged()) writeCssIfChanged();
       writeMetaIfChanged();
+      const applied = acceptedOn() ? stampedCohort() : null;
+      if (applied && !held.has('html') && !pending.has('html')) opts.onRevisionApplied?.(applied[0]);
     } catch (err) {
       dirty = true;
       console.error(`[projection/${slug}] flush failed:`, err);
