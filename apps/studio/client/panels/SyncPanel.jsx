@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { safeDetail, safeName, syncPresentation } from '../../sync/presentation.ts';
 import { TeamProjectsDialog } from './TeamProjects.jsx';
+import SourceConflictPanel from './SourceConflictPanel.jsx';
 import { isNativeApp } from '../github.js';
 
 /**
@@ -264,6 +265,8 @@ export default function SyncPanel({
   // Plan T20/T22 — a refused workspace on the desktop is usually a sign-in that
   // ran out. Signing in again re-mints the credential and reopens the same copy.
   const [signInAgain, setSignInAgain] = useState(false);
+  // Plan T28 — the conflict being resolved (a canvas slug), or null.
+  const [resolving, setResolving] = useState(null);
   // Plan T16 — the person's decision on an unfinished AI edit.
   const [aiBusy, setAiBusy] = useState('');
   const [aiNote, setAiNote] = useState('');
@@ -598,6 +601,7 @@ export default function SyncPanel({
             )}
           </div>
         )}
+        {resolving && <SourceConflictPanel slug={resolving} onClose={() => setResolving(null)} />}
         {signInAgain && (
           <TeamProjectsDialog
             title="Sign in again"
@@ -638,6 +642,16 @@ export default function SyncPanel({
             {notices.map((n) => (
               <div key={n.id} className="sp-notice" data-testid={`sync-notice-${n.id}`}>
                 <p className="sp-notice-text">{safeNoticeText(n.text)}</p>
+                {n.id.startsWith('source-conflict-') && (
+                  <button
+                    type="button"
+                    className="btn btn--sm"
+                    data-testid={`sync-resolve-${n.id.slice('source-conflict-'.length)}`}
+                    onClick={() => setResolving(n.id.slice('source-conflict-'.length))}
+                  >
+                    Resolve…
+                  </button>
+                )}
                 <button
                   type="button"
                   className="sp-notice-dismiss"

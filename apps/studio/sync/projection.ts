@@ -219,6 +219,14 @@ export interface DocProjection {
   ): Promise<ProposalOutcome> | null;
   /** Lanes with an unresolved proposal (status surfaces). */
   pendingCount(): number;
+  /**
+   * T28 — resolve a held source conflict by taking the project's version:
+   * the accepted body returns to disk; the local candidate is already in the
+   * recovery slots. Returns false when nothing is held.
+   */
+  takeAccepted(): boolean;
+  /** T28 — the two sides of a held source conflict (null when none). */
+  conflictSides(): { mine: string | null; theirs: string } | null;
   /** Re-deliver file changes held while the document was not writable. */
   retryDeferred(): void;
   /**
@@ -1039,6 +1047,22 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
         lastCss = base;
       }
       reject('local-edit', local, readLaneFromDoc(doc, lane), pathOfLane(lane));
+    },
+    takeAccepted() {
+      if (!held.has('html') && rejectedKey === null) return false;
+      held.delete('html');
+      // The local-edit guard compares disk with `observedBody`; declaring the
+      // current disk bytes observed lets the writer replace them.
+      observedBody = readLocal(paths.html);
+      lastHtml = null;
+      dirty = true;
+      void flush();
+      recovered();
+      return true;
+    },
+    conflictSides() {
+      if (!held.has('html') && rejectedKey === null) return null;
+      return { mine: readLocal(paths.html), theirs: htmlFromDoc(doc) };
     },
     proposeLane(lane, value, o) {
       if (!acceptedOn() || stopped) return null;

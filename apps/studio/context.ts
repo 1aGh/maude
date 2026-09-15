@@ -288,6 +288,11 @@ export interface Context {
         actionId: string,
         redo?: boolean
       ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean } | null>;
+      conflictVersions?(repoRel: string): { slug: string; mine: string | null; theirs: string } | null;
+      resolveConflict?(
+        repoRel: string,
+        choice: 'mine' | 'theirs'
+      ): Promise<{ status: 'accepted' | 'rejected' | 'taken'; code?: string } | null>;
       /** T16 — AI action boundaries (see sync/action-stage.ts). */
       beginAiAction?(key: string, label: string): void;
       endAiAction?(

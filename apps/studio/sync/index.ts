@@ -541,6 +541,16 @@ export interface SyncRuntime {
     key: string,
     outcome: 'done' | 'failed'
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string } | null>;
+  /** T28 — the two sides of a canvas's held source conflict. */
+  conflictVersions?(repoRel: string): { slug: string; mine: string | null; theirs: string } | null;
+  /**
+   * T28 — resolve it: `mine` proposes the local version on top of the
+   * project's (a new action), `theirs` takes the project's version.
+   */
+  resolveConflict?(
+    repoRel: string,
+    choice: 'mine' | 'theirs'
+  ): Promise<{ status: 'accepted' | 'rejected' | 'taken'; code?: string } | null>;
   /** T16 — the person's decision on a held (unfinished) AI action. */
   resolveAiAction?(
     choice: 'publish' | 'discard'
@@ -4680,6 +4690,29 @@ export function createSyncRuntime(
     acceptedUndo: async (actionId, redo = false) => {
       if (!acceptedOn() || !acceptedLink) return null;
       return acceptedLink.undo(actionId, redo);
+    },
+    conflictVersions: (repoRel) => {
+      // A slug (the Sync panel's notice id) or a repo-relative canvas path.
+      const slug = projections.has(repoRel) ? repoRel : slugForRepoRel(repoRel);
+      const sides = slug ? projections.get(slug)?.conflictSides() : null;
+      return slug && sides ? { slug, ...sides } : null;
+    },
+    resolveConflict: async (repoRel, choice) => {
+      const slug = projections.has(repoRel) ? repoRel : slugForRepoRel(repoRel);
+      const projection = slug ? projections.get(slug) : undefined;
+      if (!slug || !projection) return null;
+      const sides = projection.conflictSides();
+      if (!sides) return null;
+      if (choice === 'theirs') {
+        projection.takeAccepted();
+        return { status: 'taken' };
+      }
+      if (sides.mine === null) return { status: 'rejected', code: 'no-local-version' };
+      // Mine, on top of the version that won — a new action, never a rewind.
+      const r = await projection.proposeLane('html', sides.mine, { baseContent: sides.theirs });
+      if (!r) return null;
+      if (r.status === 'accepted') statusStore?.clearSourceConflict?.(slug);
+      return { status: r.status, ...(r.code ? { code: r.code } : {}) };
     },
     beginAiAction: (key, label) => {
       if (!acceptedOn() || !acceptedLink) return;

@@ -329,6 +329,51 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     );
   }, 40_000);
 
+  test('a held conflict resolves from its two sides: keep mine (new action) or take the project’s (T28)', async () => {
+    const make = async (name: string) => {
+      alice.write(`ui/${name}.tsx`, src(`${name} base`));
+      await alice.runtime.rescanNow();
+      await waitFor(async () => {
+        await bob.runtime.pullRemoteNow();
+        return bob.read(`ui/${name}.tsx`) === src(`${name} base`);
+      }, `${name} on bob`);
+    };
+    const clash = async (name: string) => {
+      alice.write(`ui/${name}.tsx`, src(`${name} by Alice`));
+      bob.write(`ui/${name}.tsx`, src(`${name} by Bob`));
+      const rel = `design/ui/${name}.tsx`;
+      return waitFor(() => {
+        for (const [me, other] of [
+          [alice, bob],
+          [bob, alice],
+        ] as const) {
+          const sides = me.runtime.conflictVersions?.(rel);
+          if (sides) return { loser: me, winner: other, sides, rel };
+        }
+        return null;
+      }, `a held conflict on ${name}`);
+    };
+
+    await make('clash-a');
+    const one = await clash('clash-a');
+    expect(one.sides.mine).toBe(one.loser.read('ui/clash-a.tsx'));
+    expect(one.sides.theirs).toBe(one.winner.read('ui/clash-a.tsx'));
+    const kept = await one.loser.runtime.resolveConflict?.(one.rel, 'mine');
+    expect(kept?.status).toBe('accepted');
+    await waitFor(() => one.winner.read('ui/clash-a.tsx') === one.sides.mine, 'mine to reach the winner');
+    expect(one.loser.runtime.conflictVersions?.(one.rel)).toBeNull();
+
+    await make('clash-b');
+    const two = await clash('clash-b');
+    const took = await two.loser.runtime.resolveConflict?.(two.rel, 'theirs');
+    expect(took?.status).toBe('taken');
+    await waitFor(() => two.loser.read('ui/clash-b.tsx') === two.sides.theirs, 'the project’s version on the loser');
+    expect(two.loser.runtime.conflictVersions?.(two.rel)).toBeNull();
+    // The loser's own version is still recoverable.
+    const local = join(two.loser.ctx.paths.historyDir, 'ui-clash-b', 'sync-recovery', 'local.tsx');
+    expect(readFileSync(local, 'utf8')).toBe(two.sides.mine);
+  }, 60_000);
+
   test('a comment proposed through the API reaches the peer replica', async () => {
     const r = alice.runtime.proposeLane?.(
       'ui-home',

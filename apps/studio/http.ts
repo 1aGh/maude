@@ -2278,6 +2278,26 @@ export function createHttp(
       );
     },
 
+    '/_api/project/conflict': async (req: Request) => {
+      // T28 — a held source conflict: GET the two sides, POST the decision.
+      if (!isTrustedRequestHost(req)) return new Response('local request required', { status: 403 });
+      const runtime = ctx.syncControl?.current?.();
+      if (req.method === 'GET') {
+        const file = new URL(req.url).searchParams.get('file') ?? '';
+        const sides = runtime?.conflictVersions?.(file);
+        if (!sides) return Response.json({ ok: false, error: 'No conflict on that canvas.' }, { status: 404 });
+        return Response.json({ ok: true, ...sides }, { headers: { 'Cache-Control': 'no-store' } });
+      }
+      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+      if (!sameOriginWrite(req)) return new Response('cross-origin write rejected', { status: 403 });
+      const body = await readJson<{ file?: string; choice?: string }>(req);
+      const choice = body?.choice === 'mine' ? 'mine' : body?.choice === 'theirs' ? 'theirs' : null;
+      if (!body?.file || !choice) return Response.json({ ok: false, error: 'file and choice required' }, { status: 400 });
+      const r = await runtime?.resolveConflict?.(body.file, choice);
+      if (!r) return Response.json({ ok: false, error: 'No conflict on that canvas.' }, { status: 404 });
+      return Response.json({ ok: r.status !== 'rejected', ...r }, { headers: { 'Cache-Control': 'no-store' } });
+    },
+
     '/_api/project/ai-action': async (req: Request) => {
       // T16 — the person's decision on an unfinished AI edit (held stage).
       if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });

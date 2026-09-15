@@ -220,6 +220,9 @@ export const STUDIO_ROUTES = Object.freeze({
   // An unfinished AI edit is a desktop agent's (the cell runs no agent — the
   // chat lanes above are refused too).
   '/_api/project/ai-action': REFUSED,
+  // A source conflict is a desktop checkout's (the cell's studio projects the
+  // project, it holds no candidate of a person's).
+  '/_api/project/conflict': REFUSED,
 
   // ---- refused in a cell, on the record ----------------------------------
   //

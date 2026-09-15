@@ -2638,6 +2638,24 @@ body.st-scrubbing, body.st-scrubbing * { cursor: ew-resize !important; user-sele
 .gi-dl-open { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); padding-bottom: var(--space-4); border-bottom: 1px solid var(--border-default); }
 .sp-ai-held { display: flex; flex-direction: column; gap: var(--space-2); }
 .sp-ai-actions { display: flex; gap: var(--space-2); }
+/* ── SourceConflictPanel (plan T28) — two versions, line by line. ── */
+.gi-dialog.scp-dialog { width: min(760px, 94vw); max-height: min(820px, 90vh); overflow: hidden; display: flex; flex-direction: column; padding: var(--space-6); gap: var(--space-4); }
+.scp-legend { display: flex; gap: var(--space-4); font-size: var(--type-xs); color: var(--fg-2); }
+.scp-key::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: var(--space-2); vertical-align: -1px; }
+.scp-key--mine::before { background: color-mix(in oklch, var(--status-warn) 45%, transparent); }
+.scp-key--theirs::before { background: color-mix(in oklch, var(--status-info) 45%, transparent); }
+.scp-diff { flex: 1; min-height: 120px; overflow: auto; border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-1); font-family: var(--font-mono); font-size: var(--type-xs); line-height: 1.55; }
+.scp-diff:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.scp-line { display: flex; gap: var(--space-2); padding: 0 var(--space-3); white-space: pre; }
+.scp-line code { font: inherit; color: var(--fg-1); }
+.scp-mark { width: 1ch; color: var(--fg-3); flex: none; }
+.scp-line--mine { background: color-mix(in oklch, var(--status-warn) 14%, transparent); }
+.scp-line--theirs { background: color-mix(in oklch, var(--status-info) 14%, transparent); }
+.scp-line--skip { color: var(--fg-3); font-style: italic; }
+.scp-line--skip code { color: var(--fg-3); }
+.scp-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.scp-hint { font-size: var(--type-xs); color: var(--fg-2); }
+.scp-error { margin: 0; color: var(--status-error); font-size: var(--type-sm); }
 .tp { display: flex; flex-direction: column; gap: var(--space-5); max-width: 720px; }
 .tp-section { display: flex; flex-direction: column; gap: var(--space-3); }
 .tp-device { display: flex; flex-direction: column; gap: var(--space-3); max-width: 560px; }
