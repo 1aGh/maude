@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-13T00:00:00.000Z",
+  "generated": "2026-09-14T00:00:00.000Z",
   "currentPhase": {
     "id": "feature-reliable-project-multiplayer",
     "title": "Feature: Reliable project multiplayer",
@@ -7,17 +7,6 @@
     "status": "in-progress"
   },
   "phases": [
-    {
-      "id": "feature-share-link-deeplink",
-      "title": "Feature: Share link + deep link for canvases and files (desktop · browser · cloud)",
-      "status": "done",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
-      "planPath": ".ai/plans/archive/feature-share-link-deeplink.md",
-      "archived": true,
-      "phaseKey": null
-    },
     {
       "id": "phase-1-contribute-infra-changesets",
       "title": "Phase 1: Contribute infrastructure + Changesets bootstrap",
@@ -2193,6 +2182,17 @@
       "date": "2026-09-04",
       "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
       "planPath": ".ai/plans/archive/feature-large-project-seed-and-sync-progress.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
+      "id": "feature-share-link-deeplink",
+      "title": "Feature: Share link + deep link for canvases and files (desktop · browser · cloud)",
+      "status": "done",
+      "shipTarget": null,
+      "date": "2026-09-14",
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
+      "planPath": ".ai/plans/archive/feature-share-link-deeplink.md",
       "archived": true,
       "phaseKey": null
     },
