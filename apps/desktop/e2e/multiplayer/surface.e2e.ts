@@ -4555,6 +4555,32 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             (p) => node(from, sid) !== oldDisk && node(p, sid) === node(from, sid)
           );
         });
+        // Replace — the sticker's own Replace… (annotation context menu →
+        // media picker) swaps its picture for the project's seeded photo.
+        await check('L10.sticker.replace', `${from.name}-to-peers`, async () => {
+          if (!id) throw new Unexercised('Add did not produce a sticker');
+          const sid = id;
+          const next = 'assets/surface-pattern.png';
+          await gesture(from, selector('palette-mode-edit'), 'click');
+          await gesture(from, q(sid), 'contextMenu');
+          const replace = '.dc-context-menu [data-action="replace"]';
+          await until(async () => !!(await from.probe(replace))?.visible);
+          await gesture(from, replace, 'click');
+          const cell = '[aria-label="Choose media"] .st-ap-cell[title^="surface-pattern.png"]';
+          await until(async () => (await from.read(cell)) !== null);
+          const start = performance.now();
+          await from.click(cell);
+          return observeAll(
+            all,
+            `L10-replace-${from.name}`,
+            start,
+            async (p) => {
+              const r = await p.probe(`image[data-id="${sid}"], [data-id="${sid}"] image`);
+              return !!r?.visible && r.pixel?.join(',') === '111,159,21,255';
+            },
+            (p) => hrefOf(node(p, sid)) === next && node(p, sid) === node(from, sid)
+          );
+        });
         await check('L10.sticker.remove', `${from.name}-to-peers`, async () => {
           if (!id) throw new Unexercised('Add did not produce a sticker');
           const sid = id;
