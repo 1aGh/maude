@@ -82,6 +82,9 @@ process.env.NO_OPEN = '1';
 // fails looking exactly like a broken bundle. Honored only under
 // `debug_assertions` (keychain.rs), so no shipped build is affected.
 process.env.MAUDE_E2E_NO_KEYCHAIN = '1';
+// The service's direct-eval client reads this env var independently of
+// embeddedPort. Keep both aligned and allow concurrent worktrees to choose a port.
+process.env.TAURI_WEBDRIVER_PORT ??= '4455';
 if (process.env.MAUDE_CANVAS_ORIGIN_SPLIT === undefined) {
   process.env.MAUDE_CANVAS_ORIGIN_SPLIT = '0';
 }
@@ -173,7 +176,7 @@ export const config: WebdriverIO.Config = {
   // (which also carries the wdio plugin under debug_assertions and would answer on
   // 4445 — that contention made an early run drive the wrong project). The service
   // forwards this as TAURI_WEBDRIVER_PORT to the spawned e2e app.
-  services: [['@wdio/tauri-service', { embeddedPort: 4455 }]],
+  services: [['@wdio/tauri-service', { embeddedPort: Number(process.env.TAURI_WEBDRIVER_PORT) }]],
 
   logLevel: 'info',
   framework: 'mocha',

@@ -48,6 +48,25 @@
       "surface": "design-ui"
     },
     {
+      "id": "share-link-deeplink",
+      "version": null,
+      "date": null,
+      "kind": "feature",
+      "title": "Share a link to any canvas",
+      "summary": "Copy a link that opens a canvas or file in the browser or Maude. After signing in, return to the shared file; links to another local project ask before switching.",
+      "learnMore": "https://maude.sh/docs/share-links",
+      "surface": "design-ui",
+      "tour": [
+        {
+          "target": "[data-testid=\"share-btn\"]",
+          "title": "Share this file",
+          "body": "Copy a web link, an app link, or a link for this Mac. You can also share another file from its row menu.",
+          "placement": "bottom",
+          "canvas": true
+        }
+      ]
+    },
+    {
       "id": "native-codex-shared-workflows",
       "version": null,
       "date": null,

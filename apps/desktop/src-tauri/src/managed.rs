@@ -223,7 +223,7 @@ pub fn managed_project_open(
     save_index(&app, &idx);
 
     crate::app_state::set_last_project(&app, &dir);
-    crate::sidecar::switch_project(&app, dir.clone());
+    crate::sidecar::switch_project(&app, dir.clone(), None);
     Ok(dir.to_string_lossy().to_string())
 }
 

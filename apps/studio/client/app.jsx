@@ -52,6 +52,8 @@ import GitPanel from './panels/GitPanel.jsx';
 import SyncConsentDialog from './panels/SyncConsentDialog.jsx';
 import SyncPanel from './panels/SyncPanel.jsx';
 import CloudBar from './panels/CloudBar.jsx';
+import { buildShareLinks, normalizeOpenPath, readOpenParam, withOpenParam } from './share-link.js';
+import { ShareDialog, copyShareLink } from './share-dialog.jsx';
 import IdentityBar from './panels/IdentityBar.jsx';
 import OnboardingWizard from './panels/OnboardingWizard.jsx';
 import { ReadinessDialog } from './panels/ReadinessList.jsx';
@@ -2315,6 +2317,7 @@ function FileRow({
   // Plan T17/L03 — a supporting file (notes, styles, images, media) in a
   // canvas folder gets the same ⋯ menu: rename, move, delete.
   const supporting = !isCanvas && !!pKind && !sidecar && typeof menu !== 'undefined';
+  const canShare = typeof menu !== 'undefined' && kind !== 'runtime';
   const fileDir = file.path.split('/').slice(0, -1).join('/');
   // Stable hook for the desktop E2E harness (data-testid convention — see the
   // `desktop-e2e` skill): canvas rows only, slug derived from the relative path
@@ -2351,7 +2354,17 @@ function FileRow({
         else if (pKind) onPreview?.(file.path);
       }}
       onContextMenu={
-        canMove ? (e) => menu.openAt(e, { kind: 'file', path: file.path, dir: fileDir }) : undefined
+        canShare
+          ? (e) =>
+              menu.openAt(e, {
+                kind: 'file',
+                path: file.path,
+                dir: fileDir,
+                canMove: canMove || supporting,
+                supporting,
+                name: file.name,
+              })
+          : undefined
       }
       {...dragHandlers}
     >
@@ -2385,38 +2398,30 @@ function FileRow({
       {oc > 0 && <span className="st-row-badge">{oc}</span>}
     </button>
   );
-  if (supporting)
-    return (
-      <div className="st-row-wrap" role="none">
-        {row}
-        <button
-          type="button"
-          className="st-row-menu-btn"
-          data-testid={`tree-row-menu-${pathTestIdSlug(file.path)}`}
-          title={`Actions for ${label}`}
-          aria-label={`Actions for ${label}`}
-          aria-haspopup="menu"
-          onClick={(e) => menu.openAt(e, { kind: 'supporting', path: file.path, dir: fileDir, name: file.name })}
-        >
-          <Icon d="M12 6a1 1 0 100-2 1 1 0 000 2zM12 13a1 1 0 100-2 1 1 0 000 2zM12 20a1 1 0 100-2 1 1 0 000 2z" size={12} />
-        </button>
-      </div>
-    );
-  if (!canDelete && !canMove) return row;
+  if (!canDelete && !canShare) return row;
   // Sibling menu/delete buttons (can't nest a button in the row button). The
   // wrapper is presentational so the treeitem stays the tree's child for a11y.
   return (
     <div className="st-row-wrap" role="none">
       {row}
-      {canMove && (
+      {canShare && (
         <button
           type="button"
           className={'st-row-menu-btn' + (canDelete ? ' has-delete-sibling' : '')}
           data-testid={`tree-row-menu-${pathTestIdSlug(file.path)}`}
-          title={`Move ${label}…`}
+          title={`Actions for ${label}`}
           aria-label={`Actions for ${label}`}
           aria-haspopup="menu"
-          onClick={(e) => menu.openAt(e, { kind: 'file', path: file.path, dir: fileDir })}
+          onClick={(e) =>
+            menu.openAt(e, {
+              kind: 'file',
+              path: file.path,
+              dir: fileDir,
+              canMove: canMove || supporting,
+              supporting,
+              name: file.name,
+            })
+          }
         >
           <Icon d="M12 6a1 1 0 100-2 1 1 0 000 2zM12 13a1 1 0 100-2 1 1 0 000 2zM12 20a1 1 0 100-2 1 1 0 000 2z" size={12} />
         </button>
@@ -2490,6 +2495,7 @@ function CanvasRow({
   const isDragging = drag?.draggedPath === primary.path;
   const isBusy = drag?.busyPath === primary.path;
   const canMove = draggableRow && typeof menu !== 'undefined';
+  const canShare = typeof menu !== 'undefined' && kind !== 'runtime';
   const primaryDir = primary.path.split('/').slice(0, -1).join('/');
   const row = (
     <button
@@ -2516,7 +2522,7 @@ function CanvasRow({
         onOpen(primary.path);
       }}
       onContextMenu={
-        canMove ? (e) => menu.openAt(e, { kind: 'file', path: primary.path, dir: primaryDir }) : undefined
+        canShare ? (e) => menu.openAt(e, { kind: 'file', path: primary.path, dir: primaryDir, canMove }) : undefined
       }
       {...dragHandlers}
     >
@@ -2558,17 +2564,17 @@ function CanvasRow({
   );
   return (
     <Fragment>
-      {canMove ? (
+      {canShare ? (
         <div className="st-row-wrap" role="none">
           {row}
           <button
             type="button"
             className="st-row-menu-btn"
             data-testid={`tree-row-menu-${pathTestIdSlug(primary.path)}`}
-            title={`Move ${displayName(primary.name)}…`}
+            title={`Actions for ${displayName(primary.name)}`}
             aria-label={`Actions for ${displayName(primary.name)}`}
             aria-haspopup="menu"
-            onClick={(e) => menu.openAt(e, { kind: 'file', path: primary.path, dir: primaryDir })}
+            onClick={(e) => menu.openAt(e, { kind: 'file', path: primary.path, dir: primaryDir, canMove })}
           >
             <Icon d="M12 6a1 1 0 100-2 1 1 0 000 2zM12 13a1 1 0 100-2 1 1 0 000 2zM12 20a1 1 0 100-2 1 1 0 000 2z" size={12} />
           </button>
@@ -2581,6 +2587,7 @@ function CanvasRow({
           <FileRow
             key={sc.path}
             file={sc}
+            menu={menu}
             activePath={activePath}
             previewPath={previewPath}
             onOpen={onOpen}
@@ -2687,6 +2694,7 @@ function Tree({
         <FileRow
           key={entry.primary.path}
           file={entry.primary}
+          menu={menu}
           activePath={activePath}
           previewPath={previewPath}
           onOpen={onOpen}
@@ -2694,7 +2702,6 @@ function Tree({
           openCount={openCount(commentsByFile[entry.primary.path])}
           depth={depth}
           kind={kind}
-          menu={menu}
         />
       ))}
       {showHidden &&
@@ -2702,6 +2709,7 @@ function Tree({
           <FileRow
             key={entry.primary.path}
             file={entry.primary}
+            menu={menu}
             activePath={activePath}
             previewPath={previewPath}
             onOpen={onOpen}
@@ -2709,7 +2717,6 @@ function Tree({
             openCount={openCount(commentsByFile[entry.primary.path])}
             depth={depth}
             kind={kind}
-            menu={menu}
           />
         ))}
       {/* orphans are sidecars/loose files — no canvas to delete, so no onDelete/drag */}
@@ -2761,7 +2768,7 @@ function Tree({
             defaultOpen={true}
             dirPath={childPath}
             drag={drag}
-            menu={menu}
+            menu={drag ? menu : undefined}
           >
             {childTree}
           </DirRow>
@@ -2844,6 +2851,10 @@ function Sidebar({
   // Passed through to CloudBar only — lifts linkedHub changes to the app shell
   // so the GitPanel's cloud-managed posture (DDR-218) reacts live.
   onLinkedHub,
+  onLocalProject,
+  onOpenLinkedFile,
+  filesReady,
+  onShare,
   // feature-cloud-managed-git-posture — the widened DDR-218 gate, resolved once
   // in App and handed down. Withdraws the drafts switcher: a local branch
   // switch moves a HEAD the cell knows nothing about.
@@ -2878,32 +2889,9 @@ function Sidebar({
   }, [groups]);
   const menuExtra = rowMenu.state?.extra;
   const rowMenuRootItems =
-    menuExtra?.kind === 'supporting'
+    menuExtra?.kind === 'file'
       ? [
-          {
-            id: 'rename-file',
-            label: 'Rename…',
-            onSelect: () => {
-              rowMenu.close();
-              const ext = menuExtra.name.includes('.') ? menuExtra.name.slice(menuExtra.name.lastIndexOf('.')) : '';
-              const current = ext ? menuExtra.name.slice(0, -ext.length) : menuExtra.name;
-              const name = window.prompt(`Rename ${menuExtra.name} to:`, current);
-              if (name?.trim() && name.trim() !== current) onRenameCanvas?.(menuExtra.path, name.trim());
-            },
-          },
-          { id: 'move-to', label: 'Move to…', onSelect: () => rowMenu.showMoveTo() },
-          {
-            id: 'delete-file',
-            label: 'Delete',
-            destructive: true,
-            onSelect: () => {
-              rowMenu.close();
-              onDeleteFile?.(menuExtra.path, menuExtra.name);
-            },
-          },
-        ]
-      : menuExtra?.kind === 'file'
-      ? [
+          { id: 'share', label: 'Share…', onSelect: () => { rowMenu.close(); onShare(menuExtra.path); } },
           ...(onRenameCanvas && /\.tsx$/i.test(menuExtra.path)
             ? [
                 {
@@ -2930,7 +2918,38 @@ function Sidebar({
                 },
               ]
             : []),
-          { id: 'move-to', label: 'Move to…', onSelect: () => rowMenu.showMoveTo() },
+          // Plan T17/L03 — a supporting file renames as itself (the extension
+          // stays: a rename is not a conversion).
+          ...(menuExtra.supporting && onRenameCanvas
+            ? [
+                {
+                  id: 'rename-file',
+                  label: 'Rename…',
+                  onSelect: () => {
+                    rowMenu.close();
+                    const n = menuExtra.name ?? menuExtra.path.split('/').pop();
+                    const ext = n.includes('.') ? n.slice(n.lastIndexOf('.')) : '';
+                    const current = ext ? n.slice(0, -ext.length) : n;
+                    const name = window.prompt(`Rename ${n} to:`, current);
+                    if (name?.trim() && name.trim() !== current) onRenameCanvas(menuExtra.path, name.trim());
+                  },
+                },
+              ]
+            : []),
+          ...(menuExtra.canMove ? [{ id: 'move-to', label: 'Move to…', onSelect: () => rowMenu.showMoveTo() }] : []),
+          ...(menuExtra.supporting && onDeleteFile
+            ? [
+                {
+                  id: 'delete-file',
+                  label: 'Delete',
+                  destructive: true,
+                  onSelect: () => {
+                    rowMenu.close();
+                    onDeleteFile(menuExtra.path, menuExtra.name ?? menuExtra.path.split('/').pop());
+                  },
+                },
+              ]
+            : []),
         ]
       : menuExtra?.kind === 'dir'
         ? [
@@ -3257,7 +3276,7 @@ function Sidebar({
                     canvasKinds={canvasKinds}
                     dirPath={g.fullPath}
                     drag={!isDs && g.kind === 'canvas' && !readOnly ? treeDrag : undefined}
-                    menu={!isDs && g.kind === 'canvas' && !readOnly ? rowMenu : undefined}
+                    menu={rowMenu}
                   />
                 ) : (
                   <div className="st-tree-empty">{search ? 'No matches.' : 'Empty.'}</div>
@@ -3296,7 +3315,7 @@ function Sidebar({
           Absent rather than disabled, because unlike the agent chat there is
           nothing here to explain — the capability is not missing, it is
           already satisfied. */}
-      {cloud === null ? <CloudBar syncStatus={syncStatus} onLinkedHub={onLinkedHub} /> : null}
+      {cloud === null ? <CloudBar syncStatus={syncStatus} onLinkedHub={onLinkedHub} onLocalProject={onLocalProject} onOpenFile={onOpenLinkedFile} filesReady={filesReady} /> : null}
       {/* Phase 28 (E3) — GitHub identity as a compact avatar docked at the BOTTOM:
           sign in, connected account + New/Pull/Share, sign out. Self-contained
           (owns its device-code + CreateProject dialogs). Renders nothing in browser. */}
@@ -4005,12 +4024,13 @@ function ToolsDropdown({ onAction, onClose, readOnly = false }) {
 
 // Plan C follow-up — File + Edit menus, previously inert. Both dispatch to real
 // shell flows (File) or the in-canvas undo stack / selection bridges (Edit).
-function FileDropdown({ onAction, onClose, hasCanvas, readOnly = false }) {
+function FileDropdown({ onAction, onClose, hasCanvas, hasSharePath, readOnly = false }) {
   // Cloud Phase 25 C2 — a viewer keeps the reads (export, handoff, reload,
   // close); create / assemble / generate / settings are absent.
   const items = readOnly
     ? [
         { id: 'export', label: 'Export…', shortcut: '⇧⌘E' },
+        { id: 'share', label: 'Share link…', disabled: !hasSharePath },
         { id: 'handoff', label: 'Handoff to production', shortcut: '⇧⌘H' },
         { sep: true },
         { id: 'reload', label: 'Reload canvas', shortcut: '⌘R', disabled: !hasCanvas },
@@ -4023,6 +4043,7 @@ function FileDropdown({ onAction, onClose, hasCanvas, readOnly = false }) {
         // dropped as reference chips on the active canvas.
         { id: 'assemble', label: 'Assemble dropped clips → video', disabled: !hasCanvas },
         { id: 'export', label: 'Export…', shortcut: '⇧⌘E' },
+        { id: 'share', label: 'Share link…', disabled: !hasSharePath },
         { id: 'handoff', label: 'Handoff to production', shortcut: '⇧⌘H' },
         { sep: true },
         // feature-ai-media-generation (DDR-16x) — BYOK generate action + settings.
@@ -4084,6 +4105,8 @@ function EditDropdown({ onAction, onClose, hasCanvas, readOnly = false }) {
 
 function Menubar({
   activePath,
+  sharePath,
+  onShare,
   project,
   /** `{ dashboardUrl?, projectName }` when this is a cloud tab, else null. */
   // Tri-state (see the note where this value is created): `undefined` until
@@ -4422,6 +4445,7 @@ function Menubar({
               type="button"
               className="st-menu"
               role="menuitem"
+              data-testid={`menu-${key}`}
               data-tour={key === 'help' ? 'help' : undefined}
               aria-haspopup={hasDropdown ? 'menu' : undefined}
               aria-expanded={hasDropdown ? open : undefined}
@@ -4441,10 +4465,12 @@ function Menubar({
         <FileDropdown
           readOnly={readOnly}
           hasCanvas={!!activePath}
+          hasSharePath={!!sharePath}
           onAction={(id) => {
             if (id === 'new') onNewCanvas?.();
             else if (id === 'assemble') onAssembleVideo?.();
             else if (id === 'export') onOpenExport?.('export');
+            else if (id === 'share') { document.querySelector('[data-testid="menu-file"]')?.focus(); onShare?.(); }
             else if (id === 'handoff') onOpenExport?.('handoff');
             else if (id === 'generate') onOpenGenerate?.();
             else if (id === 'settings') onOpenSettings?.();
@@ -4588,6 +4614,7 @@ function Menubar({
             <StIcon name="sparkle" size={15} />
           </button>
         )}
+        <button type="button" className="st-mb-icon st-share-btn" data-testid="share-btn" data-tip={sharePath ? 'Share link' : 'Open a canvas to share it'} aria-label="Share link" disabled={!sharePath} onClick={onShare}><StIcon name="share" size={15} /></button>
         {exportCenter && <ExportBadge center={exportCenter} />}
         <button
           type="button"
@@ -9814,6 +9841,9 @@ function InspectorPanel({
 
 function App() {
   const [groups, setGroups] = useState([]);
+  const [treeLoaded, setTreeLoaded] = useState(false);
+  const addressMode = useRef('push');
+  const previousAddressPath = useRef(null);
   const [project, setProject] = useState('Design');
   const [tabs, setTabs] = useState([]);
   const [activePath, setActivePath] = useState(null);
@@ -9823,6 +9853,7 @@ function App() {
   // state, or iframe registration that openTab()/openSystem() drive.
   const [previewPath, setPreviewPath] = useState(null);
   const onPreview = useCallback((path) => {
+    addressMode.current = 'push';
     setPreviewPath(path);
   }, []);
   const [selected, setSelected] = useState(null);
@@ -10048,6 +10079,7 @@ function App() {
   // CloudBar (status resolve / attach / detach). Gates the GitPanel's
   // cloud-managed posture; linked-but-uncredentialed keeps the full panel.
   const [cloudLinkedHub, setCloudLinkedHub] = useState(null);
+  const [localProjectName, setLocalProjectName] = useState(null);
   // Phase 27 (E2) — in-UI git layer. `gitStatus` is the live dirty-state the
   // server broadcasts on `git-status`; `changesOpen` toggles the Changes panel;
   // `diffTarget` opens the before/after DiffView ({ file, conflict }).
@@ -10371,6 +10403,7 @@ function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   // T5/T6 (Plan C) — shell-level export/handoff dialog + inspector panel state.
   // The palette (T4) drives them; the dialog (T5) + panel (T6) consume them.
+  const [shareDialog, setShareDialog] = useState(null);
   const [exportDialog, setExportDialog] = useState(null); // null | { mode: 'export'|'handoff', scope? }
   // feature-ai-media-generation (DDR-16x) — BYOK provider-key Settings modal +
   // the AI generate action.
@@ -11730,6 +11763,7 @@ function App() {
       apply: ({ data, built }) => {
         setProject(data.project || 'Design');
         setGroups(built);
+        setTreeLoaded(true);
         // DDR-093 — fold the server-resolved per-canvas DS map into cfg so
         // canvasUrl() injects each UI canvas's OWN design-system tokens instead of
         // always designSystems[0]. Functional merge to coexist with the /_config
@@ -12193,6 +12227,7 @@ function App() {
   // (iframesRef, comments push, WS `tabs` message) doesn't need refactoring.
   // ARTBOARDS slot in the menubar reads `tabs.length` and reports 0 or 1.
   const openTab = useCallback((path) => {
+    addressMode.current = 'push';
     setFocusedCommentId(null);
     setPreviewPath(null);
     // The same path keeps its mounted iframe. It will not emit a new loaded
@@ -12210,6 +12245,67 @@ function App() {
     // the onLoad fallback timer (legacy .html), or a hard 15s cap.
     if (path !== SYSTEM_TAB) setLoadingPath(path);
   }, [activePath]);
+
+  // Resolve URL identities against the loaded tree, including non-canvas previews.
+  const openLinkedFile = useCallback((rel, mode = 'push') => {
+    const path = groups.flatMap((g) => g.paths || []).find((p) => normalizeOpenPath(p, cfg.designRel) === rel);
+    if (path && CANVAS_EXT_RE.test(path)) openTab(path);
+    else if (path && previewKind(basename(path))) onPreview(path);
+    else {
+      setTabs([]);
+      setActivePath(null);
+      setPreviewPath(null);
+      notify({ title: 'Not here yet', description: `${rel} is not in this project (not synced yet?)`, kind: 'info' });
+    }
+    addressMode.current = mode;
+  }, [groups, cfg.designRel, openTab, onPreview]);
+
+  const addressBooted = useRef(false);
+  useEffect(() => {
+    if (!treeLoaded || cfg.cloud === undefined || addressBooted.current) return;
+    addressBooted.current = true;
+    const rel = readOpenParam(location, cfg.designRel);
+    if (rel) openLinkedFile(rel, 'none');
+  }, [treeLoaded, cfg.cloud, cfg.designRel, openLinkedFile]);
+
+  useEffect(() => {
+    if (!treeLoaded || cfg.cloud === undefined) return;
+    const navigate = () => {
+      const rel = readOpenParam(location, cfg.designRel);
+      if (rel) openLinkedFile(rel, 'none');
+      else {
+        addressMode.current = 'none';
+        setTabs([]);
+        setActivePath(null);
+        setPreviewPath(null);
+      }
+    };
+    window.addEventListener('popstate', navigate);
+    return () => window.removeEventListener('popstate', navigate);
+  }, [treeLoaded, cfg.cloud, cfg.designRel, openLinkedFile]);
+
+  useEffect(() => {
+    const visible = previewPath || (activePath === SYSTEM_TAB ? null : activePath);
+    if (visible === previousAddressPath.current) return;
+    previousAddressPath.current = visible;
+    const rel = normalizeOpenPath(visible, cfg.designRel);
+    if (addressMode.current !== 'none' && readOpenParam(location, cfg.designRel) !== rel) {
+      history[rel ? 'pushState' : 'replaceState'](rel ? { open: rel } : null, '', withOpenParam(location, rel));
+    }
+    addressMode.current = 'push';
+  }, [activePath, previewPath, cfg.designRel]);
+
+  const sharePath = previewPath || (activePath === SYSTEM_TAB ? null : activePath);
+  const shareShell = cfg.cloud ? 'cloud' : isNativeApp() ? 'native' : 'local';
+  const shareLinksFor = (path) => buildShareLinks({
+    rel: normalizeOpenPath(path, cfg.designRel), shell: shareShell, location,
+    linkedHubUrl: cloudLinkedHub?.url, project: cfg.cloud ? project : localProjectName,
+    localUrl: location.origin,
+  });
+  const showShare = (path = sharePath) => {
+    const rel = normalizeOpenPath(path, cfg.designRel);
+    if (rel) setShareDialog({ path, rel, label: basename(path) });
+  };
 
   // Retry from the #115 error panel: re-read /_config FIRST (the stale
   // `canvasOrigin` is the likeliest reason we are here at all), then remount the
@@ -12241,6 +12337,7 @@ function App() {
   useEffect(() => {
     if (autoOpened.current) return;
     if (!cfg.cloud) return; // desktop / unknown-yet
+    if (new URLSearchParams(location.search).has('open')) { autoOpened.current = true; return; }
     if (tabs.length > 0) return;
     if (!groups.length) return; // tree not loaded
     // The first canvas that is somebody's WORK — a design-system specimen is a
@@ -15247,10 +15344,17 @@ function App() {
         run: () => setExportDialog({ mode: 'export' }),
       },
       {
+        id: 'share-link',
+        group: 'Canvas',
+        label: 'Copy share link',
+        icon: 'link',
+        run: () => { const links = shareLinksFor(sharePath); const link = links.web ?? links.app ?? links.local; if (link) copyShareLink(link); },
+      },
+      {
         id: 'handoff',
         group: 'Canvas',
         label: 'Handoff to production',
-        icon: 'share',
+        icon: 'external',
         kbd: '⇧⌘H',
         run: () => setExportDialog({ mode: 'handoff' }),
       },
@@ -15355,7 +15459,7 @@ function App() {
         run: () => setReportBugOpen(true),
       },
     ],
-    [openSystem, toggleTheme, reloadActive, whatsNew, createVideo]
+    [openSystem, toggleTheme, reloadActive, whatsNew, createVideo, sharePath, shareShell, cloudLinkedHub, localProjectName, cfg.designRel]
   );
 
   // feature-configurable-panel-docking — resolve, for each slot, the panels
@@ -15434,6 +15538,9 @@ function App() {
           activeDsName={activePath === SYSTEM_TAB ? (systemData?.ds?.name ?? null) : null}
           onOpen={openTab}
           onPreview={onPreview}
+          onOpenLinkedFile={openLinkedFile}
+          filesReady={treeLoaded}
+          onShare={showShare}
           onOpenSystem={openSystem}
           wsConnected={wsConnected}
           search={search}
@@ -15464,6 +15571,7 @@ function App() {
           canvasKinds={cfg?.canvasKinds}
           syncStatus={syncStatus}
           onLinkedHub={setCloudLinkedHub}
+          onLocalProject={setLocalProjectName}
           savingIsManaged={savingIsManaged}
         />
       );
@@ -15675,6 +15783,8 @@ function App() {
       )}
       <div className="st-shell">
         <Menubar
+          sharePath={sharePath}
+          onShare={() => showShare()}
           readOnly={viewerMode}
           // Cloud Phase 27 C2/C4 — the ONE cloud-only input the shared chrome
           // takes. A prop, not the whole `cfg`: the Menubar needs to know it is
@@ -16687,6 +16797,7 @@ function App() {
           </div>
         </div>
       )}
+      {shareDialog && <ShareDialog target={shareDialog} links={shareLinksFor(shareDialog.path)} shell={shareShell} onClose={() => setShareDialog(null)} Icon={StIcon} />}
       {exportDialog && (
         <ExportDialog
           mode={exportDialog.mode}

@@ -8,6 +8,17 @@
   },
   "phases": [
     {
+      "id": "feature-share-link-deeplink",
+      "title": "Feature: Share link + deep link for canvases and files (desktop · browser · cloud)",
+      "status": "done",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
+      "planPath": ".ai/plans/archive/feature-share-link-deeplink.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
       "id": "phase-1-contribute-infra-changesets",
       "title": "Phase 1: Contribute infrastructure + Changesets bootstrap",
       "status": "done",
@@ -2237,17 +2248,6 @@
       "date": null,
       "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. This is the extracted Phase 5 of feature-ai-media-generation (closed at Phase 4, 2026-...",
       "planPath": ".ai/plans/feature-local-media-generation.md",
-      "archived": false,
-      "phaseKey": null
-    },
-    {
-      "id": "feature-share-link-deeplink",
-      "title": "Feature: Share link + deep link for canvases and files (desktop · browser · cloud)",
-      "status": "planned",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
-      "planPath": ".ai/plans/feature-share-link-deeplink.md",
       "archived": false,
       "phaseKey": null
     },

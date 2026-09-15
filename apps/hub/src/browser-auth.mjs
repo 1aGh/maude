@@ -32,6 +32,7 @@ import {
   resolveSubject,
   TXN_TTL_MS,
 } from './oidc-routes.mjs';
+import { takeReturnTo } from './return-to.mjs';
 import { isRevoked } from './revocations.mjs';
 import { isReadOnlyRole, projectRoleForAccount } from './role-matrix.mjs';
 import { escapeHtml, oidcButton, servicePage } from './studio-door.mjs';
@@ -303,7 +304,7 @@ export async function handleOidc({
       clearTxnCookie(response, [
         `${BROWSER_SESSION_COOKIE}=${encodeURIComponent(minted.value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${Math.floor(ttlMs / 1000)}`,
       ]);
-      redirect(response, '/');
+      redirect(response, takeReturnTo(request, response));
       return true;
     }
     clearTxnCookie(response);
@@ -367,7 +368,7 @@ export async function handleBrowserAuth({
       }
     }
     clearSessionCookie(response);
-    redirect(response, '/');
+    redirect(response, takeReturnTo(request, response));
     return true;
   }
 
@@ -443,7 +444,7 @@ export async function handleBrowserAuth({
       // the root. Signing in still sent people to `/studio`, which the proxy
       // correctly refuses as an unclassified route — so a member completed
       // sign-in and landed on `{"error":"not found"}`.
-      redirect(response, '/');
+      redirect(response, takeReturnTo(request, response));
       return true;
     }
     page(response, 405, 'Not here', 'Open the project from the start page.');
@@ -533,7 +534,7 @@ export async function handleBrowserAuth({
     readOnly: isReadOnlyRole(projectRole),
   });
   setSessionCookie(response, minted.value, ttlMs / 1000);
-  redirect(response, '/');
+  redirect(response, takeReturnTo(request, response));
   return true;
 }
 

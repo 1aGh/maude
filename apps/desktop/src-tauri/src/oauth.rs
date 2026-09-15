@@ -411,7 +411,14 @@ fn cloud_url_allowed(url: &str, base: &reqwest::Url) -> Option<reqwest::Url> {
     //   • https, port-less, and the suffix test carries its own dot: a bare
     //     `ends_with` would accept `evilcloud.maude.sh`, and no suffix test at
     //     all would accept `cloud.maude.sh.attacker.com`.
-    let at_root = matches!(u.path(), "" | "/") && u.query().is_none() && u.fragment().is_none();
+    // File links still open the studio front door, never a tenant asset route.
+    // The launcher byte checks above remain in force (encoded URLs fail closed).
+    let valid_query = u.query().is_none() || {
+        let pairs: Vec<_> = u.query_pairs().collect();
+        pairs.len() == 1 && pairs[0].0 == "open"
+            && crate::project_resolve::validate_open_param(&pairs[0].1).is_some()
+    };
+    let at_root = matches!(u.path(), "" | "/") && valid_query && u.fragment().is_none();
     let in_zone = host == DEFAULT_CLOUD_HOST
         || (host.len() > DEFAULT_CLOUD_HOST.len()
             && host.ends_with(DEFAULT_CLOUD_HOST)
@@ -444,6 +451,27 @@ mod tests {
     /// The policy as a boolean, for the many cases that only care about verdict.
     fn allowed(url: &str, b: &reqwest::Url) -> bool {
         cloud_url_allowed(url, b).is_some()
+    }
+
+    #[test]
+    fn file_links_only_add_a_validated_identity_to_the_cloud_front_door() {
+        let b = base(DEFAULT_CLOUD_URL);
+        assert!(allowed("https://alligators.cloud.maude.sh/?open=ui/Smoke.tsx", &b));
+        for bad in [
+            "https://alligators.cloud.maude.sh/?open=../secret",
+            "https://alligators.cloud.maude.sh/?open=/etc/passwd",
+            "https://alligators.cloud.maude.sh/?open=ui//Smoke.tsx",
+            "https://alligators.cloud.maude.sh/?open=",
+            "https://alligators.cloud.maude.sh/?open=ui/Smoke.tsx&code=secret",
+            "https://alligators.cloud.maude.sh/?open=ui/Smoke.tsx&open=other",
+            "https://alligators.cloud.maude.sh/asset.svg?open=ui/Smoke.tsx",
+            "https://alligators.cloud.maude.sh/?open=ui/Smoke.tsx#fragment",
+            "https://alligators.cloud.maude.sh/?open=ui/%TEMP%.tsx",
+            "https://alligators.cloud.maude.sh/?open=ui/A%20B.tsx",
+            "https://alligators.cloud.maude.sh/?open=ui/Žába.tsx",
+        ] {
+            assert!(!allowed(bad, &b), "should refuse {bad}");
+        }
     }
 
     #[test]

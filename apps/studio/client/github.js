@@ -135,7 +135,8 @@ export const appRecentProjects = () => invoke('app_recent_projects');
 /** Native folder picker → chosen parent dir, or null if cancelled. */
 export const pickDirectory = () => invoke('pick_directory');
 /** Switch the app to a local project folder (the freshly cloned copy). */
-export const openLocalProject = (path) => invoke('open_local_project', { path });
+export const openLocalProject = (path, open) => invoke('open_local_project', { path, open });
+export const resolveProjectForLink = (project) => invoke('resolve_project_for_link', { project });
 /**
  * Native "Save As…" for an export — opens an OS save dialog seeded with
  * `filename`, then has the Rust side fetch the finished `jobId`'s bytes

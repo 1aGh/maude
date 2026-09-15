@@ -80,6 +80,7 @@ describe('parseDeepLink — untrusted input, strict shape', () => {
   });
   test('refuses everything else', () => {
     for (const bad of [
+      `maude://open/alligators?open=ui/A.tsx&code=mhc_${'a'.repeat(64)}`,
       'maude://open/alligators', // no code
       'maude://open/Alligators?code=mhc_' + 'a'.repeat(64), // bad slug
       'maude://open/x?code=nothex', // bad code

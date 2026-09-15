@@ -24,6 +24,7 @@ mod menu;
 mod notify;
 mod oauth;
 mod prefs;
+mod project_resolve;
 mod server_json;
 mod sidecar;
 mod updater;
@@ -376,7 +377,9 @@ async fn pick_media_files(app: tauri::AppHandle) -> Result<Vec<PickedMedia>, Str
 /// Switch the app to a local project folder (the freshly cloned copy) — same
 /// in-process switch as File ▸ Open Project (NOT app.restart()).
 #[tauri::command]
-fn open_local_project(app: tauri::AppHandle, path: String) -> Result<(), String> {
+fn open_local_project(app: tauri::AppHandle, path: String, open: Option<String>) -> Result<(), String> {
+    let open = open.map(|value| project_resolve::validate_open_param(&value)
+        .ok_or_else(|| "Invalid file address.".to_string())).transpose()?;
     let p = PathBuf::from(&path);
     if !p.is_dir() {
         return Err("That project folder doesn’t exist.".to_string());
@@ -390,14 +393,14 @@ fn open_local_project(app: tauri::AppHandle, path: String) -> Result<(), String>
     }
     // Remember it as the last project (so a relaunch reopens it) + switch in-process.
     app_state::set_last_project(&app, &p);
-    sidecar::switch_project(&app, p);
+    sidecar::switch_project(&app, p, open);
     Ok(())
 }
 
 /// Remember `path` as the last project (so a relaunch reopens it) + switch in-process.
 fn remember_and_switch(app: &tauri::AppHandle, path: PathBuf) {
     app_state::set_last_project(app, &path);
-    sidecar::switch_project(app, path);
+    sidecar::switch_project(app, path, None);
 }
 
 /// Write a minimal bootable `.design/` into `dir` (mirrors apps/studio/scaffold-design.ts)
@@ -485,6 +488,7 @@ pub fn run() {
             crash_reporter::list_crash_logs,
             crash_reporter::read_crash_log,
             deep_link::take_pending_deep_link,
+            project_resolve::resolve_project_for_link,
             notify::send_notification,
             managed::managed_project_open,
             managed::managed_projects_list,
@@ -655,10 +659,8 @@ pub fn run() {
             // `SidecarState` is managed (above) since it reads the pool.
             notify::spawn_activity_poller(&handle);
 
-            // NOTE: `maude://` deep-link handling is deferred to phase-29. It needs a
-            // bundled .app + the `open?path=` route; the dev-mode deep-link plugin
-            // aborted in `did_finish_launching` (Apple-Event open handler) on a
-            // non-bundled `tauri dev` binary. See DDR-106 addendum.
+            // The bundled app parks maude:// links; the client validates and
+            // opens a file locally or asks before a project switch.
 
             Ok(())
         })
