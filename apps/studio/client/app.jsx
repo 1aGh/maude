@@ -206,6 +206,7 @@ function DockSlot({ side, width, open, ids, activeId, onPick, children, labels =
               key={id}
               type="button"
               role="tab"
+              data-testid={`dock-tab-${id}`}
               aria-selected={activeId === id}
               className={'st-docktab' + (activeId === id ? ' is-active' : '')}
               onClick={() => onPick(id)}
@@ -2311,6 +2312,9 @@ function FileRow({
   // feature-file-tree-drag-drop-folders (Task 9) — the KEYBOARD path for
   // "Move to…" (drag-only fails WCAG 2.1.1). Same eligibility as dragging.
   const canMove = draggableRow && typeof menu !== 'undefined';
+  // Plan T17/L03 — a supporting file (notes, styles, images, media) in a
+  // canvas folder gets the same ⋯ menu: rename, move, delete.
+  const supporting = !isCanvas && !!pKind && !sidecar && typeof menu !== 'undefined';
   const fileDir = file.path.split('/').slice(0, -1).join('/');
   // Stable hook for the desktop E2E harness (data-testid convention — see the
   // `desktop-e2e` skill): canvas rows only, slug derived from the relative path
@@ -2328,7 +2332,7 @@ function FileRow({
     <button
       type="button"
       role="treeitem"
-      data-testid={testId}
+      data-testid={testId ?? (supporting ? `file-row-${pathTestIdSlug(file.path)}` : undefined)}
       aria-selected={isSel}
       aria-disabled={inert ? 'true' : undefined}
       aria-busy={isBusy || undefined}
@@ -2381,6 +2385,23 @@ function FileRow({
       {oc > 0 && <span className="st-row-badge">{oc}</span>}
     </button>
   );
+  if (supporting)
+    return (
+      <div className="st-row-wrap" role="none">
+        {row}
+        <button
+          type="button"
+          className="st-row-menu-btn"
+          data-testid={`tree-row-menu-${pathTestIdSlug(file.path)}`}
+          title={`Actions for ${label}`}
+          aria-label={`Actions for ${label}`}
+          aria-haspopup="menu"
+          onClick={(e) => menu.openAt(e, { kind: 'supporting', path: file.path, dir: fileDir, name: file.name })}
+        >
+          <Icon d="M12 6a1 1 0 100-2 1 1 0 000 2zM12 13a1 1 0 100-2 1 1 0 000 2zM12 20a1 1 0 100-2 1 1 0 000 2z" size={12} />
+        </button>
+      </div>
+    );
   if (!canDelete && !canMove) return row;
   // Sibling menu/delete buttons (can't nest a button in the row button). The
   // wrapper is presentational so the treeitem stays the tree's child for a11y.
@@ -2673,6 +2694,7 @@ function Tree({
           openCount={openCount(commentsByFile[entry.primary.path])}
           depth={depth}
           kind={kind}
+          menu={menu}
         />
       ))}
       {showHidden &&
@@ -2687,6 +2709,7 @@ function Tree({
             openCount={openCount(commentsByFile[entry.primary.path])}
             depth={depth}
             kind={kind}
+            menu={menu}
           />
         ))}
       {/* orphans are sidecars/loose files — no canvas to delete, so no onDelete/drag */}
@@ -2814,6 +2837,7 @@ function Sidebar({
   onRenameFolder,
   onRenameCanvas,
   onDuplicateCanvas,
+  onDeleteFile,
   // Passed through to CloudBar only — the live `sync:status` payload that makes
   // the connect note follow the link instead of freezing at attach time.
   syncStatus,
@@ -2854,7 +2878,31 @@ function Sidebar({
   }, [groups]);
   const menuExtra = rowMenu.state?.extra;
   const rowMenuRootItems =
-    menuExtra?.kind === 'file'
+    menuExtra?.kind === 'supporting'
+      ? [
+          {
+            id: 'rename-file',
+            label: 'Rename…',
+            onSelect: () => {
+              rowMenu.close();
+              const ext = menuExtra.name.includes('.') ? menuExtra.name.slice(menuExtra.name.lastIndexOf('.')) : '';
+              const current = ext ? menuExtra.name.slice(0, -ext.length) : menuExtra.name;
+              const name = window.prompt(`Rename ${menuExtra.name} to:`, current);
+              if (name?.trim() && name.trim() !== current) onRenameCanvas?.(menuExtra.path, name.trim());
+            },
+          },
+          { id: 'move-to', label: 'Move to…', onSelect: () => rowMenu.showMoveTo() },
+          {
+            id: 'delete-file',
+            label: 'Delete',
+            destructive: true,
+            onSelect: () => {
+              rowMenu.close();
+              onDeleteFile?.(menuExtra.path, menuExtra.name);
+            },
+          },
+        ]
+      : menuExtra?.kind === 'file'
       ? [
           ...(onRenameCanvas && /\.tsx$/i.test(menuExtra.path)
             ? [
@@ -2917,7 +2965,7 @@ function Sidebar({
           ]
         : [];
   const rowMenuDestinations =
-    menuExtra?.kind === 'file'
+    menuExtra?.kind === 'file' || menuExtra?.kind === 'supporting'
       ? destinations.filter((d) => d.path !== menuExtra.dir)
       : [];
 
@@ -12730,6 +12778,24 @@ function App() {
     [loadTree]
   );
 
+  const deleteFileReq = useCallback(
+    async (filePath, name) => {
+      if (!window.confirm(`Move “${name}” to trash?\n\nYou can restore it from .design/_trash/.`)) return;
+      try {
+        const r = await fetch(`/_api/canvas?file=${encodeURIComponent(filePath)}`, { method: 'DELETE' });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || !j.ok) {
+          shellToast(`Could not delete: ${j.error || `error ${r.status}`}`);
+          return;
+        }
+        await loadTree();
+      } catch (e) {
+        shellToast(`Delete failed: ${e instanceof Error ? e.message : 'network error'}`);
+      }
+    },
+    [loadTree]
+  );
+
   const clearSelected = useCallback(() => {
     wsSend({ type: 'clear-select' });
     setSelected(null);
@@ -15384,6 +15450,7 @@ function App() {
           onRenameFolder={renameFolderReq}
           onRenameCanvas={renameCanvasReq}
           onDuplicateCanvas={duplicateCanvasReq}
+          onDeleteFile={deleteFileReq}
           onRefresh={refreshTree}
           refreshing={treeRefreshing}
           collapsed={false}

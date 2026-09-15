@@ -643,12 +643,62 @@ describe('canvas rename and duplicate', () => {
       );
       const r2 = await dup();
       expect(((await r2.json()) as { rel: string }).rel).toBe('ui/Orig copy 2.tsx');
-      const escape = await fetch(`http://localhost:${port}/_api/canvas`, {
+      const outside = await fetch(`http://localhost:${port}/_api/canvas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ duplicateOf: '../outside.tsx' }),
       });
-      expect(escape.status).toBe(400);
+      expect(outside.status).toBe(400);
+    } finally {
+      await killProc(proc);
+    }
+  });
+});
+
+// Plan T17/L03 — supporting files beside the canvases move, rename and delete
+// as themselves; one a canvas still uses is refused by name.
+describe('supporting files', () => {
+  test('rename, move and delete a note; an image a canvas uses is refused', async () => {
+    const { root, designRoot } = makeSandbox();
+    mkdirSync(join(designRoot, 'ui', 'docs'), { recursive: true });
+    writeFileSync(join(designRoot, 'ui', 'notes.md'), '# Notes\n');
+    writeFileSync(join(designRoot, 'ui', 'hero.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    writeFileSync(
+      join(designRoot, 'ui', 'Uses.tsx'),
+      'export default function U() { return <img src="./hero.png" />; }\n'
+    );
+    const port = nextPort();
+    const proc = await bootServer(root, port);
+    const post = (body: unknown) =>
+      fetch(`http://localhost:${port}/_api/fs-move`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    try {
+      const renamed = await post({ file: 'ui/notes.md', toName: 'Meeting notes' });
+      expect(renamed.status).toBe(200);
+      expect(existsSync(join(designRoot, 'ui', 'Meeting notes.md'))).toBe(true);
+      expect(existsSync(join(designRoot, 'ui', 'notes.md'))).toBe(false);
+
+      const moved = await post({ file: 'ui/Meeting notes.md', toDir: 'ui/docs' });
+      expect(moved.status).toBe(200);
+      expect(readFileSync(join(designRoot, 'ui', 'docs', 'Meeting notes.md'), 'utf8')).toBe('# Notes\n');
+
+      const used = await post({ file: 'ui/hero.png', toDir: 'ui/docs' });
+      expect(used.status).toBe(409);
+      expect(((await used.json()) as { error: string }).error).toContain('ui/Uses.tsx');
+      expect(existsSync(join(designRoot, 'ui', 'hero.png'))).toBe(true);
+      const usedDelete = await fetch(`http://localhost:${port}/_api/canvas?file=ui/hero.png`, { method: 'DELETE' });
+      expect(usedDelete.status).toBe(409);
+
+      const del = await fetch(`http://localhost:${port}/_api/canvas?file=${encodeURIComponent('ui/docs/Meeting notes.md')}`, {
+        method: 'DELETE',
+      });
+      expect(del.status).toBe(200);
+      expect(existsSync(join(designRoot, 'ui', 'docs', 'Meeting notes.md'))).toBe(false);
+      // The folder itself survives a file delete.
+      expect(existsSync(join(designRoot, 'ui', 'docs'))).toBe(true);
     } finally {
       await killProc(proc);
     }

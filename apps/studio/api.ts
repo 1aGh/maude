@@ -21,12 +21,21 @@ import { rewriteRelativeImports } from './canvas-imports.ts';
 import { canvasSlugFromRel } from './canvas-slug.ts';
 import { atomicWrite } from './sync/atomic-write.ts';
 import { dedupeCommentsById } from './sync/comment-identity.ts';
+import { isRuntimeStateRel } from './sync/file-membership.ts';
 
 // Re-exported so existing external callers (canvas-list-watch.ts, tests) keep
 // importing it from api.ts — the actual implementation now lives in
 // canvas-slug.ts (a leaf module) so canvas-artifacts.ts can depend on it
 // without a cycle back through api.ts.
 export { canvasSlugFromRel } from './canvas-slug.ts';
+
+/** Plan T17/L03 — the supporting files the file tree can move, rename and
+ *  delete: what it previews (notes, styles, data, images, media, fonts), minus
+ *  the canvas's own sidecars, which only ever travel with their canvas. */
+export function isSupportingFileRel(rel: string): boolean {
+  if (/\.(meta\.json|annotations\.svg|registry\.json)$/i.test(rel)) return false;
+  return /\.(md|css|json|txt|ya?ml|svg|png|jpe?g|gif|webp|avif|mp4|webm|mov|mp3|wav|ogg|m4a|woff2?|ttf|otf)$/i.test(rel);
+}
 
 import {
   type AssembleClip,
@@ -2963,6 +2972,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
 
     // Only a real `.tsx` canvas, no traversal.
     if (rel.includes('..')) return { ok: false, status: 400, error: 'invalid path' };
+    if (!/\.tsx$/i.test(rel) && isSupportingFileRel(rel) && (await isRegularFile(path.join(paths.designRoot, rel)))) {
+      return deleteSupportingFile(rel);
+    }
     if (!/\.tsx$/i.test(rel)) {
       // feature-file-tree-drag-drop-folders (follow-up) — a non-.tsx target is
       // a folder delete (dogfood gap: the tree offered no way to remove a
@@ -3072,6 +3084,135 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // itself (same `_trash/<stamp>__<slug>/` bundle shape, so a folder delete
   // is recoverable exactly like a single-canvas delete), then best-effort
   // removes whatever's left (empty subdirs, `.gitkeep` markers).
+  // ── Plan T17/L03 — supporting files ──────────────────────────────────────
+  // Notes, styles, data, images, media and fonts that live in a canvas folder
+  // beside the canvases. They move, rename and delete as themselves. One that a
+  // canvas, stylesheet or whiteboard still names is refused with the name of
+  // the file that uses it: a moved or deleted asset must never leave a broken
+  // image behind silently (L17).
+  async function isRegularFile(abs: string): Promise<boolean> {
+    try {
+      return (await statp(abs)).isFile();
+    } catch {
+      return false;
+    }
+  }
+
+  async function supportingFileGuard(
+    rel: string
+  ): Promise<{ ok: true; abs: string } | { ok: false; status: number; error: string }> {
+    if (rel.includes('..') || rel.startsWith('/') || isRuntimeStateRel(rel)) {
+      return { ok: false, status: 400, error: 'invalid path' };
+    }
+    const abs = path.resolve(path.join(paths.designRoot, rel));
+    const groups = cfg.canvasGroups.filter(
+      (g) => g.label !== 'Design system' && !/^system(\/|$)/.test(g.path)
+    );
+    const inGroup = groups.some((g) => abs.startsWith(`${path.resolve(path.join(paths.designRoot, g.path))}${path.sep}`));
+    if (!inGroup) {
+      return { ok: false, status: 400, error: 'only files inside a canvas folder can be changed here' };
+    }
+    if (!(await assertRealpathContained(path.dirname(abs)))) {
+      return { ok: false, status: 400, error: 'path escapes the design root via a symlink' };
+    }
+    if (!(await isRegularFile(abs))) return { ok: false, status: 404, error: 'file not found' };
+    return { ok: true, abs };
+  }
+
+  /** The first project file (canvas, stylesheet, meta, whiteboard) that names `rel`'s file. */
+  async function firstReferenceTo(rel: string): Promise<string | null> {
+    const base = path.posix.basename(rel);
+    const { readdir, readFile } = await import('node:fs/promises');
+    const walk = async (dirAbs: string, depth: number): Promise<string | null> => {
+      if (depth > 12) return null;
+      let entries: import('node:fs').Dirent[];
+      try {
+        entries = await readdir(dirAbs, { withFileTypes: true });
+      } catch {
+        return null;
+      }
+      for (const e of entries) {
+        if (e.name.startsWith('_') || e.name.startsWith('.') || e.name === 'node_modules') continue;
+        const abs = path.join(dirAbs, e.name);
+        if (e.isDirectory()) {
+          const hit = await walk(abs, depth + 1);
+          if (hit) return hit;
+        } else if (/\.(tsx|jsx|css|meta\.json|annotations\.svg)$/i.test(e.name)) {
+          const other = path.relative(paths.designRoot, abs).split(path.sep).join('/');
+          if (other === rel) continue;
+          const text = await readFile(abs, 'utf8').catch(() => '');
+          if (text.includes(base)) return other;
+        }
+      }
+      return null;
+    };
+    return walk(paths.designRoot, 0);
+  }
+
+  async function moveSupportingFile(
+    rel: string,
+    toDirRaw: unknown,
+    toNameRaw: unknown
+  ): Promise<MoveCanvasResult> {
+    const g = await supportingFileGuard(rel);
+    if (!g.ok) return g;
+    const ext = path.posix.extname(rel);
+    let base = path.posix.basename(rel);
+    if (toNameRaw !== undefined && toNameRaw !== null && toNameRaw !== '') {
+      const stem = String(toNameRaw).replace(new RegExp(`${ext.replace('.', '\\.')}$`, 'i'), '');
+      const v = validateCanvasName(stem);
+      if (!v.ok || !v.name) return { ok: false, status: 400, error: v.error ?? 'invalid name' };
+      base = `${v.name}${ext}`;
+    }
+    const drPrefix = paths.designRel.replace(/^\/+|\/+$/g, '');
+    let toDir =
+      typeof toDirRaw === 'string' ? toDirRaw.trim().replace(/^\/+|\/+$/g, '') : path.posix.dirname(rel);
+    if (toDir === drPrefix || toDir === '.') toDir = '';
+    else if (toDir.startsWith(`${drPrefix}/`)) toDir = toDir.slice(drPrefix.length + 1);
+    const toRel = path.posix.join(toDir, base);
+    if (toRel === rel) return { ok: false, status: 400, error: 'source and destination are the same' };
+    const dest = await supportingFileGuard(toRel).then((d) => (d.ok ? { ok: false as const, status: 409, error: `a file named "${base}" already exists there` } : d));
+    if (!dest.ok && dest.status !== 404) return dest;
+    const toAbs = path.resolve(path.join(paths.designRoot, toRel));
+    if (!(await isRegularFile(path.join(paths.designRoot, rel)))) return { ok: false, status: 404, error: 'file not found' };
+    const toDirAbs = path.dirname(toAbs);
+    try {
+      if (!(await statp(toDirAbs)).isDirectory()) throw new Error('not a folder');
+    } catch {
+      return { ok: false, status: 400, error: 'destination folder does not exist' };
+    }
+    const user = await firstReferenceTo(rel);
+    if (user) {
+      return { ok: false, status: 409, error: `${path.posix.basename(rel)} is used by ${user} — change that first` };
+    }
+    await rename(g.abs, toAbs);
+    ctx.bus.emit('canvas-list-update', { action: 'moved', rel: toRel, slug: fileSlug(toRel), fromRel: rel, fromSlug: fileSlug(rel) });
+    return { ok: true, fromRel: rel, toRel, fromSlug: fileSlug(rel), toSlug: fileSlug(toRel), moved: [toRel] };
+  }
+
+  async function deleteSupportingFile(rel: string): Promise<DeleteCanvasResult> {
+    const g = await supportingFileGuard(rel);
+    if (!g.ok) return g;
+    const user = await firstReferenceTo(rel);
+    if (user) {
+      return { ok: false, status: 409, error: `${path.posix.basename(rel)} is used by ${user} — remove it there first` };
+    }
+    const slug = fileSlug(rel);
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const trashDir = path.join(paths.designRoot, '_trash', `${stamp}__${slug}`);
+    await mkdir(trashDir, { recursive: true });
+    const trashed = path.join(trashDir, path.posix.basename(rel));
+    await rename(g.abs, trashed);
+    ctx.bus.emit('canvas-list-update', { action: 'removed', rel, slug });
+    return {
+      ok: true,
+      rel,
+      slug,
+      trashed: [path.relative(paths.repoRoot, trashed)],
+      trashDir: path.relative(paths.repoRoot, trashDir),
+    };
+  }
+
   async function deleteFolder(relDir: string): Promise<DeleteCanvasResult> {
     if (relDir.includes('..')) return { ok: false, status: 400, error: 'invalid path' };
     const dirAbs = path.join(paths.designRoot, relDir);
@@ -3272,6 +3413,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (rel.startsWith(`${drPrefix}/`)) rel = rel.slice(drPrefix.length + 1);
     if (rel.includes('..')) return { ok: false, status: 400, error: 'invalid path' };
     if (!/\.tsx$/i.test(rel)) {
+      // Plan T17/L03 — a supporting file (notes, styles, images, media in a
+      // canvas folder) moves or renames as itself, never as a "folder".
+      if (isSupportingFileRel(rel) && (await isRegularFile(path.join(paths.designRoot, rel)))) {
+        return moveSupportingFile(rel, input?.toDir, input?.toName);
+      }
       // feature-file-tree-drag-drop-folders (Task 11) — a non-.tsx source is a
       // folder move (dragging a folder onto a folder). moveFolder does its own
       // existence + containment validation, so an invalid path still reports
