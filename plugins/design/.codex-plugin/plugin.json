@@ -13,12 +13,7 @@
     "longDescription": "Canvas design, media and specialist critique. Shared workflows for Claude Code and Codex. Install both design and flow for the full set.",
     "developerName": "1aGh",
     "category": "Productivity",
-    "capabilities": [
-      "Read",
-      "Write"
-    ],
-    "defaultPrompt": [
-      "Use $design:source-command-help to show the available workflows."
-    ]
+    "capabilities": ["Read", "Write"],
+    "defaultPrompt": ["Use $design:source-command-help to show the available workflows."]
   }
 }

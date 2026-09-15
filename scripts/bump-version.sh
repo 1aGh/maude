@@ -112,6 +112,10 @@ node -e "
 # gate on EVERY release (regressed v0.38.1). Reformat it back to biome's style so
 # the committed file stays clean. Best-effort: skip silently if biome is absent.
 npx --no-install biome format --write "$TAURI_CONF_PATH" >/dev/null 2>&1 || true
+# Same for every manifest the writer above touched: the Codex plugin manifests
+# carry short arrays too (capabilities / defaultPrompt), and v1.3.1's release
+# commit failed the gate on exactly those two files.
+npx --no-install biome format --write "$PKG_PATH" "${PLUGIN_PATHS[@]}" "${SUBPACKAGE_PATHS[@]}" "${APP_MANIFEST_PATHS[@]}" >/dev/null 2>&1 || true
 
 # The desktop crate's Cargo.toml is TOML, not JSON — bump its [package] version
 # (drives env!("CARGO_PKG_VERSION") in the native About box) so it never drifts
