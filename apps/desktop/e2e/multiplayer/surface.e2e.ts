@@ -4913,6 +4913,156 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           );
         });
       }
+      // T16 — an AI agent's edit is ONE project action. What it writes between
+      // its start and its end lands together (L18 AI multi-file group); a run
+      // that does not finish publishes nothing until the person decides in the
+      // Sync panel (L21 AI abort / publish). The agent speaks the same loopback
+      // API a slash command does; a cloud cell's agent is not driven here.
+      {
+        const src = (p: Surface, r: string) =>
+          existsSync(join(p.root, '.design', r))
+            ? readFileSync(join(p.root, '.design', r), 'utf8')
+            : null;
+        const studioUrl = (p: Surface) =>
+          p.name === 'native'
+            ? `http://127.0.0.1:${JSON.parse(readFileSync(join(p.root, '.design/_server.json'), 'utf8')).port}`
+            : `http://127.0.0.1:${run.peerPort}`;
+        const agent = async (p: Surface, route: 'start' | 'end', body: Record<string, unknown>) => {
+          const r = await fetch(`${studioUrl(p)}/_api/ai/${route}`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          if (!r.ok) throw new Error(`ai/${route} at ${p.name}: HTTP ${r.status}`);
+          return r.json().catch(() => null);
+        };
+        const hubToken = () =>
+          JSON.parse(readFileSync(run.identities['designer-a'], 'utf8')).hubs[
+            `http://127.0.0.1:${run.port}`
+          ].token as string;
+        const projectHistory = async () =>
+          (
+            (await (
+              await fetch(
+                `http://127.0.0.1:${run.port}/api/projects/current/v1/history?limit=200`,
+                {
+                  headers: { authorization: `Bearer ${hubToken()}` },
+                }
+              )
+            ).json()) as { history: Array<{ kind: string; label: string; effects: unknown[] }> }
+          ).history;
+        // The toolbar's Sync button (it toggles; pressed = the panel shows).
+        const openSync = async (p: Surface) => {
+          const button = selector('open-sync');
+          await until(async () => (await p.read(button)) !== null, 10000);
+          if ((await p.read(`${button}[aria-pressed="true"]`)) === null) await p.click(button);
+        };
+        for (const from of all.filter((p) => p.name !== 'hub')) {
+          const a = `ui/SurfaceAi-${from.name}-a.tsx`;
+          const b = `ui/SurfaceAi-${from.name}-b.tsx`;
+          await check('L18.ai.multi-file-group', `${from.name}-agent-to-peers`, async () => {
+            await seedCanvas(from, a, elementCanvas(`AI A ${from.name}`));
+            await seedCanvas(from, b, elementCanvas(`AI B ${from.name}`));
+            await openSeeded(a, `AI A ${from.name}`, `L18-ai-${from.name}`);
+            const author = `Surface agent ${from.name}`;
+            const doneA = elementCanvas(`AI A done ${from.name}`);
+            const doneB = elementCanvas(`AI B done ${from.name}`);
+            await agent(from, 'start', { file: `.design/${a}`, author });
+            writeFileSync(join(from.root, '.design', a), doneA);
+            writeFileSync(join(from.root, '.design', b), doneB);
+            // Mid-run: nothing of the agent's reaches the others.
+            await sleep(2000);
+            const early = all
+              .filter((p) => p !== from)
+              .filter((p) => src(p, a) === doneA || src(p, b) === doneB)
+              .map((p) => p.name);
+            const start = performance.now();
+            await agent(from, 'end', { file: `.design/${a}`, outcome: 'done' });
+            const landed = await observeAll(
+              all,
+              `L18-ai-group-${from.name}`,
+              start,
+              async (p) => (await p.read('h1', true)) === `AI A done ${from.name}`,
+              (p) => src(p, a) === doneA && src(p, b) === doneB
+            );
+            const label = `${author} edited SurfaceAi-${from.name}-a`;
+            const action = (await projectHistory()).find((h) => h.label === label);
+            return {
+              status:
+                landed.status === 'pass' &&
+                early.length === 0 &&
+                action?.kind === 'ai' &&
+                action.effects.length === 2
+                  ? 'pass'
+                  : 'fail',
+              ...landed,
+              publishedBeforeEndAt: early,
+              action: action
+                ? { label: action.label, kind: action.kind, effects: action.effects.length }
+                : null,
+            };
+          });
+          for (const choice of ['discard', 'publish'] as const) {
+            const c = `ui/SurfaceAi-${from.name}-${choice}.tsx`;
+            const title = `AI ${choice} ${from.name}`;
+            await check(
+              choice === 'discard' ? 'L21.ai.abort-discard' : 'L21.ai.abort-publish',
+              `${from.name}-agent`,
+              async () => {
+                await seedCanvas(from, c, elementCanvas(title));
+                await openSeeded(c, title, `L21-ai-${choice}-${from.name}`);
+                const accepted = src(from, c);
+                const half = elementCanvas(`${title} half done`);
+                await agent(from, 'start', { file: `.design/${c}`, author: 'Surface agent' });
+                writeFileSync(join(from.root, '.design', c), half);
+                await sleep(800);
+                await agent(from, 'end', { file: `.design/${c}`, outcome: 'failed' });
+                // A failed run is held: nothing reaches the others.
+                await sleep(3000);
+                const leaked = all
+                  .filter((p) => p !== from && src(p, c) !== accepted)
+                  .map((p) => p.name);
+                const authorKept = src(from, c) === half;
+                // The author is told, in the Sync panel, and decides.
+                await openSync(from);
+                await until(
+                  async () => (await from.read(selector('sync-ai-held'))) !== null,
+                  20000
+                ).catch(async (error) => {
+                  await from.screenshot(join(run.out, `L21-ai-${choice}-${from.name}-no-held.png`));
+                  const sync = join(from.root, '.design', '_sync.json');
+                  if (existsSync(sync))
+                    writeFileSync(
+                      join(run.out, `L21-ai-${choice}-${from.name}-sync.json`),
+                      readFileSync(sync)
+                    );
+                  throw error;
+                });
+                const start = performance.now();
+                await from.click(selector(`sync-ai-${choice}`));
+                const decided = await observeAll(
+                  all,
+                  `L21-ai-${choice}-${from.name}`,
+                  start,
+                  async (p) =>
+                    (await p.read('h1', true)) ===
+                    (choice === 'discard' ? title : `${title} half done`),
+                  (p) => src(p, c) === (choice === 'discard' ? accepted : half)
+                );
+                return {
+                  status:
+                    decided.status === 'pass' && leaked.length === 0 && authorKept
+                      ? 'pass'
+                      : 'fail',
+                  ...decided,
+                  leakedWhileHeld: leaked,
+                  authorKept,
+                };
+              }
+            );
+          }
+        }
+      }
       // L18 — project history from the History panel: restore an earlier
       // version (a NEW action, everyone sees it), then undo one's own action
       // while a teammate's later change to the same canvas is kept.
