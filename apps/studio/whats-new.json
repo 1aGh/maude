@@ -3,8 +3,8 @@
   "entries": [
     {
       "id": "live-canvases-long-sessions",
-      "version": null,
-      "date": null,
+      "version": "1.3.1",
+      "date": "2026-09-15",
       "kind": "fix",
       "title": "Canvases stay live in long sessions",
       "summary": "A canvas open in your browser on a Maude Cloud project kept working for about 15 minutes and then quietly stopped showing teammates’ changes until you reloaded the page — it now stays live however long you work. And editing a design system’s tokens.css restyles every open canvas that uses it, straight away.",
@@ -12,8 +12,8 @@
     },
     {
       "id": "team-access-and-presence",
-      "version": null,
-      "date": null,
+      "version": "1.3.1",
+      "date": "2026-09-15",
       "kind": "fix",
       "title": "Lost access? Maude asks you to sign in again",
       "summary": "If an owner removes your access or your sign-in expires, the Sync panel now tells you to sign in again — instead of \"check your connection\" — and keeps your changes on this computer until you do. Signing in again sends them. And when a teammate closes a canvas, their avatar and cursor now leave everyone else’s screen straight away.",
@@ -21,8 +21,8 @@
     },
     {
       "id": "comment-tool-and-live-tree",
-      "version": null,
-      "date": null,
+      "version": "1.3.1",
+      "date": "2026-09-15",
       "kind": "fix",
       "title": "The Comment tool works from the toolbar; new images and folders show up for everyone at once",
       "summary": "Picking Comment in the canvas toolbar now lets you click an element to comment — before, only the C key did. An image saved next to your canvases appears in the file tree straight away, on your machine and your teammates’. A folder you create or move outside Maude, or move in the tree, reaches the team in seconds instead of on the next launch.",
@@ -30,8 +30,8 @@
     },
     {
       "id": "inspector-keeps-number-types",
-      "version": null,
-      "date": null,
+      "version": "1.3.1",
+      "date": "2026-09-15",
       "kind": "fix",
       "title": "Editing a number in the inspector keeps it a number",
       "summary": "Changing a value like an artboard height or a video’s length used to turn it into text in the canvas source — some components then misread it. Numbers and on/off values now stay what they were, and leaving a value unchanged no longer rewrites the file.",
