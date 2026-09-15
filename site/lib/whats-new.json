@@ -3,6 +3,24 @@
   "version": "1.3.0",
   "entries": [
     {
+      "id": "comment-tool-and-live-tree",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "The Comment tool works from the toolbar; new images and folders show up for everyone at once",
+      "summary": "Picking Comment in the canvas toolbar now lets you click an element to comment — before, only the C key did. An image saved next to your canvases appears in the file tree straight away, on your machine and your teammates’. A folder you create or move outside Maude, or move in the tree, reaches the team in seconds instead of on the next launch.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "inspector-keeps-number-types",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Editing a number in the inspector keeps it a number",
+      "summary": "Changing a value like an artboard height or a video’s length used to turn it into text in the canvas source — some components then misread it. Numbers and on/off values now stay what they were, and leaving a value unchanged no longer rewrites the file.",
+      "surface": "design-ui"
+    },
+    {
       "id": "artboard-rename-and-files",
       "version": "1.3.0",
       "date": "2026-09-15",
