@@ -2190,6 +2190,104 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           return result;
         });
       }
+      // L08 — artboards: add (Edit menu), rename (double-click the name), move
+      // (drag the name), remove (select + Backspace). Receivers keep the canvas
+      // open; the oracle is their rendered artboard chrome and the source/meta.
+      const boardsCanvas = (title: string) =>
+        `import { DesignCanvas, DCArtboard } from '@maude/canvas-lib';\nexport default function SurfaceBoards() {\n  return (\n    <DesignCanvas>\n      <DCArtboard id="main" label="Main" width={480} height={320}>\n        <h1 style={{ padding: 24 }}>${title}</h1>\n      </DCArtboard>\n    </DesignCanvas>\n  );\n}\n`;
+      const boardLabel = (id: string) => `[data-dc-screen="${id}"] .dc-artboard-label`;
+      for (const from of all) {
+        const rel = `ui/SurfaceBoards-${from.name}.tsx`;
+        const src = (p: Surface) => readFileSync(join(p.root, '.design', rel), 'utf8');
+        const addedId = (p: Surface) => /<DCArtboard id="([^"]+)" label="Mobile"/.exec(src(p))?.[1] ?? null;
+        await check('L08.artboard.add', `${from.name}-to-peers`, async () => {
+          await seedCanvas(from, rel, boardsCanvas(`Boards ${from.name}`));
+          await openSeeded(rel, `Boards ${from.name}`, `L08-${from.name}`);
+          await from.menu('Edit');
+          const start = performance.now();
+          await from.menu('New artboard: Mobile');
+          return observeAll(
+            all,
+            `L08-add-${from.name}`,
+            start,
+            async (p) => {
+              const id = addedId(p);
+              return !!id && ((await p.read(boardLabel(id), true)) ?? '').includes('Mobile');
+            },
+            (p) => addedId(p) !== null && src(p).includes('label="Main"')
+          );
+        });
+        await check('L08.artboard.rename', `${from.name}-to-peers`, async () => {
+          const id = addedId(from);
+          if (!id || all.some((p) => addedId(p) !== id))
+            throw new Unexercised('Rename needs the added artboard on every participant');
+          await gesture(from, boardLabel(id), 'doubleClick');
+          await until(async () => !!(await from.probe(selector(`artboard-rename-${id}`)))?.visible);
+          await gesture(from, selector(`artboard-rename-${id}`), 'fill', `Phone ${from.name}`);
+          const start = performance.now();
+          await gesture(from, selector(`artboard-rename-${id}`), 'key', { key: 'Enter' });
+          return observeAll(
+            all,
+            `L08-rename-${from.name}`,
+            start,
+            async (p) => ((await p.read(boardLabel(id), true)) ?? '').includes(`Phone ${from.name}`),
+            (p) => src(p).includes(`id="${id}" label="Phone ${from.name}"`)
+          );
+        });
+        await check('L08.artboard.move', `${from.name}-to-peers`, async () => {
+          const id = /<DCArtboard id="([^"]+)" label="Phone/.exec(src(from))?.[1];
+          if (!id) throw new Unexercised('Move needs the renamed artboard');
+          const gap = async (p: Surface) => {
+            const a = (await p.probe(boardLabel(id)))?.rect as { left: number } | undefined;
+            const b = (await p.probe(boardLabel('main')))?.rect as { left: number } | undefined;
+            return a && b ? a.left - b.left : null;
+          };
+          const before = new Map<string, number | null>();
+          for (const p of all) before.set(p.name, await gap(p));
+          const metaX = (p: Surface) => {
+            try {
+              const meta = JSON.parse(readFileSync(join(p.root, '.design', rel.replace(/\.tsx$/, '.meta.json')), 'utf8'));
+              return (meta.layout?.artboards ?? []).find((r: { id: string }) => r.id === id)?.x ?? null;
+            } catch {
+              return null;
+            }
+          };
+          const beforeX = metaX(from);
+          const start = performance.now();
+          await gesture(from, boardLabel(id), 'pointer', { dx: 160, dy: 40 });
+          return observeAll(
+            all,
+            `L08-move-${from.name}`,
+            start,
+            async (p) => {
+              const g = await gap(p);
+              const b = before.get(p.name);
+              return g !== null && b !== null && b !== undefined && Math.abs(g - b) > 20;
+            },
+            (p) => {
+              const x = metaX(p);
+              return x !== null && x !== beforeX && x === metaX(from);
+            }
+          );
+        });
+        await check('L08.artboard.remove', `${from.name}-to-peers`, async () => {
+          const id = /<DCArtboard id="([^"]+)" label="Phone/.exec(src(from))?.[1];
+          if (!id) throw new Unexercised('Remove needs the renamed artboard');
+          await gesture(from, boardLabel(id), 'click');
+          await sleep(200);
+          const start = performance.now();
+          await gesture(from, 'body', 'key', { key: 'Backspace' });
+          return observeAll(
+            all,
+            `L08-remove-${from.name}`,
+            start,
+            async (p) =>
+              (await p.read(boardLabel(id), true)) === null &&
+              ((await p.read(boardLabel('main'), true)) ?? '').includes('Main'),
+            (p) => !src(p).includes(`id="${id}"`) && src(p).includes('label="Main"')
+          );
+        });
+      }
       for (const from of all) {
         const rel = `ui/SurfaceEl-${from.name}.tsx`;
         await check('L07.element.duplicate', `${from.name}-to-peers`, async () => {

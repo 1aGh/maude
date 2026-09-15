@@ -525,6 +525,8 @@ const canvasCache = new Map<string, CanvasCacheEntry>();
 // boot id in means a restart — the expected workflow after a dev-server source
 // edit (see CLAUDE.md) — changes every canvas etag, so a normal reload re-fetches
 // fresh chrome. (DDR-067.)
+/** When this server process started — anything it wrote is stamped after it. */
+const PROCESS_STARTED_AT = Date.now();
 const RUNTIME_BOOT_ID = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
 // Bumped by the chrome source watchers (below) on every canvas-lib / dev-server
@@ -1237,11 +1239,16 @@ export function createHttp(
   // GitHub routes: MAIN-ORIGIN ONLY (absent from CANVAS_SAFE_API +
   // startCanvasServer) and loopback-Host gated — every route either bears or
   // stores the cloud credential.
-  const cloudApi = createCloudEndpoints({
-    ...ctx,
-    // Connect and Disconnect both change WHO can answer for a past version.
-    onLinkChanged: clearHistoricalCaches,
-  });
+  // A LIVE view of ctx, never a copy: server.ts attaches `ctx.syncControl`
+  // after the route table is built, and a spread taken here froze it out —
+  // Connect then linked the project and answered "Restart Maude to start
+  // syncing" instead of starting the sync (cloud-attach E2E, since 2026-08-18).
+  const cloudApi = createCloudEndpoints(
+    Object.assign(Object.create(ctx) as Context, {
+      // Connect and Disconnect both change WHO can answer for a past version.
+      onLinkChanged: clearHistoricalCaches,
+    })
+  );
   // Figma import (DDR-216). Same dual-allowlist rule as the GitHub + cloud
   // routes: MAIN-ORIGIN ONLY, plus loopback-Host and same-origin gating on
   // every one of them — each either stores or spends the user's Figma PAT.
@@ -1739,7 +1746,16 @@ export function createHttp(
         return Response.json({ linked: false }, { headers: { 'Cache-Control': 'no-store' } });
       }
       try {
-        return Response.json(JSON.parse(readFileSync(file, 'utf8')), {
+        const status = JSON.parse(readFileSync(file, 'utf8'));
+        // The sync runtime lives in THIS process and stamps every payload it
+        // writes. A file older than the process is a previous session's last
+        // word — "offline" against a hub that may no longer be linked at all —
+        // and showing it as the current state greeted the designer with
+        // "Working offline" before anything had been tried.
+        if (!(Number(status?.updatedAt) >= PROCESS_STARTED_AT)) {
+          return Response.json({ linked: false }, { headers: { 'Cache-Control': 'no-store' } });
+        }
+        return Response.json(status, {
           headers: { 'Cache-Control': 'no-store' },
         });
       } catch {
@@ -4223,6 +4239,35 @@ export function createHttp(
       }>(req, 2 * 1024);
       if (!body) return new Response('body required', { status: 400 });
       const result = await api.setArtboardKindOp(body);
+      if (!result.ok) {
+        return Response.json(
+          { ok: false, error: result.error },
+          { status: result.status, headers: { 'Cache-Control': 'no-store' } }
+        );
+      }
+      return Response.json(
+        { ok: true, seq: result.seq },
+        { status: 200, headers: { 'Cache-Control': 'no-store' } }
+      );
+    },
+
+    '/_api/set-artboard-label': async (req: Request) => {
+      // Plan T25/L08 — rename an artboard. POST { canvas, artboardId, label }
+      // → api.setArtboardLabelOp. The canvas iframe only REQUESTS this over
+      // the dgn bus (double-click the name); the shell writes it. MAIN-ORIGIN
+      // ONLY, same gate pair as set-artboard-kind.
+      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+      if (!sameOriginWrite(req))
+        return new Response('cross-origin write rejected', { status: 403 });
+      if (!isTrustedRequestHost(req))
+        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+      const body = await readJson<{
+        canvas?: unknown;
+        artboardId?: unknown;
+        label?: unknown;
+      }>(req, 2 * 1024);
+      if (!body) return new Response('body required', { status: 400 });
+      const result = await api.setArtboardLabelOp(body);
       if (!result.ok) {
         return Response.json(
           { ok: false, error: result.error },

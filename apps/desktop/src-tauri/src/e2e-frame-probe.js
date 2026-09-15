@@ -106,6 +106,17 @@
           await tick();
         }
         if (data.operation === 'click') element.click();
+        if (
+          data.operation === 'fill' &&
+          typeof argument === 'string' &&
+          (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)
+        ) {
+          // What typing leaves behind: the field's value, then an input event.
+          element.focus();
+          const proto = Object.getPrototypeOf(element);
+          Object.getOwnPropertyDescriptor(proto, 'value')?.set?.call(element, argument);
+          element.dispatchEvent(new Event('input', { bubbles: true }));
+        }
         if (data.operation === 'key' && typeof argument?.key === 'string') {
           element.dispatchEvent(
             new KeyboardEvent('keydown', {

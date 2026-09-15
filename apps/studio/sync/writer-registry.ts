@@ -55,6 +55,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/set-artboard-hug': { ...LANE_SOURCE, rows: 'S14' },
   '/_api/set-artboard-style': { ...LANE_SOURCE, rows: 'S15' },
   '/_api/set-artboard-kind': { ...LANE_SOURCE, rows: 'S16' },
+  '/_api/set-artboard-label': { ...LANE_SOURCE, rows: 'S16' },
   '/_api/set-artboard-guides': { ...LANE_SOURCE, rows: 'S17' },
   '/_api/set-artboard-print': { ...LANE_SOURCE, rows: 'S17' },
   '/_api/reorder-revert': { ...LANE_SOURCE, rows: 'S18' },

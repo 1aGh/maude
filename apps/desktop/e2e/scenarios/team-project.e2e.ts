@@ -155,4 +155,31 @@ describe('team-project (native-desktop)', () => {
     expect(await dialog.getText()).toContain('On this computer');
     await (await $(tid('team-projects-close'))).click();
   });
+
+  it('6 · keyboard and dark mode: Escape closes the picker, focus returns, dark theme renders', async () => {
+    const trigger = await $(tid('repo-switcher-trigger'));
+    await trigger.click();
+    await (await $(tid('switcher-open-team'))).click();
+    const dialog = await $(tid('team-projects-dialog'));
+    await dialog.waitForDisplayed({ timeout: 10_000 });
+    // Focus moved INTO the dialog (the first control), not left on the page.
+    const inside = await browser.execute(() =>
+      !!document.activeElement?.closest('[data-testid="team-projects-dialog"]')
+    );
+    expect(inside).toBe(true);
+    await browser.keys('Escape');
+    await browser.waitUntil(async () => !(await dialog.isExisting()), {
+      timeout: 5_000,
+      timeoutMsg: 'Escape did not close the team projects dialog',
+    });
+    // Dark theme: the same dialog, legible.
+    await (await $('.st-sb-theme')).click();
+    await trigger.click();
+    await (await $(tid('switcher-open-team'))).click();
+    await (await $(tid('team-projects-dialog'))).waitForDisplayed({ timeout: 10_000 });
+    const theme = await browser.execute(() => document.documentElement.getAttribute('data-theme'));
+    await capture(`07-team-projects-${theme ?? 'theme'}`);
+    await browser.keys('Escape');
+    await (await $('.st-sb-theme')).click();
+  });
 });

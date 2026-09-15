@@ -163,6 +163,8 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
         // same MAIN-ORIGIN-ONLY posture as the other artboard structural ops
         // right above.
         '/_api/duplicate-artboard',
+        // Plan T25/L08 — artboard rename, requested over the dgn bus.
+        '/_api/set-artboard-label',
         // feature-bug-report-button — the debug bundle reveals server logs +
         // project context, the submit proxy triggers outbound network, and the
         // fallback writes to disk. All three are MAIN-ORIGIN ONLY: absent from

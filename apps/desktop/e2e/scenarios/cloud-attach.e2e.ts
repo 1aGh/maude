@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
@@ -56,6 +57,41 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     await waitForSidecar();
   });
 
+  beforeEach(async () => {
+    // WKWebView pauses CSS animations while the test window is occluded, and a
+    // dialog frozen on its entry keyframe (opacity 0) is "not displayed" though
+    // it is open. Motion is not what these steps test: end states only.
+    await browser
+      .execute(() => {
+        if (document.getElementById('e2e-no-motion')) return;
+        const style = document.createElement('style');
+        style.id = 'e2e-no-motion';
+        style.textContent =
+          '*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;transition-duration:0s!important}';
+        document.head.appendChild(style);
+      })
+      .catch(() => {});
+  });
+
+  afterEach(async function () {
+    // A failed step leaves its own picture — the assertion says what was
+    // missing, the screenshot says what was there instead.
+    if (this.currentTest?.state !== 'failed') return;
+    await capture(`FAILED ${this.currentTest.title.slice(0, 40)}`).catch(() => {});
+    const dialogs = await browser
+      .execute(() =>
+        Array.from(document.querySelectorAll('[role="dialog"], [data-testid$="-dialog"]'))
+          .slice(0, 6)
+          .map((d) => {
+            const r = d.getBoundingClientRect();
+            const cs = getComputedStyle(d);
+            return `${d.getAttribute('data-testid') ?? d.className} ${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}x${Math.round(r.height)} op=${cs.opacity} vis=${cs.visibility} disp=${cs.display}`;
+          })
+      )
+      .catch(() => []);
+    console.log(`[cloud-attach] dialogs at failure: ${JSON.stringify(dialogs)}`);
+  });
+
   after(() => {
     // The fixture must stay deterministic for every other suite — undo the
     // linkedHub this run wrote. Survives a killed run too (fixture-guard).
@@ -94,11 +130,16 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     // never "restart the studio server" — a task naming something a desktop
     // user cannot see. Which arm fires depends on what the fixture has to sync,
     // so assert the shape: this project, and a state we told the truth about.
+    let seen = '';
     await browser.waitUntil(
-      async () =>
-        /Connecting to|Syncing with|Connected to/.test(await (await $(tid('cloud-bar'))).getText()),
-      { timeout: 20_000, timeoutMsg: 'the attach note never appeared' }
-    );
+      async () => {
+        seen = await (await $(tid('cloud-bar'))).getText();
+        return /Connecting to|Syncing with|Connected to/.test(seen);
+      },
+      { timeout: 20_000 }
+    ).catch(() => {
+      throw new Error(`the attach note never appeared — the bar said: ${seen.slice(0, 300)}`);
+    });
     expect(await (await $(tid('cloud-bar'))).getText()).not.toContain('studio server');
     const cfg = JSON.parse(readFileSync(FIXTURE_CONFIG, 'utf8'));
     expect(cfg.linkedHub?.url).toContain('127.0.0.1');
@@ -145,11 +186,16 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     await capture('deep-link decision modal');
 
     await connect.click();
+    let seen = '';
     await browser.waitUntil(
-      async () =>
-        /Connecting to|Syncing with|Connected to/.test(await (await $(tid('cloud-bar'))).getText()),
-      { timeout: 20_000, timeoutMsg: 'the deep-link attach note never appeared' }
-    );
+      async () => {
+        seen = await (await $(tid('cloud-bar'))).getText();
+        return /Connecting to|Syncing with|Connected to/.test(seen);
+      },
+      { timeout: 20_000 }
+    ).catch(() => {
+      throw new Error(`the deep-link attach note never appeared — the bar said: ${seen.slice(0, 300)}`);
+    });
     await capture('attached via deep link');
   });
 
@@ -303,5 +349,47 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     await (await $(tid('canvas-list'))).waitForDisplayed({ timeout: 20_000 });
     expect((await panel.getText()).length).toBeGreaterThan(0);
     await capture('after resync — the studio is still up');
+  });
+
+  it('10 · a cloud project opens as its OWN copy — no folder chosen (plan T21/T22)', async () => {
+    // The project-switcher way in: Maude Cloud (already signed in above) lists
+    // the account's projects; Open makes the managed copy and switches to it.
+    const trigger = await $(tid('repo-switcher-trigger'));
+    await trigger.waitForDisplayed({ timeout: 30_000 });
+    await trigger.click();
+    await (await $(tid('switcher-open-team'))).click();
+    const dialog = await $(tid('team-projects-dialog'));
+    await dialog.waitForDisplayed({ timeout: 15_000 });
+    const row = await $(tid('team-cloud-project-stub-project'));
+    await row.waitForDisplayed({ timeout: 20_000 });
+    // The viewer project offers the browser, not an Open that would be refused.
+    expect(await (await $(tid('team-cloud-project-stub-gallery'))).getText()).toContain('View');
+    await capture('team projects from Maude Cloud');
+    await row.click();
+    await browser.pause(6_000);
+    await waitForSidecar();
+    // Keyed by the PROJECT's server (the cell the cloud hands out) + id — not
+    // by the cloud's own address — so look for the one `*--stub-project` copy.
+    const root = join(homedir(), 'Library', 'Application Support', 'com.maude.app.e2e', 'projects');
+    let copy = '';
+    await browser
+      .waitUntil(
+        () => {
+          const dir = existsSync(root)
+            ? readdirSync(root).find((d) => d.endsWith('--stub-project'))
+            : undefined;
+          copy = dir ? join(root, dir, '.design', 'config.json') : '';
+          return !!copy && existsSync(copy);
+        },
+        { timeout: 30_000 }
+      )
+      .catch(async () => {
+        const err = await $(tid('team-error'));
+        const why = (await err.isExisting()) ? await err.getText() : 'no error shown';
+        throw new Error(`the managed copy was never created — ${why}`);
+      });
+    const cfg = JSON.parse(readFileSync(copy, 'utf8'));
+    expect(cfg.managed?.projectId).toBe('stub-project');
+    await capture('opened the cloud project as its own copy');
   });
 });

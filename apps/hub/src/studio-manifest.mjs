@@ -148,6 +148,7 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/set-artboard-guides': { safe: null, unsafe: 'edit' },
   '/_api/set-artboard-hug': { safe: null, unsafe: 'edit' },
   '/_api/set-artboard-kind': { safe: null, unsafe: 'edit' },
+  '/_api/set-artboard-label': { safe: null, unsafe: 'edit' },
   '/_api/set-artboard-print': { safe: null, unsafe: 'edit' },
   '/_api/set-artboard-style': { safe: null, unsafe: 'edit' },
   '/_api/reorder': { safe: null, unsafe: 'edit' },

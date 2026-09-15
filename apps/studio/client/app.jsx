@@ -13308,6 +13308,23 @@ function App() {
         if (e.source === activeWin && typeof m.artboardId === 'string') {
           deleteArtboardShellRef.current?.(m.artboardId);
         }
+      } else if (m.dgn === 'rename-artboard-request') {
+        // Plan T25/L08 — double-click an artboard's name to rename it. Same
+        // confused-deputy guard: the canvas asks, the shell writes the active
+        // canvas only.
+        const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
+        if (
+          e.source === activeWin &&
+          typeof m.artboardId === 'string' &&
+          typeof m.label === 'string' &&
+          m.label.trim()
+        ) {
+          structuralWriteRef.current?.(
+            '/_api/set-artboard-label',
+            { artboardId: m.artboardId, label: m.label.slice(0, 80) },
+            { label: 'rename artboard' }
+          );
+        }
       } else if (m.dgn === 'set-artboard-kind-request') {
         // feature-1-artboard-kinds-foundation, T8 — context-menu "Artboard
         // kind" submenu (inside the untrusted iframe). `kind: null` clears

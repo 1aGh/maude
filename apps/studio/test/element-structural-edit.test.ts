@@ -16,6 +16,7 @@ import {
   applySetArtboardGuides,
   applySetArtboardHug,
   applySetArtboardKind,
+  applySetArtboardLabel,
   applySetArtboardPrint,
   applySetArtboardStyle,
   CanvasEditError,
@@ -366,6 +367,39 @@ describe('canvas-edit / applySetArtboardStyle (background/padding/layout/gap)', 
     expect(rebound.source).toContain('padding="var(--space-6)"');
     expect(rebound.source).not.toContain('padding={24}');
     expect(parses(rebound.source)).toBe(true);
+  });
+});
+
+// Plan T25/L08 — rename an artboard (double-click its name).
+describe('canvas-edit / applySetArtboardLabel', () => {
+  const canvas = [
+    'export default function Demo() {',
+    '  return (',
+    '    <DesignCanvas>',
+    '      <DCArtboard id="home" label="Home" width={1440} height={1024}>',
+    '        <div>content</div>',
+    '      </DCArtboard>',
+    '      <DCArtboard id="other" width={390} height={844} />',
+    '    </DesignCanvas>',
+    '  );',
+    '}',
+  ].join('\n');
+
+  test('rewrites only the addressed artboard label, escaping quotes and dropping control characters', () => {
+    const out = applySetArtboardLabel(CANVAS, canvas, 'home', 'Home "v2"\u0007');
+    expect(out.source).toContain('label="Home &quot;v2&quot;"');
+    expect(out.source).toContain('<DCArtboard id="other" width={390}');
+    expect(parses(out.source)).toBe(true);
+  });
+
+  test('adds a label to an artboard that had none', () => {
+    const out = applySetArtboardLabel(CANVAS, canvas, 'other', 'Mobile');
+    expect(out.source).toMatch(/<DCArtboard[^>]*label="Mobile"[^>]*id="other"|<DCArtboard[^>]*id="other"[^>]*label="Mobile"/);
+  });
+
+  test('refuses an empty name and an unknown artboard', () => {
+    expect(() => applySetArtboardLabel(CANVAS, canvas, 'home', '  ')).toThrow(CanvasEditError);
+    expect(() => applySetArtboardLabel(CANVAS, canvas, 'nope', 'X')).toThrow(CanvasEditError);
   });
 });
 

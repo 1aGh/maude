@@ -64,6 +64,7 @@ import {
   setArtboardGuides,
   setArtboardHug,
   setArtboardKind,
+  setArtboardLabel,
   setArtboardPrint,
   setArtboardStyle,
   toggleClipHidden,
@@ -692,6 +693,12 @@ export interface Api {
     canvas?: unknown;
     artboardId?: unknown;
     kind?: unknown;
+  }): Promise<{ ok: true; seq?: number } | { ok: false; status: number; error: string }>;
+  /** Rename an artboard (T25/L08 — double-click its name on the canvas). */
+  setArtboardLabelOp(input: {
+    canvas?: unknown;
+    artboardId?: unknown;
+    label?: unknown;
   }): Promise<{ ok: true; seq?: number } | { ok: false; status: number; error: string }>;
   /** Generic layout guides (T5) — replace-whole-prop write. */
   setArtboardGuidesOp(input: {
@@ -5238,6 +5245,50 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
   }
 
+  /** Rename an artboard (plan T25/L08 — double-click its name). */
+  async function setArtboardLabelOp(input: {
+    canvas?: unknown;
+    artboardId?: unknown;
+    label?: unknown;
+  }): Promise<{ ok: true; seq?: number } | { ok: false; status: number; error: string }> {
+    const r = resolveCanvasAbs(input.canvas);
+    if (!r.ok) return r;
+    if (!takeStructuralToken()) return RATE_LIMITED;
+    const artboardId = typeof input.artboardId === 'string' ? input.artboardId.trim() : '';
+    if (!/^[A-Za-z][\w-]{0,63}$/.test(artboardId)) {
+      return { ok: false, status: 400, error: 'invalid artboard id' };
+    }
+    if (typeof input.label !== 'string' || !input.label.trim()) {
+      return { ok: false, status: 400, error: 'name is required' };
+    }
+    const label = input.label;
+    const rel = path.relative(paths.designRoot, r.abs);
+    ctx.bus.emit('activity:suppress', rel);
+    try {
+      const before = await Bun.file(r.abs).text();
+      announceOp(r.abs, rel, before, { kind: 'artboard', fn: 'label', artboardId, args: [label] });
+      await setArtboardLabel(r.abs, artboardId, label);
+      const after = await Bun.file(r.abs).text();
+      if (after === before) {
+        ctx.bus.emit('activity:unsuppress', rel);
+        return { ok: true };
+      }
+      try {
+        await history.writeSnapshot(rel, before, 'pre-set-artboard-label');
+      } catch {
+        /* snapshot best-effort */
+      }
+      return { ok: true, seq: logUndo(r.abs, before, after) };
+    } catch (err) {
+      ctx.bus.emit('activity:unsuppress', rel);
+      return {
+        ok: false,
+        status: err instanceof CanvasEditError ? 422 : 500,
+        error: err instanceof Error ? err.message : 'set-artboard-label failed',
+      };
+    }
+  }
+
   const MAX_GUIDES_JSON_BYTES = 4096;
 
   /** Generic layout guides (T5) — Inspector/skill writer. Replace-whole-prop,
@@ -6320,6 +6371,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     setArtboardHugOp,
     setArtboardStyleOp,
     setArtboardKindOp,
+    setArtboardLabelOp,
     setArtboardGuidesOp,
     setArtboardPrintOp,
     deleteArtboardOp,

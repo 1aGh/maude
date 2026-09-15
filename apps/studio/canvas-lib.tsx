@@ -475,6 +475,17 @@ button.dc-artboard-label {
   width: 100%;
 }
 button.dc-artboard-label:focus-visible { outline: 2px solid var(--maude-hud-accent, #d63b1f); outline-offset: -2px; }
+input.dc-artboard-rename {
+  appearance: none;
+  border-width: 0 0 1px 0;
+  font: inherit;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  text-transform: none;
+  outline: 2px solid var(--maude-hud-accent, #d63b1f);
+  outline-offset: -2px;
+}
 /* DDR-148 — video-artboard badge, overlaid top-right of the header. Opens
    the timeline panel (same postMessage the context-menu entry sends). */
 .dc-canvas .dc-artboard-video-badge {
@@ -2447,6 +2458,22 @@ export function DCArtboard({
   // edited), so it never ratchets up from a previously-larger measured value
   // the way feeding `rect.h` back as the floor would.
   const heightFloor = typeof height === 'number' ? height : VP_GRID.h;
+  // Plan T25/L08 — rename in place: double-click the name, Enter commits (the
+  // shell writes the `label` prop), Escape or an unchanged name cancels.
+  const [renaming, setRenaming] = useState(false);
+  const renameDoneRef = useRef(false);
+  const commitRename = (value: string) => {
+    if (renameDoneRef.current) return;
+    renameDoneRef.current = true;
+    setRenaming(false);
+    const next = value.trim();
+    if (!next || next === label) return;
+    try {
+      window.parent.postMessage({ dgn: 'rename-artboard-request', artboardId: id, label: next }, '*');
+    } catch {
+      /* detached / cross-origin */
+    }
+  };
   const articleRef = useRef<HTMLElement | null>(null);
   const measured = useArtboardBounds(articleRef as RefObject<HTMLElement | null>);
   useEffect(() => {
@@ -2590,9 +2617,40 @@ export function DCArtboard({
         }}
         {...handleProps}
       >
+        {renaming ? (
+          <input
+            className="dc-artboard-label sku dc-artboard-rename"
+            data-testid={`artboard-rename-${id}`}
+            aria-label="Artboard name"
+            defaultValue={label}
+            maxLength={80}
+            // biome-ignore lint/a11y/noAutofocus: the rename field opens on the designer's own double-click
+            autoFocus
+            onFocus={(e) => e.currentTarget.select()}
+            // The label is the drag handle; typing and clicking in the field
+            // must not start a move or reach the canvas shortcuts.
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Enter') commitRename(e.currentTarget.value);
+              else if (e.key === 'Escape') {
+                renameDoneRef.current = true;
+                setRenaming(false);
+              }
+            }}
+            onBlur={(e) => commitRename(e.currentTarget.value)}
+          />
+        ) : (
         <button
           type="button"
           className="dc-artboard-label sku"
+          onDoubleClick={(e) => {
+            if (isReadOnlyCanvas()) return;
+            e.stopPropagation();
+            renameDoneRef.current = false;
+            setRenaming(true);
+          }}
           // a11y-auditor (T3 review) — the kind chip is aria-hidden (decorative,
           // redundant with the Inspector's Kind picker), so a non-digital kind
           // must still reach the artboard's own accessible name or it's
@@ -2608,6 +2666,7 @@ export function DCArtboard({
           ) : null}
           {label}
         </button>
+        )}
         {hasVideo ? (
           <button
             type="button"

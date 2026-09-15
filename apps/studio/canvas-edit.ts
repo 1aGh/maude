@@ -4072,6 +4072,83 @@ export function applySetArtboardKind(
   return { source: out };
 }
 
+/** Longest artboard name the label edit accepts (the chrome truncates long ones). */
+export const MAX_ARTBOARD_LABEL = 80;
+
+/**
+ * Rename an artboard — write its DCArtboard `label` string prop (plan T25/L08,
+ * the double-click-the-name gesture). Addressed by the `id` prop like every
+ * other artboard verb; the label is a JSX string attribute, so `editStringAttr`
+ * escapes it. Pure; reparse-gated.
+ */
+export function applySetArtboardLabel(
+  canvasAbsPath: string,
+  source: string,
+  artboardId: string,
+  label: string
+): { source: string } {
+  // Control characters never reach a JSX attribute.
+  const clean = [...label].filter((c) => c.charCodeAt(0) >= 0x20 && c.charCodeAt(0) !== 0x7f).join('').trim();
+  if (!clean || clean.length > MAX_ARTBOARD_LABEL) {
+    throw new CanvasEditError(`artboard name must be 1–${MAX_ARTBOARD_LABEL} characters`, {
+      canvas: canvasAbsPath,
+      id: artboardId,
+    });
+  }
+  const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
+  if (parsed.errors && parsed.errors.length > 0) {
+    throw new CanvasEditError(
+      `oxc-parser failed on ${canvasAbsPath}: ${parsed.errors[0]?.message ?? 'unknown'}`,
+      { canvas: canvasAbsPath, id: artboardId }
+    );
+  }
+  const target = collectJsxByTag(parsed.program, 'DCArtboard').find(
+    (a) => getStringAttr(a.openingElement, 'id') === artboardId
+  );
+  if (!target) {
+    throw new CanvasEditError(`<DCArtboard id="${artboardId}"> not found in ${canvasAbsPath}`, {
+      canvas: canvasAbsPath,
+      id: artboardId,
+    });
+  }
+  const s = new MagicString(source);
+  editStringAttr(s, target.openingElement, 'label', clean, canvasAbsPath, artboardId);
+  const out = s.toString();
+  const check = parseSync(canvasAbsPath, out, { sourceType: 'module' });
+  if (check.errors && check.errors.length > 0) {
+    throw new CanvasEditError(
+      `artboard rename produced invalid source (${check.errors[0]?.message ?? 'parse error'})`,
+      { canvas: canvasAbsPath, id: artboardId }
+    );
+  }
+  return { source: out };
+}
+
+/** Rename an artboard on disk (atomic write + cross-process lock). */
+export async function setArtboardLabel(
+  canvasAbsPath: string,
+  artboardId: string,
+  label: string
+): Promise<{ source: string }> {
+  return withLock(canvasAbsPath, async () => {
+    const file = Bun.file(canvasAbsPath);
+    if (!(await file.exists())) {
+      throw new CanvasEditError(`Canvas not found: ${canvasAbsPath}`, {
+        canvas: canvasAbsPath,
+        id: artboardId,
+      });
+    }
+    const source = await file.text();
+    const next = applySetArtboardLabel(canvasAbsPath, source, artboardId, label);
+    if (next.source === source) return next;
+    const tmp = `${canvasAbsPath}.tmp.${Math.random().toString(36).slice(2, 10)}`;
+    await Bun.write(tmp, next.source);
+    const { rename } = await import('node:fs/promises');
+    await rename(tmp, canvasAbsPath);
+    return next;
+  });
+}
+
 /** Set an artboard's `kind` on disk (atomic write + cross-process lock). */
 export async function setArtboardKind(
   canvasAbsPath: string,

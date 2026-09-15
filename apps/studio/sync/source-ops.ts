@@ -31,6 +31,7 @@ import {
   applySetArtboardGuides,
   applySetArtboardHug,
   applySetArtboardKind,
+  applySetArtboardLabel,
   applySetArtboardStyle,
   applyTextEdit,
   type ElementPrint,
@@ -39,7 +40,7 @@ import {
 } from '../canvas-edit.ts';
 
 /** An artboard is addressed by its authored id — stable by construction. */
-export type ArtboardFn = 'resize' | 'hug' | 'style' | 'kind' | 'guides';
+export type ArtboardFn = 'resize' | 'hug' | 'style' | 'kind' | 'label' | 'guides';
 
 export type SourceOp =
   | { kind: 'text'; id: string; text: string; occurrence?: number; before?: string; print: ElementPrint }
@@ -217,6 +218,8 @@ function replayArtboard(
       return applySetArtboardStyle(abs, head, op.artboardId, a[0] as Parameters<typeof applySetArtboardStyle>[3]).source;
     case 'kind':
       return applySetArtboardKind(abs, head, op.artboardId, (a[0] as string | null) ?? null).source;
+    case 'label':
+      return applySetArtboardLabel(abs, head, op.artboardId, String(a[0] ?? '')).source;
     case 'guides':
       return applySetArtboardGuides(abs, head, op.artboardId, (a[0] as Record<string, unknown> | null) ?? null).source;
   }
