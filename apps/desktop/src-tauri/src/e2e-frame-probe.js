@@ -184,6 +184,7 @@
               buttons,
               detail,
               shiftKey: argument?.shift === true,
+              metaKey: argument?.meta === true,
               pointerId: 1,
               pointerType: 'mouse',
               isPrimary: true,
@@ -207,6 +208,13 @@
               dispatch('pointermove', x + (dx * step) / 5, y + (dy * step) / 5, 1);
               if (mouse) dispatch('mousemove', x + (dx * step) / 5, y + (dy * step) / 5, 1);
               await tick();
+            }
+            // A person pauses over the drop point before letting go; drag
+            // targets that preview on a settled hover need that pause.
+            const hold = Number.isFinite(argument?.hold) ? Math.min(argument.hold, 2000) : 0;
+            for (let waited = 0; waited < hold; waited += 50) {
+              dispatch('pointermove', x + dx, y + dy, 1);
+              await new Promise((resolve) => setTimeout(resolve, 50));
             }
           }
           dispatch('pointerup', x + dx, y + dy, 0);

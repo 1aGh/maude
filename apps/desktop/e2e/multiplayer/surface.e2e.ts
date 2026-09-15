@@ -53,6 +53,7 @@ type ProbeArgument =
       key?: string;
       shift?: boolean;
       meta?: boolean;
+      hold?: number;
       name?: string;
       type?: string;
       base64?: string;
@@ -79,6 +80,9 @@ type Surface = {
   dragTo: (source: string, destination: string) => Promise<void>;
   screenshot: (file: string) => Promise<void>;
   photoTrace: () => Promise<unknown>;
+  /** A real pointer drag inside the canvas (browsers only; the native lane
+   *  drives the frame probe). Returns false when not available. */
+  canvasDrag?: (q: string, dx: number, dy: number, holdMs: number) => Promise<boolean>;
 };
 // Read browser code verbatim: TS function serialization can capture esbuild's
 // Node-side __name helper, which does not exist inside Chromium/WKWebView.
@@ -154,6 +158,33 @@ function web(name: string, root: string, page: Page): Surface {
     },
     async screenshot(path) {
       await page.screenshot({ path });
+    },
+    async canvasDrag(q, dx, dy, holdMs) {
+      const frame = page.frameLocator('[data-testid="canvas-frame"]');
+      const box = await frame.locator(q).first().boundingBox();
+      if (!box) return false;
+      const x = box.x + box.width / 2;
+      const y = box.y + box.height / 2;
+      const seen: string[] = [];
+      const onReq = (r: { url(): string; method(): string }) => {
+        if (/\/_api\//.test(r.url())) seen.push(`${r.method()} ${r.url().replace(/\?.*$/, '')}`);
+      };
+      const onConsole = (m: { type(): string; text(): string }) => {
+        seen.push(`console.${m.type()}: ${m.text().slice(0, 400)}`);
+      };
+      page.on('request', onReq);
+      page.on('console', onConsole);
+      await page.mouse.move(x, y);
+      await page.mouse.down();
+      await page.mouse.move(x + dx, y + dy, { steps: 12 });
+      await page.waitForTimeout(holdMs);
+      await page.mouse.move(x + dx, y + dy + 1);
+      await page.mouse.up();
+      await page.waitForTimeout(1500);
+      page.off('request', onReq);
+      page.off('console', onConsole);
+      writeFileSync(join(run.out, `canvas-drag-${name}.json`), JSON.stringify(seen, null, 2));
+      return true;
     },
   };
 }
@@ -3903,6 +3934,175 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             async (p) =>
               (await headings(p)) === 1 && (await p.read('p', true)) === 'Kept paragraph',
             (p) => count(p, rel, '<h1') === 1 && count(p, rel, 'Kept paragraph') === 1
+          );
+        });
+        // Resize through the element's own corner handle: the width/height it
+        // writes land in the source everywhere and every render grows.
+        await check('L07.element.resize', `${from.name}-to-peers`, async () => {
+          for (const p of all)
+            if (count(p, rel, '<h1') !== 1)
+              throw new Unexercised(`Resize needs the single heading at ${p.name}`);
+          await selectHeading(from);
+          const handle = '.dc-el-resize-handle[data-corner="se"]';
+          await until(async () => !!(await from.probe(handle))?.visible).catch((error) =>
+            unlessNotRendering(from, error)
+          );
+          const before = await Promise.all(all.map(async (p) => (await p.probe('h1'))?.rect));
+          const oldSrc = readFileSync(join(from.root, '.design', rel), 'utf8');
+          const start = performance.now();
+          await gesture(from, handle, 'pointer', { dx: -60, dy: 40 });
+          return observeAll(
+            all,
+            `L07-resize-${from.name}`,
+            start,
+            async (p) => {
+              const r = (await p.probe('h1'))?.rect;
+              const b = before[all.indexOf(p)];
+              return !!r && !!b && Math.abs(r.height - b.height) > 10;
+            },
+            (p) => {
+              const s = readFileSync(join(p.root, '.design', rel), 'utf8');
+              return (
+                s !== oldSrc &&
+                /<h1[^>]*height:\s*"\d+px"/.test(s) &&
+                s === readFileSync(join(from.root, '.design', rel), 'utf8')
+              );
+            }
+          );
+        });
+        // Reorder: drag the selected heading below the paragraph in the
+        // canvas itself (the drop commits the new order to the source).
+        await check('L07.element.move-reorder', `${from.name}-to-peers`, async () => {
+          const order = (p: Surface) => {
+            const s = readFileSync(join(p.root, '.design', rel), 'utf8');
+            return s.indexOf('<h1') < s.indexOf('Kept paragraph') ? 'h1-first' : 'p-first';
+          };
+          for (const p of all)
+            if (order(p) !== 'h1-first' || count(p, rel, '<h1') !== 1)
+              throw new Unexercised(`Reorder needs heading-then-paragraph at ${p.name}`);
+          // From a clean slate: after the previous row's write the canvas
+          // remounts and restores its selection a beat later, so a stale
+          // inspector must not stand in for a real selection.
+          await gesture(from, 'body', 'key', { key: 'Escape' });
+          await sleep(300);
+          await selectHeading(from);
+          // The heading ALONE — the inspector also offers weight on the
+          // section around it, and dragging that moves the whole section.
+          const chip = async () => (await from.read('.st-sb-sel .val')) ?? '';
+          for (
+            let n = 0;
+            n < 6 &&
+            !((await chip()).includes(`Element ${from.name}`) && !(await chip()).includes('Kept'));
+            n++
+          ) {
+            await gesture(from, 'h1', 'doubleClick');
+            await sleep(200);
+          }
+          if (!(await chip()).includes(`Element ${from.name}`) || (await chip()).includes('Kept'))
+            throw new Unexercised(
+              `Could not select the heading alone (selection: ${await chip()})`
+            );
+          // The CANVAS must hold it too (its halo sits on the heading) and keep
+          // it: a clear still travelling from the Escape above must land first.
+          const haloOnHeading = async () => {
+            const halo = (await from.probe('.dc-cv-halo--selected'))?.rect;
+            const head = (await from.probe('h1'))?.rect;
+            return (
+              !!halo &&
+              !!head &&
+              Math.abs(halo.y - head.y) < 12 &&
+              Math.abs(halo.height - head.height) < 16
+            );
+          };
+          await until(async () => {
+            if (!(await haloOnHeading())) return false;
+            await sleep(1000);
+            return haloOnHeading();
+          }, 15000).catch(() => {
+            throw new Unexercised('The canvas did not keep the heading selected');
+          });
+          const h = (await from.probe('h1'))?.rect;
+          const para = (await from.probe('.dc-artboard-body p'))?.rect;
+          if (!h || !para) throw new Unexercised('Heading or paragraph not rendered');
+          const start = performance.now();
+          const dy = para.y + para.height * 0.9 - (h.y + h.height / 2);
+          // A browser gets a real pointer; the native lane the frame probe.
+          if (!(await from.canvasDrag?.('h1', 0, dy, 700)))
+            await gesture(from, 'h1', 'pointer', { dx: 0, dy, hold: 600 });
+          await from.screenshot(join(run.out, `L07-reorder-dropped-${from.name}.png`));
+          const selText = await from.read('.st-sb-sel');
+          const h1 = await from.probe('h1');
+          writeFileSync(
+            join(run.out, `L07-reorder-diag-${from.name}.json`),
+            JSON.stringify(
+              {
+                selection: selText,
+                h1: h1?.markup?.slice(0, 300),
+                h1Count: h1?.matches?.length,
+                chipIdMatches:
+                  (
+                    await from.probe(
+                      `[data-cd-id="${/data-cd-id="([^"]+)"/.exec(selText ?? '')?.[1]}"]`
+                    )
+                  )?.matches?.length ?? 0,
+              },
+              null,
+              2
+            )
+          );
+          return observeAll(
+            all,
+            `L07-reorder-${from.name}`,
+            start,
+            async (p) => {
+              const hh = (await p.probe('h1'))?.rect;
+              const pp = (await p.probe('.dc-artboard-body p'))?.rect;
+              return !!hh && !!pp && pp.y < hh.y;
+            },
+            (p) => order(p) === 'p-first' && count(p, rel, '<h1') === 1
+          );
+        });
+      }
+      // L08 — artboard resize through its own corner handle: the numeric
+      // width/height props change in the source everywhere; every render agrees.
+      for (const from of all) {
+        const rel = `ui/SurfaceBoardSize-${from.name}.tsx`;
+        const size = (p: Surface) =>
+          /<DCArtboard id="main"[^>]*width=\{(\d+)\}[^>]*height=\{(\d+)\}/
+            .exec(readFileSync(join(p.root, '.design', rel), 'utf8'))
+            ?.slice(1)
+            .join('x') ?? null;
+        await check('L08.artboard.resize', `${from.name}-to-peers`, async () => {
+          await seedCanvas(from, rel, boardsCanvas(`Board size ${from.name}`));
+          await openSeeded(rel, `Board size ${from.name}`, `L08-size-${from.name}`);
+          await gesture(from, selector('palette-mode-edit'), 'click');
+          // The artboard itself (its empty area), not its name: the name
+          // selects it for board actions, the body for the resize handles.
+          await gesture(from, '[data-dc-screen="main"] .dc-artboard-body', 'pointer', {
+            x: 0.92,
+            y: 0.92,
+          });
+          const handle = '.dc-el-resize-handle[data-corner="se"]';
+          await until(async () => !!(await from.probe(handle))?.visible).catch(async (error) => {
+            await from.screenshot(join(run.out, `L08-resize-no-handle-${from.name}.png`));
+            const all = (await from.probe('.dc-el-resize-handle'))?.matches?.length ?? 0;
+            throw new Error(`${String(error)} — resize handles in the frame: ${all}`);
+          });
+          const before = await Promise.all(
+            all.map(async (p) => (await p.probe('[data-dc-screen="main"]'))?.rect)
+          );
+          const start = performance.now();
+          await gesture(from, handle, 'pointer', { dx: 80, dy: 60 });
+          return observeAll(
+            all,
+            `L08-resize-${from.name}`,
+            start,
+            async (p) => {
+              const r = (await p.probe('[data-dc-screen="main"]'))?.rect;
+              const b = before[all.indexOf(p)];
+              return !!r && !!b && r.width > b.width + 20;
+            },
+            (p) => size(p) !== null && size(p) !== '480x320' && size(p) === size(from)
           );
         });
       }
