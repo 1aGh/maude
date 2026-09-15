@@ -1284,6 +1284,30 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               (p) => shapeDisk(p, shapeId) === null
             );
           });
+          // Undo brings the deleted shape back for everyone; redo takes it
+          // away again — the author's own history, travelling as actions.
+          for (const [action, restores] of [
+            ['undo', true],
+            ['redo', false],
+          ] as const) {
+            await check(`L09.shape-${kind}.${action}`, `${from.name}-to-peers`, async () => {
+              if (!shapeId) throw new Unexercised('Shape creation did not establish an ID');
+              for (const p of all)
+                if (!!(await p.probe(q())) === restores)
+                  throw new Unexercised(
+                    `${action} needs the propagated previous step at ${p.name}`
+                  );
+              const start = performance.now();
+              await gesture(from, 'body', 'key', { key: 'z', meta: true, shift: !restores });
+              return observeAll(
+                all,
+                `L09-shape-${kind}-${action}-${from.name}`,
+                start,
+                async (p) => !!(await p.probe(q()))?.visible === restores,
+                (p) => (shapeDisk(p, shapeId) !== null) === restores
+              );
+            });
+          }
         }
       }
       for (const from of all) {
@@ -1444,6 +1468,28 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               (p) => drawingDisk(p, drawingId) === null
             );
           });
+          for (const [action, restores] of [
+            ['undo', true],
+            ['redo', false],
+          ] as const) {
+            await check(`L09.${kind}.${action}`, `${from.name}-to-peers`, async () => {
+              if (!drawingId) throw new Unexercised('Creation did not establish an ID');
+              for (const p of all)
+                if (!!(await p.probe(q())) === restores)
+                  throw new Unexercised(
+                    `${action} needs the propagated previous step at ${p.name}`
+                  );
+              const start = performance.now();
+              await gesture(from, 'body', 'key', { key: 'z', meta: true, shift: !restores });
+              return observeAll(
+                all,
+                `L09-${kind}-${action}-${from.name}`,
+                start,
+                async (p) => !!(await p.probe(q()))?.visible === restores,
+                (p) => (drawingDisk(p, drawingId) !== null) === restores
+              );
+            });
+          }
         }
       }
       for (const from of all) {
@@ -2945,14 +2991,33 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           rectOf(ids.rect, 40, 120) +
           `<text data-id="${ids.text}" data-tool="text" x="40" y="240" data-font-size="14" fill="#1f1f1f" text-anchor="start" dominant-baseline="hanging">Formatted text</text>` +
           `<g data-id="${ids.arrow}" data-tool="arrow" stroke="#1f1f1f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="none"><line x1="200" y1="130" x2="320" y2="190"/><polyline points="302.3,186.8 320,190 311.5,174.1" fill="#1f1f1f"/></g>` +
-          rectOf(ids.g1, 380, 120, 50, 40) +
-          rectOf(ids.g2, 470, 150, 50, 40) +
-          rectOf(ids.g3, 580, 185, 50, 40) +
+          // Three sizes and uneven gaps, so every align/distribute action
+          // below moves something whatever ran before it.
+          rectOf(ids.g1, 380, 120, 40, 30) +
+          rectOf(ids.g2, 450, 170, 60, 50) +
+          rectOf(ids.g3, 600, 260, 80, 70) +
           `</svg>`;
         let ready = false;
         await check('L09.context-controls.seed', `${from.name}-to-peers`, async () => {
           await seedCanvas(from, rel, elementCanvas(`Context ${from.name}`));
-          writeFileSync(join(from.root, '.design', sidecar), seeded);
+          // The way an agent's `maude design annotate` writes them: through
+          // the author's own studio, not onto the sidecar (a file event on an
+          // annotations sidecar is never proposed — the collab room is its
+          // second writer).
+          const put = async (b: { file: string; svg: string; base: string }) => {
+            const r = await fetch('/_api/annotations', {
+              method: 'PUT',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(b),
+            });
+            return r.status;
+          };
+          const body = { file: `.design/${rel}`, svg: seeded, base: '' };
+          const status =
+            from === native
+              ? await browser.execute(put, body)
+              : await (from.name === 'hub' ? hubPage : peerPage).evaluate(put, body);
+          if (status >= 300) throw new Error(`annotations PUT answered ${status}`);
           await until(() => all.every((p) => disk(p)?.includes(ids.g3) === true), 30000).catch(
             () => {
               throw new Unexercised('The seeded annotations did not reach everyone');
@@ -2990,7 +3055,9 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           id: string,
           targets: string[],
           act: () => Promise<void>,
-          expectDisk?: (svg: string) => boolean
+          expectDisk?: (svg: string) => boolean,
+          // Group/ungroup change the data, not how the members render.
+          renders = true
         ) =>
           check(id, `${from.name}-to-peers`, async () => {
             if (!ready) throw new Unexercised('Context controls need the seeded annotations');
@@ -3007,7 +3074,12 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               all,
               `${id.replace(/\./g, '-')}-${from.name}`,
               start,
-              async (p) => (await markupOf(p)) !== before[all.indexOf(p)],
+              async (p) =>
+                renders
+                  ? (await markupOf(p)) !== before[all.indexOf(p)]
+                  : (await Promise.all(targets.map((t) => p.probe(`[data-id="${t}"]`)))).every(
+                      (r) => !!r?.visible
+                    ),
               (p) => {
                 const svg = disk(p);
                 return (
@@ -3150,14 +3222,14 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           );
         const g = [ids.g1, ids.g2, ids.g3];
         for (const [value, label] of [
+          ['dist-h', 'Distribute horizontal spacing'],
+          ['dist-v', 'Distribute vertical spacing'],
           ['left', 'Align left'],
           ['h-center', 'Align horizontal centers'],
           ['right', 'Align right'],
           ['top', 'Align top'],
           ['v-center', 'Align vertical centers'],
           ['bottom', 'Align bottom'],
-          ['dist-h', 'Distribute horizontal spacing'],
-          ['dist-v', 'Distribute vertical spacing'],
         ] as const)
           await step(
             `L09.selection-align.${value}`,
@@ -3167,12 +3239,16 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         await step(
           'L09.context-control.group-selection',
           g,
-          click('[aria-label="Group selection"]')
+          click('[aria-label="Group selection"]'),
+          undefined,
+          false
         );
         await step(
           'L09.context-control.ungroup-selection',
           g,
-          click('[aria-label="Ungroup selection"]')
+          click('[aria-label="Ungroup selection"]'),
+          undefined,
+          false
         );
         await check(
           'L09.context-control.delete-selected-annotations',
