@@ -240,7 +240,8 @@ export function createAcceptedRevisions({
       // document the store already knew with content from a legacy interval.
       const imported = await runBaselineImport();
       await reconcile();
-      return { ...next, imported };
+      // The state AFTER the import — `next` still carries step 1's note.
+      return { ...next, importPending: !!state.importPending, imported };
     };
     const p = switching.then(run, run);
     switching = p.catch(() => {});

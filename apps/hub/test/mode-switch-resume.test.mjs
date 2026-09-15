@@ -47,11 +47,18 @@ async function stopHub(built) {
 const src = (title) => `export default () => <h1 title="${title}">x</h1>;\n`;
 
 describe('T30 — resuming an interrupted switch', () => {
-  test('a switch that died before its import is finished by the next start', { timeout: 60000 }, async () => {
+  test('a switch that died before its import is finished by the next start', {
+    timeout: 60000,
+  }, async () => {
     const dataDir = mkdtempSync(join(tmpdir(), 'maude-switch-resume-'));
     dirs.push(dataDir);
     const owner = addToken(dataDir, { label: 'owner', scope: '*' }).value;
-    const alice = addToken(dataDir, { label: 'alice', scope: '*', role: 'member', owner: 'a@x.test' }).value;
+    const alice = addToken(dataDir, {
+      label: 'alice',
+      scope: '*',
+      role: 'member',
+      owner: 'a@x.test',
+    }).value;
     const get = async (http, path) =>
       (await fetch(`${http}${path}`, { headers: { authorization: `Bearer ${owner}` } })).json();
 
@@ -72,7 +79,10 @@ describe('T30 — resuming an interrupted switch', () => {
         doc.getMap('syncMeta').set('path', 'ui/kept.tsx');
       });
       await until(
-        async () => ((await get(http, '/api/documents')).documents ?? []).some((d) => d.name === name && d.bytes > 0),
+        async () =>
+          ((await get(http, '/api/documents')).documents ?? []).some(
+            (d) => d.name === name && d.bytes > 0
+          ),
         10000,
         'legacy document persisted'
       );
@@ -130,7 +140,9 @@ describe('T30 — resuming an interrupted switch', () => {
     }
   });
 
-  test('a completed switch clears the note; switching back to legacy never sets it', { timeout: 30000 }, async () => {
+  test('a completed switch clears the note; switching back to legacy never sets it', {
+    timeout: 30000,
+  }, async () => {
     const dataDir = mkdtempSync(join(tmpdir(), 'maude-switch-note-'));
     dirs.push(dataDir);
     const owner = addToken(dataDir, { label: 'owner', scope: '*' }).value;
@@ -144,7 +156,8 @@ describe('T30 — resuming an interrupted switch', () => {
         })
       ).json();
     try {
-      await post({ mode: 'transactions', expectEpoch: 0 });
+      const switched = await post({ mode: 'transactions', expectEpoch: 0 });
+      assert.equal(switched.importPending, false, 'the answer reports the finished import');
       assert.equal((await built.projectStore.state()).importPending, false);
       await post({ mode: 'legacy' });
       assert.equal((await built.projectStore.state()).importPending, false);

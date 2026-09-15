@@ -200,6 +200,23 @@ try {
       scope: '*',
       expiresAt: Date.now() + 12 * 3600000,
     });
+    // …and after the hub HOLDS it. The import reads the stored documents; a
+    // switch that raced the fixture's first save imported nothing for it
+    // (`created: 0`), and every later edit of that canvas had no project entry
+    // to land on (L06 failed in every direction). An operator switches a
+    // project whose documents are long persisted.
+    const listed = async () => {
+      const r = await fetch(`http://127.0.0.1:${port}/api/documents`, {
+        headers: { authorization: `Bearer ${ownerToken}` },
+      }).catch(() => null);
+      const docs = (await r?.json().catch(() => null))?.documents ?? [];
+      return docs.some((d) => /(^|\/)ui-home$/.test(d.name) && d.bytes > 0);
+    };
+    const deadline = Date.now() + 60_000;
+    while (!(await listed())) {
+      if (Date.now() > deadline) throw new Error('the hub never stored ui/home — cannot switch');
+      await new Promise((r) => setTimeout(r, 250));
+    }
     const res = await fetch(`http://127.0.0.1:${port}/api/projects/current/v1/mode`, {
       method: 'POST',
       headers: { authorization: `Bearer ${ownerToken}`, 'content-type': 'application/json' },
