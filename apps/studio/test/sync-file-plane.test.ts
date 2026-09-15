@@ -1245,6 +1245,29 @@ describe('rate limits', () => {
     expect(ledger.row('assets/huge.png')?.state).toBe('refused');
   });
 
+  test('a refused over-cap file that is then removed is no longer reported (plan T31/L22)', async () => {
+    // The panel kept saying "1 file — too big for this workspace" after the
+    // file was gone from the machine: nothing was held any more, but the
+    // refused row outlived its file.
+    const hub = fakeHub({});
+    write('assets/huge.png', 'x'.repeat(MIN_TRUSTED_MAX_FILE_BYTES + 1024));
+    const limitsAware = (async (url: string, init?: RequestInit) => {
+      if (String(url).endsWith('/api/file-limits')) {
+        return new Response(JSON.stringify({ maxFileBytes: MIN_TRUSTED_MAX_FILE_BYTES }), {
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      return hub.fetchImpl(url as never, init as never);
+    }) as unknown as typeof fetch;
+    const p = plane(hub, { fetchImpl: limitsAware });
+    await p.reconcile();
+    expect(ledger.row('assets/huge.png')?.state).toBe('refused');
+    rmSync(join(root, 'assets/huge.png'));
+    await p.reconcile();
+    expect(ledger.row('assets/huge.png') ?? null).toBeNull();
+    expect(p.doruceka()['assets/huge.png']).toBeUndefined();
+  });
+
   test('an old hub with no /api/file-limits still works — the fallback holds', async () => {
     const hub = fakeHub({});
     write('assets/small.png', 'ok');

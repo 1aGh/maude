@@ -1600,6 +1600,21 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         holdOversized(out, ledger, here);
         continue;
       }
+      // THE FILE THAT WAS TOO BIG IS GONE. It never reached the project and
+      // is no longer on this machine, so nothing is held any more — the panel
+      // kept saying "1 file — too big" for a file that no longer existed.
+      const kept = ledger.row(rel);
+      if (
+        !here &&
+        kept?.state === 'refused' &&
+        kept.blockedClass === 'too-large' &&
+        !kept.syncedHash &&
+        !(row && !row.deleted) &&
+        !ledger.remoteOf(rel)
+      ) {
+        ledger.forget(rel);
+        continue;
+      }
       // What the hub holds: this page when it spoke about the path, otherwise
       // what we last learned. `undefined` (never learned) reads as null only
       // after a full read has had the chance to say so.
