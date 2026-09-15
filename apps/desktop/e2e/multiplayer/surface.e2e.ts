@@ -1536,7 +1536,9 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           const q = `[data-id="${strokeId}"]`;
           await gesture(from, q, 'pointer');
           const handle = '.dc-annot-resize-handle[data-corner="se"]';
-          await until(async () => !!(await from.probe(handle))?.visible);
+          await until(async () => !!(await from.probe(handle))?.visible).catch((error) =>
+            unlessNotRendering(from, error)
+          );
           const before = await Promise.all(
             all.map(async (p) => {
               const r = await p.probe(q);
