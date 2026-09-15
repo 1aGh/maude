@@ -5529,9 +5529,12 @@ export function createHttp(
         if (!body || typeof body.body !== 'string' || !body.body.trim()) {
           return new Response('body.body required', { status: 400 });
         }
+        // In a cell the proxy vouches who is replying; a body cannot claim
+        // somebody else (and the cell's git identity is the machine's).
+        const vouched = isWorkspaceMode() ? req.headers.get('x-maude-user') : null;
         const next = await api.commentsAddReply(id, {
           body: body.body,
-          author: typeof body.author === 'string' ? body.author : undefined,
+          author: vouched || (typeof body.author === 'string' ? body.author : undefined),
         });
         if (!next) return new Response('Not found', { status: 404 });
         return Response.json(next, { headers: { 'Cache-Control': 'no-store' } });

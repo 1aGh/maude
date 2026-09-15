@@ -36,6 +36,9 @@ export type WsData =
        *  a desktop, which is what makes every broadcast below reach everybody
        *  exactly as it always did. */
       session: string;
+      /** WHO opened this socket, as the proxy vouched it — Cloud Phase 27.
+       *  `''` on a desktop, where the project's git identity is the person. */
+      user?: string;
     }
   | {
       id: string;
@@ -446,8 +449,12 @@ export function createWs(
         else if (msg.type === 'tabs' && Array.isArray(msg.tabs)) inspect.setOpenTabs(msg.tabs);
         else if (msg.type === 'select' && msg.selection) inspect.setSelected(msg.selection);
         else if (msg.type === 'clear-select') inspect.setSelected(null);
-        else if (msg.type === 'comments-add' && msg.payload) await api.commentsAdd(msg.payload);
-        else if (msg.type === 'comments-patch' && msg.id)
+        else if (msg.type === 'comments-add' && msg.payload) {
+          // In a cell the author is the vouched member, never a claim in the
+          // frame and never the cell's own git identity (the machine).
+          const vouched = ws.data.kind === 'inspector' ? ws.data.user : '';
+          await api.commentsAdd(vouched ? { ...msg.payload, author: vouched } : msg.payload);
+        } else if (msg.type === 'comments-patch' && msg.id)
           await api.commentsPatch(msg.id, msg.patch || {});
         else if (msg.type === 'comments-delete' && msg.id) await api.commentsDelete(msg.id);
         else if (msg.type === 'comments-request' && typeof msg.file === 'string') {

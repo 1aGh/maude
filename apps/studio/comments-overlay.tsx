@@ -338,6 +338,11 @@ export function CommentsOverlay(): React.ReactNode {
   // safe because they carry identical content; the Y.Array path just
   // reaches us first (no 800 ms debounce delay).
   const collab = useCollab();
+  // Who is looking — the same identity a new comment is signed with (the
+  // project's git user on a desktop, the vouched member in a cloud cell).
+  // Asked directly: this overlay also runs in the comment-mount bundle, where
+  // the collab context is another module's and reads as null.
+  const me = useViewerName();
   useEffect(() => {
     if (!collab) return;
     const arr = collab.doc.getArray<OverlayComment>('comments');
@@ -566,6 +571,11 @@ export function CommentsOverlay(): React.ReactNode {
             onPatch={(patch) => handlePatch(focused.id, patch)}
             onDelete={() => handleDelete(focused.id)}
             onReply={(body) => handleReply(focused.id, body)}
+            mine={
+              !isReadOnlyCanvas() &&
+              !!(me ?? collab?.myName) &&
+              (focused.author ?? '').trim() === (me ?? collab?.myName ?? '').trim()
+            }
           />
         );
       })()}
@@ -1048,13 +1058,33 @@ function CommentComposer({
 // directly to `/_api/comments/<id>/reply` because that endpoint exists only on
 // Bun runtime and lives in `http.ts`.
 
-function CommentThread({
+let viewerName: Promise<string | null> | null = null;
+/** The viewer's display identity, asked once per document. */
+function useViewerName(): string | null {
+  const [name, setName] = useState<string | null>(null);
+  useEffect(() => {
+    if (typeof fetch === 'undefined') return;
+    viewerName ??= fetch('/_api/git-user')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => (typeof j?.name === 'string' && j.name.trim() ? j.name.trim() : null))
+      .catch(() => null);
+    let alive = true;
+    void viewerName.then((n) => alive && setName(n));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return name;
+}
+
+export function CommentThread({
   comment,
   sequence,
   onClose,
   onPatch,
   onDelete,
   onReply,
+  mine = false,
 }: {
   comment: OverlayComment;
   sequence: number;
@@ -1062,12 +1092,23 @@ function CommentThread({
   onPatch: (patch: Record<string, unknown>) => void;
   onDelete: () => void;
   onReply: (body: string) => Promise<boolean>;
+  /** The person looking wrote this comment — they may edit its text. */
+  mine?: boolean;
 }) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const replyRef = useRef<HTMLTextAreaElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
+  // Editing your own comment: the text in place, saved as a patch (the same
+  // channel resolve/reopen use). null = not editing.
+  const [draft, setDraft] = useState<string | null>(null);
+  const saveDraft = useCallback(() => {
+    const v = (draft ?? '').trim();
+    if (!v) return;
+    if (v !== comment.text) onPatch({ text: v });
+    setDraft(null);
+  }, [draft, comment.text, onPatch]);
 
   // Live anchor — popover tracks the pin via rAF so it stays glued to its
   // target through pan / zoom (FigJam parity). Writing to the dialog style
@@ -1176,7 +1217,40 @@ function CommentThread({
         {selectorChip ? <code className="cm-thread__selector">{selectorChip}</code> : null}
       </div>
 
-      <div className="cm-thread__body">{renderBodyWithMentions(comment.text)}</div>
+      {draft === null ? (
+        <div className="cm-thread__body">{renderBodyWithMentions(comment.text)}</div>
+      ) : (
+        <div className="cm-thread__reply-form">
+          <MentionAwareTextarea
+            className="cm-thread__reply-textarea"
+            value={draft}
+            placeholder="Edit your comment… ⌘↵ to save"
+            onChange={setDraft}
+            onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                e.preventDefault();
+                saveDraft();
+              }
+            }}
+            rows={3}
+            ariaLabel="Edit comment"
+          />
+          <div className="cm-thread__reply-actions">
+            <button type="button" className="cm-btn" onClick={() => setDraft(null)}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="cm-btn cm-btn--primary"
+              data-testid="comment-edit-save"
+              disabled={!draft.trim()}
+              onClick={saveDraft}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      )}
 
       {(comment.thread ?? []).map((r) => (
         <div className="cm-thread__reply" key={r.id}>
@@ -1218,6 +1292,16 @@ function CommentThread({
           </div>
 
           <div className="cm-thread__actions">
+            {mine && draft === null ? (
+              <button
+                type="button"
+                className="cm-btn"
+                data-testid="comment-edit"
+                onClick={() => setDraft(comment.text)}
+              >
+                Edit
+              </button>
+            ) : null}
             {comment.status === 'resolved' ? (
               <button type="button" className="cm-btn" onClick={() => onPatch({ status: 'open' })}>
                 ↺ Reopen

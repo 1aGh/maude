@@ -468,6 +468,9 @@ function startServer(port: number): BunServer {
             // D3 — whose socket this is, from the proxy's vouched header. Same
             // handshake-time reasoning as `readOnly` below; `''` on a desktop.
             session: WORKSPACE ? normalizeSessionKey(req.headers.get(SESSION_HEADER)) : '',
+            // Who, for attribution (a comment's author) — the proxy's vouched
+            // member; a desktop leaves it to the project's git identity.
+            user: WORKSPACE ? (req.headers.get('x-maude-user') ?? '').slice(0, 120) : '',
             // Cloud Phase 27 — stamp the role onto the socket at the handshake,
             // the one moment the session is unambiguous. Fails CLOSED in a cell
             // for the same reason the HTTP gate does: an absent header is an
