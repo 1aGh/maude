@@ -4994,6 +4994,7 @@ function AnnotationContextMenu({
     <button
       type="button"
       role="menuitem"
+      data-action={id}
       disabled={opts?.disabled}
       className={`dc-menu-item${opts?.destructive ? ' is-destructive' : ''}`}
       onClick={() => {

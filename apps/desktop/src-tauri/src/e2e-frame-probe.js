@@ -106,6 +106,26 @@
           await tick();
         }
         if (data.operation === 'click') element.click();
+        if (data.operation === 'contextMenu') {
+          // A secondary click: the right-button press, then the contextmenu
+          // event the platform sends after it.
+          const box = element.getBoundingClientRect();
+          const at = {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            clientX: box.left + box.width * 0.5,
+            clientY: box.top + box.height * 0.5,
+            button: 2,
+            buttons: 2,
+          };
+          element.dispatchEvent(new PointerEvent('pointerdown', { ...at, pointerType: 'mouse' }));
+          element.dispatchEvent(
+            new PointerEvent('pointerup', { ...at, buttons: 0, pointerType: 'mouse' })
+          );
+          element.dispatchEvent(new MouseEvent('contextmenu', at));
+          await tick();
+        }
         if (
           data.operation === 'fill' &&
           typeof argument === 'string' &&

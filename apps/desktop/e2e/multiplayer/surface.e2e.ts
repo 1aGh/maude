@@ -6,6 +6,7 @@ import {
   readdirSync,
   readFileSync,
   renameSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
@@ -986,7 +987,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           await until(() => written(from));
           const authored = bytes(from.root, rel);
           return {
-            stimulus: 'inspector Advanced → Add HTML attribute (data-surface-note), committed on blur',
+            stimulus:
+              'inspector Advanced → Add HTML attribute (data-surface-note), committed on blur',
             ...(await observeAll(
               all,
               `L06-attribute-${from.name}`,
@@ -2202,6 +2204,100 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             });
           }
         }
+        // L12 replace — the image's own "Replace…" (annotation context menu)
+        // opens the media picker; picking the project's seeded photo re-points
+        // the image. Every participant shows the new pixels.
+        await check('L12.upload-png.replace', `${from.name}-to-peers`, async () => {
+          if (!imageId || !assetRel)
+            throw new Unexercised('Upload did not establish an image reference');
+          const q = `image[data-id="${imageId}"]`;
+          const next = 'assets/surface-pattern.png';
+          for (const p of all)
+            if (!(await p.probe(q))?.visible)
+              throw new Unexercised(`Image not rendered before replace at ${p.name}`);
+          await gesture(from, selector('palette-mode-edit'), 'click');
+          await gesture(from, q, 'contextMenu');
+          const replace = '.dc-context-menu [data-action="replace"]';
+          await until(async () => !!(await from.probe(replace))?.visible);
+          await gesture(from, replace, 'click');
+          const cell = '[aria-label="Choose media"] .st-ap-cell[title^="surface-pattern.png"]';
+          await until(async () => (await from.read(cell)) !== null);
+          const start = performance.now();
+          await from.click(cell);
+          const result = await observeAll(
+            all,
+            `L12-replace-${from.name}`,
+            start,
+            async (p) => {
+              const image = await p.probe(q);
+              return (
+                !!image?.visible &&
+                image.width === 8 &&
+                image.height === 8 &&
+                image.pixel?.join(',') === '111,159,21,255'
+              );
+            },
+            (p) =>
+              imageDisk(p, imageId)?.includes(`href="${next}"`) === true &&
+              imageDisk(p, imageId) === imageDisk(from, imageId)
+          );
+          // What each participant shows once everything has settled — a
+          // render that went back while the file moved on is a divergence,
+          // not a slow arrival.
+          await sleep(3000);
+          const settled = await Promise.all(
+            all.map(async (p) => {
+              const image = await p.probe(q);
+              return {
+                receiver: p.name,
+                pixel: image?.pixel?.join(',') ?? null,
+                href: image?.href ?? null,
+                disk: imageDisk(p, imageId)?.match(/href="([^"]+)"/)?.[1] ?? null,
+              };
+            })
+          );
+          return {
+            stimulus: 'annotation context menu → Replace… → media picker → seeded photo',
+            ...result,
+            settled,
+          };
+        });
+        // L12 delete unreferenced — after the replace nothing points at the
+        // upload any more; deleting its file (Finder, an editor) removes it
+        // everywhere, and the image that moved on keeps rendering.
+        await check('L12.asset.delete-unreferenced', `${from.name}-to-peers`, async () => {
+          if (!imageId || !assetRel) throw new Unexercised('No uploaded asset');
+          const doomed = assetRel;
+          const q = `image[data-id="${imageId}"]`;
+          for (const p of all)
+            if (!existsSync(join(p.root, '.design', doomed)))
+              throw new Unexercised(`Upload absent before delete at ${p.name}`);
+          const referenced = all.flatMap((p) =>
+            readdirSync(join(p.root, '.design/ui'))
+              .filter((f) => f.endsWith('.tsx') || f.endsWith('.annotations.svg'))
+              .filter((f) => readFileSync(join(p.root, '.design/ui', f), 'utf8').includes(doomed))
+              .map((f) => `${p.name}:${f}`)
+          );
+          if (referenced.length)
+            throw new Unexercised(`Upload still referenced: ${referenced.join(', ')}`);
+          const start = performance.now();
+          rmSync(join(from.root, '.design', doomed));
+          return {
+            stimulus: 'filesystem delete of an unreferenced uploaded image',
+            ...(await observeAll(
+              all,
+              `L12-delete-unreferenced-${from.name}`,
+              start,
+              async (p) => {
+                const image = await p.probe(q);
+                return !!image?.visible && image.pixel?.join(',') === '111,159,21,255';
+              },
+              (p) =>
+                !existsSync(join(p.root, '.design', doomed)) &&
+                existsSync(join(p.root, '.design/assets/surface-pattern.png'))
+            )),
+          };
+        });
         await check('L12.upload-png.remove-reference', `${from.name}-to-peers`, async () => {
           if (!imageId || !assetRel)
             throw new Unexercised('Upload did not establish an image reference');
@@ -3693,6 +3789,221 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
                 async (p) => (await p.read(rowOf(theirs))) !== null,
                 (p) => text(p, mine) === offlineBody && text(p, theirs) === theirsBody
               )),
+            };
+          } finally {
+            await fetch(`${control}/online`, { method: 'POST' }).catch(() => {});
+          }
+        });
+        // L21 — a structural change and an edit to the same canvas at once:
+        // desktop B edits while cut off, desktop A deletes or moves the canvas
+        // from its tree, then B reconnects. The outcome must be one the whole
+        // project agrees on, and B's edit is either kept or B is told — never
+        // silently dropped.
+        const notices = (p: Surface) => {
+          try {
+            return (
+              JSON.parse(readFileSync(join(p.root, '.design', '_sync.json'), 'utf8')).notices ?? []
+            ).map((n: { id?: string; text?: string }) =>
+              `${n.id ?? ''} ${n.text ?? ''}`.trim()
+            ) as string[];
+          } catch {
+            return [];
+          }
+        };
+        const offlineThen = async <T>(edit: () => Promise<T> | T) => {
+          if (!peer || !control) throw new Error('no toggle proxy');
+          await fetch(`${control}/offline`, { method: 'POST' });
+          await until(() => syncState(peer) === 'offline', 60000);
+          return edit();
+        };
+        await check('L21.delete-versus-edit', 'native-deletes-peer-edits', async () => {
+          if (!peer || !hubSide || !nativeSide || !control)
+            return {
+              status: 'unsupported',
+              reason: 'This run has no toggle proxy in front of desktop B.',
+            };
+          const rel = 'ui/SurfaceDelEdit.tsx';
+          await seedCanvas(hubSide, rel, elementCanvas('Delete versus edit'));
+          await openSeeded(rel, 'Delete versus edit', 'L21-del-edit');
+          const edited = elementCanvas('Edited by peer while the canvas was deleted');
+          try {
+            await offlineThen(() => writeFileSync(join(peer.root, '.design', rel), edited));
+            await nativeSide.hover(rowOf(rel));
+            await nativeSide.confirmNext();
+            await nativeSide.click('[aria-label="Delete canvas SurfaceDelEdit"]');
+            await until(() => [hubSide, nativeSide].every((p) => text(p, rel) === null), 30000);
+            const start = performance.now();
+            await fetch(`${control}/online`, { method: 'POST' });
+            // Settle: every copy agrees, and the peer's edit is kept or named.
+            let outcome = 'undecided';
+            await until(async () => {
+              const copies = all.map((p) => text(p, rel));
+              if (copies.every((c) => c === null)) outcome = 'deleted';
+              else if (copies.every((c) => c === edited)) outcome = 'edit-kept';
+              else return false;
+              return syncState(peer) !== 'offline';
+            }, 60000).catch(() => {});
+            await sleep(3000);
+            const copies = all.map((p) => ({ receiver: p.name, present: text(p, rel) !== null }));
+            const told = notices(peer);
+            const shown = (await peer.read('.st-sb-sync')) ?? '';
+            for (const p of all) {
+              await p.screenshot(join(run.out, `L21-del-edit-${p.name}.png`));
+              const sync = join(p.root, '.design', '_sync.json');
+              if (existsSync(sync))
+                writeFileSync(
+                  join(run.out, `L21-del-edit-${p.name}-sync.json`),
+                  readFileSync(sync)
+                );
+            }
+            const agreed =
+              copies.every((c) => c.present === copies[0]?.present) && outcome !== 'undecided';
+            const editAccounted =
+              outcome === 'edit-kept' ||
+              told.some((n) => /SurfaceDelEdit|surfacedeledit/i.test(n)) ||
+              /review|conflict|attention|kept/i.test(shown);
+            return {
+              status: agreed && editAccounted ? 'pass' : 'fail',
+              outcome,
+              settledMs: performance.now() - start,
+              copies,
+              peerNotices: told.slice(0, 5),
+              peerStatus: shown.slice(0, 160),
+            };
+          } finally {
+            await fetch(`${control}/online`, { method: 'POST' }).catch(() => {});
+          }
+        });
+        await check('L21.move-during-edit', 'native-moves-peer-edits', async () => {
+          if (!peer || !hubSide || !nativeSide || !control)
+            return {
+              status: 'unsupported',
+              reason: 'This run has no toggle proxy in front of desktop B.',
+            };
+          const rel = 'ui/SurfaceMoveEdit.tsx';
+          const moved = 'ui/MoveEditDest/SurfaceMoveEdit.tsx';
+          mkdirSync(join(hubSide.root, '.design/ui/MoveEditDest'), { recursive: true });
+          await seedCanvas(hubSide, 'ui/MoveEditDest/Anchor.tsx', elementCanvas('Anchor'));
+          await seedCanvas(hubSide, rel, elementCanvas('Move during edit'));
+          await openSeeded(rel, 'Move during edit', 'L21-move-edit');
+          const edited = elementCanvas('Edited by peer while the canvas moved');
+          try {
+            await offlineThen(() => writeFileSync(join(peer.root, '.design', rel), edited));
+            await nativeSide.hover(rowOf(rel));
+            await nativeSide.click(selector('tree-row-menu-ui-surfacemoveedit'));
+            await nativeSide.menu('Move to…');
+            await nativeSide.menu('ui/MoveEditDest');
+            await until(
+              () =>
+                [hubSide, nativeSide].every(
+                  (p) => text(p, rel) === null && text(p, moved) !== null
+                ),
+              30000
+            );
+            const start = performance.now();
+            await fetch(`${control}/online`, { method: 'POST' });
+            let outcome = 'undecided';
+            await until(async () => {
+              const at = all.map((p) => [text(p, rel), text(p, moved)]);
+              if (at.every(([o, m]) => o === null && m === edited)) outcome = 'edit-followed-move';
+              else if (at.every(([o, m]) => o === edited && m === null)) outcome = 'move-undone';
+              else if (at.every(([o, m]) => o === edited && m !== null && m !== edited))
+                outcome = 'edit-kept-beside-move';
+              else return false;
+              return (await peer.read(rowOf(moved))) !== null || outcome !== 'edit-followed-move';
+            }, 60000).catch(() => {});
+            await sleep(3000);
+            const told = notices(peer);
+            const shown = (await peer.read('.st-sb-sync')) ?? '';
+            const layout = all.map((p) => ({
+              receiver: p.name,
+              old: text(p, rel) === null ? 'absent' : text(p, rel) === edited ? 'edited' : 'other',
+              moved:
+                text(p, moved) === null ? 'absent' : text(p, moved) === edited ? 'edited' : 'other',
+            }));
+            for (const p of all) {
+              await p.screenshot(join(run.out, `L21-move-edit-${p.name}.png`));
+              const sync = join(p.root, '.design', '_sync.json');
+              if (existsSync(sync))
+                writeFileSync(
+                  join(run.out, `L21-move-edit-${p.name}-sync.json`),
+                  readFileSync(sync)
+                );
+            }
+            return {
+              // A move and a content edit are independent: the edit follows the
+              // canvas, and nobody is handed a conflict for it.
+              status:
+                outcome === 'edit-followed-move' &&
+                !told.some((n) => n.startsWith('source-conflict-ui-surfacemoveedit'))
+                  ? 'pass'
+                  : 'fail',
+              outcome,
+              settledMs: performance.now() - start,
+              layout,
+              peerNotices: told.slice(0, 5),
+              peerStatus: shown.slice(0, 160),
+            };
+          } finally {
+            await fetch(`${control}/online`, { method: 'POST' }).catch(() => {});
+          }
+        });
+        await check('L21.folder-move-during-edit', 'native-renames-folder-peer-edits', async () => {
+          if (!peer || !hubSide || !nativeSide || !control)
+            return {
+              status: 'unsupported',
+              reason: 'This run has no toggle proxy in front of desktop B.',
+            };
+          const rel = 'ui/FolderEdit/Card.tsx';
+          const moved = 'ui/FolderEdit-renamed/Card.tsx';
+          mkdirSync(join(hubSide.root, '.design/ui/FolderEdit'), { recursive: true });
+          await seedCanvas(hubSide, rel, elementCanvas('Folder move during edit'));
+          await openSeeded(rel, 'Folder move during edit', 'L21-folder-edit');
+          const edited = elementCanvas('Edited by peer while its folder was renamed');
+          try {
+            await offlineThen(() => writeFileSync(join(peer.root, '.design', rel), edited));
+            await expand(nativeSide, 'ui');
+            await nativeSide.hover(folderRow('ui/FolderEdit'));
+            await nativeSide.click(selector('tree-row-menu-ui-folderedit'));
+            await nativeSide.promptNext('FolderEdit-renamed');
+            await nativeSide.menu('Rename folder');
+            await until(
+              () =>
+                [hubSide, nativeSide].every(
+                  (p) => text(p, rel) === null && text(p, moved) !== null
+                ),
+              30000
+            );
+            const start = performance.now();
+            await fetch(`${control}/online`, { method: 'POST' });
+            let settled = false;
+            await until(
+              () =>
+                (settled = all.every((p) => text(p, rel) === null && text(p, moved) === edited)),
+              60000
+            ).catch(() => {});
+            const layout = all.map((p) => ({
+              receiver: p.name,
+              old: text(p, rel) === null ? 'absent' : text(p, rel) === edited ? 'edited' : 'other',
+              moved:
+                text(p, moved) === null ? 'absent' : text(p, moved) === edited ? 'edited' : 'other',
+            }));
+            const told = notices(peer).filter((n) => n.startsWith('source-conflict-ui-folderedit'));
+            for (const p of all) {
+              await p.screenshot(join(run.out, `L21-folder-edit-${p.name}.png`));
+              const sync = join(p.root, '.design', '_sync.json');
+              if (existsSync(sync))
+                writeFileSync(
+                  join(run.out, `L21-folder-edit-${p.name}-sync.json`),
+                  readFileSync(sync)
+                );
+            }
+            return {
+              status: settled && told.length === 0 ? 'pass' : 'fail',
+              outcome: settled ? 'edit-followed-folder' : 'diverged-or-held',
+              settledMs: performance.now() - start,
+              layout,
+              peerConflicts: told,
             };
           } finally {
             await fetch(`${control}/online`, { method: 'POST' }).catch(() => {});
