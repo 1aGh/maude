@@ -74,6 +74,12 @@ COPY apps/studio/canvas-slug.ts /build/apps/studio/canvas-slug.ts
 # image's frozen node_modules, pinned to the studio's exact version.
 COPY apps/studio/sync/source-validation.ts /build/apps/studio/sync/source-validation.ts
 COPY apps/studio/sync/limits.ts /build/apps/studio/sync/limits.ts
+# Accepted revisions (DDR-241): the kernel merges a stale proposal from its base
+# with the studio's own three-way merge (diff is a hub dependency, bundled), and
+# sanitizes annotation SVG with the studio's sanitizer — never a hub-side copy.
+COPY apps/studio/sync/source-merge.ts /build/apps/studio/sync/source-merge.ts
+COPY apps/studio/annotations-model.ts /build/apps/studio/annotations-model.ts
+COPY apps/studio/canvas-arrowheads.ts /build/apps/studio/canvas-arrowheads.ts
 # Same rule, third file: the `git log` format string, its argv (including the
 # GIT_LITERAL_PATHSPECS hardening that must travel WITH a scoped argv) and its
 # parser. `src/history.mjs` serves the cloud-managed desktop's History tab, and

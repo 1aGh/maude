@@ -123,6 +123,8 @@ import {
 } from './journal.mjs';
 import { LOOPBACK_HOSTS, sanitizeForLog } from './log-safety.mjs';
 import { assertStrictIsSurvivable, oidcConfig } from './oidc-routes.mjs';
+import { createAcceptedRevisions } from './project-transactions/hub-integration.mjs';
+import { openSqliteProjectStore } from './project-transactions/store-sqlite.mjs';
 import { createRateStore } from './rate-store.mjs';
 import { mintRenderToken, verifyRenderToken } from './render-token.mjs';
 import { isReadOnlyRole, ROLES } from './role-matrix.mjs';
@@ -635,6 +637,11 @@ export function createHub(config = {}) {
   /** @type {ReturnType<typeof scheduleRevocationSweep>|null} */
   let revocationSweep = null;
 
+  // Accepted revisions (DDR-241). Assigned right after the Server exists;
+  // the hooks below read it lazily, so `null` simply means "legacy".
+  /** @type {ReturnType<typeof createAcceptedRevisions>|null} */
+  let accepted = null;
+
   const server = new Server({
     port,
 
@@ -730,6 +737,9 @@ export function createHub(config = {}) {
         // out of date still cannot mutate the document. Hiding the buttons is
         // the last layer, never the only one.
         if (connectionConfig && match.readOnly) connectionConfig.readOnly = true;
+        // DDR-241 §7 — in accepted-revisions mode every content connection is
+        // read-only: changes arrive as proposals, only the kernel writes.
+        if (connectionConfig && accepted?.acceptedMode()) connectionConfig.readOnly = true;
         return {
           user: {
             name: match.label,
@@ -759,6 +769,8 @@ export function createHub(config = {}) {
             `[hub] no tokens configured; accepting any token for documentName=${sanitizeForLog(documentName)}`
           );
         }
+        // DDR-241 §7 — accepted revisions: no client writes content, ever.
+        if (connectionConfig && accepted?.acceptedMode()) connectionConfig.readOnly = true;
         return { user: { name: 'anon', anon: true } };
       }
       // DDR-102 — invalid-token attempts are the brute-force surface: tight
@@ -1137,6 +1149,18 @@ export function createHub(config = {}) {
       // The absence half — a peer stating that a canvas is gone, so the other
       // side stops treating "the hub has it" as authority to write the file
       // back. See tombstones.mjs.
+      if (
+        authPath.startsWith(DOCUMENT_PATH_PREFIX) &&
+        accepted?.acceptedMode() &&
+        method !== 'GET'
+      ) {
+        // Fenced (DDR-241 §7): deletion and revival are accepted actions now.
+        respondAdminJson(response, 409, {
+          error: 'This project saves through accepted revisions — delete through a proposal.',
+          code: 'accepted-mode',
+        });
+        bailFromOnRequest();
+      }
       if (authPath.startsWith(DOCUMENT_PATH_PREFIX)) {
         const handled = handleDocumentItemRoute({
           path: authPath,
@@ -1234,6 +1258,39 @@ export function createHub(config = {}) {
           checkWriteRateLimit: rateLimit
             ? (label) => checkConnRateLimit(assetWriteBuckets, label, assetWriteRateLimitMax)
             : undefined,
+        });
+        if (handled) bailFromOnRequest();
+      }
+      // Accepted revisions (DDR-241): proposals, bootstrap, replay, history.
+      // In NEITHER canvas allowlist — the canvas origin never proposes.
+      if (authPath.startsWith('/api/projects/') && !(studioProxy && isCanvasHost(request))) {
+        const handled = await accepted.handleRoutes({
+          path: authPath,
+          method,
+          query: Object.fromEntries(new URL(url, 'http://x').searchParams),
+          request,
+          auth: (req) => {
+            const presented = (req.headers?.authorization ?? '').replace(/^Bearer\s+/i, '').trim();
+            const m = presented ? verifyToken(dataDir, presented, secret) : null;
+            if (m) {
+              return {
+                actor: m.owner || m.label,
+                readOnly: !!m.readOnly,
+                scope: m.scope ?? '*',
+                admin:
+                  !m.readOnly &&
+                  (m.role === 'owner' || m.role === 'admin' || (!m.role && !m.owner)),
+              };
+            }
+            if (presentsCellSecret(req, secret))
+              return { actor: 'operator', readOnly: false, admin: true };
+            const { tokens } = readTokens(dataDir);
+            if (tokens.length === 0 && secret === '' && !permissiveDevAuthDisabled(dataDir)) {
+              return { actor: 'anon', readOnly: false, admin: true };
+            }
+            return null;
+          },
+          respondJson: (status, payload) => respondAdminJson(response, status, payload),
         });
         if (handled) bailFromOnRequest();
       }
@@ -1575,6 +1632,13 @@ export function createHub(config = {}) {
       dropCtlAwareness({ document, states });
     },
 
+    // DDR-241 §7 / T7 — a permission cached on a connection is not a boundary.
+    // Re-assert read-only on EVERY message in accepted-revisions mode, so an
+    // already-open socket (or one whose flag was loosened) cannot write either.
+    async beforeHandleMessage(payload) {
+      accepted?.fence(payload);
+    },
+
     // Cloud Phase 16 Task 1 — server-owned history.
     //
     // `afterStoreDocument`, not `onChange`: by the time this fires the SQLite
@@ -1613,6 +1677,52 @@ export function createHub(config = {}) {
   const filesPoke = createFilesPoke({ instance: server });
   const documentsPoke = createFilesPoke({ instance: server, documentsOnly: true, coalesceMs: 50 });
   const documentEvents = createDocumentEvents({ poke: documentsPoke });
+
+  // ---- accepted revisions (DDR-241) ---------------------------------------
+  const projectStore = openSqliteProjectStore(dataDir);
+  let canvasGroupsCache = { at: 0, groups: null };
+  const acceptedCanvasGroups = () => {
+    if (Date.now() - canvasGroupsCache.at < 5000) return canvasGroupsCache.groups;
+    let groups = null;
+    try {
+      const root = designRootFor();
+      const cfg = root ? JSON.parse(readFileSync(join(root, 'config.json'), 'utf8')) : null;
+      if (Array.isArray(cfg?.canvasGroups)) {
+        groups = cfg.canvasGroups
+          .map((g) => (typeof g === 'string' ? g : g?.path))
+          .filter((g) => typeof g === 'string' && g.length > 0);
+      }
+    } catch {
+      groups = null;
+    }
+    canvasGroupsCache = { at: Date.now(), groups };
+    return groups;
+  };
+  accepted = createAcceptedRevisions({
+    server,
+    store: projectStore,
+    projectId: process.env.MAUDE_TENANT_ID || 'local',
+    canvasGroups: acceptedCanvasGroups,
+    designRel: '.design',
+    deleteDocument: (name) => {
+      deleteDocument({ name, server, sqlitePath, dataDir });
+    },
+    reviveDocument: (name) => {
+      try {
+        clearTombstone(dataDir, name);
+      } catch {
+        /* the revived document is recreated either way */
+      }
+    },
+    onAccepted: () => documentEvents.changed(),
+  });
+  // The persistent mode decides the fence before any peer can connect (the
+  // SQLite read resolves long before the caller's `listen()`); the reconcile
+  // then makes every accepted document match its store head.
+  const acceptedReady = accepted
+    .refresh()
+    .then(() => accepted.reconcile())
+    .catch((err) => console.error(`[transactions] startup reconcile failed: ${err.message}`));
 
   return {
     server,
@@ -1842,6 +1952,10 @@ export function createHub(config = {}) {
     },
     /** The poke emitter — tests assert its coalescing; /health counts frames. */
     filesPoke,
+    /** Accepted revisions (DDR-241): kernel, fence, routes. */
+    accepted,
+    acceptedReady,
+    projectStore,
     /** Flush the pending commit and detach. The SIGTERM path depends on this. */
     async stopWorkspaceAgent() {
       if (!workspace) return;

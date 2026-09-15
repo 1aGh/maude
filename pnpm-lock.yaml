@@ -98,6 +98,9 @@ importers:
       better-sqlite3:
         specifier: ^12.11.1
         version: 12.11.1
+      diff:
+        specifier: 8.0.4
+        version: 8.0.4
       jose:
         specifier: 6.1.0
         version: 6.1.0
