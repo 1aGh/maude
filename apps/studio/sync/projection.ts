@@ -55,6 +55,7 @@ import { saveRecoveryBody } from './source-recovery.ts';
 import { sourceError } from './source-validation.ts';
 import { laneHash } from './transaction-client.ts';
 import type { RevisionBarrier } from './revision-barrier.ts';
+import type { SourceOp } from './source-ops.ts';
 
 export const PROJECT_FLUSH_MS = 800;
 /**
@@ -64,6 +65,8 @@ export const PROJECT_FLUSH_MS = 800;
  * once.
  */
 export const ACCEPTED_FLUSH_MS = 30;
+/** T24 — how many times one UI operation is re-applied after losing races. */
+export const MAX_OP_REPLAYS = 3;
 /** How long an announced API write may hold the doc→file writer at most. */
 export const LOCAL_WRITE_HOLD_MS = 3_000;
 /** `MAUDE_SYNC_DEBUG=1` — one line per proposal and per disk write (diagnosis). */
@@ -143,6 +146,8 @@ export interface DocProjectionOptions {
    * disk together with the rest of that revision (see revision-barrier.ts).
    */
   revisionBarrier?: RevisionBarrier;
+  /** T24 — re-apply a UI operation onto the version that won (sync/source-ops). */
+  replayOp?: (op: SourceOp, head: string) => { ok: true; source: string } | { ok: false; reason: string };
   /**
    * May a write to the shared document reach the hub right now? When false a
    * file change is HELD (not imported) and `onWriteBlocked` fires; the runtime
@@ -238,6 +243,12 @@ export interface DocProjection {
    * a conflicting stale local change.
    */
   noteLocalWrite(): void;
+  /**
+   * T24 — the API write in flight is this UI operation (see sync/source-ops):
+   * if its proposal loses a race, the operation is re-applied onto the
+   * version that won and proposed again, instead of becoming a conflict.
+   */
+  noteSourceOp(op: SourceOp): void;
   /** The announced write did not happen (no-op or failure). */
   cancelLocalWrite(): void;
   /**
@@ -589,7 +600,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
   /** Legacy mode: file events held while the connection was not writable. */
   const heldWhileReadOnly = new Map<string, string>();
   /** Accepted mode: an API source write announced but not yet seen by the watcher. */
-  let localWrite: { base: string | null; at: number } | null = null;
+  let localWrite: { base: string | null; at: number; op?: SourceOp } | null = null;
   let localWriteTimer: ReturnType<typeof setTimeout> | null = null;
   const localWriteActive = (): boolean => {
     if (!localWrite) return false;
@@ -666,7 +677,9 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     baseContent: string,
     local: string,
     writeId?: string,
-    stageable = false
+    stageable = false,
+    op?: SourceOp,
+    replays = 0
   ): Promise<ProposalOutcome> {
     const link = opts.accepted as AcceptedLaneLink;
     const prior = pending.get(lane);
@@ -690,6 +703,29 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       if (p) {
         p.count -= 1;
         if (p.count <= 0) pending.delete(lane);
+      }
+      // T24 — a UI operation that lost a race is re-applied onto the version
+      // that won (same property: the later acceptance wins; everything else
+      // of both people survives) and proposed again, instead of a conflict.
+      if (
+        outcome.status === 'rejected' &&
+        outcome.code === 'base-conflict' &&
+        lane === 'html' &&
+        op &&
+        opts.replayOp &&
+        replays < MAX_OP_REPLAYS &&
+        !pending.has(lane) &&
+        readLocal(paths.html) === local
+      ) {
+        const head = readLaneFromDoc(doc, 'html');
+        const r = opts.replayOp(op, head);
+        if (r.ok && r.source !== head && validation(r.source) === null) {
+          if (SYNC_DEBUG) console.log(`[projection/${slug}] replay ${op.kind} onto the winner`);
+          observedBody = r.source;
+          recordEcho(paths.html, r.source);
+          writeAndAnnounce(paths.html, r.source);
+          return submit('html', r.source, head, r.source, undefined, false, op, replays + 1);
+        }
       }
       if (outcome.status === 'accepted') {
         if (!pending.has(lane)) held.delete(lane);
@@ -832,6 +868,8 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     // T16 — a change the person made through the UI announced itself; any
     // other file change is a tool's, and may belong to an open AI action.
     const fromUi = localWrite !== null;
+    // T24 — the UI operation this write was, when it said.
+    const op = lane === 'html' ? localWrite?.op : undefined;
     if (lane === 'html') localWrite = null;
     void submit(
       lane,
@@ -839,7 +877,8 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       inFlight ? inFlight.lastValue : (apiBase ?? agreedValue(lane)),
       str,
       undefined,
-      !fromUi
+      !fromUi,
+      op
     );
     return true;
   }
@@ -1075,6 +1114,9 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       }
       const base = o?.baseContent ?? (inFlight ? inFlight.lastValue : agreedValue(lane));
       return submit(lane, value, base, value, o?.writeId, o?.stageable === true);
+    },
+    noteSourceOp(op) {
+      if (localWrite) localWrite.op = op;
     },
     noteLocalWrite() {
       if (!acceptedOn() || stopped) return;

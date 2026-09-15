@@ -103,6 +103,7 @@ import { clearLocatorSlug, readLocator, writeLocator } from './locator.ts';
 import { STICKERS_DIR } from './paths.ts';
 import { getPaperPreset, MAX_PRINT_MM } from './print/units.ts';
 import { sessionDir } from './session-scope.ts';
+import { describeSourceOp } from './sync/source-ops.ts';
 import { isWorkspaceMode } from './workspace-mode.ts';
 
 // Directories that never hold user-facing canvases. Exported so the
@@ -3822,10 +3823,22 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // suppression BEFORE the write so it catches the debounced fs:any, disarm on
   // a no-op (delta 0 = no write) or throw so a failed edit can't mute the next
   // genuine agent edit's rim.
+  /** T24/T25 — say what a structural edit IS (sync/source-ops), for replay. */
+  function announceOp(
+    abs: string,
+    rel: string,
+    before: string,
+    op: Parameters<typeof describeSourceOp>[2]
+  ): void {
+    const described = describeSourceOp(abs, before, op);
+    if (described) ctx.bus.emit('source-op', { rel, op: described });
+  }
+
   async function suppressedEdit(
     abs: string,
     run: () => Promise<{ delta: number; changed?: boolean; previous?: AttributeState }>,
-    errLabel: string
+    errLabel: string,
+    describe?: Parameters<typeof describeSourceOp>[2]
   ): Promise<EditOpResult> {
     const rel = path.relative(paths.designRoot, abs);
     ctx.bus.emit('activity:suppress', rel);
@@ -3834,6 +3847,12 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       // whole-file undo log (the Timeline replace-src path rides this; other
       // inspector edits get an undoable seq for free).
       const before = await Bun.file(abs).text();
+      // T24 — what this edit IS, so a lost race re-applies it instead of
+      // turning "we both picked a colour" into a conflict.
+      if (describe) {
+        const op = describeSourceOp(abs, before, describe);
+        if (op) ctx.bus.emit('source-op', { rel, op });
+      }
       const res = await run();
       const previous =
         res.previous?.kind === 'absent'
@@ -3908,7 +3927,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
             idIndex,
             pre.expected === undefined ? undefined : { expected: pre.expected, next: null }
           ),
-        'reset failed'
+        'reset failed',
+        { kind: 'remove', id, attr: `style.${camel}`, ...(idIndex !== undefined ? { occurrence: idIndex } : {}) }
       );
     }
     const value = typeof input.value === 'string' ? input.value : '';
@@ -3929,7 +3949,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           idIndex,
           pre.expected === undefined ? undefined : { expected: pre.expected, next: value }
         ),
-      'edit failed'
+      'edit failed',
+      {
+        kind: 'set',
+        id,
+        attr: `style.${camel}`,
+        value: JSON.stringify(value),
+        ...(idIndex !== undefined ? { occurrence: idIndex } : {}),
+      }
     );
   }
 
@@ -3962,7 +3989,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return suppressedEdit(
       r.abs,
       () => runEditText(r.abs, id, text, { occurrence, before }),
-      'edit failed'
+      'edit failed',
+      { kind: 'text', id, text, ...(occurrence !== undefined ? { occurrence } : {}) }
     );
   }
 
@@ -4005,7 +4033,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
             undefined,
             pre.expected === undefined ? undefined : { expected: pre.expected, next: null }
           ),
-        'reset failed'
+        'reset failed',
+        { kind: 'remove', id, attr }
       );
     }
     const value = typeof input.value === 'string' ? input.value : '';
@@ -4038,7 +4067,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
           undefined,
           pre.expected === undefined ? undefined : { expected: pre.expected, next: value }
         ),
-      'edit failed'
+      'edit failed',
+      { kind: 'set', id, attr, value }
     );
   }
 
@@ -4086,6 +4116,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ctx.bus.emit('activity:suppress', rel);
     try {
       const before = await Bun.file(r.abs).text();
+      announceOp(r.abs, rel, before, { kind: 'move', id, refId, position: String(position), ...(idIndex !== undefined ? { idIndex } : {}), ...(refIndex !== undefined ? { refIndex } : {}) });
       const res = await moveElement(r.abs, id, refId, position as MovePosition, idIndex, refIndex);
       const after = await Bun.file(r.abs).text();
       if (after === before) {
@@ -4501,6 +4532,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ctx.bus.emit('activity:suppress', rel);
     try {
       const before = await Bun.file(r.abs).text();
+      announceOp(r.abs, rel, before, { kind: 'delete', id, ...(idIndex !== undefined ? { occurrence: idIndex } : {}) });
       const res = await deleteElement(r.abs, id, idIndex);
       const after = await Bun.file(r.abs).text();
       if (after === before) {
@@ -4966,6 +4998,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ctx.bus.emit('activity:suppress', rel);
     try {
       const before = await Bun.file(r.abs).text();
+      announceOp(r.abs, rel, before, { kind: 'artboard', fn: 'resize', artboardId, args: [width, height] });
       await resizeArtboard(r.abs, artboardId, width, height);
       const after = await Bun.file(r.abs).text();
       if (after === before) {
@@ -5013,6 +5046,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ctx.bus.emit('activity:suppress', rel);
     try {
       const before = await Bun.file(r.abs).text();
+      announceOp(r.abs, rel, before, { kind: 'artboard', fn: 'hug', artboardId, args: [fixed, freezeHeight] });
       await setArtboardHug(r.abs, artboardId, fixed, freezeHeight);
       const after = await Bun.file(r.abs).text();
       if (after === before) {
@@ -5062,6 +5096,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ctx.bus.emit('activity:suppress', rel);
     try {
       const before = await Bun.file(r.abs).text();
+      announceOp(r.abs, rel, before, { kind: 'artboard', fn: 'kind', artboardId, args: [kind] });
       await setArtboardKind(r.abs, artboardId, kind);
       const after = await Bun.file(r.abs).text();
       if (after === before) {
@@ -5117,6 +5152,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ctx.bus.emit('activity:suppress', rel);
     try {
       const before = await Bun.file(r.abs).text();
+      announceOp(r.abs, rel, before, { kind: 'artboard', fn: 'guides', artboardId, args: [guides] });
       await setArtboardGuides(r.abs, artboardId, guides);
       const after = await Bun.file(r.abs).text();
       if (after === before) {
@@ -5293,6 +5329,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ctx.bus.emit('activity:suppress', rel);
     try {
       const before = await Bun.file(r.abs).text();
+      announceOp(r.abs, rel, before, { kind: 'artboard', fn: 'style', artboardId, args: [patch] });
       await setArtboardStyle(r.abs, artboardId, patch);
       const after = await Bun.file(r.abs).text();
       if (after === before) {
@@ -5337,6 +5374,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         ctx.bus.emit('activity:unsuppress', rel);
         return { ok: false, status: 413, error: 'canvas source too large to grow' };
       }
+      announceOp(r.abs, rel, before, { kind: 'duplicate', id, ...(idIndex !== undefined ? { occurrence: idIndex } : {}) });
       const res = await duplicateElement(r.abs, id, idIndex);
       const after = await Bun.file(r.abs).text();
       if (after === before) {

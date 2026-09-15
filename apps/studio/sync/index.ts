@@ -91,6 +91,7 @@ import { createSyncStatusStore, type SyncStatusStore } from './status.ts';
 import { quarantineCanvas } from './tombstone-apply.ts';
 import { writeUntrustedMarkers } from './untrusted.ts';
 import { createRevisionBarrier } from './revision-barrier.ts';
+import { replaySourceOp, type SourceOp } from './source-ops.ts';
 
 /** A minimum-surface stand-in for the HocuspocusProvider's runtime API. */
 export interface SyncProvider {
@@ -2419,6 +2420,12 @@ export function createSyncRuntime(
     const unsubSuppress = ctx.bus.on('activity:suppress', (rel: unknown) => {
       if (acceptedOn()) projectionForRel(rel)?.noteLocalWrite();
     });
+    // T24 — the UI operation behind that write (sync/source-ops).
+    const unsubSourceOp = ctx.bus.on('source-op', (payload: unknown) => {
+      const p = payload as { rel?: unknown; op?: SourceOp } | null;
+      if (acceptedOn() && p?.op) projectionForRel(p.rel)?.noteSourceOp(p.op);
+    });
+    activityUnsubs.push(unsubSourceOp);
     const unsubUnsuppress = ctx.bus.on('activity:unsuppress', (rel: unknown) => {
       projectionForRel(rel)?.cancelLocalWrite();
     });
@@ -3446,7 +3453,11 @@ export function createSyncRuntime(
                 historyDir: path.join(ctx.paths.historyDir, canvas.slug),
                 waitForReconcile: true,
                 ...(acceptedLink
-                  ? { accepted: acceptedLink.laneLink(canvas.slug), revisionBarrier }
+                  ? {
+                      accepted: acceptedLink.laneLink(canvas.slug),
+                      revisionBarrier,
+                      replayOp: (op: SourceOp, head: string) => replaySourceOp(canvas.html, op, head),
+                    }
                   : {}),
                 // A write the hub would drop is held, never made (see isWritable).
                 ...(provider.isWritable

@@ -5496,3 +5496,158 @@ if (import.meta.main) {
     process.exit(2);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Position-independent element identity — plan T23/T24 (DDR-241).
+//
+// `data-cd-id` is positional (component + pre-order index), so a sibling a
+// teammate inserted earlier in the same component renumbers everything after
+// it. An edit made through the UI is re-applied onto the project's newer
+// version when its own proposal lost a race (sync/source-ops.ts); before it
+// touches anything there, it has to find THE SAME element — by what the
+// element is, not where it was.
+//
+// A print is the enclosing component, the tag, the chain of ancestor tags and
+// the element's literal attributes (minus the one being edited, minus the
+// pipeline's own `data-cd-*`). It identifies an element when exactly one
+// element in the newer source carries it; anything else is ambiguous, and an
+// ambiguous edit is never guessed at.
+
+export interface ElementPrint {
+  component: string;
+  tag: string;
+  chain: string[];
+  attrs: string;
+  /** The element's own literal text (bounded) — absent for a text edit, whose text is what changes. */
+  text?: string;
+}
+
+function ownText(node: AnyNode): string {
+  let t = '';
+  for (const c of Array.isArray(node?.children) ? node.children : []) {
+    if (c?.type === 'JSXText') t += String(c.value);
+  }
+  return t.replace(/\s+/g, ' ').trim().slice(0, 80);
+}
+
+function literalAttrs(opening: AnyNode, ignore: string | null): string {
+  const out: string[] = [];
+  for (const a of Array.isArray(opening?.attributes) ? opening.attributes : []) {
+    if (a?.type !== 'JSXAttribute' || a.name?.type !== 'JSXIdentifier') continue;
+    const name = String(a.name.name);
+    if (name.startsWith('data-cd-') || name === 'style' || name === ignore || name === 'key') continue;
+    const v = a.value;
+    const lit =
+      v?.type === 'Literal' || v?.type === 'StringLiteral'
+        ? String(v.value)
+        : v?.type === 'JSXExpressionContainer' &&
+            (v.expression?.type === 'Literal' || v.expression?.type === 'StringLiteral')
+          ? String(v.expression.value)
+          : v === null || v === undefined
+            ? 'true'
+            : '{expr}';
+    out.push(`${name}=${lit}`);
+  }
+  return out.sort().join('|');
+}
+
+function printAll(
+  canvasAbsPath: string,
+  source: string,
+  ignoreAttr: string | null,
+  withText = true
+): Array<{ id: string; print: ElementPrint }> {
+  const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
+  if (parsed.errors && parsed.errors.length > 0) return [];
+  const frames: Array<{ componentName: string; jsxIndex: number }> = [
+    { componentName: '', jsxIndex: 0 },
+  ];
+  const chain: string[] = [];
+  const out: Array<{ id: string; print: ElementPrint }> = [];
+  function visit(node: AnyNode): void {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      for (const c of node) visit(c);
+      return;
+    }
+    if (typeof node.type !== 'string') return;
+    const comp = componentNameOf(node);
+    if (comp !== null) frames.push({ componentName: comp, jsxIndex: 0 });
+    if (node.type === 'JSXElement') {
+      const frame = frames[frames.length - 1] as { componentName: string; jsxIndex: number };
+      const idx = frame.jsxIndex;
+      frame.jsxIndex += 1;
+      const tag = jsxTagName(node) ?? '?';
+      out.push({
+        id: authoredCdId(node.openingElement) ?? computeId(frame.componentName, idx),
+        print: {
+          component: frame.componentName,
+          tag,
+          chain: [...chain],
+          attrs: literalAttrs(node.openingElement, ignoreAttr),
+          ...(withText ? { text: ownText(node) } : {}),
+        },
+      });
+      chain.push(tag);
+      if (node.openingElement) visit(node.openingElement.attributes);
+      visit(node.children);
+      chain.pop();
+      if (comp !== null) frames.pop();
+      return;
+    }
+    for (const k of Object.keys(node)) {
+      if (k === 'loc' || k === 'range' || k === 'start' || k === 'end' || k === 'type') continue;
+      visit(node[k]);
+    }
+    if (comp !== null) frames.pop();
+  }
+  visit(parsed.program);
+  return out;
+}
+
+const samePrint = (a: ElementPrint, b: ElementPrint) =>
+  a.component === b.component &&
+  a.tag === b.tag &&
+  a.attrs === b.attrs &&
+  (a.text ?? null) === (b.text ?? null) &&
+  a.chain.length === b.chain.length &&
+  a.chain.every((t, i) => t === b.chain[i]);
+
+/** The print of the element `id` in `source`, or null. */
+export function elementPrint(
+  canvasAbsPath: string,
+  source: string,
+  id: string,
+  ignoreAttr: string | null = null,
+  withText = true
+): ElementPrint | null {
+  return printAll(canvasAbsPath, source, ignoreAttr, withText).find((e) => e.id === id)?.print ?? null;
+}
+
+/**
+ * The id the element printed `print` has in `source` — `hint` first (the
+ * common case: nothing moved), else the ONE element carrying the print. Null
+ * when it is gone or ambiguous.
+ */
+export function relocateElement(
+  canvasAbsPath: string,
+  source: string,
+  hint: string,
+  print: ElementPrint,
+  ignoreAttr: string | null = null
+): string | null {
+  const all = printAll(canvasAbsPath, source, ignoreAttr, print.text !== undefined);
+  const atHint = all.find((e) => e.id === hint);
+  if (atHint && samePrint(atHint.print, print)) return hint;
+  const matches = all.filter((e) => samePrint(e.print, print));
+  return matches.length === 1 ? (matches[0] as { id: string }).id : null;
+}
+
+/** T23 — how many elements of `source` carry a print no other element shares. */
+export function printUniqueness(canvasAbsPath: string, source: string): { elements: number; unique: number } {
+  const all = printAll(canvasAbsPath, source, null);
+  const key = (p: ElementPrint) => `${p.component}|${p.tag}|${p.chain.join('>')}|${p.attrs}|${p.text ?? ''}`;
+  const counts = new Map<string, number>();
+  for (const e of all) counts.set(key(e.print), (counts.get(key(e.print)) ?? 0) + 1);
+  return { elements: all.length, unique: all.filter((e) => counts.get(key(e.print)) === 1).length };
+}

@@ -27,8 +27,10 @@ import { createRegistry } from '../collab/registry.ts';
 import type { RoomCallbacks } from '../collab/room.ts';
 import type { Context } from '../context.ts';
 import { createBus } from '../context.ts';
+import { applyEdit } from '../canvas-edit.ts';
 import { readLaneFromDoc } from '../sync/codec.ts';
 import { createSyncRuntime, type SyncRuntime } from '../sync/index.ts';
+import { describeSourceOp } from '../sync/source-ops.ts';
 import { signInToWorkspace } from '../sync/workspace-signin.ts';
 
 const HUB_DIR = join(import.meta.dir, '..', '..', 'hub');
@@ -328,6 +330,46 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
       'the resolution to reach the winner'
     );
   }, 40_000);
+
+  test('two people setting the same property at once: acceptance order wins, no conflict, both actions kept (T24)', async () => {
+    const card = (color: string, title = 'Card') =>
+      `export default function Prop() {\n  return (\n    <section>\n      <h1 title="${title}" style={{ color: '${color}' }}>Hi</h1>\n    </section>\n  );\n}\n`;
+    alice.write('ui/prop.tsx', card('red'));
+    await alice.runtime.rescanNow();
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return bob.read('ui/prop.tsx') === card('red');
+    }, 'prop on bob');
+    const h1 = Bun.hash('Prop:1').toString(16).padStart(16, '0').slice(0, 8);
+    const before = ((await api(hub, 'history?limit=200')).body.history as unknown[]).length;
+    // The inspector path: announce the write, say what it is, write it.
+    const uiSet = (peer: Peer, color: string) => {
+      const cur = peer.read('ui/prop.tsx') as string;
+      peer.ctx.bus.emit('activity:suppress', 'ui/prop.tsx');
+      const op = describeSourceOp(peer.file('ui/prop.tsx'), cur, {
+        kind: 'set',
+        id: h1,
+        attr: 'style.color',
+        value: JSON.stringify(color),
+      });
+      expect(op).not.toBeNull();
+      peer.ctx.bus.emit('source-op', { rel: 'ui/prop.tsx', op });
+      peer.write('ui/prop.tsx', applyEdit(peer.file('ui/prop.tsx'), cur, h1, 'style.color', JSON.stringify(color)).source);
+    };
+    uiSet(alice, 'blue');
+    uiSet(bob, 'green');
+    const final = await waitFor(() => {
+      const a = alice.read('ui/prop.tsx');
+      const b = bob.read('ui/prop.tsx');
+      return a && a === b && (a.includes('"blue"') || a.includes('"green"')) ? a : null;
+    }, 'both to converge on one colour', 20_000);
+    expect(final).toContain('title="Card"');
+    // No conflict on either side, and both assignments are in the history.
+    expect(alice.runtime.conflictVersions?.('design/ui/prop.tsx')).toBeNull();
+    expect(bob.runtime.conflictVersions?.('design/ui/prop.tsx')).toBeNull();
+    const hist = (await api(hub, 'history?limit=200')).body.history as unknown[];
+    expect(hist.length).toBe(before + 2);
+  }, 60_000);
 
   test('a held conflict resolves from its two sides: keep mine (new action) or take the project’s (T28)', async () => {
     const make = async (name: string) => {
