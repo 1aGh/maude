@@ -2338,20 +2338,23 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             throw new Unexercised('Rename needs the moved hierarchy everywhere');
           const oldBase = base;
           const oldInner = inner();
-          await expand(from, `ui/${dest}`);
+          // Wherever the hierarchy is now (moved, or still in place when the
+          // move row could not run): the rename keeps its parent.
+          const parent = base.split('/').slice(0, -1).join('/');
+          await expand(from, parent);
           await until(async () => (await from.read(folderRow(base))) !== null);
           await from.hover(folderRow(base));
           await from.click(selector(`tree-row-menu-${slug(base)}`));
           await from.promptNext(`${top}-renamed`);
           const start = performance.now();
           await from.menu('Rename folder');
-          base = `ui/${dest}/${top}-renamed`;
+          base = `${parent}/${top}-renamed`;
           return observeAll(
             all,
             `L02-rename-${from.name}`,
             start,
             async (p) => {
-              await expand(p, `ui/${dest}`);
+              await expand(p, parent);
               return (
                 (await p.read(folderRow(oldBase))) === null &&
                 (await p.read(folderRow(base))) !== null
@@ -2374,7 +2377,7 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             meta: inner().replace(/\.tsx$/, '.meta.json'),
             annotations: annotationsOf(inner()),
           };
-          await expand(from, `ui/${dest}`);
+          await expand(from, base.split('/').slice(0, -1).join('/'));
           await from.hover(folderRow(base));
           await from.click(selector(`tree-row-menu-${slug(base)}`));
           await from.confirmNext();
