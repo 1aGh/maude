@@ -6185,6 +6185,82 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           };
         });
       }
+      // L23 — assets moved and deleted safely while work goes on: one person
+      // keeps retitling a canvas, a second moves an image into a folder from
+      // the tree, a third deletes an image nobody uses. Everything converges,
+      // no edit is lost, nothing is left half-moved.
+      await check('L23.assets.move-and-delete-during-edits', 'all', async () => {
+        const [hubSide, nativeSide, peer] = ['hub', 'native', 'peer'].map(
+          (n) => all.find((p) => p.name === n) as Surface
+        );
+        const rel = 'ui/SurfaceAssetsBusy.tsx';
+        const dest = 'SurfaceAssetsDest';
+        const moving = 'ui/SurfaceAssetMove.png';
+        const doomed = 'ui/SurfaceAssetDrop.png';
+        const moved = `ui/${dest}/SurfaceAssetMove.png`;
+        const png = (i: number) =>
+          readFileSync(run.media.uploads[['hub', 'native', 'peer'][i] as string].path);
+        const hashOf = (b: Buffer) => createHash('sha256').update(b).digest('hex');
+        mkdirSync(join(hubSide.root, '.design/ui', dest), { recursive: true });
+        writeFileSync(join(hubSide.root, '.design/ui', dest, '.gitkeep'), '');
+        writeFileSync(join(hubSide.root, '.design', moving), png(0));
+        writeFileSync(join(hubSide.root, '.design', doomed), png(1));
+        await seedCanvas(hubSide, rel, elementCanvas('Busy 0'));
+        await until(
+          () =>
+            all.every(
+              (p) =>
+                existsSync(join(p.root, '.design', moving)) &&
+                existsSync(join(p.root, '.design', doomed)) &&
+                existsSync(join(p.root, '.design/ui', dest))
+            ),
+          60000
+        );
+        await openSeeded(rel, 'Busy 0', 'L23-assets');
+        const fileRow = (r: string) => selector(`file-row-${slug(r)}`);
+        for (const p of [peer, hubSide])
+          await until(
+            async () => (await p.read(fileRow(p === peer ? moving : doomed))) !== null,
+            30000
+          );
+        const start = performance.now();
+        const edits = (async () => {
+          for (let i = 1; i <= 6; i++) {
+            writeFileSync(join(nativeSide.root, '.design', rel), elementCanvas(`Busy ${i}`));
+            await sleep(700);
+          }
+        })();
+        const move = (async () => {
+          await peer.hover(fileRow(moving));
+          await peer.click(selector(`tree-row-menu-${slug(moving)}`));
+          await peer.menu('Move to…');
+          await peer.menu(`ui/${dest}`);
+        })();
+        const del = (async () => {
+          await hubSide.hover(fileRow(doomed));
+          await hubSide.click(selector(`tree-row-menu-${slug(doomed)}`));
+          await hubSide.confirmNext();
+          await hubSide.menu('Delete');
+        })();
+        await Promise.all([edits, move, del]);
+        const final = elementCanvas('Busy 6');
+        const result = await observeAll(
+          all,
+          'L23-assets',
+          start,
+          async (p) => (await p.read('h1', true)) === 'Busy 6',
+          (p) =>
+            readFileSync(join(p.root, '.design', rel), 'utf8') === final &&
+            !existsSync(join(p.root, '.design', moving)) &&
+            existsSync(join(p.root, '.design', moved)) &&
+            hashOf(bytes(p.root, moved)) === hashOf(png(0)) &&
+            !existsSync(join(p.root, '.design', doomed))
+        );
+        return {
+          ...result,
+          stimulus: 'retitle ×6 on native, tree move on peer, tree delete on the hub — together',
+        };
+      });
       // L23 — a mixed loaded session: people keep editing and switching
       // canvases while media keeps arriving. Every edit must reach every
       // other open canvas within budget, media must not starve edits, every
