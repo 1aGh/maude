@@ -5668,6 +5668,96 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             );
           }
         }
+        // L18 gesture group — one drag, however many pointer moves it makes,
+        // is ONE project action; one Cmd+Z takes the whole drag back, for
+        // everyone.
+        for (const from of all) {
+          const name = `SurfaceGesture-${from.name}`;
+          const rel = `ui/${name}.tsx`;
+          const sidecar = `ui-${slug(name)}.annotations.svg`;
+          const disk = (p: Surface) => src(p, sidecar);
+          const svg =
+            `<svg xmlns="http://www.w3.org/2000/svg" data-mdcc-annotations="1">` +
+            `<rect data-id="s_gesture" data-tool="rect" stroke="#1f1f1f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="#e7e7e7" x="60" y="140" width="120" height="80"/>` +
+            `</svg>`;
+          let beforeDrag: string | null = null;
+          let dragged = false;
+          await check('L18.gesture-group', `${from.name}-to-peers`, async () => {
+            await seedCanvas(from, rel, elementCanvas(`Gesture ${from.name}`));
+            const put = async (b: { file: string; svg: string; base: string }) =>
+              (
+                await fetch('/_api/annotations', {
+                  method: 'PUT',
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify(b),
+                })
+              ).status;
+            const body = { file: `.design/${rel}`, svg, base: '' };
+            const status =
+              from === native
+                ? await browser.execute(put, body)
+                : await (from.name === 'hub' ? hubPage : peerPage).evaluate(put, body);
+            if (status >= 300) throw new Error(`annotations PUT answered ${status}`);
+            await until(() => all.every((p) => disk(p)?.includes('s_gesture') === true), 30000);
+            await openSeeded(rel, `Gesture ${from.name}`, `L18-gesture-${from.name}`);
+            await until(async () => !!(await from.probe('[data-id="s_gesture"]'))?.visible, 15000);
+            beforeDrag = disk(from);
+            const seen = new Set((await projectHistory()).map((a) => JSON.stringify(a)));
+            await gesture(from, selector('palette-mode-edit'), 'click');
+            const start = performance.now();
+            // A dozen moves while held, like a hand settling a shape (the probe
+            // answers within a second, so the hold stays under it).
+            await gesture(from, '[data-id="s_gesture"]', 'pointer', {
+              dx: 90,
+              dy: 40,
+              // A locked screen throttles the native window's timers; there
+              // the five moves of the drag itself are the gesture.
+              hold: from.name === 'native' ? 0 : 400,
+            });
+            const moved = await observeAll(
+              all,
+              `L18-gesture-${from.name}`,
+              start,
+              async (p) => !!(await p.probe('[data-id="s_gesture"]'))?.visible,
+              (p) => disk(p) !== beforeDrag && disk(p) === disk(from)
+            );
+            await sleep(1500);
+            const docSlug = slug(rel.replace(/\.tsx$/, ''));
+            const actions = (await projectHistory()).filter(
+              (a) =>
+                !seen.has(JSON.stringify(a)) &&
+                (a.effects as Array<{ doc?: string; lane?: string }>).some(
+                  (e) =>
+                    (String(e.doc ?? '') === docSlug ||
+                      String(e.doc ?? '').endsWith(`/${docSlug}`)) &&
+                    e.lane === 'annotations'
+                )
+            );
+            dragged = moved.status === 'pass';
+            const fresh = (await projectHistory()).filter((a) => !seen.has(JSON.stringify(a)));
+            writeFileSync(
+              join(run.out, `L18-gesture-${from.name}-new-actions.json`),
+              JSON.stringify(fresh, null, 2)
+            );
+            return {
+              ...moved,
+              status: moved.status === 'pass' && actions.length === 1 ? 'pass' : 'fail',
+              actionsForTheDrag: actions.length,
+            };
+          });
+          await check('L18.gesture-group.undo', `${from.name}-to-peers`, async () => {
+            if (!beforeDrag || !dragged) throw new Unexercised('No drag to undo');
+            const start = performance.now();
+            await gesture(from, 'body', 'key', { key: 'z', meta: true });
+            return observeAll(
+              all,
+              `L18-gesture-undo-${from.name}`,
+              start,
+              async (p) => !!(await p.probe('[data-id="s_gesture"]'))?.visible,
+              (p) => disk(p) === beforeDrag
+            );
+          });
+        }
       }
       // L18 — project history from the History panel: restore an earlier
       // version (a NEW action, everyone sees it), then undo one's own action
