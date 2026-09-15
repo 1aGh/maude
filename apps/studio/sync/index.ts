@@ -1886,9 +1886,33 @@ export function createSyncRuntime(
     return abs;
   };
   const designRelPosix = ctx.paths.designRel.replace(/^\.\//, '').replace(/^\/+|\/+$/g, '');
+  /**
+   * A folder the project removed or moved away is taken off this disk only
+   * once it is empty — but the canvases inside leave AFTER the pull that
+   * learned of the action (their moves and deletions land through their own
+   * documents a beat later). Waiting for the next poke or 20 s tick left the
+   * old folder in a teammate's tree for up to 20 s (plan T31/L02). So a
+   * deferred removal asks for another pass shortly, a bounded number of times.
+   */
+  let dirsRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  let dirsRetries = 0;
+  const DIRS_RETRY_MS = 1_500;
+  const DIRS_RETRY_MAX = 12;
+  function retryDeferredDirs(): void {
+    if (stopped || dirsRetryTimer !== null || dirsRetries >= DIRS_RETRY_MAX) return;
+    dirsRetries += 1;
+    dirsRetryTimer = setTimeout(() => {
+      dirsRetryTimer = null;
+      if (stopped || !acceptedOn()) return;
+      if (documentDiscovery) documentDiscovery.schedule();
+      else applyProjectDirs(acceptedLink?.manifest?.dirs ?? []);
+    }, DIRS_RETRY_MS);
+    dirsRetryTimer.unref?.();
+  }
   function applyProjectDirs(dirs: readonly string[]): void {
     const next = new Set(dirs);
     let changed = false;
+    let deferred = 0;
     for (const rel of next) {
       if (knownProjectDirs.has(rel)) continue;
       const abs = projectDirAbs(rel);
@@ -1922,8 +1946,11 @@ export function createSyncRuntime(
           continue;
         }
         // Canvases inside leave through their own deletion/move first; until
-        // then the folder stays and the next poll tries again.
-        if (entries.some((e) => e !== '.gitkeep')) continue;
+        // then the folder stays and a pass shortly tries again.
+        if (entries.some((e) => e !== '.gitkeep')) {
+          deferred += 1;
+          continue;
+        }
         try {
           for (const e of readdirSync(abs)) rmSync(path.join(abs, e), { force: true });
           rmdirSync(abs);
@@ -1939,6 +1966,8 @@ export function createSyncRuntime(
       changed = true;
     }
     if (changed) saveProjectDirs();
+    if (deferred > 0) retryDeferredDirs();
+    else dirsRetries = 0;
   }
 
   /**
@@ -4573,6 +4602,8 @@ export function createSyncRuntime(
     foldersUnsub = null;
     if (foldersTimer) clearTimeout(foldersTimer);
     foldersTimer = null;
+    if (dirsRetryTimer) clearTimeout(dirsRetryTimer);
+    dirsRetryTimer = null;
     deletedUnsub?.();
     deletedUnsub = null;
     createdUnsub?.();
