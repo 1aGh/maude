@@ -114,6 +114,16 @@ dataset = "maude_cloud_events"
 # The MaudeCell class briefly lived here before the split. Deleting it is safe
 # and deliberate: no cell ever completed a start under this script, so the
 # namespace holds no tenant state. The data plane creates its own.
+#
+# v1 is the creation that was deployed before it was ever committed. It is
+# written down so the list is self-consistent: wrangler ≥ 4.13x validates the
+# migrations statically and refused "deleted_classes … non-existent class
+# MaudeCell", failing every control-plane deploy since 2026-09-04. The live
+# script is already at v2, so neither step runs again.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MaudeCell"]
+
 [[migrations]]
 tag = "v2"
 deleted_classes = ["MaudeCell"]
