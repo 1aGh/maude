@@ -78,6 +78,9 @@ COPY apps/studio/sync/limits.ts /build/apps/studio/sync/limits.ts
 # with the studio's own three-way merge (diff is a hub dependency, bundled), and
 # sanitizes annotation SVG with the studio's sanitizer — never a hub-side copy.
 COPY apps/studio/sync/source-merge.ts /build/apps/studio/sync/source-merge.ts
+# The repeated-module guard the accepted-revisions import collapses doubled
+# canvases with (the Alligators seed race, 2026-09-15).
+COPY apps/studio/sync/repeated-module.ts /build/apps/studio/sync/repeated-module.ts
 COPY apps/studio/annotations-model.ts /build/apps/studio/annotations-model.ts
 COPY apps/studio/canvas-arrowheads.ts /build/apps/studio/canvas-arrowheads.ts
 # Same rule, third file: the `git log` format string, its argv (including the
@@ -98,6 +101,10 @@ COPY apps/cloud/mirror.mjs /build/apps/cloud/mirror.mjs
 # branch is never a push target. Re-typing it here would be re-typing exactly
 # the guarantees those tests exist to hold.
 COPY apps/cloud/design-sync.mjs /build/apps/cloud/design-sync.mjs
+# Borrowed studio files resolve their packages (`diff` for source-merge) by
+# walking UP from apps/studio — past the hub's own node_modules. Point the
+# repo root at the hub's frozen install so they find exactly those versions.
+RUN ln -s /build/apps/hub/node_modules /build/node_modules
 RUN bun run build.ts --release
 
 # ---- Stage 2: compile the native better-sqlite3 binding for the node:20 ABI ----
