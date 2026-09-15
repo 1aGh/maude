@@ -168,7 +168,12 @@ try {
     // makes every run cross several expiries, so an open cloud canvas that
     // stops updating when its capability runs out fails a row instead of
     // hiding behind a run shorter than the lifetime.
-    { MAUDE_CANVAS_TOKEN_TTL_MS: arg('canvas-token-ttl-ms', '') || String(3 * 60_000) }
+    {
+      MAUDE_CANVAS_TOKEN_TTL_MS: arg('canvas-token-ttl-ms', '') || String(3 * 60_000),
+      // L22 — the workspace's file ceiling at its floor (~95 MiB), so a
+      // desktop's 110 MB file is one it must refuse and say so.
+      MAUDE_MAX_PROJECT_FILE_BYTES: String(100_000_000),
+    }
   );
   await ready(`http://127.0.0.1:${port}/health`);
   const data = join(work, 'data');

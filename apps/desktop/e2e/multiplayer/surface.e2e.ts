@@ -1,12 +1,14 @@
 import { createHash } from 'node:crypto';
 import {
   appendFileSync,
+  chmodSync,
   existsSync,
   mkdirSync,
   readdirSync,
   readFileSync,
   renameSync,
   rmSync,
+  truncateSync,
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
@@ -4564,11 +4566,26 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           await seedCanvas(from, rel, good);
           const broken = good.replace('</section>', '<section>');
           writeFileSync(join(from.root, '.design', rel), broken);
-          // The author is told, in the same status everyone reads.
+          // The author is told, in the same status everyone reads — and by
+          // name: this canvas's own held notice, not merely "something to
+          // review" (another held item in the project would satisfy that).
+          const notice = `source-conflict-${slug(rel.replace(/\.tsx$/, ''))}`;
+          const named = () => {
+            try {
+              return (
+                JSON.parse(readFileSync(join(from.root, '.design', '_sync.json'), 'utf8'))
+                  .notices ?? []
+              ).some((n: { id?: string }) => n.id === notice);
+            } catch {
+              return false;
+            }
+          };
           let shown = '';
+          let toldByName = false;
           await until(async () => {
             shown = (await from.read('.st-sb-sync')) ?? '';
-            return HELD_STATUS.test(shown);
+            toldByName = named();
+            return HELD_STATUS.test(shown) && toldByName;
           }, 30000).catch(() => {});
           await sleep(3000);
           const leaked = all.filter((p) => p !== from && text(p) !== good).map((p) => p.name);
@@ -4584,13 +4601,160 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           return {
             ...recovered,
             status:
-              leaked.length === 0 && HELD_STATUS.test(shown) && recovered.status === 'pass'
+              leaked.length === 0 &&
+              HELD_STATUS.test(shown) &&
+              toldByName &&
+              recovered.status === 'pass'
                 ? 'pass'
                 : 'fail',
             authorStatus: shown.slice(0, 160),
+            toldByName,
             leakedTo: leaked,
           };
         });
+      }
+      // L22 — a file the workspace will not take, and a workspace that cannot
+      // store for a while. The author is told in the Sync panel and the status
+      // bar; nobody else gets a partial file; nothing reads "saved"; and when
+      // the workspace can store again the waiting file delivers on its own.
+      {
+        const statusTitle = async (p: Surface) =>
+          ((await p.shell(
+            `document.querySelector('.st-sb-sync')?.getAttribute('title') || document.querySelector('.st-sb-sync')?.getAttribute('data-tip') || ''`
+          )) as string) ?? '';
+        const openSyncPanel = async (p: Surface) => {
+          const button = selector('open-sync');
+          await until(async () => (await p.read(button)) !== null, 10000);
+          if ((await p.read(`${button}[aria-pressed="true"]`)) === null) await p.click(button);
+        };
+        for (const from of all.filter((p) => p.name !== 'hub')) {
+          const rel = `ui/SurfaceHuge-${from.name}.mp4`;
+          await check('L22.blocked-file', `${from.name}-to-peers`, async () => {
+            const path = join(from.root, '.design', rel);
+            // 110 MB of zeros under a video's name: its size is the one thing
+            // the workspace's ceiling (100 MB in this run) judges.
+            writeFileSync(path, '');
+            truncateSync(path, 110_000_000);
+            try {
+              await openSyncPanel(from);
+              let told = false;
+              await until(
+                async () => (await from.read(selector('sync-blocked-too-large'))) !== null,
+                120000
+              )
+                .then(() => {
+                  told = true;
+                })
+                .catch(() => {});
+              const status = (await from.read('.st-sb-sync')) ?? '';
+              await sleep(3000);
+              const leaked = all
+                .filter((p) => p !== from && existsSync(join(p.root, '.design', rel)))
+                .map((p) => p.name);
+              await from.screenshot(join(run.out, `L22-blocked-${from.name}.png`));
+              const title = await statusTitle(from);
+              // Removing the file ends the matter: the notice clears.
+              rmSync(path, { force: true });
+              let cleared = false;
+              await until(
+                async () => (await from.read(selector('sync-blocked-too-large'))) === null,
+                60000
+              )
+                .then(() => {
+                  cleared = true;
+                })
+                .catch(() => {});
+              return {
+                status:
+                  told && leaked.length === 0 && HELD_STATUS.test(status) && cleared
+                    ? 'pass'
+                    : 'fail',
+                toldInSyncPanel: told,
+                authorStatus: status.slice(0, 160),
+                authorStatusTitle: title.slice(0, 300),
+                clearedAfterRemoval: cleared,
+                leakedTo: leaked,
+              };
+            } finally {
+              rmSync(path, { force: true });
+            }
+          });
+          const folder = `ui/SurfaceStorage-${from.name}`;
+          const file = `${folder}/held.png`;
+          await check('L22.unavailable-storage', `${from.name}-to-peers`, async () => {
+            const input = run.media.uploads?.[from.name];
+            if (!input) throw new Unexercised('No image fixture');
+            const hubSide = all.find((p) => p.name === 'hub') as Surface;
+            mkdirSync(join(hubSide.root, '.design', folder), { recursive: true });
+            writeFileSync(join(hubSide.root, '.design', folder, '.gitkeep'), '');
+            await until(() => all.every((p) => existsSync(join(p.root, '.design', folder))), 30000);
+            // The workspace's disk refuses writes in that folder.
+            const hubFolder = join(hubSide.root, '.design', folder);
+            chmodSync(hubFolder, 0o555);
+            let waitingShown = '';
+            try {
+              writeFileSync(join(from.root, '.design', file), readFileSync(input.path));
+              await until(async () => {
+                waitingShown = (await from.read('.st-sb-sync')) ?? '';
+                const n = /(\d+)\s*\/\s*(\d+) files/.exec(waitingShown);
+                return HELD_STATUS.test(waitingShown) || (!!n && Number(n[1]) < Number(n[2]));
+              }, 60000).catch(() => {});
+              await sleep(3000);
+              const titleWhileDown = await statusTitle(from);
+              const syncWhileDown = join(from.root, '.design', '_sync.json');
+              if (existsSync(syncWhileDown))
+                writeFileSync(
+                  join(run.out, `L22-storage-${from.name}-sync-while-down.json`),
+                  readFileSync(syncWhileDown)
+                );
+              // The Sync panel names the file that could not be delivered.
+              await openSyncPanel(from);
+              let panelSays = '';
+              // (By name: the panel may list other files too — a project's
+              // code module this copy declines shows there as well.)
+              await until(async () => {
+                panelSays = (await from.read(selector('sync-delivery-attention'))) ?? '';
+                return panelSays.includes('held.png');
+              }, 60000).catch(() => {});
+              const leakedWhileDown = all
+                .filter((p) => p !== from && existsSync(join(p.root, '.design', file)))
+                .map((p) => p.name);
+              // The disk takes writes again: the waiting file delivers itself —
+              // on its next attempt, which a failing path spaces out (5 s,
+              // doubling, jittered), so the window is minutes, not seconds.
+              chmodSync(hubFolder, 0o755);
+              const start = performance.now();
+              const landed = (p: Surface) =>
+                existsSync(join(p.root, '.design', file)) &&
+                createHash('sha256').update(bytes(p.root, file)).digest('hex') === input.sha256;
+              let recoveredMs: number | null = null;
+              await until(() => all.every(landed), 180000)
+                .then(() => {
+                  recoveredMs = performance.now() - start;
+                })
+                .catch(() => {});
+              // The status bar must not read complete: either it asks for
+              // attention or it counts the file that has not arrived.
+              const counted = /(\d+)\s*\/\s*(\d+) files/.exec(waitingShown);
+              const incomplete =
+                HELD_STATUS.test(waitingShown) ||
+                (!!counted && Number(counted[1]) < Number(counted[2]));
+              const told = incomplete && panelSays.includes('held.png');
+              return {
+                status:
+                  recoveredMs !== null && leakedWhileDown.length === 0 && told ? 'pass' : 'fail',
+                recoveredMs,
+                landedAt: all.filter(landed).map((p) => p.name),
+                authorStatusWhileDown: waitingShown.slice(0, 160),
+                authorStatusTitleWhileDown: titleWhileDown.slice(0, 300),
+                syncPanelWhileDown: panelSays.slice(0, 300),
+                leakedWhileDown,
+              };
+            } finally {
+              chmodSync(hubFolder, 0o755);
+            }
+          });
+        }
       }
       // L10 — image stickers on the whiteboard: add from the Stickers picker,
       // move, resize, remove. The oracle is the receivers' decoded <image>, the
