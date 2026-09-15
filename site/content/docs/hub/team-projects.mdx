@@ -30,6 +30,8 @@ Maude keeps the project's copy in its own data folder — you never choose a fol
 
 The **History** tab lists the project's actions — each with who made it and when. You can preview how a canvas looked at an earlier version and **Restore** it; a restore is a new action, so nothing is ever rewound for everyone else.
 
+Git's own "go back" actions — switching drafts, **Discard**, **Get latest** — don't rewrite a team project's files: the project's history is the source of truth, so Maude declines them and points you to History instead. Committing and pushing your own repository still work.
+
 **Undo** (Cmd+Z) takes back *your own* action. A teammate's later change — even to the same canvas — is kept. If a teammate changed the very same thing after you, the undo is skipped and the app tells you why.
 
 ## When two people change the same thing
