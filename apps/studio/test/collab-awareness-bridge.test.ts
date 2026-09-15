@@ -5,11 +5,12 @@
 // cursor relay through a simulated hub.
 
 import { describe, expect, test } from 'bun:test';
+import * as encoding from 'lib0/encoding';
 
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protocols/awareness';
 import * as Y from 'yjs';
 
-import { bridgeAwareness } from '../collab/awareness-bridge.ts';
+import { bridgeAwareness, DEPARTED } from '../collab/awareness-bridge.ts';
 import { createRegistry } from '../collab/registry.ts';
 import type { RoomCallbacks } from '../collab/room.ts';
 
@@ -72,7 +73,10 @@ describe('bridgeAwareness', () => {
     expect((a.getStates().get(b.clientID) as { name?: string } | undefined)?.name).toBe('Bob');
   });
 
-  test('propagates removal when the source clears its state', () => {
+  // Plan T31/L19 — the hub (Hocuspocus 4) drops null awareness states on the
+  // way in, so a departure crosses from room to hub as a DEPARTED marker with
+  // a newer clock, and back from hub to room as a real removal.
+  test('a client leaving the room reaches the hub side as a departure, not a presence', () => {
     const a = mkAwareness();
     const b = mkAwareness();
     bridgeAwareness(a, b);
@@ -81,7 +85,40 @@ describe('bridgeAwareness', () => {
     expect(b.getStates().has(a.clientID)).toBe(true);
 
     a.setLocalState(null);
-    expect(b.getStates().has(a.clientID)).toBe(false);
+    expect(b.getStates().get(a.clientID)).toEqual(DEPARTED);
+  });
+
+  test('a departure arriving from the hub removes the client from the room', () => {
+    const room = mkAwareness();
+    const hub = mkAwareness();
+    bridgeAwareness(room, hub);
+    const peer = mkAwareness();
+    peer.setLocalState({ name: 'Bob' });
+    applyAwarenessUpdate(hub, encodeAwarenessUpdate(peer, [peer.clientID]), 'hub');
+    expect(room.getStates().has(peer.clientID)).toBe(true);
+    // What another studio's bridge sent when Bob's tab closed.
+    const leftClock = (hub.meta.get(peer.clientID)?.clock ?? 0) + 1;
+    const enc = encoding.createEncoder();
+    encoding.writeVarUint(enc, 1);
+    encoding.writeVarUint(enc, peer.clientID);
+    encoding.writeVarUint(enc, leftClock);
+    encoding.writeVarString(enc, JSON.stringify(DEPARTED));
+    applyAwarenessUpdate(hub, encoding.toUint8Array(enc), 'hub');
+    expect(room.getStates().has(peer.clientID)).toBe(false);
+  });
+
+  test('a departed marker is never offered to a room as a presence at wire time', () => {
+    const room = mkAwareness();
+    const hub = mkAwareness();
+    const peer = mkAwareness();
+    const enc = encoding.createEncoder();
+    encoding.writeVarUint(enc, 1);
+    encoding.writeVarUint(enc, peer.clientID);
+    encoding.writeVarUint(enc, 5);
+    encoding.writeVarString(enc, JSON.stringify(DEPARTED));
+    applyAwarenessUpdate(hub, encoding.toUint8Array(enc), 'hub');
+    bridgeAwareness(room, hub);
+    expect(room.getStates().has(peer.clientID)).toBe(false);
   });
 
   test('exchanges pre-existing states at wire time', () => {

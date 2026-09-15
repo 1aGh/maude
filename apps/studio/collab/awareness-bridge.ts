@@ -27,8 +27,45 @@
 // originating clientID — the random 32-bit ids make local↔remote collisions
 // negligible.
 
+import * as encoding from 'lib0/encoding';
 import type { Awareness } from 'y-protocols/awareness';
-import { applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protocols/awareness';
+import {
+  applyAwarenessUpdate,
+  encodeAwarenessUpdate,
+  removeAwarenessStates,
+} from 'y-protocols/awareness';
+
+/**
+ * A departed relayed client, as the hub can carry it.
+ *
+ * A peer leaving is a REMOVAL — a null awareness state. The hub (Hocuspocus 4)
+ * runs every incoming awareness frame through a scratch Awareness for its
+ * `beforeHandleAwareness` hook and re-encodes only the states that scratch
+ * still HOLDS, so a null state is dropped on the way in: a tab closing behind
+ * this studio never left anyone else's presence until the 30 s awareness
+ * timeout (plan T31/L19). The one thing it forwards is a state, so a departure
+ * crosses as this marker with a newer clock; every bridge turns it back into a
+ * real removal on its room. It carries no `name`, so a client that predates
+ * the marker drops it at the trust boundary (`sanitizeForeignState`) instead
+ * of drawing a nameless avatar.
+ */
+export const DEPARTED = Object.freeze({ __left: true });
+
+function isDeparted(state: unknown): boolean {
+  return !!state && typeof state === 'object' && (state as { __left?: unknown }).__left === true;
+}
+
+/** Encode a departure for each of `clients`, one clock past what `from` knows. */
+function encodeDepartures(from: Awareness, clients: readonly number[]): Uint8Array {
+  const enc = encoding.createEncoder();
+  encoding.writeVarUint(enc, clients.length);
+  for (const clientID of clients) {
+    encoding.writeVarUint(enc, clientID);
+    encoding.writeVarUint(enc, (from.meta.get(clientID)?.clock ?? 0) + 1);
+    encoding.writeVarString(enc, JSON.stringify(DEPARTED));
+  }
+  return encoding.toUint8Array(enc);
+}
 
 interface AwarenessChange {
   added: number[];
@@ -49,22 +86,36 @@ export function bridgeAwareness(a: Awareness, b: Awareness): () => void {
   // so it relays; a change this bridge applied carries BRIDGE, so it stops.
   const BRIDGE = { awarenessBridge: true };
 
-  function makeRelay(from: Awareness, to: Awareness) {
-    return ({ added, updated, removed }: AwarenessChange, origin: unknown) => {
-      if (origin === BRIDGE) return;
-      const changed = added.concat(updated, removed);
-      if (changed.length === 0) return;
-      applyAwarenessUpdate(to, encodeAwarenessUpdate(from, changed), BRIDGE);
-    };
-  }
+  // Room → hub. A client that left the room leaves as a DEPARTED marker (see
+  // above) — never as the null state the hub would drop. Everything else
+  // relays as it is.
+  const aToB = ({ added, updated, removed }: AwarenessChange, origin: unknown) => {
+    if (origin === BRIDGE) return;
+    const present = added.concat(updated);
+    if (present.length > 0) applyAwarenessUpdate(b, encodeAwarenessUpdate(a, present), BRIDGE);
+    const gone = removed.filter((id) => id !== b.clientID && b.getStates().has(id));
+    if (gone.length > 0) applyAwarenessUpdate(b, encodeDepartures(b, gone), BRIDGE);
+  };
+  // Hub → room. A DEPARTED marker is a removal here; a real removal (the hub's
+  // own timeout, a peer's socket closing) relays as ever.
+  const bToA = ({ added, updated, removed }: AwarenessChange, origin: unknown) => {
+    if (origin === BRIDGE) return;
+    const states = b.getStates();
+    const departed = added.concat(updated).filter((id) => isDeparted(states.get(id)));
+    const live = added.concat(updated).filter((id) => !isDeparted(states.get(id)));
+    const changed = live.concat(removed);
+    if (changed.length > 0) applyAwarenessUpdate(a, encodeAwarenessUpdate(b, changed), BRIDGE);
+    const leaving = departed.filter((id) => a.getStates().has(id));
+    if (leaving.length > 0) removeAwarenessStates(a, leaving, BRIDGE);
+  };
 
-  const aToB = makeRelay(a, b);
-  const bToA = makeRelay(b, a);
-
-  // Initial state exchange — push each side's current states to the other.
+  // Initial state exchange — push each side's current states to the other
+  // (departed markers are not a presence).
   const aClients = Array.from(a.getStates().keys());
   if (aClients.length > 0) applyAwarenessUpdate(b, encodeAwarenessUpdate(a, aClients), BRIDGE);
-  const bClients = Array.from(b.getStates().keys());
+  const bClients = Array.from(b.getStates().entries())
+    .filter(([, state]) => !isDeparted(state))
+    .map(([id]) => id);
   if (bClients.length > 0) applyAwarenessUpdate(a, encodeAwarenessUpdate(b, bClients), BRIDGE);
 
   a.on('update', aToB);

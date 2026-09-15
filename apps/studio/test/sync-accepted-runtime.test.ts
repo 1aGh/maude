@@ -22,6 +22,8 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness';
+import * as Y from 'yjs';
 import { applyEdit } from '../canvas-edit.ts';
 import { createRegistry } from '../collab/registry.ts';
 import type { RoomCallbacks } from '../collab/room.ts';
@@ -481,6 +483,47 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     await bob.runtime.pullRemoteNow();
     await waitFor(() => existsSync(bob.file('ui/Empty')), "bob's ui/Empty folder");
     expect(readdirSync(bob.file('ui/Empty'))).toEqual(['.gitkeep']);
+  }, 30_000);
+
+  // Plan T31/L19 — a person CLOSING a canvas leaves it for everyone. Their
+  // canvas iframe's socket to the local room closes; the room evicts their
+  // awareness, and that removal has to cross the hub to every other room.
+  test('someone who closes a canvas leaves the other peers’ presence', async () => {
+    const slug = 'ui-home';
+    const aliceRoom = alice.registry.get(slug);
+    const bobRoom = bob.registry.get(slug);
+    // The browser tab: its own Y.Doc/Awareness, speaking the room protocol.
+    const tabDoc = new Y.Doc();
+    const tab = new Awareness(tabDoc);
+    tab.setLocalState({ user: { name: 'Alice tab' }, cursor: { x: 1, y: 2 } });
+    const conn = { id: 'tab-1', realm: 'canvas' as const, send: () => {} };
+    await aliceRoom.connect(conn);
+    const frame = (clients: number[]) => {
+      const update = encodeAwarenessUpdate(tab, clients);
+      const out = new Uint8Array(update.length + 8);
+      // [MESSAGE_AWARENESS=1][varuint len][update] — the collab wire format.
+      let o = 0;
+      out[o++] = 1;
+      let n = update.length;
+      while (n > 127) {
+        out[o++] = (n & 127) | 128;
+        n >>>= 7;
+      }
+      out[o++] = n;
+      out.set(update, o);
+      return out.subarray(0, o + update.length);
+    };
+    aliceRoom.receive(conn, frame([tabDoc.clientID]));
+    await waitFor(() => bobRoom.awareness.getStates().has(tabDoc.clientID), "bob seeing alice's tab");
+    // The tab closes.
+    aliceRoom.disconnect(conn);
+    await waitFor(
+      () => !bobRoom.awareness.getStates().has(tabDoc.clientID),
+      "alice's tab leaving bob's presence",
+      8_000
+    );
+    tab.destroy();
+    tabDoc.destroy();
   }, 30_000);
 
   test('a folder made outside the app while it runs joins the project without a restart', async () => {
