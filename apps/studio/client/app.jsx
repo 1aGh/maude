@@ -9582,8 +9582,10 @@ function InspectorPanel({
   };
   // An annotation-image has no element tabs; force Photo. Otherwise honor the
   // requested tab, but drop off a stale 'photo' tab when the new selection isn't
-  // photo-eligible (so switching from a photo to a normal element lands sanely).
-  const effTab = photoOnly ? 'photo' : tab === 'photo' && !photoTarget ? 'inspect' : tab;
+  // photo-eligible — onto CSS, the editing tab a fresh selection opens on (Stage
+  // C). Landing on read-only Inspect meant that after touching a sticker, the
+  // next element you clicked showed facts instead of the controls to change it.
+  const effTab = photoOnly ? 'photo' : tab === 'photo' && !photoTarget ? 'css' : tab;
   const tabBtn = (id, label, icon) => (
     <button
       type="button"
