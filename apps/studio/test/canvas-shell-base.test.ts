@@ -105,3 +105,23 @@ describe('the canvas shell hangs off the path it was served from', () => {
     }
   });
 });
+
+// Plan T31/L16 — every design system has a `tokens.css`. The css HMR branch
+// matched links by FILE NAME, so a canvas's imported `system/a/tokens.css`
+// "matched" the shell's link to `system/b/tokens.css`, swapped the wrong
+// sheet, and never reloaded the inlined one: the canvas never restyled.
+describe('a stylesheet change is matched by path', () => {
+  const cssBranch = SHELL.slice(
+    SHELL.indexOf("if (msg.mode === 'css') {"),
+    SHELL.indexOf("} else if (msg.mode === 'module' || msg.mode === 'hard') {")
+  );
+  test('never by the bare file name', () => {
+    expect(cssBranch).not.toContain(".split('/').pop()");
+    expect(cssBranch).not.toContain('href.includes(');
+    expect(cssBranch).toContain('linkPath.endsWith(changed)');
+  });
+  test('an inlined import it names is re-imported', () => {
+    expect(cssBranch).toContain('dataset.canvasCssSources');
+    expect(cssBranch).toContain('softReload(v)');
+  });
+});

@@ -394,12 +394,22 @@
             if (msg.type !== 'canvas-hmr') return;
             if (msg.mode === 'css') {
               const v = msg.version || Date.now();
-              // Match by exact filename when we have one; otherwise refresh all.
-              const targetFile = (msg.file || '').split('/').pop();
+              // Match by PATH when we have one; otherwise refresh all. By path,
+              // not by file name: every design system has a `tokens.css`, and
+              // a change to one canvas's imported `system/<a>/tokens.css`
+              // "matched" the shell's link to `system/<b>/tokens.css` — which
+              // swapped the wrong sheet and skipped the reload below that the
+              // changed one needed (plan T31/L16).
+              const changed = msg.file ? '/' + msg.file : '';
               let matched = false;
               for (const link of document.querySelectorAll('link[rel="stylesheet"]')) {
                 const href = link.getAttribute('href') || '';
-                if (!targetFile || href.includes(targetFile)) {
+                if (!href) continue;
+                let linkPath = '';
+                try {
+                  linkPath = decodeURIComponent(new URL(href, location.href).pathname);
+                } catch {}
+                if (!changed || linkPath.endsWith(changed)) {
                   const base = href.split('?')[0];
                   link.setAttribute('href', base + '?v=' + v);
                   matched = true;

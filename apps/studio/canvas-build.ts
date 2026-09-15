@@ -22,7 +22,7 @@
 // serves the resulting JS at /<designRel>/ui/<slug>.tsx with Content-Type
 // `application/javascript`.
 
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 
 import { canvasLibPath, canvasLibResolver } from './canvas-lib-resolver.ts';
@@ -233,9 +233,22 @@ export async function buildCanvasModule(
     if (css.trim().length > 0) {
       const slug = canvasAbsPath.split('/').pop() ?? 'canvas';
       const root = options.designRoot ?? options.restrictImportsTo;
-      const sources = root
+      // Real paths on both sides: the bundler reports importers by their REAL
+      // path, and a design root reached through a symlink (macOS `/var` →
+      // `/private/var`, where every temp dir lives) made each source look like
+      // `../../private/…` — filtered out, so nothing was ever named and the
+      // open canvas never restyled.
+      const real = (p: string) => {
+        try {
+          return realpathSync(p);
+        } catch {
+          return p;
+        }
+      };
+      const realRoot = root ? real(root) : null;
+      const sources = realRoot
         ? [...cssSources]
-            .map((abs) => path.relative(root, abs).split(path.sep).join('/'))
+            .map((abs) => path.relative(realRoot, real(abs)).split(path.sep).join('/'))
             .filter((rel) => rel && !rel.startsWith('..'))
         : [];
       js = buildCssInjector(slug, css, sources) + js;

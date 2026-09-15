@@ -6,7 +6,7 @@
 //   3. expose the default export so _shell.html can mount it.
 
 import { describe, expect, test } from 'bun:test';
-import { realpathSync } from 'node:fs';
+import { realpathSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
 import { buildCanvasModule } from '../canvas-build.ts';
@@ -169,5 +169,21 @@ describe('inlined stylesheets name their sources and refresh on re-import', () =
     // Re-running the injector replaces the text rather than keeping the first.
     expect(r.js).toContain('if(s.textContent!==');
     expect(r.js).not.toContain('if(document.getElementById(');
+  });
+
+  test('a design root reached through a symlink still names its sources', async () => {
+    // macOS keeps every temp dir under `/var` → `/private/var`; the bundler
+    // reports importers by their real path, and every source was dropped.
+    const real = `${REAL}/canvas-build-css-real-${Math.random().toString(36).slice(2, 8)}`;
+    const link = `${REAL}/canvas-build-css-link-${Math.random().toString(36).slice(2, 8)}`;
+    await Bun.write(`${real}/system/ds/tokens.css`, ':root { --accent: rgb(1, 2, 3); }\n');
+    const src = `import "../system/ds/tokens.css";\nexport default function T() { return <h1>T</h1>; }\n`;
+    await Bun.write(`${real}/ui/T.tsx`, src);
+    symlinkSync(real, link);
+    const r = await buildCanvasModule(`${link}/ui/T.tsx`, src, {
+      designRoot: link,
+      restrictImportsTo: link,
+    });
+    expect(r.js).toContain('canvasCssSources="system/ds/tokens.css"');
   });
 });
