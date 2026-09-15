@@ -1,3 +1,8 @@
+import {
+  annotationEditBase,
+  type ReceivedAnnotations,
+  receivedAnnotations,
+} from './annotation-edit-base.ts';
 import { createAnnotationEchoGuard, observeAnnotationSnapshots } from './annotations-sync.ts';
 /**
  * @file       annotations-layer.tsx — FigJam-style annotation overlay
@@ -1157,6 +1162,9 @@ export function AnnotationsLayer() {
   // peer undo/delete can legitimately return to any previously rendered SVG.
   const annotationEchoRef = useRef(createAnnotationEchoGuard());
   const annotationsChangedRef = useRef(false);
+  // The annotations as the project last delivered them — the base an edit on
+  // exactly that state names (annotation-edit-base.ts).
+  const receivedRef = useRef<ReceivedAnnotations | null>(null);
   useEffect(() => {
     const file = deriveFile();
     fileRef.current = file;
@@ -1169,6 +1177,7 @@ export function AnnotationsLayer() {
       .then((text) => {
         if (cancelled || annotationsChangedRef.current) return;
         const loaded = svgToStrokes(text);
+        receivedRef.current = receivedAnnotations(text, loaded);
         if (loaded.length) {
           setStrokesState(loaded);
         }
@@ -1186,8 +1195,9 @@ export function AnnotationsLayer() {
     if (!collab) return;
     return observeAnnotationSnapshots(collab.doc, (svg, writeId) => {
       annotationsChangedRef.current = true;
-      if (annotationEchoRef.current.isOwn(svg, writeId)) return;
       const incoming = svgToStrokes(svg);
+      receivedRef.current = receivedAnnotations(svg, incoming);
+      if (annotationEchoRef.current.isOwn(svg, writeId)) return;
       setStrokesState((prev) => reconcileForeignEcho(prev, incoming));
     });
   }, [collab]);
@@ -1243,7 +1253,7 @@ export function AnnotationsLayer() {
     const persistableBefore = before.some(isEphemeralHref)
       ? before.filter((s) => !isEphemeralHref(s))
       : before;
-    const base = strokesToSvg(persistableBefore);
+    const base = annotationEditBase(persistableBefore, receivedRef.current);
     // Phase 8 Task 5 — record the SVG we just authored locally so the
     // server-broadcast echo (PUT → onAnnotationsChanged → syncRoom* →
     // Y.Map.observe) doesn't trigger a redundant setStrokesState.
