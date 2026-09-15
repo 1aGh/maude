@@ -512,6 +512,50 @@ async function check(
 function bytes(root: string, rel: string) {
   return readFileSync(join(root, '.design', rel));
 }
+/**
+ * Every eligible design file at `root` → its hash: canvases, their meta and
+ * annotations, and (with `assets`) the media. A `.meta.json` carries
+ * per-machine keys that never sync by design (`META_LOCAL_KEYS` in
+ * apps/studio/sync/codec.ts): the shared part must match byte-for-byte, those
+ * keys must not. Runtime state and conflict copies are excluded.
+ */
+function eligibleInventory(root: string, assets = false) {
+  const META_LOCAL_KEYS = ['viewport', 'last_modified', 'syncable'];
+  const shared = (name: string, bytes: Buffer): Buffer | string => {
+    if (!name.endsWith('.meta.json')) return bytes;
+    try {
+      const meta = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
+      for (const k of META_LOCAL_KEYS) delete meta[k];
+      return JSON.stringify(meta);
+    } catch {
+      return bytes;
+    }
+  };
+  const out = new Map<string, string>();
+  const walk = (dir: string, rel: string, match: RegExp) => {
+    if (!existsSync(dir)) return;
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (e.name.startsWith('_') || e.name.startsWith('.')) continue;
+      const r = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(join(dir, e.name), r, match);
+      else if (match.test(e.name) && !/-conflict-/.test(e.name))
+        out.set(
+          r,
+          createHash('sha256')
+            .update(shared(e.name, readFileSync(join(dir, e.name))))
+            .digest('hex')
+        );
+    }
+  };
+  walk(join(root, '.design', 'ui'), 'ui', /\.(tsx|meta\.json|annotations\.svg)$/);
+  if (assets) walk(join(root, '.design', 'assets'), 'assets', /\.(png|jpe?g|svg|mp4|webm)$/);
+  return out;
+}
+/** Paths whose hash differs between two inventories (either side missing counts). */
+function inventoryDiff(a: Map<string, string>, b: Map<string, string>) {
+  const paths = new Set([...a.keys(), ...b.keys()]);
+  return [...paths].filter((rel) => a.get(rel) !== b.get(rel));
+}
 /** Every canvas source and annotations sidecar at `p` that names `asset`. */
 function referencesTo(p: { name: string; root: string }, asset: string) {
   const design = join(p.root, '.design');
@@ -639,6 +683,26 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
     await hubPage.addInitScript(probeScript);
     await peerPage.addInitScript(probeScript);
     const all = [web('hub', run.roots.hub, hubPage), native, web('peer', run.roots.peer, peerPage)];
+    /** Fresh copies of the project opened during the run (L20, L24) — kept
+     *  running to the end, so the final parity holds them to the same bar. */
+    const freshRoots: string[] = [];
+    const lifecycle = (route: string) =>
+      run.peerLifecycle
+        ? fetch(`${run.peerLifecycle}${route}`, { method: 'POST' }).then(async (r) => {
+            const body = (await r.json()) as Record<string, unknown>;
+            if (!r.ok) throw new Error(`${route}: ${JSON.stringify(body)}`);
+            return body;
+          })
+        : Promise.reject(new Unexercised('This run has no lifecycle control for desktop B.'));
+    /** Open a fresh copy of the project and a browser page on it. */
+    const openFresh = async () => {
+      const fresh = (await lifecycle('/fresh')) as { root: string; port: number };
+      freshRoots.push(fresh.root);
+      const page = await chromiumBrowser.newPage({ viewport: { width: 1440, height: 1000 } });
+      await page.addInitScript(probeScript);
+      await page.goto(`http://127.0.0.1:${fresh.port}/`);
+      return { ...fresh, surface: web(`fresh-${freshRoots.length}`, fresh.root, page), page };
+    };
     try {
       // The webview is a Tauri page only once it reached the sidecar; asking
       // before that raced the app's boot (and failed whenever it lost).
@@ -4083,6 +4147,104 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             await fetch(`${control}/online`, { method: 'POST' }).catch(() => {});
           }
         });
+        // L20 — desktop B is QUIT (its studio process stops) while the others
+        // keep working: a canvas made, one edited, one deleted, a folder made;
+        // and B's own disk is edited by an editor while the app is closed.
+        // Reopened, B catches up on everything without a manual repair, and
+        // what was edited on its disk reaches the others.
+        await check('L20.restart.catch-up', 'peer-quit-and-reopened', async () => {
+          if (!peer || !hubSide || !nativeSide) throw new Unexercised('Missing participants');
+          const edited = 'ui/SurfaceRestartEdit.tsx';
+          const doomed = 'ui/SurfaceRestartDelete.tsx';
+          const own = 'ui/SurfaceRestartOwn.tsx';
+          const created = 'ui/SurfaceWhileClosed.tsx';
+          const folder = 'ui/ClosedFolder';
+          await seedCanvas(hubSide, edited, elementCanvas('Restart edit v1'));
+          await seedCanvas(hubSide, doomed, elementCanvas('Restart delete'));
+          await seedCanvas(hubSide, own, elementCanvas('Restart own v1'));
+          await lifecycle('/peer/stop');
+          const createdBody = elementCanvas('Made while B was closed');
+          const editedBody = elementCanvas('Restart edit v2 while B was closed');
+          const ownBody = elementCanvas('Edited on B while B was closed');
+          writeFileSync(join(nativeSide.root, '.design', created), createdBody);
+          writeFileSync(join(hubSide.root, '.design', edited), editedBody);
+          await until(async () => (await nativeSide.read(rowOf(doomed))) !== null, 30000);
+          await nativeSide.hover(rowOf(doomed));
+          await nativeSide.confirmNext();
+          await nativeSide.click('[aria-label="Delete canvas SurfaceRestartDelete"]');
+          mkdirSync(join(nativeSide.root, '.design', folder), { recursive: true });
+          writeFileSync(join(nativeSide.root, '.design', folder, '.gitkeep'), '');
+          writeFileSync(join(peer.root, '.design', own), ownBody);
+          await until(
+            () =>
+              text(hubSide, created) === createdBody &&
+              text(nativeSide, edited) === editedBody &&
+              text(hubSide, doomed) === null &&
+              existsSync(join(hubSide.root, '.design', folder)),
+            30000
+          );
+          const start = performance.now();
+          await lifecycle('/peer/start');
+          await peerPage.goto(`http://127.0.0.1:${run.peerPort}/`);
+          const observations = await observeAll(
+            all,
+            'L20-restart',
+            start,
+            async (p) =>
+              (await p.read(rowOf(created))) !== null && (await p.read(rowOf(doomed))) === null,
+            (p) =>
+              text(p, created) === createdBody &&
+              text(p, edited) === editedBody &&
+              text(p, doomed) === null &&
+              text(p, own) === ownBody &&
+              existsSync(join(p.root, '.design', folder))
+          );
+          return {
+            stimulus: 'desktop B studio stopped, project changed, B reopened',
+            ...observations,
+          };
+        });
+        // L20 — a fresh third copy: a new machine opens the project with
+        // nothing on disk. It receives every canvas, folder and media file the
+        // project holds, byte for byte, and shows them.
+        await check('L20.fresh-third-copy', 'new-machine', async () => {
+          if (!nativeSide) throw new Unexercised('Missing participants');
+          const start = performance.now();
+          const fresh = await openFresh();
+          await until(
+            async () => (await fresh.surface.read(selector('canvas-row-ui-home'))) !== null,
+            60000
+          );
+          let diff: string[] = [];
+          const converged = await until(() => {
+            diff = inventoryDiff(
+              eligibleInventory(nativeSide.root, true),
+              eligibleInventory(fresh.root, true)
+            );
+            return diff.length === 0;
+          }, 120000)
+            .then(() => true)
+            .catch(() => false);
+          const convergedMs = performance.now() - start;
+          await openCanvas(fresh.surface, 'ui/SurfaceMedia.tsx');
+          const rendered = await until(async () => {
+            const image = await fresh.surface.probe(selector('surface-photo'));
+            return (
+              (await fresh.surface.read('h1', true)) === 'Surface media baseline' &&
+              !!image?.visible
+            );
+          }, 30000)
+            .then(() => true)
+            .catch(() => false);
+          await fresh.page.screenshot({ path: join(run.out, 'L20-fresh-copy.png') });
+          return {
+            status: converged && rendered ? 'pass' : 'fail',
+            files: eligibleInventory(fresh.root, true).size,
+            convergedMs,
+            rendered,
+            differing: diff.slice(0, 20),
+          };
+        });
       }
       // L22 — an invalid source save is held on the author's machine, visible
       // to them, and never reaches the others; fixing it publishes normally.
@@ -4943,47 +5105,48 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           rssKiB: { start: rssStart, end: rssEnd, growth },
         };
       });
+      // L24 — fresh reopen: desktop B quits and reopens, the cloud browser
+      // reloads, and one more new machine opens the project. Each shows the
+      // project again, and the new copy matches, media included.
+      await check('L24.fresh-reopen', 'all', async () => {
+        const nativeSide = all.find((p) => p.name === 'native') as Surface;
+        await lifecycle('/peer/stop');
+        await lifecycle('/peer/start');
+        await peerPage.goto(`http://127.0.0.1:${run.peerPort}/`);
+        await hubPage.reload();
+        const fresh = await openFresh();
+        const shown = await Promise.all(
+          [...all, fresh.surface].map((p) =>
+            until(async () => (await p.read(selector('canvas-row-ui-home'))) !== null, 60000).then(
+              () => ({ participant: p.name, shown: true }),
+              () => ({ participant: p.name, shown: false })
+            )
+          )
+        );
+        let diff: string[] = [];
+        const converged = await until(() => {
+          diff = inventoryDiff(
+            eligibleInventory(nativeSide.root, true),
+            eligibleInventory(fresh.root, true)
+          );
+          return diff.length === 0;
+        }, 120000)
+          .then(() => true)
+          .catch(() => false);
+        return {
+          status: converged && shown.every((s) => s.shown) ? 'pass' : 'fail',
+          shown,
+          differing: diff.slice(0, 20),
+        };
+      });
       // L24 — final parity: every eligible design file hashes the same on
       // every participant (runtime state and conflict copies excluded).
       await check('L24.final-parity', 'all', async () => {
-        // A canvas's `.meta.json` carries per-machine keys that never sync by
-        // design (`META_LOCAL_KEYS` in apps/studio/sync/codec.ts): the shared
-        // part must match byte-for-byte, those keys must not.
-        const META_LOCAL_KEYS = ['viewport', 'last_modified', 'syncable'];
-        const shared = (name: string, bytes: Buffer): Buffer | string => {
-          if (!name.endsWith('.meta.json')) return bytes;
-          try {
-            const meta = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
-            for (const k of META_LOCAL_KEYS) delete meta[k];
-            return JSON.stringify(meta);
-          } catch {
-            return bytes;
-          }
-        };
-        const eligible = (root: string) => {
-          const out = new Map<string, string>();
-          const walk = (dir: string, rel: string) => {
-            for (const e of readdirSync(dir, { withFileTypes: true })) {
-              if (e.name.startsWith('_') || e.name.startsWith('.')) continue;
-              const r = rel ? `${rel}/${e.name}` : e.name;
-              if (e.isDirectory()) walk(join(dir, e.name), r);
-              else if (
-                /\.(tsx|meta\.json|annotations\.svg)$/.test(e.name) &&
-                !/-conflict-/.test(e.name)
-              )
-                out.set(
-                  r,
-                  createHash('sha256')
-                    .update(shared(e.name, readFileSync(join(dir, e.name))))
-                    .digest('hex')
-                );
-            }
-          };
-          walk(join(root, '.design', 'ui'), 'ui');
-          return out;
-        };
         await sleep(5000);
-        const maps = all.map((p) => [p.name, eligible(p.root)] as const);
+        const maps = [
+          ...all.map((p) => [p.name, eligibleInventory(p.root)] as const),
+          ...freshRoots.map((r, i) => [`fresh-${i + 1}`, eligibleInventory(r)] as const),
+        ];
         const paths = new Set(maps.flatMap(([, m]) => [...m.keys()]));
         const mismatches: Array<Record<string, unknown>> = [];
         for (const rel of paths) {

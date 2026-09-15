@@ -11,6 +11,7 @@ import {
   readFileSync,
   writeFileSync,
 } from 'node:fs';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -69,6 +70,10 @@ const peerPort = port + 100;
 // L20 — desktop B reaches the hub through a proxy the driver can cut.
 const peerProxyPort = port + 150;
 const peerProxyControl = port + 151;
+// L20/L24 — the driver quits and reopens desktop B, and opens fresh copies of
+// the project, through this loopback control. Fresh copies take ports above it.
+const peerLifecycle = port + 152;
+const freshPortBase = port + 160;
 const hub = `http://studio.cell.localhost:${port}`;
 const children = [];
 function cleanup() {
@@ -140,6 +145,7 @@ try {
     free(peerPort),
     free(peerProxyPort),
     free(peerProxyControl),
+    free(peerLifecycle),
     free(4455),
   ]);
   const watch = arg('watch', 'normal');
@@ -243,6 +249,7 @@ try {
   for (const [id, role] of [
     ['designer-a', 'member'],
     ['designer-b', 'member'],
+    ['designer-c', 'member'],
     ['viewer', 'viewer'],
   ]) {
     const { value } = addToken(data, {
@@ -267,20 +274,89 @@ try {
     );
     identities[id] = path;
   }
-  start(
-    'desktop-b',
-    'bun',
-    [
-      '--no-env-file',
-      join(root, 'apps/studio/server.ts'),
-      '--root',
-      peerB,
-      '--port',
-      String(peerPort),
-    ],
-    { HUBS_CONFIG_PATH: identities['designer-b'] }
-  );
+  const studio = (name, projectRoot, studioPort, identity) =>
+    start(
+      name,
+      'bun',
+      [
+        '--no-env-file',
+        join(root, 'apps/studio/server.ts'),
+        '--root',
+        projectRoot,
+        '--port',
+        String(studioPort),
+      ],
+      { HUBS_CONFIG_PATH: identity }
+    );
+  let peerChild = studio('desktop-b', peerB, peerPort, identities['designer-b']);
   await ready(`http://127.0.0.1:${peerPort}/_health`);
+  const stopChild = (child) =>
+    new Promise((done) => {
+      if (child.exitCode !== null || child.signalCode !== null) return done();
+      const force = setTimeout(() => {
+        try {
+          process.kill(-child.pid, 'SIGKILL');
+        } catch {
+          /* gone */
+        }
+      }, 15000);
+      child.once('exit', () => {
+        clearTimeout(force);
+        done();
+      });
+      try {
+        process.kill(-child.pid, 'SIGTERM');
+      } catch {
+        clearTimeout(force);
+        done();
+      }
+    });
+  // A fresh copy is a new machine opening the project: an empty design root
+  // that knows only which project it belongs to, signed in as a third person.
+  const freshCopies = [];
+  const lifecycle = createServer(async (req, res) => {
+    const reply = (status, body) => {
+      res.writeHead(status, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(body));
+    };
+    try {
+      if (req.method !== 'POST') return reply(405, { error: 'POST only' });
+      if (req.url === '/peer/stop') {
+        await stopChild(peerChild);
+        return reply(200, { stopped: true });
+      }
+      if (req.url === '/peer/start') {
+        peerChild = studio('desktop-b', peerB, peerPort, identities['designer-b']);
+        await ready(`http://127.0.0.1:${peerPort}/_health`);
+        return reply(200, { started: true, port: peerPort });
+      }
+      if (req.url === '/fresh') {
+        const n = freshCopies.length + 1;
+        const freshRoot = join(work, `fresh-${n}`);
+        mkdirSync(join(freshRoot, '.design'), { recursive: true });
+        const cfg = JSON.parse(readFileSync(join(source, '.design', 'config.json'), 'utf8'));
+        if (cfg.linkedHub) cfg.linkedHub.url = `http://127.0.0.1:${port}`;
+        writeFileSync(
+          join(freshRoot, '.design', 'config.json'),
+          `${JSON.stringify(cfg, null, 2)}\n`
+        );
+        const freshPort = freshPortBase + n;
+        const child = studio(`fresh-${n}`, freshRoot, freshPort, identities['designer-c']);
+        freshCopies.push(child);
+        await ready(`http://127.0.0.1:${freshPort}/_health`);
+        return reply(200, { root: freshRoot, port: freshPort });
+      }
+      if (req.url === '/fresh/stop') {
+        await Promise.all(freshCopies.map(stopChild));
+        return reply(200, { stopped: freshCopies.length });
+      }
+      return reply(404, { error: 'unknown route' });
+    } catch (error) {
+      return reply(500, { error: String(error) });
+    }
+  });
+  await new Promise((done) => lifecycle.listen(peerLifecycle, '127.0.0.1', done));
+  children.push({ child: { kill: () => lifecycle.close(), pid: 0 }, detached: false });
   const config = {
     mode,
     saveMode,
@@ -292,6 +368,7 @@ try {
     peerPort,
     peerB,
     peerProxy: `http://127.0.0.1:${peerProxyControl}`,
+    peerLifecycle: `http://127.0.0.1:${peerLifecycle}`,
     nativeProject: source,
     watch,
     notes,
