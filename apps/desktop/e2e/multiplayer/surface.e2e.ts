@@ -479,6 +479,15 @@ async function receivers(
 
 describe('multiplayer surface baseline (real hub + WKWebView + independent peer)', () => {
   it('observes already-open receiving UIs without refresh', async () => {
+    // @wdio/tauri-service 1.1 re-checks window focus before every find/click by
+    // asking `window.__TAURI__.core.invoke` for window states. The studio page
+    // carries no global Tauri object, so each check waited out a 5 s timeout —
+    // every native command paid it, and a three-row run no longer fit 15
+    // minutes. This app has one window: name it once, and the service stops
+    // re-deciding (an explicit switch suppresses the auto-focus).
+    await (browser as unknown as { tauri?: { switchWindow(label: string): Promise<void> } }).tauri
+      ?.switchWindow('main')
+      .catch((error: unknown) => console.warn(`[surface] window pin failed: ${String(error)}`));
     const chromiumBrowser = await chromium.launch({ headless: true });
     const hubPage = await chromiumBrowser.newPage({ viewport: { width: 1440, height: 1000 } });
     const peerPage = await chromiumBrowser.newPage({ viewport: { width: 1440, height: 1000 } });
