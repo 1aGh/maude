@@ -42,6 +42,7 @@ const DOC_SLUG = /^(?:ws\/[^/]+\/[^/]+\/)?([^/]+)$/;
  * @param {() => string[]} [deps.checkoutDirs]           folders under the canvas groups
  * @param {() => string[]|null} [deps.canvasGroups]
  * @param {string} [deps.designRel]
+ * @param {boolean} [deps.dryRun]  plan only — nothing is submitted (T30 preflight)
  */
 export async function importBaseline(deps) {
   const {
@@ -56,6 +57,7 @@ export async function importBaseline(deps) {
     checkoutDirs = () => [],
     canvasGroups = () => null,
     designRel = '.design',
+    dryRun = false,
   } = deps;
   const manifest = await store.manifest();
   const known = new Map(manifest.docs.map((d) => [d.doc, d]));
@@ -175,6 +177,23 @@ export async function importBaseline(deps) {
     bytes += size;
   }
   if (current.length) chunks.push(current);
+
+  if (dryRun) {
+    // T30 — the exact export this switch would commit, without committing it.
+    const byOp = {};
+    for (const op of ops) byOp[op.op] = (byOp[op.op] ?? 0) + 1;
+    return {
+      ...report,
+      dryRun: true,
+      actions: chunks.length,
+      operations: byOp,
+      bytes: ops.reduce((n, op) => n + Buffer.byteLength(JSON.stringify(op), 'utf8'), 0),
+      docs: ops
+        .filter((op) => op.op === 'doc.create' || op.op === 'lane.replace')
+        .map((op) => ({ op: op.op, doc: op.doc, ...(op.path ? { path: op.path } : {}), ...(op.lane ? { lane: op.lane } : {}) }))
+        .slice(0, 500),
+    };
+  }
 
   const results = [];
   for (let i = 0; i < chunks.length; i++) {

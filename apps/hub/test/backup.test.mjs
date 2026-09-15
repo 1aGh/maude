@@ -32,6 +32,7 @@ import {
   verifyRestored,
 } from '../src/backup.mjs';
 import { signRequest } from '../src/s3.mjs';
+import { openSqliteProjectStore } from '../src/project-transactions/store-sqlite.mjs';
 
 const require = createRequire(import.meta.url);
 const Database = require('better-sqlite3');
@@ -135,7 +136,15 @@ test('runBackup writes every present database plus a manifest', async () => {
   // that brings back documents beside an older journal hands every peer a
   // rewound cursor. `tombstones.db` is deliberately still absent — its failure
   // mode is a resurrected canvas and it expires in 30 days regardless.
-  assert.deepEqual(BACKUP_DATABASES, ['hub.db', 'tokens.db', 'users.db', 'journal.db']);
+  // `project-store.sqlite` joined with accepted revisions (DDR-241 / plan
+  // T30): it IS the project's canonical history once a project switches.
+  assert.deepEqual(BACKUP_DATABASES, [
+    'hub.db',
+    'tokens.db',
+    'users.db',
+    'journal.db',
+    'project-store.sqlite',
+  ]);
 });
 
 test('runBackup on an empty data dir fails loudly instead of writing an empty generation', async () => {
@@ -419,4 +428,29 @@ test('the S3 target round-trips a full backup + drill against a live S3-shaped s
     seenAuth.every((a) => a.startsWith('AWS4-HMAC-SHA256 Credential=')),
     'every request must carry a SigV4 Authorization header'
   );
+});
+
+// Plan T30 — accepted revisions ride the same generation as the documents,
+// and a forced restore never replays a stale write-ahead log over them.
+test('the accepted-revisions store is backed up and restored with the project', async () => {
+  seedHub();
+  const store = openSqliteProjectStore(dataDir);
+  const switched = await store.setMode({ mode: 'transactions', expectEpoch: 0 });
+  store.close?.();
+  const target = fileTarget(backupDir);
+  const result = await runBackup({ dataDir, target });
+  assert.ok(result.files.map((f) => f.name).includes('project-store.sqlite'));
+
+  const restored = await restoreLatest({ target, destDir: scratchDir });
+  assert.ok(restored.restored.includes('project-store.sqlite'));
+  const back = openSqliteProjectStore(scratchDir);
+  const state = await back.state();
+  assert.equal(state.mode, 'transactions');
+  assert.equal(state.epoch, switched.epoch);
+  back.close?.();
+
+  // A forced restore over a live WAL database drops the old log first.
+  writeFileSync(join(dataDir, 'project-store.sqlite-wal'), 'stale write-ahead log');
+  await restoreLatest({ target, destDir: dataDir, force: true });
+  assert.equal(existsSync(join(dataDir, 'project-store.sqlite-wal')), false);
 });

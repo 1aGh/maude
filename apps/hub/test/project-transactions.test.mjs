@@ -532,12 +532,39 @@ describe('accepted revisions on a real hub', () => {
         'legacy document persisted'
       );
 
+      // T30 preflight: the exact import, without it happening.
+      const preview = await owner.post('/api/projects/local/v1/mode', {
+        mode: 'transactions',
+        dryRun: true,
+      });
+      assert.equal(preview.status, 200, JSON.stringify(preview.body));
+      assert.equal(preview.body.dryRun, true);
+      assert.equal(preview.body.mode, 'legacy');
+      assert.equal(preview.body.imported.created, 1);
+      assert.deepEqual(preview.body.imported.operations, { 'doc.create': 1 });
+      assert.equal(preview.body.imported.docs[0].path, 'ui/legacy.tsx');
+      // …and nothing moved: still legacy, still epoch 0, nothing in history.
+      assert.equal((await owner.get('/api/projects/local/v1/mode')).body.mode, 'legacy');
+      assert.equal((await alice.get('/api/projects/local/v1/history')).body.history.length, 0);
+      // A member cannot preview a switch either.
+      assert.equal(
+        (await alice.post('/api/projects/local/v1/mode', { mode: 'transactions', dryRun: true })).status,
+        403
+      );
+
       const switched = await owner.post('/api/projects/local/v1/mode', {
         mode: 'transactions',
         expectEpoch: 0,
       });
       assert.equal(switched.status, 200, JSON.stringify(switched.body));
       assert.equal(switched.body.imported.created, 1);
+      // T30 parity: every live document matches the store it was imported into.
+      const par = await owner.get('/api/projects/local/v1/parity');
+      assert.equal(par.status, 200, JSON.stringify(par.body));
+      assert.equal(par.body.checked, 1);
+      assert.deepEqual(par.body.mismatches, []);
+      assert.equal(par.body.ok, true);
+      assert.equal((await alice.get('/api/projects/local/v1/parity')).status, 403);
       assert.deepEqual(switched.body.imported.skipped, []);
       epoch.epoch = switched.body.epoch;
       const boot = (await alice.get('/api/projects/local/v1/bootstrap')).body;

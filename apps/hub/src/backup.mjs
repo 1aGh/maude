@@ -59,7 +59,16 @@ const require = createRequire(import.meta.url);
  * restore only restores what a generation's manifest lists, so adding a name
  * here is backwards-compatible in both directions.
  */
-export const BACKUP_DATABASES = ['hub.db', 'tokens.db', 'users.db', 'journal.db'];
+export const BACKUP_DATABASES = [
+  'hub.db',
+  'tokens.db',
+  'users.db',
+  'journal.db',
+  // Accepted revisions (DDR-241, plan T30): the project's canonical history.
+  // A restore without it would bring back documents the store has never
+  // heard of — or none at all once the project saves through it.
+  'project-store.sqlite',
+];
 
 /** Default retention: keep this many snapshot generations. */
 const DEFAULT_KEEP = 14;
@@ -499,6 +508,10 @@ export async function restoreLatest({
     }
     const gz = await target.get(`${latest}/${file.name}.gz`);
     if (!gz) throw new Error(`restoreLatest: ${latest}/${file.name}.gz missing`);
+    // A forced restore over a WAL database must not leave the old write-ahead
+    // log beside it: SQLite would replay it onto the restored bytes.
+    rmSync(`${dest}-wal`, { force: true });
+    rmSync(`${dest}-shm`, { force: true });
     writeFileSync(dest, gunzipSync(gz));
     restored.push(file.name);
   }

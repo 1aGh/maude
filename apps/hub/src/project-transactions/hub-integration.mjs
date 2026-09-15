@@ -10,7 +10,7 @@
 
 import { importBaseline } from './baseline.mjs';
 import { createKernel } from './kernel.mjs';
-import { applyLane, LANE_NAMES } from './lanes.mjs';
+import { applyLane, LANE_NAMES, laneHash, readLane } from './lanes.mjs';
 
 export const ACCEPTED_ORIGIN = 'maude-accepted';
 const ROUTE =
@@ -264,6 +264,59 @@ export function createAcceptedRevisions({
     return p;
   }
 
+  /** T30 — what switching to accepted revisions WOULD import (no write). */
+  async function previewSwitch() {
+    return importBaseline({
+      hocuspocus: server.hocuspocus,
+      store,
+      kernel,
+      projectId,
+      listDocuments,
+      tombstoned,
+      checkoutPath,
+      checkoutBody,
+      checkoutDirs,
+      canvasGroups,
+      designRel,
+      dryRun: true,
+    });
+  }
+
+  /**
+   * T30 — byte parity after (or instead of) a switch: every live document's
+   * lanes against the store head, and its source against the checkout. Reads
+   * only; a mismatch is reported, never repaired here.
+   */
+  async function parity() {
+    const s = await store.state();
+    const manifest = await store.manifest();
+    const out = { mode: s.mode, revision: manifest.revision, checked: 0, mismatches: [] };
+    for (const d of manifest.docs) {
+      if (d.retired) continue;
+      out.checked += 1;
+      const conn = await server.hocuspocus.openDirectConnection(d.doc, { accepted: { parity: true } });
+      const lanes = {};
+      try {
+        await conn.transact((doc) => {
+          for (const lane of LANE_NAMES) lanes[lane] = readLane(doc, lane);
+        });
+      } finally {
+        await conn.disconnect();
+      }
+      for (const lane of LANE_NAMES) {
+        const head = d.lanes[lane]?.hash ?? null;
+        const live = lanes[lane] ? laneHash(lanes[lane]) : null;
+        if (head !== live) out.mismatches.push({ doc: d.doc, path: d.path, lane, where: 'document' });
+      }
+      const body = d.path ? checkoutBody(d.path) : null;
+      if (body !== null && d.lanes.html?.hash && laneHash(body) !== d.lanes.html.hash) {
+        out.mismatches.push({ doc: d.doc, path: d.path, lane: 'html', where: 'checkout' });
+      }
+    }
+    out.ok = out.mismatches.length === 0;
+    return out;
+  }
+
   async function readBody(request) {
     const chunks = [];
     let size = 0;
@@ -387,6 +440,14 @@ export function createAcceptedRevisions({
         respondJson(200, await kernel.state());
         return true;
       }
+      if (route === 'parity' && method === 'GET') {
+        if (!who.admin) {
+          respondJson(403, { error: 'only the project owner can run a parity check', code: 'forbidden' });
+          return true;
+        }
+        respondJson(200, await parity());
+        return true;
+      }
       if (route === 'mode' && method === 'POST') {
         if (!who.admin) {
           respondJson(403, {
@@ -398,6 +459,11 @@ export function createAcceptedRevisions({
         const body = JSON.parse(await readBody(request));
         if (body?.mode !== 'transactions' && body?.mode !== 'legacy') {
           respondJson(400, { code: 'invalid' });
+          return true;
+        }
+        if (body.dryRun === true) {
+          // Preflight: the import this switch would commit — nothing persists.
+          respondJson(200, { dryRun: true, mode: state.mode, epoch: state.epoch, imported: await previewSwitch() });
           return true;
         }
         respondJson(200, await setMode({ mode: body.mode, expectEpoch: body.expectEpoch }));
@@ -429,6 +495,8 @@ export function createAcceptedRevisions({
     setMode,
     handleRoutes,
     health,
+    previewSwitch,
+    parity,
     markReady() {
       ready = true;
     },
