@@ -22,8 +22,26 @@ import { test } from 'node:test';
 const root = new URL('../../', import.meta.url).pathname;
 const read = (p) => readFileSync(root + p, 'utf8');
 
+// Commands and skills are split into an index plus linked stage/guide files
+// (the per-host packaging); a test of what a command SAYS reads the index and
+// every local markdown file it links, one level deep.
+const withLinked = (rel, text) => {
+  const dir = rel.split('/').slice(0, -1).join('/');
+  const linked = [...text.matchAll(/\]\((\.{0,2}\/?[^)#\s]+\.md)\)/g)]
+    .map((m) => `${dir}/${m[1]}`)
+    .filter((p, i, all) => all.indexOf(p) === i)
+    .map((p) => {
+      try {
+        return readFileSync(root + p.replace(/\/\.\//g, '/'), 'utf8');
+      } catch {
+        return '';
+      }
+    });
+  return [text, ...linked].join('\n');
+};
+
 test('DDR-216 D7 — /design:edit banners an imported canvas before reading it', () => {
-  const edit = read('plugins/design/commands/edit.md');
+  const edit = withLinked('plugins/design/commands/edit.md', read('plugins/design/commands/edit.md'));
   assert.match(
     edit,
     /imported-figma/,

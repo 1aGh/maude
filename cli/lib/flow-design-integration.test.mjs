@@ -125,8 +125,25 @@ test('done sweep round-trip: ready-for-handoff → handed-off + handoffCommit bo
 
 const PLAN = read('plugins/flow/commands/plan.md');
 const DONE = read('plugins/flow/commands/done.md');
-const MAP_CMD = read('plugins/flow/commands/setup-codebase-map.md');
-const CI_SKILL = read('plugins/flow/skills/codebase-intelligence/SKILL.md');
+// Commands and skills are an index plus linked stage/guide files; read the
+// index and every local markdown file it links, one level deep.
+const withLinked = (p) => {
+  const text = read(p);
+  const dir = p.split('/').slice(0, -1).join('/');
+  const linked = [...text.matchAll(/\]\((\.{0,2}\/?[^)#\s]+\.md)\)/g)]
+    .map((m) => `${dir}/${m[1]}`)
+    .filter((q, i, all) => all.indexOf(q) === i)
+    .map((q) => {
+      try {
+        return read(q);
+      } catch {
+        return '';
+      }
+    });
+  return [text, ...linked].join('\n');
+};
+const MAP_CMD = withLinked('plugins/flow/commands/setup-codebase-map.md');
+const CI_SKILL = withLinked('plugins/flow/skills/codebase-intelligence/SKILL.md');
 const DDR_SKILL = read('plugins/flow/skills/ddr-keeper/SKILL.md');
 const RECORD_DDR = read('plugins/flow/commands/record-ddr.md');
 
