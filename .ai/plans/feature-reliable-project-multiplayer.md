@@ -704,6 +704,66 @@ rename, `906827fa` T32 kill rounds, `4e44f0bc` S3 multipart resilience,
   cached reopen offline) on top of the earlier media-priority / offline
   preparation work.
 
+### 2026-09-15 (late) — follow-ups after v1.3.0: presence, sign-in again, live cloud canvases
+
+Commits on `main` after `v1.3.0` (not pushed at the time of writing): see
+`git log v1.3.0..HEAD`. Product defects found by the surface runner and the
+team-project scenario, each with a test watched red first:
+
+- **Presence never left** (L19). Hocuspocus 4 re-encodes incoming awareness
+  from a scratch Awareness and drops null (removal) states, so a tab closing
+  behind a studio stayed on everyone's canvas for 30 s. The awareness bridge
+  relays a departure as a `DEPARTED` state and turns it back into a removal
+  (`7d382b5b`; real-hub test in `sync-accepted-runtime.test.ts`).
+- **A removed teammate was told "check your connection"** (T20/T22). A 401 on
+  a proposal was an "unknown outcome" retried forever. It is now
+  `credentialRefused` → phase `refused` → **Sign in again**; signing in again
+  to the server the studio already syncs with cycles the running sync onto the
+  new credential, and the change kept meanwhile is delivered (`0a396b75`).
+- **A cloud canvas stopped updating after 15 minutes.** The canvas-origin
+  capability was minted once per page load. The shell now re-mints it before
+  expiry (read off the token's own claim) and hands it to open canvases, which
+  re-plant their cookie; open iframes are never reloaded for it (`0953b7d3`).
+- **A design system's tokens.css never restyled the canvas importing it**
+  (L16): sources dropped under a symlinked design root, and the shell matched
+  stylesheets by file name (`b3e0c61d`; reproduced live before/after).
+
+Harness: L17 shared media (12/12), per-person L19 leave, L23 mixed-session
+soak (edits p95 ≈ 0.5 s, 13 media files byte-identical everywhere, RSS flat),
+L24 compares `.meta.json` without `META_LOCAL_KEYS`, team-project steps 7–8
+(server paused mid-edit; access removed → sign in again).
+
+Evidence:
+- Full surface run `2026-09-15T17-49-34.694Z` (`--save-mode accepted`, switch
+  imported 39 documents): **350 pass / 1 fail / 11 not-run / 4 unsupported**.
+  The 12 native resize rows could not run: the machine's screen was locked, so
+  WebKit rendered nothing (`visibilityState: hidden`, no animation frames) and
+  the rAF-positioned handles never appeared — the harness now records that as
+  not-run (the one "fail" is the last row it had not yet covered, fixed after).
+  The same rows passed with the screen unlocked (`2026-09-15T10-27-55.369Z`).
+  Unsupported: text resize ×3 (no handles by design), and L18 personal undo for
+  a **cloud browser** author.
+- Team project (native, real hub + teammate): **8/8**
+  (`team-project/2026-09-15-1639/`).
+- Gates: lint clean; studio tsc + coverage; parity; tarball; import coherence;
+  hub 974/974 + CLI 378/378; studio sync lane 1193/1193; full studio suite
+  5903 pass / 0 fail (+1 cross-test `sonner` timer error, not reproducible in
+  isolation); cells 53/53; cloud 597/597; cargo 50/50; site build + generated
+  content current.
+
+Known gap, now documented (site + runbook): every browser editor on a cloud
+project proposes under the cell's one credential, so History names the
+workspace and personal Undo is withheld in the browser. Per-person attribution
+there needs a server-derived acting identity (the proxy-signed capability the
+studio child already receives is the candidate) — open follow-up, not claimed.
+
+**Task state:** unchanged checkboxes. T31 still open: the coverage catalogue
+lists ~218 cases with no executed row (L09 context controls / alignment /
+arrow heads, L13 photo controls and patterns, shape undo/redo, and the
+per-surface requirement rows), and native resize needs a run with the screen
+unlocked. T32 (disposable real backends at Alligators scale), T33 S20 and the
+Alligators switch, T34 fleet rollout and T35 close remain.
+
 ## Context References
 
 ### Must-Read Files
