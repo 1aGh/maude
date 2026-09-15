@@ -49,13 +49,13 @@ import { type EchoGuard, hashBytes } from './echo-guard.ts';
 import type { SyncJournal } from './journal.ts';
 import { MAX_CSS_BYTES, MAX_HTML_BYTES, MAX_META_BYTES, withinByteCap } from './limits.ts';
 import { ORIGINS } from './origins.ts';
+import type { RevisionBarrier } from './revision-barrier.ts';
 import { repairSeedDuplication } from './seed-repair.ts';
 import { mergeSource } from './source-merge.ts';
+import type { SourceOp } from './source-ops.ts';
 import { saveRecoveryBody } from './source-recovery.ts';
 import { sourceError } from './source-validation.ts';
 import { laneHash } from './transaction-client.ts';
-import type { RevisionBarrier } from './revision-barrier.ts';
-import type { SourceOp } from './source-ops.ts';
 
 export const PROJECT_FLUSH_MS = 800;
 /**
@@ -147,7 +147,10 @@ export interface DocProjectionOptions {
    */
   revisionBarrier?: RevisionBarrier;
   /** T24 — re-apply a UI operation onto the version that won (sync/source-ops). */
-  replayOp?: (op: SourceOp, head: string) => { ok: true; source: string } | { ok: false; reason: string };
+  replayOp?: (
+    op: SourceOp,
+    head: string
+  ) => { ok: true; source: string } | { ok: false; reason: string };
   /** T29 — this checkout now holds a document at this accepted revision. */
   onRevisionApplied?: (revision: number) => void;
   /** T26 — a lane value of ours was accepted as this action. */
@@ -564,7 +567,8 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       if (writeHtmlIfChanged()) writeCssIfChanged();
       writeMetaIfChanged();
       const applied = acceptedOn() ? stampedCohort() : null;
-      if (applied && !held.has('html') && !pending.has('html')) opts.onRevisionApplied?.(applied[0]);
+      if (applied && !held.has('html') && !pending.has('html'))
+        opts.onRevisionApplied?.(applied[0]);
     } catch (err) {
       dirty = true;
       console.error(`[projection/${slug}] flush failed:`, err);

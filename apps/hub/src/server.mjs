@@ -85,7 +85,6 @@ import { clientIpFor, parseTrustedProxies } from './client-ip.mjs';
 import { designRootFor } from './design-root.mjs';
 import { groupCanvases } from './doc-namespace.mjs';
 import { createDocumentEvents } from './document-events.mjs';
-import { handleUploadSessions, UPLOADS_PREFIX } from './upload-sessions.mjs';
 import {
   DOCUMENT_PATH_PREFIX,
   DOCUMENTS_PATH,
@@ -156,6 +155,7 @@ import {
   verifyToken,
 } from './tokens.mjs';
 import { clearTombstone, listTombstones, recordTombstone } from './tombstones.mjs';
+import { handleUploadSessions, UPLOADS_PREFIX } from './upload-sessions.mjs';
 import { countLinkedOidc } from './users.mjs';
 import { createWorkspaceAgent } from './workspace-agent.mjs';
 

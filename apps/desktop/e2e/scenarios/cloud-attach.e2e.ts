@@ -131,15 +131,17 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
     // user cannot see. Which arm fires depends on what the fixture has to sync,
     // so assert the shape: this project, and a state we told the truth about.
     let seen = '';
-    await browser.waitUntil(
-      async () => {
-        seen = await (await $(tid('cloud-bar'))).getText();
-        return /Connecting to|Syncing with|Connected to/.test(seen);
-      },
-      { timeout: 20_000 }
-    ).catch(() => {
-      throw new Error(`the attach note never appeared — the bar said: ${seen.slice(0, 300)}`);
-    });
+    await browser
+      .waitUntil(
+        async () => {
+          seen = await (await $(tid('cloud-bar'))).getText();
+          return /Connecting to|Syncing with|Connected to/.test(seen);
+        },
+        { timeout: 20_000 }
+      )
+      .catch(() => {
+        throw new Error(`the attach note never appeared — the bar said: ${seen.slice(0, 300)}`);
+      });
     expect(await (await $(tid('cloud-bar'))).getText()).not.toContain('studio server');
     const cfg = JSON.parse(readFileSync(FIXTURE_CONFIG, 'utf8'));
     expect(cfg.linkedHub?.url).toContain('127.0.0.1');
@@ -187,15 +189,19 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
 
     await connect.click();
     let seen = '';
-    await browser.waitUntil(
-      async () => {
-        seen = await (await $(tid('cloud-bar'))).getText();
-        return /Connecting to|Syncing with|Connected to/.test(seen);
-      },
-      { timeout: 20_000 }
-    ).catch(() => {
-      throw new Error(`the deep-link attach note never appeared — the bar said: ${seen.slice(0, 300)}`);
-    });
+    await browser
+      .waitUntil(
+        async () => {
+          seen = await (await $(tid('cloud-bar'))).getText();
+          return /Connecting to|Syncing with|Connected to/.test(seen);
+        },
+        { timeout: 20_000 }
+      )
+      .catch(() => {
+        throw new Error(
+          `the deep-link attach note never appeared — the bar said: ${seen.slice(0, 300)}`
+        );
+      });
     await capture('attached via deep link');
   });
 

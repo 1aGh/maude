@@ -538,7 +538,7 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     const boot = await api(hub, 'bootstrap');
     const a = (boot.body.docs as { doc: string; path: string }[]).find((d) => d.path === 'ui/pair-a.tsx');
     expect(a).toBeTruthy();
-    const docB = (a?.doc as string).replace(/ui-pair-a$/, 'ui-pair-b');
+    const docB = (a as { doc: string }).doc.replace(/ui-pair-a$/, 'ui-pair-b');
 
     // Watch bob's checkout at a fine grain from BEFORE the action exists.
     const seen: string[] = [];

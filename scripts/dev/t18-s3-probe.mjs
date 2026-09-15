@@ -19,14 +19,15 @@ import { createHash, randomUUID } from 'node:crypto';
 import { closeSync, mkdtempSync, openSync, rmSync, statSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-
-import { getObjectToFile, putObjectFromFile } from '../../apps/hub/src/s3.mjs';
 import { sha256File } from '../../apps/hub/src/file-limits.mjs';
+import { getObjectToFile, putObjectFromFile } from '../../apps/hub/src/s3.mjs';
 
 const argv = process.argv.slice(2);
 const [flag, profile, bucket, region, account] = argv;
 if (flag !== '--scratch-write' || !profile || !bucket || !region || !/^\d{12}$/.test(account || ''))
-  throw new Error('Usage: t18-s3-probe.mjs --scratch-write <profile> <bucket> <region> <expected-account> [--big-mib N]');
+  throw new Error(
+    'Usage: t18-s3-probe.mjs --scratch-write <profile> <bucket> <region> <expected-account> [--big-mib N]'
+  );
 const bigIdx = argv.indexOf('--big-mib');
 const BIG_MIB = bigIdx > 0 ? Number(argv[bigIdx + 1]) : 513;
 const MIB = 1024 * 1024;
@@ -43,18 +44,42 @@ assert.equal(aws(['sts', 'get-caller-identity']).Account, account, 'caller accou
 aws(['s3api', 'head-bucket', '--bucket', bucket, '--expected-bucket-owner', account]);
 const prefix = `maude-sync-conformance/t18-${randomUUID()}`;
 const inventory = () =>
-  aws(['s3api', 'list-object-versions', '--bucket', bucket, '--prefix', `${prefix}/`, '--expected-bucket-owner', account]);
+  aws([
+    's3api',
+    'list-object-versions',
+    '--bucket',
+    bucket,
+    '--prefix',
+    `${prefix}/`,
+    '--expected-bucket-owner',
+    account,
+  ]);
 const versions = (r) => [...(r.Versions || []), ...(r.DeleteMarkers || [])];
 const openUploads = () =>
-  (aws(['s3api', 'list-multipart-uploads', '--bucket', bucket, '--prefix', `${prefix}/`, '--expected-bucket-owner', account]).Uploads || []).length;
+  (
+    aws([
+      's3api',
+      'list-multipart-uploads',
+      '--bucket',
+      bucket,
+      '--prefix',
+      `${prefix}/`,
+      '--expected-bucket-owner',
+      account,
+    ]).Uploads || []
+  ).length;
 assert.equal(versions(inventory()).length, 0, 'the fresh prefix must be empty before any write');
 
 const credential = JSON.parse(
-  execFileSync('aws', ['configure', 'export-credentials', '--profile', profile, '--format', 'process'], {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    timeout: 30_000,
-  })
+  execFileSync(
+    'aws',
+    ['configure', 'export-credentials', '--profile', profile, '--format', 'process'],
+    {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 30_000,
+    }
+  )
 );
 const cfg = {
   endpoint: `https://s3.${region}.amazonaws.com`,
@@ -157,7 +182,9 @@ try {
     const abs = makeFile('abort.bin', 72);
     const key = `${prefix}/abort.bin`;
     const send = await realSendWith(async (opts, real) =>
-      opts.method === 'PUT' && opts.query?.partNumber === '3' ? new Response('injected', { status: 503 }) : real(opts)
+      opts.method === 'PUT' && opts.query?.partNumber === '3'
+        ? new Response('injected', { status: 503 })
+        : real(opts)
     );
     const refused = await putObjectFromFile(cfg, key, abs, { deps: { send } }).then(
       () => false,
@@ -165,7 +192,12 @@ try {
     );
     const lingering = openUploads();
     const exists = versions(inventory()).some((v) => v.Key === key);
-    report.cases.push({ case: 'part keeps failing → aborted', refused, incompleteUploads: lingering, objectCreated: exists });
+    report.cases.push({
+      case: 'part keeps failing → aborted',
+      refused,
+      incompleteUploads: lingering,
+      objectCreated: exists,
+    });
     assert.equal(refused, true);
     assert.equal(lingering, 0, 'an aborted upload must leave no parts');
     assert.equal(exists, false);
@@ -179,10 +211,45 @@ try {
   // Remove every version and delete marker under the prefix, then prove it.
   const all = versions(inventory());
   for (const v of all)
-    aws(['s3api', 'delete-object', '--bucket', bucket, '--key', v.Key, '--version-id', v.VersionId, '--expected-bucket-owner', account]);
-  for (const u of aws(['s3api', 'list-multipart-uploads', '--bucket', bucket, '--prefix', `${prefix}/`, '--expected-bucket-owner', account]).Uploads || [])
-    aws(['s3api', 'abort-multipart-upload', '--bucket', bucket, '--key', u.Key, '--upload-id', u.UploadId, '--expected-bucket-owner', account]);
-  report.cleanup = { deletedVersions: all.length, remainingVersions: versions(inventory()).length, remainingUploads: openUploads() };
+    aws([
+      's3api',
+      'delete-object',
+      '--bucket',
+      bucket,
+      '--key',
+      v.Key,
+      '--version-id',
+      v.VersionId,
+      '--expected-bucket-owner',
+      account,
+    ]);
+  for (const u of aws([
+    's3api',
+    'list-multipart-uploads',
+    '--bucket',
+    bucket,
+    '--prefix',
+    `${prefix}/`,
+    '--expected-bucket-owner',
+    account,
+  ]).Uploads || [])
+    aws([
+      's3api',
+      'abort-multipart-upload',
+      '--bucket',
+      bucket,
+      '--key',
+      u.Key,
+      '--upload-id',
+      u.UploadId,
+      '--expected-bucket-owner',
+      account,
+    ]);
+  report.cleanup = {
+    deletedVersions: all.length,
+    remainingVersions: versions(inventory()).length,
+    remainingUploads: openUploads(),
+  };
   report.finished = new Date().toISOString();
   rmSync(work, { recursive: true, force: true });
 }

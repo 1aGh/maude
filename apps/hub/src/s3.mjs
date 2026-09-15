@@ -315,7 +315,9 @@ export async function putObjectFromFile(
     `S3 multipart start ${key}`
   );
   if (!created.ok) {
-    throw new Error(`S3 multipart start ${key} failed: ${created.status} ${(await created.text()).slice(0, 300)}`);
+    throw new Error(
+      `S3 multipart start ${key} failed: ${created.status} ${(await created.text()).slice(0, 300)}`
+    );
   }
   const uploadId = /<UploadId>([^<]+)<\/UploadId>/.exec(await created.text())?.[1];
   if (!uploadId) throw new Error(`S3 multipart start ${key}: no UploadId`);
@@ -336,12 +338,17 @@ export async function putObjectFromFile(
     }
     const xml =
       '<CompleteMultipartUpload>' +
-      etags.map((e) => `<Part><PartNumber>${e.part}</PartNumber><ETag>${e.etag}</ETag></Part>`).join('') +
+      etags
+        .map((e) => `<Part><PartNumber>${e.part}</PartNumber><ETag>${e.etag}</ETag></Part>`)
+        .join('') +
       '</CompleteMultipartUpload>';
     let done;
     let completeError = null;
     try {
-      done = await retrying({ method: 'POST', key, query: { uploadId }, body: Buffer.from(xml) }, `S3 multipart complete ${key}`);
+      done = await retrying(
+        { method: 'POST', key, query: { uploadId }, body: Buffer.from(xml) },
+        `S3 multipart complete ${key}`
+      );
     } catch (err) {
       done = null;
       completeError = err;
@@ -352,7 +359,10 @@ export async function putObjectFromFile(
     if (!done || /NoSuchUpload/.test(text)) {
       const head = await headObject(cfg, key).catch(() => null);
       if (head?.size === size) return { key, bytes: size, parts: etags.length };
-      throw completeError ?? new Error(`S3 multipart complete ${key} failed: ${done?.status} ${text.slice(0, 300)}`);
+      throw (
+        completeError ??
+        new Error(`S3 multipart complete ${key} failed: ${done?.status} ${text.slice(0, 300)}`)
+      );
     }
     // S3 can answer 200 with an <Error> body for a failed completion.
     if (!done.ok || /<Error>/.test(text)) {

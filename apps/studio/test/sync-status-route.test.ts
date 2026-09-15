@@ -13,7 +13,11 @@ test('a status file older than this server process reads as not linked', async (
   const { root, designRoot } = makeSandbox();
   writeFileSync(
     join(designRoot, '_sync.json'),
-    JSON.stringify({ state: 'offline', url: 'http://127.0.0.1:53448', updatedAt: Date.now() - 60_000 })
+    JSON.stringify({
+      state: 'offline',
+      url: 'http://127.0.0.1:53448',
+      updatedAt: Date.now() - 60_000,
+    })
   );
   const port = nextPort();
   const proc = await bootServer(root, port);

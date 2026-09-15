@@ -74,7 +74,9 @@ async function api(hub, route, body) {
 
 const pct = (xs, q) => {
   const s = [...xs].sort((a, b) => a - b);
-  return s.length ? Math.round(s[Math.min(s.length - 1, Math.floor(q * s.length))] * 10) / 10 : null;
+  return s.length
+    ? Math.round(s[Math.min(s.length - 1, Math.floor(q * s.length))] * 10) / 10
+    : null;
 };
 
 const dirs = [];
@@ -85,7 +87,11 @@ const fresh = () => {
 };
 
 const ROUNDS = Number(arg('rounds', '1'));
-const report = { store: storeUrl ? 'cloudflare-durable-object' : 'self-host-sqlite', n: N, rounds: ROUNDS };
+const report = {
+  store: storeUrl ? 'cloudflare-durable-object' : 'self-host-sqlite',
+  n: N,
+  rounds: ROUNDS,
+};
 const dataDir = fresh();
 let hub = await startHub(dataDir);
 try {
@@ -124,7 +130,9 @@ try {
       prev = src(i);
     }
     const inflightTx = `tx_t32_inflight_${round}_${Date.now()}`;
-    const inflightOps = [{ op: 'lane.replace', doc, lane: 'html', base: sha(prev), content: src(i) }];
+    const inflightOps = [
+      { op: 'lane.replace', doc, lane: 'html', base: sha(prev), content: src(i) },
+    ];
     const inflightBody = envelope(boot.epoch, inflightOps, inflightTx);
     const inflight = api(hub, 'proposals', inflightBody).catch(() => null);
     await new Promise((r) => setTimeout(r, 5 + round * 3));
@@ -155,7 +163,9 @@ try {
     const inflightRevisions = revs.filter((r) => txOf(r) === inflightTx).length;
     const head = boot.docs.find((d) => d.doc === doc);
     const headAfterRetry = (await api(hub, 'bootstrap')).body.docs.find((d) => d.doc === doc);
-    const blob = headAfterRetry ? (await api(hub, `blobs/${headAfterRetry.lanes.html.hash}`)).body : null;
+    const blob = headAfterRetry
+      ? (await api(hub, `blobs/${headAfterRetry.lanes.html.hash}`)).body
+      : null;
     const retried = retry.body?.status === 'accepted';
     if (retried) {
       acked.push({ tx: inflightTx, revision: retry.body.revision, content: src(i) });

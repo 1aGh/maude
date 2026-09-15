@@ -181,7 +181,11 @@ export function createActionStage(opts: ActionStageOptions) {
   /** Should this proposal be staged instead of sent? */
   function captures(slug: string, stageable: boolean): boolean {
     if (!stageable || !state) return false;
-    return state === 'open' || restoredSlugs.has(slug) || [...lanes.values()].some((l) => l.slug === slug);
+    return (
+      state === 'open' ||
+      restoredSlugs.has(slug) ||
+      [...lanes.values()].some((l) => l.slug === slug)
+    );
   }
 
   function capture(slug: string, doc: string, p: LaneProposal): Promise<ProposalOutcome> {
@@ -312,7 +316,8 @@ export function createActionStage(opts: ActionStageOptions) {
     const waiting = dependents.splice(0);
     const slugs = new Set([...restoredSlugs, ...staged.map((l) => l.slug)]);
     reset();
-    for (const l of staged) for (const fn of l.resolvers) fn({ status: 'rejected', code: 'discarded' });
+    for (const l of staged)
+      for (const fn of l.resolvers) fn({ status: 'rejected', code: 'discarded' });
     for (const d of waiting) d.drop({ status: 'rejected', code: 'discarded' });
     return slugs.size;
   }

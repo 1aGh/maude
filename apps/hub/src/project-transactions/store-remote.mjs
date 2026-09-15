@@ -31,7 +31,12 @@ const METHODS = [
   'liveDocByEntry',
 ];
 
-export function openRemoteProjectStore({ url, fetchImpl = fetch, timeoutMs = 20_000, token = null }) {
+export function openRemoteProjectStore({
+  url,
+  fetchImpl = fetch,
+  timeoutMs = 20_000,
+  token = null,
+}) {
   const base = String(url).replace(/\/+$/, '');
   const call = async (method, args) => {
     const res = await fetchImpl(`${base}/v1/${method}`, {
@@ -39,7 +44,10 @@ export function openRemoteProjectStore({ url, fetchImpl = fetch, timeoutMs = 20_
       // A cell reaches its store through outbound interception (no credential
       // needed). A store served over the network — the T32 verification
       // Worker — is addressed with a bearer.
-      headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+      headers: {
+        'content-type': 'application/json',
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ args }),
       signal: AbortSignal.timeout(timeoutMs),
     });

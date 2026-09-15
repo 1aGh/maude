@@ -295,10 +295,26 @@ describe('observability', () => {
       now: () => t,
     });
     t = 1400;
-    store.update({ state: 'online', queuedOps: 0, lastSyncAt: null, offlineSince: null, flash: null, updatedAt: t, docs: { synced: 1, pending: 1, rejected: 0 } } as never);
+    store.update({
+      state: 'online',
+      queuedOps: 0,
+      lastSyncAt: null,
+      offlineSince: null,
+      flash: null,
+      updatedAt: t,
+      docs: { synced: 1, pending: 1, rejected: 0 },
+    } as never);
     expect(store.get().coldOpen).toBeUndefined();
     t = 1900;
-    store.update({ state: 'online', queuedOps: 0, lastSyncAt: null, offlineSince: null, flash: null, updatedAt: t, docs: { synced: 2, pending: 0, rejected: 0 } } as never);
+    store.update({
+      state: 'online',
+      queuedOps: 0,
+      lastSyncAt: null,
+      offlineSince: null,
+      flash: null,
+      updatedAt: t,
+      docs: { synced: 2, pending: 0, rejected: 0 },
+    } as never);
     expect(store.get().coldOpen).toEqual({ canvasesMs: 900 });
     t = 5000;
     store.updateFiles({ synced: 3, progress: { phase: 'converged' } } as never);

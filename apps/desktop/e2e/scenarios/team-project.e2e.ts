@@ -30,7 +30,9 @@ const TEAM = process.env.MAUDE_E2E_TEAM
     })
   : null;
 
-const canvas = (title: string) => `import { DCArtboard, DCSection, DesignCanvas } from "@maude/canvas-lib";
+const canvas = (
+  title: string
+) => `import { DCArtboard, DCSection, DesignCanvas } from "@maude/canvas-lib";
 
 export default function Canvas() {
   return (
@@ -163,8 +165,8 @@ describe('team-project (native-desktop)', () => {
     const dialog = await $(tid('team-projects-dialog'));
     await dialog.waitForDisplayed({ timeout: 10_000 });
     // Focus moved INTO the dialog (the first control), not left on the page.
-    const inside = await browser.execute(() =>
-      !!document.activeElement?.closest('[data-testid="team-projects-dialog"]')
+    const inside = await browser.execute(
+      () => !!document.activeElement?.closest('[data-testid="team-projects-dialog"]')
     );
     expect(inside).toBe(true);
     await browser.keys('Escape');

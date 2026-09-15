@@ -287,7 +287,12 @@ export interface Context {
       acceptedUndo?(
         actionId: string,
         redo?: boolean
-      ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean; actionId?: string } | null>;
+      ): Promise<{
+        status: 'accepted' | 'rejected';
+        code?: string;
+        queued?: boolean;
+        actionId?: string;
+      } | null>;
       acceptedActionForContent?(repoRel: string, content: string): string | null;
       prepareOffline?(): Promise<{
         complete: boolean;
@@ -295,7 +300,9 @@ export interface Context {
         passes: number;
         failed: number;
       } | null>;
-      conflictVersions?(repoRel: string): { slug: string; mine: string | null; theirs: string } | null;
+      conflictVersions?(
+        repoRel: string
+      ): { slug: string; mine: string | null; theirs: string } | null;
       resolveConflict?(
         repoRel: string,
         choice: 'mine' | 'theirs'

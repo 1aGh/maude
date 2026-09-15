@@ -304,7 +304,9 @@ export function createSyncStatusStore(opts: SyncStatusStoreOptions): SyncStatusS
       ...(files ? { files } : {}),
       ...(accepted ? { accepted } : {}),
       ...(aiAction ? { aiAction } : {}),
-      ...(coldOpen.canvasesMs !== undefined || coldOpen.filesMs !== undefined ? { coldOpen: { ...coldOpen } } : {}),
+      ...(coldOpen.canvasesMs !== undefined || coldOpen.filesMs !== undefined
+        ? { coldOpen: { ...coldOpen } }
+        : {}),
       ...(appliedRevision !== undefined ? { appliedRevision } : {}),
       ...(notices.length ? { notices: notices.slice() } : {}),
     };
@@ -403,7 +405,9 @@ export function createSyncStatusStore(opts: SyncStatusStoreOptions): SyncStatusS
       const was = accepted;
       accepted = next;
       // Going from waiting to caught-up (or back) is news; a latency tick is not.
-      flush((was?.pending ?? 0) === 0 !== (next.pending === 0) || next.rejected !== was?.rejected);
+      flush(
+        ((was?.pending ?? 0) === 0) !== (next.pending === 0) || next.rejected !== was?.rejected
+      );
     },
     updateFiles(next) {
       files = next;

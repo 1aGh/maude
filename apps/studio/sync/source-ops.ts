@@ -43,8 +43,22 @@ import {
 export type ArtboardFn = 'resize' | 'hug' | 'style' | 'kind' | 'label' | 'guides';
 
 export type SourceOp =
-  | { kind: 'text'; id: string; text: string; occurrence?: number; before?: string; print: ElementPrint }
-  | { kind: 'set'; id: string; attr: string; value: string; occurrence?: number; print: ElementPrint }
+  | {
+      kind: 'text';
+      id: string;
+      text: string;
+      occurrence?: number;
+      before?: string;
+      print: ElementPrint;
+    }
+  | {
+      kind: 'set';
+      id: string;
+      attr: string;
+      value: string;
+      occurrence?: number;
+      print: ElementPrint;
+    }
   | { kind: 'remove'; id: string; attr: string; occurrence?: number; print: ElementPrint }
   // T25 — structural element operations, re-found by print.
   | { kind: 'delete'; id: string; occurrence?: number; print: ElementPrint }
@@ -77,7 +91,14 @@ type Describable =
   | { kind: 'remove'; id: string; attr: string; occurrence?: number }
   | { kind: 'delete'; id: string; occurrence?: number }
   | { kind: 'duplicate'; id: string; occurrence?: number }
-  | { kind: 'move'; id: string; refId: string; position: string; idIndex?: number; refIndex?: number }
+  | {
+      kind: 'move';
+      id: string;
+      refId: string;
+      position: string;
+      idIndex?: number;
+      refIndex?: number;
+    }
   | { kind: 'artboard'; fn: ArtboardFn; artboardId: string; args: unknown[] }
   | {
       kind: 'clip-retime' | 'clip-remove';
@@ -102,7 +123,11 @@ function editedAttr(op: { kind: string; attr?: string }): string | null {
 }
 
 /** Describe an operation against the source it is about to be applied to. */
-export function describeSourceOp(canvasAbsPath: string, source: string, op: Describable): SourceOp | null {
+export function describeSourceOp(
+  canvasAbsPath: string,
+  source: string,
+  op: Describable
+): SourceOp | null {
   try {
     if (isStable(op)) return op as SourceOp;
     const el = op as Exclude<Describable, { kind: 'artboard' | 'clip-retime' | 'clip-remove' }>;
@@ -119,7 +144,9 @@ export function describeSourceOp(canvasAbsPath: string, source: string, op: Desc
   }
 }
 
-export type ReplayResult = { ok: true; source: string } | { ok: false; reason: 'target-missing' | 'failed' };
+export type ReplayResult =
+  | { ok: true; source: string }
+  | { ok: false; reason: 'target-missing' | 'failed' };
 
 /** Re-apply `op` onto `head` — the version that won. Pure. */
 export function replaySourceOp(canvasAbsPath: string, anyOp: SourceOp, head: string): ReplayResult {
@@ -129,7 +156,8 @@ export function replaySourceOp(canvasAbsPath: string, anyOp: SourceOp, head: str
 
 function replayStable(canvasAbsPath: string, op: StableOp, head: string): ReplayResult {
   try {
-    if (op.kind === 'artboard') return { ok: true, source: replayArtboard(canvasAbsPath, op, head) };
+    if (op.kind === 'artboard')
+      return { ok: true, source: replayArtboard(canvasAbsPath, op, head) };
     if (op.kind === 'clip-retime') {
       return {
         ok: true,
@@ -146,7 +174,8 @@ function replayStable(canvasAbsPath: string, op: StableOp, head: string): Replay
     if (op.kind === 'clip-remove') {
       return {
         ok: true,
-        source: applyRemoveClip(canvasAbsPath, head, op.artboardId, op.stableId, op.expectedHash).source,
+        source: applyRemoveClip(canvasAbsPath, head, op.artboardId, op.stableId, op.expectedHash)
+          .source,
       };
     }
   } catch {
@@ -173,13 +202,25 @@ function replayElement(canvasAbsPath: string, op: ElementOp, head: string): Repl
           }).source,
         };
       case 'set':
-        return { ok: true, source: applyEdit(canvasAbsPath, head, id, op.attr, op.value, op.occurrence).source };
+        return {
+          ok: true,
+          source: applyEdit(canvasAbsPath, head, id, op.attr, op.value, op.occurrence).source,
+        };
       case 'remove':
-        return { ok: true, source: applyRemove(canvasAbsPath, head, id, op.attr, op.occurrence).source };
+        return {
+          ok: true,
+          source: applyRemove(canvasAbsPath, head, id, op.attr, op.occurrence).source,
+        };
       case 'delete':
-        return { ok: true, source: applyDeleteElement(canvasAbsPath, head, id, op.occurrence).source };
+        return {
+          ok: true,
+          source: applyDeleteElement(canvasAbsPath, head, id, op.occurrence).source,
+        };
       case 'duplicate':
-        return { ok: true, source: applyDuplicateElement(canvasAbsPath, head, id, op.occurrence).source };
+        return {
+          ok: true,
+          source: applyDuplicateElement(canvasAbsPath, head, id, op.occurrence).source,
+        };
       case 'move': {
         const refId = relocateElement(canvasAbsPath, head, op.refId, op.refPrint, null);
         if (!refId) return { ok: false, reason: 'target-missing' };
@@ -211,16 +252,38 @@ function replayArtboard(
   const a = op.args;
   switch (op.fn) {
     case 'resize':
-      return applyResizeArtboard(abs, head, op.artboardId, a[0] as number | undefined, a[1] as number | undefined).source;
+      return applyResizeArtboard(
+        abs,
+        head,
+        op.artboardId,
+        a[0] as number | undefined,
+        a[1] as number | undefined
+      ).source;
     case 'hug':
-      return applySetArtboardHug(abs, head, op.artboardId, a[0] === true, a[1] as number | undefined).source;
+      return applySetArtboardHug(
+        abs,
+        head,
+        op.artboardId,
+        a[0] === true,
+        a[1] as number | undefined
+      ).source;
     case 'style':
-      return applySetArtboardStyle(abs, head, op.artboardId, a[0] as Parameters<typeof applySetArtboardStyle>[3]).source;
+      return applySetArtboardStyle(
+        abs,
+        head,
+        op.artboardId,
+        a[0] as Parameters<typeof applySetArtboardStyle>[3]
+      ).source;
     case 'kind':
       return applySetArtboardKind(abs, head, op.artboardId, (a[0] as string | null) ?? null).source;
     case 'label':
       return applySetArtboardLabel(abs, head, op.artboardId, String(a[0] ?? '')).source;
     case 'guides':
-      return applySetArtboardGuides(abs, head, op.artboardId, (a[0] as Record<string, unknown> | null) ?? null).source;
+      return applySetArtboardGuides(
+        abs,
+        head,
+        op.artboardId,
+        (a[0] as Record<string, unknown> | null) ?? null
+      ).source;
   }
 }
