@@ -98,6 +98,7 @@ import {
   resolveAutoEngine,
   whisperSetup,
 } from './generation/whisper-models.ts';
+import { refuseCheckoutRewrite } from './git/accepted-guard.ts';
 import { createGitEndpoints } from './git/endpoints.ts';
 import { gitShowFile } from './git/service.ts';
 import { createGitHubEndpoints } from './github/endpoints.ts';
@@ -2632,6 +2633,8 @@ export function createHttp(
         return new Response('cross-origin write rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+      const rewrite = refuseCheckoutRewrite(ctx.syncControl?.current?.()?.acceptedMode);
+      if (rewrite) return rewrite;
       const body = await readJson<unknown>(req, 8 * 1024);
       return gitJson(await gitApi.checkout(body));
     },
@@ -2644,6 +2647,8 @@ export function createHttp(
         return new Response('cross-origin write rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
         return new Response('adding a draft requires a local request', { status: 403 });
+      const rewrite = refuseCheckoutRewrite(ctx.syncControl?.current?.()?.acceptedMode);
+      if (rewrite) return rewrite;
       const body = await readJson<unknown>(req, 8 * 1024);
       return gitJson(await gitApi.fold(body));
     },
@@ -2676,6 +2681,8 @@ export function createHttp(
         return new Response('cross-origin write rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+      const rewrite = refuseCheckoutRewrite(ctx.syncControl?.current?.()?.acceptedMode);
+      if (rewrite) return rewrite;
       const body = await readJson<unknown>(req, 256 * 1024);
       return gitJson(await gitApi.discard(body));
     },
@@ -2700,6 +2707,8 @@ export function createHttp(
         return new Response('cross-origin write rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
         return new Response('get latest requires a local request', { status: 403 });
+      const rewrite = refuseCheckoutRewrite(ctx.syncControl?.current?.()?.acceptedMode);
+      if (rewrite) return rewrite;
       const body = await readJson<unknown>(req, 8 * 1024);
       return gitJson(await gitApi.pull(body));
     },
@@ -2714,6 +2723,8 @@ export function createHttp(
         return new Response('cross-origin write rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
         return new Response('resolve requires a local request', { status: 403 });
+      const rewrite = refuseCheckoutRewrite(ctx.syncControl?.current?.()?.acceptedMode);
+      if (rewrite) return rewrite;
       const body = await readJson<unknown>(req, 8 * 1024);
       return gitJson(await gitApi.resolve(body));
     },
