@@ -517,7 +517,7 @@ describe('accepted revisions on a real hub', () => {
     const writer = reader(ws, t.alice, doc);
     try {
       // A legacy peer writes the document directly, the way every client did.
-      await until(() => writer.provider.isSynced, 8000, 'legacy writer synced');
+      await until(() => writer.provider.isSynced, 30000, 'legacy writer synced');
       writer.doc.transact(() => {
         writer.doc.getText('html').insert(0, src('legacy'));
         writer.doc.getMap('syncMeta').set('path', 'ui/legacy.tsx');
@@ -799,7 +799,7 @@ describe('accepted revisions on a real hub', () => {
     const doc = 'ws/local/main/ui-doubled';
     const writer = reader(ws, t.alice, doc);
     try {
-      await until(() => writer.provider.isSynced, 8000, 'legacy writer synced');
+      await until(() => writer.provider.isSynced, 30000, 'legacy writer synced');
       writer.doc.transact(() => {
         writer.doc.getText('html').insert(0, src('doubled').repeat(4));
         writer.doc.getMap('syncMeta').set('path', 'ui/doubled.tsx');

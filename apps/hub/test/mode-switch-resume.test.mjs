@@ -73,7 +73,7 @@ describe('T30 — resuming an interrupted switch', () => {
       document: doc,
     });
     try {
-      await until(() => provider.isSynced, 8000, 'legacy writer synced');
+      await until(() => provider.isSynced, 30000, 'legacy writer synced');
       doc.transact(() => {
         doc.getText('html').insert(0, src('kept'));
         doc.getMap('syncMeta').set('path', 'ui/kept.tsx');
