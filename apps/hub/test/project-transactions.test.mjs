@@ -12,9 +12,8 @@ import { after, describe, test } from 'node:test';
 
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import * as Y from 'yjs';
-
-import { laneHash } from '../src/project-transactions/lanes.mjs';
 import { accessClaims, signAccessToken } from '../src/cloud-identity.mjs';
+import { laneHash } from '../src/project-transactions/lanes.mjs';
 import { createHub } from '../src/server.mjs';
 import { addToken } from '../src/tokens.mjs';
 
@@ -549,7 +548,8 @@ describe('accepted revisions on a real hub', () => {
       assert.equal((await alice.get('/api/projects/local/v1/history')).body.history.length, 0);
       // A member cannot preview a switch either.
       assert.equal(
-        (await alice.post('/api/projects/local/v1/mode', { mode: 'transactions', dryRun: true })).status,
+        (await alice.post('/api/projects/local/v1/mode', { mode: 'transactions', dryRun: true }))
+          .status,
         403
       );
 
@@ -701,12 +701,24 @@ describe('accepted revisions on a real hub', () => {
     const alice = client(http, t.alice, epoch);
     try {
       const pub0 = await (await fetch(`${http}/health`)).json();
-      assert.deepEqual(pub0.coordinator, { ready: true, mode: 'legacy', protocol: 1, durable: true });
-      const switched = await owner.post('/api/projects/local/v1/mode', { mode: 'transactions', expectEpoch: 0 });
+      assert.deepEqual(pub0.coordinator, {
+        ready: true,
+        mode: 'legacy',
+        protocol: 1,
+        durable: true,
+      });
+      const switched = await owner.post('/api/projects/local/v1/mode', {
+        mode: 'transactions',
+        expectEpoch: 0,
+      });
       epoch.epoch = switched.body.epoch;
       const doc = 'ws/local/main/ui-health';
       assert.equal(
-        (await alice.propose([{ op: 'doc.create', doc, path: 'ui/health.tsx', lanes: { html: src('a') } }])).status,
+        (
+          await alice.propose([
+            { op: 'doc.create', doc, path: 'ui/health.tsx', lanes: { html: src('a') } },
+          ])
+        ).status,
         200
       );
       const stale = await alice.propose([
@@ -749,7 +761,10 @@ describe('accepted revisions on a real hub', () => {
     process.env.MAUDE_PROJECT_TOKEN_KEY = 'project-token-key';
     const { built, http } = await startHub(dataDir);
     const mint = (role, project = 'acme') =>
-      signAccessToken(accessClaims({ email: `${role}@x.test`, project, role }), 'project-token-key');
+      signAccessToken(
+        accessClaims({ email: `${role}@x.test`, project, role }),
+        'project-token-key'
+      );
     const preview = (token) =>
       fetch(`${http}/api/projects/current/v1/mode`, {
         method: 'POST',

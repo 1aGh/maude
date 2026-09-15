@@ -15,7 +15,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync, fork } from 'node:child_process';
 import { once } from 'node:events';
-import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, describe, test } from 'node:test';
@@ -30,7 +30,15 @@ function findMiniflare() {
   if (!existsSync(npx)) return null;
   for (const d of readdirSync(npx)) {
     const entry = join(npx, d, 'node_modules', 'miniflare', 'dist', 'src', 'index.js');
-    if (existsSync(entry)) return entry;
+    // A pre-release (a `wrangler@latest` run can cache a 5.x alpha) has a
+    // different host API and hangs the fixture; only a release counts.
+    let version = '';
+    try {
+      version = JSON.parse(readFileSync(join(npx, d, 'node_modules', 'miniflare', 'package.json'), 'utf8')).version;
+    } catch {
+      /* unreadable — not a candidate */
+    }
+    if (existsSync(entry) && /^\d+\.\d+\.\d+$/.test(version)) return entry;
   }
   return null;
 }

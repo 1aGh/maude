@@ -103,6 +103,7 @@ import { gitShowFile } from './git/service.ts';
 import { createGitHubEndpoints } from './github/endpoints.ts';
 import type { InspectRegistry } from './inspect.ts';
 import { canvasSlug, writeLocator } from './locator.ts';
+import { prepareManagedProject } from './managed-projects.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
 import { createPhotoStore, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
@@ -113,7 +114,6 @@ import { linkHub } from './sync/hub-link.ts';
 import { isHubReadOnly } from './sync/hubs-config.ts';
 import { isFirstAnchorMode, readSyncSettings, writeSyncSettings } from './sync/settings.ts';
 import { listTrash, pruneTrash, restoreFromTrash } from './sync/trash.ts';
-import { prepareManagedProject } from './managed-projects.ts';
 import { signInToWorkspace, workspaceDisclosure } from './sync/workspace-signin.ts';
 import { readUiPrefs, type UiPrefs, writeUiPrefs } from './ui-prefs.ts';
 import { loadWhatsNew, resolveMaudeVersion } from './whats-new.ts';
@@ -2247,8 +2247,15 @@ export function createHttp(
       const entry = ai.start(body.file.trim(), author);
       // T16 — the edit is ONE project action: what the agent writes until
       // /end is published together (or held, if it fails).
-      const name = body.file.trim().split('/').pop()?.replace(/\.(tsx|html)$/i, '') ?? 'canvas';
-      ctx.syncControl?.current?.()?.beginAiAction?.(`edit:${body.file.trim()}`, `${author} edited ${name}`);
+      const name =
+        body.file
+          .trim()
+          .split('/')
+          .pop()
+          ?.replace(/\.(tsx|html)$/i, '') ?? 'canvas';
+      ctx.syncControl
+        ?.current?.()
+        ?.beginAiAction?.(`edit:${body.file.trim()}`, `${author} edited ${name}`);
       return Response.json(entry, { headers: { 'Cache-Control': 'no-store' } });
     },
 
@@ -2298,43 +2305,71 @@ export function createHttp(
       // T19 — "Download everything for offline": every file of the project
       // now, instead of as the passes get to it.
       if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      if (!sameOriginWrite(req)) return new Response('cross-origin write rejected', { status: 403 });
-      if (!isTrustedRequestHost(req)) return new Response('local request required', { status: 403 });
+      if (!sameOriginWrite(req))
+        return new Response('cross-origin write rejected', { status: 403 });
+      if (!isTrustedRequestHost(req))
+        return new Response('local request required', { status: 403 });
       const r = await ctx.syncControl?.current?.()?.prepareOffline?.();
-      if (!r) return Response.json({ ok: false, error: 'This project has no files to download.' }, { status: 409 });
+      if (!r)
+        return Response.json(
+          { ok: false, error: 'This project has no files to download.' },
+          { status: 409 }
+        );
       return Response.json({ ok: true, ...r }, { headers: { 'Cache-Control': 'no-store' } });
     },
 
     '/_api/project/conflict': async (req: Request) => {
       // T28 — a held source conflict: GET the two sides, POST the decision.
-      if (!isTrustedRequestHost(req)) return new Response('local request required', { status: 403 });
+      if (!isTrustedRequestHost(req))
+        return new Response('local request required', { status: 403 });
       const runtime = ctx.syncControl?.current?.();
       if (req.method === 'GET') {
         const file = new URL(req.url).searchParams.get('file') ?? '';
         const sides = runtime?.conflictVersions?.(file);
-        if (!sides) return Response.json({ ok: false, error: 'No conflict on that canvas.' }, { status: 404 });
+        if (!sides)
+          return Response.json(
+            { ok: false, error: 'No conflict on that canvas.' },
+            { status: 404 }
+          );
         return Response.json({ ok: true, ...sides }, { headers: { 'Cache-Control': 'no-store' } });
       }
       if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      if (!sameOriginWrite(req)) return new Response('cross-origin write rejected', { status: 403 });
+      if (!sameOriginWrite(req))
+        return new Response('cross-origin write rejected', { status: 403 });
       const body = await readJson<{ file?: string; choice?: string }>(req);
       const choice = body?.choice === 'mine' ? 'mine' : body?.choice === 'theirs' ? 'theirs' : null;
-      if (!body?.file || !choice) return Response.json({ ok: false, error: 'file and choice required' }, { status: 400 });
+      if (!body?.file || !choice)
+        return Response.json({ ok: false, error: 'file and choice required' }, { status: 400 });
       const r = await runtime?.resolveConflict?.(body.file, choice);
-      if (!r) return Response.json({ ok: false, error: 'No conflict on that canvas.' }, { status: 404 });
-      return Response.json({ ok: r.status !== 'rejected', ...r }, { headers: { 'Cache-Control': 'no-store' } });
+      if (!r)
+        return Response.json({ ok: false, error: 'No conflict on that canvas.' }, { status: 404 });
+      return Response.json(
+        { ok: r.status !== 'rejected', ...r },
+        { headers: { 'Cache-Control': 'no-store' } }
+      );
     },
 
     '/_api/project/ai-action': async (req: Request) => {
       // T16 — the person's decision on an unfinished AI edit (held stage).
       if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      if (!sameOriginWrite(req)) return new Response('cross-origin write rejected', { status: 403 });
-      if (!isTrustedRequestHost(req)) return new Response('local request required', { status: 403 });
+      if (!sameOriginWrite(req))
+        return new Response('cross-origin write rejected', { status: 403 });
+      if (!isTrustedRequestHost(req))
+        return new Response('local request required', { status: 403 });
       const body = await readJson<{ choice?: string }>(req);
-      const choice = body?.choice === 'discard' ? 'discard' : body?.choice === 'publish' ? 'publish' : null;
-      if (!choice) return Response.json({ ok: false, error: 'choice must be publish or discard' }, { status: 400 });
+      const choice =
+        body?.choice === 'discard' ? 'discard' : body?.choice === 'publish' ? 'publish' : null;
+      if (!choice)
+        return Response.json(
+          { ok: false, error: 'choice must be publish or discard' },
+          { status: 400 }
+        );
       const r = await ctx.syncControl?.current?.()?.resolveAiAction?.(choice);
-      if (!r) return Response.json({ ok: false, error: 'There is no unfinished AI edit.' }, { status: 409 });
+      if (!r)
+        return Response.json(
+          { ok: false, error: 'There is no unfinished AI edit.' },
+          { status: 409 }
+        );
       return Response.json(
         { ok: r.status !== 'rejected', ...r },
         { headers: { 'Cache-Control': 'no-store' } }
@@ -3302,8 +3337,10 @@ export function createHttp(
     // Main origin only — this mints and stores a credential.
     '/_api/projects/prepare': async (req: Request) => {
       if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      if (!sameOriginWrite(req)) return new Response('cross-origin write rejected', { status: 403 });
-      if (!isTrustedRequestHost(req)) return new Response('local request required', { status: 403 });
+      if (!sameOriginWrite(req))
+        return new Response('cross-origin write rejected', { status: 403 });
+      if (!isTrustedRequestHost(req))
+        return new Response('local request required', { status: 403 });
       const body = (await readJson<Record<string, unknown>>(req, 8 * 1024)) ?? {};
       const kind = body.kind;
       const str = (v: unknown) => (typeof v === 'string' ? v : '');
@@ -3318,7 +3355,10 @@ export function createHttp(
                 ? { kind, url: str(body.url) }
                 : null;
       if (!input) return new Response('unknown kind', { status: 400 });
-      const r = await prepareManagedProject(ctx, input as Parameters<typeof prepareManagedProject>[1]);
+      const r = await prepareManagedProject(
+        ctx,
+        input as Parameters<typeof prepareManagedProject>[1]
+      );
       return Response.json(r, {
         status: r.ok ? 200 : r.status,
         headers: { 'Cache-Control': 'no-store' },

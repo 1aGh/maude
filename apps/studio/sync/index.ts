@@ -86,12 +86,12 @@ import {
   stateDocumentGone,
   tombstonedSlugs,
 } from './remote-docs.ts';
+import { createRevisionBarrier } from './revision-barrier.ts';
 import { computeSeedProgress } from './seed-progress.ts';
+import { replaySourceOp, type SourceOp } from './source-ops.ts';
 import { createSyncStatusStore, type SyncStatusStore } from './status.ts';
 import { quarantineCanvas } from './tombstone-apply.ts';
 import { writeUntrustedMarkers } from './untrusted.ts';
-import { createRevisionBarrier } from './revision-barrier.ts';
-import { replaySourceOp, type SourceOp } from './source-ops.ts';
 
 /** A minimum-surface stand-in for the HocuspocusProvider's runtime API. */
 export interface SyncProvider {
@@ -530,7 +530,12 @@ export interface SyncRuntime {
   acceptedUndo?(
     actionId: string,
     redo?: boolean
-  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean; actionId?: string } | null>;
+  ): Promise<{
+    status: 'accepted' | 'rejected';
+    code?: string;
+    queued?: boolean;
+    actionId?: string;
+  } | null>;
   /**
    * T16 — an AI action begins: file changes tools make until it ends are
    * published together as one action (see action-stage.ts). `key` names the
@@ -547,7 +552,12 @@ export interface SyncRuntime {
    * back to back (no pacing floor) until nothing is left to pull, or a pass
    * stops making progress. Resolves with what came down and what could not.
    */
-  prepareOffline?(): Promise<{ complete: boolean; pulled: number; passes: number; failed: number } | null>;
+  prepareOffline?(): Promise<{
+    complete: boolean;
+    pulled: number;
+    passes: number;
+    failed: number;
+  } | null>;
   /** T26 — the accepted action that carried this content of a canvas, if ours. */
   acceptedActionForContent?(repoRel: string, content: string): string | null;
   /** T28 — the two sides of a canvas's held source conflict. */
@@ -561,9 +571,11 @@ export interface SyncRuntime {
     choice: 'mine' | 'theirs'
   ): Promise<{ status: 'accepted' | 'rejected' | 'taken'; code?: string } | null>;
   /** T16 — the person's decision on a held (unfinished) AI action. */
-  resolveAiAction?(
-    choice: 'publish' | 'discard'
-  ): Promise<{ status: 'accepted' | 'rejected' | 'discarded'; code?: string; canvases?: number } | null>;
+  resolveAiAction?(choice: 'publish' | 'discard'): Promise<{
+    status: 'accepted' | 'rejected' | 'discarded';
+    code?: string;
+    canvases?: number;
+  } | null>;
 }
 
 export interface AcceptedHistoryRow {
@@ -3479,9 +3491,17 @@ export function createSyncRuntime(
                   ? {
                       accepted: acceptedLink.laneLink(canvas.slug),
                       revisionBarrier,
-                      replayOp: (op: SourceOp, head: string) => replaySourceOp(canvas.html, op, head),
-                      onAccepted: ({ lane, value, actionId }: { lane: string; value: string; actionId: string }) =>
-                        noteAcceptedContent(canvas.slug, lane, value, actionId),
+                      replayOp: (op: SourceOp, head: string) =>
+                        replaySourceOp(canvas.html, op, head),
+                      onAccepted: ({
+                        lane,
+                        value,
+                        actionId,
+                      }: {
+                        lane: string;
+                        value: string;
+                        actionId: string;
+                      }) => noteAcceptedContent(canvas.slug, lane, value, actionId),
                       onRevisionApplied: (rev: number) => store.noteAppliedRevision?.(rev),
                     }
                   : {}),

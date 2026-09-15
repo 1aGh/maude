@@ -14,8 +14,8 @@
 //
 // Nothing here writes into the folder this studio is serving.
 
-import type { Context } from './context.ts';
 import { createCloudEndpoints } from './cloud/endpoints.ts';
+import type { Context } from './context.ts';
 import { getHubRecord, normalizeUrl } from './sync/hubs-config.ts';
 import { signInToWorkspace } from './sync/workspace-signin.ts';
 
@@ -53,7 +53,8 @@ export function groupsFromBootstrap(boot: {
     if (typeof g === 'string' && GROUP.test(g)) out.add(g);
   };
   if (Array.isArray(boot.canvasGroups)) {
-    for (const g of boot.canvasGroups) add(typeof g === 'string' ? g : (g as { path?: unknown })?.path);
+    for (const g of boot.canvasGroups)
+      add(typeof g === 'string' ? g : (g as { path?: unknown })?.path);
   }
   for (const d of boot.docs ?? []) {
     if (d.retired || !d.path) continue;
@@ -68,10 +69,7 @@ export function groupsFromBootstrap(boot: {
   return [...out].slice(0, 32);
 }
 
-async function bootstrapOf(
-  url: string,
-  token: string
-): Promise<Record<string, unknown> | null> {
+async function bootstrapOf(url: string, token: string): Promise<Record<string, unknown> | null> {
   try {
     const res = await fetch(`${url}/api/projects/current/v1/bootstrap`, {
       headers: { authorization: `Bearer ${token}` },
@@ -99,14 +97,25 @@ export async function prepareManagedProject(
       input.kind === 'cloud'
         ? await cloud.openManaged(input.projectId)
         : await cloud.openManagedCode(input.code, input.claimedProject);
-    const j = r.json as { ok?: boolean; url?: string; role?: string; project?: string; error?: string };
-    if (!j.ok || !j.url) return { ok: false, error: j.error ?? 'The project could not be opened.', status: r.status };
+    const j = r.json as {
+      ok?: boolean;
+      url?: string;
+      role?: string;
+      project?: string;
+      error?: string;
+    };
+    if (!j.ok || !j.url)
+      return { ok: false, error: j.error ?? 'The project could not be opened.', status: r.status };
     serverUrl = j.url;
     projectId = j.project ?? (input.kind === 'cloud' ? input.projectId : null);
     role = j.role ?? null;
     name = projectId;
   } else if (input.kind === 'hub') {
-    const r = await signInToWorkspace({ url: input.url, email: input.email, password: input.password });
+    const r = await signInToWorkspace({
+      url: input.url,
+      email: input.email,
+      password: input.password,
+    });
     if (!r.json.ok) return { ok: false, error: r.json.error, status: r.status };
     serverUrl = r.json.url;
     role = r.json.user.role;
@@ -122,7 +131,8 @@ export async function prepareManagedProject(
   }
 
   const token = getHubRecord(serverUrl)?.token;
-  if (!token) return { ok: false, error: 'The sign-in could not be saved on this computer.', status: 500 };
+  if (!token)
+    return { ok: false, error: 'The sign-in could not be saved on this computer.', status: 500 };
   const boot = await bootstrapOf(serverUrl, token);
   if (boot && typeof boot.projectId === 'string') projectId ??= boot.projectId;
   const host = new URL(serverUrl).host;

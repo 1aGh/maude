@@ -42,8 +42,22 @@ afterEach(() => {
   rmSync(designRoot, { recursive: true, force: true });
 });
 
-async function call({ path = '', method = 'GET', body = null, headers = {}, bearer = token, over = {} }) {
-  const chunks = body === null ? [] : [Buffer.isBuffer(body) ? body : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body))];
+async function call({
+  path = '',
+  method = 'GET',
+  body = null,
+  headers = {},
+  bearer = token,
+  over = {},
+}) {
+  const chunks =
+    body === null
+      ? []
+      : [
+          Buffer.isBuffer(body)
+            ? body
+            : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body)),
+        ];
   const request = {
     headers: { authorization: `Bearer ${bearer}`, ...headers },
     async *[Symbol.asyncIterator]() {
@@ -83,13 +97,21 @@ async function call({ path = '', method = 'GET', body = null, headers = {}, bear
 const video = (n) => Buffer.from(Array.from({ length: n }, (_, i) => i % 251));
 
 async function uploadAll(bytes, rel = 'assets/clip.mp4', { skip = [] } = {}) {
-  const created = await call({ method: 'POST', body: { path: rel, size: bytes.length, sha256: sha(bytes) } });
+  const created = await call({
+    method: 'POST',
+    body: { path: rel, size: bytes.length, sha256: sha(bytes) },
+  });
   assert.equal(created.status, 201, JSON.stringify(created.json));
   const { id, parts } = created.json;
   for (let n = 0; n < parts; n += 1) {
     if (skip.includes(n)) continue;
     const part = bytes.subarray(n * PART, Math.min(bytes.length, (n + 1) * PART));
-    const r = await call({ path: `/${id}/${n}`, method: 'PUT', body: part, headers: { 'x-maude-part-sha256': sha(part) } });
+    const r = await call({
+      path: `/${id}/${n}`,
+      method: 'PUT',
+      body: part,
+      headers: { 'x-maude-part-sha256': sha(part) },
+    });
     assert.equal(r.status, 200, JSON.stringify(r.json));
   }
   return created.json;
@@ -121,8 +143,14 @@ describe('upload sessions', () => {
 
   it('resuming the same bytes to the same place returns the same session', async () => {
     const bytes = video(PART * 2);
-    const a = await call({ method: 'POST', body: { path: 'assets/a.mp4', size: bytes.length, sha256: sha(bytes) } });
-    const b = await call({ method: 'POST', body: { path: 'assets/a.mp4', size: bytes.length, sha256: sha(bytes) } });
+    const a = await call({
+      method: 'POST',
+      body: { path: 'assets/a.mp4', size: bytes.length, sha256: sha(bytes) },
+    });
+    const b = await call({
+      method: 'POST',
+      body: { path: 'assets/a.mp4', size: bytes.length, sha256: sha(bytes) },
+    });
     assert.equal(a.status, 201);
     assert.equal(b.status, 200);
     assert.equal(a.json.id, b.json.id);
@@ -133,10 +161,18 @@ describe('upload sessions', () => {
 
   it('a part with the wrong bytes is refused and not kept; a resent part is idempotent', async () => {
     const bytes = video(PART * 2);
-    const created = await call({ method: 'POST', body: { path: 'assets/b.mp4', size: bytes.length, sha256: sha(bytes) } });
+    const created = await call({
+      method: 'POST',
+      body: { path: 'assets/b.mp4', size: bytes.length, sha256: sha(bytes) },
+    });
     const { id } = created.json;
     const good = bytes.subarray(0, PART);
-    const bad = await call({ path: `/${id}/0`, method: 'PUT', body: good, headers: { 'x-maude-part-sha256': sha('nope') } });
+    const bad = await call({
+      path: `/${id}/0`,
+      method: 'PUT',
+      body: good,
+      headers: { 'x-maude-part-sha256': sha('nope') },
+    });
     assert.equal(bad.status, 400);
     assert.deepEqual((await call({ path: `/${id}` })).json.received, []);
     const short = await call({ path: `/${id}/0`, method: 'PUT', body: good.subarray(0, 10) });
@@ -148,10 +184,17 @@ describe('upload sessions', () => {
 
   it('an assembled file that is not the declared one never lands', async () => {
     const bytes = video(PART * 2);
-    const created = await call({ method: 'POST', body: { path: 'assets/c.mp4', size: bytes.length, sha256: sha('something else entirely') } });
+    const created = await call({
+      method: 'POST',
+      body: { path: 'assets/c.mp4', size: bytes.length, sha256: sha('something else entirely') },
+    });
     const { id } = created.json;
     for (let n = 0; n < 2; n += 1) {
-      await call({ path: `/${id}/${n}`, method: 'PUT', body: bytes.subarray(n * PART, (n + 1) * PART) });
+      await call({
+        path: `/${id}/${n}`,
+        method: 'PUT',
+        body: bytes.subarray(n * PART, (n + 1) * PART),
+      });
     }
     const done = await call({ path: `/${id}/complete`, method: 'POST' });
     assert.equal(done.status, 422);
@@ -162,17 +205,35 @@ describe('upload sessions', () => {
   it('the quota is reserved up front: two sessions cannot overspend it together', async () => {
     const row = quotaFor('designer');
     row.cap = PART * 3;
-    const one = await call({ method: 'POST', body: { path: 'assets/d.mp4', size: PART * 2, sha256: sha('d') } });
+    const one = await call({
+      method: 'POST',
+      body: { path: 'assets/d.mp4', size: PART * 2, sha256: sha('d') },
+    });
     assert.equal(one.status, 201);
-    const two = await call({ method: 'POST', body: { path: 'assets/e.mp4', size: PART * 2, sha256: sha('e') } });
+    const two = await call({
+      method: 'POST',
+      body: { path: 'assets/e.mp4', size: PART * 2, sha256: sha('e') },
+    });
     assert.equal(two.status, 507);
     // An abort gives it back.
     assert.equal((await call({ path: `/${one.json.id}`, method: 'DELETE' })).status, 200);
-    assert.equal((await call({ method: 'POST', body: { path: 'assets/e.mp4', size: PART * 2, sha256: sha('e') } })).status, 201);
+    assert.equal(
+      (
+        await call({
+          method: 'POST',
+          body: { path: 'assets/e.mp4', size: PART * 2, sha256: sha('e') },
+        })
+      ).status,
+      201
+    );
   });
 
   it('the file door’s admission applies: bad paths, scope and the project-file ceiling', async () => {
-    assert.equal((await call({ method: 'POST', body: { path: '../x.mp4', size: 10, sha256: sha('x') } })).status, 400);
+    assert.equal(
+      (await call({ method: 'POST', body: { path: '../x.mp4', size: 10, sha256: sha('x') } }))
+        .status,
+      400
+    );
     const big = await call({
       method: 'POST',
       body: { path: 'assets/huge.mp4', size: 10 * PART, sha256: sha('h') },
@@ -180,12 +241,19 @@ describe('upload sessions', () => {
     });
     assert.equal(big.status, 413);
     const scoped = addToken(dataDir, { label: 'scoped', scope: 'ui/' }).value;
-    const out = await call({ method: 'POST', body: { path: 'assets/f.mp4', size: 10, sha256: sha('f') }, bearer: scoped });
+    const out = await call({
+      method: 'POST',
+      body: { path: 'assets/f.mp4', size: 10, sha256: sha('f') },
+      bearer: scoped,
+    });
     assert.equal(out.status, 403);
   });
 
   it('a stale session expires and returns its reservation', async () => {
-    const created = await call({ method: 'POST', body: { path: 'assets/g.mp4', size: PART, sha256: sha('g') } });
+    const created = await call({
+      method: 'POST',
+      body: { path: 'assets/g.mp4', size: PART, sha256: sha('g') },
+    });
     assert.equal(quotaFor('designer').used, PART);
     assert.equal(sweepUploadSessions(dataDir, Date.now() + 25 * 3600_000), 1);
     assert.equal(quotaFor('designer').used, 0);

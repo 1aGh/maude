@@ -543,9 +543,19 @@ test('R2-1: a malformed session cookie on any door is "no session", not a hub cr
 // Plan T20 — the invite names the way into the desktop app too: the same
 // address and email, in the app's own words. Escaped like every other value.
 test('the join page tells a desktop user where to sign in', () => {
-  const html = joinPage({ token: 'inv_x', workspace: 'https://design.acme.com', email: null, env: {} });
+  const html = joinPage({
+    token: 'inv_x',
+    workspace: 'https://design.acme.com',
+    email: null,
+    env: {},
+  });
   assert.match(html, /Open a project you were invited to/);
   assert.match(html, /https:\/\/design\.acme\.com/);
-  const hostile = joinPage({ token: 'inv_x', workspace: 'https://x.test/"><script>', email: null, env: {} });
+  const hostile = joinPage({
+    token: 'inv_x',
+    workspace: 'https://x.test/"><script>',
+    email: null,
+    env: {},
+  });
   assert.doesNotMatch(hostile, /<script>/);
 });

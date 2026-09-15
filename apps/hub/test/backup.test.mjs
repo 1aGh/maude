@@ -31,8 +31,8 @@ import {
   targetFromEnv,
   verifyRestored,
 } from '../src/backup.mjs';
-import { signRequest } from '../src/s3.mjs';
 import { openSqliteProjectStore } from '../src/project-transactions/store-sqlite.mjs';
+import { signRequest } from '../src/s3.mjs';
 
 const require = createRequire(import.meta.url);
 const Database = require('better-sqlite3');

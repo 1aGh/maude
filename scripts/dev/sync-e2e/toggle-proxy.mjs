@@ -13,7 +13,8 @@ import { createServer as createHttpServer } from 'node:http';
 import { connect, createServer } from 'node:net';
 
 const [listenPort, targetPort, controlPort] = process.argv.slice(2).map(Number);
-if (!listenPort || !targetPort || !controlPort) throw new Error('usage: toggle-proxy.mjs <listen> <target> <control>');
+if (!listenPort || !targetPort || !controlPort)
+  throw new Error('usage: toggle-proxy.mjs <listen> <target> <control>');
 
 let offline = false;
 const open = new Set();
@@ -51,5 +52,7 @@ createHttpServer((req, res) => {
     res.writeHead(404).end();
     return;
   }
-  res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ offline, open: open.size }));
+  res
+    .writeHead(200, { 'content-type': 'application/json' })
+    .end(JSON.stringify({ offline, open: open.size }));
 }).listen(controlPort, '127.0.0.1');

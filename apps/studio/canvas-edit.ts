@@ -4088,7 +4088,10 @@ export function applySetArtboardLabel(
   label: string
 ): { source: string } {
   // Control characters never reach a JSX attribute.
-  const clean = [...label].filter((c) => c.charCodeAt(0) >= 0x20 && c.charCodeAt(0) !== 0x7f).join('').trim();
+  const clean = [...label]
+    .filter((c) => c.charCodeAt(0) >= 0x20 && c.charCodeAt(0) !== 0x7f)
+    .join('')
+    .trim();
   if (!clean || clean.length > MAX_ARTBOARD_LABEL) {
     throw new CanvasEditError(`artboard name must be 1–${MAX_ARTBOARD_LABEL} characters`, {
       canvas: canvasAbsPath,
@@ -5612,7 +5615,8 @@ function literalAttrs(opening: AnyNode, ignore: string | null): string {
   for (const a of Array.isArray(opening?.attributes) ? opening.attributes : []) {
     if (a?.type !== 'JSXAttribute' || a.name?.type !== 'JSXIdentifier') continue;
     const name = String(a.name.name);
-    if (name.startsWith('data-cd-') || name === 'style' || name === ignore || name === 'key') continue;
+    if (name.startsWith('data-cd-') || name === 'style' || name === ignore || name === 'key')
+      continue;
     const v = a.value;
     const lit =
       v?.type === 'Literal' || v?.type === 'StringLiteral'
@@ -5698,7 +5702,9 @@ export function elementPrint(
   ignoreAttr: string | null = null,
   withText = true
 ): ElementPrint | null {
-  return printAll(canvasAbsPath, source, ignoreAttr, withText).find((e) => e.id === id)?.print ?? null;
+  return (
+    printAll(canvasAbsPath, source, ignoreAttr, withText).find((e) => e.id === id)?.print ?? null
+  );
 }
 
 /**
@@ -5721,9 +5727,13 @@ export function relocateElement(
 }
 
 /** T23 — how many elements of `source` carry a print no other element shares. */
-export function printUniqueness(canvasAbsPath: string, source: string): { elements: number; unique: number } {
+export function printUniqueness(
+  canvasAbsPath: string,
+  source: string
+): { elements: number; unique: number } {
   const all = printAll(canvasAbsPath, source, null);
-  const key = (p: ElementPrint) => `${p.component}|${p.tag}|${p.chain.join('>')}|${p.attrs}|${p.text ?? ''}`;
+  const key = (p: ElementPrint) =>
+    `${p.component}|${p.tag}|${p.chain.join('>')}|${p.attrs}|${p.text ?? ''}`;
   const counts = new Map<string, number>();
   for (const e of all) counts.set(key(e.print), (counts.get(key(e.print)) ?? 0) + 1);
   return { elements: all.length, unique: all.filter((e) => counts.get(key(e.print)) === 1).length };

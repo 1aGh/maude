@@ -120,7 +120,13 @@ const CODE_MODULE_EXTS = new Set(['ts', 'tsx', 'js', 'mjs']);
  */
 // + the footage analysis, component registry, edit decision list: versioned
 // sidecars (DDR-115) the T32 scale run found never reaching a peer.
-const COMPANION_SIDECAR_SUFFIXES = ['.photo.json', '.audio.json', '.footage.json', '.registry.json', '.edl.json'];
+const COMPANION_SIDECAR_SUFFIXES = [
+  '.photo.json',
+  '.audio.json',
+  '.footage.json',
+  '.registry.json',
+  '.edl.json',
+];
 
 /**
  * A DIRECTORY segment must start alphanumeric — the same rule as the hub's

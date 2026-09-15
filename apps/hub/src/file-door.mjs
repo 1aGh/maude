@@ -40,21 +40,19 @@
 
 import { createHash, randomBytes } from 'node:crypto';
 import { once } from 'node:events';
-import {
-  createWriteStream,
-  existsSync,
-  mkdirSync,
-  renameSync,
-  rmSync,
-} from 'node:fs';
+import { createWriteStream, existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-
+import {
+  MAX_PROJECT_FILE_BYTES,
+  PART_BYTES,
+  SINGLE_PUT_BYTES,
+  sha256File,
+} from './file-limits.mjs';
 import {
   checkoutFileClass,
   resolveCheckoutFileWrite,
   resolveProjectFileTarget,
 } from './file-manifest.mjs';
-import { MAX_PROJECT_FILE_BYTES, PART_BYTES, SINGLE_PUT_BYTES, sha256File } from './file-limits.mjs';
 import { matchesScope, verifyToken } from './tokens.mjs';
 
 /** `PUT /api/file/<rel>` — the single door. */

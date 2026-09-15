@@ -224,7 +224,10 @@ export async function handleUploadSessions(ctx) {
       return true;
     }
     if (size > maxBytes) {
-      respondJson(response, 413, { error: `over the ${maxBytes}-byte project file ceiling`, maxBytes });
+      respondJson(response, 413, {
+        error: `over the ${maxBytes}-byte project file ceiling`,
+        maxBytes,
+      });
       return true;
     }
     const ad = admit(ctx, match, rel);
@@ -238,7 +241,14 @@ export async function handleUploadSessions(ctx) {
     try {
       for (const id of readdirSync(sessionsDir(dataDir))) {
         const s = loadSession(dataDir, id);
-        if (s && !s.completedAt && s.label === match.label && s.path === ad.landing && s.sha256 === sha256 && s.size === size) {
+        if (
+          s &&
+          !s.completedAt &&
+          s.label === match.label &&
+          s.path === ad.landing &&
+          s.sha256 === sha256 &&
+          s.size === size
+        ) {
           respondJson(response, 200, view(dataDir, s));
           return true;
         }
@@ -307,7 +317,10 @@ export async function handleUploadSessions(ctx) {
     }
     const missing = s.parts - receivedParts(dataDir, s).length;
     if (missing > 0) {
-      respondJson(response, 409, { error: `${missing} part(s) still missing`, ...view(dataDir, s) });
+      respondJson(response, 409, {
+        error: `${missing} part(s) still missing`,
+        ...view(dataDir, s),
+      });
       return true;
     }
     const ad = admit(ctx, match, s.path);
@@ -319,7 +332,11 @@ export async function handleUploadSessions(ctx) {
     return await withPathLock(s.path, async () => {
       const current = ctx.journal ? currentHashFor(ctx.journal, s.path) : null;
       if (s.expect && !(s.expect === 'none' ? current === null : current === s.expect)) {
-        respondJson(response, 409, { error: 'the hub moved since you decided', path: s.path, current });
+        respondJson(response, 409, {
+          error: 'the hub moved since you decided',
+          path: s.path,
+          current,
+        });
         return true;
       }
       mkdirSync(dirname(target.abs), { recursive: true });
@@ -348,7 +365,10 @@ export async function handleUploadSessions(ctx) {
         rmSync(tmp, { force: true });
         release(s);
         rmSync(dirOf(dataDir, s.id), { recursive: true, force: true });
-        respondJson(response, 422, { error: 'the assembled file does not match its declared hash', got: whole });
+        respondJson(response, 422, {
+          error: 'the assembled file does not match its declared hash',
+          got: whole,
+        });
         return true;
       }
       renameSync(tmp, target.abs);
@@ -384,7 +404,9 @@ export async function handleUploadSessions(ctx) {
       return true;
     }
     const expected = partSize(s, n);
-    const declared = String(request.headers?.['x-maude-part-sha256'] ?? '').trim().toLowerCase();
+    const declared = String(request.headers?.['x-maude-part-sha256'] ?? '')
+      .trim()
+      .toLowerCase();
     const tmp = `${partPath(dataDir, s.id, n)}.tmp-${randomBytes(4).toString('hex')}`;
     let got;
     try {
@@ -396,7 +418,10 @@ export async function handleUploadSessions(ctx) {
     if (got.total !== expected || (declared && declared !== got.sha256)) {
       rmSync(tmp, { force: true });
       respondJson(response, 400, {
-        error: got.total !== expected ? `part ${n} must be ${expected} bytes` : 'part hash does not match its bytes',
+        error:
+          got.total !== expected
+            ? `part ${n} must be ${expected} bytes`
+            : 'part hash does not match its bytes',
       });
       return true;
     }

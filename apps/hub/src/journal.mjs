@@ -42,9 +42,9 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
+import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
 import { listProjectFiles, readCanvasGroups } from './file-manifest.mjs';
 import { classifyProjectFile, isFilePlaneClass, isProjectFileShape } from './file-membership.mjs';
-import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
 
 const require = createRequire(import.meta.url);
 // better-sqlite3 is a runtime-external native binding (see build.ts). Loading

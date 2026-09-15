@@ -2015,7 +2015,13 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         const page = await chromiumBrowser.newPage({ viewport: { width: 400, height: 860 } });
         try {
           await page.context().addCookies([
-            { name: 'maude_studio', value: credential.token, url: run.hub, httpOnly: true, sameSite: 'Lax' },
+            {
+              name: 'maude_studio',
+              value: credential.token,
+              url: run.hub,
+              httpOnly: true,
+              sameSite: 'Lax',
+            },
           ]);
           await page.goto(`${run.hub}/`);
           await page.waitForSelector('[data-testid="menubar"]', { timeout: 60000 });
@@ -2035,10 +2041,17 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               canvasRowVisible: visible('[data-testid^="canvas-row-"]'),
               syncStatusVisible: visible('.st-sb-sync'),
             };
-          })()`)) as { innerWidth: number; scrollWidth: number; canvasRowVisible: boolean; syncStatusVisible: boolean };
+          })()`)) as {
+            innerWidth: number;
+            scrollWidth: number;
+            canvasRowVisible: boolean;
+            syncStatusVisible: boolean;
+          };
           return {
             status:
-              layout.scrollWidth <= layout.innerWidth + 1 && layout.canvasRowVisible && layout.syncStatusVisible
+              layout.scrollWidth <= layout.innerWidth + 1 &&
+              layout.canvasRowVisible &&
+              layout.syncStatusVisible
                 ? 'pass'
                 : 'fail',
             ...layout,
@@ -2161,7 +2174,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         `import { DesignCanvas, DCArtboard } from '@maude/canvas-lib';\nexport default function SurfaceEl() {\n  return (\n    <DesignCanvas>\n      <DCArtboard id="el" label="Element" width={600} height={400}>\n        <section style={{ padding: 24 }}>\n          <h1 style={{ fontWeight: "400" }}>${title}</h1>\n          <p>Kept paragraph</p>\n        </section>\n      </DCArtboard>\n    </DesignCanvas>\n  );\n}\n`;
       const headings = async (p: Surface) => (await p.probe('h1'))?.matches?.length ?? 0;
       const count = (p: Surface, rel: string, needle: string) =>
-        (readFileSync(join(p.root, '.design', rel), 'utf8').match(new RegExp(needle, 'g')) ?? []).length;
+        (readFileSync(join(p.root, '.design', rel), 'utf8').match(new RegExp(needle, 'g')) ?? [])
+          .length;
       const openSeeded = async (rel: string, title: string, id: string) => {
         for (const p of all) {
           const row = selector(`canvas-row-${slug(rel.replace(/\.tsx$/, ''))}`);
@@ -2212,7 +2226,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         const dupBody = elementCanvas(`Duplicate ${from.name}`);
         await check('L04.canvas.duplicate', `${from.name}-to-peers`, async () => {
           await seedCanvas(from, dupRel, dupBody);
-          for (const p of all) await until(async () => (await p.read(rowOf(dupRel))) !== null, 30000);
+          for (const p of all)
+            await until(async () => (await p.read(rowOf(dupRel))) !== null, 30000);
           await from.hover(rowOf(dupRel));
           await from.click(selector(`tree-row-menu-${slug(dupRel.replace(/\.tsx$/, ''))}`));
           const start = performance.now();
@@ -2221,7 +2236,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             all,
             `L04-duplicate-${from.name}`,
             start,
-            async (p) => (await p.read(rowOf(copyRel))) !== null && (await p.read(rowOf(dupRel))) !== null,
+            async (p) =>
+              (await p.read(rowOf(copyRel))) !== null && (await p.read(rowOf(dupRel))) !== null,
             (p) =>
               existsSync(join(p.root, '.design', copyRel)) &&
               readFileSync(join(p.root, '.design', copyRel), 'utf8') === dupBody &&
@@ -2230,7 +2246,10 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           // The copy opens and renders on a receiver, independently of the original.
           const receiver = all.find((p) => p !== from) as Surface;
           await openCanvas(receiver, copyRel);
-          await until(async () => (await receiver.read('h1', true)) === `Duplicate ${from.name}`, 30000);
+          await until(
+            async () => (await receiver.read('h1', true)) === `Duplicate ${from.name}`,
+            30000
+          );
           return result;
         });
       }
@@ -2240,9 +2259,11 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
       // the subtree — every descendant and sidecar follows, nothing ghosts.
       const folderRow = (dir: string) => selector(`tree-folder-${slug(dir)}`);
       const expand = async (p: Surface, dir: string) => {
-        if ((await p.read(`${folderRow(dir)}[aria-expanded="false"]`)) !== null) await p.click(folderRow(dir));
+        if ((await p.read(`${folderRow(dir)}[aria-expanded="false"]`)) !== null)
+          await p.click(folderRow(dir));
       };
-      const annotationsOf = (rel: string) => `${slug(rel.replace(/\.tsx$/, '')).replace(/-+$/, '')}.annotations.svg`;
+      const annotationsOf = (rel: string) =>
+        `${slug(rel.replace(/\.tsx$/, '')).replace(/-+$/, '')}.annotations.svg`;
       const has = (p: Surface, rel: string) => existsSync(join(p.root, '.design', rel));
       for (const from of all) {
         const top = `Tree-${from.name}`;
@@ -2313,7 +2334,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           );
         });
         await check('L02.nested.rename', `${from.name}-to-peers`, async () => {
-          if (all.some((p) => !has(p, inner()))) throw new Unexercised('Rename needs the moved hierarchy everywhere');
+          if (all.some((p) => !has(p, inner())))
+            throw new Unexercised('Rename needs the moved hierarchy everywhere');
           const oldBase = base;
           const oldInner = inner();
           await expand(from, `ui/${dest}`);
@@ -2330,7 +2352,10 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             start,
             async (p) => {
               await expand(p, `ui/${dest}`);
-              return (await p.read(folderRow(oldBase))) === null && (await p.read(folderRow(base))) !== null;
+              return (
+                (await p.read(folderRow(oldBase))) === null &&
+                (await p.read(folderRow(base))) !== null
+              );
             },
             (p) =>
               has(p, inner()) &&
@@ -2341,8 +2366,14 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           );
         });
         await check('L02.nested.delete-subtree', `${from.name}-to-peers`, async () => {
-          if (all.some((p) => !has(p, inner()))) throw new Unexercised('Delete needs the hierarchy everywhere');
-          const doomed = { dir: base, canvas: inner(), meta: inner().replace(/\.tsx$/, '.meta.json'), annotations: annotationsOf(inner()) };
+          if (all.some((p) => !has(p, inner())))
+            throw new Unexercised('Delete needs the hierarchy everywhere');
+          const doomed = {
+            dir: base,
+            canvas: inner(),
+            meta: inner().replace(/\.tsx$/, '.meta.json'),
+            annotations: annotationsOf(inner()),
+          };
           await expand(from, `ui/${dest}`);
           await from.hover(folderRow(base));
           await from.click(selector(`tree-row-menu-${slug(base)}`));
@@ -2353,8 +2384,14 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             all,
             `L02-delete-${from.name}`,
             start,
-            async (p) => (await p.read(folderRow(doomed.dir))) === null && (await p.read(rowOf(doomed.canvas))) === null,
-            (p) => !has(p, doomed.canvas) && !has(p, doomed.meta) && !has(p, doomed.annotations) && !has(p, doomed.dir)
+            async (p) =>
+              (await p.read(folderRow(doomed.dir))) === null &&
+              (await p.read(rowOf(doomed.canvas))) === null,
+            (p) =>
+              !has(p, doomed.canvas) &&
+              !has(p, doomed.meta) &&
+              !has(p, doomed.annotations) &&
+              !has(p, doomed.dir)
           );
         });
       }
@@ -2364,7 +2401,10 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
       const commentsOf = (p: Surface, rel: string) => {
         try {
           const raw = JSON.parse(
-            readFileSync(join(p.root, '.design', '_comments', `${slug(rel.replace(/\.tsx$/, ''))}.json`), 'utf8')
+            readFileSync(
+              join(p.root, '.design', '_comments', `${slug(rel.replace(/\.tsx$/, ''))}.json`),
+              'utf8'
+            )
           );
           return (Array.isArray(raw) ? raw : (raw.comments ?? [])) as Array<{
             id: string;
@@ -2392,7 +2432,9 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           await openSeeded(rel, `Comments ${from.name}`, `L11-${from.name}`);
           await gesture(from, '.dc-tool-palette button[aria-label^="Comment"]', 'click');
           await gesture(from, 'h1', 'pointer');
-          await until(async () => !!(await from.probe('[aria-label="Comment body"]'))?.visible).catch(async (error) => {
+          await until(
+            async () => !!(await from.probe('[aria-label="Comment body"]'))?.visible
+          ).catch(async (error) => {
             await from.screenshot(join(run.out, `L11-composer-${from.name}-failed.png`));
             throw error;
           });
@@ -2423,11 +2465,19 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             `L11-reply-${from.name}`,
             start,
             async (p) => {
-              if (!commentsOf(p, rel).find((c) => c.id === id)?.replies?.some((r) => r.body === reply)) return false;
+              if (
+                !commentsOf(p, rel)
+                  .find((c) => c.id === id)
+                  ?.replies?.some((r) => r.body === reply)
+              )
+                return false;
               await openThread(p, id);
               return ((await p.read('.cm-thread', true)) ?? '').includes(reply);
             },
-            (p) => !!commentsOf(p, rel).find((c) => c.id === id)?.replies?.some((r) => r.body === reply)
+            (p) =>
+              !!commentsOf(p, rel)
+                .find((c) => c.id === id)
+                ?.replies?.some((r) => r.body === reply)
           );
         });
         for (const [action, label, status] of [
@@ -2479,10 +2529,14 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         const dest = `NoteDest-${from.name}`;
         const fileRow = (r: string) => selector(`file-row-${slug(r)}`);
         const bytesOf = (p: Surface, r: string) =>
-          existsSync(join(p.root, '.design', r)) ? readFileSync(join(p.root, '.design', r)).toString('base64') : null;
+          existsSync(join(p.root, '.design', r))
+            ? readFileSync(join(p.root, '.design', r)).toString('base64')
+            : null;
         // Two different, valid 1×1 PNGs (the second is a real re-save).
-        const png1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
-        const png2 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+        const png1 =
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
+        const png2 =
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
         const body1 = png1;
         const body2 = png2;
         await check('L03.file.create', `${from.name}-to-peers`, async () => {
@@ -2499,13 +2553,21 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           );
         });
         await check('L03.file.edit', `${from.name}-to-peers`, async () => {
-          if (all.some((p) => bytesOf(p, rel) !== body1)) throw new Unexercised('Edit needs the note everywhere');
+          if (all.some((p) => bytesOf(p, rel) !== body1))
+            throw new Unexercised('Edit needs the note everywhere');
           const start = performance.now();
           writeFileSync(join(from.root, '.design', rel), Buffer.from(body2, 'base64'));
-          return observeAll(all, `L03-edit-${from.name}`, start, async () => true, (p) => bytesOf(p, rel) === body2);
+          return observeAll(
+            all,
+            `L03-edit-${from.name}`,
+            start,
+            async () => true,
+            (p) => bytesOf(p, rel) === body2
+          );
         });
         await check('L03.file.rename', `${from.name}-to-peers`, async () => {
-          if (all.some((p) => bytesOf(p, rel) !== body2)) throw new Unexercised('Rename needs the edited note everywhere');
+          if (all.some((p) => bytesOf(p, rel) !== body2))
+            throw new Unexercised('Rename needs the edited note everywhere');
           const old = rel;
           const next = `ui/Notes-${from.name}-renamed.png`;
           await from.hover(fileRow(old));
@@ -2518,12 +2580,14 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             all,
             `L03-rename-${from.name}`,
             start,
-            async (p) => (await p.read(fileRow(old))) === null && (await p.read(fileRow(next))) !== null,
+            async (p) =>
+              (await p.read(fileRow(old))) === null && (await p.read(fileRow(next))) !== null,
             (p) => bytesOf(p, old) === null && bytesOf(p, next) === body2
           );
         });
         await check('L03.file.move', `${from.name}-to-peers`, async () => {
-          if (all.some((p) => bytesOf(p, rel) !== body2)) throw new Unexercised('Move needs the note everywhere');
+          if (all.some((p) => bytesOf(p, rel) !== body2))
+            throw new Unexercised('Move needs the note everywhere');
           const old = rel;
           const next = `ui/${dest}/${old.split('/').pop()}`;
           await from.hover(fileRow(old));
@@ -2541,7 +2605,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           );
         });
         await check('L03.file.delete', `${from.name}-to-peers`, async () => {
-          if (all.some((p) => bytesOf(p, rel) !== body2)) throw new Unexercised('Delete needs the note everywhere');
+          if (all.some((p) => bytesOf(p, rel) !== body2))
+            throw new Unexercised('Delete needs the note everywhere');
           const doomed = rel;
           await expand(from, `ui/${dest}`);
           await until(async () => (await from.read(fileRow(doomed))) !== null);
@@ -2571,40 +2636,75 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           await seedCanvas(all[0] as Surface, rel, elementCanvas('Presence'));
           const start = performance.now();
           await openSeeded(rel, 'Presence', 'L19-join');
-          return observeAll(all, 'L19-join', start, async (p) => (await count(p, people)) === all.length - 1);
+          return observeAll(
+            all,
+            'L19-join',
+            start,
+            async (p) => (await count(p, people)) === all.length - 1
+          );
         });
         for (const from of all) {
           await check('L19.cursor.move', `${from.name}-to-peers`, async () => {
             const others = all.filter((p) => p !== from);
             const start = performance.now();
             await gesture(from, 'p', 'pointer', { dx: 40, dy: 10 });
-            return observeAll(others, `L19-cursor-${from.name}`, start, async (p) => (await count(p, '.dc-cursor')) >= 1);
+            return observeAll(
+              others,
+              `L19-cursor-${from.name}`,
+              start,
+              async (p) => (await count(p, '.dc-cursor')) >= 1
+            );
           });
           await check('L19.selection.shown', `${from.name}-to-peers`, async () => {
             const others = all.filter((p) => p !== from);
             await gesture(from, selector('palette-mode-edit'), 'click');
             const start = performance.now();
             await gesture(from, 'h1', 'click');
-            return observeAll(others, `L19-select-${from.name}`, start, async (p) => (await count(p, '.dc-peer-selection')) >= 1);
+            return observeAll(
+              others,
+              `L19-select-${from.name}`,
+              start,
+              async (p) => (await count(p, '.dc-peer-selection')) >= 1
+            );
           });
         }
         await check('L19.camera.stays-local', 'all', async () => {
           const from = all[0] as Surface;
           const contentBefore = all.map((p) => readFileSync(join(p.root, '.design', rel), 'utf8'));
-          const metaPath = (p: Surface) => join(p.root, '.design', rel.replace(/\.tsx$/, '.meta.json'));
-          const metaBefore = all.map((p) => (existsSync(metaPath(p)) ? readFileSync(metaPath(p), 'utf8') : null));
-          const viewPath = (p: Surface) => join(p.root, '.design', '_canvas-state', `${slug(rel.replace(/\.tsx$/, ''))}.view.json`);
-          const viewsBefore = all.map((p) => (existsSync(viewPath(p)) ? readFileSync(viewPath(p), 'utf8') : null));
+          const metaPath = (p: Surface) =>
+            join(p.root, '.design', rel.replace(/\.tsx$/, '.meta.json'));
+          const metaBefore = all.map((p) =>
+            existsSync(metaPath(p)) ? readFileSync(metaPath(p), 'utf8') : null
+          );
+          const viewPath = (p: Surface) =>
+            join(
+              p.root,
+              '.design',
+              '_canvas-state',
+              `${slug(rel.replace(/\.tsx$/, ''))}.view.json`
+            );
+          const viewsBefore = all.map((p) =>
+            existsSync(viewPath(p)) ? readFileSync(viewPath(p), 'utf8') : null
+          );
           // A real pan: drag the empty canvas with the hand tool.
           await gesture(from, '.dc-tool-palette button[aria-label^="Hand"]', 'click');
           await gesture(from, '.dc-canvas', 'pointer', { x: 0.05, y: 0.5, dx: 120, dy: 60 });
           await sleep(3000);
           const leaked = all
             .filter((p) => p !== from)
-            .filter((p) => (existsSync(viewPath(p)) ? readFileSync(viewPath(p), 'utf8') : null) !== viewsBefore[all.indexOf(p)])
+            .filter(
+              (p) =>
+                (existsSync(viewPath(p)) ? readFileSync(viewPath(p), 'utf8') : null) !==
+                viewsBefore[all.indexOf(p)]
+            )
             .map((p) => p.name);
-          const contentChanged = all.some((p, i) => readFileSync(join(p.root, '.design', rel), 'utf8') !== contentBefore[i]);
-          const metaChanged = all.some((p, i) => (existsSync(metaPath(p)) ? readFileSync(metaPath(p), 'utf8') : null) !== metaBefore[i]);
+          const contentChanged = all.some(
+            (p, i) => readFileSync(join(p.root, '.design', rel), 'utf8') !== contentBefore[i]
+          );
+          const metaChanged = all.some(
+            (p, i) =>
+              (existsSync(metaPath(p)) ? readFileSync(metaPath(p), 'utf8') : null) !== metaBefore[i]
+          );
           await gesture(from, selector('palette-mode-edit'), 'click');
           return {
             status: leaked.length === 0 && !contentChanged && !metaChanged ? 'pass' : 'fail',
@@ -2618,7 +2718,12 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           const others = all.filter((p) => p !== from);
           const start = performance.now();
           await openCanvas(from, 'ui/SurfaceText.tsx');
-          return observeAll(others, 'L19-leave', start, async (p) => (await count(p, people)) === all.length - 2);
+          return observeAll(
+            others,
+            'L19-leave',
+            start,
+            async (p) => (await count(p, people)) === all.length - 2
+          );
         });
       }
       // L20 — one desktop drops off the network (its hub link is cut, its own
@@ -2633,17 +2738,23 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         const mine = 'ui/SurfaceOffline.tsx';
         const theirs = 'ui/SurfaceOffline-theirs.tsx';
         const text = (p: Surface, r: string) =>
-          existsSync(join(p.root, '.design', r)) ? readFileSync(join(p.root, '.design', r), 'utf8') : null;
+          existsSync(join(p.root, '.design', r))
+            ? readFileSync(join(p.root, '.design', r), 'utf8')
+            : null;
         const syncState = (p: Surface) => {
           try {
-            return JSON.parse(readFileSync(join(p.root, '.design', '_sync.json'), 'utf8')).state as string;
+            return JSON.parse(readFileSync(join(p.root, '.design', '_sync.json'), 'utf8'))
+              .state as string;
           } catch {
             return null;
           }
         };
         await check('L20.offline.edit-then-catch-up', 'peer-offline', async () => {
           if (!peer || !hubSide || !nativeSide || !control)
-            return { status: 'unsupported', reason: 'This run has no toggle proxy in front of desktop B.' };
+            return {
+              status: 'unsupported',
+              reason: 'This run has no toggle proxy in front of desktop B.',
+            };
           const base = elementCanvas('Offline base');
           await seedCanvas(hubSide, mine, base);
           await fetch(`${control}/offline`, { method: 'POST' });
@@ -2664,7 +2775,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             writeFileSync(join(nativeSide.root, '.design', theirs), theirsBody);
             await until(() => text(hubSide, theirs) === theirsBody, 30000);
             await sleep(2000);
-            if (text(hubSide, mine) !== base) throw new Error('An offline edit reached the hub while cut off');
+            if (text(hubSide, mine) !== base)
+              throw new Error('An offline edit reached the hub while cut off');
             const start = performance.now();
             await fetch(`${control}/online`, { method: 'POST' });
             return {
@@ -2690,7 +2802,9 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         const good = elementCanvas(`Valid ${from.name}`);
         const fixed = elementCanvas(`Fixed ${from.name}`);
         const text = (p: Surface) =>
-          existsSync(join(p.root, '.design', rel)) ? readFileSync(join(p.root, '.design', rel), 'utf8') : null;
+          existsSync(join(p.root, '.design', rel))
+            ? readFileSync(join(p.root, '.design', rel), 'utf8')
+            : null;
         await check('L22.invalid-candidate.held', `${from.name}-to-peers`, async () => {
           await seedCanvas(from, rel, good);
           const broken = good.replace('</section>', '<section>');
@@ -2705,10 +2819,21 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           const leaked = all.filter((p) => p !== from && text(p) !== good).map((p) => p.name);
           const start = performance.now();
           writeFileSync(join(from.root, '.design', rel), fixed);
-          const recovered = await observeAll(all, `L22-invalid-${from.name}`, start, async () => true, (p) => text(p) === fixed);
+          const recovered = await observeAll(
+            all,
+            `L22-invalid-${from.name}`,
+            start,
+            async () => true,
+            (p) => text(p) === fixed
+          );
           return {
             ...recovered,
-            status: leaked.length === 0 && /attention|conflict|invalid|resolve|could not/i.test(shown) && recovered.status === 'pass' ? 'pass' : 'fail',
+            status:
+              leaked.length === 0 &&
+              /attention|conflict|invalid|resolve|could not/i.test(shown) &&
+              recovered.status === 'pass'
+                ? 'pass'
+                : 'fail',
             authorStatus: shown.slice(0, 160),
             leakedTo: leaked,
           };
@@ -2723,9 +2848,14 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         const node = (p: Surface, id: string) => {
           const path = join(p.root, '.design', sidecar);
           if (!existsSync(path)) return null;
-          return readFileSync(path, 'utf8').match(/<image\b[^>]*>/g)?.find((n) => n.includes(`data-id="${id}"`)) ?? null;
+          return (
+            readFileSync(path, 'utf8')
+              .match(/<image\b[^>]*>/g)
+              ?.find((n) => n.includes(`data-id="${id}"`)) ?? null
+          );
         };
-        const hrefOf = (svgNode: string | null) => /href="([^"]+)"/.exec(svgNode ?? '')?.[1] ?? null;
+        const hrefOf = (svgNode: string | null) =>
+          /href="([^"]+)"/.exec(svgNode ?? '')?.[1] ?? null;
         const q = (id: string) => `[data-id="${id}"]`;
         const decoded = async (p: Surface, id: string) => {
           const r = await p.probe(`image[data-id="${id}"], [data-id="${id}"] image`);
@@ -2736,9 +2866,12 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           await seedCanvas(from, rel, elementCanvas(`Stickers ${from.name}`));
           await openSeeded(rel, `Stickers ${from.name}`, `L10-${from.name}`);
           await gesture(from, selector('palette-mode-edit'), 'click');
-          const before = new Set((await from.probe('[data-tool="image"][data-id]'))?.matches?.map((m) => m.id));
+          const before = new Set(
+            (await from.probe('[data-tool="image"][data-id]'))?.matches?.map((m) => m.id)
+          );
           await gesture(from, '.dc-tool-palette button[aria-label="Stickers"]', 'click');
-          const firstSticker = '[aria-label="Stickers"] .st-sp-body > div:first-child .st-sp-cell:first-child';
+          const firstSticker =
+            '[aria-label="Stickers"] .st-sp-body > div:first-child .st-sp-cell:first-child';
           await until(async () => (await from.read(firstSticker)) !== null, 15000);
           const start = performance.now();
           await from.click(firstSticker).catch(async (error) => {
@@ -2748,8 +2881,9 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           });
           await until(async () => {
             id =
-              (await from.probe('[data-tool="image"][data-id]'))?.matches?.find((m) => m.id && !before.has(m.id))?.id ??
-              undefined;
+              (await from.probe('[data-tool="image"][data-id]'))?.matches?.find(
+                (m) => m.id && !before.has(m.id)
+              )?.id ?? undefined;
             return !!id;
           });
           const sid = id as string;
@@ -2834,7 +2968,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
       for (const from of all) {
         const rel = `ui/SurfaceBoards-${from.name}.tsx`;
         const src = (p: Surface) => readFileSync(join(p.root, '.design', rel), 'utf8');
-        const addedId = (p: Surface) => /<DCArtboard id="([^"]+)" label="Mobile"/.exec(src(p))?.[1] ?? null;
+        const addedId = (p: Surface) =>
+          /<DCArtboard id="([^"]+)" label="Mobile"/.exec(src(p))?.[1] ?? null;
         await check('L08.artboard.add', `${from.name}-to-peers`, async () => {
           await seedCanvas(from, rel, boardsCanvas(`Boards ${from.name}`));
           await openSeeded(rel, `Boards ${from.name}`, `L08-${from.name}`);
@@ -2865,7 +3000,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             all,
             `L08-rename-${from.name}`,
             start,
-            async (p) => ((await p.read(boardLabel(id), true)) ?? '').includes(`Phone ${from.name}`),
+            async (p) =>
+              ((await p.read(boardLabel(id), true)) ?? '').includes(`Phone ${from.name}`),
             (p) => src(p).includes(`id="${id}" label="Phone ${from.name}"`)
           );
         });
@@ -2881,8 +3017,12 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           for (const p of all) before.set(p.name, await gap(p));
           const metaX = (p: Surface) => {
             try {
-              const meta = JSON.parse(readFileSync(join(p.root, '.design', rel.replace(/\.tsx$/, '.meta.json')), 'utf8'));
-              return (meta.layout?.artboards ?? []).find((r: { id: string }) => r.id === id)?.x ?? null;
+              const meta = JSON.parse(
+                readFileSync(join(p.root, '.design', rel.replace(/\.tsx$/, '.meta.json')), 'utf8')
+              );
+              return (
+                (meta.layout?.artboards ?? []).find((r: { id: string }) => r.id === id)?.x ?? null
+              );
             } catch {
               return null;
             }
@@ -2935,7 +3075,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             all,
             `L07-duplicate-${from.name}`,
             start,
-            async (p) => (await headings(p)) === 2 && (await p.read('p', true)) === 'Kept paragraph',
+            async (p) =>
+              (await headings(p)) === 2 && (await p.read('p', true)) === 'Kept paragraph',
             (p) => count(p, rel, '<h1') === 2 && count(p, rel, 'Kept paragraph') === 1
           );
         });
@@ -2945,7 +3086,10 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           const before = all.map((p) => texts(p));
           await gesture(from, selector('palette-mode-edit'), 'click');
           await gesture(from, '[aria-label="Insert element — Div, Text, or Image"]', 'click');
-          await until(async () => !!(await from.probe('[aria-label="Insert element"] [role="menuitem"]'))?.visible);
+          await until(
+            async () =>
+              !!(await from.probe('[aria-label="Insert element"] [role="menuitem"]'))?.visible
+          );
           const start = performance.now();
           await gesture(from, '.dc-tp-insert-popover button:nth-of-type(2)', 'click');
           return observeAll(
@@ -2962,7 +3106,11 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               throw new Unexercised(`Delete needs the duplicated heading at ${p.name}`);
           await selectHeading(from);
           // The insert above left its new text selected: pick the heading.
-          for (let n = 0; n < 6 && !((await from.read('.st-sb-sel .val')) ?? '').includes(`Element ${from.name}`); n++) {
+          for (
+            let n = 0;
+            n < 6 && !((await from.read('.st-sb-sel .val')) ?? '').includes(`Element ${from.name}`);
+            n++
+          ) {
             await gesture(from, 'h1', n === 0 ? 'click' : 'doubleClick');
             await sleep(150);
           }
@@ -2970,7 +3118,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           // chip, on a canvas that has stopped re-rendering the duplicate.
           await until(async () => {
             const chip = await from.read('.st-sb-sel .val');
-            if (!chip?.includes(`Element ${from.name}`) || (await headings(from)) !== 2) return false;
+            if (!chip?.includes(`Element ${from.name}`) || (await headings(from)) !== 2)
+              return false;
             await sleep(300);
             return (await headings(from)) === 2 && !!(await from.read('.st-sb-sel .val'));
           });
@@ -2980,7 +3129,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             all,
             `L07-delete-${from.name}`,
             start,
-            async (p) => (await headings(p)) === 1 && (await p.read('p', true)) === 'Kept paragraph',
+            async (p) =>
+              (await headings(p)) === 1 && (await p.read('p', true)) === 'Kept paragraph',
             (p) => count(p, rel, '<h1') === 1 && count(p, rel, 'Kept paragraph') === 1
           );
         });
@@ -3000,7 +3150,10 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           await Promise.all([from.select(weight, '300'), other.select(weight, '800')]);
           const settled = await until(() => {
             const vals = all.map((p) => readFileSync(join(p.root, '.design', rel), 'utf8'));
-            return vals.every((v) => v === vals[0]) && /fontWeight:\s*"(300|800)"/.test(vals[0] as string);
+            return (
+              vals.every((v) => v === vals[0]) &&
+              /fontWeight:\s*"(300|800)"/.test(vals[0] as string)
+            );
           }, 30000)
             .then(() => true)
             .catch(() => false);
@@ -3017,7 +3170,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           const winner = /fontWeight:\s*"(300|800)"/.exec(
             readFileSync(join(from.root, '.design', rel), 'utf8')
           )?.[1];
-          for (const p of all) await p.screenshot(join(run.out, `L21-race-${from.name}-${p.name}.png`));
+          for (const p of all)
+            await p.screenshot(join(run.out, `L21-race-${from.name}-${p.name}.png`));
           return {
             status: settled && conflicts.every((c) => !c) ? 'pass' : 'fail',
             convergedMs: settled ? performance.now() - start : null,
@@ -3037,7 +3191,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           await gesture(p, q, level === 0 ? 'click' : 'doubleClick');
           await sleep(150);
         }
-        if ((await p.read(weight)) === null) throw new Error(`Inspector knob absent after selecting ${q} at ${p.name}`);
+        if ((await p.read(weight)) === null)
+          throw new Error(`Inspector knob absent after selecting ${q} at ${p.name}`);
       };
       for (const [i, from] of all.entries()) {
         const other = all[(i + 1) % all.length] as Surface;
@@ -3056,7 +3211,10 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           const title = `Retitled by ${from.name}`;
           await gesture(from, editor, 'editText', title);
           const start = performance.now();
-          await Promise.all([gesture(from, editor, 'key', { key: 'Enter' }), other.select(weight, '700')]);
+          await Promise.all([
+            gesture(from, editor, 'key', { key: 'Enter' }),
+            other.select(weight, '700'),
+          ]);
           const src = (p: Surface) => readFileSync(join(p.root, '.design', rel), 'utf8');
           return observeAll(
             all,
@@ -3080,8 +3238,13 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         const src = (p: Surface) => readFileSync(join(p.root, '.design', rel), 'utf8');
         const rowsQ = '[data-testid^="project-history-row-"]';
         const openHistory = async (p: Surface) => {
-          if ((await p.read(selector('dock-tab-changes'))) !== null) await p.click(selector('dock-tab-changes'));
-          await until(async () => ((await p.probe('body'))?.visible ?? false) && (await p.read(rowsQ)) !== null, 30000);
+          if ((await p.read(selector('dock-tab-changes'))) !== null)
+            await p.click(selector('dock-tab-changes'));
+          await until(
+            async () =>
+              ((await p.probe('body'))?.visible ?? false) && (await p.read(rowsQ)) !== null,
+            30000
+          );
         };
         const author = all[0] as Surface;
         const teammate = all[1] as Surface;
@@ -3093,9 +3256,17 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           writeFileSync(join(author.root, '.design', rel), v2);
           await until(() => all.every((p) => src(p) === v2), 30000);
           await openHistory(author);
-          await until(async () => (await author.read(`.gp-version:nth-of-type(2) [data-testid^="project-history-restore-"]`)) !== null, 30000);
+          await until(
+            async () =>
+              (await author.read(
+                `.gp-version:nth-of-type(2) [data-testid^="project-history-restore-"]`
+              )) !== null,
+            30000
+          );
           const start = performance.now();
-          await author.click(`.gp-version:nth-of-type(2) [data-testid^="project-history-restore-"]`);
+          await author.click(
+            `.gp-version:nth-of-type(2) [data-testid^="project-history-restore-"]`
+          );
           return observeAll(
             all,
             'L18-restore',
@@ -3104,29 +3275,39 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             (p) => src(p) === v1
           );
         });
-        await check('L18.history.undo-own-keeps-teammate', `${author.name}-with-${teammate.name}`, async () => {
-          const base = src(author);
-          if (!base.includes('History v1')) throw new Unexercised('Undo needs the restored canvas');
-          const mine = version('History mine');
-          writeFileSync(join(author.root, '.design', rel), mine);
-          await until(() => all.every((p) => src(p) === mine), 30000);
-          // The teammate's later, independent change to the same canvas.
-          const theirs = version('History mine', 'Paragraph by teammate');
-          writeFileSync(join(teammate.root, '.design', rel), theirs);
-          await until(() => all.every((p) => src(p) === theirs), 30000);
-          await openHistory(author);
-          await until(async () => (await author.read('[data-testid^="project-history-undo-"]')) !== null, 30000);
-          const expected = version('History v1', 'Paragraph by teammate');
-          const start = performance.now();
-          await author.click('[data-testid^="project-history-undo-"]');
-          return observeAll(
-            all,
-            'L18-undo-own',
-            start,
-            async (p) => (await p.read('h1', true)) === 'History v1' && (await p.read('p', true)) === 'Paragraph by teammate',
-            (p) => src(p) === expected
-          );
-        });
+        await check(
+          'L18.history.undo-own-keeps-teammate',
+          `${author.name}-with-${teammate.name}`,
+          async () => {
+            const base = src(author);
+            if (!base.includes('History v1'))
+              throw new Unexercised('Undo needs the restored canvas');
+            const mine = version('History mine');
+            writeFileSync(join(author.root, '.design', rel), mine);
+            await until(() => all.every((p) => src(p) === mine), 30000);
+            // The teammate's later, independent change to the same canvas.
+            const theirs = version('History mine', 'Paragraph by teammate');
+            writeFileSync(join(teammate.root, '.design', rel), theirs);
+            await until(() => all.every((p) => src(p) === theirs), 30000);
+            await openHistory(author);
+            await until(
+              async () => (await author.read('[data-testid^="project-history-undo-"]')) !== null,
+              30000
+            );
+            const expected = version('History v1', 'Paragraph by teammate');
+            const start = performance.now();
+            await author.click('[data-testid^="project-history-undo-"]');
+            return observeAll(
+              all,
+              'L18-undo-own',
+              start,
+              async (p) =>
+                (await p.read('h1', true)) === 'History v1' &&
+                (await p.read('p', true)) === 'Paragraph by teammate',
+              (p) => src(p) === expected
+            );
+          }
+        );
       }
       // L16 — a design-system token edited on one machine restyles the canvas
       // that uses it on every machine: the dependency travels with the canvas
@@ -3144,7 +3325,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           await seedCanvas(from, rel, canvas);
           await openSeeded(rel, 'Token heading', 'L16-tokens');
           await until(async () => {
-            for (const p of all) if ((await p.probe('h1'))?.color !== 'rgb(10, 20, 30)') return false;
+            for (const p of all)
+              if ((await p.probe('h1'))?.color !== 'rgb(10, 20, 30)') return false;
             return true;
           }, 30000);
           const start = performance.now();
@@ -3168,8 +3350,16 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               if (e.name.startsWith('_') || e.name.startsWith('.')) continue;
               const r = rel ? `${rel}/${e.name}` : e.name;
               if (e.isDirectory()) walk(join(dir, e.name), r);
-              else if (/\.(tsx|meta\.json|annotations\.svg)$/.test(e.name) && !/-conflict-/.test(e.name))
-                out.set(r, createHash('sha256').update(readFileSync(join(dir, e.name))).digest('hex'));
+              else if (
+                /\.(tsx|meta\.json|annotations\.svg)$/.test(e.name) &&
+                !/-conflict-/.test(e.name)
+              )
+                out.set(
+                  r,
+                  createHash('sha256')
+                    .update(readFileSync(join(dir, e.name)))
+                    .digest('hex')
+                );
             }
           };
           walk(join(root, '.design', 'ui'), 'ui');
@@ -3183,8 +3373,15 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           const hashes = Object.fromEntries(maps.map(([n, m]) => [n, m.get(rel) ?? null]));
           if (new Set(Object.values(hashes)).size !== 1) mismatches.push({ rel, hashes });
         }
-        writeFileSync(join(run.out, 'L24-final-parity.json'), JSON.stringify({ files: paths.size, mismatches }, null, 2));
-        return { status: mismatches.length === 0 ? 'pass' : 'fail', files: paths.size, mismatches: mismatches.slice(0, 20) };
+        writeFileSync(
+          join(run.out, 'L24-final-parity.json'),
+          JSON.stringify({ files: paths.size, mismatches }, null, 2)
+        );
+        return {
+          status: mismatches.length === 0 ? 'pass' : 'fail',
+          files: paths.size,
+          mismatches: mismatches.slice(0, 20),
+        };
       });
     } catch (error) {
       record({ id: 'bootstrap-or-scenario-driver', status: 'fail', error: String(error) });

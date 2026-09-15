@@ -583,8 +583,13 @@ function buildInventory() {
     resetLinkState: reset,
     synthetic: {
       large: synthetic,
-      small: { files: PROFILE.smallFiles, bytes: smallBytes, pattern: 'assets/t32-small/still-NNN.png' },
-      generator: 'AES-256-CTR keystream keyed by sha256("t32-scale:"+rel), after an ISO-BMFF ftyp box; streamed in 8 MiB chunks',
+      small: {
+        files: PROFILE.smallFiles,
+        bytes: smallBytes,
+        pattern: 'assets/t32-small/still-NNN.png',
+      },
+      generator:
+        'AES-256-CTR keystream keyed by sha256("t32-scale:"+rel), after an ISO-BMFF ftyp box; streamed in 8 MiB chunks',
       generateMs: Date.now() - tg,
     },
   };
@@ -633,7 +638,9 @@ async function startHub() {
   );
   const end = Date.now() + 60_000;
   while (Date.now() < end) {
-    const text = existsSync(join(P.logs, 'hub.log')) ? readFileSync(join(P.logs, 'hub.log'), 'utf8') : '';
+    const text = existsSync(join(P.logs, 'hub.log'))
+      ? readFileSync(join(P.logs, 'hub.log'), 'utf8')
+      : '';
     const line = text.split('\n').find((l) => l.startsWith('{') && l.includes('"http"'));
     if (line) return true;
     if (children.get('hub')?.exited) break;
@@ -658,7 +665,9 @@ function journalRows() {
   try {
     db = new Database(file, { readonly: true, fileMustExist: true });
     return db
-      .prepare('SELECT seq, path, sha256, size, deleted, source, at_ms FROM file_journal ORDER BY seq')
+      .prepare(
+        'SELECT seq, path, sha256, size, deleted, source, at_ms FROM file_journal ORDER BY seq'
+      )
       .all();
   } catch {
     return null;
@@ -705,7 +714,14 @@ function uploadSessions() {
         /* raced a completion */
       }
     }
-    out.push({ id, path: s.path, size: s.size, parts: s.parts, completedAt: s.completedAt ?? null, have: parts });
+    out.push({
+      id,
+      path: s.path,
+      size: s.size,
+      parts: s.parts,
+      completedAt: s.completedAt ?? null,
+      have: parts,
+    });
   }
   return out;
 }
@@ -733,7 +749,9 @@ function hubsConfig(who) {
   mkdirSync(P.homes, { recursive: true });
   writeFileSync(
     p,
-    JSON.stringify({ hubs: { [HUB_URL]: { token: tokens[who], role: 'owner', linkedAt: Date.now() } } }),
+    JSON.stringify({
+      hubs: { [HUB_URL]: { token: tokens[who], role: 'owner', linkedAt: Date.now() } },
+    }),
     { mode: 0o600 }
   );
   return p;
@@ -746,7 +764,14 @@ async function startStudio(who, root) {
   spawnLogged(
     name,
     'bun',
-    ['--no-env-file', join(ROOT, 'apps/studio/server.ts'), '--root', root, '--port', String(PORTS[who])],
+    [
+      '--no-env-file',
+      join(ROOT, 'apps/studio/server.ts'),
+      '--root',
+      root,
+      '--port',
+      String(PORTS[who]),
+    ],
     cleanEnv({
       ...isolatedHome(`client-${who}`),
       HUBS_CONFIG_PATH: hubsConfig(who),
@@ -758,7 +783,8 @@ async function startStudio(who, root) {
   );
   const t0 = t();
   const ok = await reachable(`http://127.0.0.1:${PORTS[who]}/_health`);
-  if (!ok) throw new Error(`${name} never answered /_health — see ${rel(join(P.logs, `${name}.log`))}`);
+  if (!ok)
+    throw new Error(`${name} never answered /_health — see ${rel(join(P.logs, `${name}.log`))}`);
   return { name, spawnedAt: t0, healthyAt: t() };
 }
 
@@ -846,7 +872,8 @@ async function main() {
   await environment();
   if (existsSync(WORK)) rmSync(WORK, { recursive: true, force: true });
   mkdirSync(WORK, { recursive: true });
-  const distBefore = (await exec('git', ['-C', ROOT, 'status', '--short', 'apps/studio/dist/'])).stdout;
+  const distBefore = (await exec('git', ['-C', ROOT, 'status', '--short', 'apps/studio/dist/']))
+    .stdout;
 
   log(`building the ${SCALE} inventory under ${WORK}`);
   const inv = buildInventory();
@@ -874,12 +901,18 @@ async function main() {
       byExt[k].bytes += x.size;
       if (byExt[k].examples.length < 3) byExt[k].examples.push(x.rel);
     }
-    report.inventory.excludedButGitTracked = { files: gap.length, bytes: gap.reduce((n, x) => n + x.size, 0), byExtension: byExt };
+    report.inventory.excludedButGitTracked = {
+      files: gap.length,
+      bytes: gap.reduce((n, x) => n + x.size, 0),
+      byExtension: byExt,
+    };
   } catch {
     report.inventory.excludedButGitTracked = null;
   }
   const planeB = [...aInv.eligible].filter(([, e]) => e.plane === 'B');
-  const canvases = [...aInv.eligible].filter(([r, e]) => e.cls === 'canvas-owned' && r.endsWith('.tsx'));
+  const canvases = [...aInv.eligible].filter(
+    ([r, e]) => e.cls === 'canvas-owned' && r.endsWith('.tsx')
+  );
   log(
     `inventory: raw ${aInv.files.length} files / ${(summarize(aInv).raw.bytes / MIB).toFixed(0)} MiB · eligible ${aInv.eligible.size} (${planeB.length} Plane-B, ${canvases.length} canvases) · excluded ${aInv.excluded.length}`
   );
@@ -922,16 +955,32 @@ async function main() {
       if (partBytes > hubWatch.partBytesPeak) hubWatch.partBytesPeak = partBytes;
       for (const s of sessions) {
         if (!hubWatch.sessionsSeen.has(s.id))
-          hubWatch.sessionsSeen.set(s.id, { path: s.path, parts: s.parts, firstAt: t(), completedAt: null });
+          hubWatch.sessionsSeen.set(s.id, {
+            path: s.path,
+            parts: s.parts,
+            firstAt: t(),
+            completedAt: null,
+          });
         const seen = hubWatch.sessionsSeen.get(s.id);
         if (s.completedAt && !seen.completedAt) seen.completedAt = t();
         seen.maxHave = Math.max(seen.maxHave ?? 0, Object.keys(s.have).length);
         for (const [n, p] of Object.entries(s.have)) {
           const k = `${s.id}:${n}`;
           const prev = hubWatch.partSeen.get(k);
-          if (!prev) hubWatch.partSeen.set(k, { ino: p.ino, mtimeMs: p.mtimeMs, firstAt: t(), aIncarnation: incarnation.a });
+          if (!prev)
+            hubWatch.partSeen.set(k, {
+              ino: p.ino,
+              mtimeMs: p.mtimeMs,
+              firstAt: t(),
+              aIncarnation: incarnation.a,
+            });
           else if (prev.ino !== p.ino || prev.mtimeMs !== p.mtimeMs) {
-            hubWatch.partRewrites.push({ session: s.id, part: Number(n), at: t(), firstAt: prev.firstAt });
+            hubWatch.partRewrites.push({
+              session: s.id,
+              part: Number(n),
+              at: t(),
+              firstAt: prev.firstAt,
+            });
             hubWatch.partSeen.set(k, { ...prev, ino: p.ino, mtimeMs: p.mtimeMs });
           }
         }
@@ -951,7 +1000,8 @@ async function main() {
         hubWatch.delivered += 1;
         hubWatch.deliveredBytes += e.size;
         hubWatch.firstDelivered ??= t();
-        if (hubWatch.order.length < 5000) hubWatch.order.push({ rel: r.path, size: e.size, at: t() });
+        if (hubWatch.order.length < 5000)
+          hubWatch.order.push({ rel: r.path, size: e.size, at: t() });
       }
     }
     if (!hubWatch.completeAt && hubWatch.delivered === planeB.length) hubWatch.completeAt = t();
@@ -967,7 +1017,9 @@ async function main() {
   let aIndexed = [];
   try {
     const text = await (
-      await fetch(`http://127.0.0.1:${PORTS.a}/_index-data`, { signal: AbortSignal.timeout(30_000) })
+      await fetch(`http://127.0.0.1:${PORTS.a}/_index-data`, {
+        signal: AbortSignal.timeout(30_000),
+      })
     ).text();
     aIndexed = canvases.map(([r]) => r).filter((r) => text.includes(r.replace(/\.tsx$/, '')));
   } catch {
@@ -980,7 +1032,9 @@ async function main() {
   const blobHas = new Map();
   async function hubProbeHas(marker) {
     const r = await hubApi('bootstrap').catch(() => null);
-    const d = r?.body?.docs?.find?.((x) => !x.retired && String(x.path ?? '').endsWith('t32-probe.tsx'));
+    const d = r?.body?.docs?.find?.(
+      (x) => !x.retired && String(x.path ?? '').endsWith('t32-probe.tsx')
+    );
     const h = d?.lanes?.html?.hash;
     if (!h) return false;
     probeHash = h;
@@ -1057,7 +1111,10 @@ async function main() {
         }
         await sleep(50);
       }
-      if (!rec.interruptedByKill && (rec.hubMs === null || targets.some((p) => rec.peers[p] === null)))
+      if (
+        !rec.interruptedByKill &&
+        (rec.hubMs === null || targets.some((p) => rec.peers[p] === null))
+      )
         rec.timedOut = true;
       edits.push(rec);
       await sleep(300);
@@ -1078,7 +1135,9 @@ async function main() {
     let db;
     try {
       db = new Database(file, { readonly: true, fileMustExist: true });
-      return db.prepare('SELECT COUNT(DISTINCT path) AS n FROM file_journal WHERE deleted = 0').get().n;
+      return db
+        .prepare('SELECT COUNT(DISTINCT path) AS n FROM file_journal WHERE deleted = 0')
+        .get().n;
     } catch {
       return 0;
     } finally {
@@ -1097,14 +1156,27 @@ async function main() {
     const s = syncJson(P.a);
     const p = s?.files?.progress;
     if (p && progressTrail.length < 2000)
-      progressTrail.push({ at: t(), processStartedAt: s.startedAt ?? null, incarnation: incarnation.a, phase: p.phase, tracked: p.tracked, delivered: p.delivered, remaining: p.remaining, bytesRemaining: p.bytesRemaining });
+      progressTrail.push({
+        at: t(),
+        processStartedAt: s.startedAt ?? null,
+        incarnation: incarnation.a,
+        phase: p.phase,
+        tracked: p.tracked,
+        delivered: p.delivered,
+        remaining: p.remaining,
+        bytesRemaining: p.bytesRemaining,
+      });
   }, 500);
   async function killAndRestart(label, trigger) {
     watchHub();
     journalWatch();
     const inc = incarnation.a;
     const sess = trigger.session ?? null;
-    const partsBefore = sess ? Object.keys(sess.have).map(Number).sort((x, y) => x - y) : [];
+    const partsBefore = sess
+      ? Object.keys(sess.have)
+          .map(Number)
+          .sort((x, y) => x - y)
+      : [];
     const pre = {
       label,
       at: t(),
@@ -1132,7 +1204,13 @@ async function main() {
     const next = await startStudio('a', P.a);
     aUp = true;
     log(`A restarted (${next.name}) after ${next.healthyAt - pre.at} ms`);
-    const k = { ...pre, restartedAs: next.name, restartedSpawnedAt: next.spawnedAt, restartedHealthyAt: next.healthyAt, before: seed[`a${inc}`]?.name ?? `client-a-${inc}` };
+    const k = {
+      ...pre,
+      restartedAs: next.name,
+      restartedSpawnedAt: next.spawnedAt,
+      restartedHealthyAt: next.healthyAt,
+      before: seed[`a${inc}`]?.name ?? `client-a-${inc}`,
+    };
     seed[`a${inc + 1}`] = next;
     kills.push(k);
     return k;
@@ -1144,14 +1222,17 @@ async function main() {
     while (Date.now() < end) {
       const n = deliveredCount();
       const bigStarted = uploadSessions().some((x) => x.path === BIG_REL);
-      if (n >= smallTarget && n <= smallCeiling && !bigStarted) return { kind: 'small-files-mid-seed' };
-      if (n > smallCeiling || bigStarted) return { kind: `missed — hub already held ${n} files`, soft: true };
+      if (n >= smallTarget && n <= smallCeiling && !bigStarted)
+        return { kind: 'small-files-mid-seed' };
+      if (n > smallCeiling || bigStarted)
+        return { kind: `missed — hub already held ${n} files`, soft: true };
       if (children.get(`client-a-${incarnation.a}`)?.exited) return { kind: 'A exited on its own' };
       await sleep(20);
     }
     return { kind: 'timeout' };
   })();
-  if (trig1.kind !== 'small-files-mid-seed') fail('kill 1 trigger (mid small-file seed)', trig1.kind);
+  if (trig1.kind !== 'small-files-mid-seed')
+    fail('kill 1 trigger (mid small-file seed)', trig1.kind);
   await killAndRestart('mid small-file seed', trig1);
 
   // Kill 2 — the largest object's session part-way through.
@@ -1162,7 +1243,8 @@ async function main() {
       const s = uploadSessions().find((x) => x.path === BIG_REL && !x.completedAt);
       if (s) {
         const have = Object.keys(s.have).length;
-        if (have >= Math.max(2, Math.floor(s.parts * 0.3)) && have < s.parts) return { kind: 'large-upload-mid-session', session: s };
+        if (have >= Math.max(2, Math.floor(s.parts * 0.3)) && have < s.parts)
+          return { kind: 'large-upload-mid-session', session: s };
       }
       if (Date.now() - lastJournalPeek > 500) {
         lastJournalPeek = Date.now();
@@ -1174,7 +1256,8 @@ async function main() {
     }
     return { kind: 'timeout' };
   })();
-  if (trigger.kind !== 'large-upload-mid-session') fail('kill 2 trigger (mid large upload)', trigger.kind);
+  if (trigger.kind !== 'large-upload-mid-session')
+    fail('kill 2 trigger (mid large upload)', trigger.kind);
   const kill2 = await killAndRestart('mid large-object upload', trigger);
   const bigSess = trigger.session ?? null;
   const preKillParts = kill2.partsBefore;
@@ -1217,7 +1300,9 @@ async function main() {
         lastIndex = Date.now();
         try {
           const text = await (
-            await fetch(`http://127.0.0.1:${PORTS[who]}/_index-data`, { signal: AbortSignal.timeout(10_000) })
+            await fetch(`http://127.0.0.1:${PORTS[who]}/_index-data`, {
+              signal: AbortSignal.timeout(10_000),
+            })
           ).text();
           const listed = aIndexed.filter((r) => text.includes(r.replace(/\.tsx$/, '')));
           if (listed.length > 0) m.indexFirstCanvasAt ??= t();
@@ -1317,7 +1402,10 @@ async function main() {
   }
   const duplicateWrites = [...perPath]
     .filter(([, rs]) => rs.filter((r) => !r.deleted).length > 1)
-    .map(([p, rs]) => ({ rel: p, rows: rs.map((r) => ({ seq: r.seq, source: r.source, sha256: r.sha256?.slice(0, 12) })) }));
+    .map(([p, rs]) => ({
+      rel: p,
+      rows: rs.map((r) => ({ seq: r.seq, source: r.source, sha256: r.sha256?.slice(0, 12) })),
+    }));
   const pushedLines = (name) => {
     try {
       const text = readFileSync(join(P.logs, `${name}.log`), 'utf8');
@@ -1332,7 +1420,9 @@ async function main() {
         if (passes.length < 50)
           passes.push({ down: +m[1], up: +m[2], conflicts: +m[3], alreadyInStep: +m[4] });
       }
-      const holds = [...text.matchAll(/cold start: ([a-z]+=hold[^\n]*)/g)].map((m) => m[0]).slice(0, 20);
+      const holds = [...text.matchAll(/cold start: ([a-z]+=hold[^\n]*)/g)]
+        .map((m) => m[0])
+        .slice(0, 20);
       return { up, down, passes, coldStartHolds: holds };
     } catch {
       return null;
@@ -1343,19 +1433,29 @@ async function main() {
   for (let i = 1; i <= incarnation.a; i++) {
     const me = seed[`a${i}`];
     const nextKill = kills.find((k) => k.incarnationKilled === i);
-    lifetimes.push({ incarnation: i, name: me?.name, from: me?.spawnedAt ?? 0, to: nextKill ? nextKill.at : Number.POSITIVE_INFINITY });
+    lifetimes.push({
+      incarnation: i,
+      name: me?.name,
+      from: me?.spawnedAt ?? 0,
+      to: nextKill ? nextKill.at : Number.POSITIVE_INFINITY,
+    });
   }
   const rowsIn = (lt) =>
-    rowsFinal.filter((r) => r.at_ms - runStart >= lt.from && r.at_ms - runStart < lt.to && !r.deleted);
+    rowsFinal.filter(
+      (r) => r.at_ms - runStart >= lt.from && r.at_ms - runStart < lt.to && !r.deleted
+    );
   const killReports = kills.map((k) => {
     const after = lifetimes.find((l) => l.incarnation === k.incarnationKilled + 1);
     const beforeLog = pushedLines(k.before);
     const afterLog = pushedLines(k.restartedAs);
     const landedAfter = after ? rowsIn(after) : [];
-    const heldAtKill = new Set(rowsFinal.filter((r) => r.at_ms - runStart <= k.at).map((r) => r.path));
+    const heldAtKill = new Set(
+      rowsFinal.filter((r) => r.at_ms - runStart <= k.at).map((r) => r.path)
+    );
     const rewrittenHeld = landedAfter.filter((r) => heldAtKill.has(r.path)).map((r) => r.path);
     const wall = runStart + k.restartedSpawnedAt;
-    const firstProgress = progressTrail.find((p) => (p.processStartedAt ?? 0) >= wall - 1000 && p.tracked > 0) ?? null;
+    const firstProgress =
+      progressTrail.find((p) => (p.processStartedAt ?? 0) >= wall - 1000 && p.tracked > 0) ?? null;
     const lastBefore = [...progressTrail].reverse().find((p) => p.at <= k.at) ?? null;
     const firstPass = afterLog?.passes?.[0] ?? null;
     return {
@@ -1365,7 +1465,12 @@ async function main() {
       killedIncarnation: k.before,
       restartedAs: k.restartedAs,
       restartMs: k.restartedHealthyAt - k.at,
-      hubAtKill: { files: k.hubDeliveredFiles, of: planeB.length, bytes: k.hubDeliveredBytes, journalRows: k.journalRows },
+      hubAtKill: {
+        files: k.hubDeliveredFiles,
+        of: planeB.length,
+        bytes: k.hubDeliveredBytes,
+        journalRows: k.journalRows,
+      },
       aProgressLastReportedBeforeKill: lastBefore,
       aProgressFirstReportedAfterRestart: firstProgress,
       largeSessionAtKill: k.largeSession,
@@ -1383,7 +1488,8 @@ async function main() {
       restartedFromZero:
         rewrittenHeld.length > 0 ||
         (firstPass
-          ? firstPass.up > planeB.length - k.hubDeliveredFiles || firstPass.alreadyInStep < k.hubDeliveredFiles
+          ? firstPass.up > planeB.length - k.hubDeliveredFiles ||
+            firstPass.alreadyInStep < k.hubDeliveredFiles
           : false),
     };
   });
@@ -1409,15 +1515,18 @@ async function main() {
           partsReceivedBeforeKill: preKillParts.length,
           sessionsCreatedForPath: sessionsForBig.length,
           sameSessionResumed: sessionsForBig.length === 1,
-          partsRewrittenAfterRestart: hubWatch.partRewrites.filter((x) => x.session === bigSess.id).length,
+          partsRewrittenAfterRestart: hubWatch.partRewrites.filter((x) => x.session === bigSess.id)
+            .length,
           preKillPartsRewritten: hubWatch.partRewrites.filter(
             (x) => x.session === bigSess.id && preKillParts.includes(x.part)
           ),
-          partsFirstSeenAfterRestart: [...hubWatch.partSeen]
-            .filter(([k, v]) => k.startsWith(`${bigSess.id}:`) && v.aIncarnation > kill2.incarnationKilled)
-            .length,
+          partsFirstSeenAfterRestart: [...hubWatch.partSeen].filter(
+            ([k, v]) => k.startsWith(`${bigSess.id}:`) && v.aIncarnation > kill2.incarnationKilled
+          ).length,
           completedAt: bigSeen?.completedAt ?? null,
-          landedInJournal: rowsFinal.some((r) => r.path === BIG_REL && r.sha256 === planeBExpect.get(BIG_REL)?.sha256),
+          landedInJournal: rowsFinal.some(
+            (r) => r.path === BIG_REL && r.sha256 === planeBExpect.get(BIG_REL)?.sha256
+          ),
         }
       : null,
     otherSessions: [...hubWatch.sessionsSeen].map(([id, s]) => ({ id, ...s })),
@@ -1434,22 +1543,34 @@ async function main() {
     },
     aProgressTrail: progressTrail.filter((_, i) => i % 4 === 0).slice(0, 120),
   };
-  for (const k of killReports) if (k.restartedFromZero) fail(`seed restarted from zero after SIGKILL (${k.label})`, k.pathsTheHubAlreadyHeldWrittenAgain.slice(0, 10));
+  for (const k of killReports)
+    if (k.restartedFromZero)
+      fail(
+        `seed restarted from zero after SIGKILL (${k.label})`,
+        k.pathsTheHubAlreadyHeldWrittenAgain.slice(0, 10)
+      );
   if (bigSess) {
     const ls = report.seed.largeObjectSession;
     if (!ls.sameSessionResumed) fail('large upload did not resume its session', ls);
-    if (ls.preKillPartsRewritten.length) fail('parts received before the kill were re-sent', ls.preKillPartsRewritten.length);
+    if (ls.preKillPartsRewritten.length)
+      fail('parts received before the kill were re-sent', ls.preKillPartsRewritten.length);
     if (!ls.landedInJournal) fail('large object never landed on the hub');
   }
-  if (duplicateWrites.length) fail('hub journal holds more than one write for a path', duplicateWrites.slice(0, 10));
+  if (duplicateWrites.length)
+    fail('hub journal holds more than one write for a path', duplicateWrites.slice(0, 10));
   if (!hubWatch.completeAt) {
     const missingOnHub = planeB.filter(([r]) => !deliveredSet.has(r)).map(([r]) => r);
-    fail('A never finished seeding every Plane-B file to the hub', { missing: missingOnHub.length, sample: missingOnHub.slice(0, 20) });
+    fail('A never finished seeding every Plane-B file to the hub', {
+      missing: missingOnHub.length,
+      sample: missingOnHub.slice(0, 20),
+    });
   }
 
   // ── edits: latency while media moved ─────────────────────────────────────
   const moving = (e) =>
-    (e.media.aSeedRemainingBytes ?? 0) > 0 || (e.media.b?.remainingBytes ?? 0) > 0 || (e.media.c?.remainingBytes ?? 0) > 0;
+    (e.media.aSeedRemainingBytes ?? 0) > 0 ||
+    (e.media.b?.remainingBytes ?? 0) > 0 ||
+    (e.media.c?.remainingBytes ?? 0) > 0;
   report.edits = {
     method: `rewrite ${PROBE_REL} on A's disk; poll the hub accepted head (bootstrap + blob) every 100 ms (latency resolution ≈ poll interval + one bootstrap round trip) and B/C disk every 50 ms; next edit 300 ms after the previous one settled or 60 s timeout`,
     count: edits.length,
@@ -1477,12 +1598,16 @@ async function main() {
       ...(e.interruptedByKill ? { interruptedByKill: true } : {}),
     })),
   };
-  if (report.edits.timedOut) fail('design edits starved or lost (no arrival within 60 s)', report.edits.timedOut);
+  if (report.edits.timedOut)
+    fail('design edits starved or lost (no arrival within 60 s)', report.edits.timedOut);
   if (!report.edits.whileMediaMoving) fail('no edit was measured while media was still moving');
 
   // ── clean clients ─────────────────────────────────────────────────────────
   report.cleanClients = {};
-  for (const [who, m] of [['b', joined[0]], ['c', joined[1]]]) {
+  for (const [who, m] of [
+    ['b', joined[0]],
+    ['c', joined[1]],
+  ]) {
     const rel0 = (x) => (x === null || x === undefined ? null : x - m.spawnedAt);
     report.cleanClients[who] = {
       spawnedAt: m.spawnedAt,
@@ -1495,7 +1620,9 @@ async function main() {
         diskProbeCanvas: rel0(m.diskProbeAt),
         diskAllCanvases: rel0(m.diskAllCanvasesAt),
         firstPlaneBFile: rel0(m.firstPlaneBFileAt),
-        largeObjects: Object.fromEntries(Object.entries(m.largeObjects).map(([r, v]) => [r, rel0(v)])),
+        largeObjects: Object.fromEntries(
+          Object.entries(m.largeObjects).map(([r, v]) => [r, rel0(v)])
+        ),
         planeBComplete: rel0(m.planeBCompleteAt),
         complete: rel0(m.completeAt),
       },
@@ -1508,10 +1635,13 @@ async function main() {
       progressSamples: m.progressSamples.filter((_, i) => i % 3 === 0).slice(0, 80),
       finalSyncState: (() => {
         const s = syncJson(P[who]);
-        return s ? { state: s.state, docs: s.docs, files: { ...s.files, delivery: undefined } } : null;
+        return s
+          ? { state: s.state, docs: s.docs, files: { ...s.files, delivery: undefined } }
+          : null;
       })(),
     };
-    if (!m.completeAt) fail(`clean client ${who.toUpperCase()} did not complete within the timebox`);
+    if (!m.completeAt)
+      fail(`clean client ${who.toUpperCase()} did not complete within the timebox`);
     if (m.firstCanvasBeforeFullMedia === false)
       fail(`clean client ${who.toUpperCase()} showed no canvas until all media had arrived (T19)`);
   }
@@ -1534,7 +1664,11 @@ async function main() {
   const canonical = (v) =>
     JSON.stringify(v, (_, x) =>
       x && typeof x === 'object' && !Array.isArray(x)
-        ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, x[k]]))
+        ? Object.fromEntries(
+            Object.keys(x)
+              .sort()
+              .map((k) => [k, x[k]])
+          )
         : x
     );
   const canvasBodyFor = (r) => {
@@ -1545,7 +1679,13 @@ async function main() {
     if (r.endsWith('.annotations.svg')) {
       const slug = r.split('/').at(-1).slice(0, -'.annotations.svg'.length);
       const hit = [...invA.eligible.keys()].find(
-        (x) => x.endsWith('.tsx') && x.slice(0, -4).replace(/\//g, '-').replace(/[^A-Za-z0-9_-]/g, '_').toLowerCase() === slug.toLowerCase()
+        (x) =>
+          x.endsWith('.tsx') &&
+          x
+            .slice(0, -4)
+            .replace(/\//g, '-')
+            .replace(/[^A-Za-z0-9_-]/g, '_')
+            .toLowerCase() === slug.toLowerCase()
       );
       return hit ?? null;
     }
@@ -1564,15 +1704,19 @@ async function main() {
     if (r.endsWith('.annotations.svg')) {
       const body = canvasBodyFor(r);
       const empty = /^<svg[^>]*>\s*<\/svg>\s*$/.test(readFileSync(abs, 'utf8').trim());
-      if (!body) return `orphan annotation layer — no canvas on the sender owns it${empty ? ' (and it is an empty wrapper)' : ''}`;
-      if (empty) return 'empty annotation wrapper for an existing canvas — no strokes to materialise';
+      if (!body)
+        return `orphan annotation layer — no canvas on the sender owns it${empty ? ' (and it is an empty wrapper)' : ''}`;
+      if (empty)
+        return 'empty annotation wrapper for an existing canvas — no strokes to materialise';
     }
     return null;
   };
   const explainMismatch = (r, root) => {
     if (r.endsWith('.meta.json')) {
       try {
-        if (canonical(sharedMeta(join(aDesign, r))) === canonical(sharedMeta(join(designOf(root), r))))
+        if (
+          canonical(sharedMeta(join(aDesign, r))) === canonical(sharedMeta(join(designOf(root), r)))
+        )
           return 'meta differs only in per-machine keys (viewport/last_modified/syncable — codec META_LOCAL_KEYS)';
       } catch {
         return null;
@@ -1608,24 +1752,37 @@ async function main() {
             semantic = 'unparseable';
           }
         }
-        mismatched.push({ rel: r, cls: e.cls, aBytes: e.size, bytes: o.size, semantic, explained: explainMismatch(r, root) });
+        mismatched.push({
+          rel: r,
+          cls: e.cls,
+          aBytes: e.size,
+          bytes: o.size,
+          semantic,
+          explained: explainMismatch(r, root),
+        });
       }
     }
-    for (const [r, o] of other.eligible) if (!invA.eligible.has(r)) extra.push({ rel: r, cls: o.cls, bytes: o.size });
+    for (const [r, o] of other.eligible)
+      if (!invA.eligible.has(r)) extra.push({ rel: r, cls: o.cls, bytes: o.size });
     return {
       eligibleFiles: other.eligible.size,
       eligibleBytes: [...other.eligible.values()].reduce((n, e) => n + e.size, 0),
-      matching: [...invA.eligible].filter(([r, e]) => other.eligible.get(r)?.sha256 === e.sha256).length,
+      matching: [...invA.eligible].filter(([r, e]) => other.eligible.get(r)?.sha256 === e.sha256)
+        .length,
       missing,
       mismatched,
       extra,
     };
   };
-  const planeBOnly = (inv) => ({ eligible: new Map([...inv.eligible].filter(([, e]) => e.plane === 'B')) });
+  const planeBOnly = (inv) => ({
+    eligible: new Map([...inv.eligible].filter(([, e]) => e.plane === 'B')),
+  });
   const hubCmp = (() => {
     const aB = planeBOnly(invA).eligible;
     const missing = [...aB].filter(([r]) => !hubChk.eligible.has(r)).map(([r]) => r);
-    const mismatched = [...aB].filter(([r, e]) => hubChk.eligible.has(r) && hubChk.eligible.get(r).sha256 !== e.sha256).map(([r]) => r);
+    const mismatched = [...aB]
+      .filter(([r, e]) => hubChk.eligible.has(r) && hubChk.eligible.get(r).sha256 !== e.sha256)
+      .map(([r]) => r);
     const extra = [...hubChk.eligible].filter(([r]) => !aB.has(r)).map(([r]) => r);
     return { planeBFiles: aB.size, hubFiles: hubChk.eligible.size, missing, mismatched, extra };
   })();
@@ -1635,27 +1792,43 @@ async function main() {
   const unexplainedList = [
     ...b.missing.filter((x) => !isExplained(x)).map((x) => ({ side: 'b', kind: 'missing', ...x })),
     ...b.extra.map((x) => ({ side: 'b', kind: 'extra', ...x })),
-    ...b.mismatched.filter((x) => !isExplained(x)).map((x) => ({ side: 'b', kind: 'mismatch', ...x })),
+    ...b.mismatched
+      .filter((x) => !isExplained(x))
+      .map((x) => ({ side: 'b', kind: 'mismatch', ...x })),
     ...c.missing.filter((x) => !isExplained(x)).map((x) => ({ side: 'c', kind: 'missing', ...x })),
     ...c.extra.map((x) => ({ side: 'c', kind: 'extra', ...x })),
-    ...c.mismatched.filter((x) => !isExplained(x)).map((x) => ({ side: 'c', kind: 'mismatch', ...x })),
+    ...c.mismatched
+      .filter((x) => !isExplained(x))
+      .map((x) => ({ side: 'c', kind: 'mismatch', ...x })),
     ...hubCmp.missing.map((x) => ({ side: 'hub', kind: 'missing', rel: x })),
     ...hubCmp.mismatched.map((x) => ({ side: 'hub', kind: 'mismatch', rel: x })),
   ];
   const unexplained = unexplainedList.length;
-  const explainedCount = [...b.missing, ...b.mismatched, ...c.missing, ...c.mismatched].filter(isExplained).length;
+  const explainedCount = [...b.missing, ...b.mismatched, ...c.missing, ...c.mismatched].filter(
+    isExplained
+  ).length;
   report.oracle = {
-    method: 'SHA-256 of every eligible file (classifier: apps/hub/src/file-membership.mjs, the pinned mirror of apps/studio/sync/file-membership.ts) on A, B, C; Plane B also against the hub checkout',
-    a: { eligibleFiles: invA.eligible.size, eligibleBytes: [...invA.eligible.values()].reduce((n, e) => n + e.size, 0) },
+    method:
+      'SHA-256 of every eligible file (classifier: apps/hub/src/file-membership.mjs, the pinned mirror of apps/studio/sync/file-membership.ts) on A, B, C; Plane B also against the hub checkout',
+    a: {
+      eligibleFiles: invA.eligible.size,
+      eligibleBytes: [...invA.eligible.values()].reduce((n, e) => n + e.size, 0),
+    },
     b,
     c,
     hubCheckout: hubCmp,
-    bcIdentical: [...invB.eligible].every(([r, e]) => invC.eligible.get(r)?.sha256 === e.sha256) && invB.eligible.size === invC.eligible.size,
+    bcIdentical:
+      [...invB.eligible].every(([r, e]) => invC.eligible.get(r)?.sha256 === e.sha256) &&
+      invB.eligible.size === invC.eligible.size,
     explainedDifferences: explainedCount,
     unexplainedDifferences: unexplained,
     unexplainedList: unexplainedList.slice(0, 200),
-    planeBByteIdentical:
-      [...invA.eligible].filter(([, e]) => e.plane === 'B').every(([r, e]) => invB.eligible.get(r)?.sha256 === e.sha256 && invC.eligible.get(r)?.sha256 === e.sha256),
+    planeBByteIdentical: [...invA.eligible]
+      .filter(([, e]) => e.plane === 'B')
+      .every(
+        ([r, e]) =>
+          invB.eligible.get(r)?.sha256 === e.sha256 && invC.eligible.get(r)?.sha256 === e.sha256
+      ),
   };
   if (unexplained) fail('final hash oracle found unexplained differences', unexplained);
 
@@ -1686,7 +1859,9 @@ async function main() {
     disk: {
       peakTotalBytes: peakDisk.totalKiB * 1024,
       peakAt: peakDisk.at ?? null,
-      peakBreakdownBytes: Object.fromEntries(Object.entries(peakDisk.kib ?? {}).map(([k, v]) => [k, v * 1024])),
+      peakBreakdownBytes: Object.fromEntries(
+        Object.entries(peakDisk.kib ?? {}).map(([k, v]) => [k, v * 1024])
+      ),
       final: diskSamples.at(-1),
       samples: diskSamples.length,
       note: 'du -sk of each scratch root (hub data incl. upload parts, hub checkout, A, B, C); sampled, so a sub-interval transient can be missed',
@@ -1699,13 +1874,16 @@ async function main() {
       note: 'hub parts sampled every 50 ms from <hub-data>/uploads; client staging (_state/downloads/*.part) every 1 s',
     },
     processes: perProc,
-    processNote: 'ps pcpu (macOS decaying average, can exceed 100 on multi-core) and RSS summed over each process tree; sampled every 1 s',
+    processNote:
+      'ps pcpu (macOS decaying average, can exceed 100 on multi-core) and RSS summed over each process tree; sampled every 1 s',
   };
 
   report.durationMs = t();
-  const distAfter = (await exec('git', ['-C', ROOT, 'status', '--short', 'apps/studio/dist/'])).stdout;
+  const distAfter = (await exec('git', ['-C', ROOT, 'status', '--short', 'apps/studio/dist/']))
+    .stdout;
   report.hygiene = { distStatusBefore: distBefore.trim(), distStatusAfter: distAfter.trim() };
-  if (distAfter.trim() !== distBefore.trim()) fail('apps/studio/dist changed during the run', distAfter);
+  if (distAfter.trim() !== distBefore.trim())
+    fail('apps/studio/dist changed during the run', distAfter);
 }
 
 let exitCode = 1;
@@ -1718,7 +1896,10 @@ try {
   await sleep(1500);
   killAll();
   report.processes = Object.fromEntries(
-    [...children].map(([k, v]) => [k, { startedAt: v.startedAt, exited: v.exited ?? 'killed at teardown' }])
+    [...children].map(([k, v]) => [
+      k,
+      { startedAt: v.startedAt, exited: v.exited ?? 'killed at teardown' },
+    ])
   );
   if (PRIOR) {
     report.priorRuns = [];
@@ -1734,31 +1915,63 @@ try {
           failures: prior.failures,
           inventory: prior.inventory?.atStart && {
             raw: prior.inventory.atStart.raw,
-            eligible: { files: prior.inventory.atStart.eligible.files, bytes: prior.inventory.atStart.eligible.bytes },
-            excluded: { files: prior.inventory.atStart.excluded.files, bytes: prior.inventory.atStart.excluded.bytes },
+            eligible: {
+              files: prior.inventory.atStart.eligible.files,
+              bytes: prior.inventory.atStart.eligible.bytes,
+            },
+            excluded: {
+              files: prior.inventory.atStart.excluded.files,
+              bytes: prior.inventory.atStart.excluded.bytes,
+            },
           },
           seed: prior.seed && {
-            kills: prior.seed.kills?.map((k) => ({
-              label: k.label,
-              trigger: k.trigger,
-              hubAtKill: k.hubAtKill,
-              restartedFirstPass: k.restartedFirstPass,
-              pathsTheHubAlreadyHeldWrittenAgain: k.pathsTheHubAlreadyHeldWrittenAgain?.length,
-              restartedFromZero: k.restartedFromZero,
-            })) ?? (prior.seed.preKill ? [{ label: 'mid large-object upload', hubAtKill: { files: prior.seed.preKill.hubDeliveredFiles }, restartedFromZero: prior.seed.restart?.restartedFromZero, restartedFirstPass: prior.seed.restart?.filesPushedPerIncarnation?.afterRestart?.passes?.[0] ?? null }] : null),
+            kills:
+              prior.seed.kills?.map((k) => ({
+                label: k.label,
+                trigger: k.trigger,
+                hubAtKill: k.hubAtKill,
+                restartedFirstPass: k.restartedFirstPass,
+                pathsTheHubAlreadyHeldWrittenAgain: k.pathsTheHubAlreadyHeldWrittenAgain?.length,
+                restartedFromZero: k.restartedFromZero,
+              })) ??
+              (prior.seed.preKill
+                ? [
+                    {
+                      label: 'mid large-object upload',
+                      hubAtKill: { files: prior.seed.preKill.hubDeliveredFiles },
+                      restartedFromZero: prior.seed.restart?.restartedFromZero,
+                      restartedFirstPass:
+                        prior.seed.restart?.filesPushedPerIncarnation?.afterRestart?.passes?.[0] ??
+                        null,
+                    },
+                  ]
+                : null),
             largeObjectSession: prior.seed.largeObjectSession,
             hubCompleteAt: prior.seed.hubCompleteAt,
             journalDuplicateWrites: prior.seed.journal?.duplicateWrites?.length,
           },
-          edits: prior.edits && { count: prior.edits.count, whileMediaMoving: prior.edits.whileMediaMoving, latencyMs: prior.edits.latencyMs, timedOut: prior.edits.timedOut },
-          cleanClients: prior.cleanClients && Object.fromEntries(Object.entries(prior.cleanClients).map(([k, v]) => [k, v.msFromSpawn])),
+          edits: prior.edits && {
+            count: prior.edits.count,
+            whileMediaMoving: prior.edits.whileMediaMoving,
+            latencyMs: prior.edits.latencyMs,
+            timedOut: prior.edits.timedOut,
+          },
+          cleanClients:
+            prior.cleanClients &&
+            Object.fromEntries(
+              Object.entries(prior.cleanClients).map(([k, v]) => [k, v.msFromSpawn])
+            ),
           oracle: prior.oracle && {
             explainedDifferences: prior.oracle.explainedDifferences,
             unexplainedDifferences: prior.oracle.unexplainedDifferences,
             planeBByteIdentical: prior.oracle.planeBByteIdentical,
             bcIdentical: prior.oracle.bcIdentical,
           },
-          resources: prior.resources && { peakDiskBytes: prior.resources.disk?.peakTotalBytes, transient: prior.resources.transient, processes: prior.resources.processes },
+          resources: prior.resources && {
+            peakDiskBytes: prior.resources.disk?.peakTotalBytes,
+            transient: prior.resources.transient,
+            processes: prior.resources.processes,
+          },
           durationMs: prior.durationMs,
         });
       } catch {
@@ -1780,9 +1993,13 @@ try {
     report.cleanup = 'client, hub and synthetic data removed; logs kept under the work dir';
   }
   mkdirSync(dirname(OUT), { recursive: true });
-  const text = JSON.stringify(report, null, 2).replaceAll(WORK, '<work>').replaceAll(ROOT, '<repo>');
+  const text = JSON.stringify(report, null, 2)
+    .replaceAll(WORK, '<work>')
+    .replaceAll(ROOT, '<repo>');
   writeFileSync(OUT, `${text}\n`);
   process.stdout.write(`${text}\n`);
-  log(`report → ${relative(ROOT, OUT).startsWith('..') ? OUT : relative(ROOT, OUT)} · ok=${report.ok}`);
+  log(
+    `report → ${relative(ROOT, OUT).startsWith('..') ? OUT : relative(ROOT, OUT)} · ok=${report.ok}`
+  );
 }
 process.exit(exitCode);

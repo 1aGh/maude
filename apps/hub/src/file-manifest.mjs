@@ -43,11 +43,10 @@ import {
   statSync,
 } from 'node:fs';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
-
+import { MAX_PROJECT_FILE_BYTES, parseRange } from './file-limits.mjs';
 import { classifyProjectFile, isFilePlaneClass, isProjectFileShape } from './file-membership.mjs';
 import { isContainedReal, realpathOfDeepestExisting } from './path-contain.mjs';
 import { verifyToken } from './tokens.mjs';
-import { MAX_PROJECT_FILE_BYTES, parseRange } from './file-limits.mjs';
 
 /** `GET /api/files` — the plane-B manifest for this project. */
 export const FILES_PATH = '/api/files';

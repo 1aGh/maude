@@ -230,7 +230,14 @@ export function connectPage({ account, project, isOwner, cellZone }) {
  * The platform asks the cell on the owner's behalf with a short-lived owner
  * token, the same lane the export uses.
  */
-export function savingPage({ account, project, state = null, preview = null, notice = null, error = null }) {
+export function savingPage({
+  account,
+  project,
+  state = null,
+  preview = null,
+  notice = null,
+  error = null,
+}) {
   const mode = state?.mode ?? null;
   const on = mode === 'transactions';
   const skipped = preview?.imported?.skipped ?? [];
@@ -244,10 +251,13 @@ export function savingPage({ account, project, state = null, preview = null, not
              ? `<p style="margin-top:var(--space-3)">Not included (they stay in the project files):</p>
                 <ul>${skipped
                   .slice(0, 20)
-                  .map((s) => `<li><code>${esc(String(s.doc ?? ''))}</code> — ${esc(String(s.reason ?? ''))}</li>`)
+                  .map(
+                    (s) =>
+                      `<li><code>${esc(String(s.doc ?? ''))}</code> — ${esc(String(s.reason ?? ''))}</li>`
+                  )
                   .join('')}</ul>`
              : ''
-         }
+}
          <form method="post" action="/projects/${esc(project.id)}/saving" style="margin-top:var(--space-4)">
            <input type="hidden" name="do" value="switch">
            <input type="hidden" name="epoch" value="${esc(String(preview.epoch ?? state?.epoch ?? 0))}">
@@ -267,7 +277,7 @@ export function savingPage({ account, project, state = null, preview = null, not
            : mode
              ? 'Every app writes the shared copy directly. Switching keeps all the work and adds truthful saving, a project history and personal undo. Designers’ apps need the latest Maude.'
              : 'The workspace did not answer. Open it once so it wakes, then come back.'
-       }</p>
+}</p>
        ${
          mode && !on && !preview
            ? `<form method="post" action="/projects/${esc(project.id)}/saving" style="margin-top:var(--space-4)">
@@ -275,7 +285,7 @@ export function savingPage({ account, project, state = null, preview = null, not
                 <button type="submit">Preview the switch</button>
               </form>`
            : ''
-       }
+}
      </div>
      ${previewCard}`,
     { account, project, isOwner: true, active: 'saving' }
@@ -802,7 +812,15 @@ export async function handleProjectAdminRoutes(request, env, { account, ctx = nu
     if (form.get('do') === 'preview') {
       const r = await ask('POST', { mode: 'transactions', dryRun: true }).catch(() => null);
       if (r?.status !== 200)
-        return html(savingPage({ account, project, state, error: r?.body?.error || 'The workspace did not answer.' }), 502);
+        return html(
+          savingPage({
+            account,
+            project,
+            state,
+            error: r?.body?.error || 'The workspace did not answer.',
+          }),
+          502
+        );
       return html(savingPage({ account, project, state, preview: r.body }));
     }
     if (form.get('do') === 'switch') {
@@ -816,10 +834,21 @@ export async function handleProjectAdminRoutes(request, env, { account, ctx = nu
         projectId,
         actor: `customer:${account.email}`,
         action: r?.status === 200 ? 'project.saving-switched' : 'project.saving-switch-failed',
-        detail: r?.status === 200 ? `epoch ${r.body?.epoch}` : String(r?.body?.code ?? r?.status ?? 'unreachable'),
+        detail:
+          r?.status === 200
+            ? `epoch ${r.body?.epoch}`
+            : String(r?.body?.code ?? r?.status ?? 'unreachable'),
       });
       if (r?.status !== 200)
-        return html(savingPage({ account, project, state, error: r?.body?.error || 'The switch did not happen — nothing changed.' }), 502);
+        return html(
+          savingPage({
+            account,
+            project,
+            state,
+            error: r?.body?.error || 'The switch did not happen — nothing changed.',
+          }),
+          502
+        );
       return html(
         savingPage({
           account,

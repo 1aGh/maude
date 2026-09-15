@@ -181,7 +181,10 @@ export function createAgentActivityTracker(
     kindByToolCall.clear();
     if (actionOpen) {
       actionOpen = false;
-      void ctx.syncControl?.current?.()?.endAiAction?.(actionKey, outcome)?.catch(() => {});
+      void ctx.syncControl
+        ?.current?.()
+        ?.endAiAction?.(actionKey, outcome)
+        ?.catch(() => {});
     }
   }
 

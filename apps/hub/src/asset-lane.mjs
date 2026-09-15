@@ -55,15 +55,9 @@ import { dirname, join, resolve, sep } from 'node:path';
 
 import { assetObjectKey, assetPrefixFromEnv } from './asset-key.mjs';
 import { parseAssetPath } from './assets.mjs';
-import { resolveCheckoutFileWrite } from './file-manifest.mjs';
 import { MAX_PROJECT_FILE_BYTES } from './file-limits.mjs';
-import {
-  getObject,
-  getObjectToFile,
-  listObjects,
-  putObject,
-  putObjectFromFile,
-} from './s3.mjs';
+import { resolveCheckoutFileWrite } from './file-manifest.mjs';
+import { getObject, getObjectToFile, listObjects, putObject, putObjectFromFile } from './s3.mjs';
 
 /**
  * Eligibility for the LEGACY `assets/` key layout is decided by the read

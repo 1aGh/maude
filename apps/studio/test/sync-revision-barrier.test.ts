@@ -44,7 +44,10 @@ describe('revision barrier', () => {
 
   test('a document this peer never gets does not wedge the rest', async () => {
     const warnings: string[] = [];
-    const b = createRevisionBarrier({ timeoutMs: 30, log: { warn: (m: string) => warnings.push(m) } });
+    const b = createRevisionBarrier({
+      timeoutMs: 30,
+      log: { warn: (m: string) => warnings.push(m) },
+    });
     const wrote: string[] = [];
     b.arrive(4, 3, 'a', () => wrote.push('a'));
     await new Promise((r) => setTimeout(r, 80));

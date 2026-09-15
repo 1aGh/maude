@@ -877,7 +877,11 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           if (total > cap) {
             await reader.cancel().catch(() => {});
             rmSync(staged, { force: true });
-            return { ok: false, reason: `over the cap mid-stream (${total} B > ${cap} B)`, overCap: true };
+            return {
+              ok: false,
+              reason: `over the cap mid-stream (${total} B > ${cap} B)`,
+              overCap: true,
+            };
           }
           appendFileSync(staged, value);
         }
@@ -1154,7 +1158,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       // The hub has not said what it takes (its answer was refused or lost):
       // over the fallback ceiling is unknown, not too large. Retry; never
       // park a file as terminally refused on a guess.
-      return { ok: false, reason: "Waiting for the workspace to say how large a file it accepts" };
+      return { ok: false, reason: 'Waiting for the workspace to say how large a file it accepts' };
     }
     if (local.size > pushCeiling()) {
       return {
@@ -1224,7 +1228,8 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     local: SyncableLocalFile,
     expect: string | null
   ): Promise<Awaited<ReturnType<typeof push>>> {
-    const json = async (res: Response) => (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    const json = async (res: Response) =>
+      (await res.json().catch(() => ({}))) as Record<string, unknown>;
     ledger.outboxAdd(local.hash);
     requestsThisPass += 1;
     try {
@@ -1295,7 +1300,11 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           // pass resumes and sends exactly those.
           return { ok: false, reason: 'Upload interrupted — it resumes on the next pass' };
         }
-        return { ok: false, conflict: true, current: typeof body.current === 'string' ? body.current : null };
+        return {
+          ok: false,
+          conflict: true,
+          current: typeof body.current === 'string' ? body.current : null,
+        };
       }
       if (!done.ok) return await refusal(done);
       const body = await json(done);
@@ -1762,11 +1771,8 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     const referenced = referencedAssetNames(designRoot);
     // …then smallest first (T19): one 1 GB master never makes the forty
     // images a canvas needs wait behind it; big media fills in last.
-    const sizeOf = (w: (typeof work)[number]) =>
-      Math.max(claimedSize(w.row), w.local?.size ?? 0);
-    work.sort(
-      (a, b) => rank(a.rel, referenced) - rank(b.rel, referenced) || sizeOf(a) - sizeOf(b)
-    );
+    const sizeOf = (w: (typeof work)[number]) => Math.max(claimedSize(w.row), w.local?.size ?? 0);
+    work.sort((a, b) => rank(a.rel, referenced) - rank(b.rel, referenced) || sizeOf(a) - sizeOf(b));
 
     const budget = createPullBudget({
       label: 'sync/files',

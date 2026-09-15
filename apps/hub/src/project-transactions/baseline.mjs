@@ -190,7 +190,12 @@ export async function importBaseline(deps) {
       bytes: ops.reduce((n, op) => n + Buffer.byteLength(JSON.stringify(op), 'utf8'), 0),
       docs: ops
         .filter((op) => op.op === 'doc.create' || op.op === 'lane.replace')
-        .map((op) => ({ op: op.op, doc: op.doc, ...(op.path ? { path: op.path } : {}), ...(op.lane ? { lane: op.lane } : {}) }))
+        .map((op) => ({
+          op: op.op,
+          doc: op.doc,
+          ...(op.path ? { path: op.path } : {}),
+          ...(op.lane ? { lane: op.lane } : {}),
+        }))
         .slice(0, 500),
     };
   }

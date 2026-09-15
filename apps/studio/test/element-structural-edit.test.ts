@@ -394,7 +394,9 @@ describe('canvas-edit / applySetArtboardLabel', () => {
 
   test('adds a label to an artboard that had none', () => {
     const out = applySetArtboardLabel(CANVAS, canvas, 'other', 'Mobile');
-    expect(out.source).toMatch(/<DCArtboard[^>]*label="Mobile"[^>]*id="other"|<DCArtboard[^>]*id="other"[^>]*label="Mobile"/);
+    expect(out.source).toMatch(
+      /<DCArtboard[^>]*label="Mobile"[^>]*id="other"|<DCArtboard[^>]*id="other"[^>]*label="Mobile"/
+    );
   });
 
   test('refuses an empty name and an unknown artboard', () => {

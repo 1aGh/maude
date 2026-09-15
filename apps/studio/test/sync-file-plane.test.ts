@@ -32,12 +32,12 @@ import { join } from 'node:path';
 import { createFileLedger, type FileLedger } from '../sync/file-ledger.ts';
 import {
   createFilePlane,
+  DEFAULT_HUB_MAX_FILE_BYTES,
   DELETE_BUDGET_PER_WINDOW,
   foldRemote,
+  MAX_FILE_BYTES,
   MAX_REQUESTS_PER_PASS,
   MAX_TRUSTED_QUOTA_PAUSE_MS,
-  DEFAULT_HUB_MAX_FILE_BYTES,
-  MAX_FILE_BYTES,
   MIN_TRUSTED_MAX_FILE_BYTES,
   REANCHOR_HOLD_RECOVERY_MS,
   REANCHOR_STORM_LIMIT,
@@ -1269,7 +1269,8 @@ describe('rate limits', () => {
     closeSync(fd);
     const wire = metered(hub, { refuse: () => null });
     const limited = (async (url: string, init?: RequestInit) => {
-      if (String(url).endsWith('/api/file-limits')) return new Response('too many requests', { status: 429 });
+      if (String(url).endsWith('/api/file-limits'))
+        return new Response('too many requests', { status: 429 });
       return wire.fetchImpl(url as never, init as never);
     }) as unknown as typeof fetch;
     const result = await plane(hub, { fetchImpl: limited }).reconcile();
@@ -1603,7 +1604,8 @@ describe('pull order', () => {
     const order: string[] = [];
     const watching = (async (url: string | URL, init?: RequestInit) => {
       const u = new URL(String(url));
-      if (u.pathname.startsWith('/_project-file/')) order.push(decodeURIComponent(u.pathname.slice('/_project-file/'.length)));
+      if (u.pathname.startsWith('/_project-file/'))
+        order.push(decodeURIComponent(u.pathname.slice('/_project-file/'.length)));
       return hub.fetchImpl(String(url), init);
     }) as unknown as typeof fetch;
     await plane(hub, { fetchImpl: watching }).reconcile();

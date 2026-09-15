@@ -22,12 +22,11 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-
+import { applyEdit } from '../canvas-edit.ts';
 import { createRegistry } from '../collab/registry.ts';
 import type { RoomCallbacks } from '../collab/room.ts';
 import type { Context } from '../context.ts';
 import { createBus } from '../context.ts';
-import { applyEdit } from '../canvas-edit.ts';
 import { readLaneFromDoc } from '../sync/codec.ts';
 import { createSyncRuntime, type SyncRuntime } from '../sync/index.ts';
 import { describeSourceOp } from '../sync/source-ops.ts';
@@ -354,15 +353,22 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
       });
       expect(op).not.toBeNull();
       peer.ctx.bus.emit('source-op', { rel: 'ui/prop.tsx', op });
-      peer.write('ui/prop.tsx', applyEdit(peer.file('ui/prop.tsx'), cur, h1, 'style.color', JSON.stringify(color)).source);
+      peer.write(
+        'ui/prop.tsx',
+        applyEdit(peer.file('ui/prop.tsx'), cur, h1, 'style.color', JSON.stringify(color)).source
+      );
     };
     uiSet(alice, 'blue');
     uiSet(bob, 'green');
-    const final = await waitFor(() => {
-      const a = alice.read('ui/prop.tsx');
-      const b = bob.read('ui/prop.tsx');
-      return a && a === b && (a.includes('"blue"') || a.includes('"green"')) ? a : null;
-    }, 'both to converge on one colour', 20_000);
+    const final = await waitFor(
+      () => {
+        const a = alice.read('ui/prop.tsx');
+        const b = bob.read('ui/prop.tsx');
+        return a && a === b && (a.includes('"blue"') || a.includes('"green"')) ? a : null;
+      },
+      'both to converge on one colour',
+      20_000
+    );
     expect(final).toContain('title="Card"');
     // No conflict on either side, and both assignments are in the history.
     expect(alice.runtime.conflictVersions?.('design/ui/prop.tsx')).toBeNull();
@@ -430,14 +436,20 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     expect(one.sides.theirs).toBe(one.winner.read('ui/clash-a.tsx'));
     const kept = await one.loser.runtime.resolveConflict?.(one.rel, 'mine');
     expect(kept?.status).toBe('accepted');
-    await waitFor(() => one.winner.read('ui/clash-a.tsx') === one.sides.mine, 'mine to reach the winner');
+    await waitFor(
+      () => one.winner.read('ui/clash-a.tsx') === one.sides.mine,
+      'mine to reach the winner'
+    );
     expect(one.loser.runtime.conflictVersions?.(one.rel)).toBeNull();
 
     await make('clash-b');
     const two = await clash('clash-b');
     const took = await two.loser.runtime.resolveConflict?.(two.rel, 'theirs');
     expect(took?.status).toBe('taken');
-    await waitFor(() => two.loser.read('ui/clash-b.tsx') === two.sides.theirs, 'the project’s version on the loser');
+    await waitFor(
+      () => two.loser.read('ui/clash-b.tsx') === two.sides.theirs,
+      'the project’s version on the loser'
+    );
     expect(two.loser.runtime.conflictVersions?.(two.rel)).toBeNull();
     // The loser's own version is still recoverable.
     const local = join(two.loser.ctx.paths.historyDir, 'ui-clash-b', 'sync-recovery', 'local.tsx');
@@ -536,7 +548,9 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
       return bob.read('ui/pair-a.tsx') === src('Pair v1');
     }, 'pair-a on bob');
     const boot = await api(hub, 'bootstrap');
-    const a = (boot.body.docs as { doc: string; path: string }[]).find((d) => d.path === 'ui/pair-a.tsx');
+    const a = (boot.body.docs as { doc: string; path: string }[]).find(
+      (d) => d.path === 'ui/pair-a.tsx'
+    );
     expect(a).toBeTruthy();
     const docB = (a as { doc: string }).doc.replace(/ui-pair-a$/, 'ui-pair-b');
 
@@ -563,7 +577,13 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
           kind: 'edit',
           label: 'Pair edit',
           operations: [
-            { op: 'lane.replace', doc: a?.doc, lane: 'html', baseContent: src('Pair v1'), content: src('Pair v2') },
+            {
+              op: 'lane.replace',
+              doc: a?.doc,
+              lane: 'html',
+              baseContent: src('Pair v1'),
+              content: src('Pair v2'),
+            },
             { op: 'doc.create', doc: docB, path: 'ui/pair-b.tsx', lanes: { html: src('Pair B') } },
           ],
         },
@@ -573,7 +593,9 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     // The poke a ledger hub sends (this fixture has no control channel).
     await waitFor(async () => {
       await bob.runtime.pullRemoteNow();
-      return bob.read('ui/pair-a.tsx') === src('Pair v2') && bob.read('ui/pair-b.tsx') === src('Pair B');
+      return (
+        bob.read('ui/pair-a.tsx') === src('Pair v2') && bob.read('ui/pair-b.tsx') === src('Pair B')
+      );
     }, 'the whole action on bob');
     watching = false;
     await watch;
@@ -647,17 +669,26 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     // published at once, not swallowed into the agent's action.
     alice.ctx.bus.emit('activity:suppress', 'ui/ai-c.tsx');
     alice.write('ui/ai-c.tsx', src('ai-c by the designer'));
-    await waitFor(() => bob.read('ui/ai-c.tsx') === src('ai-c by the designer'), 'the designer’s own edit');
+    await waitFor(
+      () => bob.read('ui/ai-c.tsx') === src('ai-c by the designer'),
+      'the designer’s own edit'
+    );
     await new Promise((r) => setTimeout(r, 800));
     expect(bob.read('ui/ai-a.tsx')).toBe(src('ai-a v1')); // nothing of the agent's yet
     expect(bob.read('ui/ai-b.tsx')).toBe(src('ai-b v1'));
     const ended = await alice.runtime.endAiAction?.('acp:chat-1', 'done');
     expect(ended?.status).toBe('accepted');
     await waitFor(
-      () => bob.read('ui/ai-a.tsx') === src('ai-a by Claude') && bob.read('ui/ai-b.tsx') === src('ai-b by Claude'),
+      () =>
+        bob.read('ui/ai-a.tsx') === src('ai-a by Claude') &&
+        bob.read('ui/ai-b.tsx') === src('ai-b by Claude'),
       'the agent’s action on bob'
     );
-    const hist = (await api(hub, 'history?limit=200')).body.history as { kind: string; label: string; effects: unknown[] }[];
+    const hist = (await api(hub, 'history?limit=200')).body.history as {
+      kind: string;
+      label: string;
+      effects: unknown[];
+    }[];
     expect(hist.length).toBe(before + 2); // the designer's edit + ONE agent action
     const ai = hist.find((a) => a.kind === 'ai');
     expect(ai?.label).toBe('Claude: rename both titles');
@@ -673,7 +704,10 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     expect(alice.read('ui/ai-a.tsx')).toBe(src('ai-a half done')); // kept
     const published = await alice.runtime.resolveAiAction?.('publish');
     expect(published?.status).toBe('accepted');
-    await waitFor(() => bob.read('ui/ai-a.tsx') === src('ai-a half done'), 'the published held edit');
+    await waitFor(
+      () => bob.read('ui/ai-a.tsx') === src('ai-a half done'),
+      'the published held edit'
+    );
 
     // --- a failed run the person discards: the accepted version comes back
     alice.runtime.beginAiAction?.('acp:chat-2', 'Claude: experiment');
@@ -682,7 +716,10 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     await alice.runtime.endAiAction?.('acp:chat-2', 'failed');
     const discarded = await alice.runtime.resolveAiAction?.('discard');
     expect(discarded?.status).toBe('discarded');
-    await waitFor(() => alice.read('ui/ai-b.tsx') === src('ai-b by Claude'), 'the accepted version back on alice');
+    await waitFor(
+      () => alice.read('ui/ai-b.tsx') === src('ai-b by Claude'),
+      'the accepted version back on alice'
+    );
     expect(bob.read('ui/ai-b.tsx')).toBe(src('ai-b by Claude'));
   }, 90_000);
 
@@ -695,10 +732,14 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
         .filter((d) => !d.retired && d.path.endsWith('.tsx'))
         .map((d) => d.path);
       expect(live.length).toBeGreaterThan(2);
-      await waitFor(async () => {
-        await carol.runtime.pullRemoteNow();
-        return live.every((p) => carol.read(p) !== null && carol.read(p) === alice.read(p));
-      }, 'carol to hold every canvas exactly as alice does', 30_000);
+      await waitFor(
+        async () => {
+          await carol.runtime.pullRemoteNow();
+          return live.every((p) => carol.read(p) !== null && carol.read(p) === alice.read(p));
+        },
+        'carol to hold every canvas exactly as alice does',
+        30_000
+      );
       for (const p of live) expect(carol.read(p)).toBe(bob.read(p));
     } finally {
       await carol.runtime.stop();

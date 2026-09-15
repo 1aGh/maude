@@ -27,7 +27,9 @@ describe('the loader is chosen ONCE, where the posture is named', () => {
     // The project's accepted history comes first when the project has one
     // (DDR-241, T27); the Git posture is still chosen at this one place.
     expect(APP).toContain('return (cloudManaged ? gitLoadCloudLog : gitLoadLog)(path);');
-    expect(APP).toContain("historySource={projectHistoryOn ? 'project' : cloudManaged ? 'cloud' : 'local'}");
+    expect(APP).toContain(
+      "historySource={projectHistoryOn ? 'project' : cloudManaged ? 'cloud' : 'local'}"
+    );
     // The panel may READ the source, never compute it from `cloudManaged` —
     // that would be the second derivation the posture constant exists to stop.
     expect(PANEL).toContain("const cloudHistorySource = historySource === 'cloud';");
@@ -100,7 +102,10 @@ describe('while cloud-managed, the desktop runs NO local git of its own', () => 
     // The BRANCH half is withdrawn; the project half stays (plan T22 — a
     // managed project still needs the way to another project).
     expect(APP).toContain('projectOnly={savingIsManaged}');
-    const SWITCHER = readFileSync(join(STUDIO, 'client', 'panels', 'RepoBranchSwitcher.jsx'), 'utf8');
+    const SWITCHER = readFileSync(
+      join(STUDIO, 'client', 'panels', 'RepoBranchSwitcher.jsx'),
+      'utf8'
+    );
     expect(SWITCHER).toContain('if (native && status && (!status.repo || projectOnly)) {');
     expect(SWITCHER).toContain('if (!status?.repo || projectOnly) return null;');
     expect(APP).toContain('savingIsManaged={savingIsManaged}');

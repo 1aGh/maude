@@ -294,7 +294,9 @@ export function createAcceptedRevisions({
     for (const d of manifest.docs) {
       if (d.retired) continue;
       out.checked += 1;
-      const conn = await server.hocuspocus.openDirectConnection(d.doc, { accepted: { parity: true } });
+      const conn = await server.hocuspocus.openDirectConnection(d.doc, {
+        accepted: { parity: true },
+      });
       const lanes = {};
       try {
         await conn.transact((doc) => {
@@ -306,7 +308,8 @@ export function createAcceptedRevisions({
       for (const lane of LANE_NAMES) {
         const head = d.lanes[lane]?.hash ?? null;
         const live = lanes[lane] ? laneHash(lanes[lane]) : null;
-        if (head !== live) out.mismatches.push({ doc: d.doc, path: d.path, lane, where: 'document' });
+        if (head !== live)
+          out.mismatches.push({ doc: d.doc, path: d.path, lane, where: 'document' });
       }
       const body = d.path ? checkoutBody(d.path) : null;
       if (body !== null && d.lanes.html?.hash && laneHash(body) !== d.lanes.html.hash) {
@@ -442,7 +445,10 @@ export function createAcceptedRevisions({
       }
       if (route === 'parity' && method === 'GET') {
         if (!who.admin) {
-          respondJson(403, { error: 'only the project owner can run a parity check', code: 'forbidden' });
+          respondJson(403, {
+            error: 'only the project owner can run a parity check',
+            code: 'forbidden',
+          });
           return true;
         }
         respondJson(200, await parity());
@@ -463,7 +469,12 @@ export function createAcceptedRevisions({
         }
         if (body.dryRun === true) {
           // Preflight: the import this switch would commit — nothing persists.
-          respondJson(200, { dryRun: true, mode: state.mode, epoch: state.epoch, imported: await previewSwitch() });
+          respondJson(200, {
+            dryRun: true,
+            mode: state.mode,
+            epoch: state.epoch,
+            imported: await previewSwitch(),
+          });
           return true;
         }
         respondJson(200, await setMode({ mode: body.mode, expectEpoch: body.expectEpoch }));
@@ -518,7 +529,9 @@ export function createAcceptedMetrics({ window = 256 } = {}) {
   const ack = [];
   let lastAt = null;
   const pct = (sorted, q) =>
-    sorted.length ? Math.round(sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] * 10) / 10 : null;
+    sorted.length
+      ? Math.round(sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] * 10) / 10
+      : null;
   return {
     record(result, ms) {
       lastAt = Date.now();
@@ -536,7 +549,12 @@ export function createAcceptedMetrics({ window = 256 } = {}) {
       const sorted = [...ack].sort((a, b) => a - b);
       return {
         proposals: { accepted, replayed, rejected: { ...rejected } },
-        ackMs: { p50: pct(sorted, 0.5), p95: pct(sorted, 0.95), p99: pct(sorted, 0.99), n: sorted.length },
+        ackMs: {
+          p50: pct(sorted, 0.5),
+          p95: pct(sorted, 0.95),
+          p99: pct(sorted, 0.99),
+          n: sorted.length,
+        },
         lastProposalAt: lastAt,
       };
     },

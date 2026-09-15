@@ -138,7 +138,12 @@ function tallyFile(abs: string, t: Tally): void {
           } else t.styleExpression += 1;
           continue;
         }
-        if (v === null || v === undefined || isLit(v) || (v.type === 'JSXExpressionContainer' && isLit(v.expression)))
+        if (
+          v === null ||
+          v === undefined ||
+          isLit(v) ||
+          (v.type === 'JSXExpressionContainer' && isLit(v.expression))
+        )
           t.attrLiteral += 1;
         else t.attrExpression += 1;
       }
@@ -148,13 +153,17 @@ function tallyFile(abs: string, t: Tally): void {
           (o.attributes ?? []).some(
             (a: AnyNode) =>
               a.name?.name === k &&
-              (isLit(a.value) || (a.value?.type === 'JSXExpressionContainer' && isLit(a.value.expression)))
+              (isLit(a.value) ||
+                (a.value?.type === 'JSXExpressionContainer' && isLit(a.value.expression)))
           );
         if (lit('id') && lit('width')) t.artboardsLiteral += 1;
       }
       for (const c of node.children ?? []) {
         if (c.type === 'JSXText' && c.value.trim()) t.textLiteral += 1;
-        else if (c.type === 'JSXExpressionContainer' && c.expression?.type !== 'JSXEmptyExpression') {
+        else if (
+          c.type === 'JSXExpressionContainer' &&
+          c.expression?.type !== 'JSXEmptyExpression'
+        ) {
           if (!JSON.stringify(c.expression).includes('"JSXElement"')) t.textExpression += 1;
         }
       }
@@ -188,24 +197,64 @@ for (const root of roots) {
 const pct = (a: number, b: number) => (b ? `${Math.round((100 * a) / b)}%` : '—');
 const t = total;
 const rows: [string, string, string][] = [
-  ['Canvases (parse errors)', `${t.canvases} (${t.parseErrors})`, 'broken TSX travels as a held candidate'],
+  [
+    'Canvases (parse errors)',
+    `${t.canvases} (${t.parseErrors})`,
+    'broken TSX travels as a held candidate',
+  ],
   ['JSX elements', `${t.elements}`, `addressable by print: delete / duplicate / move`],
-  ['— with a unique print', `${t.uniquePrints} (${pct(t.uniquePrints, t.printed)})`, 're-found after a concurrent structural change; the rest re-apply only when nothing moved'],
+  [
+    '— with a unique print',
+    `${t.uniquePrints} (${pct(t.uniquePrints, t.printed)})`,
+    're-found after a concurrent structural change; the rest re-apply only when nothing moved',
+  ],
   ['— authored `data-cd-id`', `${t.authoredIds}`, 'stable by construction'],
-  ['— custom component usages', `${t.customComponents}`, 'edited at the usage; the definition is code'],
-  ['Literal text children', `${t.textLiteral}`, `text op (${pct(t.textLiteral, t.textLiteral + t.textExpression)} of text)`],
-  ['Expression text children', `${t.textExpression}`, 'code candidate (the `{var}` resolver covers traced literals)'],
-  ['Literal attributes', `${t.attrLiteral}`, `set / remove (${pct(t.attrLiteral, t.attrLiteral + t.attrExpression)} of attributes)`],
+  [
+    '— custom component usages',
+    `${t.customComponents}`,
+    'edited at the usage; the definition is code',
+  ],
+  [
+    'Literal text children',
+    `${t.textLiteral}`,
+    `text op (${pct(t.textLiteral, t.textLiteral + t.textExpression)} of text)`,
+  ],
+  [
+    'Expression text children',
+    `${t.textExpression}`,
+    'code candidate (the `{var}` resolver covers traced literals)',
+  ],
+  [
+    'Literal attributes',
+    `${t.attrLiteral}`,
+    `set / remove (${pct(t.attrLiteral, t.attrLiteral + t.attrExpression)} of attributes)`,
+  ],
   ['Expression attributes', `${t.attrExpression}`, 'code candidate'],
   ['Spread attributes', `${t.spreads}`, 'code candidate'],
   ['Inline style objects', `${t.styleLiteralObject}`, 'style.* set / remove per property'],
-  ['— literal style properties', `${t.styleLiteralProps}`, `${pct(t.styleLiteralProps, t.styleLiteralProps + t.styleExpressionProps)} of style properties`],
+  [
+    '— literal style properties',
+    `${t.styleLiteralProps}`,
+    `${pct(t.styleLiteralProps, t.styleLiteralProps + t.styleExpressionProps)} of style properties`,
+  ],
   ['— expression style properties', `${t.styleExpressionProps}`, 'code candidate'],
   ['Style expressions (not an object literal)', `${t.styleExpression}`, 'code candidate'],
-  ['Artboards (literal id + width)', `${t.artboards} (${t.artboardsLiteral})`, 'artboard ops by authored id'],
-  ['`.map()`-rendered lists', `${t.mapRendered}`, 'edits reach the array literal; structure is code'],
+  [
+    'Artboards (literal id + width)',
+    `${t.artboards} (${t.artboardsLiteral})`,
+    'artboard ops by authored id',
+  ],
+  [
+    '`.map()`-rendered lists',
+    `${t.mapRendered}`,
+    'edits reach the array literal; structure is code',
+  ],
   ['Conditionally rendered JSX', `${t.conditionalRendered}`, 'code candidate'],
-  ['Imports (relative)', `${t.imports} (${t.relativeImports})`, 'preserved verbatim; never rewritten'],
+  [
+    'Imports (relative)',
+    `${t.imports} (${t.relativeImports})`,
+    'preserved verbatim; never rewritten',
+  ],
 ];
 if (md) {
   console.log(`| Construct | Count | Structured operations |\n|---|---:|---|`);

@@ -34,7 +34,9 @@ export { canvasSlugFromRel } from './canvas-slug.ts';
  *  the canvas's own sidecars, which only ever travel with their canvas. */
 export function isSupportingFileRel(rel: string): boolean {
   if (/\.(meta\.json|annotations\.svg|registry\.json)$/i.test(rel)) return false;
-  return /\.(md|css|json|txt|ya?ml|svg|png|jpe?g|gif|webp|avif|mp4|webm|mov|mp3|wav|ogg|m4a|woff2?|ttf|otf)$/i.test(rel);
+  return /\.(md|css|json|txt|ya?ml|svg|png|jpe?g|gif|webp|avif|mp4|webm|mov|mp3|wav|ogg|m4a|woff2?|ttf|otf)$/i.test(
+    rel
+  );
 }
 
 import {
@@ -2895,7 +2897,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       return dirAbs === gAbs || dirAbs.startsWith(`${gAbs}${path.sep}`);
     });
     if (!inGroup) {
-      return { ok: false, status: 400, error: 'only canvases under a managed canvas group can be duplicated' };
+      return {
+        ok: false,
+        status: 400,
+        error: 'only canvases under a managed canvas group can be duplicated',
+      };
     }
     if (!(await assertRealpathContained(dirAbs))) {
       return { ok: false, status: 400, error: 'source path escapes the design root via a symlink' };
@@ -2972,7 +2978,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
 
     // Only a real `.tsx` canvas, no traversal.
     if (rel.includes('..')) return { ok: false, status: 400, error: 'invalid path' };
-    if (!/\.tsx$/i.test(rel) && isSupportingFileRel(rel) && (await isRegularFile(path.join(paths.designRoot, rel)))) {
+    if (
+      !/\.tsx$/i.test(rel) &&
+      isSupportingFileRel(rel) &&
+      (await isRegularFile(path.join(paths.designRoot, rel)))
+    ) {
       return deleteSupportingFile(rel);
     }
     if (!/\.tsx$/i.test(rel)) {
@@ -3108,9 +3118,15 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     const groups = cfg.canvasGroups.filter(
       (g) => g.label !== 'Design system' && !/^system(\/|$)/.test(g.path)
     );
-    const inGroup = groups.some((g) => abs.startsWith(`${path.resolve(path.join(paths.designRoot, g.path))}${path.sep}`));
+    const inGroup = groups.some((g) =>
+      abs.startsWith(`${path.resolve(path.join(paths.designRoot, g.path))}${path.sep}`)
+    );
     if (!inGroup) {
-      return { ok: false, status: 400, error: 'only files inside a canvas folder can be changed here' };
+      return {
+        ok: false,
+        status: 400,
+        error: 'only files inside a canvas folder can be changed here',
+      };
     }
     if (!(await assertRealpathContained(path.dirname(abs)))) {
       return { ok: false, status: 400, error: 'path escapes the design root via a symlink' };
@@ -3166,15 +3182,23 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
     const drPrefix = paths.designRel.replace(/^\/+|\/+$/g, '');
     let toDir =
-      typeof toDirRaw === 'string' ? toDirRaw.trim().replace(/^\/+|\/+$/g, '') : path.posix.dirname(rel);
+      typeof toDirRaw === 'string'
+        ? toDirRaw.trim().replace(/^\/+|\/+$/g, '')
+        : path.posix.dirname(rel);
     if (toDir === drPrefix || toDir === '.') toDir = '';
     else if (toDir.startsWith(`${drPrefix}/`)) toDir = toDir.slice(drPrefix.length + 1);
     const toRel = path.posix.join(toDir, base);
-    if (toRel === rel) return { ok: false, status: 400, error: 'source and destination are the same' };
-    const dest = await supportingFileGuard(toRel).then((d) => (d.ok ? { ok: false as const, status: 409, error: `a file named "${base}" already exists there` } : d));
+    if (toRel === rel)
+      return { ok: false, status: 400, error: 'source and destination are the same' };
+    const dest = await supportingFileGuard(toRel).then((d) =>
+      d.ok
+        ? { ok: false as const, status: 409, error: `a file named "${base}" already exists there` }
+        : d
+    );
     if (!dest.ok && dest.status !== 404) return dest;
     const toAbs = path.resolve(path.join(paths.designRoot, toRel));
-    if (!(await isRegularFile(path.join(paths.designRoot, rel)))) return { ok: false, status: 404, error: 'file not found' };
+    if (!(await isRegularFile(path.join(paths.designRoot, rel))))
+      return { ok: false, status: 404, error: 'file not found' };
     const toDirAbs = path.dirname(toAbs);
     try {
       if (!(await statp(toDirAbs)).isDirectory()) throw new Error('not a folder');
@@ -3183,11 +3207,28 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
     const user = await firstReferenceTo(rel);
     if (user) {
-      return { ok: false, status: 409, error: `${path.posix.basename(rel)} is used by ${user} — change that first` };
+      return {
+        ok: false,
+        status: 409,
+        error: `${path.posix.basename(rel)} is used by ${user} — change that first`,
+      };
     }
     await rename(g.abs, toAbs);
-    ctx.bus.emit('canvas-list-update', { action: 'moved', rel: toRel, slug: fileSlug(toRel), fromRel: rel, fromSlug: fileSlug(rel) });
-    return { ok: true, fromRel: rel, toRel, fromSlug: fileSlug(rel), toSlug: fileSlug(toRel), moved: [toRel] };
+    ctx.bus.emit('canvas-list-update', {
+      action: 'moved',
+      rel: toRel,
+      slug: fileSlug(toRel),
+      fromRel: rel,
+      fromSlug: fileSlug(rel),
+    });
+    return {
+      ok: true,
+      fromRel: rel,
+      toRel,
+      fromSlug: fileSlug(rel),
+      toSlug: fileSlug(toRel),
+      moved: [toRel],
+    };
   }
 
   async function deleteSupportingFile(rel: string): Promise<DeleteCanvasResult> {
@@ -3195,7 +3236,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     if (!g.ok) return g;
     const user = await firstReferenceTo(rel);
     if (user) {
-      return { ok: false, status: 409, error: `${path.posix.basename(rel)} is used by ${user} — remove it there first` };
+      return {
+        ok: false,
+        status: 409,
+        error: `${path.posix.basename(rel)} is used by ${user} — remove it there first`,
+      };
     }
     const slug = fileSlug(rel);
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -4200,7 +4245,12 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
             pre.expected === undefined ? undefined : { expected: pre.expected, next: null }
           ),
         'reset failed',
-        { kind: 'remove', id, attr: `style.${camel}`, ...(idIndex !== undefined ? { occurrence: idIndex } : {}) }
+        {
+          kind: 'remove',
+          id,
+          attr: `style.${camel}`,
+          ...(idIndex !== undefined ? { occurrence: idIndex } : {}),
+        }
       );
     }
     const value = typeof input.value === 'string' ? input.value : '';
@@ -4388,7 +4438,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ctx.bus.emit('activity:suppress', rel);
     try {
       const before = await Bun.file(r.abs).text();
-      announceOp(r.abs, rel, before, { kind: 'move', id, refId, position: String(position), ...(idIndex !== undefined ? { idIndex } : {}), ...(refIndex !== undefined ? { refIndex } : {}) });
+      announceOp(r.abs, rel, before, {
+        kind: 'move',
+        id,
+        refId,
+        position: String(position),
+        ...(idIndex !== undefined ? { idIndex } : {}),
+        ...(refIndex !== undefined ? { refIndex } : {}),
+      });
       const res = await moveElement(r.abs, id, refId, position as MovePosition, idIndex, refIndex);
       const after = await Bun.file(r.abs).text();
       if (after === before) {
@@ -4804,7 +4861,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ctx.bus.emit('activity:suppress', rel);
     try {
       const before = await Bun.file(r.abs).text();
-      announceOp(r.abs, rel, before, { kind: 'delete', id, ...(idIndex !== undefined ? { occurrence: idIndex } : {}) });
+      announceOp(r.abs, rel, before, {
+        kind: 'delete',
+        id,
+        ...(idIndex !== undefined ? { occurrence: idIndex } : {}),
+      });
       const res = await deleteElement(r.abs, id, idIndex);
       const after = await Bun.file(r.abs).text();
       if (after === before) {
@@ -5270,7 +5331,12 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ctx.bus.emit('activity:suppress', rel);
     try {
       const before = await Bun.file(r.abs).text();
-      announceOp(r.abs, rel, before, { kind: 'artboard', fn: 'resize', artboardId, args: [width, height] });
+      announceOp(r.abs, rel, before, {
+        kind: 'artboard',
+        fn: 'resize',
+        artboardId,
+        args: [width, height],
+      });
       await resizeArtboard(r.abs, artboardId, width, height);
       const after = await Bun.file(r.abs).text();
       if (after === before) {
@@ -5318,7 +5384,12 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ctx.bus.emit('activity:suppress', rel);
     try {
       const before = await Bun.file(r.abs).text();
-      announceOp(r.abs, rel, before, { kind: 'artboard', fn: 'hug', artboardId, args: [fixed, freezeHeight] });
+      announceOp(r.abs, rel, before, {
+        kind: 'artboard',
+        fn: 'hug',
+        artboardId,
+        args: [fixed, freezeHeight],
+      });
       await setArtboardHug(r.abs, artboardId, fixed, freezeHeight);
       const after = await Bun.file(r.abs).text();
       if (after === before) {
@@ -5468,7 +5539,12 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ctx.bus.emit('activity:suppress', rel);
     try {
       const before = await Bun.file(r.abs).text();
-      announceOp(r.abs, rel, before, { kind: 'artboard', fn: 'guides', artboardId, args: [guides] });
+      announceOp(r.abs, rel, before, {
+        kind: 'artboard',
+        fn: 'guides',
+        artboardId,
+        args: [guides],
+      });
       await setArtboardGuides(r.abs, artboardId, guides);
       const after = await Bun.file(r.abs).text();
       if (after === before) {
@@ -5690,7 +5766,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         ctx.bus.emit('activity:unsuppress', rel);
         return { ok: false, status: 413, error: 'canvas source too large to grow' };
       }
-      announceOp(r.abs, rel, before, { kind: 'duplicate', id, ...(idIndex !== undefined ? { occurrence: idIndex } : {}) });
+      announceOp(r.abs, rel, before, {
+        kind: 'duplicate',
+        id,
+        ...(idIndex !== undefined ? { occurrence: idIndex } : {}),
+      });
       const res = await duplicateElement(r.abs, id, idIndex);
       const after = await Bun.file(r.abs).text();
       if (after === before) {

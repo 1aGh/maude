@@ -752,7 +752,10 @@ export function createCloudEndpoints(ctx: Ctx) {
     if (!r) {
       return {
         status: 502,
-        json: { ok: false, error: 'The workspace did not accept the sign-in. Try again in a minute.' },
+        json: {
+          ok: false,
+          error: 'The workspace did not accept the sign-in. Try again in a minute.',
+        },
       };
     }
     return {

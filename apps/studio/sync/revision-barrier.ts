@@ -37,7 +37,9 @@ interface Cohort {
   timer: ReturnType<typeof setTimeout> | null;
 }
 
-export function createRevisionBarrier(opts: { timeoutMs?: number; log?: Pick<Console, 'warn'> } = {}) {
+export function createRevisionBarrier(
+  opts: { timeoutMs?: number; log?: Pick<Console, 'warn'> } = {}
+) {
   const timeoutMs = opts.timeoutMs ?? 1500;
   const log = opts.log ?? console;
   const cohorts = new Map<number, Cohort>();

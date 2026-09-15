@@ -209,8 +209,22 @@ describe('MAUDE_DEFAULT_ALLOWED_TOOLS — source-of-truth guard (DDR-184 / DDR-0
     // prompting `agent-browser eval` call; see both files' own comments).
     const here = dirname(realpathSync(import.meta.url.replace('file://', '')));
     const pluginsDir = join(here, '..', '..', '..', 'plugins', 'design');
+    // A command is an index plus linked stage files (per-host packaging):
+    // read the index and every local markdown file it links, one level deep.
+    const withLinked = (rel: string) => {
+      const text = readFileSync(join(pluginsDir, rel), 'utf8');
+      const dir = dirname(join(pluginsDir, rel));
+      const linked = [...text.matchAll(/\]\((\.{0,2}\/?[^)#\s]+\.md)\)/g)].map((m) => {
+        try {
+          return readFileSync(join(dir, m[1] as string), 'utf8');
+        } catch {
+          return '';
+        }
+      });
+      return [text, ...linked].join('\n');
+    };
     for (const rel of ['agents/motion-critic.md', 'commands/edit.md']) {
-      const src = readFileSync(join(pluginsDir, rel), 'utf8');
+      const src = withLinked(rel);
       expect(src).not.toMatch(/(?<!maude design )agent-browser (screenshot|open|navigate)\b/);
       expect(src).toContain('agent-browser eval'); // deliberately raw — see comment above
     }

@@ -44,7 +44,13 @@ function startHub(dataDir: string): Promise<{ http: string; tokens: Record<strin
   return new Promise((ok, fail) => {
     const proc = spawn(
       'node',
-      [join(ROOT, 'apps/hub/test/fixtures/serve-hub.mjs'), dataDir, '0', '--transactions', '--users'],
+      [
+        join(ROOT, 'apps/hub/test/fixtures/serve-hub.mjs'),
+        dataDir,
+        '0',
+        '--transactions',
+        '--users',
+      ],
       { stdio: ['ignore', 'pipe', 'pipe'] }
     );
     children.push(proc);
@@ -64,7 +70,9 @@ function startHub(dataDir: string): Promise<{ http: string; tokens: Record<strin
   });
 }
 
-export const canvasSource = (title: string) => `import { DCArtboard, DCSection, DesignCanvas } from "@maude/canvas-lib";
+export const canvasSource = (
+  title: string
+) => `import { DCArtboard, DCSection, DesignCanvas } from "@maude/canvas-lib";
 
 export default function Canvas() {
   return (
@@ -113,7 +121,11 @@ async function setUp(): Promise<string> {
 
   const scratch = mkdtempSync(join(tmpdir(), 'maude-e2e-team-'));
   const hub = await startHub(join(scratch, 'hub'));
-  const managedDir = join(appDir, 'projects', `${hub.http.replace(/^https?:\/\//, '').replace(':', '-')}--local`);
+  const managedDir = join(
+    appDir,
+    'projects',
+    `${hub.http.replace(/^https?:\/\//, '').replace(':', '-')}--local`
+  );
   rmSync(managedDir, { recursive: true, force: true });
 
   // ── The teammate already at work ──────────────────────────────────────────
@@ -137,15 +149,29 @@ async function setUp(): Promise<string> {
   const teammateHubs = join(scratch, 'teammate-hubs.json');
   writeFileSync(
     teammateHubs,
-    JSON.stringify({ hubs: { [hub.http]: { token: hub.tokens.alice, role: 'member', linkedAt: Date.now() } } }),
+    JSON.stringify({
+      hubs: { [hub.http]: { token: hub.tokens.alice, role: 'member', linkedAt: Date.now() } },
+    }),
     { mode: 0o600 }
   );
   const teammatePort = await freePort();
   const studio = spawn(
     'bun',
-    ['--no-env-file', join(ROOT, 'apps/studio/server.ts'), '--root', teammate, '--port', String(teammatePort)],
+    [
+      '--no-env-file',
+      join(ROOT, 'apps/studio/server.ts'),
+      '--root',
+      teammate,
+      '--port',
+      String(teammatePort),
+    ],
     {
-      env: { ...process.env, HUBS_CONFIG_PATH: teammateHubs, MAUDE_NO_AUTOBUILD: '1', NO_OPEN: '1' },
+      env: {
+        ...process.env,
+        HUBS_CONFIG_PATH: teammateHubs,
+        MAUDE_NO_AUTOBUILD: '1',
+        NO_OPEN: '1',
+      },
       stdio: ['ignore', 'ignore', 'pipe'],
     }
   );
@@ -172,7 +198,11 @@ async function setUp(): Promise<string> {
     password: TEAM_PASSWORD,
   });
   const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '');
-  process.env.MAUDE_E2E_RUN_DIR = resolve(HERE, '../../../.ai/device/scenario-runs/team-project', stamp);
+  process.env.MAUDE_E2E_RUN_DIR = resolve(
+    HERE,
+    '../../../.ai/device/scenario-runs/team-project',
+    stamp
+  );
   return scratch;
 }
 

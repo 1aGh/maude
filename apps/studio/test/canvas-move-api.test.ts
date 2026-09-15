@@ -683,18 +683,25 @@ describe('supporting files', () => {
 
       const moved = await post({ file: 'ui/Meeting notes.md', toDir: 'ui/docs' });
       expect(moved.status).toBe(200);
-      expect(readFileSync(join(designRoot, 'ui', 'docs', 'Meeting notes.md'), 'utf8')).toBe('# Notes\n');
+      expect(readFileSync(join(designRoot, 'ui', 'docs', 'Meeting notes.md'), 'utf8')).toBe(
+        '# Notes\n'
+      );
 
       const used = await post({ file: 'ui/hero.png', toDir: 'ui/docs' });
       expect(used.status).toBe(409);
       expect(((await used.json()) as { error: string }).error).toContain('ui/Uses.tsx');
       expect(existsSync(join(designRoot, 'ui', 'hero.png'))).toBe(true);
-      const usedDelete = await fetch(`http://localhost:${port}/_api/canvas?file=ui/hero.png`, { method: 'DELETE' });
-      expect(usedDelete.status).toBe(409);
-
-      const del = await fetch(`http://localhost:${port}/_api/canvas?file=${encodeURIComponent('ui/docs/Meeting notes.md')}`, {
+      const usedDelete = await fetch(`http://localhost:${port}/_api/canvas?file=ui/hero.png`, {
         method: 'DELETE',
       });
+      expect(usedDelete.status).toBe(409);
+
+      const del = await fetch(
+        `http://localhost:${port}/_api/canvas?file=${encodeURIComponent('ui/docs/Meeting notes.md')}`,
+        {
+          method: 'DELETE',
+        }
+      );
       expect(del.status).toBe(200);
       expect(existsSync(join(designRoot, 'ui', 'docs', 'Meeting notes.md'))).toBe(false);
       // The folder itself survives a file delete.

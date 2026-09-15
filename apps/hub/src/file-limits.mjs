@@ -14,8 +14,8 @@
 // Nothing here ever holds a whole large file in memory: hashing reads
 // fixed-size chunks.
 
-import { closeSync, openSync, readSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { closeSync, openSync, readSync } from 'node:fs';
 
 const MIB = 1024 * 1024;
 

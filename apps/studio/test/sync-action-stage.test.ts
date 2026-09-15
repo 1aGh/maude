@@ -16,8 +16,15 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-function rig(answer: (ops: Operation[]) => ProposalResult = () => ({ protocol: 1, status: 'accepted', transactionId: 'g' })) {
-  const sent: { label: string; kind: string; operations: Operation[]; transactionId: string }[] = [];
+function rig(
+  answer: (ops: Operation[]) => ProposalResult = () => ({
+    protocol: 1,
+    status: 'accepted',
+    transactionId: 'g',
+  })
+) {
+  const sent: { label: string; kind: string; operations: Operation[]; transactionId: string }[] =
+    [];
   let n = 0;
   const stage = createActionStage({
     designRoot: dir,
@@ -31,7 +38,12 @@ function rig(answer: (ops: Operation[]) => ProposalResult = () => ({ protocol: 1
   return { stage, sent };
 }
 
-const prop = (lane: LaneProposal['lane'], content: string, base: string, tx: string): LaneProposal => ({
+const prop = (
+  lane: LaneProposal['lane'],
+  content: string,
+  base: string,
+  tx: string
+): LaneProposal => ({
   lane,
   content,
   baseContent: base,
@@ -117,7 +129,11 @@ describe('AI action stage', () => {
     // ...process dies here.
     const second = rig();
     second.stage.restore();
-    expect(second.stage.summary()).toMatchObject({ state: 'held', label: 'Claude: two files', canvases: ['ui-a'] });
+    expect(second.stage.summary()).toMatchObject({
+      state: 'held',
+      label: 'Claude: two files',
+      canvases: ['ui-a'],
+    });
     expect(second.stage.captures('ui-a', true)).toBe(true); // its cold start difference
     expect(second.stage.captures('ui-z', true)).toBe(false); // another canvas proceeds normally
     const p = second.stage.capture('ui-a', 'doc-a', prop('html', 'A1', 'A1-guess', 'tx9'));

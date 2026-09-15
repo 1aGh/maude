@@ -2469,7 +2469,10 @@ export function DCArtboard({
     const next = value.trim();
     if (!next || next === label) return;
     try {
-      window.parent.postMessage({ dgn: 'rename-artboard-request', artboardId: id, label: next }, '*');
+      window.parent.postMessage(
+        { dgn: 'rename-artboard-request', artboardId: id, label: next },
+        '*'
+      );
     } catch {
       /* detached / cross-origin */
     }
@@ -2642,30 +2645,32 @@ export function DCArtboard({
             onBlur={(e) => commitRename(e.currentTarget.value)}
           />
         ) : (
-        <button
-          type="button"
-          className="dc-artboard-label sku"
-          onDoubleClick={(e) => {
-            if (isReadOnlyCanvas()) return;
-            e.stopPropagation();
-            renameDoneRef.current = false;
-            setRenaming(true);
-          }}
-          // a11y-auditor (T3 review) — the kind chip is aria-hidden (decorative,
-          // redundant with the Inspector's Kind picker), so a non-digital kind
-          // must still reach the artboard's own accessible name or it's
-          // invisible to AT users entirely.
-          aria-label={
-            resolvedKind !== 'digital' ? `Artboard ${label}, ${resolvedKind}` : `Artboard ${label}`
-          }
-        >
-          {resolvedKind !== 'digital' ? (
-            <span className="dc-artboard-kind-chip" aria-hidden="true">
-              <ArtboardKindIcon kind={resolvedKind} />
-            </span>
-          ) : null}
-          {label}
-        </button>
+          <button
+            type="button"
+            className="dc-artboard-label sku"
+            onDoubleClick={(e) => {
+              if (isReadOnlyCanvas()) return;
+              e.stopPropagation();
+              renameDoneRef.current = false;
+              setRenaming(true);
+            }}
+            // a11y-auditor (T3 review) — the kind chip is aria-hidden (decorative,
+            // redundant with the Inspector's Kind picker), so a non-digital kind
+            // must still reach the artboard's own accessible name or it's
+            // invisible to AT users entirely.
+            aria-label={
+              resolvedKind !== 'digital'
+                ? `Artboard ${label}, ${resolvedKind}`
+                : `Artboard ${label}`
+            }
+          >
+            {resolvedKind !== 'digital' ? (
+              <span className="dc-artboard-kind-chip" aria-hidden="true">
+                <ArtboardKindIcon kind={resolvedKind} />
+              </span>
+            ) : null}
+            {label}
+          </button>
         )}
         {hasVideo ? (
           <button

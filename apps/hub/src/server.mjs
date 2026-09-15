@@ -83,9 +83,8 @@ import {
   readStudioReleaseVersion,
 } from './bundle-identity.mjs';
 import { handleExportRoute, scheduleMirror, scheduleRevocationSweep } from './cell-ops.mjs';
-import { projectTokenKey, verifyAccessToken } from './cloud-identity.mjs';
-import { isRevoked } from './revocations.mjs';
 import { clientIpFor, parseTrustedProxies } from './client-ip.mjs';
+import { projectTokenKey, verifyAccessToken } from './cloud-identity.mjs';
 import { designRootFor } from './design-root.mjs';
 import { groupCanvases } from './doc-namespace.mjs';
 import { createDocumentEvents } from './document-events.mjs';
@@ -132,6 +131,7 @@ import { openRemoteProjectStore } from './project-transactions/store-remote.mjs'
 import { openSqliteProjectStore } from './project-transactions/store-sqlite.mjs';
 import { createRateStore } from './rate-store.mjs';
 import { mintRenderToken, verifyRenderToken } from './render-token.mjs';
+import { isRevoked } from './revocations.mjs';
 import { isReadOnlyRole, ROLES } from './role-matrix.mjs';
 import { defaultS3Source } from './s3-creds.mjs';
 import { seedRepo } from './seed-repo.mjs';

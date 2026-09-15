@@ -9,7 +9,16 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { type ChildProcess, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, rmSync, writeFileSync, writeSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  rmSync,
+  writeFileSync,
+  writeSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -22,7 +31,10 @@ const HUB_READY = existsSync(join(HUB_DIR, 'node_modules', 'better-sqlite3'));
 const MIB = 1024 * 1024;
 const SIZE = 100 * MIB;
 
-function startHub(dataDir: string, repoDir: string): Promise<{ proc: ChildProcess; http: string; token: string }> {
+function startHub(
+  dataDir: string,
+  repoDir: string
+): Promise<{ proc: ChildProcess; http: string; token: string }> {
   return new Promise((ok, fail) => {
     const proc = spawn('node', [FIXTURE, dataDir, '0'], {
       stdio: ['ignore', 'pipe', 'pipe'],

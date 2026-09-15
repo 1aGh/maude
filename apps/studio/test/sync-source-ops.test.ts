@@ -12,7 +12,8 @@ const H1 = `      <h1 title="Hello" style={{ color: 'red' }}>Card</h1>`;
 const P = `      <p className="lede">Body</p>`;
 
 // Ids as the pipeline computes them: Bun.hash("<Component>:<pre-order idx>").
-const computeId = (idx: number) => Bun.hash(`Card:${idx}`).toString(16).padStart(16, '0').slice(0, 8);
+const computeId = (idx: number) =>
+  Bun.hash(`Card:${idx}`).toString(16).padStart(16, '0').slice(0, 8);
 function idOf(src: string, tag: string): string {
   for (let idx = 0; idx < 20; idx++) {
     const id = computeId(idx);
@@ -25,7 +26,12 @@ describe('source operations', () => {
   test('a style set lost to a teammate’s change of the same property wins by acceptance order, keeping their other edit', () => {
     const base = canvas(`${H1}\n${P}`);
     const id = idOf(base, 'h1');
-    const op = describeSourceOp(ABS, base, { kind: 'set', id, attr: 'style.color', value: JSON.stringify('blue') });
+    const op = describeSourceOp(ABS, base, {
+      kind: 'set',
+      id,
+      attr: 'style.color',
+      value: JSON.stringify('blue'),
+    });
     expect(op).not.toBeNull();
     // The teammate changed the same colour AND inserted a sibling before it —
     // which renumbers every positional id after it.
@@ -51,7 +57,12 @@ describe('source operations', () => {
 
   test('a target the teammate deleted is not guessed at', () => {
     const base = canvas(`${H1}\n${P}`);
-    const op = describeSourceOp(ABS, base, { kind: 'set', id: idOf(base, 'p'), attr: 'className', value: 'x' });
+    const op = describeSourceOp(ABS, base, {
+      kind: 'set',
+      id: idOf(base, 'p'),
+      attr: 'className',
+      value: 'x',
+    });
     const r = replaySourceOp(ABS, op!, canvas(H1));
     expect(r).toEqual({ ok: false, reason: 'target-missing' });
   });
@@ -67,7 +78,15 @@ describe('source operations', () => {
     const src = canvas(`${H1}\n${P}`);
     const id = idOf(src, 'h1');
     const print = elementPrint(ABS, src, id, 'style');
-    expect(relocateElement(ABS, applyEdit(ABS, src, id, 'style.color', '"x"').source, id, print!, 'style')).toBe(id);
+    expect(
+      relocateElement(
+        ABS,
+        applyEdit(ABS, src, id, 'style.color', '"x"').source,
+        id,
+        print!,
+        'style'
+      )
+    ).toBe(id);
   });
 });
 
@@ -95,7 +114,12 @@ describe('structural operations (T25)', () => {
   test('an artboard change is re-applied by its authored id', () => {
     const board = (w: number, extra = '') =>
       `import { DCArtboard, DesignCanvas } from "@maude/canvas-lib";\nexport default function B() {\n  return (\n    <DesignCanvas>\n      <DCArtboard id="home" label="Home" width={${w}} height={300}>${extra}<p>x</p></DCArtboard>\n    </DesignCanvas>\n  );\n}\n`;
-    const op = describeSourceOp(ABS, board(400), { kind: 'artboard', fn: 'resize', artboardId: 'home', args: [640, undefined] });
+    const op = describeSourceOp(ABS, board(400), {
+      kind: 'artboard',
+      fn: 'resize',
+      artboardId: 'home',
+      args: [640, undefined],
+    });
     const r = replaySourceOp(ABS, op!, board(400, '<hr />'));
     expect(r.ok).toBe(true);
     if (r.ok) {

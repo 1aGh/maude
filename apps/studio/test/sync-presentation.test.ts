@@ -458,7 +458,12 @@ describe('accepted revisions — Saving until the project answers', () => {
   test('a change waiting for its durable answer is Saving, never Saved', () => {
     const p = at({
       docs: { synced: 3, pending: 0, rejected: 0 },
-      accepted: { pending: 2, oldestPendingAt: Date.now() - 15_000, ackMs: { last: null, p95: null, n: 0 }, rejected: 0 },
+      accepted: {
+        pending: 2,
+        oldestPendingAt: Date.now() - 15_000,
+        ackMs: { last: null, p95: null, n: 0 },
+        rejected: 0,
+      },
     });
     expect(p?.phase).toBe('syncing');
     expect(p?.label).toBe('saving 2');
@@ -470,7 +475,12 @@ describe('accepted revisions — Saving until the project answers', () => {
   test('nothing waiting is Saved; a hostile count is ignored, not rendered', () => {
     const quiet = at({
       docs: { synced: 3, pending: 0, rejected: 0 },
-      accepted: { pending: 0, oldestPendingAt: null, ackMs: { last: 40, p95: 60, n: 5 }, rejected: 0 },
+      accepted: {
+        pending: 0,
+        oldestPendingAt: null,
+        ackMs: { last: 40, p95: 60, n: 5 },
+        rejected: 0,
+      },
     });
     expect(quiet?.phase).toBe('synced');
     const hostile = at({

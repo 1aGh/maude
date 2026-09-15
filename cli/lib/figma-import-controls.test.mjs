@@ -41,7 +41,10 @@ const withLinked = (rel, text) => {
 };
 
 test('DDR-216 D7 — /design:edit banners an imported canvas before reading it', () => {
-  const edit = withLinked('plugins/design/commands/edit.md', read('plugins/design/commands/edit.md'));
+  const edit = withLinked(
+    'plugins/design/commands/edit.md',
+    read('plugins/design/commands/edit.md')
+  );
   assert.match(
     edit,
     /imported-figma/,
