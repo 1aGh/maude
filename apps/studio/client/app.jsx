@@ -5353,6 +5353,7 @@ function CommentsPanel({
             type="button"
             className={'st-cm-filter' + (filter === 'all' ? ' is-active' : '')}
             role="tab"
+            data-testid="comment-filter-all"
             aria-selected={filter === 'all'}
             onClick={() => setFilter('all')}
           >
@@ -5362,6 +5363,7 @@ function CommentsPanel({
             type="button"
             className={'st-cm-filter' + (filter === 'open' ? ' is-active' : '')}
             role="tab"
+            data-testid="comment-filter-open"
             aria-selected={filter === 'open'}
             onClick={() => setFilter('open')}
           >
@@ -5371,6 +5373,7 @@ function CommentsPanel({
             type="button"
             className={'st-cm-filter' + (filter === 'resolved' ? ' is-active' : '')}
             role="tab"
+            data-testid="comment-filter-resolved"
             aria-selected={filter === 'resolved'}
             onClick={() => setFilter('resolved')}
           >
@@ -5402,6 +5405,7 @@ function CommentsPanel({
               {g.comments.map((c) => (
                 <div
                   key={c.id}
+                  data-testid={`comment-item-${c.id}`}
                   className={
                     'st-comment' +
                     (c.status === 'resolved' ? ' is-resolved' : '') +

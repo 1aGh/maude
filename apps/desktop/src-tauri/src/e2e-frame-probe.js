@@ -141,6 +141,32 @@
           selection.addRange(range);
           document.execCommand('insertText', false, argument);
         }
+        if (data.operation === 'hover') {
+          // A mouse passing over, no button held: the input a presence cursor
+          // is published from. Nothing is pressed, so nothing is selected or
+          // moved — it cannot become project content.
+          const box = element.getBoundingClientRect();
+          const x = box.left + box.width * 0.5;
+          const y = box.top + box.height * 0.5;
+          const dx = Number.isFinite(argument?.dx) ? argument.dx : 0;
+          const dy = Number.isFinite(argument?.dy) ? argument.dy : 0;
+          for (let step = 0; step <= 5; step++) {
+            const options = {
+              bubbles: true,
+              cancelable: true,
+              view: window,
+              clientX: x + (dx * step) / 5,
+              clientY: y + (dy * step) / 5,
+              buttons: 0,
+              pointerId: 1,
+              pointerType: 'mouse',
+              isPrimary: true,
+            };
+            element.dispatchEvent(new PointerEvent('pointermove', options));
+            element.dispatchEvent(new MouseEvent('mousemove', options));
+            await tick();
+          }
+        }
         if (['pointer', 'doubleClick'].includes(data.operation)) {
           const box = element.getBoundingClientRect();
           const x = box.left + box.width * (Number.isFinite(argument?.x) ? argument.x : 0.5);
@@ -172,7 +198,9 @@
           await tick();
           if (dx || dy) {
             for (let step = 1; step <= 5; step++) {
+              // A real drag raises both; listeners subscribe to either.
               dispatch('pointermove', x + (dx * step) / 5, y + (dy * step) / 5, 1);
+              dispatch('mousemove', x + (dx * step) / 5, y + (dy * step) / 5, 1);
               await tick();
             }
           }

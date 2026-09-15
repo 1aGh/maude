@@ -16,5 +16,8 @@ export const config: WebdriverIO.Config = {
   services: [['@wdio/tauri-service', { embeddedPort: 4455, captureBackendLogs: true }]],
   outputDir: join(run.out, 'driver'),
   // Whole-catalogue allowance only. Per-operation deadlines remain 15 seconds.
-  mochaOpts: { ui: 'bdd', timeout: Math.max(900_000, run.samples * 3 * 20_000) },
+  // The catalogue is ONE test; every row in all three directions plus the L23
+  // soak does not fit 15 minutes (a three-row run already took 15). A stuck
+  // step still fails on its own deadline long before this one.
+  mochaOpts: { ui: 'bdd', timeout: Math.max(4 * 3600_000, run.samples * 3 * 20_000) },
 };

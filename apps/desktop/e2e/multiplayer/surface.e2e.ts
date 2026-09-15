@@ -2413,7 +2413,7 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             id: string;
             text: string;
             status?: string;
-            replies?: Array<{ body: string }>;
+            thread?: Array<{ body: string }>;
           }>;
         } catch {
           return [];
@@ -2471,7 +2471,7 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               if (
                 !commentsOf(p, rel)
                   .find((c) => c.id === id)
-                  ?.replies?.some((r) => r.body === reply)
+                  ?.thread?.some((r) => r.body === reply)
               )
                 return false;
               await openThread(p, id);
@@ -2480,33 +2480,49 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             (p) =>
               !!commentsOf(p, rel)
                 .find((c) => c.id === id)
-                ?.replies?.some((r) => r.body === reply)
+                ?.thread?.some((r) => r.body === reply)
           );
         });
-        for (const [action, label, status] of [
-          ['resolve', '✓ Resolve', 'resolved'],
-          ['reopen', '↺ Reopen', 'open'],
-        ] as const) {
-          await check(`L11.comment.${action}`, `${from.name}-to-peers`, async () => {
-            const id = idOf();
-            if (!id) throw new Unexercised(`${action} needs the thread`);
-            await openThread(from, id);
-            const button = `.cm-thread__actions .cm-btn${status === 'resolved' ? '--primary' : ''}`;
-            if (!((await from.read(button, true)) ?? '').includes(label.slice(2)))
-              throw new Error(`Thread offers no ${label}`);
-            const start = performance.now();
-            await gesture(from, button, 'click');
-            return observeAll(
-              all,
-              `L11-${action}-${from.name}`,
-              start,
-              async (p) =>
-                (commentsOf(p, rel).find((c) => c.id === id)?.status ?? 'open') === status &&
-                (await p.probe(`${pin(id)}[data-resolved="${status === 'resolved'}"]`)) !== null,
-              (p) => (commentsOf(p, rel).find((c) => c.id === id)?.status ?? 'open') === status
-            );
-          });
-        }
+        const statusOf = (p: Surface, id: string) =>
+          commentsOf(p, rel).find((c) => c.id === id)?.status ?? 'open';
+        // Resolve from the thread card. A resolved thread leaves the canvas (its
+        // pin is hidden by default) and stays listed under Resolved.
+        await check('L11.comment.resolve', `${from.name}-to-peers`, async () => {
+          const id = idOf();
+          if (!id) throw new Unexercised('resolve needs the thread');
+          await openThread(from, id);
+          const button = '.cm-thread__actions .cm-btn--primary';
+          if (!((await from.read(button, true)) ?? '').includes('Resolve'))
+            throw new Error('Thread offers no ✓ Resolve');
+          const start = performance.now();
+          await gesture(from, button, 'click');
+          return observeAll(
+            all,
+            `L11-resolve-${from.name}`,
+            start,
+            async (p) => statusOf(p, id) === 'resolved' && (await p.probe(pin(id)))?.visible !== true,
+            (p) => statusOf(p, id) === 'resolved'
+          );
+        });
+        // Reopen from the Comments panel — the one place a resolved thread is
+        // reachable. It comes back onto every canvas.
+        await check('L11.comment.reopen', `${from.name}-to-peers`, async () => {
+          const id = idOf();
+          if (!id || statusOf(from, id) !== 'resolved') throw new Unexercised('reopen needs a resolved thread');
+          await from.click(selector('dock-tab-comments'));
+          await from.click(selector('comment-filter-resolved'));
+          const reopen = `${selector(`comment-item-${id}`)} [aria-label="Reopen"]`;
+          await until(async () => (await from.read(reopen)) !== null);
+          const start = performance.now();
+          await from.click(reopen);
+          return observeAll(
+            all,
+            `L11-reopen-${from.name}`,
+            start,
+            async (p) => statusOf(p, id) === 'open' && !!(await p.probe(pin(id)))?.visible,
+            (p) => statusOf(p, id) === 'open'
+          );
+        });
         await check('L11.comment.delete', `${from.name}-to-peers`, async () => {
           const id = idOf();
           if (!id) throw new Unexercised('Delete needs the thread');
@@ -2650,7 +2666,9 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           await check('L19.cursor.move', `${from.name}-to-peers`, async () => {
             const others = all.filter((p) => p !== from);
             const start = performance.now();
-            await gesture(from, 'p', 'pointer', { dx: 40, dy: 10 });
+            // A mouse passing over the canvas — no button, so nothing is
+            // selected or dragged while the cursor travels.
+            await gesture(from, 'p', 'hover', { dx: 40, dy: 10 });
             return observeAll(
               others,
               `L19-cursor-${from.name}`,
@@ -2719,8 +2737,12 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         await check('L19.presence.leave', 'all', async () => {
           const from = all[0] as Surface;
           const others = all.filter((p) => p !== from);
+          // Leaving is CLOSING the canvas: every open tab keeps its frame (and
+          // its presence) alive the way a background browser tab does, so
+          // switching to another canvas is not leaving this one.
+          await from.click(selector('menu-file'));
           const start = performance.now();
-          await openCanvas(from, 'ui/SurfaceText.tsx');
+          await from.menu('Close canvas');
           return observeAll(
             others,
             'L19-leave',
@@ -2800,6 +2822,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
       }
       // L22 — an invalid source save is held on the author's machine, visible
       // to them, and never reaches the others; fixing it publishes normally.
+      // The status bar names held work "N to review" (the Sync panel lists it).
+      const HELD_STATUS = /attention|conflict|invalid|resolve|could not|to review/i;
       for (const from of all) {
         const rel = `ui/SurfaceInvalid-${from.name}.tsx`;
         const good = elementCanvas(`Valid ${from.name}`);
@@ -2816,7 +2840,7 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           let shown = '';
           await until(async () => {
             shown = (await from.read('.st-sb-sync')) ?? '';
-            return /attention|conflict|invalid|resolve|could not/i.test(shown);
+            return HELD_STATUS.test(shown);
           }, 30000).catch(() => {});
           await sleep(3000);
           const leaked = all.filter((p) => p !== from && text(p) !== good).map((p) => p.name);
@@ -2833,7 +2857,7 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             ...recovered,
             status:
               leaked.length === 0 &&
-              /attention|conflict|invalid|resolve|could not/i.test(shown) &&
+              HELD_STATUS.test(shown) &&
               recovered.status === 'pass'
                 ? 'pass'
                 : 'fail',
