@@ -87,6 +87,11 @@ type Surface = {
   /** A keyboard shortcut pressed in the shell (not the canvas frame), e.g.
    *  `Meta+z` — the way the menubar's own shortcuts are reached. */
   press: (chord: string) => Promise<void>;
+  /** How many shell (not canvas-frame) elements match. */
+  count: (q: string) => Promise<number>;
+  /** Run a script string in the shell document (a bounded DOM gesture the
+   *  shell's own handlers receive — never a store or API mutation). */
+  shell: (script: string) => Promise<unknown>;
 };
 // Read browser code verbatim: TS function serialization can capture esbuild's
 // Node-side __name helper, which does not exist inside Chromium/WKWebView.
@@ -166,6 +171,12 @@ function web(name: string, root: string, page: Page): Surface {
     async press(chord) {
       await page.keyboard.press(chord);
     },
+    async count(q) {
+      return page.locator(q).count();
+    },
+    async shell(script) {
+      return page.evaluate(script);
+    },
     async canvasDrag(q, dx, dy, holdMs) {
       const frame = page.frameLocator('[data-testid="canvas-frame"]');
       const box = await frame.locator(q).first().boundingBox();
@@ -196,6 +207,12 @@ function web(name: string, root: string, page: Page): Surface {
   };
 }
 const native: Surface = {
+  async count(q) {
+    return (await browser.$$(q)).length;
+  },
+  async shell(script) {
+    return browser.execute(`return (${script});`);
+  },
   async press(chord) {
     // WebDriver chords: modifiers held while the key goes down and up.
     const parts = chord.split('+');
@@ -5134,6 +5151,100 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               src(p) === src(from)
           );
         });
+      }
+      // L15 — a video composition's timeline, cut in the shell's Timeline
+      // panel: every participant has the panel open on the same composition;
+      // one person splits a clip at the playhead (⌘B), deletes one (Delete,
+      // ripple), undoes and redoes (⌘Z / ⌘⇧Z). Every copy's source and every
+      // participant's own timeline show the same cut.
+      {
+        const cutSource = readFileSync(
+          new URL('../fixtures/project/.design/ui/Cut.tsx', import.meta.url),
+          'utf8'
+        );
+        const beats = (p: Surface) => p.count('[data-testid^="timeline-seq-"]');
+        const sequencesIn = (p: Surface, rel: string) =>
+          existsSync(join(p.root, '.design', rel))
+            ? (
+                readFileSync(join(p.root, '.design', rel), 'utf8').match(
+                  /<TransitionSeries\.Sequence\b/g
+                ) ?? []
+              ).length
+            : -1;
+        const openTimeline = async (p: Surface) => {
+          if ((await p.count(selector('timeline-panel'))) === 0) await p.press('Meta+Shift+T');
+          await until(async () => (await p.count(selector('timeline-panel'))) > 0, 15000);
+        };
+        // Keys go to the shell, not the canvas frame: focus a shell control first.
+        const focusShell = (p: Surface) => p.click(selector('timeline-readout'));
+        for (const from of all) {
+          const rel = `ui/SurfaceCut-${from.name}.tsx`;
+          const cut = async (id: string, act: () => Promise<void>, n: number) =>
+            check(id, `${from.name}-to-peers`, async () => {
+              if (all.some((p) => sequencesIn(p, rel) < 0))
+                throw new Unexercised('The composition is not on every participant');
+              const start = performance.now();
+              await act();
+              return observeAll(
+                all,
+                `${id.replace(/\./g, '-')}-${from.name}`,
+                start,
+                async (p) => (await beats(p)) === n,
+                (p) => sequencesIn(p, rel) === n && bytes(p.root, rel).equals(bytes(from.root, rel))
+              );
+            });
+          await check('L15.timeline.open', `${from.name}-created`, async () => {
+            await seedCanvas(from, rel, cutSource);
+            const start = performance.now();
+            for (const p of all) {
+              await until(async () => (await p.read(rowOf(rel))) !== null, 30000);
+              await openCanvas(p, rel);
+              await openTimeline(p);
+            }
+            return observeAll(
+              all,
+              `L15-open-${from.name}`,
+              start,
+              async (p) => (await beats(p)) === 3
+            );
+          });
+          await cut(
+            'L15.timeline.split',
+            async () => {
+              await focusShell(from);
+              await from.press('Escape');
+              await from.press('Home');
+              for (let i = 0; i < 3; i++) await from.press('Shift+ArrowRight');
+              await from.press('Meta+b');
+            },
+            4
+          );
+          await cut(
+            'L15.timeline.delete',
+            async () => {
+              await from.click(selector('timeline-seq-1'));
+              await until(async () => (await from.count('.tl-seq-block.is-selected')) === 1, 5000);
+              await from.press('Delete');
+            },
+            3
+          );
+          await cut(
+            'L15.timeline.undo',
+            async () => {
+              await focusShell(from);
+              await from.press('Meta+z');
+            },
+            4
+          );
+          await cut(
+            'L15.timeline.redo',
+            async () => {
+              await focusShell(from);
+              await from.press('Meta+Shift+z');
+            },
+            3
+          );
+        }
       }
       // T16 — an AI agent's edit is ONE project action. What it writes between
       // its start and its end lands together (L18 AI multi-file group); a run
