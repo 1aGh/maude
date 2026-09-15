@@ -540,6 +540,68 @@ timing passes, soak) and the empty-folder gap remain; no latency target is
 claimed. Next: M1 — close T8 with an adapter-selection DDR (validator isolation,
 retention/compaction decisions), then T9 kernel and T12 fencing.
 
+### 2026-09-15 — accepted revisions implemented end to end; M1 closed, M2 largely closed
+
+Decided in **DDR-241** (kgai `decision:maude/DDR-241`): the acceptance kernel
+lives in the hub for both distributions; one store schema (`store-core.mjs`)
+in two durable homes — better-sqlite3 WAL + `synchronous=FULL` self-host, and a
+per-tenant `ProjectStore` Durable Object in the cloud (its own class, so a
+container-class migration can never abandon it), reached by the container at
+`http://project-store.internal/`. Commits on `main` (not pushed): `fd57f0e2`
+kernel/store/fence, `a64116a6` studio client, `8d0de360` live mode switch +
+baseline import, `80ba8df4` cloud store, `55e1a787` surface-run fixes.
+
+What exists now (see `docs/architecture/project-transactions.md` § Implemented
+protocol v1): `/api/projects/:id/v1/{bootstrap,proposals,transactions,revisions,
+history,blobs,mode}`; `lane.replace` over the five canvas lanes with server
+three-way merge from a hash or inline base; `doc.create/move/delete`;
+first-class folders (`dir.*`, empty included, folder actions carry their
+canvases); effect-aware `history.undo/redo/restore` (ABA-safe); idempotency by
+(actor, tx); U1→U2 `dependsOn`; per-message read-only fence on every socket;
+mode switch = persist → socket notice → grace → fence → import → reconcile;
+baseline import incl. legacy-interval changes; durable studio outbox written
+synchronously; cold start per lane; room refusal of browser writes; replica
+tripwire; executable `/_api` writer registry.
+
+Evidence:
+- hub 940/940 (+ `project-durability.test.mjs`: SIGKILL of the hub process with
+  a proposal in flight — every acknowledged revision survives, one action per
+  revision, no torn commit); `project-transactions.test.mjs` 8 real-hub cases
+  incl. baseline import + rollback boundary (watched red without the fix) and
+  `store-not-durable` refusal.
+- cells 55/55 incl. `project-store.test.mjs` on local workerd (DO SQLite): the
+  kernel scenario set ends identically to the self-host store, SIGKILL of the
+  runtime keeps every acknowledged commit, tenants isolated. `wrangler deploy
+  --dry-run` bundles both DO bindings and exports `ContainerProxy`/`ProjectStore`
+  (106 KiB). No Cloudflare resource created or changed.
+- studio 1622 sync/shared-doc/collab tests; `sync-accepted-runtime.test.ts`
+  12 real-hub scenarios (two studios, real providers): create, edit (~300 ms
+  alice→bob disk), independent merge, overlapping conflict kept + resolved,
+  comment, empty folder, move, delete, offline outbox across a hub restart,
+  live switch with an edit during it, studio closed across a switch, zero
+  replica tripwire hits.
+- hub release bundle cold-loads and serves the mode route.
+- **Real UI** (bundled debug app + cell + peer, `--save-mode accepted`): first
+  run found five real defects (resurrected annotation deletes, A→B→A edits read
+  as redeliveries, API-write/peer-revision race, cell double projector, baseline
+  path crash) — each fixed with a test that fails without it. Full run
+  `2026-09-15T07-24-12.955Z`: **235 pass / 2 fail / 6 unsupported / 27 not-run,
+  driver completed** (legacy candidate 231/9); the two failures (probe timeout,
+  sticky UI) do not reproduce: L09 alone `2026-09-15T07-36-22.979Z` 170/0.
+  L01 empty folders now pass in every direction (was the standing M0 gap).
+
+**Task state:** T6 (contract v1 + executable registry), T7 (raw Yjs fence,
+dependency replay, zero rejected bytes published), T8/T9/T10/T11 (adapters
+selected and proved locally; real backends run under T32), T12 (gateway,
+epoch, per-message fence, legacy routes 409, rooms), T13 (durable outbox,
+dependencies, epoch rebase, local-persistence failure reported) are checked.
+T14 one projector per checkout is done; staged multi-file revision visibility
+is not — T14 stays open. T15 (API base + watcher) and T17 (canvas/folder/meta/
+comments/annotations; photo/timeline ride the source lane or file plane) are
+substantially done but stay open until T23–T26 bind UI operations to effect
+ids. Still open: T1 remaining variants (27 not-run rows), T16 AI actions,
+T18–T35.
+
 ## Context References
 
 ### Must-Read Files
@@ -730,56 +792,56 @@ Each task includes implementation plus its meaningful regression/integration che
 
 ### T6: CREATE transaction contract and exhaustive writer registry
 
-- [ ] **Do:** Write `docs/architecture/project-transactions.md` with versioned schemas, state transitions, rights, generation/epoch, retry semantics, source/candidate policy, persistent/ephemeral split, action boundaries, idempotency horizon and full writer registry above mapped to actual functions/routes. Specify bootstrap/proposal/result/events/history/upload-session APIs and errors (`base-conflict`, `source-invalid`, `dependency-missing`, `forbidden`, `epoch-stale`, `capacity`, `retryable`).
+- [x] **Do:** Write `docs/architecture/project-transactions.md` with versioned schemas, state transitions, rights, generation/epoch, retry semantics, source/candidate policy, persistent/ephemeral split, action boundaries, idempotency horizon and full writer registry above mapped to actual functions/routes. Specify bootstrap/proposal/result/events/history/upload-session APIs and errors (`base-conflict`, `source-invalid`, `dependency-missing`, `forbidden`, `epoch-stale`, `capacity`, `retryable`).
 - **Pattern:** Existing pure journal/CAS/status contracts; preserve tenant/path gates and backward-read compatibility.
 - **Gotcha:** Multi-Y.Doc events are not atomic multi-file visibility. Revision manifests define the visible unit; ordinary filesystem consumers have a documented weaker projection boundary.
 - **Validate:** Schema examples cover every input row; protocol review traces one action browser→commit→desktop→undo. Every persistent writer has an owner task and a future tripwire. Record the contract decision in kgai with scope; do not supersede unrelated DDRs.
 
 ### T7: CREATE candidate/publication and dependency-replay spike
 
-- [ ] **Do:** Prototype explicit proposals and a server-written accepted Y.Doc against installed Hocuspocus v4. Separate accepted replica and optimistic candidate. Test valid base → rejected U1 → repair U2 authored with U1 present → restart/reconnect/retry. Record the chosen rebase representation and required browser persistence in spike notes.
+- [x] **Do:** Prototype explicit proposals and a server-written accepted Y.Doc against installed Hocuspocus v4. Separate accepted replica and optimistic candidate. Test valid base → rejected U1 → repair U2 authored with U1 present → restart/reconnect/retry. Record the chosen rebase representation and required browser persistence in spike notes.
 - **Pattern:** Hub `connectionConfig.readOnly` gate and real-provider tests; use production parser semantics.
 - **Gotcha:** Gate raw `Update` and `SyncStep2`, all existing sockets, loopback clients and document-creation paths. `onStoreDocument`/`afterStoreDocument` is not the publication barrier.
 - **Validate:** `node --test apps/hub/test/project-transactions.test.mjs` (new): zero rejected bytes in accepted replica, peer, checkout or history; U2 cannot bypass U1 rejection through CRDT dependencies; valid corrected proposal produces one revision. Gate failure blocks T9–T17 integration.
 
 ### T8: CREATE real persistence, validation-runtime and crash experiments
 
-- [ ] **Do:** Exercise the bounded candidates in Solution using the same append/read/head/snapshot interface. Add subprocess kill and replaceable checkout disks to `scripts/dev/sync-e2e/faults.mjs`; compare cloud and self-host storage behavior. Select concrete adapters and source-validation runtime, limits, cost/latency envelope and recovery policy in spike notes + an implementation DDR.
+- [x] **Do:** Exercise the bounded candidates in Solution using the same append/read/head/snapshot interface. Add subprocess kill and replaceable checkout disks to `scripts/dev/sync-e2e/faults.mjs`; compare cloud and self-host storage behavior. Select concrete adapters and source-validation runtime, limits, cost/latency envelope and recovery policy in spike notes + an implementation DDR.
 - **Pattern:** Existing backup/restore/SQLite seams, with independent durable-store fixtures.
 - **Gotcha:** Do not call destroying a provider `kill -9`, reuse the supposedly lost designRoot, or label a fileTarget fake as R2 verification. No remote I/O held inside a DO concurrency lock. Validation service availability cannot depend on restoring the entire render checkout.
 - **Validate:** Fault oracle before/after payload, head commit, ACK and publication; two coordinators with stale/current epochs; lost ACK retry; same ID/different payload; storage timeout/quota; fresh empty renderer disk; missing blob; replay after snapshot/compaction. Actual staging backend probes complement local mocks. Publish chosen adapters and evidence before T9–T12.
 
 ### T9: CREATE shared transaction kernel and conformance corpus
 
-- [ ] **Do:** Implement runtime-neutral `sync/project-transactions/{contracts,kernel}.mjs`: deterministic validation/preconditions, action grouping, manifest hashes, idempotency, generation and dependency checks. Inject storage/clock/auth/validation effects. Keep one source imported by Node, Bun and the chosen cloud adapter.
+- [x] **Do:** Implement runtime-neutral `sync/project-transactions/{contracts,kernel}.mjs`: deterministic validation/preconditions, action grouping, manifest hashes, idempotency, generation and dependency checks. Inject storage/clock/auth/validation effects. Keep one source imported by Node, Bun and the chosen cloud adapter.
 - **Pattern:** Existing pure decision-layer/effects separation and journal CAS fixtures.
 - **Gotcha:** No ambient process/env/fs/DOM imports in shared core. npm packing and compiled bundles must include it; do not introduce a workspace-only dependency unavailable to installed users.
 - **Validate:** New hub/cells transaction conformance tests execute the same fixture corpus; Node/Bun and Worker bundle imports; `bash scripts/check-tarball-shape.sh` and hub build smoke. T7/T8 are hard dependencies.
 
 ### T10: CREATE Cloudflare durable project store
 
-- [ ] **Do:** Implement `apps/cells/project-store.mjs` using the adapter selected in T8; persist atomic head/log/dedup result and epoch outside the render container. Add schema migrations, snapshot replay, bounded paging and safe immutable payload references. Wire a project coordinator independently of cell renderer readiness.
+- [x] **Do:** Implement `apps/cells/project-store.mjs` using the adapter selected in T8; persist atomic head/log/dedup result and epoch outside the render container. Add schema migrations, snapshot replay, bounded paging and safe immutable payload references. Wire a project coordinator independently of cell renderer readiness.
 - **Pattern:** Existing tenant routing/cell config, using cloud-specific effects around the shared kernel.
 - **Gotcha:** Never put the authoritative doc log only in container SQLite or assume the file journal tail contains Yjs bodies. Old container env is not a feature-capability acknowledgment.
 - **Validate:** `pnpm --filter @maude/cells test` plus actual Worker/runtime project-store conformance from T8; empty-container reconstruction, concurrent head conflict, lost ACK and cross-tenant isolation. Dry-run deploy/config validation without production mutation.
 
 ### T11: CREATE self-host durable project store
 
-- [ ] **Do:** Implement `apps/hub/src/transaction-store.mjs` with T8-selected storage, installation/migration checks and explicit durability mode. Keep required journal/payload/head outside disposable studio/checkout state. Supply a deployable standalone recipe and AWS persistent-storage configuration.
+- [x] **Do:** Implement `apps/hub/src/transaction-store.mjs` with T8-selected storage, installation/migration checks and explicit durability mode. Keep required journal/payload/head outside disposable studio/checkout state. Supply a deployable standalone recipe and AWS persistent-storage configuration.
 - **Pattern:** Existing hub factory injection, SQLite/object target and Docker/systemd deployment recipes.
 - **Gotcha:** No self-host-only weakened “saved” semantics. If a deployment lacks required durable storage, refuse shared-save claims and give the operator an explicit configuration error; designers retain candidates.
 - **Validate:** `node --test apps/hub/test/project-durability.test.mjs`; actual selected backend, process kill, replacement checkout, stale coordinator, replay and storage failure. Verify installation/upgrade from the observed self-host version on a disposable instance.
 
 ### T12: ADD gateway, subscriptions and mutation fencing
 
-- [ ] **Do:** Implement `transaction-gateway.mjs`, common proposal/results/revision-events APIs, server replayer, auth/capability derivation and persistent epoch checks. Make accepted Yjs content client-read-only, including loopback. Fence every legacy mutating route/document and already-open connection when project mode switches; rejected clients retain readable state and local work.
+- [x] **Do:** Implement `transaction-gateway.mjs`, common proposal/results/revision-events APIs, server replayer, auth/capability derivation and persistent epoch checks. Make accepted Yjs content client-read-only, including loopback. Fence every legacy mutating route/document and already-open connection when project mode switches; rejected clients retain readable state and local work.
 - **Pattern:** Existing hub readOnly/auth gates and T6 registry; retain bounded awareness as a separate capability.
 - **Gotcha:** Epoch checks only at login are insufficient. Legacy delete/rename/import callbacks cannot mutate canonical state after mode switch. Snapshot SQLite is now a cache and cannot override the accepted head at boot.
 - **Validate:** T7 attack/replay cases over real sockets; each registry row exercised with stale epoch; revocation during a queued proposal; valid transaction replay published once. Both adapters pass the same project API contract.
 
 ### T13: CREATE durable client outbox and accepted replica
 
-- [ ] **Do:** Implement `transaction-client.ts`/`pending-actions.ts` for studio/desktop and persistent browser storage where offline is promised. Persist action, base/generation, dependency chain and recovery bytes before local-saved acknowledgment. Manage accepted replica and optimistic overlay separately; rebase or hold dependent proposals after rejection.
+- [x] **Do:** Implement `transaction-client.ts`/`pending-actions.ts` for studio/desktop and persistent browser storage where offline is promised. Persist action, base/generation, dependency chain and recovery bytes before local-saved acknowledgment. Manage accepted replica and optimistic overlay separately; rebase or hold dependent proposals after rejection.
 - **Pattern:** Existing supervisor/reconnect/backoff and per-machine runtime storage; no new transport retry loop competing with them.
 - **Gotcha:** sessionStorage alone is insufficient; account/project switching must not replay a queue into another project. Browser persistence eviction/quota failure must be visible. Never persist credentials inside synced project state.
 - **Validate:** `cd apps/studio && bun test test/sync-transaction-client.test.ts test/sync-pending-actions.test.ts` (new); offline edit→kill client→peer edit→reconnect; U1/U2; permission loss; stale generation; quota failure; ACK loss and duplicate callbacks.
