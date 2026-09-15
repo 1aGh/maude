@@ -89,8 +89,10 @@ function get(path, session) {
   });
 }
 
-/** 28 August 2026, as Stripe would report a period end (seconds). */
-const PERIOD_END_S = Math.floor(Date.UTC(2026, 7, 28, 12, 0, 0) / 1000);
+/** 28 August 2030, as Stripe would report a period end (seconds). In the
+ *  FUTURE on purpose: the cancel page shows max(period end, now), so a fixed
+ *  date that became the past silently turned into "today" (2026-09). */
+const PERIOD_END_S = Math.floor(Date.UTC(2030, 7, 28, 12, 0, 0) / 1000);
 
 /** The standard Stripe fake for a happy checkout. Returns the recorded calls. */
 function stripeHappy({ invoices = [] } = {}) {
@@ -534,8 +536,8 @@ test('cancelling shows every date BEFORE the click, then ends at period end', as
   const confirm = await (
     await worker.fetch(get('/projects/zkusebni-tym/billing/cancel', session), env)
   ).text();
-  assert.match(confirm, /28 August 2026/, 'works until');
-  assert.match(confirm, /27 September 2026/, 'deleted 30 days after it pauses');
+  assert.match(confirm, /28 August 2030/, 'works until');
+  assert.match(confirm, /27 September 2030/, 'deleted 30 days after it pauses');
   // The download offer is ON this screen, not a link to the page that makes one.
   assert.match(confirm, /action="\/projects\/zkusebni-tym\/download"/);
   assert.match(confirm, /Download everything/);
@@ -560,7 +562,7 @@ test('cancelling shows every date BEFORE the click, then ends at period end', as
   const after = await (
     await worker.fetch(get('/projects/zkusebni-tym/billing', session), env)
   ).text();
-  assert.match(after, /Cancelled — ends 28 August 2026/);
+  assert.match(after, /Cancelled — ends 28 August 2030/);
   assert.match(after, /Keep Zkušební tým/);
   assert.doesNotMatch(after, /Cancel subscription/, 'no second cancel button once cancelled');
 

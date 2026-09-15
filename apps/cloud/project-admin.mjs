@@ -221,6 +221,67 @@ export function connectPage({ account, project, isOwner, cellZone }) {
   );
 }
 
+// -------------------------------------------------------------------- saving
+
+/**
+ * How the project saves (plan T33, DDR-241). The owner's switch from "every
+ * app writes the shared copy" to accepted revisions — truthful saving, a
+ * project history and personal undo — with the exact import previewed first.
+ * The platform asks the cell on the owner's behalf with a short-lived owner
+ * token, the same lane the export uses.
+ */
+export function savingPage({ account, project, state = null, preview = null, notice = null, error = null }) {
+  const mode = state?.mode ?? null;
+  const on = mode === 'transactions';
+  const skipped = preview?.imported?.skipped ?? [];
+  const previewCard = preview
+    ? `<div class="card">
+         <h2>What switching would bring over</h2>
+         <p class="quiet" style="margin:0">${esc(String(preview.imported?.created ?? 0))} canvases,
+           ${esc(String(preview.imported?.dirs ?? 0))} folders. Nothing has changed yet.</p>
+         ${
+           skipped.length
+             ? `<p style="margin-top:var(--space-3)">Not included (they stay in the project files):</p>
+                <ul>${skipped
+                  .slice(0, 20)
+                  .map((s) => `<li><code>${esc(String(s.doc ?? ''))}</code> — ${esc(String(s.reason ?? ''))}</li>`)
+                  .join('')}</ul>`
+             : ''
+         }
+         <form method="post" action="/projects/${esc(project.id)}/saving" style="margin-top:var(--space-4)">
+           <input type="hidden" name="do" value="switch">
+           <input type="hidden" name="epoch" value="${esc(String(preview.epoch ?? state?.epoch ?? 0))}">
+           <button type="submit">Switch to accepted revisions</button>
+         </form>
+       </div>`
+    : '';
+  return page(
+    `How ${project.name} saves`,
+    `${notice ? `<p class="notice">${esc(notice)}</p>` : ''}
+     ${error ? `<p class="error">${esc(error)}</p>` : ''}
+     <div class="card">
+       <h2>${on ? 'Accepted revisions — on' : mode ? 'Shared copy (classic)' : 'Unknown'}</h2>
+       <p class="quiet" style="margin:0">${
+         on
+           ? 'Every change is saved to the project and confirmed before anyone is told it is saved. History lists each action with its author; Undo takes back only your own.'
+           : mode
+             ? 'Every app writes the shared copy directly. Switching keeps all the work and adds truthful saving, a project history and personal undo. Designers’ apps need the latest Maude.'
+             : 'The workspace did not answer. Open it once so it wakes, then come back.'
+       }</p>
+       ${
+         mode && !on && !preview
+           ? `<form method="post" action="/projects/${esc(project.id)}/saving" style="margin-top:var(--space-4)">
+                <input type="hidden" name="do" value="preview">
+                <button type="submit">Preview the switch</button>
+              </form>`
+           : ''
+       }
+     </div>
+     ${previewCard}`,
+    { account, project, isOwner: true, active: 'saving' }
+  );
+}
+
 // -------------------------------------------------------------------- delete
 
 export function deletePage({ account, project, hasExport, error = null }) {
@@ -478,7 +539,7 @@ async function cellHasNothingToExport(env, projectId, account) {
 export async function handleProjectAdminRoutes(request, env, { account, ctx = null } = {}) {
   const url = new URL(request.url);
   const m = url.pathname.match(
-    /^\/projects\/([a-z0-9-]+)\/(connect|download|delete|audit|mirror)(\/file)?$/
+    /^\/projects\/([a-z0-9-]+)\/(connect|download|delete|audit|mirror|saving)(\/file)?$/
   );
   if (!m) return null;
   const [, projectId, surface, isFile] = m;
@@ -711,6 +772,64 @@ export async function handleProjectAdminRoutes(request, env, { account, ctx = nu
     // from the cell worker, not somebody's data.
     await removeCellDomain(env, projectId);
     return redirect('/');
+  }
+
+  // ------------------------------------------------------------------ saving
+  if (surface === 'saving') {
+    if (!isOwner) return html(`<p>${ACCESS_MESSAGES['no-access']}</p>`, 404);
+    const cell = `https://${projectId}.${env.CELL_ZONE ?? 'cloud.maude.sh'}/api/projects/current/v1/mode`;
+    const ask = async (method, body) => {
+      const { token } = await mintProjectToken({
+        master: env.CELL_SECRET_MASTER ?? '',
+        project: projectId,
+        email: account.email,
+        role: 'owner',
+        ttlMs: 5 * 60 * 1000,
+      });
+      const res = await fetch(cell, {
+        method,
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+        signal: AbortSignal.timeout(120_000),
+      });
+      return { status: res.status, body: await res.json().catch(() => ({})) };
+    };
+    const current = await ask('GET').catch(() => null);
+    const state = current?.status === 200 ? current.body : null;
+    if (request.method === 'GET') return html(savingPage({ account, project, state }));
+    if (request.method !== 'POST') return html('<p>Not allowed.</p>', 405);
+    const form = await request.formData();
+    if (form.get('do') === 'preview') {
+      const r = await ask('POST', { mode: 'transactions', dryRun: true }).catch(() => null);
+      if (r?.status !== 200)
+        return html(savingPage({ account, project, state, error: r?.body?.error || 'The workspace did not answer.' }), 502);
+      return html(savingPage({ account, project, state, preview: r.body }));
+    }
+    if (form.get('do') === 'switch') {
+      const expectEpoch = Number(form.get('epoch'));
+      const r = await ask('POST', {
+        mode: 'transactions',
+        ...(Number.isSafeInteger(expectEpoch) ? { expectEpoch } : {}),
+      }).catch(() => null);
+      await audit(env.DB, {
+        accountId: account.id,
+        projectId,
+        actor: `customer:${account.email}`,
+        action: r?.status === 200 ? 'project.saving-switched' : 'project.saving-switch-failed',
+        detail: r?.status === 200 ? `epoch ${r.body?.epoch}` : String(r?.body?.code ?? r?.status ?? 'unreachable'),
+      });
+      if (r?.status !== 200)
+        return html(savingPage({ account, project, state, error: r?.body?.error || 'The switch did not happen — nothing changed.' }), 502);
+      return html(
+        savingPage({
+          account,
+          project,
+          state: { mode: r.body?.mode, epoch: r.body?.epoch },
+          notice: `Switched. ${r.body?.imported?.created ?? 0} canvases are now saved as accepted revisions.`,
+        })
+      );
+    }
+    return html('<p>Unknown action.</p>', 400);
   }
 
   // ------------------------------------------------------------------- audit

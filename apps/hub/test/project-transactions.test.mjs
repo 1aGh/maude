@@ -14,6 +14,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import * as Y from 'yjs';
 
 import { laneHash } from '../src/project-transactions/lanes.mjs';
+import { accessClaims, signAccessToken } from '../src/cloud-identity.mjs';
 import { createHub } from '../src/server.mjs';
 import { addToken } from '../src/tokens.mjs';
 
@@ -731,6 +732,40 @@ describe('accepted revisions on a real hub', () => {
       assert.ok(priv.coordinator.revision >= 1);
     } finally {
       await built.server.destroy();
+    }
+  });
+
+  // T33 — a cloud cell's owner switches the save mode from the dashboard: the
+  // control plane mints an owner token the cell verifies offline. Owner role,
+  // this project, only.
+  test('a cloud owner token may switch the save mode; a member or another project may not', {
+    timeout: 60000,
+  }, async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'maude-tx-'));
+    dirs.push(dataDir);
+    rig(dataDir);
+    const saved = { tenant: process.env.MAUDE_TENANT_ID, key: process.env.MAUDE_PROJECT_TOKEN_KEY };
+    process.env.MAUDE_TENANT_ID = 'acme';
+    process.env.MAUDE_PROJECT_TOKEN_KEY = 'project-token-key';
+    const { built, http } = await startHub(dataDir);
+    const mint = (role, project = 'acme') =>
+      signAccessToken(accessClaims({ email: `${role}@x.test`, project, role }), 'project-token-key');
+    const preview = (token) =>
+      fetch(`${http}/api/projects/current/v1/mode`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ mode: 'transactions', dryRun: true }),
+      }).then((r) => r.status);
+    try {
+      assert.equal(await preview(mint('owner')), 200);
+      assert.notEqual(await preview(mint('member')), 200);
+      assert.notEqual(await preview(mint('owner', 'someone-else')), 200);
+    } finally {
+      await built.server.destroy();
+      if (saved.tenant === undefined) delete process.env.MAUDE_TENANT_ID;
+      else process.env.MAUDE_TENANT_ID = saved.tenant;
+      if (saved.key === undefined) delete process.env.MAUDE_PROJECT_TOKEN_KEY;
+      else process.env.MAUDE_PROJECT_TOKEN_KEY = saved.key;
     }
   });
 });

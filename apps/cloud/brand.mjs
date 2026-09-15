@@ -439,6 +439,7 @@ export function appShell({
        ${navItem({ href: `${p}/people`, label: 'People', glyph: 'people', active: active === 'people' })}
        ${isOwner ? navItem({ href: `${p}/billing`, label: 'Billing', glyph: 'card', active: active === 'billing' }) : ''}
        ${isOwner ? navItem({ href: `${p}/mirror`, label: 'GitHub copy', glyph: 'branch', active: active === 'mirror' }) : ''}
+       ${isOwner ? navItem({ href: `${p}/saving`, label: 'Saving', glyph: 'clock', active: active === 'saving' }) : ''}
        ${navItem({ href: `${p}/audit`, label: 'Activity', glyph: 'clock', active: active === 'audit' })}
        ${navItem({ href: `${p}/download`, label: 'Download everything', glyph: 'down', active: active === 'download' })}
        ${isOwner ? navItem({ href: `${p}/delete`, label: 'Delete project…', glyph: 'trash', active: active === 'delete', danger: true }) : ''}`

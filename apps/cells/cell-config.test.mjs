@@ -458,4 +458,17 @@ test('a cell declares its disk disposable, and gets the durable project store on
     hostname: 'alligators.cloud.maude.sh',
   });
   assert.equal(on.MAUDE_PROJECT_STORE_URL, 'http://project-store.internal');
+  // Per-tenant rollout: the allowlist names who gets it, nobody else does.
+  const listed = await cellEnv({
+    tenantId: 'alligators',
+    env: { ...baseEnv, CELL_PROJECT_STORE: 'alligators' },
+    hostname: 'alligators.cloud.maude.sh',
+  });
+  assert.equal(listed.MAUDE_PROJECT_STORE_URL, 'http://project-store.internal');
+  const other = await cellEnv({
+    tenantId: 'someone-else',
+    env: { ...baseEnv, CELL_PROJECT_STORE: 'alligators' },
+    hostname: 'someone-else.cloud.maude.sh',
+  });
+  assert.equal(other.MAUDE_PROJECT_STORE_URL, undefined);
 });

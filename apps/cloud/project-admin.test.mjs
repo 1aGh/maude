@@ -648,3 +648,38 @@ test('Open leads to the connect page, which offers only doors that exist', async
   const anon = await worker.fetch(get('/projects/alligators/connect'), env);
   assert.equal(anon.status, 303, 'a stranger is sent to sign in');
 });
+
+// -------------------------------------------------------------------- saving
+
+test('the owner previews and switches how the project saves; the cell is asked as the owner', async () => {
+  const { env, sqlite } = await freshEnv();
+  const calls = [];
+  let mode = 'legacy';
+  network.push([
+    'alligators.cloud.maude.sh/api/projects/current/v1/mode',
+    async (_url, init) => {
+      const body = init.body ? JSON.parse(init.body) : null;
+      calls.push({ method: init.method ?? 'GET', auth: init.headers.authorization, body });
+      if ((init.method ?? 'GET') === 'GET') return Response.json({ mode, epoch: 3 });
+      if (body.dryRun) return Response.json({ dryRun: true, mode, epoch: 3, imported: { created: 7, dirs: 2, skipped: [] } });
+      mode = 'transactions';
+      return Response.json({ mode, epoch: 4, imported: { created: 7 } });
+    },
+  ]);
+  const { session } = await ownerWithProject(env, sqlite);
+  const page = await (await worker.fetch(get('/projects/alligators/saving', session), env)).text();
+  assert.match(page, /Shared copy/);
+  const preview = await (await worker.fetch(post('/projects/alligators/saving', session, { do: 'preview' }), env)).text();
+  assert.match(preview, /7 canvases/);
+  const switched = await worker.fetch(post('/projects/alligators/saving', session, { do: 'switch', epoch: '3' }), env);
+  assert.equal(switched.status, 200);
+  assert.match(await switched.text(), /Switched/);
+  const last = calls.at(-1);
+  assert.deepEqual(last.body, { mode: 'transactions', expectEpoch: 3 });
+  // An owner-role project token, verified offline by the cell.
+  const claims = JSON.parse(Buffer.from(last.auth.replace('Bearer ', '').split('.')[0], 'base64url').toString());
+  assert.equal(claims.role, 'owner');
+  assert.equal(claims.project, 'alligators');
+  const logged = sqlite.prepare("SELECT action FROM audit_log WHERE action LIKE 'project.saving%'").all();
+  assert.deepEqual(logged.map((r) => r.action), ['project.saving-switched']);
+});

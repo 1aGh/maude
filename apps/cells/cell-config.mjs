@@ -63,6 +63,23 @@ export function livePairingEnabled(env, tenantId) {
 }
 
 /**
+ * Does this tenant's cell get a durable project store (accepted revisions,
+ * DDR-241)? `CELL_PROJECT_STORE` is a tenant allowlist like
+ * `CELL_LIVE_PAIRING` — accepted revisions roll one project at a time — with
+ * `do` (the original spelling) meaning the whole fleet.
+ */
+export function projectStoreEnabled(env, tenantId) {
+  const raw = (env.CELL_PROJECT_STORE ?? '').trim();
+  if (!raw) return false;
+  if (raw === 'do' || raw === '*') return true;
+  return raw
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(String(tenantId).toLowerCase());
+}
+
+/**
  * Derive this tenant's operator credential from the platform master.
  *
  * Hex, 64 chars — the same shape `workspace-up` generates, so a cell cannot
@@ -509,7 +526,7 @@ export async function cellEnv({ tenantId, env, hostname, config = NO_CONFIG, s3C
     // …which is the tenant's ProjectStore Durable Object, reached through the
     // container's outbound interception (DDR-241). Rolled out by fleet var so
     // a Worker without the route never points a container at it.
-    ...(env.CELL_PROJECT_STORE === 'do'
+    ...(projectStoreEnabled(env, tenantId)
       ? { MAUDE_PROJECT_STORE_URL: 'http://project-store.internal' }
       : {}),
     ...(env.MAUDE_RENDER_SECRET ? { MAUDE_RENDER_SECRET: env.MAUDE_RENDER_SECRET } : {}),

@@ -143,6 +143,13 @@ MAUDE_TUNNEL_HOST = "t-alligators.cloud.maude.sh"
 # running instance — the cell has to stop and be woken again (idle timeout, or
 # an explicit /_cell/restart). A byte-identical config is a no-op roll.
 CELL_LIVE_PAIRING = "alligators"
+# ACCEPTED REVISIONS (DDR-241) — which tenants' cells get their durable
+# ProjectStore (the Durable Object bound above). Same shape as live pairing: a
+# tenant allowlist, `do` or `*` for the fleet. A listed cell can switch its
+# project to accepted revisions; the switch itself is still the project
+# owner's step (docs/operations/project-multiplayer-rollout.md). Env applies
+# at container start.
+CELL_PROJECT_STORE = "alligators"
 # feature-cloud-export-render-workers (DDR-230) — where a cell dispatches
 # browser-format export jobs. Reaches the studio child via cellEnv →
 # childEnv. Remove (or leave unset) to put the fleet's export lane back to

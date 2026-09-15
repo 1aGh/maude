@@ -81,6 +81,8 @@ import {
   readStudioReleaseVersion,
 } from './bundle-identity.mjs';
 import { handleExportRoute, scheduleMirror, scheduleRevocationSweep } from './cell-ops.mjs';
+import { projectTokenKey, verifyAccessToken } from './cloud-identity.mjs';
+import { isRevoked } from './revocations.mjs';
 import { clientIpFor, parseTrustedProxies } from './client-ip.mjs';
 import { designRootFor } from './design-root.mjs';
 import { groupCanvases } from './doc-namespace.mjs';
@@ -1307,6 +1309,17 @@ export function createHub(config = {}) {
             }
             if (presentsCellSecret(req, secret))
               return { actor: 'operator', readOnly: false, admin: true };
+            // A cloud cell's project OWNER, on a token the control plane minted
+            // for them (the dashboard's "switch how the project saves"): the
+            // same offline-verified token the export route takes, owner role
+            // only, never a token issued before the person was removed.
+            const tenant = process.env.MAUDE_TENANT_ID ?? '';
+            const tokenKey = projectTokenKey(process.env);
+            if (tenant && tokenKey && presented.includes('.')) {
+              const v = verifyAccessToken(presented, tokenKey, { tenantId: tenant });
+              if (v.ok && v.user.role === 'owner' && !isRevoked(dataDir, v.user.email, v.issuedAt))
+                return { actor: v.user.email, readOnly: false, scope: '*', admin: true };
+            }
             const { tokens } = readTokens(dataDir);
             if (tokens.length === 0 && secret === '' && !permissiveDevAuthDisabled(dataDir)) {
               return { actor: 'anon', readOnly: false, admin: true };
