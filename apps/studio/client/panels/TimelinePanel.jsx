@@ -137,6 +137,24 @@ function fmtTime(frame, fps) {
   return `${whole}.${String(cs).padStart(2, '0')}s`;
 }
 
+/**
+ * Drag state its own release handler reads synchronously. The releases used
+ * to commit from INSIDE a state updater (`setX((d) => { commit(d); … })`), and
+ * React is free to run an updater more than once — StrictMode does it on
+ * purpose, and a render replayed against a concurrent update may too — so one
+ * drag could write its clip twice. Updaters passed to `set` run once, here,
+ * against the live value; the release commits outside any updater.
+ */
+function useLiveState(initial) {
+  const [state, setState] = useState(initial);
+  const live = useRef(initial);
+  const set = useCallback((next) => {
+    live.current = typeof next === 'function' ? next(live.current) : next;
+    setState(live.current);
+  }, []);
+  return [state, set, live];
+}
+
 // The frame axis starts AFTER the fixed label gutter.
 const LABEL_GUTTER = 96;
 // Padding the .tl-scroll container puts around the tracks (see 3-shell-maude.css).
@@ -353,10 +371,10 @@ export default function TimelinePanel({
 
   // -------------------------------------------------------------------------
   // Drag machines (retime / move) — px-per-frame based.
-  const [retimeDrag, setRetimeDrag] = useState(null);
-  const [moveDrag, setMoveDrag] = useState(null);
+  const [retimeDrag, setRetimeDrag, retimeLive] = useLiveState(null);
+  const [moveDrag, setMoveDrag, moveLive] = useLiveState(null);
   // Task 6 — magnetic storyline reorder drag: { index, slot, targetSlot, dx, pxf }.
-  const [reorderDrag, setReorderDrag] = useState(null);
+  const [reorderDrag, setReorderDrag, reorderLive] = useLiveState(null);
   // Debate verdict (feedback): a momentary accent rule at the frame a drag just
   // snapped to — magnetism is otherwise invisible. { frame } | null.
   const [snapFlash, setSnapFlash] = useState(null);
@@ -374,7 +392,7 @@ export default function TimelinePanel({
   const [commentMode, setCommentMode] = useState(false);
   // Dogfood (2026-07-30) — vertical layer reorder: dragging an overlay row's
   // lane chip up/down re-stacks the standalone clips (z-order = doc order).
-  const [layerDrag, setLayerDrag] = useState(null);
+  const [layerDrag, setLayerDrag, layerLive] = useLiveState(null);
   // Right-click clip context menu: { index, x, y }.
   const [ctxMenu, setCtxMenu] = useState(null);
   // Task 23 — the open comment-thread popover: { id, x, y } | null.
@@ -384,7 +402,7 @@ export default function TimelinePanel({
   // a seam chip click.
   const [inspector, setInspector] = useState(null);
   // Task 11 — left-edge in-point trim drag: { index, ref, startX, pxf, delta }.
-  const [trimInDrag, setTrimInDrag] = useState(null);
+  const [trimInDrag, setTrimInDrag, trimInLive] = useLiveState(null);
   // True after a body-drag actually moved — suppresses the click-to-select.
   const movedRef = useRef(false);
   // Drag the top edge to resize the panel — pointer-capture + window listeners
@@ -508,10 +526,9 @@ export default function TimelinePanel({
       setRetimeDrag((d) => (d ? { ...d, curDur, atClamp } : d));
     };
     const up = () => {
-      setRetimeDrag((d) => {
-        if (d && d.curDur !== d.startDur) onRetime?.(d.ref ?? d.index, { durationInFrames: d.curDur });
-        return null;
-      });
+      const d = retimeLive.current;
+      setRetimeDrag(null);
+      if (d && d.curDur !== d.startDur) onRetime?.(d.ref ?? d.index, { durationInFrames: d.curDur });
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up, { once: true });
@@ -537,25 +554,23 @@ export default function TimelinePanel({
       setMoveDrag((d) => (d ? { ...d, curFrom, overStory } : d));
     };
     const up = (e) => {
-      setMoveDrag((d) => {
-        if (d) {
-          // Dropping the clip ON the storyline lane moves it between layers
-          // (the layers model); otherwise commit the horizontal from-move.
-          const story = document.querySelector('.tl-storyline-track')?.getBoundingClientRect();
-          if (
-            story &&
-            onClipVerb &&
-            e.clientY >= story.top &&
-            e.clientY <= story.bottom &&
-            movedRef.current
-          ) {
-            onClipVerb(d.ref ?? { index: d.index }, 'to-storyline', {});
-          } else if (d.curFrom !== d.startFrom) {
-            onRetime?.(d.ref ?? d.index, { from: d.curFrom });
-          }
-        }
-        return null;
-      });
+      const d = moveLive.current;
+      setMoveDrag(null);
+      if (!d) return;
+      // Dropping the clip ON the storyline lane moves it between layers
+      // (the layers model); otherwise commit the horizontal from-move.
+      const story = document.querySelector('.tl-storyline-track')?.getBoundingClientRect();
+      if (
+        story &&
+        onClipVerb &&
+        e.clientY >= story.top &&
+        e.clientY <= story.bottom &&
+        movedRef.current
+      ) {
+        onClipVerb(d.ref ?? { index: d.index }, 'to-storyline', {});
+      } else if (d.curFrom !== d.startFrom) {
+        onRetime?.(d.ref ?? d.index, { from: d.curFrom });
+      }
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up, { once: true });
@@ -576,10 +591,9 @@ export default function TimelinePanel({
       setTrimInDrag((d) => (d ? { ...d, delta } : d));
     };
     const up = () => {
-      setTrimInDrag((d) => {
-        if (d && d.delta) onClipVerb?.(d.ref, 'trim-in', { deltaFrames: d.delta });
-        return null;
-      });
+      const d = trimInLive.current;
+      setTrimInDrag(null);
+      if (d && d.delta) onClipVerb?.(d.ref, 'trim-in', { deltaFrames: d.delta });
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up, { once: true });
@@ -646,33 +660,33 @@ export default function TimelinePanel({
       setReorderDrag((d) => (d ? { ...d, dx, targetSlot: target } : d));
     };
     const up = (e) => {
-      setReorderDrag((d) => {
-        if (d && movedRef.current && onClipVerb) {
-          const story = document.querySelector('.tl-storyline-track')?.getBoundingClientRect();
-          if (story && e.clientY < story.top - 6) {
-            const beat = sequences[d.index];
-            if (beat) {
-              onClipVerb(refFor(beat, d.index), 'to-overlay', {});
-              return null;
-            }
+      const d = reorderLive.current;
+      setReorderDrag(null);
+      if (!d) return;
+      if (movedRef.current && onClipVerb) {
+        const track = document.querySelector('.tl-storyline-track')?.getBoundingClientRect();
+        if (track && e.clientY < track.top - 6) {
+          const beat = sequences[d.index];
+          if (beat) {
+            onClipVerb(refFor(beat, d.index), 'to-overlay', {});
+            return;
           }
         }
-        if (d && d.targetSlot !== d.slot) {
-          const moved = story[d.slot];
-          // targetSlot counts positions among the OTHER beats — map to a ref
-          // beat + before/after in the original order.
-          const others = story.filter((_, k) => k !== d.slot);
-          if (moved && others.length) {
-            if (d.targetSlot <= 0) {
-              onReorderMove?.(refFor(moved.s, moved.i), refFor(others[0].s, others[0].i), 'before');
-            } else {
-              const ref = others[Math.min(d.targetSlot, others.length) - 1];
-              onReorderMove?.(refFor(moved.s, moved.i), refFor(ref.s, ref.i), 'after');
-            }
+      }
+      if (d.targetSlot !== d.slot) {
+        const moved = story[d.slot];
+        // targetSlot counts positions among the OTHER beats — map to a ref
+        // beat + before/after in the original order.
+        const others = story.filter((_, k) => k !== d.slot);
+        if (moved && others.length) {
+          if (d.targetSlot <= 0) {
+            onReorderMove?.(refFor(moved.s, moved.i), refFor(others[0].s, others[0].i), 'before');
+          } else {
+            const ref = others[Math.min(d.targetSlot, others.length) - 1];
+            onReorderMove?.(refFor(moved.s, moved.i), refFor(ref.s, ref.i), 'after');
           }
         }
-        return null;
-      });
+      }
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up, { once: true });
@@ -701,13 +715,12 @@ export default function TimelinePanel({
       setLayerDrag((d) => (d ? { ...d, curTarget: target } : d));
     };
     const up = () => {
-      setLayerDrag((d) => {
-        if (d && d.curTarget !== d.docIdx) {
-          const seq = sequences[d.index];
-          if (seq) onClipVerb?.(refFor(seq, d.index), 'layer-order', { toIndex: d.curTarget });
-        }
-        return null;
-      });
+      const d = layerLive.current;
+      setLayerDrag(null);
+      if (d && d.curTarget !== d.docIdx) {
+        const seq = sequences[d.index];
+        if (seq) onClipVerb?.(refFor(seq, d.index), 'layer-order', { toIndex: d.curTarget });
+      }
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up, { once: true });
