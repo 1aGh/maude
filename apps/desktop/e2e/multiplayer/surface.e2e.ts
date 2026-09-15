@@ -5776,21 +5776,22 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           }
         );
       }
-      // L16 — a design-system token edited on one machine restyles the canvas
-      // that uses it on every machine: the dependency travels with the canvas
-      // and the receivers re-render against the new revision.
-      {
-        const from = all[1] as Surface;
-        const css = 'system/surface/tokens.css';
-        const rel = 'ui/SurfaceTokens.tsx';
-        const canvas = `import '../system/surface/tokens.css';\nimport { DesignCanvas, DCArtboard } from '@maude/canvas-lib';\nexport default function SurfaceTokens() {\n  return (\n    <DesignCanvas>\n      <DCArtboard id="tokens" label="Tokens" width={480} height={240}>\n        <h1 style={{ padding: 24, color: 'var(--surface-accent)' }}>Token heading</h1>\n      </DCArtboard>\n    </DesignCanvas>\n  );\n}\n`;
+      // L16 — the design system and the files canvases depend on. A token
+      // edited on one machine restyles the canvas that uses it everywhere; a
+      // specimen made, edited and removed reaches everyone; a module a canvas
+      // imports, edited, re-renders every copy; and a file a canvas still uses
+      // cannot be moved out from under it (the author is told who uses it).
+      for (const from of all) {
+        const css = `system/surface-${from.name}/tokens.css`;
+        const rel = `ui/SurfaceTokens-${from.name}.tsx`;
+        const canvas = `import '../system/surface-${from.name}/tokens.css';\nimport { DesignCanvas, DCArtboard } from '@maude/canvas-lib';\nexport default function SurfaceTokens() {\n  return (\n    <DesignCanvas>\n      <DCArtboard id="tokens" label="Tokens" width={480} height={240}>\n        <h1 style={{ padding: 24, color: 'var(--surface-accent)' }}>Token heading ${from.name}</h1>\n      </DCArtboard>\n    </DesignCanvas>\n  );\n}\n`;
         const tokens = (rgb: string) => `:root { --surface-accent: ${rgb}; }\n`;
         await check('L16.ds-token.edit', `${from.name}-to-peers`, async () => {
-          mkdirSync(join(from.root, '.design/system/surface'), { recursive: true });
+          mkdirSync(join(from.root, '.design', `system/surface-${from.name}`), { recursive: true });
           writeFileSync(join(from.root, '.design', css), tokens('rgb(10, 20, 30)'));
           await until(() => all.every((p) => existsSync(join(p.root, '.design', css))), 30000);
           await seedCanvas(from, rel, canvas);
-          await openSeeded(rel, 'Token heading', 'L16-tokens');
+          await openSeeded(rel, `Token heading ${from.name}`, `L16-tokens-${from.name}`);
           await until(async () => {
             for (const p of all)
               if ((await p.probe('h1'))?.color !== 'rgb(10, 20, 30)') return false;
@@ -5805,6 +5806,129 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             async (p) => (await p.probe('h1'))?.color === 'rgb(200, 30, 40)',
             (p) => readFileSync(join(p.root, '.design', css), 'utf8') === tokens('rgb(200, 30, 40)')
           );
+        });
+        const specimen = `system/smoke/preview/SurfaceSpecimen-${from.name}.tsx`;
+        const specimenBody = (title: string) =>
+          `import { DesignCanvas, DCArtboard } from '@maude/canvas-lib';\nexport default function Specimen() {\n  return (\n    <DesignCanvas>\n      <DCArtboard id="specimen" label="Specimen" width={360} height={200}>\n        <h1 style={{ padding: 24 }}>${title}</h1>\n      </DCArtboard>\n    </DesignCanvas>\n  );\n}\n`;
+        // The DESIGN SYSTEM section of every tree shows the project's design
+        // system (a copy learns it from the project) with its specimens.
+        const openDsSection = async (p: Surface) => {
+          const hd = selector('tree-section-design-system');
+          await until(async () => (await p.read(hd)) !== null, 30000);
+          if ((await p.read(`${hd}[aria-expanded="false"]`)) !== null) await p.click(hd);
+        };
+        await check('L16.specimen.create', `${from.name}-to-peers`, async () => {
+          for (const p of all) await openDsSection(p);
+          mkdirSync(join(from.root, '.design/system/smoke/preview'), { recursive: true });
+          const body = specimenBody(`Specimen ${from.name}`);
+          const start = performance.now();
+          writeFileSync(join(from.root, '.design', specimen), body);
+          return observeAll(
+            all,
+            `L16-specimen-create-${from.name}`,
+            start,
+            async (p) => (await p.read(rowOf(specimen))) !== null,
+            (p) =>
+              existsSync(join(p.root, '.design', specimen)) &&
+              bytes(p.root, specimen).toString() === body
+          );
+        });
+        await check('L16.specimen.edit', `${from.name}-to-peers`, async () => {
+          if (all.some((p) => !existsSync(join(p.root, '.design', specimen))))
+            throw new Unexercised('The specimen is not everywhere');
+          for (const p of all) {
+            await openCanvas(p, specimen);
+            await until(async () => (await p.read('h1', true)) === `Specimen ${from.name}`, 30000);
+          }
+          const body = specimenBody(`Specimen ${from.name} edited`);
+          const start = performance.now();
+          writeFileSync(join(from.root, '.design', specimen), body);
+          return observeAll(
+            all,
+            `L16-specimen-edit-${from.name}`,
+            start,
+            async (p) => (await p.read('h1', true)) === `Specimen ${from.name} edited`,
+            (p) => bytes(p.root, specimen).toString() === body
+          );
+        });
+        // Removing a specimen is not something the studio does: canvases under
+        // the design-system group cannot be deleted through it (api.ts
+        // deleteCanvas — "never the design system"), the DS tree offers no
+        // delete, and a file deleted outside the app is not a project deletion
+        // (the project's copy comes back). Recorded, not faked.
+        await check('L16.specimen.remove', `${from.name}-to-peers`, async () => ({
+          status: 'unsupported',
+          reason:
+            'Design-system canvases cannot be deleted through the studio (deleteCanvas refuses the design-system group; the DS tree has no delete), and an outside deletion is not a project deletion.',
+        }));
+        const moduleRel = `system/smoke/surface-label-${from.name}.ts`;
+        const moduleCanvas = `ui/SurfaceModule-${from.name}.tsx`;
+        // A code module (.ts/.js) a canvas imports reaches another desktop only
+        // through the per-hub consent recorded at link time (DDR-217 file door
+        // owner gate + the receiver's codeModulesAllowed); the product has no
+        // control to give that consent, so a module edit stays on its author.
+        void moduleRel;
+        void moduleCanvas;
+        await check('L16.module.edit', `${from.name}-to-peers`, async () => ({
+          status: 'unsupported',
+          reason:
+            'Code modules travel only to a copy whose person consented at link time (DDR-217); there is no consent control yet, so a module edit does not reach a teammate’s desktop.',
+        }));
+        // Moving a file a canvas still uses: refused, with the user named —
+        // nobody is left with a broken canvas.
+        const dep = `ui/SurfaceDep-${from.name}.png`;
+        const depCanvas = `ui/SurfaceDepUser-${from.name}.tsx`;
+        const depDest = `SurfaceDepDest-${from.name}`;
+        await check('L16.dependency.move-refused', `${from.name}-to-peers`, async () => {
+          const input = run.media.uploads?.[from.name];
+          if (!input) throw new Unexercised('No image fixture');
+          mkdirSync(join(from.root, '.design/ui', depDest), { recursive: true });
+          writeFileSync(join(from.root, '.design/ui', depDest, '.gitkeep'), '');
+          writeFileSync(join(from.root, '.design', dep), readFileSync(input.path));
+          await until(() => all.every((p) => existsSync(join(p.root, '.design', dep))), 30000);
+          await seedCanvas(
+            from,
+            depCanvas,
+            `import { DesignCanvas, DCArtboard } from '@maude/canvas-lib';\nexport default function SurfaceDepUser() {\n  return (\n    <DesignCanvas>\n      <DCArtboard id="dep" label="Dep" width={480} height={200}>\n        <h1 style={{ padding: 24 }}>Dependency ${from.name}</h1>\n        <img data-testid="surface-dep" src="/.design/ui/SurfaceDep-${from.name}.png" width={64} height={64} alt="" />\n      </DCArtboard>\n    </DesignCanvas>\n  );\n}\n`
+          );
+          await openSeeded(depCanvas, `Dependency ${from.name}`, `L16-dep-${from.name}`);
+          const fileRow = selector(`file-row-${slug(dep)}`);
+          await until(async () => (await from.read(fileRow)) !== null, 30000);
+          await from.hover(fileRow);
+          await from.click(selector(`tree-row-menu-${slug(dep)}`));
+          await from.menu('Move to…');
+          await from.menu(`ui/${depDest}`);
+          // The author is told which canvas uses it.
+          let told = '';
+          await until(async () => {
+            told = (await from.read('body')) ?? '';
+            return told.includes(`SurfaceDepUser-${from.name}`) && /used by/i.test(told);
+          }, 15000).catch(() => {});
+          await sleep(3000);
+          const kept = all.map((p) => ({
+            participant: p.name,
+            atOriginal: existsSync(join(p.root, '.design', dep)),
+            movedCopy: existsSync(
+              join(p.root, '.design/ui', depDest, `SurfaceDep-${from.name}.png`)
+            ),
+          }));
+          const rendered = await Promise.all(
+            all.map(async (p) => {
+              const image = await p.probe(selector('surface-dep'));
+              return !!image?.visible && (image.width ?? 0) > 0;
+            })
+          );
+          return {
+            status:
+              /used by/i.test(told) &&
+              kept.every((k) => k.atOriginal && !k.movedCopy) &&
+              rendered.every(Boolean)
+                ? 'pass'
+                : 'fail',
+            authorTold: /used by/i.test(told),
+            kept,
+            rendered,
+          };
         });
       }
       // L23 — a mixed loaded session: people keep editing and switching
