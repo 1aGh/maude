@@ -1,6 +1,6 @@
 {
   "name": "@maude/hub",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "description": "Self-hostable Yjs sync hub for Maude cross-machine canvas collaboration (Phase 9). See .ai/plans/phase-9-self-hosted-hub-file-sync.md and .ai/archive/decisions/DDR-052-hocuspocus-over-partykit-for-hub.md.",
   "type": "module",

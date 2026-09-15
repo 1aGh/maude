@@ -1,5 +1,33 @@
 # @1agh/maude
 
+## 1.3.0
+
+### Minor Changes
+
+- a019382: Add native Codex packages for the Maude design and flow workflows alongside Claude Code.
+
+  Share the workflow procedures through small skill entry points and load larger references by stage. Preserve source-owned Codex packages in the Maude launcher, document installation and dependencies for both hosts, and reuse a healthy Studio server when process signalling is unavailable.
+
+  Studio ACP integration remains separate. Visual workflows require working browser tooling; the restricted-environment probe did not complete the full visual editing loop.
+
+- Reliable project multiplayer (accepted revisions). A team project saves through the project itself: "Saving N changes…" until the project confirms, a History of actions with authors, personal Undo that keeps teammates' later work, same-property races ending with the later change, unfinished AI edits held for Publish/Discard, and resumable large-media transfer. Invited designers open a team project from the desktop app with no folder, token or Git. On Maude Cloud the owner switches a project from the dashboard (Saving); self-hosted operators follow the rollout runbook. Also: rename and duplicate canvases, rename folders and artboards, manage images and notes beside canvases from the tree, and Cloud Connect syncs immediately again.
+- 0432180: Share canvas and file links that open in the browser or Maude desktop app. Browser history follows the open file, sign-in returns to the shared file, and app links ask before switching projects.
+
+### Patch Changes
+
+- 01bdcfd: Protect canvas source files from malformed shared-document updates (issue #121).
+
+  Preserve unchanged code between concurrent edits, repair exact duplicate seeds in the shared-document sync path, and reject source with syntax errors or duplicate declarations before it overwrites a local file. Keep bounded recovery copies outside rolling history, preserve valid migration backups, and show held updates in the Sync panel. Locally edited files are preserved when a remote update arrives before the file watcher imports them.
+
+- d50954d: Unify Studio notifications in a Sonner stack with automatic dismissal and paused timers during interaction. Keep export errors concise and reveal full diagnostics on demand in export history.
+- b89fa4e: Fix Shift+Enter not giving you a new line in a whiteboard sticky note (issue #106). The report was "nefunguje shift+enter na novy radek ve sticky note", and the keystroke was never the problem — the editor passes it straight to the browser, and it inserts the break correctly in both Chrome and Safari. Three separate things then took the line away again, and any one of them alone looks exactly like "Shift+Enter does nothing".
+
+  **A sticky now grows to fit its text instead of clipping it.** A note's size was fixed when you dropped it and nothing ever changed it, while the body is clipped at the card's edge — so past about nine lines every further line simply wasn't drawn. On a note that was already full, Shift+Enter inserted the line and then hid it: nothing moved on screen. The note now grows as you type, and the commit keeps whatever height the text actually needed. It only ever grows, so a note you deliberately made roomy stays that way.
+
+  **Shift+Enter adds a line instead of eating the note.** Opening a sticky from the keyboard (select it, press Enter) selects all of its text, so you can retype it — which is right for a typed character and wrong for Shift+Enter, where the break replaced everything and left one blank line behind. Typing still replaces; Shift+Enter now appends. Your own partial selection is untouched, so replacing the words you highlighted works as before. The same fix covers shape labels and standalone text.
+
+  **A collaborator's edit no longer overwrites the note you have open.** On a project synced to a workspace, someone else committing to the same sticky while you were editing it replaced your live text mid-keystroke — your uncommitted words and line breaks gone, with nothing to undo. What you have typed now stays put until you commit it, while everything arriving from your collaborator — their text included — is still applied to the project exactly as before.
+
 ## 1.2.0
 
 ### Minor Changes
