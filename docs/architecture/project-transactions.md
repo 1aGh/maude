@@ -1,10 +1,73 @@
 # Project transactions
 
-Status: T6 working contract, 2026-09-14. This document specifies the destination
-of `feature-reliable-project-multiplayer`; it does not describe a deployed API.
-T7 must prove the publication barrier and dependency replay. T8 must select and
-verify storage, validation runtime, limits and the idempotency retention horizon
-before production integration. No project is switched by adding this document.
+Status: contract + **implemented protocol v1** (2026-09-15, DDR-241). The
+sections after "Implemented protocol v1" are the full destination; where they
+name richer operations (semantic `source.*.assign`, structural ops by stable
+id) those are T23–T25 refinements of the implemented lane operations, not a
+second protocol. No deployed project is switched by this document — a project
+enters accepted revisions only by an owner's explicit mode switch.
+
+## Implemented protocol v1 (DDR-241)
+
+Code: `apps/hub/src/project-transactions/` (kernel, store core, SQLite and remote
+stores, hub integration, baseline import), `apps/cells/project-store*.mjs`
+(Durable Object home), `apps/studio/sync/{transaction-client,accepted-link,
+accepted-cold-start,projection}.ts` (client), `sync/writer-registry.ts`
+(executable writer registry).
+
+**Routes** (`/api/projects/:project|current/v1/…`, authenticated as the hub's
+token/session/cell-secret actors): `GET bootstrap` (mode, epoch, revision,
+manifest docs with lane heads, dirs, capabilities, `you`), `POST proposals`,
+`GET transactions/:id`, `GET revisions?after=&limit=`, `GET history?before=&limit=&entry=`,
+`GET blobs/:hash`, `GET|POST mode` (owner/admin only).
+
+**Envelope**: `{protocol:1, projectId, epoch, transactionId, dependsOn?, origin,
+action:{kind,label,operations}}`. Idempotency is (actor, transactionId): the same
+bytes answer the retained result, other bytes answer `transaction-id-reused`.
+Terminal rejections are retained; `retryable` is not.
+
+**Operations**: `lane.replace {doc, lane, content, base | baseContent, writeId?}`
+over the five canvas lanes (html, css, meta, annotations, comments) — the hub
+merges three-way from the base (char-level for source, by `data-id` for
+annotations, by id for comments, by key for meta) or rejects `base-conflict`;
+`doc.create/move/delete`, `dir.create/move/delete` (folders are manifest entries,
+empty ones included; a folder delete/move carries its canvases in the same
+action); `history.undo/redo` (effect-aware: a revert is rebased through later
+effects on the same entry, so it never erases a peer's later assignment; ABA
+safe); `history.restore`.
+
+**Durability**: one store schema (`store-core.mjs`) in two homes — better-sqlite3
+WAL + `synchronous=FULL` in a self-host data volume, or the tenant's
+`ProjectStore` Durable Object (its own class, never the container class) reached
+by the container through `http://project-store.internal/`. Head, action,
+effects, payloads and the idempotency result commit in one transaction before
+the answer. A hub whose data directory is disposable (`MAUDE_DATA_EPHEMERAL=1`)
+and has no remote store refuses the mode switch (`store-not-durable`).
+
+**Publication**: only the kernel writes documents (Hocuspocus direct connection).
+In `transactions` mode every connection is read-only, decided per message from
+the mode and the credential's own right (so already-open sockets are fenced, and
+a switch back restores exactly the write access tokens had). The studio's own
+collab rooms refuse browser persistent writes too; a tripwire counts any local
+write that still reaches an accepted replica.
+
+**Mode switch** (safety order): persist mode+epoch → stateless `maude.mode`
+notice on every document socket → one grace round trip → fence → baseline import
+(documents the store lacks → `doc.create`; legacy-interval changes →
+`lane.replace` from the head; checkout folders → `dir.create`; invalid bodies
+fall back to the checkout's last valid source or are reported) → reconcile.
+Proposals wait for the switch.
+
+**Client**: every proposal is written to `<designRoot>/_state/outbox/`
+synchronously before it is queued, delivered strictly in order, resolved by
+transaction id after a lost answer, and rebased as a new transaction on
+`epoch-stale` (dependents re-pointed). An edit on top of an unanswered edit
+depends on it (U1→U2). API writes announce their base (`activity:suppress`,
+comment/annotation/meta hooks); watcher imports use the last agreed value.
+Comments and annotations are never proposed from file events (their files have
+a second writer — the room projection). A rejection keeps the candidate on
+disk, reports the conflict, and bases the resolving save on the version that
+won. Cold start decides per lane: agreed / materialize / propose / hold.
 
 ## User-visible guarantees
 

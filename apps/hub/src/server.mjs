@@ -124,6 +124,7 @@ import {
 import { LOOPBACK_HOSTS, sanitizeForLog } from './log-safety.mjs';
 import { assertStrictIsSurvivable, oidcConfig } from './oidc-routes.mjs';
 import { createAcceptedRevisions } from './project-transactions/hub-integration.mjs';
+import { openRemoteProjectStore } from './project-transactions/store-remote.mjs';
 import { openSqliteProjectStore } from './project-transactions/store-sqlite.mjs';
 import { createRateStore } from './rate-store.mjs';
 import { mintRenderToken, verifyRenderToken } from './render-token.mjs';
@@ -1679,7 +1680,15 @@ export function createHub(config = {}) {
   const documentEvents = createDocumentEvents({ poke: documentsPoke });
 
   // ---- accepted revisions (DDR-241) ---------------------------------------
-  const projectStore = openSqliteProjectStore(dataDir);
+  // The store's durable home (DDR-241 §2): a cell's Durable Object through
+  // the container's outbound route, or this hub's own data volume.
+  const projectStore = process.env.MAUDE_PROJECT_STORE_URL
+    ? openRemoteProjectStore({ url: process.env.MAUDE_PROJECT_STORE_URL })
+    : openSqliteProjectStore(dataDir);
+  // A disposable data directory (a cloud container) cannot back an
+  // acknowledgement — the mode switch refuses rather than promise saves it
+  // could lose on the next rollout (T11: no weakened "saved" semantics).
+  const storeDurable = projectStore.kind === 'remote' || process.env.MAUDE_DATA_EPHEMERAL !== '1';
   let canvasGroupsCache = { at: 0, groups: null };
   const acceptedCanvasGroups = () => {
     if (Date.now() - canvasGroupsCache.at < 5000) return canvasGroupsCache.groups;
@@ -1716,7 +1725,7 @@ export function createHub(config = {}) {
         const childRel = rel ? `${rel}/${e.name}` : e.name;
         if (e.isDirectory()) walk(join(abs, e.name), childRel, depth + 1);
         else if (e.isFile() && e.name.endsWith('.tsx')) {
-          const slug = canvasSlugFromRel(childRel);
+          const slug = canvasSlugFromRel(childRel, process.env.MAUDE_DESIGN_ROOT ?? '.design');
           if (slug && !out.has(slug)) out.set(slug, childRel);
         }
       }
@@ -1781,6 +1790,7 @@ export function createHub(config = {}) {
       }
     },
     checkoutDirs: () => checkoutFolders(),
+    storeDurable,
   });
   // The persistent mode decides the fence before any peer can connect (the
   // SQLite read resolves long before the caller's `listen()`); the reconcile
@@ -1900,6 +1910,9 @@ export function createHub(config = {}) {
       const agent = make({
         repoDir,
         designRel: process.env.MAUDE_DESIGN_ROOT ?? '.design',
+        // Under accepted revisions a paired studio child is THE projector of
+        // this checkout (T14); the agent then only commits.
+        writesCheckout: () => !(studioPairingToken && accepted?.acceptedMode()),
         ...deps.options,
       });
       const started = await agent.start();

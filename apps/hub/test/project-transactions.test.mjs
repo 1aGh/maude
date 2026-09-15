@@ -591,6 +591,39 @@ describe('accepted revisions on a real hub', () => {
     }
   });
 
+  test('a hub on a disposable disk refuses accepted revisions instead of promising saves it could lose', {
+    timeout: 30000,
+  }, async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'maude-tx-'));
+    dirs.push(dataDir);
+    const t = rig(dataDir);
+    const saved = process.env.MAUDE_DATA_EPHEMERAL;
+    process.env.MAUDE_DATA_EPHEMERAL = '1';
+    let hub;
+    try {
+      hub = await startHub(dataDir);
+    } finally {
+      if (saved === undefined) delete process.env.MAUDE_DATA_EPHEMERAL;
+      else process.env.MAUDE_DATA_EPHEMERAL = saved;
+    }
+    try {
+      const r = await client(hub.http, t.owner, { epoch: 0 }).post('/api/projects/local/v1/mode', {
+        mode: 'transactions',
+      });
+      assert.equal(r.status, 409);
+      assert.equal(r.body.code, 'store-not-durable');
+      assert.match(r.body.error, /durable/);
+      const state = (
+        await client(hub.http, t.owner, { epoch: 0 }).get('/api/projects/local/v1/mode')
+      ).body;
+      assert.equal(state.mode, 'legacy');
+    } finally {
+      await hub.built.stopJournal();
+      await hub.built.server.destroy();
+      hub.built.projectStore.close();
+    }
+  });
+
   test('acknowledged actions survive losing the document cache: the store rebuilds them', {
     timeout: 60000,
   }, async () => {

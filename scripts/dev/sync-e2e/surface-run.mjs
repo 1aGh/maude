@@ -31,6 +31,12 @@ const arg = (key, fallback) => {
 const mode = arg('mode', 'baseline');
 if (!['baseline', 'candidate'].includes(mode))
   throw new Error('mode must be baseline or candidate');
+// How the project saves: `legacy` (raw shared documents) or `accepted`
+// (DDR-241 accepted revisions — the project is switched after the cell is up
+// and before any peer joins, exactly as an operator would).
+const saveMode = arg('save-mode', 'legacy');
+if (!['legacy', 'accepted'].includes(saveMode))
+  throw new Error('save-mode must be legacy or accepted');
 const samples = Number(arg('samples', '1'));
 if (!Number.isSafeInteger(samples) || samples < 1 || samples > 100)
   throw new Error('samples must be an integer from 1 to 100 (currently the UI text lane only)');
@@ -149,6 +155,7 @@ try {
       scope: '*',
     });
   closeUsers(data);
+
   const source = join(work, 'desktop-project');
   const peerB = join(work, 'desktop-b');
   cpSync(source, peerB, {
@@ -161,6 +168,27 @@ try {
     join(out, 'upload-input-manifest.json'),
     JSON.stringify(treeManifest(uploadDir), null, 2)
   );
+  // Switch AFTER the fixture exists everywhere — the way an operator switches
+  // a project that already has canvases and folders: they are imported.
+  if (saveMode === 'accepted') {
+    const { value: ownerToken } = addToken(data, {
+      label: 'surface-operator',
+      scope: '*',
+      expiresAt: Date.now() + 12 * 3600000,
+    });
+    const res = await fetch(`http://127.0.0.1:${port}/api/projects/current/v1/mode`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${ownerToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ mode: 'transactions' }),
+    });
+    const body = await res.json().catch(() => null);
+    if (res.status !== 200)
+      throw new Error(
+        `switching to accepted revisions failed: ${res.status} ${JSON.stringify(body)}`
+      );
+    writeFileSync(join(out, 'save-mode-switch.json'), JSON.stringify(body, null, 2));
+    console.log(`Accepted revisions ON: ${JSON.stringify(body?.imported ?? {})}`);
+  }
   const identities = {};
   for (const [id, role] of [
     ['designer-a', 'member'],
@@ -201,6 +229,7 @@ try {
   await ready(`http://127.0.0.1:${peerPort}/_health`);
   const config = {
     mode,
+    saveMode,
     media,
     work,
     out,
@@ -226,6 +255,7 @@ try {
       {
         version: 1,
         mode,
+        saveMode,
         watch,
         notes,
         samples,

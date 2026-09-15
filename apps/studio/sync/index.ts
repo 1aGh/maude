@@ -329,6 +329,9 @@ export const REMOTE_POLL_SOON_MS = 1_500;
  * edits arrive in seconds, bounded enough that spam buys almost nothing.
  */
 export const POKE_COOLDOWN_MS = REMOTE_POLL_MS / 2;
+/** Accepted revisions: how soon, and how often at most, a poke pulls. */
+export const ACCEPTED_POKE_DELAY_MS = 60;
+export const ACCEPTED_POKE_COOLDOWN_MS = 1_000;
 
 /**
  * How many previously-unknown canvases one listing may land.
@@ -483,7 +486,7 @@ export interface SyncRuntime {
    */
   proposeLane?(
     slug: string,
-    lane: 'comments' | 'annotations',
+    lane: 'comments' | 'annotations' | 'meta',
     text: string,
     opts?: { baseText?: string; writeId?: string }
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string }> | null;
@@ -856,6 +859,7 @@ export function createSyncRuntime(
   };
   let fsReader: FsReader | null = null;
   let busUnsub: (() => void) | null = null;
+  const activityUnsubs: Array<() => void> = [];
   let started = false;
   let stopped = false;
   // ---- THE LEGACY PUSH CLIENT (journal-less hubs only) --------------------
@@ -1271,6 +1275,23 @@ export function createSyncRuntime(
    */
   function pollRemoteSoon(opts: { cooled?: boolean } = {}): void {
     if (stopped || remotePollSoonTimer !== null) return;
+    // ACCEPTED REVISIONS: a poke means "a revision was accepted", and the
+    // canvas it created, moved or deleted — or the folder — must reach this
+    // peer now, not on the next 20 s tick. Still bounded (one pass per
+    // second, with a trailing pass so the last poke of a burst is honoured),
+    // so a hub that pokes in a loop costs one cheap request a second.
+    if (opts.cooled && acceptedOn()) {
+      const since = Date.now() - lastPokePassAt;
+      const wait = Math.max(ACCEPTED_POKE_DELAY_MS, ACCEPTED_POKE_COOLDOWN_MS - since);
+      remotePollSoonTimer = setTimeout(() => {
+        remotePollSoonTimer = null;
+        if (stopped) return;
+        lastPokePassAt = Date.now();
+        void remotePull?.().catch(() => {});
+      }, wait);
+      remotePollSoonTimer.unref?.();
+      return;
+    }
     if (opts.cooled) {
       const since = Date.now() - lastPokePassAt;
       if (since < POKE_COOLDOWN_MS) {
@@ -1837,6 +1858,53 @@ export function createSyncRuntime(
     return modeRefresh;
   }
 
+  /**
+   * A folder the Maude UI made on this machine (it carries the `.gitkeep`
+   * `createFolder` writes) that the project does not list yet — made while
+   * the project was legacy, or while this machine was offline. It joins the
+   * project as ONE action at cold start. Only additive: a folder the manifest
+   * lists and this disk lacks is never proposed as a deletion from here.
+   */
+  function proposeLocalFolders(): void {
+    if (!acceptedLink) return;
+    const listed = new Set(acceptedLink.manifest?.dirs ?? []);
+    const found: string[] = [];
+    const walk = (abs: string, rel: string, depth: number) => {
+      if (depth > 16 || found.length >= 200) return;
+      let entries: import('node:fs').Dirent[];
+      try {
+        entries = readdirSync(abs, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const e of entries) {
+        if (!e.isDirectory() || e.name.startsWith('_') || e.name.startsWith('.')) continue;
+        const childRel = `${rel}/${e.name}`;
+        const childAbs = path.join(abs, e.name);
+        if (
+          !listed.has(childRel) &&
+          existsSync(path.join(childAbs, '.gitkeep')) &&
+          projectDirAbs(childRel)
+        ) {
+          found.push(childRel);
+        }
+        walk(childAbs, childRel, depth + 1);
+      }
+    };
+    for (const g of ctx.cfg.canvasGroups ?? []) {
+      const rel = g.path.replace(/^\/+|\/+$/g, '');
+      if (rel) walk(path.join(ctx.paths.designRoot, ...rel.split('/')), rel, 1);
+    }
+    if (found.length === 0) return;
+    void acceptedLink.dirsCreate(found).then((r) => {
+      if (r.status === 'accepted') {
+        for (const d of found) knownProjectDirs.add(d);
+        saveProjectDirs();
+        console.log(`[sync] added ${found.length} local folder(s) to the project.`);
+      }
+    });
+  }
+
   function proposeFolder(
     op:
       | { op: 'dir.create'; path: string }
@@ -1951,6 +2019,7 @@ export function createSyncRuntime(
             console.log(`[sync/tx] resent ${results.length} unanswered change(s).`);
         });
         applyProjectDirs(acceptedLink.manifest?.dirs ?? []);
+        proposeLocalFolders();
       }
     }
     const remoteListing = withAcceptedDocs(remoteListingRaw);
@@ -2261,6 +2330,22 @@ export function createSyncRuntime(
       },
     });
     fsReader = reader;
+
+    // Accepted revisions: an API source write announces itself before it
+    // lands (`activity:suppress`, the same signal the activity rim uses).
+    const projectionForRel = (rel: unknown): DocProjection | undefined => {
+      if (typeof rel !== 'string' || !rel) return undefined;
+      const abs = path.join(ctx.paths.designRoot, rel);
+      for (const [slug, d] of descriptors) if (d.html === abs) return projections.get(slug);
+      return undefined;
+    };
+    const unsubSuppress = ctx.bus.on('activity:suppress', (rel: unknown) => {
+      if (acceptedOn()) projectionForRel(rel)?.noteLocalWrite();
+    });
+    const unsubUnsuppress = ctx.bus.on('activity:unsuppress', (rel: unknown) => {
+      projectionForRel(rel)?.cancelLocalWrite();
+    });
+    activityUnsubs.push(unsubSuppress, unsubUnsuppress);
 
     busUnsub = ctx.bus.on('fs:any', (rel: string) => {
       reader.notify(rel);
@@ -4369,6 +4454,7 @@ export function createSyncRuntime(
     owedSetups.clear();
     busUnsub?.();
     busUnsub = null;
+    for (const u of activityUnsubs.splice(0)) u();
     fsReader?.stop();
     fsReader = null;
     for (const agent of agents.values()) {

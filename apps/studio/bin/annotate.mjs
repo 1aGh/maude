@@ -1242,7 +1242,9 @@ async function main() {
         const res = await fetch(`${base}/_api/annotations`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ file: `${designRel}/${relPath}`, svg: merged }),
+          // `base` — the SVG this edit was merged onto, so a peer's strokes
+          // that landed meanwhile are merged, not replaced (DDR-241).
+          body: JSON.stringify({ file: `${designRel}/${relPath}`, svg: merged, base: svg }),
           signal: AbortSignal.timeout(3000),
         });
         if (res.ok) via = 'server';

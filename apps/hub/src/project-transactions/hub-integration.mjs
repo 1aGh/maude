@@ -35,6 +35,8 @@ export function createAcceptedRevisions({
   // How long peers get, after the mode notice, to deliver what they sent
   // before it reached them (one generous round trip).
   switchGraceMs = 1500,
+  /** False when the store sits on a disposable disk — see setMode. */
+  storeDurable = true,
   log = console,
 }) {
   let state = { mode: 'legacy', epoch: 0, revision: 0 };
@@ -172,6 +174,16 @@ export function createAcceptedRevisions({
    * not hold the imported documents yet.
    */
   function setMode({ mode, expectEpoch }) {
+    if (mode === 'transactions' && !storeDurable) {
+      return Promise.reject(
+        Object.assign(
+          new Error(
+            'this hub has no durable project store (its data directory is disposable) — configure MAUDE_PROJECT_STORE_URL or a persistent data volume first'
+          ),
+          { status: 409, code: 'store-not-durable' }
+        )
+      );
+    }
     const run = async () => {
       const next = await store.setMode({ mode, expectEpoch });
       const notice = JSON.stringify({ type: 'maude.mode', mode: next.mode, epoch: next.epoch });
@@ -336,8 +348,16 @@ export function createAcceptedRevisions({
       respondJson(405, { code: 'method-not-allowed' });
       return true;
     } catch (err) {
-      log.error?.(`[transactions] ${route} failed: ${err.message}`);
-      respondJson(err.status ?? 503, { code: err.code ?? 'retryable' });
+      log.error?.(
+        `[transactions] ${route} failed: ${err.message}\n${String(err.stack ?? '')
+          .split('\n')
+          .slice(1, 4)
+          .join('\n')}`
+      );
+      respondJson(err.status ?? 503, {
+        code: err.code ?? 'retryable',
+        ...(err.status && err.status < 500 ? { error: err.message } : {}),
+      });
       return true;
     }
   }

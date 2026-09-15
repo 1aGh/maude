@@ -193,6 +193,24 @@ describe('projection in accepted-revisions mode', () => {
     expect(r.sent).toHaveLength(1);
   });
 
+  test('going back to an earlier value (A→B→A, undo) is a real edit, not a redelivery', async () => {
+    const r = rig(src('A'));
+    r.edit(src('B'));
+    r.publish(src('B'));
+    r.sent[0]?.answer({ status: 'accepted' });
+    await r.settle();
+    // A PEER takes it back to A (no proposal of ours in between)…
+    r.publish(src('A'));
+    await r.settle();
+    expect(r.disk()).toBe(src('A'));
+    // …and the user sets B again — the same bytes as our last proposal.
+    expect(r.edit(src('B'))).toBe(true);
+    expect(r.sent).toHaveLength(2);
+    expect(r.sent[1]?.p.content).toBe(src('B'));
+    expect(r.sent[1]?.p.baseContent).toBe(src('A'));
+    expect(r.conflicts).toHaveLength(0);
+  });
+
   test('an invalid source is never proposed', () => {
     const r = rig(src('A'));
     r.edit('export default () => <h1>');
@@ -216,6 +234,47 @@ describe('projection in accepted-revisions mode', () => {
       hash: hashBytes(pretty),
     });
     expect(r.sent).toHaveLength(1);
+  });
+
+  test('a stale room projection of annotations is never proposed (it would resurrect a deleted shape)', () => {
+    const r = rig(src('A'));
+    const withShape = '<svg xmlns="http://www.w3.org/2000/svg"><rect data-id="s1"/></svg>';
+    const empty = '<svg xmlns="http://www.w3.org/2000/svg"></svg>';
+    // The accepted replica already moved past the shape…
+    r.doc.transact(() => r.doc.getMap('annotations').set('svg', empty), REMOTE);
+    // …while the room writes the value it held before (its debounced flush).
+    writeFileSync(r.paths.annotations, withShape);
+    r.projection.applyFromFs({
+      path: r.paths.annotations,
+      bytes: enc(withShape),
+      hash: hashBytes(withShape),
+    });
+    expect(r.sent).toHaveLength(0);
+    // The same holds for comments.
+    const stale = JSON.stringify([{ id: 'gone', text: 'x' }]);
+    writeFileSync(r.paths.comments, stale);
+    r.projection.applyFromFs({ path: r.paths.comments, bytes: enc(stale), hash: hashBytes(stale) });
+    expect(r.sent).toHaveLength(0);
+  });
+
+  test('an announced API write holds the writer and is proposed from the base it was made on', async () => {
+    const r = rig(src('A'));
+    // The API announces the write (activity:suppress), then writes.
+    r.projection.noteLocalWrite();
+    writeFileSync(r.paths.html, src('A', 'green'));
+    // A peer revision lands inside the watcher's quiet window…
+    r.publish(src('Peer title'));
+    await r.settle();
+    // …and neither overwrites the edit nor reads it as a stale local change.
+    expect(r.disk()).toBe(src('A', 'green'));
+    expect(r.conflicts).toHaveLength(0);
+    // The watcher event arrives: proposed from the base the API edit read.
+    r.projection.applyFromFs({ path: r.paths.html, bytes: enc(src('A', 'green')), hash: 'h' });
+    expect(r.sent.at(-1)?.p.baseContent).toBe(src('A'));
+    r.publish(src('Peer title', 'green'));
+    r.sent.at(-1)?.answer({ status: 'accepted' });
+    await r.settle();
+    expect(r.disk()).toBe(src('Peer title', 'green'));
   });
 
   test('file events before the cold start decided are proposed once it has', () => {

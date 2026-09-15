@@ -63,6 +63,10 @@ export const PROJECT_FLUSH_MS = 800;
  * once.
  */
 export const ACCEPTED_FLUSH_MS = 30;
+/** How long an announced API write may hold the doc→file writer at most. */
+export const LOCAL_WRITE_HOLD_MS = 3_000;
+/** `MAUDE_SYNC_DEBUG=1` — one line per proposal and per disk write (diagnosis). */
+const SYNC_DEBUG = process.env.MAUDE_SYNC_DEBUG === '1';
 export const CIRCUIT_MAX_STRIKES = 3;
 
 export interface ProjectionPaths {
@@ -204,6 +208,17 @@ export interface DocProjection {
   pendingCount(): number;
   /** Re-deliver file changes held while the document was not writable. */
   retryDeferred(): void;
+  /**
+   * Accepted mode: a privileged API route is about to rewrite the canvas
+   * source (it announces this with `activity:suppress`). Captures the exact
+   * bytes that edit is based on, and holds the doc→file writer until the
+   * edit's own file event has been proposed — so a peer revision landing in
+   * the watcher's quiet window can neither overwrite the edit nor read it as
+   * a conflicting stale local change.
+   */
+  noteLocalWrite(): void;
+  /** The announced write did not happen (no-op or failure). */
+  cancelLocalWrite(): void;
   /**
    * Accepted-revisions cold start: disk differs from the accepted value and
    * nothing proves what it was derived from. Keep both — block the lane's
@@ -382,7 +397,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     // A proposal for this lane is in flight: the file is our candidate and the
     // accepted value is about to be republished. Writing the document's
     // current value now would briefly undo the user's own edit.
-    if (pending.has('html')) return false;
+    if (pending.has('html') || localWriteActive()) return false;
     const next = htmlFromDoc(doc);
     if (next === lastHtml) return true;
     // Don't clobber a non-empty local body with an empty doc (cold-start before
@@ -406,6 +421,11 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     } catch {
       reject('history-failed', local, next);
       return false;
+    }
+    if (SYNC_DEBUG) {
+      console.log(
+        `[projection/${slug}] write html ${hashBytes(next).slice(0, 8)} (disk was ${local === null ? '-' : hashBytes(local).slice(0, 8)})`
+      );
     }
     writeAndAnnounce(paths.html, next);
     recordEcho(paths.html, next);
@@ -507,12 +527,19 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
   const pending = new Map<ProposalLane, { count: number; lastTx: string; lastValue: string }>();
   /** Lanes whose last answer was a rejection — the local file is the held candidate. */
   const held = new Set<ProposalLane>();
-  /** The newest value proposed per lane — its watcher redelivery is not a new edit. */
-  const lastProposed = new Map<ProposalLane, string>();
   /** Accepted mode: file events that arrived before the cold start decided. */
   const deferredBeforeReady = new Map<string, string>();
   /** Legacy mode: file events held while the connection was not writable. */
   const heldWhileReadOnly = new Map<string, string>();
+  /** Accepted mode: an API source write announced but not yet seen by the watcher. */
+  let localWrite: { base: string | null; at: number } | null = null;
+  let localWriteTimer: ReturnType<typeof setTimeout> | null = null;
+  const localWriteActive = (): boolean => {
+    if (!localWrite) return false;
+    if (Date.now() - localWrite.at < LOCAL_WRITE_HOLD_MS) return true;
+    localWrite = null;
+    return false;
+  };
 
   const REJECTION_REASON: Record<string, BodyRejection['reason']> = {
     'source-invalid': 'invalid-source',
@@ -586,12 +613,16 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     const link = opts.accepted as AcceptedLaneLink;
     const prior = pending.get(lane);
     const transactionId = link.newTransactionId();
+    if (SYNC_DEBUG) {
+      console.log(
+        `[projection/${slug}] propose ${lane} tx=${transactionId.slice(0, 11)} value=${hashBytes(value).slice(0, 8)} base=${hashBytes(baseContent).slice(0, 8)} doc=${hashBytes(readLaneFromDoc(doc, lane)).slice(0, 8)} last=${lastHtml === null ? '-' : hashBytes(lastHtml).slice(0, 8)} via=${new Error().stack?.split('\n')[3]?.trim().slice(0, 60)}`
+      );
+    }
     pending.set(lane, {
       count: (prior?.count ?? 0) + 1,
       lastTx: transactionId,
       lastValue: value,
     });
-    lastProposed.set(lane, value);
     const settle = async (outcome: ProposalOutcome): Promise<ProposalOutcome> => {
       // A rejection can outrun the publication of the version that beat it
       // (HTTP answer vs. WebSocket update). The conflict must report — and the
@@ -621,8 +652,19 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
         ...(writeId ? { writeId } : {}),
       })
       .then(settle, (err: unknown) => {
-        console.error(`[projection/${slug}] proposing ${lane} failed:`, err);
         const code = (err as { code?: unknown })?.code;
+        if (code === 'stopped') {
+          // The runtime is going away with this proposal unanswered. It is
+          // still in the durable outbox and the next runtime resends it — so
+          // it is neither a failure nor a rejection, and nothing is reported.
+          const p = pending.get(lane);
+          if (p) {
+            p.count -= 1;
+            if (p.count <= 0) pending.delete(lane);
+          }
+          return { status: 'rejected', code: 'stopped' } as ProposalOutcome;
+        }
+        console.error(`[projection/${slug}] proposing ${lane} failed:`, err);
         return settle({
           status: 'rejected',
           code: typeof code === 'string' ? code : 'client-error',
@@ -651,6 +693,20 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
   function proposeFromFs(evt: { path: string; hash: string }, str: string): boolean {
     const lane = laneOfPath(evt.path);
     if (!lane) return false;
+    if (SYNC_DEBUG && lane === 'html') {
+      console.log(
+        `[projection/${slug}] fs event html ${hashBytes(str).slice(0, 8)} evt=${evt.hash.slice(0, 8)} doc=${hashBytes(htmlFromDoc(doc)).slice(0, 8)} last=${lastHtml === null ? '-' : hashBytes(lastHtml).slice(0, 8)} held=${held.has('html')} pending=${pending.has('html')}`
+      );
+    }
+    // COMMENTS AND ANNOTATIONS ARE NEVER PROPOSED FROM A FILE EVENT. Their
+    // files have a second writer — the collab room projects the accepted
+    // document onto them — so a file change here is as likely the room
+    // writing a value the document has since moved past as it is an edit.
+    // Proposing that with the current head as its base REPLACES the head:
+    // a deleted shape resurrected by a stale projection (surface run
+    // 2026-09-15, L09 delete). Every edit to these lanes arrives through the
+    // API with the base it was made from (`proposeLane`).
+    if (lane === 'comments' || lane === 'annotations') return false;
     if (lane === 'html') {
       if (str === lastHtml && !held.has('html')) return false; // a redelivered projection
       if (!withinCap(paths.html, str, MAX_HTML_BYTES)) return false;
@@ -684,7 +740,11 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       }
       return false;
     }
-    if (!inFlight && !held.has(lane) && lastProposed.get(lane) === value) return false;
+    // NOT "skip a value proposed before": the reader reads the file as it is
+    // NOW, so an event carrying an earlier proposal's bytes after that
+    // proposal was answered is the user going BACK to them (A→B→A, every
+    // undo/redo) — skipping it turned a real edit into a false conflict
+    // (surface run 2026-09-15, L18).
     if (lane === 'html') {
       try {
         preserveLocal(str);
@@ -694,7 +754,12 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       }
       observedBody = str;
     }
-    void submit(lane, value, inFlight ? inFlight.lastValue : agreedValue(lane), str);
+    // An API edit announced its base (noteLocalWrite): that is exactly what
+    // it was derived from — better than the last agreed body, which a peer
+    // revision may have advanced inside the watcher's quiet window.
+    const apiBase = lane === 'html' ? (localWrite?.base ?? null) : null;
+    if (lane === 'html') localWrite = null;
+    void submit(lane, value, inFlight ? inFlight.lastValue : (apiBase ?? agreedValue(lane)), str);
     return true;
   }
 
@@ -910,6 +975,22 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       const base = o?.baseContent ?? (inFlight ? inFlight.lastValue : agreedValue(lane));
       return submit(lane, value, base, value, o?.writeId);
     },
+    noteLocalWrite() {
+      if (!acceptedOn() || stopped) return;
+      localWrite = { base: readLocal(paths.html), at: Date.now() };
+      if (localWriteTimer) clearTimeout(localWriteTimer);
+      // The watcher event normally clears this long before; if it never comes
+      // (a write that changed nothing), the writer resumes on its own.
+      localWriteTimer = setTimeout(() => {
+        localWriteTimer = null;
+        scheduleFlush();
+      }, LOCAL_WRITE_HOLD_MS + 10);
+      localWriteTimer.unref?.();
+    },
+    cancelLocalWrite() {
+      localWrite = null;
+      scheduleFlush();
+    },
     retryDeferred() {
       if (stopped || heldWhileReadOnly.size === 0) return;
       if (!acceptedOn() && opts.canWriteDoc && !opts.canWriteDoc()) return;
@@ -927,6 +1008,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     },
     stop() {
       stopped = true;
+      if (localWriteTimer) clearTimeout(localWriteTimer);
       doc.off('update', onDocUpdate);
       if (flushTimer) {
         clearTimeout(flushTimer);

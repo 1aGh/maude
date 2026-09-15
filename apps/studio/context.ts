@@ -262,7 +262,7 @@ export interface Context {
       /** Accepted-revisions mode (DDR-241) — see SyncRuntime.proposeLane. */
       proposeLane?(
         slug: string,
-        lane: 'comments' | 'annotations',
+        lane: 'comments' | 'annotations' | 'meta',
         text: string,
         opts?: { baseText?: string; writeId?: string }
       ): Promise<{ status: 'accepted' | 'rejected'; code?: string }> | null;

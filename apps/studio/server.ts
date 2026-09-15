@@ -147,6 +147,12 @@ const api = createApi(ctx, {
     }
   },
   proposeFolder: (op) => ctx.syncControl?.current?.()?.proposeFolder?.(op) ?? null,
+  onMetaChanged: (file, text, baseText) => {
+    const proposed = ctx.syncControl
+      ?.current?.()
+      ?.proposeLane?.(api.fileSlug(file), 'meta', text, baseText ? { baseText } : {});
+    if (proposed) void proposed.catch(() => {});
+  },
   flushAndDropRoom: async (slug) => {
     if (collab) await collab.registry.forceDrop(slug);
   },

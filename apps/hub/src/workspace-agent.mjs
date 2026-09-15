@@ -118,6 +118,14 @@ export function createWorkspaceAgent(opts) {
   const designRoot = join(repoDir, designRel);
   const log = opts.log ?? console;
   const run = opts.run ?? createGitRunner();
+  // ONE PROJECTOR PER CHECKOUT (DDR-241, plan T14). When a paired studio child
+  // projects the accepted documents onto this same checkout, this agent must
+  // not ALSO write, relocate or park canvas files: two writers over one disk
+  // race each other (the hub parked a moved canvas's old file microseconds
+  // before the studio's own rename reached it — surface run 2026-09-15, L04).
+  // It keeps committing whatever the projector put on disk. Asked per event,
+  // because the project's save mode can change while the cell runs.
+  const writesCheckout = opts.writesCheckout ?? (() => true);
 
   let auto = null;
   let ready = false;
@@ -396,6 +404,9 @@ export function createWorkspaceAgent(opts) {
         retirementsPending.delete(slug);
         continue;
       }
+      // Not the projector: the studio child moves the file; this agent only
+      // records the move once the old path is gone (the branch above).
+      if (!writesCheckout()) continue;
       const newAbs = resolve(join(designRoot, pending.movedTo));
       const contained = newAbs === designRoot || newAbs.startsWith(designRoot + sep);
       if (!contained || !existsSync(newAbs)) continue; // HOLD — move still in flight
@@ -566,7 +577,7 @@ export function createWorkspaceAgent(opts) {
       // write path below to (re)create at the new location.
       const vacated = [];
       const arrived = [];
-      if (relocateFrom) {
+      if (relocateFrom && writesCheckout()) {
         const from = siblingPaths(relocateFrom);
         for (const [src, dst] of [
           [relocateFrom, bodyRel],
@@ -634,7 +645,9 @@ export function createWorkspaceAgent(opts) {
       // same filtered content must govern both projection and commit eligibility.
       const holdBody = awaitingBodyImport || invalidReason !== null;
       const projectable = holdBody ? { ...content, body: null, css: null } : content;
-      const writes = filesForCanvas({ bodyRel, content: projectable, onDisk });
+      const writes = writesCheckout()
+        ? filesForCanvas({ bodyRel, content: projectable, onDisk })
+        : [];
 
       // WHAT TO COMMIT IS NOT WHAT WE WROTE — desktop ↔ cloud live pairing.
       //

@@ -321,3 +321,31 @@ describe('room origin gate — canvas realm', () => {
     await room.destroy();
   });
 });
+
+describe('accepted revisions — the room doc is a replica no browser writes', () => {
+  test('a main-realm comments/annotations write is refused and the peer is re-told the truth', async () => {
+    let accepted = true;
+    const room = createRoom('accepted-canvas', {
+      ...makeCallbacks(),
+      acceptedMode: () => accepted,
+    });
+    const conn = makeConn('browser-main', 'main');
+    await room.connect(conn);
+    const before = conn.recv.length;
+    room.receive(
+      conn,
+      syncUpdateFrame(peerDelta(room, (d) => d.getArray('comments').push([{ id: 'c1' }])))
+    );
+    expect(room.doc.getArray('comments').length).toBe(0);
+    expect(room.gateRefusals()).toBe(1);
+    expect(conn.recv.length).toBeGreaterThan(before); // server truth re-asserted
+    // Out of accepted mode the same frame is an ordinary write again.
+    accepted = false;
+    room.receive(
+      conn,
+      syncUpdateFrame(peerDelta(room, (d) => d.getArray('comments').push([{ id: 'c2' }])))
+    );
+    expect(room.doc.getArray('comments').length).toBe(1);
+    await room.destroy();
+  });
+});

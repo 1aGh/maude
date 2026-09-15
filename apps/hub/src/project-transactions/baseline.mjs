@@ -206,6 +206,6 @@ export async function importBaseline(deps) {
 }
 
 /** The slug a checkout path maps to (the rule the kernel checks). */
-export function slugOfPath(rel) {
-  return canvasSlugFromRel(rel);
+export function slugOfPath(rel, designRel = '.design') {
+  return canvasSlugFromRel(rel, designRel);
 }

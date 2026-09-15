@@ -13,6 +13,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -1054,6 +1055,75 @@ describe('the seed never leaves a credential on disk', () => {
 
 describe('a retired document (the move protocol, studio codec stampMovedTo)', () => {
   const gitOk = gitAvailable();
+
+  it('when a paired studio projects the checkout, the agent never writes, relocates or parks — it only commits', {
+    skip: gitOk ? false : 'git not available',
+  }, async () => {
+    // The cell race the surface run found (2026-09-15, L04): the accepted move
+    // created the new document and retired the old one at once, the agent
+    // wrote the new path and parked the old file, and the studio's own rename
+    // then died with ENOENT. With one projector there is no race.
+    const repo = tmp();
+    let projector = true;
+    const agent = createWorkspaceAgent({
+      repoDir: repo,
+      designRel: '.design',
+      debounceMs: 5,
+      log: silent(),
+      writesCheckout: () => projector,
+    });
+    await agent.start();
+    const doc = new Y.Doc();
+    doc.getText('html').insert(0, 'export default function Home() { return <main/>; }\n');
+    await agent.onDocumentStored({ documentName: 'ws/acme/main/home', document: doc, user: null });
+    await agent.flush();
+    assert.ok(
+      existsSync(join(repo, '.design/home.tsx')),
+      'materialised while it was the projector'
+    );
+
+    projector = false; // the project switched to accepted revisions; the studio projects now
+    // An accepted move: the new document exists and the old one is retired.
+    const moved = new Y.Doc();
+    moved.getText('html').insert(0, 'export default () => <p>moved</p>;\n');
+    moved.getMap('syncMeta').set('path', 'ui/folder/home.tsx');
+    await agent.onDocumentStored({
+      documentName: 'ws/acme/main/ui-folder-home',
+      document: moved,
+      user: null,
+    });
+    assert.ok(!existsSync(join(repo, '.design/ui/folder/home.tsx')), 'the agent wrote nothing');
+    doc.getMap('syncMeta').set('movedTo', 'ui/folder/home.tsx');
+    await agent.onDocumentStored({ documentName: 'ws/acme/main/home', document: doc, user: null });
+    assert.ok(
+      existsSync(join(repo, '.design/home.tsx')),
+      'the old file is the studio’s to move, not parked'
+    );
+    assert.ok(!existsSync(join(repo, '.design/_trash')), 'nothing quarantined');
+
+    // The studio does the move on disk and projects the accepted body; the
+    // agent commits what it finds.
+    mkdirSync(join(repo, '.design/ui/folder'), { recursive: true });
+    renameSync(join(repo, '.design/home.tsx'), join(repo, '.design/ui/folder/home.tsx'));
+    writeFileSync(join(repo, '.design/ui/folder/home.tsx'), moved.getText('html').toString());
+    await agent.onDocumentStored({
+      documentName: 'ws/acme/main/ui-folder-home',
+      document: moved,
+      user: null,
+    });
+    const other = new Y.Doc();
+    other.getText('html').insert(0, 'x');
+    await agent.onDocumentStored({
+      documentName: 'ws/acme/main/other',
+      document: other,
+      user: null,
+    });
+    const commit = await agent.flush();
+    assert.equal(commit?.ok, true, JSON.stringify(commit));
+    const tracked = execFileSync('git', ['ls-files'], { cwd: repo, encoding: 'utf8' });
+    assert.ok(tracked.includes('.design/ui/folder/home.tsx'), tracked);
+    assert.ok(!tracked.includes('.design/home.tsx\n'), tracked);
+  });
 
   it('quarantines the checkout copy and commits the deletion', {
     skip: gitOk ? false : 'git not available',

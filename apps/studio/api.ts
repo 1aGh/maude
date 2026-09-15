@@ -771,6 +771,11 @@ export interface ApiHooks {
    * project action before touching disk. Absent, or answering `null`, means
    * the project is not in that mode and the local operation is the whole story.
    */
+  /**
+   * A layout (shared meta) write, with the file text it replaced — accepted
+   * revisions propose it with that base instead of inferring one.
+   */
+  onMetaChanged?: (file: string, text: string, baseText: string | null) => void;
   proposeFolder?: (
     op:
       | { op: 'dir.create'; path: string }
@@ -1987,7 +1992,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       next.last_modified = new Date().toISOString();
       // Trailing newline — consistent with canvas-create.ts + sync/codec.ts
       // (mergeSharedMetaIntoLocal), so a layout edit doesn't churn the newline.
-      await Bun.write(metaAbs, `${JSON.stringify(next, null, 2)}\n`);
+      const baseText = Object.keys(current).length ? JSON.stringify(current) : null;
+      const nextText = `${JSON.stringify(next, null, 2)}\n`;
+      await Bun.write(metaAbs, nextText);
+      hooks.onMetaChanged?.(file, nextText, baseText);
       // Same reason as the annotations sidecar below, and the same bug: this
       // lane writes the FILE and nothing else, so in a cell — where there is no
       // `fs.watch` — the layout never entered the doc and never reached a peer.

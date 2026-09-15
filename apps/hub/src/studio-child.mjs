@@ -212,6 +212,8 @@ export function childEnv(env = process.env, { port }) {
     // that was false inside a hub, because the variable never reached the
     // child and the studio fell back to the vendor's endpoint.
     ...(env.MAUDE_REPORT_URL ? { MAUDE_REPORT_URL: env.MAUDE_REPORT_URL } : {}),
+    // Diagnostics only: one log line per proposal / projector write.
+    ...(env.MAUDE_SYNC_DEBUG === '1' ? { MAUDE_SYNC_DEBUG: '1' } : {}),
     // feature-cloud-export-render-workers (DDR-230) — where browser-format
     // export jobs dispatch. Presence flips the studio's render lane to
     // `remote`; absent, the lane is `none` and the studio refuses those

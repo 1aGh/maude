@@ -206,6 +206,15 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
         waitMs
       );
     },
+    /** Several folders in ONE action (a cold start publishing local folders). */
+    dirsCreate(rels: string[], waitMs = Number.POSITIVE_INFINITY): Promise<StructuralOutcome> {
+      return structural(
+        rels.length === 1 ? 'Create folder' : `Add ${rels.length} folders`,
+        'folder.create',
+        rels.map((path) => ({ op: 'dir.create', path })),
+        waitMs
+      );
+    },
     dirDelete(rel: string, waitMs = 8_000): Promise<StructuralOutcome> {
       return structural(
         'Delete folder',

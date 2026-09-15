@@ -64,6 +64,10 @@ export function createCollab(ctx: Context, api: Api): Collab {
     fileForSlug,
     shouldSeed: (slug) => !(ctx.sharedDoc && registryRef?.isPinned(slug)),
   });
+  // Accepted revisions: browser writes to a synced canvas's room are refused
+  // (the room doc is the hub's accepted replica). Asked per frame — the save
+  // mode can change while the studio runs.
+  persistence.acceptedMode = () => ctx.syncControl?.current?.()?.acceptedMode?.() === true;
   const registry = createRegistry(persistence);
   registryRef = registry;
 

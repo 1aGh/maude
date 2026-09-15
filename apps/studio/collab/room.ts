@@ -77,6 +77,15 @@ export interface RoomCallbacks {
    * the seeded state.
    */
   seed(slug: string, doc: Y.Doc): Promise<void> | void;
+
+  /**
+   * Accepted revisions (DDR-241 §7): while true, this room's document is a
+   * replica of the project's accepted state — no browser connection may write
+   * a persistent lane into it (the hub would drop it and the replica would
+   * diverge). Comments and annotations go through the API as proposals.
+   * Awareness is unaffected. Optional; absent means false.
+   */
+  acceptedMode?: () => boolean;
 }
 
 export interface Room {
@@ -216,6 +225,8 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
    */
   function refusedLanes(conn: RoomConn, roots: ReadonlySet<string>): string[] {
     const refused: string[] = [];
+    // Accepted revisions: every persistent lane is the hub's to change.
+    if (callbacks.acceptedMode?.()) return [...roots];
     for (const r of roots) {
       if (conn.realm === 'canvas' && (isBodyLane(r) || r === '<unresolved>')) {
         refused.push(r);
@@ -255,7 +266,7 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
       gateRefusalCount += 1;
       discardMirror();
       console.warn(
-        `[collab/${slug}] origin gate REFUSED a ${conn.readOnly ? 'read-only' : 'canvas-realm'} ` +
+        `[collab/${slug}] origin gate REFUSED a ${callbacks.acceptedMode?.() ? 'accepted-replica' : conn.readOnly ? 'read-only' : 'canvas-realm'} ` +
           `sync frame (lanes: ${refused.join(', ') || 'unclassifiable'}). ` +
           (conn.readOnly
             ? 'A viewer-role socket may only write comments — role matrix, cloud collab lane.'
@@ -351,7 +362,7 @@ export function createRoom(slug: string, callbacks: RoomCallbacks): Room {
   }
 
   function receive(conn: RoomConn, payload: Uint8Array): void {
-    if (conn.realm === 'canvas' || conn.readOnly === true) {
+    if (conn.realm === 'canvas' || conn.readOnly === true || callbacks.acceptedMode?.()) {
       receiveGated(conn, payload);
       return;
     }
