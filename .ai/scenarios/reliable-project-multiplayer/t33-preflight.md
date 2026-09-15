@@ -118,6 +118,26 @@ in the documents). Image: restore `env.bak` (tag `v1.2.0`) and
 `docker compose up -d hub render`; the volume tarballs restore `/data` and
 `/repo` as of the checkpoint.
 
+### v1.3.1 (same day — follow-up fixes)
+
+Release `v1.3.1` (`1927e38b`): build-binaries (npm `@1agh/maude@1.3.1`),
+build-desktop, hub-image, selfhost images, render-deploy, cells-deploy all
+green; GitHub Release published (15 assets). The release commit's `Lint
+(biome)` failed on the two Codex plugin manifests the bump rewrote — fixed on
+`main` (`f8f4a868`, bump script now formats every manifest it writes); nothing
+shipped differs.
+
+| Step | Result |
+|---|---|
+| StudyFi checkpoint + upgrade | `8e79c85f-d6b1-4893-a6ad-3626f87044b9` — checkpoint `/opt/maude-hub/pre-v1.3.1-20260915T184558Z` (`env.bak`, compose, `hub-data.tgz` 10.8 MB incl. the project store, `hub-repo.tgz` 63 MB; hub + render stopped while taken; previous images `sha256:6ed9ab95…` hub, `sha256:db756dbc…` render); tag `v1.3.1`; hub healthy |
+| StudyFi health | `version 1.3.1`, `coordinator {ready, mode: transactions, protocol 1, durable: true}`, studio ready |
+| StudyFi parity | `03e5863a-8c83-4764-8e2e-93043bb10dec` — `ok: true`, 121/121; mode `transactions`, epoch 1, `importPending: false` |
+| Alligators | fleet on `1.3.1` (public `/health`: `releaseVersion 1.3.1`, `coordinator {ready, mode: legacy, durable: true}`); still awaiting the owner's switch |
+
+Rollback for this step: restore `env.bak` from the v1.3.1 checkpoint (tag
+`v1.3.0`) and `docker compose up -d hub render`; the tarballs restore `/data`
+(project store included) and `/repo` as of the checkpoint.
+
 ### Cloudflare Alligators
 
 - Fleet on `v1.3.0` with `CELL_PROJECT_STORE = "alligators"`; public `/health`:
