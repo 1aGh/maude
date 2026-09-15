@@ -483,6 +483,18 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     expect(readdirSync(bob.file('ui/Empty'))).toEqual(['.gitkeep']);
   }, 30_000);
 
+  test('a folder made outside the app while it runs joins the project without a restart', async () => {
+    // An agent's `mkdir` + `.gitkeep` — no UI route, no cold start.
+    mkdirSync(alice.file('ui/Outside/Deeper'), { recursive: true });
+    writeFileSync(alice.file('ui/Outside/.gitkeep'), '');
+    alice.write('ui/Outside/Deeper/.gitkeep', '');
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return existsSync(bob.file('ui/Outside/Deeper/.gitkeep'));
+    }, "bob's ui/Outside/Deeper folder");
+    expect(existsSync(bob.file('ui/Outside/.gitkeep'))).toBe(true);
+  }, 30_000);
+
   test('a canvas move is one project action; the peer follows it and parks the old copy', async () => {
     expect(alice.read('ui/home.tsx')).not.toBeNull();
     const ok = await alice.runtime.retireForMove('ui-home', 'ui/Empty/home.tsx');

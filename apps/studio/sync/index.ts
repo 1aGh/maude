@@ -1222,6 +1222,9 @@ export function createSyncRuntime(
   /** The outbound delete-lane subscriptions — see `noteToHub`. */
   let deletedUnsub: (() => void) | null = null;
   let createdUnsub: (() => void) | null = null;
+  /** Folders made outside the app while running — see `proposeLocalFolders`. */
+  let foldersUnsub: (() => void) | null = null;
+  let foldersTimer: ReturnType<typeof setTimeout> | null = null;
   /** Periodic remote-document poll — the hub-side half of discovery. */
   let remotePollTimer: ReturnType<typeof setInterval> | null = null;
   /** The stall watchdog's tick — see `stallCheck` in `start()`. */
@@ -1312,6 +1315,15 @@ export function createSyncRuntime(
    * work), and passes are floored `MIN_PASS_INTERVAL_MS` apart.
    */
   let planePassInFlight = false;
+  /**
+   * News that arrived WHILE a pass ran. The running pass may already have read
+   * the disk and the hub's listing, so it cannot carry a file written — or a
+   * row a poke announced — after that point; absorbing the request silently
+   * parked such a file until the next 20 s tick (plan T17/L03: a new image
+   * took 15–20 s to reach a teammate while an edit took one). One more pass,
+   * floored like any other, answers it.
+   */
+  let planePassAgain = false;
   let lastPlanePassAt = 0;
   let planePassWaiter: Promise<void> | null = null;
   let lastPlaneResult: import('./file-plane.ts').FilePlaneResult | null = null;
@@ -1323,7 +1335,10 @@ export function createSyncRuntime(
     // A pass already running IS this pass: it reads the same disk and the same
     // cursor, so the caller waits for its answer rather than racing it. The
     // poll's `await` therefore still means "a pass has happened".
-    if (planePassInFlight) return await (planePassWaiter ?? Promise.resolve());
+    if (planePassInFlight) {
+      planePassAgain = true;
+      return await (planePassWaiter ?? Promise.resolve());
+    }
     const since = Date.now() - lastPlanePassAt;
     // The floor governs POKES. The 20 s poll and the explicit `pullRemoteNow`
     // seam are already bounded by their own callers, and silently deferring a
@@ -1346,6 +1361,10 @@ export function createSyncRuntime(
       } finally {
         planePassInFlight = false;
         planePassWaiter = null;
+        if (planePassAgain) {
+          planePassAgain = false;
+          schedulePlanePass();
+        }
       }
     })();
     planePassWaiter = run;
@@ -1975,9 +1994,17 @@ export function createSyncRuntime(
    * project as ONE action at cold start. Only additive: a folder the manifest
    * lists and this disk lacks is never proposed as a deletion from here.
    */
+  let folderProposal: Promise<void> | null = null;
+  let folderProposalAgain = false;
   function proposeLocalFolders(): void {
     if (!acceptedLink) return;
-    const listed = new Set(acceptedLink.manifest?.dirs ?? []);
+    // One proposal at a time: a second walk while the first is unanswered
+    // would offer the same folders twice.
+    if (folderProposal) {
+      folderProposalAgain = true;
+      return;
+    }
+    const listed = new Set([...(acceptedLink.manifest?.dirs ?? []), ...knownProjectDirs]);
     const found: string[] = [];
     const walk = (abs: string, rel: string, depth: number) => {
       if (depth > 16 || found.length >= 200) return;
@@ -2006,13 +2033,25 @@ export function createSyncRuntime(
       if (rel) walk(path.join(ctx.paths.designRoot, ...rel.split('/')), rel, 1);
     }
     if (found.length === 0) return;
-    void acceptedLink.dirsCreate(found).then((r) => {
-      if (r.status === 'accepted') {
-        for (const d of found) knownProjectDirs.add(d);
-        saveProjectDirs();
-        console.log(`[sync] added ${found.length} local folder(s) to the project.`);
-      }
-    });
+    folderProposal = acceptedLink
+      .dirsCreate(found)
+      .then((r) => {
+        if (r.status === 'accepted') {
+          for (const d of found) knownProjectDirs.add(d);
+          saveProjectDirs();
+          console.log(`[sync] added ${found.length} local folder(s) to the project.`);
+        }
+      })
+      .catch(() => {
+        /* the next folder event or cold start offers them again */
+      })
+      .finally(() => {
+        folderProposal = null;
+        if (folderProposalAgain) {
+          folderProposalAgain = false;
+          proposeLocalFolders();
+        }
+      });
   }
 
   function proposeFolder(
@@ -3818,6 +3857,18 @@ export function createSyncRuntime(
     });
     discoveryRescan = rescan;
     discoveryUnsub = ctx.bus.on('canvas-list-update', () => rescan.schedule());
+    // A folder made OUTSIDE the app while it runs — an agent's `mkdir` plus
+    // `.gitkeep`, Finder, a `git checkout` — joins the project the way a cold
+    // start adds one: additively, never as a deletion. Without this it stayed
+    // on this machine until the next launch.
+    foldersUnsub = ctx.bus.on('fs:any', (rel: unknown) => {
+      if (typeof rel !== 'string' || !rel.endsWith('/.gitkeep') || !acceptedOn()) return;
+      if (foldersTimer) clearTimeout(foldersTimer);
+      foldersTimer = setTimeout(() => {
+        foldersTimer = null;
+        if (acceptedOn()) proposeLocalFolders();
+      }, 300);
+    });
 
     // The OUTBOUND half of the delete lane. `api.ts` emits these two only from
     // its privileged create/delete routes, never from the filesystem watcher —
@@ -4518,6 +4569,10 @@ export function createSyncRuntime(
     attachOne = null;
     discoveryUnsub?.();
     discoveryUnsub = null;
+    foldersUnsub?.();
+    foldersUnsub = null;
+    if (foldersTimer) clearTimeout(foldersTimer);
+    foldersTimer = null;
     deletedUnsub?.();
     deletedUnsub = null;
     createdUnsub?.();
