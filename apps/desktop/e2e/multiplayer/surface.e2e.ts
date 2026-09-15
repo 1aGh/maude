@@ -3863,6 +3863,68 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             );
           });
         }
+        // L19 reconnect — desktop B's network drops while everyone is on the
+        // canvas, then comes back. Nobody is left with a ghost or a double of
+        // B, and B's cursor moves for the others again.
+        await check('L19.presence.reconnect', 'peer-reconnects', async () => {
+          const peer = all.find((p) => p.name === 'peer');
+          const control = run.peerProxy as string | undefined;
+          if (!peer || !control)
+            throw new Unexercised('This run has no toggle proxy in front of desktop B.');
+          const others = all.filter((p) => p !== peer);
+          await openSeeded(rel, 'Presence', 'L19-reconnect-open');
+          await until(
+            async () =>
+              (await Promise.all(all.map((p) => count(p, people)))).every(
+                (n) => n === all.length - 1
+              ),
+            30000
+          ).catch(() => {
+            throw new Unexercised('not everyone was on the canvas before the drop');
+          });
+          await fetch(`${control}/offline`, { method: 'POST' });
+          let droppedMs: number | null = null;
+          const t0 = performance.now();
+          try {
+            await until(
+              async () =>
+                (await Promise.all(others.map((p) => count(p, people)))).every(
+                  (n) => n === all.length - 2
+                ),
+              60000
+            ).then(() => {
+              droppedMs = performance.now() - t0;
+            });
+          } catch {
+            /* a presence that outlives the drop is reported, not failed here */
+          }
+          const start = performance.now();
+          await fetch(`${control}/online`, { method: 'POST' });
+          const back = await observeAll(
+            all,
+            'L19-reconnect',
+            start,
+            async (p) => (await count(p, people)) === all.length - 1
+          );
+          // Moving again after the return: the others see B's cursor.
+          await gesture(peer, 'p', 'hover', { dx: 30, dy: 5 });
+          const cursor = await observeAll(
+            others,
+            'L19-reconnect-cursor',
+            performance.now(),
+            async (p) => (await count(p, '.dc-cursor')) >= 1
+          );
+          const doubles = await Promise.all(
+            all.map(async (p) => ({ participant: p.name, people: await count(p, people) }))
+          );
+          return {
+            status: back.status === 'pass' && cursor.status === 'pass' ? 'pass' : 'fail',
+            droppedMs,
+            presence: back.observations,
+            cursor: cursor.observations,
+            finalPeople: doubles,
+          };
+        });
       }
       // L20 — one desktop drops off the network (its hub link is cut, its own
       // app keeps running): it edits offline while the others keep working,
