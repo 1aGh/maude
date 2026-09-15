@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import {
   appendFileSync,
   existsSync,
+  mkdirSync,
   readdirSync,
   readFileSync,
   renameSync,
@@ -24,6 +25,7 @@ const selector = (id: string) => `[data-testid="${id}"]`;
 const slug = (s: string) => s.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
 type ProbeResult = {
   text: string | null;
+  color?: string;
   visible: boolean;
   width?: number;
   height?: number;
@@ -2004,6 +2006,48 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           };
         });
       }
+      // T22/S19 — a designer in a narrow browser window (phone width): the page
+      // never scrolls sideways, the project's canvases are reachable, the save
+      // status is on screen.
+      await check('L22.narrow-browser-layout', 'designer-at-hub', async () => {
+        const credentials = JSON.parse(readFileSync(run.identities['designer-a'], 'utf8'));
+        const credential = credentials.hubs[`http://127.0.0.1:${run.port}`];
+        const page = await chromiumBrowser.newPage({ viewport: { width: 400, height: 860 } });
+        try {
+          await page.context().addCookies([
+            { name: 'maude_studio', value: credential.token, url: run.hub, httpOnly: true, sameSite: 'Lax' },
+          ]);
+          await page.goto(`${run.hub}/`);
+          await page.waitForSelector('[data-testid="menubar"]', { timeout: 60000 });
+          await page.waitForTimeout(1500);
+          // A string, not a function: esbuild's __name helper does not exist in
+          // the page (the same reason tree-drag.js is read verbatim).
+          const layout = (await page.evaluate(`(() => {
+            const visible = (q) => {
+              const el = document.querySelector(q);
+              if (!el) return false;
+              const r = el.getBoundingClientRect();
+              return r.width > 0 && r.height > 0 && r.left < window.innerWidth && r.right > 0;
+            };
+            return {
+              innerWidth: window.innerWidth,
+              scrollWidth: document.documentElement.scrollWidth,
+              canvasRowVisible: visible('[data-testid^="canvas-row-"]'),
+              syncStatusVisible: visible('.st-sb-sync'),
+            };
+          })()`)) as { innerWidth: number; scrollWidth: number; canvasRowVisible: boolean; syncStatusVisible: boolean };
+          return {
+            status:
+              layout.scrollWidth <= layout.innerWidth + 1 && layout.canvasRowVisible && layout.syncStatusVisible
+                ? 'pass'
+                : 'fail',
+            ...layout,
+          };
+        } finally {
+          await page.screenshot({ path: join(run.out, 'L22-narrow-browser.png') });
+          await page.close();
+        }
+      });
       await check('L22.viewer.read-only-ui', 'viewer-at-hub', async () => {
         const credentials = JSON.parse(readFileSync(run.identities.viewer, 'utf8'));
         const credential = credentials.hubs[`http://127.0.0.1:${run.port}`];
@@ -2190,6 +2234,597 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           return result;
         });
       }
+      // L02 — populated, nested folders: create a nested hierarchy through the
+      // tree (folder + "New folder here"), put a canvas with its meta and its
+      // whiteboard inside, then move the whole hierarchy, rename it and delete
+      // the subtree — every descendant and sidecar follows, nothing ghosts.
+      const folderRow = (dir: string) => selector(`tree-folder-${slug(dir)}`);
+      const expand = async (p: Surface, dir: string) => {
+        if ((await p.read(`${folderRow(dir)}[aria-expanded="false"]`)) !== null) await p.click(folderRow(dir));
+      };
+      const annotationsOf = (rel: string) => `${slug(rel.replace(/\.tsx$/, '')).replace(/-+$/, '')}.annotations.svg`;
+      const has = (p: Surface, rel: string) => existsSync(join(p.root, '.design', rel));
+      for (const from of all) {
+        const top = `Tree-${from.name}`;
+        const dest = `NestDest-${from.name}`;
+        let base = `ui/${top}`;
+        const inner = () => `${base}/Leaf/Inner.tsx`;
+        const innerBody = elementCanvas(`Nested ${from.name}`);
+        await check('L02.nested.create', `${from.name}-to-peers`, async () => {
+          // Destination for the later move, seeded like any fixture folder.
+          mkdirSync(join(from.root, '.design/ui', dest), { recursive: true });
+          writeFileSync(join(from.root, '.design/ui', dest, '.gitkeep'), '');
+          await from.click(selector('tree-new-folder'));
+          await from.fill('[aria-label="New folder name"]', top);
+          await from.click('[aria-label="Create folder"]');
+          await until(async () => (await from.read(folderRow(base))) !== null);
+          await from.hover(folderRow(base));
+          await from.click(selector(`tree-row-menu-${slug(base)}`));
+          await from.promptNext('Leaf');
+          await from.menu('New folder here');
+          await until(() => has(from, `${base}/Leaf`));
+          const start = performance.now();
+          writeFileSync(join(from.root, '.design', inner()), innerBody);
+          writeFileSync(
+            join(from.root, '.design', inner().replace(/\.tsx$/, '.meta.json')),
+            JSON.stringify({ title: 'Inner', kind: 'web' })
+          );
+          // A whiteboard with a mark on it: an empty wrapper is not content.
+          writeFileSync(
+            join(from.root, '.design', annotationsOf(inner())),
+            '<svg xmlns="http://www.w3.org/2000/svg"><rect data-id="s_nest1" data-tool="rect" x="10" y="10" width="40" height="30" fill="none" stroke="#111"/></svg>'
+          );
+          return observeAll(
+            all,
+            `L02-create-${from.name}`,
+            start,
+            async (p) => {
+              await expand(p, base);
+              await expand(p, `${base}/Leaf`);
+              return (await p.read(rowOf(inner()))) !== null;
+            },
+            (p) =>
+              has(p, inner()) &&
+              has(p, inner().replace(/\.tsx$/, '.meta.json')) &&
+              has(p, annotationsOf(inner())) &&
+              has(p, `ui/${dest}`)
+          );
+        });
+        await check('L02.nested.move', `${from.name}-to-peers`, async () => {
+          if (all.some((p) => !has(p, inner()) || !has(p, `ui/${dest}`)))
+            throw new Unexercised('Move needs the nested hierarchy and its destination everywhere');
+          const before = { canvas: inner(), annotations: annotationsOf(inner()) };
+          for (const p of all) await expand(p, 'ui');
+          const start = performance.now();
+          await from.dragTo(folderRow(base), folderRow(`ui/${dest}`));
+          base = `ui/${dest}/${top}`;
+          return observeAll(
+            all,
+            `L02-move-${from.name}`,
+            start,
+            async (p) => (await p.read(folderRow(`ui/${top}`))) === null,
+            (p) =>
+              has(p, inner()) &&
+              has(p, inner().replace(/\.tsx$/, '.meta.json')) &&
+              has(p, annotationsOf(inner())) &&
+              !has(p, before.canvas) &&
+              !has(p, before.annotations) &&
+              readFileSync(join(p.root, '.design', inner()), 'utf8') === innerBody
+          );
+        });
+        await check('L02.nested.rename', `${from.name}-to-peers`, async () => {
+          if (all.some((p) => !has(p, inner()))) throw new Unexercised('Rename needs the moved hierarchy everywhere');
+          const oldBase = base;
+          const oldInner = inner();
+          await expand(from, `ui/${dest}`);
+          await until(async () => (await from.read(folderRow(base))) !== null);
+          await from.hover(folderRow(base));
+          await from.click(selector(`tree-row-menu-${slug(base)}`));
+          await from.promptNext(`${top}-renamed`);
+          const start = performance.now();
+          await from.menu('Rename folder');
+          base = `ui/${dest}/${top}-renamed`;
+          return observeAll(
+            all,
+            `L02-rename-${from.name}`,
+            start,
+            async (p) => {
+              await expand(p, `ui/${dest}`);
+              return (await p.read(folderRow(oldBase))) === null && (await p.read(folderRow(base))) !== null;
+            },
+            (p) =>
+              has(p, inner()) &&
+              has(p, annotationsOf(inner())) &&
+              !has(p, oldInner) &&
+              !has(p, annotationsOf(oldInner)) &&
+              readFileSync(join(p.root, '.design', inner()), 'utf8') === innerBody
+          );
+        });
+        await check('L02.nested.delete-subtree', `${from.name}-to-peers`, async () => {
+          if (all.some((p) => !has(p, inner()))) throw new Unexercised('Delete needs the hierarchy everywhere');
+          const doomed = { dir: base, canvas: inner(), meta: inner().replace(/\.tsx$/, '.meta.json'), annotations: annotationsOf(inner()) };
+          await expand(from, `ui/${dest}`);
+          await from.hover(folderRow(base));
+          await from.click(selector(`tree-row-menu-${slug(base)}`));
+          await from.confirmNext();
+          const start = performance.now();
+          await from.menu('Delete folder');
+          return observeAll(
+            all,
+            `L02-delete-${from.name}`,
+            start,
+            async (p) => (await p.read(folderRow(doomed.dir))) === null && (await p.read(rowOf(doomed.canvas))) === null,
+            (p) => !has(p, doomed.canvas) && !has(p, doomed.meta) && !has(p, doomed.annotations) && !has(p, doomed.dir)
+          );
+        });
+      }
+      // L11 — comments, through the canvas's own comment tool and thread card:
+      // create a pinned thread, reply, resolve, reopen, delete. Receivers keep
+      // the canvas open; the oracle is their pin/thread UI and comments on disk.
+      const commentsOf = (p: Surface, rel: string) => {
+        try {
+          const raw = JSON.parse(
+            readFileSync(join(p.root, '.design', '_comments', `${slug(rel.replace(/\.tsx$/, ''))}.json`), 'utf8')
+          );
+          return (Array.isArray(raw) ? raw : (raw.comments ?? [])) as Array<{
+            id: string;
+            text: string;
+            status?: string;
+            replies?: Array<{ body: string }>;
+          }>;
+        } catch {
+          return [];
+        }
+      };
+      const pin = (id: string) => `[data-comment-pin="${id}"]`;
+      const openThread = async (p: Surface, id: string) => {
+        if ((await p.probe('.cm-thread'))?.visible) return;
+        await gesture(p, pin(id), 'click');
+        await until(async () => !!(await p.probe('.cm-thread'))?.visible);
+      };
+      for (const from of all) {
+        const rel = `ui/SurfaceComments-${from.name}.tsx`;
+        const text = `Comment from ${from.name}`;
+        const reply = `Reply from ${from.name}`;
+        const idOf = () => commentsOf(from, rel).find((c) => c.text === text)?.id ?? null;
+        await check('L11.comment.create', `${from.name}-to-peers`, async () => {
+          await seedCanvas(from, rel, elementCanvas(`Comments ${from.name}`));
+          await openSeeded(rel, `Comments ${from.name}`, `L11-${from.name}`);
+          await gesture(from, '.dc-tool-palette button[aria-label^="Comment"]', 'click');
+          await gesture(from, 'h1', 'pointer');
+          await until(async () => !!(await from.probe('[aria-label="Comment body"]'))?.visible).catch(async (error) => {
+            await from.screenshot(join(run.out, `L11-composer-${from.name}-failed.png`));
+            throw error;
+          });
+          await gesture(from, '[aria-label="Comment body"]', 'fill', text);
+          const start = performance.now();
+          await gesture(from, '.cm-composer .cm-btn--primary', 'click');
+          return observeAll(
+            all,
+            `L11-create-${from.name}`,
+            start,
+            async (p) => {
+              const id = commentsOf(p, rel).find((c) => c.text === text)?.id;
+              return !!id && !!(await p.probe(pin(id)))?.visible;
+            },
+            (p) => commentsOf(p, rel).some((c) => c.text === text)
+          );
+        });
+        await check('L11.comment.reply', `${from.name}-to-peers`, async () => {
+          const id = idOf();
+          if (!id || all.some((p) => !commentsOf(p, rel).some((c) => c.id === id)))
+            throw new Unexercised('Reply needs the thread on every participant');
+          await openThread(from, id);
+          await gesture(from, '[aria-label="Reply"]', 'fill', reply);
+          const start = performance.now();
+          await gesture(from, '.cm-thread__reply-actions .cm-btn--primary', 'click');
+          return observeAll(
+            all,
+            `L11-reply-${from.name}`,
+            start,
+            async (p) => {
+              if (!commentsOf(p, rel).find((c) => c.id === id)?.replies?.some((r) => r.body === reply)) return false;
+              await openThread(p, id);
+              return ((await p.read('.cm-thread', true)) ?? '').includes(reply);
+            },
+            (p) => !!commentsOf(p, rel).find((c) => c.id === id)?.replies?.some((r) => r.body === reply)
+          );
+        });
+        for (const [action, label, status] of [
+          ['resolve', '✓ Resolve', 'resolved'],
+          ['reopen', '↺ Reopen', 'open'],
+        ] as const) {
+          await check(`L11.comment.${action}`, `${from.name}-to-peers`, async () => {
+            const id = idOf();
+            if (!id) throw new Unexercised(`${action} needs the thread`);
+            await openThread(from, id);
+            const button = `.cm-thread__actions .cm-btn${status === 'resolved' ? '--primary' : ''}`;
+            if (!((await from.read(button, true)) ?? '').includes(label.slice(2)))
+              throw new Error(`Thread offers no ${label}`);
+            const start = performance.now();
+            await gesture(from, button, 'click');
+            return observeAll(
+              all,
+              `L11-${action}-${from.name}`,
+              start,
+              async (p) =>
+                (commentsOf(p, rel).find((c) => c.id === id)?.status ?? 'open') === status &&
+                (await p.probe(`${pin(id)}[data-resolved="${status === 'resolved'}"]`)) !== null,
+              (p) => (commentsOf(p, rel).find((c) => c.id === id)?.status ?? 'open') === status
+            );
+          });
+        }
+        await check('L11.comment.delete', `${from.name}-to-peers`, async () => {
+          const id = idOf();
+          if (!id) throw new Unexercised('Delete needs the thread');
+          await openThread(from, id);
+          const start = performance.now();
+          await gesture(from, '.cm-thread__actions .cm-btn--danger', 'click');
+          return observeAll(
+            all,
+            `L11-delete-${from.name}`,
+            start,
+            async (p) => (await p.probe(pin(id)))?.visible !== true,
+            (p) => !commentsOf(p, rel).some((c) => c.id === id)
+          );
+        });
+      }
+      // L03 — a supporting file beside the canvases (a note): created and edited
+      // the way an editor saves it, then renamed, moved and deleted from the
+      // tree's own ⋯ menu. The oracle is every receiver's tree row and bytes.
+      for (const from of all) {
+        // An image beside the canvases — shown in the tree by default (a
+        // markdown note is shown only with "show hidden files").
+        let rel = `ui/Notes-${from.name}.png`;
+        const dest = `NoteDest-${from.name}`;
+        const fileRow = (r: string) => selector(`file-row-${slug(r)}`);
+        const bytesOf = (p: Surface, r: string) =>
+          existsSync(join(p.root, '.design', r)) ? readFileSync(join(p.root, '.design', r)).toString('base64') : null;
+        // Two different, valid 1×1 PNGs (the second is a real re-save).
+        const png1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
+        const png2 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+        const body1 = png1;
+        const body2 = png2;
+        await check('L03.file.create', `${from.name}-to-peers`, async () => {
+          mkdirSync(join(from.root, '.design/ui', dest), { recursive: true });
+          writeFileSync(join(from.root, '.design/ui', dest, '.gitkeep'), '');
+          const start = performance.now();
+          writeFileSync(join(from.root, '.design', rel), Buffer.from(body1, 'base64'));
+          return observeAll(
+            all,
+            `L03-create-${from.name}`,
+            start,
+            async (p) => (await p.read(fileRow(rel))) !== null,
+            (p) => bytesOf(p, rel) === body1 && existsSync(join(p.root, '.design/ui', dest))
+          );
+        });
+        await check('L03.file.edit', `${from.name}-to-peers`, async () => {
+          if (all.some((p) => bytesOf(p, rel) !== body1)) throw new Unexercised('Edit needs the note everywhere');
+          const start = performance.now();
+          writeFileSync(join(from.root, '.design', rel), Buffer.from(body2, 'base64'));
+          return observeAll(all, `L03-edit-${from.name}`, start, async () => true, (p) => bytesOf(p, rel) === body2);
+        });
+        await check('L03.file.rename', `${from.name}-to-peers`, async () => {
+          if (all.some((p) => bytesOf(p, rel) !== body2)) throw new Unexercised('Rename needs the edited note everywhere');
+          const old = rel;
+          const next = `ui/Notes-${from.name}-renamed.png`;
+          await from.hover(fileRow(old));
+          await from.click(selector(`tree-row-menu-${slug(old)}`));
+          await from.promptNext(`Notes-${from.name}-renamed`);
+          const start = performance.now();
+          await from.menu('Rename…');
+          rel = next;
+          return observeAll(
+            all,
+            `L03-rename-${from.name}`,
+            start,
+            async (p) => (await p.read(fileRow(old))) === null && (await p.read(fileRow(next))) !== null,
+            (p) => bytesOf(p, old) === null && bytesOf(p, next) === body2
+          );
+        });
+        await check('L03.file.move', `${from.name}-to-peers`, async () => {
+          if (all.some((p) => bytesOf(p, rel) !== body2)) throw new Unexercised('Move needs the note everywhere');
+          const old = rel;
+          const next = `ui/${dest}/${old.split('/').pop()}`;
+          await from.hover(fileRow(old));
+          await from.click(selector(`tree-row-menu-${slug(old)}`));
+          await from.menu('Move to…');
+          const start = performance.now();
+          await from.menu(`ui/${dest}`);
+          rel = next;
+          return observeAll(
+            all,
+            `L03-move-${from.name}`,
+            start,
+            async (p) => (await p.read(fileRow(old))) === null,
+            (p) => bytesOf(p, old) === null && bytesOf(p, next) === body2
+          );
+        });
+        await check('L03.file.delete', `${from.name}-to-peers`, async () => {
+          if (all.some((p) => bytesOf(p, rel) !== body2)) throw new Unexercised('Delete needs the note everywhere');
+          const doomed = rel;
+          await expand(from, `ui/${dest}`);
+          await until(async () => (await from.read(fileRow(doomed))) !== null);
+          await from.hover(fileRow(doomed));
+          await from.click(selector(`tree-row-menu-${slug(doomed)}`));
+          await from.confirmNext();
+          const start = performance.now();
+          await from.menu('Delete');
+          return observeAll(
+            all,
+            `L03-delete-${from.name}`,
+            start,
+            async (p) => (await p.read(fileRow(doomed))) === null,
+            (p) => bytesOf(p, doomed) === null
+          );
+        });
+      }
+      // L19 — presence is ephemeral: everyone on the same canvas sees the
+      // others (no duplicates), a moving cursor and a selection; leaving drops
+      // the person; a camera move stays on its own machine and never becomes
+      // project content.
+      {
+        const rel = 'ui/SurfacePresence.tsx';
+        const people = '.dc-participants .dc-participant:not(.dc-participant--agent)';
+        const count = async (p: Surface, q: string) => (await p.probe(q))?.matches?.length ?? 0;
+        await check('L19.presence.join', 'all', async () => {
+          await seedCanvas(all[0] as Surface, rel, elementCanvas('Presence'));
+          const start = performance.now();
+          await openSeeded(rel, 'Presence', 'L19-join');
+          return observeAll(all, 'L19-join', start, async (p) => (await count(p, people)) === all.length - 1);
+        });
+        for (const from of all) {
+          await check('L19.cursor.move', `${from.name}-to-peers`, async () => {
+            const others = all.filter((p) => p !== from);
+            const start = performance.now();
+            await gesture(from, 'p', 'pointer', { dx: 40, dy: 10 });
+            return observeAll(others, `L19-cursor-${from.name}`, start, async (p) => (await count(p, '.dc-cursor')) >= 1);
+          });
+          await check('L19.selection.shown', `${from.name}-to-peers`, async () => {
+            const others = all.filter((p) => p !== from);
+            await gesture(from, selector('palette-mode-edit'), 'click');
+            const start = performance.now();
+            await gesture(from, 'h1', 'click');
+            return observeAll(others, `L19-select-${from.name}`, start, async (p) => (await count(p, '.dc-peer-selection')) >= 1);
+          });
+        }
+        await check('L19.camera.stays-local', 'all', async () => {
+          const from = all[0] as Surface;
+          const contentBefore = all.map((p) => readFileSync(join(p.root, '.design', rel), 'utf8'));
+          const metaPath = (p: Surface) => join(p.root, '.design', rel.replace(/\.tsx$/, '.meta.json'));
+          const metaBefore = all.map((p) => (existsSync(metaPath(p)) ? readFileSync(metaPath(p), 'utf8') : null));
+          const viewPath = (p: Surface) => join(p.root, '.design', '_canvas-state', `${slug(rel.replace(/\.tsx$/, ''))}.view.json`);
+          const viewsBefore = all.map((p) => (existsSync(viewPath(p)) ? readFileSync(viewPath(p), 'utf8') : null));
+          // A real pan: drag the empty canvas with the hand tool.
+          await gesture(from, '.dc-tool-palette button[aria-label^="Hand"]', 'click');
+          await gesture(from, '.dc-canvas', 'pointer', { x: 0.05, y: 0.5, dx: 120, dy: 60 });
+          await sleep(3000);
+          const leaked = all
+            .filter((p) => p !== from)
+            .filter((p) => (existsSync(viewPath(p)) ? readFileSync(viewPath(p), 'utf8') : null) !== viewsBefore[all.indexOf(p)])
+            .map((p) => p.name);
+          const contentChanged = all.some((p, i) => readFileSync(join(p.root, '.design', rel), 'utf8') !== contentBefore[i]);
+          const metaChanged = all.some((p, i) => (existsSync(metaPath(p)) ? readFileSync(metaPath(p), 'utf8') : null) !== metaBefore[i]);
+          await gesture(from, selector('palette-mode-edit'), 'click');
+          return {
+            status: leaked.length === 0 && !contentChanged && !metaChanged ? 'pass' : 'fail',
+            viewChangedAt: leaked,
+            contentChanged,
+            metaChanged,
+          };
+        });
+        await check('L19.presence.leave', 'all', async () => {
+          const from = all[0] as Surface;
+          const others = all.filter((p) => p !== from);
+          const start = performance.now();
+          await openCanvas(from, 'ui/SurfaceText.tsx');
+          return observeAll(others, 'L19-leave', start, async (p) => (await count(p, people)) === all.length - 2);
+        });
+      }
+      // L20 — one desktop drops off the network (its hub link is cut, its own
+      // app keeps running): it edits offline while the others keep working,
+      // then reconnects. Its change arrives everywhere, theirs arrives at it,
+      // without a refresh, a duplicate or a conflict.
+      {
+        const peer = all.find((p) => p.name === 'peer');
+        const hubSide = all.find((p) => p.name === 'hub');
+        const nativeSide = all.find((p) => p.name === 'native');
+        const control = run.peerProxy as string | undefined;
+        const mine = 'ui/SurfaceOffline.tsx';
+        const theirs = 'ui/SurfaceOffline-theirs.tsx';
+        const text = (p: Surface, r: string) =>
+          existsSync(join(p.root, '.design', r)) ? readFileSync(join(p.root, '.design', r), 'utf8') : null;
+        const syncState = (p: Surface) => {
+          try {
+            return JSON.parse(readFileSync(join(p.root, '.design', '_sync.json'), 'utf8')).state as string;
+          } catch {
+            return null;
+          }
+        };
+        await check('L20.offline.edit-then-catch-up', 'peer-offline', async () => {
+          if (!peer || !hubSide || !nativeSide || !control)
+            return { status: 'unsupported', reason: 'This run has no toggle proxy in front of desktop B.' };
+          const base = elementCanvas('Offline base');
+          await seedCanvas(hubSide, mine, base);
+          await fetch(`${control}/offline`, { method: 'POST' });
+          try {
+            await until(() => syncState(peer) === 'offline', 60000);
+            const offlineBody = elementCanvas('Edited offline by peer');
+            writeFileSync(join(peer.root, '.design', mine), offlineBody);
+            // L22 — the peer's own status tells the truth while cut off: not
+            // "synced", but offline with the change kept.
+            let statusWhileOffline = '';
+            await until(async () => {
+              statusWhileOffline = (await peer.read('.st-sb-sync')) ?? '';
+              return /offline|saving|queued|not reachable/i.test(statusWhileOffline);
+            }, 30000);
+            if (/\bsynced\b/i.test(statusWhileOffline))
+              throw new Error(`Offline peer claimed synced: ${statusWhileOffline}`);
+            const theirsBody = elementCanvas('Made while peer was away');
+            writeFileSync(join(nativeSide.root, '.design', theirs), theirsBody);
+            await until(() => text(hubSide, theirs) === theirsBody, 30000);
+            await sleep(2000);
+            if (text(hubSide, mine) !== base) throw new Error('An offline edit reached the hub while cut off');
+            const start = performance.now();
+            await fetch(`${control}/online`, { method: 'POST' });
+            return {
+              offlineState: 'offline',
+              statusWhileOffline: statusWhileOffline.slice(0, 120),
+              ...(await observeAll(
+                all,
+                'L20-catch-up',
+                start,
+                async (p) => (await p.read(rowOf(theirs))) !== null,
+                (p) => text(p, mine) === offlineBody && text(p, theirs) === theirsBody
+              )),
+            };
+          } finally {
+            await fetch(`${control}/online`, { method: 'POST' }).catch(() => {});
+          }
+        });
+      }
+      // L22 — an invalid source save is held on the author's machine, visible
+      // to them, and never reaches the others; fixing it publishes normally.
+      for (const from of all) {
+        const rel = `ui/SurfaceInvalid-${from.name}.tsx`;
+        const good = elementCanvas(`Valid ${from.name}`);
+        const fixed = elementCanvas(`Fixed ${from.name}`);
+        const text = (p: Surface) =>
+          existsSync(join(p.root, '.design', rel)) ? readFileSync(join(p.root, '.design', rel), 'utf8') : null;
+        await check('L22.invalid-candidate.held', `${from.name}-to-peers`, async () => {
+          await seedCanvas(from, rel, good);
+          const broken = good.replace('</section>', '<section>');
+          writeFileSync(join(from.root, '.design', rel), broken);
+          // The author is told, in the same status everyone reads.
+          let shown = '';
+          await until(async () => {
+            shown = (await from.read('.st-sb-sync')) ?? '';
+            return /attention|conflict|invalid|resolve|could not/i.test(shown);
+          }, 30000).catch(() => {});
+          await sleep(3000);
+          const leaked = all.filter((p) => p !== from && text(p) !== good).map((p) => p.name);
+          const start = performance.now();
+          writeFileSync(join(from.root, '.design', rel), fixed);
+          const recovered = await observeAll(all, `L22-invalid-${from.name}`, start, async () => true, (p) => text(p) === fixed);
+          return {
+            ...recovered,
+            status: leaked.length === 0 && /attention|conflict|invalid|resolve|could not/i.test(shown) && recovered.status === 'pass' ? 'pass' : 'fail',
+            authorStatus: shown.slice(0, 160),
+            leakedTo: leaked,
+          };
+        });
+      }
+      // L10 — image stickers on the whiteboard: add from the Stickers picker,
+      // move, resize, remove. The oracle is the receivers' decoded <image>, the
+      // sidecar on disk and the sticker's asset bytes (which removal keeps).
+      for (const from of all) {
+        const rel = `ui/SurfaceStickers-${from.name}.tsx`;
+        const sidecar = `${slug(rel.replace(/\.tsx$/, ''))}.annotations.svg`;
+        const node = (p: Surface, id: string) => {
+          const path = join(p.root, '.design', sidecar);
+          if (!existsSync(path)) return null;
+          return readFileSync(path, 'utf8').match(/<image\b[^>]*>/g)?.find((n) => n.includes(`data-id="${id}"`)) ?? null;
+        };
+        const hrefOf = (svgNode: string | null) => /href="([^"]+)"/.exec(svgNode ?? '')?.[1] ?? null;
+        const q = (id: string) => `[data-id="${id}"]`;
+        const decoded = async (p: Surface, id: string) => {
+          const r = await p.probe(`image[data-id="${id}"], [data-id="${id}"] image`);
+          return !!r?.visible && (r.width ?? 0) > 0;
+        };
+        let id: string | undefined;
+        await check('L10.sticker.add', `${from.name}-to-peers`, async () => {
+          await seedCanvas(from, rel, elementCanvas(`Stickers ${from.name}`));
+          await openSeeded(rel, `Stickers ${from.name}`, `L10-${from.name}`);
+          await gesture(from, selector('palette-mode-edit'), 'click');
+          const before = new Set((await from.probe('[data-tool="image"][data-id]'))?.matches?.map((m) => m.id));
+          await gesture(from, '.dc-tool-palette button[aria-label="Stickers"]', 'click');
+          const firstSticker = '[aria-label="Stickers"] .st-sp-body > div:first-child .st-sp-cell:first-child';
+          await until(async () => (await from.read(firstSticker)) !== null, 15000);
+          const start = performance.now();
+          await from.click(firstSticker).catch(async (error) => {
+            if ((await from.read('[aria-label="Stickers"] [aria-label="Close"]')) !== null)
+              await from.click('[aria-label="Stickers"] [aria-label="Close"]');
+            throw error;
+          });
+          await until(async () => {
+            id =
+              (await from.probe('[data-tool="image"][data-id]'))?.matches?.find((m) => m.id && !before.has(m.id))?.id ??
+              undefined;
+            return !!id;
+          });
+          const sid = id as string;
+          return {
+            strokeId: sid,
+            ...(await observeAll(
+              all,
+              `L10-add-${from.name}`,
+              start,
+              (p) => decoded(p, sid),
+              (p) => {
+                const href = hrefOf(node(p, sid));
+                return !!href && existsSync(join(p.root, '.design', href));
+              }
+            )),
+          };
+        });
+        await check('L10.sticker.move', `${from.name}-to-peers`, async () => {
+          if (!id) throw new Unexercised('Add did not produce a sticker');
+          const sid = id;
+          const before = await Promise.all(all.map(async (p) => (await p.probe(q(sid)))?.rect));
+          const oldDisk = node(from, sid);
+          const start = performance.now();
+          await gesture(from, q(sid), 'pointer', { dx: 70, dy: 40 });
+          return observeAll(
+            all,
+            `L10-move-${from.name}`,
+            start,
+            async (p) => {
+              const r = (await p.probe(q(sid)))?.rect;
+              const b = before[all.indexOf(p)];
+              return !!r && !!b && Math.abs(r.x - b.x) > 10;
+            },
+            (p) => node(from, sid) !== oldDisk && node(p, sid) === node(from, sid)
+          );
+        });
+        await check('L10.sticker.resize', `${from.name}-to-peers`, async () => {
+          if (!id) throw new Unexercised('Add did not produce a sticker');
+          const sid = id;
+          await gesture(from, q(sid), 'pointer');
+          const handle = '.dc-annot-resize-handle[data-corner="se"]';
+          await until(async () => !!(await from.probe(handle))?.visible);
+          const before = await Promise.all(all.map(async (p) => (await p.probe(q(sid)))?.rect));
+          const oldDisk = node(from, sid);
+          const start = performance.now();
+          await gesture(from, handle, 'pointer', { dx: 50, dy: 50 });
+          return observeAll(
+            all,
+            `L10-resize-${from.name}`,
+            start,
+            async (p) => {
+              const r = (await p.probe(q(sid)))?.rect;
+              const b = before[all.indexOf(p)];
+              return !!r && !!b && r.width > b.width + 10;
+            },
+            (p) => node(from, sid) !== oldDisk && node(p, sid) === node(from, sid)
+          );
+        });
+        await check('L10.sticker.remove', `${from.name}-to-peers`, async () => {
+          if (!id) throw new Unexercised('Add did not produce a sticker');
+          const sid = id;
+          const asset = hrefOf(node(from, sid));
+          await gesture(from, q(sid), 'pointer');
+          const start = performance.now();
+          await gesture(from, 'body', 'key', { key: 'Backspace' });
+          return observeAll(
+            all,
+            `L10-remove-${from.name}`,
+            start,
+            async (p) => (await p.probe(q(sid))) === null,
+            // Removing the sticker does not delete the project's asset.
+            (p) => node(p, sid) === null && !!asset && existsSync(join(p.root, '.design', asset))
+          );
+        });
+      }
       // L08 — artboards: add (Edit menu), rename (double-click the name), move
       // (drag the name), remove (select + Backspace). Receivers keep the canvas
       // open; the oracle is their rendered artboard chrome and the source/meta.
@@ -2304,11 +2939,33 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             (p) => count(p, rel, '<h1') === 2 && count(p, rel, 'Kept paragraph') === 1
           );
         });
+        await check('L07.element.insert', `${from.name}-to-peers`, async () => {
+          // The palette's "+ Element → Text" appends to the active artboard.
+          const texts = (p: Surface) => count(p, rel, '<p\\b');
+          const before = all.map((p) => texts(p));
+          await gesture(from, selector('palette-mode-edit'), 'click');
+          await gesture(from, '[aria-label="Insert element — Div, Text, or Image"]', 'click');
+          await until(async () => !!(await from.probe('[aria-label="Insert element"] [role="menuitem"]'))?.visible);
+          const start = performance.now();
+          await gesture(from, '.dc-tp-insert-popover button:nth-of-type(2)', 'click');
+          return observeAll(
+            all,
+            `L07-insert-${from.name}`,
+            start,
+            async (p) => ((await p.probe('.dc-artboard-body p'))?.matches?.length ?? 0) >= 2,
+            (p) => texts(p) === (before[all.indexOf(p)] as number) + 1 && count(p, rel, '<h1') === 2
+          );
+        });
         await check('L07.element.delete', `${from.name}-to-peers`, async () => {
           for (const p of all)
             if (count(p, rel, '<h1') !== 2)
               throw new Unexercised(`Delete needs the duplicated heading at ${p.name}`);
           await selectHeading(from);
+          // The insert above left its new text selected: pick the heading.
+          for (let n = 0; n < 6 && !((await from.read('.st-sb-sel .val')) ?? '').includes(`Element ${from.name}`); n++) {
+            await gesture(from, 'h1', n === 0 ? 'click' : 'doubleClick');
+            await sleep(150);
+          }
           // Act on what the designer sees: the heading named in the selection
           // chip, on a canvas that has stopped re-rendering the duplicate.
           await until(async () => {
@@ -2367,6 +3024,138 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             winner,
             conflictNotices: conflicts,
           };
+        });
+      }
+      // L21 — independent edits at the same moment: one person retitles the
+      // heading in its leaf editor while another restyles the paragraph from
+      // the inspector. Both changes survive everywhere, nobody gets a conflict.
+      const selectEl = async (p: Surface, q: string) => {
+        await gesture(p, selector('palette-mode-edit'), 'click');
+        for (let level = 0; level < 6; level++) {
+          const chip = (await p.read('.st-sb-sel .val')) ?? '';
+          if ((await p.read(weight)) !== null && chip.includes('Kept paragraph')) return;
+          await gesture(p, q, level === 0 ? 'click' : 'doubleClick');
+          await sleep(150);
+        }
+        if ((await p.read(weight)) === null) throw new Error(`Inspector knob absent after selecting ${q} at ${p.name}`);
+      };
+      for (const [i, from] of all.entries()) {
+        const other = all[(i + 1) % all.length] as Surface;
+        const rel = `ui/SurfaceIndependent-${from.name}.tsx`;
+        await check('L21.independent-edits', `${from.name}-and-${other.name}`, async () => {
+          await seedCanvas(from, rel, elementCanvas(`Independent ${from.name}`));
+          await openSeeded(rel, `Independent ${from.name}`, `L21-ind-${from.name}`);
+          await selectEl(other, 'p');
+          await gesture(from, selector('palette-mode-edit'), 'click');
+          const editor = 'h1[contenteditable="plaintext-only"]';
+          for (let level = 0; level < 12 && !(await from.probe(editor))?.visible; level++) {
+            await gesture(from, 'h1', 'doubleClick');
+            await sleep(50);
+          }
+          if (!(await from.probe(editor))?.visible) throw new Error('Heading editor did not open');
+          const title = `Retitled by ${from.name}`;
+          await gesture(from, editor, 'editText', title);
+          const start = performance.now();
+          await Promise.all([gesture(from, editor, 'key', { key: 'Enter' }), other.select(weight, '700')]);
+          const src = (p: Surface) => readFileSync(join(p.root, '.design', rel), 'utf8');
+          return observeAll(
+            all,
+            `L21-independent-${from.name}`,
+            start,
+            async (p) => (await p.read('h1', true)) === title,
+            (p) =>
+              src(p).includes(`>${title}</h1>`) &&
+              /<p\b[^>]*fontWeight:\s*"700"[^>]*>Kept paragraph<\/p>/.test(src(p)) &&
+              src(p) === src(from)
+          );
+        });
+      }
+      // L18 — project history from the History panel: restore an earlier
+      // version (a NEW action, everyone sees it), then undo one's own action
+      // while a teammate's later change to the same canvas is kept.
+      {
+        const rel = 'ui/SurfaceHistory.tsx';
+        const version = (title: string, para = 'Kept paragraph') =>
+          elementCanvas(title).replace('Kept paragraph', para);
+        const src = (p: Surface) => readFileSync(join(p.root, '.design', rel), 'utf8');
+        const rowsQ = '[data-testid^="project-history-row-"]';
+        const openHistory = async (p: Surface) => {
+          if ((await p.read(selector('dock-tab-changes'))) !== null) await p.click(selector('dock-tab-changes'));
+          await until(async () => ((await p.probe('body'))?.visible ?? false) && (await p.read(rowsQ)) !== null, 30000);
+        };
+        const author = all[0] as Surface;
+        const teammate = all[1] as Surface;
+        await check('L18.history.restore', `${author.name}-to-peers`, async () => {
+          const v1 = version('History v1');
+          const v2 = version('History v2');
+          await seedCanvas(author, rel, v1);
+          await openSeeded(rel, 'History v1', 'L18-history');
+          writeFileSync(join(author.root, '.design', rel), v2);
+          await until(() => all.every((p) => src(p) === v2), 30000);
+          await openHistory(author);
+          await until(async () => (await author.read(`.gp-version:nth-of-type(2) [data-testid^="project-history-restore-"]`)) !== null, 30000);
+          const start = performance.now();
+          await author.click(`.gp-version:nth-of-type(2) [data-testid^="project-history-restore-"]`);
+          return observeAll(
+            all,
+            'L18-restore',
+            start,
+            async (p) => (await p.read('h1', true)) === 'History v1',
+            (p) => src(p) === v1
+          );
+        });
+        await check('L18.history.undo-own-keeps-teammate', `${author.name}-with-${teammate.name}`, async () => {
+          const base = src(author);
+          if (!base.includes('History v1')) throw new Unexercised('Undo needs the restored canvas');
+          const mine = version('History mine');
+          writeFileSync(join(author.root, '.design', rel), mine);
+          await until(() => all.every((p) => src(p) === mine), 30000);
+          // The teammate's later, independent change to the same canvas.
+          const theirs = version('History mine', 'Paragraph by teammate');
+          writeFileSync(join(teammate.root, '.design', rel), theirs);
+          await until(() => all.every((p) => src(p) === theirs), 30000);
+          await openHistory(author);
+          await until(async () => (await author.read('[data-testid^="project-history-undo-"]')) !== null, 30000);
+          const expected = version('History v1', 'Paragraph by teammate');
+          const start = performance.now();
+          await author.click('[data-testid^="project-history-undo-"]');
+          return observeAll(
+            all,
+            'L18-undo-own',
+            start,
+            async (p) => (await p.read('h1', true)) === 'History v1' && (await p.read('p', true)) === 'Paragraph by teammate',
+            (p) => src(p) === expected
+          );
+        });
+      }
+      // L16 — a design-system token edited on one machine restyles the canvas
+      // that uses it on every machine: the dependency travels with the canvas
+      // and the receivers re-render against the new revision.
+      {
+        const from = all[1] as Surface;
+        const css = 'system/surface/tokens.css';
+        const rel = 'ui/SurfaceTokens.tsx';
+        const canvas = `import '../system/surface/tokens.css';\nimport { DesignCanvas, DCArtboard } from '@maude/canvas-lib';\nexport default function SurfaceTokens() {\n  return (\n    <DesignCanvas>\n      <DCArtboard id="tokens" label="Tokens" width={480} height={240}>\n        <h1 style={{ padding: 24, color: 'var(--surface-accent)' }}>Token heading</h1>\n      </DCArtboard>\n    </DesignCanvas>\n  );\n}\n`;
+        const tokens = (rgb: string) => `:root { --surface-accent: ${rgb}; }\n`;
+        await check('L16.ds-token.edit', `${from.name}-to-peers`, async () => {
+          mkdirSync(join(from.root, '.design/system/surface'), { recursive: true });
+          writeFileSync(join(from.root, '.design', css), tokens('rgb(10, 20, 30)'));
+          await until(() => all.every((p) => existsSync(join(p.root, '.design', css))), 30000);
+          await seedCanvas(from, rel, canvas);
+          await openSeeded(rel, 'Token heading', 'L16-tokens');
+          await until(async () => {
+            for (const p of all) if ((await p.probe('h1'))?.color !== 'rgb(10, 20, 30)') return false;
+            return true;
+          }, 30000);
+          const start = performance.now();
+          writeFileSync(join(from.root, '.design', css), tokens('rgb(200, 30, 40)'));
+          return observeAll(
+            all,
+            `L16-token-${from.name}`,
+            start,
+            async (p) => (await p.probe('h1'))?.color === 'rgb(200, 30, 40)',
+            (p) => readFileSync(join(p.root, '.design', css), 'utf8') === tokens('rgb(200, 30, 40)')
+          );
         });
       }
       // L24 — final parity: every eligible design file hashes the same on

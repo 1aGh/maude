@@ -191,6 +191,7 @@
         const style = getComputedStyle(element);
         result = {
           text: element.textContent,
+          color: style.color,
           visible:
             rect.width > 0 &&
             rect.height > 0 &&

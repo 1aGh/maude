@@ -66,6 +66,9 @@ mkdirSync(out, { recursive: true });
 const stopResourceSampler = startResourceSampler(out);
 const port = Number(arg('port', '19099'));
 const peerPort = port + 100;
+// L20 — desktop B reaches the hub through a proxy the driver can cut.
+const peerProxyPort = port + 150;
+const peerProxyControl = port + 151;
 const hub = `http://studio.cell.localhost:${port}`;
 const children = [];
 function cleanup() {
@@ -131,7 +134,14 @@ try {
       'Coverage inventory differs from current controls; review and regenerate it before this run.'
     );
   writeFileSync(join(out, 'coverage-catalogue.json'), JSON.stringify(catalogue, null, 2));
-  await Promise.all([free(port), free(port - 200), free(peerPort), free(4455)]);
+  await Promise.all([
+    free(port),
+    free(port - 200),
+    free(peerPort),
+    free(peerProxyPort),
+    free(peerProxyControl),
+    free(4455),
+  ]);
   const watch = arg('watch', 'normal');
   if (!['normal', 'control'].includes(watch)) throw new Error('watch must be normal or control');
   const notes = arg('notes', 'isolated');
@@ -162,6 +172,20 @@ try {
     recursive: true,
     filter: (p) => !p.split('/').some((s) => s.startsWith('_')),
   });
+  // Desktop B's link goes through the toggle proxy (same hub, one more hop),
+  // so L20 can take exactly this participant offline.
+  const peerConfigPath = join(peerB, '.design', 'config.json');
+  const peerConfig = JSON.parse(readFileSync(peerConfigPath, 'utf8'));
+  if (peerConfig.linkedHub?.url) {
+    peerConfig.linkedHub.url = `http://127.0.0.1:${peerProxyPort}`;
+    writeFileSync(peerConfigPath, `${JSON.stringify(peerConfig, null, 2)}\n`);
+  }
+  start('peer-proxy', 'node', [
+    join(root, 'scripts/dev/sync-e2e/toggle-proxy.mjs'),
+    String(peerProxyPort),
+    String(port),
+    String(peerProxyControl),
+  ]);
   const uploadDir = join(work, 'upload-inputs');
   const media = seedMediaFixture(join(work, 'repo'), [source, peerB], uploadDir);
   writeFileSync(
@@ -204,10 +228,14 @@ try {
       expiresAt: Date.now() + 12 * 3600000,
     });
     const path = join(work, `${id}-hubs.json`);
+    const hubUrl =
+      id === 'designer-b' && peerConfig.linkedHub?.url
+        ? peerConfig.linkedHub.url
+        : `http://127.0.0.1:${port}`;
     writeFileSync(
       path,
       JSON.stringify({
-        hubs: { [`http://127.0.0.1:${port}`]: { token: value, role, linkedAt: Date.now() } },
+        hubs: { [hubUrl]: { token: value, role, linkedAt: Date.now() } },
       }),
       { mode: 0o600 }
     );
@@ -237,6 +265,7 @@ try {
     hub,
     peerPort,
     peerB,
+    peerProxy: `http://127.0.0.1:${peerProxyControl}`,
     nativeProject: source,
     watch,
     notes,
