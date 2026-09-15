@@ -7080,6 +7080,7 @@ function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, onUndoR
           <button
             type="button"
             className="st-cp-sechd"
+            data-testid={`inspector-section-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
             aria-expanded={!!open[name]}
             onClick={() => setOpen((o) => ({ ...o, [name]: !o[name] }))}
           >

@@ -929,6 +929,74 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           };
         });
       }
+      // L06 property and attribute edits through the inspector's Advanced
+      // section — the hatches a designer uses for anything the named knobs do
+      // not cover. Typed into the real fields; a click on another field blurs
+      // the value field, which is what commits it (Enter does too, but a
+      // WebDriver key does not reach an element outside the canvas frame).
+      const openAdvanced = async (p: Surface) => {
+        const header = selector('inspector-section-advanced');
+        await until(async () => (await p.read(header)) !== null);
+        if ((await p.read(`${header}[aria-expanded="true"]`)) === null) await p.click(header);
+        await until(async () => (await p.read(`${header}[aria-expanded="true"]`)) !== null);
+        // The section animates open; a field is typeable once it has a box.
+        await sleep(400);
+      };
+      let advancedEdit = 0;
+      for (const from of all) {
+        await check('L06.css-property-edit', `${from.name}-to-peers`, async () => {
+          const rel = 'ui/SurfaceText.tsx';
+          for (const p of all) await openCanvas(p, rel);
+          for (const p of all) await until(async () => (await p.read('h1', true)) !== null);
+          await selectHeading(from);
+          await openAdvanced(from);
+          const value = `${++advancedEdit + 2}px`;
+          const written = (p: Surface) =>
+            new RegExp(`outlineOffset:\\s*"${value}"`).test(bytes(p.root, rel).toString());
+          await from.fill('input[aria-label="custom property name"]', 'outline-offset');
+          await from.fill('input[aria-label="custom property value"]', value);
+          const start = performance.now();
+          await from.click('input[aria-label="custom attribute name"]');
+          await until(() => written(from));
+          const authored = bytes(from.root, rel);
+          return {
+            stimulus: 'inspector Advanced → Add CSS property (outline-offset), committed on blur',
+            ...(await observeAll(
+              all,
+              `L06-css-property-${from.name}`,
+              start,
+              async (p) => !!(await p.probe(`h1[style*="outline-offset: ${value}"]`))?.visible,
+              (p) => bytes(p.root, rel).equals(authored)
+            )),
+          };
+        });
+        await check('L06.attribute-edit', `${from.name}-to-peers`, async () => {
+          const rel = 'ui/SurfaceText.tsx';
+          for (const p of all) await openCanvas(p, rel);
+          for (const p of all) await until(async () => (await p.read('h1', true)) !== null);
+          await selectHeading(from);
+          await openAdvanced(from);
+          const note = `note from ${from.name} ${++advancedEdit}`;
+          const written = (p: Surface) =>
+            bytes(p.root, rel).toString().includes(`data-surface-note="${note}"`);
+          await from.fill('input[aria-label="custom attribute name"]', 'data-surface-note');
+          await from.fill('input[aria-label="custom attribute value"]', note);
+          const start = performance.now();
+          await from.click('input[aria-label="custom property name"]');
+          await until(() => written(from));
+          const authored = bytes(from.root, rel);
+          return {
+            stimulus: 'inspector Advanced → Add HTML attribute (data-surface-note), committed on blur',
+            ...(await observeAll(
+              all,
+              `L06-attribute-${from.name}`,
+              start,
+              async (p) => !!(await p.probe(`h1[data-surface-note="${note}"]`))?.visible,
+              (p) => bytes(p.root, rel).equals(authored)
+            )),
+          };
+        });
+      }
       // First-class EMPTY folders. Never hide missing directory propagation by
       // creating a child canvas inside them (the old harness did that).
       for (const from of all) {
