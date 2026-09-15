@@ -3966,6 +3966,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       );
       for (const artifact of canvasArtifacts({ rel: fromRel, paths })) {
         if (artifact.kind !== 'slug-keyed') continue; // primary/siblings already moved with the dir
+        if (artifact.carryOnMove === false) {
+          // The old slug's CRDT cache, stamped "moved away" — the same drop as
+          // moveCanvas; carried, the new document opens retired.
+          await rm(artifact.abs, { force: true }).catch((err) => {
+            console.warn(`[move] could not drop the stale doc cache: ${(err as Error).message}`);
+          });
+          continue;
+        }
         const dest = relocatedName(artifact, fromRel, toRel, paths);
         if (path.resolve(dest) === path.resolve(artifact.abs)) continue;
         try {

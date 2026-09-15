@@ -528,6 +528,32 @@ describe('/_api/fs-move — folder move (Task 11)', () => {
     }
   });
 
+  // The same cache rule as a single-canvas move, for every canvas inside a
+  // moved folder. Carried, the canvas's new document opened "moved away" on
+  // the machine that renamed the folder, which released it and then missed
+  // every later edit to it (plan T31/L21, folder rename during an edit).
+  test("a folder move drops each nested canvas's .ydoc.bin cache, never carries it", async () => {
+    const { root, designRoot } = makeSandbox();
+    const port = nextPort();
+    const proc = await bootServer(root, port);
+    try {
+      await createBoard(port, 'Held', 'ui');
+      expect((await move(port, 'ui/Held.tsx', 'ui/Box')).status).toBe(200);
+      mkdirSync(join(designRoot, '_state'), { recursive: true });
+      writeFileSync(join(designRoot, '_state', 'ui-box-held.ydoc.bin'), 'STAMPED-RETIRED');
+
+      const r = await move(port, 'ui/Box', 'ui/Dest');
+      expect(r.status).toBe(200);
+      const j = (await r.json()) as { moved: string[] };
+      expect(existsSync(join(designRoot, 'ui', 'Dest', 'Box', 'Held.tsx'))).toBe(true);
+      expect(existsSync(join(designRoot, '_state', 'ui-box-held.ydoc.bin'))).toBe(false);
+      expect(existsSync(join(designRoot, '_state', 'ui-dest-box-held.ydoc.bin'))).toBe(false);
+      expect(j.moved.some((m) => m.includes('.ydoc.bin'))).toBe(false);
+    } finally {
+      await killProc(proc);
+    }
+  });
+
   test('refuses moving a folder into itself or a descendant (400)', async () => {
     const { root, designRoot } = makeSandbox();
     const port = nextPort();

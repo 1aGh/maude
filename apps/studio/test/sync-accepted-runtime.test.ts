@@ -554,6 +554,76 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     expect(bob.read('ui/Empty/home.tsx')).toBe(src('Resolved together', 'red'));
   }, 40_000);
 
+  test('whoever renames a folder still receives the next edit to a canvas inside it', async () => {
+    mkdirSync(alice.file('ui/Box'), { recursive: true });
+    alice.write('ui/Box/card.tsx', src('Card v1'));
+    await alice.runtime.rescanNow();
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return bob.read('ui/Box/card.tsx') === src('Card v1');
+    }, 'the card on bob');
+    // What `moveFolder` does: one project action, then each canvas lets go
+    // locally, then the rename on disk.
+    const r = await alice.runtime.proposeFolder?.({
+      op: 'dir.move',
+      from: 'ui/Box',
+      to: 'ui/Box2',
+    });
+    expect(r?.status).toBe('accepted');
+    await alice.runtime.retireForMove('ui-box-card', 'ui/Box2/card.tsx');
+    renameSync(alice.file('ui/Box'), alice.file('ui/Box2'));
+    alice.ctx.bus.emit('canvas-list-update', {});
+    await alice.runtime.rescanNow();
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return bob.read('ui/Box2/card.tsx') === src('Card v1');
+    }, 'bob following the rename');
+    bob.write('ui/Box2/card.tsx', src('Card v2 by bob'));
+    await waitFor(
+      () => alice.read('ui/Box2/card.tsx') === src('Card v2 by bob'),
+      "bob's edit on the mover's copy"
+    );
+    // An edit someone made against the OLD place (while away) follows the
+    // rename (hub kernel) — and reaches the mover's disk like any other.
+    const boot = await api(hub, 'bootstrap');
+    const old = (boot.body.docs as { doc: string; path: string; retired: boolean }[]).find(
+      (d) => d.path === 'ui/Box/card.tsx'
+    );
+    expect(old?.retired).toBe(true);
+    const late = await fetch(`${hub.http}/api/projects/current/v1/proposals`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${hub.tokens.bob}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        protocol: 1,
+        projectId: boot.body.projectId,
+        epoch: boot.body.epoch,
+        transactionId: `tx_late_${Date.now()}`,
+        action: {
+          kind: 'edit',
+          label: 'late edit',
+          operations: [
+            {
+              op: 'lane.replace',
+              doc: old?.doc,
+              lane: 'html',
+              baseContent: src('Card v2 by bob'),
+              content: src('Card v2 by bob', 'red'),
+            },
+          ],
+        },
+      }),
+    });
+    expect(late.status).toBe(200);
+    await waitFor(
+      () => alice.read('ui/Box2/card.tsx') === src('Card v2 by bob', 'red'),
+      "the followed edit on the mover's copy"
+    );
+    await waitFor(
+      () => bob.read('ui/Box2/card.tsx') === src('Card v2 by bob', 'red'),
+      "the followed edit on bob's copy"
+    );
+  }, 60_000);
+
   test('a deletion is one project action; the peer removes the canvas', async () => {
     unlinkSync(alice.file('ui/Empty/home.tsx'));
     alice.ctx.bus.emit('canvas-deleted', { slug: 'ui-empty-home' });
