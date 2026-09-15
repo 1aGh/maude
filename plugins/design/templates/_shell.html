@@ -416,7 +416,21 @@
               if (!matched && msg.file && canvasRel) {
                 const cssDir = msg.file.replace(/[^/]+$/, '');
                 const canvasDir = canvasRel.replace(/[^/]+$/, '');
-                if (cssDir === canvasDir) location.reload();
+                if (cssDir === canvasDir) {
+                  location.reload();
+                } else {
+                  // …and a stylesheet imported from ANYWHERE else (a design
+                  // system's tokens.css) is inlined the same way. The module's
+                  // style tag names what it inlined; re-import so it re-injects.
+                  // (Canvas script could add names here, but that can only
+                  // FORCE a reload — the safe direction.)
+                  var bundled = document.querySelector('style[data-canvas-css="bundled"]');
+                  var names = bundled && bundled.dataset.canvasCssSources ? bundled.dataset.canvasCssSources.split('|') : [];
+                  if (names.indexOf(msg.file) !== -1) {
+                    if (window.__maudeCanvasRuntime && window.__maudeCanvasRuntime.remount) softReload(v);
+                    else location.reload();
+                  }
+                }
               }
             } else if (msg.mode === 'module' || msg.mode === 'hard') {
               // Only reload when the change touches *this* canvas (or `_lib`).

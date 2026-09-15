@@ -151,3 +151,23 @@ describe('canvas-build / sandbox scheme handling (M9)', () => {
     );
   });
 });
+
+// Plan T31/L16 — a stylesheet imported from elsewhere in the design root (a
+// design system's tokens) is inlined like a sibling one. The injected tag names
+// what it inlined so the open canvas can reload when it changes, and a
+// re-import (the soft reload) replaces the text instead of keeping the first.
+describe('inlined stylesheets name their sources and refresh on re-import', () => {
+  const REAL = realpathSync(tmpdir());
+  test('a relative CSS import from another folder is recorded on the style tag', async () => {
+    const root = `${REAL}/canvas-build-css-${Math.random().toString(36).slice(2, 8)}`;
+    await Bun.write(`${root}/system/ds/tokens.css`, ':root { --accent: rgb(1, 2, 3); }\n');
+    const src = `import "../system/ds/tokens.css";\nexport default function T() { return <h1>T</h1>; }\n`;
+    const abs = `${root}/ui/T.tsx`;
+    await Bun.write(abs, src);
+    const r = await buildCanvasModule(abs, src, { designRoot: root, restrictImportsTo: root });
+    expect(r.js).toContain('canvasCssSources="system/ds/tokens.css"');
+    // Re-running the injector replaces the text rather than keeping the first.
+    expect(r.js).toContain('if(s.textContent!==');
+    expect(r.js).not.toContain('if(document.getElementById(');
+  });
+});

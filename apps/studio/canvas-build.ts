@@ -129,6 +129,10 @@ export async function buildCanvasModule(
   // needed; RUNTIME_PACKAGES already lists every specifier the importmap covers.
   const externalSpecifiers = new Set<string>(RUNTIME_PACKAGES);
   const denials: Array<{ specifier: string; reason: string }> = [];
+  // Every stylesheet the canvas pulls in by relative import — they are inlined
+  // (below), so the open canvas has no <link> to swap when one changes; the
+  // injector records them for the iframe's HMR client (see buildCssInjector).
+  const cssSources = new Set<string>();
 
   const built = await Bun.build({
     entrypoints: [canvasAbsPath],
@@ -151,6 +155,17 @@ export async function buildCanvasModule(
       'process.env.NODE_ENV': '"production"',
     },
     plugins: [
+      {
+        name: 'css-sources',
+        setup(builder) {
+          builder.onResolve({ filter: /\.css$/ }, (args: { path: string; importer: string }) => {
+            if (args.path.startsWith('.') && args.importer) {
+              cssSources.add(path.resolve(path.dirname(args.importer), args.path));
+            }
+            return null; // record only — resolution continues as before
+          });
+        },
+      },
       // Resolve `@maude/canvas-lib` BEFORE exact-externals — we want the bare
       // specifier to map to the dev-server-bundled lib, not get marked external.
       canvasLibResolver(),
@@ -217,7 +232,13 @@ export async function buildCanvasModule(
     for (const a of cssAssets) css += await a.text();
     if (css.trim().length > 0) {
       const slug = canvasAbsPath.split('/').pop() ?? 'canvas';
-      js = buildCssInjector(slug, css) + js;
+      const root = options.designRoot ?? options.restrictImportsTo;
+      const sources = root
+        ? [...cssSources]
+            .map((abs) => path.relative(root, abs).split(path.sep).join('/'))
+            .filter((rel) => rel && !rel.startsWith('..'))
+        : [];
+      js = buildCssInjector(slug, css, sources) + js;
     }
   }
 
@@ -227,16 +248,23 @@ export async function buildCanvasModule(
 
 /**
  * Synthesize a module-init prologue that creates a `<style data-canvas-css>`
- * tag with the bundled CSS text. Idempotent per-slug — duplicate mounts of
- * the same canvas don't re-inject. Run at top-level so it executes before
- * the React component does its first render.
+ * tag with the bundled CSS text. One tag per slug — a duplicate mount reuses
+ * it, and a RE-IMPORT (the iframe's soft reload after a stylesheet changed)
+ * replaces its text, so a changed import actually reaches the page. Run at
+ * top-level so it executes before the React component does its first render.
+ *
+ * `sources` — the design-root-relative stylesheets inlined here — lands on the
+ * tag as `data-canvas-css-sources` (`|`-separated): the iframe's HMR client
+ * reloads when one of them changes, since there is no <link> to swap (plan
+ * T31/L16: a canvas importing `../system/<ds>/tokens.css` never restyled).
  */
-function buildCssInjector(slug: string, css: string): string {
+function buildCssInjector(slug: string, css: string, sources: readonly string[] = []): string {
   // JSON-encode the CSS text so we don't need to worry about backticks,
   // backslashes, or embedded `</style>` (which would break a raw template).
   const enc = JSON.stringify(css);
-  const id = `canvas-css-${slug.replace(/[^a-zA-Z0-9-]/g, '_')}`;
-  return `// canvas-build: inject bundled sibling CSS so the canvas is self-contained.\n(function(){if(typeof document==="undefined")return;if(document.getElementById(${JSON.stringify(id)}))return;var s=document.createElement("style");s.id=${JSON.stringify(id)};s.dataset.canvasCss="bundled";s.textContent=${enc};document.head.appendChild(s);})();\n`;
+  const id = JSON.stringify(`canvas-css-${slug.replace(/[^a-zA-Z0-9-]/g, '_')}`);
+  const src = JSON.stringify(sources.join('|'));
+  return `// canvas-build: inject bundled sibling CSS so the canvas is self-contained.\n(function(){if(typeof document==="undefined")return;var s=document.getElementById(${id});if(!s){s=document.createElement("style");s.id=${id};s.dataset.canvasCss="bundled";document.head.appendChild(s);}s.dataset.canvasCssSources=${src};if(s.textContent!==${enc})s.textContent=${enc};})();\n`;
 }
 
 /**
