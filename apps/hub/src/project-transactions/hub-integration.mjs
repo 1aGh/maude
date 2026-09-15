@@ -317,6 +317,20 @@ export function createAcceptedRevisions({
         respondJson(200, { history });
         return true;
       }
+      if (route === 'lane' && method === 'GET') {
+        // A lane as it stood at a revision — the history preview's source.
+        const doc = typeof query.doc === 'string' ? query.doc.slice(0, 300) : '';
+        const lane = typeof query.lane === 'string' ? query.lane : 'html';
+        const rev = Number.parseInt(query.rev ?? '', 10);
+        if (!doc || !LANE_NAMES.includes(lane) || !Number.isSafeInteger(rev) || rev < 0) {
+          respondJson(400, { code: 'invalid' });
+          return true;
+        }
+        const hash = await kernel.laneAt(doc, lane, rev);
+        const body = hash ? await kernel.blob(hash) : '';
+        respondJson(200, { doc, lane, revision: rev, hash, body: body ?? '' });
+        return true;
+      }
       if (route === 'blobs' && method === 'GET' && id) {
         const body = /^[0-9a-f]{64}$/.test(id) ? await kernel.blob(id) : null;
         respondJson(

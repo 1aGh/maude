@@ -509,6 +509,37 @@ export interface SyncRuntime {
   acceptedMode?(): boolean;
   /** Tripwire count: local writes that reached an accepted replica. */
   acceptedWriteViolations?(): number;
+  /** Accepted revisions: the project's logical history (T27). Null when legacy. */
+  acceptedHistory?(q: {
+    limit?: number;
+    before?: number | null;
+    path?: string | null;
+  }): Promise<AcceptedHistoryRow[] | null>;
+  /** A canvas source (repo-relative path) as it stood at a revision. */
+  acceptedVersion?(repoRel: string, revision: number): Promise<string | null>;
+  /** Restore a canvas to a revision as a NEW action. */
+  acceptedRestore?(
+    repoRel: string,
+    revision: number
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean } | null>;
+  /** Personal undo/redo of one of this actor's accepted actions (T28). */
+  acceptedUndo?(
+    actionId: string,
+    redo?: boolean
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean } | null>;
+}
+
+export interface AcceptedHistoryRow {
+  revision: number;
+  actionId: string;
+  actor: string;
+  mine: boolean;
+  kind: string;
+  label: string | null;
+  committedAt: number;
+  undoes: string | null;
+  /** Design-root-relative canvas paths the action touched. */
+  canvases: string[];
 }
 
 export interface CreateSyncRuntimeOptions {
@@ -851,6 +882,17 @@ export function createSyncRuntime(
   const knownProjectDirs = new Set<string>();
   /** Local writes that reached an accepted replica (tripwire; should stay 0). */
   let acceptedWriteViolations = 0;
+  /** The synced canvas at a repo-relative (or design-root-relative) path. */
+  const slugForRepoRel = (rel: string): string | null => {
+    const clean = String(rel).replace(/\\/g, '/').replace(/^\/+/, '');
+    for (const abs of [
+      path.join(ctx.paths.repoRoot, clean),
+      path.join(ctx.paths.designRoot, clean),
+    ]) {
+      for (const [slug, d] of descriptors) if (d.html === abs) return slug;
+    }
+    return null;
+  };
   const describeOrigin = (origin: unknown): string => {
     if (origin === null || origin === undefined) return String(origin);
     if (typeof origin === 'string') return origin.slice(0, 40);
@@ -4554,6 +4596,61 @@ export function createSyncRuntime(
     proposeFolder,
     acceptedMode: acceptedOn,
     acceptedWriteViolations: () => acceptedWriteViolations,
+    acceptedHistory: async (q) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      const manifest = acceptedLink.manifest ?? (await acceptedLink.refresh());
+      if (!manifest) return null;
+      const pathOf = new Map(manifest.docs.map((d) => [d.doc, d.path]));
+      let entry: string | null = null;
+      if (q.path) {
+        const slug = slugForRepoRel(q.path);
+        const doc = slug ? docNameFor(slug) : null;
+        entry = manifest.docs.find((d) => d.doc === doc)?.entry ?? null;
+        if (!entry) return [];
+      }
+      const { history } = await acceptedLink.history({
+        limit: Math.min(Math.max(q.limit ?? 50, 1), 200),
+        before: q.before ?? null,
+        entry,
+      });
+      const you = manifest.you?.actor ?? null;
+      return history.map((a) => {
+        const canvases = new Set<string>();
+        for (const e of a.effects) {
+          const p = e.afterPath ?? (e.doc ? pathOf.get(e.doc) : null) ?? e.beforePath;
+          if (p && /\.(tsx|html)$/i.test(p)) canvases.add(p);
+        }
+        return {
+          revision: a.revision,
+          actionId: a.actionId,
+          actor: a.actor,
+          mine: you !== null && a.actor === you,
+          kind: a.kind,
+          label: a.label,
+          committedAt: a.committedAt,
+          undoes: a.undoes,
+          canvases: [...canvases].sort(),
+        };
+      });
+    },
+    acceptedVersion: async (repoRel, revision) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      const slug = slugForRepoRel(repoRel);
+      if (!slug) return null;
+      const r = await acceptedLink.laneAt(slug, 'html', revision);
+      return r.body || null;
+    },
+    acceptedRestore: async (repoRel, revision) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      const slug = slugForRepoRel(repoRel);
+      if (!slug) return { status: 'rejected', code: 'unknown-canvas' };
+      const name = path.basename(repoRel).replace(/\.(tsx|html)$/i, '');
+      return acceptedLink.restore([slug], revision, `Restore ${name} to version ${revision}`);
+    },
+    acceptedUndo: async (actionId, redo = false) => {
+      if (!acceptedOn() || !acceptedLink) return null;
+      return acceptedLink.undo(actionId, redo);
+    },
   };
 }
 

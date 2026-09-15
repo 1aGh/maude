@@ -226,10 +226,59 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     dirMove(from: string, to: string, waitMs = 8_000): Promise<StructuralOutcome> {
       return structural('Move folder', 'folder.move', [{ op: 'dir.move', from, to }], waitMs);
     },
+    /** Logical history, newest first (optionally one entry's). */
+    history(q: { limit?: number; before?: number | null; entry?: string | null }) {
+      const params: Record<string, string | number> = { limit: q.limit ?? 50 };
+      if (q.before) params.before = q.before;
+      if (q.entry) params.entry = q.entry;
+      return client.read('history', params) as Promise<{ history: HistoryAction[] }>;
+    },
+    /** A canvas lane as it stood at `revision`. */
+    laneAt(slug: string, lane: LaneProposal['lane'], revision: number) {
+      return client.read('lane', { doc: opts.docNameFor(slug), lane, rev: revision }) as Promise<{
+        body: string;
+        hash: string | null;
+      }>;
+    },
+    /** Restore canvases to a revision — a NEW action; nothing is rewound. */
+    restore(slugs: string[], revision: number, label: string): Promise<StructuralOutcome> {
+      return structural(
+        label,
+        'history.restore',
+        [{ op: 'history.restore', revision, docs: slugs.map((s) => opts.docNameFor(s)) }],
+        8_000
+      );
+    },
+    /** Personal undo / redo of one of this actor's actions. */
+    undo(actionId: string, redo = false): Promise<StructuralOutcome> {
+      return structural(
+        redo ? 'Redo' : 'Undo',
+        redo ? 'redo' : 'undo',
+        [{ op: redo ? 'history.redo' : 'history.undo', actionId }],
+        8_000
+      );
+    },
     stop() {
       client.stop();
     },
   };
+}
+
+export interface HistoryAction {
+  revision: number;
+  actor: string;
+  actionId: string;
+  kind: string;
+  label: string | null;
+  committedAt: number;
+  undoes: string | null;
+  effects: {
+    doc: string | null;
+    lane: string;
+    op: string;
+    beforePath: string | null;
+    afterPath: string | null;
+  }[];
 }
 
 export type AcceptedLink = ReturnType<typeof createAcceptedLink>;

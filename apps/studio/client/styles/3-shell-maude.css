@@ -2179,6 +2179,8 @@ body.st-scrubbing, body.st-scrubbing * { cursor: ew-resize !important; user-sele
 .gp-version-msg { color: var(--fg-0); font-size: var(--type-sm); overflow: hidden; text-overflow: ellipsis; }
 .gp-version-meta { color: var(--fg-2); font-family: var(--font-mono); font-size: var(--type-xs); margin-top: 2px; }
 .gp-version-when { color: var(--fg-2); font-family: var(--font-mono); font-size: var(--type-xs); white-space: nowrap; transition: opacity var(--dur-soft) ease; }
+/* accepted revisions (T27/T28) — a row carries its own actions, so it is not a button */
+.gp-version-actions { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: calc(-1 * var(--space-1)); }
 
 /* phase-27.1 — per-file History rows are click-to-preview when a canvas is open */
 .gp-history-scope { color: var(--fg-1); font-size: var(--type-xs); padding: var(--space-1) var(--space-2) var(--space-2); margin: 0; }

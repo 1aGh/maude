@@ -185,6 +185,11 @@ export default function GitPanel({
   // `{ branch, project, hubHost }` — what the cell reported alongside the log.
   // Null until the first successful cloud load.
   cloudHistory = null,
+  // Accepted revisions (DDR-241, T27/T28): restore the open canvas to a
+  // revision as a NEW action, and undo one of my own actions. Each resolves
+  // true when the project accepted it.
+  onRestoreVersion,
+  onUndoAction,
 }) {
   const withdrawn = historyOnly || cloudManaged;
   const cloudHistorySource = historySource === 'cloud';
@@ -878,6 +883,20 @@ export default function GitPanel({
             </div>
           ) : (
             log.map((c) => {
+              if (c.accepted) {
+                return (
+                  <AcceptedRow
+                    key={c.sha}
+                    row={c}
+                    activeName={activeName}
+                    previewable={previewable}
+                    onPreview={() => onPreviewVersion(c.sha)}
+                    onRestore={onRestoreVersion}
+                    onUndo={onUndoAction}
+                    onDone={reloadHistory}
+                  />
+                );
+              }
               const body = (
                 <>
                   <span className="gp-version-rail">
@@ -918,5 +937,89 @@ export default function GitPanel({
         </div>
       )}
     </aside>
+  );
+}
+
+/**
+ * One accepted project action (DDR-241, T27/T28). Preview uses the ordinary
+ * version preview (`r<revision>`); Restore makes a NEW action — nothing in
+ * history is rewound; Undo reverts only my own action, and only the parts a
+ * teammate has not changed since (the project refuses otherwise).
+ */
+function AcceptedRow({ row, activeName, previewable, onPreview, onRestore, onUndo, onDone }) {
+  const [busy, setBusy] = useState(null);
+  const [note, setNote] = useState(null);
+  const { revision, actionId, mine, undo } = row.accepted;
+  const run = async (kind, fn) => {
+    setBusy(kind);
+    setNote(null);
+    const ok = await fn();
+    setBusy(null);
+    setNote(
+      ok
+        ? kind === 'restore'
+          ? 'Restored — a new version was added.'
+          : 'Undone.'
+        : kind === 'restore'
+          ? 'The project did not accept the restore.'
+          : 'Someone changed this since — nothing was undone.'
+    );
+    if (ok) onDone?.();
+  };
+  return (
+    <div className="gp-version" role="listitem" data-testid={`project-history-row-${revision}`}>
+      <span className="gp-version-rail">
+        <span className="gp-version-node" />
+      </span>
+      <span className="gp-version-body">
+        <span className="gp-version-msg">{row.message || '(no description)'}</span>
+        <span className="gp-version-meta">
+          {row.author} · version {revision}
+        </span>
+        {note && (
+          <span className="gp-version-meta" role="status" aria-live="polite">
+            {note}
+          </span>
+        )}
+      </span>
+      <span className="gp-version-when">{timeAgo(row.date)}</span>
+      <span className="gp-version-actions">
+        {previewable && (
+          <button
+            type="button"
+            className="btn btn--sm btn--ghost"
+            data-testid={`project-history-preview-${revision}`}
+            onClick={onPreview}
+            title={`Preview ${activeName} at this version`}
+          >
+            <Icon name="diff" size={13} /> Preview
+          </button>
+        )}
+        {previewable && onRestore && (
+          <button
+            type="button"
+            className="btn btn--sm btn--ghost"
+            data-testid={`project-history-restore-${revision}`}
+            disabled={busy !== null}
+            onClick={() => run('restore', () => onRestore(revision))}
+            title={`Make ${activeName} look like this version again (adds a new version)`}
+          >
+            {busy === 'restore' ? 'Restoring…' : 'Restore'}
+          </button>
+        )}
+        {mine && !undo && onUndo && (
+          <button
+            type="button"
+            className="btn btn--sm btn--ghost"
+            data-testid={`project-history-undo-${revision}`}
+            disabled={busy !== null}
+            onClick={() => run('undo', () => onUndo(actionId))}
+            title="Undo this change of yours (a teammate's later edits are kept)"
+          >
+            {busy === 'undo' ? 'Undoing…' : 'Undo'}
+          </button>
+        )}
+      </span>
+    </div>
   );
 }

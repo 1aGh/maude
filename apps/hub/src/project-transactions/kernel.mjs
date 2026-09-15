@@ -651,10 +651,15 @@ export function createKernel({
       Array.isArray(op.docs) && op.docs.length
         ? op.docs
         : manifest.docs.filter((d) => !d.retired).map((d) => d.doc);
+    // A canvas "version" is its design, not its conversation: comments are
+    // not rolled back unless asked for explicitly.
+    const lanes = Array.isArray(op.lanes)
+      ? LANE_NAMES.filter((l) => op.lanes.includes(l))
+      : LANE_NAMES.filter((l) => l !== 'comments');
     for (const doc of docs) {
       const st = await work.load(doc);
       if (!st || st.retired) continue;
-      for (const lane of LANE_NAMES) {
+      for (const lane of lanes) {
         const hash = await store.laneAt(doc, lane, op.revision);
         const content = await work.content(hash);
         const checked = checkLane(lane, content, { path: st.path ?? undefined });
@@ -909,6 +914,8 @@ export function createKernel({
 
   return {
     submit,
+    /** The hash of a lane as it stood at `revision` (null when unset then). */
+    laneAt: (doc, lane, revision) => store.laneAt(doc, lane, revision),
     async transaction(actor, tx) {
       const r = await store.result(actor, tx);
       return r ? r.result : null;

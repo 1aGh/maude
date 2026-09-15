@@ -11992,6 +11992,39 @@ function App() {
     }
   }, []);
 
+  // ACCEPTED REVISIONS — the project's own history (DDR-241, T27). When the
+  // project saves through accepted revisions the History tab lists logical
+  // actions (who did what, when), not Git commits; a row previews as `r<rev>`
+  // through the same version preview. `'legacy'` means "use Git history".
+  const [projectHistoryOn, setProjectHistoryOn] = useState(false);
+  const loadAcceptedLog = useCallback(async (path) => {
+    try {
+      const qs =
+        '/_api/project/history?limit=40' + (path ? `&path=${encodeURIComponent(path)}` : '');
+      const r = await fetch(qs);
+      if (!r.ok) return 'legacy';
+      const data = await r.json();
+      if (!data?.ok) return data?.reason === 'legacy' ? 'legacy' : null;
+      return (data.history || []).map((a) => {
+        const where = path ? '' : (a.canvases || []).map((c) => c.split('/').pop()).join(', ');
+        return {
+          sha: `r${a.revision}`,
+          message: [a.label || a.kind, where].filter(Boolean).join(' · '),
+          author: a.actor,
+          date: new Date(a.committedAt).toISOString(),
+          accepted: {
+            revision: a.revision,
+            actionId: a.actionId,
+            mine: !!a.mine,
+            undo: a.kind === 'undo' || a.kind === 'redo',
+          },
+        };
+      });
+    } catch {
+      return null;
+    }
+  }, []);
+
   // Repo-relative path → M/A/D/U badge for the tree (paths match: both the tree
   // and gitStatus use `.design/ui/Foo.tsx`). Keyed off gitStatus so it updates
   // live with the WS broadcast.
@@ -15228,8 +15261,32 @@ function App() {
           // WHICH HISTORY, decided at the ONE place the posture is named — not
           // inside the panel, which would be a second derivation of the rule
           // `cloud-managed-save-surfaces.test.ts` exists to keep singular.
-          loadLog={cloudManaged ? gitLoadCloudLog : gitLoadLog}
-          historySource={cloudManaged ? 'cloud' : 'local'}
+          loadLog={async (path) => {
+            // The project's accepted history when it has one; Git otherwise.
+            const accepted = await loadAcceptedLog(path);
+            setProjectHistoryOn(accepted !== 'legacy');
+            if (accepted !== 'legacy') return accepted;
+            return (cloudManaged ? gitLoadCloudLog : gitLoadLog)(path);
+          }}
+          historySource={projectHistoryOn ? 'project' : cloudManaged ? 'cloud' : 'local'}
+          onRestoreVersion={async (revision) => {
+            const r = await fetch('/_api/project/restore', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ path: activePath, revision }),
+            }).catch(() => null);
+            const j = r ? await r.json().catch(() => null) : null;
+            return !!j?.ok;
+          }}
+          onUndoAction={async (actionId) => {
+            const r = await fetch('/_api/project/undo', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ actionId }),
+            }).catch(() => null);
+            const j = r ? await r.json().catch(() => null) : null;
+            return !!j?.ok;
+          }}
           // What the cloud half of the header names. The cell reports its own
           // project and branch with the log; the hub host is the fallback,
           // because a header that names the LOCAL folder while listing the

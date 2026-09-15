@@ -78,6 +78,20 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     via: 'onAnnotationsChanged hook → annotations lane.replace with the base the layer sent',
     test: 'test/sync-accepted-projection.test.ts',
   },
+  // --- accepted history (T27/T28)
+  '/_api/project/history': { class: 'read' },
+  '/_api/project/restore': {
+    class: 'lane',
+    rows: 'X15',
+    via: 'history.restore — a NEW action restoring the canvas lanes (not comments) to a revision',
+    test: 'test/sync-accepted-runtime.test.ts',
+  },
+  '/_api/project/undo': {
+    class: 'lane',
+    rows: 'S18',
+    via: 'history.undo/redo — effect-aware compensation of one of this actor’s actions',
+    test: 'test/sync-accepted-runtime.test.ts',
+  },
   // --- manifest (S20–S22)
   '/_api/canvas': {
     class: 'structural',

@@ -382,9 +382,21 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     });
   }
 
+  /** A read route (`history`, `lane`, `revisions`) — no retry, bounded. */
+  async function read(route: string, params: Record<string, string | number>): Promise<unknown> {
+    if (projectId === null) await bootstrap();
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)]))
+    );
+    const { status, json } = await request('GET', `${route}?${qs.toString()}`);
+    if (status !== 200) throw new TransactionError(`${route} failed (${status})`, 'read');
+    return json;
+  }
+
   return {
     bootstrap,
     propose,
+    read,
     newTransactionId,
     drainOutbox,
     /** The epoch proposals are currently made under. */

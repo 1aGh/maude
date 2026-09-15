@@ -852,8 +852,16 @@ async function serveHistoricalCanvas(
     if (historicalMissCache.has(key)) {
       return new Response('No saved version of this canvas', { status: 404 });
     }
-    let source = await gitShowFile(ctx.paths.repoRoot, sha, repoRel);
-    if (source == null) {
+    // ACCEPTED REVISIONS: `r<revision>` names a project revision (T27), read
+    // from the project's store — immutable, so it caches like a sha.
+    const acceptedRev = /^r(\d{1,12})$/.exec(sha);
+    let source = acceptedRev
+      ? ((await ctx.syncControl
+          ?.current?.()
+          ?.acceptedVersion?.(repoRel, Number(acceptedRev[1]))
+          .catch(() => null)) ?? null)
+      : await gitShowFile(ctx.paths.repoRoot, sha, repoRel);
+    if (source == null && !acceptedRev) {
       const fromCloud = await cloudHistoryApi(ctx).historyFile(sha, repoRel);
       source = fromCloud.ok ? fromCloud.source : null;
       // ONLY AN AUTHORITATIVE ABSENCE IS REMEMBERED (security re-review of
@@ -2708,6 +2716,61 @@ export function createHttp(
     // (DDR-054) and must not be able to command the desktop to re-push a whole
     // project — a canvas that could would be an amplification primitive against
     // the person's own hub, and a way to spend their rate-limit budget.
+    // ACCEPTED REVISIONS — the project's logical history (DDR-241, T27/T28).
+    // Main origin only: history names people, restore and undo are writes.
+    '/_api/project/history': async (req: Request) => {
+      if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
+      if (!isTrustedRequestHost(req)) return new Response('Forbidden', { status: 403 });
+      const url = new URL(req.url);
+      const runtime = ctx.syncControl?.current?.();
+      const rows = runtime?.acceptedHistory
+        ? await runtime
+            .acceptedHistory({
+              limit: Number(url.searchParams.get('limit') ?? 50) || 50,
+              before: Number(url.searchParams.get('before') ?? 0) || null,
+              path: url.searchParams.get('path'),
+            })
+            .catch(() => undefined)
+        : null;
+      if (rows === undefined) {
+        return gitJson({ status: 200, json: { ok: false, reason: 'unreachable' } });
+      }
+      if (rows === null) return gitJson({ status: 200, json: { ok: false, reason: 'legacy' } });
+      return gitJson({ status: 200, json: { ok: true, history: rows } });
+    },
+    '/_api/project/restore': async (req: Request) => {
+      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+      if (!sameOriginWrite(req) || !isTrustedRequestHost(req))
+        return new Response('Forbidden', { status: 403 });
+      const body = await readJson<{ path?: unknown; revision?: unknown }>(req, 4096);
+      const revision = Number(body?.revision);
+      if (typeof body?.path !== 'string' || !Number.isSafeInteger(revision) || revision < 0) {
+        return new Response('body must include { path, revision }', { status: 400 });
+      }
+      const r = await ctx.syncControl?.current?.()?.acceptedRestore?.(body.path, revision);
+      if (!r) return gitJson({ status: 200, json: { ok: false, reason: 'legacy' } });
+      return gitJson({
+        status: r.status === 'accepted' ? 200 : 409,
+        json: { ok: r.status === 'accepted', ...r },
+      });
+    },
+    '/_api/project/undo': async (req: Request) => {
+      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+      if (!sameOriginWrite(req) || !isTrustedRequestHost(req))
+        return new Response('Forbidden', { status: 403 });
+      const body = await readJson<{ actionId?: unknown; redo?: unknown }>(req, 4096);
+      if (typeof body?.actionId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(body.actionId)) {
+        return new Response('body must include { actionId }', { status: 400 });
+      }
+      const r = await ctx.syncControl
+        ?.current?.()
+        ?.acceptedUndo?.(body.actionId, body.redo === true);
+      if (!r) return gitJson({ status: 200, json: { ok: false, reason: 'legacy' } });
+      return gitJson({
+        status: r.status === 'accepted' ? 200 : 409,
+        json: { ok: r.status === 'accepted', ...r },
+      });
+    },
     '/_api/sync/resync': async (req: Request) => {
       if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
       // REFUSALS ANSWER IN JSON, WITH A REASON.

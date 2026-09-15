@@ -274,6 +274,20 @@ export interface Context {
           | { op: 'dir.move'; from: string; to: string }
       ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean }> | null;
       acceptedMode?(): boolean;
+      acceptedHistory?(q: {
+        limit?: number;
+        before?: number | null;
+        path?: string | null;
+      }): Promise<unknown[] | null>;
+      acceptedVersion?(repoRel: string, revision: number): Promise<string | null>;
+      acceptedRestore?(
+        repoRel: string,
+        revision: number
+      ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean } | null>;
+      acceptedUndo?(
+        actionId: string,
+        redo?: boolean
+      ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean } | null>;
     } | null;
   };
 }

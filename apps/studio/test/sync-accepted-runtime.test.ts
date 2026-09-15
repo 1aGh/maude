@@ -407,6 +407,51 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     );
   }, 90_000);
 
+  test('history names who did what; personal undo keeps a teammate’s later edit; restore is a new action', async () => {
+    alice.write('ui/hist.tsx', src('History v1'));
+    await alice.runtime.rescanNow();
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return bob.read('ui/hist.tsx') === src('History v1');
+    }, 'the history canvas on bob');
+    // Alice changes the title, Bob then changes the colour.
+    alice.write('ui/hist.tsx', src('Alice title'));
+    await waitFor(() => bob.read('ui/hist.tsx') === src('Alice title'), 'alice→bob');
+    bob.write('ui/hist.tsx', src('Alice title', 'teal'));
+    await waitFor(() => alice.read('ui/hist.tsx') === src('Alice title', 'teal'), 'bob→alice');
+
+    const rows = (await alice.runtime.acceptedHistory?.({ path: 'design/ui/hist.tsx', limit: 20 })) ?? [];
+    expect(rows.length).toBeGreaterThanOrEqual(3);
+    const [latest, aliceEdit] = rows;
+    expect(latest?.actor).toBe('bob@x.test');
+    expect(latest?.mine).toBe(false);
+    expect(aliceEdit?.actor).toBe('alice@x.test');
+    expect(aliceEdit?.mine).toBe(true);
+    expect(aliceEdit?.canvases).toEqual(['ui/hist.tsx']);
+
+    // The preview reads the canvas as it stood at a revision.
+    expect(await alice.runtime.acceptedVersion?.('design/ui/hist.tsx', aliceEdit?.revision as number)).toBe(
+      src('Alice title')
+    );
+
+    // Alice undoes HER title edit: Bob's later colour survives.
+    const undone = await alice.runtime.acceptedUndo?.(aliceEdit?.actionId as string);
+    expect(undone?.status).toBe('accepted');
+    await waitFor(() => bob.read('ui/hist.tsx') === src('History v1', 'teal'), 'the undo on bob');
+    // Bob cannot undo Alice's action.
+    const foreign = await bob.runtime.acceptedUndo?.(aliceEdit?.actionId as string);
+    expect(foreign?.status).toBe('rejected');
+
+    // Restore the canvas to the first version: a NEW action, history intact.
+    const first = rows.at(-1)?.revision as number;
+    const restored = await bob.runtime.acceptedRestore?.('design/ui/hist.tsx', first);
+    expect(restored?.status).toBe('accepted');
+    await waitFor(() => alice.read('ui/hist.tsx') === src('History v1'), 'the restore on alice');
+    const after = (await bob.runtime.acceptedHistory?.({ path: 'design/ui/hist.tsx', limit: 20 })) ?? [];
+    expect(after.length).toBe(rows.length + 2);
+    expect(after[0]?.label).toContain('Restore hist');
+  }, 60_000);
+
   test('no raw document write ever reached the project: every change is an accepted action', async () => {
     const log = await api(hub, 'revisions?limit=500');
     const revisions = log.body.revisions as { actor?: string; kind?: string }[];
