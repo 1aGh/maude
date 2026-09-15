@@ -83,9 +83,21 @@ export interface TransactionClientOptions {
   onPending?: (count: number) => void;
   /** Every final result (accepted or rejected), in order. */
   onResult?: (result: ProposalResult, action: { label: string; operations: Operation[] }) => void;
+  /** T29 — what a person waits on: pending count, oldest age, ack latency. */
+  onStats?: (stats: TransactionStats) => void;
   now?: () => number;
   /** Backoff between retries of an unacknowledged proposal. */
   retryMs?: number;
+}
+
+export interface TransactionStats {
+  pending: number;
+  /** When the oldest unanswered change was made (ms epoch), or null. */
+  oldestPendingAt: number | null;
+  /** Durable acknowledgment latency — change made → accepted answer. */
+  ackMs: { last: number | null; p95: number | null; n: number };
+  /** Final rejections this session (conflicts, invalid source, rights…). */
+  rejected: number;
 }
 
 const sha256 = (s: string) => createHash('sha256').update(s, 'utf8').digest('hex');
@@ -123,9 +135,29 @@ export function createTransactionClient(opts: TransactionClientOptions) {
   let chain: Promise<unknown> = Promise.resolve();
   let pending = 0;
 
+  /** transactionId → when the change was made; the unanswered ones. */
+  const waiting = new Map<string, number>();
+  const acks: number[] = [];
+  let rejectedCount = 0;
+  function stats(): TransactionStats {
+    const sorted = [...acks].sort((a, b) => a - b);
+    return {
+      pending,
+      oldestPendingAt: waiting.size ? Math.min(...waiting.values()) : null,
+      ackMs: {
+        last: acks.length ? (acks[acks.length - 1] as number) : null,
+        p95: sorted.length
+          ? (sorted[Math.min(sorted.length - 1, Math.floor(0.95 * sorted.length))] as number)
+          : null,
+        n: acks.length,
+      },
+      rejected: rejectedCount,
+    };
+  }
   const setPending = (delta: number) => {
     pending = Math.max(0, pending + delta);
     opts.onPending?.(pending);
+    opts.onStats?.(stats());
   };
 
   function headers(): Record<string, string> {
@@ -307,6 +339,10 @@ export function createTransactionClient(opts: TransactionClientOptions) {
         owned.delete(nextFile);
       }
     }
+    if (result.status === 'accepted') {
+      acks.push(Math.max(0, now() - entry.createdAt));
+      if (acks.length > 200) acks.shift();
+    } else rejectedCount++;
     opts.onResult?.(result, {
       label: entry.label,
       operations: entry.action?.operations ?? [],
@@ -353,10 +389,12 @@ export function createTransactionClient(opts: TransactionClientOptions) {
       );
     }
     owned.add(file);
+    waiting.set(entry.transactionId, entry.createdAt);
     setPending(1);
     return enqueue(() =>
       settle(file, entry).finally(() => {
         owned.delete(file);
+        waiting.delete(entry.transactionId);
         setPending(-1);
       })
     );
@@ -371,10 +409,12 @@ export function createTransactionClient(opts: TransactionClientOptions) {
       const entries = readOutbox().filter(({ file }) => !owned.has(file));
       const results: ProposalResult[] = [];
       for (const { file, entry } of entries) {
+        waiting.set(entry.transactionId, entry.createdAt);
         setPending(1);
         try {
           results.push(await settle(file, entry));
         } finally {
+          waiting.delete(entry.transactionId);
           setPending(-1);
         }
       }
@@ -410,6 +450,7 @@ export function createTransactionClient(opts: TransactionClientOptions) {
       return pending;
     },
     outboxSize: () => readOutbox().length,
+    stats,
     stop() {
       stopped = true;
     },

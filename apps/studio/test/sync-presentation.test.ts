@@ -452,3 +452,31 @@ describe('one truthful summary across every lane', () => {
     expect(p?.phase).not.toBe('synced');
   });
 });
+
+// Plan T29 — accepted revisions: a replica in step is not a saved change.
+describe('accepted revisions — Saving until the project answers', () => {
+  test('a change waiting for its durable answer is Saving, never Saved', () => {
+    const p = at({
+      docs: { synced: 3, pending: 0, rejected: 0 },
+      accepted: { pending: 2, oldestPendingAt: Date.now() - 15_000, ackMs: { last: null, p95: null, n: 0 }, rejected: 0 },
+    });
+    expect(p?.phase).toBe('syncing');
+    expect(p?.label).toBe('saving 2');
+    expect(p?.title).toContain('Saving 2 changes to alligators');
+    expect(p?.title).toContain('kept on this device');
+    expect(p?.title).toContain('waited 15 s');
+  });
+
+  test('nothing waiting is Saved; a hostile count is ignored, not rendered', () => {
+    const quiet = at({
+      docs: { synced: 3, pending: 0, rejected: 0 },
+      accepted: { pending: 0, oldestPendingAt: null, ackMs: { last: 40, p95: 60, n: 5 }, rejected: 0 },
+    });
+    expect(quiet?.phase).toBe('synced');
+    const hostile = at({
+      docs: { synced: 3, pending: 0, rejected: 0 },
+      accepted: { pending: '9 changes lost' as unknown as number },
+    });
+    expect(hostile?.phase).toBe('synced');
+  });
+});

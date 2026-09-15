@@ -132,7 +132,7 @@ export function chatGuardCopy({ count, branch, verb }) {
   };
 }
 
-export default function RepoBranchSwitcher({ project, liveBranch, remoteSync, onGetLatest }) {
+export default function RepoBranchSwitcher({ project, liveBranch, remoteSync, onGetLatest, projectOnly = false }) {
   const native = isNativeApp();
   const [status, setStatus] = useState(null); // { repo, branch }
   const [branches, setBranches] = useState([]);
@@ -262,7 +262,7 @@ export default function RepoBranchSwitcher({ project, liveBranch, remoteSync, on
 
   // A project that isn't a git repo — a managed team project — has no branches;
   // it still needs the way to another project.
-  if (native && status && !status.repo) {
+  if (native && status && (!status.repo || projectOnly)) {
     const name = project || recentProjectLabel(recents[0] || 'Project', managed).name;
     return (
       <div className="rb-dock-wrap">
@@ -291,8 +291,9 @@ export default function RepoBranchSwitcher({ project, liveBranch, remoteSync, on
     );
   }
 
-  // Branches are only meaningful for a versioned project (drafts need git).
-  if (!status?.repo) return null;
+  // Branches are only meaningful for a versioned project (drafts need git),
+  // and never while another authority writes its history (projectOnly).
+  if (!status?.repo || projectOnly) return null;
 
   // Prefer the live branch from the git-status broadcast (kept current as the
   // dev runs `git checkout` in their terminal) over the one-shot mount fetch.

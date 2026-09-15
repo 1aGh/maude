@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, test } from 'node:test';
 
 import { closeInvites } from '../src/invites.mjs';
+import { joinPage } from '../src/join-page.mjs';
 import { createHub } from '../src/server.mjs';
 import { verifyToken } from '../src/tokens.mjs';
 import { closeUsers } from '../src/users.mjs';
@@ -537,4 +538,14 @@ test('R2-1: a malformed session cookie on any door is "no session", not a hub cr
   const sess = await fetch(`${base()}/auth/session`, { headers: bad });
   assert.notEqual(sess.status, 500);
   assert.equal((await fetch(`${base()}/health`)).status, 200, 'the hub must survive');
+});
+
+// Plan T20 — the invite names the way into the desktop app too: the same
+// address and email, in the app's own words. Escaped like every other value.
+test('the join page tells a desktop user where to sign in', () => {
+  const html = joinPage({ token: 'inv_x', workspace: 'https://design.acme.com', email: null, env: {} });
+  assert.match(html, /Open a project you were invited to/);
+  assert.match(html, /https:\/\/design\.acme\.com/);
+  const hostile = joinPage({ token: 'inv_x', workspace: 'https://x.test/"><script>', email: null, env: {} });
+  assert.doesNotMatch(hostile, /<script>/);
 });

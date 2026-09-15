@@ -873,6 +873,7 @@ export function createSyncRuntime(
         docNameFor: (slug) => docNameFor(slug),
         fetchImpl: opts.transactionFetch,
         retryMs: opts.transactionRetryMs,
+        onStats: (stats) => statusStore?.updateAccepted?.(stats),
       })
     : null;
   const acceptedOn = (): boolean => acceptedLink?.on() === true;
@@ -4598,7 +4599,9 @@ export function createSyncRuntime(
     acceptedWriteViolations: () => acceptedWriteViolations,
     acceptedHistory: async (q) => {
       if (!acceptedOn() || !acceptedLink) return null;
-      const manifest = acceptedLink.manifest ?? (await acceptedLink.refresh());
+      // Fresh, not the cached manifest: a canvas created since the last
+      // bootstrap has history too, and a stale map named no entry for it.
+      const manifest = (await acceptedLink.refresh().catch(() => null)) ?? acceptedLink.manifest;
       if (!manifest) return null;
       const pathOf = new Map(manifest.docs.map((d) => [d.doc, d.path]));
       let entry: string | null = null;

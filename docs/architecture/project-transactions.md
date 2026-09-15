@@ -69,6 +69,72 @@ a second writer — the room projection). A rejection keeps the candidate on
 disk, reports the conflict, and bases the resolving save on the version that
 won. Cold start decides per lane: agreed / materialize / propose / hold.
 
+### Rights and project entry (T20–T22)
+
+A **designer** is the project role `member` (cloud project role, or a hub
+account role `member`; a hub `admin` account is the project's `owner` —
+`role-matrix.mjs` `projectRoleForAccount`). The kernel rechecks the
+credential's right on every proposal, including one replayed from an outbox.
+
+| Accepted operation | owner | member (designer) | viewer |
+|---|---|---|---|
+| `lane.replace` html / css / meta / annotations | yes | yes | no (`forbidden`) |
+| `lane.replace` comments | yes | yes | through the browser door's studio (`/_api/comments/`, the one write a viewer holds) — not from a desktop credential |
+| `doc.create/move/delete`, `dir.*` | yes | yes | no |
+| `history.undo/redo` | own actions | own actions (desktop; refused through a cell's browser door, where every browser editor shares the studio's credential) | no |
+| `history.restore` | yes | yes | no |
+| `GET|POST mode` | yes (owner / hub admin) | no | no |
+| invite, remove people, delete the project | owner (cloud dashboard / hub admin API) | no | no |
+
+**Design-system dependencies** travel as project files (`system/**`) through
+the file plane with the same member right; a managed copy installs no package
+dependencies — canvases resolve `@maude/canvas-lib`, relative modules and the
+project's own design system. Code-execution trust stays local (DDR-054): joining
+a project never grants it.
+
+**Project manifest** (what a new copy is declared from, `GET bootstrap`):
+`projectId`, `mode`, `epoch`, `revision`, `canvasGroups` (the project's declared
+groups, when the hub serves a checkout), manifest `docs` with lane heads and
+`dirs`, `capabilities`, and `you {actor, readOnly}`. It carries no credential and
+no local trust decision.
+
+**Entry, one contract for both families.** Cloud: invited on the dashboard →
+account → the app's device sign-in → `/_api/cloud/projects` lists only projects
+the account belongs to → *Open* → `/_api/projects/prepare {kind:'cloud'}` mints
+the project credential → `managed_project_open` creates or reuses the copy under
+the app's data folder, keyed by (server, project id), and switches to it.
+Self-host: invited by the hub (`/join/<token>` sets a password) → the app's
+*Your team's own server* form (address, email, password) →
+`prepare {kind:'hub'}` (`POST /auth/login`, the password is never stored) → the
+same native open. A `maude://open/<project>?code=` handoff opens the project as
+its own copy (`prepare {kind:'handoff'}`, the claimed name checked against what
+the code opens). A token-only hub (`maude design link`) remains the explicit
+legacy path.
+
+**Renewal and revocation.** Cloud credentials renew silently from the device
+session; a self-hosted sign-in expires (`HUB_USER_TOKEN_TTL_HOURS`, 30 days by
+default). An expired, rotated or revoked credential shows the refused state with
+*Sign in again* (Sync panel), which re-mints the credential and reopens the same
+copy. Disabling an account revokes its tokens and kicks its sockets; a proposal
+it had queued is neither applied nor dropped — it stays in the outbox and on
+disk, and is delivered after a new sign-in only if the right is back
+(`sync-accepted-runtime.test.ts`, "a designer removed while editing").
+
+### Readiness and observability (T19/T29)
+
+The coordinator is served by the hub process itself, so bootstrap, proposals and
+history answer before (and independently of) the renderer — a studio child that
+is restarting does not stop a project from saving, and a managed copy opens from
+the manifest without waiting for media. `/health` reports them apart:
+`coordinator {ready, mode, protocol, durable}` publicly; with the cell secret
+also `epoch`, `revision`, `proposals {accepted, replayed, rejected{code:n}}`,
+`ackMs {p50, p95, p99, n}` (submit → durable answer) and `lastProposalAt`. A
+project in accepted revisions whose store cannot be read is unhealthy (503) even
+when its renderer is fine. The studio's `sync:status` carries `accepted {pending,
+oldestPendingAt, ackMs, rejected}`; while anything is pending the status reads
+*Saving N changes…* (kept on this device), never *Saved*. Media completeness stays
+the file plane's own counts (`files`, `assets`) in the same payload.
+
 ## User-visible guarantees
 
 An edit appears immediately in its author's working view. The app records it in

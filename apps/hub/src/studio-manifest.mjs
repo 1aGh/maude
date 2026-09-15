@@ -202,6 +202,22 @@ export const STUDIO_ROUTES = Object.freeze({
   // mirror lane it ends up driving (DDR-201).
   '/_api/git/push': { safe: null, unsafe: 'mirror' },
 
+  // ---- accepted history (DDR-241, plan T27/T28) ---------------------------
+  //
+  // Reading the project's history is reading the project. Restore is a NEW
+  // action any editor may take. Personal undo is REFUSED here: through the
+  // door every browser editor proposes under the studio's one credential, so
+  // "your own action" cannot be told apart from a teammate's — an undo would
+  // be able to target someone else's work. It returns with per-person
+  // attribution through the door.
+  '/_api/project/history': { safe: 'read', unsafe: 'read' },
+  '/_api/project/restore': { safe: null, unsafe: 'edit' },
+  '/_api/project/undo': REFUSED,
+  // Signs in and stores a credential on the machine that serves it — that is
+  // the desktop's own copy-making step, never something a cell does for a
+  // visitor (plan T21).
+  '/_api/projects/prepare': REFUSED,
+
   // ---- refused in a cell, on the record ----------------------------------
   //
   // Every one of these is ALSO pruned out of the studio's own route table by

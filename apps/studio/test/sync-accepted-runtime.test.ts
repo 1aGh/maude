@@ -29,6 +29,7 @@ import type { Context } from '../context.ts';
 import { createBus } from '../context.ts';
 import { readLaneFromDoc } from '../sync/codec.ts';
 import { createSyncRuntime, type SyncRuntime } from '../sync/index.ts';
+import { signInToWorkspace } from '../sync/workspace-signin.ts';
 
 const HUB_DIR = join(import.meta.dir, '..', '..', 'hub');
 const FIXTURE = join(HUB_DIR, 'test', 'fixtures', 'serve-hub.mjs');
@@ -69,11 +70,16 @@ interface Hub {
   tokens: Record<'owner' | 'alice' | 'bob' | 'viewer', string>;
 }
 
-function startHub(dataDir: string, port = '0', transactions = true): Promise<Hub> {
+function startHub(
+  dataDir: string,
+  port = '0',
+  transactions = true,
+  extra: string[] = []
+): Promise<Hub> {
   return new Promise((resolve, reject) => {
     const proc = spawn(
       'node',
-      [FIXTURE, dataDir, port, ...(transactions ? ['--transactions'] : [])],
+      [FIXTURE, dataDir, port, ...(transactions ? ['--transactions'] : []), ...extra],
       {
         stdio: ['ignore', 'pipe', 'pipe'],
       }
@@ -577,4 +583,104 @@ describe.skipIf(!HUB_READY)('accepted revisions — switching a live project', (
     );
     expect(bob.runtime.acceptedWriteViolations?.()).toBe(0);
   }, 60_000);
+});
+
+// Plan T20 — rights are rechecked on every accepted mutation, and a person
+// removed from the project keeps their unsent work: it is neither applied nor
+// dropped, and it goes through once they are allowed again.
+describe.skipIf(!HUB_READY)('accepted revisions — a designer removed while editing', () => {
+  let root: string;
+  let hub: Hub;
+  let alice: Peer;
+  let designer: Peer;
+  const saved: Record<string, string | undefined> = {};
+  const designerUrl = () => `http://127.0.0.1:${hub.port}`;
+  const admin = (route: string, body: unknown) =>
+    fetch(`${hub.http}/admin/api/${route}`, {
+      method: 'POST',
+      headers: { authorization: 'Bearer test-secret', 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+  beforeAll(async () => {
+    root = mkdtempSync(join(tmpdir(), 'accepted-rights-'));
+    for (const k of ['HUBS_CONFIG_PATH', 'MAUDE_SYNC_IN_CI']) saved[k] = process.env[k];
+    process.env.MAUDE_SYNC_IN_CI = '1';
+    hub = await startHub(join(root, 'hub'), '0', true, ['--users']);
+    const aliceUrl = `http://localhost:${hub.port}`;
+    const hubsFile = join(root, 'hubs.json');
+    writeFileSync(hubsFile, JSON.stringify({ hubs: { [aliceUrl]: { token: hub.tokens.alice } } }), {
+      mode: 0o600,
+    });
+    process.env.HUBS_CONFIG_PATH = hubsFile;
+    // The designer's credential comes from the self-hosted sign-in, as in the app.
+    const signed = await signInToWorkspace({
+      url: designerUrl(),
+      email: 'designer@x.test',
+      password: 'designer-pass-1',
+    });
+    expect(signed.json.ok).toBe(true);
+
+    mkdirSync(join(root, 'alice', 'design', 'ui'), { recursive: true });
+    writeFileSync(join(root, 'alice', 'design', 'ui', 'rights.tsx'), src('Start'));
+    alice = await startPeer('alice', join(root, 'alice'), aliceUrl);
+    await waitFor(async () => {
+      const b = await api(hub, 'bootstrap');
+      return (b.body.docs as { path: string }[]).some((d) => d.path === 'ui/rights.tsx');
+    }, 'the hub to accept ui/rights.tsx');
+    designer = await startPeer('designer', join(root, 'designer'), designerUrl());
+    await waitFor(() => designer.read('ui/rights.tsx') === src('Start'), 'the designer’s copy');
+  }, 60_000);
+
+  afterAll(async () => {
+    await alice?.runtime.stop();
+    await designer?.runtime.stop();
+    if (hub) await stopHub(hub);
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  test('a queued edit after removal is kept, never applied, and delivered once allowed again', async () => {
+    designer.write('ui/rights.tsx', src('Designer edit'));
+    await waitFor(() => alice.read('ui/rights.tsx') === src('Designer edit'), 'the first edit');
+
+    const off = await admin('users/disable', { email: 'designer@x.test' });
+    expect(off.status).toBe(200);
+    designer.write('ui/rights.tsx', src('Edit after removal'));
+    const outbox = join(designer.ctx.paths.designRoot, '_state', 'outbox');
+    await waitFor(() => existsSync(outbox) && readdirSync(outbox).length > 0, 'the queued edit');
+    await new Promise((r) => setTimeout(r, 3000));
+    // Not applied: the project and the teammate still hold the first edit.
+    expect(alice.read('ui/rights.tsx')).toBe(src('Designer edit'));
+    const log = await api(hub, 'history');
+    expect(
+      (log.body.history as { actor: string; label: string }[]).filter(
+        (a) => a.actor === 'designer@x.test'
+      ).length
+    ).toBe(1);
+    // Not dropped: the candidate is on disk and in the outbox.
+    expect(designer.read('ui/rights.tsx')).toBe(src('Edit after removal'));
+    expect(readdirSync(outbox).length).toBeGreaterThan(0);
+
+    // Allowed again: the person signs in again (a new credential), the app
+    // reopens the same copy, and the outbox delivers.
+    await designer.runtime.stop();
+    expect((await admin('users/enable', { email: 'designer@x.test' })).status).toBe(200);
+    const again = await signInToWorkspace({
+      url: designerUrl(),
+      email: 'designer@x.test',
+      password: 'designer-pass-1',
+    });
+    expect(again.json.ok).toBe(true);
+    designer = await startPeer('designer', join(root, 'designer'), designerUrl());
+    await waitFor(
+      () => alice.read('ui/rights.tsx') === src('Edit after removal'),
+      'the kept edit to arrive after sign-in',
+      30_000
+    );
+    await waitFor(() => readdirSync(outbox).length === 0, 'the outbox to drain');
+  }, 90_000);
 });

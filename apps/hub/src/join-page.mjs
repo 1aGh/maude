@@ -95,6 +95,11 @@ export function joinPage({ token, workspace, email, error = null, env = process.
   ${error ? `<p class="err">${esc(error)}</p>` : ''}
   <button type="submit">Join ${esc(name)}</button>
   ${oidc ? `<p class="or">or</p>${oidc}` : ''}
+  ${
+    workspace
+      ? `<p class="hint" data-desktop>Using the Maude desktop app? After you join, choose <b>Open a project you were invited to</b> and sign in with <b>${esc(String(workspace))}</b> and this email.</p>`
+      : ''
+  }
 </form>`;
 
   return `<!doctype html>

@@ -81,13 +81,13 @@ function ErrorLine({ text }) {
   );
 }
 
-export default function TeamProjects({ variant = 'door' }) {
+export default function TeamProjects({ variant = 'door', initialServer = '' }) {
   const [recents, setRecents] = useState(null);
   const [cloud, setCloud] = useState({ state: 'loading', email: null, url: 'https://cloud.maude.sh' });
   const [projects, setProjects] = useState(null);
   const [device, setDevice] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [hub, setHub] = useState({ url: '', email: '', password: '' });
+  const [hub, setHub] = useState({ url: initialServer, email: '', password: '' });
   const [busy, setBusy] = useState(''); // the key of whatever is opening
   const [opening, setOpening] = useState(''); // display name once the switch started
   const [err, setErr] = useState('');
@@ -342,7 +342,7 @@ export default function TeamProjects({ variant = 'door' }) {
 }
 
 /** The same picker as a dialog — from the project switcher. */
-export function TeamProjectsDialog({ onClose }) {
+export function TeamProjectsDialog({ onClose, initialServer = '', title = 'Open a team project' }) {
   const ref = useRef(null);
   useEffect(() => {
     const prev = document.activeElement;
@@ -362,14 +362,14 @@ export function TeamProjectsDialog({ onClose }) {
       <div className="gi-dialog tp-dialog" ref={ref} data-testid="team-projects-dialog">
         <div className="tp-dialog-head">
           <div>
-            <h2 id="tp-dialog-title">Open a team project</h2>
+            <h2 id="tp-dialog-title">{title}</h2>
             <p>Projects you were added to open in their own copy on this computer.</p>
           </div>
           <button type="button" className="btn btn--ghost btn--sm" onClick={onClose} aria-label="Close" data-testid="team-projects-close">
             <Icon name="x" size={14} />
           </button>
         </div>
-        <TeamProjects variant="dialog" />
+        <TeamProjects variant="dialog" initialServer={initialServer} />
       </div>
     </div>
   );

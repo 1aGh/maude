@@ -15,6 +15,7 @@
     "e2e:acp-cold-start": "wdio run ./wdio.acp-cold-start.conf.ts",
     "e2e:parity": "wdio run ./wdio.parity.conf.ts",
     "e2e:sidecar-respawn": "wdio run ./wdio.sidecar-respawn.conf.ts",
+    "e2e:team-project": "wdio run ./wdio.team-project.conf.ts",
     "e2e:parity:cloud": "MAUDE_E2E_PARITY_CLOUD=1 wdio run ./wdio.parity.conf.ts"
   },
   "devDependencies": {

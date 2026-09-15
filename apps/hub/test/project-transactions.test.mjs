@@ -660,4 +660,50 @@ describe('accepted revisions on a real hub', () => {
       hub.built.projectStore.close();
     }
   });
+
+  test('health names the coordinator apart from the renderer; counters only to the cell secret', {
+    timeout: 30000,
+  }, async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'maude-tx-health-'));
+    dirs.push(dataDir);
+    const t = rig(dataDir);
+    const { built, http } = await startHub(dataDir);
+    const epoch = { epoch: 0 };
+    const owner = client(http, t.owner, epoch);
+    const alice = client(http, t.alice, epoch);
+    try {
+      const pub0 = await (await fetch(`${http}/health`)).json();
+      assert.deepEqual(pub0.coordinator, { ready: true, mode: 'legacy', protocol: 1, durable: true });
+      const switched = await owner.post('/api/projects/local/v1/mode', { mode: 'transactions', expectEpoch: 0 });
+      epoch.epoch = switched.body.epoch;
+      const doc = 'ws/local/main/ui-health';
+      assert.equal(
+        (await alice.propose([{ op: 'doc.create', doc, path: 'ui/health.tsx', lanes: { html: src('a') } }])).status,
+        200
+      );
+      const stale = await alice.propose([
+        { op: 'lane.replace', doc, lane: 'html', base: laneHash(src('zzz')), content: src('b') },
+      ]);
+      assert.equal(stale.body.status, 'rejected');
+
+      // Public: posture only — no revision, no counts, no timings.
+      const pub = await (await fetch(`${http}/health`)).json();
+      assert.equal(pub.coordinator.mode, 'transactions');
+      assert.equal(pub.coordinator.ready, true);
+      assert.equal(pub.coordinator.revision, undefined);
+      assert.equal(pub.coordinator.proposals, undefined);
+
+      // The cell secret sees the counters an operator needs.
+      const priv = await (
+        await fetch(`${http}/health`, { headers: { authorization: 'Bearer test-secret' } })
+      ).json();
+      assert.equal(priv.coordinator.proposals.accepted, 1);
+      assert.equal(priv.coordinator.proposals.rejected[stale.body.code], 1);
+      assert.equal(priv.coordinator.ackMs.n, 1);
+      assert.ok(priv.coordinator.ackMs.p95 >= 0);
+      assert.ok(priv.coordinator.revision >= 1);
+    } finally {
+      await built.server.destroy();
+    }
+  });
 });

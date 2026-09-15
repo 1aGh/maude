@@ -33,6 +33,8 @@ const DEDICATED: Record<string, string> = {
   'shell-parity.e2e.ts': 'pnpm test:e2e:desktop:parity',
   // Needs the canvas-origin split ON, which this config forces OFF below.
   'sidecar-respawn-canvas-switch.e2e.ts': 'pnpm test:e2e:desktop:sidecar-respawn',
+  // A real hub + a seeding teammate studio + a first-run home.
+  'team-project.e2e.ts': 'pnpm test:e2e:desktop:team-project',
 };
 
 // Drift tripwire. Adding a wdio.<name>.conf.ts without listing its spec above

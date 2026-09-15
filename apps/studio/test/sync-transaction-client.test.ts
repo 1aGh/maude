@@ -353,4 +353,36 @@ describe('transaction client', () => {
     expect(err).toBeInstanceOf(TransactionError);
     expect((err as TransactionError).code).toBe('absent');
   });
+
+  test('stats: pending with the oldest change time while unanswered, then the ack latency (T29)', async () => {
+    const hub = fakeHub();
+    const quiet = { log() {}, warn() {}, error() {} };
+    let clock = 1_000_000;
+    const seen: { pending: number; oldestPendingAt: number | null }[] = [];
+    const c = createTransactionClient({
+      hubUrl: 'http://hub',
+      token: () => 't',
+      designRoot: dir,
+      fetchImpl: hub.fetchImpl,
+      retryMs: 5,
+      log: quiet,
+      now: () => clock,
+      onStats: (st) => seen.push({ pending: st.pending, oldestPendingAt: st.oldestPendingAt }),
+    });
+    await c.bootstrap();
+    hub.setDown(true);
+    const done = c.propose({ label: 'first', operations: [{ op: 'dir.create', path: 'ui/A' }] });
+    expect(c.stats().pending).toBe(1);
+    expect(c.stats().oldestPendingAt).toBe(1_000_000);
+    clock += 250;
+    hub.setDown(false);
+    expect((await done).status).toBe('accepted');
+    const st = c.stats();
+    expect(st.pending).toBe(0);
+    expect(st.oldestPendingAt).toBeNull();
+    expect(st.ackMs.n).toBe(1);
+    expect(st.ackMs.last).toBe(250);
+    expect(seen.some((x) => x.pending === 1 && x.oldestPendingAt === 1_000_000)).toBe(true);
+    c.stop();
+  });
 });

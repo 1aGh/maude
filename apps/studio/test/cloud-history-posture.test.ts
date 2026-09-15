@@ -97,7 +97,12 @@ describe('while cloud-managed, the desktop runs NO local git of its own', () => 
   });
 
   test('the drafts switcher is withdrawn — a branch switch moves a HEAD the cell has never seen', () => {
-    expect(APP).toContain('{!savingIsManaged && (\n        <RepoBranchSwitcher');
+    // The BRANCH half is withdrawn; the project half stays (plan T22 — a
+    // managed project still needs the way to another project).
+    expect(APP).toContain('projectOnly={savingIsManaged}');
+    const SWITCHER = readFileSync(join(STUDIO, 'client', 'panels', 'RepoBranchSwitcher.jsx'), 'utf8');
+    expect(SWITCHER).toContain('if (native && status && (!status.repo || projectOnly)) {');
+    expect(SWITCHER).toContain('if (!status?.repo || projectOnly) return null;');
     expect(APP).toContain('savingIsManaged={savingIsManaged}');
   });
 

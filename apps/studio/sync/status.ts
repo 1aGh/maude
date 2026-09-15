@@ -81,6 +81,18 @@ export interface SyncStatusPayload extends SyncStatusSnapshot {
    * panel and keeps a machine-local dismiss ack keyed on (id, hub url).
    */
   notices?: SyncNotice[];
+  /**
+   * Plan T29 — accepted revisions: what a person is waiting on. Additive;
+   * absent until the project saves through accepted revisions.
+   */
+  accepted?: AcceptedSaveStatus;
+}
+
+export interface AcceptedSaveStatus {
+  pending: number;
+  oldestPendingAt: number | null;
+  ackMs: { last: number | null; p95: number | null; n: number };
+  rejected: number;
 }
 
 export interface SyncNotice {
@@ -207,6 +219,8 @@ export interface SyncStatusStore {
   /** feature-sync-file-plane — merge Plane B counts + persist + broadcast.
    *  Same reasoning as `updateAssets`: a lane, not a connection. */
   updateFiles(files: FilePlaneStatus): void;
+  /** Plan T29 — accepted-revisions save counters. */
+  updateAccepted(next: AcceptedSaveStatus): void;
   /** Record a consent-class notice (A7) + persist + broadcast. Idempotent by
    *  `id` — the notice sites fire once per boot, and a repeat is a no-op
    *  rather than a duplicate row. */
@@ -246,6 +260,7 @@ export function createSyncStatusStore(opts: SyncStatusStoreOptions): SyncStatusS
 
   let assets: AssetPushProgress | undefined;
   let files: FilePlaneStatus | undefined;
+  let accepted: AcceptedSaveStatus | undefined;
   const notices: SyncNotice[] = [];
 
   function payload(): SyncStatusPayload {
@@ -269,6 +284,7 @@ export function createSyncStatusStore(opts: SyncStatusStoreOptions): SyncStatusS
       ...(opts.sharedDoc ? { sharedDoc: true } : {}),
       ...(assets ? { assets } : {}),
       ...(files ? { files } : {}),
+      ...(accepted ? { accepted } : {}),
       ...(notices.length ? { notices: notices.slice() } : {}),
     };
   }
@@ -348,6 +364,12 @@ export function createSyncStatusStore(opts: SyncStatusStoreOptions): SyncStatusS
     updateAssets(progress) {
       assets = progress;
       flush();
+    },
+    updateAccepted(next) {
+      const was = accepted;
+      accepted = next;
+      // Going from waiting to caught-up (or back) is news; a latency tick is not.
+      flush((was?.pending ?? 0) === 0 !== (next.pending === 0) || next.rejected !== was?.rejected);
     },
     updateFiles(next) {
       files = next;

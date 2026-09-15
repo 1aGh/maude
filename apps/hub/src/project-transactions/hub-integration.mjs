@@ -40,6 +40,12 @@ export function createAcceptedRevisions({
   log = console,
 }) {
   let state = { mode: 'legacy', epoch: 0, revision: 0 };
+  // T19/T29 — the coordinator's own readiness and counters, apart from the
+  // renderer's: a project can accept edits while its studio child restarts,
+  // and a studio can render while the store is failing.
+  let ready = false;
+  let storeError = null;
+  const metrics = createAcceptedMetrics();
 
   async function withDoc(name, context, fn) {
     const conn = await server.hocuspocus.openDirectConnection(name, context);
@@ -133,8 +139,33 @@ export function createAcceptedRevisions({
   }
 
   async function refresh() {
-    state = await store.state();
+    try {
+      state = await store.state();
+      ready = true;
+      storeError = null;
+    } catch (err) {
+      storeError = err.message;
+      throw err;
+    }
     return state;
+  }
+
+  /** Synchronous snapshot for `/health` (the probe cannot await the store). */
+  function health({ privileged = false } = {}) {
+    const base = {
+      ready: ready && !storeError,
+      mode: state.mode,
+      protocol: 1,
+      durable: !!storeDurable,
+    };
+    if (!privileged) return base;
+    return {
+      ...base,
+      epoch: state.epoch,
+      revision: state.revision,
+      ...(storeError ? { storeError } : {}),
+      ...metrics.snapshot(),
+    };
   }
 
   /** Synchronous — Hocuspocus hooks cannot wait on the store. */
@@ -286,10 +317,12 @@ export function createAcceptedRevisions({
       if (route === 'proposals' && method === 'POST') {
         const bytes = await readBody(request);
         await switching;
+        const t0 = performance.now();
         const { status, body } = await kernel.submit(bytes, {
           actor: who.actor,
           readOnly: who.readOnly,
         });
+        metrics.record(body, performance.now() - t0);
         respondJson(status, body);
         return true;
       }
@@ -387,8 +420,49 @@ export function createAcceptedRevisions({
     fence,
     setMode,
     handleRoutes,
+    health,
+    markReady() {
+      ready = true;
+    },
     get state() {
       return state;
+    },
+  };
+}
+
+/**
+ * Bounded counters for the operator — counts by outcome and rejection code,
+ * and the durable acknowledgment latency (submit → committed answer, which is
+ * what a person waits for before "Saved"). Never payloads, paths or actors.
+ */
+export function createAcceptedMetrics({ window = 256 } = {}) {
+  let accepted = 0;
+  let replayed = 0;
+  const rejected = {};
+  const ack = [];
+  let lastAt = null;
+  const pct = (sorted, q) =>
+    sorted.length ? Math.round(sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] * 10) / 10 : null;
+  return {
+    record(result, ms) {
+      lastAt = Date.now();
+      if (result?.status === 'accepted') {
+        if (result.replay) replayed++;
+        else accepted++;
+        ack.push(ms);
+        if (ack.length > window) ack.shift();
+      } else {
+        const code = typeof result?.code === 'string' ? result.code.slice(0, 40) : 'unknown';
+        rejected[code] = (rejected[code] ?? 0) + 1;
+      }
+    },
+    snapshot() {
+      const sorted = [...ack].sort((a, b) => a - b);
+      return {
+        proposals: { accepted, replayed, rejected: { ...rejected } },
+        ackMs: { p50: pct(sorted, 0.5), p95: pct(sorted, 0.95), p99: pct(sorted, 0.99), n: sorted.length },
+        lastProposalAt: lastAt,
+      };
     },
   };
 }

@@ -20,6 +20,7 @@ import {
   type ProposalResult,
   type TransactionClient,
   TransactionError,
+  type TransactionStats,
 } from './transaction-client.ts';
 
 export type AcceptedMode = 'unknown' | 'legacy' | 'transactions';
@@ -32,6 +33,7 @@ export interface AcceptedLinkOptions {
   fetchImpl?: typeof fetch;
   log?: Pick<Console, 'log' | 'warn' | 'error'>;
   onPending?: (count: number) => void;
+  onStats?: (stats: TransactionStats) => void;
   onResult?: (result: ProposalResult, action: { label: string; operations: Operation[] }) => void;
   retryMs?: number;
   /** Injected client (tests). */
@@ -59,6 +61,7 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       fetchImpl: opts.fetchImpl,
       log,
       onPending: opts.onPending,
+      onStats: opts.onStats,
       onResult: opts.onResult,
       retryMs: opts.retryMs,
     });

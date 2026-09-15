@@ -846,6 +846,9 @@ export function createHub(config = {}) {
           // relaxes its polling against a hub that does not say `ledger` here.
           // A protocol marker, not customer data, so it rides the public half.
           capabilities: journal ? ['ledger'] : [],
+          // T19/T29 — the project coordinator (accepted revisions) apart from
+          // the renderer: posture publicly, counters to the cell secret only.
+          coordinator: accepted?.health?.({ privileged }) ?? null,
         });
         // 503, not 200-with-ok-false. A router reads the STATUS; a payload it
         // has to parse to learn the truth is a payload it will not parse.
@@ -1507,6 +1510,7 @@ export function createHub(config = {}) {
           sqlitePath,
           insecureHttp,
           durability,
+          accepted,
         });
         bailFromOnRequest();
       }
@@ -2146,6 +2150,7 @@ async function handleAdminApi(ctx) {
         port: ctx.port,
         startedAt: ctx.startedAt,
         peersCount: peers.size,
+        coordinator: ctx.accepted?.health?.({ privileged: true }) ?? null,
       }),
       // Phase 0 F5. The console's Overview reads this: an identity conflict
       // means backups are DISABLED for this hub, which is the one thing an
@@ -2630,6 +2635,7 @@ function buildStatusPayload({
   stats = null,
   render = null,
   capabilities = null,
+  coordinator = null,
 }) {
   const { tokens } = readTokens(dataDir);
   const workspace = workspaceStatus();
@@ -2644,8 +2650,11 @@ function buildStatusPayload({
   // whose contents CI had overwritten. So health names the BYTES: is the client
   // this cell would serve the client this image was built with.
   const identity = studioStatus ? identityForHealth(studioIdentityPaths()) : null;
+  // A project in accepted revisions whose coordinator cannot reach its store
+  // cannot save anything, however well the renderer is doing.
+  const coordinatorOk = !coordinator || coordinator.mode !== 'transactions' || coordinator.ready;
   return {
-    ok: studioStatus ? studioStatus.ok && identity?.ok !== false : true,
+    ok: (studioStatus ? studioStatus.ok && identity?.ok !== false : true) && coordinatorOk,
     version: HUB_VERSION,
     // WHICH RELEASE THIS IMAGE IS, beside the hash that says which BYTES it is.
     // They are not redundant — see the header of bundle-identity.mjs. The hash
@@ -2670,6 +2679,7 @@ function buildStatusPayload({
     // distinguishable from "this hub has none" — the same
     // omitted-when-unknown rule the stats block follows.
     ...(capabilities ? { capabilities } : {}),
+    ...(coordinator ? { coordinator } : {}),
     peersCount: peersCount ?? 0,
     // OMITTED when unknown, never zeroed. A cell on an older image, or one
     // whose studio is not up, must stay distinguishable from a project with no

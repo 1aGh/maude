@@ -14,6 +14,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { safeDetail, safeName, syncPresentation } from '../../sync/presentation.ts';
+import { TeamProjectsDialog } from './TeamProjects.jsx';
+import { isNativeApp } from '../github.js';
 
 /**
  * How long Resync stays disabled after a cycle finishes.
@@ -259,6 +261,9 @@ export default function SyncPanel({
   onClose,
 }) {
   const p = syncPresentation(status, { project });
+  // Plan T20/T22 — a refused workspace on the desktop is usually a sign-in that
+  // ran out. Signing in again re-mints the credential and reopens the same copy.
+  const [signInAgain, setSignInAgain] = useState(false);
   const [resyncing, setResyncing] = useState(false);
   const [cooling, setCooling] = useState(false);
   const [note, setNote] = useState('');
@@ -560,7 +565,24 @@ export default function SyncPanel({
               {p.title}
               {p.next ? ` ${p.next}` : ''}
             </span>
+            {p.phase === 'refused' && !cloud && isNativeApp() && (
+              <button
+                type="button"
+                className="btn btn--sm"
+                data-testid="sync-signin-again"
+                onClick={() => setSignInAgain(true)}
+              >
+                Sign in again
+              </button>
+            )}
           </div>
+        )}
+        {signInAgain && (
+          <TeamProjectsDialog
+            title="Sign in again"
+            initialServer={typeof status?.url === 'string' ? status.url : ''}
+            onClose={() => setSignInAgain(false)}
+          />
         )}
       </div>
 

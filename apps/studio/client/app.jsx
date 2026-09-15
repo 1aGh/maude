@@ -3184,9 +3184,9 @@ function Sidebar({
           and `/_api/git/checkout` keep exactly their old gates, and a terminal
           `git checkout` still works (and still flushes into Yjs via DDR-051's
           watcher). Absent, not disabled — there is nothing to explain here. */}
-      {!savingIsManaged && (
-        <RepoBranchSwitcher project={project} liveBranch={gitBranch} remoteSync={remoteSync} onGetLatest={onGetLatest} />
-      )}
+      {/* Plan T22 — withdrawn means the BRANCH half. A managed project still
+          needs the way to another project, so the dock stays, project-only. */}
+      <RepoBranchSwitcher project={project} liveBranch={gitBranch} remoteSync={remoteSync} onGetLatest={onGetLatest} projectOnly={savingIsManaged} />
       {/* Cloud Phase 23 C3 — Maude Cloud sign-in + remote-project attach, docked
           above the GitHub identity. Dev-server-backed, so it works in the desktop
           shell AND a plain browser. */}
@@ -15278,7 +15278,10 @@ function App() {
             const j = r ? await r.json().catch(() => null) : null;
             return !!j?.ok;
           }}
-          onUndoAction={async (actionId) => {
+          // Not through a cell's door: every browser editor proposes under the
+          // studio's one credential there, so "your own action" is not
+          // knowable and the hub refuses the route (studio-manifest.mjs).
+          onUndoAction={cellManaged ? undefined : async (actionId) => {
             const r = await fetch('/_api/project/undo', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },

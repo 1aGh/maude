@@ -81,6 +81,8 @@ export interface SyncStatusLike extends Partial<SyncStatusSnapshot> {
   conflicts?: unknown;
   files?: unknown;
   assets?: unknown;
+  /** Accepted-revisions save counters (plan T29) — validated below. */
+  accepted?: unknown;
 }
 
 /** Hub-supplied text that reaches a UI. Bounded, never markup. */
@@ -540,6 +542,27 @@ export function syncPresentation(
     };
   }
 
+  // Plan T29 — accepted revisions: "synced" documents only mean the replica is
+  // current. A change still waiting for the project's durable answer is saved
+  // on this device, not yet shared — so it is Saving, never Saved.
+  const acceptedPending = readAcceptedPending(status.accepted);
+  if (acceptedPending) {
+    const ageS = acceptedPending.oldestPendingAt
+      ? Math.max(0, Math.round((Date.now() - acceptedPending.oldestPendingAt) / 1000))
+      : 0;
+    return {
+      phase: 'syncing',
+      online: true,
+      label: `saving ${acceptedPending.pending}`,
+      title:
+        `Saving ${acceptedPending.pending} change${acceptedPending.pending === 1 ? '' : 's'} to ${project}` +
+        (ageS >= 10 ? ` — the oldest has waited ${ageS} s.` : '.') +
+        ' They are kept on this device until the project confirms them.',
+      next: ageS >= 60 ? 'Maude keeps trying. If this persists, check your connection.' : null,
+      names: [],
+    };
+  }
+
   // Clamped and validated for the same reason as the doc counts: `count` is
   // read off disk, and "1000000000 came down from the project" is not a
   // sentence this module should be capable of producing. The ceiling is `total`
@@ -565,5 +588,21 @@ export function syncPresentation(
     // decision to open stays the person's.
     next: pulledCount > 0 ? 'They are new to this machine — look them over before editing.' : null,
     names: pulledCount > 0 ? shownNames(status.pulled?.names) : [],
+  };
+}
+
+/** `status.accepted`, validated — it is read off disk like every other count. */
+function readAcceptedPending(
+  raw: unknown
+): { pending: number; oldestPendingAt: number | null } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as { pending?: unknown; oldestPendingAt?: unknown };
+  const pending = r.pending;
+  if (typeof pending !== 'number' || !Number.isInteger(pending) || pending <= 0 || pending > 1e6)
+    return null;
+  const at = r.oldestPendingAt;
+  return {
+    pending,
+    oldestPendingAt: typeof at === 'number' && Number.isFinite(at) && at > 0 ? at : null,
   };
 }
