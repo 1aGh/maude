@@ -231,6 +231,41 @@ describe('POST /api/journal/report — a nudge, never data', () => {
     assert.equal(journal.head(), 0);
   });
 
+  // Plan T31/L03 — the hub's own studio renamed or deleted a file: the child
+  // names the path, the hub finds nothing there. A file the journal tracked as
+  // live gets a tombstone so it leaves teammates' disks too; one it never
+  // tracked still appends nothing (above).
+  it('a report about a TRACKED file that is gone from the disk tombstones it', () => {
+    const journal = openJournal(dataDir);
+    const report = (paths) => {
+      const { ctx } = baseCtx({
+        path: JOURNAL_REPORT_PATH,
+        method: 'POST',
+        journal,
+        isLoopback: true,
+        body: { paths },
+      });
+      handleJournalRoutes(ctx);
+    };
+    report(['assets/a.png']);
+    assert.equal(journal.head(), 1);
+    rmSync(join(designRoot, 'assets/a.png'));
+    report(['assets/a.png']);
+    const rows = journal.entriesSince(0).entries;
+    assert.equal(rows.length, 2);
+    assert.equal(rows[1].path, 'assets/a.png');
+    assert.equal(rows[1].deleted, true);
+    // Reported again: already a tombstone, nothing more.
+    report(['assets/a.png']);
+    assert.equal(journal.head(), 2);
+    // Back on disk: an ordinary write row again.
+    writeFileSync(join(designRoot, 'assets/a.png'), 'B');
+    report(['assets/a.png']);
+    const last = journal.entriesSince(0).entries.at(-1);
+    assert.equal(last.deleted, false);
+    assert.equal(last.size, 1);
+  });
+
   it('the answer is NOT an existence oracle — present and absent read alike', () => {
     // `noted` is a pure function of the request. If the response distinguished
     // "this path exists in the checkout" from "it does not", anyone who reached

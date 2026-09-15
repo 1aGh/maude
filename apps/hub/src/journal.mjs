@@ -286,6 +286,22 @@ function makeHandle({ db, getMeta, setMeta, now }) {
     },
 
     /**
+     * The hub's own disk no longer has a path the journal tracks as live — a
+     * delete, or the source of a rename, in this checkout (a studio child's
+     * report). `recordWrite` looks for bytes and finds none, so without this a
+     * file removed on the hub's side never left a teammate's disk (plan
+     * T31/L03). Tombstoned only when the disk agrees; a path the journal never
+     * tracked, or already tombstoned, is left alone.
+     */
+    recordGone({ designRoot, path: rel, source }) {
+      if (!designRoot || typeof rel !== 'string' || rel.length === 0) return null;
+      const prev = stmts.latestForPath.get(rel);
+      if (!prev || prev.deleted === 1) return null;
+      if (existsSync(join(designRoot, rel))) return null;
+      return handle.recordWrite({ designRoot, path: rel, source, deleted: true });
+    },
+
+    /**
      * Append a row for `path`, having looked at the hub's OWN disk.
      *
      * The caller supplies only WHERE to look. What is there — existence, size,
@@ -745,7 +761,9 @@ export function handleJournalRoutes({
       noted += 1;
       // The hub looks at ITS OWN disk. The report said where; it did not say
       // what, and there is no parameter through which it could.
-      journal.recordWrite({ designRoot, path: raw, source: 'studio-report' });
+      const row = journal.recordWrite({ designRoot, path: raw, source: 'studio-report' });
+      // Nothing there to read: the child removed or renamed it away.
+      if (row === null) journal.recordGone?.({ designRoot, path: raw, source: 'studio-report' });
     }
     // THE ANSWER LEAKS NOTHING. `noted` counts syntactically-valid paths — a
     // pure function of the request, which the caller could compute itself. It
