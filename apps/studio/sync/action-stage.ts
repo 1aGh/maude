@@ -235,6 +235,7 @@ export function createActionStage(opts: ActionStageOptions) {
       status: r.status,
       ...(r.code ? { code: r.code } : {}),
       ...(mine && typeof r.head === 'string' ? { head: r.head } : {}),
+      ...(typeof r.actionId === 'string' ? { actionId: r.actionId } : {}),
     };
   }
 

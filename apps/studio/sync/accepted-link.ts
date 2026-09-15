@@ -119,6 +119,7 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     status: r.status,
     ...(r.code ? { code: r.code } : {}),
     ...(typeof r.head === 'string' ? { head: r.head } : {}),
+    ...(typeof r.actionId === 'string' ? { actionId: r.actionId } : {}),
   });
 
   function laneLink(slug: string): AcceptedLaneLink {

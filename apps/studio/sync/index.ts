@@ -61,7 +61,7 @@ import { createCtlProvider } from './ctl-provider.ts';
 import { createRescanScheduler, diffCanvasSet, type RescanScheduler } from './discovery.ts';
 import { createDocNameResolver } from './doc-name.ts';
 import { createDocumentDiscovery } from './document-discovery.ts';
-import { createEchoGuard } from './echo-guard.ts';
+import { createEchoGuard, hashBytes } from './echo-guard.ts';
 import { createFileLedger } from './file-ledger.ts';
 import { createFilePlane, MAX_DORUCEKA_ROWS } from './file-plane.ts';
 import { type FilePullResult, pullFiles } from './file-pull.ts';
@@ -530,7 +530,7 @@ export interface SyncRuntime {
   acceptedUndo?(
     actionId: string,
     redo?: boolean
-  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean } | null>;
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean; actionId?: string } | null>;
   /**
    * T16 — an AI action begins: file changes tools make until it ends are
    * published together as one action (see action-stage.ts). `key` names the
@@ -542,6 +542,8 @@ export interface SyncRuntime {
     key: string,
     outcome: 'done' | 'failed'
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string } | null>;
+  /** T26 — the accepted action that carried this content of a canvas, if ours. */
+  acceptedActionForContent?(repoRel: string, content: string): string | null;
   /** T28 — the two sides of a canvas's held source conflict. */
   conflictVersions?(repoRel: string): { slug: string; mine: string | null; theirs: string } | null;
   /**
@@ -907,6 +909,19 @@ export function createSyncRuntime(
       })
     : null;
   const acceptedOn = (): boolean => acceptedLink?.on() === true;
+  /**
+   * T26 — which accepted action carried a given canvas content of ours, so the
+   * shell's Cmd+Z of an edit can undo THAT action (effect-aware) instead of
+   * swapping the whole file back. Bounded; keyed by slug + lane + content hash.
+   */
+  const acceptedByContent = new Map<string, string>();
+  const noteAcceptedContent = (slug: string, lane: string, value: string, actionId: string) => {
+    acceptedByContent.set(`${slug}|${lane}|${hashBytes(value)}`, actionId);
+    if (acceptedByContent.size > 500) {
+      const oldest = acceptedByContent.keys().next().value;
+      if (oldest !== undefined) acceptedByContent.delete(oldest);
+    }
+  };
   /** T14 — one barrier for every projection: a revision shows whole. */
   const revisionBarrier = createRevisionBarrier();
   /** Canvases a folder action already moved/deleted — nothing more to propose for them. */
@@ -3457,6 +3472,8 @@ export function createSyncRuntime(
                       accepted: acceptedLink.laneLink(canvas.slug),
                       revisionBarrier,
                       replayOp: (op: SourceOp, head: string) => replaySourceOp(canvas.html, op, head),
+                      onAccepted: ({ lane, value, actionId }: { lane: string; value: string; actionId: string }) =>
+                        noteAcceptedContent(canvas.slug, lane, value, actionId),
                     }
                   : {}),
                 // A write the hub would drop is held, never made (see isWritable).
@@ -4701,6 +4718,10 @@ export function createSyncRuntime(
     acceptedUndo: async (actionId, redo = false) => {
       if (!acceptedOn() || !acceptedLink) return null;
       return acceptedLink.undo(actionId, redo);
+    },
+    acceptedActionForContent: (repoRel, content) => {
+      const slug = slugForRepoRel(repoRel);
+      return slug ? (acceptedByContent.get(`${slug}|html|${hashBytes(content)}`) ?? null) : null;
     },
     conflictVersions: (repoRel) => {
       // A slug (the Sync panel's notice id) or a repo-relative canvas path.

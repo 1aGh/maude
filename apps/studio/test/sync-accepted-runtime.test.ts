@@ -371,6 +371,34 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     expect(hist.length).toBe(before + 2);
   }, 60_000);
 
+  test('Cmd+Z binds to the action an edit became: undo keeps a teammate’s later change; redo re-applies (T26)', async () => {
+    const two = (title: string, color: string) =>
+      `export default function Undo() {\n  return <h1 title="${title}" color="${color}">U</h1>;\n}\n`;
+    alice.write('ui/undo26.tsx', two('Start', 'black'));
+    await alice.runtime.rescanNow();
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return bob.read('ui/undo26.tsx') === two('Start', 'black');
+    }, 'undo26 on bob');
+    // Alice's edit (the shell logged its before/after), then Bob's elsewhere.
+    alice.write('ui/undo26.tsx', two('Alice', 'black'));
+    await waitFor(() => bob.read('ui/undo26.tsx') === two('Alice', 'black'), 'alice→bob');
+    const actionId = await waitFor(
+      () => alice.runtime.acceptedActionForContent?.('design/ui/undo26.tsx', two('Alice', 'black')),
+      'the action alice’s content became'
+    );
+    bob.write('ui/undo26.tsx', two('Alice', 'teal'));
+    await waitFor(() => alice.read('ui/undo26.tsx') === two('Alice', 'teal'), 'bob→alice');
+    // The whole-file revert would be refused now (the file is not what the
+    // edit left); the action undo is not, and keeps Bob's colour.
+    const undone = await alice.runtime.acceptedUndo?.(actionId as string);
+    expect(undone?.status).toBe('accepted');
+    await waitFor(() => bob.read('ui/undo26.tsx') === two('Start', 'teal'), 'the undo on bob');
+    const redone = await alice.runtime.acceptedUndo?.(undone?.actionId as string, true);
+    expect(redone?.status).toBe('accepted');
+    await waitFor(() => bob.read('ui/undo26.tsx') === two('Alice', 'teal'), 'the redo on bob');
+  }, 60_000);
+
   test('a held conflict resolves from its two sides: keep mine (new action) or take the project’s (T28)', async () => {
     const make = async (name: string) => {
       alice.write(`ui/${name}.tsx`, src(`${name} base`));

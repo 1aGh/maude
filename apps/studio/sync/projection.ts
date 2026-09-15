@@ -148,6 +148,8 @@ export interface DocProjectionOptions {
   revisionBarrier?: RevisionBarrier;
   /** T24 — re-apply a UI operation onto the version that won (sync/source-ops). */
   replayOp?: (op: SourceOp, head: string) => { ok: true; source: string } | { ok: false; reason: string };
+  /** T26 — a lane value of ours was accepted as this action. */
+  onAccepted?: (info: { lane: ProposalLane; value: string; actionId: string }) => void;
   /**
    * May a write to the shared document reach the hub right now? When false a
    * file change is HELD (not imported) and `onWriteBlocked` fires; the runtime
@@ -164,6 +166,8 @@ export interface ProposalOutcome {
   code?: string;
   /** On a base conflict: the hash of the accepted value that won. */
   head?: string;
+  /** On acceptance: the project action that carries it (T26 — Cmd+Z binds to it). */
+  actionId?: string;
 }
 
 export interface LaneProposal {
@@ -730,6 +734,13 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       if (outcome.status === 'accepted') {
         if (!pending.has(lane)) held.delete(lane);
         if (lane === 'html') recovered();
+        if (outcome.actionId) {
+          try {
+            opts.onAccepted?.({ lane, value, actionId: outcome.actionId });
+          } catch {
+            /* bookkeeping only */
+          }
+        }
       } else if (outcome.code === 'discarded') {
         // T16 — the person discarded an unfinished AI edit: the accepted
         // version returns to disk (the candidate is in the recovery slots).

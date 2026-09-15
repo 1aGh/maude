@@ -1053,7 +1053,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // stores in its undo record. Ephemeral by design: a server restart drops it
   // (undo answers 404 and the canvas stack entry is a no-op, honest failure).
   const REORDER_LOG_CAP = 50;
-  const reorderLog = new Map<number, { abs: string; before: string; after: string }>();
+  const reorderLog = new Map<
+    number,
+    { abs: string; before: string; after: string; undoActionId?: string }
+  >();
   let reorderSeq = 0;
 
   // DDR-150 dogfood #1 — the SAME whole-file log backs the Timeline clip ops
@@ -5700,6 +5703,36 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       const current = await Bun.file(r.abs).text();
       const expect = dir === 'undo' ? entry.after : entry.before;
       const write = dir === 'undo' ? entry.before : entry.after;
+      // T26 — a project that saves through accepted revisions undoes the
+      // ACTION this edit became: effect-aware, so a teammate's later change
+      // elsewhere in the canvas neither blocks the undo nor gets reverted
+      // with it (a whole-file swap could do only one of those).
+      const runtime = ctx.syncControl?.current?.();
+      if (runtime?.acceptedMode?.()) {
+        const rel = path.relative(paths.repoRoot, r.abs);
+        // Undo targets the edit's action; redo targets the undo that
+        // reverted it (reverting a revert re-applies, effect-aware again).
+        const actionId =
+          dir === 'undo'
+            ? (runtime.acceptedActionForContent?.(rel, entry.after) ?? null)
+            : (entry.undoActionId ?? null);
+        if (actionId) {
+          const res = await runtime.acceptedUndo?.(actionId, dir === 'redo');
+          if (res?.status === 'accepted' || res?.queued) {
+            if (dir === 'undo') entry.undoActionId = res.actionId;
+            else delete entry.undoActionId;
+            return { ok: true, dir };
+          }
+          return {
+            ok: false,
+            status: 409,
+            error:
+              res?.code === 'base-conflict'
+                ? 'someone changed the same thing since — undo skipped'
+                : `undo refused (${res?.code ?? 'unknown'})`,
+          };
+        }
+      }
       if (current !== expect) {
         return {
           ok: false,

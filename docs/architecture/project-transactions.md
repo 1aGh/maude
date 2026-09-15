@@ -112,6 +112,20 @@ Nothing in the file plane deletes a bucket object (a delete is a journal
 tombstone and a quarantine), so current, historical and pending references
 all keep their bytes; only backup-generation retention deletes keys.
 
+**Per-domain commands bound to actions (T26)**: the shell's Cmd+Z / Cmd+Shift+Z
+of a canvas edit (inspector, structural and timeline ops all log a whole-file
+before/after) undoes the ACTION that edit became when the project saves
+through accepted revisions — `acceptedActionForContent` maps the edit's
+resulting content to the accepted action id — so a teammate's later change
+elsewhere in the canvas neither blocks the undo (a whole-file swap refuses
+once the file moved on) nor is reverted with it; redo reverts that undo.
+Comments keep their thread/resolve semantics as a lane merged by comment id;
+an annotation gesture saves the whole layer once at its end (one action); a
+photo transform is one PhotoEdit sidecar write through the file plane; a
+timeline operation is one API op, one action. The shell's private undo stack
+remains the fallback when no accepted action is known (legacy mode, or an edit
+still in flight).
+
 ### Rights and project entry (T20–T22)
 
 A **designer** is the project role `member` (cloud project role, or a hub
