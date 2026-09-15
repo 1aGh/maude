@@ -69,11 +69,15 @@ interface Hub {
   tokens: Record<'owner' | 'alice' | 'bob' | 'viewer', string>;
 }
 
-function startHub(dataDir: string, port = '0'): Promise<Hub> {
+function startHub(dataDir: string, port = '0', transactions = true): Promise<Hub> {
   return new Promise((resolve, reject) => {
-    const proc = spawn('node', [FIXTURE, dataDir, port, '--transactions'], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    const proc = spawn(
+      'node',
+      [FIXTURE, dataDir, port, ...(transactions ? ['--transactions'] : [])],
+      {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }
+    );
     let buf = '';
     const timer = setTimeout(() => reject(new Error(`hub did not start: ${buf}`)), 20_000);
     proc.stdout?.on('data', (chunk: Buffer) => {
@@ -412,4 +416,118 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     expect(alice.runtime.acceptedWriteViolations?.()).toBe(0);
     expect(bob.runtime.acceptedWriteViolations?.()).toBe(0);
   }, 20_000);
+});
+
+describe.skipIf(!HUB_READY)('accepted revisions — switching a live project', () => {
+  let root: string;
+  let hub: Hub;
+  let alice: Peer;
+  let bob: Peer;
+  const saved: Record<string, string | undefined> = {};
+
+  beforeAll(async () => {
+    root = mkdtempSync(join(tmpdir(), 'accepted-switch-'));
+    for (const k of ['HUBS_CONFIG_PATH', 'MAUDE_SYNC_IN_CI']) saved[k] = process.env[k];
+    process.env.MAUDE_SYNC_IN_CI = '1';
+    hub = await startHub(join(root, 'hub'), '0', false);
+    const aliceUrl = `http://127.0.0.1:${hub.port}`;
+    const bobUrl = `http://localhost:${hub.port}`;
+    const hubsFile = join(root, 'hubs.json');
+    writeFileSync(
+      hubsFile,
+      JSON.stringify({
+        hubs: { [aliceUrl]: { token: hub.tokens.alice }, [bobUrl]: { token: hub.tokens.bob } },
+      }),
+      { mode: 0o600 }
+    );
+    process.env.HUBS_CONFIG_PATH = hubsFile;
+    mkdirSync(join(root, 'alice', 'design', 'ui'), { recursive: true });
+    writeFileSync(join(root, 'alice', 'design', 'ui', 'board.tsx'), src('legacy start'));
+    alice = await startPeer('alice', join(root, 'alice'), aliceUrl);
+    await waitFor(async () => {
+      const res = await fetch(`${hub.http}/api/documents`, {
+        headers: { authorization: `Bearer ${hub.tokens.owner}` },
+      });
+      const b = (await res.json()) as { documents: { name: string; bytes: number }[] };
+      return b.documents.some((d) => d.name.endsWith('ui-board') && d.bytes > 0);
+    }, 'the legacy document to be stored');
+    bob = await startPeer('bob', join(root, 'bob'), bobUrl);
+    await waitFor(
+      () => bob.read('ui/board.tsx') === src('legacy start'),
+      'bob to pull the legacy canvas'
+    );
+  }, 60_000);
+
+  afterAll(async () => {
+    await alice?.runtime.stop();
+    await bob?.runtime.stop();
+    if (hub) await stopHub(hub);
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  test('peers learn the switch from their socket; edits around it are neither dropped nor diverged', async () => {
+    expect(alice.runtime.acceptedMode?.()).toBe(false);
+    // Switch while both peers are live, and edit AT ONCE — the window the
+    // hub's notice-then-close ordering exists for.
+    const switching = api(hub, 'mode', {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'transactions' }),
+    });
+    alice.write('ui/board.tsx', src('edited during the switch'));
+    const res = await switching;
+    expect(res.status).toBe(200);
+    expect((res.body.imported as { created: number }).created).toBe(1);
+    await waitFor(
+      () => alice.runtime.acceptedMode?.() && bob.runtime.acceptedMode?.(),
+      'both peers to learn the mode'
+    );
+    await waitFor(
+      () => bob.read('ui/board.tsx') === src('edited during the switch'),
+      'the edit made during the switch to reach bob'
+    );
+    // After the switch every change is a proposal.
+    bob.write('ui/board.tsx', src('after the switch'));
+    await waitFor(
+      () => alice.read('ui/board.tsx') === src('after the switch'),
+      'bob → alice after the switch'
+    );
+    const b = await api(hub, 'bootstrap');
+    const doc = (b.body.docs as { path: string; lanes: Record<string, { hash: string }> }[]).find(
+      (d) => d.path === 'ui/board.tsx'
+    );
+    const blob = await api(hub, `blobs/${doc?.lanes.html?.hash}`);
+    expect(blob.body.body).toBe(src('after the switch'));
+    expect(alice.runtime.acceptedWriteViolations?.()).toBe(0);
+    expect(bob.runtime.acceptedWriteViolations?.()).toBe(0);
+  }, 60_000);
+
+  test('a studio that was closed across a switch proposes what was edited while it was away', async () => {
+    // Back to legacy, then Bob closes his studio.
+    const back = await api(hub, 'mode', {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'legacy' }),
+    });
+    expect(back.status).toBe(200);
+    await waitFor(() => !alice.runtime.acceptedMode?.(), 'alice to learn legacy');
+    await bob.runtime.stop();
+    // The project switches while he is away; he edits the file anyway.
+    const on = await api(hub, 'mode', {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'transactions' }),
+    });
+    expect(on.status).toBe(200);
+    writeFileSync(bob.file('ui/board.tsx'), src('edited while the studio was closed'));
+    // He reopens: the cold start finds a local edit on top of the base the
+    // project still holds, and proposes it.
+    bob = await startPeer('bob', join(root, 'bob'), `http://localhost:${hub.port}`);
+    await waitFor(
+      () => alice.read('ui/board.tsx') === src('edited while the studio was closed'),
+      'the offline edit to reach alice'
+    );
+    expect(bob.runtime.acceptedWriteViolations?.()).toBe(0);
+  }, 60_000);
 });

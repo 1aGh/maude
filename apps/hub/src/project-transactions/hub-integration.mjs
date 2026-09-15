@@ -8,6 +8,7 @@
 //     re-asserted per message (T7: a cached permission is not a boundary).
 //   • `handleRoutes` — `/api/projects/:project/v1/*`.
 
+import { importBaseline } from './baseline.mjs';
 import { createKernel } from './kernel.mjs';
 import { applyLane, LANE_NAMES } from './lanes.mjs';
 
@@ -25,6 +26,15 @@ export function createAcceptedRevisions({
   deleteDocument,
   reviveDocument,
   onAccepted = () => {},
+  // Baseline import (T30) — what the project holds outside the store.
+  listDocuments = () => [],
+  tombstoned = () => new Set(),
+  checkoutPath = () => null,
+  checkoutBody = () => null,
+  checkoutDirs = () => [],
+  // How long peers get, after the mode notice, to deliver what they sent
+  // before it reached them (one generous round trip).
+  switchGraceMs = 1500,
   log = console,
 }) {
   let state = { mode: 'legacy', epoch: 0, revision: 0 };
@@ -128,24 +138,79 @@ export function createAcceptedRevisions({
   /** Synchronous — Hocuspocus hooks cannot wait on the store. */
   const acceptedMode = () => state.mode === 'transactions';
 
-  /** Hocuspocus `beforeHandleMessage`: re-assert read-only on every message. */
-  function fence({ connection }) {
-    if (acceptedMode() && connection) connection.readOnly = true;
+  /**
+   * Hocuspocus `beforeHandleMessage`: decide read-only on EVERY message, from
+   * the current mode and the credential's own right — so a switch takes
+   * effect on sockets that are already open (no reconnect needed, which a
+   * multiplexed socket would not do on a per-document close), and a switch
+   * back to legacy restores write access to exactly the credentials that had
+   * it.
+   */
+  function fence({ connection, context }) {
+    if (!connection) return;
+    connection.readOnly = acceptedMode() || context?.user?.readOnly === true;
   }
 
-  async function setMode({ mode, expectEpoch }) {
-    const next = await store.setMode({ mode, expectEpoch });
-    state = { ...state, ...next };
-    // FENCE ALREADY-OPEN SOCKETS: every peer reconnects and re-authenticates
-    // under the new epoch — a writer admitted before the switch cannot keep
-    // writing after it (DDR-241 §7).
-    try {
-      server.closeConnections?.();
-    } catch {
-      /* no peers */
-    }
-    if (mode === 'transactions') await reconcile();
-    return next;
+  /** A mode switch in progress — proposals wait for it (see `setMode`). */
+  let switching = Promise.resolve();
+
+  /**
+   * Switch the project's save mode. THE ORDER IS THE SAFETY ARGUMENT:
+   *
+   *   1. persist the new mode + epoch;
+   *   2. tell every connected peer ON ITS OWN SOCKET (a stateless message);
+   *      from the moment it arrives the peer proposes instead of writing;
+   *   3. wait one grace round trip — a write the peer sent BEFORE the notice
+   *      reached it is still in flight, and is applied, not dropped;
+   *   4. raise the fence — enforced per message on every open socket, so no
+   *      socket is closed (a multiplexed provider does not re-attach after a
+   *      per-document close, and would silently stop receiving);
+   *   5. import the documents' final state as accepted actions (T30), and
+   *   6. reconcile the documents to the store.
+   *
+   * Proposals wait on the switch, so none is judged against a store that does
+   * not hold the imported documents yet.
+   */
+  function setMode({ mode, expectEpoch }) {
+    const run = async () => {
+      const next = await store.setMode({ mode, expectEpoch });
+      const notice = JSON.stringify({ type: 'maude.mode', mode: next.mode, epoch: next.epoch });
+      try {
+        for (const document of server.hocuspocus?.documents?.values?.() ?? []) {
+          document.broadcastStateless(notice);
+        }
+      } catch (err) {
+        log.warn?.(`[transactions] mode notice not delivered everywhere: ${err.message}`);
+      }
+      if (switchGraceMs > 0) await new Promise((r) => setTimeout(r, switchGraceMs));
+      state = { ...state, ...next };
+      if (mode !== 'transactions') return next;
+      // IMPORT BEFORE RECONCILE — reconciling first would roll back any
+      // document the store already knew with content from a legacy interval.
+      const imported = await importBaseline({
+        hocuspocus: server.hocuspocus,
+        store,
+        kernel,
+        projectId,
+        listDocuments,
+        tombstoned,
+        checkoutPath,
+        checkoutBody,
+        checkoutDirs,
+        canvasGroups,
+        designRel,
+      });
+      if (imported.skipped.length || imported.failed) {
+        log.warn?.(
+          `[transactions] baseline import: ${imported.created} created, ${imported.updated} updated, ${imported.dirs} folders; skipped ${imported.skipped.length}${imported.failed ? `; FAILED at chunk ${imported.failed.chunk} (${imported.failed.code})` : ''}`
+        );
+      }
+      await reconcile();
+      return { ...next, imported };
+    };
+    const p = switching.then(run, run);
+    switching = p.catch(() => {});
+    return p;
   }
 
   async function readBody(request) {
@@ -205,6 +270,7 @@ export function createAcceptedRevisions({
       }
       if (route === 'proposals' && method === 'POST') {
         const bytes = await readBody(request);
+        await switching;
         const { status, body } = await kernel.submit(bytes, {
           actor: who.actor,
           readOnly: who.readOnly,

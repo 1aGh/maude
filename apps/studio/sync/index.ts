@@ -109,6 +109,18 @@ export interface SyncProvider {
    */
   isRemoteOrigin?(origin: unknown): boolean;
   /**
+   * May a local write to this document reach the hub right now? False before
+   * the handshake authenticates and whenever the hub admitted this connection
+   * read-only — a write made then is dropped by the hub while the local
+   * replica keeps it, which is a divergence nothing would ever repair.
+   * Optional: a provider without it is treated as writable.
+   */
+  isWritable?(): boolean;
+  /** The hub authenticated this connection (again) — scope may have changed. */
+  onAuthenticated?(cb: (scope: string) => void): () => void;
+  /** Out-of-band messages from the hub on this document's socket. */
+  onStateless?(cb: (payload: string) => void): () => void;
+  /**
    * Resolves when the first hub sync handshake completes.
    *
    * `signal` lets a caller that gives up ALSO detach the underlying listener.
@@ -1804,6 +1816,27 @@ export function createSyncRuntime(
     return { ...(listing ?? { tombstones: [] }), documents, tombstones: listing?.tombstones ?? [] };
   }
 
+  /**
+   * Re-ask the save mode, and hand every held write back to its projection —
+   * as a proposal when the project turned out to be in transactions mode, as
+   * an ordinary import when the connection simply became writable.
+   */
+  let modeRefresh: Promise<void> | null = null;
+  function refreshAcceptedMode(): Promise<void> {
+    if (!acceptedLink) return Promise.resolve();
+    if (modeRefresh) return modeRefresh;
+    modeRefresh = acceptedLink
+      .refresh()
+      .then(() => {
+        if (acceptedOn()) applyProjectDirs(acceptedLink.manifest?.dirs ?? []);
+        for (const p of projections.values()) p.retryDeferred();
+      })
+      .finally(() => {
+        modeRefresh = null;
+      });
+    return modeRefresh;
+  }
+
   function proposeFolder(
     op:
       | { op: 'dir.create'; path: string }
@@ -3251,6 +3284,13 @@ export function createSyncRuntime(
                 historyDir: path.join(ctx.paths.historyDir, canvas.slug),
                 waitForReconcile: true,
                 ...(acceptedLink ? { accepted: acceptedLink.laneLink(canvas.slug) } : {}),
+                // A write the hub would drop is held, never made (see isWritable).
+                ...(provider.isWritable
+                  ? {
+                      canWriteDoc: () => provider.isWritable?.() !== false,
+                      onWriteBlocked: () => void refreshAcceptedMode(),
+                    }
+                  : {}),
                 onRecovered: () => store.clearSourceConflict(canvas.slug),
                 onConflict: (info) => {
                   store.addConflict(info);
@@ -3306,6 +3346,37 @@ export function createSyncRuntime(
             // agent/projection are the belt; this is the braces that also
             // cleans up.)
             watchForRetirement(canvas.slug, provider.document);
+
+            // THE HUB SAYS THE SAVE MODE CHANGED — on this document's own
+            // socket, ahead of closing it, so the switch is learned before any
+            // further local change is made (DDR-241 §7 switch ordering).
+            if (acceptedLink && provider.onStateless) {
+              noteDetach(
+                statusDetaches,
+                canvas.slug,
+                provider.onStateless((payload) => {
+                  let msg: { type?: unknown; mode?: unknown } | null = null;
+                  try {
+                    msg = JSON.parse(payload);
+                  } catch {
+                    return;
+                  }
+                  if (msg?.type !== 'maude.mode') return;
+                  if (msg.mode === 'transactions' || msg.mode === 'legacy') {
+                    acceptedLink.noteMode(msg.mode);
+                    void refreshAcceptedMode();
+                  }
+                })
+              );
+            }
+            if (provider.onAuthenticated) {
+              const slug = canvas.slug;
+              noteDetach(
+                statusDetaches,
+                slug,
+                provider.onAuthenticated(() => projections.get(slug)?.retryDeferred())
+              );
+            }
 
             // ACCEPTED-REPLICA TRIPWIRE (DDR-241 §7, plan T6/T12). In
             // transactions mode the hub drops every update this connection
@@ -5082,12 +5153,37 @@ export function createDefaultProviderFactory(
     };
     socket.on('status', resetSyncedOnDrop);
 
+    let authedThisConnection = false;
+    provider.on('authenticated', () => {
+      authedThisConnection = true;
+    });
+    const forgetAuthOnDrop = (evt: { status?: string }) => {
+      if (evt?.status !== 'connected') authedThisConnection = false;
+    };
+    socket.on('status', forgetAuthOnDrop);
     return {
       document,
       // HocuspocusProvider creates a hub-synced Awareness by default; expose it
       // so the runtime can bridge it to the collab Room (Task 5).
       awareness: provider.awareness as Awareness | undefined,
       isRemoteOrigin: (origin: unknown) => origin === provider,
+      // Writable = authenticated read-write ON THIS CONNECTION. A scope left
+      // over from before a drop says nothing about the hub now: a project
+      // switched to accepted revisions while this peer was away re-admits it
+      // read-only, and anything written in between would be dropped there.
+      isWritable: () => authedThisConnection && provider.authorizedScope === 'read-write',
+      onAuthenticated(cb: (scope: string) => void): () => void {
+        const handler = (evt: { scope?: string }) => cb(String(evt?.scope ?? ''));
+        provider.on('authenticated', handler);
+        return () => provider.off('authenticated', handler);
+      },
+      onStateless(cb: (payload: string) => void): () => void {
+        const handler = (evt: { payload?: string }) => {
+          if (typeof evt?.payload === 'string') cb(evt.payload);
+        };
+        provider.on('stateless', handler);
+        return () => provider.off('stateless', handler);
+      },
       onStatus(cb: (status: ProviderStatus) => void): () => void {
         // The shared socket emits 'status' on every WS transition and every
         // ATTACHED provider re-emits it (forwardStatus), so per-provider
@@ -5138,6 +5234,7 @@ export function createDefaultProviderFactory(
       },
       destroy() {
         socket.off('status', resetSyncedOnDrop);
+        socket.off('status', forgetAuthOnDrop);
         // Detaches from the shared socket (sends a per-document Close); the
         // socket itself is destroyed by dispose() after all providers.
         provider.destroy();

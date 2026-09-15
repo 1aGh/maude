@@ -28,7 +28,10 @@ export const EMPTY_HASH = laneHash('');
 
 const TX_ID = /^[A-Za-z0-9_-]{8,128}$/;
 const DOC_NAME = /^[A-Za-z0-9._/-]{1,300}$/;
-const DIR_COMPONENT = /^[A-Za-z0-9_-][A-Za-z0-9 _-]*$/;
+// The studio's folder-name rule (canvas-create.ts NAME_RE): letters and
+// numbers in any script, then spaces/underscores/hyphens — never a leading
+// `_` (runtime state), `-` or `.`.
+const DIR_COMPONENT = /^[\p{L}\p{N}][\p{L}\p{N} _-]{0,99}$/u;
 const MAX_DIR_DEPTH = 16;
 
 /** Codes whose rejection is terminal for these exact bytes (retained). */
@@ -74,6 +77,7 @@ export function checkDirPath(path, groups) {
   if (typeof path !== 'string' || !path || path.length > 512) return 'not a path';
   const parts = path.split('/');
   if (parts.length > MAX_DIR_DEPTH) return 'nested too deep';
+  if (path !== path.normalize('NFC')) return 'not NFC-normalized';
   for (const p of parts) {
     if (!DIR_COMPONENT.test(p) || p.endsWith(' ')) return 'invalid component';
   }

@@ -44,7 +44,7 @@ import { join, resolve } from 'node:path';
 
 import { SQLite } from '@hocuspocus/extension-sqlite';
 import { Server } from '@hocuspocus/server';
-
+import { canvasSlugFromRel } from '../../studio/canvas-slug.ts';
 import { ADMIN_CSS, ADMIN_HTML, ADMIN_JS, adminAssetsLoaded } from './admin-assets.mjs';
 import {
   generateAdminSecret,
@@ -1698,6 +1698,57 @@ export function createHub(config = {}) {
     canvasGroupsCache = { at: Date.now(), groups };
     return groups;
   };
+  /** slug → design-root-relative `.tsx` path, from the checkout (workspace mode). */
+  const checkoutCanvasPaths = () => {
+    const root = designRootFor();
+    const out = new Map();
+    if (!root) return out;
+    const walk = (abs, rel, depth) => {
+      if (depth > 16) return;
+      let entries;
+      try {
+        entries = readdirSync(abs, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const e of entries) {
+        if (e.name.startsWith('_') || e.name.startsWith('.') || e.name === 'node_modules') continue;
+        const childRel = rel ? `${rel}/${e.name}` : e.name;
+        if (e.isDirectory()) walk(join(abs, e.name), childRel, depth + 1);
+        else if (e.isFile() && e.name.endsWith('.tsx')) {
+          const slug = canvasSlugFromRel(childRel);
+          if (slug && !out.has(slug)) out.set(slug, childRel);
+        }
+      }
+    };
+    walk(root, '', 1);
+    return out;
+  };
+  /** Folders under the declared canvas groups (runtime `_*` and dot-dirs excluded). */
+  const checkoutFolders = () => {
+    const root = designRootFor();
+    const groups = acceptedCanvasGroups() ?? [];
+    if (!root || groups.length === 0) return [];
+    const out = [];
+    const walk = (abs, rel, depth) => {
+      if (depth > 16) return;
+      let entries;
+      try {
+        entries = readdirSync(abs, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const e of entries) {
+        if (!e.isDirectory() || e.name.startsWith('_') || e.name.startsWith('.')) continue;
+        if (e.name === 'node_modules') continue;
+        const childRel = `${rel}/${e.name}`;
+        out.push(childRel);
+        walk(join(abs, e.name), childRel, depth + 1);
+      }
+    };
+    for (const g of groups) walk(join(root, ...g.split('/')), g, 1);
+    return out;
+  };
   accepted = createAcceptedRevisions({
     server,
     store: projectStore,
@@ -1715,6 +1766,21 @@ export function createHub(config = {}) {
       }
     },
     onAccepted: () => documentEvents.changed(),
+    // Baseline import (T30): the storage listing, the project's deletions,
+    // and — in workspace mode — the checkout as the path/folder authority.
+    listDocuments: () => listCanvases(sqlitePath, peers),
+    tombstoned: () => new Set(listTombstones(dataDir).map((t) => t.name)),
+    checkoutPath: (slug) => checkoutCanvasPaths().get(slug) ?? null,
+    checkoutBody: (rel) => {
+      const root = designRootFor();
+      if (!root) return null;
+      try {
+        return readFileSync(join(root, ...rel.split('/')), 'utf8');
+      } catch {
+        return null;
+      }
+    },
+    checkoutDirs: () => checkoutFolders(),
   });
   // The persistent mode decides the fence before any peer can connect (the
   // SQLite read resolves long before the caller's `listen()`); the reconcile

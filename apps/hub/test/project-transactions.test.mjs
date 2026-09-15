@@ -503,6 +503,94 @@ describe('accepted revisions on a real hub', () => {
     }
   });
 
+  test('switching an existing project imports its documents; re-entry never rolls back legacy work', {
+    timeout: 60000,
+  }, async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'maude-tx-'));
+    dirs.push(dataDir);
+    const t = rig(dataDir);
+    const { built, http, ws } = await startHub(dataDir);
+    const epoch = { epoch: 0 };
+    const owner = client(http, t.owner, epoch);
+    const alice = client(http, t.alice, epoch);
+    const doc = 'ws/local/main/ui-legacy';
+    const writer = reader(ws, t.alice, doc);
+    try {
+      // A legacy peer writes the document directly, the way every client did.
+      await until(() => writer.provider.isSynced, 8000, 'legacy writer synced');
+      writer.doc.transact(() => {
+        writer.doc.getText('html').insert(0, src('legacy'));
+        writer.doc.getMap('syncMeta').set('path', 'ui/legacy.tsx');
+        writer.doc.getArray('comments').push([{ id: 'c1', text: 'kept' }]);
+      });
+      await until(
+        async () => {
+          const list = (await owner.get('/api/documents')).body.documents ?? [];
+          return list.some((d) => d.name === doc && d.bytes > 0);
+        },
+        10000,
+        'legacy document persisted'
+      );
+
+      const switched = await owner.post('/api/projects/local/v1/mode', {
+        mode: 'transactions',
+        expectEpoch: 0,
+      });
+      assert.equal(switched.status, 200, JSON.stringify(switched.body));
+      assert.equal(switched.body.imported.created, 1);
+      assert.deepEqual(switched.body.imported.skipped, []);
+      epoch.epoch = switched.body.epoch;
+      const boot = (await alice.get('/api/projects/local/v1/bootstrap')).body;
+      const entry = boot.docs.find((d) => d.doc === doc);
+      assert.equal(entry.path, 'ui/legacy.tsx');
+      const hist = (await alice.get('/api/projects/local/v1/history')).body.history;
+      assert.equal(hist[0].actor, 'maude-migration');
+      assert.equal(hist[0].kind, 'migration.import');
+      // The imported document takes proposals like any other.
+      const edit = await alice.propose([
+        {
+          op: 'lane.replace',
+          doc,
+          lane: 'html',
+          base: entry.lanes.html.hash,
+          content: src('accepted'),
+        },
+      ]);
+      assert.equal(edit.status, 200, JSON.stringify(edit.body));
+
+      // Back to legacy (rollback boundary): a legacy writer edits again…
+      const back = await owner.post('/api/projects/local/v1/mode', { mode: 'legacy' });
+      assert.equal(back.status, 200);
+      const again = reader(ws, t.alice, doc);
+      await until(
+        () => again.provider.isSynced && again.html() === src('accepted'),
+        8000,
+        'reader after rollback'
+      );
+      again.doc.transact(() => {
+        const text = again.doc.getText('html');
+        text.delete(0, text.length);
+        text.insert(0, src('legacy again'));
+      });
+      await new Promise((r) => setTimeout(r, 300));
+      again.close();
+      // …and re-entering carries that work forward instead of reconciling it away.
+      const reenter = await owner.post('/api/projects/local/v1/mode', { mode: 'transactions' });
+      assert.equal(reenter.status, 200, JSON.stringify(reenter.body));
+      assert.equal(reenter.body.imported.updated, 1);
+      const check = reader(ws, t.bob, doc);
+      await until(() => check.provider.isSynced, 8000, 'check reader');
+      await new Promise((r) => setTimeout(r, 200));
+      assert.equal(check.html(), src('legacy again'));
+      check.close();
+    } finally {
+      writer.close();
+      await built.stopJournal();
+      await built.server.destroy();
+      built.projectStore.close();
+    }
+  });
+
   test('acknowledged actions survive losing the document cache: the store rebuilds them', {
     timeout: 60000,
   }, async () => {

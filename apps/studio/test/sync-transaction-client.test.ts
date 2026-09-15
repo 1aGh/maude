@@ -98,7 +98,12 @@ afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 const outboxFiles = () => {
   const d = join(dir, '_state', 'outbox');
-  return existsSync(d) ? readdirSync(d).filter((n) => n.endsWith('.json')) : [];
+  // Sorted: the client replays in name (creation-stamp) order, not readdir order.
+  return existsSync(d)
+    ? readdirSync(d)
+        .filter((n) => n.endsWith('.json'))
+        .sort()
+    : [];
 };
 
 describe('transaction client', () => {

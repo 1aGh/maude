@@ -132,6 +132,14 @@ export interface DocProjectionOptions {
    * candidate until then; a rejection keeps it and reports a conflict.
    */
   accepted?: AcceptedLaneLink;
+  /**
+   * May a write to the shared document reach the hub right now? When false a
+   * file change is HELD (not imported) and `onWriteBlocked` fires; the runtime
+   * re-delivers it via `retryDeferred()` once the connection is writable or
+   * the project turns out to be in accepted-revisions mode.
+   */
+  canWriteDoc?: () => boolean;
+  onWriteBlocked?: () => void;
 }
 
 export type ProposalLane = 'html' | 'css' | 'meta' | 'annotations' | 'comments';
@@ -194,6 +202,8 @@ export interface DocProjection {
   ): Promise<ProposalOutcome> | null;
   /** Lanes with an unresolved proposal (status surfaces). */
   pendingCount(): number;
+  /** Re-deliver file changes held while the document was not writable. */
+  retryDeferred(): void;
   /**
    * Accepted-revisions cold start: disk differs from the accepted value and
    * nothing proves what it was derived from. Keep both — block the lane's
@@ -501,6 +511,8 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
   const lastProposed = new Map<ProposalLane, string>();
   /** Accepted mode: file events that arrived before the cold start decided. */
   const deferredBeforeReady = new Map<string, string>();
+  /** Legacy mode: file events held while the connection was not writable. */
+  const heldWhileReadOnly = new Map<string, string>();
 
   const REJECTION_REASON: Record<string, BodyRejection['reason']> = {
     'source-invalid': 'invalid-source',
@@ -707,6 +719,12 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       }
       return proposeFromFs(evt, str);
     }
+    // Legacy import: a write the hub would drop must not be made at all.
+    if (opts.canWriteDoc && !opts.canWriteDoc()) {
+      heldWhileReadOnly.set(evt.path, evt.hash);
+      opts.onWriteBlocked?.();
+      return false;
+    }
 
     if (evt.path === paths.html) {
       // Watchers can deliver the same projection more than once, including
@@ -891,6 +909,16 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       }
       const base = o?.baseContent ?? (inFlight ? inFlight.lastValue : agreedValue(lane));
       return submit(lane, value, base, value, o?.writeId);
+    },
+    retryDeferred() {
+      if (stopped || heldWhileReadOnly.size === 0) return;
+      if (!acceptedOn() && opts.canWriteDoc && !opts.canWriteDoc()) return;
+      const owed = [...heldWhileReadOnly];
+      heldWhileReadOnly.clear();
+      for (const [p, hash] of owed) {
+        const text = readLocal(p);
+        if (text !== null) applyFromFs({ path: p, bytes: new TextEncoder().encode(text), hash });
+      }
     },
     pendingCount() {
       let n = 0;

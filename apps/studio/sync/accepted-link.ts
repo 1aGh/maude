@@ -89,6 +89,16 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
 
   const on = (): boolean => mode === 'transactions';
 
+  /**
+   * The hub announced a mode change on a document socket. Believed at once —
+   * it is the hub's own word, delivered before it closes the socket — and
+   * confirmed by the next `refresh()`.
+   */
+  function noteMode(next: 'transactions' | 'legacy'): void {
+    if (next !== mode) log.log(`[sync/tx] the project switched its save mode: ${mode} → ${next}`);
+    mode = next;
+  }
+
   const outcome = (r: ProposalResult): ProposalOutcome => ({
     status: r.status,
     ...(r.code ? { code: r.code } : {}),
@@ -156,6 +166,7 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       return manifest;
     },
     laneLink,
+    noteMode,
     createDoc(
       slug: string,
       rel: string,
