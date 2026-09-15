@@ -694,6 +694,19 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     expect(ai?.label).toBe('Claude: rename both titles');
     expect(ai?.effects.length).toBe(2);
 
+    // Alice's own replica must hold the agent's accepted revision before the
+    // next run stages against it — on a slow machine (CI) the revision event
+    // lands after bob's disk does, and a run staged on the older base is (rightly)
+    // a conflict.
+    const agentRevision = (await api(hub, 'revisions?limit=500')).body.revisions.at(-1)
+      ?.revision as number;
+    await waitFor(
+      () =>
+        ((alice.runtime.status?.() as { appliedRevision?: number } | null)?.appliedRevision ?? 0) >=
+        agentRevision,
+      'alice to apply the agent’s revision'
+    );
+
     // --- a failed run: held, unpublished, then published by the person
     alice.runtime.beginAiAction?.('edit:design/ui/ai-a.tsx', 'Claude edited ai-a');
     alice.write('ui/ai-a.tsx', src('ai-a half done'));
@@ -703,7 +716,7 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     expect(bob.read('ui/ai-a.tsx')).toBe(src('ai-a by Claude'));
     expect(alice.read('ui/ai-a.tsx')).toBe(src('ai-a half done')); // kept
     const published = await alice.runtime.resolveAiAction?.('publish');
-    expect(published?.status).toBe('accepted');
+    expect(published).toMatchObject({ status: 'accepted' });
     await waitFor(
       () => bob.read('ui/ai-a.tsx') === src('ai-a half done'),
       'the published held edit'
