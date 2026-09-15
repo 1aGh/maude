@@ -515,6 +515,62 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     expect(after[0]?.label).toContain('Restore hist');
   }, 60_000);
 
+  test('an AI action is ONE history action; a failed one publishes nothing until the person decides (T16)', async () => {
+    for (const n of ['ai-a', 'ai-b', 'ai-c']) alice.write(`ui/${n}.tsx`, src(`${n} v1`));
+    await alice.runtime.rescanNow();
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return ['ai-a', 'ai-b', 'ai-c'].every((n) => bob.read(`ui/${n}.tsx`) === src(`${n} v1`));
+    }, 'the three canvases on bob');
+    const before = ((await api(hub, 'history?limit=200')).body.history as unknown[]).length;
+
+    // --- a clean run: two files, one action
+    alice.runtime.beginAiAction?.('acp:chat-1', 'Claude: rename both titles');
+    alice.write('ui/ai-a.tsx', src('ai-a by Claude'));
+    alice.write('ui/ai-b.tsx', src('ai-b by Claude'));
+    // The person keeps working on a canvas the agent never touched: theirs,
+    // published at once, not swallowed into the agent's action.
+    alice.ctx.bus.emit('activity:suppress', 'ui/ai-c.tsx');
+    alice.write('ui/ai-c.tsx', src('ai-c by the designer'));
+    await waitFor(() => bob.read('ui/ai-c.tsx') === src('ai-c by the designer'), 'the designer’s own edit');
+    await new Promise((r) => setTimeout(r, 800));
+    expect(bob.read('ui/ai-a.tsx')).toBe(src('ai-a v1')); // nothing of the agent's yet
+    expect(bob.read('ui/ai-b.tsx')).toBe(src('ai-b v1'));
+    const ended = await alice.runtime.endAiAction?.('acp:chat-1', 'done');
+    expect(ended?.status).toBe('accepted');
+    await waitFor(
+      () => bob.read('ui/ai-a.tsx') === src('ai-a by Claude') && bob.read('ui/ai-b.tsx') === src('ai-b by Claude'),
+      'the agent’s action on bob'
+    );
+    const hist = (await api(hub, 'history?limit=200')).body.history as { kind: string; label: string; effects: unknown[] }[];
+    expect(hist.length).toBe(before + 2); // the designer's edit + ONE agent action
+    const ai = hist.find((a) => a.kind === 'ai');
+    expect(ai?.label).toBe('Claude: rename both titles');
+    expect(ai?.effects.length).toBe(2);
+
+    // --- a failed run: held, unpublished, then published by the person
+    alice.runtime.beginAiAction?.('edit:design/ui/ai-a.tsx', 'Claude edited ai-a');
+    alice.write('ui/ai-a.tsx', src('ai-a half done'));
+    await new Promise((r) => setTimeout(r, 400));
+    await alice.runtime.endAiAction?.('edit:design/ui/ai-a.tsx', 'failed');
+    await new Promise((r) => setTimeout(r, 800));
+    expect(bob.read('ui/ai-a.tsx')).toBe(src('ai-a by Claude'));
+    expect(alice.read('ui/ai-a.tsx')).toBe(src('ai-a half done')); // kept
+    const published = await alice.runtime.resolveAiAction?.('publish');
+    expect(published?.status).toBe('accepted');
+    await waitFor(() => bob.read('ui/ai-a.tsx') === src('ai-a half done'), 'the published held edit');
+
+    // --- a failed run the person discards: the accepted version comes back
+    alice.runtime.beginAiAction?.('acp:chat-2', 'Claude: experiment');
+    alice.write('ui/ai-b.tsx', src('ai-b experiment'));
+    await new Promise((r) => setTimeout(r, 400));
+    await alice.runtime.endAiAction?.('acp:chat-2', 'failed');
+    const discarded = await alice.runtime.resolveAiAction?.('discard');
+    expect(discarded?.status).toBe('discarded');
+    await waitFor(() => alice.read('ui/ai-b.tsx') === src('ai-b by Claude'), 'the accepted version back on alice');
+    expect(bob.read('ui/ai-b.tsx')).toBe(src('ai-b by Claude'));
+  }, 90_000);
+
   test('a fresh checkout replays the project byte-identically (T14)', async () => {
     const carolRoot = join(root, 'carol');
     const carol = await startPeer('carol', carolRoot, `http://127.0.0.1:${hub.port}`);

@@ -101,14 +101,28 @@ const BEAT_MS = 4000;
 
 interface AgentActivityTracker {
   onUpdate(update: SessionUpdate): void;
-  /** Turn finished (normal, cancel, error) or socket closed — clear banners. */
-  endTurn(): void;
+  /**
+   * Turn finished (normal, cancel, error) or socket closed — clear banners.
+   * T16: `done` publishes what the turn wrote as ONE project action; anything
+   * else (cancel, error, token limit, reap) keeps it unpublished for the
+   * person's decision. Default `failed` — only a clean end publishes.
+   */
+  endTurn(outcome?: 'done' | 'failed'): void;
+  /** The prompt this turn answers — the action's history label. */
+  beginTurn?(prompt: string): void;
 }
 
 /** Exported for tests (acp-ai-activity.test.ts); not part of the Acp surface. */
-export function createAgentActivityTracker(ctx: Context, ai: AiActivity): AgentActivityTracker {
+export function createAgentActivityTracker(
+  ctx: Context,
+  ai: AiActivity,
+  chatId = 'default'
+): AgentActivityTracker {
   const kindByToolCall = new Map<string, string>(); // toolCallId → kind
   const lastBeat = new Map<string, number>(); // ai-activity key → last beat ms
+  const actionKey = `acp:${chatId}`;
+  let turnLabel = 'Claude edit';
+  let actionOpen = false;
 
   function keyFor(p: unknown): string | null {
     if (typeof p !== 'string' || !p) return null;
@@ -145,6 +159,11 @@ export function createAgentActivityTracker(ctx: Context, ai: AiActivity): AgentA
     for (const p of candidates) {
       const key = keyFor(p);
       if (!key) continue;
+      if (!actionOpen) {
+        // T16 — the turn's first canvas edit opens its project action.
+        actionOpen = true;
+        ctx.syncControl?.current?.()?.beginAiAction?.(actionKey, turnLabel);
+      }
       const last = lastBeat.get(key);
       if (last == null) {
         ai.start(key, AGENT_AUTHOR);
@@ -156,13 +175,22 @@ export function createAgentActivityTracker(ctx: Context, ai: AiActivity): AgentA
     }
   }
 
-  function endTurn(): void {
+  function endTurn(outcome: 'done' | 'failed' = 'failed'): void {
     for (const key of lastBeat.keys()) ai.end(key);
     lastBeat.clear();
     kindByToolCall.clear();
+    if (actionOpen) {
+      actionOpen = false;
+      void ctx.syncControl?.current?.()?.endAiAction?.(actionKey, outcome)?.catch(() => {});
+    }
   }
 
-  return { onUpdate, endTurn };
+  function beginTurn(prompt: string): void {
+    const words = prompt.replace(/\s+/g, ' ').trim().slice(0, 80);
+    turnLabel = words ? `Claude: ${words}` : 'Claude edit';
+  }
+
+  return { onUpdate, endTurn, beginTurn };
 }
 
 // ── Detached bridge lifetime (feature-acp-write-path-scope Addendum, Task 8) ──
@@ -328,7 +356,7 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity): Acp {
         return null;
       }
     }
-    const tracker = aiActivity ? createAgentActivityTracker(ctx, aiActivity) : null;
+    const tracker = aiActivity ? createAgentActivityTracker(ctx, aiActivity, chatId) : null;
     // Declared before the bridge so the callbacks below can close over it —
     // they fan out to `entry.sinks`, which changes as sockets come and go,
     // rather than capturing one socket the way the per-socket design did.
@@ -548,9 +576,14 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity): Acp {
     // first await, so a socket that closes during the spawn still counts as a
     // live turn rather than an abandoned bridge.
     entry.turnActive = true;
+    entry.tracker?.beginTurn?.(text);
+    let turnOutcome: 'done' | 'failed' = 'failed';
     try {
       await bridge.ensureStarted();
       const { stopReason } = await bridge.prompt(text, sanitizeChatId(chatId));
+      // Only a turn that ended on its own publishes; a cancel, a refusal or a
+      // token limit leaves its edits for the person (T16).
+      if (stopReason === 'end_turn') turnOutcome = 'done';
       broadcast(entry, { t: 'connected', sessionId: bridge.sessionId });
       broadcast(entry, { t: 'turn-end', stopReason });
     } catch (err) {
@@ -564,7 +597,7 @@ export function createAcp(ctx: Context, aiActivity?: AiActivity): Acp {
       // RC5 — the turn is over (success, error, or cancel-induced stop): clear
       // every "Claude is editing …" banner this turn raised. The 30 s heartbeat
       // grace still covers a crashed dev-server round-trip.
-      entry.tracker?.endTurn();
+      entry.tracker?.endTurn(turnOutcome);
       // The turn was the only reason a detached bridge was being kept alive; now
       // that it's done, let the ordinary TTL run out rather than holding the
       // subprocess indefinitely for a client that never came back.

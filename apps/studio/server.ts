@@ -198,6 +198,16 @@ ctx.bus.on('ai-activity', (payload: { file: string; entry: AiActivityEntry | nul
     payload.entry ? { name: payload.entry.author, since: payload.entry.startedAt } : null
   );
 });
+// T16 — an AI edit whose heartbeat went silent (the driver crashed) did not
+// finish: whatever it wrote stays unpublished for the person's decision. An
+// explicit /end already closed its action, so this is a no-op then.
+ctx.bus.on('ai-activity', (payload: { file: string; entry: AiActivityEntry | null }) => {
+  if (payload.entry) return;
+  void ctx.syncControl
+    ?.current?.()
+    ?.endAiAction?.(`edit:${payload.file}`, 'failed')
+    ?.catch(() => {});
+});
 const gitLifecycle = createGitLifecycle(ctx, collab.registry);
 // Phase 13 / DDR-029 — fs-watch-driven canvas activity overlay. Subscribes to
 // `fs:any` and emits `activity:change`; ws.ts forwards it to canvas iframes.

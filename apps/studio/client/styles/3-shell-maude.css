@@ -2636,6 +2636,8 @@ body.st-scrubbing, body.st-scrubbing * { cursor: ew-resize !important; user-sele
    Maude Cloud projects, a team server sign-in. Composes the ob-* door parts; the
    dialog frame reuses gi-modal/gi-dialog from the project switcher. ── */
 .gi-dl-open { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); padding-bottom: var(--space-4); border-bottom: 1px solid var(--border-default); }
+.sp-ai-held { display: flex; flex-direction: column; gap: var(--space-2); }
+.sp-ai-actions { display: flex; gap: var(--space-2); }
 .tp { display: flex; flex-direction: column; gap: var(--space-5); max-width: 720px; }
 .tp-section { display: flex; flex-direction: column; gap: var(--space-3); }
 .tp-device { display: flex; flex-direction: column; gap: var(--space-3); max-width: 560px; }

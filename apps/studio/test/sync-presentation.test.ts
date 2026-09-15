@@ -480,3 +480,28 @@ describe('accepted revisions — Saving until the project answers', () => {
     expect(hostile?.phase).toBe('synced');
   });
 });
+
+// Plan T16 — an AI edit that did not finish is the person's decision.
+describe('AI actions', () => {
+  test('held reads as attention and says nothing is shared', () => {
+    const p = at({
+      docs: { synced: 3, pending: 0, rejected: 0 },
+      aiAction: { state: 'held', label: 'Claude: x', canvases: ['ui-a', 'ui-b'], since: 1 },
+    });
+    expect(p?.phase).toBe('attention');
+    expect(p?.title).toContain('2 canvases');
+    expect(p?.title).toContain('not shared');
+  });
+  test('open reads as in progress, never Saved', () => {
+    const p = at({
+      docs: { synced: 3, pending: 0, rejected: 0 },
+      aiAction: { state: 'open', label: 'x', canvases: [], since: 1 },
+    });
+    expect(p?.phase).toBe('syncing');
+    expect(p?.label).toBe('AI editing');
+  });
+  test('a malformed stage is ignored', () => {
+    const p = at({ docs: { synced: 3, pending: 0, rejected: 0 }, aiAction: { state: 'pwned' } });
+    expect(p?.phase).toBe('synced');
+  });
+});

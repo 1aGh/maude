@@ -86,6 +86,12 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     via: 'history.restore — a NEW action restoring the canvas lanes (not comments) to a revision',
     test: 'test/sync-accepted-runtime.test.ts',
   },
+  '/_api/project/ai-action': {
+    class: 'lane',
+    rows: 'I02',
+    via: 'publish: the held AI stage as ONE history action (lane.replace ops); discard: accepted value back to disk',
+    test: 'test/sync-accepted-runtime.test.ts',
+  },
   '/_api/project/undo': {
     class: 'lane',
     rows: 'S18',

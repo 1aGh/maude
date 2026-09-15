@@ -83,6 +83,8 @@ export interface SyncStatusLike extends Partial<SyncStatusSnapshot> {
   assets?: unknown;
   /** Accepted-revisions save counters (plan T29) — validated below. */
   accepted?: unknown;
+  /** An AI action open or held (plan T16) — validated below. */
+  aiAction?: unknown;
 }
 
 /** Hub-supplied text that reaches a UI. Bounded, never markup. */
@@ -501,6 +503,21 @@ export function syncPresentation(
   const laneAttention = attention(false);
   if (laneAttention) return laneAttention;
 
+  // Plan T16 — an AI edit that did not finish is kept on this device, not
+  // shared. It is the person's decision, so it reads as attention.
+  const ai = readAiAction(status.aiAction);
+  if (ai?.state === 'held') {
+    const n = ai.canvases;
+    return {
+      phase: 'attention',
+      online: true,
+      label: 'AI edit held',
+      title: `An unfinished AI edit to ${n} canvas${n === 1 ? '' : 'es'} is kept on this device — it is not shared with ${project} yet.`,
+      next: 'Open the Sync panel to publish it as it stands or discard it.',
+      names: [],
+    };
+  }
+
   if (docs.pending > 0) {
     // Zero settled yet is a different fact from some settled: one is a
     // handshake in flight, the other is visible progress.
@@ -545,6 +562,16 @@ export function syncPresentation(
   // Plan T29 — accepted revisions: "synced" documents only mean the replica is
   // current. A change still waiting for the project's durable answer is saved
   // on this device, not yet shared — so it is Saving, never Saved.
+  if (ai?.state === 'open') {
+    return {
+      phase: 'syncing',
+      online: true,
+      label: 'AI editing',
+      title: `An AI edit is in progress — its changes are shared with ${project} together when it finishes.`,
+      next: null,
+      names: [],
+    };
+  }
   const acceptedPending = readAcceptedPending(status.accepted);
   if (acceptedPending) {
     const ageS = acceptedPending.oldestPendingAt
@@ -605,4 +632,13 @@ function readAcceptedPending(
     pending,
     oldestPendingAt: typeof at === 'number' && Number.isFinite(at) && at > 0 ? at : null,
   };
+}
+
+/** `status.aiAction`, validated — never trusted off disk. */
+function readAiAction(raw: unknown): { state: 'open' | 'held'; canvases: number } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as { state?: unknown; canvases?: unknown };
+  if (r.state !== 'open' && r.state !== 'held') return null;
+  const canvases = Array.isArray(r.canvases) ? Math.min(r.canvases.length, 10_000) : 0;
+  return { state: r.state, canvases };
 }

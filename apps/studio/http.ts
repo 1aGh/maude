@@ -2229,6 +2229,10 @@ export function createHttp(
           ? body.author.trim().slice(0, 120)
           : 'Claude';
       const entry = ai.start(body.file.trim(), author);
+      // T16 — the edit is ONE project action: what the agent writes until
+      // /end is published together (or held, if it fails).
+      const name = body.file.trim().split('/').pop()?.replace(/\.(tsx|html)$/i, '') ?? 'canvas';
+      ctx.syncControl?.current?.()?.beginAiAction?.(`edit:${body.file.trim()}`, `${author} edited ${name}`);
       return Response.json(entry, { headers: { 'Cache-Control': 'no-store' } });
     },
 
@@ -2256,14 +2260,37 @@ export function createHttp(
         return new Response('cross-origin write rejected', { status: 403 });
       if (!isTrustedRequestHost(req))
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      const body = await readJson<{ file?: string }>(req);
+      const body = await readJson<{ file?: string; outcome?: string }>(req);
       if (!body || typeof body.file !== 'string' || !body.file.trim()) {
         return new Response('body.file required', { status: 400 });
       }
+      // T16 — close the action BEFORE the banner clears: `done` publishes
+      // what the agent wrote as one action, `failed` keeps it unpublished for
+      // the person's decision. (No outcome = done, the pre-T16 contract.)
+      const action = await ctx.syncControl
+        ?.current?.()
+        ?.endAiAction?.(`edit:${body.file.trim()}`, body.outcome === 'failed' ? 'failed' : 'done')
+        .catch(() => null);
       const cleared = ai.end(body.file.trim());
       return Response.json(
-        { cleared },
+        { cleared, ...(action ? { action } : {}) },
         { status: cleared ? 200 : 404, headers: { 'Cache-Control': 'no-store' } }
+      );
+    },
+
+    '/_api/project/ai-action': async (req: Request) => {
+      // T16 — the person's decision on an unfinished AI edit (held stage).
+      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+      if (!sameOriginWrite(req)) return new Response('cross-origin write rejected', { status: 403 });
+      if (!isTrustedRequestHost(req)) return new Response('local request required', { status: 403 });
+      const body = await readJson<{ choice?: string }>(req);
+      const choice = body?.choice === 'discard' ? 'discard' : body?.choice === 'publish' ? 'publish' : null;
+      if (!choice) return Response.json({ ok: false, error: 'choice must be publish or discard' }, { status: 400 });
+      const r = await ctx.syncControl?.current?.()?.resolveAiAction?.(choice);
+      if (!r) return Response.json({ ok: false, error: 'There is no unfinished AI edit.' }, { status: 409 });
+      return Response.json(
+        { ok: r.status !== 'rejected', ...r },
+        { headers: { 'Cache-Control': 'no-store' } }
       );
     },
 

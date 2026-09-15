@@ -217,6 +217,9 @@ export const STUDIO_ROUTES = Object.freeze({
   // the desktop's own copy-making step, never something a cell does for a
   // visitor (plan T21).
   '/_api/projects/prepare': REFUSED,
+  // An unfinished AI edit is a desktop agent's (the cell runs no agent — the
+  // chat lanes above are refused too).
+  '/_api/project/ai-action': REFUSED,
 
   // ---- refused in a cell, on the record ----------------------------------
   //

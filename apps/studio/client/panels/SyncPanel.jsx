@@ -264,6 +264,27 @@ export default function SyncPanel({
   // Plan T20/T22 — a refused workspace on the desktop is usually a sign-in that
   // ran out. Signing in again re-mints the credential and reopens the same copy.
   const [signInAgain, setSignInAgain] = useState(false);
+  // Plan T16 — the person's decision on an unfinished AI edit.
+  const [aiBusy, setAiBusy] = useState('');
+  const [aiNote, setAiNote] = useState('');
+  const aiHeld = status?.aiAction?.state === 'held' ? status.aiAction : null;
+  async function resolveAi(choice) {
+    setAiBusy(choice);
+    setAiNote('');
+    try {
+      const r = await fetch('/_api/project/ai-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ choice }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!j.ok) setAiNote(j.error || (j.code ? `The project refused it (${j.code}).` : 'That did not work.'));
+    } catch {
+      setAiNote('Maude isn’t reachable right now.');
+    } finally {
+      setAiBusy('');
+    }
+  }
   const [resyncing, setResyncing] = useState(false);
   const [cooling, setCooling] = useState(false);
   const [note, setNote] = useState('');
@@ -591,6 +612,27 @@ export default function SyncPanel({
             (shared-doc buffer, TSX bodies) and used to live only in a
             console.warn a desktop user never sees. Dismiss is per (notice,
             hub) on this machine — a new hub resurfaces them by design. */}
+        {aiHeld && (
+          <section aria-label="Unfinished AI edit" className="sp-notice sp-ai-held" data-testid="sync-ai-held">
+            <p className="sp-notice-text">
+              <b>An unfinished AI edit is kept on this device.</b>{' '}
+              {safeDetail(aiHeld.label, 'AI edit')} changed{' '}
+              {Array.isArray(aiHeld.canvases) ? aiHeld.canvases.length : 0} canvas
+              {Array.isArray(aiHeld.canvases) && aiHeld.canvases.length === 1 ? '' : 'es'} and did not finish,
+              so nothing of it is shared yet. Publish it as it stands, or discard it — the
+              discarded bytes stay in recovery.
+            </p>
+            <div className="sp-ai-actions">
+              <button type="button" className="btn btn--sm btn--primary" disabled={!!aiBusy} onClick={() => resolveAi('publish')} data-testid="sync-ai-publish">
+                {aiBusy === 'publish' ? 'Publishing…' : 'Publish'}
+              </button>
+              <button type="button" className="btn btn--sm btn--ghost" disabled={!!aiBusy} onClick={() => resolveAi('discard')} data-testid="sync-ai-discard">
+                {aiBusy === 'discard' ? 'Discarding…' : 'Discard'}
+              </button>
+            </div>
+            {aiNote && <p className="sp-notice-text" role="alert">{safeDetail(aiNote, '')}</p>}
+          </section>
+        )}
         {notices.length > 0 && (
           <section aria-label="Notices" data-testid="sync-notices">
             {notices.map((n) => (

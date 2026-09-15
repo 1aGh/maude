@@ -288,6 +288,17 @@ export interface Context {
         actionId: string,
         redo?: boolean
       ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean } | null>;
+      /** T16 — AI action boundaries (see sync/action-stage.ts). */
+      beginAiAction?(key: string, label: string): void;
+      endAiAction?(
+        key: string,
+        outcome: 'done' | 'failed'
+      ): Promise<{ status: 'accepted' | 'rejected'; code?: string } | null>;
+      resolveAiAction?(choice: 'publish' | 'discard'): Promise<{
+        status: 'accepted' | 'rejected' | 'discarded';
+        code?: string;
+        canvases?: number;
+      } | null>;
     } | null;
   };
 }

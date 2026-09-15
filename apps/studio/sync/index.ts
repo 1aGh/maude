@@ -332,6 +332,8 @@ export const REMOTE_POLL_SOON_MS = 1_500;
 export const POKE_COOLDOWN_MS = REMOTE_POLL_MS / 2;
 /** Accepted revisions: how soon, and how often at most, a poke pulls. */
 export const ACCEPTED_POKE_DELAY_MS = 60;
+/** T16 — how long the last tool write of an AI action gets to reach the stage. */
+export const AI_ACTION_SETTLE_MS = 250;
 export const ACCEPTED_POKE_COOLDOWN_MS = 1_000;
 
 /**
@@ -528,6 +530,21 @@ export interface SyncRuntime {
     actionId: string,
     redo?: boolean
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean } | null>;
+  /**
+   * T16 — an AI action begins: file changes tools make until it ends are
+   * published together as one action (see action-stage.ts). `key` names the
+   * participant (an agent turn, a /design:edit run).
+   */
+  beginAiAction?(key: string, label: string): void;
+  /** T16 — `done` publishes (when the last participant ends); `failed` holds. */
+  endAiAction?(
+    key: string,
+    outcome: 'done' | 'failed'
+  ): Promise<{ status: 'accepted' | 'rejected'; code?: string } | null>;
+  /** T16 — the person's decision on a held (unfinished) AI action. */
+  resolveAiAction?(
+    choice: 'publish' | 'discard'
+  ): Promise<{ status: 'accepted' | 'rejected' | 'discarded'; code?: string; canvases?: number } | null>;
 }
 
 export interface AcceptedHistoryRow {
@@ -875,6 +892,7 @@ export function createSyncRuntime(
         fetchImpl: opts.transactionFetch,
         retryMs: opts.transactionRetryMs,
         onStats: (stats) => statusStore?.updateAccepted?.(stats),
+        onStage: (summary) => statusStore?.updateAiAction?.(summary),
       })
     : null;
   const acceptedOn = (): boolean => acceptedLink?.on() === true;
@@ -2319,6 +2337,9 @@ export function createSyncRuntime(
         broadcast: (payload) => ctx.bus.emit('sync:status', payload),
       });
     const store = statusStore;
+    // An unfinished AI action restored from the last session (T16).
+    const restoredStage = acceptedLink?.stage.summary();
+    if (restoredStage) store.updateAiAction?.(restoredStage);
 
     // DDR-079 — TSX sync defaults ON, so every linked non-loopback project that
     // ships .tsx broadcasts the WebRTC/self-nav exfil residual (the sandbox
@@ -4659,6 +4680,28 @@ export function createSyncRuntime(
     acceptedUndo: async (actionId, redo = false) => {
       if (!acceptedOn() || !acceptedLink) return null;
       return acceptedLink.undo(actionId, redo);
+    },
+    beginAiAction: (key, label) => {
+      if (!acceptedOn() || !acceptedLink) return;
+      acceptedLink.stage.begin(key, label);
+    },
+    endAiAction: async (key, outcome) => {
+      if (!acceptedLink) return null;
+      // The watcher delivers the last tool write a beat after the tool
+      // returns; let it land in the stage before the stage closes.
+      await new Promise((r) => setTimeout(r, AI_ACTION_SETTLE_MS));
+      await (discoveryRescan?.flush() ?? Promise.resolve()).catch(() => {});
+      const r = await acceptedLink.stage.end(key, outcome);
+      return r ? { status: r.status, ...(r.code ? { code: r.code } : {}) } : null;
+    },
+    resolveAiAction: async (choice) => {
+      if (!acceptedLink || acceptedLink.stage.state !== 'held') return null;
+      if (choice === 'discard') {
+        const canvases = acceptedLink.stage.discard();
+        return { status: 'discarded', canvases };
+      }
+      const r = await acceptedLink.stage.publish();
+      return r ? { status: r.status, ...(r.code ? { code: r.code } : {}) } : null;
     },
   };
 }

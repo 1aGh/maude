@@ -12,6 +12,7 @@
 // Nothing here writes a Y.Doc. The documents change when the hub publishes the
 // accepted revision, through the same providers that deliver a peer's edit.
 
+import { createActionStage, type StageSummary } from './action-stage.ts';
 import type { AcceptedLaneLink, LaneProposal, ProposalOutcome } from './projection.ts';
 import {
   type Bootstrap,
@@ -38,6 +39,8 @@ export interface AcceptedLinkOptions {
   retryMs?: number;
   /** Injected client (tests). */
   client?: TransactionClient;
+  /** T16 — an AI action opened, was held, or ended. */
+  onStage?: (summary: StageSummary | null) => void;
 }
 
 export type StructuralOutcome = ProposalOutcome & { queued?: boolean };
@@ -68,6 +71,16 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
 
   let mode: AcceptedMode = 'unknown';
   let manifest: Bootstrap | null = null;
+
+  // T16 — AI and multi-file action boundaries (see action-stage.ts).
+  const stage = createActionStage({
+    designRoot: opts.designRoot,
+    propose: (action) => client.propose(action),
+    newTransactionId: client.newTransactionId,
+    onChange: opts.onStage,
+    log,
+  });
+  stage.restore();
 
   /**
    * Ask the hub which protocol this project speaks. A network failure keeps
@@ -112,25 +125,42 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     return {
       on,
       newTransactionId: client.newTransactionId,
-      propose: (p) =>
-        client
-          .propose({
-            kind: 'edit',
-            label: LANE_LABEL[p.lane],
-            transactionId: p.transactionId,
-            dependsOn: p.dependsOn,
-            operations: [
-              {
-                op: 'lane.replace',
-                doc: opts.docNameFor(slug),
-                lane: p.lane,
-                content: p.content,
-                baseContent: p.baseContent,
-                ...(p.writeId ? { writeId: p.writeId } : {}),
-              },
-            ],
-          })
-          .then(outcome),
+      propose: (p) => {
+        const doc = opts.docNameFor(slug);
+        if (stage.captures(slug, p.stageable === true)) return stage.capture(slug, doc, p);
+        const send = (dependsOn: string[] | undefined) =>
+          client
+            .propose({
+              kind: 'edit',
+              label: LANE_LABEL[p.lane],
+              transactionId: p.transactionId,
+              dependsOn,
+              operations: [
+                {
+                  op: 'lane.replace',
+                  doc,
+                  lane: p.lane,
+                  content: p.content,
+                  baseContent: p.baseContent,
+                  ...(p.writeId ? { writeId: p.writeId } : {}),
+                },
+              ],
+            })
+            .then(outcome);
+        if (stage.holdsDependency(p.dependsOn)) {
+          // Authored on top of an agent's unpublished bytes: it waits behind
+          // the stage, and goes out right after the group (or is discarded
+          // with it).
+          return new Promise<ProposalOutcome>((resolve, reject) => {
+            stage.wait({
+              dependsOn: p.dependsOn ?? [],
+              send: (d) => void send(d).then(resolve, reject),
+              drop: resolve,
+            });
+          });
+        }
+        return send(stage.mapDeps(p.dependsOn));
+      },
     };
   }
 
@@ -170,6 +200,8 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     },
     laneLink,
     noteMode,
+    /** T16 — AI action boundaries. */
+    stage,
     createDoc(
       slug: string,
       rel: string,

@@ -86,6 +86,8 @@ export interface SyncStatusPayload extends SyncStatusSnapshot {
    * absent until the project saves through accepted revisions.
    */
   accepted?: AcceptedSaveStatus;
+  /** Plan T16 — an AI action open or held (unfinished). Absent when none. */
+  aiAction?: { state: 'open' | 'held'; label: string; canvases: string[]; since: number };
 }
 
 export interface AcceptedSaveStatus {
@@ -221,6 +223,8 @@ export interface SyncStatusStore {
   updateFiles(files: FilePlaneStatus): void;
   /** Plan T29 — accepted-revisions save counters. */
   updateAccepted(next: AcceptedSaveStatus): void;
+  /** Plan T16 — the AI action stage (null clears it). */
+  updateAiAction(next: SyncStatusPayload['aiAction'] | null): void;
   /** Record a consent-class notice (A7) + persist + broadcast. Idempotent by
    *  `id` — the notice sites fire once per boot, and a repeat is a no-op
    *  rather than a duplicate row. */
@@ -261,6 +265,7 @@ export function createSyncStatusStore(opts: SyncStatusStoreOptions): SyncStatusS
   let assets: AssetPushProgress | undefined;
   let files: FilePlaneStatus | undefined;
   let accepted: AcceptedSaveStatus | undefined;
+  let aiAction: SyncStatusPayload['aiAction'] | undefined;
   const notices: SyncNotice[] = [];
 
   function payload(): SyncStatusPayload {
@@ -285,6 +290,7 @@ export function createSyncStatusStore(opts: SyncStatusStoreOptions): SyncStatusS
       ...(assets ? { assets } : {}),
       ...(files ? { files } : {}),
       ...(accepted ? { accepted } : {}),
+      ...(aiAction ? { aiAction } : {}),
       ...(notices.length ? { notices: notices.slice() } : {}),
     };
   }
@@ -364,6 +370,10 @@ export function createSyncStatusStore(opts: SyncStatusStoreOptions): SyncStatusS
     updateAssets(progress) {
       assets = progress;
       flush();
+    },
+    updateAiAction(next) {
+      aiAction = next ?? undefined;
+      flush(true);
     },
     updateAccepted(next) {
       const was = accepted;

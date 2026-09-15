@@ -79,6 +79,20 @@ projection sees is its starting state and is never held. One writer owns each
 checkout: the studio projection on a desktop, the studio child in a cell (the
 workspace agent stops writing the checkout once accepted revisions are on).
 
+**AI and multi-file actions (T16)**: an agent turn in the app's chat (from its
+first canvas edit to the end of the turn) and a `/design:edit` run
+(`/_api/ai/start` … `/_api/ai/end {outcome}`) are each ONE project action. The
+file changes tools make meanwhile are staged (`sync/action-stage.ts`), not
+proposed; a clean end proposes them as one transaction (`kind: 'ai'`, labelled
+with the request) — the first base and the last content per lane. A cancel,
+error, refusal, token limit or a silent heartbeat HOLDS them: kept on disk and
+in `_state/ai-stage.json` (so a crash never becomes a partial publish at the
+next cold start), unpublished, until the person chooses *Publish* or *Discard*
+in the Sync panel (`/_api/project/ai-action`). The person's own UI edits are
+never swallowed into the agent's action; one made on top of a staged file
+waits behind it (dependency). A new canvas the agent creates is added at once
+(nothing refers to it until the staged edit that uses it publishes).
+
 ### Rights and project entry (T20–T22)
 
 A **designer** is the project role `member` (cloud project role, or a hub

@@ -170,6 +170,12 @@ export interface LaneProposal {
   transactionId: string;
   /** An earlier proposal of the same lane this one was authored on top of. */
   dependsOn?: string[];
+  /**
+   * T16 — a change a TOOL wrote (watcher import, or a cold-start difference):
+   * joins an open AI action instead of going out on its own. A change the
+   * person made through the UI is never stageable.
+   */
+  stageable?: boolean;
 }
 
 export interface AcceptedLaneLink {
@@ -209,7 +215,7 @@ export interface DocProjection {
   proposeLane(
     lane: ProposalLane,
     value: string,
-    opts?: { baseContent?: string; writeId?: string }
+    opts?: { baseContent?: string; writeId?: string; stageable?: boolean }
   ): Promise<ProposalOutcome> | null;
   /** Lanes with an unresolved proposal (status surfaces). */
   pendingCount(): number;
@@ -651,7 +657,8 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     value: string,
     baseContent: string,
     local: string,
-    writeId?: string
+    writeId?: string,
+    stageable = false
   ): Promise<ProposalOutcome> {
     const link = opts.accepted as AcceptedLaneLink;
     const prior = pending.get(lane);
@@ -679,6 +686,18 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       if (outcome.status === 'accepted') {
         if (!pending.has(lane)) held.delete(lane);
         if (lane === 'html') recovered();
+      } else if (outcome.code === 'discarded') {
+        // T16 — the person discarded an unfinished AI edit: the accepted
+        // version returns to disk (the candidate is in the recovery slots).
+        held.delete(lane);
+        if (lane === 'html') {
+          observedBody = readLocal(paths.html);
+          lastHtml = null;
+        } else if (lane === 'css') {
+          lastCss = null;
+        } else if (lane === 'meta') {
+          lastMeta = null;
+        }
       } else {
         onRejected(lane, local, outcome);
       }
@@ -693,6 +712,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
         transactionId,
         ...(prior ? { dependsOn: [prior.lastTx] } : {}),
         ...(writeId ? { writeId } : {}),
+        ...(stageable ? { stageable: true } : {}),
       })
       .then(settle, (err: unknown) => {
         const code = (err as { code?: unknown })?.code;
@@ -801,8 +821,18 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     // it was derived from — better than the last agreed body, which a peer
     // revision may have advanced inside the watcher's quiet window.
     const apiBase = lane === 'html' ? (localWrite?.base ?? null) : null;
+    // T16 — a change the person made through the UI announced itself; any
+    // other file change is a tool's, and may belong to an open AI action.
+    const fromUi = localWrite !== null;
     if (lane === 'html') localWrite = null;
-    void submit(lane, value, inFlight ? inFlight.lastValue : (apiBase ?? agreedValue(lane)), str);
+    void submit(
+      lane,
+      value,
+      inFlight ? inFlight.lastValue : (apiBase ?? agreedValue(lane)),
+      str,
+      undefined,
+      !fromUi
+    );
     return true;
   }
 
@@ -1020,7 +1050,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
         return Promise.resolve({ status: 'accepted' });
       }
       const base = o?.baseContent ?? (inFlight ? inFlight.lastValue : agreedValue(lane));
-      return submit(lane, value, base, value, o?.writeId);
+      return submit(lane, value, base, value, o?.writeId, o?.stageable === true);
     },
     noteLocalWrite() {
       if (!acceptedOn() || stopped) return;

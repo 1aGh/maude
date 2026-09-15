@@ -208,7 +208,9 @@ export async function acceptedColdStart(
     if (v.decision === 'propose' && v.local !== undefined) {
       const value = v.lane === 'meta' ? v.local : (laneValueFromFile(v.lane, v.local) ?? v.local);
       if (v.lane === 'html') i.projection.adoptBase(v.base ?? '');
-      void i.projection.proposeLane(v.lane, value, { baseContent: v.base ?? '' });
+      // Stageable: a restored unfinished AI action (T16) keeps its canvases'
+      // differences for the person's decision instead of publishing them.
+      void i.projection.proposeLane(v.lane, value, { baseContent: v.base ?? '', stageable: true });
     } else if (v.decision === 'hold' && v.local !== undefined) {
       i.projection.hold(v.lane, v.base ?? '', v.local);
     }
