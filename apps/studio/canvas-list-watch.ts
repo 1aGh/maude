@@ -25,7 +25,13 @@
 
 import path from 'node:path';
 
-import { canvasSlugFromRel, findFiles, findHtmlFiles, PREVIEW_ASSET_EXTS, SKIP_DIRS } from './api.ts';
+import {
+  canvasSlugFromRel,
+  findFiles,
+  findHtmlFiles,
+  PREVIEW_ASSET_EXTS,
+  SKIP_DIRS,
+} from './api.ts';
 import type { Context } from './context.ts';
 
 /**

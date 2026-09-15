@@ -514,7 +514,10 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
       return out.subarray(0, o + update.length);
     };
     aliceRoom.receive(conn, frame([tabDoc.clientID]));
-    await waitFor(() => bobRoom.awareness.getStates().has(tabDoc.clientID), "bob seeing alice's tab");
+    await waitFor(
+      () => bobRoom.awareness.getStates().has(tabDoc.clientID),
+      "bob seeing alice's tab"
+    );
     // The tab closes.
     aliceRoom.disconnect(conn);
     await waitFor(
