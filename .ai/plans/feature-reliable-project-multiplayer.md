@@ -647,6 +647,40 @@ validation cells (offline state, switch with pending edits, dark/light and
 narrow layout in a real WKWebView). T19 open (media priority order and explicit
 offline preparation). T29 open (render revision lag, cold-open timing).
 
+### 2026-09-15 (evening) — real backends, product gaps closed by the surface runner
+
+Commits on `main` (not pushed): `ce2dc6ec` tree rename/duplicate + menu
+placement + ⌘D selection, `42e0ddb4` Cloud Connect syncs again + artboard
+rename, `906827fa` T32 kill rounds, `4e44f0bc` S3 multipart resilience,
+`e8265c3b` formatting.
+
+- **T32 real durable stores.** Disposable Cloudflare Worker hosting the real
+  `ProjectStore` DO: 4 SIGKILL rounds × 25 proposals, each restart on a fresh
+  data directory, the in-flight transaction retried by the client — 0 of 104
+  acknowledged actions lost, 0 duplicate revisions/transactions, the retried
+  action committed exactly once, head = last acknowledged; ack p50 151 / p95
+  229 / p99 282 ms. Self-host SQLite, same oracle: ack p95 5 ms.
+  (`scripts/dev/t32-verify.mjs`, `.ai/scenarios/reliable-project-multiplayer/evidence/`.)
+- **T18 real S3.** The hub adapter against real S3 in a synthetic prefix
+  (account/owner checked, every version deleted after): 96 MiB and 513 MiB
+  round-trip byte-identical, part retry and abort without orphaned parts. It
+  first FAILED at 513 MiB — a thrown network error (stale keep-alive socket) was
+  not retried — fixed with backoff for throw/5xx/429 and HEAD-proved completion.
+- **Native E2E.** cloud-attach 10/10 after two real defects: Connect never
+  started syncing since 2026-08-18 (endpoints got a spread copy of ctx taken
+  before `syncControl` existed), and `/_sync-status` served a previous
+  process's "offline". team-project 6/6 incl. keyboard/Escape/dark theme.
+- **Surface rows added and passing** (targeted runs, every direction): L01
+  12/12 (folder rename in the real menu; a bottom-of-tree menu opened
+  off-screen — fixed), L04 rename + duplicate (new product verbs), L07
+  duplicate/delete (⌘D selected the next sibling — fixed), L08 add / rename
+  (new: double-click the name) / move / remove 12/12, L21 same-property race
+  3/3. Runner: toggle proxy in front of desktop B for L20, console warnings
+  recorded, frame probe `fill` and computed color.
+- **Product added for L03/L17:** supporting files (notes, styles, images,
+  media in a canvas folder) rename / move / delete from the tree; a file a
+  canvas still names is refused with that canvas's name.
+
 ## Context References
 
 ### Must-Read Files

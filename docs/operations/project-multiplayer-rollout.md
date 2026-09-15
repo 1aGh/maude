@@ -148,7 +148,12 @@ switch. The desktop app's *Open a project you were invited to → Your team's ow
 server* is the designer's way in (address, email, password).
 
 **Cloud (Cloudflare Alligators).** Roll the fleet onto a release that carries
-the `ProjectStore` class with `CELL_PROJECT_STORE=do`, restart the tenant's cell
-by tag change, confirm `coordinator.durable`, then switch with the operator
-cell secret. Designers open the project from *Maude Cloud* in the app (device
+the `ProjectStore` class, with the tenant in the `CELL_PROJECT_STORE` allowlist
+(`apps/cells/wrangler.toml`; `do`/`*` would mean every tenant — don't), restart
+the tenant's cell by tag change and confirm `coordinator.durable`. The project
+**owner** then switches from the dashboard: *cloud.maude.sh → the project →
+Saving → Preview the switch → Switch to accepted revisions*. The preview is the
+dry run above (created/skipped by name); the switch carries `expectEpoch` and is
+recorded on the project's Activity page. (An operator can still use the cell
+secret with the commands above.) Designers open the project from *Maude Cloud* in the app (device
 sign-in, project list, *Open*), or from the dashboard's *Open in Maude*.

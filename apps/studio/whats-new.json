@@ -2,6 +2,24 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "artboard-rename-and-files",
+      "version": null,
+      "date": null,
+      "kind": "feature",
+      "title": "Rename artboards on the canvas; manage notes and images in the tree",
+      "summary": "Double-click an artboard’s name to rename it — everyone on the project sees the new name. Notes, styles, images and videos beside your canvases now have their own ⋯ menu: Rename…, Move to… and Delete. A file a canvas still uses is not moved or deleted from under it; Maude names the canvas that uses it instead.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "cloud-connect-starts-syncing",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Connecting a project to Maude Cloud starts syncing right away again",
+      "summary": "Connect used to link the project and then ask you to restart Maude before anything synced. It syncs immediately now, a project that is not linked no longer greets you with a stale “Working offline” note, and a large video upload survives a dropped connection instead of failing.",
+      "surface": "design-ui"
+    },
+    {
       "id": "file-tree-rename-duplicate",
       "version": null,
       "date": null,
