@@ -318,6 +318,71 @@ describe('accepted revisions on a real hub', () => {
     }
   });
 
+  test('an edit made before a teammate moved the canvas follows it; a deleted one is refused', {
+    timeout: 60000,
+  }, async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'maude-tx-'));
+    dirs.push(dataDir);
+    const t = rig(dataDir);
+    const { built, http, ws } = await startHub(dataDir);
+    const epoch = { epoch: 0 };
+    const owner = client(http, t.owner, epoch);
+    const alice = client(http, t.alice, epoch);
+    const bob = client(http, t.bob, epoch);
+    const readers = [];
+    try {
+      epoch.epoch = (
+        await owner.post('/api/projects/local/v1/mode', { mode: 'transactions' })
+      ).body.epoch;
+      const doc = 'ws/local/main/ui-card';
+      await alice.propose([
+        { op: 'doc.create', doc, path: 'ui/card.tsx', lanes: { html: src('card') } },
+      ]);
+      const base = laneHash(src('card'));
+      // Alice moves it; Bob's edit, made against the old place, arrives after.
+      const moved = await alice.propose([
+        { op: 'doc.move', doc, to: { path: 'ui/Folder/card.tsx' } },
+      ]);
+      assert.equal(moved.status, 200, JSON.stringify(moved.body));
+      const edit = await bob.propose([
+        { op: 'lane.replace', doc, lane: 'html', base, content: src('card', 'red') },
+      ]);
+      assert.equal(edit.status, 200, JSON.stringify(edit.body));
+      const target = 'ws/local/main/ui-folder-card';
+      assert.deepEqual(edit.body.merged, [
+        { doc, lane: 'html', merged: false, followedTo: target },
+      ]);
+      const at = reader(ws, t.alice, target);
+      readers.push(at);
+      await until(() => at.html() === src('card', 'red'), 8000, 'the edit at the moved canvas');
+      const boot = (await alice.get('/api/projects/local/v1/bootstrap')).body;
+      assert.deepEqual(
+        boot.docs.filter((d) => !d.retired).map((d) => d.path),
+        ['ui/Folder/card.tsx'],
+        'the edit revived nothing at the old place'
+      );
+
+      // Moved and then deleted: nothing to follow, so the edit is refused.
+      const del = await alice.propose([{ op: 'doc.delete', doc: target }]);
+      assert.equal(del.status, 200, JSON.stringify(del.body));
+      const late = await bob.propose([
+        {
+          op: 'lane.replace',
+          doc,
+          lane: 'html',
+          base: laneHash(src('card', 'red')),
+          content: src('card', 'blue'),
+        },
+      ]);
+      assert.equal(late.body.code, 'dependency-missing', JSON.stringify(late.body));
+    } finally {
+      for (const r of readers) r.close();
+      await built.stopJournal();
+      await built.server.destroy();
+      built.projectStore.close();
+    }
+  });
+
   test('personal undo is effect-aware: never erases a later peer value, even an equal one', {
     timeout: 60000,
   }, async () => {

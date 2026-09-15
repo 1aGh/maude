@@ -272,12 +272,18 @@ export function createKernel({
     if (!LANE_NAMES.includes(op.lane)) throw new Reject('invalid', { reason: 'unknown lane' });
     if (typeof op.doc !== 'string' || !DOC_NAME.test(op.doc))
       throw new Reject('invalid', { reason: 'bad doc' });
-    const st = await work.load(op.doc);
-    if (!st || st.retired)
+    const named = await work.load(op.doc);
+    if (!named || (named.retired && !named.movedTo))
       throw new Reject('dependency-missing', { doc: op.doc, reason: 'document not live' });
-    if (op.generation !== undefined && op.generation !== st.generation) {
-      throw new Reject('generation-stale', { doc: op.doc, generation: st.generation });
+    if (op.generation !== undefined && op.generation !== named.generation) {
+      throw new Reject('generation-stale', { doc: op.doc, generation: named.generation });
     }
+    // A teammate moved the canvas after this edit was made: the edit follows
+    // it to where it lives now. A move carries every lane byte for byte, so
+    // the edit's base means the same thing there. Moved and then deleted has
+    // no live continuation and stays a conflict.
+    const st = named.retired ? await liveContinuation(work, named) : named;
+    if (!st) throw new Reject('dependency-missing', { doc: op.doc, reason: 'document not live' });
     const checked = checkLane(op.lane, op.content, { path: st.path ?? `${slugOf(op.doc)}.tsx` });
     if (!checked.ok)
       throw new Reject(checked.code, { doc: op.doc, lane: op.lane, reason: checked.reason });
@@ -327,7 +333,18 @@ export function createKernel({
       merged = true;
     }
     work.setLane(st, op.lane, next, { writeId: op.writeId });
+    if (st.doc !== op.doc) return { doc: op.doc, lane: op.lane, merged, followedTo: st.doc };
     return merged ? { doc: op.doc, lane: op.lane, merged: true } : null;
+  }
+
+  /** The live document a moved one continues as (same entry), or null. */
+  async function liveContinuation(work, st) {
+    for (const s of work.docs.values()) {
+      if (s && !s.retired && s.entry === st.entry) return s;
+    }
+    const doc = await store.liveDocByEntry(st.entry);
+    const live = doc ? await work.load(doc) : null;
+    return live && !live.retired && live.entry === st.entry ? live : null;
   }
 
   async function opDocCreate(work, op) {
