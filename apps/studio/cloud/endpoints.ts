@@ -310,6 +310,75 @@ export function createCloudEndpoints(ctx: Ctx) {
     },
 
     /**
+     * Open a project as a MANAGED local copy (T21): the same open → cell
+     * exchange → stored credential as `attach`, but nothing is written into
+     * the folder this studio happens to serve — the desktop creates the
+     * project's own copy and switches to it.
+     */
+    async openManaged(projectId: string): Promise<CloudEndpointResult> {
+      const file = readCloudFile();
+      if (!file)
+        return { status: 401, json: { ok: false, error: 'Sign in to Maude Cloud first.' } };
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(projectId ?? ''))) {
+        return { status: 400, json: { ok: false, error: 'unknown project' } };
+      }
+      const opened = await cloudFetch('/projects/open', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${file.token}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ project: projectId }),
+      });
+      if (opened.status !== 200 || !opened.body?.token || !opened.body.url) {
+        return {
+          status: 502,
+          json: { ok: false, error: 'The project could not be opened with this account.' },
+        };
+      }
+      return exchangeAtCell({
+        workspaceUrl: opened.body.url,
+        projectToken: opened.body.token,
+        role: opened.body.role,
+        project: projectId,
+      });
+    },
+
+    /** The maude:// handoff lane, as a managed copy (see `attachCode`). */
+    async openManagedCode(code: string, claimedProject?: string): Promise<CloudEndpointResult> {
+      if (typeof code !== 'string' || !/^mhc_[0-9a-f]{16,128}$/.test(code)) {
+        return { status: 400, json: { ok: false, error: 'That link is not valid.' } };
+      }
+      const exchanged = await cloudFetch('/auth/handoff/exchange', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      if (exchanged.status !== 200 || !exchanged.body?.token || !exchanged.body.url) {
+        return {
+          status: 410,
+          json: {
+            ok: false,
+            error:
+              'That link expired — it works once, for two minutes. Press “Open in Maude” on the project page again.',
+          },
+        };
+      }
+      if (claimedProject && exchanged.body.project && claimedProject !== exchanged.body.project) {
+        return {
+          status: 409,
+          json: {
+            ok: false,
+            error: `That link said ${claimedProject} but it opens ${exchanged.body.project}. Nothing was opened — open the project from its own page instead.`,
+          },
+        };
+      }
+      return exchangeAtCell({
+        workspaceUrl: exchanged.body.url,
+        projectToken: exchanged.body.token,
+        role: exchanged.body.role,
+        project: exchanged.body.project,
+      });
+    },
+
+    /**
      * Attach via a one-time handoff code — the maude:// lane (Phase 17). The
      * code came from an untrusted URL, so it is exchanged ONLY against the
      * configured Maude Cloud address (never one the link names), and the
@@ -662,6 +731,66 @@ export function createCloudEndpoints(ctx: Ctx) {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * The cell exchange alone: project token → hub session → stored credential.
+   * Writes nothing into any project folder (a managed open creates its own).
+   */
+  async function exchangeAtCell({
+    workspaceUrl,
+    projectToken,
+    role,
+    project,
+  }: {
+    workspaceUrl: string;
+    projectToken: string;
+    role?: string;
+    project?: string;
+  }): Promise<CloudEndpointResult> {
+    const r = await exchangeCredential(workspaceUrl, projectToken);
+    if (!r) {
+      return {
+        status: 502,
+        json: { ok: false, error: 'The workspace did not accept the sign-in. Try again in a minute.' },
+      };
+    }
+    return {
+      status: 200,
+      json: { ok: true, url: r.url, role: r.role ?? role ?? null, project: project ?? null },
+    };
+  }
+
+  async function exchangeCredential(
+    workspaceUrl: string,
+    projectToken: string
+  ): Promise<{ url: string; role?: string } | null> {
+    let hubToken: string | null = null;
+    let hubTokenExpiresAt: number | undefined;
+    let vouchedRole: string | undefined;
+    try {
+      const res = await fetch(`${workspaceUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: projectToken }),
+      });
+      const body = (await res.json().catch(() => ({}))) as CloudBody & {
+        expiresAt?: unknown;
+        user?: { role?: unknown };
+      };
+      if (res.ok && body?.token) {
+        hubToken = body.token;
+        if (typeof body.expiresAt === 'number' && Number.isFinite(body.expiresAt))
+          hubTokenExpiresAt = body.expiresAt;
+        if (typeof body.user?.role === 'string' && body.user.role) vouchedRole = body.user.role;
+      }
+    } catch {
+      /* handled by the caller */
+    }
+    if (!hubToken) return null;
+    const norm = normalizeUrl(workspaceUrl);
+    saveHubCredential(norm, hubToken, vouchedRole, hubTokenExpiresAt);
+    return { url: norm, role: vouchedRole };
   }
 
   /** The shared tail of every attach: cell exchange → credential + linkedHub. */

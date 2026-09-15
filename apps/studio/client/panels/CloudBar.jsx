@@ -15,7 +15,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { safeName, syncPresentation } from '../../sync/presentation.ts';
-import { invoke, isNativeApp, listen, openCloudUrl } from '../github.js';
+import { invoke, isNativeApp, listen, openCloudUrl, openTeamProject } from '../github.js';
 
 const api = async (path, init) => {
   const res = await fetch(path, init);
@@ -80,7 +80,7 @@ export function isDisplayableUrl(url, cloudUrl) {
  * browser didn't open, go to:" teaches the person to copy the address into a
  * browser the lock cannot see (B4). Callers surface the failure instead.
  */
-function openExternal(url) {
+export function openExternal(url) {
   if (!url) return Promise.resolve('failed');
   if (isNativeApp()) {
     return openCloudUrl(url).then(
@@ -516,6 +516,21 @@ export default function CloudBar({ syncStatus, onLinkedHub }) {
     }
   }
 
+  // Plan T22: the link's project opened as ITS OWN copy — the designer's
+  // default, and the one answer that can't sync the wrong folder anywhere. The
+  // server still checks the claimed name against what the code opens.
+  async function openPendingManaged() {
+    if (!pending) return;
+    setBusy('deeplink');
+    setError('');
+    const r = await openTeamProject({ kind: 'handoff', code: pending.code, claimedProject: pending.project });
+    setPending(null);
+    if (!r.ok) {
+      setBusy('');
+      setError(r.error || 'The project could not be opened.');
+    }
+  }
+
   // A successful attach IS a credentialed link — mirror it into `local` so the
   // project list flips to Connected without a second status fetch (the server
   // just wrote both halves: linkedHub in config.json + the hub credential).
@@ -748,6 +763,22 @@ export default function CloudBar({ syncStatus, onLinkedHub }) {
                     'your browser'
                   )}
                   .
+                </span>
+              </div>
+            )}
+            {isNativeApp() && (
+              <div className="gi-dl-open">
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  disabled={busy === 'deeplink'}
+                  onClick={openPendingManaged}
+                  data-testid="cloud-deeplink-open"
+                >
+                  {busy === 'deeplink' ? 'Opening…' : `Open ${pending.project}`}
+                </button>
+                <span className="gi-dc-foot-note">
+                  Opens the project in its own copy on this computer. Nothing in this folder changes.
                 </span>
               </div>
             )}

@@ -19,6 +19,7 @@ mod keychain;
 // can kill the renderer before the user sees a single pixel of their canvas.
 #[cfg(target_os = "linux")]
 mod linux_media;
+mod managed;
 mod menu;
 mod notify;
 mod oauth;
@@ -485,6 +486,8 @@ pub fn run() {
             crash_reporter::read_crash_log,
             deep_link::take_pending_deep_link,
             notify::send_notification,
+            managed::managed_project_open,
+            managed::managed_projects_list,
         ])
         .menu(menu::build_menu)
         .on_menu_event(|app, event| {

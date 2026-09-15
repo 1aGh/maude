@@ -259,6 +259,9 @@ export function createAcceptedRevisions({
         respondJson(200, {
           protocol: 1,
           projectId,
+          // The project's declared canvas groups (workspace checkouts), so a
+          // brand-new managed copy can be declared before its first pull.
+          canvasGroups: (typeof canvasGroups === 'function' ? canvasGroups() : null) ?? null,
           ...manifest,
           capabilities: {
             lanes: LANE_NAMES,

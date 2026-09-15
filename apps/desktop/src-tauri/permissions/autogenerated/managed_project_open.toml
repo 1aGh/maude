@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-managed-project-open"
+description = "Enables the managed_project_open command without any pre-configured scope."
+commands.allow = ["managed_project_open"]
+
+[[permission]]
+identifier = "deny-managed-project-open"
+description = "Denies the managed_project_open command without any pre-configured scope."
+commands.deny = ["managed_project_open"]

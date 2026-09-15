@@ -420,7 +420,8 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     bob.write('ui/hist.tsx', src('Alice title', 'teal'));
     await waitFor(() => alice.read('ui/hist.tsx') === src('Alice title', 'teal'), 'bob→alice');
 
-    const rows = (await alice.runtime.acceptedHistory?.({ path: 'design/ui/hist.tsx', limit: 20 })) ?? [];
+    const rows =
+      (await alice.runtime.acceptedHistory?.({ path: 'design/ui/hist.tsx', limit: 20 })) ?? [];
     expect(rows.length).toBeGreaterThanOrEqual(3);
     const [latest, aliceEdit] = rows;
     expect(latest?.actor).toBe('bob@x.test');
@@ -430,9 +431,9 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     expect(aliceEdit?.canvases).toEqual(['ui/hist.tsx']);
 
     // The preview reads the canvas as it stood at a revision.
-    expect(await alice.runtime.acceptedVersion?.('design/ui/hist.tsx', aliceEdit?.revision as number)).toBe(
-      src('Alice title')
-    );
+    expect(
+      await alice.runtime.acceptedVersion?.('design/ui/hist.tsx', aliceEdit?.revision as number)
+    ).toBe(src('Alice title'));
 
     // Alice undoes HER title edit: Bob's later colour survives.
     const undone = await alice.runtime.acceptedUndo?.(aliceEdit?.actionId as string);
@@ -447,7 +448,8 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     const restored = await bob.runtime.acceptedRestore?.('design/ui/hist.tsx', first);
     expect(restored?.status).toBe('accepted');
     await waitFor(() => alice.read('ui/hist.tsx') === src('History v1'), 'the restore on alice');
-    const after = (await bob.runtime.acceptedHistory?.({ path: 'design/ui/hist.tsx', limit: 20 })) ?? [];
+    const after =
+      (await bob.runtime.acceptedHistory?.({ path: 'design/ui/hist.tsx', limit: 20 })) ?? [];
     expect(after.length).toBe(rows.length + 2);
     expect(after[0]?.label).toContain('Restore hist');
   }, 60_000);

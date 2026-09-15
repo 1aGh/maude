@@ -24,8 +24,10 @@ const ENDPOINTS = readFileSync(join(STUDIO, 'cloud', 'endpoints.ts'), 'utf8');
 
 describe('the loader is chosen ONCE, where the posture is named', () => {
   test('the call site swaps it; the panel never re-derives it', () => {
-    expect(APP).toContain('loadLog={cloudManaged ? gitLoadCloudLog : gitLoadLog}');
-    expect(APP).toContain("historySource={cloudManaged ? 'cloud' : 'local'}");
+    // The project's accepted history comes first when the project has one
+    // (DDR-241, T27); the Git posture is still chosen at this one place.
+    expect(APP).toContain('return (cloudManaged ? gitLoadCloudLog : gitLoadLog)(path);');
+    expect(APP).toContain("historySource={projectHistoryOn ? 'project' : cloudManaged ? 'cloud' : 'local'}");
     // The panel may READ the source, never compute it from `cloudManaged` —
     // that would be the second derivation the posture constant exists to stop.
     expect(PANEL).toContain("const cloudHistorySource = historySource === 'cloud';");
@@ -202,7 +204,7 @@ describe('the version preview resolves a cloud-only sha', () => {
   test('local first, then the cell, with the cache key unchanged', () => {
     const fn = HTTP.slice(HTTP.indexOf('async function serveHistoricalCanvas('));
     const body = fn.slice(0, fn.indexOf('\n}\n'));
-    expect(body).toContain('let source = await gitShowFile(ctx.paths.repoRoot, sha, repoRel);');
+    expect(body).toContain(': await gitShowFile(ctx.paths.repoRoot, sha, repoRel);');
     expect(body).toContain('await cloudHistoryApi(ctx).historyFile(sha, repoRel);');
     // Historical content is immutable, so a cloud-sourced build must cache
     // under the identical key a local one would have.

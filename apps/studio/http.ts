@@ -113,6 +113,7 @@ import { linkHub } from './sync/hub-link.ts';
 import { isHubReadOnly } from './sync/hubs-config.ts';
 import { isFirstAnchorMode, readSyncSettings, writeSyncSettings } from './sync/settings.ts';
 import { listTrash, pruneTrash, restoreFromTrash } from './sync/trash.ts';
+import { prepareManagedProject } from './managed-projects.ts';
 import { signInToWorkspace, workspaceDisclosure } from './sync/workspace-signin.ts';
 import { readUiPrefs, type UiPrefs, writeUiPrefs } from './ui-prefs.ts';
 import { loadWhatsNew, resolveMaudeVersion } from './whats-new.ts';
@@ -3215,6 +3216,33 @@ export function createHttp(
     // rather than a token to paste. Same gates as the link route (MAIN ORIGIN
     // only, loopback, POST CSRF) for the same reason — this handler receives a
     // PASSWORD, so the untrusted canvas origin must never be able to reach it.
+    // MANAGED PROJECTS (T21/T22): sign in / open, store the credential and
+    // describe the project, so the native shell can create its own copy.
+    // Main origin only — this mints and stores a credential.
+    '/_api/projects/prepare': async (req: Request) => {
+      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+      if (!sameOriginWrite(req)) return new Response('cross-origin write rejected', { status: 403 });
+      if (!isTrustedRequestHost(req)) return new Response('local request required', { status: 403 });
+      const body = (await readJson<Record<string, unknown>>(req, 8 * 1024)) ?? {};
+      const kind = body.kind;
+      const str = (v: unknown) => (typeof v === 'string' ? v : '');
+      const input =
+        kind === 'cloud'
+          ? { kind, projectId: str(body.projectId) }
+          : kind === 'handoff'
+            ? { kind, code: str(body.code), claimedProject: str(body.claimedProject) || undefined }
+            : kind === 'hub'
+              ? { kind, url: str(body.url), email: str(body.email), password: str(body.password) }
+              : kind === 'known-hub'
+                ? { kind, url: str(body.url) }
+                : null;
+      if (!input) return new Response('unknown kind', { status: 400 });
+      const r = await prepareManagedProject(ctx, input as Parameters<typeof prepareManagedProject>[1]);
+      return Response.json(r, {
+        status: r.ok ? 200 : r.status,
+        headers: { 'Cache-Control': 'no-store' },
+      });
+    },
     '/_api/workspace/sign-in': async (req: Request) => {
       if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
       if (!sameOriginWrite(req))

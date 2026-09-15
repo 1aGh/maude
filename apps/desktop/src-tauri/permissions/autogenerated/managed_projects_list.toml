@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-managed-projects-list"
+description = "Enables the managed_projects_list command without any pre-configured scope."
+commands.allow = ["managed_projects_list"]
+
+[[permission]]
+identifier = "deny-managed-projects-list"
+description = "Denies the managed_projects_list command without any pre-configured scope."
+commands.deny = ["managed_projects_list"]

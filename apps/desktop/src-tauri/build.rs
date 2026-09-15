@@ -31,6 +31,8 @@ fn main() {
                 "list_crash_logs",
                 "read_crash_log",
                 "take_pending_deep_link",
+                "managed_project_open",
+                "managed_projects_list",
             ]),
         ),
     )

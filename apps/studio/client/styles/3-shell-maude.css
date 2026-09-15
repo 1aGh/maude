@@ -2632,6 +2632,19 @@ body.st-scrubbing, body.st-scrubbing * { cursor: ew-resize !important; user-sele
   .ob-spin { animation-duration: 1ms; }
 }
 
+/* ── Team projects (plan T22) — the designer's way in: recent managed copies,
+   Maude Cloud projects, a team server sign-in. Composes the ob-* door parts; the
+   dialog frame reuses gi-modal/gi-dialog from the project switcher. ── */
+.gi-dl-open { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); padding-bottom: var(--space-4); border-bottom: 1px solid var(--border-default); }
+.tp { display: flex; flex-direction: column; gap: var(--space-5); max-width: 720px; }
+.tp-section { display: flex; flex-direction: column; gap: var(--space-3); }
+.tp-device { display: flex; flex-direction: column; gap: var(--space-3); max-width: 560px; }
+.tp-device .ob-form-actions { align-items: center; justify-content: space-between; }
+.gi-dialog.tp-dialog { width: min(620px, 94vw); max-height: min(760px, 90vh); overflow: auto; padding: var(--space-6); gap: var(--space-4); }
+.tp-dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
+.tp-dialog-head h2 { margin: 0; font-size: var(--type-lg); color: var(--fg-0); }
+.tp-dialog-head p { margin: var(--space-1) 0 0; color: var(--fg-2); font-size: var(--type-sm); }
+
 /* ── Phase 29 (E4) — RepoBranchSwitcher. REDESIGNED to the approved mockup
    (.design/ui/RepoBranchSwitcher.tsx): a compact ONE-LINE dock at the BOTTOM of the
    sidebar (above the IdentityBar avatar) that opens ONE popup UPWARD. Mirrors the

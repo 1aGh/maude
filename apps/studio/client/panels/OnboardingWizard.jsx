@@ -1,10 +1,12 @@
 // Phase 29 (epic E4) Task 3 — the first-run onboarding wizard.
 //
 // Mounts full-screen on first launch (app.jsx checks `app_is_first_run` via the
-// Tauri shell) OVER the empty welcome project the sidecar boots. Three doors,
+// Tauri shell) OVER the empty welcome project the sidecar boots. Four doors,
 // GitHub first: (A) Continue with GitHub — sign in (device flow) → open a shared
-// project or start a new one; (B) Open a folder on this computer; (C) Connect to a
-// team hub (advanced). Every door ends by switching the sidecar to a real project
+// project or start a new one; (T) Open a project you were invited to — Maude
+// Cloud or a team server's email/password, opened as a managed copy with no
+// folder to choose (plan T22); (B) Open a folder on this computer; (C) Connect to
+// a team hub with a token (advanced). Every door ends by switching the sidecar to a real project
 // (`open_local_project`), which reloads the webview — at which point first-run is
 // false and the wizard no longer mounts. Built 1:1 with `.design/ui/Onboarding.tsx`;
 // CSS (`ob-*`) lives in client/styles/3-shell-maude.css. Renders nothing outside the
@@ -14,6 +16,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import ReadinessList, { useReadiness } from './ReadinessList.jsx';
 import IntroVideoDialog from './IntroVideoDialog.jsx';
+import TeamProjects from './TeamProjects.jsx';
 import {
   cloneRepo,
   createProject,
@@ -180,7 +183,7 @@ function AiReadiness() {
 }
 
 // ── A · Welcome (door picker) ────────────────────────────────────────────────
-function Welcome({ onGithub, onLocal, onHub, signing, signedIn, identity }) {
+function Welcome({ onGithub, onLocal, onHub, onTeam, signing, signedIn, identity }) {
   const [introOpen, setIntroOpen] = useState(false);
   return (
     <main className="ob-main">
@@ -208,6 +211,16 @@ function Welcome({ onGithub, onLocal, onHub, signing, signedIn, identity }) {
           <span className="ob-door-cta">
             <span className="btn btn--primary ob-door-btn"><GitHubMark size={15} /> {signing ? 'Starting…' : signedIn ? 'Continue' : 'Sign in with GitHub'}</span>
           </span>
+        </button>
+        {/* Plan T22 — a designer who was added to a project picks it and works:
+            no folder, no Git, no token. */}
+        <button type="button" data-testid="ob-door-team" className="ob-door" aria-label="Open a project you were invited to" onClick={onTeam}>
+          <span className="ob-door-icon"><Icon name="link" size={22} /></span>
+          <span className="ob-door-tx">
+            <span className="ob-door-title">Open a project you were invited to</span>
+            <span className="ob-door-sub">Sign in to Maude Cloud or your team’s server, pick the project, and start designing.</span>
+          </span>
+          <span className="ob-door-go" aria-hidden="true"><Icon name="chevron-right" size={16} /></span>
         </button>
         <button type="button" data-testid="ob-door-local" className="ob-door" aria-label="Open a folder on this computer" onClick={onLocal}>
           <span className="ob-door-icon"><Icon name="folder-open" size={22} /></span>
@@ -503,7 +516,22 @@ function HubDoor({ onBack }) {
           </div>
         )}
       </div>
-      <p className="ob-foot-note">Most people use <b>Continue with GitHub</b> — you only need a hub if your team runs one.</p>
+      <p className="ob-foot-note">Were you given an email and password for your team’s server? Use <b>Open a project you were invited to</b> instead — no token needed.</p>
+    </main>
+  );
+}
+
+// ── E · Team project door (plan T22) ─────────────────────────────────────────
+function TeamDoor({ onBack }) {
+  return (
+    <main className="ob-main">
+      <BackBar onBack={onBack} />
+      <header className="ob-head">
+        <span className="ob-eyebrow">Your team</span>
+        <h1>Open your team’s project</h1>
+        <p>Pick a project you were added to. Maude keeps its copy on this computer — nothing to set up.</p>
+      </header>
+      <TeamProjects variant="door" />
     </main>
   );
 }
@@ -547,7 +575,7 @@ function DeviceCodeModal({ device, onClose }) {
 
 export default function OnboardingWizard() {
   const native = isNativeApp();
-  const [door, setDoor] = useState('welcome'); // welcome | github | local | hub
+  const [door, setDoor] = useState('welcome'); // welcome | github | local | hub | team
   const [identity, setIdentity] = useState(null);
   const [signedIn, setSignedIn] = useState(false);
   const [signing, setSigning] = useState(false);
@@ -599,10 +627,11 @@ export default function OnboardingWizard() {
     <div className="ob-overlay" data-testid="onboarding-wizard" role="dialog" aria-modal="true" aria-label="Welcome to Maude">
       <div className="ob-shell">
         <Rail signedInAs={signedIn ? identity?.login : null} />
-        {door === 'welcome' && <Welcome signing={signing} signedIn={signedIn} identity={identity} onGithub={handleGithub} onLocal={() => setDoor('local')} onHub={() => setDoor('hub')} />}
+        {door === 'welcome' && <Welcome signing={signing} signedIn={signedIn} identity={identity} onGithub={handleGithub} onLocal={() => setDoor('local')} onHub={() => setDoor('hub')} onTeam={() => setDoor('team')} />}
         {door === 'github' && <GitHubDoor identity={identity} onBack={() => setDoor('welcome')} />}
         {door === 'local' && <LocalDoor onBack={() => setDoor('welcome')} />}
         {door === 'hub' && <HubDoor onBack={() => setDoor('welcome')} />}
+        {door === 'team' && <TeamDoor onBack={() => setDoor('welcome')} />}
       </div>
       {err && door === 'welcome' && (
         <div className="ob-toast callout callout--error" role="alert"><span className="ob-callout-glyph" style={{ color: 'var(--status-error)' }}><Icon name="x" /></span><span>{err}</span></div>

@@ -151,6 +151,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/github/invite': { class: 'local' },
   '/_api/github/repos': { class: 'read' },
   '/_api/project/create-local': { class: 'local', rows: 'I12' },
+  '/_api/projects/prepare': { class: 'local', rows: 'H13 (credential + project description for a managed copy)' },
   // --- reads
   '/_api/canvas-source': { class: 'read' },
   '/_api/comp-clips': { class: 'read' },

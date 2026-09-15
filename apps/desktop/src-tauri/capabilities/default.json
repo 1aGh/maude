@@ -33,6 +33,8 @@
     "allow-read-crash-log",
     "allow-take-pending-deep-link",
     "allow-send-notification",
+    "allow-managed-project-open",
+    "allow-managed-projects-list",
     "deep-link:default",
     "wdio-webdriver:default"
   ]

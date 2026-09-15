@@ -4,7 +4,10 @@
 // the hub listens and its accepted-revisions store is ready, then serves until
 // SIGTERM.
 //
-//   node serve-hub.mjs <dataDir> [port] [--transactions]
+//   node serve-hub.mjs <dataDir> [port] [--transactions] [--users]
+//
+// --users adds password accounts (the self-hosted sign-in a designer uses):
+// designer@x.test (member) and admin@x.test (admin), password `designer-pass-1`.
 //
 // Tokens are minted once per data dir and re-read on a restart, so a test can
 // kill and restart the same hub (same port, same store) and keep its peers.
@@ -14,9 +17,12 @@ import { join } from 'node:path';
 
 import { createHub } from '../../src/server.mjs';
 import { addToken } from '../../src/tokens.mjs';
+import { createUser, getUser } from '../../src/users.mjs';
 
 const [dataDir, portArg] = process.argv.slice(2);
 const transactions = process.argv.includes('--transactions');
+const users = process.argv.includes('--users');
+export const TEST_PASSWORD = 'designer-pass-1';
 if (!dataDir) {
   process.stderr.write('usage: serve-hub.mjs <dataDir> [port] [--transactions]\n');
   process.exit(2);
@@ -45,6 +51,15 @@ if (existsSync(tokensFile)) {
     viewer: addToken(dataDir, { label: 'viewer', scope: '*', readOnly: true }).value,
   };
   writeFileSync(tokensFile, JSON.stringify(tokens));
+}
+
+if (users) {
+  for (const [email, role] of [
+    ['designer@x.test', 'member'],
+    ['admin@x.test', 'admin'],
+  ]) {
+    if (!getUser(dataDir, email)) createUser(dataDir, { email, password: TEST_PASSWORD, role });
+  }
 }
 
 const built = createHub({

@@ -86,6 +86,42 @@ export const initDesign = (dir) => api('/_api/design/init', { method: 'POST', bo
 /** Phase 29 (E4) Door C — connect to a team hub (saves the global hub credential). */
 export const hubLink = (body) => api('/_api/hub/link', { method: 'POST', body: JSON.stringify(body) });
 
+// ── managed team projects (plan T21/T22) ───────────────────────────────────────
+/**
+ * Sign in / hold the credential and describe a team project, so its own copy can
+ * be created without choosing a folder. body: { kind: 'cloud', projectId } |
+ * { kind: 'handoff', code, claimedProject } | { kind: 'hub', url, email, password }
+ * | { kind: 'known-hub', url }.
+ */
+export const prepareProject = (body) => api('/_api/projects/prepare', { method: 'POST', body: JSON.stringify(body) });
+/** Create (first time) or reuse the project's managed copy, then switch to it. */
+export const managedProjectOpen = (p) =>
+  invoke('managed_project_open', {
+    serverUrl: p.serverUrl,
+    projectId: p.projectId,
+    name: p.name || p.projectId,
+    canvasGroups: p.canvasGroups || [],
+  });
+/** The team projects this computer keeps a copy of, most recent first. */
+export const managedProjectsList = () => invoke('managed_projects_list');
+
+/**
+ * Prepare, then open. Resolves `{ ok: true, path }` once the switch has started
+ * (the webview reloads onto the project), or `{ ok: false, error }`.
+ */
+export async function openTeamProject(input) {
+  const r = await prepareProject(input);
+  if (!r.ok || !r.json?.ok) {
+    return { ok: false, error: r.json?.error || 'The project could not be opened.', status: r.status };
+  }
+  try {
+    const path = await managedProjectOpen(r.json);
+    return { ok: true, path, project: r.json };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e || 'The project could not be opened.') };
+  }
+}
+
 // ── Tauri shell: app-state (first-run / last-project / recent) — Phase 29 (E4) ──
 // In a plain browser these throw via tauri(); the wizard only mounts in the native
 // app (isNativeApp()), so call sites guard accordingly.

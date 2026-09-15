@@ -15,11 +15,13 @@
 // flushes Yjs first — DDR-051, not duplicated here); "Merge → main" → POST
 // /_api/git/fold; "Fetch remote branches" → POST /_api/git/fetch. The local branch
 // list is re-asserted from disk on every popup open (DDR-133) so a flaky network never
-// blanks it. Renders nothing until the project is a git repo. CSS in 3-shell-maude.css.
+// blanks it. A project that is not a git repo — a managed team project (plan T22)
+// — gets the Project section alone. CSS in 3-shell-maude.css.
 
 import { useEffect, useRef, useState } from 'react';
 
-import { appRecentProjects, isNativeApp, openGitHubUrl, openLocalProject, pickDirectory } from '../github.js';
+import { appRecentProjects, isNativeApp, managedProjectsList, openGitHubUrl, openLocalProject, pickDirectory } from '../github.js';
+import { TeamProjectsDialog } from './TeamProjects.jsx';
 
 const SHARED = new Set(['main', 'master']);
 
@@ -53,6 +55,15 @@ function Icon({ name, size = 16, className }) {
       {p}
     </svg>
   );
+}
+
+/**
+ * The name to show for a recent project path: a managed team copy lives under a
+ * key like `acme.cloud.maude.sh--alligators`, so it shows the project's name.
+ */
+export function recentProjectLabel(path, managed) {
+  const m = (managed || []).find((x) => x.path === path);
+  return m ? { name: m.name, sub: m.server_url.replace(/^https?:\/\//, '') } : { name: basename(path), sub: path };
 }
 
 function basename(p) {
@@ -126,6 +137,8 @@ export default function RepoBranchSwitcher({ project, liveBranch, remoteSync, on
   const [status, setStatus] = useState(null); // { repo, branch }
   const [branches, setBranches] = useState([]);
   const [recents, setRecents] = useState([]);
+  const [managed, setManaged] = useState([]);
+  const [teamOpen, setTeamOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [newDraft, setNewDraft] = useState(false);
   const [draftName, setDraftName] = useState('');
@@ -187,6 +200,7 @@ export default function RepoBranchSwitcher({ project, liveBranch, remoteSync, on
       } catch { /* not a repo / offline */ }
     })();
     if (native) appRecentProjects().then((r) => alive && setRecents(r || [])).catch(() => {});
+    if (native) managedProjectsList().then((r) => alive && setManaged(Array.isArray(r) ? r : [])).catch(() => {});
     return () => { alive = false; };
   }, [native]);
 
@@ -208,7 +222,76 @@ export default function RepoBranchSwitcher({ project, liveBranch, remoteSync, on
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open, newDraft]);
 
-  // Only meaningful for a versioned project (drafts need git).
+  // The Project section on its own: recents, a team project, a folder. Shared by
+  // the full popup and the project-only dock below.
+  const projectSection = (
+    <>
+      <div className="rb-pop-hd">Project</div>
+      {native && recents.length > 0 ? (
+        recents.map((p, i) => {
+          const label = recentProjectLabel(p, managed);
+          return (
+            <button type="button" key={p} className={'rb-pop-item' + (i === 0 ? ' is-current' : '')} role="menuitem" onClick={() => switchRepo(p)}>
+              <span className="rb-pop-icon"><Icon name={managed.some((m) => m.path === p) ? 'share' : 'folder'} size={14} /></span>
+              <span className="rb-pop-tx">
+                <span className="rb-pop-name">{label.name}</span>
+                <span className="rb-pop-sub">{label.sub}</span>
+              </span>
+              {i === 0 ? <Icon name="check" size={14} className="rb-pop-check" /> : null}
+            </button>
+          );
+        })
+      ) : (
+        <div className="rb-pop-sub" style={{ padding: 'var(--space-2) var(--space-3)' }}>{native ? 'No other recent projects.' : 'Open another project from the desktop app.'}</div>
+      )}
+      {native && (
+        <button type="button" className="rb-pop-item rb-pop-item--action" role="menuitem" data-testid="switcher-open-team" onClick={() => { setOpen(false); setTeamOpen(true); }}>
+          <span className="rb-pop-icon"><Icon name="share" size={14} /></span>
+          <span className="rb-pop-tx"><span className="rb-pop-name">Open a team project…</span></span>
+        </button>
+      )}
+      {native && (
+        <button type="button" className="rb-pop-item rb-pop-item--action" role="menuitem" onClick={openAnother}>
+          <span className="rb-pop-icon"><Icon name="folder-open" size={14} /></span>
+          <span className="rb-pop-tx"><span className="rb-pop-name">Open another folder…</span></span>
+        </button>
+      )}
+    </>
+  );
+  const teamDialog = teamOpen ? <TeamProjectsDialog onClose={() => setTeamOpen(false)} /> : null;
+
+  // A project that isn't a git repo — a managed team project — has no branches;
+  // it still needs the way to another project.
+  if (native && status && !status.repo) {
+    const name = project || recentProjectLabel(recents[0] || 'Project', managed).name;
+    return (
+      <div className="rb-dock-wrap">
+        <div className="rb-dock" ref={rootRef}>
+          {open && (
+            <div className="rb-pop rb-pop--up" id="rb-switch-pop" role="menu" aria-label="Switch project" data-testid="repo-switcher-popup">
+              {projectSection}
+            </div>
+          )}
+          {switching ? (
+            <div className="rb-switching" role="status" aria-live="polite">
+              <Icon name="spinner" size={14} className="rb-spin" />
+              <span>Opening <b>{switching}</b>…</span>
+            </div>
+          ) : (
+            <button type="button" data-testid="repo-switcher-trigger" className={'rb-trigger' + (open ? ' is-open' : '')} aria-expanded={open} aria-haspopup="menu" aria-controls="rb-switch-pop" onClick={() => setOpen((v) => !v)} title={name}>
+              <span className="rb-trigger-icon"><Icon name="folder" size={14} /></span>
+              <span className="rb-trigger-proj">{name}</span>
+              <Icon name="chevron-up" size={13} className="rb-trigger-caret" />
+            </button>
+          )}
+          {err && !open && !switching && <div className="rb-switcher-err" role="alert">{err}</div>}
+        </div>
+        {teamDialog}
+      </div>
+    );
+  }
+
+  // Branches are only meaningful for a versioned project (drafts need git).
   if (!status?.repo) return null;
 
   // Prefer the live branch from the git-status broadcast (kept current as the
@@ -412,7 +495,7 @@ export default function RepoBranchSwitcher({ project, liveBranch, remoteSync, on
   async function switchRepo(path) {
     setOpen(false);
     if (!native) return;
-    setSwitching(basename(path));
+    setSwitching(recentProjectLabel(path, managed).name);
     try { await openLocalProject(path); }
     catch (e) { setErr(String(e?.message || e || 'Could not open that project.')); setSwitching(''); }
   }
@@ -499,27 +582,7 @@ export default function RepoBranchSwitcher({ project, liveBranch, remoteSync, on
         {open && (
           <div className="rb-pop rb-pop--up" id="rb-switch-pop" role="menu" aria-label="Switch project or version" data-testid="repo-switcher-popup">
             {/* ── Project ── */}
-            <div className="rb-pop-hd">Project</div>
-            {native && recents.length > 0 ? (
-              recents.map((p, i) => (
-                <button type="button" key={p} className={'rb-pop-item' + (i === 0 ? ' is-current' : '')} role="menuitem" onClick={() => switchRepo(p)}>
-                  <span className="rb-pop-icon"><Icon name="folder" size={14} /></span>
-                  <span className="rb-pop-tx">
-                    <span className="rb-pop-name">{basename(p)}</span>
-                    <span className="rb-pop-sub">{p}</span>
-                  </span>
-                  {i === 0 ? <Icon name="check" size={14} className="rb-pop-check" /> : null}
-                </button>
-              ))
-            ) : (
-              <div className="rb-pop-sub" style={{ padding: 'var(--space-2) var(--space-3)' }}>{native ? 'No other recent projects.' : 'Open another project from the desktop app.'}</div>
-            )}
-            {native && (
-              <button type="button" className="rb-pop-item rb-pop-item--action" role="menuitem" onClick={openAnother}>
-                <span className="rb-pop-icon"><Icon name="folder-open" size={14} /></span>
-                <span className="rb-pop-tx"><span className="rb-pop-name">Open another folder…</span></span>
-              </button>
-            )}
+            {projectSection}
 
             <div className="rb-pop-sep" />
             <div className="rb-pop-hd">Branch</div>
@@ -726,6 +789,7 @@ export default function RepoBranchSwitcher({ project, liveBranch, remoteSync, on
           </div>
         </div>
       )}
+      {teamDialog}
     </div>
   );
 }
