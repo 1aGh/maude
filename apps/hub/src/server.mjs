@@ -1839,6 +1839,8 @@ export function createHub(config = {}) {
   // then makes every accepted document match its store head.
   const acceptedReady = accepted
     .refresh()
+    // A switch that died mid-import is finished before anything reconciles.
+    .then(() => accepted.resumeImport())
     .then(() => accepted.reconcile())
     .catch((err) => console.error(`[transactions] startup reconcile failed: ${err.message}`));
 

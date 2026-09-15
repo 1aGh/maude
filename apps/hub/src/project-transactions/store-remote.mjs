@@ -16,6 +16,7 @@ import { StoreConflict } from './store-core.mjs';
 const METHODS = [
   'state',
   'setMode',
+  'markImported',
   'heads',
   'blob',
   'result',

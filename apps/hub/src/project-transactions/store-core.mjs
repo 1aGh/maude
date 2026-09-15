@@ -99,6 +99,11 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
       mode: meta('mode', 'legacy'),
       epoch: Number(meta('epoch', 0)),
       revision: Number(meta('revision', 0)),
+      // T30 — entering accepted revisions persists the mode BEFORE the
+      // documents are imported; this says the import has not finished yet, so
+      // a process that died in between resumes it instead of serving a project
+      // whose store lacks documents peers still hold.
+      importPending: meta('importPending', '0') === '1',
     };
   }
 
@@ -115,8 +120,15 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
       const epoch = cur.epoch + 1;
       setMeta('mode', mode);
       setMeta('epoch', epoch);
-      return { ...cur, mode, epoch };
+      setMeta('importPending', mode === 'transactions' ? '1' : '0');
+      return { ...cur, mode, epoch, importPending: mode === 'transactions' };
     });
+  }
+
+  /** T30 — the baseline import that followed a switch has completed. */
+  function markImported() {
+    setMeta('importPending', '0');
+    return state();
   }
 
   function docRow(doc) {
@@ -439,6 +451,7 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
     migrate,
     state,
     setMode,
+    markImported,
     heads,
     blob,
     result,

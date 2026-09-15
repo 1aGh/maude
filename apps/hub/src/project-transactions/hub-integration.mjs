@@ -238,30 +238,63 @@ export function createAcceptedRevisions({
       if (mode !== 'transactions') return next;
       // IMPORT BEFORE RECONCILE — reconciling first would roll back any
       // document the store already knew with content from a legacy interval.
-      const imported = await importBaseline({
-        hocuspocus: server.hocuspocus,
-        store,
-        kernel,
-        projectId,
-        listDocuments,
-        tombstoned,
-        checkoutPath,
-        checkoutBody,
-        checkoutDirs,
-        canvasGroups,
-        designRel,
-      });
-      if (imported.skipped.length || imported.failed) {
-        log.warn?.(
-          `[transactions] baseline import: ${imported.created} created, ${imported.updated} updated, ${imported.dirs} folders; skipped ${imported.skipped.length}${imported.failed ? `; FAILED at chunk ${imported.failed.chunk} (${imported.failed.code})` : ''}`
-        );
-      }
+      const imported = await runBaselineImport();
       await reconcile();
       return { ...next, imported };
     };
     const p = switching.then(run, run);
     switching = p.catch(() => {});
     return p;
+  }
+
+  /**
+   * The baseline import, and the store's note that it finished. A chunk the
+   * kernel refused leaves the note set, so the next start resumes it.
+   */
+  async function runBaselineImport() {
+    const imported = await importBaseline({
+      hocuspocus: server.hocuspocus,
+      store,
+      kernel,
+      projectId,
+      listDocuments,
+      tombstoned,
+      checkoutPath,
+      checkoutBody,
+      checkoutDirs,
+      canvasGroups,
+      designRel,
+    });
+    if (imported.skipped.length || imported.failed) {
+      log.warn?.(
+        `[transactions] baseline import: ${imported.created} created, ${imported.updated} updated, ${imported.dirs} folders; skipped ${imported.skipped.length}${imported.failed ? `; FAILED at chunk ${imported.failed.chunk} (${imported.failed.code})` : ''}`
+      );
+    }
+    if (!imported.failed) {
+      const after = await store.markImported();
+      state = { ...state, ...after };
+    }
+    return imported;
+  }
+
+  /**
+   * T30 — a switch whose process died between persisting the mode and
+   * finishing the import. Boot finishes it (the import is idempotent against
+   * the store: it creates only what the store lacks) BEFORE reconciling, so no
+   * document a peer still holds is left outside the project. A project that
+   * finished its import is never re-imported here — in accepted mode a
+   * document is a replica, and a stale one must not overwrite its head.
+   */
+  async function resumeImport() {
+    const s = await store.state();
+    state = { ...state, ...s };
+    if (s.mode !== 'transactions' || !s.importPending) return null;
+    log.warn?.('[transactions] the last switch did not finish importing — resuming it now');
+    const imported = await runBaselineImport();
+    log.log?.(
+      `[transactions] resumed import: ${imported.created} created, ${imported.updated} updated, ${imported.dirs} folders${imported.failed ? ' — still incomplete' : ''}`
+    );
+    return imported;
   }
 
   /** T30 — what switching to accepted revisions WOULD import (no write). */
@@ -500,6 +533,7 @@ export function createAcceptedRevisions({
   return {
     kernel,
     reconcile,
+    resumeImport,
     refresh,
     acceptedMode,
     fence,

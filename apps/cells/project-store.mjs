@@ -23,6 +23,7 @@ export const PROJECT_STORE_HOST = 'project-store.internal';
 export const STORE_METHODS = Object.freeze([
   'state',
   'setMode',
+  'markImported',
   'heads',
   'blob',
   'result',
