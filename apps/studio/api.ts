@@ -171,6 +171,30 @@ export const PREVIEW_ASSET_EXTS = [
  * (`system/<ds>/preview/*.html`) intentionally stay `.html` and travel via
  * the DS-aware `findFiles()` path below.
  */
+/**
+ * True when `abs` is a directory tree holding nothing but folder placeholders
+ * (`.gitkeep`, `.DS_Store`) — what a folder projection leaves before any
+ * content arrives. False when it is absent, is not a directory, or holds
+ * anything real (a symlink counts as real: never followed, never removed).
+ */
+async function onlyFolderPlaceholders(abs: string, depth = 0): Promise<boolean> {
+  if (depth > 16) return false;
+  let entries: Dirent[];
+  try {
+    entries = await readdir(abs, { withFileTypes: true });
+  } catch {
+    return false;
+  }
+  for (const e of entries) {
+    if (e.isDirectory()) {
+      if (!(await onlyFolderPlaceholders(path.join(abs, e.name), depth + 1))) return false;
+    } else if (!(e.isFile() && (e.name === '.gitkeep' || e.name === '.DS_Store'))) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export async function findHtmlFiles(absRoot: string, prefixUnderRepo: string): Promise<string[]> {
   const out: string[] = [];
   let entries: Dirent[];
@@ -3903,6 +3927,17 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
 
     await mkdir(toDirAbs, { recursive: true });
+    // OUR OWN ACTION MAY ALREADY BE ON THIS DISK. The destination did not exist
+    // when this move was checked; the project accepted the move since, and its
+    // announcement can reach this machine's sync before the answer reaches this
+    // request — which materializes the destination folders (each with its
+    // `.gitkeep`). Renaming onto that non-empty placeholder failed (ENOTEMPTY),
+    // leaving the old folder in this person's tree while every teammate had
+    // the move (plan T31/L02). A destination holding nothing but placeholders
+    // is that projection; it is replaced, never merged into.
+    if (await onlyFolderPlaceholders(toDirFinalAbs)) {
+      await rm(toDirFinalAbs, { recursive: true, force: true });
+    }
     try {
       await rename(dirAbs, toDirFinalAbs);
     } catch (err) {

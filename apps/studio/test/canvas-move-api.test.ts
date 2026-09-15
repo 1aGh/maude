@@ -783,3 +783,80 @@ describe('moveCanvas — collab-pin guard (in-process)', () => {
     expect(flushed).toBe(true);
   });
 });
+
+// Plan T31/L02 — the project's announcement of this very move can reach the
+// local sync before the move's own answer does, and materialize the
+// destination folders (each with a `.gitkeep`). The rename used to fail on that
+// non-empty placeholder, leaving the old folder in the mover's tree while
+// every teammate had the move.
+describe('folder move racing its own projection', () => {
+  function mkCtx(root: string, designRoot: string): Context {
+    return {
+      cfg: {
+        canvasGroups: [
+          { label: 'Design system', path: 'system' },
+          { label: 'Canvases', path: 'ui' },
+        ],
+      } as Context['cfg'],
+      projectLabel: 'test',
+      bus: createBus(),
+      paths: {
+        repoRoot: root,
+        designRel: '.design',
+        designRoot,
+        serverInfoFile: join(designRoot, '_server.json'),
+        activeFile: join(designRoot, '_active.json'),
+        commentsDir: join(designRoot, '_comments'),
+        canvasStateDir: join(designRoot, '_canvas-state'),
+        historyDir: join(designRoot, '_history'),
+        tokensUrlRel: '',
+        systemDirRel: 'system',
+      },
+    };
+  }
+
+  test('a placeholder-only destination made by the accepted move is replaced, not refused', async () => {
+    const { root, designRoot } = makeSandbox();
+    mkdirSync(join(designRoot, 'ui', 'Tree', 'Leaf'), { recursive: true });
+    writeFileSync(join(designRoot, 'ui', 'Tree', '.gitkeep'), '');
+    writeFileSync(join(designRoot, 'ui', 'Tree', 'Leaf', 'Inner.tsx'), 'export default () => null');
+    mkdirSync(join(designRoot, 'ui', 'Dest'), { recursive: true });
+    const ctx = mkCtx(root, designRoot);
+    const api = createApi(ctx, {
+      onCommentsChanged: () => {},
+      proposeFolder: async (op) => {
+        // What the sync runtime does when the accepted manifest lands first.
+        if (op.op === 'dir.move') {
+          mkdirSync(join(designRoot, op.to, 'Leaf'), { recursive: true });
+          writeFileSync(join(designRoot, op.to, '.gitkeep'), '');
+          writeFileSync(join(designRoot, op.to, 'Leaf', '.gitkeep'), '');
+        }
+        return { status: 'accepted' };
+      },
+    });
+    const result = await api.moveCanvas({ file: 'ui/Tree', toDir: 'ui/Dest' });
+    expect(result.ok).toBe(true);
+    expect(existsSync(join(designRoot, 'ui', 'Tree'))).toBe(false);
+    expect(existsSync(join(designRoot, 'ui', 'Dest', 'Tree', 'Leaf', 'Inner.tsx'))).toBe(true);
+  });
+
+  test('a destination with real content is still never merged into', async () => {
+    const { root, designRoot } = makeSandbox();
+    mkdirSync(join(designRoot, 'ui', 'Tree'), { recursive: true });
+    writeFileSync(join(designRoot, 'ui', 'Tree', 'A.tsx'), 'export default () => null');
+    mkdirSync(join(designRoot, 'ui', 'Dest'), { recursive: true });
+    const ctx = mkCtx(root, designRoot);
+    const api = createApi(ctx, {
+      onCommentsChanged: () => {},
+      proposeFolder: async () => {
+        mkdirSync(join(designRoot, 'ui', 'Dest', 'Tree'), { recursive: true });
+        writeFileSync(join(designRoot, 'ui', 'Dest', 'Tree', 'Theirs.tsx'), 'x');
+        return { status: 'accepted' };
+      },
+    });
+    const result = await api.moveCanvas({ file: 'ui/Tree', toDir: 'ui/Dest' });
+    expect(result.ok).toBe(false);
+    expect(readFileSync(join(designRoot, 'ui', 'Dest', 'Tree', 'Theirs.tsx'), 'utf8')).toBe('x');
+    expect(existsSync(join(designRoot, 'ui', 'Tree', 'A.tsx'))).toBe(true);
+  });
+});
