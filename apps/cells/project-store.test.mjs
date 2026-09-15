@@ -43,7 +43,9 @@ function findMiniflare() {
     // different host API and hangs the fixture; only a release counts.
     let version = '';
     try {
-      version = JSON.parse(readFileSync(join(npx, d, 'node_modules', 'miniflare', 'package.json'), 'utf8')).version;
+      version = JSON.parse(
+        readFileSync(join(npx, d, 'node_modules', 'miniflare', 'package.json'), 'utf8')
+      ).version;
     } catch {
       /* unreadable — not a candidate */
     }
