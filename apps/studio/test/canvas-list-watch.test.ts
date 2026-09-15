@@ -68,6 +68,13 @@ describe('canvas-list-watch / isCanvasCandidate (pure gate)', () => {
     expect(isCanvasCandidate('system/project/README.md', groups)).toBe(false);
   });
 
+  test('accepts the supporting files the tree lists (images, fonts, media)', () => {
+    expect(isCanvasCandidate('ui/Notes.png', groups)).toBe(true);
+    expect(isCanvasCandidate('ui/brand/logo.svg', groups)).toBe(true);
+    expect(isCanvasCandidate('ui/_drafts/Notes.png', groups)).toBe(false);
+    expect(isCanvasCandidate('docs/Notes.png', groups)).toBe(false);
+  });
+
   test('rejects runtime-state (`_`-prefixed segment) + SKIP_DIRS', () => {
     expect(isCanvasCandidate('_history/ui-x/00-screen.tsx', groups)).toBe(false);
     expect(isCanvasCandidate('ui/_draft.tsx', groups)).toBe(false);
@@ -176,6 +183,32 @@ describe('canvas-list-watch / diff + emit', () => {
       writeFileSync(join(designRoot, 'ui', 'Edited.meta.json'), '{"x":1}');
       await w.refresh();
       expect(got).toHaveLength(0);
+    } finally {
+      w.stop();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  // Plan T17/L03 — an image written beside the canvases (an agent's export, a
+  // teammate's file arriving through sync) never reached the tree, not even on
+  // the machine that wrote it, until something else reloaded it.
+  test('a supporting image appearing or leaving is a tree change of its own kind', async () => {
+    const { root, designRoot } = sandbox();
+    const ctx = mkCtx(designRoot);
+    const got = collect(ctx);
+    const w = createCanvasListWatch(ctx, { debounceMs: 10 });
+    await w.ready;
+    try {
+      const abs = join(designRoot, 'ui', 'Notes.png');
+      writeFileSync(abs, 'png');
+      ctx.bus.emit('fs:any', 'ui/Notes.png');
+      await new Promise((r) => setTimeout(r, 10 + 40));
+      await w.refresh();
+      expect(got).toEqual([{ action: 'file-added', rel: 'ui/Notes.png' }]);
+      got.length = 0;
+      rmSync(abs);
+      await w.refresh();
+      expect(got).toEqual([{ action: 'file-removed', rel: 'ui/Notes.png' }]);
     } finally {
       w.stop();
       rmSync(root, { recursive: true, force: true });

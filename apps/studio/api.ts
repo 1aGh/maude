@@ -141,7 +141,7 @@ const HIDDEN_OK = new Set(['.ai', '.claude', '.design']);
 // an explicit enumerated list rather than a broad pattern so it can never
 // accidentally widen to swallow runtime JSON — findFiles already excludes
 // `_`-prefixed entries before this list is even consulted.
-const PREVIEW_ASSET_EXTS = [
+export const PREVIEW_ASSET_EXTS = [
   '.svg',
   '.png',
   '.jpg',
@@ -203,7 +203,7 @@ export async function findHtmlFiles(absRoot: string, prefixUnderRepo: string): P
  * traversal instead of adding a second full walk of `system/` (the largest
  * group) just to enumerate directories.
  */
-async function findFiles(
+export async function findFiles(
   absRoot: string,
   prefix: string,
   exts: string[],

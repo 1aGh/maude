@@ -25,8 +25,21 @@
 
 import path from 'node:path';
 
-import { canvasSlugFromRel, findHtmlFiles, SKIP_DIRS } from './api.ts';
+import { canvasSlugFromRel, findFiles, findHtmlFiles, PREVIEW_ASSET_EXTS, SKIP_DIRS } from './api.ts';
 import type { Context } from './context.ts';
+
+/**
+ * Supporting files the tree lists beside the canvases (images, fonts, media —
+ * the same `PREVIEW_ASSET_EXTS` `/_index-data` walks). A new one written from
+ * outside the app — an agent's export, a teammate's image arriving through
+ * sync — is a tree change too; without it the row stayed missing until
+ * something else reloaded the tree (plan T17/L03). Sidecars and stylesheets are
+ * deliberately NOT here: they are rewritten on every edit, and the tree nests
+ * them under their canvas anyway.
+ */
+function isListedFile(low: string): boolean {
+  return PREVIEW_ASSET_EXTS.some((x) => low.endsWith(x));
+}
 
 /** Burst-collapse window. A new canvas writes both `.tsx` and `.meta.json`; a
  * git checkout touches many files at once — one snapshot per quiet window. */
@@ -59,7 +72,8 @@ export function isCanvasCandidate(rel: string, groupPaths: string[]): boolean {
   // canvases costs one recompute and emits nothing.
   const last = p.slice(p.lastIndexOf('/') + 1);
   const looksLikeDir = !last.includes('.');
-  if (!looksLikeDir && !low.endsWith('.tsx') && !low.endsWith('.html')) return false;
+  if (!looksLikeDir && !low.endsWith('.tsx') && !low.endsWith('.html') && !isListedFile(low))
+    return false;
   const segs = p.split('/');
   for (const s of segs) {
     if (!s) return false;
@@ -123,6 +137,11 @@ export function createCanvasListWatch(
         continue; // group dir missing / unreadable — treat as empty
       }
       for (const f of files) out.add(f);
+      try {
+        for (const f of await findFiles(groupAbs, groupRel, PREVIEW_ASSET_EXTS)) out.add(f);
+      } catch {
+        /* unreadable — the canvases above still diff */
+      }
     }
     return out;
   }
@@ -137,6 +156,12 @@ export function createCanvasListWatch(
     // render/open/build sink without re-validating against /_index-data.
     const prefix = `${ctx.paths.designRel.replace(/^\/+|\/+$/g, '')}/`;
     const relOut = rel.startsWith(prefix) ? rel.slice(prefix.length) : rel;
+    if (isListedFile(rel.toLowerCase())) {
+      // Not a canvas: its own action and no slug, so no consumer mistakes an
+      // image for a canvas to close, retarget or adopt.
+      ctx.bus.emit('canvas-list-update', { action: `file-${action}`, rel: relOut });
+      return;
+    }
     ctx.bus.emit('canvas-list-update', {
       action,
       rel: relOut,
