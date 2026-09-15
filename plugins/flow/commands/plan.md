@@ -228,6 +228,8 @@ Render **one** `AskUserQuestion` (recommended approach first) per `flow:question
 
 ### 6. Write the Plan
 
+**Tracker ticket (`orbit`).** When `integrations.tracker.provider` is `orbit`, load **`flow:orbit-backend`** and run its Plan recipe first: it resolves the `ORB-<n>` key (from `$ARGUMENTS` or the branch name) or asks once to create the task, fills the **Ticket** line below as `ORB-<n> — <title>`, and reports the `planning` state. Warn-only — orbit being unavailable never stops the plan. Other providers: unchanged.
+
 Create the plan file in the appropriate location (see Output note above) with this structure:
 
 ```markdown
@@ -253,7 +255,7 @@ As a <user> I want <goal> so that <benefit>
 
 ## Metadata
 
-- **Ticket**: <id> — <title> (provider per `integrations.tracker.provider`; omit line if provider is `none`)
+- **Ticket**: <id> — <title> (provider per `integrations.tracker.provider` — `orbit`: `ORB-<n>`; omit line if provider is `none`)
 - **Type**: [New Capability/Enhancement/Refactor/Bug Fix]
 - **Complexity**: [Low/Medium/High]
 - **App/Package**: [which workspace member]

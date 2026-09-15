@@ -220,6 +220,8 @@ Read `integrations.tracker` from `.ai/workflows.config.json`. If `provider` is n
   - If **no** → skip silently.
 - If no ticket ID is recorded but a tracker is configured → ask: _"Create a tracker ticket for this work?"_ (rare on `/done` — usually tickets exist before; offer only if PR has no `Closes #` reference).
 
+**`provider === "orbit"`** → load **`flow:orbit-backend`**: its resolver finds the key (plan Metadata `Ticket: ORB-<n>`, else the branch name) and its Close recipe § A is the update (`orbit_update_task` with the done status + `prUrl`). Same question as above. The artifact push and the final state run at the end of Step 7, so the pushed plan carries its retro.
+
 If `provider === "none"` or no MCP available → skip this step entirely. The command stays useful without any tracker.
 
 ### 6c. CLAUDE.md debrief (optional — skipped in `--quick`)
@@ -247,6 +249,8 @@ If the user lists items, propose CLAUDE.md additions (or moves to `.claude/rules
 > ```
 >
 > When `active:false` the STATE.md/history behavior above is unchanged.
+
+> **orbit close (`integrations.tracker.provider: orbit`).** Last, after the plan is archived: run `flow:orbit-backend` Close recipe § B + C — push the plan, RCA, execution report, code review and retro that exist via `orbit_artifact_push`, then `orbit_state_report` `done`. **Warn-only:** a failed call prints `⚠ orbit: …` and the close continues — orbit never blocks or rolls back a close. Unchanged in `--quick`.
 
 #### 7a. Refresh coverage baseline (opt-in)
 
