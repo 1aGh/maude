@@ -86,6 +86,19 @@ documents as `maude-migration` actions, and reconciles. Proposals made during
 the switch wait for it. `expectEpoch` makes a double-submitted switch fail
 (`epoch-stale`) instead of advancing a second epoch.
 
+**If the switch is interrupted.** The mode and epoch are persisted before the
+import, so a hub that dies mid-switch restarts in `transactions` mode with the
+import noted as unfinished (`importPending` in the store). The next start
+finishes it before anything reconciles — the import only creates what the
+store lacks — and logs `resumed import: …`. Nothing to do by hand; run the
+parity check below once it is up. A finished import is never re-run.
+
+**Git in an accepted project.** The checkout is the shared history's
+projection. The studio refuses the Git operations that rewrite its files
+(switch or add a draft, discard, get latest, resolve) with `409
+accepted-project`; restoring an earlier version happens from History and is a
+new action everyone sees. Commit, branch, push and fetch still work.
+
 ## Verify
 
 1. **Byte parity** — every live document matches the store head, and the
