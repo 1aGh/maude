@@ -8,11 +8,13 @@
 // been SIGKILLed and restarted on a FRESH data directory — the renderer and
 // checkout disks a cloud rollout throws away.
 //
-//   node scripts/dev/t32-verify.mjs [--store https://…/t/<project>] [--token …] [--n 40]
+//   node scripts/dev/t32-verify.mjs [--store https://…/t/<project>] [--token …] [--n 40] [--rounds 1]
 //
-// Prints one JSON report: proposals acknowledged, ack latency p50/p95/p99,
-// what survived the kill, duplicates, and whether the replayed documents equal
-// the accepted heads.
+// Each round: N chained edits, SIGKILL with one more in flight, restart, retry
+// that same transaction (the client never learned its outcome). Prints one JSON
+// report: ack latency p50/p95/p99 and, per round, acknowledged actions lost,
+// duplicate revisions/transactions, the retried action's single effect and
+// whether the head equals the last acknowledged content.
 
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -82,14 +84,20 @@ const fresh = () => {
   return d;
 };
 
-const report = { store: storeUrl ? 'cloudflare-durable-object' : 'self-host-sqlite', n: N };
-let hub = await startHub(fresh());
+const ROUNDS = Number(arg('rounds', '1'));
+const report = { store: storeUrl ? 'cloudflare-durable-object' : 'self-host-sqlite', n: N, rounds: ROUNDS };
+const dataDir = fresh();
+let hub = await startHub(dataDir);
 try {
-  const boot = (await api(hub, 'bootstrap')).body;
+  const tag = Date.now().toString(36);
+  const doc = `ws/t32/main/ui-t32-${tag}`;
+  const acked = [];
+  const ack = [];
+  const rounds = [];
+  let prev = null;
+  let boot = (await api(hub, 'bootstrap')).body;
   const projectId = boot.projectId;
-  let epoch = boot.epoch;
-  const doc = `ws/t32/main/ui-t32-${Date.now().toString(36)}`;
-  const envelope = (ops, tx) =>
+  const envelope = (epoch, ops, tx) =>
     JSON.stringify({
       protocol: 1,
       projectId,
@@ -98,72 +106,87 @@ try {
       origin: { deviceId: 't32', sessionId: 's' },
       action: { kind: 'edit', label: 'T32', operations: ops },
     });
-  const acked = [];
-  const ack = [];
-  let prev = null;
-  // Create, then a chain of edits; kill the hub with one in flight.
-  for (let i = 0; i < N; i++) {
-    const ops =
-      i === 0
-        ? [{ op: 'doc.create', doc, path: 'ui/t32.tsx', lanes: { html: src(0) } }]
-        : [{ op: 'lane.replace', doc, lane: 'html', base: sha(prev), content: src(i) }];
-    const tx = `tx_t32_${i}_${Math.random().toString(36).slice(2, 10)}`;
-    const t0 = performance.now();
-    const r = await api(hub, 'proposals', envelope(ops, tx));
-    const ms = performance.now() - t0;
-    if (r.body?.status !== 'accepted') throw new Error(`proposal ${i} ${JSON.stringify(r.body)}`);
-    ack.push(ms);
-    acked.push({ tx, revision: r.body.revision, content: src(i) });
-    prev = src(i);
+  let i = 0;
+  for (let round = 0; round < ROUNDS; round++) {
+    // A chain of edits, then SIGKILL with one more in flight.
+    for (let k = 0; k < N; k++, i++) {
+      const ops =
+        i === 0
+          ? [{ op: 'doc.create', doc, path: `ui/t32-${tag}.tsx`, lanes: { html: src(0) } }]
+          : [{ op: 'lane.replace', doc, lane: 'html', base: sha(prev), content: src(i) }];
+      const tx = `tx_t32_${i}_${Math.random().toString(36).slice(2, 10)}`;
+      const t0 = performance.now();
+      const r = await api(hub, 'proposals', envelope(boot.epoch, ops, tx));
+      const ms = performance.now() - t0;
+      if (r.body?.status !== 'accepted') throw new Error(`proposal ${i} ${JSON.stringify(r.body)}`);
+      ack.push(ms);
+      acked.push({ tx, revision: r.body.revision, content: src(i) });
+      prev = src(i);
+    }
+    const inflightTx = `tx_t32_inflight_${round}_${Date.now()}`;
+    const inflightOps = [{ op: 'lane.replace', doc, lane: 'html', base: sha(prev), content: src(i) }];
+    const inflightBody = envelope(boot.epoch, inflightOps, inflightTx);
+    const inflight = api(hub, 'proposals', inflightBody).catch(() => null);
+    await new Promise((r) => setTimeout(r, 5 + round * 3));
+    hub.proc.kill('SIGKILL');
+    const inflightAnswer = await inflight;
+
+    // Cloud: a new hub on a FRESH data directory — every local disk is gone and
+    // only the Durable Object remains. Self-host: the same data volume (the
+    // store lives on it; the process and its memory are what died).
+    hub = await startHub(storeUrl ? fresh() : dataDir);
+    boot = (await api(hub, 'bootstrap')).body;
+    // The client never learned the in-flight outcome, so it retries the SAME
+    // transaction: whether or not the first attempt committed, one effect.
+    let retry = await api(hub, 'proposals', inflightBody);
+    if (retry.body?.code === 'epoch-stale')
+      retry = await api(hub, 'proposals', envelope(boot.epoch, inflightOps, inflightTx));
+    const revs = [];
+    let cursor = 0;
+    for (;;) {
+      const page = (await api(hub, `revisions?after=${cursor}&limit=200`)).body?.revisions ?? [];
+      if (!page.length) break;
+      revs.push(...page);
+      cursor = page[page.length - 1].revision;
+      if (page.length < 200) break;
+    }
+    const txOf = (r) => r.transactionId ?? r.tx ?? r.actionId;
+    const lost = acked.filter((a) => !revs.some((r) => r.revision === a.revision));
+    const inflightRevisions = revs.filter((r) => txOf(r) === inflightTx).length;
+    const head = boot.docs.find((d) => d.doc === doc);
+    const headAfterRetry = (await api(hub, 'bootstrap')).body.docs.find((d) => d.doc === doc);
+    const blob = headAfterRetry ? (await api(hub, `blobs/${headAfterRetry.lanes.html.hash}`)).body : null;
+    const retried = retry.body?.status === 'accepted';
+    if (retried) {
+      acked.push({ tx: inflightTx, revision: retry.body.revision, content: src(i) });
+      prev = src(i);
+      i++;
+    }
+    rounds.push({
+      round,
+      inflightAnsweredBeforeKill: !!inflightAnswer?.body?.status,
+      bootHadHead: !!head,
+      retryStatus: retry.body?.status ?? retry.status,
+      retryCode: retry.body?.code,
+      inflightRevisions,
+      revisionsInStore: revs.length,
+      acknowledgedLost: lost.length,
+      duplicateRevisions: revs.length - new Set(revs.map((r) => r.revision)).size,
+      duplicateTransactions: revs.length - new Set(revs.map(txOf)).size,
+      headIsLastAcknowledged: blob?.body === prev,
+    });
   }
   report.ackMs = { p50: pct(ack, 0.5), p95: pct(ack, 0.95), p99: pct(ack, 0.99), n: ack.length };
-  // One more proposal in flight at the kill.
-  const inflightTx = `tx_t32_inflight_${Date.now()}`;
-  const inflight = api(
-    hub,
-    'proposals',
-    envelope([{ op: 'lane.replace', doc, lane: 'html', base: sha(prev), content: src(N) }], inflightTx)
-  ).catch(() => null);
-  await new Promise((r) => setTimeout(r, 5));
-  hub.proc.kill('SIGKILL');
-  const inflightAnswer = await inflight;
-  report.killedWithInflight = { answered: !!inflightAnswer?.body?.status };
-
-  // Cloud: a new hub on a FRESH data directory — every local disk is gone and
-  // only the Durable Object remains. Self-host: the same data volume (the
-  // store lives on it; the process and its memory are what died).
-  hub = await startHub(storeUrl ? fresh() : dirs[0]);
-  const after = (await api(hub, 'bootstrap')).body;
-  epoch = after.epoch;
-  const revs = [];
-  let cursor = 0;
-  for (;;) {
-    const page = (await api(hub, `revisions?after=${cursor}&limit=200`)).body?.revisions ?? [];
-    if (!page.length) break;
-    revs.push(...page);
-    cursor = page[page.length - 1].revision;
-    if (page.length < 200) break;
-  }
-  const byTx = new Map(revs.map((r) => [r.transactionId ?? r.tx ?? r.actionId, r]));
-  const lost = acked.filter((a) => !revs.some((r) => r.revision === a.revision));
-  const head = after.docs.find((d) => d.doc === doc);
-  const blob = head ? (await api(hub, `blobs/${head.lanes.html.hash}`)).body : null;
-  const expectedHead = inflightAnswer?.body?.status === 'accepted' ? src(N) : prev;
-  const headMatches = blob?.body === expectedHead || blob?.body === src(N) || blob?.body === prev;
-  // The replayed document (reconciled on boot) equals the accepted head.
-  const lane = (await api(hub, `lane?doc=${encodeURIComponent(doc)}&lane=html`)).body;
-  report.afterKill = {
-    revisionsInStore: revs.length,
-    acknowledgedLost: lost.length,
-    duplicateRevisions: revs.length - new Set(revs.map((r) => r.revision)).size,
-    distinctActions: new Set(revs.map((r) => r.actionId)).size,
-    headIsAnAcknowledgedOrInflightValue: headMatches,
-    inflightCommitted: blob?.body === src(N),
-    laneRoute: lane?.body !== undefined ? lane.body === blob?.body : false,
-    byTxCount: byTx.size,
-  };
-  report.ok =
-    lost.length === 0 && report.afterKill.duplicateRevisions === 0 && headMatches === true;
+  report.rounds = rounds;
+  report.ok = rounds.every(
+    (r) =>
+      r.acknowledgedLost === 0 &&
+      r.duplicateRevisions === 0 &&
+      r.duplicateTransactions === 0 &&
+      r.inflightRevisions === 1 &&
+      r.retryStatus === 'accepted' &&
+      r.headIsLastAcknowledged
+  );
 } catch (err) {
   report.ok = false;
   report.error = String(err?.stack ?? err);

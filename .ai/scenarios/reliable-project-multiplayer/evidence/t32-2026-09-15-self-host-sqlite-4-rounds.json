@@ -1,0 +1,61 @@
+{
+  "store": "self-host-sqlite",
+  "n": 20,
+  "rounds": [
+    {
+      "round": 0,
+      "inflightAnsweredBeforeKill": true,
+      "bootHadHead": true,
+      "retryStatus": "accepted",
+      "inflightRevisions": 1,
+      "revisionsInStore": 21,
+      "acknowledgedLost": 0,
+      "duplicateRevisions": 0,
+      "duplicateTransactions": 0,
+      "headIsLastAcknowledged": true
+    },
+    {
+      "round": 1,
+      "inflightAnsweredBeforeKill": true,
+      "bootHadHead": true,
+      "retryStatus": "accepted",
+      "inflightRevisions": 1,
+      "revisionsInStore": 42,
+      "acknowledgedLost": 0,
+      "duplicateRevisions": 0,
+      "duplicateTransactions": 0,
+      "headIsLastAcknowledged": true
+    },
+    {
+      "round": 2,
+      "inflightAnsweredBeforeKill": true,
+      "bootHadHead": true,
+      "retryStatus": "accepted",
+      "inflightRevisions": 1,
+      "revisionsInStore": 63,
+      "acknowledgedLost": 0,
+      "duplicateRevisions": 0,
+      "duplicateTransactions": 0,
+      "headIsLastAcknowledged": true
+    },
+    {
+      "round": 3,
+      "inflightAnsweredBeforeKill": true,
+      "bootHadHead": true,
+      "retryStatus": "accepted",
+      "inflightRevisions": 1,
+      "revisionsInStore": 84,
+      "acknowledgedLost": 0,
+      "duplicateRevisions": 0,
+      "duplicateTransactions": 0,
+      "headIsLastAcknowledged": true
+    }
+  ],
+  "ackMs": {
+    "p50": 2.1,
+    "p95": 4.9,
+    "p99": 16.6,
+    "n": 80
+  },
+  "ok": true
+}

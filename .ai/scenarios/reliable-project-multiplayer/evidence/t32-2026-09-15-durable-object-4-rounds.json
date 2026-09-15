@@ -1,0 +1,61 @@
+{
+  "store": "cloudflare-durable-object",
+  "n": 25,
+  "rounds": [
+    {
+      "round": 0,
+      "inflightAnsweredBeforeKill": false,
+      "bootHadHead": true,
+      "retryStatus": "accepted",
+      "inflightRevisions": 1,
+      "revisionsInStore": 26,
+      "acknowledgedLost": 0,
+      "duplicateRevisions": 0,
+      "duplicateTransactions": 0,
+      "headIsLastAcknowledged": true
+    },
+    {
+      "round": 1,
+      "inflightAnsweredBeforeKill": false,
+      "bootHadHead": true,
+      "retryStatus": "accepted",
+      "inflightRevisions": 1,
+      "revisionsInStore": 52,
+      "acknowledgedLost": 0,
+      "duplicateRevisions": 0,
+      "duplicateTransactions": 0,
+      "headIsLastAcknowledged": true
+    },
+    {
+      "round": 2,
+      "inflightAnsweredBeforeKill": false,
+      "bootHadHead": true,
+      "retryStatus": "accepted",
+      "inflightRevisions": 1,
+      "revisionsInStore": 78,
+      "acknowledgedLost": 0,
+      "duplicateRevisions": 0,
+      "duplicateTransactions": 0,
+      "headIsLastAcknowledged": true
+    },
+    {
+      "round": 3,
+      "inflightAnsweredBeforeKill": false,
+      "bootHadHead": true,
+      "retryStatus": "accepted",
+      "inflightRevisions": 1,
+      "revisionsInStore": 104,
+      "acknowledgedLost": 0,
+      "duplicateRevisions": 0,
+      "duplicateTransactions": 0,
+      "headIsLastAcknowledged": true
+    }
+  ],
+  "ackMs": {
+    "p50": 150.7,
+    "p95": 228.6,
+    "p99": 281.8,
+    "n": 100
+  },
+  "ok": true
+}
