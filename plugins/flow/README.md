@@ -40,6 +40,6 @@ For the full catalog (group definitions, member descriptions, rename history), s
 
 ## Skills
 
-`workflow-state`, `ddr-keeper`, `scenario`, `agent-browser`, `agent-device`, `codebase-intelligence`, `a11y-checker`, `question-protocol`, `make-skill-template`, `claude-md-keeper`, `debugging-rules`, `a11y-rules`, `motion-rules`, `responsive-rules`, `testing-rules`, `skill-loader`.
+`workflow-state`, `ddr-keeper`, `scenario`, `agent-browser`, `agent-device`, `codebase-intelligence`, `a11y-checker`, `question-protocol`, `make-skill-template`, `claude-md-keeper`, `debugging-rules`, `a11y-rules`, `motion-rules`, `responsive-rules`, `testing-rules`, `skill-loader`, `orbit-backend` (the `orbit` tracker provider's contract).
 
 See [`skills/`](./skills/) for the full list and per-skill SKILL.md files.

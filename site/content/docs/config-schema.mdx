@@ -595,11 +595,11 @@ Lightweight pointers to external services the project plugs into. Generic comman
 
 **Type:** `object`
 
-Issue / task tracker. Used by /flow:done, /flow:bug-rca, /flow:bug-fix to optionally create or update tickets.
+Issue / task tracker. Used by /flow:done, /flow:bug-rca, /flow:bug-fix and /flow:status to optionally read, create or update tickets. `orbit` additionally routes /flow:plan (find or create the task), /flow:execute (working-state reports) and /flow:done (close-time artifact push, warn-only) through the `orbit-backend` skill.
 
 #### `integrations.tracker.provider`
 
-**Type:** enum: `"clickup"` │ `"linear"` │ `"github"` │ `"jira"` │ `"notion"` │ `"asana"` │ `"shortcut"` │ `"none"` · **Default:** `"none"`
+**Type:** enum: `"clickup"` │ `"linear"` │ `"github"` │ `"jira"` │ `"notion"` │ `"asana"` │ `"shortcut"` │ `"orbit"` │ `"none"` · **Default:** `"none"`
 
 **Allowed values:**
 
@@ -610,13 +610,26 @@ Issue / task tracker. Used by /flow:done, /flow:bug-rca, /flow:bug-fix to option
 - `"notion"`
 - `"asana"`
 - `"shortcut"`
+- `"orbit"`
 - `"none"`
 
 #### `integrations.tracker.mcp`
 
 **Type:** `string`
 
-MCP tool name prefix used to call the provider (e.g. `mcp__claude_ai_ClickUp`, `mcp__github`). Generic commands resolve tool names by appending the operation (`&lt;mcp>_&lt;op>`). Omit if no MCP server is configured — commands will print payloads for manual handling.
+MCP tool name prefix used to call the provider (e.g. `mcp__claude_ai_ClickUp`, `mcp__github`, `mcp__orbit`). Generic commands resolve tool names by appending the operation (`&lt;mcp>_&lt;op>`). Omit if no MCP server is configured — commands will print payloads for manual handling.
+
+#### `integrations.tracker.baseUrl`
+
+**Type:** `string`
+
+Base URL of a self-hosted tracker instance — used by `provider: orbit` (e.g. `https://orbit.example.com`); other providers ignore it. A committed pointer, never a secret: it names the MCP endpoint the project's `.mcp.json` entry targets (`&lt;baseUrl>/api/mcp`) and the task links (`&lt;baseUrl>/t/ORB-123`).
+
+#### `integrations.tracker.tokenEnv`
+
+**Type:** `string` · **Default:** `"ORBIT_MCP_TOKEN"`
+
+Name of the environment variable holding the per-machine bearer token for the tracker's MCP server — used by `provider: orbit`; other providers ignore it. Only the variable NAME is stored here; the token lives in the user's environment and `.mcp.json` references it as `${&lt;tokenEnv>}`. Flow commands check whether it is set — they never read, print or write its value.
 
 #### `integrations.tracker.defaults`
 

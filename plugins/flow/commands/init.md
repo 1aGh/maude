@@ -322,7 +322,7 @@ Ask for these — everything else has a sensible auto-detected or default value:
 1. **Project name** (kebab-case, pre-filled with `$PRE_NAME`).
 2. **Language for plan / DDR prose** (`en` | `cs` | other ISO 639-1). Pre-fill `en`.
 3. **Theme target** — `dark` | `light` | `agnostic`. Pre-fill `agnostic`.
-4. **Tracker provider** — pre-fill with `$TRACKER_HINT`. Options: `github` | `clickup` | `linear` | `jira` | `notion` | `asana` | `shortcut` | `none`.
+4. **Tracker provider** — pre-fill with `$TRACKER_HINT`. Options: `github` | `clickup` | `linear` | `jira` | `notion` | `asana` | `shortcut` | `orbit` | `none`. For `orbit`, also ask for its **base URL** (`maude config set integrations.tracker.baseUrl "<url>"`); the MCP wiring and token are covered by the `flow:orbit-backend` resolver.
 5. **Branching model** — `github-flow` | `trunk-based` | `gitflow` | `release-branch`. Can't be reliably auto-detected; pre-fill `github-flow` as the most common.
 6. **Prohibited packages / libraries** — comma-separated list, or `none`. Example: `lodash` (we use native ES), `moment` (we use date-fns), `axios` (we use fetch).
 7. **Changelog provider** — pre-fill with `$CHANGELOG_PROVIDER`. Options: `changesets` | `git-cliff` | `conventional` | `custom` | `none`. Auto-detected from `.changeset/config.json` (changesets), `cliff.toml` / `.git-cliff.toml` (git-cliff), or `CHANGELOG.md` + conventional commits (conventional). If the monorepo signals at Step 2 are true (`$MONOREPO == "true"`), also ask for an optional **package scope** (e.g. `@1agh/maude`) — passed to `/flow:release-changelog` when authoring entries.

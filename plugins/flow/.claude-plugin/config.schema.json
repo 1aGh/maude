@@ -475,7 +475,7 @@
         "tracker": {
           "type": "object",
           "additionalProperties": false,
-          "description": "Issue / task tracker. Used by /flow:done, /flow:bug-rca, /flow:bug-fix to optionally create or update tickets.",
+          "description": "Issue / task tracker. Used by /flow:done, /flow:bug-rca, /flow:bug-fix and /flow:status to optionally read, create or update tickets. `orbit` additionally routes /flow:plan (find or create the task), /flow:execute (working-state reports) and /flow:done (close-time artifact push, warn-only) through the `orbit-backend` skill.",
           "properties": {
             "provider": {
               "type": "string",
@@ -487,13 +487,26 @@
                 "notion",
                 "asana",
                 "shortcut",
+                "orbit",
                 "none"
               ],
               "default": "none"
             },
             "mcp": {
               "type": "string",
-              "description": "MCP tool name prefix used to call the provider (e.g. `mcp__claude_ai_ClickUp`, `mcp__github`). Generic commands resolve tool names by appending the operation (`<mcp>_<op>`). Omit if no MCP server is configured — commands will print payloads for manual handling."
+              "description": "MCP tool name prefix used to call the provider (e.g. `mcp__claude_ai_ClickUp`, `mcp__github`, `mcp__orbit`). Generic commands resolve tool names by appending the operation (`<mcp>_<op>`). Omit if no MCP server is configured — commands will print payloads for manual handling."
+            },
+            "baseUrl": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https?://",
+              "description": "Base URL of a self-hosted tracker instance — used by `provider: orbit` (e.g. `https://orbit.example.com`); other providers ignore it. A committed pointer, never a secret: it names the MCP endpoint the project's `.mcp.json` entry targets (`<baseUrl>/api/mcp`) and the task links (`<baseUrl>/t/ORB-123`)."
+            },
+            "tokenEnv": {
+              "type": "string",
+              "pattern": "^[A-Z_][A-Z0-9_]*$",
+              "default": "ORBIT_MCP_TOKEN",
+              "description": "Name of the environment variable holding the per-machine bearer token for the tracker's MCP server — used by `provider: orbit`; other providers ignore it. Only the variable NAME is stored here; the token lives in the user's environment and `.mcp.json` references it as `${<tokenEnv>}`. Flow commands check whether it is set — they never read, print or write its value."
             },
             "defaults": {
               "type": "object",
