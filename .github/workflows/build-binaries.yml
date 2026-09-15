@@ -192,7 +192,7 @@ jobs:
           set -e
           echo "$OUTPUT"
           if [ $STATUS -ne 0 ]; then
-            if echo "$OUTPUT" | grep -qE "(EPUBLISHCONFLICT|cannot publish over|previous version|previously published)"; then
+            if echo "$OUTPUT" | grep -qiE "(EPUBLISHCONFLICT|cannot publish over|previous version|previously published|previously staged)"; then
               VER=$(node -p "require('./package.json').version")
               echo "::notice::@1agh/maude-${{ matrix.slug }}@${VER} already published — treating as success"
               exit 0
@@ -385,7 +385,7 @@ jobs:
           set -e
           echo "$OUTPUT"
           if [ $STATUS -ne 0 ]; then
-            if echo "$OUTPUT" | grep -qE "(EPUBLISHCONFLICT|cannot publish over|previous version|previously published)"; then
+            if echo "$OUTPUT" | grep -qiE "(EPUBLISHCONFLICT|cannot publish over|previous version|previously published|previously staged)"; then
               VER=$(node -p "require('./package.json').version")
               echo "::notice::@1agh/maude@${VER} already published — treating as success"
               exit 0
