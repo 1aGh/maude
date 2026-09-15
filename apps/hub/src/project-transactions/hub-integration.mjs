@@ -522,7 +522,7 @@ export function createAcceptedRevisions({
  * and the durable acknowledgment latency (submit → committed answer, which is
  * what a person waits for before "Saved"). Never payloads, paths or actors.
  */
-export function createAcceptedMetrics({ window = 256 } = {}) {
+export function createAcceptedMetrics({ window = 256, maxCodes = 24 } = {}) {
   let accepted = 0;
   let replayed = 0;
   const rejected = {};
@@ -541,7 +541,10 @@ export function createAcceptedMetrics({ window = 256 } = {}) {
         ack.push(ms);
         if (ack.length > window) ack.shift();
       } else {
-        const code = typeof result?.code === 'string' ? result.code.slice(0, 40) : 'unknown';
+        let code = typeof result?.code === 'string' ? result.code.slice(0, 40) : 'unknown';
+        // Bounded cardinality: the kernel's codes are a small fixed set, but a
+        // counter keyed by anything must not grow without limit.
+        if (!(code in rejected) && Object.keys(rejected).length >= maxCodes) code = 'other';
         rejected[code] = (rejected[code] ?? 0) + 1;
       }
     },
