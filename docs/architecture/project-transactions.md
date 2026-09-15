@@ -69,6 +69,16 @@ a second writer — the room projection). A rejection keeps the candidate on
 disk, reports the conflict, and bases the resolving save on the version that
 won. Cold start decides per lane: agreed / materialize / propose / hold.
 
+**Revision visibility (T14)**: the hub stamps each document a revision writes
+with `acceptedRevision` and `acceptedCohort` (how many documents the revision
+writes). A receiving studio's projections hold a multi-document revision until
+every document of it has arrived — including one created in the same action
+and pulled — and write them in one tick (`sync/revision-barrier.ts`); a
+document the peer never gets releases the rest after 1.5 s. The first stamp a
+projection sees is its starting state and is never held. One writer owns each
+checkout: the studio projection on a desktop, the studio child in a cell (the
+workspace agent stops writing the checkout once accepted revisions are on).
+
 ### Rights and project entry (T20–T22)
 
 A **designer** is the project role `member` (cloud project role, or a hub

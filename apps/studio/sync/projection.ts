@@ -54,6 +54,7 @@ import { mergeSource } from './source-merge.ts';
 import { saveRecoveryBody } from './source-recovery.ts';
 import { sourceError } from './source-validation.ts';
 import { laneHash } from './transaction-client.ts';
+import type { RevisionBarrier } from './revision-barrier.ts';
 
 export const PROJECT_FLUSH_MS = 800;
 /**
@@ -136,6 +137,12 @@ export interface DocProjectionOptions {
    * candidate until then; a rejection keeps it and reports a conflict.
    */
   accepted?: AcceptedLaneLink;
+  /**
+   * Plan T14 — the revision barrier shared by every projection of this
+   * runtime: a document stamped with a multi-document revision is written to
+   * disk together with the rest of that revision (see revision-barrier.ts).
+   */
+  revisionBarrier?: RevisionBarrier;
   /**
    * May a write to the shared document reach the hub right now? When false a
    * file change is HELD (not imported) and `onWriteBlocked` fires; the runtime
@@ -472,6 +479,29 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     writeAndAnnounce(paths.meta, merged);
   }
 
+  /** The newest multi-document revision this projection has been released for. */
+  let releasedRevision = 0;
+  /**
+   * The first stamp a projection sees is the state it started from (boot, or
+   * a document that arrived by pull) — already whole, never held. Only a
+   * revision that arrives WHILE it runs waits for its cohort.
+   */
+  let seenStamp = false;
+  function observeStamp(stamped: [number, number]): void {
+    seenStamp = true;
+    releasedRevision = Math.max(releasedRevision, stamped[0]);
+    opts.revisionBarrier?.present(stamped[0], stamped[1], slug);
+  }
+
+  /** `[revision, cohort]` the hub stamped on this document (cohort ≥ 1). */
+  function stampedCohort(): [number, number] | null {
+    const meta = doc.getMap('syncMeta');
+    const rev = meta.get('acceptedRevision');
+    const cohort = meta.get('acceptedCohort');
+    if (typeof rev !== 'number') return null;
+    return [rev, typeof cohort === 'number' && cohort > 1 ? cohort : 1];
+  }
+
   async function flush(): Promise<void> {
     if (!dirty || stopped || !ready) return;
     // A RETIRED document is write-inert — its canvas moved to a new path in a
@@ -480,6 +510,19 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     if (movedToFromDoc(doc) !== null) {
       dirty = false;
       return;
+    }
+    // T14 — part of a multi-document revision: wait for the rest of it, so
+    // the checkout never shows half an action.
+    const stamped = acceptedOn() && opts.revisionBarrier ? stampedCohort() : null;
+    if (stamped && !seenStamp) observeStamp(stamped);
+    else if (stamped && stamped[1] > 1 && stamped[0] > releasedRevision) {
+      const [rev, cohort] = stamped;
+      const held = opts.revisionBarrier?.arrive(rev, cohort, slug, () => {
+        releasedRevision = Math.max(releasedRevision, rev);
+        dirty = true;
+        void flush();
+      });
+      if (held) return;
     }
     dirty = false;
     if (flushTimer) {
@@ -929,6 +972,10 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     // seed (Phase E) — it only writes what the doc actually holds.
     if (writeHtmlIfChanged()) writeCssIfChanged();
     writeMetaIfChanged();
+    // A document that arrives by pull as part of a multi-document revision is
+    // on disk now: the rest of its revision may show.
+    const stamped = acceptedOn() ? stampedCohort() : null;
+    if (stamped && !seenStamp) observeStamp(stamped);
   }
 
   return {

@@ -61,6 +61,9 @@ export function createAcceptedRevisions({
       accepted: { revision, actionId },
       user: { name: actor, email: actor.includes('@') ? actor : undefined },
     };
+    // T14 — how many documents this revision writes content into, so a
+    // receiver can show them together (studio sync/revision-barrier.ts).
+    const cohort = changes.filter((ch) => !ch.deleted && !ch.retiredFor).length;
     for (const ch of changes) {
       if (ch.deleted) {
         deleteDocument(ch.doc);
@@ -89,6 +92,7 @@ export function createAcceptedRevisions({
         }
         if ('html' in ch.lanes) meta.set('bodyEditAt', Date.now());
         if ('annotations' in ch.lanes) meta.set('annotationsEditAt', Date.now());
+        meta.set('acceptedCohort', cohort);
         meta.set('acceptedRevision', revision);
       });
     }
@@ -131,7 +135,11 @@ export function createAcceptedRevisions({
         if (meta.has('movedTo')) meta.delete('movedTo');
         let touched = false;
         for (const lane of LANE_NAMES) touched = applyLane(doc, lane, lanes[lane]) || touched;
-        if (touched) meta.set('acceptedRevision', manifest.revision);
+        if (touched) {
+          // A repair, not an action — nothing to wait for on the receiver.
+          meta.set('acceptedCohort', 1);
+          meta.set('acceptedRevision', manifest.revision);
+        }
       });
       reconciled++;
     }

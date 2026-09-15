@@ -90,6 +90,7 @@ import { computeSeedProgress } from './seed-progress.ts';
 import { createSyncStatusStore, type SyncStatusStore } from './status.ts';
 import { quarantineCanvas } from './tombstone-apply.ts';
 import { writeUntrustedMarkers } from './untrusted.ts';
+import { createRevisionBarrier } from './revision-barrier.ts';
 
 /** A minimum-surface stand-in for the HocuspocusProvider's runtime API. */
 export interface SyncProvider {
@@ -877,6 +878,8 @@ export function createSyncRuntime(
       })
     : null;
   const acceptedOn = (): boolean => acceptedLink?.on() === true;
+  /** T14 — one barrier for every projection: a revision shows whole. */
+  const revisionBarrier = createRevisionBarrier();
   /** Canvases a folder action already moved/deleted — nothing more to propose for them. */
   const coveredByFolderAction = new Set<string>();
   /** Folder entries this peer has materialized from the project manifest. */
@@ -3411,7 +3414,9 @@ export function createSyncRuntime(
                 journal: journal ?? undefined,
                 historyDir: path.join(ctx.paths.historyDir, canvas.slug),
                 waitForReconcile: true,
-                ...(acceptedLink ? { accepted: acceptedLink.laneLink(canvas.slug) } : {}),
+                ...(acceptedLink
+                  ? { accepted: acceptedLink.laneLink(canvas.slug), revisionBarrier }
+                  : {}),
                 // A write the hub would drop is held, never made (see isWritable).
                 ...(provider.isWritable
                   ? {
@@ -4400,6 +4405,7 @@ export function createSyncRuntime(
     if (stopped) return;
     stopped = true;
     acceptedLink?.stop();
+    revisionBarrier.stop();
     fileEventsProbe?.abort();
     fileEventsProbe = null;
     if (filePassTimer !== null) clearTimeout(filePassTimer);

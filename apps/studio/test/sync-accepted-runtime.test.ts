@@ -413,6 +413,61 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     );
   }, 90_000);
 
+  test('a multi-canvas action shows whole on the peer: never the edit without the canvas it created (T14)', async () => {
+    alice.write('ui/pair-a.tsx', src('Pair v1'));
+    await alice.runtime.rescanNow();
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return bob.read('ui/pair-a.tsx') === src('Pair v1');
+    }, 'pair-a on bob');
+    const boot = await api(hub, 'bootstrap');
+    const a = (boot.body.docs as { doc: string; path: string }[]).find((d) => d.path === 'ui/pair-a.tsx');
+    expect(a).toBeTruthy();
+    const docB = (a?.doc as string).replace(/ui-pair-a$/, 'ui-pair-b');
+
+    // Watch bob's checkout at a fine grain from BEFORE the action exists.
+    const seen: string[] = [];
+    let watching = true;
+    const watch = (async () => {
+      while (watching) {
+        const aNew = bob.read('ui/pair-a.tsx') === src('Pair v2');
+        const bThere = bob.read('ui/pair-b.tsx') !== null;
+        seen.push(`${aNew ? 'A2' : 'A1'}${bThere ? '+B' : ''}`);
+        await new Promise((r) => setTimeout(r, 2));
+      }
+    })();
+    const res = await api(hub, 'proposals', {
+      method: 'POST',
+      body: JSON.stringify({
+        protocol: 1,
+        projectId: boot.body.projectId,
+        epoch: boot.body.epoch,
+        transactionId: `tx_pair_${Date.now()}`,
+        origin: { deviceId: 'test', sessionId: 's' },
+        action: {
+          kind: 'edit',
+          label: 'Pair edit',
+          operations: [
+            { op: 'lane.replace', doc: a?.doc, lane: 'html', baseContent: src('Pair v1'), content: src('Pair v2') },
+            { op: 'doc.create', doc: docB, path: 'ui/pair-b.tsx', lanes: { html: src('Pair B') } },
+          ],
+        },
+      }),
+    });
+    expect(res.body.status).toBe('accepted');
+    // The poke a ledger hub sends (this fixture has no control channel).
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return bob.read('ui/pair-a.tsx') === src('Pair v2') && bob.read('ui/pair-b.tsx') === src('Pair B');
+    }, 'the whole action on bob');
+    watching = false;
+    await watch;
+    // Never "A's edit without the canvas the same action created".
+    const runs = seen.filter((v, i) => i === 0 || seen[i - 1] !== v);
+    console.log(`[sync-accepted-runtime] pair visibility: ${runs.join(' → ')}`);
+    expect(seen.includes('A2')).toBe(false);
+  }, 60_000);
+
   test('history names who did what; personal undo keeps a teammate’s later edit; restore is a new action', async () => {
     alice.write('ui/hist.tsx', src('History v1'));
     await alice.runtime.rescanNow();
@@ -460,11 +515,32 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     expect(after[0]?.label).toContain('Restore hist');
   }, 60_000);
 
+  test('a fresh checkout replays the project byte-identically (T14)', async () => {
+    const carolRoot = join(root, 'carol');
+    const carol = await startPeer('carol', carolRoot, `http://127.0.0.1:${hub.port}`);
+    try {
+      const boot = await api(hub, 'bootstrap');
+      const live = (boot.body.docs as { path: string; retired: boolean }[])
+        .filter((d) => !d.retired && d.path.endsWith('.tsx'))
+        .map((d) => d.path);
+      expect(live.length).toBeGreaterThan(2);
+      await waitFor(async () => {
+        await carol.runtime.pullRemoteNow();
+        return live.every((p) => carol.read(p) !== null && carol.read(p) === alice.read(p));
+      }, 'carol to hold every canvas exactly as alice does', 30_000);
+      for (const p of live) expect(carol.read(p)).toBe(bob.read(p));
+    } finally {
+      await carol.runtime.stop();
+    }
+  }, 60_000);
+
   test('no raw document write ever reached the project: every change is an accepted action', async () => {
     const log = await api(hub, 'revisions?limit=500');
     const revisions = log.body.revisions as { actor?: string; kind?: string }[];
     expect(revisions.length).toBeGreaterThan(5);
-    for (const r of revisions) expect(['alice@x.test', 'bob@x.test']).toContain(r.actor as string);
+    // The people — and the owner machine's one direct action (the T14 test).
+    for (const r of revisions)
+      expect(['alice@x.test', 'bob@x.test', 'owner-machine']).toContain(r.actor as string);
     // And neither replica was ever written locally (the tripwire).
     expect(alice.runtime.acceptedWriteViolations?.()).toBe(0);
     expect(bob.runtime.acceptedWriteViolations?.()).toBe(0);
