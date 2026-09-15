@@ -84,6 +84,9 @@ type Surface = {
   /** A real pointer drag inside the canvas (browsers only; the native lane
    *  drives the frame probe). Returns false when not available. */
   canvasDrag?: (q: string, dx: number, dy: number, holdMs: number) => Promise<boolean>;
+  /** A keyboard shortcut pressed in the shell (not the canvas frame), e.g.
+   *  `Meta+z` — the way the menubar's own shortcuts are reached. */
+  press: (chord: string) => Promise<void>;
 };
 // Read browser code verbatim: TS function serialization can capture esbuild's
 // Node-side __name helper, which does not exist inside Chromium/WKWebView.
@@ -160,6 +163,9 @@ function web(name: string, root: string, page: Page): Surface {
     async screenshot(path) {
       await page.screenshot({ path });
     },
+    async press(chord) {
+      await page.keyboard.press(chord);
+    },
     async canvasDrag(q, dx, dy, holdMs) {
       const frame = page.frameLocator('[data-testid="canvas-frame"]');
       const box = await frame.locator(q).first().boundingBox();
@@ -190,6 +196,15 @@ function web(name: string, root: string, page: Page): Surface {
   };
 }
 const native: Surface = {
+  async press(chord) {
+    // WebDriver chords: modifiers held while the key goes down and up.
+    const parts = chord.split('+');
+    const key = parts.pop() as string;
+    const mods = parts.map((m) => (m === 'Meta' ? 'Meta' : m === 'Shift' ? 'Shift' : m));
+    await browser.keys([...mods, key]);
+    // Release modifiers explicitly (a held Meta leaks into the next action).
+    await browser.releaseActions().catch(() => {});
+  },
   name: 'native',
   root: run.roots.native,
   async photoTrace() {
@@ -2280,6 +2295,90 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               );
             });
           }
+        }
+        // L13 — an edited photo that is moved stays edited everywhere;
+        // the photo's own undo and redo (Cmd+Z / Cmd+Shift+Z with the Photo
+        // tab showing) take the adjustment off and put it back for everyone.
+        // Crop and transform are not controls this editor has.
+        await check('L13.photo.crop-transform', `${from.name}-to-peers`, async () => ({
+          status: 'unsupported',
+          reason:
+            'The Photo tab offers adjustments, effects, mask and background removal; there is no crop or transform control to drive.',
+        }));
+        {
+          const q = () => `image[data-id="${imageId}"]`;
+          const editRel = () => (assetRel ?? '').replace(/\.png$/, '.photo.json');
+          const brightnessOf = (p: Surface) => {
+            const path = join(p.root, '.design', editRel());
+            if (!existsSync(path)) return 0;
+            return JSON.parse(readFileSync(path, 'utf8')).adjustments?.brightness ?? 0;
+          };
+          const bright = async (p: Surface) => {
+            const image = await p.probe(q());
+            return (
+              !!image?.visible && !!image.pixel && image.pixel[0] > (input?.pixel[0] ?? 0) + 10
+            );
+          };
+          await check('L13.photo.move-keeps-edit', `${from.name}-to-peers`, async () => {
+            if (!imageId || !assetRel || !input)
+              throw new Unexercised('Photo requires the uploaded image');
+            await until(async () => (await from.read(selector('photo-knobs'))) !== null);
+            await from.fill('.st-cp-num input[aria-label="Brightness"]', '0.4');
+            await from.click('.st-cp-num input[aria-label="Contrast"]');
+            await until(() => all.every((p) => brightnessOf(p) === 0.4), 30000);
+            for (const p of all) await until(async () => bright(p), 30000);
+            const before = await Promise.all(all.map(async (p) => (await p.probe(q()))?.rect));
+            const start = performance.now();
+            await gesture(from, selector('palette-mode-edit'), 'click');
+            await gesture(from, q(), 'pointer', { dx: 60, dy: 30 });
+            return observeAll(
+              all,
+              `L13-move-keeps-edit-${from.name}`,
+              start,
+              async (p) => {
+                const r = (await p.probe(q()))?.rect;
+                const b = before[all.indexOf(p)];
+                return !!r && !!b && Math.abs(r.x - b.x) > 10 && (await bright(p));
+              },
+              (p) => brightnessOf(p) === 0.4
+            );
+          });
+          await check('L13.photo.undo', `${from.name}-to-peers`, async () => {
+            if (!imageId || !assetRel || !input)
+              throw new Unexercised('Photo requires the uploaded image');
+            if (!all.every((p) => brightnessOf(p) === 0.4))
+              throw new Unexercised('Undo needs the adjustment everywhere');
+            // The photo's own history lives in the shell: select it so the
+            // Photo tab is the one showing, then the shortcut.
+            await gesture(from, q(), 'pointer');
+            await until(async () => (await from.read(selector('photo-knobs'))) !== null);
+            await from.click('.st-cp-num input[aria-label="Contrast"]');
+            const start = performance.now();
+            await from.press('Meta+z');
+            return observeAll(
+              all,
+              `L13-photo-undo-${from.name}`,
+              start,
+              async (p) => !(await bright(p)) && !!(await p.probe(q()))?.visible,
+              (p) => brightnessOf(p) !== 0.4
+            );
+          });
+          await check('L13.photo.redo', `${from.name}-to-peers`, async () => {
+            if (!imageId || !assetRel || !input)
+              throw new Unexercised('Photo requires the uploaded image');
+            if (all.some((p) => brightnessOf(p) === 0.4))
+              throw new Unexercised('Redo needs the undone adjustment everywhere');
+            await from.click('.st-cp-num input[aria-label="Contrast"]');
+            const start = performance.now();
+            await from.press('Meta+Shift+z');
+            return observeAll(
+              all,
+              `L13-photo-redo-${from.name}`,
+              start,
+              bright,
+              (p) => brightnessOf(p) === 0.4
+            );
+          });
         }
         // L12 replace — the image's own "Replace…" (annotation context menu)
         // opens the media picker; picking the project's seeded photo re-points
