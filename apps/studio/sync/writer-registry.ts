@@ -222,6 +222,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/sync/cancel-assets': { class: 'local' },
   '/_api/sync/ownership': { class: 'local' },
   '/_api/sync/resync': { class: 'local', rows: 'X16' },
+  '/_api/sync/offline': { class: 'local', rows: 'T19 (pull the whole file plane now)' },
   '/_api/sync/settings': { class: 'local' },
   '/_api/sync/trash': { class: 'local', rows: 'X15 (restore re-enters through cold start)' },
   '/_api/timeline-media': { class: 'local' },

@@ -542,6 +542,12 @@ export interface SyncRuntime {
     key: string,
     outcome: 'done' | 'failed'
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string } | null>;
+  /**
+   * T19 — make the whole project available offline now: file-plane passes
+   * back to back (no pacing floor) until nothing is left to pull, or a pass
+   * stops making progress. Resolves with what came down and what could not.
+   */
+  prepareOffline?(): Promise<{ complete: boolean; pulled: number; passes: number; failed: number } | null>;
   /** T26 — the accepted action that carried this content of a canvas, if ours. */
   acceptedActionForContent?(repoRel: string, content: string): string | null;
   /** T28 — the two sides of a canvas's held source conflict. */
@@ -1296,6 +1302,7 @@ export function createSyncRuntime(
   let planePassInFlight = false;
   let lastPlanePassAt = 0;
   let planePassWaiter: Promise<void> | null = null;
+  let lastPlaneResult: import('./file-plane.ts').FilePlaneResult | null = null;
   async function runPlanePass(opts?: { floor?: boolean }): Promise<void> {
     // Captured, not re-read: `stop()` clears `filePlane`, and a pass that has
     // already decided to run must not dereference the field it was cleared to.
@@ -1320,6 +1327,7 @@ export function createSyncRuntime(
     const run = (async () => {
       try {
         const r = await lane.reconcile();
+        lastPlaneResult = r;
         planeResultSink?.(r);
       } catch (err) {
         console.error('[sync/files] pass failed:', err);
@@ -4718,6 +4726,24 @@ export function createSyncRuntime(
     acceptedUndo: async (actionId, redo = false) => {
       if (!acceptedOn() || !acceptedLink) return null;
       return acceptedLink.undo(actionId, redo);
+    },
+    prepareOffline: async () => {
+      if (!filePlane) return null;
+      let pulled = 0;
+      let passes = 0;
+      let failed = 0;
+      for (; passes < 40 && !stopped; passes += 1) {
+        lastPlaneResult = null;
+        await runPlanePass({ floor: false });
+        const r = lastPlaneResult as import('./file-plane.ts').FilePlaneResult | null;
+        if (!r) break;
+        pulled += r.pulled.length;
+        failed = r.failed.length;
+        if (r.pulled.length === 0 && !r.budgetExhausted) {
+          return { complete: failed === 0, pulled, passes: passes + 1, failed };
+        }
+      }
+      return { complete: false, pulled, passes, failed };
     },
     acceptedActionForContent: (repoRel, content) => {
       const slug = slugForRepoRel(repoRel);

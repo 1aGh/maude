@@ -289,6 +289,12 @@ export interface Context {
         redo?: boolean
       ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean; actionId?: string } | null>;
       acceptedActionForContent?(repoRel: string, content: string): string | null;
+      prepareOffline?(): Promise<{
+        complete: boolean;
+        pulled: number;
+        passes: number;
+        failed: number;
+      } | null>;
       conflictVersions?(repoRel: string): { slug: string; mine: string | null; theirs: string } | null;
       resolveConflict?(
         repoRel: string,

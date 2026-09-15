@@ -1740,7 +1740,13 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     // Referenced assets first (DDR-223's strokes→bytes coupling): a picture a
     // just-arrived annotation points at is the one a person is staring at.
     const referenced = referencedAssetNames(designRoot);
-    work.sort((a, b) => rank(a.rel, referenced) - rank(b.rel, referenced));
+    // …then smallest first (T19): one 1 GB master never makes the forty
+    // images a canvas needs wait behind it; big media fills in last.
+    const sizeOf = (w: (typeof work)[number]) =>
+      Math.max(claimedSize(w.row), w.local?.size ?? 0);
+    work.sort(
+      (a, b) => rank(a.rel, referenced) - rank(b.rel, referenced) || sizeOf(a) - sizeOf(b)
+    );
 
     const budget = createPullBudget({
       label: 'sync/files',

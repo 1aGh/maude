@@ -265,6 +265,24 @@ export default function SyncPanel({
   // Plan T20/T22 — a refused workspace on the desktop is usually a sign-in that
   // ran out. Signing in again re-mints the credential and reopens the same copy.
   const [signInAgain, setSignInAgain] = useState(false);
+  // Plan T19 — "Download everything for offline".
+  const [offline, setOffline] = useState('');
+  const [offlineBusy, setOfflineBusy] = useState(false);
+  async function prepareOffline() {
+    setOfflineBusy(true);
+    setOffline('');
+    try {
+      const r = await fetch('/_api/sync/offline', { method: 'POST' });
+      const j = await r.json().catch(() => ({}));
+      if (!j.ok) setOffline(j.error || 'Could not download the project right now.');
+      else if (j.complete) setOffline(`Everything is on this device${j.pulled ? ` — ${j.pulled} file${j.pulled === 1 ? '' : 's'} came down` : ''}.`);
+      else setOffline(`${j.pulled} file${j.pulled === 1 ? '' : 's'} came down; ${j.failed} still to come — Maude keeps trying.`);
+    } catch {
+      setOffline('Maude isn’t reachable right now.');
+    } finally {
+      setOfflineBusy(false);
+    }
+  }
   // Plan T28 — the conflict being resolved (a canvas slug), or null.
   const [resolving, setResolving] = useState(null);
   // Plan T16 — the person's decision on an unfinished AI edit.
@@ -559,6 +577,18 @@ export default function SyncPanel({
               continuous now, so nobody needs this button to pick up a new
               canvas — it is a repair tool, and repairing a cell is the hub's
               job. See `.ai/logs/rca/issue-cloud-assets-open-findings.md` §5. */}
+          {!cloud && status?.files && (
+            <button
+              type="button"
+              className="sp-resync"
+              data-testid="sync-offline"
+              onClick={prepareOffline}
+              disabled={offlineBusy}
+              title="Download every file of the project to this device now, to work offline"
+            >
+              {offlineBusy ? 'Downloading…' : 'Download all'}
+            </button>
+          )}
           {!cloud && (
             <button
               type="button"
@@ -578,6 +608,11 @@ export default function SyncPanel({
         {note && (
           <div className="sp-resync-note" role="status" aria-live="polite">
             {safeDetail(note, '')}
+          </div>
+        )}
+        {offline && (
+          <div className="sp-resync-note" role="status" aria-live="polite" data-testid="sync-offline-note">
+            {safeDetail(offline, '')}
           </div>
         )}
         {/* The one-rule sentence, live — same aria pattern as the rail note:

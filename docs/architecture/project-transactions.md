@@ -190,7 +190,11 @@ project in accepted revisions whose store cannot be read is unhealthy (503) even
 when its renderer is fine. The studio's `sync:status` carries `accepted {pending,
 oldestPendingAt, ackMs, rejected}`; while anything is pending the status reads
 *Saving N changes…* (kept on this device), never *Saved*. Media completeness stays
-the file plane's own counts (`files`, `assets`) in the same payload.
+the file plane's own counts (`files`, `assets`) in the same payload. Within a
+pass the file plane pulls what a canvas references first, then smallest first,
+so one large master never holds back the images a canvas needs; *Download all*
+in the Sync panel (`POST /_api/sync/offline`) runs passes back to back until
+the whole project is on the device (explicit offline preparation).
 
 ## User-visible guarantees
 

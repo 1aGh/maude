@@ -2278,6 +2278,17 @@ export function createHttp(
       );
     },
 
+    '/_api/sync/offline': async (req: Request) => {
+      // T19 — "Download everything for offline": every file of the project
+      // now, instead of as the passes get to it.
+      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+      if (!sameOriginWrite(req)) return new Response('cross-origin write rejected', { status: 403 });
+      if (!isTrustedRequestHost(req)) return new Response('local request required', { status: 403 });
+      const r = await ctx.syncControl?.current?.()?.prepareOffline?.();
+      if (!r) return Response.json({ ok: false, error: 'This project has no files to download.' }, { status: 409 });
+      return Response.json({ ok: true, ...r }, { headers: { 'Cache-Control': 'no-store' } });
+    },
+
     '/_api/project/conflict': async (req: Request) => {
       // T28 — a held source conflict: GET the two sides, POST the decision.
       if (!isTrustedRequestHost(req)) return new Response('local request required', { status: 403 });

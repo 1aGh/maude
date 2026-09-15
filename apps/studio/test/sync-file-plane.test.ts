@@ -1568,3 +1568,23 @@ describe('a local file over the plane ceiling', () => {
     expect(ledger.row('assets/clip.mp4')?.state).toBe('refused');
   });
 });
+
+// Plan T19 — a project opens usefully before its big media arrives: within a
+// pass, smaller files come down first (after the ones a canvas references).
+describe('pull order', () => {
+  test('small files before a large one', async () => {
+    const hub = fakeHub({
+      'assets/master.mp4': 'V'.repeat(200_000),
+      'assets/a.png': 'a',
+      'assets/b.png': 'bb',
+    });
+    const order: string[] = [];
+    const watching = (async (url: string | URL, init?: RequestInit) => {
+      const u = new URL(String(url));
+      if (u.pathname.startsWith('/_project-file/')) order.push(decodeURIComponent(u.pathname.slice('/_project-file/'.length)));
+      return hub.fetchImpl(String(url), init);
+    }) as unknown as typeof fetch;
+    await plane(hub, { fetchImpl: watching }).reconcile();
+    expect(order).toEqual(['assets/a.png', 'assets/b.png', 'assets/master.mp4']);
+  });
+});

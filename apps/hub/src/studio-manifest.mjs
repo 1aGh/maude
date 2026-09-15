@@ -223,6 +223,8 @@ export const STUDIO_ROUTES = Object.freeze({
   // A source conflict is a desktop checkout's (the cell's studio projects the
   // project, it holds no candidate of a person's).
   '/_api/project/conflict': REFUSED,
+  // Preparing a device for offline work is a desktop's; a cell IS the copy.
+  '/_api/sync/offline': REFUSED,
 
   // ---- refused in a cell, on the record ----------------------------------
   //
