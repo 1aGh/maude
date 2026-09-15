@@ -448,6 +448,10 @@ export interface Api {
     width?: unknown;
     height?: unknown;
   }): Promise<CreateCanvasResult>;
+  // Duplicate a canvas beside itself ("<name> copy") — POST /_api/canvas
+  // { duplicateOf }. Source, meta and the whiteboard layer; not comments or
+  // history, which belong to the original.
+  duplicateCanvas(input: { file?: unknown }): Promise<CreateCanvasResult>;
   // Soft-delete a canvas from the browser (Phase 22 — DELETE /_api/canvas)
   deleteCanvas(input: { file?: unknown }): Promise<DeleteCanvasResult>;
   // feature-file-tree-drag-drop-folders (Task 3) — move/rename a canvas + its
@@ -2848,6 +2852,87 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return { ok: true, file: path.posix.join(paths.designRel, rel), rel, slug };
   }
 
+  async function duplicateCanvas(input: { file?: unknown }): Promise<CreateCanvasResult> {
+    const raw = input?.file;
+    if (typeof raw !== 'string' || !raw.trim()) {
+      return { ok: false, status: 400, error: 'file is required' };
+    }
+    let rel = raw.trim();
+    try {
+      rel = decodeURIComponent(rel);
+    } catch {
+      /* leave as-is */
+    }
+    rel = rel.replace(/^\/+/, '');
+    const drPrefix = paths.designRel.replace(/^\/+|\/+$/g, '');
+    if (rel.startsWith(`${drPrefix}/`)) rel = rel.slice(drPrefix.length + 1);
+    if (rel.includes('..') || !/\.tsx$/i.test(rel)) {
+      return { ok: false, status: 400, error: 'invalid path' };
+    }
+    const fileAbs = path.resolve(path.join(paths.designRoot, rel));
+    const dirAbs = path.dirname(fileAbs);
+    const groups = cfg.canvasGroups.filter(
+      (g) => g.label !== 'Design system' && !/^system(\/|$)/.test(g.path)
+    );
+    const inGroup = groups.some((g) => {
+      const gAbs = path.resolve(path.join(paths.designRoot, g.path));
+      return dirAbs === gAbs || dirAbs.startsWith(`${gAbs}${path.sep}`);
+    });
+    if (!inGroup) {
+      return { ok: false, status: 400, error: 'only canvases under a managed canvas group can be duplicated' };
+    }
+    if (!(await assertRealpathContained(dirAbs))) {
+      return { ok: false, status: 400, error: 'source path escapes the design root via a symlink' };
+    }
+    if (!(await Bun.file(fileAbs).exists())) {
+      return { ok: false, status: 404, error: 'canvas not found' };
+    }
+    const base = path.basename(rel).replace(/\.tsx$/i, '');
+    const dir = path.posix.dirname(rel) === '.' ? '' : path.posix.dirname(rel);
+    // "<name> copy", then "<name> copy 2", … — the first free, valid name.
+    let name: string | null = null;
+    for (let n = 1; n < 100 && !name; n++) {
+      const suffix = n === 1 ? ' copy' : ` copy ${n}`;
+      const v = validateCanvasName(`${base.slice(0, 60 - suffix.length)}${suffix}`);
+      if (!v.ok || !v.name) return { ok: false, status: 400, error: v.error ?? 'invalid name' };
+      const candidate = path.posix.join(dir, `${v.name}.tsx`);
+      if (await Bun.file(path.join(paths.designRoot, candidate)).exists()) continue;
+      if (await fileForSlug(fileSlug(candidate))) continue;
+      name = v.name;
+    }
+    if (!name) return { ok: false, status: 409, error: 'too many copies of this canvas' };
+    const toRel = path.posix.join(dir, `${name}.tsx`);
+    const toAbs = path.join(paths.designRoot, toRel);
+    await Bun.write(toAbs, await Bun.file(fileAbs).arrayBuffer());
+    const metaAbs = fileAbs.replace(/\.tsx$/i, '.meta.json');
+    if (await Bun.file(metaAbs).exists()) {
+      let text = await Bun.file(metaAbs).text();
+      try {
+        const meta = JSON.parse(text) as Record<string, unknown>;
+        const now = new Date().toISOString();
+        if (typeof meta.title !== 'string' || meta.title === base) meta.title = name;
+        meta.created = now;
+        meta.last_modified = now;
+        text = `${JSON.stringify(meta, null, 2)}\n`;
+      } catch {
+        /* an unreadable meta is copied verbatim, like the source */
+      }
+      await Bun.write(toAbs.replace(/\.tsx$/i, '.meta.json'), text);
+    }
+    const slug = fileSlug(toRel);
+    // The whiteboard layer is slug-keyed at the design root (canvas-artifacts).
+    const annotationsAbs = path.join(paths.designRoot, `${fileSlug(rel)}.annotations.svg`);
+    if (await Bun.file(annotationsAbs).exists()) {
+      await Bun.write(
+        path.join(paths.designRoot, `${slug}.annotations.svg`),
+        await Bun.file(annotationsAbs).arrayBuffer()
+      );
+    }
+    ctx.bus.emit('canvas-list-update', { action: 'added', rel: toRel, slug });
+    ctx.bus.emit('canvas-created', { slug });
+    return { ok: true, file: path.posix.join(paths.designRel, toRel), rel: toRel, slug };
+  }
+
   // Phase 22 — SOFT-delete a canvas (DELETE /_api/canvas). Same trust boundary as
   // createCanvas: main-origin-only, never the untrusted canvas iframe origin
   // (DDR-054). Destructive, so it MOVES the whole sidecar set to
@@ -3160,7 +3245,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // never wrong about where the canvas lives) and every relocation is logged
   // to `_history/<toSlug>/_move.json` for forensic recovery. See the DDR
   // (Task 14) for the accepted-limitation writeup.
-  async function moveCanvas(input: { file?: unknown; toDir?: unknown }): Promise<MoveCanvasResult> {
+  async function moveCanvas(input: {
+    file?: unknown;
+    toDir?: unknown;
+    toName?: unknown;
+  }): Promise<MoveCanvasResult> {
     const raw = input?.file;
     if (typeof raw !== 'string' || !raw.trim()) {
       return { ok: false, status: 400, error: 'file is required' };
@@ -3180,13 +3269,29 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       // folder move (dragging a folder onto a folder). moveFolder does its own
       // existence + containment validation, so an invalid path still reports
       // the right error from there.
-      return moveFolder(rel, input?.toDir);
+      return moveFolder(rel, input?.toDir, input?.toName);
     }
 
-    if (typeof input?.toDir !== 'string') {
+    // A rename is a move in place under a new name (`toName`, same allowlist as
+    // a new canvas's name); `toDir` defaults to the canvas's own folder then.
+    let newBase: string | null = null;
+    if (input?.toName !== undefined && input.toName !== null && input.toName !== '') {
+      const v = validateCanvasName(input.toName);
+      if (!v.ok || !v.name) return { ok: false, status: 400, error: v.error ?? 'invalid name' };
+      newBase = `${v.name}.tsx`;
+    }
+    const toDirInput =
+      typeof input?.toDir === 'string'
+        ? input.toDir
+        : newBase
+          ? path.posix.dirname(rel) === '.'
+            ? ''
+            : path.posix.dirname(rel)
+          : null;
+    if (typeof toDirInput !== 'string') {
       return { ok: false, status: 400, error: 'toDir is required' };
     }
-    let toDir = input.toDir.trim().replace(/^\/+|\/+$/g, '');
+    let toDir = toDirInput.trim().replace(/^\/+|\/+$/g, '');
     try {
       toDir = decodeURIComponent(toDir);
     } catch {
@@ -3254,7 +3359,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       return { ok: false, status: 404, error: 'canvas not found' };
     }
 
-    const base = path.basename(rel);
+    const base = newBase ?? path.basename(rel);
     const toRel = path.posix.join(toDir, base);
     if (path.posix.normalize(toRel) === path.posix.normalize(rel)) {
       return { ok: false, status: 400, error: 'source and destination are the same' };
@@ -3422,7 +3527,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
   // nested canvas at once (they live inside the moved directory); only the
   // slug-keyed sidecars (flat dirs like `_history/<slug>/`, not nested by
   // folder structure) need their own per-canvas relocation afterward.
-  async function moveFolder(relDir: string, toDirRaw: unknown): Promise<MoveCanvasResult> {
+  async function moveFolder(
+    relDir: string,
+    toDirRaw: unknown,
+    toNameRaw?: unknown
+  ): Promise<MoveCanvasResult> {
     if (relDir.includes('..')) return { ok: false, status: 400, error: 'invalid path' };
     const dirAbs = path.join(paths.designRoot, relDir);
     const resolvedDesignRoot = path.resolve(paths.designRoot);
@@ -3498,7 +3607,14 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       return { ok: false, status: 400, error: 'cannot move a folder into itself' };
     }
 
-    const base = path.basename(relDir);
+    // A RENAME is a move to a new name in the same (or another) parent — one
+    // manifest action (dir.move), the same as any folder move (plan T17).
+    let base = path.basename(relDir);
+    if (toNameRaw !== undefined && toNameRaw !== null && toNameRaw !== '') {
+      const v = validateFolderName(toNameRaw);
+      if (!v.ok || !v.name) return { ok: false, status: 400, error: v.error ?? 'invalid name' };
+      base = v.name;
+    }
     const toRelDir = path.posix.join(toDir, base);
     if (path.posix.normalize(toRelDir) === path.posix.normalize(relDir)) {
       return { ok: false, status: 400, error: 'source and destination are the same' };
@@ -6179,6 +6295,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     saveChatAttachment,
     resolveChatAttachment,
     createCanvas,
+    duplicateCanvas,
     deleteCanvas,
     moveCanvas,
     createFolder,

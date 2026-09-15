@@ -1,0 +1,54 @@
+---
+title: Team projects and saving
+description: How a designer opens a team project without a folder, what "Saving…" and "Saved" mean, and how history, undo, conflicts and unfinished AI edits work when a project saves through accepted revisions.
+---
+
+A **team project** lives on your team's server — Maude Cloud or a self-hosted hub. Everyone works on the same project, and every change reaches everyone else without refreshing, pulling or pushing.
+
+## Opening a project you were invited to
+
+In the desktop app choose **Open a project you were invited to** (on first launch), or **Open a team project…** in the project switcher at the bottom of the sidebar.
+
+- **Maude Cloud** — sign in once (the app shows a short code to confirm on your dashboard), then pick the project from the list. Projects where you are a viewer open in your browser instead.
+- **Your team's own server** — enter the server address, your email and your password (from your invitation). The password is sent only to that server and never stored; the app keeps the sign-in it receives.
+- **An "Open in Maude" link** from the dashboard opens that project the same way.
+
+Maude keeps the project's copy in its own data folder — you never choose a folder, install Git or paste a token. Canvases appear as they arrive; big media (videos, large photos) follows in the background, smallest first. **Download all** in the Sync panel brings the whole project onto the device now, for working offline.
+
+## What the status means
+
+| You see | It means |
+|---|---|
+| **Saving N changes…** | Your changes are safe on this device and on their way to the project. If this lasts, check your connection — nothing is lost. |
+| **Synced** | The project has every change you made, and you have everyone else's. |
+| **A change needs your attention** | Something could not be merged on its own (see *Conflicts* below), or a file could not be sent. |
+| **Refused — Sign in again** | Your sign-in expired or was revoked. Sign in again; your unsent changes are kept and go out once you are allowed to edit. |
+
+"Synced" is about the project, not about whether a teammate who is offline has seen your change yet.
+
+## History and undo
+
+The **History** tab lists the project's actions — each with who made it and when. You can preview how a canvas looked at an earlier version and **Restore** it; a restore is a new action, so nothing is ever rewound for everyone else.
+
+**Undo** (Cmd+Z) takes back *your own* action. A teammate's later change — even to the same canvas — is kept. If a teammate changed the very same thing after you, the undo is skipped and the app tells you why.
+
+## When two people change the same thing
+
+- Changes to different parts of a canvas merge on their own.
+- Two people changing the **same property** (the same colour, the same text) from the inspector end with the change that reached the project **last** — no dialog, and History shows both.
+- A change the project cannot merge — for example, two people rewriting the same lines of a canvas's code — is kept on your device and marked **Resolve…** in the Sync panel. The panel shows your version and the project's version side by side: **Keep my version** (it becomes a new action on top of theirs) or **Use the project's version** (yours stays recoverable). Or just keep editing — your next save resolves it.
+
+## AI edits
+
+An edit Claude makes for you — in the app's chat or through `/design:edit` — is **one action** in History, however many files it touched. If it stops before finishing (you cancelled it, it hit an error, the app quit), nothing of it is shared: the Sync panel shows **An unfinished AI edit is kept on this device** with **Publish** and **Discard**.
+
+## Who can do what
+
+| | Owner | Designer (member) | Viewer |
+|---|---|---|---|
+| Edit canvases, folders, annotations, layout | yes | yes | no |
+| Comment | yes | yes | yes, in the browser |
+| Undo own actions, restore versions | yes | yes | no |
+| Invite and remove people, switch how the project saves | yes | no | no |
+
+Operators switching an existing project to accepted revisions follow the [rollout runbook](https://github.com/1aGh/maude/blob/main/docs/operations/project-multiplayer-rollout.md).

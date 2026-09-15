@@ -249,6 +249,18 @@ function pathTestIdSlug(p) {
     .toLowerCase()
     .replace(/^-+|-+$/g, '');
 }
+// A layers tree's identity: its element ids in document order. Two trees with
+// the same signature are the same DOM as far as positional ids go.
+function layersTreeSig(nodes) {
+  const ids = [];
+  (function walk(list) {
+    for (const n of list || []) {
+      ids.push(n?.id ?? '');
+      walk(n?.children);
+    }
+  })(nodes);
+  return ids.join(',');
+}
 // Bun's `define` substitutes this at build time (see build.ts); falls back when
 // the bundle is consumed in a context that hasn't run the build.
 const MDCC_VERSION = typeof __MDCC_VERSION__ !== 'undefined' ? __MDCC_VERSION__ : 'dev';
@@ -2799,6 +2811,9 @@ function Sidebar({
   onMoveCanvas,
   onNewFolder,
   onDeleteFolder,
+  onRenameFolder,
+  onRenameCanvas,
+  onDuplicateCanvas,
   // Passed through to CloudBar only — the live `sync:status` payload that makes
   // the connect note follow the link instead of freezing at attach time.
   syncStatus,
@@ -2840,7 +2855,35 @@ function Sidebar({
   const menuExtra = rowMenu.state?.extra;
   const rowMenuRootItems =
     menuExtra?.kind === 'file'
-      ? [{ id: 'move-to', label: 'Move to…', onSelect: () => rowMenu.showMoveTo() }]
+      ? [
+          ...(onRenameCanvas && /\.tsx$/i.test(menuExtra.path)
+            ? [
+                {
+                  id: 'rename-canvas',
+                  label: 'Rename…',
+                  onSelect: () => {
+                    rowMenu.close();
+                    const current = displayName(menuExtra.path.split('/').pop());
+                    const name = window.prompt('Rename canvas to:', current);
+                    if (name?.trim() && name.trim() !== current) onRenameCanvas(menuExtra.path, name.trim());
+                  },
+                },
+              ]
+            : []),
+          ...(onDuplicateCanvas && /\.tsx$/i.test(menuExtra.path)
+            ? [
+                {
+                  id: 'duplicate-canvas',
+                  label: 'Duplicate',
+                  onSelect: () => {
+                    rowMenu.close();
+                    onDuplicateCanvas(menuExtra.path);
+                  },
+                },
+              ]
+            : []),
+          { id: 'move-to', label: 'Move to…', onSelect: () => rowMenu.showMoveTo() },
+        ]
       : menuExtra?.kind === 'dir'
         ? [
             {
@@ -2850,6 +2893,16 @@ function Sidebar({
                 rowMenu.close();
                 const name = window.prompt('New folder name:');
                 if (name?.trim()) onNewFolder(menuExtra.dirPath, name.trim());
+              },
+            },
+            {
+              id: 'rename-folder',
+              label: 'Rename folder',
+              onSelect: () => {
+                rowMenu.close();
+                const current = menuExtra.dirPath.split('/').pop();
+                const name = window.prompt('Rename folder to:', current);
+                if (name?.trim() && name.trim() !== current) onRenameFolder(menuExtra.dirPath, name.trim());
               },
             },
             {
@@ -9828,6 +9881,30 @@ function App() {
   // after it) renumbers. Stash the re-settle target { file, movedId, artboardId }
   // so the dgn:'loaded' handler re-selects the moved element by its NEW id.
   const pendingReorderRef = useRef(null);
+  // The last layers tree the canvas posted, and its id signature. A duplicate
+  // or insert renumbers every later positional id, so the copy's NEW id already
+  // names another element (the next sibling) in the pre-write tree: settling
+  // on the first tree that merely contains it selected the wrong node. The
+  // pending entry records the signature at request time and waits for a tree
+  // that differs from it.
+  const lastLayersTreeRef = useRef(null);
+  const settlePendingSelectionRef = useRef(null);
+  settlePendingSelectionRef.current = (tree, sig, artboardId) => {
+    const pend = pendingReorderRef.current;
+    if (!pend || !pend.movedId) return;
+    if (pend.staleSig != null && sig === pend.staleSig) return; // still the pre-write DOM
+    const has = (function find(nodes) {
+      return (nodes || []).some((n) => n.id === pend.movedId || find(n.children));
+    })(tree);
+    if (!has) return;
+    pendingReorderRef.current = null;
+    const win = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
+    if (win) {
+      try {
+        win.postMessage({ dgn: 'select-by-id', id: pend.movedId, artboardId, index: 0 }, '*');
+      } catch {}
+    }
+  };
   // Latest `reorderLayer` (defined far below), read from the stale-closure
   // onMessage handler when the in-canvas grip posts dgn:'reorder-request'
   // (same freshness idiom as selectedRef; avoids a render-time TDZ on the
@@ -12577,6 +12654,82 @@ function App() {
     [loadTree]
   );
 
+  // Plan T17 — rename a folder: a move to a new name in the same parent (one
+  // dir.move action in accepted mode, carrying every canvas inside).
+  const renameFolderReq = useCallback(
+    async (dirPath, name) => {
+      const parent = dirPath.split('/').slice(0, -1).join('/');
+      try {
+        const r = await fetch('/_api/fs-move', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: dirPath, toDir: parent, toName: name }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || !j.ok) {
+          shellToast(`Could not rename folder: ${j.error || `error ${r.status}`}`);
+          return;
+        }
+        await loadTree();
+      } catch (e) {
+        shellToast(`Rename failed: ${e instanceof Error ? e.message : 'network error'}`);
+      }
+    },
+    [loadTree]
+  );
+
+  // Plan T25/L04 — rename a canvas in place (its sidecars follow; an open tab
+  // follows the new path) and duplicate one beside itself.
+  const renameCanvasReq = useCallback(
+    async (filePath, name) => {
+      try {
+        const r = await fetch('/_api/fs-move', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: filePath, toName: name }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || !j.ok) {
+          shellToast(`Could not rename: ${j.error || `error ${r.status}`}`);
+          return;
+        }
+        const designRel = (cfg?.designRel || cfg?.designRoot || '.design').replace(
+          /^\/+|\/+$/g,
+          ''
+        );
+        const fromFile = `${designRel}/${j.fromRel}`;
+        const toFile = `${designRel}/${j.toRel}`;
+        await loadTree();
+        setTabs((prev) => prev.map((t) => (t.path === fromFile ? { path: toFile } : t)));
+        setActivePath((prev) => (prev === fromFile ? toFile : prev));
+      } catch (e) {
+        shellToast(`Rename failed: ${e instanceof Error ? e.message : 'network error'}`);
+      }
+    },
+    [loadTree, cfg]
+  );
+  const duplicateCanvasReq = useCallback(
+    async (filePath) => {
+      try {
+        const r = await fetch('/_api/canvas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ duplicateOf: filePath }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || !j.ok) {
+          shellToast(`Could not duplicate: ${j.error || `error ${r.status}`}`);
+          return;
+        }
+        await loadTree();
+        shellToast(`Duplicated as ${j.rel.split('/').pop().replace(/\.tsx$/i, '')}`, true);
+      } catch (e) {
+        shellToast(`Duplicate failed: ${e instanceof Error ? e.message : 'network error'}`);
+      }
+    },
+    [loadTree]
+  );
+
   const clearSelected = useCallback(() => {
     wsSend({ type: 'clear-select' });
     setSelected(null);
@@ -12814,6 +12967,8 @@ function App() {
       } else if (m.dgn === 'layers-tree') {
         // Phase 12 Task 4 — browsable layers tree for the active artboard.
         setLayersTree({ artboardId: m.artboardId, nodes: Array.isArray(m.tree) ? m.tree : [] });
+        const sig = layersTreeSig(m.tree);
+        lastLayersTreeRef.current = { tree: m.tree, sig, artboardId: m.artboardId ?? null };
         // fresh tree (correct ids) landed — drags OK again
         layersBusyRef.current = false;
         if (layersBusyTimerRef.current) {
@@ -12829,24 +12984,7 @@ function App() {
         // actually CONTAINS movedId — an in-canvas drag posts a PREVIEW tree
         // first (old ids, pre-write); consuming then would re-select nothing and
         // burn the pending ref before the real post-HMR tree lands.
-        const pend = pendingReorderRef.current;
-        if (pend && pend.movedId) {
-          const has = (function find(nodes) {
-            return (nodes || []).some((n) => n.id === pend.movedId || find(n.children));
-          })(m.tree);
-          if (has) {
-            pendingReorderRef.current = null;
-            const win = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
-            if (win) {
-              try {
-                win.postMessage(
-                  { dgn: 'select-by-id', id: pend.movedId, artboardId: m.artboardId ?? null, index: 0 },
-                  '*'
-                );
-              } catch {}
-            }
-          }
-        }
+        settlePendingSelectionRef.current?.(m.tree, sig, m.artboardId ?? null);
       } else if (m.dgn === 'reorder-revert') {
         // Phase 12.1 follow-up — Cmd+Z/Cmd+Shift+Z on a reorder. The canvas undo
         // stack (untrusted iframe) can't reach the main-origin-only
@@ -13991,9 +14129,18 @@ function App() {
   // inverse descriptor goes stale (same reason reorder uses the server seq log).
   const structuralWriteRef = useRef(null);
   const structuralWrite = useCallback(
-    (route, body, { label, onOk, onFail } = {}) => {
+    (route, body, { label, onOk, onFail: failed } = {}) => {
       if (!activePath) return;
       const canvas = activePath;
+      // A refused structural edit used to vanish into the console: the
+      // designer pressed Delete and nothing happened. Say so in the canvas.
+      const onFail =
+        failed ??
+        ((j) =>
+          postToActiveCanvas({
+            dgn: 'op-toast',
+            message: `Couldn't ${label || 'apply the edit'}${j?.error ? ` — ${j.error}` : ''}.`,
+          }));
       editApplyChainRef.current = editApplyChainRef.current
         .catch(() => {})
         .then(() =>
@@ -14040,6 +14187,7 @@ function App() {
 
   const insertElementShell = useCallback(
     (refId, position, kind, opts = {}) => {
+      const staleSig = lastLayersTreeRef.current?.sig ?? null;
       structuralWrite(
         '/_api/insert-element',
         {
@@ -14055,7 +14203,10 @@ function App() {
           // Select the new element once the HMR reload lands (its id is stamped
           // on transpile — best-effort, like reorder's pendingReorderRef).
           onOk: (j, canvas) => {
-            if (j.newId) pendingReorderRef.current = { file: canvas, movedId: j.newId, artboardId: null };
+            if (!j.newId) return;
+            pendingReorderRef.current = { file: canvas, movedId: j.newId, artboardId: null, staleSig };
+            const last = lastLayersTreeRef.current;
+            if (last) settlePendingSelectionRef.current?.(last.tree, last.sig, last.artboardId);
           },
         }
       );
@@ -14119,14 +14270,19 @@ function App() {
 
   const duplicateElementShell = useCallback(
     (id, idIndex) => {
+      const staleSig = lastLayersTreeRef.current?.sig ?? null;
       structuralWrite(
         '/_api/duplicate-element',
         { id, idIndex: Number.isInteger(idIndex) ? idIndex : undefined },
         {
           label: 'duplicate element',
-          // Select the copy once the HMR reload lands (best-effort, like insert).
+          // Select the copy once the post-write tree lands — not the pre-write
+          // one, where the copy's id still names the next sibling.
           onOk: (j, canvas) => {
-            if (j.newId) pendingReorderRef.current = { file: canvas, movedId: j.newId, artboardId: null };
+            if (!j.newId) return;
+            pendingReorderRef.current = { file: canvas, movedId: j.newId, artboardId: null, staleSig };
+            const last = lastLayersTreeRef.current;
+            if (last) settlePendingSelectionRef.current?.(last.tree, last.sig, last.artboardId);
           },
         }
       );
@@ -15208,6 +15364,9 @@ function App() {
           onMoveCanvas={moveCanvasReq}
           onNewFolder={newFolderReq}
           onDeleteFolder={deleteFolderReq}
+          onRenameFolder={renameFolderReq}
+          onRenameCanvas={renameCanvasReq}
+          onDuplicateCanvas={duplicateCanvasReq}
           onRefresh={refreshTree}
           refreshing={treeRefreshing}
           collapsed={false}

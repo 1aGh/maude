@@ -67,6 +67,7 @@ type Surface = {
   hover: (q: string) => Promise<void>;
   menu: (text: string) => Promise<void>;
   confirmNext: () => Promise<void>;
+  promptNext: (value: string) => Promise<void>;
   fill: (q: string, value: string) => Promise<void>;
   select: (q: string, value: string) => Promise<void>;
   dragTo: (source: string, destination: string) => Promise<void>;
@@ -116,10 +117,18 @@ function web(name: string, root: string, page: Page): Surface {
       await page.locator(q).hover();
     },
     async menu(text) {
-      await page.getByRole('menuitem', { name: text, exact: true }).click();
+      // A menu opened near the bottom of a long tree slides into place; wait
+      // for it to settle rather than racing its transition.
+      const item = page.getByRole('menuitem', { name: text, exact: true });
+      await item.waitFor({ state: 'visible' });
+      await page.waitForTimeout(250);
+      await item.click({ timeout: 10000 }).catch(() => item.click({ force: true }));
     },
     async confirmNext() {
       page.once('dialog', (dialog) => dialog.accept());
+    },
+    async promptNext(value) {
+      page.once('dialog', (dialog) => dialog.accept(value));
     },
     async click(q) {
       await page.locator(q).click();
@@ -199,6 +208,16 @@ const native: Surface = {
         return true;
       };
     });
+  },
+  async promptNext(value) {
+    // Test-only counterpart of answering a native prompt (a temporary project).
+    await browser.execute((answer) => {
+      const original = window.prompt;
+      window.prompt = () => {
+        window.prompt = original;
+        return answer;
+      };
+    }, value);
   },
   async click(q) {
     await (await $(q)).click();
@@ -500,6 +519,12 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         }
       };
       page.on('pageerror', (error) => log({ kind: 'page-error', message: error.message }));
+      // Shell warnings name refused writes (`[/_api/…] <reason>`); bounded text
+      // only — never page content.
+      page.on('console', (message) => {
+        if (message.type() === 'warning' || message.type() === 'error')
+          log({ kind: `console-${message.type()}`, message: message.text().slice(0, 300) });
+      });
       page.on('requestfailed', (request) =>
         log({
           kind: 'request-failed',
@@ -527,8 +552,14 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
     await peerPage.addInitScript(probeScript);
     const all = [web('hub', run.roots.hub, hubPage), native, web('peer', run.roots.peer, peerPage)];
     try {
-      if (!(await isNativeShell())) throw new Error('Native participant is not a Tauri webview');
+      // The webview is a Tauri page only once it reached the sidecar; asking
+      // before that raced the app's boot (and failed whenever it lost).
       const nativeUrl = await waitForSidecar();
+      if (!(await isNativeShell())) throw new Error('Native participant is not a Tauri webview');
+      // A fixed window, so a run never depends on whatever size the e2e
+      // profile last remembered (1280×800 by default vs a restored 1690×1388
+      // changed which selection chrome fit on screen).
+      await browser.setWindowSize(1690, 1300).catch(() => {});
       const nativeInfo = JSON.parse(
         readFileSync(join(native.root, '.design/_server.json'), 'utf8')
       );
@@ -855,24 +886,35 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         });
       }
       for (const from of all) {
-        await check('L01.empty-folder.rename', from.name, async () => {
-          const name = `EmptyDelete-${from.name}`;
+        await check('L01.empty-folder.rename', `${from.name}-to-peers`, async () => {
+          // The folder L01.empty-folder.create made; renamed in place.
+          const name = `Surface-${from.name}`;
+          const renamed = `Surface-${from.name}-renamed`;
           const q = selector(`tree-folder-ui-${slug(name)}`);
+          const renamedQ = selector(`tree-folder-ui-${slug(renamed)}`);
+          for (const p of all)
+            if ((await p.read(q)) === null || !existsSync(join(p.root, '.design/ui', name)))
+              throw new Unexercised(`Rename needs the created folder at ${p.name}`);
           await from.hover(q);
           await from.click(selector(`tree-row-menu-ui-${slug(name)}`));
           const menu = await from.read('[role="menu"]');
           await from.screenshot(join(run.out, `L01-folder-menu-${from.name}.png`));
-          await from.click('.st-sb-title');
-          if (!menu?.includes('Delete folder')) throw new Unexercised('Folder action menu absent');
-          if (/rename/i.test(menu))
-            throw new Error('Rename is exposed; implement its actual gesture');
-          return {
-            status: 'unsupported',
-            menu,
-            repairTask: 'T17',
-            reason:
-              'Current folder menu exposes new/delete, no rename. No create+delete substitute was used.',
-          };
+          if (!menu?.includes('Rename folder')) {
+            await from.click('.st-sb-title');
+            throw new Error('Folder menu has no Rename folder');
+          }
+          await from.promptNext(renamed);
+          const start = performance.now();
+          await from.menu('Rename folder');
+          return observeAll(
+            all,
+            `L01-empty-rename-${from.name}`,
+            start,
+            async (p) => (await p.read(q)) === null && (await p.read(renamedQ)) !== null,
+            (p) =>
+              !existsSync(join(p.root, '.design/ui', name)) &&
+              existsSync(join(p.root, '.design/ui', renamed))
+          );
         });
         await check('L01.empty-folder.move', `${from.name}-to-peers`, async () => {
           const name = `EmptyMove-${from.name}`;
@@ -2054,6 +2096,209 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           }
         });
       }
+      // ── Plan T31 — structured UI operations, races and final parity ─────
+      // Setup is a filesystem gesture on the author (like L06); every oracle is
+      // the OTHER participants' visible UI and disk.
+      const seedCanvas = async (from: Surface, rel: string, body: string) => {
+        writeFileSync(join(from.root, '.design', rel), body);
+        await until(
+          () =>
+            all.every(
+              (p) =>
+                existsSync(join(p.root, '.design', rel)) &&
+                readFileSync(join(p.root, '.design', rel), 'utf8') === body
+            ),
+          30000
+        );
+      };
+      // Inside a DesignCanvas artboard, like every real canvas: the tool
+      // palette (edit mode) and the inspector only exist there.
+      const elementCanvas = (title: string) =>
+        `import { DesignCanvas, DCArtboard } from '@maude/canvas-lib';\nexport default function SurfaceEl() {\n  return (\n    <DesignCanvas>\n      <DCArtboard id="el" label="Element" width={600} height={400}>\n        <section style={{ padding: 24 }}>\n          <h1 style={{ fontWeight: "400" }}>${title}</h1>\n          <p>Kept paragraph</p>\n        </section>\n      </DCArtboard>\n    </DesignCanvas>\n  );\n}\n`;
+      const headings = async (p: Surface) => (await p.probe('h1'))?.matches?.length ?? 0;
+      const count = (p: Surface, rel: string, needle: string) =>
+        (readFileSync(join(p.root, '.design', rel), 'utf8').match(new RegExp(needle, 'g')) ?? []).length;
+      const openSeeded = async (rel: string, title: string, id: string) => {
+        for (const p of all) {
+          const row = selector(`canvas-row-${slug(rel.replace(/\.tsx$/, ''))}`);
+          try {
+            // A canvas that arrived by the project's own sync: its row first.
+            await until(async () => (await p.read(row)) !== null, 30000);
+            await openCanvas(p, rel);
+            await until(async () => (await p.read('h1', true)) === title, 30000);
+          } catch (error) {
+            await p.screenshot(join(run.out, `${id}-open-${p.name}-failed.png`));
+            throw new Error(`${p.name}: ${String(error)}`);
+          }
+        }
+      };
+      // L04 — rename in place and duplicate, through the file tree's own row
+      // menu. Receivers keep the canvas open: their tab follows the rename.
+      const rowOf = (rel: string) => selector(`canvas-row-${slug(rel.replace(/\.tsx$/, ''))}`);
+      const frameOf = (rel: string) => `[data-testid="canvas-frame"][data-path=".design/${rel}"]`;
+      for (const from of all) {
+        const rel = `ui/SurfaceRen-${from.name}.tsx`;
+        const renamed = `ui/SurfaceRen-${from.name}-renamed.tsx`;
+        const body = elementCanvas(`Rename ${from.name}`);
+        await check('L04.canvas.rename', `${from.name}-to-peers`, async () => {
+          await seedCanvas(from, rel, body);
+          await openSeeded(rel, `Rename ${from.name}`, `L04-rename-${from.name}`);
+          await from.hover(rowOf(rel));
+          await from.click(selector(`tree-row-menu-${slug(rel.replace(/\.tsx$/, ''))}`));
+          await from.promptNext(`SurfaceRen-${from.name}-renamed`);
+          const start = performance.now();
+          await from.menu('Rename…');
+          return observeAll(
+            all,
+            `L04-rename-${from.name}`,
+            start,
+            async (p) =>
+              (await p.read(rowOf(rel))) === null &&
+              (await p.read(rowOf(renamed))) !== null &&
+              (await p.read(frameOf(renamed))) !== null &&
+              (await p.read('h1', true)) === `Rename ${from.name}`,
+            (p) =>
+              !existsSync(join(p.root, '.design', rel)) &&
+              existsSync(join(p.root, '.design', renamed)) &&
+              readFileSync(join(p.root, '.design', renamed), 'utf8') === body
+          );
+        });
+        const dupRel = `ui/SurfaceDup-${from.name}.tsx`;
+        const copyRel = `ui/SurfaceDup-${from.name} copy.tsx`;
+        const dupBody = elementCanvas(`Duplicate ${from.name}`);
+        await check('L04.canvas.duplicate', `${from.name}-to-peers`, async () => {
+          await seedCanvas(from, dupRel, dupBody);
+          for (const p of all) await until(async () => (await p.read(rowOf(dupRel))) !== null, 30000);
+          await from.hover(rowOf(dupRel));
+          await from.click(selector(`tree-row-menu-${slug(dupRel.replace(/\.tsx$/, ''))}`));
+          const start = performance.now();
+          await from.menu('Duplicate');
+          const result = await observeAll(
+            all,
+            `L04-duplicate-${from.name}`,
+            start,
+            async (p) => (await p.read(rowOf(copyRel))) !== null && (await p.read(rowOf(dupRel))) !== null,
+            (p) =>
+              existsSync(join(p.root, '.design', copyRel)) &&
+              readFileSync(join(p.root, '.design', copyRel), 'utf8') === dupBody &&
+              readFileSync(join(p.root, '.design', dupRel), 'utf8') === dupBody
+          );
+          // The copy opens and renders on a receiver, independently of the original.
+          const receiver = all.find((p) => p !== from) as Surface;
+          await openCanvas(receiver, copyRel);
+          await until(async () => (await receiver.read('h1', true)) === `Duplicate ${from.name}`, 30000);
+          return result;
+        });
+      }
+      for (const from of all) {
+        const rel = `ui/SurfaceEl-${from.name}.tsx`;
+        await check('L07.element.duplicate', `${from.name}-to-peers`, async () => {
+          await seedCanvas(from, rel, elementCanvas(`Element ${from.name}`));
+          await openSeeded(rel, `Element ${from.name}`, `L07-${from.name}`);
+          await selectHeading(from);
+          const start = performance.now();
+          await gesture(from, 'body', 'key', { key: 'd', meta: true });
+          return observeAll(
+            all,
+            `L07-duplicate-${from.name}`,
+            start,
+            async (p) => (await headings(p)) === 2 && (await p.read('p', true)) === 'Kept paragraph',
+            (p) => count(p, rel, '<h1') === 2 && count(p, rel, 'Kept paragraph') === 1
+          );
+        });
+        await check('L07.element.delete', `${from.name}-to-peers`, async () => {
+          for (const p of all)
+            if (count(p, rel, '<h1') !== 2)
+              throw new Unexercised(`Delete needs the duplicated heading at ${p.name}`);
+          await selectHeading(from);
+          // Act on what the designer sees: the heading named in the selection
+          // chip, on a canvas that has stopped re-rendering the duplicate.
+          await until(async () => {
+            const chip = await from.read('.st-sb-sel .val');
+            if (!chip?.includes(`Element ${from.name}`) || (await headings(from)) !== 2) return false;
+            await sleep(300);
+            return (await headings(from)) === 2 && !!(await from.read('.st-sb-sel .val'));
+          });
+          const start = performance.now();
+          await gesture(from, 'body', 'key', { key: 'Delete' });
+          return observeAll(
+            all,
+            `L07-delete-${from.name}`,
+            start,
+            async (p) => (await headings(p)) === 1 && (await p.read('p', true)) === 'Kept paragraph',
+            (p) => count(p, rel, '<h1') === 1 && count(p, rel, 'Kept paragraph') === 1
+          );
+        });
+      }
+      // L21 — two people set the SAME property at once. Acceptance order
+      // wins (T24): every participant converges on one value, nobody is
+      // handed a conflict, and the other paragraph is untouched.
+      for (const [i, from] of all.entries()) {
+        const other = all[(i + 1) % all.length] as Surface;
+        const rel = `ui/SurfaceRace-${from.name}.tsx`;
+        await check('L21.same-property-race', `${from.name}-and-${other.name}`, async () => {
+          await seedCanvas(from, rel, elementCanvas(`Race ${from.name}`));
+          await openSeeded(rel, `Race ${from.name}`, `L21-${from.name}`);
+          await selectHeading(from);
+          await selectHeading(other);
+          const start = performance.now();
+          await Promise.all([from.select(weight, '300'), other.select(weight, '800')]);
+          const settled = await until(() => {
+            const vals = all.map((p) => readFileSync(join(p.root, '.design', rel), 'utf8'));
+            return vals.every((v) => v === vals[0]) && /fontWeight:\s*"(300|800)"/.test(vals[0] as string);
+          }, 30000)
+            .then(() => true)
+            .catch(() => false);
+          const conflicts = all.map((p) => {
+            try {
+              const sync = JSON.parse(readFileSync(join(p.root, '.design', '_sync.json'), 'utf8'));
+              return (sync.notices ?? []).some((n: { id?: string }) =>
+                String(n.id ?? '').startsWith(`source-conflict-ui-surfacerace-${slug(from.name)}`)
+              );
+            } catch {
+              return false;
+            }
+          });
+          const winner = /fontWeight:\s*"(300|800)"/.exec(
+            readFileSync(join(from.root, '.design', rel), 'utf8')
+          )?.[1];
+          for (const p of all) await p.screenshot(join(run.out, `L21-race-${from.name}-${p.name}.png`));
+          return {
+            status: settled && conflicts.every((c) => !c) ? 'pass' : 'fail',
+            convergedMs: settled ? performance.now() - start : null,
+            winner,
+            conflictNotices: conflicts,
+          };
+        });
+      }
+      // L24 — final parity: every eligible design file hashes the same on
+      // every participant (runtime state and conflict copies excluded).
+      await check('L24.final-parity', 'all', async () => {
+        const eligible = (root: string) => {
+          const out = new Map<string, string>();
+          const walk = (dir: string, rel: string) => {
+            for (const e of readdirSync(dir, { withFileTypes: true })) {
+              if (e.name.startsWith('_') || e.name.startsWith('.')) continue;
+              const r = rel ? `${rel}/${e.name}` : e.name;
+              if (e.isDirectory()) walk(join(dir, e.name), r);
+              else if (/\.(tsx|meta\.json|annotations\.svg)$/.test(e.name) && !/-conflict-/.test(e.name))
+                out.set(r, createHash('sha256').update(readFileSync(join(dir, e.name))).digest('hex'));
+            }
+          };
+          walk(join(root, '.design', 'ui'), 'ui');
+          return out;
+        };
+        await sleep(5000);
+        const maps = all.map((p) => [p.name, eligible(p.root)] as const);
+        const paths = new Set(maps.flatMap(([, m]) => [...m.keys()]));
+        const mismatches: Array<Record<string, unknown>> = [];
+        for (const rel of paths) {
+          const hashes = Object.fromEntries(maps.map(([n, m]) => [n, m.get(rel) ?? null]));
+          if (new Set(Object.values(hashes)).size !== 1) mismatches.push({ rel, hashes });
+        }
+        writeFileSync(join(run.out, 'L24-final-parity.json'), JSON.stringify({ files: paths.size, mismatches }, null, 2));
+        return { status: mismatches.length === 0 ? 'pass' : 'fail', files: paths.size, mismatches: mismatches.slice(0, 20) };
+      });
     } catch (error) {
       record({ id: 'bootstrap-or-scenario-driver', status: 'fail', error: String(error) });
       throw error;

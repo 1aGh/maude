@@ -3,6 +3,33 @@
   "version": "1.2.0",
   "entries": [
     {
+      "id": "file-tree-rename-duplicate",
+      "version": null,
+      "date": null,
+      "kind": "feature",
+      "title": "Rename and duplicate canvases and folders from the file tree",
+      "summary": "The ⋯ menu on a canvas now offers Rename… and Duplicate, and folders can be renamed in place. Teammates see the new name immediately — a canvas they have open follows the rename. Menus near the bottom of a long tree now open upward instead of off-screen, and after ⌘D the copy is what stays selected.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "open-team-project-no-folder",
+      "version": null,
+      "date": null,
+      "kind": "feature",
+      "title": "Open your team’s project in one step",
+      "summary": "Invited to a project? Choose “Open a project you were invited to”, sign in to Maude Cloud or your team’s server with your email, pick the project and start designing — no folder to choose, no token, no Git. Maude keeps the project’s copy for you and lists it under “Open a team project…”.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "reliable-project-saving",
+      "version": null,
+      "date": null,
+      "kind": "feature",
+      "title": "Every change saved, shared and undoable",
+      "summary": "In projects that save through accepted revisions, the status says “Saving…” until your team’s project has your change, History lists each action with its author, Undo takes back only your own action, two people changing the same thing end with the later change instead of a conflict, an unfinished AI edit waits for your decision, and large videos upload and download resumably.",
+      "surface": "design-ui"
+    },
+    {
       "id": "native-codex-shared-workflows",
       "version": null,
       "date": null,

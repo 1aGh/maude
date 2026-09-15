@@ -2430,7 +2430,11 @@ export function createHttp(
         64 * 1024
       );
       if (!body) return new Response('body required', { status: 400 });
-      const result = await api.createCanvas(body);
+      const duplicateOf = (body as { duplicateOf?: unknown }).duplicateOf;
+      const result =
+        duplicateOf !== undefined
+          ? await api.duplicateCanvas({ file: duplicateOf })
+          : await api.createCanvas(body);
       if (!result.ok) {
         return Response.json(
           { ok: false, error: result.error },
@@ -2457,7 +2461,10 @@ export function createHttp(
       if (!isTrustedRequestHost(req))
         return new Response('local request required (DNS-rebinding guard)', { status: 403 });
       if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-      const body = await readJson<{ file?: unknown; toDir?: unknown }>(req, 4 * 1024);
+      const body = await readJson<{ file?: unknown; toDir?: unknown; toName?: unknown }>(
+        req,
+        4 * 1024
+      );
       if (!body) return new Response('body required', { status: 400 });
       const result = await api.moveCanvas(body);
       if (!result.ok) {

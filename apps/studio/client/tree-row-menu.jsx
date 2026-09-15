@@ -9,7 +9,24 @@
 // only `position` is overridden inline since this menu anchors to an
 // arbitrary row, not the menubar's fixed offset.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+
+const EDGE = 8;
+
+/**
+ * Where a menu of `size` goes so it stays on screen: below the anchor when it
+ * fits, else above it, else pinned to the viewport edge (scrolling inside).
+ * A row near the bottom of a long tree used to open its menu off-screen.
+ */
+export function placeMenu(anchor, size, viewport) {
+  let top = anchor.bottom + 4;
+  if (top + size.height > viewport.height - EDGE) {
+    const above = anchor.top - 4 - size.height;
+    top = above >= EDGE ? above : Math.max(EDGE, viewport.height - EDGE - size.height);
+  }
+  const left = Math.max(EDGE, Math.min(anchor.left, viewport.width - EDGE - size.width));
+  return { top, left, maxHeight: viewport.height - 2 * EDGE };
+}
 
 /**
  * One shared menu instance per tree (mirrors useTreeDrag — only one row's
@@ -26,7 +43,14 @@ export function useRowMenu() {
     e.stopPropagation();
     const anchorEl = e.currentTarget;
     const r = anchorEl.getBoundingClientRect();
-    setState({ x: r.left, y: r.bottom + 4, anchorEl, view: 'root', extra });
+    setState({
+      x: r.left,
+      y: r.bottom + 4,
+      anchor: { top: r.top, bottom: r.bottom, left: r.left },
+      anchorEl,
+      view: 'root',
+      extra,
+    });
   };
   const close = () => {
     setState((s) => {
@@ -46,6 +70,25 @@ export function useRowMenu() {
  */
 export function TreeRowMenu({ state, onClose, rootItems, destinations, onPickDestination }) {
   const ref = useRef(null);
+  const [placed, setPlaced] = useState(null);
+  const view = state?.view;
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!state || !el) {
+      setPlaced(null);
+      return;
+    }
+    const anchor = state.anchor ?? { top: state.y - 4, bottom: state.y - 4, left: state.x };
+    setPlaced(
+      placeMenu(
+        anchor,
+        { width: el.offsetWidth, height: el.scrollHeight },
+        { width: window.innerWidth, height: window.innerHeight }
+      )
+    );
+    // Re-place when the view switches (Move to… is a different height).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state?.anchorEl, view]);
   useEffect(() => {
     if (!state) return;
     const el = ref.current;
@@ -79,7 +122,9 @@ export function TreeRowMenu({ state, onClose, rootItems, destinations, onPickDes
   }, [state, onClose]);
 
   if (!state) return null;
-  const style = { position: 'fixed', left: state.x, top: state.y };
+  const style = placed
+    ? { position: 'fixed', left: placed.left, top: placed.top, maxHeight: placed.maxHeight, overflowY: 'auto' }
+    : { position: 'fixed', left: state.x, top: state.y };
 
   if (state.view === 'move-to') {
     return (

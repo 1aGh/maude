@@ -584,6 +584,77 @@ describe('/_api/fs-move — folder move (Task 11)', () => {
   });
 });
 
+// Plan T25/L04 — rename in place and duplicate, the two canvas verbs the file
+// tree menu offers beside Move to….
+describe('canvas rename and duplicate', () => {
+  test('toName renames in place, sidecars follow, a bad name is refused', async () => {
+    const { root, designRoot } = makeSandbox();
+    const port = nextPort();
+    const proc = await bootServer(root, port);
+    try {
+      const created = await createBoard(port, 'Before');
+      writeFileSync(join(designRoot, 'ui-before.annotations.svg'), '<svg/>');
+      const rename = (toName: string) =>
+        fetch(`http://localhost:${port}/_api/fs-move`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: created.rel, toName }),
+        });
+      const bad = await rename('../escape');
+      expect(bad.status).toBe(400);
+      const r = await rename('After name');
+      expect(r.status).toBe(200);
+      const j = (await r.json()) as { toRel: string; toSlug: string };
+      expect(j.toRel).toBe('ui/After name.tsx');
+      expect(existsSync(join(designRoot, 'ui', 'Before.tsx'))).toBe(false);
+      expect(existsSync(join(designRoot, 'ui', 'After name.tsx'))).toBe(true);
+      expect(existsSync(join(designRoot, 'ui', 'After name.meta.json'))).toBe(true);
+      expect(existsSync(join(designRoot, 'ui-before.annotations.svg'))).toBe(false);
+      expect(existsSync(join(designRoot, `${j.toSlug}.annotations.svg`))).toBe(true);
+    } finally {
+      await killProc(proc);
+    }
+  });
+
+  test('duplicate copies source, meta and whiteboard beside it as "<name> copy", then "copy 2"', async () => {
+    const { root, designRoot } = makeSandbox();
+    const port = nextPort();
+    const proc = await bootServer(root, port);
+    try {
+      const created = await createBoard(port, 'Orig');
+      writeFileSync(join(designRoot, 'ui-orig.annotations.svg'), '<svg id="a"/>');
+      const dup = () =>
+        fetch(`http://localhost:${port}/_api/canvas`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ duplicateOf: created.rel }),
+        });
+      const r1 = await dup();
+      expect(r1.status).toBe(201);
+      const j1 = (await r1.json()) as { rel: string; slug: string };
+      expect(j1.rel).toBe('ui/Orig copy.tsx');
+      expect(readFileSync(join(designRoot, 'ui', 'Orig copy.tsx'), 'utf8')).toBe(
+        readFileSync(join(designRoot, 'ui', 'Orig.tsx'), 'utf8')
+      );
+      const meta = JSON.parse(readFileSync(join(designRoot, 'ui', 'Orig copy.meta.json'), 'utf8'));
+      expect(meta.title).toBe('Orig copy');
+      expect(readFileSync(join(designRoot, `${j1.slug}.annotations.svg`), 'utf8')).toBe(
+        '<svg id="a"/>'
+      );
+      const r2 = await dup();
+      expect(((await r2.json()) as { rel: string }).rel).toBe('ui/Orig copy 2.tsx');
+      const escape = await fetch(`http://localhost:${port}/_api/canvas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ duplicateOf: '../outside.tsx' }),
+      });
+      expect(escape.status).toBe(400);
+    } finally {
+      await killProc(proc);
+    }
+  });
+});
+
 // In-process: the collab-pin guard. Reaching a REAL pinned room requires the
 // MAUDE_SHARED_DOC sync runtime; exercising the guard through api.moveCanvas
 // directly with a stub `isRoomPinned` hook proves the refusal wiring without
