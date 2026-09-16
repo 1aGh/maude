@@ -138,10 +138,31 @@ Rollback for this step: restore `env.bak` from the v1.3.1 checkpoint (tag
 `v1.3.0`) and `docker compose up -d hub render`; the tarballs restore `/data`
 (project store included) and `/repo` as of the checkpoint.
 
+### v1.4.0 (2026-09-16 — the nine follow-up fixes)
+
+Release `v1.4.0` (`213b139f`): all six pipelines green on the first tag —
+build-binaries (npm `@1agh/maude@1.4.0`, provenance-signed, plus the seven
+platform sub-packages), build-desktop (blank-window gate passed), hub-image
+(`ghcr.io/1agh/maude-hub:v1.4.0`), selfhost multi-arch images, render-deploy,
+cells-deploy (fleet rolled). GitHub Release published, 15 assets, not draft.
+
+| Step | Result |
+|---|---|
+| StudyFi checkpoint + upgrade | `f48be572-c0a0-425a-b148-a4b1eb9a2c7d` — checkpoint `/opt/maude-hub/pre-v1.4.0-20260916T024927Z` (`env.bak`, compose, `hub-data.tgz` 10.8 MB incl. the project store, `hub-repo.tgz` 63 MB; hub + render stopped while taken; previous images `sha256:33ead03d…` hub, `sha256:03c3d737…` render); tag `v1.4.0`; both containers up, hub healthy |
+| StudyFi health | `version 1.4.0`, `coordinator {ready, mode: transactions, protocol 1, durable: true}`, studio `ready` (0 restarts), history `ready`, checkout present |
+| StudyFi parity | `5098e97f-d4ad-40af-b07e-5d0819cd25e3` — `ok: true`, 121/121, no mismatches; mode `transactions`, epoch 1, revision 1, `importPending: false` |
+| Media restore baseline | `present 521 / failed 14` — unchanged from v1.3.1; the same 14 canvas-owned `.css` sidecars the write door refuses to overwrite from the bucket |
+| Alligators fleet | public `/health`: `releaseVersion 1.4.0`, `coordinator {ready, mode: legacy, protocol 1, durable: true}`; cell `200`, canvas origin `401` (correct without a capability); still awaiting the owner's project switch |
+| Render service | `render.cloud.maude.sh/_health`: `v1.4.0`, `configured: true` |
+
+Rollback for this step: restore `env.bak` from the v1.4.0 checkpoint (tag
+`v1.3.1`) and `docker compose up -d hub render`; the tarballs restore `/data`
+(project store included) and `/repo` as of the checkpoint.
+
 ### Cloudflare Alligators
 
-- Fleet on `v1.3.0` with `CELL_PROJECT_STORE = "alligators"`; public `/health`:
-  `version 1.3.0`, `coordinator {ready, mode: legacy, protocol 1, durable: true}`.
+- Fleet on `v1.4.0` with `CELL_PROJECT_STORE = "alligators"`; public `/health`:
+  `version 1.4.0`, `coordinator {ready, mode: legacy, protocol 1, durable: true}`.
 - The switch is the owner's: dashboard → project → **Saving** → Preview (check
   `skipped`, and `collapsed` — the 4× bodies the peer reported are repaired on
   import) → Switch. No operator cell secret is held on this machine.
