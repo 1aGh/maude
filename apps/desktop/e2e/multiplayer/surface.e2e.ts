@@ -2917,7 +2917,19 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           if ((await viewer.probe('[aria-label^="Sticky ("]'))?.visible)
             throw new Error('Viewer offered a writable annotation tool');
           const before = bytes(viewer.root, 'ui/SurfaceMedia.tsx');
-          await gesture(viewer, 'h1', 'doubleClick');
+          // The frame may re-render between the read above and the gesture
+          // (a hot-swap landing for this canvas); aim again rather than call a
+          // heading that is momentarily between renders "absent". The claim —
+          // a viewer cannot edit — is unchanged by trying the gesture again.
+          for (let attempt = 1; ; attempt++) {
+            try {
+              await until(async () => !!(await viewer.probe('h1'))?.visible, 10000);
+              await gesture(viewer, 'h1', 'doubleClick');
+              break;
+            } catch (error) {
+              if (attempt >= 3 || !/target absent/.test(String(error))) throw error;
+            }
+          }
           await sleep(100);
           if ((await viewer.probe('h1[contenteditable]'))?.visible)
             throw new Error('Viewer entered the source editor');

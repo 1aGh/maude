@@ -2009,6 +2009,30 @@ export function createSyncRuntime(
    * canvas accepted a moment ago is pulled on the next poll, not the one after
    * its row is written.
    */
+  /**
+   * Where the PROJECT says a document lives, under accepted revisions — or
+   * null when the project is not the authority (legacy mode, no bootstrap yet,
+   * a retired entry, or a path it never recorded).
+   *
+   * A pulled canvas used to start at the slug-derived fallback
+   * (`ui/surfaceboards-peer.tsx`) and wait for its document's own path to
+   * correct it after the handshake. A fresh copy that reached the handshake
+   * before that path was readable kept the fallback, and on a case-insensitive
+   * disk the lowercase file then sat beside nothing and matched nothing on its
+   * peers (surface run 2026-09-16, L24 final parity). The manifest already
+   * knows the answer before anything is fetched.
+   */
+  const manifestPathFor = (docName: string, slug?: string): string | null => {
+    if (!acceptedOn()) return null;
+    // By slug when there is one: the listing and the runtime name the same
+    // document in more than one spelling (`ui-x`, `ws/<w>/<b>/ui-x`).
+    const key = slug ?? slugFromDocName(docName);
+    const entry = acceptedLink?.manifest?.docs.find(
+      (d) => !d.retired && (d.doc === docName || slugFromDocName(d.doc) === key)
+    );
+    return typeof entry?.path === 'string' && entry.path.length > 0 ? entry.path : null;
+  };
+
   function withAcceptedDocs(
     listing: Awaited<ReturnType<typeof fetchRemoteListing>>
   ): Awaited<ReturnType<typeof fetchRemoteListing>> {
@@ -2310,7 +2334,7 @@ export function createSyncRuntime(
       path.join,
       path.resolve,
       path.sep,
-      { ...pathOpts, realpath: realpathOfDeepestExisting }
+      { ...pathOpts, realpath: realpathOfDeepestExisting, pathFor: manifestPathFor }
     );
     const pullNote = describeRemoteDiff(remoteDiff);
     if (pullNote) console.log(`[sync] ${pullNote}`);
@@ -3322,7 +3346,9 @@ export function createSyncRuntime(
       if (movedToFromDoc(doc) !== null) return true;
       const resolved = resolvePulledTarget({
         slug: canvas.slug,
-        path: canvasPathFromDoc(doc),
+        // The document's own record first (it is what a move rewrites), the
+        // project's manifest when the document has not carried one yet.
+        path: canvasPathFromDoc(doc) ?? manifestPathFor(docNameFor(canvas.slug), canvas.slug),
         designRoot: ctx.paths.designRoot,
         designRel: ctx.paths.designRel,
         canvasGroups: ctx.cfg.canvasGroups,
@@ -4078,6 +4104,7 @@ export function createSyncRuntime(
           // NEVER the fresh-link relaxation after boot. See `strictPullSlugs`.
           allowUndeclaredGroup: false,
           realpath: realpathOfDeepestExisting,
+          pathFor: manifestPathFor,
         }
       );
       const admitted = targets
