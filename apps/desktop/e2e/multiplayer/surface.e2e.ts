@@ -4181,10 +4181,18 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         const control = run.peerProxy as string | undefined;
         const mine = 'ui/SurfaceOffline.tsx';
         const theirs = 'ui/SurfaceOffline-theirs.tsx';
-        const text = (p: Surface, r: string) =>
-          existsSync(join(p.root, '.design', r))
-            ? readFileSync(join(p.root, '.design', r), 'utf8')
-            : null;
+        // `existsSync` then `readFileSync` is a race, and this row runs inside
+        // the exact window that loses it: the restarted peer is catching up on
+        // a DELETION, so the file can vanish between the two calls and the read
+        // throws ENOENT on a canvas the oracle only wanted to prove was gone.
+        // Absent is the answer either way.
+        const text = (p: Surface, r: string) => {
+          try {
+            return readFileSync(join(p.root, '.design', r), 'utf8');
+          } catch {
+            return null;
+          }
+        };
         const syncState = (p: Surface) => {
           try {
             return JSON.parse(readFileSync(join(p.root, '.design', '_sync.json'), 'utf8'))
@@ -4597,10 +4605,13 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         const rel = `ui/SurfaceInvalid-${from.name}.tsx`;
         const good = elementCanvas(`Valid ${from.name}`);
         const fixed = elementCanvas(`Fixed ${from.name}`);
-        const text = (p: Surface) =>
-          existsSync(join(p.root, '.design', rel))
-            ? readFileSync(join(p.root, '.design', rel), 'utf8')
-            : null;
+        const text = (p: Surface) => {
+          try {
+            return readFileSync(join(p.root, '.design', rel), 'utf8');
+          } catch {
+            return null;
+          }
+        };
         await check('L22.invalid-candidate.held', `${from.name}-to-peers`, async () => {
           await seedCanvas(from, rel, good);
           const broken = good.replace('</section>', '<section>');
@@ -5390,7 +5401,7 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           // three directions, including as the author of its own resize, while
           // its inspector plainly read the new W and H.
           const before = await Promise.all(
-            all.map(async (p) => (await p.probe('[data-dc-screen="main"]'))?.worldRect)
+            all.map(async (p) => (await p.probe('[data-dc-screen="main"]', 'worldRect'))?.worldRect)
           );
           const start = performance.now();
           await gesture(from, handle, 'pointer', { dx: 80, dy: 60 });
@@ -5399,7 +5410,7 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             `L08-resize-${from.name}`,
             start,
             async (p) => {
-              const r = (await p.probe('[data-dc-screen="main"]'))?.worldRect;
+              const r = (await p.probe('[data-dc-screen="main"]', 'worldRect'))?.worldRect;
               const b = before[all.indexOf(p)];
               return !!r && !!b && r.width > b.width + 20;
             },

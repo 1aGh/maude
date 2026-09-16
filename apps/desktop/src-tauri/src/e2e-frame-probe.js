@@ -269,7 +269,11 @@
               tool: node.getAttribute('data-tool'),
             })),
         };
-        // WORLD GEOMETRY, for anything the canvas draws at a scale.
+        // WORLD GEOMETRY — ON REQUEST ONLY.
+        //
+        // Building the manifest walks the canvas DOM, so doing it on every
+        // probe of every element made ordinary gestures time out waiting for
+        // the frame to answer. It is one operation, asked for by name.
         //
         // `rect` is screen space. The canvas fits its content to the viewport,
         // so an artboard that grows in the document can come back the SAME
@@ -278,7 +282,7 @@
         // publishes a world-coordinate manifest for the whiteboard toolkit
         // (`window.__maudeCanvasRects`, canvas-lib); this reads that, for this
         // element only. No arbitrary evaluation: one named hook, one lookup.
-        if (element.hasAttribute('data-dc-screen') || element.hasAttribute('data-cd-id')) {
+        if (data.operation === 'worldRect') {
           try {
             const manifest = window.__maudeCanvasRects?.();
             const id = element.getAttribute('data-dc-screen') ?? element.getAttribute('data-cd-id');
