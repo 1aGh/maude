@@ -4265,6 +4265,37 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               })();
             if (!drewOffline(peer))
               throw new Error('the offline sticky never reached the peer’s own disk');
+            // AND A COMMENT, which travels on a lane of its own (S24). Same
+            // reasoning as the sticky: the tool is the input, the JSON under
+            // `_comments/` is the projection each receiver writes for itself.
+            const offlineComment = 'Left a note while cut off';
+            const commentsOf = (p2: Surface) => {
+              try {
+                const raw = JSON.parse(
+                  readFileSync(
+                    join(
+                      p2.root,
+                      '.design',
+                      '_comments',
+                      `${slug(mine.replace(/\.tsx$/, ''))}.json`
+                    ),
+                    'utf8'
+                  )
+                );
+                return JSON.stringify(Array.isArray(raw) ? raw : (raw.comments ?? []));
+              } catch {
+                return '';
+              }
+            };
+            await gesture(peer, '.dc-tool-palette button[aria-label^="Comment"]', 'click');
+            await gesture(peer, 'h1', 'pointer');
+            await until(
+              async () => !!(await peer.probe('[aria-label="Comment body"]'))?.visible,
+              30000
+            );
+            await gesture(peer, '[aria-label="Comment body"]', 'fill', offlineComment);
+            await gesture(peer, '.cm-composer .cm-btn--primary', 'click');
+            await until(() => commentsOf(peer).includes(offlineComment), 30000);
             const offlineAsset = 'assets/offline-by-peer.png';
             const assetBytes = Buffer.alloc(96 * 1024);
             for (let k = 0; k < assetBytes.length; k += 4096)
@@ -4300,10 +4331,11 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
                 (p) =>
                   text(p, mine) === offlineBody &&
                   text(p, theirs) === theirsBody &&
-                  // All three planes, everywhere — the canvas source, the
-                  // annotation the peer drew while cut off, and the asset's
-                  // bytes by hash through the file plane.
+                  // Four planes, everywhere — the canvas source, the annotation
+                  // the peer drew while cut off, the comment it left, and the
+                  // asset's bytes by hash through the file plane.
                   drewOffline(p) &&
+                  commentsOf(p).includes(offlineComment) &&
                   existsSync(join(p.root, '.design', offlineAsset)) &&
                   createHash('sha256')
                     .update(readFileSync(join(p.root, '.design', offlineAsset)))

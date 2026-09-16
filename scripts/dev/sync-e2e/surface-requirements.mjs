@@ -354,7 +354,7 @@ export const REQUIREMENT_COVERAGE = {
     'disconnect one desktop': ['L20.offline.edit-then-catch-up'],
     'mutate each persistent surface': {
       unresolved:
-        "the offline row mutates three of them, each travelling differently: the canvas source, an annotation the peer DRAWS with the sticky tool while cut off (a raw sidecar write is not an import path — that file is a projection of the canvas document's annotations lane), and an asset through the file plane, all checked on every copy after the reconnect. Comments, photo and timeline are still not mutated offline.",
+        'four of them, each travelling by a different road: the canvas source, an annotation the peer DRAWS with the sticky tool while cut off, a comment it leaves on its own lane, and an asset through the file plane — all checked on every copy after the reconnect. Neither the annotation nor the comment can be faked by writing its file: both are projections of a lane, ignored on import. Photo and timeline are still not mutated offline.',
     },
     restart: ['L20.restart.catch-up'],
     'peer edits': ['L20.offline.edit-then-catch-up'],
@@ -369,10 +369,10 @@ export const REQUIREMENT_COVERAGE = {
     'multi-file AI publish/abort': ['L21.ai.abort-publish', 'L21.ai.abort-discard'],
   },
   L22: {
-    'pending edits': {
-      unresolved:
-        'the pending-then-delivered state is asserted in the native team-project lane (server away, and a project switch with work queued), not by a surface row here.',
-    },
+    // The offline row holds the author's status open while it is cut off and
+    // refuses the word "synced" — which IS this cell: work on this machine,
+    // and a status bar that does not lie about it.
+    'pending edits': ['L20.offline.edit-then-catch-up'],
     'blocked file': ['L22.blocked-file'],
     'invalid candidate': ['L22.invalid-candidate.held'],
     'auth expiry': {
