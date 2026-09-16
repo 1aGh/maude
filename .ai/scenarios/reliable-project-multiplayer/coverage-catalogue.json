@@ -33,11 +33,6 @@
       "reason": "no row expires a credential. The access-removed path reaches the same \"sign in again\" surface in the team-project lane, which is not the same stimulus."
     },
     {
-      "surface": "L22",
-      "action": "successful recovery",
-      "reason": "each error row asserts the honest error state; none of them then repairs the cause and asserts the recovery."
-    },
-    {
       "surface": "L23",
       "action": "switch canvases",
       "reason": "the mixed session edits continuously but does not switch canvases under load; L05 switches without the load."
@@ -3773,9 +3768,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true,
-      "covers": [],
-      "unresolved": "each error row asserts the honest error state; none of them then repairs the cause and asserts the recovery."
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L22.unavailable-storage"
+      ]
     },
     {
       "id": "L23.requirement.edit-canvas-annotations-comments-continuously-while-photos-videos-seed",

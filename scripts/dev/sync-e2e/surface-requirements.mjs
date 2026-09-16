@@ -15,7 +15,7 @@
 //
 // An action with nothing to point at says so, with the reason, as
 // `{ unresolved: '…' }`. Those are the honest remainder, and they are few
-// enough to read: eight of the hundred and sixteen.
+// enough to read: seven of the hundred and sixteen.
 //
 // A mapping may cross surfaces when the row genuinely asserts the action —
 // L05's "peer moves the active canvas" IS L04's move-with-open-receivers, and
@@ -371,11 +371,12 @@ export const REQUIREMENT_COVERAGE = {
       unresolved:
         'no row expires a credential. The access-removed path reaches the same "sign in again" surface in the team-project lane, which is not the same stimulus.',
     },
-    'unavailable storage': ['L22.unavailable-storage'],
-    'successful recovery': {
-      unresolved:
-        'each error row asserts the honest error state; none of them then repairs the cause and asserts the recovery.',
-    },
+    'unavailable storage': ['L22.unavailable-storage'], // and its recovery, below
+    // The storage row is the whole arc: the disk refuses, the status bar
+    // refuses to read complete, the panel names the file — and then the disk
+    // takes writes again and the row waits for the bytes to land on every
+    // copy, hash-checked, timing the recovery.
+    'successful recovery': ['L22.unavailable-storage'],
   },
   L23: {
     'edit canvas/annotations/comments continuously while photos/videos seed': ['L23.mixed-session'],
