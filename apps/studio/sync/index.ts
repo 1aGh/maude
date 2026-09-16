@@ -5511,6 +5511,14 @@ export interface DisposableProviderFactory extends ProviderFactory {
  */
 export const SOCKET_DOCUMENT_LIMIT = 64;
 
+/** `SOCKET_DOCUMENT_LIMIT`, or a smaller positive override from
+ *  `MAUDE_SYNC_SOCKET_DOCUMENTS` — so a harness can put a small project on
+ *  several sockets without having to build a large one first. */
+function socketDocumentLimit(): number {
+  const n = Number.parseInt(process.env.MAUDE_SYNC_SOCKET_DOCUMENTS ?? '', 10);
+  return Number.isFinite(n) && n > 0 && n < SOCKET_DOCUMENT_LIMIT ? n : SOCKET_DOCUMENT_LIMIT;
+}
+
 /**
  * The production provider factory — DDR-102: shared
  * `HocuspocusProviderWebsocket`s per hub URL, each carrying up to
@@ -5539,6 +5547,7 @@ export function createDefaultProviderFactory(
   // biome-ignore lint/suspicious/noExplicitAny: provider runtime typed at call site.
   const sockets = new Map<string, Array<{ socket: any; names: Set<string> }>>();
   const allSockets = () => [...sockets.values()].flat().map((s) => s.socket);
+  const perSocket = socketDocumentLimit();
 
   const factory = async (args: {
     url: string;
@@ -5577,7 +5586,7 @@ export function createDefaultProviderFactory(
     sockets.set(wsUrl, shards);
     let shard =
       shards.find((s) => s.names.has(args.documentName)) ??
-      shards.find((s) => s.names.size < SOCKET_DOCUMENT_LIMIT);
+      shards.find((s) => s.names.size < perSocket);
     if (!shard) {
       // CONFIGURED, not defaulted (issue #118). The socket used to be built
       // from the URL alone, which inherited `timeout: 0` — no per-attempt
@@ -5608,6 +5617,16 @@ export function createDefaultProviderFactory(
         names: new Set<string>(),
       };
       shards.push(shard);
+      if (process.env.MAUDE_SYNC_DEBUG === '1') {
+        const tag = `[sync/socket ${shards.length}]`;
+        const own = shard;
+        own.socket.on('open', () => console.log(`${tag} open · ${own.names.size} document(s)`));
+        own.socket.on('close', (e: { event?: { code?: number; reason?: string } }) =>
+          console.log(
+            `${tag} close ${e?.event?.code ?? '?'} ${e?.event?.reason ?? ''} · ${own.names.size} document(s)`
+          )
+        );
+      }
     }
     shard.names.add(args.documentName);
     const socket = shard.socket;
