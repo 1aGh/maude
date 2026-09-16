@@ -177,6 +177,22 @@ describe('team-project (native-desktop)', () => {
     await capture('06-designer-edit-arrived');
   });
 
+  it('4b · the status bar offers a way into the project’s history', async () => {
+    // The designer's own history — and the Undo on their own actions — lives
+    // in this panel. A managed team copy is NOT a Git repository, and the
+    // chip that opens the panel used to be gated on one, so on the single
+    // surface an invited designer uses there was no visible way in at all
+    // (found running S20 against a live deployment). The menu entry and ⌘⇧G
+    // still worked, which is why it stayed invisible rather than broken.
+    await settleMotion();
+    const changes = await $(tid('open-changes'));
+    await changes.waitForDisplayed({ timeout: 30_000 });
+    if ((await changes.getAttribute('aria-pressed')) !== 'true') await changes.click();
+    await (await $(tid('git-panel'))).waitForDisplayed({ timeout: 30_000 });
+    await capture('06b-history-from-the-status-bar');
+    await (await $(tid('open-changes'))).click();
+  });
+
   it('5 · the switcher names the project and offers team projects again', async () => {
     await settleMotion();
     const trigger = await $(tid('repo-switcher-trigger'));

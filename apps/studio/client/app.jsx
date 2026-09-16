@@ -16818,7 +16818,19 @@ function App() {
           unpushed={savingIsManaged ? 0 : gitStatus?.unpushed || 0}
           savingIsManaged={savingIsManaged}
           changesOpen={changesOpen}
-          onOpenChanges={gitStatus?.repo ? () => setChangesOpen(true) : undefined}
+          // A REPO IS NOT THE ONLY REASON THIS PANEL HAS SOMETHING TO SHOW.
+          // Under managed saving the panel IS the project's history — every
+          // accepted action with its author, and Undo on the ones that are
+          // yours — and it comes from the hub, not from git. A managed copy on
+          // a designer's machine has no `.git`, so gating the chip on a repo
+          // left the invited designer with no visible way in at all: the View
+          // menu and ⌘⇧G worked, and nothing on screen said so. The chip's own
+          // `savingIsManaged` branch below was already written for this case
+          // and was simply unreachable here. Found running S20 against a live
+          // deployment; asserted in `team-project.e2e.ts` step 4b.
+          onOpenChanges={
+            gitStatus?.repo || savingIsManaged ? () => setChangesOpen(true) : undefined
+          }
           version={cfg?.version}
         />
       </div>
