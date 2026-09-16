@@ -242,7 +242,7 @@ their own project history.
 | StudyFi health | `version 1.4.1`, `coordinator {ready, mode: transactions, protocol 1, durable: true}`, studio `ready`, history `ready` |
 | StudyFi parity | `ok: true`, **121/121**, no mismatches; mode `transactions`, epoch 1, revision 17, `importPending: false` |
 | Media restore baseline | `present 521 / failed 14` — unchanged across both upgrades; the same canvas-owned `.css` sidecars |
-| Alligators fleet | rolls with the tag (`cells-deploy`) |
+| Alligators fleet | `1.4.1`, cell `200`, canvas origin `401` (correct without a capability). **The fence fix is visibly live**: the cell answered `coordinator {mode: transactions, ready: true, durable: true}` at 26 seconds of uptime, where the v1.4.0 cell at the same age had answered `mode: legacy`. |
 
 Rollback for this step: restore `env.bak` from the v1.4.1 checkpoint (tag
 `v1.4.0`) and `docker compose up -d hub render`; the tarballs restore `/data`
