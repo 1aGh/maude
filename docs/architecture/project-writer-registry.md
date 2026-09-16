@@ -205,11 +205,44 @@ The inventory was built by reading route dispatch and API bodies, searching conc
 
 Knowledge lookup: `kg search 'project transactions multiplayer writer'` returned the full-plan records `d_b0962418966f4c04843393a7` / `d_988d0aa65be5a7e1b98dd32d` and execution checkpoint `d_033665574c6bfd7d01572e76`. Those records locate history; this inventory's claims derive from current files, not search snippets or a deployment inspection.
 
-T6 is still incomplete for specific, actionable reasons:
+Three of the reasons this section listed have since been answered, and the
+answer to two of them was a design decision rather than more schema. Recorded
+here because the open list is only useful if it is current — a stale blocker
+reads exactly like a real one (it cost a later audit a verdict of "five
+categories still lack adapter-grade schemas", which is no longer what is true).
 
-1. No executable operation registry/schema corpus binds each ID above to payload, current permission, read/write footprint, inverse eligibility and test fixture. Implement it in T6/T9; fail discovery of new HTTP/WS/direct mutation entries that lack a registry classification. A Markdown inventory alone cannot prove exhaustive future reachability.
-2. The operation union lacks concrete supporting-file replacement, public project configuration, footage-analysis and EDL variants. Define them explicitly, including whether generated provenance is part of the same action or derived data. Do not map every operation to unconstrained `source.replace`.
-3. Artboard guide/print payloads, every clip verb, photo reset/mask, annotation stroke operations and comment author permissions still need complete examples with stable identity/generation, dependencies and inverse rules. Current API validators are inputs to that work, not accepted protocol schemas.
+1. ~~No executable operation registry.~~ **Answered.**
+   `apps/studio/sync/writer-registry.ts` is that registry, and
+   `apps/studio/test/sync-writer-registry.test.ts` is the gate this item asked
+   for: every `/_api/*` route the studio serves must be classified or the test
+   fails, no classified route may be stale, and every lane/structural writer
+   must name both HOW its effect travels and a test file that exists and proves
+   it. A new mutating route cannot ship unclassified.
+2. ~~The operation union lacks supporting-file replacement, public project
+   configuration, footage-analysis and EDL variants.~~ **Answered.** Supporting
+   files replace, move and delete through the file plane (S27/S28) with
+   referential refusal when a canvas still names one; the project's public
+   configuration travels in the accepted bootstrap as a validated projection
+   (`acceptedProjectConfig()` — names and contained relative paths only, never
+   the file, which is a trust anchor); footage analysis and EDLs are derived
+   sidecars on the file plane (S26), not canvas actions.
+3. ~~Artboard guide/print payloads, every clip verb, photo reset/mask,
+   annotation stroke operations and comment author permissions need complete
+   protocol schemas.~~ **Answered by the accepted design, which does not need
+   them.** DDR-241 carries a whole LANE, not a per-operation payload: every one
+   of those writers is a `lane.replace` against an announced base (guides/print
+   S17, clip verbs V07–V10, annotation strokes S23, comments S24) or a file-plane
+   object (photo S25), each with its `via` and a proving test in the registry
+   module. Identity is the document `entry` plus element print addressing
+   (`docs/architecture/source-vocabulary.md`), not a per-operation id; the
+   inverse is the effect-aware compensating action personal undo already
+   builds, not a hand-written inverse rule per verb. Comment author permission
+   is enforced on the author of the comment, with executed rows in both
+   directions. A per-verb schema corpus would be a second, weaker source of
+   truth for identity and inversion — the thing DDR-241 exists to avoid.
+
+Still open, for specific and actionable reasons:
+
 4. External shell/agent writers require a candidate workspace or instrumentation plus a durable base receipt. Static source scanning cannot enumerate arbitrary future shell programs; X01/I01 are the explicit ingress for those bytes, with unproven bases retained rather than inferred.
 5. Public configuration and local link/trust settings share physical configuration files. An accepted manifest must project only the approved public schema. Literal whole-file config copying would leak/override local policy.
 6. Hocuspocus/publication fencing, two actual durable storage adapters, finite sizes/dependency limits/idempotency horizon, crash windows and the browser→commit→desktop→personal-undo walkthrough remain separate T7/T8/T9 evidence. No current watcher, SQLite after-store hook or backup proves these.

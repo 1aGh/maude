@@ -939,6 +939,19 @@ its Validate line asks for. Two are naming drift rather than absence: T22's
   machine: the app tears its sidecar down and reopens through the picker, and
   the edit survives and is delivered. `team-project.e2e.ts` is 10/10.
 
+**T17 closed by reading what is already there.** Its blocker was three entries
+in `project-writer-registry.md`'s open list that the tree had overtaken: the
+executable registry the first one asked for IS
+`apps/studio/sync/writer-registry.ts` with its tripwire; supporting files,
+public project configuration and footage/EDL all travel today; and the
+"adapter-grade schemas" the third demanded are answered by the accepted design
+rather than owed to it — DDR-241 carries a whole lane against an announced
+base, identity is the document entry plus print addressing, and the inverse is
+the compensating action personal undo already builds. A per-verb schema corpus
+would be a second, weaker source of truth for exactly those two things. The
+document now says so; a stale blocker reads exactly like a real one, and this
+one had already cost an audit a wrong verdict.
+
 **Corrected, not implemented — T30's "shadow comparison" is not missing.** It
 is `previewSwitch()` before a switch (reports what would be imported, imports
 nothing) and `parity()` after (reads every live document's lanes against the
@@ -951,7 +964,6 @@ rollout runbook now says so where an operator will meet it.
 | Task | What is missing |
 |---|---|
 | T1 | The baseline is never certified. `baselineComplete` is false in every artifact, and honestly so: the catalogue still carries 24 per-surface contract actions as unresolved requirement rows, and the rAF-placed resize rows need a run with the screen unlocked. |
-| T17 | Five categories in `project-writer-registry.md` still lack adapter-grade schemas: artboard guide/print payloads, clip verbs, photo reset/mask, annotation stroke ops, comment author permissions. |
 | T18 | Real-storage evidence is S3 only — no R2/cells lane — and genuinely large media still has no path into a hub (DDR-237's own open item). |
 | T22 | Two cells of its Validate line have no row: empty membership, and sign-in expiry (its surface is reached by the access-removed row, the expiry path itself is not). |
 | T30 | Crash coverage is one seam (died before the import) plus re-entry and fencing; the remaining named seams — stale loopback process, lost barrier response — have no test. |
@@ -1227,7 +1239,7 @@ Each task includes implementation plus its meaningful regression/integration che
 
 ### T17: REFACTOR remaining persistent operations through the gateway
 
-- [ ] **Do:** Implement each T6 registry category: create/duplicate/move/rename/delete canvas; meta/artboard layout; comments; annotations; photo operations; timeline operations; supporting file replace/delete. Give each category a transaction adapter and fixture. Generation/tombstone semantics prevent old clients resurrecting deleted or moved canvases.
+- [x] **Do:** Implement each T6 registry category: create/duplicate/move/rename/delete canvas; meta/artboard layout; comments; annotations; photo operations; timeline operations; supporting file replace/delete. Give each category a transaction adapter and fixture. Generation/tombstone semantics prevent old clients resurrecting deleted or moved canvases.
 - **Local E2E contract:** cover empty and populated folders as first-class tree operations, including move/delete with all descendants and canvas sidecars. A newly created empty folder must be visible to peers; define durable directory entries in the project manifest/transaction model instead of silently inserting a canvas to make the test pass. Distinguish removing a media instance from the canvas from deleting the project's asset; preserve other valid references and history.
 - **Pattern:** Existing codec/membership/tombstone and action handlers; retain ephemeral awareness and local viewport separation.
 - **Gotcha:** This task is complete only when every named category has a checked adapter and no direct accepted write. If implementation size requires split tasks, enumerate them in the plan before starting, preserving these IDs as acceptance parents.
