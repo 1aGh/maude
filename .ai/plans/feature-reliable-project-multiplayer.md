@@ -1060,6 +1060,40 @@ Nine of the twenty-one acceptance criteria now hold with evidence. One does
 not, and says so: the soak measures edit-visible-at-peers at p50 ≈ 440 ms and
 p95 ≈ 650 ms against a 300 ms p95 target.
 
+### 2026-09-16 (late evening) — both deployments through S20; the first complete run
+
+**T33 and T34 closed.** With the fleet master read from 1Password straight
+into the process, Alligators was checked the way the dashboard would check it:
+parity `ok: true`, 87/87, and S20 6/6 on the first attempt through the same lane
+StudyFi passed — invited designer, email and password on the cell's hybrid
+identity door, the project's own copy, an edit, personal undo, quit and reopen,
+removal. The disposable account is gone and parity is still 87/87 after it.
+The switch's "87 imported vs 92 canvases" question closed as a counting
+difference: health's `canvases` counts every `.tsx` including design-system
+previews; import and parity work on documents, and all 87 are in parity.
+
+**The first complete certification run.** The machine was the obstacle twice
+over — a screen that locked (`caffeinate -dimsu` fixed that) and swap that
+killed the run outright (quitting Arc, Slack and Docker Desktop, with the
+owner's go-ahead, fixed that). Complete at last:
+
+**775 pass · 3 fail · 13 unsupported · 2 not-run**, and against the previous
+full run **767 held · 8 repaired · 1 regressed**. The two not-run rows are
+exactly the two contract actions still recorded as gaps — the per-surface
+placeholder now names what is missing instead of being emitted everywhere.
+
+The three failures are the interesting part: `L15.video.create`,
+`L23.mixed-session` (always the eighth edit, never shown on the native app) and
+`L24.fresh-reopen` (a canvas not listed on the native app and a fresh copy).
+Each recurs run after run, and **each passes in isolation** — L23 alone, and
+L15 with L24 at 34/34. Whatever breaks accumulates over two hours of one
+native app. The leading suspect is the harness rather than the product:
+`reads()` deliberately reports a driver that stopped answering as "absent",
+and both native misses are exactly that shape. It is not being filed as that
+until a run says so — both rows now record which half failed (bytes on disk,
+target canvas active, tree listing anything, driver answering at all), and a
+full run with those diagnostics is under way.
+
 ## Context References
 
 ### Must-Read Files
