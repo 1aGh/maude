@@ -1,3 +1,5 @@
+// Bun, not node:test — `auditSources` uses Bun's transpiler for the syntax
+// check and refuses to run anywhere else.
 import { test } from 'bun:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';

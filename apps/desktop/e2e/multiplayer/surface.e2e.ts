@@ -14,6 +14,10 @@ import {
 import { join } from 'node:path';
 import { chromium, type Page } from '@playwright/test';
 import { $, browser } from '@wdio/globals';
+// @ts-expect-error — a plain .mjs data module shared with the runner; it has
+// no types of its own and needs none: the shape is asserted by
+// `scripts/dev/sync-e2e/surface-requirements.test.mjs`.
+import { unresolvedRequirements } from '../../../../scripts/dev/sync-e2e/surface-requirements.mjs';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
 
@@ -39,6 +43,10 @@ type ProbeResult = {
   pixel?: number[];
   time?: number;
   seeking?: boolean;
+  /** A <video>: how much of it the element can actually play (HTMLMediaElement.readyState).
+   *  The probe has always returned it; the type did not say so, which made the
+   *  one oracle that reads it a type error that happened to work. */
+  readyState?: number;
   error?: string;
   href?: string;
   matches?: Array<{ id: string | null; tool: string | null }>;
@@ -5893,6 +5901,13 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             const label = `${author} edited SurfaceAi-${from.name}-a`;
             const action = (await projectHistory()).find((h) => h.label === label);
             return {
+              // `...landed` LAST would overwrite this verdict with its own —
+              // the row would then report only whether the edit arrived, and
+              // say nothing about the two things it exists to check: that
+              // nothing was published before the agent finished, and that the
+              // whole multi-file change is ONE ai action with two effects.
+              // Same spread-order defect this file has grown three times.
+              ...landed,
               status:
                 landed.status === 'pass' &&
                 early.length === 0 &&
@@ -5900,7 +5915,6 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
                 action.effects.length === 2
                   ? 'pass'
                   : 'fail',
-              ...landed,
               publishedBeforeEndAt: early,
               action: action
                 ? { label: action.label, kind: action.kind, effects: action.effects.length }
@@ -6593,13 +6607,35 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
       record({ id: 'bootstrap-or-scenario-driver', status: 'fail', error: String(error) });
       throw error;
     } finally {
-      for (let i = 1; i <= 24; i++)
+      // WHAT IS STILL NOT ASSERTED, BY NAME. This used to be 24 identical rows
+      // saying the catalogue was incomplete — true, and unusable: a surface
+      // with one gap read exactly like a surface with none. Every declared
+      // action now points at the rows that assert it
+      // (`scripts/dev/sync-e2e/surface-requirements.mjs`), so the only ones
+      // left to flag are the actions that point at nothing, and they are
+      // flagged on their own surface with their own reason. A surface whose
+      // actions are all mapped emits no row here; its coverage is in
+      // `coverage-results.json`, per action and per direction.
+      const unresolved = unresolvedRequirements() as {
+        surface: string;
+        action: string;
+        reason: string;
+      }[];
+      const bySurface = new Map<string, { action: string; reason: string }[]>();
+      for (const u of unresolved) {
+        const list = bySurface.get(u.surface) ?? [];
+        list.push({ action: u.action, reason: u.reason });
+        bySurface.set(u.surface, list);
+      }
+      for (const [surface, actions] of bySurface) {
         record({
-          id: `L${String(i).padStart(2, '0')}.remaining-variants`,
+          id: `${surface}.remaining-variants`,
           status: 'not-run',
-          reason:
-            'Full operation catalogue, media, timing samples and soak still required. Implemented subcases above do not certify the surface.',
+          reason: `${actions.length} declared action(s) assert nothing yet: ${actions
+            .map((a) => `${a.action} — ${a.reason}`)
+            .join(' · ')}`,
         });
+      }
       await chromiumBrowser.close();
     }
   });

@@ -35,20 +35,48 @@ export function writeSurfaceReport(out) {
           catalogueComplete: catalogue.catalogueComplete,
           baselineComplete: false,
           note: 'Exact case IDs only. Unexpanded requirements and absent observations cannot be covered by a nearby passing case.',
-          cases: catalogue.cases.map((entry) => ({
-            id: entry.id,
-            requiresTargetExpansion: entry.requiresTargetExpansion ?? false,
-            directions: entry.directions.map((direction) => ({
-              direction,
-              observations: rows.filter((r) => r.id === entry.id && r.direction === direction),
-              exercised: rows.some(
+          cases: catalogue.cases.map((entry) => {
+            // A contract requirement is exercised by the rows it NAMES, and
+            // only when EVERY one of them ran in that direction. Anything
+            // looser would let one executed row carry a whole surface, which
+            // is the shape of the blanket placeholder this expansion replaced.
+            const covers = entry.covers ?? [];
+            // Not every covering row is emitted per direction. Some are
+            // single-sided by nature — a restart happens on ONE machine, and
+            // `open-and-render` is labelled by who created the canvas — so
+            // demanding all three directions of them reported a gap that was
+            // only ever a labelling difference. A covering row counts for a
+            // direction when it ran in that direction, OR when it is never
+            // emitted in any of the three peer directions at all.
+            const peerDirections = new Set(['hub-to-peers', 'native-to-peers', 'peer-to-peers']);
+            const directional = new Set(
+              rows.filter((r) => peerDirections.has(r.direction)).map((r) => r.id)
+            );
+            const ran = (id, direction) =>
+              rows.some(
                 (r) =>
-                  r.id === entry.id &&
-                  r.direction === direction &&
-                  ['pass', 'fail'].includes(r.status)
-              ),
-            })),
-          })),
+                  r.id === id &&
+                  ['pass', 'fail'].includes(r.status) &&
+                  (directional.has(id) ? r.direction === direction : true)
+              );
+            return {
+              id: entry.id,
+              requiresTargetExpansion: entry.requiresTargetExpansion ?? false,
+              ...(covers.length > 0 ? { covers } : {}),
+              ...(entry.unresolved ? { unresolved: entry.unresolved } : {}),
+              directions: entry.directions.map((direction) => ({
+                direction,
+                observations: rows.filter((r) => r.id === entry.id && r.direction === direction),
+                exercised:
+                  covers.length > 0
+                    ? covers.every((id) => ran(id, direction))
+                    : ran(entry.id, direction),
+                ...(covers.length > 0
+                  ? { missing: covers.filter((id) => !ran(id, direction)) }
+                  : {}),
+              })),
+            };
+          }),
         },
         null,
         2

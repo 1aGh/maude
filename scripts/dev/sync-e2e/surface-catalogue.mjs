@@ -5,6 +5,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { REQUIREMENT_COVERAGE, unresolvedRequirements } from './surface-requirements.mjs';
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 export const cataloguePath = join(
   root,
@@ -109,20 +111,36 @@ export function buildSurfaceCatalogue() {
   for (const line of contract.split('\n').filter((line) => /^\| L\d\d \|/.test(line))) {
     const [, id, label, actions] = line.split('|').map((s) => s.trim());
     surfaces.push({ id, label });
-    for (const action of actions.split(';').map((s) => s.trim()))
+    for (const action of actions.split(';').map((s) => s.trim())) {
+      // THE EXPANSION (T1/T31). Every declared action now points at the exact
+      // rows that assert it, or says why it points at nothing — see
+      // `surface-requirements.mjs`. `requiresTargetExpansion` used to be true
+      // for all of them unconditionally, which made a surface with one gap
+      // indistinguishable from a surface with none.
+      const answer = REQUIREMENT_COVERAGE[id]?.[action];
+      const covers = Array.isArray(answer) ? answer : [];
       add(`${id}.requirement.${slug(action)}`, paths[3], 'T31', {
         action,
         directions,
-        requiresTargetExpansion: true,
+        requiresTargetExpansion: covers.length === 0,
+        covers,
+        ...(Array.isArray(answer) ? {} : { unresolved: answer?.unresolved ?? 'not mapped' }),
       });
+    }
   }
   if (surfaces.length !== 24) throw new Error('The full L01–L24 contract was not enumerated');
   const ids = cases.map((c) => c.id);
   if (new Set(ids).size !== ids.length) throw new Error('Duplicate catalogue IDs');
+  const unresolved = unresolvedRequirements();
   return {
     version: 1,
-    catalogueComplete: false,
-    note: 'Source-enumerated annotations/photo controls plus unresolved contract actions. Remaining domain menus, action bindings, supported/unsupported distinctions and role/load profiles still need expansion. No case is covered merely by being listed.',
+    // DERIVED, not declared. It was a hardcoded `false`, which is honest and
+    // useless: it could never become true by doing the work, and it said
+    // nothing about how much work was left. The catalogue is complete when
+    // every declared action of every surface points at rows.
+    catalogueComplete: unresolved.length === 0,
+    unresolved,
+    note: 'Source-enumerated annotations/photo controls plus the contract actions mapped to the rows that assert them. Actions that still point at nothing are listed in `unresolved`, each with its reason. No case is covered merely by being listed.',
     sources: paths.map((path) => ({
       path,
       sha256: createHash('sha256').update(sources[path]).digest('hex'),
@@ -138,7 +156,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     writeFileSync(cataloguePath, `${JSON.stringify(catalogue, null, 2)}\n`);
   console.log(
     JSON.stringify({
-      catalogueComplete: false,
+      catalogueComplete: catalogue.catalogueComplete,
+      unresolved: catalogue.unresolved.length,
       cases: catalogue.cases.length,
       surfaces: catalogue.surfaces.length,
     })

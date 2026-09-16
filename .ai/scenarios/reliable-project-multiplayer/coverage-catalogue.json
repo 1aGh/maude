@@ -1,7 +1,49 @@
 {
   "version": 1,
   "catalogueComplete": false,
-  "note": "Source-enumerated annotations/photo controls plus unresolved contract actions. Remaining domain menus, action bindings, supported/unsupported distinctions and role/load profiles still need expansion. No case is covered merely by being listed.",
+  "unresolved": [
+    {
+      "surface": "L08",
+      "action": "reorder",
+      "reason": "no artboard reorder control is exposed — order follows layout position, which L08.artboard.move changes. Pointing this at that row would claim a control the product does not have."
+    },
+    {
+      "surface": "L13",
+      "action": "create from image",
+      "reason": "a photo canvas is created from the palette like any other canvas (L04) and then given an image; there is no separate \"make a canvas from this file\" control to assert."
+    },
+    {
+      "surface": "L13",
+      "action": "remove instance",
+      "reason": "removing the photo element is L07.element.delete on a photo node; no row drives it on a photo canvas specifically, and claiming the element row would overstate what was run."
+    },
+    {
+      "surface": "L20",
+      "action": "mutate each persistent surface",
+      "reason": "the offline row mutates canvas source only. \"Each persistent surface\" while disconnected — annotations, comments, photo, timeline, assets — is not enumerated anywhere."
+    },
+    {
+      "surface": "L22",
+      "action": "pending edits",
+      "reason": "the pending-then-delivered state is asserted in the native team-project lane (server away, and a project switch with work queued), not by a surface row here."
+    },
+    {
+      "surface": "L22",
+      "action": "auth expiry",
+      "reason": "no row expires a credential. The access-removed path reaches the same \"sign in again\" surface in the team-project lane, which is not the same stimulus."
+    },
+    {
+      "surface": "L22",
+      "action": "successful recovery",
+      "reason": "each error row asserts the honest error state; none of them then repairs the cause and asserts the recovery."
+    },
+    {
+      "surface": "L23",
+      "action": "switch canvases",
+      "reason": "the mixed session edits continuously but does not switch canvases under load; L05 switches without the load."
+    }
+  ],
+  "note": "Source-enumerated annotations/photo controls plus the contract actions mapped to the rows that assert them. Actions that still point at nothing are listed in `unresolved`, each with its reason. No case is covered merely by being listed.",
   "sources": [
     {
       "path": "apps/studio/tool-palette.tsx",
@@ -1941,7 +1983,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L01.empty-folder.create"
+      ]
     },
     {
       "id": "L01.requirement.rename-when-implemented",
@@ -1953,7 +1998,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L01.empty-folder.rename"
+      ]
     },
     {
       "id": "L01.requirement.move-into-another-folder",
@@ -1965,7 +2013,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L01.empty-folder.move"
+      ]
     },
     {
       "id": "L01.requirement.delete",
@@ -1977,7 +2028,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L01.empty-folder.delete"
+      ]
     },
     {
       "id": "L02.requirement.create-nested-hierarchy",
@@ -1989,7 +2043,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L02.nested.create"
+      ]
     },
     {
       "id": "L02.requirement.move-hierarchy",
@@ -2001,7 +2058,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L02.nested.move"
+      ]
     },
     {
       "id": "L02.requirement.rename-when-implemented",
@@ -2013,7 +2073,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L02.nested.rename"
+      ]
     },
     {
       "id": "L02.requirement.delete-subtree",
@@ -2025,7 +2088,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L02.nested.delete-subtree"
+      ]
     },
     {
       "id": "L03.requirement.create",
@@ -2037,7 +2103,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L03.file.create"
+      ]
     },
     {
       "id": "L03.requirement.edit",
@@ -2049,7 +2118,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L03.file.edit"
+      ]
     },
     {
       "id": "L03.requirement.move",
@@ -2061,7 +2133,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L03.file.move"
+      ]
     },
     {
       "id": "L03.requirement.rename-when-implemented",
@@ -2073,7 +2148,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L03.file.rename"
+      ]
     },
     {
       "id": "L03.requirement.delete",
@@ -2085,7 +2163,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L03.file.delete"
+      ]
     },
     {
       "id": "L04.requirement.create",
@@ -2097,7 +2178,11 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L04.canvas.create.tree",
+        "L04.canvas.open-and-render"
+      ]
     },
     {
       "id": "L04.requirement.duplicate",
@@ -2109,7 +2194,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L04.canvas.duplicate"
+      ]
     },
     {
       "id": "L04.requirement.rename",
@@ -2121,7 +2209,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L04.canvas.rename"
+      ]
     },
     {
       "id": "L04.requirement.move-across-folders",
@@ -2133,7 +2224,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L04.canvas.move-with-open-receivers"
+      ]
     },
     {
       "id": "L04.requirement.remove",
@@ -2145,7 +2239,11 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L04.canvas.delete-independent",
+        "L04.canvas.delete-with-open-receivers"
+      ]
     },
     {
       "id": "L05.requirement.peer-moves-active-canvas",
@@ -2157,7 +2255,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L04.canvas.move-with-open-receivers"
+      ]
     },
     {
       "id": "L05.requirement.peer-deletes-active-canvas",
@@ -2169,7 +2270,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L04.canvas.delete-with-open-receivers"
+      ]
     },
     {
       "id": "L05.requirement.switch-away-back",
@@ -2181,7 +2285,11 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L05.switch-away-and-back",
+        "L05.reclick-active-canvas"
+      ]
     },
     {
       "id": "L05.requirement.reopen-after-restart",
@@ -2193,7 +2301,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L05.reopen-after-restart"
+      ]
     },
     {
       "id": "L06.requirement.valid-text-source-save",
@@ -2205,7 +2316,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L06.external-save"
+      ]
     },
     {
       "id": "L06.requirement.atomic-editor-save",
@@ -2217,7 +2331,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L06.atomic-editor-save"
+      ]
     },
     {
       "id": "L06.requirement.ui-text-edit",
@@ -2229,7 +2346,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L06.ui-text-edit"
+      ]
     },
     {
       "id": "L06.requirement.css-property-edit",
@@ -2241,7 +2361,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L06.css-property-edit"
+      ]
     },
     {
       "id": "L06.requirement.attribute-edit",
@@ -2253,7 +2376,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L06.attribute-edit"
+      ]
     },
     {
       "id": "L07.requirement.insert",
@@ -2265,7 +2391,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L07.element.insert"
+      ]
     },
     {
       "id": "L07.requirement.duplicate",
@@ -2277,7 +2406,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L07.element.duplicate"
+      ]
     },
     {
       "id": "L07.requirement.move-reorder",
@@ -2289,7 +2421,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L07.element.move-reorder"
+      ]
     },
     {
       "id": "L07.requirement.resize",
@@ -2301,7 +2436,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L07.element.resize"
+      ]
     },
     {
       "id": "L07.requirement.edit-content-property",
@@ -2313,7 +2451,12 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L06.ui-text-edit",
+        "L06.css-property-edit",
+        "L06.attribute-edit"
+      ]
     },
     {
       "id": "L07.requirement.delete",
@@ -2325,7 +2468,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L07.element.delete"
+      ]
     },
     {
       "id": "L08.requirement.add",
@@ -2337,7 +2483,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L08.artboard.add"
+      ]
     },
     {
       "id": "L08.requirement.rename-title",
@@ -2349,7 +2498,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L08.artboard.rename"
+      ]
     },
     {
       "id": "L08.requirement.move",
@@ -2361,7 +2513,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L08.artboard.move"
+      ]
     },
     {
       "id": "L08.requirement.resize",
@@ -2373,7 +2528,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L08.artboard.resize"
+      ]
     },
     {
       "id": "L08.requirement.reorder",
@@ -2385,7 +2543,9 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": true,
+      "covers": [],
+      "unresolved": "no artboard reorder control is exposed — order follows layout position, which L08.artboard.move changes. Pointing this at that row would claim a control the product does not have."
     },
     {
       "id": "L08.requirement.remove",
@@ -2397,7 +2557,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L08.artboard.remove"
+      ]
     },
     {
       "id": "L09.requirement.create-each-exposed-tool-type",
@@ -2409,7 +2572,21 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L09.sticky.create",
+        "L09.text.create",
+        "L09.section.create",
+        "L09.pen.create",
+        "L09.highlighter.create",
+        "L09.arrow.create",
+        "L09.shape-square.create",
+        "L09.shape-rounded.create",
+        "L09.shape-circle.create",
+        "L09.shape-diamond.create",
+        "L09.shape-triangle.create",
+        "L09.shape-triangle-down.create"
+      ]
     },
     {
       "id": "L09.requirement.select-move-resize",
@@ -2421,7 +2598,41 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L09.sticky.move",
+        "L09.sticky.resize",
+        "L09.text.move",
+        "L09.text.resize",
+        "L09.section.move",
+        "L09.section.resize",
+        "L09.pen.move",
+        "L09.pen.resize",
+        "L09.highlighter.move",
+        "L09.highlighter.resize",
+        "L09.arrow.move",
+        "L09.arrow.resize",
+        "L09.shape-square.move",
+        "L09.shape-square.resize",
+        "L09.shape-rounded.move",
+        "L09.shape-rounded.resize",
+        "L09.shape-circle.move",
+        "L09.shape-circle.resize",
+        "L09.shape-diamond.move",
+        "L09.shape-diamond.resize",
+        "L09.shape-triangle.move",
+        "L09.shape-triangle.resize",
+        "L09.shape-triangle-down.move",
+        "L09.shape-triangle-down.resize",
+        "L09.selection-align.left",
+        "L09.selection-align.right",
+        "L09.selection-align.top",
+        "L09.selection-align.bottom",
+        "L09.selection-align.h-center",
+        "L09.selection-align.v-center",
+        "L09.selection-align.dist-h",
+        "L09.selection-align.dist-v"
+      ]
     },
     {
       "id": "L09.requirement.edit-available-style-text",
@@ -2433,7 +2644,42 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L09.sticky.edit-text",
+        "L09.sticky.paper-color",
+        "L09.text.edit-text",
+        "L09.section.edit-text",
+        "L09.context-control.bold",
+        "L09.context-control.italic",
+        "L09.context-control.underline",
+        "L09.context-control.strikethrough",
+        "L09.context-control.color",
+        "L09.context-control.no-fill",
+        "L09.context-control.font-size",
+        "L09.context-control.custom-font-size-in-pixels",
+        "L09.context-control.bulleted-list",
+        "L09.context-control.numbered-list",
+        "L09.context-control.thin-stroke",
+        "L09.context-control.thick-stroke",
+        "L09.context-control.dashed-line",
+        "L09.context-control.swatch-target",
+        "L09.context-control.group-selection",
+        "L09.context-control.ungroup-selection",
+        "L09.text-align.left",
+        "L09.text-align.center",
+        "L09.text-align.right",
+        "L09.arrow-head.none",
+        "L09.arrow-head.line",
+        "L09.arrow-head.triangle",
+        "L09.arrow-head.triangle-outline",
+        "L09.arrow-head.circle",
+        "L09.arrow-head.diamond",
+        "L09.arrow-head.start-diamond",
+        "L09.arrow-line.straight",
+        "L09.arrow-line.curved",
+        "L09.arrow-line.elbow"
+      ]
     },
     {
       "id": "L09.requirement.delete",
@@ -2445,7 +2691,23 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L09.sticky.delete",
+        "L09.text.delete",
+        "L09.section.delete",
+        "L09.pen.delete",
+        "L09.highlighter.delete",
+        "L09.arrow.delete",
+        "L09.shape-square.delete",
+        "L09.shape-rounded.delete",
+        "L09.shape-circle.delete",
+        "L09.shape-diamond.delete",
+        "L09.shape-triangle.delete",
+        "L09.shape-triangle-down.delete",
+        "L09.eraser.erase-stroke",
+        "L09.context-control.delete-selected-annotations"
+      ]
     },
     {
       "id": "L09.requirement.undo",
@@ -2457,7 +2719,22 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L09.sticky.undo-delete",
+        "L09.text.undo",
+        "L09.section.undo",
+        "L09.pen.undo",
+        "L09.highlighter.undo",
+        "L09.arrow.undo",
+        "L09.eraser.undo",
+        "L09.shape-square.undo",
+        "L09.shape-rounded.undo",
+        "L09.shape-circle.undo",
+        "L09.shape-diamond.undo",
+        "L09.shape-triangle.undo",
+        "L09.shape-triangle-down.undo"
+      ]
     },
     {
       "id": "L09.requirement.redo",
@@ -2469,7 +2746,22 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L09.sticky.redo-delete",
+        "L09.text.redo",
+        "L09.section.redo",
+        "L09.pen.redo",
+        "L09.highlighter.redo",
+        "L09.arrow.redo",
+        "L09.eraser.redo",
+        "L09.shape-square.redo",
+        "L09.shape-rounded.redo",
+        "L09.shape-circle.redo",
+        "L09.shape-diamond.redo",
+        "L09.shape-triangle.redo",
+        "L09.shape-triangle-down.redo"
+      ]
     },
     {
       "id": "L10.requirement.add-image-sticker",
@@ -2481,7 +2773,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L10.sticker.add"
+      ]
     },
     {
       "id": "L10.requirement.move-resize",
@@ -2493,7 +2788,11 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L10.sticker.move",
+        "L10.sticker.resize"
+      ]
     },
     {
       "id": "L10.requirement.replace-where-supported",
@@ -2505,7 +2804,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L10.sticker.replace"
+      ]
     },
     {
       "id": "L10.requirement.remove",
@@ -2517,7 +2819,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L10.sticker.remove"
+      ]
     },
     {
       "id": "L11.requirement.create-thread-pin",
@@ -2529,7 +2834,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L11.comment.create"
+      ]
     },
     {
       "id": "L11.requirement.reply",
@@ -2541,7 +2849,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L11.comment.reply"
+      ]
     },
     {
       "id": "L11.requirement.edit-owned-comment",
@@ -2553,7 +2864,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L11.comment.edit"
+      ]
     },
     {
       "id": "L11.requirement.resolve-reopen",
@@ -2565,7 +2879,11 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L11.comment.resolve",
+        "L11.comment.reopen"
+      ]
     },
     {
       "id": "L11.requirement.delete-where-supported",
@@ -2577,7 +2895,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L11.comment.delete"
+      ]
     },
     {
       "id": "L12.requirement.upload-drop-new-image",
@@ -2589,7 +2910,11 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L12.upload-png.create",
+        "L12.seeded-photo.arrival-and-decode"
+      ]
     },
     {
       "id": "L12.requirement.replace-content",
@@ -2601,7 +2926,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L12.upload-png.replace"
+      ]
     },
     {
       "id": "L12.requirement.move-rename-supported-asset-path",
@@ -2613,7 +2941,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L12.asset.move-rename"
+      ]
     },
     {
       "id": "L12.requirement.delete-unreferenced-asset",
@@ -2625,7 +2956,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L12.asset.delete-unreferenced"
+      ]
     },
     {
       "id": "L13.requirement.create-from-image",
@@ -2637,7 +2971,9 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": true,
+      "covers": [],
+      "unresolved": "a photo canvas is created from the palette like any other canvas (L04) and then given an image; there is no separate \"make a canvas from this file\" control to assert."
     },
     {
       "id": "L13.requirement.crop-transform-adjust-each-exposed-non-destructive-control",
@@ -2649,7 +2985,52 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L13.photo.crop-transform",
+        "L13.photo.brightness",
+        "L13.photo.contrast",
+        "L13.photo.contrast-reset",
+        "L13.photo.exposure",
+        "L13.photo.exposure-reset",
+        "L13.photo.saturation",
+        "L13.photo.saturation-reset",
+        "L13.photo.hue",
+        "L13.photo.hue-reset",
+        "L13.photo.grayscale",
+        "L13.photo.grayscale-reset",
+        "L13.photo.sepia",
+        "L13.photo.sepia-reset",
+        "L13.photo.invert",
+        "L13.photo.invert-reset",
+        "L13.photo.reset-adjustments",
+        "L13.photo-control.duotone-on",
+        "L13.photo-control.duotone-off",
+        "L13.photo-control.duotone-intensity",
+        "L13.photo-control.grain-on",
+        "L13.photo-control.grain-off",
+        "L13.photo-control.grain-amount",
+        "L13.photo-control.grain-size",
+        "L13.photo-control.pattern-on",
+        "L13.photo-control.pattern-off",
+        "L13.photo-control.pattern-scale",
+        "L13.photo-control.pattern-opacity",
+        "L13.photo-control.mask-strength",
+        "L13.pattern-type.dots",
+        "L13.pattern-type.lines",
+        "L13.pattern-type.grid",
+        "L13.pattern-type.diagonal",
+        "L13.pattern-type.crosshatch",
+        "L13.pattern-blend.normal",
+        "L13.pattern-blend.multiply",
+        "L13.pattern-blend.screen",
+        "L13.pattern-blend.overlay",
+        "L13.pattern-blend.soft-light",
+        "L13.mask-preset.none",
+        "L13.mask-preset.vignette",
+        "L13.mask-preset.edge-fade",
+        "L13.mask-preset.radial-reveal"
+      ]
     },
     {
       "id": "L13.requirement.move-resize",
@@ -2661,7 +3042,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L13.photo.move-keeps-edit"
+      ]
     },
     {
       "id": "L13.requirement.remove-instance",
@@ -2673,7 +3057,9 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": true,
+      "covers": [],
+      "unresolved": "removing the photo element is L07.element.delete on a photo node; no row drives it on a photo canvas specifically, and claiming the element row would overstate what was run."
     },
     {
       "id": "L13.requirement.undo-redo",
@@ -2685,7 +3071,11 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L13.photo.undo",
+        "L13.photo.redo"
+      ]
     },
     {
       "id": "L14.requirement.upload-drop-real-video",
@@ -2697,7 +3087,12 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L14.upload-video.create",
+        "L14.upload-video.play-and-seek",
+        "L14.seeded-video.play-and-seek"
+      ]
     },
     {
       "id": "L14.requirement.replace",
@@ -2709,7 +3104,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L14.upload-video.replace"
+      ]
     },
     {
       "id": "L14.requirement.move-rename-supported-path",
@@ -2721,7 +3119,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L14.asset.move-rename"
+      ]
     },
     {
       "id": "L14.requirement.remove-instance",
@@ -2733,7 +3134,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L14.upload-video.remove-reference"
+      ]
     },
     {
       "id": "L14.requirement.delete-unreferenced-asset",
@@ -2745,7 +3149,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L14.asset.delete-unreferenced"
+      ]
     },
     {
       "id": "L15.requirement.create-open-composition",
@@ -2757,7 +3164,11 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L15.video.create",
+        "L15.timeline.open"
+      ]
     },
     {
       "id": "L15.requirement.insert-clip",
@@ -2769,7 +3180,11 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L15.timeline.insert",
+        "L15.timeline.split"
+      ]
     },
     {
       "id": "L15.requirement.move-reorder-clip",
@@ -2781,7 +3196,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L15.timeline.move"
+      ]
     },
     {
       "id": "L15.requirement.trim",
@@ -2793,7 +3211,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L15.timeline.trim"
+      ]
     },
     {
       "id": "L15.requirement.change-exposed-persistent-clip-properties",
@@ -2805,7 +3226,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L15.timeline.clip-property"
+      ]
     },
     {
       "id": "L15.requirement.delete-clip",
@@ -2817,7 +3241,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L15.timeline.delete"
+      ]
     },
     {
       "id": "L15.requirement.undo-redo",
@@ -2829,7 +3256,11 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L15.timeline.undo",
+        "L15.timeline.redo"
+      ]
     },
     {
       "id": "L16.requirement.create-edit-remove-specimen",
@@ -2841,7 +3272,12 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L16.specimen.create",
+        "L16.specimen.edit",
+        "L16.specimen.remove"
+      ]
     },
     {
       "id": "L16.requirement.edit-css-token-module",
@@ -2853,7 +3289,11 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L16.ds-token.edit",
+        "L16.module.edit"
+      ]
     },
     {
       "id": "L16.requirement.move-dependency-with-reference-update",
@@ -2865,7 +3305,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L16.dependency.move-refused"
+      ]
     },
     {
       "id": "L17.requirement.reference-same-asset-from-two-canvases-sticker",
@@ -2877,7 +3320,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L17.shared-asset.two-references"
+      ]
     },
     {
       "id": "L17.requirement.remove-one-instance",
@@ -2889,7 +3335,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L17.shared-asset.remove-one-instance"
+      ]
     },
     {
       "id": "L17.requirement.rename-move-with-refs",
@@ -2901,7 +3350,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L17.in-use-asset.rename-refused"
+      ]
     },
     {
       "id": "L17.requirement.attempt-delete-of-in-use-asset",
@@ -2913,7 +3365,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L17.in-use-asset.delete-refused"
+      ]
     },
     {
       "id": "L18.requirement.one-action",
@@ -2925,7 +3380,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L18.gesture-group"
+      ]
     },
     {
       "id": "L18.requirement.gesture-group",
@@ -2937,7 +3395,11 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L18.gesture-group",
+        "L18.gesture-group.undo"
+      ]
     },
     {
       "id": "L18.requirement.ai-multi-file-group",
@@ -2949,7 +3411,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L18.ai.multi-file-group"
+      ]
     },
     {
       "id": "L18.requirement.peer-interleaving",
@@ -2961,7 +3426,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L18.css-undo.peer-value-kept"
+      ]
     },
     {
       "id": "L18.requirement.undo-redo",
@@ -2973,7 +3441,11 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L18.history.undo-own-keeps-teammate",
+        "L18.css-undo.own-value"
+      ]
     },
     {
       "id": "L18.requirement.preview-restore-old-revision",
@@ -2985,7 +3457,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L18.history.restore"
+      ]
     },
     {
       "id": "L19.requirement.join",
@@ -2997,7 +3472,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L19.presence.join"
+      ]
     },
     {
       "id": "L19.requirement.move-cursor-select",
@@ -3009,7 +3487,11 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L19.cursor.move",
+        "L19.selection.shown"
+      ]
     },
     {
       "id": "L19.requirement.leave-reconnect",
@@ -3021,7 +3503,11 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L19.presence.leave",
+        "L19.presence.reconnect"
+      ]
     },
     {
       "id": "L19.requirement.local-camera-change",
@@ -3033,7 +3519,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L19.camera.stays-local"
+      ]
     },
     {
       "id": "L20.requirement.disconnect-one-desktop",
@@ -3045,7 +3534,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L20.offline.edit-then-catch-up"
+      ]
     },
     {
       "id": "L20.requirement.mutate-each-persistent-surface",
@@ -3057,7 +3549,9 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": true,
+      "covers": [],
+      "unresolved": "the offline row mutates canvas source only. \"Each persistent surface\" while disconnected — annotations, comments, photo, timeline, assets — is not enumerated anywhere."
     },
     {
       "id": "L20.requirement.restart",
@@ -3069,7 +3563,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L20.restart.catch-up"
+      ]
     },
     {
       "id": "L20.requirement.peer-edits",
@@ -3081,7 +3578,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L20.offline.edit-then-catch-up"
+      ]
     },
     {
       "id": "L20.requirement.reconnect",
@@ -3093,7 +3593,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L20.offline.edit-then-catch-up"
+      ]
     },
     {
       "id": "L20.requirement.open-fresh-third-copy",
@@ -3105,7 +3608,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L20.fresh-third-copy"
+      ]
     },
     {
       "id": "L21.requirement.independent-edits",
@@ -3117,7 +3623,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L21.independent-edits"
+      ]
     },
     {
       "id": "L21.requirement.same-target",
@@ -3129,7 +3638,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L21.same-property-race"
+      ]
     },
     {
       "id": "L21.requirement.folder-canvas-move-during-edit",
@@ -3141,7 +3653,11 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L21.move-during-edit",
+        "L21.folder-move-during-edit"
+      ]
     },
     {
       "id": "L21.requirement.delete-versus-edit",
@@ -3153,7 +3669,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L21.delete-versus-edit"
+      ]
     },
     {
       "id": "L21.requirement.multi-file-ai-publish-abort",
@@ -3165,7 +3684,11 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L21.ai.abort-publish",
+        "L21.ai.abort-discard"
+      ]
     },
     {
       "id": "L22.requirement.pending-edits",
@@ -3177,7 +3700,9 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": true,
+      "covers": [],
+      "unresolved": "the pending-then-delivered state is asserted in the native team-project lane (server away, and a project switch with work queued), not by a surface row here."
     },
     {
       "id": "L22.requirement.blocked-file",
@@ -3189,7 +3714,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L22.blocked-file"
+      ]
     },
     {
       "id": "L22.requirement.invalid-candidate",
@@ -3201,7 +3729,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L22.invalid-candidate.held"
+      ]
     },
     {
       "id": "L22.requirement.auth-expiry",
@@ -3213,7 +3744,9 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": true,
+      "covers": [],
+      "unresolved": "no row expires a credential. The access-removed path reaches the same \"sign in again\" surface in the team-project lane, which is not the same stimulus."
     },
     {
       "id": "L22.requirement.unavailable-storage",
@@ -3225,7 +3758,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L22.unavailable-storage"
+      ]
     },
     {
       "id": "L22.requirement.successful-recovery",
@@ -3237,7 +3773,9 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": true,
+      "covers": [],
+      "unresolved": "each error row asserts the honest error state; none of them then repairs the cause and asserts the recovery."
     },
     {
       "id": "L23.requirement.edit-canvas-annotations-comments-continuously-while-photos-videos-seed",
@@ -3249,7 +3787,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L23.mixed-session"
+      ]
     },
     {
       "id": "L23.requirement.move-delete-assets-safely",
@@ -3261,7 +3802,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L23.assets.move-and-delete-during-edits"
+      ]
     },
     {
       "id": "L23.requirement.switch-canvases",
@@ -3273,7 +3817,9 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": true,
+      "covers": [],
+      "unresolved": "the mixed session edits continuously but does not switch canvases under load; L05 switches without the load."
     },
     {
       "id": "L24.requirement.fresh-app-browser-reopen",
@@ -3285,7 +3831,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L24.fresh-reopen"
+      ]
     },
     {
       "id": "L24.requirement.full-eligible-inventory-compare",
@@ -3297,7 +3846,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L24.final-parity"
+      ]
     },
     {
       "id": "L24.requirement.timed-mixed-workload-soak",
@@ -3309,7 +3861,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L23.mixed-session"
+      ]
     },
     {
       "id": "L24.requirement.final-deletion-reconciliation",
@@ -3321,7 +3876,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L24.final-parity"
+      ]
     }
   ]
 }

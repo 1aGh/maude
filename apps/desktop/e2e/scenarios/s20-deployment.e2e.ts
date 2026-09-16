@@ -217,7 +217,10 @@ describe('s20-deployment (native-desktop)', () => {
     await (await $(tid('canvas-list'))).waitForDisplayed({ timeout: 300_000 });
     await eventually(
       'the project’s canvases in the list',
-      async () => (await $$(`${tid('canvas-list')} [data-testid^="canvas-row-"]`)).length > 0,
+      async () => {
+        const found = await $$(`${tid('canvas-list')} [data-testid^="canvas-row-"]`).getElements();
+        return found.length > 0;
+      },
       300_000
     );
     await capture('03-project-open-with-canvases');
@@ -325,7 +328,8 @@ describe('s20-deployment (native-desktop)', () => {
     await eventually(
       'the throwaway canvas after the restart',
       async () =>
-        (await $$(`[data-testid^="canvas-row-"][data-testid$="s20-release-check"]`)).length > 0,
+        (await $$(`[data-testid^="canvas-row-"][data-testid$="s20-release-check"]`).getElements())
+          .length > 0,
       120_000
     );
     expect(read(mine) ?? '').toContain('Release check — first');
