@@ -111,6 +111,17 @@ new action everyone sees. Commit, branch, push and fetch still work.
    `ok: true` is required. A mismatch is reported, never repaired by this
    route; re-run after a minute (a reconcile may be finishing) and investigate
    what remains.
+
+   > **This route IS the shadow comparison.** The migration plan asks for one
+   > that "compares only, never writes a second authority" — that is exactly
+   > what `parity` does: it reads every live document's lanes, compares them
+   > against the store head and the checkout's source, and reports. Nothing
+   > here writes. Its before-the-switch half is the dry run
+   > (`POST …/v1/mode` with `dryRun: true`), which reports what a switch WOULD
+   > import and imports nothing. Neither is called "shadow" anywhere in the
+   > tree, which has already cost one reader an afternoon concluding the
+   > capability was missing — so: `previewSwitch()` before,
+   > `parity()` after, both in `apps/hub/src/project-transactions/hub-integration.mjs`.
 2. **Health** — `coordinator.ready: true`, `mode: "transactions"`; with the
    cell secret, `proposals.rejected` stays near zero and `ackMs.p95` within
    the SLO below.

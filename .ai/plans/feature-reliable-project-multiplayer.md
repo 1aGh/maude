@@ -905,6 +905,61 @@ cells 53/0, tarball shape, tokens, site build, and no generated-content drift.
 
 **Still owed for T33:** Alligators parity, and S20 there.
 
+### 2026-09-16 (later) — the task list is squared with the tree, and three gaps closed
+
+Seventeen tasks still carried an unticked box. An evidence pass over every one
+of them — the named implementation, the named test, executed rows, `git log`
+on the files each task names — found most of the lag was bookkeeping, and
+three gaps that were real.
+
+**Ticked, against their own Do/Validate text:** T15, T19, T23, T24, T25, T26.
+Each has the implementation the task names plus the test or the executed rows
+its Validate line asks for. Two are naming drift rather than absence: T22's
+"ProjectPicker" shipped as `TeamProjects.jsx`, and T25's proposed
+`sync/structured-actions.ts` lives as `source-ops.ts` + `canvas-edit.ts`.
+
+**Closed in this pass:**
+
+- **T29** — the two things it named that genuinely did not exist.
+  *Render revision lag*: the accepted revision is not what anybody sees, and
+  publish runs after the durable commit, so a hub can be accepting work nobody
+  is shown; four bounded fields on the privileged health now say how far the
+  renderer is behind. *Blocked media in bytes*: `failed` counted files, and a
+  count cannot separate nine CSS sidecars from nine videos. Both watched red
+  first. T29 is now ticked.
+- **T31's comparison.** `--baseline <dir>` judges a candidate against a
+  preserved run cell by cell and fails on anything that passed then and does
+  not pass now — including a cell that merely stopped being run, which is how
+  a regression hides. Checked against the runs on disk: the certification run
+  holds all 757 cells the previous one passed; the run that died after 8 rows
+  reads as 745 regressions. Plus the two lane gates T31 names
+  (`native-macos.sh`, `web-desktop.sh`) over the one rig — there is only one,
+  because what is under test is what travels *between* surfaces.
+- **T22's missing cell.** A project switch while work is still queued on this
+  machine: the app tears its sidecar down and reopens through the picker, and
+  the edit survives and is delivered. `team-project.e2e.ts` is 10/10.
+
+**Corrected, not implemented — T30's "shadow comparison" is not missing.** It
+is `previewSwitch()` before a switch (reports what would be imported, imports
+nothing) and `parity()` after (reads every live document's lanes against the
+store head and the checkout, reports, repairs nothing). Neither uses the word
+"shadow", which already cost one reading of this plan an afternoon; the
+rollout runbook now says so where an operator will meet it.
+
+**What is still genuinely open, per task:**
+
+| Task | What is missing |
+|---|---|
+| T1 | The baseline is never certified. `baselineComplete` is false in every artifact, and honestly so: the catalogue still carries 24 per-surface contract actions as unresolved requirement rows, and the rAF-placed resize rows need a run with the screen unlocked. |
+| T17 | Five categories in `project-writer-registry.md` still lack adapter-grade schemas: artboard guide/print payloads, clip verbs, photo reset/mask, annotation stroke ops, comment author permissions. |
+| T18 | Real-storage evidence is S3 only — no R2/cells lane — and genuinely large media still has no path into a hub (DDR-237's own open item). |
+| T22 | Two cells of its Validate line have no row: empty membership, and sign-in expiry (its surface is reached by the access-removed row, the expiry path itself is not). |
+| T30 | Crash coverage is one seam (died before the import) plus re-entry and fencing; the remaining named seams — stale loopback process, lost barrier response — have no test. |
+| T31 | The catalogue's 24 requirement rows are not enumerated into executed cells. |
+| T32 | The scale run covers S13/S14 only; S01–S19 on disposable cloud and self-host were never run end to end. |
+| T33 | Alligators parity, and S20 there. |
+| T34, T35 | Follow T33. |
+
 ## Context References
 
 ### Must-Read Files
@@ -1158,7 +1213,7 @@ Each task includes implementation plus its meaningful regression/integration che
 
 ### T15: REFACTOR source UI and watcher imports into proposals
 
-- [ ] **Do:** Route text/CSS/attr/local HTTP source edits and fs watcher imports through transaction-client. Bind UI operations to accepted IDs/base tokens and preserve exact local editor bytes. Remove write→watch→second-author feedback for managed projects while retaining controlled import/export for local files.
+- [x] **Do:** Route text/CSS/attr/local HTTP source edits and fs watcher imports through transaction-client. Bind UI operations to accepted IDs/base tokens and preserve exact local editor bytes. Remove write→watch→second-author feedback for managed projects while retaining controlled import/export for local files.
 - **Pattern:** `api.ts`, `commands/edit-source-command.ts`, source-recovery, fs-mirror, current editor rewrite helpers.
 - **Gotcha:** Do not execute/resolve arbitrary imports to test syntax in a trusted process. Unknown editor base remains explicit candidate state, not silent replacement.
 - **Validate:** Existing source/command tests + real `sync-e2e` scenarios in both directions; title/color interleavings, editor stale buffer after remote projection, conflict resolution and unrelated TSX byte preservation.
@@ -1187,7 +1242,7 @@ Each task includes implementation plus its meaningful regression/integration che
 
 ### T19: ADD progressive bootstrap independent of renderer restore
 
-- [ ] **Do:** Implement project-bootstrap metadata, rights, manifest and active accepted snapshot endpoints before renderer/full checkout readiness. Desktop fetches a minimal working set, then media in priority order; add explicit full offline preparation. Separate coordinator readiness, renderer readiness and media completeness in health and UI.
+- [x] **Do:** Implement project-bootstrap metadata, rights, manifest and active accepted snapshot endpoints before renderer/full checkout readiness. Desktop fetches a minimal working set, then media in priority order; add explicit full offline preparation. Separate coordinator readiness, renderer readiness and media completeness in health and UI.
 - **Pattern:** `cell-do.mjs`, workspace mode/readiness, hub listing and existing asset progress.
 - **Gotcha:** Opening the project need not wait for all blobs, but active missing modules cannot falsely appear ready. Browser render startup must hydrate only its working set and retain an actionable pending state.
 - **Validate:** `sync-project-bootstrap.test.ts` (new); renderer stopped, large bulk restore ongoing, active dependency missing, offline reopening cached canvas and insufficient disk. Record action-to-first-interaction separately from full download.
@@ -1215,28 +1270,28 @@ Each task includes implementation plus its meaningful regression/integration che
 
 ### T23: CREATE bounded source fidelity and stable-ID pilot
 
-- [ ] **Do:** Enumerate the supported source vocabulary from real projects and existing edit operations. Pilot stable identity and operations for literal text, static JSX attributes/styles and artboard layout; preserve imports, comments, formatting, expressions and custom components not being edited. Classify unsupported transforms as code candidates instead of lossy conversion.
+- [x] **Do:** Enumerate the supported source vocabulary from real projects and existing edit operations. Pilot stable identity and operations for literal text, static JSX attributes/styles and artboard layout; preserve imports, comments, formatting, expressions and custom components not being edited. Classify unsupported transforms as code candidates instead of lossy conversion.
 - **Pattern:** `data-cd-id` and existing source-edit helpers; actual DS canvas fixtures plus synthetic adversarial syntax.
 - **Gotcha:** Stable IDs survive allowed move/duplicate rules; repeating component instances need explicit addressing. Source fidelity cannot be asserted from identical screenshots alone.
 - **Validate:** Byte round-trip/no-op corpus, render parity and deterministic repeated edits. Output an explicit support matrix and source-size/performance limits. A failed representation changes implementation approach; it does not remove user-requested operations from full scope silently.
 
 ### T24: IMPLEMENT text/property operations and live action previews
 
-- [ ] **Do:** Implement structured-actions for supported text, CSS, attributes and persistent layout properties, using T23 addressing and source-preserving patches. Separate transient preview from final commit; drag/edit sessions yield one logical action. Preserve unrelated concurrent properties automatically and record same-property acceptance order.
+- [x] **Do:** Implement structured-actions for supported text, CSS, attributes and persistent layout properties, using T23 addressing and source-preserving patches. Separate transient preview from final commit; drag/edit sessions yield one logical action. Preserve unrelated concurrent properties automatically and record same-property acceptance order.
 - **Pattern:** Existing edit-source commands, canvas inspector events and shared transaction kernel.
 - **Gotcha:** Don't apply one giant opaque replacement as the implementation of independent properties. Runtime errors remain isolated per revision/canvas; an accepted syntactic change is not proof of render success.
 - **Validate:** New `sync-structured-actions.test.ts`; two designers change same/different properties, repeated component addressing, long drag with reconnect, runtime throw and last-good render access; GUI peer render latency measured under defined RTT.
 
 ### T25: IMPLEMENT structural and canvas lifecycle actions
 
-- [ ] **Do:** Complete insert/duplicate/move/reorder/delete supported elements and artboards, plus canvas move/rename/delete with stable IDs and referential checks. Unsupported arbitrary TSX structural edits use the explicit code-action path with equivalent history and conflict preservation.
+- [x] **Do:** Complete insert/duplicate/move/reorder/delete supported elements and artboards, plus canvas move/rename/delete with stable IDs and referential checks. Unsupported arbitrary TSX structural edits use the explicit code-action path with equivalent history and conflict preservation.
 - **Pattern:** T17 registry adapters, existing canvas structural commands, pathIndex and tombstone semantics.
 - **Gotcha:** A concurrent child edit after parent deletion cannot silently resurrect or disappear; return a preserved conflict. Rename/delete must update references atomically in accepted manifests, including offline client generations.
 - **Validate:** Structural operation matrix, move vs edit, delete vs reference, duplicate IDs, old client resurrection, nested paths and multi-file manifest render parity.
 
 ### T26: COMPLETE action grouping for comments, annotations, photo and timeline
 
-- [ ] **Do:** Bind existing per-domain commands to accepted action IDs and authorship; complete multi-property grouping for annotation gestures, photo transforms and timeline edits. Preserve comment thread/resolve semantics. Remove duplicate product-history ownership from private shell stacks as each domain passes parity.
+- [x] **Do:** Bind existing per-domain commands to accepted action IDs and authorship; complete multi-property grouping for annotation gestures, photo transforms and timeline edits. Preserve comment thread/resolve semantics. Remove duplicate product-history ownership from private shell stacks as each domain passes parity.
 - **Pattern:** Existing domain command implementations and T17 adapters; use transaction history rather than a new generalized UI framework.
 - **Gotcha:** These categories remain in scope even if they do not use the T23 source representation. Native source model pilot completion alone does not complete multiplayer.
 - **Validate:** One acceptance fixture per category in both directions, concurrent peer edits, interrupted gesture, multi-step undo/redo and deleted target. Each persistent effect has a project transaction ID. Include annotation A→B→A and repeated empty-SVG transitions: the current content-history echo filter in `annotations-layer.tsx` suppresses legitimate second deletions/undo. Deduplicate by action/revision identity while retaining protection against out-of-order self echoes from concurrent media intake.
@@ -1257,7 +1312,7 @@ Each task includes implementation plus its meaningful regression/integration che
 
 ### T29: ADD protocol and product observability
 
-- [ ] **Do:** Emit bounded project/revision/transaction correlation, oldest pending age, durable ACK latency, render revision lag, conflict/rejection counts, blocked/missing media bytes and cold-open timing. Add conformance/build/capability identity to health, separate from liveness. Reuse existing operator surfaces/logging with correct service ownership.
+- [x] **Do:** Emit bounded project/revision/transaction correlation, oldest pending age, durable ACK latency, render revision lag, conflict/rejection counts, blocked/missing media bytes and cold-open timing. Add conformance/build/capability identity to health, separate from liveness. Reuse existing operator surfaces/logging with correct service ownership.
 - **Pattern:** Current health/metrics/operator modules; no source content, tokens or private project names in telemetry payloads.
 - **Gotcha:** Metrics must not infer people from provider count, successful sync from liveness or completed restore from backup logs. Keep source debugging opt-in/local where needed.
 - **Validate:** Assertions over accepted/rejected/retry/cold-start events; bounded cardinality; fake sensitive strings absent; report explains whether latency measured through peer render or only server acknowledgment.
