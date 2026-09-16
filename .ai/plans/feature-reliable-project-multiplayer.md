@@ -963,10 +963,10 @@ rollout runbook now says so where an operator will meet it.
 
 | Task | What is missing |
 |---|---|
-| T1 | The baseline is never certified. `baselineComplete` is false in every artifact, and honestly so: the catalogue still carries 24 per-surface contract actions as unresolved requirement rows, and the rAF-placed resize rows need a run with the screen unlocked. |
+| T1 | The baseline is still not certified, and `baselineComplete` is false in every artifact — correctly. Seven of the contract's 116 declared actions assert nothing yet (each named, with its reason, in `surface-requirements.mjs`), so the catalogue is not complete. The rAF rows are no longer the obstacle: run with the screen awake they execute and pass. A full run on the current harness is owed — the last one predates the per-surface placeholder change and still carries all 24 blanket rows in its artifact. |
 | T18 | Real-storage evidence is S3 only. Narrower than it reads: the hub has ONE object client (`apps/hub/src/s3.mjs`, path-style SigV4, `region: auto`) and no R2 branch anywhere — a cell reaches R2 by having `MAUDE_R2_*` copied into `MAUDE_S3_*`, so what is untested is that same signed client against a different endpoint, not a second implementation. Closing it needs one real multipart round-trip against an R2 bucket. Genuinely large media still has no path into a hub (DDR-237's own open item). |
 | T22 | Two cells of its Validate line have no row: empty membership, and sign-in expiry (its surface is reached by the access-removed row, the expiry path itself is not). |
-| T31 | The catalogue's 24 requirement rows are not enumerated into executed cells. |
+| T31 | The comparison, both lane gates and the requirement map are in. What is left is the same seven actions T1 names, and a full run on the current harness to record the new shape. |
 | T32 | The scale run covers S13/S14 only; S01–S19 on disposable cloud and self-host were never run end to end. |
 | T33 | Alligators parity, and S20 there. |
 | T34, T35 | Follow T33. |
