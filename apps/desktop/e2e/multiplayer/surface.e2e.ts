@@ -5477,12 +5477,21 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             await sleep(300);
             return (await headings(from)) === 2 && !!(await from.read('.st-sb-sel .val'));
           });
-          // What the Delete key is about to land on — this row fails on the hub
-          // lane in some full runs with the heading visibly selected.
+          // The drill above double-clicks, which can open the heading's text
+          // editor (`plaintext-only`): Delete then edits text at the caret
+          // instead of removing the element. Leave the editor first — the
+          // selection stays.
+          const editing = async () =>
+            !!(
+              await from.probe('[contenteditable]:not([contenteditable="false"])').catch(() => null)
+            )?.visible;
+          for (let n = 0; n < 3 && (await editing()); n++) {
+            await gesture(from, 'body', 'key', { key: 'Escape' });
+            await sleep(150);
+          }
           const before = {
             chip: await from.read('.st-sb-sel .val').catch(() => null),
-            textEditing: !!(await from.probe('[contenteditable="true"]').catch(() => null))
-              ?.visible,
+            textEditing: await editing(),
           };
           const start = performance.now();
           await gesture(from, 'body', 'key', { key: 'Delete' });

@@ -3933,7 +3933,12 @@ export function createSyncRuntime(
         // days. Once the body is on disk the ordinary rules apply to it.
         for (const slug of [...pulledSlugs]) {
           const body = descriptors.get(slug)?.html;
-          if (body && existsSync(body)) pulledSlugs.delete(slug);
+          // …and only once THIS scan has seen it. A scan taken just before the
+          // body landed does not list it; dropping the pin anyway released a
+          // canvas pulled a moment ago and re-adopted it as a local file, whose
+          // cold start then read its own first write as a local edit and held
+          // the canvas ("source sync blocked (local-edit)" on a fresh copy).
+          if (body && existsSync(body) && bySlug.has(slug)) pulledSlugs.delete(slug);
         }
         const { added, removed } = diffCanvasSet(
           [...agents.keys(), ...projections.keys()],
