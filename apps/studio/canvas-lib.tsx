@@ -3200,6 +3200,21 @@ export function PhotoPreviewBridge() {
   // clobbering a NEWER edit that already resolved first.
   const tokenRef = useRef<Map<string, number>>(new Map());
   const bakeTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  // Per-asset FETCH generation — the same guard one step earlier. Two synced
+  // edits in a row start two sidecar fetches, and the older answer can arrive
+  // last: applying it put the previous edit back on screen while every disk had
+  // the newer one (surface run 2026-09-16, L13 on the hub: shown, then
+  // reverted). A live preview counts as newer than any fetch in flight.
+  const fetchGenRef = useRef<Map<string, number>>(new Map());
+  const nextFetchGen = useCallback((asset: string): number => {
+    const g = (fetchGenRef.current.get(asset) ?? 0) + 1;
+    fetchGenRef.current.set(asset, g);
+    return g;
+  }, []);
+  const isLatestFetch = useCallback(
+    (asset: string, g: number): boolean => fetchGenRef.current.get(asset) === g,
+    []
+  );
 
   const bake = useCallback((asset: string, original: string, edit: PhotoEdit) => {
     const token = (tokenRef.current.get(asset) ?? 0) + 1;
@@ -3231,6 +3246,8 @@ export function PhotoPreviewBridge() {
       clearTimeout(timers.get(asset));
       if (!edit || isDefaultEdit(edit)) {
         timers.delete(asset);
+        // A bake already rendering an earlier edit must not land over this.
+        tokenRef.current.set(asset, (tokenRef.current.get(asset) ?? 0) + 1);
         setPhotoElSrc(el, original);
         return;
       }
@@ -3270,17 +3287,20 @@ export function PhotoPreviewBridge() {
         }
       }
       if (!asset) return; // no photo on this canvas uses that asset
-      fetch(`/_api/photo-edit?asset=${encodeURIComponent(asset)}`)
+      const target = asset;
+      const g = nextFetchGen(target);
+      fetch(`/_api/photo-edit?asset=${encodeURIComponent(target)}`)
         .then((r) => (r.ok ? r.json() : null))
         .then((edit) => {
+          if (!isLatestFetch(target, g)) return; // a newer answer owns the render
           // A deleted/reset edit applies as null → restores the original src.
-          apply(asset as string, edit && !isDefaultEdit(edit) ? (edit as PhotoEdit) : null);
+          apply(target, edit && !isDefaultEdit(edit) ? (edit as PhotoEdit) : null);
         })
         .catch(() => {});
     };
     document.addEventListener('maude:photo-edit-refreshed', onRefreshed);
     return () => document.removeEventListener('maude:photo-edit-refreshed', onRefreshed);
-  }, [apply]);
+  }, [apply, nextFetchGen, isLatestFetch]);
 
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
@@ -3304,11 +3324,12 @@ export function PhotoPreviewBridge() {
       if (m.dgn !== 'photo-preview' || typeof m.asset !== 'string') return;
       const asset = m.asset;
       const edit = (m.edit ?? null) as PhotoEdit | null;
+      nextFetchGen(asset);
       apply(asset, edit);
     };
     window.addEventListener('message', onMsg);
     return () => window.removeEventListener('message', onMsg);
-  }, [apply]);
+  }, [apply, nextFetchGen]);
   // Boot-time (+ ongoing) hydration from the PERSISTED sidecar, not just the
   // live `photo-preview` message above. Without this, a saved PhotoEdit is
   // invisible after anything that re-mounts the canvas doc (Cmd+R, an
@@ -3342,10 +3363,11 @@ export function PhotoPreviewBridge() {
         if (!asset || attempted.has(asset)) continue;
         if (++scanned > MAX_SCAN_PER_PASS) break;
         attempted.add(asset);
+        const g = nextFetchGen(asset);
         fetch(`/_api/photo-edit?asset=${encodeURIComponent(asset)}`)
           .then((r) => (r.ok ? r.json() : null))
           .then((edit) => {
-            if (cancelled || !edit || isDefaultEdit(edit)) return;
+            if (cancelled || !isLatestFetch(asset, g) || !edit || isDefaultEdit(edit)) return;
             apply(asset, edit);
           })
           .catch(() => {});
@@ -3367,7 +3389,7 @@ export function PhotoPreviewBridge() {
       cancelAnimationFrame(raf);
       observer.disconnect();
     };
-  }, [apply]);
+  }, [apply, nextFetchGen, isLatestFetch]);
   return null; // mutates the real elements directly — no visible DOM of its own.
 }
 PhotoPreviewBridge.displayName = 'PhotoPreviewBridge';
