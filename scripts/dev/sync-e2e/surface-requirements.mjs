@@ -369,7 +369,7 @@ export const REQUIREMENT_COVERAGE = {
     'invalid candidate': ['L22.invalid-candidate.held'],
     'auth expiry': {
       unresolved:
-        'no row expires a credential. The access-removed path reaches the same "sign in again" surface in the team-project lane, which is not the same stimulus.',
+        'no surface row expires a credential, and the behaviour is pinned either side of the join rather than end to end: `validExpiry` (sync-runtime.test.ts) proves an already-expired stamp falls to the invalid-token path, and team-project.e2e.ts step 8 proves that path reaches "sign in again" in the real shell. What is missing is one stimulus that walks the whole way.',
     },
     'unavailable storage': ['L22.unavailable-storage'], // and its recovery, below
     // The storage row is the whole arc: the disk refuses, the status bar
