@@ -248,12 +248,29 @@ Rollback for this step: restore `env.bak` from the v1.4.1 checkpoint (tag
 `v1.4.0`) and `docker compose up -d hub render`; the tarballs restore `/data`
 (project store included) and `/repo` as of the checkpoint.
 
+### Alligators parity — passed 2026-09-16
+
+Read-only, with a ten-minute owner token minted for `alligators` alone the same
+way the dashboard mints one (`apps/cloud/cell-token.mjs`), from the fleet master
+read out of 1Password straight into the process — never printed, never written.
+
+| Check | Result |
+|---|---|
+| Mode | `transactions`, epoch 1, revision 16, `importPending: false` |
+| Bootstrap | protocol 1, **87 live documents**, 0 retired |
+| Parity | **`ok: true`, 87/87, no mismatches** |
+
+This also closes the question the switch left open. The dashboard reported 87
+canvases imported while the cell's health counted 92: `workspace.canvases` is
+`countCanvases()`, which counts every `.tsx` under the design root — design-system
+preview components included — while the import and parity work on canvas
+DOCUMENTS. Every live document is accepted and in parity; nothing is missing.
+
 ### Still open for T33
 
-- Alligators owner switch + parity.
-- S20 on Alligators, which is gated behind that switch: the fleet is on
-  `v1.4.0`, but the project still runs in `legacy` mode and no operator cell
-  secret is held on this machine.
+- S20 on Alligators. The switch and parity are done; the cell runs identity in
+  `hybrid` mode, so the same email-and-password lane that passed on StudyFi
+  applies here.
 
 **Correction (2026-09-16).** An earlier note here read StudyFi's health as
 blocking S20: `identity: {mode: "off"}` was taken to mean the hub has no
