@@ -599,20 +599,26 @@ export function localDepsFromSource(
 /** mtime signature over the .tsx + every inlined relative dep (`.css` + local
  *  modules). A missing/unreadable file contributes 0 — a delete is itself a
  *  change (and a later create too), so the signature differs. */
-function canvasFreshnessSig(tsxAbsPath: string, deps: string[]): string {
+function canvasFreshnessSig(tsxAbsPath: string, deps: string[], tsxMtime?: number): string {
   const parts: string[] = [];
   for (const p of [tsxAbsPath, ...deps]) {
-    const mt = Bun.file(p).lastModified;
+    const mt = p === tsxAbsPath && tsxMtime !== undefined ? tsxMtime : Bun.file(p).lastModified;
     parts.push(`${p}@${Number.isFinite(mt) ? mt : 0}`);
   }
   return parts.join('|');
 }
 
-async function serveCanvasTsx(
+/** @internal Test seam — runs between reading the source and storing the build. */
+export interface ServeCanvasTestHooks {
+  afterRead?: () => void | Promise<void>;
+}
+
+export async function serveCanvasTsx(
   absPath: string,
   req: Request,
   ctx: Context,
-  locatorAbsPath: string
+  locatorAbsPath: string,
+  testHooks?: ServeCanvasTestHooks
 ): Promise<Response> {
   // Phase 27 (E2) — DiffView "before" pane. `?sha=<ref>` builds the canvas from
   // its source AT a past version (git show) instead of the working-tree file, so
@@ -634,8 +640,21 @@ async function serveCanvasTsx(
   const sig = canvasFreshnessSig(absPath, cached?.deps ?? []);
 
   if (!cached || cached.sig !== sig) {
+    // THE SIGNATURE OF WHAT WAS READ, taken before the read.
+    //
+    // It used to be recomputed after the build. A build is slow — out of
+    // process on a cell — and a canvas that changed again meanwhile stored the
+    // OLD module under the NEW file's signature, so the next request (the HMR
+    // for that very change) was a cache hit and served the previous body: a
+    // view stuck one edit behind while the file was right (surface row L23 on
+    // the hub, 2026-09-16). Stamped before reading, a change during the build
+    // leaves the stored signature older than the file, and the next request
+    // rebuilds. A dep is stamped before the build reads it, for the same reason.
+    const tsxMtime = file.lastModified;
     const source = await file.text();
     const deps = localDepsFromSource(source, absPath, ctx.paths.designRoot);
+    const builtSig = canvasFreshnessSig(absPath, deps, tsxMtime);
+    await testHooks?.afterRead?.();
     let result: Awaited<ReturnType<typeof buildCanvasModule>>;
     // DDR-209 A′2 — SAME ENGINE, DIFFERENT HOST. On a desktop the process that
     // parses your canvas is the process you own, so an in-process build costs
@@ -662,7 +681,7 @@ async function serveCanvasTsx(
         etag: built.etag,
       } as Awaited<ReturnType<typeof buildCanvasModule>>;
       cached = {
-        sig: canvasFreshnessSig(absPath, deps),
+        sig: builtSig,
         etag: `${result.etag}-${RUNTIME_BOOT_ID}-${CHROME_EPOCH}`,
         js: result.js,
         deps,
@@ -694,10 +713,10 @@ async function serveCanvasTsx(
         headers: { 'Content-Type': 'text/plain; charset=utf-8' },
       });
     }
-    // Recompute the signature against the freshly-parsed deps — this very edit
-    // may have added or removed a `.css` import.
+    // The signature against the freshly-parsed deps — this very edit may have
+    // added or removed a `.css` import — stamped before the build (above).
     cached = {
-      sig: canvasFreshnessSig(absPath, deps),
+      sig: builtSig,
       // Fold in the boot id (restart) + chrome epoch (live edit) so a chrome
       // change busts the browser's cached transpile even when the canvas source
       // (hence result.etag) is unchanged. See RUNTIME_BOOT_ID / CHROME_EPOCH.
