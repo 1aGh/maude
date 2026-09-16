@@ -237,10 +237,16 @@ their own project history.
 
 | Step | Result |
 |---|---|
-| Release | _pending — recorded when the six pipelines finish_ |
-| StudyFi checkpoint + upgrade | _pending_ |
-| StudyFi health + parity | _pending_ |
-| Alligators fleet | _rolls with the tag_ |
+| Release | `fb2ee454`, tagged `v1.4.1`; all six pipelines green on the first tag. GitHub Release published, 15 assets, not draft. `render.cloud.maude.sh/_health` → `v1.4.1` |
+| StudyFi checkpoint + upgrade | `3009bcec-5791-4be6-9c08-f747b828a2df` — checkpoint `/opt/maude-hub/pre-v1.4.1-20260916T073555Z` (`env.bak`, compose, `hub-data.tgz` 10.8 MB, `hub-repo.tgz` 63 MB; hub + render stopped while taken; previous images `sha256:0ce4b3a3…` hub, `sha256:8e405df9…` render); tag `v1.4.1`; both containers up, hub healthy |
+| StudyFi health | `version 1.4.1`, `coordinator {ready, mode: transactions, protocol 1, durable: true}`, studio `ready`, history `ready` |
+| StudyFi parity | `ok: true`, **121/121**, no mismatches; mode `transactions`, epoch 1, revision 17, `importPending: false` |
+| Media restore baseline | `present 521 / failed 14` — unchanged across both upgrades; the same canvas-owned `.css` sidecars |
+| Alligators fleet | rolls with the tag (`cells-deploy`) |
+
+Rollback for this step: restore `env.bak` from the v1.4.1 checkpoint (tag
+`v1.4.0`) and `docker compose up -d hub render`; the tarballs restore `/data`
+(project store included) and `/repo` as of the checkpoint.
 
 ### Still open for T33
 
