@@ -269,6 +269,28 @@
               tool: node.getAttribute('data-tool'),
             })),
         };
+        // WORLD GEOMETRY, for anything the canvas draws at a scale.
+        //
+        // `rect` is screen space. The canvas fits its content to the viewport,
+        // so an artboard that grows in the document can come back the SAME
+        // rendered width — which read as "the receiver never showed it" and was
+        // the one honest-looking failure in the resize lane. The canvas already
+        // publishes a world-coordinate manifest for the whiteboard toolkit
+        // (`window.__maudeCanvasRects`, canvas-lib); this reads that, for this
+        // element only. No arbitrary evaluation: one named hook, one lookup.
+        if (element.hasAttribute('data-dc-screen') || element.hasAttribute('data-cd-id')) {
+          try {
+            const manifest = window.__maudeCanvasRects?.();
+            const id = element.getAttribute('data-dc-screen') ?? element.getAttribute('data-cd-id');
+            const found =
+              manifest?.artboards?.find((a) => a.id === id) ??
+              manifest?.elements?.find((e) => e.cdId === id);
+            if (found)
+              result.worldRect = { x: found.x, y: found.y, width: found.w, height: found.h };
+          } catch {
+            /* the hook is absent on a canvas that has not mounted it */
+          }
+        }
         if (element instanceof HTMLVideoElement) {
           // Playback/seek affect this test viewer only, never shared project state.
           if (data.operation === 'play') {

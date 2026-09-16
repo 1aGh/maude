@@ -51,6 +51,10 @@ type ProbeResult = {
   href?: string;
   matches?: Array<{ id: string | null; tool: string | null }>;
   rect?: { x: number; y: number; width: number; height: number };
+  /** The canvas's own WORLD geometry for this node, when it draws one.
+   *  `rect` is screen space and the canvas fits its content to the viewport,
+   *  so a document that grew can render the same width. */
+  worldRect?: { x: number; y: number; width: number; height: number };
 };
 type ProbeArgument =
   | number
@@ -5245,7 +5249,12 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               const s = readFileSync(join(p.root, '.design', rel), 'utf8');
               return (
                 s !== oldSrc &&
-                /<h1[^>]*height:\s*"\d+px"/.test(s) &&
+                // FRACTIONAL PIXELS ARE THE NORMAL CASE. A drag commits the
+                // measured box, and a measured box is `94.28px` far more often
+                // than `94px` — so `\d+px` rejected a resize that had
+                // travelled correctly to every copy. The row read as a lost
+                // edit for as long as it ran, which was the first time.
+                /<h1[^>]*height:\s*"\d+(?:\.\d+)?px"/.test(s) &&
                 s === readFileSync(join(from.root, '.design', rel), 'utf8')
               );
             }
@@ -5375,8 +5384,13 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               new Error(`${String(error)} — resize handles in the frame: ${handles}`)
             );
           });
+          // WORLD width, not rendered width. The canvas fits its content to
+          // the viewport, so an artboard that genuinely grew comes back the
+          // same rendered size — the native participant failed this row in all
+          // three directions, including as the author of its own resize, while
+          // its inspector plainly read the new W and H.
           const before = await Promise.all(
-            all.map(async (p) => (await p.probe('[data-dc-screen="main"]'))?.rect)
+            all.map(async (p) => (await p.probe('[data-dc-screen="main"]'))?.worldRect)
           );
           const start = performance.now();
           await gesture(from, handle, 'pointer', { dx: 80, dy: 60 });
@@ -5385,7 +5399,7 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             `L08-resize-${from.name}`,
             start,
             async (p) => {
-              const r = (await p.probe('[data-dc-screen="main"]'))?.rect;
+              const r = (await p.probe('[data-dc-screen="main"]'))?.worldRect;
               const b = before[all.indexOf(p)];
               return !!r && !!b && r.width > b.width + 20;
             },
