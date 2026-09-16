@@ -4221,6 +4221,31 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             };
           const base = elementCanvas('Offline base');
           await seedCanvas(hubSide, mine, base);
+          // The two categories that ride existing roads — a photo edit (a
+          // file-plane sidecar) and a timeline cut (canvas source) — mutated
+          // offline too, so no persistent surface is left unexercised. Their
+          // subjects exist everywhere BEFORE the cable is pulled.
+          const cutRel = 'ui/SurfaceOfflineCut.tsx';
+          const cutSource = readFileSync(
+            new URL('../fixtures/project/.design/ui/Cut.tsx', import.meta.url),
+            'utf8'
+          );
+          const clipsIn = (p: Surface) =>
+            (text(p, cutRel)?.match(/<TransitionSeries\.Sequence\b/g) ?? []).length;
+          await seedCanvas(hubSide, cutRel, cutSource);
+          const pattern = readFileSync(
+            join(hubSide.root, '.design', 'assets', 'surface-pattern.png')
+          );
+          const photoRel = `assets/${createHash('sha256').update(pattern).digest('hex').slice(0, 8)}.png`;
+          const photoEditRel = photoRel.replace(/\.png$/, '.photo.json');
+          writeFileSync(join(hubSide.root, '.design', photoRel), pattern);
+          await until(
+            () =>
+              text(peer, cutRel) === cutSource &&
+              existsSync(join(peer.root, '.design', photoRel)) &&
+              existsSync(join(nativeSide.root, '.design', photoRel)),
+            90000
+          );
           await fetch(`${control}/offline`, { method: 'POST' });
           try {
             await until(() => syncState(peer) === 'offline', 60000);
@@ -4315,6 +4340,47 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             mkdirSync(join(peer.root, '.design/assets'), { recursive: true });
             writeFileSync(join(peer.root, '.design', offlineAsset), assetBytes);
             const assetSha = createHash('sha256').update(assetBytes).digest('hex');
+            // A PHOTO EDIT, through the route the Photo panel saves with.
+            const photoPut = await fetch(
+              `http://127.0.0.1:${run.peerPort}/_api/photo-edit?asset=${encodeURIComponent(photoRel)}`,
+              {
+                method: 'PUT',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ adjustments: { brightness: 0.2 } }),
+              }
+            );
+            if (!photoPut.ok)
+              throw new Error(`the offline photo edit was refused: ${photoPut.status}`);
+            const brightened = (p: Surface) => {
+              try {
+                return (
+                  JSON.parse(readFileSync(join(p.root, '.design', photoEditRel), 'utf8'))
+                    .adjustments?.brightness === 0.2
+                );
+              } catch {
+                return false;
+              }
+            };
+            if (!brightened(peer))
+              throw new Error('the offline photo edit never reached the peer’s disk');
+            // A TIMELINE CUT, in the shell's Timeline panel: the playhead into
+            // the second clip, ⌘B — the gesture L15 uses, on a peer cut off.
+            await openCanvas(peer, cutRel);
+            if ((await peer.count(selector('timeline-panel'))) === 0)
+              await peer.press('Meta+Shift+T');
+            await until(async () => (await peer.count(selector('timeline-panel'))) > 0, 15000);
+            await until(
+              async () => (await peer.count('[data-testid^="timeline-seq-"]')) === 3,
+              30000
+            );
+            await peer.click(selector('timeline-readout'));
+            await peer.press('Escape');
+            await peer.press('Home');
+            await peer.press('.');
+            for (let i = 0; i < 10; i++) await peer.press('ArrowRight');
+            await peer.press('Meta+b');
+            await until(() => clipsIn(peer) === 4, 30000);
+            const cutBody = text(peer, cutRel);
             // L22 — the peer's own status tells the truth while cut off: not
             // "synced", but offline with the change kept.
             let statusWhileOffline = '';
@@ -4328,7 +4394,7 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             writeFileSync(join(nativeSide.root, '.design', theirs), theirsBody);
             await until(() => text(hubSide, theirs) === theirsBody, 30000);
             await sleep(2000);
-            if (text(hubSide, mine) !== base)
+            if (text(hubSide, mine) !== base || clipsIn(hubSide) !== 3 || brightened(hubSide))
               throw new Error('An offline edit reached the hub while cut off');
             const start = performance.now();
             await fetch(`${control}/online`, { method: 'POST' });
@@ -4351,7 +4417,11 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
                   existsSync(join(p.root, '.design', offlineAsset)) &&
                   createHash('sha256')
                     .update(readFileSync(join(p.root, '.design', offlineAsset)))
-                    .digest('hex') === assetSha
+                    .digest('hex') === assetSha &&
+                  // …and the two that ride those roads: the photo's edit and
+                  // the timeline's cut.
+                  brightened(p) &&
+                  text(p, cutRel) === cutBody
               )),
             };
           } finally {
@@ -4627,6 +4697,80 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           );
           return {
             stimulus: 'desktop B studio stopped, project changed, B reopened',
+            ...observations,
+          };
+        });
+        // L22 — a credential that EXPIRES, walked end to end in one stimulus:
+        // the hub refuses it, the peer files the refusal as one it cannot
+        // retry its way out of, its own shell says so instead of "synced",
+        // nothing it edits meanwhile reaches anyone — and once it is signed in
+        // again, that edit arrives everywhere. Each hop is also pinned on its
+        // own (tokens / auth-reasons / sync-runtime tests, team-project step
+        // 8); this is the one place they meet.
+        await check('L22.auth-expiry', 'peer-credential-expires', async () => {
+          if (!peer || !hubSide || !nativeSide || !control)
+            throw new Unexercised('Missing participants or the toggle proxy');
+          const rel = 'ui/SurfaceExpiry.tsx';
+          const seeded = elementCanvas('Expiry v1');
+          await seedCanvas(hubSide, rel, seeded);
+          await until(() => text(peer, rel) === seeded, 60000);
+          const reply = await (
+            await fetch(`${run.peerLifecycle}/peer/credential/expire`, { method: 'POST' })
+          ).json();
+          if (reply.expired !== 1)
+            throw new Error(`the credential did not expire: ${JSON.stringify(reply)}`);
+          // A credential is asked for when a connection is made. Cut the link
+          // and restore it, as a sleeping laptop does, so the peer presents it.
+          await fetch(`${control}/offline`, { method: 'POST' });
+          await until(() => syncState(peer) === 'offline', 60000).catch(() => {});
+          await fetch(`${control}/online`, { method: 'POST' });
+          const whileExpired = elementCanvas('Edited on B with an expired credential');
+          writeFileSync(join(peer.root, '.design', rel), whileExpired);
+          // Hop 2 — the peer's own record: refused, for the reason that means
+          // "sign in again", not "try later".
+          let reasons: string[] = [];
+          await until(() => {
+            try {
+              const s = JSON.parse(readFileSync(join(peer.root, '.design', '_sync.json'), 'utf8'));
+              reasons = (s.items ?? [])
+                .filter((i: { state: string }) => i.state === 'auth-rejected')
+                .map((i: { reason?: string }) => String(i.reason ?? ''));
+              return reasons.includes('invalid-token');
+            } catch {
+              return false;
+            }
+          }, 120000);
+          // Hop 3 — the shell says it, where the person looks.
+          if ((await peer.read(selector('open-sync'))) !== null) {
+            const pressed = await peerPage
+              .locator(selector('open-sync'))
+              .getAttribute('aria-pressed')
+              .catch(() => null);
+            if (pressed !== 'true') await peer.click(selector('open-sync'));
+          }
+          await until(async () => (await peer.read('.sp-note-dot.is-refused')) !== null, 60000);
+          const statusWhileRefused = (await peer.read('.st-sb-sync')) ?? '';
+          if (/\bsynced\b/i.test(statusWhileRefused))
+            throw new Error(`A refused peer claimed synced: ${statusWhileRefused}`);
+          // Hop 4 — nothing from the refused peer reached anyone.
+          await sleep(3000);
+          if (text(hubSide, rel) !== seeded || text(nativeSide, rel) !== seeded)
+            throw new Error('An edit made with an expired credential reached the project');
+          // Signed in again: the edit it kept arrives everywhere.
+          const start = performance.now();
+          await fetch(`${run.peerLifecycle}/peer/credential/renew`, { method: 'POST' });
+          await peerPage.goto(`http://127.0.0.1:${run.peerPort}/`);
+          const observations = await observeAll(
+            all,
+            'L22-auth-expiry',
+            start,
+            async (p) => (await p.read(rowOf(rel))) !== null,
+            (p) => text(p, rel) === whileExpired
+          );
+          return {
+            stimulus: 'desktop B credential expired on the hub, link bounced, B signed in again',
+            refusedAs: [...new Set(reasons)],
+            statusWhileRefused: statusWhileRefused.slice(0, 120),
             ...observations,
           };
         });

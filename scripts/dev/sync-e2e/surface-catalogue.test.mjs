@@ -11,7 +11,9 @@ test('committed coverage inventory cannot silently omit changed toolbar/photo re
     committed,
     'Review new controls and their required cases, then regenerate with node scripts/dev/sync-e2e/surface-catalogue.mjs --write'
   );
-  assert.equal(actual.catalogueComplete, false);
+  // Every declared action points at a row (surface-requirements.mjs): derived,
+  // so this flips back the moment one is left unasserted.
+  assert.equal(actual.catalogueComplete, true);
   assert.equal(actual.surfaces.length, 24);
   assert.ok(actual.cases.some((c) => c.id === 'L09.shape-triangle-down.delete'));
   assert.ok(actual.cases.some((c) => c.id === 'L13.photo.invert'));

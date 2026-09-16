@@ -352,10 +352,12 @@ export const REQUIREMENT_COVERAGE = {
   },
   L20: {
     'disconnect one desktop': ['L20.offline.edit-then-catch-up'],
-    'mutate each persistent surface': {
-      unresolved:
-        'four of them, each travelling by a different road: the canvas source, an annotation the peer DRAWS with the sticky tool while cut off, a comment it leaves on its own lane, and an asset through the file plane — all checked on every copy after the reconnect. Neither the annotation nor the comment can be faked by writing its file: both are projections of a lane, ignored on import. What is left is narrower than it sounds: photo and timeline are not mutated offline, but neither introduces a road of its own — a photo edit is a file-plane sidecar (S25) and a timeline edit is canvas source (V01-V10), and both roads are proved above. So this is an unrun CATEGORY, not an unproven transport.',
-    },
+    // Six, each by its own input while cut off: the canvas source, a sticky
+    // drawn with the tool, a comment left on its lane, an asset through the
+    // file plane, a photo edit saved the way the Photo panel saves it, and a
+    // timeline cut made in the Timeline panel — all checked on every copy
+    // after the reconnect.
+    'mutate each persistent surface': ['L20.offline.edit-then-catch-up'],
     restart: ['L20.restart.catch-up'],
     'peer edits': ['L20.offline.edit-then-catch-up'],
     reconnect: ['L20.offline.edit-then-catch-up'],
@@ -375,10 +377,11 @@ export const REQUIREMENT_COVERAGE = {
     'pending edits': ['L20.offline.edit-then-catch-up'],
     'blocked file': ['L22.blocked-file'],
     'invalid candidate': ['L22.invalid-candidate.held'],
-    'auth expiry': {
-      unresolved:
-        'no single surface row expires a credential; the path is pinned hop by hop instead. The hub refuses an expired credential exactly as it refuses an unknown one (tokens.test.mjs), words that refusal so the peer files it as permanent (auth-reasons.test.mjs), the peer routes it to the sign-in-again state (sync-runtime.test.ts), and the real shell shows that state (team-project.e2e.ts step 8). Every hop is held; nothing walks all four in one stimulus.',
-    },
+    // One stimulus through all four hops: the hub refuses the expired
+    // credential, the peer files it as `invalid-token`, its shell shows the
+    // refused state instead of "synced", and nothing it edits leaves until it
+    // is signed in again — after which the edit arrives everywhere.
+    'auth expiry': ['L22.auth-expiry'],
     'unavailable storage': ['L22.unavailable-storage'], // and its recovery, below
     // The storage row is the whole arc: the disk refuses, the status bar
     // refuses to read complete, the panel names the file — and then the disk

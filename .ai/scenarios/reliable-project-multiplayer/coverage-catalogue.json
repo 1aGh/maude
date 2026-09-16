@@ -1,18 +1,7 @@
 {
   "version": 1,
-  "catalogueComplete": false,
-  "unresolved": [
-    {
-      "surface": "L20",
-      "action": "mutate each persistent surface",
-      "reason": "four of them, each travelling by a different road: the canvas source, an annotation the peer DRAWS with the sticky tool while cut off, a comment it leaves on its own lane, and an asset through the file plane — all checked on every copy after the reconnect. Neither the annotation nor the comment can be faked by writing its file: both are projections of a lane, ignored on import. What is left is narrower than it sounds: photo and timeline are not mutated offline, but neither introduces a road of its own — a photo edit is a file-plane sidecar (S25) and a timeline edit is canvas source (V01-V10), and both roads are proved above. So this is an unrun CATEGORY, not an unproven transport."
-    },
-    {
-      "surface": "L22",
-      "action": "auth expiry",
-      "reason": "no single surface row expires a credential; the path is pinned hop by hop instead. The hub refuses an expired credential exactly as it refuses an unknown one (tokens.test.mjs), words that refusal so the peer files it as permanent (auth-reasons.test.mjs), the peer routes it to the sign-in-again state (sync-runtime.test.ts), and the real shell shows that state (team-project.e2e.ts step 8). Every hop is held; nothing walks all four in one stimulus."
-    }
-  ],
+  "catalogueComplete": true,
+  "unresolved": [],
   "unsupported": [
     {
       "surface": "L08",
@@ -3532,9 +3521,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true,
-      "covers": [],
-      "unresolved": "four of them, each travelling by a different road: the canvas source, an annotation the peer DRAWS with the sticky tool while cut off, a comment it leaves on its own lane, and an asset through the file plane — all checked on every copy after the reconnect. Neither the annotation nor the comment can be faked by writing its file: both are projections of a lane, ignored on import. What is left is narrower than it sounds: photo and timeline are not mutated offline, but neither introduces a road of its own — a photo edit is a file-plane sidecar (S25) and a timeline edit is canvas source (V01-V10), and both roads are proved above. So this is an unrun CATEGORY, not an unproven transport."
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L20.offline.edit-then-catch-up"
+      ]
     },
     {
       "id": "L20.requirement.restart",
@@ -3728,9 +3718,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true,
-      "covers": [],
-      "unresolved": "no single surface row expires a credential; the path is pinned hop by hop instead. The hub refuses an expired credential exactly as it refuses an unknown one (tokens.test.mjs), words that refusal so the peer files it as permanent (auth-reasons.test.mjs), the peer routes it to the sign-in-again state (sync-runtime.test.ts), and the real shell shows that state (team-project.e2e.ts step 8). Every hop is held; nothing walks all four in one stimulus."
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L22.auth-expiry"
+      ]
     },
     {
       "id": "L22.requirement.unavailable-storage",

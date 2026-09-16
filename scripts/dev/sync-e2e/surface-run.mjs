@@ -12,10 +12,11 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { createServer } from 'node:http';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { addToken } from '../../../apps/hub/src/tokens.mjs';
+import { addToken, tokensDbPath } from '../../../apps/hub/src/tokens.mjs';
 import { closeUsers, createUser } from '../../../apps/hub/src/users.mjs';
 import { compareToBaseline, readRows, summarise } from './surface-baseline.mjs';
 import { buildSurfaceCatalogue, cataloguePath } from './surface-catalogue.mjs';
@@ -348,6 +349,39 @@ try {
         peerChild = studio('desktop-b', peerB, peerPort, identities['designer-b']);
         await ready(`http://127.0.0.1:${peerPort}/_health`);
         return reply(200, { started: true, port: peerPort });
+      }
+      // L22 — a credential that EXPIRES, not one that is unknown: the stored
+      // row keeps its hash and only its lifetime ends, the way a 12 h cell
+      // session does. `renew` is the owner signing the designer in again: a
+      // fresh credential in the peer's store and the peer reopened with it.
+      if (req.url === '/peer/credential/expire') {
+        const require = createRequire(join(root, 'apps/hub/package.json'));
+        const Database = require('better-sqlite3');
+        const db = new Database(tokensDbPath(data));
+        try {
+          const changed = db
+            .prepare('UPDATE tokens SET expires_at = ? WHERE label = ?')
+            .run(Date.now() - 1000, 'surface-designer-b').changes;
+          return reply(changed === 1 ? 200 : 500, { expired: changed });
+        } finally {
+          db.close();
+        }
+      }
+      if (req.url === '/peer/credential/renew') {
+        const { value } = addToken(data, {
+          label: 'surface-designer-b',
+          scope: '*',
+          owner: 'designer-b@local.test',
+          role: 'member',
+          expiresAt: Date.now() + 12 * 3600000,
+        });
+        const store = JSON.parse(readFileSync(identities['designer-b'], 'utf8'));
+        for (const url of Object.keys(store.hubs)) store.hubs[url].token = value;
+        writeFileSync(identities['designer-b'], JSON.stringify(store), { mode: 0o600 });
+        await stopChild(peerChild);
+        peerChild = studio('desktop-b', peerB, peerPort, identities['designer-b']);
+        await ready(`http://127.0.0.1:${peerPort}/_health`);
+        return reply(200, { renewed: true });
       }
       if (req.url === '/fresh') {
         const n = freshCopies.length + 1;

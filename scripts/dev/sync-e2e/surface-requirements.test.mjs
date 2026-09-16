@@ -132,7 +132,7 @@ test('every mapped row id was actually emitted by a real run', () => {
   // exists to prevent.
   const run = join(
     ROOT,
-    '.ai/device/scenario-runs/reliable-project-multiplayer/2026-09-16T01-50-54.345Z/surface-results.json'
+    '.ai/device/scenario-runs/reliable-project-multiplayer/2026-09-16T17-20-34.301Z/surface-results.json'
   );
   let rows;
   try {
