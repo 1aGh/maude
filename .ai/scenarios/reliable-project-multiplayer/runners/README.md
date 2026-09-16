@@ -29,7 +29,22 @@ bash runners/native-macos.sh  --mode candidate --save-mode accepted
 bash runners/web-desktop.sh   --mode candidate --save-mode accepted
 ```
 
-**Run it on a machine whose screen stays awake for the whole run.** WebKit
+**Run it under `caffeinate -dimsu`, on a machine with memory to spare.** Two
+environment conditions, and both have bitten:
+
+```sh
+caffeinate -dimsu bash runners/local-e2e.sh --mode candidate --baseline <dir>
+```
+
+The rig holds a hub, a Chromium browser, a bundled WKWebView app and a second
+desktop at once, for a couple of hours. A run on a machine already deep into
+swap is killed part-way through — which costs the whole comparison, since a
+partial run has no rows for most of the matrix. Slice it with `--only` if the
+machine cannot hold the whole thing; a sliced run exercises everything but
+produces one artifact per slice, so it cannot answer the baseline comparison in
+one verdict.
+
+**And the screen must stay awake for the whole run.** WebKit
 paints no animation frames in a window that is not rendering, so a display that
 locks mid-run takes every rAF-placed row with it — resize handles never appear,
 and a soak that lasts minutes is the likeliest row of all to meet a screen that
