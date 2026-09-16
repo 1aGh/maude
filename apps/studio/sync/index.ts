@@ -3533,8 +3533,23 @@ export function createSyncRuntime(
         );
       }
       // Cold-start reconcile fires once the provider has hub state.
-      const synced = provider.onceSynced().then(() => {
+      const synced = provider.onceSynced().then(async () => {
         if (deferSetup) {
+          // A DOCUMENT THAT DOES NOT NAME ITS PATH YET, UNDER A MANIFEST THAT
+          // PREDATES IT. A canvas created a moment ago is listed before this
+          // copy's last bootstrap knew it, and its document can answer the
+          // handshake before the accepted write that carries its path — so
+          // neither source names the path and the slug fallback (lowercase)
+          // would be written for good (surface run 2026-09-16: two long-running
+          // copies held `ui/surfaceassetsbusy.tsx`). Ask the project once.
+          if (
+            acceptedOn() &&
+            canvasPathFromDoc(provider.document) === null &&
+            manifestPathFor(docNameFor(canvas.slug), canvas.slug) === null
+          ) {
+            await acceptedLink?.refresh().catch(() => null);
+          }
+          if (stopped) return;
           // Settled either way below — run, or the canvas is released.
           owedSetups.delete(canvas.slug);
           // Abandon before `setup?.()`, so no projection and no agent is ever
@@ -4069,6 +4084,14 @@ export function createSyncRuntime(
     // not told the document exists.
     const pullRemoteOnce = async (): Promise<void> => {
       if (stopped) return;
+      // Read `token` at call time: a silent renewal swaps it in place.
+      //
+      // The listing FIRST, the manifest after it. A document the storage
+      // listing shows was accepted before it was stored, so a manifest fetched
+      // afterwards names it — and its path. The other order left a window in
+      // which a canvas created between the two requests was pulled with no
+      // path from either source (see `manifestPathFor`).
+      const rawListing = await fetchRemoteListing(linkedHub.url, token);
       // Accepted revisions: the save mode can change under a running peer (the
       // hub fences every socket when it does), and folders are manifest
       // entries — neither is in the document listing.
@@ -4076,8 +4099,7 @@ export function createSyncRuntime(
         await acceptedLink.refresh();
         if (acceptedOn()) applyProjectDirs(acceptedLink.manifest?.dirs ?? []);
       }
-      // Read `token` at call time: a silent renewal swaps it in place.
-      const listing = withAcceptedDocs(await fetchRemoteListing(linkedHub.url, token));
+      const listing = withAcceptedDocs(rawListing);
       // null = unreachable, refused, or a hub without the route. Not an error
       // here any more than it is at boot — sync continues, we ask again later.
       if (stopped || listing === null) return;

@@ -83,6 +83,8 @@ function makeCtx(repoRoot: string, url: string): Context {
 
 describe.skipIf(!HUB_READY)('a canvas pulled before its document names its path', () => {
   let root: string;
+  let designRoot = '';
+  let real: ReturnType<typeof createDefaultProviderFactory> | null = null;
   let hub: ChildProcess;
   let http = '';
   let tokens: Record<string, string> = {};
@@ -118,34 +120,55 @@ describe.skipIf(!HUB_READY)('a canvas pulled before its document names its path'
         headers: { authorization: `Bearer ${tokens.owner}` },
       })
     ).json()) as { epoch: number };
+    expect(await create(mode.epoch, 'ui-mixedcase', 'ui/MixedCase.tsx')).toBe(200);
+  }, 60_000);
+
+  const create = async (epoch: number, slug: string, rel: string): Promise<number> => {
     const r = await fetch(`${http}/api/projects/local/v1/proposals`, {
       method: 'POST',
       headers: { authorization: `Bearer ${tokens.owner}`, 'content-type': 'application/json' },
       body: JSON.stringify({
         protocol: 1,
         projectId: 'local',
-        epoch: mode.epoch,
-        transactionId: `tx_mixed_${Date.now()}`,
+        epoch,
+        transactionId: `tx_${slug}_${Date.now()}`,
         origin: { deviceId: 'seed', sessionId: 's' },
         action: {
           kind: 'edit',
           label: 'seed',
           operations: [
-            {
-              op: 'doc.create',
-              doc: 'ws/local/main/ui-mixedcase',
-              path: 'ui/MixedCase.tsx',
-              lanes: { html: body },
-            },
+            { op: 'doc.create', doc: `ws/local/main/${slug}`, path: rel, lanes: { html: body } },
           ],
         },
       }),
     });
-    expect(r.status).toBe(200);
-  }, 60_000);
+    return r.status;
+  };
+  // Where the runtime decided a canvas lives. The body itself is written by the
+  // collab room's persistence, which these tests do not run; the
+  // untrusted-content index names the chosen path for every pulled canvas, and
+  // it is rewritten the moment a pulled canvas is relocated.
+  const bodyOf = (slug: string): string | null => {
+    try {
+      const j = JSON.parse(readFileSync(join(designRoot, '_untrusted', 'INDEX.json'), 'utf8')) as {
+        canvases?: Array<{ slug: string; body: string }>;
+      };
+      return j.canvases?.find((c) => c.slug === slug)?.body ?? null;
+    } catch {
+      return null;
+    }
+  };
+  const syncedAtLeast = async (n: number) => {
+    const deadline = Date.now() + 30_000;
+    while (Date.now() < deadline && (runtime?.status()?.docs?.synced ?? 0) < n)
+      await new Promise((r) => setTimeout(r, 200));
+    expect(runtime?.status()?.docs?.synced ?? 0).toBeGreaterThanOrEqual(n);
+    await new Promise((r) => setTimeout(r, 500));
+  };
 
   afterAll(async () => {
     await runtime?.stop?.();
+    real?.dispose();
     hub?.kill('SIGTERM');
     for (const [k, v] of Object.entries(saved)) {
       if (v === undefined) delete process.env[k];
@@ -163,7 +186,9 @@ describe.skipIf(!HUB_READY)('a canvas pulled before its document names its path'
     );
     process.env.HUBS_CONFIG_PATH = hubsFile;
     const ctx = makeCtx(join(root, 'fresh'), http);
-    const real = createDefaultProviderFactory();
+    designRoot = ctx.paths.designRoot;
+    const factory = createDefaultProviderFactory();
+    real = factory;
     const MIRROR = { mirror: true };
     // The race, pinned: a document that does not (yet) name its own path.
     const early: ProviderFactory = async (args) => {
@@ -174,7 +199,7 @@ describe.skipIf(!HUB_READY)('a canvas pulled before its document names its path'
         const meta = shown.getMap('syncMeta');
         if (meta.has('path')) shown.transact(() => meta.delete('path'), MIRROR);
       });
-      const p = await real({ ...args, document: own });
+      const p = await factory({ ...args, document: own });
       return { ...p, document: shown, isRemoteOrigin: (o: unknown) => o === MIRROR };
     };
     runtime = createSyncRuntime(ctx, {
@@ -183,28 +208,22 @@ describe.skipIf(!HUB_READY)('a canvas pulled before its document names its path'
       providerFactory: early,
     });
     await runtime?.start();
-    // Where the runtime decided the canvas lives. The body itself is written
-    // by the collab room's persistence, which this test does not run; the
-    // untrusted-content index names the chosen path for every pulled canvas,
-    // and it is rewritten the moment a pulled canvas is relocated.
-    const index = join(ctx.paths.designRoot, '_untrusted', 'INDEX.json');
-    const bodyOf = (): string | null => {
-      try {
-        const j = JSON.parse(readFileSync(index, 'utf8')) as {
-          canvases?: Array<{ slug: string; body: string }>;
-        };
-        return j.canvases?.find((c) => c.slug === 'ui-mixedcase')?.body ?? null;
-      } catch {
-        return null;
-      }
-    };
     // Past the handshake: the decision that used to go wrong is made after it.
-    const deadline = Date.now() + 30_000;
-    while (Date.now() < deadline && (runtime?.status()?.docs?.synced ?? 0) < 1)
-      await new Promise((r) => setTimeout(r, 200));
-    expect(runtime?.status()?.docs?.synced ?? 0).toBe(1);
-    await new Promise((r) => setTimeout(r, 500));
-    expect(bodyOf()).toBe('design/ui/MixedCase.tsx');
-    real.dispose();
+    await syncedAtLeast(1);
+    expect(bodyOf('ui-mixedcase')).toBe('design/ui/MixedCase.tsx');
+  }, 60_000);
+
+  test('a canvas created after this copy last asked the project lands at its path too', async () => {
+    // The copy is running; its manifest predates this canvas. The poll finds
+    // it in the listing, and its document still names no path.
+    const mode = (await (
+      await fetch(`${http}/api/projects/current/v1/mode`, {
+        headers: { authorization: `Bearer ${tokens.owner}` },
+      })
+    ).json()) as { epoch: number };
+    expect(await create(mode.epoch, 'ui-latearrival', 'ui/LateArrival.tsx')).toBe(200);
+    await runtime?.pullRemoteNow();
+    await syncedAtLeast(2);
+    expect(bodyOf('ui-latearrival')).toBe('design/ui/LateArrival.tsx');
   }, 60_000);
 });
