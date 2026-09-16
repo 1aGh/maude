@@ -1472,21 +1472,21 @@ Required platforms follow actual project config (`web-desktop`) plus the native 
 - [ ] No previously passing workflow regresses, needs manual refresh/resync, gains an unexpected conflict or loses data. Full local matrix and mixed-load soak pass at milestone boundaries; initially known gaps are not relabeled as success and are closed before final rollout.
 - [ ] Per-surface/per-direction local-to-peer-visible latency is compared with T1 under matched conditions; no reproducible material regression beyond the fixed noise policy in `local-e2e.md`, and final absolute targets hold. No widened timeout or baseline reset used to hide a failure.
 - [ ] A newly invited designer opens an editable project without token, terminal, Git or folder selection on both cloud and self-host; a peer sees the first edit.
-- [ ] Every persistent writer passes the accepted transaction boundary; old writers and already-open sockets are fenced at epoch changes.
-- [ ] Invalid/rejected candidates never mutate accepted state, peer render, accepted checkout or history; repair/dependent pending actions retain their bytes and resolve safely.
-- [ ] Independent concurrent edits survive; ambiguous stale-file imports preserve work and remain visible until resolution.
+- [x] Every persistent writer passes the accepted transaction boundary; old writers and already-open sockets are fenced at epoch changes.
+- [x] Invalid/rejected candidates never mutate accepted state, peer render, accepted checkout or history; repair/dependent pending actions retain their bytes and resolve safely.
+- [x] Independent concurrent edits survive; ambiguous stale-file imports preserve work and remain visible until resolution.
 - [ ] Accepted actions survive the defined process/renderer-disk failures with RPO 0; duplicate retry has one effect. Disaster RPO/RTO is separately documented and tested.
-- [ ] Browser/desktop offline work survives restart or reports local persistence failure truthfully; reconnect respects current rights and dependencies.
+- [x] Browser/desktop offline work survives restart or reports local persistence failure truthfully; reconnect respects current rights and dependencies.
 - [ ] Complete eligible inventory, resumable large-media transfer and final hash parity are proved on two clean clients; excluded/blocked files are explained.
-- [ ] Project and active document opening do not depend on full media download or bulk renderer restore.
-- [ ] Supported text/property/structural/comment/annotation/photo/timeline and AI actions all have logical history; arbitrary TSX remains preserved.
-- [ ] Personal undo/redo respects peer effects including ABA/deletion; restore creates a new accepted action.
-- [ ] All status surfaces use the same truthful state model; no known conflict/required missing media under a shared “Saved” claim.
-- [ ] Target performance measured, not assumed: local normal edit p95 ≤50ms; peer render p95 ≤300ms/p99 ≤1s with RTT ≤100ms in one region; warm active-document open ≤2s on recorded hardware. Any failed target is resolved or explicitly reviewed, not hidden behind server-only timing.
+- [x] Project and active document opening do not depend on full media download or bulk renderer restore.
+- [x] Supported text/property/structural/comment/annotation/photo/timeline and AI actions all have logical history; arbitrary TSX remains preserved.
+- [x] Personal undo/redo respects peer effects including ABA/deletion; restore creates a new accepted action.
+- [x] All status surfaces use the same truthful state model; no known conflict/required missing media under a shared “Saved” claim.
+- [ ] Target performance measured, not assumed: local normal edit p95 ≤50ms; peer render p95 ≤300ms/p99 ≤1s with RTT ≤100ms in one region; warm active-document open ≤2s on recorded hardware. Any failed target is resolved or explicitly reviewed, not hidden behind server-only timing. **Measured, and one target is not met**: the mixed-load soak reports edit-visible-at-peers p50 ≈ 440 ms and p95 ≈ 650 ms — over twice the 300 ms p95 this line asks for. It is a loopback measurement taken while one machine runs the hub, a browser, a bundled native app and a second desktop at once, so it is a worst-case number rather than a product figure, and it is the only measurement there is. It is recorded here rather than left as an unticked box with no reason: this target needs either a run on hardware that is not hosting all four participants, or a decision that the figure is the honest one.
 - [ ] T32/T33 evidence demonstrates both actual backend families and bundled native UX; no required scenario left stub-only or skipped.
 - [ ] Targeted/full quality gates, origin/trust/tenant checks, packaging/version parity, DS and a11y reviews pass; no critical findings outstanding.
 - [ ] Migration preserves historical and pending work; rollback after new accepted writes cannot discard them. Old authority retirement and fleet support matrix complete.
-- [ ] Product documentation, What's New, generated roadmap and scoped decision memory accurately reflect shipped behavior and remaining limits.
+- [x] Product documentation, What's New, generated roadmap and scoped decision memory accurately reflect shipped behavior and remaining limits.
 
 ## Risks and Execution Confidence
 
