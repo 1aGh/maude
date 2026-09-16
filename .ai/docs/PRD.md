@@ -4,14 +4,27 @@
 > **Owner:** Michal Dovrtěl (`1aGh`)
 > **Last updated:** 2026-05-12
 
-> **Current collaboration scope — 2026-09-13:** The historical roadmap below
-> predates the cloud/native product. The current requirement is designer invite
-> → desktop project selection → live browser/desktop/local-file collaboration
-> on both self-hosted and Cloudflare hubs, with logical history, personal
-> undo/redo and rendered photo/video parity. The implementation contract is
+> **Current collaboration scope — 2026-09-13, updated 2026-09-16:** The
+> historical roadmap below predates the cloud/native product. The requirement is
+> designer invite → desktop project selection → live browser/desktop/local-file
+> collaboration on both self-hosted and Cloudflare hubs, with logical history,
+> personal undo/redo and rendered photo/video parity. The implementation
+> contract is
 > [Reliable project multiplayer](../plans/feature-reliable-project-multiplayer.md).
-> Capture the unchanged local UI baseline before changing sync; existing working
-> workflows and latency are protected. This is a requirement, not a shipped claim.
+>
+> **What is live.** Both named deployments run accepted revisions: every change
+> is confirmed before anyone is told it is saved, history lists each action with
+> its author, and Undo takes back only your own. An invited designer opens the
+> project in the desktop app with an email and a password — no token, no
+> terminal, no Git, no folder to choose — and that whole path is exercised
+> against the live deployment on every release (`s20-deployment.e2e.ts`).
+>
+> **What is not.** Editing in the browser saves through the project's cloud
+> workspace, so history names the workspace rather than each person and there is
+> no personal undo there. Code modules travel only with a per-hub consent the
+> product has no control for yet. Genuinely large media still has no path into a
+> hub. The plan's own task table carries the rest, and is kept current rather
+> than tidied.
 
 ## 1. Executive Summary
 
