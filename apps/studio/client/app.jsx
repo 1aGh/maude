@@ -12,6 +12,7 @@ import { createRoot } from 'react-dom/client';
 // import that Bun erases), so this pulls only string constants into the client
 // bundle — no React, no input-router. See the tool-cursor handler below.
 import { resolveToolCursor } from '../canvas-cursors.ts';
+import { commandForEnter, matchCommands } from './command-palette-match.js';
 import {
   defaultScopeForFormat,
   isScopeValidForFormat,
@@ -878,15 +879,7 @@ function CommandPalette({ open, onClose, actions }) {
       ?.querySelector('.st-pal-item.is-active')
       ?.scrollIntoView({ block: 'nearest' });
   }, [active]);
-  const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return actions;
-    return actions.filter(
-      (a) =>
-        a.label.toLowerCase().includes(needle) ||
-        (a.group && a.group.toLowerCase().includes(needle))
-    );
-  }, [q, actions]);
+  const filtered = useMemo(() => matchCommands(actions, q), [q, actions]);
   useEffect(() => {
     if (active >= filtered.length) setActive(0);
   }, [filtered.length, active]);
@@ -925,7 +918,8 @@ function CommandPalette({ open, onClose, actions }) {
                 setActive((i) => Math.max(0, i - 1));
               } else if (e.key === 'Enter') {
                 e.preventDefault();
-                if (filtered[active]) run(filtered[active]);
+                const pick = commandForEnter(actions, q, e.currentTarget.value, active);
+                if (pick) run(pick);
               }
             }}
           />
