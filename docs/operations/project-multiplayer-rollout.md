@@ -189,3 +189,14 @@ until the page was reloaded). `MAUDE_CANVAS_TOKEN_TTL_MS` may only shorten it.
 And every browser editor saves through the cell's one credential, so History
 attributes browser changes to the workspace and personal Undo is withheld in
 the browser; desktop editors are attributed and can undo their own actions.
+
+## Large projects and hub versions
+
+A hub built on Hocuspocus 4.3 closes any socket with more than 100 documents
+mid-authentication. Hubs from this release raise that limit to 4096
+(`MAX_PENDING_DOCUMENTS`), and desktops from this release spread a project
+over sockets of at most 64 documents, so a new desktop works against an older
+hub and an older desktop works against a new hub. A deployment with a project
+over 100 canvases should upgrade the hub and the desktops together; the
+symptom of a mismatched pair is a copy that never finishes syncing and a
+per-label rate-limit log full of refusals for one designer.
