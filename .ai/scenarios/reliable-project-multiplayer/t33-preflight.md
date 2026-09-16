@@ -311,3 +311,19 @@ invitation door (`POST /admin/api/invites` → `/join/<value>` → `POST /auth/l
 → the desktop's `team-hub-url` / `team-hub-email` / `team-hub-password` form)
 has been live the whole time. No production environment change is needed for
 S20, and none was made.
+
+## v1.4.2 rollout — 2026-09-16
+
+- **Release:** `v1.4.2` (large projects on several sockets + hub limit 4096,
+  WebKit canvas-switch hang, view/photo/palette ordering fixes, pulled-canvas
+  path). Hub image, cell image and npm built from the tag.
+- **StudyFi (`design.studyfi.com`):** checkpoint
+  `/opt/maude-hub/pre-v1.4.2-20260916T212209Z`; hub and render on `v1.4.2`,
+  healthy; `transactions`, revision 17; parity `ok`, 121/121.
+- **Alligators (`alligators.cloud.maude.sh`):** fleet rolled by `cells-deploy`;
+  `/health` reports `1.4.2`, identity `hybrid`, coordinator `transactions`.
+- **Render (`render.cloud.maude.sh`):** Worker and container rollout applied;
+  the deploy job's version poll timed out because its own polling kept the
+  old container awake (`sleepAfter` 10 m). Left alone for 12 minutes, the
+  container slept and the next start answered `v1.4.2`. Recorded as F7 in
+  `followup-reliable-project-multiplayer.md`.

@@ -26,6 +26,13 @@ T31 and T35 closed). Everything here was open when the parent plan closed.
 - [ ] **F6 — Pull-pin release race test.** The stale-scan fix (pull pin kept until
   the scan lists the body) has no dedicated regression test.
 
+- [ ] **F7 — Render deploy verification keeps the old container alive.**
+  `render-deploy.yml` polls `/_health` every 10 s for 15 minutes; each request
+  resets the container's 10-minute `sleepAfter`, so the instance started with
+  the previous release's environment never sleeps and the check fails although
+  the rollout applied (v1.4.2: failed, then answered `v1.4.2` after 12 idle
+  minutes). Poll less often than `sleepAfter`, or force the instance to restart.
+
 ## Validation
 
 A full certifying surface run with 0 failed rows, the sync lane and hub suite
