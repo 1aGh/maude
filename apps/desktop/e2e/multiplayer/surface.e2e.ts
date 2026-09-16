@@ -4214,6 +4214,28 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             await until(() => syncState(peer) === 'offline', 60000);
             const offlineBody = elementCanvas('Edited offline by peer');
             writeFileSync(join(peer.root, '.design', mine), offlineBody);
+            // NOT ONLY THE SOURCE. The contract asks for each persistent
+            // surface mutated while disconnected, and this row used to move
+            // exactly one: a canvas body. An offline session that only proves
+            // text catches up says nothing about the plane that travels
+            // differently — the file plane's own CAS journal, which carries
+            // media on a polled lane rather than in the canvas document.
+            //
+            // Annotations are NOT added here, and the reason is worth keeping:
+            // a raw `.annotations.svg` write is not an import path. That
+            // sidecar is the projection of the canvas document's annotations
+            // lane, fed by the drawing tools; writing the file by hand while
+            // offline produced a file every receiver ignored, which the row
+            // then reported as a lost annotation. Mutating annotations offline
+            // needs a real gesture on a disconnected peer — still owed, and
+            // recorded as such in `surface-requirements.mjs`.
+            const offlineAsset = 'assets/offline-by-peer.png';
+            const assetBytes = Buffer.alloc(96 * 1024);
+            for (let k = 0; k < assetBytes.length; k += 4096)
+              assetBytes.writeUInt32LE((k * 2654435761) >>> 0, k);
+            mkdirSync(join(peer.root, '.design/assets'), { recursive: true });
+            writeFileSync(join(peer.root, '.design', offlineAsset), assetBytes);
+            const assetSha = createHash('sha256').update(assetBytes).digest('hex');
             // L22 — the peer's own status tells the truth while cut off: not
             // "synced", but offline with the change kept.
             let statusWhileOffline = '';
@@ -4239,7 +4261,15 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
                 'L20-catch-up',
                 start,
                 async (p) => (await p.read(rowOf(theirs))) !== null,
-                (p) => text(p, mine) === offlineBody && text(p, theirs) === theirsBody
+                (p) =>
+                  text(p, mine) === offlineBody &&
+                  text(p, theirs) === theirsBody &&
+                  // Both planes, everywhere — the canvas source, and the
+                  // asset's bytes by hash through the file plane.
+                  existsSync(join(p.root, '.design', offlineAsset)) &&
+                  createHash('sha256')
+                    .update(readFileSync(join(p.root, '.design', offlineAsset)))
+                    .digest('hex') === assetSha
               )),
             };
           } finally {

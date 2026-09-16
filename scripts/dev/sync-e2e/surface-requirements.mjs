@@ -354,7 +354,7 @@ export const REQUIREMENT_COVERAGE = {
     'disconnect one desktop': ['L20.offline.edit-then-catch-up'],
     'mutate each persistent surface': {
       unresolved:
-        'the offline row mutates canvas source only. "Each persistent surface" while disconnected — annotations, comments, photo, timeline, assets — is not enumerated anywhere.',
+        'the offline row now mutates two: the canvas source and an asset through the file plane, both hash-checked on every copy after reconnect. Annotations, comments, photo and timeline are still not mutated offline — and annotations specifically cannot be faked by writing the sidecar, which is a projection of the canvas document\'s annotations lane and is ignored on import; it needs a real drawing gesture on a disconnected peer.',
     },
     restart: ['L20.restart.catch-up'],
     'peer edits': ['L20.offline.edit-then-catch-up'],
