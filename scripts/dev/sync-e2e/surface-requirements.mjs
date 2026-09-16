@@ -13,9 +13,17 @@
 // smuggle that back in by mapping an action to a row that merely sounds like
 // it.
 //
-// An action with nothing to point at says so, with the reason, as
-// `{ unresolved: '…' }`. Those are the honest remainder, and they are few
-// enough to read: five of the hundred and sixteen.
+// An action with nothing to point at says so, with the reason — and says WHICH
+// KIND of nothing, because the two are not the same thing:
+//
+//   `{ noControl: '…' }`   the product has no such control. The contract asks
+//                          for an action that cannot be performed, so the
+//                          honest record is `unsupported` with a reason — which
+//                          is what the plan asks for by name, not a gap.
+//   `{ unresolved: '…' }`  a gap. The action is possible and nothing asserts it.
+//
+// Folding those together made the catalogue permanently incomplete for reasons
+// no amount of work could fix, which is a flag nobody can act on.
 //
 // A mapping may cross surfaces when the row genuinely asserts the action —
 // L05's "peer moves the active canvas" IS L04's move-with-open-receivers, and
@@ -81,7 +89,7 @@ export const REQUIREMENT_COVERAGE = {
     move: ['L08.artboard.move'],
     resize: ['L08.artboard.resize'],
     reorder: {
-      unresolved:
+      noControl:
         'no artboard reorder control is exposed — order follows layout position, which L08.artboard.move changes. Pointing this at that row would claim a control the product does not have.',
     },
     remove: ['L08.artboard.remove'],
@@ -238,7 +246,7 @@ export const REQUIREMENT_COVERAGE = {
   },
   L13: {
     'create from image': {
-      unresolved:
+      noControl:
         'a photo canvas is created from the palette like any other canvas (L04) and then given an image; there is no separate "make a canvas from this file" control to assert.',
     },
     'crop/transform/adjust each exposed non-destructive control': [
@@ -403,11 +411,22 @@ export function mappedRowIds() {
   return out;
 }
 
-/** The actions that still have nothing to point at, with their reasons. */
+/** Actions that are possible and that nothing asserts — the real gaps. */
 export function unresolvedRequirements() {
   const out = [];
   for (const [surface, actions] of Object.entries(REQUIREMENT_COVERAGE))
     for (const [action, value] of Object.entries(actions))
-      if (!Array.isArray(value)) out.push({ surface, action, reason: value.unresolved });
+      if (!Array.isArray(value) && value.unresolved)
+        out.push({ surface, action, reason: value.unresolved });
+  return out;
+}
+
+/** Actions the product has no control for — `unsupported`, with the reason. */
+export function unsupportedRequirements() {
+  const out = [];
+  for (const [surface, actions] of Object.entries(REQUIREMENT_COVERAGE))
+    for (const [action, value] of Object.entries(actions))
+      if (!Array.isArray(value) && value.noControl)
+        out.push({ surface, action, reason: value.noControl });
   return out;
 }

@@ -5,7 +5,11 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { REQUIREMENT_COVERAGE, unresolvedRequirements } from './surface-requirements.mjs';
+import {
+  REQUIREMENT_COVERAGE,
+  unresolvedRequirements,
+  unsupportedRequirements,
+} from './surface-requirements.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 export const cataloguePath = join(
@@ -136,10 +140,16 @@ export function buildSurfaceCatalogue() {
     version: 1,
     // DERIVED, not declared. It was a hardcoded `false`, which is honest and
     // useless: it could never become true by doing the work, and it said
-    // nothing about how much work was left. The catalogue is complete when
-    // every declared action of every surface points at rows.
+    // nothing about how much work was left.
+    //
+    // Complete means every declared action is ANSWERED — pointing at rows, or
+    // recorded as a control the product does not have. The second kind is
+    // `unsupported` with a reason, which is what the plan asks for by name;
+    // counting it as incomplete would make this flag unclearable by any amount
+    // of work, which is the failure the hardcoded `false` already was.
     catalogueComplete: unresolved.length === 0,
     unresolved,
+    unsupported: unsupportedRequirements(),
     note: 'Source-enumerated annotations/photo controls plus the contract actions mapped to the rows that assert them. Actions that still point at nothing are listed in `unresolved`, each with its reason. No case is covered merely by being listed.',
     sources: paths.map((path) => ({
       path,

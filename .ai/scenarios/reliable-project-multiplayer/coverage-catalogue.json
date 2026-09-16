@@ -3,16 +3,6 @@
   "catalogueComplete": false,
   "unresolved": [
     {
-      "surface": "L08",
-      "action": "reorder",
-      "reason": "no artboard reorder control is exposed — order follows layout position, which L08.artboard.move changes. Pointing this at that row would claim a control the product does not have."
-    },
-    {
-      "surface": "L13",
-      "action": "create from image",
-      "reason": "a photo canvas is created from the palette like any other canvas (L04) and then given an image; there is no separate \"make a canvas from this file\" control to assert."
-    },
-    {
       "surface": "L20",
       "action": "mutate each persistent surface",
       "reason": "the offline row mutates canvas source only. \"Each persistent surface\" while disconnected — annotations, comments, photo, timeline, assets — is not enumerated anywhere."
@@ -26,6 +16,18 @@
       "surface": "L22",
       "action": "auth expiry",
       "reason": "no single surface row expires a credential; the path is pinned hop by hop instead. The hub refuses an expired credential exactly as it refuses an unknown one (tokens.test.mjs), words that refusal so the peer files it as permanent (auth-reasons.test.mjs), the peer routes it to the sign-in-again state (sync-runtime.test.ts), and the real shell shows that state (team-project.e2e.ts step 8). Every hop is held; nothing walks all four in one stimulus."
+    }
+  ],
+  "unsupported": [
+    {
+      "surface": "L08",
+      "action": "reorder",
+      "reason": "no artboard reorder control is exposed — order follows layout position, which L08.artboard.move changes. Pointing this at that row would claim a control the product does not have."
+    },
+    {
+      "surface": "L13",
+      "action": "create from image",
+      "reason": "a photo canvas is created from the palette like any other canvas (L04) and then given an image; there is no separate \"make a canvas from this file\" control to assert."
     }
   ],
   "note": "Source-enumerated annotations/photo controls plus the contract actions mapped to the rows that assert them. Actions that still point at nothing are listed in `unresolved`, each with its reason. No case is covered merely by being listed.",
@@ -2530,7 +2532,7 @@
       ],
       "requiresTargetExpansion": true,
       "covers": [],
-      "unresolved": "no artboard reorder control is exposed — order follows layout position, which L08.artboard.move changes. Pointing this at that row would claim a control the product does not have."
+      "unresolved": "not mapped"
     },
     {
       "id": "L08.requirement.remove",
@@ -2958,7 +2960,7 @@
       ],
       "requiresTargetExpansion": true,
       "covers": [],
-      "unresolved": "a photo canvas is created from the palette like any other canvas (L04) and then given an image; there is no separate \"make a canvas from this file\" control to assert."
+      "unresolved": "not mapped"
     },
     {
       "id": "L13.requirement.crop-transform-adjust-each-exposed-non-destructive-control",

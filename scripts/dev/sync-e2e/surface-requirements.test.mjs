@@ -13,6 +13,7 @@ import {
   mappedRowIds,
   REQUIREMENT_COVERAGE,
   unresolvedRequirements,
+  unsupportedRequirements,
 } from './surface-requirements.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -61,11 +62,17 @@ test('an answer is either a non-empty list of rows or a reason, never an empty g
         for (const id of value)
           assert.match(id, /^L\d\d\.[a-z0-9]/i, `${where}: ${id} is not a row id`);
       } else {
-        assert.equal(typeof value.unresolved, 'string', `${where}: unresolved needs a reason`);
-        assert.ok(
-          value.unresolved.length > 40,
-          `${where}: "${value.unresolved}" does not say enough to act on`
+        const reason = value.unresolved ?? value.noControl;
+        assert.equal(
+          typeof reason,
+          'string',
+          `${where}: an answer that is not rows must be { unresolved } or { noControl }`
         );
+        assert.ok(
+          !(value.unresolved && value.noControl),
+          `${where}: an action is either a gap or absent from the product, not both`
+        );
+        assert.ok(reason.length > 40, `${where}: "${reason}" does not say enough to act on`);
       }
     }
   }
@@ -98,8 +105,25 @@ test('the remainder is small, named, and each one says why', () => {
   const open = unresolvedRequirements();
   // Not a budget to spend — a tripwire. If this grows, something was mapped to
   // nothing rather than built.
-  assert.ok(open.length <= 8, `${open.length} unresolved actions: ${JSON.stringify(open)}`);
+  assert.ok(open.length <= 3, `${open.length} unresolved actions: ${JSON.stringify(open)}`);
   for (const o of open) assert.ok(o.reason.length > 40, JSON.stringify(o));
+});
+
+test('an action the product cannot perform is recorded as unsupported, not as a gap', () => {
+  // The distinction the catalogue's own completeness turns on: a control that
+  // does not exist cannot be built by trying harder, and folding it in with
+  // the real gaps made `catalogueComplete` a flag nobody could ever clear.
+  const absent = unsupportedRequirements();
+  assert.ok(absent.length > 0, 'the contract does ask for at least one control we do not have');
+  for (const a of absent) {
+    assert.ok(a.reason.length > 40, JSON.stringify(a));
+    // It has to say what is missing, not merely that something is.
+    assert.match(a.reason, /control|no separate/i, JSON.stringify(a));
+  }
+  const both = absent.filter((a) =>
+    unresolvedRequirements().some((u) => u.surface === a.surface && u.action === a.action)
+  );
+  assert.deepEqual(both, [], 'nothing is counted as both absent and unasserted');
 });
 
 test('every mapped row id was actually emitted by a real run', () => {
