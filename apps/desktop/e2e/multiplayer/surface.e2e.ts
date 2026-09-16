@@ -4229,6 +4229,42 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             // then reported as a lost annotation. Mutating annotations offline
             // needs a real gesture on a disconnected peer — still owed, and
             // recorded as such in `surface-requirements.mjs`.
+            // AND THE ANNOTATIONS LANE, through the drawing tool rather than
+            // the sidecar. The peer's studio is up the whole time — only its
+            // link to the hub is cut — so a sticky drawn here is an ordinary
+            // offline annotation, and the product writes the sidecar itself at
+            // whatever path it uses.
+            const notesRel = `ui-${slug(mine.replace(/^ui\//, '').replace(/\.tsx$/, ''))}.annotations.svg`;
+            let offlineStroke: string | undefined;
+            await openCanvas(peer, mine);
+            // The palette is part of the canvas chrome: clicking for it before
+            // the canvas has rendered finds nothing. Wait for the body this
+            // very row just wrote.
+            await until(
+              async () => (await peer.read('h1', true)) === 'Edited offline by peer',
+              30000
+            );
+            await gesture(peer, selector('palette-mode-edit'), 'click');
+            await gesture(peer, '[aria-label^="Sticky ("]', 'click');
+            await until(async () => !!(await peer.probe('.dc-annot-input'))?.visible, 30000);
+            await gesture(peer, '.dc-annot-input', 'pointer', { x: 0.3, y: 0.3, dx: 130, dy: 100 });
+            await until(async () => {
+              offlineStroke =
+                (await peer.probe('[data-tool="sticky"][data-id]'))?.matches?.[0]?.id ?? undefined;
+              return !!offlineStroke;
+            }, 30000);
+            const drewOffline = (p2: Surface) =>
+              (() => {
+                try {
+                  return readFileSync(join(p2.root, '.design', notesRel), 'utf8').includes(
+                    `data-id="${offlineStroke}"`
+                  );
+                } catch {
+                  return false;
+                }
+              })();
+            if (!drewOffline(peer))
+              throw new Error('the offline sticky never reached the peer’s own disk');
             const offlineAsset = 'assets/offline-by-peer.png';
             const assetBytes = Buffer.alloc(96 * 1024);
             for (let k = 0; k < assetBytes.length; k += 4096)
@@ -4264,8 +4300,10 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
                 (p) =>
                   text(p, mine) === offlineBody &&
                   text(p, theirs) === theirsBody &&
-                  // Both planes, everywhere — the canvas source, and the
-                  // asset's bytes by hash through the file plane.
+                  // All three planes, everywhere — the canvas source, the
+                  // annotation the peer drew while cut off, and the asset's
+                  // bytes by hash through the file plane.
+                  drewOffline(p) &&
                   existsSync(join(p.root, '.design', offlineAsset)) &&
                   createHash('sha256')
                     .update(readFileSync(join(p.root, '.design', offlineAsset)))
