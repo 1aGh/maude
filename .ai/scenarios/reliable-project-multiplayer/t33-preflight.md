@@ -163,9 +163,16 @@ Rollback for this step: restore `env.bak` from the v1.4.0 checkpoint (tag
 
 - Fleet on `v1.4.0` with `CELL_PROJECT_STORE = "alligators"`; public `/health`:
   `version 1.4.0`, `coordinator {ready, mode: legacy, protocol 1, durable: true}`.
-- The switch is the owner's: dashboard → project → **Saving** → Preview (check
-  `skipped`, and `collapsed` — the 4× bodies the peer reported are repaired on
-  import) → Switch. No operator cell secret is held on this machine.
+- The switch is the owner's, and it lives in the **Maude Cloud dashboard**, not
+  in the cell's own admin UI: `https://cloud.maude.sh/projects/alligators/saving`
+  ("How Alligators saves"), owner role only — any other role gets a 404. The
+  page offers **Preview the switch** (a dry run; check `skipped` is empty, and
+  `collapsed` — the 4× bodies the peer reported are repaired on import) and then
+  **Switch to accepted revisions**, which carries the epoch the preview saw. A
+  cold cell answers "The workspace did not answer" — open the studio once so it
+  wakes, then come back. The cell admin at `alligators.cloud.maude.sh/admin` has
+  no such section (Overview / Peers / People / Tokens / Canvases / Activity /
+  Settings), and no operator cell secret is held on this machine.
 
 ### S20 on StudyFi — passed 2026-09-16
 
