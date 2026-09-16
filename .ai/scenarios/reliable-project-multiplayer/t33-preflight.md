@@ -167,10 +167,66 @@ Rollback for this step: restore `env.bak` from the v1.4.0 checkpoint (tag
   `skipped`, and `collapsed` — the 4× bodies the peer reported are repaired on
   import) → Switch. No operator cell secret is held on this machine.
 
+### S20 on StudyFi — passed 2026-09-16
+
+Run through the debug `.app` built from the release commit, against the live
+`design.studyfi.com` on `v1.4.0`. New lane:
+`apps/desktop/e2e/scenarios/s20-deployment.e2e.ts` +
+`wdio.s20-deployment.conf.ts` (`pnpm test:e2e:desktop:s20`). It is inert
+without an explicit `MAUDE_S20_HUB` / `_EMAIL` / `_PASSWORD` — there is no
+default target — and it isolates the designer's machine (a first-run home for
+the e2e bundle id, an empty hub credential file, an empty cloud session), so it
+can neither read nor write the developer's own `hubs.json`.
+
+**Identity recorded by the run:** `version 1.4.0`, `protocol 1`, project
+`local`, `coordinator {ready, mode: transactions, durable: true}`.
+
+| Step | Result |
+|---|---|
+| 1 · first run offers the invited-project door | pass — no token, no folder, no Git |
+| 2 · email + password opens the project's own copy | pass — the real project arrived (242 canvas files, 49 MB) in a managed copy nobody chose a folder for; the password was never written, only the minted credential |
+| 3 · the designer's work reaches the deployment | pass — a new canvas, then an edit to it, each served back by the hub out of its own blob store |
+| 4 · personal undo takes back the last action only | pass — the product's own Undo on the designer's own action; the canvas the first action created stayed |
+| 5 · quit and reopen | pass — the app returned to the project by itself; the undone state survived the restart |
+| 6 · the designer removes what they made | pass — deleted through the row's delete control; the document is retired on the deployment |
+
+Cleanup: invitation revoked (a second redeem answers `410`), the disposable
+account deleted (12 tokens revoked; a login now answers `401`), users back to
+5. **Project parity after the run: `ok: true`, 121/121, no mismatches**, mode
+`transactions`, epoch 1, `importPending: false`. The throwaway canvas exists
+only in the local copy's `_trash/` (runtime state, never synced).
+
+Three things the run found, none of them release blockers:
+
+- **A managed team copy is not a Git repository, so the status bar's Changes
+  chip — the only visible entry to project history and its personal Undo —
+  does not render there.** The View menu entry and `⌘⇧G` do work, so the
+  feature is reachable but not discoverable on exactly the surface an invited
+  designer uses. Worth a follow-up.
+- **Deleting the file does not delete the canvas**: the deployment holds the
+  document and puts the file back. That is the right behaviour (an editor's
+  `rm` must not wipe a teammate's canvas) and is now asserted.
+- Cloudflare's browser-integrity check refuses `Python-urllib`'s user agent at
+  `design.studyfi.com` with a `1010`. Every agent the product actually uses
+  (WebKit, Bun, none) is served normally — an artefact of the probing script,
+  not a product issue.
+
 ### Still open for T33
 
 - Alligators owner switch + parity.
-- S20 on both deployments (designer invitation → desktop project → browser peer
-  edit → undo → reopen). StudyFi runs `identity: off` (token access); the
-  email/password invitation path needs `MAUDE_IDENTITY=on` + accounts — the
-  owner's call, not done here.
+- S20 on Alligators, which is gated behind that switch: the fleet is on
+  `v1.4.0`, but the project still runs in `legacy` mode and no operator cell
+  secret is held on this machine.
+
+**Correction (2026-09-16).** An earlier note here read StudyFi's health as
+blocking S20: `identity: {mode: "off"}` was taken to mean the hub has no
+accounts and that the email/password invitation path would need
+`MAUDE_IDENTITY=on`. That is wrong. `identityPosture()` in
+`apps/hub/src/server.mjs` reports `MAUDE_CLOUD_IDENTITY` — whether this hub
+federates its identity to Maude Cloud — and says nothing about local accounts.
+`authMode: "tokens"` likewise describes only the token store. StudyFi was asked
+directly through the admin API: **5 users and 3 open invitations**. The
+invitation door (`POST /admin/api/invites` → `/join/<value>` → `POST /auth/login`
+→ the desktop's `team-hub-url` / `team-hub-email` / `team-hub-password` form)
+has been live the whole time. No production environment change is needed for
+S20, and none was made.

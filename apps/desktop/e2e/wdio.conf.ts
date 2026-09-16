@@ -35,6 +35,8 @@ const DEDICATED: Record<string, string> = {
   'sidecar-respawn-canvas-switch.e2e.ts': 'pnpm test:e2e:desktop:sidecar-respawn',
   // A real hub + a seeding teammate studio + a first-run home.
   'team-project.e2e.ts': 'pnpm test:e2e:desktop:team-project',
+  // A deployment that is already live, named explicitly — no default target.
+  's20-deployment.e2e.ts': 'pnpm test:e2e:desktop:s20',
 };
 
 // Drift tripwire. Adding a wdio.<name>.conf.ts without listing its spec above
