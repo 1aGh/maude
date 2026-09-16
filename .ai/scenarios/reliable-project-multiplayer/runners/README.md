@@ -1,7 +1,33 @@
 # Local multiplayer surface runner
 
-The runner is under development for T1. It currently records partial observations;
-it never emits a certified `baseline.json` or claims the L01–L24 matrix is complete.
+The runner records real observations from a real three-participant rig. It still
+does **not** certify T1: `baselineComplete` is false in every artifact it writes,
+because the catalogue is not fully enumerated (24 per-surface contract actions
+are still carried as unresolved requirement rows) and rAF-placed resize rows are
+`not-run` on a locked screen. Nothing here claims the L01–L24 matrix is complete.
+
+What it does do is **compare**. A candidate run given `--baseline <dir>` is judged
+against a preserved run cell by cell, and a cell that passed then and does not
+pass now — including one that merely stopped being run — fails the run:
+
+```sh
+bash runners/local-e2e.sh --mode candidate --baseline .ai/device/scenario-runs/reliable-project-multiplayer/<stamp>
+```
+
+`baseline-comparison.json` lands beside the run's other evidence. The comparison
+is one-directional on purpose: repairs and brand-new cells are reported, never
+required, and no tally a candidate reaches on its own can buy back a cell the
+baseline had.
+
+Two lanes over that same single rig (there is only one — what is under test is
+what travels *between* surfaces, so a native-only run would have nobody to send
+to). Each judges only its own rows plus the rig's shared observations, and a
+lane that executed none of its own rows fails:
+
+```sh
+bash runners/native-macos.sh  --mode candidate --save-mode accepted
+bash runners/web-desktop.sh   --mode candidate --save-mode accepted
+```
 
 ```sh
 pnpm test:e2e:desktop:build

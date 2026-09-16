@@ -17,6 +17,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { addToken } from '../../../apps/hub/src/tokens.mjs';
 import { closeUsers, createUser } from '../../../apps/hub/src/users.mjs';
+import { compareToBaseline, readRows, summarise } from './surface-baseline.mjs';
 import { buildSurfaceCatalogue, cataloguePath } from './surface-catalogue.mjs';
 import { seedMediaFixture } from './surface-fixture.mjs';
 import { sourceManifest, treeManifest } from './surface-provenance.mjs';
@@ -38,6 +39,19 @@ if (!['baseline', 'candidate'].includes(mode))
 const saveMode = arg('save-mode', 'legacy');
 if (!['legacy', 'accepted'].includes(saveMode))
   throw new Error('save-mode must be legacy or accepted');
+// T31 — the run this candidate must not have taken anything away from. A
+// preserved T1 evidence directory; checked HERE, before anything is started,
+// because discovering a mistyped path after a forty-minute run is discovering
+// it at the worst possible moment.
+const baselineDir = arg('baseline', '');
+let baselineRows = null;
+if (baselineDir) {
+  if (mode !== 'candidate')
+    throw new Error('--baseline compares a candidate; pass --mode candidate');
+  baselineRows = readRows(resolve(baselineDir));
+  if (!baselineRows)
+    throw new Error(`no surface-results.json under --baseline ${resolve(baselineDir)}`);
+}
 const samples = Number(arg('samples', '1'));
 if (!Number.isSafeInteger(samples) || samples < 1 || samples > 100)
   throw new Error('samples must be an integer from 1 to 100 (currently the UI text lane only)');
@@ -407,6 +421,7 @@ try {
         catalogueSha256: hash(join(out, 'coverage-catalogue.json')),
         fixtureSha256: hash(join(source, '.design/ui/desktop-home.tsx')),
         work,
+        baseline: baselineDir ? resolve(baselineDir) : null,
         baselineComplete: false,
       },
       null,
@@ -495,6 +510,27 @@ try {
   await stopResourceSampler();
   const counts = writeSurfaceReport(out);
   if (counts) console.log(`Partial observations: ${JSON.stringify(counts)}. T1 is not certified.`);
+  if (baselineRows) {
+    const candidateRows = readRows(out);
+    if (!candidateRows) {
+      console.error('the candidate produced no rows — there is nothing to compare');
+      exitCode = 1;
+    } else {
+      const comparison = compareToBaseline(baselineRows, candidateRows);
+      writeFileSync(
+        join(out, 'baseline-comparison.json'),
+        `${JSON.stringify({ version: 1, baseline: resolve(baselineDir), ...comparison }, null, 2)}\n`
+      );
+      console.log(summarise(comparison));
+      for (const r of comparison.regressions.slice(0, 40))
+        console.log(
+          `  REGRESSED ${r.id}${r.direction ? ` \u00b7 ${r.direction}` : ''} -> ${r.now}`
+        );
+      // A regression fails the run whatever else went right. Nothing about a
+      // candidate's own tally can buy back a cell the baseline had.
+      if (comparison.regressions.length > 0) exitCode = 1;
+    }
+  }
   // Logs and credentials remain in the isolated scratch directory.
 }
 process.exitCode = exitCode;
