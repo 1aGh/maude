@@ -30,7 +30,7 @@
     {
       "surface": "L22",
       "action": "auth expiry",
-      "reason": "no surface row expires a credential, and the behaviour is pinned either side of the join rather than end to end: `validExpiry` (sync-runtime.test.ts) proves an already-expired stamp falls to the invalid-token path, and team-project.e2e.ts step 8 proves that path reaches \"sign in again\" in the real shell. What is missing is one stimulus that walks the whole way."
+      "reason": "no single surface row expires a credential; the path is pinned hop by hop instead. The hub refuses an expired credential exactly as it refuses an unknown one (tokens.test.mjs), words that refusal so the peer files it as permanent (auth-reasons.test.mjs), the peer routes it to the sign-in-again state (sync-runtime.test.ts), and the real shell shows that state (team-project.e2e.ts step 8). Every hop is held; nothing walks all four in one stimulus."
     },
     {
       "surface": "L23",
@@ -3741,7 +3741,7 @@
       ],
       "requiresTargetExpansion": true,
       "covers": [],
-      "unresolved": "no surface row expires a credential, and the behaviour is pinned either side of the join rather than end to end: `validExpiry` (sync-runtime.test.ts) proves an already-expired stamp falls to the invalid-token path, and team-project.e2e.ts step 8 proves that path reaches \"sign in again\" in the real shell. What is missing is one stimulus that walks the whole way."
+      "unresolved": "no single surface row expires a credential; the path is pinned hop by hop instead. The hub refuses an expired credential exactly as it refuses an unknown one (tokens.test.mjs), words that refusal so the peer files it as permanent (auth-reasons.test.mjs), the peer routes it to the sign-in-again state (sync-runtime.test.ts), and the real shell shows that state (team-project.e2e.ts step 8). Every hop is held; nothing walks all four in one stimulus."
     },
     {
       "id": "L22.requirement.unavailable-storage",
