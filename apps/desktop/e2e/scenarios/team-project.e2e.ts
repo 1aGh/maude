@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { $, browser, expect } from '@wdio/globals';
+import { $, $$, browser, expect } from '@wdio/globals';
 
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
@@ -277,6 +277,52 @@ describe('team-project (native-desktop)', () => {
       120_000
     );
     await capture('09-server-back-edit-delivered');
+  });
+
+  it('7b · a project switch while work is still pending does not drop it', async () => {
+    // T22's Validate names this cell and nothing ran it. Step 7 proves the app
+    // keeps an edit when the SERVER goes away; this is the other half — the
+    // app tears its sidecar down and reopens the project while that edit is
+    // still queued on this machine, which is the moment a durable outbox is
+    // easiest to lose.
+    const t = TEAM as NonNullable<typeof TEAM>;
+    const mine = join(t.managedDir, '.design', 'ui', 'welcome.tsx');
+    const theirs = join(t.teammate, '.design', 'ui', 'welcome.tsx');
+    process.kill(t.hubPid, 'SIGSTOP');
+    try {
+      writeFileSync(mine, canvas('Welcome, written before the switch'));
+      await eventually(
+        'the change to be waiting on this machine',
+        async () => {
+          const text = ((await (await $('.st-sb-sync')).getText()) ?? '').toLowerCase();
+          return /offline|reconnect|saving|pending|waiting|not shared|unsaved/.test(text);
+        },
+        60_000
+      );
+      expect(read(theirs) ?? '').not.toContain('written before the switch');
+
+      // Reopen the project through the picker, exactly as a person would.
+      await settleMotion();
+      await (await $(tid('repo-switcher-trigger'))).click();
+      await (await $(tid('switcher-open-team'))).click();
+      await (await $(tid('team-projects-dialog'))).waitForDisplayed({ timeout: 10_000 });
+      const recent = await $$('[data-testid^="team-recent-"]');
+      expect(recent.length).toBeGreaterThan(0);
+      await recent[0].click();
+      await browser.pause(6_000);
+      await waitForSidecar();
+      await capture('09b-switched-with-work-pending');
+      // The bytes are still the ones this machine wrote, not a pull over them.
+      expect(read(mine) ?? '').toContain('written before the switch');
+    } finally {
+      process.kill(t.hubPid, 'SIGCONT');
+    }
+    await eventually(
+      'the pending edit at the teammate after the switch',
+      () => (read(theirs) ?? '').includes('written before the switch'),
+      180_000
+    );
+    await capture('09c-pending-edit-survived-the-switch');
   });
 
   it('8 · access removed: nothing more is shared, the app asks to sign in again, and signing in resumes it', async () => {
