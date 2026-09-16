@@ -1,6 +1,6 @@
 {
   "name": "@maude/dev-server",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "private": true,
   "description": "Internal workspace for the canvas dev server. Source ships via the @1agh/maude tarball; this package.json never publishes. Bun runtime authoritative — see DDR-009.",
   "type": "module",

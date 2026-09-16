@@ -29,7 +29,7 @@ routes = [
 [[containers]]
 class_name = "MaudeRender"
 # Written by scripts/bump-version.sh; asserted against the release tag in CI.
-image = "registry.cloudflare.com/b5b596efe65abb732777c7171dc18145/maude-render:v1.4.0"
+image = "registry.cloudflare.com/b5b596efe65abb732777c7171dc18145/maude-render:v1.4.1"
 # ONE instance is the pilot posture (worker.mjs pins a singleton by name).
 # The ceiling is 2 so a rollout can overlap, not so load can spread — raising
 # it further is a billing decision first (see the cells' cost arithmetic:

@@ -1,5 +1,5 @@
 {
-  "version": "v1.4.0",
+  "version": "v1.4.1",
   "nodeRange": ">=20",
   "publishedDate": "2026-09-16",
   "contributors": 1,
@@ -98,7 +98,7 @@
     "hub/people.mdx": "2026-08-18",
     "hub/pricing.mdx": "2026-05-28",
     "hub/self-host.mdx": "2026-08-23",
-    "hub/team-projects.mdx": "2026-09-15",
+    "hub/team-projects.mdx": "2026-09-16",
     "hub/workspace.mdx": "2026-08-23",
     "index.mdx": "2026-09-13",
     "legal/dpa.mdx": "2026-08-04",

@@ -3,8 +3,8 @@
   "entries": [
     {
       "id": "history-on-a-team-project",
-      "version": null,
-      "date": null,
+      "version": "1.4.1",
+      "date": "2026-09-16",
       "kind": "fix",
       "title": "Your project history, from the status bar",
       "summary": "On a project you were invited to, the status bar now opens the project history — every change with who made it, and Undo on the ones that are yours. It was only reachable from the View menu before.",

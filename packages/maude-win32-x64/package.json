@@ -1,6 +1,6 @@
 {
   "name": "@1agh/maude-win32-x64",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Per-platform binary for @1agh/maude (win32-x64). Do not install directly — pulled in as an optionalDependency by the main package.",
   "license": "MIT",
   "author": "Michal Dovrtěl (1aGh)",
