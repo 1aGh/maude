@@ -1023,6 +1023,45 @@ Two of these were announced as product defects before the evidence was looked
 at, and were not. Recorded here in that order because the sequence is the
 lesson.
 
+### 2026-09-16 (evening) — the matrix runs clean; the machine runs out
+
+With the display held awake (`caffeinate -dimsu`) the rows that had never run
+finally did: **472 rows, 466 pass, 6 unsupported, nothing failed and nothing
+skipped** — the healthiest the matrix has looked, and unusable as certification
+because the run was killed part-way for memory. A second attempt at the
+remaining lanes reached 131 rows and was killed the same way. The machine sits
+at roughly 10 GB of 11 GB swap with the rig holding a hub, a Chromium browser,
+a bundled WKWebView app and a second desktop at once; the footprint is the rig,
+not the row count, so slicing does not help.
+
+**That is now a fourth environment blocker, beside credentials and approvals.**
+Certification needs a machine with headroom for ~2.5 h. Recorded in the
+runner README where somebody about to start a run will read it.
+
+One row is genuinely unresolved rather than environmental:
+`L07.element.delete · hub-to-peers` failed in both killed runs, with all three
+receivers timing out — and passed in a targeted re-run of the same code
+(38/39). Under this much swap a 15 s condition is a plausible starvation
+artifact, and it is equally plausible that it is not. It is written down as
+unresolved rather than filed as a flake, because the one thing this plan asks
+for repeatedly is not to relabel an unexplained failure as success.
+
+**What closed in this pass:** the offline session now mutates four persistent
+surfaces rather than one — the canvas source, an annotation the disconnected
+peer DRAWS with the sticky tool, a comment on its own lane, and an asset
+through the file plane. Neither the annotation nor the comment can be faked by
+writing its file: both are projections of a lane and are ignored on import,
+which is why they had to be gestures. Two more contract actions turned out to
+be asserted all along ("switch canvases" by the soak, "remove instance" by
+L12's remove-reference, "pending edits" by the offline row's own status
+assertion). Two gaps remain of 116, and one of them — photo and timeline
+offline — is an unrun category on roads already proved, not an unproven
+transport.
+
+Nine of the twenty-one acceptance criteria now hold with evidence. One does
+not, and says so: the soak measures edit-visible-at-peers at p50 ≈ 440 ms and
+p95 ≈ 650 ms against a 300 ms p95 target.
+
 ## Context References
 
 ### Must-Read Files
