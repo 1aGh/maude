@@ -272,12 +272,24 @@
       // the runtime is mounted — agent edits, manual edits, AND cross-peer synced
       // writes — so presence + in-canvas state survive. Falls back to the plain
       // location.reload() below only when no runtime is present.
+      //
+      // THE NEWEST REQUEST WINS, NOT THE LAST RESPONSE. Two changes in quick
+      // succession start two imports, and nothing makes them finish in the
+      // order they started — the first can be the slower build. Remounting
+      // whichever resolved last put the OLDER body on screen over the newer
+      // one while the file on disk was right (surface row L21, a peer's view
+      // stuck one edit behind). Only the latest request may remount or hold.
+      // soft-reload:begin
+      let softReloadSeq = 0;
+      const loadCanvasModule = (url) => import(url);
       function softReload(version) {
         if (!canvasUrl) { location.reload(); return; }
         const rt = window.__maudeCanvasRuntime;
         if (!rt || !rt.remount) { location.reload(); return; }
-        import(canvasUrl + (canvasUrl.includes('?') ? '&' : '?') + 'v=' + (version || Date.now()))
+        const seq = ++softReloadSeq;
+        loadCanvasModule(canvasUrl + (canvasUrl.includes('?') ? '&' : '?') + 'v=' + (version || Date.now()))
           .then((mod) => {
+            if (seq !== softReloadSeq) return;
             if (mod && typeof mod.default === 'function') {
               rt.remount(mod.default);
               if (rt.setHolding) rt.setHolding(false);
@@ -287,16 +299,19 @@
             }
           })
           .catch((err) => {
+            if (seq !== softReloadSeq) return;
             // Build/transpile/import error → keep the current render, surface a
             // non-destructive "holding" toast. Next good build swaps it in.
             // Same M8 diagnosis as the mount path: the 422 body names the
             // culprit, the TypeError never does.
             diagnoseImportFailure(canvasUrl, err).then((msg) => {
+              if (seq !== softReloadSeq) return;
               if (rt.setHolding) rt.setHolding(true, msg || 'build error');
             });
             console.warn('[canvas-shell] soft-reload held last good (build error):', err);
           });
       }
+      // soft-reload:end
       // Phase 6.5 — exporters pass ?hide-chrome=1 to flip the export-mode
       // stylesheet from `media="not all"` to `media="all"`, hiding the
       // dev-server overlays during capture. See `<style id="canvas-hide-chrome">`.
