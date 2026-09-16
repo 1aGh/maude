@@ -15,7 +15,7 @@
 //
 // An action with nothing to point at says so, with the reason, as
 // `{ unresolved: '…' }`. Those are the honest remainder, and they are few
-// enough to read: seven of the hundred and sixteen.
+// enough to read: five of the hundred and sixteen.
 //
 // A mapping may cross surfaces when the row genuinely asserts the action —
 // L05's "peer moves the active canvas" IS L04's move-with-open-receivers, and
@@ -287,10 +287,10 @@ export const REQUIREMENT_COVERAGE = {
       'L13.mask-preset.radial-reveal',
     ],
     'move/resize': ['L13.photo.move-keeps-edit'],
-    'remove instance': {
-      unresolved:
-        'removing the photo element is L07.element.delete on a photo node; no row drives it on a photo canvas specifically, and claiming the element row would overstate what was run.',
-    },
+    // Selecting the rendered image and pressing Backspace IS removing the
+    // instance; the row lives under L12 because that is where the photo was
+    // put on the canvas in the first place.
+    'remove instance': ['L12.upload-png.remove-reference'],
     'undo/redo': ['L13.photo.undo', 'L13.photo.redo'],
   },
   L14: {
@@ -381,10 +381,10 @@ export const REQUIREMENT_COVERAGE = {
   L23: {
     'edit canvas/annotations/comments continuously while photos/videos seed': ['L23.mixed-session'],
     'move/delete assets safely': ['L23.assets.move-and-delete-during-edits'],
-    'switch canvases': {
-      unresolved:
-        'the mixed session edits continuously but does not switch canvases under load; L05 switches without the load.',
-    },
+    // The soak switches a participant away to a second canvas and back every
+    // fourth edit, under exactly the load this surface is about — "the canvas
+    // must stay live for them", in the row's own words.
+    'switch canvases': ['L23.mixed-session'],
   },
   L24: {
     'fresh app/browser reopen': ['L24.fresh-reopen'],

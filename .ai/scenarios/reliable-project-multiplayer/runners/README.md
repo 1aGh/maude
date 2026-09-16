@@ -2,7 +2,7 @@
 
 The runner records real observations from a real three-participant rig. It still
 does **not** certify T1: `baselineComplete` is false in every artifact it writes,
-because seven of the contract's 116 declared actions still assert nothing (each
+because five of the contract's 116 declared actions still assert nothing (each
 named with its reason in `scripts/dev/sync-e2e/surface-requirements.mjs`).
 Nothing here claims the L01–L24 matrix is complete.
 

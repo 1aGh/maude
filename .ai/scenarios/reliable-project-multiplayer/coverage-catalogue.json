@@ -13,11 +13,6 @@
       "reason": "a photo canvas is created from the palette like any other canvas (L04) and then given an image; there is no separate \"make a canvas from this file\" control to assert."
     },
     {
-      "surface": "L13",
-      "action": "remove instance",
-      "reason": "removing the photo element is L07.element.delete on a photo node; no row drives it on a photo canvas specifically, and claiming the element row would overstate what was run."
-    },
-    {
       "surface": "L20",
       "action": "mutate each persistent surface",
       "reason": "the offline row mutates canvas source only. \"Each persistent surface\" while disconnected — annotations, comments, photo, timeline, assets — is not enumerated anywhere."
@@ -31,11 +26,6 @@
       "surface": "L22",
       "action": "auth expiry",
       "reason": "no single surface row expires a credential; the path is pinned hop by hop instead. The hub refuses an expired credential exactly as it refuses an unknown one (tokens.test.mjs), words that refusal so the peer files it as permanent (auth-reasons.test.mjs), the peer routes it to the sign-in-again state (sync-runtime.test.ts), and the real shell shows that state (team-project.e2e.ts step 8). Every hop is held; nothing walks all four in one stimulus."
-    },
-    {
-      "surface": "L23",
-      "action": "switch canvases",
-      "reason": "the mixed session edits continuously but does not switch canvases under load; L05 switches without the load."
     }
   ],
   "note": "Source-enumerated annotations/photo controls plus the contract actions mapped to the rows that assert them. Actions that still point at nothing are listed in `unresolved`, each with its reason. No case is covered merely by being listed.",
@@ -3052,9 +3042,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true,
-      "covers": [],
-      "unresolved": "removing the photo element is L07.element.delete on a photo node; no row drives it on a photo canvas specifically, and claiming the element row would overstate what was run."
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L12.upload-png.remove-reference"
+      ]
     },
     {
       "id": "L13.requirement.undo-redo",
@@ -3813,9 +3804,10 @@
         "native-to-peers",
         "peer-to-peers"
       ],
-      "requiresTargetExpansion": true,
-      "covers": [],
-      "unresolved": "the mixed session edits continuously but does not switch canvases under load; L05 switches without the load."
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L23.mixed-session"
+      ]
     },
     {
       "id": "L24.requirement.fresh-app-browser-reopen",
