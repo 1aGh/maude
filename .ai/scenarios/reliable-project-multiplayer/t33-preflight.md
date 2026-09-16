@@ -218,6 +218,30 @@ Three things the run found, none of them release blockers:
   (WebKit, Bun, none) is served normally — an artefact of the probing script,
   not a product issue.
 
+### v1.4.1 (2026-09-16 — the waking-workspace fence)
+
+Released for one correctness fix found while checking this very rollout. A hub
+reads how its project saves from its own store at boot; until that read came
+back, `fence()` assumed the older everybody-writes-directly answer, so a peer
+connecting into that window got a writable socket on a project that accepts
+only proposals — two writable authorities on one document. On a self-hosted hub
+the window is a local file read and effectively nil; on a cloud cell the store
+is a Durable Object across the network and the cell wakes constantly. Observed
+here: `alligators.cloud.maude.sh/health` answered `coordinator.mode: "legacy"`
+seconds after a cold start and `"transactions"` moments later, on a project
+switched hours before. It now fails closed, and a workspace that has not looked
+yet reports `unknown` rather than passing its default off as a reading.
+
+Also carries the desktop fix that gives an invited designer a visible way into
+their own project history.
+
+| Step | Result |
+|---|---|
+| Release | _pending — recorded when the six pipelines finish_ |
+| StudyFi checkpoint + upgrade | _pending_ |
+| StudyFi health + parity | _pending_ |
+| Alligators fleet | _rolls with the tag_ |
+
 ### Still open for T33
 
 - Alligators owner switch + parity.

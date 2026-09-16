@@ -1876,9 +1876,16 @@ export function createHub(config = {}) {
     checkoutDirs: () => checkoutFolders(),
     storeDurable,
   });
-  // The persistent mode decides the fence before any peer can connect (the
-  // SQLite read resolves long before the caller's `listen()`); the reconcile
-  // then makes every accepted document match its store head.
+  // The persistent mode decides the fence, and the reconcile then makes every
+  // accepted document match its store head.
+  //
+  // This comment used to claim the read "resolves long before the caller's
+  // `listen()`", so no peer could connect before the mode was known. True of a
+  // local SQLite file; not of a cloud cell, whose store is a Durable Object
+  // across the network on a container that cold-starts constantly — and the
+  // production caller below does not await this promise, only the tests do. So
+  // the fence no longer relies on the timing: an unread mode fences
+  // (`hub-integration.mjs`), and this is an optimisation, not a guarantee.
   const acceptedReady = accepted
     .refresh()
     // A switch that died mid-import is finished before anything reconciles.
