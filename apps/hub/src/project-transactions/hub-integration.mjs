@@ -596,9 +596,6 @@ export function createAcceptedRevisions({
     health,
     previewSwitch,
     parity,
-    markReady() {
-      ready = true;
-    },
     get state() {
       return state;
     },
