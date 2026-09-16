@@ -972,6 +972,57 @@ rollout runbook now says so where an operator will meet it.
 | T33 | Alligators parity, and S20 there. |
 | T34, T35 | Follow T33. |
 
+### 2026-09-16 (afternoon) — the rows that had never run, and what they were hiding
+
+The resize lane and fourteen of its neighbours had recorded `not-run` for as
+long as the harness existed: a locked screen paints no animation frames, the
+handles never appear, and the row honestly declined to judge. Run with the
+screen awake, against the preserved run as its baseline:
+
+**768 pass · 8 fail · 13 unsupported · 26 not-run** — and, against the
+baseline, **755 cells held, 13 repaired, 8 regressed**. The thirteen repairs
+are rAF rows executing for the first time. Every one of the eight regressions
+is now resolved; a targeted re-run of all of them is **38 of 39**, the one
+failure being a probe timeout this session caused and fixed (see below).
+
+**One of them was the product, and it is the most serious thing found in this
+plan since the kernel fixes.** The coordinator's `state` starts at the `legacy`
+default and only becomes a reading when the project store answers. `fence()`
+asked `acceptedMode()`, so in that window "not transactions" was an assumption
+— and a peer connecting into it was handed a WRITABLE socket on a project that
+accepts only proposals. Two writable authorities on one document, which this
+design forbids outright. `server.mjs` had reasoned the window away ("the SQLite
+read resolves long before the caller's `listen()`"), true of a local file and
+not of a Durable Object across the network on a cell that cold-starts
+constantly — and production calls `listen()` without awaiting the coordinator's
+first read; only the tests await it. Seen live while checking the Alligators
+rollout: `/health` answered `coordinator.mode: "legacy"` seconds after boot and
+`"transactions"` moments later, on a project switched hours earlier. Now it
+fails closed, `/health` says `unknown` rather than passing a default off as a
+reading, and `markReady()` — an exported setter nothing called, which would
+have disarmed exactly this — is gone.
+
+**The other four were the harness, and each hid behind a row that never ran:**
+
+- element resize asserted `\d+px`, and a drag commits a measured box —
+  `94.28px` far more often than `94px`. The row rejected a resize that had
+  reached all three copies and read as a lost edit;
+- artboard resize asserted the RENDERED width grew, on a canvas that fits its
+  content to the viewport. The native participant failed all three directions,
+  including as the author of its own resize, with its inspector plainly reading
+  the new W and H. It now reads world geometry through the canvas's existing
+  `__maudeCanvasRects()` manifest;
+- the restart row read a file between `existsSync` and `readFileSync` while the
+  catching-up peer was deleting it — a race the row ran straight into, since
+  proving the canvas is GONE is the whole point of it;
+- and the world-geometry probe, added for the second of those, first computed
+  the manifest on every probe of every element. That walk made ordinary
+  gestures time out. It is one operation now, asked for by name.
+
+Two of these were announced as product defects before the evidence was looked
+at, and were not. Recorded here in that order because the sequence is the
+lesson.
+
 ## Context References
 
 ### Must-Read Files
