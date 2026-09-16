@@ -634,6 +634,20 @@
       }
       connectHmr();
 
+      // NO TOP-LEVEL AWAIT IN THIS MODULE.
+      //
+      // The boot below used to `await` at the top level, which made this the
+      // one asynchronously-evaluated module on the page — suspended, with its
+      // own dynamic `import()`s in flight, for as long as the canvas took to
+      // build. On the desktop (WKWebView) switching canvases away and straight
+      // back, which tears the half-loaded frame down in exactly that state,
+      // eventually wedged the whole web content process inside JavaScriptCore's
+      // module loader: 100 % CPU in `moduleLoaderEvaluate` microtasks, no script
+      // ever running again, every canvas and the shell frozen (surface row L23,
+      // 2026-09-16 — reproduced in a full run and in a ten-minute soak). An
+      // async function that nothing awaits gives the same boot with a module
+      // that finishes evaluating at once, the path every engine exercises most.
+      const boot = async () => {
       if (!canvasRel) {
         showError('Missing ?canvas= query parameter. Add ?canvas=ui/<slug>.tsx.');
       } else {
@@ -711,6 +725,8 @@
           diagnoseImportFailure(canvasUrl, err).then(showError);
         }
       }
+      };
+      boot().catch((err) => showError(String((err && err.stack) || err)));
     </script>
   </body>
 </html>

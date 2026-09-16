@@ -5321,9 +5321,16 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             await sleep(300);
             return (await headings(from)) === 2 && !!(await from.read('.st-sb-sel .val'));
           });
+          // What the Delete key is about to land on — this row fails on the hub
+          // lane in some full runs with the heading visibly selected.
+          const before = {
+            chip: await from.read('.st-sb-sel .val').catch(() => null),
+            textEditing: !!(await from.probe('[contenteditable="true"]').catch(() => null))
+              ?.visible,
+          };
           const start = performance.now();
           await gesture(from, 'body', 'key', { key: 'Delete' });
-          return observeAll(
+          const result = await observeAll(
             all,
             `L07-delete-${from.name}`,
             start,
@@ -5331,6 +5338,17 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               (await headings(p)) === 1 && (await p.read('p', true)) === 'Kept paragraph',
             (p) => count(p, rel, '<h1') === 1 && count(p, rel, 'Kept paragraph') === 1
           );
+          return result.status === 'pass'
+            ? result
+            : {
+                ...result,
+                beforeDelete: before,
+                afterDelete: {
+                  chip: await from.read('.st-sb-sel .val').catch(() => null),
+                  authorHeadings: await headings(from).catch(() => null),
+                  authorSourceHeadings: count(from, rel, '<h1'),
+                },
+              };
         });
         // Resize through the element's own corner handle: the width/height it
         // writes land in the source everywhere and every render grows.
@@ -5692,14 +5710,43 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               await from.fill(selector('shell-prompt-input'), value);
               await from.click(selector('shell-prompt-ok'));
             };
-            await focusShell(from).catch(() => {});
-            await from.press('Meta+k');
+            // WHICH STEP. This row fails only on the hub lane and only in a full
+            // run, with nothing but "Condition absent" to go on — four different
+            // waits share that message.
+            let step = 'focus the shell';
+            const focused = await focusShell(from).then(
+              () => true,
+              () => false
+            );
             const search = '[aria-label="Command palette"] input';
-            await until(async () => (await from.count(search)) > 0, 10000);
-            await from.fill(search, 'New video');
-            await from.press('Enter');
-            await answer(/^New video name/, name);
-            await answer(/^Size/, '1280x720');
+            try {
+              step = 'open the command palette';
+              await from.press('Meta+k');
+              await until(async () => (await from.count(search)) > 0, 10000);
+              await from.fill(search, 'New video');
+              await from.press('Enter');
+              step = 'name the video';
+              await answer(/^New video name/, name);
+              step = 'choose its size';
+              await answer(/^Size/, '1280x720');
+            } catch (error) {
+              await from
+                .screenshot(join(run.out, `L15-create-${from.name}-stuck.png`))
+                .catch(() => {});
+              const prompt = await from
+                .shell(`document.querySelector('.st-prompt')?.getAttribute('aria-label') ?? null`)
+                .catch(() => 'unreadable');
+              const active = await from
+                .shell(
+                  `(() => { const a = document.activeElement; return a ? a.tagName + (a.getAttribute('data-testid') ? '#' + a.getAttribute('data-testid') : '') : null; })()`
+                )
+                .catch(() => 'unreadable');
+              throw new Error(
+                `${String(error)} — at "${step}" (shell focused first: ${focused}; ` +
+                  `palette inputs: ${await from.count(search).catch(() => -1)}; prompt: ${prompt}; ` +
+                  `active element: ${active})`
+              );
+            }
             const start = performance.now();
             await answer(/^Frames per second/, '24');
             return observeAll(
