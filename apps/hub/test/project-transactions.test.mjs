@@ -921,6 +921,24 @@ describe('accepted revisions on a real hub', () => {
       assert.equal(priv.coordinator.ackMs.n, 1);
       assert.ok(priv.coordinator.ackMs.p95 >= 0);
       assert.ok(priv.coordinator.revision >= 1);
+
+      // T29 — what the renderer has, apart from what the store accepted. On a
+      // healthy hub the two are the same number, which is exactly why the gap
+      // has to be reported rather than inferred: publish runs after the
+      // durable commit, so a hub CAN be accepting work nobody is shown.
+      assert.equal(priv.coordinator.render.revision, priv.coordinator.revision);
+      assert.equal(priv.coordinator.render.lag, 0);
+      assert.equal(priv.coordinator.render.notifyFailures, 0);
+      assert.equal(typeof priv.coordinator.render.at, 'number');
+      // Bounded: four fields, none of them per-document.
+      assert.deepEqual(Object.keys(priv.coordinator.render).sort(), [
+        'at',
+        'lag',
+        'notifyFailures',
+        'revision',
+      ]);
+      // And the public probe still says nothing about it.
+      assert.equal(pub.coordinator.render, undefined);
     } finally {
       await built.server.destroy();
     }

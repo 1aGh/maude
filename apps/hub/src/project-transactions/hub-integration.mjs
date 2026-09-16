@@ -60,6 +60,23 @@ export function createAcceptedRevisions({
     }
   }
 
+  // T29 — RENDER REVISION LAG, measured where it can actually be wrong.
+  //
+  // `state.revision` is what the store has durably accepted. What a person
+  // SEES is whatever `applyAccepted` last finished writing into the documents
+  // every renderer reads. Those two are the same number in the happy path and
+  // diverge exactly when it matters: publish runs strictly after the durable
+  // commit and a failure there does not undo the acceptance (kernel.mjs), so
+  // a hub can be accepting work nobody is being shown. Until now nothing
+  // measured that gap — an operator could only see the accepted number, which
+  // is the one that is never behind.
+  let renderedRevision = 0;
+  let renderedAt = null;
+  // NOT a render failure: `onAccepted` only tells the rest of the hub that
+  // documents changed. Counted separately so a quiet notify fault is visible
+  // without being mistaken for content nobody can see.
+  let notifyFailures = 0;
+
   async function applyAccepted({ revision, actionId, changes, dirs, actor }) {
     const context = {
       accepted: { revision, actionId },
@@ -101,9 +118,14 @@ export function createAcceptedRevisions({
       });
     }
     state = { ...state, revision };
+    // Reached only when every document above was written. A throw on the way
+    // here leaves `renderedRevision` behind, which is the whole point.
+    renderedRevision = Math.max(renderedRevision, revision);
+    renderedAt = Date.now();
     try {
       onAccepted({ revision, changes, dirs });
     } catch (err) {
+      notifyFailures++;
       log.error?.(`[transactions] onAccepted failed: ${err.message}`);
     }
   }
@@ -175,6 +197,13 @@ export function createAcceptedRevisions({
       ...base,
       epoch: state.epoch,
       revision: state.revision,
+      // Bounded: three numbers and a timestamp, no per-document cardinality.
+      render: {
+        revision: renderedRevision,
+        lag: Math.max(0, state.revision - renderedRevision),
+        at: renderedAt,
+        notifyFailures,
+      },
       ...(storeError ? { storeError } : {}),
       ...metrics.snapshot(),
     };

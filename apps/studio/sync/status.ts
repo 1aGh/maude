@@ -160,6 +160,23 @@ export interface FilePlaneStatus {
    */
   failed?: number;
   /**
+   * HOW MUCH is not here — plan T29, the unit `failed` gets wrong.
+   *
+   * A count cannot answer the operator's question: nine blocked CSS sidecars
+   * is nothing and nine blocked videos is the project. `bytes` is what tells
+   * those apart. `byClass` is bounded by the ledger's fixed blocked-class set
+   * and never keyed by path; `unmeasured` says how many of the files have no
+   * size on record, so an under-count is visible rather than silent.
+   *
+   * Absent — not zero — when nothing is blocked.
+   */
+  blocked?: {
+    files: number;
+    bytes: number;
+    unmeasured: number;
+    byClass: Record<string, { files: number; bytes: number }>;
+  };
+  /**
    * The hub asked us to slow down and the WHOLE LANE is paused until `until`.
    *
    * Distinguished from `failed` because the answer is different: nothing is

@@ -1243,6 +1243,16 @@ describe('rate limits', () => {
     expect(reason).toMatch(/Too big/i);
     expect(reason).toMatch(/MB/);
     expect(ledger.row('assets/huge.png')?.state).toBe('refused');
+
+    // T29 — HOW MUCH is not here, not just how many. A count cannot tell a
+    // blocked CSS sidecar from a blocked half-gigabyte video, and an operator
+    // reading `failed: 1` has no way to know which one they are looking at.
+    const blocked = plane(hub, { fetchImpl: limitsAware }).blocked();
+    expect(blocked?.files).toBe(1);
+    expect(blocked?.bytes).toBeGreaterThan(MIN_TRUSTED_MAX_FILE_BYTES);
+    expect(blocked?.byClass['too-large']?.files).toBe(1);
+    // Bounded by the blocked CLASS, never by path.
+    expect(Object.keys(blocked?.byClass ?? {})).toEqual(['too-large']);
   });
 
   test('a refused over-cap file that is then removed is no longer reported (plan T31/L22)', async () => {

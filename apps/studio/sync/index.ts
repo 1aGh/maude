@@ -4304,6 +4304,9 @@ export function createSyncRuntime(
         lastSeedProgress = progress;
         reportSeedProgress(progress, result);
       }
+      // Read once: calling it inside the spread evaluated it twice and made
+      // its `null` case the object's type.
+      const blockedMedia = filePlane?.blocked() ?? null;
       statusStore?.updateFiles?.({
         ...fileTotals,
         pushed: filePushed,
@@ -4314,6 +4317,9 @@ export function createSyncRuntime(
               ...(filePlane.dorucekaTotal() > MAX_DORUCEKA_ROWS
                 ? { deliveryTruncated: filePlane.dorucekaTotal() - MAX_DORUCEKA_ROWS }
                 : {}),
+              // T29 — the bytes, not just the count. Omitted entirely when
+              // nothing is blocked, so a healthy project carries no field.
+              ...(blockedMedia ? { blocked: blockedMedia } : {}),
             }
           : {}),
         ...(held.length > 0 ? { held } : {}),

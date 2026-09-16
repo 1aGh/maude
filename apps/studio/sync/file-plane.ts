@@ -547,6 +547,16 @@ export interface FilePlane {
   doruceka(): Record<string, DeliveryState>;
   /** How many rows the ledger holds, before the doručenka's cap. */
   dorucekaTotal(): number;
+  /**
+   * The media this machine cannot place, in BYTES as well as files — T29.
+   * `null` when nothing is blocked, so a healthy project carries no field.
+   */
+  blocked(): {
+    files: number;
+    bytes: number;
+    unmeasured: number;
+    byClass: Record<string, { files: number; bytes: number }>;
+  } | null;
 }
 
 export function createFilePlane(opts: FilePlaneOptions): FilePlane {
@@ -2222,6 +2232,39 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     },
     dorucekaTotal() {
       return Object.keys(ledger.rows()).length;
+    },
+    /**
+     * HOW MUCH MEDIA IS NOT HERE — plan T29.
+     *
+     * `failed` counts files, and a count is the wrong unit for the question
+     * an operator is actually asking. "Nine files failed" is unreadable: nine
+     * CSS sidecars is nothing, nine videos is the project. The bytes are what
+     * says whether a person is looking at a broken thumbnail or at a project
+     * whose media never arrived.
+     *
+     * Bounded by construction — one entry per blocked CLASS, and the classes
+     * are a fixed set (`file-ledger.ts`), never per path. Sizes come from the
+     * ledger's stat cache; a row we have never measured contributes to the
+     * file count and nothing to the bytes, which is honest about not knowing
+     * rather than guessing a size.
+     */
+    blocked() {
+      const byClass: Record<string, { files: number; bytes: number }> = {};
+      let files = 0;
+      let bytes = 0;
+      let unmeasured = 0;
+      for (const row of Object.values(ledger.rows())) {
+        if (row.state !== 'refused' && row.state !== 'stuck') continue;
+        const cls = row.blockedClass ?? (row.state === 'stuck' ? 'unreachable' : 'refused');
+        const size = typeof row.size === 'number' ? row.size : 0;
+        if (!row.size) unmeasured += 1;
+        byClass[cls] ??= { files: 0, bytes: 0 };
+        byClass[cls].files += 1;
+        byClass[cls].bytes += size;
+        files += 1;
+        bytes += size;
+      }
+      return files === 0 ? null : { files, bytes, unmeasured, byClass };
     },
   };
 }
