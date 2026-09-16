@@ -354,7 +354,7 @@ export const REQUIREMENT_COVERAGE = {
     'disconnect one desktop': ['L20.offline.edit-then-catch-up'],
     'mutate each persistent surface': {
       unresolved:
-        'four of them, each travelling by a different road: the canvas source, an annotation the peer DRAWS with the sticky tool while cut off, a comment it leaves on its own lane, and an asset through the file plane — all checked on every copy after the reconnect. Neither the annotation nor the comment can be faked by writing its file: both are projections of a lane, ignored on import. Photo and timeline are still not mutated offline.',
+        'four of them, each travelling by a different road: the canvas source, an annotation the peer DRAWS with the sticky tool while cut off, a comment it leaves on its own lane, and an asset through the file plane — all checked on every copy after the reconnect. Neither the annotation nor the comment can be faked by writing its file: both are projections of a lane, ignored on import. What is left is narrower than it sounds: photo and timeline are not mutated offline, but neither introduces a road of its own — a photo edit is a file-plane sidecar (S25) and a timeline edit is canvas source (V01-V10), and both roads are proved above. So this is an unrun CATEGORY, not an unproven transport.',
     },
     restart: ['L20.restart.catch-up'],
     'peer edits': ['L20.offline.edit-then-catch-up'],
