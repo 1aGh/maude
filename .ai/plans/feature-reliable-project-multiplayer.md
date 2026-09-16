@@ -964,9 +964,9 @@ rollout runbook now says so where an operator will meet it.
 | Task | What is missing |
 |---|---|
 | T1 | The baseline is never certified. `baselineComplete` is false in every artifact, and honestly so: the catalogue still carries 24 per-surface contract actions as unresolved requirement rows, and the rAF-placed resize rows need a run with the screen unlocked. |
-| T18 | Real-storage evidence is S3 only — no R2/cells lane — and genuinely large media still has no path into a hub (DDR-237's own open item). |
+| T18 | Real-storage evidence is S3 only. Narrower than it reads: the hub has ONE object client (`apps/hub/src/s3.mjs`, path-style SigV4, `region: auto`) and no R2 branch anywhere — a cell reaches R2 by having `MAUDE_R2_*` copied into `MAUDE_S3_*`, so what is untested is that same signed client against a different endpoint, not a second implementation. Closing it needs one real multipart round-trip against an R2 bucket. Genuinely large media still has no path into a hub (DDR-237's own open item). |
 | T22 | Two cells of its Validate line have no row: empty membership, and sign-in expiry (its surface is reached by the access-removed row, the expiry path itself is not). |
-| T30 | Crash coverage is one seam (died before the import) plus re-entry and fencing; the remaining named seams — stale loopback process, lost barrier response — have no test. |
+| T30 | Crash coverage is one seam (died before the import) plus re-entry and fencing. Two of the named seams turned out to be covered or absent: a socket held open across the switch is the stale-loopback shape and its injected bytes are already refused, and there is no barrier response to lose — the switch broadcasts, waits a fixed grace, and fences per message, now pinned by `mode-switch-barrier.test.mjs`. What is still untested is a crash DURING the import (the resume path claims idempotence and only the before-import seam is exercised). |
 | T31 | The catalogue's 24 requirement rows are not enumerated into executed cells. |
 | T32 | The scale run covers S13/S14 only; S01–S19 on disposable cloud and self-host were never run end to end. |
 | T33 | Alligators parity, and S20 there. |
