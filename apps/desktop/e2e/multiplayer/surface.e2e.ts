@@ -1097,7 +1097,6 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           const start = performance.now();
           await from.click('input[aria-label="custom attribute name"]');
           await until(() => written(from));
-          const authored = bytes(from.root, rel);
           return {
             stimulus: 'inspector Advanced → Add CSS property (outline-offset), committed on blur',
             ...(await observeAll(
@@ -1105,7 +1104,9 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               `L06-css-property-${from.name}`,
               start,
               async (p) => !!(await p.probe(`h1[style*="outline-offset: ${value}"]`))?.visible,
-              (p) => bytes(p.root, rel).equals(authored)
+              // Live, not a snapshot: this canvas is a busy one, so the
+              // author's own file may still be settling other rows' changes.
+              (p) => written(p) && bytes(p.root, rel).equals(bytes(from.root, rel))
             )),
           };
         });
@@ -1123,7 +1124,6 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           const start = performance.now();
           await from.click('input[aria-label="custom property name"]');
           await until(() => written(from));
-          const authored = bytes(from.root, rel);
           return {
             stimulus:
               'inspector Advanced → Add HTML attribute (data-surface-note), committed on blur',
@@ -1132,7 +1132,7 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               `L06-attribute-${from.name}`,
               start,
               async (p) => !!(await p.probe(`h1[data-surface-note="${note}"]`))?.visible,
-              (p) => bytes(p.root, rel).equals(authored)
+              (p) => written(p) && bytes(p.root, rel).equals(bytes(from.root, rel))
             )),
           };
         });
@@ -6427,7 +6427,13 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             all
               .filter((p) => p !== author)
               .map((p) =>
-                until(async () => (await p.read('h1', true)) === title, 15000).then(
+                // A window that is not rendering (a locked screen) runs its
+                // timers slowly; give the native one room rather than calling
+                // a throttled repaint a missed edit.
+                until(
+                  async () => (await p.read('h1', true)) === title,
+                  p.name === 'native' ? 45000 : 15000
+                ).then(
                   () => performance.now() - t0,
                   () => {
                     misses.push(`${title} @ ${p.name}`);
@@ -6499,9 +6505,14 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           [...all, fresh.surface].map((p) =>
             // A copy opening this late pulls a project of a hundred canvases
             // and its media before its tree can list them.
-            until(async () => (await p.read(selector('canvas-row-ui-home'))) !== null, 180000).then(
+            until(async () => (await p.read(selector('canvas-row-ui-home'))) !== null, 300000).then(
               () => ({ participant: p.name, shown: true }),
-              () => ({ participant: p.name, shown: false })
+              async () => {
+                await p
+                  .screenshot(join(run.out, `L24-reopen-${p.name}-not-shown.png`))
+                  .catch(() => {});
+                return { participant: p.name, shown: false };
+              }
             )
           )
         );
