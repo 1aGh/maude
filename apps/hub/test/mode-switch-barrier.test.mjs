@@ -42,14 +42,28 @@ function fakeStore() {
   };
 }
 
-function coordinator({ broadcast }) {
+/** A store that has not answered yet — a cold cell's Durable Object. */
+function silentStore() {
+  return {
+    durable: true,
+    state() {
+      return new Promise(() => {});
+    },
+    async manifest() {
+      return { revision: 0, docs: [] };
+    },
+    async markImported() {},
+  };
+}
+
+function coordinator({ broadcast, store }) {
   const documents = new Map([
     ['ws/local/main/ui-a', { broadcastStateless: broadcast }],
     ['ws/local/main/ui-b', { broadcastStateless: broadcast }],
   ]);
   return createAcceptedRevisions({
     server: { hocuspocus: { documents } },
-    store: fakeStore(),
+    store: store ?? fakeStore(),
     projectId: 'local',
     canvasGroups: () => [{ label: 'UI', path: 'ui' }],
     designRel: '.design',
@@ -108,5 +122,37 @@ describe('the switch barrier needs no answer', () => {
     const viewer = { readOnly: false };
     acc.fence({ connection: viewer, context: { user: { readOnly: true } } });
     assert.equal(viewer.readOnly, true);
+  });
+});
+
+describe('an unknown mode fences', () => {
+  test('a peer that connects before the store answers cannot write', async () => {
+    // The window this exists for: a cloud cell listens before its Durable
+    // Object has said what mode the project is in. `state` still holds the
+    // `legacy` default, so "not transactions" is an assumption. Observed on a
+    // live cell — /health answered `mode: "legacy"` seconds after boot and
+    // `transactions` moments later — and a peer reconnecting into that window
+    // used to be handed a writable socket on a project that accepts only
+    // proposals. Two writable authorities, which the design forbids outright.
+    const acc = coordinator({ broadcast: () => {}, store: silentStore() });
+    const connection = { readOnly: false };
+    acc.fence({ connection, context: { user: { readOnly: false } } });
+    assert.equal(connection.readOnly, true, 'an unread mode must fence');
+  });
+
+  test('health does not report the default as if it were a reading', () => {
+    const acc = coordinator({ broadcast: () => {}, store: silentStore() });
+    const h = acc.health();
+    assert.equal(h.ready, false);
+    assert.equal(h.mode, 'unknown', 'a fleet sweep must not be told "legacy" by a waking cell');
+  });
+
+  test('once the store answers, the fence follows the real mode', async () => {
+    const acc = coordinator({ broadcast: () => {} });
+    await acc.refresh();
+    assert.equal(acc.health().mode, 'legacy');
+    const writer = { readOnly: true };
+    acc.fence({ connection: writer, context: { user: { readOnly: false } } });
+    assert.equal(writer.readOnly, false, 'a known legacy project still writes');
   });
 });

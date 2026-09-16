@@ -186,9 +186,13 @@ export function createAcceptedRevisions({
 
   /** Synchronous snapshot for `/health` (the probe cannot await the store). */
   function health({ privileged = false } = {}) {
+    const known = ready && !storeError;
     const base = {
-      ready: ready && !storeError,
-      mode: state.mode,
+      ready: known,
+      // Not a claim the probe cannot back: before the store answers, `state`
+      // holds a default, and reporting that default as the project's mode told
+      // a fleet sweep a waking cell was in `legacy` when it was not.
+      mode: known ? state.mode : 'unknown',
       protocol: 1,
       durable: !!storeDurable,
     };
@@ -222,7 +226,18 @@ export function createAcceptedRevisions({
    */
   function fence({ connection, context }) {
     if (!connection) return;
-    connection.readOnly = acceptedMode() || context?.user?.readOnly === true;
+    // AN UNKNOWN MODE FENCES. `state` starts at the `legacy` default and only
+    // becomes a reading when the store answers; until then "not transactions"
+    // is an assumption, not a fact. On a hub whose store is LOCAL that window
+    // is microseconds, which is why the boot comment in server.mjs reasoned it
+    // away — but a cloud cell's store is a Durable Object across the network,
+    // it cold-starts constantly, and it listens before the read resolves.
+    // Observed on a live cell: `/health` answered `mode: "legacy"` seconds
+    // after boot and `transactions` moments later. A peer reconnecting into
+    // that window was handed a writable socket on a project that accepts only
+    // proposals — two writable authorities, which is the one thing this design
+    // forbids outright. Fail closed: nobody writes until the mode is known.
+    connection.readOnly = !ready || acceptedMode() || context?.user?.readOnly === true;
   }
 
   /** A mode switch in progress — proposals wait for it (see `setMode`). */
@@ -268,6 +283,10 @@ export function createAcceptedRevisions({
       }
       if (switchGraceMs > 0) await new Promise((r) => setTimeout(r, switchGraceMs));
       state = { ...state, ...next };
+      // A switch that the store accepted IS a reading of the mode — the most
+      // authoritative one there is. Without this the fence would stay closed
+      // after a switch on a coordinator whose first refresh had not run.
+      ready = true;
       if (mode !== 'transactions') return next;
       // IMPORT BEFORE RECONCILE — reconciling first would roll back any
       // document the store already knew with content from a legacy interval.
