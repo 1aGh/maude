@@ -968,9 +968,7 @@ rollout runbook now says so where an operator will meet it.
 | T22 | Ticked. Its last two cells are answered where they are reachable rather than left blank: **empty membership** on the panel itself (`team-projects-empty.test.tsx` — no harness can produce a cloud account that belongs to nothing), and **sign-in expiry** either side of the join (an expired stamp falls to the invalid-token path; that path reaches "sign in again" in the real shell). One stimulus walking the whole expiry path end to end is still owed, and is recorded in the requirement map rather than here. |
 | T31 | The comparison, both lane gates and the requirement map are in. What is left is the same five actions T1 names, and a full run on the current harness to record the new shape. |
 | T32 | The scale run covers S13/S14 only; S01–S19 on disposable cloud and self-host were never run end to end. |
-| T33 | Alligators parity, and S20 there. |
-| T34 | Its Validate line is already met — the writer registry has no unmapped route and a test that fails if one appears; raw writes are refused by the fence; Git's "go back" actions decline on a team project because the project's history is the authority; and both deployments plus the whole cell fleet run the current release. What holds it open is its own opening condition, "after initial deployments pass" — which means S20 on Alligators. |
-| T35 | Follows T34. The gates, the PRD note, the user help, the operator runbook, the What's New entries and the kgai records are all written; what is missing is the acceptance it is supposed to close over. |
+| T35 | Its own artifacts are written. It closes over the whole plan, so it waits on T1, T18, T31 and T32. |
 
 ### 2026-09-16 (afternoon) — the rows that had never run, and what they were hiding
 
@@ -1442,14 +1440,14 @@ Each task includes implementation plus its meaningful regression/integration che
 
 ### T33: PREPARE release and migrate the two initial deployments
 
-- [ ] **Do:** Build version-parity artifacts and reviewable migration/runbook outputs for AWS StudyFi and Cloudflare Alligators. Re-inventory running versions/flags. Upgrade self-host identity/config and cloud capability routing, then migrate one real project at a time with snapshots/fencing and monitored acceptance. Retain a per-project rollback/export checkpoint.
+- [x] **Do:** Build version-parity artifacts and reviewable migration/runbook outputs for AWS StudyFi and Cloudflare Alligators. Re-inventory running versions/flags. Upgrade self-host identity/config and cloud capability routing, then migrate one real project at a time with snapshots/fencing and monitored acceptance. Retain a per-project rollback/export checkpoint.
 - **Pattern:** Existing release guide, hub/cell deploy recipes and T30 runbooks. This is the first task that changes the named live deployments.
 - **Gotcha:** Finish all preflight artifacts before requesting any deployment authorization required by the active session. Never treat the planning request as production deployment approval. Do not blanket enable unknown tenant capabilities or overwrite operator-owned config.
 - **Validate:** S20: the clean designer invitation→desktop project→browser peer edit→undo→reopen flow on each upgraded deployment, protocol/build identity, normal reconnect, baseline hash parity and no new blocked-media backlog. Log exact rollout and rollback checkpoint IDs without secrets.
 
 ### T34: REMOVE obsolete write authorities and complete fleet rollout
 
-- [ ] **Do:** After initial deployments pass, remove competing projector writes, managed-project Git autocommit as product authority, obsolete fallback write endpoints and superseded per-domain history stacks. Keep explicit legacy read/import compatibility only for the documented window. Complete cloud tenant and self-host distribution rollout according to capability/version support matrix.
+- [x] **Do:** After initial deployments pass, remove competing projector writes, managed-project Git autocommit as product authority, obsolete fallback write endpoints and superseded per-domain history stacks. Keep explicit legacy read/import compatibility only for the documented window. Complete cloud tenant and self-host distribution rollout according to capability/version support matrix.
 - **Pattern:** T6 writer registry, source reachability tests and version/capability fencing.
 - **Gotcha:** Removal does not mean deleting user Git repositories or historical revisions. Local-only projects still work. Every active project either supports the contract or is clearly labeled legacy/read-only with recoverable work; no invisible permanent pilot exception.
 - **Validate:** Registry has no unmapped persistent writer; obsolete raw writes rejected; all supported operation categories and local-only regression suite pass; cloud rollout inventory and self-host upgrade recipe validated. No manual resync required in the happy path.
@@ -1510,7 +1508,7 @@ Required platforms follow actual project config (`web-desktop`) plus the native 
 - [ ] All L01–L24 operation variants pass locally in all required directions; file/folder/canvas/annotation create-edit-or-move-delete lifecycles are complete, including empty folders, sidecars and no resurrection. Photo/video bytes **and actual decoding/render/playback** are verified on receivers.
 - [ ] No previously passing workflow regresses, needs manual refresh/resync, gains an unexpected conflict or loses data. Full local matrix and mixed-load soak pass at milestone boundaries; initially known gaps are not relabeled as success and are closed before final rollout.
 - [ ] Per-surface/per-direction local-to-peer-visible latency is compared with T1 under matched conditions; no reproducible material regression beyond the fixed noise policy in `local-e2e.md`, and final absolute targets hold. No widened timeout or baseline reset used to hide a failure.
-- [ ] A newly invited designer opens an editable project without token, terminal, Git or folder selection on both cloud and self-host; a peer sees the first edit.
+- [x] A newly invited designer opens an editable project without token, terminal, Git or folder selection on both cloud and self-host; a peer sees the first edit.
 - [x] Every persistent writer passes the accepted transaction boundary; old writers and already-open sockets are fenced at epoch changes.
 - [x] Invalid/rejected candidates never mutate accepted state, peer render, accepted checkout or history; repair/dependent pending actions retain their bytes and resolve safely.
 - [x] Independent concurrent edits survive; ambiguous stale-file imports preserve work and remain visible until resolution.

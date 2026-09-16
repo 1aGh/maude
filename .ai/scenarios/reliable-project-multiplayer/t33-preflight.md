@@ -266,11 +266,38 @@ canvases imported while the cell's health counted 92: `workspace.canvases` is
 preview components included — while the import and parity work on canvas
 DOCUMENTS. Every live document is accepted and in parity; nothing is missing.
 
-### Still open for T33
+### S20 on Alligators — passed 2026-09-16
 
-- S20 on Alligators. The switch and parity are done; the cell runs identity in
-  `hybrid` mode, so the same email-and-password lane that passed on StudyFi
-  applies here.
+The same lane that passed on StudyFi (`s20-deployment.e2e.ts`), against
+`alligators.cloud.maude.sh`. The cell runs identity in `hybrid` mode, so its own
+email-and-password door is live beside Maude Cloud sign-in. The disposable
+designer was invited and redeemed through the cell's own admin API and join
+page, with the admin bearer derived from the fleet master in-process (never
+printed); the designer password was generated locally and deleted afterwards.
+
+**Identity recorded by the run:** `version 1.4.1`, `protocol 1`, project
+`alligators`, `coordinator {ready, transactions, durable}`.
+
+| Step | Result |
+|---|---|
+| 1 · first run offers the invited-project door | pass |
+| 2 · email + password opens the project's own copy | pass |
+| 3 · the designer's work reaches the deployment | pass |
+| 4 · personal undo takes back the last action only | pass |
+| 5 · quit and reopen | pass |
+| 6 · the designer removes what they made | pass |
+
+Cleanup: the account deleted (3 tokens revoked; a login now answers `401`).
+The invitation needed no separate revoke — redeeming it consumed it, and the
+admin API answers `no such open invitation`. **Parity after the run: `ok: true`,
+87/87, no mismatches.**
+
+### T33 — complete
+
+Both initial deployments are upgraded, switched to accepted revisions, in
+parity (StudyFi 121/121, Alligators 87/87), and have passed S20 end to end in
+the bundled app, with build and protocol identity, rollout and rollback
+checkpoints recorded above and no new blocked-media backlog.
 
 **Correction (2026-09-16).** An earlier note here read StudyFi's health as
 blocking S20: `identity: {mode: "off"}` was taken to mean the hub has no
