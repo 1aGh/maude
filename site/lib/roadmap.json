@@ -2272,6 +2272,17 @@
       "planPath": ".ai/plans/feature-post-1.0-hardening-backlog.md",
       "archived": false,
       "phaseKey": null
+    },
+    {
+      "id": "followup-reliable-project-multiplayer",
+      "title": "Follow-up: reliable project multiplayer",
+      "status": "icebox",
+      "shipTarget": "ICEBOX",
+      "date": null,
+      "summary": "Deferred by the owner on 2026-09-16 from feature-reliable-project-multiplayer.md (T1 certified with one reservation; T31 and T35 closed). Everything here was open when the parent plan closed.",
+      "planPath": ".ai/plans/followup-reliable-project-multiplayer.md",
+      "archived": false,
+      "phaseKey": null
     }
   ]
 }
