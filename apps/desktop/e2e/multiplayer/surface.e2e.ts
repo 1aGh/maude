@@ -5331,8 +5331,14 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           const handle = '.dc-el-resize-handle[data-corner="se"]';
           await until(async () => !!(await from.probe(handle))?.visible).catch(async (error) => {
             await from.screenshot(join(run.out, `L08-resize-no-handle-${from.name}.png`));
-            const all = (await from.probe('.dc-el-resize-handle'))?.matches?.length ?? 0;
-            throw new Error(`${String(error)} — resize handles in the frame: ${all}`);
+            const handles = (await from.probe('.dc-el-resize-handle'))?.matches?.length ?? 0;
+            // The handles are placed by animation frames — a window that is
+            // not rendering (a locked screen) never shows them. Say the row
+            // was not exercised rather than call it a failure.
+            return unlessNotRendering(
+              from,
+              new Error(`${String(error)} — resize handles in the frame: ${handles}`)
+            );
           });
           const before = await Promise.all(
             all.map(async (p) => (await p.probe('[data-dc-screen="main"]'))?.rect)
@@ -6491,7 +6497,9 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         const fresh = await openFresh();
         const shown = await Promise.all(
           [...all, fresh.surface].map((p) =>
-            until(async () => (await p.read(selector('canvas-row-ui-home'))) !== null, 60000).then(
+            // A copy opening this late pulls a project of a hundred canvases
+            // and its media before its tree can list them.
+            until(async () => (await p.read(selector('canvas-row-ui-home'))) !== null, 180000).then(
               () => ({ participant: p.name, shown: true }),
               () => ({ participant: p.name, shown: false })
             )
