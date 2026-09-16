@@ -969,7 +969,8 @@ rollout runbook now says so where an operator will meet it.
 | T31 | The comparison, both lane gates and the requirement map are in. What is left is the same seven actions T1 names, and a full run on the current harness to record the new shape. |
 | T32 | The scale run covers S13/S14 only; S01–S19 on disposable cloud and self-host were never run end to end. |
 | T33 | Alligators parity, and S20 there. |
-| T34, T35 | Follow T33. |
+| T34 | Its Validate line is already met — the writer registry has no unmapped route and a test that fails if one appears; raw writes are refused by the fence; Git's "go back" actions decline on a team project because the project's history is the authority; and both deployments plus the whole cell fleet run the current release. What holds it open is its own opening condition, "after initial deployments pass" — which means S20 on Alligators. |
+| T35 | Follows T34. The gates, the PRD note, the user help, the operator runbook, the What's New entries and the kgai records are all written; what is missing is the acceptance it is supposed to close over. |
 
 ### 2026-09-16 (afternoon) — the rows that had never run, and what they were hiding
 
