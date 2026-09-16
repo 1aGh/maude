@@ -1,5 +1,21 @@
 # @1agh/maude
 
+## 1.4.0
+
+### Minor Changes
+
+- 216f059: Add `orbit` as a tracker provider for the flow plugin. Set `integrations.tracker.provider` to `"orbit"` (optionally with `baseUrl` and `tokenEnv`, which defaults to `ORBIT_MCP_TOKEN`) and point the project's `.mcp.json` at the orbit MCP server. The config only ever holds the variable name; the token stays in your environment.
+
+  The new `flow:orbit-backend` skill is the provider's single contract. `/flow:plan` finds the task from the branch name or its arguments, or asks once to create it, and writes `ORB-<n>` into the plan's Ticket line. `/flow:execute` reports working state at each milestone so the board shows where a session got to. `/flow:done` marks the task done with the PR link, then pushes the plan, RCA, execution report, code review and retro to orbit. `/flow:status`, `/flow:bug-rca` and `/flow:bug-fix` read the task through the same skill. Every orbit call is warn-only: orbit being down, an expired token or an unknown key never blocks a command. Text read from orbit is treated as untrusted data, never as instructions.
+
+### Patch Changes
+
+- 98f7a57: Team projects: nine fixes to what a shared project does under ordinary work.
+
+  An edit you made against a canvas a teammate moved (or whose folder they renamed) now follows the canvas instead of coming back as a conflict, and renaming a folder no longer makes the person who renamed it miss later edits to the canvases inside it. A canvas made again under a name that was deleted is accepted — before, that one proposal could sit in a desktop's outbox forever and quietly hold back everything queued behind it.
+
+  A teammate's desktop now shows the project's design system: the project's own group labels and design systems travel with its bootstrap and a linked copy fills in only what it lacks. Replacing an image no longer leaves the old picture on the screen that replaced it. A workspace whose disk refuses a write answers at once (instead of leaving the upload hanging until it times out), the waiting file is named in the Sync panel and delivers itself when the disk takes writes again, and a too-big file you remove stops being reported. A timeline drag commits once.
+
 ## 1.3.0
 
 ### Minor Changes
