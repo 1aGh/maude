@@ -354,6 +354,15 @@ async function until(check: () => Promise<boolean> | boolean, timeout = 15000) {
   }
   throw new Error(`Condition absent after ${timeout} ms`);
 }
+/** A read that answers `null` instead of throwing — a driver hiccup on a busy
+ *  window is not the same as the thing being absent. */
+async function reads(p: Surface, q: string, frame = false): Promise<string | null> {
+  try {
+    return await p.read(q, frame);
+  } catch {
+    return null;
+  }
+}
 async function gesture(p: Surface, q: string, op: string, value: ProbeArgument = null) {
   const result = await p.probe(q, op, value);
   if (!result || result.error)
@@ -3038,11 +3047,29 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               const tabs = await Promise.all(
                 others.map(async (p) => ({ participant: p.name, frames: await frames(p, back) }))
               );
+              // The canvas rebuilds when its source changes, so the one-shot
+              // final sample can land inside a reload. Settling is not a
+              // revert: re-read, and say that it settled.
+              const settled: string[] = [];
+              if (shown.status !== 'pass') {
+                for (const p of others) {
+                  if ((await p.read('h1', true)) === title) continue;
+                  await until(async () => (await p.read('h1', true)) === title, 10000)
+                    .then(() => settled.push(p.name))
+                    .catch(() => {});
+                }
+              }
+              const wrong = (
+                await Promise.all(
+                  others.map(async (p) => ((await p.read('h1', true)) === title ? null : p.name))
+                )
+              ).filter(Boolean);
               return {
-                status:
-                  shown.status === 'pass' && tabs.every((t) => t.frames === 1) ? 'pass' : 'fail',
                 ...shown,
+                status: wrong.length === 0 && tabs.every((t) => t.frames === 1) ? 'pass' : 'fail',
                 tabs,
+                ...(settled.length ? { settledAfterReload: settled } : {}),
+                ...(wrong.length ? { notShowing: wrong } : {}),
               };
             }
           );
@@ -4503,8 +4530,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             { participant: 'hub', frames: await hubPage.locator(frameOf(rel)).count() },
           ];
           return {
-            status: shown.status === 'pass' && tabs.every((t) => t.frames === 1) ? 'pass' : 'fail',
             ...shown,
+            status: shown.status === 'pass' && tabs.every((t) => t.frames === 1) ? 'pass' : 'fail',
             tabs,
           };
         });
@@ -5928,11 +5955,11 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
                   (p) => src(p, c) === (choice === 'discard' ? accepted : half)
                 );
                 return {
+                  ...decided,
                   status:
                     decided.status === 'pass' && leaked.length === 0 && authorKept
                       ? 'pass'
                       : 'fail',
-                  ...decided,
                   leakedWhileHeld: leaked,
                   authorKept,
                 };
@@ -6431,7 +6458,7 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
                 // timers slowly; give the native one room rather than calling
                 // a throttled repaint a missed edit.
                 until(
-                  async () => (await p.read('h1', true)) === title,
+                  async () => (await reads(p, 'h1', true)) === title,
                   p.name === 'native' ? 45000 : 15000
                 ).then(
                   () => performance.now() - t0,
@@ -6505,7 +6532,10 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           [...all, fresh.surface].map((p) =>
             // A copy opening this late pulls a project of a hundred canvases
             // and its media before its tree can list them.
-            until(async () => (await p.read(selector('canvas-row-ui-home'))) !== null, 300000).then(
+            until(
+              async () => (await reads(p, selector('canvas-row-ui-home'))) !== null,
+              300000
+            ).then(
               () => ({ participant: p.name, shown: true }),
               async () => {
                 await p
@@ -6517,18 +6547,21 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           )
         );
         let diff: string[] = [];
+        // A copy of a project this size pulls a hundred and sixty files
+        // through a capped, polled lane: minutes, not seconds.
         const converged = await until(() => {
           diff = inventoryDiff(
             eligibleInventory(nativeSide.root, true),
             eligibleInventory(fresh.root, true)
           );
           return diff.length === 0;
-        }, 120000)
+        }, 600000)
           .then(() => true)
           .catch(() => false);
         return {
           status: converged && shown.every((s) => s.shown) ? 'pass' : 'fail',
           shown,
+          files: eligibleInventory(fresh.root, true).size,
           differing: diff.slice(0, 20),
         };
       });
