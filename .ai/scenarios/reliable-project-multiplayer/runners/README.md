@@ -2,9 +2,9 @@
 
 The runner records real observations from a real three-participant rig. It still
 does **not** certify T1: `baselineComplete` is false in every artifact it writes,
-because the catalogue is not fully enumerated (24 per-surface contract actions
-are still carried as unresolved requirement rows) and rAF-placed resize rows are
-`not-run` on a locked screen. Nothing here claims the L01–L24 matrix is complete.
+because seven of the contract's 116 declared actions still assert nothing (each
+named with its reason in `scripts/dev/sync-e2e/surface-requirements.mjs`).
+Nothing here claims the L01–L24 matrix is complete.
 
 What it does do is **compare**. A candidate run given `--baseline <dir>` is judged
 against a preserved run cell by cell, and a cell that passed then and does not
@@ -101,8 +101,10 @@ Results live under `.ai/device/scenario-runs/reliable-project-multiplayer/`:
 - `native.log` and `driver/`: native driver output; backend logs remain in the scratch directory.
 
 Exit **2** means incomplete evidence, even when WDIO completed successfully.
-Exit **1** means the driver or setup failed. No current invocation certifies a
-regression comparison; `candidate` is reserved as a labeling mode. `--samples`
+Exit **1** means the driver or setup failed. `--mode candidate --baseline <dir>`
+IS the regression comparison — it fails the run on any cell that passed in the
+baseline and does not pass now, a cell that merely stopped being run included.
+(This paragraph used to say no invocation did that; it does.) `--samples`
 currently repeats only the UI text lane, round-robin across all three authors.
 Every attempt keeps its sample index and separate screenshots. The timing
 summary refuses p95 below 100 samples, p99 below 1000, and any percentile that
