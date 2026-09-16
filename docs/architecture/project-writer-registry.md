@@ -10,7 +10,7 @@ Runtime tripwires back it: the accepted-replica write counter
 collab room's accepted-mode refusal. The rows below remain the call-site
 inventory those classes were derived from.
 
-T6 inventory, inspected 2026-09-14 against the current worktree. This is a migration registry, **not an implemented transaction API or a passing conformance gate**. The [transaction contract](project-transactions.md) defines the destination; the [implementation plan](../../.ai/plans/feature-reliable-project-multiplayer.md) retains T1–T35. Each row below identifies a concrete current input or sink, its future authority, owner and required test. No row grants an existing writer permission to mutate accepted state.
+T6 inventory, inspected 2026-09-14 against the current worktree. This is a migration registry, **not an implemented transaction API or a passing conformance gate**. The [transaction contract](project-transactions.md) defines the destination; the [implementation plan](../../.ai/plans/archive/feature-reliable-project-multiplayer.md) retains T1–T35. Each row below identifies a concrete current input or sink, its future authority, owner and required test. No row grants an existing writer permission to mutate accepted state.
 
 ## Scope and reading key
 

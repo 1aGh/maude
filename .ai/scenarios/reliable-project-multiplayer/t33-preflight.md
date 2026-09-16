@@ -1,6 +1,6 @@
 # T33 preflight — the two initial deployments
 
-**Plan:** `.ai/plans/feature-reliable-project-multiplayer.md` T33. Operator runbook:
+**Plan:** `.ai/plans/archive/feature-reliable-project-multiplayer.md` T33. Operator runbook:
 `docs/operations/project-multiplayer-rollout.md` (preflight → switch → verify → rollback).
 
 Everything below the line *Needs authorization* changes production and is **not

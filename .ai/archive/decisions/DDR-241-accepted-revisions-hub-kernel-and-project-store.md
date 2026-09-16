@@ -1,7 +1,7 @@
 # DDR-241 — Accepted revisions: one hub-owned kernel, one store schema, two durable homes
 
 - **Status:** Accepted — 2026-09-15
-- **Plan:** `.ai/plans/feature-reliable-project-multiplayer.md` (closes the T8 selection gate; governs T9–T14)
+- **Plan:** `.ai/plans/archive/feature-reliable-project-multiplayer.md` (closes the T8 selection gate; governs T9–T14)
 - **Supersedes:** nothing. **Extends:** DDR-064 (shared doc — now an accepted *replica*), DDR-102 (cold start — base-aware), DDR-226 (file plane stays the project-file lane), DDR-054 (hub content is untrusted to peers)
 - **Evidence:** `.ai/plans/notes/reliable-project-multiplayer-spikes.md` (T6 contract, T7 publication barrier, T8 SQLite/workerd/S3/DO-R2 probes), `docs/architecture/project-transactions.md`
 

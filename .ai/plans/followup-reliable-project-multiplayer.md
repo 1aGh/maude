@@ -1,7 +1,7 @@
 # Follow-up: reliable project multiplayer
 
 Deferred by the owner on 2026-09-16 from
-`feature-reliable-project-multiplayer.md` (T1 certified with one reservation;
+`archive/feature-reliable-project-multiplayer.md` (T1 certified with one reservation;
 T31 and T35 closed). Everything here was open when the parent plan closed.
 
 ## Tasks

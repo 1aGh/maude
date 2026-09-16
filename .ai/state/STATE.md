@@ -24,6 +24,8 @@ Phase A of the gate set found six silent bugs by pointing a typechecker at 52 fi
 **Active plan:** —
 **Active task:** —
 
+_2026-09-16:_ **done — archived** | plan `feature-reliable-project-multiplayer` → `.ai/plans/archive/`. Shipped in v1.4.2 and rolled out to StudyFi (parity 121/121) and the cloud fleet. T1 certified with one reservation (run `2026-09-16T20-10-34.675Z`: 778 pass, 1 flaky fail `L15.video.create` on the hub lane). T18, T32, the latency target and the other open items are deferred by the owner to `.ai/plans/followup-reliable-project-multiplayer.md` (F1–F7).
+
 _2026-09-11:_ **issue #103 — implementation complete; quick gate PASS; commit and push authorized.** Shared Sonner stack, compact export diagnostics with full history disclosure, bounded canvas traffic and coalesced Undo. 101 affected tests pass; repository format/lint and Studio typecheck/coverage pass; independent defender/attacker PASS. Changeset and What’s New ready. Decision `maude/shared-sonner-notifications`; review `.ai/logs/code-reviews/main-issue-103.md`; RCA `.ai/logs/rca/issue-103.md`. User authorized commit and push on the current main branch; no PR requested. Full validate (site build, full suite, scenario, a11y, design guard) deferred. No active plan for this ad hoc issue to archive.
 
 **Carried debt:** the doručenka's per-file rows reach `_sync.json` and the panel shows aggregates plus holds, but not per-file state; the `sync-doruceka-panel` scenario was never written; adopt/detach is CLI-only, so DDR-177's terminal-free desktop dialog is unbuilt; new-machine clone→link→pull parity is unit-covered, not run on a second machine; no live fleet drill, because the fleet only picks this up on a release tag. Version is still 0.60.7 — nothing here has shipped.

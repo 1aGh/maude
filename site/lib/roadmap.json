@@ -1,11 +1,6 @@
 {
-  "generated": "2026-09-14T00:00:00.000Z",
-  "currentPhase": {
-    "id": "feature-reliable-project-multiplayer",
-    "title": "Feature: Reliable project multiplayer",
-    "branch": null,
-    "status": "in-progress"
-  },
+  "generated": "2026-09-16T00:00:00.000Z",
+  "currentPhase": null,
   "phases": [
     {
       "id": "phase-1-contribute-infra-changesets",
@@ -2199,12 +2194,12 @@
     {
       "id": "feature-reliable-project-multiplayer",
       "title": "Feature: Reliable project multiplayer",
-      "status": "in-progress",
+      "status": "done",
       "shipTarget": null,
-      "date": null,
+      "date": "2026-09-16",
       "summary": "Designers accept an invitation, open a project in Maude, and immediately work together across browser and desktop. Changes save durably, large media loads progressively, and personal undo preserves...",
-      "planPath": ".ai/plans/feature-reliable-project-multiplayer.md",
-      "archived": false,
+      "planPath": ".ai/plans/archive/feature-reliable-project-multiplayer.md",
+      "archived": true,
       "phaseKey": null
     },
     {
@@ -2279,7 +2274,7 @@
       "status": "icebox",
       "shipTarget": "ICEBOX",
       "date": null,
-      "summary": "Deferred by the owner on 2026-09-16 from feature-reliable-project-multiplayer.md (T1 certified with one reservation; T31 and T35 closed). Everything here was open when the parent plan closed.",
+      "summary": "Deferred by the owner on 2026-09-16 from archive/feature-reliable-project-multiplayer.md (T1 certified with one reservation; T31 and T35 closed). Everything here was open when the parent plan closed.",
       "planPath": ".ai/plans/followup-reliable-project-multiplayer.md",
       "archived": false,
       "phaseKey": null

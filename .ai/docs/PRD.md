@@ -10,7 +10,7 @@
 > collaboration on both self-hosted and Cloudflare hubs, with logical history,
 > personal undo/redo and rendered photo/video parity. The implementation
 > contract is
-> [Reliable project multiplayer](../plans/feature-reliable-project-multiplayer.md).
+> [Reliable project multiplayer](../plans/archive/feature-reliable-project-multiplayer.md).
 >
 > **What is live.** Both named deployments run accepted revisions: every change
 > is confirmed before anyone is told it is saved, history lists each action with

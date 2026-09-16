@@ -442,7 +442,7 @@ async function portFree(port, timeoutMs = 10_000) {
 const report = {
   task: 'T32',
   scenarios: ['S13', 'S14'],
-  plan: '.ai/plans/feature-reliable-project-multiplayer.md#T32',
+  plan: '.ai/plans/archive/feature-reliable-project-multiplayer.md#T32',
   date: new Date(runStart).toISOString(),
   scale: SCALE,
   script: 'scripts/dev/t32-scale.mjs',

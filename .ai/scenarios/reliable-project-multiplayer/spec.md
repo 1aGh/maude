@@ -1,6 +1,6 @@
 # Reliable project multiplayer
 
-**Plan:** `.ai/plans/feature-reliable-project-multiplayer.md`
+**Plan:** `.ai/plans/archive/feature-reliable-project-multiplayer.md`
 
 **Status:** specified; local baseline runner/evidence required in T1, extended regression checks throughout, backend certification in T31/T32. No scenario is claimed passed by creating this file.
 

@@ -4,7 +4,7 @@
     "S13",
     "S14"
   ],
-  "plan": ".ai/plans/feature-reliable-project-multiplayer.md#T32",
+  "plan": ".ai/plans/archive/feature-reliable-project-multiplayer.md#T32",
   "date": "2026-09-15T12:01:05.960Z",
   "scale": "full",
   "script": "scripts/dev/t32-scale.mjs",

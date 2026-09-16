@@ -1,6 +1,6 @@
 # Local surface E2E — preserve the working product
 
-**Plan:** `.ai/plans/feature-reliable-project-multiplayer.md`
+**Plan:** `.ai/plans/archive/feature-reliable-project-multiplayer.md`
 
 **Added:** 2026-09-13, explicit user requirement.
 

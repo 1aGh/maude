@@ -1,6 +1,6 @@
 # Epic: Maude as a native collaborative app — Tauri shell + in-UI Git/GitHub + zero-setup hub + ACP
 
-> **Scope update — 2026-09-13:** [Reliable project multiplayer](../plans/feature-reliable-project-multiplayer.md)
+> **Scope update — 2026-09-13:** [Reliable project multiplayer](../plans/archive/feature-reliable-project-multiplayer.md)
 > now owns invitation → managed project opening, bidirectional live editing,
 > logical history and peer-safe personal undo on cloud and self-hosted hubs.
 > Its mandatory local UI/native/media baseline protects today's working product.
