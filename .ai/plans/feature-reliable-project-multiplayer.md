@@ -764,6 +764,86 @@ per-surface requirement rows), and native resize needs a run with the screen
 unlocked. T32 (disposable real backends at Alligators scale), T33 S20 and the
 Alligators switch, T34 fleet rollout and T35 close remain.
 
+### 2026-09-16 — every lane of the contract has executed rows; nine more defects closed
+
+Follow-ups after `v1.3.1`; commits on `main` (see `git log v1.3.1..HEAD`).
+Every product fix has a test watched red first, and every new harness row was
+run against the real three-surface rig before it was committed.
+
+**Product defects the new rows found:**
+
+- **An edit made against a canvas a teammate moved came back as a conflict**
+  (L21). `lane.replace` on a document a move had retired was refused
+  `dependency-missing`; the kernel now follows the entry to the live document
+  and merges there (`5e60e984`). Moved-and-then-deleted is still refused.
+- **Renaming a folder made the renamer miss later edits** (L21). `moveFolder`
+  carried each canvas's `_state/<slug>.ydoc.bin` cache to the new slug (the
+  single-canvas move drops it): the new document opened stamped "moved away"
+  and was released, so every later edit to it was missed — by the person who
+  renamed the folder (`277463a2`).
+- **A canvas made again under a deleted name jammed a desktop's whole outbox**
+  (L20). A deleted document keeps its head rows; the create claimed "expect
+  nothing", the store answered `head-moved`, and that code is RETRYABLE — the
+  durable outbox re-sent it forever and everything queued behind it stayed on
+  the machine. One entry cost 26 rows of a full run (`93fb9190`).
+- **A teammate's desktop showed no design system** (L16). A managed copy is
+  declared from group paths alone; the bootstrap now carries the project's own
+  labels and design systems and a linked copy fills in only what it lacks
+  (`0b99e03c`).
+- **A replaced image was painted over with the photo it replaced** (L12)
+  (`31dc43bd`).
+- **A disk that refuses a write left the peer hanging** (L22). The file door's
+  stream error was swallowed and the upload waited for a `drain` that never
+  came (`80234abc`).
+- **A too-big file that was removed kept being reported** (L22) (`e05eff17`).
+- **A timeline drag could commit twice** (L15): the drags committed from inside
+  a state updater, which React may run more than once (`1f5d4838`).
+
+**New rows**, each in all three directions unless noted: L05 switch away/back
+and reopen after restart · L06 CSS property and HTML attribute through the
+inspector · L10 sticker replace · L12/L14 replace, delete-unreferenced,
+move+rename with decode · L13 a moved photo keeps its edit, photo undo/redo ·
+L15 the whole video lane (create from the palette, open, split, delete, undo,
+redo, insert a title, its text, move, trim) · L16 token edit ×3, specimen
+create/edit, moving a used file refused · L18 one drag is one action and one
+undo takes it back, an AI agent's multi-file action · L19 presence across a
+dropped connection · L20 quit-and-reopen catch-up, a fresh third copy · L21
+delete / move / folder rename versus an offline edit, AI abort → discard and
+publish · L22 a blocked file, a workspace that cannot store, the held
+candidate named · L23 assets moved and deleted while a canvas keeps changing ·
+L24 fresh reopen.
+
+**Recorded unsupported, with the reason** (never faked): removing a
+design-system specimen (the studio refuses to delete design-system canvases);
+a code-module edit (code modules travel only with a per-hub consent the
+product has no control for yet); photo crop/transform (no such control); text
+resize; personal undo for a cloud-browser author.
+
+**Runner:** a loopback lifecycle control for desktop B (stop / start) and for
+fresh copies of the project, so "restart" and "a new machine" are real
+processes, not simulations.
+
+**Evidence:** full surface run `2026-09-16T01-50-54.345Z` (`--save-mode
+accepted`, the switch imported 39 documents): **763 pass / 0 fail / 13
+unsupported / 39 not-run**, where 24 of the not-run are the catalogue's
+"remaining variants" placeholders and the other 15 are the rAF-placed resize
+rows on the native window — the machine's screen was locked, so WebKit painted
+no frames and the handles never appeared; the harness records that as not
+exercised, never as a pass. The soak moved 60 edits (p50 447 ms, p95 501 ms)
+and 20 media files with flat memory, and the final parity compared 163 files
+across five copies — the three participants and two fresh machines — with no
+mismatch. Gates: lint; studio tsc + coverage; parity; tarball; import
+coherence; studio suite 5919 pass / 0 fail (plus the known cross-test `sonner`
+error); sync lane 1195; hub 978; cells 53; CLI 392; cargo 50; site build and
+generated content current.
+
+**Still open:** T31 cannot be ticked — the catalogue's per-surface requirement
+cases stay listed as unresolved by design, and the rAF-placed resize rows need
+a run with the screen unlocked. Follow-ups: per-person attribution and undo
+for cloud browser editors; a consent control for code modules (a declined
+module reads as "stuck" with nothing a person can do); large media still has
+no path into a hub (DDR-237's own open item).
+
 ## Context References
 
 ### Must-Read Files
