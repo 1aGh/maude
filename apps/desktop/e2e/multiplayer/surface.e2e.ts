@@ -6548,6 +6548,7 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         await openSeeded(a, 'Soak 0', 'L23-open');
         const latencies: number[] = [];
         const misses: string[] = [];
+        const missDetail: Array<Record<string, unknown>> = [];
         const media: Array<{ rel: string; sha: string }> = [];
         const startedAt = performance.now();
         const rss = () => {
@@ -6610,6 +6611,35 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
                     await unlessNotRendering(p, error).catch((e) => {
                       if (e instanceof Unexercised) throw e;
                     });
+                    // WHICH HALF MISSED. "Not visible" is two different
+                    // defects: the bytes never reached this copy (sync), or
+                    // they did and the open canvas never showed them (render).
+                    // The row used to record only the symptom, and the same
+                    // miss recurred in three runs without saying which.
+                    const onDisk = (() => {
+                      try {
+                        return readFileSync(join(p.root, '.design', a), 'utf8').includes(title);
+                      } catch {
+                        return false;
+                      }
+                    })();
+                    // Is the canvas this edit targets the ACTIVE one? The
+                    // testid is carried only by the active tab's frame.
+                    const activeIsTarget = await p
+                      .read(`[data-testid="canvas-frame"][data-path=".design/${a}"]`)
+                      .then((r) => r !== null)
+                      .catch(() => null);
+                    const shownNow = (await reads(p, 'h1', true).catch(() => null)) ?? null;
+                    missDetail.push({
+                      edit: title,
+                      at: p.name,
+                      bytesOnDisk: onDisk,
+                      targetCanvasActive: activeIsTarget,
+                      shownTitle: shownNow,
+                    });
+                    await p
+                      .screenshot(join(run.out, `L23-miss-${slug(title)}-${p.name}.png`))
+                      .catch(() => {});
                     misses.push(`${title} @ ${p.name}`);
                     return null;
                   }
@@ -6661,6 +6691,7 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             max: sorted.at(-1) ?? null,
           },
           misses,
+          missDetail,
           mediaMissing,
           rssKiB: { start: rssStart, end: rssEnd, growth },
         };
@@ -6675,6 +6706,7 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         await peerPage.goto(`http://127.0.0.1:${run.peerPort}/`);
         await hubPage.reload();
         const fresh = await openFresh();
+        const notShown: Array<Record<string, unknown>> = [];
         const shown = await Promise.all(
           [...all, fresh.surface].map((p) =>
             // A copy opening this late pulls a project of a hundred canvases
@@ -6688,6 +6720,26 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
                 await p
                   .screenshot(join(run.out, `L24-reopen-${p.name}-not-shown.png`))
                   .catch(() => {});
+                // WHY it was not shown, before deciding anything. Three
+                // different things read the same from the outside: the canvas
+                // is not on this copy, it is there and the tree does not list
+                // it, or this participant's driver stopped answering at all —
+                // which `reads()` deliberately reports as absent.
+                const onDisk = existsSync(join(p.root, '.design', 'ui/home.tsx'));
+                let driverAnswers: boolean | null = null;
+                try {
+                  await p.read('body');
+                  driverAnswers = true;
+                } catch {
+                  driverAnswers = false;
+                }
+                const rowsListed = await reads(p, '[data-testid^="canvas-row-"]');
+                notShown.push({
+                  participant: p.name,
+                  homeOnDisk: onDisk,
+                  driverAnswers,
+                  treeListsAnyCanvas: rowsListed !== null,
+                });
                 // A window that stopped painting did not fail this row, it
                 // declined to judge it — the same rule the rAF-placed rows
                 // already follow. Without this a locked screen MANUFACTURES a
@@ -6715,6 +6767,7 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         return {
           status: converged && shown.every((s) => s.shown) ? 'pass' : 'fail',
           shown,
+          notShown,
           files: eligibleInventory(fresh.root, true).size,
           differing: diff.slice(0, 20),
         };
