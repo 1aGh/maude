@@ -5504,9 +5504,18 @@ export interface DisposableProviderFactory extends ProviderFactory {
 }
 
 /**
- * The production provider factory — DDR-102: ONE shared
- * `HocuspocusProviderWebsocket` per hub URL, with every canvas's
- * `HocuspocusProvider` attached to it, instead of one socket per canvas.
+ * Most documents one shared socket carries. Hocuspocus 4.3+ closes a socket
+ * with more than 100 documents mid-authentication (`maxPendingDocuments`), so
+ * this stays well under it with room for the refused documents a hub keeps
+ * counting — see the socket choice in `createDefaultProviderFactory`.
+ */
+export const SOCKET_DOCUMENT_LIMIT = 64;
+
+/**
+ * The production provider factory — DDR-102: shared
+ * `HocuspocusProviderWebsocket`s per hub URL, each carrying up to
+ * `SOCKET_DOCUMENT_LIMIT` canvases' `HocuspocusProvider`s, instead of one
+ * socket per canvas.
  * An 83-canvas project used to open 83 WebSockets at boot — the auth burst
  * tripped the hub's per-token rate limit (100/min) the moment two peers
  * booted together, and the per-socket retry storm then pinned the bucket
@@ -5524,10 +5533,12 @@ export function createDefaultProviderFactory(
 ): DisposableProviderFactory {
   // biome-ignore lint/suspicious/noExplicitAny: provider runtime typed at call site.
   let mod: any = null;
-  // wsUrl → shared HocuspocusProviderWebsocket (one per hub URL; in practice a
-  // runtime only ever talks to one hub, but the map keeps the contract exact).
+  // wsUrl → the shared sockets to that hub, each carrying at most
+  // SOCKET_DOCUMENT_LIMIT documents (in practice a runtime only ever talks to
+  // one hub, but the map keeps the contract exact).
   // biome-ignore lint/suspicious/noExplicitAny: provider runtime typed at call site.
-  const sockets = new Map<string, any>();
+  const sockets = new Map<string, Array<{ socket: any; names: Set<string> }>>();
+  const allSockets = () => [...sockets.values()].flat().map((s) => s.socket);
 
   const factory = async (args: {
     url: string;
@@ -5548,8 +5559,26 @@ export function createDefaultProviderFactory(
     // the scheme. The provider also accepts http(s):// and upgrades internally
     // in newer versions, but ws:// is explicit + portable.
     const wsUrl = toWsUrl(args.url);
-    let socket = sockets.get(wsUrl);
-    if (!socket) {
+    // A DOCUMENT KEEPS ITS SOCKET; A FULL SOCKET TAKES NO NEW ONES.
+    //
+    // Hocuspocus (4.3+) closes a socket that has more than 100 documents
+    // mid-authentication, and every document on a socket authenticates at
+    // once — when it opens, and again on every reconnect. One socket for a
+    // 123-canvas project was therefore cut off, reopened and cut off again
+    // for as long as the copy ran: it never synced, and each lap spent the
+    // designer's whole per-label allowance (2026-09-16 certification run,
+    // 4 618 closes). Newer hubs raise the limit; deployed ones keep it.
+    //
+    // Names are never taken back off a socket. The hub keeps a pending slot
+    // for a refused document that sends anything after its refusal — a
+    // detach's Close included — until the socket closes, so what a socket has
+    // EVER carried is what counts against the limit, not what it carries now.
+    const shards = sockets.get(wsUrl) ?? [];
+    sockets.set(wsUrl, shards);
+    let shard =
+      shards.find((s) => s.names.has(args.documentName)) ??
+      shards.find((s) => s.names.size < SOCKET_DOCUMENT_LIMIT);
+    if (!shard) {
       // CONFIGURED, not defaulted (issue #118). The socket used to be built
       // from the URL alone, which inherited `timeout: 0` — no per-attempt
       // deadline — and that is the property that let one parked connection
@@ -5570,13 +5599,18 @@ export function createDefaultProviderFactory(
       //
       // Liveness is the runtime's job instead — see the stall watchdog in
       // `start()`, which is a layer we control and can make safe.
-      socket = new mod.HocuspocusProviderWebsocket({
-        url: wsUrl,
-        messageReconnectTimeout: 30_000,
-        maxDelay: 30_000,
-      });
-      sockets.set(wsUrl, socket);
+      shard = {
+        socket: new mod.HocuspocusProviderWebsocket({
+          url: wsUrl,
+          messageReconnectTimeout: 30_000,
+          maxDelay: 30_000,
+        }),
+        names: new Set<string>(),
+      };
+      shards.push(shard);
     }
+    shard.names.add(args.documentName);
+    const socket = shard.socket;
     // Phase 9.2 (DDR-064) — attach to the shared room doc when the runtime
     // injected one; otherwise own a fresh doc (the legacy two-doc path).
     const document = args.document ?? new Y.Doc();
@@ -5723,7 +5757,7 @@ export function createDefaultProviderFactory(
 
   return Object.assign(factory, {
     dispose(): void {
-      for (const socket of sockets.values()) {
+      for (const socket of allSockets()) {
         try {
           socket.destroy();
         } catch {
@@ -5733,7 +5767,7 @@ export function createDefaultProviderFactory(
       sockets.clear();
     },
     reconnect(): void {
-      for (const socket of sockets.values()) {
+      for (const socket of allSockets()) {
         try {
           // NOT `disconnect()` + `connect()` — that pair WEDGES THE SOCKET SHUT,
           // deterministically, in exactly the state this is called from

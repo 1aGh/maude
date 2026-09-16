@@ -5,6 +5,7 @@
 // SIGTERM.
 //
 //   node serve-hub.mjs <dataDir> [port] [--transactions] [--users]
+//     [--conn-rate-limit N] [--max-pending-documents N]
 //
 // --users adds password accounts (the self-hosted sign-in a designer uses):
 // designer@x.test (member) and admin@x.test (admin), password `designer-pass-1`.
@@ -22,6 +23,15 @@ import { createUser, getUser } from '../../src/users.mjs';
 const [dataDir, portArg] = process.argv.slice(2);
 const transactions = process.argv.includes('--transactions');
 const users = process.argv.includes('--users');
+// --conn-rate-limit N: a per-label authentication ceiling small enough for a
+// test to reach, and verbose auth logging so the test can count refusals on
+// stderr (one line per refused authentication).
+const rateIdx = process.argv.indexOf('--conn-rate-limit');
+const connRateLimit = rateIdx > 0 ? Number(process.argv[rateIdx + 1]) : undefined;
+// --max-pending-documents N: emulate a hub released before this was raised
+// (Hocuspocus closes a socket with more than 100 documents mid-authentication).
+const pendingIdx = process.argv.indexOf('--max-pending-documents');
+const maxPendingDocuments = pendingIdx > 0 ? Number(process.argv[pendingIdx + 1]) : undefined;
 export const TEST_PASSWORD = 'designer-pass-1';
 if (!dataDir) {
   process.stderr.write('usage: serve-hub.mjs <dataDir> [port] [--transactions]\n');
@@ -66,7 +76,9 @@ const built = createHub({
   port: Number(portArg ?? 0),
   dataDir,
   secret: 'test-secret',
-  verbose: false,
+  verbose: connRateLimit !== undefined,
+  ...(connRateLimit !== undefined ? { connRateLimit } : {}),
+  ...(maxPendingDocuments !== undefined ? { maxPendingDocuments } : {}),
 });
 await built.server.listen();
 await built.acceptedReady;

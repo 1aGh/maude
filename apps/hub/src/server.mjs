@@ -194,6 +194,18 @@ const RATE_LIMIT_MAX = 5;
 //     control the old bucket was meant to be.
 export const CONN_RATE_LIMIT_MAX = 600;
 export const INVALID_CONN_RATE_LIMIT_MAX = 100;
+/**
+ * Documents one socket may have mid-authentication at once. Hocuspocus 4.3
+ * defaults this to 100 and CLOSES the socket past it — and the studio carries
+ * a whole project on one socket (DDR-102), authenticating every document the
+ * moment it opens. A 123-canvas copy was cut off, reconnected, re-sent all 123
+ * and was cut off again, 4 618 times in one session: it never synced, and each
+ * lap spent the designer's whole per-label allowance (the 2026-09-16
+ * certification run). The limit guards an unauthenticated socket's memory,
+ * which the queue caps below still bound in bytes, so size it for the largest
+ * project a hub serves rather than for a stranger.
+ */
+export const MAX_PENDING_DOCUMENTS = 4096;
 // The same split, one lane over: AUTHENTICATED asset writes (DDR-217 desktop
 // push). The 2026-08-10 security review correctly demanded metering the valid
 // PUT, but wired it to the 5/min per-IP admin bucket — so a first link of a
@@ -219,6 +231,7 @@ export const ACTIVITY_CAP = 200;
  * @property {number} [connRateLimit]  valid-token auths per label per minute (default CONN_RATE_LIMIT_MAX; env HUB_CONN_RATE_LIMIT)
  * @property {number} [invalidConnRateLimit]  invalid-token attempts per IP per minute (default INVALID_CONN_RATE_LIMIT_MAX; tests only)
  * @property {number} [assetWriteRateLimit]  authenticated asset writes per label per minute (default ASSET_WRITE_RATE_LIMIT_MAX; env HUB_ASSET_WRITE_RATE_LIMIT)
+ * @property {number} [maxPendingDocuments]  documents one socket may have mid-authentication (default MAX_PENDING_DOCUMENTS; tests emulate older hubs with 100)
  */
 
 /**
@@ -661,6 +674,13 @@ export function createHub(config = {}) {
     // last edits of every session the platform migrates, and migration is the
     // NORMAL path for a cell. Shutdown is ours; see `shutdown()` in runAsMain.
     stopOnSignals: false,
+
+    // A whole project authenticates on one socket — see MAX_PENDING_DOCUMENTS.
+    // The message queue behind those authentications grows with it: every
+    // document sends a sync step alongside its token, and awareness after
+    // (Hocuspocus default 1000 across the socket).
+    maxPendingDocuments: config.maxPendingDocuments ?? MAX_PENDING_DOCUMENTS,
+    maxUnauthenticatedQueueMessages: 4 * (config.maxPendingDocuments ?? MAX_PENDING_DOCUMENTS),
 
     // The control document (`maude.files`) carries no Y content and must never
     // reach the document store — an empty row there would show up in listings,
