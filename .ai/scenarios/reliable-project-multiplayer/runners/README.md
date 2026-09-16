@@ -29,6 +29,15 @@ bash runners/native-macos.sh  --mode candidate --save-mode accepted
 bash runners/web-desktop.sh   --mode candidate --save-mode accepted
 ```
 
+**Run it on a machine whose screen stays awake for the whole run.** WebKit
+paints no animation frames in a window that is not rendering, so a display that
+locks mid-run takes every rAF-placed row with it — resize handles never appear,
+and a soak that lasts minutes is the likeliest row of all to meet a screen that
+went dark halfway through. Those rows decline to judge rather than fail, which
+is correct and is also why a run on a locking machine can never certify: the
+candidate comparison reads "used to pass, now does not run" as a regression,
+which is exactly what it should do.
+
 ```sh
 pnpm test:e2e:desktop:build
 bash .ai/scenarios/reliable-project-multiplayer/runners/local-e2e.sh --mode baseline

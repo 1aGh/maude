@@ -6501,7 +6501,15 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
                   p.name === 'native' ? 45000 : 15000
                 ).then(
                   () => performance.now() - t0,
-                  () => {
+                  async (error) => {
+                    // A window that stopped painting did not miss the edit; it
+                    // was never in a position to show one. Declining is the
+                    // rule everywhere else in this file, and a soak that runs
+                    // for minutes is the likeliest row to meet a screen that
+                    // locked halfway through.
+                    await unlessNotRendering(p, error).catch((e) => {
+                      if (e instanceof Unexercised) throw e;
+                    });
                     misses.push(`${title} @ ${p.name}`);
                     return null;
                   }
@@ -6576,10 +6584,17 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
               300000
             ).then(
               () => ({ participant: p.name, shown: true }),
-              async () => {
+              async (error) => {
                 await p
                   .screenshot(join(run.out, `L24-reopen-${p.name}-not-shown.png`))
                   .catch(() => {});
+                // A window that stopped painting did not fail this row, it
+                // declined to judge it — the same rule the rAF-placed rows
+                // already follow. Without this a locked screen MANUFACTURES a
+                // failure here, and an invented failure is worse than a gap.
+                await unlessNotRendering(p, error).catch((e) => {
+                  if (e instanceof Unexercised) throw e;
+                });
                 return { participant: p.name, shown: false };
               }
             )
