@@ -1,5 +1,29 @@
 # @1agh/maude
 
+## 1.4.2
+
+### Patch Changes
+
+- 719e978: The desktop app no longer freezes after switching canvases back and forth.
+
+  Switching away from a canvas and straight back, while it was still loading, could leave the app's page stuck at full CPU: nothing on screen responded again until the app was quit. It took a while to happen — the first switch late in a long session, or the sixteenth in ten minutes of editing — and it only happened in the desktop app. Each canvas now finishes starting up in a way that cannot get stuck like that; a fifteen-minute session of edits and switches ran without it.
+
+  An open canvas also no longer shows an older version after two quick changes land one after the other: the newest change is the one on screen, even when the older one takes longer to load.
+
+  And a canvas that changed while it was still being prepared for the screen is prepared again, instead of showing the version from just before — which could leave a teammate's view one edit behind.
+
+  Photo edits arriving from a teammate one after another no longer flick back to the earlier one.
+
+- c5787e2: A project with more than a hundred canvases stays connected.
+
+  The desktop opens one connection to the hub for a whole project, and every canvas signs in over it the moment it opens. The hub software we build on closes any connection with more than a hundred canvases signing in at once — so a large project was cut off as it opened, reconnected, signed every canvas in again, and was cut off again, for as long as it stayed open. Nothing synced, and each round used up that designer's sign-in allowance, which then refused their other devices too.
+
+  The desktop now spreads a large project across several connections, a few dozen canvases each, so it works with hubs already running. Hubs from this release also accept a project's worth of canvases on a single connection.
+
+- 7b8d93c: A canvas that arrives on a new computer keeps its name exactly as it is on everyone else's.
+
+  A computer joining a project could save a canvas under an all-lowercase version of its file name — `surfaceboards-peer.tsx` where everyone else has `SurfaceBoards-peer.tsx` — when the canvas arrived before its own record of where it lives. The project already knows every canvas's place, so a joining computer now uses that from the start.
+
 ## 1.4.1
 
 ### Patch Changes

@@ -3,8 +3,8 @@
   "entries": [
     {
       "id": "steadier-team-projects",
-      "version": null,
-      "date": null,
+      "version": "1.4.2",
+      "date": "2026-09-16",
       "kind": "fix",
       "title": "Steadier team projects",
       "summary": "Large projects (over a hundred canvases) stay connected, the desktop app no longer freezes after switching canvases back and forth, and an open canvas always shows the newest change — including photo edits — instead of sometimes lagging one behind.",

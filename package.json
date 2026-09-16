@@ -1,6 +1,6 @@
 {
   "name": "@1agh/maude",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Marketplace of Claude Code plugins by Michal Dovrtěl: `design` (canvas-first design iteration) + `flow` (generic agentic workflow loop with .ai second brain). Ships the `maude` CLI (with `mdcc` legacy alias) to scaffold workspace, run the design dev server, and manage configs.",
   "type": "module",
   "engines": {
@@ -58,13 +58,13 @@
     "test:e2e:desktop:parity:cloud": "pnpm --filter @maude/desktop-e2e e2e:parity:cloud"
   },
   "optionalDependencies": {
-    "@1agh/maude-darwin-arm64": "1.4.1",
-    "@1agh/maude-darwin-x64": "1.4.1",
-    "@1agh/maude-linux-arm64": "1.4.1",
-    "@1agh/maude-linux-arm64-musl": "1.4.1",
-    "@1agh/maude-linux-x64": "1.4.1",
-    "@1agh/maude-linux-x64-musl": "1.4.1",
-    "@1agh/maude-win32-x64": "1.4.1"
+    "@1agh/maude-darwin-arm64": "1.4.2",
+    "@1agh/maude-darwin-x64": "1.4.2",
+    "@1agh/maude-linux-arm64": "1.4.2",
+    "@1agh/maude-linux-arm64-musl": "1.4.2",
+    "@1agh/maude-linux-x64": "1.4.2",
+    "@1agh/maude-linux-x64-musl": "1.4.2",
+    "@1agh/maude-win32-x64": "1.4.2"
   },
   "files": [
     "cli",

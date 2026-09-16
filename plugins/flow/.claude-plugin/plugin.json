@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "flow",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Generic agentic workflow loop for Claude Code — 29 slash commands across 9 categories. Daily verbs: /plan → /execute → /validate → /done, plus /status, /pause, /resume, /scenario, /quick, /release, /help. Grouped specializations: setup-* (onboard, prd, codebase-map, context), bug-* (rca, fix), record-* (ddr, retro, execution), maintain-* (clean, docs, ai-health, discover), validate-* (a11y, visual), review-code, release-changelog, utils-verify. Type /flow:help for the live index. Project-agnostic via `<project>` placeholder + per-repo `.ai/workflows.config.json`. Bundled subagents (a11y-auditor, design-system-guard, scenario-runner, test-coverage) and skills (workflow-state, ddr-keeper, scenario, agent-browser, agent-device, codebase-intelligence, a11y-checker, question-protocol, make-skill-template).",
   "author": {
     "name": "1aGh"
