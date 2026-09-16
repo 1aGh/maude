@@ -1094,6 +1094,71 @@ until a run says so — both rows now record which half failed (bytes on disk,
 target canvas active, tree listing anything, driver answering at all), and a
 full run with those diagnostics is under way.
 
+### 2026-09-16 (night) — the storm was a socket limit, and the native misses are one hang
+
+**L24's fresh copy never synced because the hub kept cutting it off.** The
+diagnostic run said the second fresh copy had 25 of 163 files and was refused
+on volume 437 times; the hub had logged 525 514 refused authentications for
+that designer. A paced client cannot keep a 60 s bucket full, and neither the
+raw provider nor the plain sync runtime stormed when tested against a real hub
+with a tiny ceiling (both tests kept). The same hub log held the answer once
+the refusals were set aside: 4 618 × `too many pending unauthenticated
+documents (maxPendingDocuments 100)`. Hocuspocus 4.3 — a Dependabot minor bump
+in July — closes a socket with more than 100 documents mid-authentication, and
+the studio carried a whole project on one socket (DDR-102), authenticating
+every document on open and on every reconnect. A 123-canvas copy was closed,
+reconnected and closed again for as long as it ran; every lap spent the
+label's allowance, which is where the refusals came from.
+
+Fixed on both sides (`c5787e2b`): the studio spreads a hub's documents across
+sockets of at most 64, sticky per document, names never taken back (the hub
+keeps a pending slot for a refused document that sends anything afterwards),
+so a new desktop works against hubs already deployed; the hub raises the limit
+to 4096 and its unauthenticated queue with it. Both tests went red first —
+the hub closed the socket at document 100, the studio synced 0/150 against a
+hub with the old limit. StudyFi's production log shows no such closes in the
+last 72 h (its designers have not opened the 121-canvas project on one socket
+since the v1.4.1 restart), so this is latent there, not an incident. A
+follow-up test (`aaafdd9a`) proves a project that grows past one socket while
+it runs comes back whole after the toggle proxy cuts it.
+
+**The late native misses are one thing: the WKWebView stops running script.**
+Run `2026-09-16T12-59-08.373Z` (775 → 772 pass, L24.final-parity and the
+fresh copy now pass) failed L23, L24.fresh-reopen and L07 — different rows
+from the run before, which failed L20/L21 instead and did not reproduce. The
+new diagnostics settle what they share: from 13:25:43 to the end of the run
+every `execute/async` AND every screenshot on the native app timed out
+(`driver/wdio.log`), `driverAnswers: false`, and the frame probe cannot be the
+cause (it resolves itself after 1 s). The hang starts at L23's eighth soak
+edit, which is the native app's turn to switch canvases away and back — the
+same edit the plan recorded as "always the eighth, never shown on the native
+app" in earlier runs, and L23 alone passes. So: a canvas switch on a native app
+carrying a large project, late in a session, wedges its web content.
+
+**Root cause and fix (`719e978e`).** A watcher sampled the WebKit processes at
+the first timeout: `com.apple.WebKit.WebContent` at 100 % CPU, main thread in
+`JSC::runInternalMicrotask → moduleLoaderEvaluate`, forever. A ten-minute L23
+soak run alone reproduced it at edit 188 — the sixteenth *native* switch —
+so the trigger is the native switch itself, not the size of the run. V8's
+`hasTopLevelAwait` showed the canvas shell's inline module was the only module
+on the page with top-level await, suspended with its own `import()`s in flight
+while the canvas built — exactly the state a quick switch tears down. The boot
+now runs in an un-awaited async function. A fifteen-minute soak with the fix
+(331 edits, ~27 native switches) passed with no driver timeout; a test asks V8
+that no inline shell module has top-level await (red on the old template).
+
+**The next full run** (`2026-09-16T15-31-15.550Z`) had no hang and surfaced a
+different product defect: a fresh copy wrote `ui/surfaceboards-peer.tsx` where
+every other copy had `SurfaceBoards-peer.tsx`. A pulled canvas started at a
+slug-derived (lowercase) target and waited for its document to name its path
+at the handshake; a real hub answers the handshake before that is readable
+often enough to reproduce it with a single canvas. Under accepted revisions
+the manifest already names the path, and both pull lanes now take it
+(`7b8d93c6`, red/green test against a real hub). The run after that
+(`2026-09-16T16-20-57.226Z`, taken while unit tests shared the machine) came to
+**777 pass · 1 fail**: L22's viewer double-click found the heading between
+renders; the row now re-aims (the claim — a viewer cannot edit — is unchanged).
+
 ## Context References
 
 ### Must-Read Files
