@@ -1,14 +1,15 @@
 // Public surface of the collab module. Bundles the registry + persistence
 // wiring so ws.ts + server.ts don't need to know about the internal split.
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 import type { Api } from '../api.ts';
 import type { Context } from '../context.ts';
 
+import { applyCommentsToDoc } from '../sync/codec.ts';
 import { createPersistence, Y_TYPES } from './persistence.ts';
-import { createRegistry, type Registry } from './registry.ts';
+import { applyAnnotationsToDoc, createRegistry, type Registry } from './registry.ts';
 
 export type { CollabConn } from './protocol.ts';
 export type { Registry } from './registry.ts';
@@ -63,6 +64,29 @@ export function createCollab(ctx: Context, api: Api): Collab {
     api,
     fileForSlug,
     shouldSeed: (slug) => !(ctx.sharedDoc && registryRef?.isPinned(slug)),
+    // A room restored from its own `.ydoc.bin` must not outrank a sidecar the
+    // hub (or an editor) wrote after that cache — see `reconcileAfterCache`.
+    // Only for rooms no hub provider owns: a pinned doc is the hub's replica
+    // and file→doc imports belong to the sync agent's diff-aware lane.
+    reconcileAfterCache: async (slug, doc, cachedAtMs) => {
+      if (registryRef?.isPinned(slug)) return;
+      const newerThanCache = (abs: string): boolean => {
+        try {
+          return statSync(abs).mtimeMs > cachedAtMs;
+        } catch {
+          return false;
+        }
+      };
+      const file = await fileForSlug(slug);
+      if (!file) return;
+      if (newerThanCache(path.join(ctx.paths.designRoot, `${slug}.annotations.svg`))) {
+        const svg = await api.loadAnnotations(file);
+        if (svg) applyAnnotationsToDoc(doc, svg, 'seed');
+      }
+      if (newerThanCache(path.join(ctx.paths.commentsDir, `${slug}.json`))) {
+        applyCommentsToDoc(doc, await api.loadCommentsForFile(file), 'seed');
+      }
+    },
   });
   // Accepted revisions: browser writes to a synced canvas's room are refused
   // (the room doc is the hub's accepted replica). Asked per frame — the save
@@ -85,6 +109,10 @@ export function createCollab(ctx: Context, api: Api): Collab {
   //     a hub-pushed comment shows up on the peer's sidebar without a reload.
   // The registry's no-op guards make an identical re-seed free, so this can't
   // loop against the room's own persist (which also writes the file).
+  // A mounted room with no hub provider takes external disk changes; a pinned
+  // one leaves them to the sync agent.
+  const ownsRoomFromDisk = (slug: string): boolean =>
+    registry.peek(slug) !== null && !registry.isPinned(slug);
   const reseedFromDisk = async (rel: string): Promise<void> => {
     const cm = /^_comments\/(.+)\.json$/.exec(rel);
     const am = /^(.+)\.annotations\.svg$/.exec(rel);
@@ -101,15 +129,17 @@ export function createCollab(ctx: Context, api: Api): Collab {
           ? await api.loadCommentsForFile(file)
           : JSON.parse(readFileSync(abs, 'utf8'));
         if (!Array.isArray(parsed)) return;
-        // Phase 9.2 (DDR-064): under sharedDoc the hub provider is attached to
-        // the single room doc, so a hub-pushed comment is ALREADY in the room —
-        // the wholesale re-seed (last-writer-wins blob copy) is the retired
-        // clobber path. The agent's diff-aware applyFromFs handles external
-        // file→doc imports instead. The sidebar still needs the 'comments' bus
-        // emit, so keep that unconditionally.
-        if (!ctx.sharedDoc && registry.peek(slug)) registry.syncRoomFromComments(slug, parsed);
+        // Phase 9.2 (DDR-064): when a hub provider is attached to the room
+        // (pinned), a hub-pushed comment is ALREADY in the doc and the agent's
+        // diff-aware applyFromFs owns external file→doc imports — re-seeding
+        // would be the retired clobber path. The test is the PIN, not
+        // `ctx.sharedDoc`: sharedDoc defaults on everywhere, including a cell
+        // without live pairing, where no provider exists and disk is the only
+        // way the hub's accepted state reaches the room. The sidebar still
+        // needs the 'comments' bus emit, so keep that unconditionally.
+        if (ownsRoomFromDisk(slug)) registry.syncRoomFromComments(slug, parsed);
         if (file) ctx.bus.emit('comments', { file, comments: parsed });
-      } else if (!ctx.sharedDoc && registry.peek(slug)) {
+      } else if (ownsRoomFromDisk(slug)) {
         registry.syncRoomFromAnnotations(slug, readFileSync(abs, 'utf8'));
       }
     } catch {

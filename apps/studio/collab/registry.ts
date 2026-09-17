@@ -7,6 +7,7 @@
 // prompt — see DDR-051 §3.
 
 import type { Awareness } from 'y-protocols/awareness';
+import type * as Y from 'yjs';
 
 import { ANNOTATION_WRITE_ID, validAnnotationWriteId } from '../annotations-sync.ts';
 import { applyCommentsToDoc } from '../sync/codec.ts';
@@ -108,6 +109,30 @@ export interface Registry {
   size(): number;
 }
 
+/**
+ * Replace a doc's annotation SVG — the one write shape shared by the live
+ * disk→room bridge and the cache-restore reconcile (`collab/index.ts`).
+ * Identical disk notifications stay no-ops (no update → no persist loop); a UI
+ * operation may deliberately restore identical content under a new write id.
+ * Returns whether the doc changed.
+ */
+export function applyAnnotationsToDoc(
+  doc: Y.Doc,
+  svg: string,
+  origin: unknown,
+  writeId?: string
+): boolean {
+  const map = doc.getMap<string>(Y_TYPES.annotations);
+  const id = validAnnotationWriteId(writeId) ? writeId : undefined;
+  if (map.get('svg') === svg && (!id || map.get(ANNOTATION_WRITE_ID) === id)) return false;
+  doc.transact(() => {
+    map.set('svg', svg);
+    if (id) map.set(ANNOTATION_WRITE_ID, id);
+    else map.delete(ANNOTATION_WRITE_ID);
+  }, origin);
+  return true;
+}
+
 export function createRegistry(callbacks: RoomCallbacks): Registry {
   const rooms = new Map<string, Room>();
   // Hub-side Awareness per slug (lives as long as the sync provider). Rooms
@@ -196,16 +221,7 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
   function syncRoomFromAnnotations(slug: string, svg: string, writeId?: string): void {
     const room = rooms.get(slug);
     if (!room) return;
-    const map = room.doc.getMap<string>(Y_TYPES.annotations);
-    // Identical disk notifications remain no-ops. A new UI operation may
-    // deliberately restore identical content while an author has pending work.
-    const id = validAnnotationWriteId(writeId) ? writeId : undefined;
-    if (map.get('svg') === svg && (!id || map.get(ANNOTATION_WRITE_ID) === id)) return;
-    room.doc.transact(() => {
-      map.set('svg', svg);
-      if (id) map.set(ANNOTATION_WRITE_ID, id);
-      else map.delete(ANNOTATION_WRITE_ID);
-    }, 'inspector-write');
+    applyAnnotationsToDoc(room.doc, svg, 'inspector-write', writeId);
   }
 
   function setAgentEditing(slug: string, state: { name: string; since: number } | null): void {

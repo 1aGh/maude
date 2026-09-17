@@ -49,6 +49,17 @@ export interface PersistenceDeps {
    * slugs. Absent → always seed (flag-OFF behavior, unchanged).
    */
   shouldSeed?: (slug: string) => boolean;
+  /**
+   * Called after `seed` restored a room from its `.ydoc.bin` cache, with the
+   * cache's mtime. The cache is this process's own snapshot, so it can be older
+   * than the on-disk sidecars: in a cell without live pairing the hub projects
+   * accepted comments/annotations onto disk while the room is closed, and a room
+   * rebuilt from the cache alone would serve the pre-projection board forever.
+   * The callback brings the doc forward from any sidecar written after the cache
+   * (a causal update ON TOP of the cached state, never a second independent
+   * seed). Absent → cache-only restore, the previous behavior.
+   */
+  reconcileAfterCache?: (slug: string, doc: Y.Doc, cachedAtMs: number) => Promise<void>;
 }
 
 /**
@@ -173,12 +184,12 @@ export function createPersistence(deps: PersistenceDeps): RoomCallbacks {
     return path.join(stateDir, `${slug}.ydoc.bin`);
   }
 
-  async function readBinary(slug: string): Promise<Uint8Array | null> {
+  async function readBinary(slug: string): Promise<{ bytes: Uint8Array; mtimeMs: number } | null> {
     try {
       const file = Bun.file(ydocBinPath(slug));
       if (!(await file.exists())) return null;
       const buf = await file.arrayBuffer();
-      return new Uint8Array(buf);
+      return { bytes: new Uint8Array(buf), mtimeMs: file.lastModified };
     } catch {
       return null;
     }
@@ -201,8 +212,9 @@ export function createPersistence(deps: PersistenceDeps): RoomCallbacks {
 
     // Step 1 — try the binary cache.
     const binary = await readBinary(slug);
-    if (binary && binary.byteLength > 0) {
-      Y.applyUpdate(doc, binary);
+    if (binary && binary.bytes.byteLength > 0) {
+      Y.applyUpdate(doc, binary.bytes);
+      await deps.reconcileAfterCache?.(slug, doc, binary.mtimeMs);
       return;
     }
 
