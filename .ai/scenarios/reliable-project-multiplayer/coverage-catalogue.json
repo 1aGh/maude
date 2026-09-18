@@ -30,7 +30,7 @@
     },
     {
       "path": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
-      "sha256": "f5c3795a40d0b2d149f22cb0ae7c281567e169ba583fbea6d7ed6dd4c0ead6d8"
+      "sha256": "eceab5f5a2b6eb17a0bc7bb975c17a10855118868a2de0208bb84fcef5dc9f70"
     },
     {
       "path": "apps/studio/use-canvas-media-drop.tsx",
