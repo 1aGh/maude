@@ -1,6 +1,6 @@
 [package]
 name = "maude-desktop"
-version = "1.4.2"
+version = "1.4.3"
 description = "Maude native desktop shell — Tauri v2 sidecar over the compiled dev-server binary (DDR-106)"
 authors = ["Maude"]
 edition = "2021"

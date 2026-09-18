@@ -1,5 +1,21 @@
 # @1agh/maude
 
+## 1.4.3
+
+### Patch Changes
+
+- a5403da: Plans, RCAs, execution reports, retros and code reviews can now live in orbit instead of the repo's `.ai/` folder.
+
+  A project that tracks its work in orbit had its task in one place and the record of why the work was done the way it was in another: markdown files next to the code, on whichever laptop produced them. The flow config gained `integrations.tracker.artifacts`. Left out, nothing changes. Set to `{ "store": "orbit" }`, each of those five documents is sent to orbit the moment it is written rather than copied at the end, and the commands that need one later read it back from there.
+
+  With `"local": "scratch"` the repo keeps no copy: the command writes the document to a spool folder that git ignores, sends it, and deletes it only once orbit has confirmed it arrived. A send that fails leaves the file in the spool and the next flow command tries again, so an orbit that is down or a token that has expired costs a warning, never the document. `"store": "both"` keeps the file and sends it, which is the gentle way to move a project across.
+
+  The PRD, the design system, the codebase map, the workflow state, scenarios and architectural decisions stay where they are. On a project that also uses the knowledge graph, each verdict is still recorded there, now before it is sent rather than after, so the graph keeps being fed.
+
+- b4cd8e1: Sticky notes, drawings and comments in the browser studio of a self-hosted hub now show the project's current state, not the version from the first time the canvas was opened there.
+
+  On a hub without live pairing, the browser studio kept each canvas's annotations and comments at the state they had when someone first opened that canvas in the browser. The desktop and the hub document had the current board; the browser kept showing the old one, even after a reload. The browser studio now picks up those changes while a canvas is open. When a canvas is opened again, anything saved after the studio's last cached copy replaces that copy.
+
 ## 1.4.2
 
 ### Patch Changes
