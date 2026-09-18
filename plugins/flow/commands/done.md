@@ -238,7 +238,7 @@ If the user lists items, propose CLAUDE.md additions (or moves to `.claude/rules
 
 - Append a `## Retro` section to the end of the plan. 3–5 bullets: what worked / what didn't / what to change in `/plan` or `/execute` next time. This is the learning loop — the next `/plan` reads it.
 - If there were unexpected pivots, parity gaps, blockers, or plan rewrites → consider a standalone DDR ("what we learned about this domain") or a full `/flow:record-retro`.
-- Move the plan to `.ai/plans/archive/<x>.plan.md`.
+- Move the plan to `.ai/plans/archive/<x>.plan.md` — **unless** `integrations.tracker.artifacts.store` is `orbit`, in which case there is no local archive: push the plan in its final state (retro section included) as kind `plan` per **`flow:orbit-backend`** [guide 06](../skills/orbit-backend/_guide-06-artifact-store.md), and delete the scratch copy only once orbit confirms. `both` → archive the file *and* push.
 - STATE.md → phase + status `done`, history row `done | <date> | <one-liner>`. Active task → `—`. Active plan → `—`.
 
 > **kgai close (when active).** If `maude kg resolve --json` reports `active` (load `flow:kgai-backend`): the DDR sweep (Step 3) already routed decisions into the graph via the backend-aware `/flow:record-ddr`; here, mark the plan node closed and **push once** — `kg sync` is a close-time operation (never per-edit; the projection rebuild grows with the log):

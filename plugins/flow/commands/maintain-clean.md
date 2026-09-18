@@ -50,6 +50,10 @@ find /tmp/ -name "ai-workflow-*" -mtime +7 -type f 2>/dev/null
 find . -name ".DS_Store" -o -name "*.swp" -o -name "*~" | head -20
 ```
 
+## Never Touch the orbit Spool
+
+`integrations.tracker.artifacts.spoolDir` (default `.ai/tmp/orbit-spool`) is **not** temporary-file territory, whatever its path suggests. Every file there is a plan, RCA, report, retro or review whose push to orbit has not landed yet — deleting one destroys the only copy. Exclude the directory from every scan above and never offer its contents for deletion; the `flow:orbit-backend` resolver sweep is what empties it.
+
 ## Review Before Deleting
 
 **Always list files first**, then ask for confirmation:

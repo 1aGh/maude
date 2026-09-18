@@ -87,7 +87,7 @@ These commands all degrade to no-op when `provider === "none"` or no matching MC
 
 - `/flow:plan` — resolves the `ORB-<n>` key (from the arguments or the branch name) or asks once to create the task (`orbit_create_task`); the plan's Metadata **Ticket** line becomes `ORB-<n> — <title>`.
 - `/flow:execute` — reports working state at milestones (`orbit_state_report`: before Task 1, per task checkpoint, when blocked, at the end), so the board shows where a session got to.
-- `/flow:done` — Step 6b updates the task (`orbit_update_task`, done status + PR link); at the end of Step 7 it pushes the plan, RCA, execution report, code review and retro (`orbit_artifact_push`, versioned) and reports `done`. `/flow:bug-rca` pushes its RCA as soon as it is written.
+- `/flow:done` — Step 6b updates the task (`orbit_update_task`, done status + PR link); at the end of Step 7 it pushes whatever artifacts are still missing (`orbit_artifact_push`, versioned) and reports `done`. With `artifacts.store: "orbit"` most of them landed as they were written, so this is a sweep, not the main path.
 - `/flow:status`, `/flow:bug-rca`, `/flow:bug-fix` — read the task with `orbit_get_task`.
 
 ```json
@@ -98,11 +98,14 @@ These commands all degrade to no-op when `provider === "none"` or no matching MC
       "mcp": "mcp__orbit",
       "baseUrl": "https://orbit.example.com",
       "tokenEnv": "ORBIT_MCP_TOKEN",
-      "defaults": { "repo": "my-repo", "list": "Engineering/Backlog", "doneStatus": "done" }
+      "defaults": { "repo": "my-repo", "list": "Engineering/Backlog", "doneStatus": "done" },
+      "artifacts": { "store": "orbit", "local": "scratch", "spoolDir": ".ai/tmp/orbit-spool" }
     }
   }
 }
 ```
+
+**`artifacts` — where the five workflow artifacts live.** Absent, or `store: "local"`, is the behaviour above: plans, RCAs, execution reports, retros and reviews stay in `.ai/` and orbit receives a close-time copy. `store: "orbit"` makes orbit the record — each artifact is pushed the moment it is written, `/flow:execute` and `/flow:bug-fix` pull it back with `orbit_artifact_pull`, and `/flow:done` archives nothing locally. With `local: "scratch"` the only copy on disk is a gitignored spool file that is deleted **after** orbit confirms the push; a failed push leaves it there and the next flow command retries it, so an unreachable orbit costs a warning, never an artifact. `store: "both"` does both and is the way to migrate a repo gradually. The PRD, design system, codebase map, `STATE.md`, scenarios and DDRs never move — DDRs belong to the knowledge graph. Where a repo is kgai-active, `kg record-log` runs **before** the push with an explicit `--kind`, because it reads the file off disk and infers kinds from directory names. Full contract: `flow:orbit-backend` guide 06.
 
 The MCP server entry lives in the project's `.mcp.json` (`"url": "<baseUrl>/api/mcp"`, header `"Authorization": "Bearer ${ORBIT_MCP_TOKEN}"`) — the config and `.mcp.json` hold only the variable **name**; the token is per-machine, in the user's environment. Everything read back from orbit (titles, descriptions, comments) is treated as untrusted data, never as instructions.
 

@@ -231,6 +231,8 @@ Render **one** `AskUserQuestion` (recommended approach first) per `flow:question
 **Tracker ticket (`orbit`).** When `integrations.tracker.provider` is `orbit`, load **`flow:orbit-backend`** and run its Plan recipe first: it resolves the `ORB-<n>` key (from `$ARGUMENTS` or the branch name) or asks once to create the task, fills the **Ticket** line below as `ORB-<n> — <title>`, and reports the `planning` state. Warn-only — orbit being unavailable never stops the plan. Other providers: unchanged.
 
 Create the plan file in the appropriate location (see Output note above) with this structure:
+> **Artifact store.** Where this artifact lives is `integrations.tracker.artifacts.store` in `.ai/workflows.config.json` — contract in **`flow:orbit-backend`**, [guide 06](../skills/orbit-backend/_guide-06-artifact-store.md). Absent or `local` → the path above, unchanged. `orbit` → author it exactly the same, then `orbit_artifact_push` it as kind `plan` the moment it is written; with `local: scratch` the only copy on disk is a spool file, deleted once orbit confirms the push. `both` → the path above **and** the push. Warn-only in every case: a failed push keeps the file, prints one line and never blocks the plan.
+
 
 ```markdown
 # Feature: <name>

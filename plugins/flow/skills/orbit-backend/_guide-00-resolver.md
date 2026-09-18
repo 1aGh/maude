@@ -17,8 +17,13 @@ jq '{name, tracker: (.integrations.tracker // {})}' .ai/workflows.config.json
 | `tracker.defaults.repo` | repo name orbit files artifacts and states under | top-level `name` |
 | `tracker.defaults.list` | orbit list for new tasks (`List` or `Space/List`) | asked once at create time |
 | `tracker.defaults.doneStatus` | status name or category set at close | `done` |
+| `tracker.artifacts.store` | where plans, RCAs and reports live: `local` \| `orbit` \| `both` | `local` — today's behaviour, `.ai/` files with a close-time copy |
 
-`defaults` stays free-form — other keys are ignored here, never an error.
+`defaults` stays free-form — other keys are ignored here, never an error. The rest of `artifacts` (`local`, `spoolDir`, `kinds`) belongs to [guide 06](./_guide-06-artifact-store.md); read it only in a command that writes one of the five artifacts.
+
+### 2b. Spool sweep — `store: orbit` + `local: scratch` only
+
+Artifacts whose push failed earlier wait in `spoolDir`. Non-empty and orbit active → push them before the command's own work ([guide 06 §4](./_guide-06-artifact-store.md)), at most 10, then continue. Empty, or any other `store` → nothing to do, print nothing.
 
 ### 2. Capability gate — `active`
 

@@ -113,6 +113,8 @@ The surviving hypothesis (or the distinguishing experiment) feeds the **Root Cau
 ## Output
 
 Save to: `.ai/logs/rca/issue-$ARGUMENTS.md` — the `issue-` filename prefix is provider-agnostic; `$ARGUMENTS` may be a GitHub number (`123`), a ClickUp ID (`CU-abc123`), an orbit key (`ORB-123`), or any other slug your tracker uses.
+> **Artifact store.** Where this artifact lives is `integrations.tracker.artifacts.store` in `.ai/workflows.config.json` — contract in **`flow:orbit-backend`**, [guide 06](../skills/orbit-backend/_guide-06-artifact-store.md). Absent or `local` → the path above, unchanged. `orbit` → author it exactly the same, then `orbit_artifact_push` it as kind `rca` the moment it is written; with `local: scratch` the only copy on disk is a spool file, deleted once orbit confirms the push. `both` → the path above **and** the push. Warn-only in every case: a failed push keeps the file, prints one line and never blocks the RCA.
+
 
 ```markdown
 # RCA: Ticket <id> — <title>
@@ -150,9 +152,12 @@ Low / Medium / High
 maude kg record-log --file ".ai/logs/rca/issue-$ARGUMENTS.md"
 ```
 
+> **With `artifacts.store: orbit`** the canonical path above does not exist — the artifact is a scratch file that is deleted once orbit confirms the push. Point `--file` at the path you actually wrote and pass the kind explicitly (`--kind rca`), and run this **before** the push, not after: `kg record-log` reads the file off disk, and directory-based kind inference does not work for a spool file. Full ordering: **`flow:orbit-backend`** [guide 06 §2b](../skills/orbit-backend/_guide-06-artifact-store.md).
+
+
 That is the whole step. The verb gates itself against `maude kg resolve` and is a **silent no-op when the graph is inactive**, so run it unconditionally — the classic `.ai/` path stays byte-for-byte unchanged. It lands an `rca:<slug>` node carrying the full report body, plus an `EVIDENCE_FOR` edge to every `DDR-NNN` the RCA cites, shaped identically to RCAs that arrived via `maude kg import`. Re-running on an edited report is safe (identity is `hash(kind:name)`; props merge). Contract: **`flow:kgai-backend`**.
 
-**orbit (`integrations.tracker.provider: orbit`).** Also push the RCA to the task right away — `flow:orbit-backend` Close recipe § B, the `rca` row only. Warn-only: a failed push prints one line and never blocks the RCA.
+**orbit (`integrations.tracker.provider: orbit`).** Also push the RCA to the task right away — **`flow:orbit-backend`** [guide 06](../skills/orbit-backend/_guide-06-artifact-store.md), kind `rca`. Warn-only: a failed push prints one line and never blocks the RCA.
 
 After saving the RCA, ask:
 

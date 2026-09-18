@@ -512,6 +512,39 @@
               "type": "object",
               "description": "Free-form project-specific defaults (list IDs, milestone names, custom field IDs, status labels, …). Generic commands pass this object through to MCP calls untouched. Schema-free on purpose — your tracker's idiosyncrasies belong here, not in the plugin.",
               "additionalProperties": true
+            },
+            "artifacts": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Where the five workflow artifacts (plan, rca, execution-report, retro, review) LIVE — used by `provider: orbit`; other providers ignore it. Absent → `store: local`, i.e. today's behaviour: the files stay in `.ai/` and orbit receives a copy at close. The full contract is the `flow:orbit-backend` skill, guide 06 — commands never re-derive it.",
+              "properties": {
+                "store": {
+                  "type": "string",
+                  "enum": ["local", "orbit", "both"],
+                  "default": "local",
+                  "description": "`local` — files in `.ai/` are the record (close-time push still applies). `orbit` — orbit is the record: each artifact is pushed the moment it is written and no copy is kept in the repo. `both` — write locally AND push at write time; the migration setting, and the safe way to try `orbit` out."
+                },
+                "local": {
+                  "type": "string",
+                  "enum": ["keep", "scratch"],
+                  "default": "keep",
+                  "description": "Only meaningful with `store: orbit`. `scratch` — the command writes its artifact under `spoolDir` (gitignored), pushes it, and deletes it on a confirmed push; a FAILED push leaves the file there and the next flow command retries it. `keep` — write to the usual `.ai/` path anyway, so a repo mid-migration keeps its history. A file is never deleted before orbit confirms."
+                },
+                "spoolDir": {
+                  "type": "string",
+                  "default": ".ai/tmp/orbit-spool",
+                  "description": "Directory for scratch artifacts awaiting a confirmed push, relative to repo root. Must be gitignored — `/flow:init` adds it to `.ai/.gitignore`. Nothing else ever writes here and no command reads it except the spool retry."
+                },
+                "kinds": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "enum": ["plan", "rca", "execution-report", "retro", "review"]
+                  },
+                  "description": "Which artifact kinds this repo routes to orbit. Absent → all five. A kind left out behaves as `store: local` for that kind alone; orbit accepts no other kinds."
+                }
+              }
             }
           }
         },

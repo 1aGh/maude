@@ -33,7 +33,7 @@ Load **`flow:kgai-backend`** and check `maude kg resolve --json` before treating
 **Started:** <YYYY-MM-DD>
 **Updated:** <YYYY-MM-DD HH:MM>
 **Active task:** <one-liner from the plan or "—">
-**Active plan:** <.ai/plans/<x>.plan.md or "—">
+**Active plan:** <.ai/plans/<x>.plan.md, or `plan:<slug>` when the plan lives in orbit, or "—">
 
 ## Decisions
 
@@ -55,7 +55,7 @@ Load **`flow:kgai-backend`** and check `maude kg resolve --json` before treating
 1. **Every phase change → a new history row.** History is append-only — no row gets rewritten, removed, or reordered.
 2. **Update the Updated field on every edit.** `/status` and `/resume` use it to detect stale state.
 3. **Pause path:** Phase → `paused`, Status → `paused`, keep the current `Active task` (do not clear it). Details go in `.ai/state/HANDOFF.md`.
-4. **Done path:** Phase → `done`, Status → `done`, Active task → `—`, Active plan → `—`. The plan moves to `.ai/plans/archive/`.
+4. **Done path:** Phase → `done`, Status → `done`, Active task → `—`, Active plan → `—`. The plan moves to `.ai/plans/archive/` — unless `integrations.tracker.artifacts.store` is `orbit`, where there is no local archive and the **Active plan** line holds the orbit slug (`plan:<slug>`) instead of a path, so `/flow:resume` and `/flow:status` know to pull it (`flow:orbit-backend` [guide 06](../orbit-backend/_guide-06-artifact-store.md)).
 5. **Blocked:** Phase stays the same, Status → `blocked`, the Blockers section gets a bullet with the specifics.
 
 ## HANDOFF.md (only while paused)

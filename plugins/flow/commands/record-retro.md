@@ -56,6 +56,8 @@ For each bad divergence:
 ## Output
 
 Save to: `.ai/logs/system-reviews/<feature-name>-review.md`
+> **Artifact store.** Where this artifact lives is `integrations.tracker.artifacts.store` in `.ai/workflows.config.json` — contract in **`flow:orbit-backend`**, [guide 06](../skills/orbit-backend/_guide-06-artifact-store.md). Absent or `local` → the path above, unchanged. `orbit` → author it exactly the same, then `orbit_artifact_push` it as kind `retro` the moment it is written; with `local: scratch` the only copy on disk is a spool file, deleted once orbit confirms the push. `both` → the path above **and** the push. Warn-only in every case: a failed push keeps the file, prints one line and never blocks the retro.
+
 
 Include:
 
@@ -74,5 +76,8 @@ Include:
 ```bash
 maude kg record-log --file ".ai/logs/system-reviews/<feature-name>-review.md"
 ```
+
+> **With `artifacts.store: orbit`** the canonical path above does not exist — the artifact is a scratch file that is deleted once orbit confirms the push. Point `--file` at the path you actually wrote and pass the kind explicitly (`--kind system-review`), and run this **before** the push, not after: `kg record-log` reads the file off disk, and directory-based kind inference does not work for a spool file. Full ordering: **`flow:orbit-backend`** [guide 06 §2b](../skills/orbit-backend/_guide-06-artifact-store.md).
+
 
 The verb gates itself and is a **silent no-op when the graph is inactive** — run it unconditionally; the classic `.ai/` path is unchanged. It lands a `system-review:<slug>` node with the full body plus `EVIDENCE_FOR` edges to every `DDR-NNN` the retro cites — which is what makes "what did we learn about X" answerable from `maude kg search` alone. Contract: **`flow:kgai-backend`**.

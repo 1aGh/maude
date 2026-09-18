@@ -95,6 +95,8 @@ fi
 
 ## Step 1: Scaffold `.ai/` via `maude init`
 
+> **Spool directory.** When the project sets `integrations.tracker.artifacts.store: "orbit"` with `local: "scratch"`, add its `spoolDir` (default `.ai/tmp/orbit-spool`) to `.ai/.gitignore`. Artifacts waiting there are unpushed work, not repo content — they must never be committed, and they must never be cleaned by `/flow:maintain-clean` either (that command skips the spool; the resolver's sweep is what empties it).
+
 > Skip if `MAUDE_AVAILABLE=false`. Also skip silently if `.ai/workflows.config.json` already exists (idempotent — assume previous onboard handled it; Step 3 will still propagate fresh detected values).
 
 Detect project name (user can override later):

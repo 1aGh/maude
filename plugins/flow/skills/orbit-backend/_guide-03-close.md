@@ -12,6 +12,8 @@ Only the fields given change. `status` may be a status name or a category (`todo
 
 ### B. Artifact push — end of `/flow:done` Step 7 (after the retro is appended and the plan archived); `/flow:bug-fix` after the tracker sync
 
+**`integrations.tracker.artifacts.store` is `orbit` or `both`** → most of this list was pushed the moment it was written ([guide 06](./_guide-06-artifact-store.md)). Push only what is still missing: the artifacts that exist on disk, plus the plan in its FINAL state (its close-time version is the one worth keeping). With `local: scratch` there are no files left to walk — sweep the spool instead and push the plan from wherever the command has it. Re-pushing an unchanged artifact is harmless (a new version), but noise; skip it via the `orbit_artifact_pull` check below.
+
 Push each file that exists, in this order, one `orbit_artifact_push` per file:
 
 | File | `kind` | `title` |
@@ -24,7 +26,7 @@ Push each file that exists, in this order, one `orbit_artifact_push` per file:
 
 Payload: `{repo, taskKey: <KEY, omitted when unset — a repo-level artifact>, kind, title, body: <file content>, command: "/flow:<command>"}`.
 
-- **Only these paths.** Never push other files, `.env*`, config, raw logs or command output. A file that looks like it carries a secret (token, key, password, connection string) is skipped with a warning — never redacted and pushed.
+- **Only these paths.** With `local: scratch` the same five kinds come from `spoolDir` instead. Never push other files, `.env*`, config, raw logs or command output. A file that looks like it carries a secret (token, key, password, connection string) is skipped with a warning — never redacted and pushed.
 - orbit versions an artifact by `kind` + title, so every push of the same title adds a version. Skip duplicates: `orbit_artifact_pull {repo, taskKey, kind}` first; the same title with a byte-identical body → skip it.
 - A body over 400 000 characters → skip with a warning (orbit rejects it).
 

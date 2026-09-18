@@ -95,6 +95,8 @@ If the project has instruction files (e.g., `instructions/*.instructions.md`), r
 ## 5. Generate Review
 
 Save to `.ai/logs/code-reviews/<branch-name>.md`:
+> **Artifact store.** Where this artifact lives is `integrations.tracker.artifacts.store` in `.ai/workflows.config.json` — contract in **`flow:orbit-backend`**, [guide 06](../skills/orbit-backend/_guide-06-artifact-store.md). Absent or `local` → the path above, unchanged. `orbit` → author it exactly the same, then `orbit_artifact_push` it as kind `review` the moment it is written; with `local: scratch` the only copy on disk is a spool file, deleted once orbit confirms the push. `both` → the path above **and** the push. Warn-only in every case: a failed push keeps the file, prints one line and never blocks the review.
+
 
 ```markdown
 # Code Review: <branch-name>
@@ -164,6 +166,9 @@ Re-read the simplified diff (`git diff`) and check for any new findings the simp
 maude kg record-log --file ".ai/logs/code-reviews/<branch-name>.md"
 maude kg record-log --file ".ai/logs/security-reviews/<branch>-<ts>.md"   # if step 4 wrote one
 ```
+
+> **With `artifacts.store: orbit`** the canonical path above does not exist — the artifact is a scratch file that is deleted once orbit confirms the push. Point `--file` at the path you actually wrote and pass the kind explicitly (`--kind code-review`), and run this **before** the push, not after: `kg record-log` reads the file off disk, and directory-based kind inference does not work for a spool file. Full ordering: **`flow:orbit-backend`** [guide 06 §2b](../skills/orbit-backend/_guide-06-artifact-store.md).
+
 
 The verb gates itself and is a **silent no-op when the graph is inactive** — run it unconditionally; the classic `.ai/` path is unchanged. They land as `code-review:<slug>` / `security-review:<slug>` with the full body and `EVIDENCE_FOR` edges to every cited `DDR-NNN`. Run it **after** the simplifier recheck (step 7) so the recorded verdict is the final one, not the pre-simplifier draft. Contract: **`flow:kgai-backend`**.
 
