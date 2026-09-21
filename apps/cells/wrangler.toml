@@ -43,7 +43,7 @@ class_name = "MaudeCellB"
 # container configuration byte-identical, so the deploy prints
 # `no changes maude-cells-maudecell` and every instance keeps running the old
 # digest. It looks like a successful deploy. It is not one. Bump the tag.
-image = "registry.cloudflare.com/b5b596efe65abb732777c7171dc18145/maude-cell:v1.4.3"
+image = "registry.cloudflare.com/b5b596efe65abb732777c7171dc18145/maude-cell:v1.4.4"
 # THE FLEET CEILING — Cloud Phase 24 B2.
 #
 # It was 1: "the tenant-of-one pilot". That is not a scaling nicety, it is a

@@ -2203,6 +2203,17 @@
       "phaseKey": null
     },
     {
+      "id": "cloud-live-payments-rollout",
+      "title": "Cloud live payments — rollout plan",
+      "status": "planned",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Drafted 2026-09-19, on the owner's request, while writing a post that promotes Maude Cloud publicly. The post had to be re-framed (\"free pilot, €19 later\") because the funnel cannot take money toda...",
+      "planPath": ".ai/plans/cloud-live-payments-rollout.md",
+      "archived": false,
+      "phaseKey": null
+    },
+    {
       "id": "feature-desktop-project-tabs-and-identity-profiles",
       "title": "Feature: Desktop project tabs + per-project identity profiles",
       "status": "planned",
