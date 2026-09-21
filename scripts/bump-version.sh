@@ -201,9 +201,28 @@ node "$ROOT/scripts/stamp-whats-new.mjs" "$NEW"
 # Release-minified deliberately (never a dev build — 14 MB vs 2 MB), and
 # MAUDE_SKIP_RUNTIME_BUILD=1 so the committed dist/runtime/*.js stay untouched.
 if command -v bun >/dev/null 2>&1; then
+  # The bun that rebuilds MUST be the one `.bun-version` pins, because bun's
+  # minifier output is not stable across releases and CI regenerates this file
+  # with the pinned version and refuses the release if the bytes differ
+  # ("built client bundle matches the committed one"). Rebuilding with whatever
+  # bun happens to be on PATH produces a bundle that is correct in content and
+  # wrong in bytes — and nothing says so until the tag is already pushed and
+  # the desktop gate blocks npm publish. That is exactly how v1.4.4 shipped
+  # seven platform sub-packages and no root tarball.
+  PINNED=$(cat "$ROOT/.bun-version" 2>/dev/null || echo "")
+  HAVE=$(bun --version 2>/dev/null || echo "")
+  if [ -n "$PINNED" ] && [ "$HAVE" != "$PINNED" ]; then
+    echo "[bump] ERROR: bun $HAVE is on PATH, but .bun-version pins $PINNED." >&2
+    echo "[bump]        A bundle built with the wrong bun is byte-different from" >&2
+    echo "[bump]        the one CI builds, and the release fails AFTER the tag" >&2
+    echo "[bump]        is pushed. Install the pinned version, then re-run:" >&2
+    echo "[bump]          mise install bun@${PINNED}   # or your version manager" >&2
+    echo "[bump]          mise use bun@${PINNED}" >&2
+    exit 1
+  fi
   # Braces are load-bearing: a multibyte character straight after `$NEW` gets
   # swallowed into the variable name and `set -u` kills the release mid-bump.
-  echo "[bump] rebuilding the client bundle at ${NEW}..."
+  echo "[bump] rebuilding the client bundle at ${NEW} with bun ${HAVE} (pinned)..."
   (cd "$ROOT/apps/studio" && MAUDE_SKIP_RUNTIME_BUILD=1 bun run build.ts --release >/dev/null)
   echo "[bump] dist/client.bundle.js + dist/styles.css rebuilt — commit them with the bump"
 else
