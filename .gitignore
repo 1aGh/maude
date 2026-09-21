@@ -82,6 +82,12 @@ dev-server/.cache/
 # stays VERSIONED — it is the authoring surface + the git-native backup.
 .ai/archive/logs/
 .claude/settings.local.json
+# …except the harness fixture, which IS a project-local settings file on
+# purpose: it is the precedence-50 layer the conformance golden tree pins
+# (`NODE_ENV: test` overriding the project's `production`). The blanket rule
+# above swallowed it, so a fresh clone had no layer 50 and `pnpm test` was red
+# for everyone but the author, whose untracked copy made it pass locally.
+!cli/fixtures/harness/**/.claude/settings.local.json
 .claude/worktrees/
 
 # Phase 3.4 — dev-server build output (binaries ship via npm sub-packages).
