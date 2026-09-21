@@ -1,0 +1,182 @@
+/**
+ * Per Project vs Per Seat.css — the social-graphic artboard's own styles.
+ * Every value is a maude DS token except the deliberately oversized headline
+ * type (a social hero exceeds the 34px UI ladder ceiling by design — same
+ * license Docs Infographics.css takes for its 168px watermark) and the exact
+ * chart pixel geometry (computed once for the fixed 1200×628 canvas, not a
+ * reusable component).
+ */
+
+/* ─── Root — dark theme pinned regardless of host, dotted-canvas backdrop
+ * (the DS signature surface — see preview/_layout.css `.canvas`) ────────── */
+.pps-root {
+  width: 1200px;
+  height: 628px;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--bg-0);
+  background-image: radial-gradient(var(--canvas-dot) 1.2px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+  font-family: var(--font-body);
+  color: var(--fg-0);
+}
+
+.pps-frame {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 40px;
+  box-sizing: border-box;
+}
+
+/* ─── Header — eyebrow + brand lockup ────────────────────────────────────── */
+.pps-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+}
+.pps-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-wide);
+  color: var(--fg-2);
+  text-transform: uppercase;
+}
+.pps-eyebrow-tick {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--accent);
+  flex: none;
+}
+
+/* Lockup — mirrors system/maude/preview/logo.css .lg-mark/.lg-word verbatim
+ * (spark path + squared-bottom-right bubble tile). Hand-copied, not imported,
+ * matching the Cloud Self Service precedent so this canvas stays self-
+ * contained (DDR-141 — reuse the mark, don't redraw it). */
+.pps-lockup { display: inline-flex; align-items: center; gap: 0.34em; }
+.pps-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: 24% 24% 0 24%;
+}
+.pps-mark svg { width: 100%; height: 100%; display: block; }
+.pps-word {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--type-lg);
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--fg-0);
+}
+
+/* ─── Hero row — headline + supporting line, and the stat chip ──────────── */
+.pps-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-6);
+  flex: none;
+  margin-top: 22px;
+}
+.pps-headline-col { min-width: 0; max-width: 760px; }
+.pps-headline {
+  margin: 0;
+  font-family: var(--font-display);
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.08;
+}
+.pps-headline-l1 {
+  display: block;
+  font-size: 50px;
+  font-weight: 700;
+  color: var(--fg-0);
+}
+.pps-headline-l2 {
+  display: block;
+  font-size: 50px;
+  font-weight: 600;
+  color: var(--fg-2);
+}
+.pps-accent { color: var(--accent); }
+.pps-sub {
+  margin: var(--space-4) 0 0;
+  font-size: var(--type-md);
+  line-height: var(--lh-md);
+  color: var(--fg-1);
+}
+.pps-sub b { color: var(--fg-0); font-weight: 600; }
+.pps-sub .pps-sub-accent { color: var(--accent); font-weight: 600; font-family: var(--font-mono); }
+
+.pps-stat {
+  flex: none;
+  width: 246px;
+  box-sizing: border-box;
+  padding: var(--space-5);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklab, var(--accent) 7%, var(--bg-1));
+}
+.pps-stat-cap {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--fg-2);
+}
+.pps-stat-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.pps-stat-row + .pps-stat-row {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+}
+.pps-stat-name {
+  font-size: var(--type-sm);
+  color: var(--fg-1);
+}
+.pps-stat-price {
+  font-family: var(--font-mono);
+  font-size: var(--type-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--fg-0);
+}
+.pps-stat-price--accent { color: var(--accent); }
+
+/* ─── Chart ───────────────────────────────────────────────────────────────── */
+.pps-chart-wrap {
+  flex: 1 1 auto;
+  margin-top: var(--space-5);
+  min-height: 0;
+}
+.pps-chart-wrap svg { display: block; width: 100%; height: 100%; }
+
+/* ─── Footer ──────────────────────────────────────────────────────────────── */
+.pps-footer {
+  flex: none;
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--fg-2);
+}

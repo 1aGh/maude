@@ -1,0 +1,36 @@
+{
+  "title": "Per Project vs Per Seat",
+  "subtitle": "One social graphic — Maude Cloud's flat per-project price against Figma's climbing per-seat price",
+  "brief": "Static social share image (Bluesky + LinkedIn) for the Maude Cloud free-pilot announcement. Single argument: Maude Cloud is €19/mo per project (unlimited people), Figma is priced per seat ($16 Professional / $55 Organization) — so a growing team's Figma bill climbs while Maude's stays flat. Numbers verified by the owner; landscape 1.91:1 for both platforms.",
+  "platform": "web",
+  "designSystem": "maude",
+  "opt_out_scope": "palette",
+  "kind": "canvas",
+  "brief_sha": "perprojectperseat",
+  "tags": [
+    "marketing",
+    "social",
+    "pricing",
+    "maude-cloud"
+  ],
+  "status": "draft",
+  "sections": [
+    {
+      "id": "social",
+      "title": "Social pricing graphic",
+      "subtitle": "1200×628 · Maude Cloud flat vs Figma per-seat, across team sizes 1/3/5/10"
+    }
+  ],
+  "artboards": [
+    {
+      "id": "pricing-social",
+      "label": "A · pricing comparison (1200×628)",
+      "note": "The single deliverable — export this artboard as the PNG attached to the announcement post."
+    }
+  ],
+  "layout": {
+    "artboards": [
+      { "id": "pricing-social", "x": 0, "y": 0 }
+    ]
+  }
+}
