@@ -20,11 +20,13 @@ T31 and T35 closed). Everything here was open when the parent plan closed.
   oracle on disposable cloud and self-host projects, with cleanup.
 - [ ] **F4 — Latency target.** Peer render p95 is still ~480–650 ms against the
   300 ms target; measure under matched conditions and close or re-scope.
-- [ ] **F5 — Refused pulled path.** `relocatePulled` still falls back to the slug
-  target when a present path is refused (`resolvePulledTarget` returns null only
-  for escapes); end the pull instead, as its own comment says.
+- [x] **F5 — Refused pulled path.** Closed by `49121f30`: a present path that is
+  refused ends the pull instead of falling back to the slug target, with focused
+  coverage in `sync-pull-manifest-path.test.ts`.
 - [ ] **F6 — Pull-pin release race test.** The stale-scan fix (pull pin kept until
-  the scan lists the body) has no dedicated regression test.
+  the scan lists the body) landed in `befa4852`, but still has no dedicated
+  regression test. Implementation is present; the task remains open for the
+  fail-without-the-fix test required by this plan's validation rule.
 
 - [ ] **F7 — Render deploy verification keeps the old container alive.**
   `render-deploy.yml` polls `/_health` every 10 s for 15 minutes; each request

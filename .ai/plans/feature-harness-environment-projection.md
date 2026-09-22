@@ -1,6 +1,6 @@
 ---
 name: feature-harness-environment-projection
-status: active
+status: partial — implementation released; active-machine cutover and retirement pending
 created: 2026-08-31
 decisions:
   - Claude Code and the Maude Claude plugin corpus remain the canonical authoring source; Codex and OpenCode receive generated target-native projections.
@@ -13,6 +13,12 @@ decisions:
 ---
 
 # Feature: Harness environment projection
+
+> **Checkpoint 2026-09-22:** T0–T9 shipped in v1.2.0 and remain present in
+> v1.4.4. The plan stays open for T10–T13: the active Dotfiles installation
+> still loads `opencode/claude-parity.ts`, the redundant `studyfi-design` copy
+> still exists, and `maude harness status --json --global` reports no adopted
+> targets. Do not describe the migration or retirement as complete.
 
 Validate current Claude Code, OpenCode, and Codex schemas before implementing. Never infer target behavior from the existing best-effort adapter when the current target documentation or executable disagrees.
 
@@ -495,22 +501,22 @@ Run these commands to confirm zero regressions:
 
 ## Acceptance Criteria
 
-- [ ] Every global and project source category is discovered and represented in the IR with provenance and deterministic identity.
-- [ ] Every IR item receives exactly one OpenCode and one Codex status: `native`, `degraded`, or `unsupported`.
-- [ ] No report or documentation claims blanket parity.
-- [ ] Generated permissions are equal or narrower than Claude; unsupported scoped semantics fail closed.
-- [ ] Hooks run only when lifecycle semantics are proven compatible; all others are disabled and explained.
-- [ ] Environment and keychain references survive without resolving or copying values.
-- [ ] Sentinel secrets occur zero times in generated config, manifests, reports, logs, backups, diffs, and test snapshots.
-- [ ] User-owned target config survives byte-for-byte outside explicitly managed entries.
-- [ ] Externally modified managed entries produce a conflict and no target write.
-- [ ] Two consecutive syncs from unchanged sources produce byte-identical output and no manifest churn.
-- [ ] A failed validation or killed process leaves either the prior complete generation or the new complete generation, never a mix.
-- [ ] `remove` restores adopted state or deletes only still-unmodified manifest-owned state.
-- [ ] Packed npm installation works without access to the Maude source checkout.
-- [ ] OpenCode and Codex conformance pass on Maude, `studyfi-design`, and `AI-StudyMate` in isolated homes.
+- [x] Every global and project source category is discovered and represented in the IR with provenance and deterministic identity.
+- [x] Every IR item receives exactly one OpenCode and one Codex status: `native`, `degraded`, or `unsupported`.
+- [x] No report or documentation claims blanket parity.
+- [x] Generated permissions are equal or narrower than Claude; unsupported scoped semantics fail closed.
+- [x] Hooks run only when lifecycle semantics are proven compatible; all others are disabled and explained.
+- [x] Environment and keychain references survive without resolving or copying values.
+- [x] Sentinel secrets occur zero times in generated config, manifests, reports, logs, backups, diffs, and test snapshots.
+- [x] User-owned target config survives byte-for-byte outside explicitly managed entries.
+- [x] Externally modified managed entries produce a conflict and no target write.
+- [x] Two consecutive syncs from unchanged sources produce byte-identical output and no manifest churn.
+- [x] A failed validation or killed process leaves either the prior complete generation or the new complete generation, never a mix.
+- [x] `remove` restores adopted state or deletes only still-unmodified manifest-owned state.
+- [x] Packed npm installation works without access to the Maude source checkout.
+- [x] OpenCode and Codex conformance pass on Maude, `studyfi-design`, and `AI-StudyMate` in isolated homes.
 - [ ] The active machine cutover uses a released Maude version and has a tested rollback.
-- [ ] The OpenCode remote-sessions plan no longer owns overlapping target config entries.
+- [x] The OpenCode remote-sessions plan no longer owns overlapping target config entries.
 - [ ] Gate R passes before deleting either old adapter implementation.
 - [ ] `studyfi-design/plugins/opencode-claude-parity/` and its README reference are removed in a separate `studyfi-design` change after Gate R.
 - [ ] Dotfiles retains no independent projection logic after Gate R; unrelated target configuration remains intact.

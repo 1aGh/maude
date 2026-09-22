@@ -1,4 +1,22 @@
+---
+name: feature-goal-unattended-pipelines
+status: rejected
+created: 2026-07-15
+closed: 2026-09-22
+decisions:
+  - Rejected as an unimplemented, stale integration plan rather than reported as done.
+  - Any future goal integration must be replanned against current cross-host goal APIs, bare-slug plugin frontmatter, and graph-native decision identity.
+---
+
 # Feature: /goal-aware unattended pipelines for flow + design commands
+
+> **Closed as rejected/superseded on 2026-09-22.** No implementation landed:
+> `goal-patterns` was never created, none of the 17 command files gained the
+> proposed closing block, and workflow state never gained `Active goal`.
+> The plan also reserved DDR-180 after that number had been assigned to ACP
+> elicitation, and its proposed `name: flow:goal-patterns` frontmatter predates
+> DDR-191's current bare-slug rule. Re-plan from current Claude Code/Codex goal
+> capabilities if the product need returns; do not execute this file as written.
 
 Validate docs and codebase patterns before implementing. Pay attention to existing naming, frontmatter, and closing-prompt conventions.
 
