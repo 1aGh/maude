@@ -60,7 +60,7 @@ jobs:
           # stable across patches).
           bun-version-file: .bun-version
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
 
@@ -90,7 +90,7 @@ jobs:
             console.log(\`| \${s.mountable} | \${s.built} | \${s.failed} | \${s.p50Ms}ms | \${s.p95Ms}ms |\`);
           " >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: corpus-parity
