@@ -566,6 +566,10 @@
 .st-banner-close:hover { background: color-mix(in oklab, var(--fg-0) 12%, transparent); color: var(--fg-0); }
 
 /* ─── Command palette (⌘K) ───────────────────────────────────────────────── */
+/* The informational role notice sits BELOW a modal's scrim (9000): it covered
+   the preview dialog's own header (S19). Warnings and errors keep
+   .st-banner's 9100 and stay visible over a dialog. */
+.st-banner.st-banner--info { z-index: 8990; }
 .st-scrim { position: fixed; inset: 0; background: color-mix(in oklab, var(--bg-0) 62%, transparent); z-index: 9000; display: grid; place-items: start center; padding-top: 12vh; }
 .st-palette {
   width: 560px; max-width: 92vw; background: var(--bg-2); border: 1px solid var(--border-default);
@@ -1746,7 +1750,7 @@ body.st-scrubbing, body.st-scrubbing * { cursor: ew-resize !important; user-sele
 .gp-panel-title { font-family: var(--font-display); font-weight: 600; font-size: var(--type-md); color: var(--fg-0); flex: none; }
 .gp-count { font-family: var(--font-mono); font-size: var(--type-xs); font-weight: 600; padding: 1px var(--space-2); border-radius: var(--radius-pill); background: var(--accent-tint); color: var(--accent); border: 1px solid var(--accent-muted); white-space: nowrap; flex: none; }
 .gp-spacer { flex: 1; min-width: var(--space-2); }
-.gp-draft { font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-2); display: inline-flex; align-items: center; gap: var(--space-1); padding: 1px var(--space-2); border: 1px solid var(--border-default); border-radius: var(--radius-sm); background: var(--bg-2); white-space: nowrap; min-width: 0; flex: 0 1 auto; }
+.gp-draft { font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-1); display: inline-flex; align-items: center; gap: var(--space-1); padding: 1px var(--space-2); border: 1px solid var(--border-default); border-radius: var(--radius-sm); background: var(--bg-2); white-space: nowrap; min-width: 0; flex: 0 1 auto; }
 .gp-draft b { color: var(--fg-0); font-weight: 600; overflow: hidden; text-overflow: ellipsis; max-width: 90px; }
 .gp-draft .gp-sep { color: var(--fg-3); }
 .gp-x { appearance: none; border: none; background: transparent; color: var(--fg-2); font-size: 16px; line-height: 1; cursor: pointer; padding: 2px 5px; border-radius: var(--radius-xs); }

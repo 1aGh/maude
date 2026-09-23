@@ -71,6 +71,10 @@ function runContainer(fx, { allowEmpty }) {
     HUB_PUBLIC_URL: `http://studio.selfhost.localhost:${port}`,
     MAUDE_PUBLIC_CANVAS_ORIGIN: `http://canvas.selfhost.localhost:${port}`,
     MAUDE_EXTRA_SHELL_ORIGINS: `http://localhost:${port}`,
+    // Live pairing: the studio child joins the hub's accepted doc lane, so the
+    // browser is a full participant (the fleet's CELL_LIVE_PAIRING pilot flag;
+    // workspace-plan does not emit it — see the F3 checkpoint).
+    MAUDE_CELL_PAIRING: '1',
     HUB_INSECURE_HTTP: '1',
     HUB_WORKSPACE_MODE: '1',
     HUB_SECRET: fx.operatorSecret,

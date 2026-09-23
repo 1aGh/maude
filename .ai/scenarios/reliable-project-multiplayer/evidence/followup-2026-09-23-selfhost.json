@@ -132,6 +132,86 @@
         }
       ],
       "limitation": "the in-flight proposal was answered before SIGKILL in every round (self-host acks in ~9 ms), so this proves retry-after-unknown-outcome and durability across process death, not a kill inside the commit"
+    },
+    "S19": {
+      "status": "pass",
+      "scope": "browser studio on the self-host hub (owner session): axe-core 4.13.0 WCAG 2/2.1 A/AA on the sign-in page, shell + open canvas, the cross-origin canvas document, History and the accepted-version preview dialog, light and dark; dialog keyboard contract; nothing painted over the modal; live status regions",
+      "scans": [
+        {
+          "scope": "sign-in page",
+          "violations": 0
+        },
+        {
+          "scope": "shell + open canvas (light)",
+          "violations": 0
+        },
+        {
+          "scope": "canvas document (light)",
+          "violations": 0
+        },
+        {
+          "scope": "history panel (light)",
+          "violations": 0
+        },
+        {
+          "scope": "accepted-version preview dialog (light)",
+          "violations": 0
+        },
+        {
+          "scope": "shell + open canvas (dark)",
+          "violations": 0
+        },
+        {
+          "scope": "canvas document (dark)",
+          "violations": 0
+        },
+        {
+          "scope": "history panel (dark)",
+          "violations": 0
+        },
+        {
+          "scope": "accepted-version preview dialog (dark)",
+          "violations": 0
+        }
+      ],
+      "keyboard": {
+        "light": {
+          "focusMovedIn": true,
+          "tabStayedIn": true,
+          "shiftTabStayedIn": true,
+          "escapeClosed": true,
+          "focusReturnedToOpener": true,
+          "controlsObscured": []
+        },
+        "dark": {
+          "focusMovedIn": true,
+          "tabStayedIn": true,
+          "shiftTabStayedIn": true,
+          "escapeClosed": true,
+          "focusReturnedToOpener": true,
+          "controlsObscured": []
+        }
+      },
+      "live": {
+        "statusRegions": 3,
+        "lang": "en",
+        "canvasFrameTitle": "Canvas: .design/ui/Native selfhost CiNoaL.tsx"
+      },
+      "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s19-2026-09-23",
+      "screenshotsInspected": [
+        "preview-dialog-light.png",
+        "preview-dialog-dark.png"
+      ],
+      "fixesFound": [
+        "accepted-version preview dialog let Tab/Shift+Tab leave the modal and then ignored Escape (focus trap + capture-phase Escape, preview iframes out of the tab order; history-preview-focus.test.tsx fails without it)",
+        "branch chip .gp-draft text fg-2 on bg-2 failed contrast in light (now fg-1)",
+        "role notice (.st-banner--info) and tour nudge painted over the modal scrim, covering the dialog header (now below the scrim; warnings/errors unchanged)"
+      ],
+      "notCertified": [
+        "native WebKitGTK shell a11y scan",
+        "manual screen-reader pass",
+        "desktop Sync panel (desktop-only surface)"
+      ]
     }
   },
   "productFix": {
@@ -151,11 +231,16 @@
     "S14",
     "S16",
     "S17",
-    "S18",
-    "S19"
+    "S18"
   ],
   "cleanup": {
     "complete": false,
     "reason": "fixture retained for the remaining self-host scenarios; containers maude-f3-selfhost-*, R2 prefixes f3-selfhost-2026-09-23t16-29-34-067z and the second hub tenant to delete at the end"
-  }
+  },
+  "findings": [
+    {
+      "finding": "MAUDE_CELL_PAIRING is not emitted by the self-host provisioning path (cli/lib/workspace-plan.mjs); without it the browser studio on a self-host workspace is not a doc-lane participant (browser-created canvases never become Y.Docs; History shows git, not accepted revisions). The fleet gates it per tenant (CELL_LIVE_PAIRING pilot). The F3 fixture sets it, like scripts/dev/local-cell.mjs.",
+      "decision": "owner decision pending: make it the self-host default or keep it opt-in"
+    }
+  ]
 }

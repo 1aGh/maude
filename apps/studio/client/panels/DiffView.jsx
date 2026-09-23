@@ -170,7 +170,9 @@ function CanvasView({ src, view, setView, label }) {
           className="dv-frame-wrap"
           style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}
         >
-          <iframe className="dv-frame" src={src} title={label} />
+          {/* A read-only preview: out of the tab order, so the modal's focus
+              never falls into a document whose keys the shell cannot see. */}
+          <iframe className="dv-frame" src={src} title={label} tabIndex={-1} />
         </div>
       ) : (
         <div className="dv-thumb-note">No saved version of this canvas to compare yet.</div>
@@ -264,16 +266,38 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
   useEffect(() => {
     if (!target) return;
     const opener = document.activeElement;
+    // A modal keeps the keyboard inside it (S19): Tab / Shift+Tab cycle the
+    // sheet's own controls, and Escape is taken before anything behind it.
+    const controls = () =>
+      [
+        ...(sheetRef.current?.querySelectorAll(
+          'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex="-1"])'
+        ) ?? []),
+      ].filter((el) => !el.closest('[hidden]'));
     const onKey = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault();
+        e.stopImmediatePropagation();
         onClose();
+      } else if (e.key === 'Tab') {
+        const items = controls();
+        if (!items.length) return;
+        const inside = sheetRef.current?.contains(document.activeElement);
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (e.shiftKey && (!inside || document.activeElement === first || document.activeElement === sheetRef.current)) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (!inside || document.activeElement === last)) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
-    window.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey, true);
     sheetRef.current?.focus();
     return () => {
-      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
       if (opener instanceof HTMLElement) opener.focus();
     };
   }, [target, onClose]);
