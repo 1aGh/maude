@@ -283,6 +283,15 @@ app throughout; macOS WKWebView is not certified by these runs.
   owner:** `MAUDE_CELL_PAIRING` is still off by default for self-host
   (`workspace-plan` does not emit it) — without it the browser History is git, not
   accepted history.
+- **Regression after the self-host fixes (2026-09-23):** full local candidate
+  `2026-09-23T20-44-55.960Z` on the rebuilt Linux WebKitGTK native debug app +
+  Chromium hub/peer, accepted mode, 100 samples, 30-min soak: **1,079 pass,
+  0 fail, 13 unsupported, 0 not-run**; baseline compare 778 held, **0 regressed**,
+  1 repaired, 300 new; source audit 1,617 snapshots / 0 syntax failures / 900
+  compared / 0 mismatched; fresh reopen and final parity (168 files) pass; the
+  release client bundles are byte-identical before and after. F4 still holds:
+  L06 author→receiver p95 93–281 ms (max 390 ms). Gates: sync lane 1,221/1,221,
+  hub 996/996, studio typecheck clean.
 - **F3 cloud: blocked, owner deferred (2026-09-23).** This session has no
   Cloudflare credentials (`wrangler whoami`: not authenticated) and the test
   control plane's owner/designer-B browser sessions expired. The owner chose to
