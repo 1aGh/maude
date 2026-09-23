@@ -749,6 +749,174 @@
         "dad3760e rollback to legacy: studio admitted read-only during accepted mode held its legacy saves until reconnect; mode notice now carries per-connection writable",
         "dad3760e double-submitted switch answered 503; now 409 epoch-stale"
       ]
+    },
+    "S16": {
+      "status": "pass",
+      "runner": "runners/f3/s16-store.mjs",
+      "A_twoCoordinators": {
+        "secondHubUp": true,
+        "rounds": 20,
+        "outcomes": {
+          "200": 20,
+          "503 retryable": 20
+        },
+        "ackedPerRound": {
+          "max": 1,
+          "rounds": 20
+        },
+        "acks": 20,
+        "everyAckStoredAtItsRevision": true,
+        "chain": {
+          "revisions": 22,
+          "contiguous": true,
+          "duplicateTransactions": 0
+        },
+        "epochs": {
+          "before": 1,
+          "legacy": 2,
+          "after": 3,
+          "toLegacy": 200,
+          "back": 200
+        },
+        "staleCoordinator": {
+          "whileLegacy": {
+            "status": 409,
+            "code": "mode-off"
+          },
+          "oldEpoch": {
+            "status": 409,
+            "code": "epoch-stale"
+          },
+          "currentEpoch": {
+            "status": 200,
+            "code": null
+          }
+        },
+        "finalHeadIsLastAck": true,
+        "parity": {
+          "mode": "transactions",
+          "revision": 22,
+          "checked": 1,
+          "mismatches": [],
+          "ok": true
+        },
+        "parityViaSecond": {
+          "mode": "transactions",
+          "revision": 22,
+          "checked": 1,
+          "mismatches": [],
+          "ok": true
+        },
+        "status": "pass",
+        "parityAfterStaleProcessStopped": {
+          "mode": "transactions",
+          "revision": 22,
+          "checked": 1,
+          "mismatches": [],
+          "ok": true
+        }
+      },
+      "B_missingPayload": {
+        "bootedWithMissingPayload": true,
+        "refused": {
+          "status": 409,
+          "code": "base-conflict",
+          "ms": 90
+        },
+        "noAckWhileMissing": true,
+        "neighbourUnaffected": true,
+        "blobReadWhileMissing": 404,
+        "historyReadable": true,
+        "sameTxReplayed": {
+          "status": 409,
+          "code": "base-conflict"
+        },
+        "retried": {
+          "status": 200,
+          "revision": 46
+        },
+        "retriedTwiceSameResult": true,
+        "txStoredOnce": 1,
+        "refusedTxNotStored": true,
+        "chain": {
+          "revisions": 46,
+          "contiguous": true,
+          "duplicateTransactions": 0
+        },
+        "mergedKeepsBoth": true,
+        "status": "pass"
+      },
+      "C_fullStore": {
+        "diskMiB": 25,
+        "hubUpOnSmallDisk": true,
+        "df": "tmpfs              25600 25600         0 100% /data",
+        "headBefore": 27,
+        "whileFull": {
+          "refused": {
+            "status": 503,
+            "code": "retryable",
+            "ms": 64
+          },
+          "small": {
+            "status": 503,
+            "code": "retryable"
+          },
+          "bootstrap": 200,
+          "headAfter": 27,
+          "hubAlive": true
+        },
+        "falseAcks": 0,
+        "retried": {
+          "status": 200,
+          "code": null,
+          "revision": 28
+        },
+        "txStoredOnce": 1,
+        "chain": {
+          "revisions": 28,
+          "contiguous": true,
+          "duplicateTransactions": 0
+        },
+        "storeGrewByOnlyAcked": true,
+        "status": "pass"
+      },
+      "D_retentionAndDisks": {
+        "backupGenerations": 14,
+        "retentionHeld": true,
+        "deletedCanvasRevisions": [
+          28,
+          29,
+          30,
+          31
+        ],
+        "before": {
+          "revision": 33,
+          "deletedLive": false
+        },
+        "historyBeforeWipe": true,
+        "afterBothDisks": {
+          "sameHead": true,
+          "sameChain": true,
+          "sameLiveDocs": true,
+          "deletedStaysDeleted": true,
+          "deletedHistoryReadable": true,
+          "parity": true
+        },
+        "afterCheckoutDisk": {
+          "hubStarted": false,
+          "refusal": "[rehydrate] refusing to start \u2014 the documents are present but the checkout is gone \u2026 Restore deliberately, or set MAUDE_ALLOW_EMPTY_START=1",
+          "recoveredBy": "selfhost wipe-disk (restore the whole latest generation into empty disks, the runbook DR path) \u2014 hub healthy, S16-B then ran on it"
+        },
+        "status": "pass",
+        "note": "A replaced checkout disk alone is refused loudly by design (pairing a restored checkout with newer documents, or discarding them, are both wrong); the documented DR path is the whole-generation restore verified in afterBothDisks."
+      },
+      "productFixes": [
+        "6aa142ca switching forward through a stale second hub process imported its old replica as a legacy change and rolled 8 accepted revisions back (store fencing itself held: one ack per round, contiguous chain, stale epoch refused)"
+      ],
+      "notes": [
+        "B: a merge whose base payload is missing is refused 409 base-conflict (candidate kept by the client, no ack); the same transaction replays that answer; a new proposal merges once the payload is back",
+        "A: while both processes ran, the stale one served stale replicas and both wrote the shared checkout (parity mismatch); parity converged once it stopped. Two hub processes on one volume is an operator error the store survives, not a supported topology."
+      ]
     }
   },
   "productFix": {
@@ -757,9 +925,7 @@
     "fix": "createInvite refuses roles other than admin|member (400); regression in apps/hub/test/invites.test.mjs fails without it"
   },
   "fixtureCorrection": "a first fixture without a canvas hostname rendered blank canvas frames (ERR_CONNECTION_REFUSED to a container-internal port) \u2014 the documented M7 requirement, not a product defect; the fixture now follows workspace-plan",
-  "remaining": [
-    "S16"
-  ],
+  "remaining": [],
   "cleanup": {
     "complete": false,
     "reason": "fixture retained for the remaining self-host scenarios; containers maude-f3-selfhost-*, R2 prefixes f3-selfhost-2026-09-23t16-29-34-067z and the second hub tenant to delete at the end"
