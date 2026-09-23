@@ -212,6 +212,62 @@
         "manual screen-reader pass",
         "desktop Sync panel (desktop-only surface)"
       ]
+    },
+    "S11": {
+      "status": "pass",
+      "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s11-2026-09-23",
+      "revisions": {
+        "created": 226,
+        "replaced": 227,
+        "peer": 228
+      },
+      "preview": {
+        "oldImageDecoded": true,
+        "currentImageDecoded": true
+      },
+      "teammateRendersRestored": true,
+      "after": {
+        "currentIsOldSource": true,
+        "head": 229,
+        "newest": {
+          "revision": 229,
+          "kind": "history.restore",
+          "actor": "cell-loopback-sync"
+        },
+        "peerRevisionKeptInHistory": true,
+        "historicalLanesReadable": {
+          "226": true,
+          "227": true
+        },
+        "assetsReadable": {
+          "60230674.png": true,
+          "1c9da7a5.png": true
+        }
+      },
+      "afterRestart": {
+        "currentIsOldSource": true,
+        "head": 229,
+        "newest": {
+          "revision": 229,
+          "kind": "history.restore",
+          "actor": "cell-loopback-sync"
+        },
+        "peerRevisionKeptInHistory": true,
+        "historicalLanesReadable": {
+          "226": true,
+          "227": true
+        },
+        "assetsReadable": {
+          "60230674.png": true,
+          "1c9da7a5.png": true
+        }
+      },
+      "attribution": "cell loopback credential (known limitation: workspace-browser actions are not attributed to the person)",
+      "screenshotsInspected": [
+        "owner-preview.png",
+        "teammate-after-restore.png"
+      ],
+      "note": "owner previews the old revision in the browser (both images decode), designer B edits while the preview is open, owner restores through the UI; restore is a new history.restore action, the peer revision stays in history, designer A renders the old image, historical lanes and both R2-backed objects stay readable after SIGKILL + restart"
     }
   },
   "productFix": {
@@ -225,7 +281,6 @@
     "S06",
     "S07",
     "S09",
-    "S11",
     "S12",
     "S13",
     "S14",
