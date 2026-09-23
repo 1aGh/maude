@@ -84,6 +84,8 @@ function runContainer(fx, { allowEmpty }) {
     MAUDE_PROJECT_NAME: 'F3 self-host',
     MAUDE_BACKUP_PREFIX: fx.tenant,
     ...(allowEmpty ? { MAUDE_ALLOW_EMPTY_START: '1' } : {}),
+    // Operator settings a scenario sets on purpose (`recreate --set K=V`).
+    ...(fx.extraEnv ?? {}),
     ...r2Env(),
   };
   const envArgs = Object.entries(envs).flatMap(([k, v]) => ['-e', `${k}=${v}`]);
@@ -247,6 +249,11 @@ else if (cmd === 'start') {
 } else if (cmd === 'recreate') {
   // Same volumes (data + checkout), new container configuration.
   const f = fx();
+  for (let i = argv.indexOf('--set'); i !== -1; i = argv.indexOf('--set', i + 1)) {
+    const [k, ...v] = String(argv[i + 1]).split('=');
+    f.extraEnv = { ...(f.extraEnv ?? {}), [k]: v.join('=') };
+  }
+  if (has('reset-env')) delete f.extraEnv;
   try {
     docker('rm', '-f', f.container);
   } catch {

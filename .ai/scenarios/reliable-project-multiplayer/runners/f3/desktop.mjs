@@ -64,6 +64,14 @@ export async function startDesktop({ root, port, hubUrl, hubPublicUrl, token, ro
     XDG_CONFIG_HOME: join(root, '..', `${name}-xdg`),
     MAUDE_NO_AUTOBUILD: '1',
     NO_OPEN: '1',
+    // A test participant, not this machine's person: no global git identity
+    // leaks into its UI, screenshots or commits.
+    GIT_CONFIG_GLOBAL: '/dev/null',
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_AUTHOR_NAME: name,
+    GIT_AUTHOR_EMAIL: `${name}@f3.invalid`,
+    GIT_COMMITTER_NAME: name,
+    GIT_COMMITTER_EMAIL: `${name}@f3.invalid`,
   };
   let proc = null;
   const url = `http://127.0.0.1:${port}`;

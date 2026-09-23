@@ -347,6 +347,63 @@
       "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s04-2026-09-23",
       "note": "desktop sidecar: unparseable U1 held (body-rejected/invalid-source), SIGKILL, repair U2 written while down, teammate colour change accepted meanwhile, restart: the repair lands on the teammate change, no revision of the canvas ever holds U1, the recovery candidate still holds U1 and its starting version (marked resolved), the conflict clears",
       "limitation": "client-invalid U1; network-dependent U1/U2 replay is covered by the local sync suite, not this run"
+    },
+    "S18": {
+      "status": "pass",
+      "states": {
+        "synced": {
+          "label": "synced",
+          "title": "Synced with desktop-status — all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) — They are new to this machine — look them over before editing."
+        },
+        "offline-queued": {
+          "label": "offline",
+          "title": "Not reachable: desktop-status. Your edits are safe on this machine and queued. — Nothing to do — syncing resumes by itself when the hub is back."
+        },
+        "back-online": {
+          "label": "synced",
+          "title": "Synced with desktop-status — all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) — They are new to this machine — look them over before editing."
+        },
+        "refused-draft": {
+          "label": "1 to review",
+          "title": "A change needs your attention in desktop-status: 1 source change was not applied. (ui-f3statusbc0424) — Open the Sync panel to see what is waiting and why."
+        },
+        "draft-resolved": {
+          "label": "synced",
+          "title": "Synced with desktop-status — all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) — They are new to this machine — look them over before editing."
+        },
+        "media-too-large": {
+          "label": "1 to review",
+          "title": "A change needs your attention in desktop-status: 1 file is too large to sync. — Open the Sync panel to see what is waiting and why."
+        },
+        "media-removed": {
+          "label": "synced",
+          "title": "Synced with desktop-status — all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) — They are new to this machine — look them over before editing."
+        },
+        "hub-cannot-persist": {
+          "label": "1 to review",
+          "title": "A change needs your attention in desktop-status: 1 file could not be delivered. — Open the Sync panel to see what is waiting and why."
+        },
+        "hub-persists-again": {
+          "label": "synced",
+          "title": "Synced with desktop-status — all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) — They are new to this machine — look them over before editing."
+        }
+      },
+      "checks": {
+        "onlySettledSaysSynced": true,
+        "failingStatesExplain": true,
+        "recoveredEveryTime": true,
+        "persistFailureHeld": true
+      },
+      "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s18-2026-09-23",
+      "surface": "the desktop studio status bar (hub-sync chip label + title) read in a browser, plus the Sync panel; conflict resolved through chip -> Sync -> Resolve -> Use the project version",
+      "operatorSettings": {
+        "MAUDE_MAX_PROJECT_FILE_BYTES": "100000000"
+      },
+      "persistenceFailure": "one folder of the hub checkout made read-only (as the local L22 does); the file waits, is named, and delivers itself when writes return",
+      "screenshotsInspected": [
+        "s18-hub-cannot-persist.png"
+      ],
+      "screenshotNote": "screenshots not retained: the desktop harness showed the operator machine global git identity; the harness now isolates git config"
     }
   },
   "productFix": {
@@ -361,8 +418,7 @@
     "S13",
     "S14",
     "S16",
-    "S17",
-    "S18"
+    "S17"
   ],
   "cleanup": {
     "complete": false,
