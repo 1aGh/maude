@@ -110,7 +110,7 @@ const cfg = s3ConfigFromEnv({
 let seen = [];
 const end = Date.now() + 120000;
 while (!seen.length && Date.now() < end) {
-  seen = (await listObjects(cfg, 'assets/')).filter((o) => String(o.key).includes(`f3-large-${tag}`));
+  seen = (await listObjects(cfg, fx.assetPrefix ? `${fx.assetPrefix}/assets/` : 'assets/')).filter((o) => String(o.key).includes(`f3-large-${tag}`));
   if (!seen.length) await new Promise((r) => setTimeout(r, 3000));
 }
 result.objectStorage = {
@@ -131,7 +131,7 @@ if ([200, 201].includes(wrong.status)) {
   result.wrongWholeHash = { status: c.status, landed: existsSync(join(checkoutDir, `f3-wrong-hash-${tag}.mp4`)) };
 } else result.wrongWholeHash = { status: wrong.status, landed: false, refusedAtCreation: true };
 await new Promise((r) => setTimeout(r, 10000)); // past one write-behind round
-result.objectStorage.wrongHashObjectAbsent = !(await listObjects(cfg, 'assets/')).some((o) =>
+result.objectStorage.wrongHashObjectAbsent = !(await listObjects(cfg, fx.assetPrefix ? `${fx.assetPrefix}/assets/` : 'assets/')).some((o) =>
   String(o.key).includes(`f3-wrong-hash-${tag}`)
 );
 // Over the project's ceiling is refused at the door.

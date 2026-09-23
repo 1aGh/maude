@@ -42,7 +42,11 @@
 // B=N+2, C=N+3) · --work DIR (required; everything temporary lives here) ·
 // --out FILE (report; default <work>/<scale>/report.json) · --prior F1[,F2]
 // (embed previous runs' summaries) · --keep-data (do not delete the big data) ·
-// --timeout-min N (default 20 small / 60 full).
+// --timeout-min N (default 20 small / 60 full) · --selfhost DIR (F3: use the
+// running production-image hub of `runners/f3/selfhost.mjs` instead of the
+// fixture hub — its checkout/data volumes are read for the oracles and its
+// real account sessions are the clients' credentials: A = designer a, B =
+// designer b, C + monitor = owner).
 
 import { execFile, spawn } from 'node:child_process';
 import { createCipheriv, createHash } from 'node:crypto';
@@ -95,6 +99,8 @@ const OUT = resolve(arg('out', join(WORK, 'report.json')));
 const PRIOR = arg('prior');
 const KEEP = has('keep-data');
 const TIMEOUT_MS = Number(arg('timeout-min', SCALE === 'full' ? '60' : '20')) * 60_000;
+const SELFHOST = arg('selfhost') ? resolve(arg('selfhost')) : null;
+const FX = SELFHOST ? JSON.parse(readFileSync(join(SELFHOST, 'fixture.json'), 'utf8')) : null;
 
 const MIB = 1024 * 1024;
 const PROFILE =
@@ -121,7 +127,7 @@ const PROFILE =
 const BIG_REL = PROFILE.synthetic.at(-1).rel;
 const PROBE_REL = 'ui/t32-probe.tsx';
 const PORTS = { hub: BASE_PORT, a: BASE_PORT + 1, b: BASE_PORT + 2, c: BASE_PORT + 3 };
-const HUB_URL = `http://127.0.0.1:${PORTS.hub}`;
+const HUB_URL = FX ? `http://127.0.0.1:${FX.port}` : `http://127.0.0.1:${PORTS.hub}`;
 const CANVAS_GROUPS = [
   { label: 'Design system', path: 'system' },
   { label: 'UI kit', path: 'ui' },
@@ -136,8 +142,8 @@ const rel = (p) => relative(WORK, p) || '.';
 /* ------------------------------------------------------------ layout ----- */
 
 const P = {
-  hubData: join(WORK, 'hub-data'),
-  hubRepo: join(WORK, 'hub-repo'),
+  hubData: SELFHOST ? join(SELFHOST, 'data') : join(WORK, 'hub-data'),
+  hubRepo: SELFHOST ? join(SELFHOST, 'repo') : join(WORK, 'hub-repo'),
   logs: join(WORK, 'logs'),
   homes: join(WORK, 'homes'),
   a: join(WORK, 'client-a'),
@@ -449,7 +455,9 @@ const report = {
   command: `node scripts/dev/t32-scale.mjs ${argv.map((a) => (a.startsWith('/') ? '<path>' : a)).join(' ')}`,
   environment: {},
   topology: {
-    hub: 'serve-hub.mjs --transactions, HUB_WORKSPACE_MODE=1, MAUDE_REPO_DIR=<work>/hub-repo, MAUDE_STUDIO_CHILD=0 (self-host workspace hub, file journal on, accepted revisions on)',
+    hub: FX
+      ? `production hub image ${FX.image} (${FX.imageId}) in workspace mode, SQLite accepted store on its /data volume, R2 object storage (runners/f3/selfhost.mjs); clients use real account sessions`
+      : 'serve-hub.mjs --transactions, HUB_WORKSPACE_MODE=1, MAUDE_REPO_DIR=<work>/hub-repo, MAUDE_STUDIO_CHILD=0 (self-host workspace hub, file journal on, accepted revisions on)',
     clients:
       'bun apps/studio/server.ts --root <dir> (MAUDE_NO_AUTOBUILD=1, isolated HOME/XDG/HUBS_CONFIG_PATH/MAUDE_CLOUD_CONFIG), linkedHub.syncFiles=true, owner-role hub record',
     ports: PORTS,
@@ -599,6 +607,13 @@ function buildInventory() {
 
 const tokens = {};
 function mintTokens() {
+  if (FX) {
+    tokens.a = FX.sessions.a.token;
+    tokens.b = FX.sessions.b.token;
+    tokens.c = FX.sessions.owner.token;
+    tokens.monitor = FX.sessions.owner.token;
+    return;
+  }
   mkdirSync(P.hubData, { recursive: true });
   const exp = Date.now() + 12 * 3600_000;
   for (const who of ['a', 'b', 'c']) {
@@ -619,6 +634,11 @@ function mintTokens() {
 }
 
 async function startHub() {
+  if (FX) {
+    const r = await fetch(`${HUB_URL}/health`, { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) throw new Error(`self-host hub not healthy: ${r.status}`);
+    return true;
+  }
   mkdirSync(designOf(P.hubRepo), { recursive: true });
   writeFileSync(
     join(designOf(P.hubRepo), 'config.json'),
@@ -750,7 +770,13 @@ function hubsConfig(who) {
   writeFileSync(
     p,
     JSON.stringify({
-      hubs: { [HUB_URL]: { token: tokens[who], role: 'owner', linkedAt: Date.now() } },
+      hubs: {
+        [HUB_URL]: {
+          token: tokens[who],
+          role: FX ? FX.sessions[{ a: 'a', b: 'b', c: 'owner' }[who]].role : 'owner',
+          linkedAt: Date.now(),
+        },
+      },
     }),
     { mode: 0o600 }
   );
@@ -1983,7 +2009,7 @@ try {
   exitCode = report.ok ? 0 : 1;
   // Keep logs next to the report; drop the big data.
   if (!KEEP) {
-    for (const d of [P.a, P.b, P.c, P.hubRepo, P.hubData, P.homes]) {
+    for (const d of FX ? [P.a, P.b, P.c, P.homes] : [P.a, P.b, P.c, P.hubRepo, P.hubData, P.homes]) {
       try {
         rmSync(d, { recursive: true, force: true });
       } catch {

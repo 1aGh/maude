@@ -83,6 +83,7 @@ function runContainer(fx, { allowEmpty }) {
     MAUDE_TENANT_ID: fx.tenant,
     MAUDE_PROJECT_NAME: 'F3 self-host',
     MAUDE_BACKUP_PREFIX: fx.tenant,
+    ...(fx.assetPrefix ? { MAUDE_TENANT_PREFIX: fx.assetPrefix } : {}),
     ...(allowEmpty ? { MAUDE_ALLOW_EMPTY_START: '1' } : {}),
     // Operator settings a scenario sets on purpose (`recreate --set K=V`).
     ...(fx.extraEnv ?? {}),
@@ -160,6 +161,10 @@ async function up() {
     port,
     url: `http://localhost:${port}`,
     tenant: `f3-selfhost-${stamp.toLowerCase()}`,
+    // Several fixture hubs share one test bucket: scope each one's media to
+    // its own prefix, or a fresh hub restores another fixture's assets (a
+    // self-hosted hub keys media unscoped unless the operator sets this).
+    assetPrefix: `f3-selfhost-${stamp.toLowerCase()}`,
     operatorSecret: randomBytes(32).toString('hex'),
     users: {
       owner: { email: 'owner@f3-selfhost.invalid', password: pw(), role: 'admin' },

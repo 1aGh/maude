@@ -491,6 +491,129 @@
       "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s12-2026-09-23",
       "note": "120 MiB through /api/file-uploads; the hub container is SIGKILLed with a part in flight and restarted; resume keeps the verified parts, a corrupted copy of a missing part is refused (400) and not kept, completion sent twice returns the same receipt, read back through the hub byte-identical, one object in R2 of the full size; a wrong whole hash (422) and a size over the ceiling (413) land nothing in checkout or storage",
       "limitation": "self-hosted hub keys objects unscoped (assets/<name>); the tenant-prefix assertion belongs to the cloud run"
+    },
+    "S13/S14": {
+      "status": "pass",
+      "report": ".ai/scenarios/reliable-project-multiplayer/evidence/followup-2026-09-23-selfhost-scale.json",
+      "runner": "scripts/dev/t32-scale.mjs --scale full --selfhost <dir> (production hub image, accepted mode, real account sessions, R2 prefix per fixture)",
+      "inventory": {
+        "raw": {
+          "files": 692,
+          "bytes": 1101991804
+        },
+        "eligible": {
+          "files": 487,
+          "bytes": 1070463158
+        },
+        "excluded": 205,
+        "largeObjects": [
+          "96 MiB",
+          "513 MiB"
+        ]
+      },
+      "resume": [
+        {
+          "label": "mid small-file seed",
+          "restartedFromZero": false,
+          "restartedFirstPass": {
+            "down": 0,
+            "up": 200,
+            "conflicts": 0,
+            "alreadyInStep": 84
+          },
+          "heldPathsWrittenAgain": 0
+        },
+        {
+          "label": "mid large-object upload",
+          "restartedFromZero": false,
+          "restartedFirstPass": {
+            "down": 0,
+            "up": 1,
+            "conflicts": 0,
+            "alreadyInStep": 310
+          },
+          "heldPathsWrittenAgain": 0
+        }
+      ],
+      "cleanClients": {
+        "b": {
+          "indexFirstCanvas": 3306,
+          "diskAllCanvases": 3320,
+          "planeBComplete": 28478,
+          "firstCanvasBeforeFullMedia": true
+        },
+        "c": {
+          "indexFirstCanvas": 2562,
+          "diskAllCanvases": 2577,
+          "planeBComplete": 27751,
+          "firstCanvasBeforeFullMedia": true
+        }
+      },
+      "parity": {
+        "bcIdentical": true,
+        "planeBByteIdentical": true,
+        "explainedDifferences": 16,
+        "unexplainedDifferences": 0,
+        "hubCheckout": {
+          "planeBFiles": 311,
+          "hubFiles": 311,
+          "missing": [],
+          "mismatched": [],
+          "extra": []
+        }
+      },
+      "editLatencyMs": {
+        "hub": {
+          "n": 49,
+          "p50": 435,
+          "p95": 996,
+          "max": 1628
+        },
+        "hubWhileMediaMoving": {
+          "n": 49,
+          "p50": 435,
+          "p95": 996,
+          "max": 1628
+        },
+        "b": {
+          "n": 28,
+          "p50": 472,
+          "p95": 1628,
+          "max": 2895
+        },
+        "c": {
+          "n": 28,
+          "p50": 478,
+          "p95": 1628,
+          "max": 2895
+        },
+        "peersWhileMediaMoving": {
+          "n": 56,
+          "p50": 472,
+          "p95": 1628,
+          "max": 2895
+        }
+      },
+      "edits": {
+        "count": 50,
+        "timedOut": 0
+      },
+      "diskPeakBytes": 4343914496,
+      "note": "Explained differences are per-machine meta keys, an empty meta and two orphan empty annotation layers (the classifier/codec rules). Peer latency while three 513 MiB transfers share one laptop disk: p95 1.6 s, max 2.9 s; no edit timed out.",
+      "productFixes": [
+        "aec0a2b6 journal path shape: files with a space in the name were journalled but silently dropped by every other peer (runs 1-2 never completed)",
+        "19d846d2 a save right after our own accepted edit read as a conflict and was proposed on a stale base (reproduced after a desktop restart)",
+        "b2692e20 token last-use stamp: 64 fsync writes per socket blocked the hub ~7 s per project open (edit ack p95 8.7 s -> 1.0 s, clean-client first canvas 16-24 s -> 2.6-3.3 s)",
+        "579e9736 streamed-download hash no longer blocks the receiving event loop (peer max 5.2 s -> 2.9 s)"
+      ],
+      "fixtureCorrection": "self-host hubs key media unscoped; fixtures sharing one bucket restored each other's assets (a false extra + false restart-from-zero). selfhost.mjs now sets MAUDE_TENANT_PREFIX per fixture.",
+      "superseded": [
+        "run 2026-09-23T17:?? legacy mode (aborted)",
+        "two runs before aec0a2b6 (never completed)",
+        "run 18:31Z (contaminated bucket)",
+        "run 18:42Z pass with edit ack p95 8.7 s (before b2692e20)",
+        "run 19:1?Z pass before 579e9736"
+      ]
     }
   },
   "productFix": {
@@ -500,8 +623,6 @@
   },
   "fixtureCorrection": "a first fixture without a canvas hostname rendered blank canvas frames (ERR_CONNECTION_REFUSED to a container-internal port) \u2014 the documented M7 requirement, not a product defect; the fixture now follows workspace-plan",
   "remaining": [
-    "S13",
-    "S14",
     "S16",
     "S17"
   ],
