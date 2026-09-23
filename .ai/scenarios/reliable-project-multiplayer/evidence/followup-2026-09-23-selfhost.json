@@ -268,6 +268,35 @@
         "teammate-after-restore.png"
       ],
       "note": "owner previews the old revision in the browser (both images decode), designer B edits while the preview is open, owner restores through the UI; restore is a new history.restore action, the peer revision stays in history, designer A renders the old image, historical lanes and both R2-backed objects stay readable after SIGKILL + restart"
+    },
+    "S09": {
+      "doc": "ui-f3effectscf9bf4",
+      "steps": {
+        "cameraAndPresence": {
+          "newRevisions": 0
+        }
+      },
+      "revisions": 4,
+      "everyRevisionHasTransaction": true,
+      "everyActionHasId": true,
+      "lanes": [
+        "meta",
+        "annotations",
+        "comments",
+        "@manifest",
+        "html"
+      ],
+      "metaHasNoCamera": true,
+      "status": "pass",
+      "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s09-2026-09-23",
+      "screenshotsInspected": [
+        "s09-after-effects.png"
+      ],
+      "note": "real Chromium pointer/keyboard in the owner browser: comment tool + composer, sticky tool drag, artboard label drag (the persisted meta effect was a layout size change 600x400 -> 602x402, not a position move), after 6 wheel pans + a ctrl-zoom + 20 cursor moves; camera/presence produced 0 revisions and the accepted meta lane holds no viewport; every revision carries its transaction and every action its id",
+      "notCovered": [
+        "photo transform (no crop/transform control: L13 unsupported)",
+        "timeline edit on this backend (covered locally by L15)"
+      ]
     }
   },
   "productFix": {
@@ -280,7 +309,6 @@
     "S04",
     "S06",
     "S07",
-    "S09",
     "S12",
     "S13",
     "S14",
