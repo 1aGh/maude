@@ -23,7 +23,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import { createFileLedger } from '../sync/file-ledger.ts';
-import { createFilePlane, sha256File } from '../sync/file-plane.ts';
+import { createFilePlane, sha256File, sha256FileAsync } from '../sync/file-plane.ts';
 
 const HUB_DIR = resolve(import.meta.dir, '../../hub');
 const FIXTURE = join(HUB_DIR, 'test', 'fixtures', 'serve-hub.mjs');
@@ -165,4 +165,24 @@ describe.skipIf(!HUB_READY)('large media over the file plane (real hub)', () => 
     expect(sha256File(join(b, 'assets', 'shoot.mp4'))).toBe(sha);
     expect(existsSync(partial)).toBe(false);
   }, 120_000);
+});
+
+// The streamed-download verification hashes asynchronously so a large file
+// does not hold the event loop (F3 S14): same digest, and it yields.
+test('sha256FileAsync matches sha256File and yields while it reads', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hash-async-'));
+  try {
+    const f = join(dir, 'clip.mp4');
+    writeFileSync(f, Buffer.alloc(8 * 1024 * 1024 + 17, 7));
+    let ticks = 0;
+    const timer = setInterval(() => {
+      ticks += 1;
+    }, 0);
+    const got = await sha256FileAsync(f);
+    clearInterval(timer);
+    expect(got).toBe(sha256File(f));
+    expect(ticks).toBeGreaterThan(0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

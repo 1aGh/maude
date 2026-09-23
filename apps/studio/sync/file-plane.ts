@@ -61,6 +61,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
+import { open as openAsync } from 'node:fs/promises';
 import path from 'node:path';
 
 import { conflictCopyName, decideFile, type FileState } from './decide-file.ts';
@@ -108,6 +109,28 @@ export function sha256File(abs: string): string {
     }
   } finally {
     closeSync(fd);
+  }
+  return hash.digest('hex');
+}
+
+/**
+ * The same digest, yielding to the event loop between chunks. A received video
+ * is verified on the path every canvas sync shares: hashing 513 MiB in one
+ * synchronous run held a teammate's edit back ~5 s on a receiving peer
+ * (F3 S14, 2026-09-23).
+ */
+export async function sha256FileAsync(abs: string): Promise<string> {
+  const hash = createHash('sha256');
+  const buf = Buffer.allocUnsafe(1024 * 1024);
+  const fh = await openAsync(abs, 'r');
+  try {
+    for (;;) {
+      const { bytesRead } = await fh.read(buf, 0, buf.length, null);
+      if (bytesRead <= 0) break;
+      hash.update(bytesRead === buf.length ? buf : buf.subarray(0, bytesRead));
+    }
+  } finally {
+    await fh.close();
   }
   return hash.digest('hex');
 }
@@ -901,7 +924,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       }
       let got: string;
       try {
-        got = sha256File(staged);
+        got = await sha256FileAsync(staged);
       } catch {
         return { ok: false, reason: 'could not read the downloaded file back' };
       }
