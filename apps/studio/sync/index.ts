@@ -119,6 +119,14 @@ export interface SyncProvider {
    * Optional: a provider without it is treated as writable.
    */
   isWritable?(): boolean;
+  /**
+   * The hub's own word on this connection's write right, carried by a save-mode
+   * notice (`maude.mode` with `writable`). It outranks the scope the handshake
+   * returned: a connection admitted read-only while the project took proposals
+   * is writable again the moment the project returns to legacy — the hub fences
+   * per message, not per handshake — and nothing re-authenticates it.
+   */
+  noteWritable?(writable: boolean): void;
   /** The hub authenticated this connection (again) — scope may have changed. */
   onAuthenticated?(cb: (scope: string) => void): () => void;
   /** Out-of-band messages from the hub on this document's socket. */
@@ -3747,6 +3755,8 @@ export function createSyncRuntime(
                   }
                   if (msg?.type !== 'maude.mode') return;
                   if (msg.mode === 'transactions' || msg.mode === 'legacy') {
+                    const writable = (msg as { writable?: unknown }).writable;
+                    if (typeof writable === 'boolean') provider.noteWritable?.(writable);
                     acceptedLink.noteMode(msg.mode);
                     void refreshAcceptedMode();
                   }
@@ -5754,11 +5764,17 @@ export function createDefaultProviderFactory(
     socket.on('status', resetSyncedOnDrop);
 
     let authedThisConnection = false;
+    /** A save-mode notice's verdict on THIS connection; a new handshake supersedes it. */
+    let modeWritable: boolean | null = null;
     provider.on('authenticated', () => {
       authedThisConnection = true;
+      modeWritable = null;
     });
     const forgetAuthOnDrop = (evt: { status?: string }) => {
-      if (evt?.status !== 'connected') authedThisConnection = false;
+      if (evt?.status !== 'connected') {
+        authedThisConnection = false;
+        modeWritable = null;
+      }
     };
     socket.on('status', forgetAuthOnDrop);
     return {
@@ -5771,7 +5787,11 @@ export function createDefaultProviderFactory(
       // over from before a drop says nothing about the hub now: a project
       // switched to accepted revisions while this peer was away re-admits it
       // read-only, and anything written in between would be dropped there.
-      isWritable: () => authedThisConnection && provider.authorizedScope === 'read-write',
+      isWritable: () =>
+        authedThisConnection && (modeWritable ?? provider.authorizedScope === 'read-write'),
+      noteWritable(writable: boolean) {
+        if (authedThisConnection) modeWritable = writable;
+      },
       onAuthenticated(cb: (scope: string) => void): () => void {
         const handler = (evt: { scope?: string }) => cb(String(evt?.scope ?? ''));
         provider.on('authenticated', handler);

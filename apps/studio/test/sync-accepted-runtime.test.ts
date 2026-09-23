@@ -1097,6 +1097,28 @@ describe.skipIf(!HUB_READY)('accepted revisions — switching a live project', (
     );
     expect(bob.runtime.acceptedWriteViolations?.()).toBe(0);
   }, 60_000);
+
+  // F3 S17 (2026-09-23): a studio that (re)connected while the project took
+  // proposals was admitted read-only; after a rollback the hub let it write
+  // again, but nothing told the studio, and its legacy saves were held
+  // silently until it happened to reconnect.
+  test('after a rollback, a studio admitted during accepted mode writes again without reconnecting', async () => {
+    // Bob restarted in the previous test, so his sockets were admitted
+    // read-only in transactions mode.
+    await waitFor(() => bob.runtime.acceptedMode?.(), 'bob in accepted mode');
+    const back = await api(hub, 'mode', {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'legacy' }),
+    });
+    expect(back.status).toBe(200);
+    await waitFor(() => !bob.runtime.acceptedMode?.(), 'bob to learn legacy');
+    bob.write('ui/board.tsx', src('written by bob after the rollback'));
+    await waitFor(
+      () => alice.read('ui/board.tsx') === src('written by bob after the rollback'),
+      "bob's legacy save to reach alice",
+      30_000
+    );
+  }, 60_000);
 });
 
 // Plan T20 — rights are rechecked on every accepted mutation, and a person

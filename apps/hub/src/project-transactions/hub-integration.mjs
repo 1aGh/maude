@@ -273,13 +273,32 @@ export function createAcceptedRevisions({
     }
     const run = async () => {
       const next = await store.setMode({ mode, expectEpoch });
-      const notice = JSON.stringify({ type: 'maude.mode', mode: next.mode, epoch: next.epoch });
-      try {
-        for (const document of server.hocuspocus?.documents?.values?.() ?? []) {
-          document.broadcastStateless(notice);
+      // Per connection, with that connection's write right after the switch:
+      // the fence re-decides per message, but a peer admitted read-only while
+      // the project took proposals learns it may write again only from this
+      // (F3 S17, 2026-09-23 — its legacy saves after a rollback were held
+      // silently until it happened to reconnect).
+      const notice = (writable) =>
+        JSON.stringify({ type: 'maude.mode', mode: next.mode, epoch: next.epoch, writable });
+      let undelivered = 0;
+      let lastError = null;
+      for (const document of server.hocuspocus?.documents?.values?.() ?? []) {
+        for (const connection of document.getConnections?.() ?? []) {
+          try {
+            const writable =
+              next.mode !== 'transactions' && connection.context?.user?.readOnly !== true;
+            connection.sendStateless(notice(writable));
+          } catch (err) {
+            // One gone peer must not keep the notice from the rest.
+            undelivered += 1;
+            lastError = err;
+          }
         }
-      } catch (err) {
-        log.warn?.(`[transactions] mode notice not delivered everywhere: ${err.message}`);
+      }
+      if (undelivered > 0) {
+        log.warn?.(
+          `[transactions] mode notice not delivered to ${undelivered} connection(s): ${lastError?.message}`
+        );
       }
       if (switchGraceMs > 0) await new Promise((r) => setTimeout(r, switchGraceMs));
       state = { ...state, ...next };
@@ -576,7 +595,9 @@ export function createAcceptedRevisions({
           .slice(1, 4)
           .join('\n')}`
       );
-      respondJson(err.status ?? 503, {
+      // A stale epoch is the caller's view, not the hub's health: retrying the
+      // same request can never succeed, so it is a conflict, not a 503.
+      respondJson(err.status ?? (err.code === 'epoch-stale' ? 409 : 503), {
         code: err.code ?? 'retryable',
         ...(err.status && err.status < 500 ? { error: err.message } : {}),
       });

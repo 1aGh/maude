@@ -133,6 +133,14 @@ describe('accepted revisions on a real hub', () => {
       assert.equal(switched.status, 200);
       epoch.epoch = switched.body.epoch;
       assert.equal(epoch.epoch, 1);
+      // F3 S17 (2026-09-23): a double-submitted switch was refused 503 — the
+      // "try again" answer, for a request that can never succeed as sent.
+      const doubled = await owner.post('/api/projects/local/v1/mode', {
+        mode: 'transactions',
+        expectEpoch: 0,
+      });
+      assert.equal(doubled.status, 409);
+      assert.equal(doubled.body.code, 'epoch-stale');
 
       const doc = 'ws/local/main/ui-home';
       const created = await alice.propose([

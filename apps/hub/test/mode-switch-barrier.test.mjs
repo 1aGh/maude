@@ -57,9 +57,11 @@ function silentStore() {
 }
 
 function coordinator({ broadcast, store }) {
+  // One writer connection per document, plus a viewer on the second.
+  const conn = (readOnly) => ({ context: { user: { readOnly } }, sendStateless: broadcast });
   const documents = new Map([
-    ['ws/local/main/ui-a', { broadcastStateless: broadcast }],
-    ['ws/local/main/ui-b', { broadcastStateless: broadcast }],
+    ['ws/local/main/ui-a', { getConnections: () => [conn(false)] }],
+    ['ws/local/main/ui-b', { getConnections: () => [conn(false), conn(true)] }],
   ]);
   return createAcceptedRevisions({
     server: { hocuspocus: { documents } },
@@ -107,8 +109,36 @@ describe('the switch barrier needs no answer', () => {
       },
     });
     await acc.setMode({ mode: 'transactions', expectEpoch: 0 });
-    assert.equal(sent.length, 2, 'both open documents were told');
-    assert.deepEqual(sent[0], { type: 'maude.mode', mode: 'transactions', epoch: 1 });
+    assert.equal(sent.length, 3, 'every open connection of every document was told');
+    assert.deepEqual(sent[0], {
+      type: 'maude.mode',
+      mode: 'transactions',
+      epoch: 1,
+      writable: false,
+    });
+  });
+
+  // F3 S17 (2026-09-23): a desktop admitted read-only while the project took
+  // proposals was never told it could write again after a rollback, and held
+  // its legacy saves until it happened to reconnect.
+  test('a switch back to legacy tells each connection whether it may write', async () => {
+    const sent = [];
+    const acc = coordinator({
+      broadcast(payload) {
+        sent.push(JSON.parse(payload));
+      },
+    });
+    await acc.setMode({ mode: 'transactions', expectEpoch: 0 });
+    sent.length = 0;
+    await acc.setMode({ mode: 'legacy', expectEpoch: 1 });
+    assert.deepEqual(
+      sent.map((m) => [m.mode, m.writable]),
+      [
+        ['legacy', true],
+        ['legacy', true],
+        ['legacy', false], // the viewer stays a viewer
+      ]
+    );
   });
 
   test('switching back to legacy lifts the fence for a writer that has the right', async () => {
