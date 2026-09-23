@@ -17,6 +17,8 @@
 // it as "no changes" is exactly the shape that lets a stale peer believe it is
 // current, which is the failure DDR-214's ordering amendment exists to prevent.
 
+import { isProjectFileShape } from './file-membership.ts';
+
 /** How long to wait for a journal page. Same figure as the manifest fetch. */
 const JOURNAL_TIMEOUT_MS = 6000;
 
@@ -58,8 +60,12 @@ export interface JournalPage {
   overflowed?: true;
 }
 
-/** A designRoot-relative path shape a peer will turn into a real file. */
-const ENTRY_PATH_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$/;
+// A designRoot-relative path a peer will turn into a real file: the SAME shape
+// rule the hub's file door admits (`isProjectFileShape`). A private, narrower
+// regex here dropped every journalled path with a space in it — `ui/Studio
+// Docs.registry.json` was accepted from its author, journalled, and then
+// silently discarded by every other peer, with no ledger row and no refusal
+// shown (F3 S14, 2026-09-23).
 
 function parseEntry(raw: unknown): JournalEntry | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -67,7 +73,7 @@ function parseEntry(raw: unknown): JournalEntry | null {
   const seq = e.seq;
   const p = e.path;
   if (typeof seq !== 'number' || !Number.isInteger(seq) || seq <= 0) return null;
-  if (typeof p !== 'string' || !ENTRY_PATH_RE.test(p) || p.split('/').includes('..')) return null;
+  if (typeof p !== 'string' || !isProjectFileShape(p)) return null;
   const sha = typeof e.sha256 === 'string' && /^[0-9a-f]{64}$/.test(e.sha256) ? e.sha256 : null;
   return {
     seq,

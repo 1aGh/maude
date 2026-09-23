@@ -305,6 +305,23 @@ describe('down — the hub has something we do not', () => {
     expect(ledger.cursor()).toBe(hub.head());
   });
 
+  // F3 S14 (2026-09-23): the journal reader's own path regex refused a space,
+  // so `ui/Studio Docs.registry.json` — accepted from its author and
+  // journalled — was dropped by every other peer with no row and no refusal.
+  test('a journalled file whose name has a space lands like any other', async () => {
+    const hub = fakeHub({
+      'assets/Hero Shot.png': 'png-bytes',
+      'system/ds/Brand Guide.registry.json': '{"a":1}',
+    });
+    const res = await plane(hub).reconcile();
+    expect([...res.pulled].sort()).toEqual([
+      'assets/Hero Shot.png',
+      'system/ds/Brand Guide.registry.json',
+    ]);
+    expect(read('assets/Hero Shot.png')).toBe('png-bytes');
+    expect(ledger.row('system/ds/Brand Guide.registry.json')?.state).toBe('on-hub');
+  });
+
   test('a hub that serves the WRONG bytes lands nothing', async () => {
     // The hub may refuse to serve; it must never be able to substitute.
     const hub = fakeHub({ 'system/ds/brand.css': 'real' });

@@ -639,10 +639,6 @@ export const JOURNAL_PATH = '/api/journal';
 /** `POST /api/journal/report` — the loopback NUDGE (never data). */
 export const JOURNAL_REPORT_PATH = '/api/journal/report';
 
-/** A path a nudge is allowed to name. Shape only — the classifier still judges
- *  membership, and the disk still decides what is actually there. */
-const NUDGE_PATH_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$/;
-
 /** How many paths one nudge may name. A nudge is a hint, not a work queue. */
 const MAX_NUDGE_PATHS = 64;
 
@@ -755,7 +751,10 @@ export function handleJournalRoutes({
     const paths = Array.isArray(body?.paths) ? body.paths : [];
     let noted = 0;
     for (const raw of paths.slice(0, MAX_NUDGE_PATHS)) {
-      if (typeof raw !== 'string' || !NUDGE_PATH_RE.test(raw) || raw.split('/').includes('..')) {
+      // Shape only — the project-file shape the file door admits (a narrower
+      // regex here left every path with a space unjournalled). The classifier
+      // still judges membership, and the disk decides what is actually there.
+      if (typeof raw !== 'string' || !isProjectFileShape(raw)) {
         continue;
       }
       noted += 1;
