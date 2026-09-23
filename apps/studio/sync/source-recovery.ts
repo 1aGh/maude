@@ -12,6 +12,73 @@ import { sourceError } from './source-validation.ts';
  */
 export type RecoverySlot = 'last-valid' | 'local' | 'incoming' | 'base';
 
+/** The first rejected draft and its proven base, not the mutable latest draft. */
+export interface RecoveryCandidate {
+  version: 1;
+  original: string | null;
+  base: string | null;
+  resolved: boolean;
+}
+
+function candidatePath(historyDir: string, file: string): string {
+  return path.join(historyDir, 'sync-recovery', `candidate${path.extname(file)}.json`);
+}
+
+function boundedBody(body: unknown): body is string | null {
+  return (
+    body === null || (typeof body === 'string' && Buffer.byteLength(body, 'utf8') <= MAX_HTML_BYTES)
+  );
+}
+
+/** Corrupt/inaccessible records fail closed: never replace an unreadable draft. */
+export function readRecoveryCandidate(historyDir: string, file: string): RecoveryCandidate | null {
+  const target = candidatePath(historyDir, file);
+  let size: number;
+  try {
+    size = statSync(target).size;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw error;
+  }
+  // Two byte-capped strings, each potentially JSON-escaped as six bytes/char.
+  if (size > 12 * MAX_HTML_BYTES + 256) throw new Error('Recovery candidate exceeds size limit');
+  const value: unknown = JSON.parse(readFileSync(target, 'utf8'));
+  if (!value || typeof value !== 'object') throw new Error('Invalid recovery candidate');
+  const record = value as Record<string, unknown>;
+  if (
+    record.version !== 1 ||
+    typeof record.resolved !== 'boolean' ||
+    !boundedBody(record.original) ||
+    !boundedBody(record.base)
+  )
+    throw new Error('Invalid recovery candidate');
+  return { version: 1, original: record.original, base: record.base, resolved: record.resolved };
+}
+
+/** One bounded, atomic record per source file; retries/restarts cannot evict it. */
+export function preserveRecoveryCandidate(
+  historyDir: string,
+  file: string,
+  original: string | null,
+  base: string | null
+): void {
+  if (!boundedBody(original) || !boundedBody(base))
+    throw new Error('Recovery source exceeds size limit');
+  const previous = readRecoveryCandidate(historyDir, file);
+  if (previous && !previous.resolved) return;
+  atomicWrite(
+    candidatePath(historyDir, file),
+    JSON.stringify({ version: 1, original, base, resolved: false })
+  );
+}
+
+/** Retain the bytes after resolution, allowing replacement only by a new episode. */
+export function resolveRecoveryCandidate(historyDir: string, file: string): void {
+  const previous = readRecoveryCandidate(historyDir, file);
+  if (!previous || previous.resolved) return;
+  atomicWrite(candidatePath(historyDir, file), JSON.stringify({ ...previous, resolved: true }));
+}
+
 export function saveRecoveryBody(
   historyDir: string,
   file: string,

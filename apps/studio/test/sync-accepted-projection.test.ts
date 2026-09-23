@@ -7,7 +7,15 @@
 // the document.
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as Y from 'yjs';
@@ -108,6 +116,26 @@ function rig(initial = src('A')) {
 }
 
 describe('projection in accepted-revisions mode', () => {
+  test('a recovery-record storage failure cannot turn a genuinely accepted resolution into a rejected promise', async () => {
+    const r = rig();
+    try {
+      r.edit('export default () => <h1>Unfinished');
+      writeFileSync(r.paths.html, src('Repaired'));
+      const pending = r.projection.proposeLane('html', src('Repaired'));
+      expect(pending).not.toBeNull();
+      const recovery = join(dir, '_history', 'ui-home');
+      renameSync(recovery, `${recovery}-offline`);
+      writeFileSync(recovery, 'filesystem fault');
+      r.publish(src('Repaired'));
+      r.sent[0].answer({ status: 'accepted' });
+      expect(await pending).toMatchObject({ status: 'accepted' });
+      expect(r.conflicts.at(-1)).toMatchObject({ reason: 'history-failed', snapshotFailed: true });
+      expect(r.recovered()).toBe(0);
+    } finally {
+      r.projection.stop();
+      r.doc.destroy();
+    }
+  });
   test('a file edit is PROPOSED with the value it was derived from — the document is never written', async () => {
     const r = rig(src('A'));
     expect(r.edit(src('B'))).toBe(true);

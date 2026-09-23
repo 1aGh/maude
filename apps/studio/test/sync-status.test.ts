@@ -33,6 +33,44 @@ function makeStore() {
 }
 
 describe('sync status store', () => {
+  for (const withNotice of [true, false]) {
+    test(`resolution clears the source conflict facts, not only its notice (notice=${withNotice})`, () => {
+      const { store, writes, broadcasts } = makeStore();
+      store.addConflict({
+        slug: 'screen',
+        kind: 'body-rejected',
+        reason: 'local-edit',
+        snapshotFailed: false,
+      });
+      store.addConflict({
+        slug: 'screen',
+        kind: 'body-rejected',
+        reason: 'invalid-source',
+        snapshotFailed: false,
+      });
+      store.addConflict({
+        slug: 'other',
+        kind: 'body-rejected',
+        reason: 'local-edit',
+        snapshotFailed: false,
+      });
+      store.addConflict({ slug: 'screen', kind: 'cold-start-hub-wins' });
+      if (withNotice)
+        store.notice({ id: 'source-conflict-screen', severity: 'warn', text: 'Needs resolution' });
+      store.clearSourceConflict('screen');
+      const remaining = store.get().conflicts;
+      expect(remaining).toHaveLength(2);
+      expect(remaining.map((c) => [c.slug, c.kind])).toEqual([
+        ['other', 'body-rejected'],
+        ['screen', 'cold-start-hub-wins'],
+      ]);
+      expect(writes.at(-1)?.conflicts).toEqual(remaining);
+      expect(broadcasts.at(-1)?.conflicts).toEqual(remaining);
+      expect(store.get().notices?.some((n) => n.id === 'source-conflict-screen') ?? false).toBe(
+        false
+      );
+    });
+  }
   test('update() writes + broadcasts the merged payload', () => {
     const { store, writes, broadcasts } = makeStore();
     store.update(snap({ state: 'offline', queuedOps: 2 }));

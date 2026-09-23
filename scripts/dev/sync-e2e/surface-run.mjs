@@ -2,15 +2,7 @@
 // Real-process surface runner. Partial runs never produce a certified baseline.
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  openSync,
-  readFileSync,
-  writeFileSync,
-} from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -21,6 +13,7 @@ import { closeUsers, createUser } from '../../../apps/hub/src/users.mjs';
 import { compareToBaseline, readRows, summarise } from './surface-baseline.mjs';
 import { buildSurfaceCatalogue, cataloguePath } from './surface-catalogue.mjs';
 import { seedMediaFixture } from './surface-fixture.mjs';
+import { resolveSurfaceNative, surfaceNativeManifest } from './surface-native.mjs';
 import { sourceManifest, treeManifest } from './surface-provenance.mjs';
 import { writeSurfaceReport } from './surface-report.mjs';
 import { startResourceSampler } from './surface-resources.mjs';
@@ -63,18 +56,8 @@ if (
   startupIndexFailures > 5
 )
   throw new Error('startup-index-failures must be an integer from 0 to 5');
-const app = resolve(
-  arg(
-    'app',
-    process.env.MAUDE_E2E_APP ??
-      join(
-        root,
-        'apps/desktop/src-tauri/target/debug/bundle/macos/Maude.app/Contents/MacOS/maude-desktop'
-      )
-  )
-);
-if (!existsSync(app) || !app.includes('.app/Contents/MacOS/'))
-  throw new Error('Build a bundled debug app first, or pass --app with its bundled executable.');
+const nativeArtifact = resolveSurfaceNative({ root, app: arg('app', process.env.MAUDE_E2E_APP) });
+const { app } = nativeArtifact;
 const work = mkdtempSync(join(tmpdir(), 'maude-surface-e2e-'));
 const stamp = new Date().toISOString().replaceAll(':', '-');
 const out = join(root, '.ai/device/scenario-runs/reliable-project-multiplayer', stamp);
@@ -426,6 +409,8 @@ try {
     watch,
     notes,
     app,
+    nativeArtifactKind: nativeArtifact.kind,
+    nativePlatform: nativeArtifact.platform,
     roots: { hub: join(work, 'repo'), native: source, peer: peerB },
     identities,
     samples,
@@ -449,6 +434,8 @@ try {
         samples,
         startupIndexFailures,
         app,
+        nativeArtifactKind: nativeArtifact.kind,
+        nativePlatform: nativeArtifact.platform,
         appSha256: hash(app),
         clientSha256: hash(join(root, 'apps/studio/dist/client.bundle.js')),
         configSha256: hash(configPath),
@@ -465,7 +452,7 @@ try {
   writeFileSync(join(out, 'source-manifest.json'), JSON.stringify(sourceManifest(root), null, 2));
   writeFileSync(
     join(out, 'bundle-manifest.json'),
-    JSON.stringify(treeManifest(resolve(app, '../../..')), null, 2)
+    JSON.stringify(surfaceNativeManifest(nativeArtifact), null, 2)
   );
   writeFileSync(
     join(out, 'fixture-manifest.json'),

@@ -636,7 +636,19 @@ function CanvasHmrRuntime({
     lastGood.current = canvasRef.current;
     // The new canvas rendered clean → drop any holding state.
     setHoldingState((h) => (h.on ? { on: false } : h));
-  }, []);
+    // A soft replacement keeps the iframe document, so inspect.ts does not
+    // repeat its initial loaded handshake. Re-announce only AFTER the new
+    // subtree commits: the shell then reselects the current element and reads
+    // fresh attributes/styles instead of retaining the pre-restore inspector.
+    // Failed renders keep the last good tree and must not claim a new load.
+    if (attempt > 0 && file) {
+      try {
+        window.parent.postMessage({ dgn: 'loaded', file }, '*');
+      } catch {
+        // The parent can detach while an imported canvas is committing.
+      }
+    }
+  }, [attempt, file]);
 
   const handleError = useCallback(() => {
     setHoldingState({ on: true, message: 'render error' });

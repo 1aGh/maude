@@ -46,6 +46,7 @@ import {
   recordBrowserExport,
 } from './export-lane.js';
 import { TreeRowMenu, useRowMenu } from './tree-row-menu.jsx';
+import { FileTree, FileTreeItem } from './file-tree.jsx';
 import { useTreeDrag } from './use-tree-drag.js';
 import ChatPanel from './panels/ChatPanel.jsx';
 import DiffView from './panels/DiffView.jsx';
@@ -2199,10 +2200,8 @@ function DirRow({ name, depth, defaultOpen, children, dirPath, drag, menu }) {
     </button>
   );
   return (
-    <Fragment>
-      {menu ? (
-        <div className="st-row-wrap" role="none">
-          {row}
+    <FileTreeItem label={name} row={row} expanded={open} busy={isBusy}
+      onToggle={() => setOpen(v => !v)} actions={menu ? (
           <button
             type="button"
             className="st-row-menu-btn"
@@ -2214,12 +2213,9 @@ function DirRow({ name, depth, defaultOpen, children, dirPath, drag, menu }) {
           >
             <Icon d="M12 6a1 1 0 100-2 1 1 0 000 2zM12 13a1 1 0 100-2 1 1 0 000 2zM12 20a1 1 0 100-2 1 1 0 000 2z" size={12} />
           </button>
-        </div>
-      ) : (
-        row
-      )}
+      ) : null}>
       {open && children}
-    </Fragment>
+    </FileTreeItem>
   );
 }
 
@@ -2230,12 +2226,11 @@ function DirRow({ name, depth, defaultOpen, children, dirPath, drag, menu }) {
 function DsFolderRow({ name, dsName, depth, defaultOpen, active, onOpenSystem, children }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <Fragment>
+    <FileTreeItem label={name} expanded={open} selected={active}
+      onToggle={() => setOpen(v => !v)} row={
       <div
         className={'st-row st-ds-folder' + (active ? ' is-sel' : '')}
         style={{ paddingLeft: TREE_INDENT_BASE + depth * TREE_INDENT_STEP + 'px' }}
-        role="treeitem"
-        aria-expanded={open}
       >
         <button
           type="button"
@@ -2249,6 +2244,8 @@ function DsFolderRow({ name, dsName, depth, defaultOpen, active, onOpenSystem, c
         <button
           type="button"
           className="st-ds-open"
+          data-tree-primary=""
+          tabIndex={-1}
           onClick={() => onOpenSystem(dsName)}
           aria-label={`Open ${dsName} design system view`}
           title="Open the design system view"
@@ -2258,9 +2255,9 @@ function DsFolderRow({ name, dsName, depth, defaultOpen, active, onOpenSystem, c
           </span>
           <span className="st-row-name">{name}</span>
         </button>
-      </div>
+      </div>}>
       {open && children}
-    </Fragment>
+    </FileTreeItem>
   );
 }
 
@@ -2392,12 +2389,10 @@ function FileRow({
       {oc > 0 && <span className="st-row-badge">{oc}</span>}
     </button>
   );
-  if (!canDelete && !canShare) return row;
-  // Sibling menu/delete buttons (can't nest a button in the row button). The
-  // wrapper is presentational so the treeitem stays the tree's child for a11y.
+  // The named treeitem owns the primary action and its independent buttons.
   return (
-    <div className="st-row-wrap" role="none">
-      {row}
+    <FileTreeItem label={label} row={row} selected={isSel} disabled={inert} busy={isBusy}
+      actions={<>
       {canShare && (
         <button
           type="button"
@@ -2434,7 +2429,7 @@ function FileRow({
           <Icon d="M3 6h18 M8 6V4h8v2 M6 6l1 14h10l1-14 M10 11v6 M14 11v6" size={12} />
         </button>
       )}
-    </div>
+      </>} />
   );
 }
 
@@ -2557,10 +2552,9 @@ function CanvasRow({
     </button>
   );
   return (
-    <Fragment>
-      {canShare ? (
-        <div className="st-row-wrap" role="none">
-          {row}
+    <FileTreeItem label={displayName(primary.name)} row={row} selected={isSel}
+      expanded={open} busy={isBusy} onToggle={() => setOpenState(v => !v)}
+      actions={canShare ? (
           <button
             type="button"
             className="st-row-menu-btn"
@@ -2572,10 +2566,7 @@ function CanvasRow({
           >
             <Icon d="M12 6a1 1 0 100-2 1 1 0 000 2zM12 13a1 1 0 100-2 1 1 0 000 2zM12 20a1 1 0 100-2 1 1 0 000 2z" size={12} />
           </button>
-        </div>
-      ) : (
-        row
-      )}
+      ) : null}>
       {open &&
         sidecars.map((sc) => (
           <FileRow
@@ -2592,7 +2583,7 @@ function CanvasRow({
             sidecar
           />
         ))}
-    </Fragment>
+    </FileTreeItem>
   );
 }
 
@@ -3201,7 +3192,7 @@ function Sidebar({
         </div>
       </div>
 
-      <div className="st-tree" role="tree" aria-label="Project file tree" data-testid="canvas-list">
+      <FileTree aria-label="Project file tree" data-testid="canvas-list">
         {filteredGroups.map((g) => {
           // Hide gitignored runtime / orphan-only project sections by default.
           // Active search overrides — if the user typed a query, they want hits
@@ -3235,7 +3226,8 @@ function Sidebar({
           const rootDropHandlers = canDropOnRoot ? treeDrag.dropProps(g.fullPath, true) : {};
           const isRootOver = treeDrag.overDir === g.fullPath;
           return (
-            <div className="st-tree-section" key={g.label}>
+            <FileTreeItem className="st-tree-section" key={g.label} label={meta.title}
+              expanded={sectionOpen} onToggle={() => onToggleSection(g.label, defaultOpen)} row={
               <button
                 type="button"
                 className={'st-tree-sec-hd' + (isRootOver ? ' is-drop-target' : '')}
@@ -3249,7 +3241,7 @@ function Sidebar({
                 <StIcon name="chevron-right" className={'st-chev' + (sectionOpen ? ' is-open' : '')} size={13} />
                 <span className="st-sec-name">{meta.title}</span>
                 {pill && <span className="st-pill">{pill}</span>}
-              </button>
+              </button>}>
               {sectionOpen &&
                 (hasItems ? (
                   <Tree
@@ -3276,10 +3268,10 @@ function Sidebar({
                 ) : (
                   <div className="st-tree-empty">{search ? 'No matches.' : 'Empty.'}</div>
                 ))}
-            </div>
+            </FileTreeItem>
           );
         })}
-      </div>
+      </FileTree>
       <TreeRowMenu
         state={rowMenu.state}
         onClose={rowMenu.close}
@@ -4386,7 +4378,6 @@ function Menubar({
   return (
     <header
       className="st-menubar"
-      role="menubar"
       aria-label="Application menubar"
       data-testid="menubar"
     >
@@ -4428,7 +4419,7 @@ function Menubar({
           ) : null}
         </span>
       ) : null}
-      <nav className="st-menus" aria-label="Application menus" data-tour="menus">
+      <nav className="st-menus" role="menubar" aria-label="Application menus" data-tour="menus">
         {MENU_NAMES.map((name) => {
           const key = name.toLowerCase();
           const hasDropdown = DROPDOWN_MENUS.includes(key);
@@ -4794,6 +4785,7 @@ function Viewport({
             key={`${t.path}#${canvasReloadNonce}`}
             ref={(el) => registerIframe(t.path, el)}
             src={stableSrc(t.path)}
+            title={`Canvas: ${t.path}`}
             className={t.path === activePath ? 'active' : ''}
             data-path={t.path}
             data-testid={t.path === activePath ? 'canvas-frame' : undefined}
@@ -6589,6 +6581,25 @@ function GridTracksEditor({ label, tracks, editable, onChange }) {
   );
 }
 
+// Writes whose success ends in a `record-edit` post to the canvas. The canvas
+// asks (`undo-barrier`) before Cmd+Z so it never undoes past an edit whose
+// record is still on its way (see afterShellRecords in canvas-shell.tsx).
+const recordableWrites = { pending: 0, waiters: [] };
+function trackRecordableWrite(promise) {
+  recordableWrites.pending += 1;
+  const settle = () => {
+    recordableWrites.pending -= 1;
+    if (recordableWrites.pending === 0) for (const w of recordableWrites.waiters.splice(0)) w();
+  };
+  promise.then(settle, settle);
+  return promise;
+}
+function afterRecordableWrites() {
+  return recordableWrites.pending === 0
+    ? Promise.resolve()
+    : new Promise((resolve) => recordableWrites.waiters.push(resolve));
+}
+
 function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, onUndoRedo, mode, onSetMode }) {
   const editable = !!el.id;
   const computed = el.computed || {};
@@ -6704,13 +6715,15 @@ function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, onUndoR
   // Serialized so the stack keeps edit order; a failed write records nothing.
   const writeChainRef = useRef(Promise.resolve());
   const writeAndRecord = (url, payload, key, op, prop, fallbackBefore, after) => {
-    writeChainRef.current = writeChainRef.current.then(async () => {
-      const j = await post(url, payload, key);
-      if (!j?.ok) return;
-      const before = Object.hasOwn(j, 'previous') ? j.previous : fallbackBefore;
-      if ((before ?? null) === (after ?? null)) return; // nothing changed to undo
-      record(op, prop, before, after);
-    });
+    writeChainRef.current = trackRecordableWrite(
+      writeChainRef.current.then(async () => {
+        const j = await post(url, payload, key);
+        if (!j?.ok) return;
+        const before = Object.hasOwn(j, 'previous') ? j.previous : fallbackBefore;
+        if ((before ?? null) === (after ?? null)) return; // nothing changed to undo
+        record(op, prop, before, after);
+      })
+    );
   };
   // Optimistic preview: nudge the live element so the change shows before the
   // edit → HMR reload lands. `value` null = remove (reset path). No-op when the
@@ -9277,7 +9290,7 @@ function InspectorPanel({
   // HMR reload re-posts the tree with the new label.
   const renameLayer = (node, value) => {
     if (!canvasFile || !node?.id) return;
-    fetch('/_api/edit-attr', {
+    trackRecordableWrite(fetch('/_api/edit-attr', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ canvas: canvasFile, id: node.id, attr: 'data-dc-element', value }),
@@ -9294,7 +9307,7 @@ function InspectorPanel({
           after: value,
         });
       })
-      .catch(() => {});
+      .catch(() => {}));
   };
   const handleReorder = onReorderLayer
     ? (dragged, ref, position) => {
@@ -10779,7 +10792,7 @@ function App() {
         openPanelExclusive('tree');
         setTimeout(() => {
           try {
-            document.querySelector('.st-sidebar [role="treeitem"]')?.click();
+            document.querySelector('.st-sidebar [data-testid^="canvas-row-"]')?.click();
           } catch {}
         }, 80);
       }
@@ -12245,6 +12258,7 @@ function App() {
   // actions (who did what, when), not Git commits; a row previews as `r<rev>`
   // through the same version preview. `'legacy'` means "use Git history".
   const [projectHistoryOn, setProjectHistoryOn] = useState(false);
+  const [projectHistoryRefresh, setProjectHistoryRefresh] = useState(0);
   const loadAcceptedLog = useCallback(async (path) => {
     try {
       const qs =
@@ -12271,6 +12285,31 @@ function App() {
     } catch {
       return null;
     }
+  }, []);
+
+  // An accepted preview must stay on project history even if loading fails:
+  // switching to Git would turn Restore into an unrelated discard operation.
+  const acceptedDiff = /^r\d+$/.test(diffTarget?.beforeSha || '');
+  const loadDiffLog = useCallback(async (path) => {
+    if (!acceptedDiff) return gitLoadLog(path);
+    const entries = await loadAcceptedLog(path);
+    return Array.isArray(entries) ? entries : [];
+  }, [acceptedDiff, gitLoadLog, loadAcceptedLog]);
+  const restoreProjectVersion = useCallback(async (path, revision) => {
+    if (!path || !Number.isSafeInteger(revision) || revision < 0) {
+      return { ok: false, error: 'Choose a saved project version to restore.' };
+    }
+    const r = await fetch('/_api/project/restore', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path, revision }),
+    }).catch(() => null);
+    const result = r ? await r.json().catch(() => null) : null;
+    if (r?.ok && result?.ok) {
+      setProjectHistoryRefresh((version) => version + 1);
+      return result;
+    }
+    return { ok: false, error: result?.error };
   }, []);
 
   // Repo-relative path → M/A/D/U badge for the tree (paths match: both the tree
@@ -13097,7 +13136,8 @@ function App() {
         m.dgn === 'select-set' ||
         m.dgn === 'clear-select' ||
         m.dgn === 'edit-text' ||
-        m.dgn === 'apply-edit'
+        m.dgn === 'apply-edit' ||
+        m.dgn === 'undo-barrier'
       ) {
         const activeWin =
           activePath && activePath !== SYSTEM_TAB
@@ -13175,6 +13215,16 @@ function App() {
             if (!j.ok) revert(j.error || "this element can't be edited inline");
           })
           .catch(() => revert('network error'));
+      } else if (m.dgn === 'undo-barrier' && typeof m.requestId === 'string') {
+        // Answer once every write that will post a `record-edit` has settled
+        // (and so posted it — window messages arrive in order), so the canvas's
+        // Cmd+Z sees the edit that is on screen. Read-only; nothing is written.
+        const source = e.source;
+        Promise.all([editApplyChainRef.current.catch(() => {}), afterRecordableWrites()]).then(() => {
+          try {
+            source?.postMessage({ dgn: 'undo-barrier-ok', requestId: m.requestId }, '*');
+          } catch {}
+        });
       } else if (m.dgn === 'apply-edit' && m.id && (m.op === 'css' || m.op === 'text' || m.op === 'attr')) {
         // Inline-edit undo/redo (DDR-103/104 follow-up). The canvas iframe's
         // `edit-source` command can't call the main-origin-only `/_api/edit-*`
@@ -15709,15 +15759,8 @@ function App() {
             return (cloudManaged ? gitLoadCloudLog : gitLoadLog)(path);
           }}
           historySource={projectHistoryOn ? 'project' : cloudManaged ? 'cloud' : 'local'}
-          onRestoreVersion={async (revision) => {
-            const r = await fetch('/_api/project/restore', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ path: activePath, revision }),
-            }).catch(() => null);
-            const j = r ? await r.json().catch(() => null) : null;
-            return !!j?.ok;
-          }}
+          historyRefresh={`${syncStatus?.appliedRevision ?? 0}:${projectHistoryRefresh}`}
+          onRestoreVersion={(revision) => restoreProjectVersion(activePath, revision).then((r) => !!r.ok)}
           // Not through a cell's door: every browser editor proposes under the
           // studio's one credential there, so "your own action" is not
           // knowable and the hub refuses the route (studio-manifest.mjs).
@@ -16823,7 +16866,7 @@ function App() {
           // and was simply unreachable here. Found running S20 against a live
           // deployment; asserted in `team-project.e2e.ts` step 4b.
           onOpenChanges={
-            gitStatus?.repo || savingIsManaged ? () => setChangesOpen(true) : undefined
+            gitStatus?.repo || savingIsManaged ? () => openRightPanel('changes') : undefined
           }
           version={cfg?.version}
         />
@@ -16966,10 +17009,12 @@ function App() {
         <DiffView
           target={diffTarget}
           cfg={cfg}
-          loadLog={gitLoadLog}
+          loadLog={loadDiffLog}
           onClose={() => setDiffTarget(null)}
-          onRestore={async (file) => {
-            const res = await gitDiscard([file]);
+          onRestore={async (file, version) => {
+            const res = acceptedDiff
+              ? await restoreProjectVersion(file, /^r\d+$/.test(version || '') ? Number(version.slice(1)) : NaN)
+              : await gitDiscard([file]);
             if (res?.ok) setDiffTarget(null);
             else window.alert(res?.error || 'Could not restore that version. Try again.');
           }}

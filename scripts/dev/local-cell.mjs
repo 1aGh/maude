@@ -490,10 +490,10 @@ async function main() {
   };
   process.on('SIGINT', bye);
   process.on('SIGTERM', bye);
-  hub.on('exit', (code) => {
-    line(`[local-cell] hub exited ${code}`);
+  hub.on('exit', (code, signal) => {
+    line(`[local-cell] hub exited code=${code} signal=${signal ?? 'none'}`);
     if (!keep && existsSync(root)) rmSync(root, { recursive: true, force: true });
-    process.exit(code ?? 0);
+    process.exit(code ?? 1);
   });
 }
 

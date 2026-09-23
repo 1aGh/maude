@@ -696,12 +696,18 @@ export async function handleUserAdminRoutes(ctx) {
         respondJson(400, { error: err.message });
         return true;
       }
-      const invite = createInvite(dataDir, {
-        email: body?.email,
-        role: body?.role,
-        ttlHours: body?.ttlHours,
-        createdBy: body?.createdBy,
-      });
+      let invite;
+      try {
+        invite = createInvite(dataDir, {
+          email: body?.email,
+          role: body?.role ?? undefined,
+          ttlHours: body?.ttlHours,
+          createdBy: body?.createdBy,
+        });
+      } catch (err) {
+        respondJson(400, { error: err.message });
+        return true;
+      }
       ctx.pushActivity?.({ type: 'invite-create', user: invite.email ?? '(open)', doc: invite.id });
       // The raw value exists ONLY in this response. It is never stored, never
       // logged, and never listed again.

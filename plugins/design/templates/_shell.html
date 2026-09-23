@@ -266,6 +266,21 @@
         }
       });
 
+      // text-patches:begin
+      function applyTextPatches(patches) {
+        for (const patch of patches.slice(0, 500)) {
+          if (!patch || typeof patch.id !== 'string' || typeof patch.text !== 'string') continue;
+          if (!/^[0-9a-f]{8}$/.test(patch.id)) continue;
+          for (const el of document.querySelectorAll('[data-cd-id="' + patch.id + '"][data-cd-editable="text"]')) {
+            if (el.isContentEditable || el.contains(document.activeElement)) continue;
+            const only = el.childNodes.length === 1 ? el.firstChild : null;
+            if (!only || only.nodeType !== Node.TEXT_NODE) continue;
+            if (only.data !== patch.text) only.data = patch.text;
+          }
+        }
+      }
+      // text-patches:end
+
       // Soft reload — re-import the canvas module (cache-busted) and swap it in
       // via the runtime, holding the last good render on a build/import error
       // (no white flash). Phase 30 (F4): used for EVERY canvas-body change while
@@ -473,6 +488,12 @@
             } else if (msg.mode === 'module' || msg.mode === 'hard') {
               // Only reload when the change touches *this* canvas (or `_lib`).
               if (msg.mode === 'hard' || !msg.file || (canvasRel && msg.file === canvasRel)) {
+                // F4 — a text-only change arrives with the new strings. Show
+                // them now; the remount below still re-renders from source and
+                // confirms (or corrects) them. Only a leaf that is exactly one
+                // text node is touched, via textContent (never markup), and
+                // never the element someone is typing in on this device.
+                if (msg.mode === 'module' && Array.isArray(msg.patches)) applyTextPatches(msg.patches);
                 // Phase 12.3 — CSS-panel echo guard. The panel applies each
                 // edit optimistically to the live DOM (dgn:'apply-style'), so a
                 // `module` reload for THIS canvas's own edit is redundant churn:

@@ -22,6 +22,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { HocuspocusProvider } from '@hocuspocus/provider';
 import { Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness';
 import * as Y from 'yjs';
 import { applyEdit } from '../canvas-edit.ts';
@@ -277,6 +278,68 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     );
   }, 60_000);
 
+  test('an open room before doc.create cannot pin a slug-derived path', async () => {
+    const slug = 'ui-earlymixedcase';
+    const rel = 'ui/EarlyMixedCase.tsx';
+    const body = src('Accepted mixed-case path');
+    const doc = new Y.Doc();
+    const provider = new HocuspocusProvider({
+      url: hub.http.replace('http:', 'ws:'),
+      name: slug,
+      token: hub.tokens.alice,
+      document: doc,
+    });
+    try {
+      await waitFor(() => provider.synced, 'the author to open its new room');
+      await waitFor(async () => {
+        const res = await fetch(`${hub.http}/api/documents`, {
+          headers: { authorization: `Bearer ${hub.tokens.owner}` },
+        });
+        const listing = (await res.json()) as { documents: { name: string }[] };
+        return listing.documents.some((d) => d.name === slug);
+      }, 'the unaccepted room to appear in the transport listing');
+      const boot = await api(hub, 'bootstrap');
+      expect((boot.body.docs as { doc: string }[]).some((d) => d.doc === slug)).toBe(false);
+      await bob.runtime.pullRemoteNow();
+      // The old path incorrectly attached the empty room. Let that real
+      // handshake finish before acceptance, deterministically exposing the
+      // bad ordering. The fixed path never attaches an unaccepted room.
+      if (bob.registry.isPinned(slug)) {
+        await waitFor(
+          () =>
+            bob.runtime.status()?.items?.some((i) => i.slug === slug && i.state === 'connected'),
+          'premature receiver handshake'
+        );
+      }
+      const created = await api(hub, 'proposals', {
+        method: 'POST',
+        body: JSON.stringify({
+          protocol: 1,
+          projectId: 'local',
+          epoch: boot.body.epoch,
+          transactionId: `tx_early_room_${Date.now()}`,
+          origin: { deviceId: 'early-room', sessionId: 'test' },
+          action: {
+            kind: 'edit',
+            label: 'Create after room discovery',
+            operations: [{ op: 'doc.create', doc: slug, path: rel, lanes: { html: body } }],
+          },
+        }),
+      });
+      expect(created.status).toBe(200);
+      await bob.runtime.pullRemoteNow();
+      await waitFor(
+        () => readdirSync(bob.file('ui')).some((f) => /earlymixedcase/i.test(f)),
+        'the receiver to materialize the accepted canvas'
+      );
+      expect(bob.read(rel)).toBe(body);
+      expect(bob.read('ui/earlymixedcase.tsx')).toBeNull();
+    } finally {
+      provider.destroy();
+      doc.destroy();
+    }
+  }, 60_000);
+
   test('an edit on disk is proposed, accepted and lands on the peer', async () => {
     const t0 = Date.now();
     alice.write('ui/home.tsx', src('Hello world'));
@@ -284,6 +347,28 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     const ms = Date.now() - t0;
     console.log(`[sync-accepted-runtime] alice→bob disk edit crossed in ${ms} ms`);
     expect(ms).toBeLessThan(10_000);
+  }, 30_000);
+
+  test('a completed UI write reaches acceptance without a watcher tick, which later cannot duplicate it', async () => {
+    const rel = 'ui/completed.tsx';
+    alice.write(rel, src('Before'));
+    await alice.runtime.rescanNow();
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return bob.read(rel) === src('Before');
+    }, 'completed-write fixture on bob');
+    const before = ((await api(hub, 'history?limit=200')).body.history as unknown[]).length;
+    const content = src('Completed');
+    alice.ctx.bus.emit('activity:suppress', rel);
+    // No fs:any: this is the completed API write, not an external editor's
+    // potentially partial save. The runtime has no watcher of its own.
+    writeFileSync(alice.file(rel), content);
+    alice.ctx.bus.emit('source-written', { rel, content });
+    await waitFor(() => bob.read(rel) === content, 'completed UI write on bob', 3_000);
+    alice.ctx.bus.emit('fs:any', rel);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    const after = ((await api(hub, 'history?limit=200')).body.history as unknown[]).length;
+    expect(after).toBe(before + 1);
   }, 30_000);
 
   test('independent concurrent edits both survive (hub three-way merge)', async () => {

@@ -15,7 +15,14 @@ test('debug probe observes an isolated canvas without disabling same-origin enfo
       <button onclick="this.textContent='Clicked through UI'">Click me</button>
       <div contenteditable="true" aria-label="Editor">Initial</div>
       <div id="gesture" style="width:100px;height:100px" onpointerup="this.textContent='Pointer finished'">Drag here</div>
-      <div id="drop" ondrop="event.preventDefault(); event.dataTransfer.files[0].text().then(t => this.textContent=t)">Drop here</div>`);
+      <div id="drop" ondrop="event.preventDefault(); event.dataTransfer.files[0].text().then(t => this.textContent=t)">Drop here</div>
+      <video id="delayed"></video><video id="refused"></video><video id="stalled"></video>
+      <script>
+        // Controlled media-start promises test the bridge, not video decoding.
+        document.querySelector('#delayed').play = () => new Promise(r => setTimeout(r, 1200));
+        document.querySelector('#refused').play = () => Promise.reject(new Error('fixture play refusal'));
+        document.querySelector('#stalled').play = () => new Promise(() => {});
+      </script>`);
   });
   await new Promise((done) => canvas.listen(0, '127.0.0.1', done));
   const canvasUrl = `http://127.0.0.1:${canvas.address().port}`;
@@ -75,6 +82,13 @@ test('debug probe observes an isolated canvas without disabling same-origin enfo
       await page.frameLocator('iframe').locator('#gesture').textContent(),
       'Pointer finished'
     );
+    // A drag the test asks to HOLD answers after the hold, not after 1 s:
+    // a 900 ms hold plus its moves outlasts the plain DOM-query deadline.
+    const held = await page.evaluate(() =>
+      window.__maudeE2EFrameProbe('#gesture', 'pointer', { dx: 10, dy: 10, hold: 900 })
+    );
+    assert.equal(held.error, undefined, 'a held drag reply is not a timeout');
+    assert.equal(held.visible, true);
     await page.evaluate(() =>
       window.__maudeE2EFrameProbe('#drop', 'dropFile', {
         name: 'fixture.png',
@@ -98,6 +112,14 @@ test('debug probe observes an isolated canvas without disabling same-origin enfo
       await page.frameLocator('iframe').locator('#drop').textContent(),
       'actual transferred bytes'
     );
+    const delayed = await page.evaluate(() => window.__maudeE2EFrameProbe('#delayed', 'play'));
+    assert.equal(delayed.error, undefined, 'media startup may outlast the 1 s DOM-query deadline');
+    const refused = await page.evaluate(() => window.__maudeE2EFrameProbe('#refused', 'play'));
+    assert.match(refused.error, /fixture play refusal/, 'a rejected play is still a failure');
+    const started = performance.now();
+    const stalled = await page.evaluate(() => window.__maudeE2EFrameProbe('#stalled', 'play'));
+    assert.match(stalled.error, /timed out/);
+    assert.ok(performance.now() - started < 7000, 'media startup still has a bounded deadline');
     await page.evaluate(() => {
       const overlay = document.createElement('div');
       overlay.dataset.testid = 'canvas-load-error';

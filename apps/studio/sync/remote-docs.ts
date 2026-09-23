@@ -341,8 +341,8 @@ export function pullTargets(
  * readable. Both hops go through the same function, so "where does this canvas
  * go" cannot have two answers.
  *
- * Returns null when even the containment check refuses — the only case in which
- * a canvas is dropped rather than degraded.
+ * Returns null when a present path is refused or containment fails. Only a
+ * document with no path may use the legacy slug-derived fallback.
  */
 export function resolvePulledTarget(args: {
   slug: string;
@@ -376,6 +376,7 @@ export function resolvePulledTarget(args: {
     allowUndeclaredGroup: args.allowUndeclaredGroup,
     onRefused: args.onRefused,
   });
+  if (args.path !== undefined && args.path !== null && !fromPath) return null;
   const bodyAbs = args.join(args.designRoot, rel);
   // Belt and braces at a create. The validator already refuses everything that
   // could escape lexically; this catches whatever a platform's own `resolve`

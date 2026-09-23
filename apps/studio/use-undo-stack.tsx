@@ -99,6 +99,11 @@ const UndoSinksContext = createContext<UndoSinksValue | null>(null);
 
 const NOOP_SINKS: UndoSinksValue = { setSink: () => {} };
 
+// The iframe survives a soft HMR swap, but its Provider does not. Keep pending
+// operations serialized across that handoff; remove idle queues so this map
+// retains neither closed canvases nor completed command closures.
+const canvasFlights = new Map<string, Promise<void>>();
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Provider
 
@@ -185,10 +190,25 @@ export function UndoStackProvider({
   }, []);
 
   const enqueue = useCallback((task: () => Promise<void>): Promise<void> => {
-    const next = inFlightRef.current.then(task, task);
-    inFlightRef.current = next.catch(() => {
+    const file = fileRef.current;
+    const previous = (file && canvasFlights.get(file)) || inFlightRef.current;
+    const run = async () => {
+      // The previous mount may have persisted its ACK after this mount read
+      // the initial state. Re-read only at the serialized operation boundary.
+      if (file) stateRef.current = loadStackState(file);
+      await task();
+    };
+    const next = previous.then(run, run);
+    const settled = next.catch(() => {
       /* swallow — per-op error already reported */
     });
+    inFlightRef.current = settled;
+    if (file) {
+      canvasFlights.set(file, settled);
+      void settled.then(() => {
+        if (canvasFlights.get(file) === settled) canvasFlights.delete(file);
+      });
+    }
     return next;
   }, []);
 

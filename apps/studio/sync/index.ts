@@ -2038,16 +2038,15 @@ export function createSyncRuntime(
   ): Awaited<ReturnType<typeof fetchRemoteListing>> {
     const manifest = acceptedOn() ? acceptedLink?.manifest : null;
     if (!manifest) return listing;
-    // A document the project RETIRED (moved away) is not a canvas to fetch,
-    // even while its storage row lingers — its successor is in the manifest.
-    const retired = new Set(manifest.docs.filter((d) => d.retired).map((d) => d.doc));
-    const documents = (listing?.documents ?? []).filter((d) => !retired.has(d.name));
-    const names = new Set(documents.map((d) => d.name));
-    for (const d of manifest.docs) {
-      if (d.retired || names.has(d.doc)) continue;
-      documents.push({ name: d.doc, bytes: 1 });
-      names.add(d.doc);
-    }
+    // An open Yjs room is not necessarily an accepted canvas. Its author can
+    // connect before doc.create commits; pulling that empty room would lock
+    // the receiver onto a lossy slug-derived path before the real path arrives.
+    // The accepted manifest alone names live canvases, including successors
+    // of retired documents whose transport rows may still linger.
+    const bytesByName = new Map((listing?.documents ?? []).map((d) => [d.name, d.bytes]));
+    const documents = manifest.docs
+      .filter((d) => !d.retired)
+      .map((d) => ({ name: d.doc, bytes: bytesByName.get(d.doc) ?? 1 }));
     return { ...(listing ?? { tombstones: [] }), documents, tombstones: listing?.tombstones ?? [] };
   }
 
@@ -2585,6 +2584,21 @@ export function createSyncRuntime(
       if (acceptedOn() && p?.op) projectionForRel(p.rel)?.noteSourceOp(p.op);
     });
     activityUnsubs.push(unsubSourceOp);
+    // Only the trusted API emits this after its write has finished. External
+    // fs events retain the quiet window; both paths use the same projection,
+    // proposal, validation and echo/deduplication rules.
+    const unsubSourceWritten = ctx.bus.on('source-written', (payload: unknown) => {
+      const p = payload as { rel?: unknown; content?: unknown } | null;
+      if (!acceptedOn() || typeof p?.content !== 'string') return;
+      const proj = projectionForRel(p.rel);
+      if (!proj) return;
+      proj.applyFromFs({
+        path: path.join(ctx.paths.designRoot, p.rel as string),
+        bytes: new TextEncoder().encode(p.content),
+        hash: hashBytes(p.content),
+      });
+    });
+    activityUnsubs.push(unsubSourceWritten);
     const unsubUnsuppress = ctx.bus.on('activity:unsuppress', (rel: unknown) => {
       projectionForRel(rel)?.cancelLocalWrite();
     });

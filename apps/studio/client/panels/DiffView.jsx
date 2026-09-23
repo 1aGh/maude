@@ -236,6 +236,7 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
   // HEAD), then re-pointable in-place via the "Saved version" picker.
   const tgtFile = target?.file;
   const tgtBeforeSha = target?.beforeSha;
+  const acceptedPreview = /^r\d+$/.test(tgtBeforeSha || '');
   const [beforeSha, setBeforeSha] = useState(tgtBeforeSha || 'HEAD');
   const [versions, setVersions] = useState(null); // per-file saved versions, or null while loading
 
@@ -253,7 +254,7 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
     let cancelled = false;
     (async () => {
       const entries = (await loadLog(tgtFile)) || [];
-      if (!cancelled) setVersions(entries);
+      if (!cancelled) setVersions(Array.isArray(entries) ? entries : []);
     })();
     return () => {
       cancelled = true;
@@ -335,12 +336,13 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
             <label className="dv-verpick">
               <span className="dv-verpick-lbl">Compare against</span>
               <select
+                data-testid="history-preview-version"
                 className="dv-verpick-sel"
                 value={beforeSha}
                 onChange={(e) => setBeforeSha(e.target.value)}
                 aria-label={`Saved version of ${baseName(file)} to compare against`}
               >
-                <option value="HEAD">Last saved</option>
+                {!acceptedPreview && <option value="HEAD">Last saved</option>}
                 {versions.map((v) => (
                   <option key={v.sha} value={v.sha}>
                     {`${v.message || 'Saved version'} · ${timeAgo(v.date)}`}
@@ -506,7 +508,7 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
                   <div className="dv-col">
                     <div className="dv-col-hd">
                       <span className="dv-col-tag is-after">Your version</span>
-                      <span className="dv-col-who">now · unsaved</span>
+                      <span className="dv-col-who">{acceptedPreview ? 'now · working copy' : 'now · unsaved'}</span>
                     </div>
                     <div className="dv-thumb is-after">
                       <CanvasView
@@ -559,17 +561,20 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
                 <button
                   type="button"
                   className="btn btn--ghost btn--sm"
+                  data-testid="history-preview-restore"
                   disabled={busy}
                   onClick={async () => {
                     if (
                       !window.confirm(
-                        `Restore the saved version of “${baseName(file)}”? Your unsaved changes to it are discarded.`
+                        acceptedPreview
+                          ? `Restore version ${beforeSha.slice(1)} of “${baseName(file)}” as a new saved version?`
+                          : `Restore the saved version of “${baseName(file)}”? Your unsaved changes to it are discarded.`
                       )
                     )
                       return;
                     setBusy(true);
                     try {
-                      await onRestore(file);
+                      await onRestore(file, beforeSha);
                     } finally {
                       setBusy(false);
                     }

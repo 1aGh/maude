@@ -2422,6 +2422,38 @@ function isLockedElement(el: Element | null, cdId: string | null): boolean {
 // ─────────────────────────────────────────────────────────────────────────────
 // Router wire-up
 
+// The shell writes an inspector edit, THEN posts `record-edit` for it. The
+// write reaches disk before the shell has its response, so a Cmd+Z pressed in
+// that window found the stack one entry short and inverted the edit BELOW the
+// one on screen — refused as "changed by someone else", or worse, applied.
+// Before undo/redo, ask the shell to answer once its recordable writes have
+// settled. Messages between two windows arrive in order, so every
+// `record-edit` those writes produce is delivered before the answer. Bounded:
+// a shell that never answers costs a short wait, not the undo.
+export function afterShellRecords(timeoutMs = 3000): Promise<void> {
+  if (typeof window === 'undefined' || window.parent === window) return Promise.resolve();
+  const requestId = `ub-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  return new Promise<void>((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      window.removeEventListener('message', onReply);
+      resolve();
+    };
+    const onReply = (e: MessageEvent) => {
+      const d = e.data as { dgn?: string; requestId?: string } | null;
+      if (e.source === window.parent && d?.dgn === 'undo-barrier-ok' && d.requestId === requestId)
+        done();
+    };
+    const timer = setTimeout(done, timeoutMs);
+    window.addEventListener('message', onReply);
+    try {
+      window.parent.postMessage({ dgn: 'undo-barrier', requestId }, '*');
+    } catch {
+      done();
+    }
+  });
+}
+
 function CanvasRouter({
   hostRef,
   children,
@@ -2443,6 +2475,11 @@ function CanvasRouter({
   // without making them a hook dependency — avoids re-binding on every undo op.
   const undoStackRef = useRef(undoStack);
   undoStackRef.current = undoStack;
+  // Selection readback can refresh while the user is typing (e.g. the shell's
+  // post-HMR halo restore). Keep the editor's lifetime tied to its host, not
+  // the changing selection snapshot, or effect cleanup silently ends typing.
+  const textSelectionRef = useRef(selSet);
+  textSelectionRef.current = selSet;
 
   // Phase: inline-edit undo (DDR-103/104 follow-up). Wire the `editSourceApplyFn`
   // sink so an `edit-source` command's do()/undo() reaches the main-origin-only
@@ -2454,10 +2491,17 @@ function CanvasRouter({
   // or any failed write) rejects, the stack keeps the entry instead of moving
   // its cursor, and the user is told why.
   useEffect(() => {
+    // HMR replaces this React subtree, not the iframe or the parent write.
+    // Drain already-sent requests after cleanup instead of losing their ACK
+    // (and, on conflict, their user-facing refusal). Timers remain bounded.
+    let disposed = false;
     const pending = new Map<
       string,
       { resolve: () => void; reject: (err: Error) => void; timer: ReturnType<typeof setTimeout> }
     >();
+    const detachIfIdle = () => {
+      if (disposed && pending.size === 0) window.removeEventListener('message', onResult);
+    };
     const onResult = (event: MessageEvent) => {
       if (event.source !== window.parent) return;
       const data = event.data as
@@ -2468,6 +2512,7 @@ function CanvasRouter({
       if (!entry) return;
       pending.delete(data.requestId);
       clearTimeout(entry.timer);
+      detachIfIdle();
       if (data.ok === true) {
         entry.resolve();
         return;
@@ -2482,11 +2527,16 @@ function CanvasRouter({
     let sequence = 0;
     const applyFn: EditSourceApplyFn = (apply) =>
       new Promise<void>((resolve, reject) => {
+        if (disposed) {
+          reject(new Error('the canvas closed'));
+          return;
+        }
         sequence += 1;
         const requestId = `${Date.now().toString(36)}-${sequence}-${Math.random().toString(36).slice(2, 8)}`;
         // Generous: the shell serializes these writes behind any in-flight one.
         const timer = setTimeout(() => {
           pending.delete(requestId);
+          detachIfIdle();
           reject(new Error('the edit was not confirmed'));
         }, 30_000);
         pending.set(requestId, { resolve, reject, timer });
@@ -2496,17 +2546,14 @@ function CanvasRouter({
           /* detached / cross-origin teardown — nothing to apply */
           pending.delete(requestId);
           clearTimeout(timer);
+          detachIfIdle();
           reject(new Error('the canvas is detached'));
         }
       });
     undoSinks.setSink('editSourceApplyFn', applyFn);
     return () => {
-      window.removeEventListener('message', onResult);
-      for (const entry of pending.values()) {
-        clearTimeout(entry.timer);
-        entry.reject(new Error('the canvas closed'));
-      }
-      pending.clear();
+      disposed = true;
+      detachIfIdle();
       undoSinks.setSink('editSourceApplyFn', undefined);
     };
   }, [undoSinks]);
@@ -2734,11 +2781,11 @@ function CanvasRouter({
       }
       // Plan C — Edit menu (shell) bridges to the in-canvas undo stack.
       if (m.dgn === 'undo') {
-        void undoStack.undo();
+        void afterShellRecords().then(() => undoStackRef.current.undo());
         return;
       }
       if (m.dgn === 'redo') {
-        void undoStack.redo();
+        void afterShellRecords().then(() => undoStackRef.current.redo());
         return;
       }
       // Phase 12 Task 4 (DDR-103) — Layers-tree round-trip. select-by-id resolves
@@ -3144,7 +3191,7 @@ function CanvasRouter({
       // selected (the drill has reached it). Previously a dblclick on leaf
       // text jumped straight to the editor from any depth, so the drill ladder
       // never ran on text-bearing targets.
-      const sel0 = selSet.selected;
+      const sel0 = textSelectionRef.current.selected;
       const currentId = sel0.length === 1 ? sel0[0]?.id : undefined;
       const leafReached = isLeafText && currentId === stamped.getAttribute('data-cd-id');
       if (!leafReached) {
@@ -3167,7 +3214,9 @@ function CanvasRouter({
               (next.closest('[data-dc-screen]') as HTMLElement | null)?.getAttribute(
                 'data-dc-screen'
               ) ?? null;
-            selSet.replace(hoverTargetToSelection({ el: next, cdId, artboardId } as HoverTarget));
+            textSelectionRef.current.replace(
+              hoverTargetToSelection({ el: next, cdId, artboardId } as HoverTarget)
+            );
           }
         }
         return;
@@ -3228,7 +3277,7 @@ function CanvasRouter({
       document.removeEventListener('maude:enter-text-edit', onEnterTextEdit);
       if (editing) teardown(editing);
     };
-  }, [hostRef, selSet]);
+  }, [hostRef]);
 
   // Cleanup any pending rAF on unmount.
   useEffect(
@@ -3314,10 +3363,10 @@ function CanvasRouter({
       },
       onTool: ({ tool: t }) => setTool(t),
       onUndo: () => {
-        void undoStack.undo();
+        void afterShellRecords().then(() => undoStackRef.current.undo());
       },
       onRedo: () => {
-        void undoStack.redo();
+        void afterShellRecords().then(() => undoStackRef.current.redo());
       },
       onEscape: () => {
         // T21 — abort any mid-stroke draw FIRST. The annotations layer

@@ -80,7 +80,7 @@
 .st-mb-file b { color: var(--fg-0); font-weight: 600; }
 .st-mb-sep { width: 1px; height: 16px; background: var(--border-default); }
 .st-mb-count { display: inline-flex; align-items: center; gap: var(--space-2); font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-1); }
-.st-mb-proj { font-family: var(--font-mono); font-size: var(--type-xs); color: var(--status-success); }
+.st-mb-proj { font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-2); }
 .st-reportbug {
   appearance: none; border: 0; background: transparent; cursor: pointer;
   width: 26px; height: 26px; display: grid; place-items: center; border-radius: var(--radius-sm);
@@ -193,7 +193,7 @@
   font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-1); z-index: 30;
 }
 .st-sb-slot { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; }
-.st-sb-slot .lbl { color: var(--fg-3); text-transform: uppercase; letter-spacing: var(--tracking-wide); font-size: 10px; flex: none; }
+.st-sb-slot .lbl { color: var(--fg-2); text-transform: uppercase; letter-spacing: var(--tracking-wide); font-size: 10px; flex: none; }
 .st-sb-slot .val { color: var(--fg-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .st-sb-slot + .st-sb-slot { padding-left: var(--space-4); border-left: 1px solid var(--border-subtle); }
 .st-sb-active { font-weight: 500; }
@@ -225,7 +225,7 @@
 
 /* The running release. Ambient, not a state to act on — so it sits at the same
    weight as a slot label rather than at .val's foreground. No new tokens. */
-.st-sb-version .val { color: var(--fg-3); }
+.st-sb-version .val { color: var(--fg-2); }
 
 /* ═══ Task 4 — body row · sidebar · tree · rail ═══════════════════════════════ */
 
@@ -243,7 +243,7 @@
 .st-dockslot > .st-rpanel,
 .st-dockslot > .st-sidebar { flex: 1 1 auto; width: 100%; min-height: 0; }
 .st-docktabs { display: flex; gap: 2px; padding: var(--space-2) var(--space-2) 0; border-bottom: 1px solid var(--border-subtle); background: var(--bg-1); flex: none; }
-.st-docktab { appearance: none; border: 0; background: transparent; cursor: pointer; padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm) var(--radius-sm) 0 0; color: var(--fg-3); font-family: var(--font-mono); font-size: var(--type-xs); letter-spacing: var(--tracking-wide); transition: color var(--dur-soft) var(--ease-out), background var(--dur-soft) var(--ease-out); }
+.st-docktab { appearance: none; border: 0; background: transparent; cursor: pointer; padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm) var(--radius-sm) 0 0; color: var(--fg-2); font-family: var(--font-mono); font-size: var(--type-xs); letter-spacing: var(--tracking-wide); transition: color var(--dur-soft) var(--ease-out), background var(--dur-soft) var(--ease-out); }
 .st-docktab:hover { color: var(--fg-1); background: var(--bg-2); }
 .st-docktab.is-active { color: var(--fg-0); background: var(--bg-2); box-shadow: inset 0 -2px 0 var(--accent); }
 .st-docktab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
@@ -357,6 +357,8 @@
 }
 /* delete affordance — sibling of the row button (can't nest buttons). */
 .st-row-wrap { position: relative; display: flex; align-items: center; }
+.st-tree-item:focus-visible { outline: none; }
+.st-tree-item:focus-visible > .st-row-wrap { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--radius-sm); }
 .st-row-wrap .st-row { flex: 1; }
 .st-row-del {
   position: absolute; right: var(--space-2); top: 50%; transform: translateY(-50%);
@@ -1563,7 +1565,7 @@ body.st-scrubbing, body.st-scrubbing * { cursor: ew-resize !important; user-sele
 }
 .st-skel-cap {
   font-size: var(--type-xs); letter-spacing: var(--tracking-wide);
-  text-transform: uppercase; color: var(--fg-3);
+  text-transform: uppercase; color: var(--fg-2);
 }
 .skel {
   display: block;
@@ -2263,7 +2265,7 @@ body.st-scrubbing, body.st-scrubbing * { cursor: ew-resize !important; user-sele
 .dv-zoom-btn:hover { background: var(--bg-3); color: var(--fg-0); }
 .dv-zoom-val { font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-2); min-width: 44px; text-align: center; cursor: pointer; appearance: none; border: none; background: transparent; }
 .dv-zoom-val:hover { color: var(--fg-0); }
-.dv-zoom-sync { font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-3); padding-left: var(--space-2); border-left: 1px solid var(--border-subtle); margin-left: var(--space-1); }
+.dv-zoom-sync { font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-2); padding-left: var(--space-2); border-left: 1px solid var(--border-subtle); margin-left: var(--space-1); }
 
 /* overlay / slider compare (shares the locked view; frozen layers for the wipe) */
 .dv-overlay { --dv-split: 52%; position: relative; flex: 1; min-height: 0; margin: 0 auto; width: 100%; max-width: 900px; background: var(--bg-0); border: 1px solid var(--border-default); border-radius: var(--radius-md); overflow: hidden; }
@@ -2639,7 +2641,11 @@ body.st-scrubbing, body.st-scrubbing * { cursor: ew-resize !important; user-sele
 .sp-ai-held { display: flex; flex-direction: column; gap: var(--space-2); }
 .sp-ai-actions { display: flex; gap: var(--space-2); }
 /* ── SourceConflictPanel (plan T28) — two versions, line by line. ── */
-.gi-dialog.scp-dialog { width: min(760px, 94vw); max-height: min(820px, 90vh); overflow: hidden; display: flex; flex-direction: column; padding: var(--space-6); gap: var(--space-4); }
+.gi-dialog.scp-dialog { width: min(760px, 94vw); max-height: min(820px, 90vh); overflow: auto; display: flex; flex-direction: column; padding: var(--space-6); gap: var(--space-4); }
+.scp-recovery { display: grid; gap: var(--space-2); font-size: var(--type-xs); color: var(--fg-1); }
+.scp-recovery summary { cursor: pointer; padding: var(--space-2) 0; }
+.scp-recovery pre { margin: 0; padding: var(--space-3); max-height: 160px; overflow: auto; border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-1); font: var(--type-xs)/1.55 var(--font-mono); }
+.scp-recovery summary:focus-visible, .scp-recovery pre:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .scp-legend { display: flex; gap: var(--space-4); font-size: var(--type-xs); color: var(--fg-2); }
 .scp-key::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: var(--space-2); vertical-align: -1px; }
 .scp-key--mine::before { background: color-mix(in oklch, var(--status-warn) 45%, transparent); }

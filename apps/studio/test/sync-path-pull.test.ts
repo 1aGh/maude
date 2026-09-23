@@ -7,17 +7,19 @@
 // provisional one, that the canvas is written where the tree will find it, and
 // that a folder with no `config.json` ends up with one describing what arrived.
 
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 import {
   chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import * as fsPromises from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Awareness } from 'y-protocols/awareness';
@@ -175,7 +177,7 @@ describe('a peer with an empty design root pulls the project down whole', () => 
     expect(existsSync(join(ctx.paths.designRoot, 'ui', 'legacy.tsx'))).toBe(true);
   });
 
-  test('a hostile path is refused and the canvas still arrives', async () => {
+  test('a hostile path ends the pull without writing a fallback', async () => {
     hubListing([{ name: 'ws/acme/main/ui-legacy', bytes: 10 }]);
     const ctx = makeCtx();
     const runtime = createSyncRuntime(ctx, {
@@ -186,7 +188,7 @@ describe('a peer with an empty design root pulls the project down whole', () => 
     await runtime?.start();
     await runtime?.stop();
 
-    expect(existsSync(join(ctx.paths.designRoot, 'ui', 'legacy.tsx'))).toBe(true);
+    expect(existsSync(join(ctx.paths.designRoot, 'ui', 'legacy.tsx'))).toBe(false);
     expect(existsSync(join(dir, '..', 'tmp', 'pwned.tsx'))).toBe(false);
   });
 
@@ -228,9 +230,9 @@ describe('a peer with an empty design root pulls the project down whole', () => 
     await runtime?.stop();
 
     expect(readFileSync(cfgFile, 'utf8')).toBe(mine);
-    // The undeclared group is refused, so the canvas falls back — still arriving.
+    // A present but refused path must not become a different local canvas.
     expect(existsSync(join(ctx.paths.designRoot, 'screens', 'home.tsx'))).toBe(false);
-    expect(existsSync(join(ctx.paths.designRoot, 'screens-home.tsx'))).toBe(true);
+    expect(existsSync(join(ctx.paths.designRoot, 'screens-home.tsx'))).toBe(false);
   });
 });
 
@@ -269,6 +271,51 @@ describe('a refused path ends the pull — it does not redirect it', () => {
     expect(existsSync(join(ctx.paths.designRoot, 'ui', 'desk_a.tsx'))).toBe(false);
     // And the file that WAS there is kept, byte for byte.
     expect(readFileSync(join(ctx.paths.designRoot, SPACED_REL), 'utf8')).toBe(LOCAL);
+  });
+});
+
+describe('pull-pin release waits for the scan that observed the body', () => {
+  test('a stale scan cannot detach a newly materialized pull; a later opt-out can', async () => {
+    const slug = 'ui-race';
+    const ctx = makeCtx([{ label: 'Canvases', path: 'ui' }]);
+    hubListing([{ name: `ws/acme/main/${slug}`, bytes: BODY.length }]);
+    const runtime = createSyncRuntime(ctx, {
+      providerFactory: hubDocProviderFactory({ [slug]: { body: BODY, path: 'ui/race.tsx' } }),
+    });
+    const body = join(ctx.paths.designRoot, 'ui/race.tsx');
+    const pendingBody = join(dir, 'pending-body.tsx');
+    const readdir = fsPromises.readdir;
+    let restoreScan: (() => void) | undefined;
+    try {
+      await runtime?.start();
+      const agent = runtime?.agentFor(slug);
+      expect(agent).toBeDefined();
+      // Capture a REAL directory listing before the body arrives. Publish the
+      // already-pulled bytes before that listing resumes the runtime's scan.
+      // No timing sleeps or fake scan result: only this async boundary is held.
+      renameSync(body, pendingBody);
+      const scanSpy = spyOn(fsPromises, 'readdir').mockImplementationOnce(async (...args) => {
+        const entries = await readdir(...args);
+        renameSync(pendingBody, body);
+        return entries;
+      });
+      restoreScan = () => scanSpy.mockRestore();
+      await runtime?.rescanNow();
+      scanSpy.mockRestore();
+      expect(readFileSync(body, 'utf8')).toBe(BODY);
+      expect(runtime?.agentFor(slug)).toBe(agent);
+
+      // Once a scan actually lists the body the pin MUST expire, otherwise a
+      // user's subsequent syncable:false would be ignored indefinitely.
+      await runtime?.rescanNow();
+      expect(runtime?.agentFor(slug)).toBe(agent);
+      writeFileSync(body.replace('.tsx', '.meta.json'), JSON.stringify({ syncable: false }));
+      await runtime?.rescanNow();
+      expect(runtime?.agentFor(slug)).toBeUndefined();
+    } finally {
+      restoreScan?.();
+      await runtime?.stop();
+    }
   });
 });
 

@@ -34,6 +34,7 @@ import { buildCanvasModule } from './canvas-build.ts';
 import { buildCanvasSandboxed, buildStats } from './canvas-build-sandbox.ts';
 import { canvasLibPath } from './canvas-lib-resolver.ts';
 import { TranspileError } from './canvas-pipeline.ts';
+import { rememberCanvasBuild } from './canvas-source-memo.ts';
 import { createCloudEndpoints } from './cloud/endpoints.ts';
 import type { AiActivity } from './collab/ai-activity.ts';
 import type { Context } from './context.ts';
@@ -687,6 +688,7 @@ export async function serveCanvasTsx(
         deps,
       };
       canvasCache.set(absPath, cached);
+      rememberCanvasBuild(absPath, { source, locator: result.locator });
       await writeLocator(locatorAbsPath, canvasSlug(absPath, ctx.paths.designRoot), result.locator);
       return respondWithCanvasModule(req, cached);
     }
@@ -725,6 +727,7 @@ export async function serveCanvasTsx(
       deps,
     };
     canvasCache.set(absPath, cached);
+    rememberCanvasBuild(absPath, { source, locator: result.locator });
     // Persist the locator map. Awaited so the inspector / Phase-12 layers
     // panel sees a consistent (cdId -> source) view by the time the canvas
     // mounts. Per-path mutex inside writeLocator() makes concurrent transpiles
