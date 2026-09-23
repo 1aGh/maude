@@ -14,7 +14,7 @@ historical context and is not an active task list.
 | [`feature-local-media-generation.md`](./feature-local-media-generation.md) | Planned; native keychain, local adapters, and desktop E2E not started. |
 | [`feature-post-1.0-hardening-backlog.md`](./feature-post-1.0-hardening-backlog.md) | Open backlog; resolved entries stay as evidence, remaining program is not empty. |
 | [`feature-video-tracking-and-stabilization.md`](./feature-video-tracking-and-stabilization.md) | Planned; even the `s3Assets` JSON-sidecar prerequisite remains open. |
-| [`followup-reliable-project-multiplayer.md`](./followup-reliable-project-multiplayer.md) | Open follow-up; F5 closed, F1–F4/F6/F7 remain. |
+| [`followup-reliable-project-multiplayer.md`](./followup-reliable-project-multiplayer.md) | Partial; F2 real R2 proof and F5–F7 complete. F1 full native matrix, F3 full backend scenarios and F4 latency remain open. |
 
 Rejected or completed plans live under [`archive/`](./archive/), including the
 unimplemented, stale `/goal` integration proposal rejected on 2026-09-22.

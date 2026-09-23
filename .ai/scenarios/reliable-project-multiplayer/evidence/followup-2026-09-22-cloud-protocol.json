@@ -1,0 +1,128 @@
+{
+  "date": "2026-09-22",
+  "status": "partial-with-failure",
+  "scope": "Real cloud S03/S04/S05/S10 protocol subsets and S11 browser history; not complete F3 certification",
+  "projectId": "f3-cloud",
+  "backendManifest": "followup-2026-09-22-cloud-cell.json",
+  "epoch": 1,
+  "identities": {
+    "a": "designer-a@maude-f3.invalid",
+    "b": "designer-b@maude-f3.invalid",
+    "browserObserver": "owner@maude-f3.invalid"
+  },
+  "S03": {
+    "status": "subset-pass",
+    "stimulus": "A and B submit independently authenticated proposals; B color edit deliberately uses the base preceding A title edit",
+    "doc": "ui-f3concurrency",
+    "path": "ui/F3Concurrency.tsx",
+    "actions": [
+      { "revision": 6, "actionId": "a_e520b574-de38-4499-9d66-3f263c984d99", "actor": "a", "operation": "create" },
+      { "revision": 7, "actionId": "a_ad590cb1-0838-4704-925a-e7001849f456", "actor": "a", "operation": "title edit" },
+      { "revision": 8, "actionId": "a_32ad2f8a-252d-406d-8047-f9accfe27423", "actor": "b", "operation": "stale-base color edit" }
+    ],
+    "merged": true,
+    "acceptedHash": "1a7e7432087546f2a2028a8ba323bd5ec5a8cb24c4d493065339d6b2665f4aa5",
+    "sourceEqualsExpected": true,
+    "browser": { "text": "Designer A title", "color": "rgb(255, 0, 0)", "visible": true },
+    "screenshot": ".ai/browser/screenshots/followup-f3-concurrent-title-color.png",
+    "screenshotInspected": true,
+    "remaining": "Two independent native UI authors and self-host backend"
+  },
+  "S04": {
+    "status": "subset-pass",
+    "invalidSourceStatus": 422,
+    "code": "source-invalid",
+    "acceptedRevisionBefore": 12,
+    "acceptedRevisionAfter": 12,
+    "remaining": "Dependent repair U2, restart/reconnect and preservation of original candidate bytes"
+  },
+  "S05": {
+    "status": "subset-pass",
+    "stimulus": "Explicit raw Update and SyncStep2 frames over an authenticated already-open external WebSocket, plus an old-epoch proposal",
+    "doc": "ui-browser_ownership_probe",
+    "acceptedHash": "c31e4292c49353ffb1f3f4d34dd5e70c3b4a7a085c06894c23245c8ef9cb3b3d",
+    "messages": [ { "type": "Update", "bytes": 3065 }, { "type": "SyncStep2", "bytes": 3065 } ],
+    "awareness": { "bytes": 52, "deliveredToIndependentWitness": true },
+    "negativeDeliveryWindowMs": 1500,
+    "oldEpochStatus": 409,
+    "oldEpochCode": "epoch-stale",
+    "acceptedRevisionBefore": 12,
+    "acceptedRevisionAfter": 12,
+    "docsDirsAndFullRevisionLogUnchanged": true,
+    "existingWitnessAndFreshReaderMatchAcceptedSource": true,
+    "remaining": "Cell loopback stimulus and self-host backend",
+    "cleanup": "All three probe providers and Y.Doc instances destroyed"
+  },
+  "S10": {
+    "status": "subset-pass",
+    "ownUndo": {
+      "actionId": "a_1f4596c2-5949-4ec4-8c46-c8ec57ed1966",
+      "revision": 9,
+      "reverts": "a_ad590cb1-0838-4704-925a-e7001849f456",
+      "acceptedHash": "98a4f745c40414a12f9ca10c50079e7681bfe87fd75fbb85c6442aec2050131f",
+      "browserText": "Original title",
+      "browserColor": "rgb(255, 0, 0)",
+      "peerColorPreserved": true,
+      "screenshot": ".ai/browser/screenshots/followup-f3-own-undo-peer-color.png"
+    },
+    "aba": {
+      "aSetsC": "a_3c3d265a-fb1e-4e45-8659-62db84175d45",
+      "bSetsD": "a_a503a154-3ca7-4f72-8894-27782ada567a",
+      "bSetsCAgain": "a_8428516b-a431-4eed-bdcb-d0de383ccec2",
+      "aUndoStatus": 409,
+      "aUndoCode": "undo-conflict",
+      "foreignUndoStatus": 403,
+      "staleRedoStatus": 409,
+      "acceptedRevision": 12,
+      "acceptedHash": "58876e0132c88bab3b7744c8e9f956e9fd52f2b198915539c30c6c26d1eee608",
+      "rejectionsLeaveHeadRevisionAndHistoryUnchanged": true,
+      "browserText": "ABA C",
+      "browserColor": "rgb(255, 0, 0)",
+      "screenshot": ".ai/browser/screenshots/followup-f3-aba-peer-effect.png"
+    },
+    "screenshotsInspected": true,
+    "remaining": "Native UI undo/redo, successful redo, deleted target, visible partial rejection and self-host backend; cloud-browser personal undo remains intentionally unsupported"
+  },
+  "S11": {
+    "status": "fail",
+    "preview": {
+      "selectedRevision": 8,
+      "savedText": "Designer A title",
+      "currentText": "ABA C",
+      "bothFramesRendered": true,
+      "screenshot": ".ai/browser/screenshots/followup-f3-history-source-preview.png"
+    },
+    "previewRestoreFailure": {
+      "action": "Click Restore saved version inside preview and accept confirmation",
+      "expected": "New accepted restore action containing selected revision 8",
+      "actualRequestPath": "/_api/git/discard",
+      "actualHttpStatus": 409,
+      "actualRevisionBefore": 12,
+      "actualRevisionAfter": 12,
+      "actualHash": "58876e0132c88bab3b7744c8e9f956e9fd52f2b198915539c30c6c26d1eee608",
+      "cause": "app.jsx passes DiffView an unconditional gitDiscard callback; selected accepted revision is not forwarded to the project restore endpoint",
+      "fixStatus": "Not implemented; local full-run source/build inputs are frozen"
+    },
+    "historyRowRestoreControl": {
+      "action": "Close preview, click Restore in accepted-history row 8",
+      "status": "pass",
+      "newRevision": 13,
+      "actionId": "a_6a0faf7b-9615-44bc-bc2a-7302f1ae2e89",
+      "actor": "cell-loopback-sync",
+      "kind": "history.restore",
+      "acceptedHash": "1a7e7432087546f2a2028a8ba323bd5ec5a8cb24c4d493065339d6b2665f4aa5",
+      "browserText": "Designer A title",
+      "screenshot": ".ai/browser/screenshots/followup-f3-history-row-restore.png"
+    },
+    "screenshotsInspected": true,
+    "remaining": "Fix and verify preview restore, media history, concurrent peer activity, native and self-host variants"
+  },
+  "limitations": [
+    "Protocol stimuli supplement but do not replace required native designer UI scenarios",
+    "Cell image is the isolated build in the backend manifest, predating local HMR changes",
+    "No credential is included; real fixture browser session and native hub profile supplied authentication",
+    "Earlier dashboard fetch attempt failed before creating the S03 fixture; authoritative state was inspected before retry",
+    "S11 history-row success notification was transient and its text wait did not complete; revision, durable source and rendered UI independently prove the successful control path"
+  ],
+  "cleanup": { "complete": false, "reason": "Disposable project and canvases retained for remaining F3 coverage" }
+}

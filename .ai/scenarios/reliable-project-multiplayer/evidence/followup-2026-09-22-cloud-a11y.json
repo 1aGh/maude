@@ -1,0 +1,870 @@
+{
+  "date": "2026-09-22",
+  "status": "fail",
+  "scope": "S19 actual cloud r4 studio shell: history, accepted preview, sync panel; both themes",
+  "projectId": "f3-cloud",
+  "engine": {
+    "name": "axe-core",
+    "version": "4.13.0"
+  },
+  "configurationReference": "https://www.deque.com/axe/core-documentation/api-documentation/",
+  "scans": [
+    {
+      "phase": "history-dark",
+      "date": "2026-09-22T18:28:00.944Z",
+      "theme": "dark",
+      "violations": [
+        {
+          "id": "aria-required-children",
+          "impact": "critical",
+          "nodes": 2
+        },
+        {
+          "id": "aria-required-parent",
+          "impact": "critical",
+          "nodes": 6
+        },
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "nodes": 11
+        },
+        {
+          "id": "frame-title",
+          "impact": "serious",
+          "nodes": 1
+        },
+        {
+          "id": "html-has-lang",
+          "impact": "serious",
+          "nodes": 1
+        }
+      ],
+      "incomplete": [
+        {
+          "id": "aria-allowed-attr",
+          "nodes": 1
+        },
+        {
+          "id": "aria-prohibited-attr",
+          "nodes": 1
+        },
+        {
+          "id": "bypass",
+          "nodes": 1
+        },
+        {
+          "id": "color-contrast",
+          "nodes": 4
+        }
+      ]
+    },
+    {
+      "phase": "preview-dark",
+      "date": "2026-09-22T18:28:26.411Z",
+      "theme": "dark",
+      "violations": [
+        {
+          "id": "aria-required-children",
+          "impact": "critical",
+          "nodes": 2
+        },
+        {
+          "id": "aria-required-parent",
+          "impact": "critical",
+          "nodes": 6
+        },
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "nodes": 12
+        },
+        {
+          "id": "frame-title",
+          "impact": "serious",
+          "nodes": 1
+        },
+        {
+          "id": "html-has-lang",
+          "impact": "serious",
+          "nodes": 1
+        }
+      ],
+      "incomplete": [
+        {
+          "id": "aria-allowed-attr",
+          "nodes": 1
+        },
+        {
+          "id": "aria-prohibited-attr",
+          "nodes": 1
+        },
+        {
+          "id": "bypass",
+          "nodes": 1
+        },
+        {
+          "id": "color-contrast",
+          "nodes": 5
+        }
+      ]
+    },
+    {
+      "phase": "sync-dark",
+      "date": "2026-09-22T18:28:44.925Z",
+      "theme": "dark",
+      "violations": [
+        {
+          "id": "aria-required-children",
+          "impact": "critical",
+          "nodes": 2
+        },
+        {
+          "id": "aria-required-parent",
+          "impact": "critical",
+          "nodes": 6
+        },
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "nodes": 11
+        },
+        {
+          "id": "frame-title",
+          "impact": "serious",
+          "nodes": 1
+        },
+        {
+          "id": "html-has-lang",
+          "impact": "serious",
+          "nodes": 1
+        }
+      ],
+      "incomplete": [
+        {
+          "id": "aria-allowed-attr",
+          "nodes": 1
+        },
+        {
+          "id": "aria-prohibited-attr",
+          "nodes": 1
+        },
+        {
+          "id": "bypass",
+          "nodes": 1
+        },
+        {
+          "id": "color-contrast",
+          "nodes": 3
+        }
+      ]
+    },
+    {
+      "phase": "sync-light",
+      "date": "2026-09-22T18:29:08.042Z",
+      "theme": "light",
+      "violations": [
+        {
+          "id": "aria-required-children",
+          "impact": "critical",
+          "nodes": 2
+        },
+        {
+          "id": "aria-required-parent",
+          "impact": "critical",
+          "nodes": 6
+        },
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "nodes": 12
+        },
+        {
+          "id": "frame-title",
+          "impact": "serious",
+          "nodes": 1
+        },
+        {
+          "id": "html-has-lang",
+          "impact": "serious",
+          "nodes": 1
+        }
+      ],
+      "incomplete": [
+        {
+          "id": "aria-allowed-attr",
+          "nodes": 1
+        },
+        {
+          "id": "aria-prohibited-attr",
+          "nodes": 1
+        },
+        {
+          "id": "bypass",
+          "nodes": 1
+        },
+        {
+          "id": "color-contrast",
+          "nodes": 3
+        }
+      ]
+    },
+    {
+      "phase": "history-light",
+      "date": "2026-09-22T18:29:25.519Z",
+      "theme": "light",
+      "violations": [
+        {
+          "id": "aria-required-children",
+          "impact": "critical",
+          "nodes": 2
+        },
+        {
+          "id": "aria-required-parent",
+          "impact": "critical",
+          "nodes": 6
+        },
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "nodes": 12
+        },
+        {
+          "id": "frame-title",
+          "impact": "serious",
+          "nodes": 1
+        },
+        {
+          "id": "html-has-lang",
+          "impact": "serious",
+          "nodes": 1
+        }
+      ],
+      "incomplete": [
+        {
+          "id": "aria-allowed-attr",
+          "nodes": 1
+        },
+        {
+          "id": "aria-prohibited-attr",
+          "nodes": 1
+        },
+        {
+          "id": "bypass",
+          "nodes": 1
+        },
+        {
+          "id": "color-contrast",
+          "nodes": 3
+        }
+      ]
+    },
+    {
+      "phase": "preview-light",
+      "date": "2026-09-22T18:29:40.516Z",
+      "theme": "light",
+      "violations": [
+        {
+          "id": "aria-required-children",
+          "impact": "critical",
+          "nodes": 2
+        },
+        {
+          "id": "aria-required-parent",
+          "impact": "critical",
+          "nodes": 6
+        },
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "nodes": 13
+        },
+        {
+          "id": "frame-title",
+          "impact": "serious",
+          "nodes": 1
+        },
+        {
+          "id": "html-has-lang",
+          "impact": "serious",
+          "nodes": 1
+        }
+      ],
+      "incomplete": [
+        {
+          "id": "aria-allowed-attr",
+          "nodes": 1
+        },
+        {
+          "id": "aria-prohibited-attr",
+          "nodes": 1
+        },
+        {
+          "id": "bypass",
+          "nodes": 1
+        },
+        {
+          "id": "color-contrast",
+          "nodes": 5
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "rule": "aria-required-children",
+      "impact": "critical",
+      "target": [
+        "header"
+      ],
+      "html": "<header class=\"st-menubar\" role=\"menubar\" aria-label=\"Application menubar\" data-testid=\"menubar\">",
+      "failureSummary": "Fix any of the following:\n  Element has children which are not allowed: nav[aria-label], a, button[aria-label], span[aria-label], button",
+      "states": [
+        "history-dark",
+        "preview-dark",
+        "sync-dark",
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "aria-required-children",
+      "impact": "critical",
+      "target": [
+        ".st-tree"
+      ],
+      "html": "<div class=\"st-tree\" role=\"tree\" aria-label=\"Project file tree\" data-testid=\"canvas-list\">",
+      "failureSummary": "Fix any of the following:\n  Element has children which are not allowed: button, button[aria-dropeffect], button[aria-haspopup], button[aria-label]",
+      "states": [
+        "history-dark",
+        "preview-dark",
+        "sync-dark",
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "aria-required-parent",
+      "impact": "critical",
+      "target": [
+        "button[data-testid=\"menu-file\"]"
+      ],
+      "html": "<button type=\"button\" class=\"st-menu\" role=\"menuitem\" data-testid=\"menu-file\" aria-haspopup=\"menu\" aria-expanded=\"false\">File</button>",
+      "failureSummary": "Fix any of the following:\n  Required ARIA parents role not present: menu, menubar, group",
+      "states": [
+        "history-dark",
+        "preview-dark",
+        "sync-dark",
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "aria-required-parent",
+      "impact": "critical",
+      "target": [
+        "button[data-testid=\"menu-edit\"]"
+      ],
+      "html": "<button type=\"button\" class=\"st-menu\" role=\"menuitem\" data-testid=\"menu-edit\" aria-haspopup=\"menu\" aria-expanded=\"false\">Edit</button>",
+      "failureSummary": "Fix any of the following:\n  Required ARIA parents role not present: menu, menubar, group",
+      "states": [
+        "history-dark",
+        "preview-dark",
+        "sync-dark",
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "aria-required-parent",
+      "impact": "critical",
+      "target": [
+        "button[data-testid=\"menu-view\"]"
+      ],
+      "html": "<button type=\"button\" class=\"st-menu\" role=\"menuitem\" data-testid=\"menu-view\" aria-haspopup=\"menu\" aria-expanded=\"false\">View</button>",
+      "failureSummary": "Fix any of the following:\n  Required ARIA parents role not present: menu, menubar, group",
+      "states": [
+        "history-dark",
+        "preview-dark",
+        "sync-dark",
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "aria-required-parent",
+      "impact": "critical",
+      "target": [
+        "button[data-testid=\"menu-selection\"]"
+      ],
+      "html": "<button type=\"button\" class=\"st-menu\" role=\"menuitem\" data-testid=\"menu-selection\" aria-haspopup=\"menu\" aria-expanded=\"false\">Selection</button>",
+      "failureSummary": "Fix any of the following:\n  Required ARIA parents role not present: menu, menubar, group",
+      "states": [
+        "history-dark",
+        "preview-dark",
+        "sync-dark",
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "aria-required-parent",
+      "impact": "critical",
+      "target": [
+        "button[data-testid=\"menu-tools\"]"
+      ],
+      "html": "<button type=\"button\" class=\"st-menu\" role=\"menuitem\" data-testid=\"menu-tools\" aria-haspopup=\"menu\" aria-expanded=\"false\">Tools</button>",
+      "failureSummary": "Fix any of the following:\n  Required ARIA parents role not present: menu, menubar, group",
+      "states": [
+        "history-dark",
+        "preview-dark",
+        "sync-dark",
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "aria-required-parent",
+      "impact": "critical",
+      "target": [
+        "button[data-testid=\"menu-help\"]"
+      ],
+      "html": "<button type=\"button\" class=\"st-menu\" role=\"menuitem\" data-testid=\"menu-help\" data-tour=\"help\" aria-haspopup=\"menu\" aria-expanded=\"false\">Help</button>",
+      "failureSummary": "Fix any of the following:\n  Required ARIA parents role not present: menu, menubar, group",
+      "states": [
+        "history-dark",
+        "preview-dark",
+        "sync-dark",
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        ".st-cloudwho-out"
+      ],
+      "html": "<button type=\"submit\" class=\"st-cloudwho-out\" data-testid=\"cloud-signout\" title=\"Sign out of this project\">Sign out</button>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.03 (foreground color: #5f6469, background color: #12161b, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "history-dark",
+        "preview-dark",
+        "sync-dark"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        "button[data-testid=\"dock-tab-layers\"]"
+      ],
+      "html": "<button type=\"button\" role=\"tab\" data-testid=\"dock-tab-layers\" aria-selected=\"false\" class=\"st-docktab\">Layers</button>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.03 (foreground color: #5f6469, background color: #12161b, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "history-dark",
+        "preview-dark",
+        "sync-dark"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        "button[data-testid=\"dock-tab-inspector\"]"
+      ],
+      "html": "<button type=\"button\" role=\"tab\" data-testid=\"dock-tab-inspector\" aria-selected=\"false\" class=\"st-docktab\">Inspector</button>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.03 (foreground color: #5f6469, background color: #12161b, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "history-dark",
+        "preview-dark",
+        "sync-dark"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        "button[data-testid=\"dock-tab-comments\"]"
+      ],
+      "html": "<button type=\"button\" role=\"tab\" data-testid=\"dock-tab-comments\" aria-selected=\"false\" class=\"st-docktab\">Comments</button>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.03 (foreground color: #5f6469, background color: #12161b, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "history-dark",
+        "preview-dark",
+        "sync-dark"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        "button[data-testid=\"dock-tab-sync\"]"
+      ],
+      "html": "<button type=\"button\" role=\"tab\" data-testid=\"dock-tab-sync\" aria-selected=\"false\" class=\"st-docktab\">Sync</button>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.03 (foreground color: #5f6469, background color: #12161b, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "history-dark",
+        "preview-dark"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        ".st-sb-active > .lbl"
+      ],
+      "html": "<span class=\"lbl\">active</span>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.8 (foreground color: #5f6469, background color: #191e24, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "history-dark",
+        "preview-dark",
+        "sync-dark"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        "span[aria-label=\"Open comments\"] > .lbl"
+      ],
+      "html": "<span class=\"lbl\">comments</span>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.8 (foreground color: #5f6469, background color: #191e24, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "history-dark",
+        "preview-dark",
+        "sync-dark"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        ".st-sb-changes > .lbl"
+      ],
+      "html": "<span class=\"lbl\">changes</span>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.8 (foreground color: #5f6469, background color: #191e24, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "history-dark",
+        "preview-dark",
+        "sync-dark"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        "span[aria-label=\"Connection\"] > .lbl"
+      ],
+      "html": "<span class=\"lbl\">live</span>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.8 (foreground color: #5f6469, background color: #191e24, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "history-dark",
+        "preview-dark",
+        "sync-dark"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        ".st-sb-sync > .lbl"
+      ],
+      "html": "<span class=\"lbl\">hub sync</span>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.8 (foreground color: #5f6469, background color: #191e24, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "history-dark",
+        "preview-dark",
+        "sync-dark"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        "span[data-testid=\"statusbar-version\"]"
+      ],
+      "html": "<span class=\"val\" data-testid=\"statusbar-version\">v1.4.4</span>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.8 (foreground color: #5f6469, background color: #191e24, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "history-dark",
+        "preview-dark",
+        "sync-dark"
+      ]
+    },
+    {
+      "rule": "frame-title",
+      "impact": "serious",
+      "target": [
+        "iframe"
+      ],
+      "html": "<iframe src=\"https://canvas-f3-cl...\" class=\"active\" data-path=\".design/ui/F3MediaHi...\" data-testid=\"canvas-frame\" sandbox=\"allow-scripts allow-...\" allow=\"clipboard-write\">",
+      "failureSummary": "Fix any of the following:\n  Element has no title attribute\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty\n  Element's default semantics were not overridden with role=\"none\" or role=\"presentation\"",
+      "states": [
+        "history-dark",
+        "sync-dark",
+        "sync-light",
+        "history-light"
+      ]
+    },
+    {
+      "rule": "html-has-lang",
+      "impact": "serious",
+      "target": [
+        "html"
+      ],
+      "html": "<html data-theme=\"dark\">",
+      "failureSummary": "Fix any of the following:\n  The <html> element does not have a lang attribute",
+      "states": [
+        "history-dark",
+        "preview-dark",
+        "sync-dark",
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        ".dv-zoom-sync"
+      ],
+      "html": "<span class=\"dv-zoom-sync\" title=\"Both sides are locked together\">locked</span>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.8 (foreground color: #5f6469, background color: #191e24, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "preview-dark"
+      ]
+    },
+    {
+      "rule": "frame-title",
+      "impact": "serious",
+      "target": [
+        ".active"
+      ],
+      "html": "<iframe src=\"https://canvas-f3-cl...\" class=\"active\" data-path=\".design/ui/F3MediaHi...\" data-testid=\"canvas-frame\" sandbox=\"allow-scripts allow-...\" allow=\"clipboard-write\">",
+      "failureSummary": "Fix any of the following:\n  Element has no title attribute\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty\n  Element's default semantics were not overridden with role=\"none\" or role=\"presentation\"",
+      "states": [
+        "preview-dark",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        "button[data-testid=\"dock-tab-changes\"]"
+      ],
+      "html": "<button type=\"button\" role=\"tab\" data-testid=\"dock-tab-changes\" aria-selected=\"false\" class=\"st-docktab\">History</button>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.03 (foreground color: #5f6469, background color: #12161b, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "sync-dark"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        ".st-cloudwho-out"
+      ],
+      "html": "<button type=\"submit\" class=\"st-cloudwho-out\" data-testid=\"cloud-signout\" title=\"Sign out of this project\">Sign out</button>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.11 (foreground color: #8f9298, background color: #ffffff, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        ".st-mb-proj"
+      ],
+      "html": "<span class=\"st-mb-proj\">Design</span>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.19 (foreground color: #008e58, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        "button[data-testid=\"dock-tab-layers\"]"
+      ],
+      "html": "<button type=\"button\" role=\"tab\" data-testid=\"dock-tab-layers\" aria-selected=\"false\" class=\"st-docktab\">Layers</button>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.11 (foreground color: #8f9298, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        "button[data-testid=\"dock-tab-inspector\"]"
+      ],
+      "html": "<button type=\"button\" role=\"tab\" data-testid=\"dock-tab-inspector\" aria-selected=\"false\" class=\"st-docktab\">Inspector</button>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.11 (foreground color: #8f9298, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        "button[data-testid=\"dock-tab-comments\"]"
+      ],
+      "html": "<button type=\"button\" role=\"tab\" data-testid=\"dock-tab-comments\" aria-selected=\"false\" class=\"st-docktab\">Comments</button>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.11 (foreground color: #8f9298, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        "button[data-testid=\"dock-tab-changes\"]"
+      ],
+      "html": "<button type=\"button\" role=\"tab\" data-testid=\"dock-tab-changes\" aria-selected=\"false\" class=\"st-docktab\">History</button>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.11 (foreground color: #8f9298, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "sync-light"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        ".st-sb-active > .lbl"
+      ],
+      "html": "<span class=\"lbl\">active</span>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3 (foreground color: #8f9298, background color: #f9fbfd, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        "span[aria-label=\"Open comments\"] > .lbl"
+      ],
+      "html": "<span class=\"lbl\">comments</span>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3 (foreground color: #8f9298, background color: #f9fbfd, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        ".st-sb-changes > .lbl"
+      ],
+      "html": "<span class=\"lbl\">changes</span>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3 (foreground color: #8f9298, background color: #f9fbfd, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        "span[aria-label=\"Connection\"] > .lbl"
+      ],
+      "html": "<span class=\"lbl\">live</span>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3 (foreground color: #8f9298, background color: #f9fbfd, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        ".st-sb-sync > .lbl"
+      ],
+      "html": "<span class=\"lbl\">hub sync</span>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3 (foreground color: #8f9298, background color: #f9fbfd, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        "span[data-testid=\"statusbar-version\"]"
+      ],
+      "html": "<span class=\"val\" data-testid=\"statusbar-version\">v1.4.4</span>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3 (foreground color: #8f9298, background color: #f9fbfd, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "sync-light",
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        "button[data-testid=\"dock-tab-sync\"]"
+      ],
+      "html": "<button type=\"button\" role=\"tab\" data-testid=\"dock-tab-sync\" aria-selected=\"false\" class=\"st-docktab\">Sync</button>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.11 (foreground color: #8f9298, background color: #ffffff, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "history-light",
+        "preview-light"
+      ]
+    },
+    {
+      "rule": "color-contrast",
+      "impact": "serious",
+      "target": [
+        ".dv-zoom-sync"
+      ],
+      "html": "<span class=\"dv-zoom-sync\" title=\"Both sides are locked together\">locked</span>",
+      "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3 (foreground color: #8f9298, background color: #f9fbfd, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "states": [
+        "preview-light"
+      ]
+    }
+  ],
+  "limitations": [
+    "Automated checks do not certify manual keyboard/screen-reader behavior or cross-origin canvas content.",
+    "Native and self-host checks remain required.",
+    "No source fix was applied during the frozen native run.",
+    "Designer browser restored to History, original dark theme, no modal. No content/history action submitted."
+  ]
+}

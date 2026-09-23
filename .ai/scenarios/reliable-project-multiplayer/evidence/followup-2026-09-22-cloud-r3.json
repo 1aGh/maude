@@ -1,0 +1,257 @@
+{
+  "date": "2026-09-22",
+  "status": "verified-rollout-subset",
+  "scope": "Only isolated f3-cloud; not full S01-S19 certification",
+  "application": "a03073b4-13ac-42ee-8b75-b58b598e3240",
+  "rollout": "21f58900-a5ae-46d1-8dad-035328e52490",
+  "image": "registry.cloudflare.com/b5b596efe65abb732777c7171dc18145/maude-followup-cell:test-20260922-r3",
+  "digest": "sha256:6c3c46886d6a0ae947527976e09b57ac4a30be9e4a2a417c94bcfc8c2ca46b58",
+  "applicationVersion": 3,
+  "activeInstances": 1,
+  "errors": [],
+  "servedArtifacts": [
+    {
+      "path": "/_client/client.bundle.js",
+      "status": 200,
+      "bytes": 2154603,
+      "sha256": "01ca7ed2497a23d6dbe598d1f21f3214fd4361292d3cef507d1498e98e1a5522"
+    },
+    {
+      "path": "/_client/comment-mount.js",
+      "status": 200,
+      "bytes": 61295,
+      "sha256": "b1efbefd8352a85fbeef1d632abc9704f0d0cbb1291f35eb09a64d4f1ee8ba48"
+    },
+    {
+      "path": "/_client/styles.css",
+      "status": 200,
+      "bytes": 298484,
+      "sha256": "b82026c747519579800c6cb85e465b0145ac90cb6e3795a32ce0821fabd6bc69"
+    }
+  ],
+  "matchesContainerBuildManifest": true,
+  "before": {
+    "status": 200,
+    "projectId": "f3-cloud",
+    "epoch": 1,
+    "revision": 20,
+    "docs": [
+      {
+        "doc": "ui-browser_ownership_probe",
+        "entry": "n_2986b8e6-5e5f-4bd6-84f8-797b55ee3e1d",
+        "generation": 1,
+        "path": "ui/Browser ownership probe.tsx",
+        "retired": false,
+        "movedTo": null,
+        "lanes": {
+          "html": {
+            "hash": "c31e4292c49353ffb1f3f4d34dd5e70c3b4a7a085c06894c23245c8ef9cb3b3d",
+            "effect": "e_62fa28a1-41fd-4fb7-8f1d-b1272959e743"
+          },
+          "meta": {
+            "hash": "f92681b783a264cc1e5a52255fd608b7d9eeab7dd53484997ce6228f22c8d00f",
+            "effect": "e_2ee13c6f-697d-41f8-aad4-406417d6d38b"
+          }
+        }
+      },
+      {
+        "doc": "ui-cloud_acceptance",
+        "entry": "n_07f49b73-88de-49c1-b225-9b3978e4d503",
+        "generation": 1,
+        "path": "ui/Cloud acceptance.tsx",
+        "retired": false,
+        "movedTo": null,
+        "lanes": {
+          "html": {
+            "hash": "89a98f31ec7fb9e3f47aca796ab008f5edd42239571e7bb05960b9a7bfbba2b8",
+            "effect": "e_1e7d1c15-2e9e-43e4-9fe2-c6cab3c4bba5"
+          },
+          "meta": {
+            "hash": "db705e2c9b4ccd1de0b63818ed474c496f787cbf97271799f524bbf81dad3aef",
+            "effect": "e_4f059ce7-d144-4dd5-824c-e4c356669c2f"
+          }
+        }
+      },
+      {
+        "doc": "ui-f3concurrency",
+        "entry": "n_db9f5368-2460-439d-afe4-8a0a4dfa855a",
+        "generation": 1,
+        "path": "ui/F3Concurrency.tsx",
+        "retired": false,
+        "movedTo": null,
+        "lanes": {
+          "html": {
+            "hash": "2616f93c7c6df9ac5ae7aff381ea24f92c7164667209af8970d6045f7ca1c39c",
+            "effect": "e_e2e6ff3b-397f-4342-bdeb-db9bad850554"
+          }
+        }
+      },
+      {
+        "doc": "ui-f3mediahistory",
+        "entry": "n_bb3a076b-4df3-438d-8b6d-edc0e045c151",
+        "generation": 1,
+        "path": "ui/F3MediaHistory.tsx",
+        "retired": false,
+        "movedTo": null,
+        "lanes": {
+          "html": {
+            "hash": "1f3e0cf0daab096b6d9076a2d6a2457e055c6b7e2480bcc59d2ecad7adfead0a",
+            "effect": "e_1e38954f-1a19-4870-bdc5-64340b8b005c"
+          }
+        }
+      },
+      {
+        "doc": "ui-native_cloud_acceptance",
+        "entry": "n_59c7e4dd-3ec3-4793-aa2a-24ece5e05901",
+        "generation": 1,
+        "path": "ui/Native cloud acceptance.tsx",
+        "retired": false,
+        "movedTo": null,
+        "lanes": {
+          "html": {
+            "hash": "a14d275022278429c94eabc244b29dc46616716b802c9226d796196698e1fd4e",
+            "effect": "e_91e1f1f5-0e59-491e-806a-6a2b9e4be7c1"
+          },
+          "meta": {
+            "hash": "675fff6a8cc10abc9420a562150c6a95a9c104eb1a11cc2c338b4653ef51fe15",
+            "effect": "e_e1f51fa1-bbf8-425c-8283-371b690e7eb2"
+          }
+        }
+      },
+      {
+        "doc": "ui-native_cloud_uncrl8",
+        "entry": "n_1a0d574e-f8b0-4462-bbd5-d233158b84e0",
+        "generation": 1,
+        "path": "ui/Native cloud UncRL8.tsx",
+        "retired": false,
+        "movedTo": null,
+        "lanes": {
+          "html": {
+            "hash": "b7a5e931a9b0626523c0f23207f9b76e824569bcbf0841d355a0b1e9c7d2e43c",
+            "effect": "e_34e8c3e1-b67d-4f40-9755-1aa6a9013b2b"
+          },
+          "meta": {
+            "hash": "86c6bb180b9641f6d31cc5386ded24c5706a43de472ab27fa4cfe74993dadf13",
+            "effect": "e_5dd3271d-0178-4097-8a4a-7d205488c209"
+          }
+        }
+      }
+    ]
+  },
+  "after": {
+    "status": 200,
+    "projectId": "f3-cloud",
+    "epoch": 1,
+    "revision": 20,
+    "docs": [
+      {
+        "doc": "ui-browser_ownership_probe",
+        "entry": "n_2986b8e6-5e5f-4bd6-84f8-797b55ee3e1d",
+        "generation": 1,
+        "path": "ui/Browser ownership probe.tsx",
+        "retired": false,
+        "movedTo": null,
+        "lanes": {
+          "html": {
+            "hash": "c31e4292c49353ffb1f3f4d34dd5e70c3b4a7a085c06894c23245c8ef9cb3b3d",
+            "effect": "e_62fa28a1-41fd-4fb7-8f1d-b1272959e743"
+          },
+          "meta": {
+            "hash": "f92681b783a264cc1e5a52255fd608b7d9eeab7dd53484997ce6228f22c8d00f",
+            "effect": "e_2ee13c6f-697d-41f8-aad4-406417d6d38b"
+          }
+        }
+      },
+      {
+        "doc": "ui-cloud_acceptance",
+        "entry": "n_07f49b73-88de-49c1-b225-9b3978e4d503",
+        "generation": 1,
+        "path": "ui/Cloud acceptance.tsx",
+        "retired": false,
+        "movedTo": null,
+        "lanes": {
+          "html": {
+            "hash": "89a98f31ec7fb9e3f47aca796ab008f5edd42239571e7bb05960b9a7bfbba2b8",
+            "effect": "e_1e7d1c15-2e9e-43e4-9fe2-c6cab3c4bba5"
+          },
+          "meta": {
+            "hash": "db705e2c9b4ccd1de0b63818ed474c496f787cbf97271799f524bbf81dad3aef",
+            "effect": "e_4f059ce7-d144-4dd5-824c-e4c356669c2f"
+          }
+        }
+      },
+      {
+        "doc": "ui-f3concurrency",
+        "entry": "n_db9f5368-2460-439d-afe4-8a0a4dfa855a",
+        "generation": 1,
+        "path": "ui/F3Concurrency.tsx",
+        "retired": false,
+        "movedTo": null,
+        "lanes": {
+          "html": {
+            "hash": "2616f93c7c6df9ac5ae7aff381ea24f92c7164667209af8970d6045f7ca1c39c",
+            "effect": "e_e2e6ff3b-397f-4342-bdeb-db9bad850554"
+          }
+        }
+      },
+      {
+        "doc": "ui-f3mediahistory",
+        "entry": "n_bb3a076b-4df3-438d-8b6d-edc0e045c151",
+        "generation": 1,
+        "path": "ui/F3MediaHistory.tsx",
+        "retired": false,
+        "movedTo": null,
+        "lanes": {
+          "html": {
+            "hash": "1f3e0cf0daab096b6d9076a2d6a2457e055c6b7e2480bcc59d2ecad7adfead0a",
+            "effect": "e_1e38954f-1a19-4870-bdc5-64340b8b005c"
+          }
+        }
+      },
+      {
+        "doc": "ui-native_cloud_acceptance",
+        "entry": "n_59c7e4dd-3ec3-4793-aa2a-24ece5e05901",
+        "generation": 1,
+        "path": "ui/Native cloud acceptance.tsx",
+        "retired": false,
+        "movedTo": null,
+        "lanes": {
+          "html": {
+            "hash": "a14d275022278429c94eabc244b29dc46616716b802c9226d796196698e1fd4e",
+            "effect": "e_91e1f1f5-0e59-491e-806a-6a2b9e4be7c1"
+          },
+          "meta": {
+            "hash": "675fff6a8cc10abc9420a562150c6a95a9c104eb1a11cc2c338b4653ef51fe15",
+            "effect": "e_e1f51fa1-bbf8-425c-8283-371b690e7eb2"
+          }
+        }
+      },
+      {
+        "doc": "ui-native_cloud_uncrl8",
+        "entry": "n_1a0d574e-f8b0-4462-bbd5-d233158b84e0",
+        "generation": 1,
+        "path": "ui/Native cloud UncRL8.tsx",
+        "retired": false,
+        "movedTo": null,
+        "lanes": {
+          "html": {
+            "hash": "b7a5e931a9b0626523c0f23207f9b76e824569bcbf0841d355a0b1e9c7d2e43c",
+            "effect": "e_34e8c3e1-b67d-4f40-9755-1aa6a9013b2b"
+          },
+          "meta": {
+            "hash": "86c6bb180b9641f6d31cc5386ded24c5706a43de472ab27fa4cfe74993dadf13",
+            "effect": "e_5dd3271d-0178-4097-8a4a-7d205488c209"
+          }
+        }
+      }
+    ]
+  },
+  "exactBootstrapMatch": true,
+  "limitations": [
+    "Read-only post-rollout bootstrap proves revision 20, epoch 1 and six documents were preserved; not all historical blobs or all scenarios.",
+    "Browser artifact hashes were read with the existing owner session; project Bearer credentials are not accepted for studio asset routes (401).",
+    "Rollout transiently returned 503 before becoming active. No production application or bucket was changed.",
+    "The subsequently discovered selection-refresh/text-editor teardown fix is not in r3; native/source verification and a later fixture image remain required.",
+    "Resources retained for continuing backend certification; cleanup pending."
+  ]
+}

@@ -1,5 +1,45 @@
 # Local multiplayer surface runner
 
+## Linux execution (2026-09-22)
+
+The same catalogue also runs against the native Linux WebKitGTK debug app.
+`surface-native.mjs` resolves the host artifact and requires the staged server,
+client and CLI runtime before starting. It records `linux-staged-debug` rather
+than claiming a macOS bundle or a signed release. The manifest hashes runtime
+files only, not Cargo's `deps/` and `incremental/` caches. macOS retains its
+packaged `.app` requirement. Linux results do not certify WKWebView on macOS.
+
+```sh
+# Build current server code, retaining the reviewed client/runtime bundles.
+(cd apps/studio && MAUDE_SKIP_RUNTIME_BUILD=1 MAUDE_SKIP_CLIENT_BUILD=1 bun run build.ts --release)
+# Native debug application with isolated com.maude.app.e2e identity.
+MAUDE_SKIP_KG_SYNC=1 pnpm --filter @maude/desktop tauri build --debug --no-bundle --config src-tauri/tauri.e2e.conf.json
+# Same operations and assertions, no --only shortcut for a full run.
+bash .ai/scenarios/reliable-project-multiplayer/runners/local-e2e.sh --mode candidate --save-mode accepted --samples 100 --soak-ms 1800000
+```
+
+Cargo must be on PATH and the graphical session must be awake. Review generated
+`apps/studio/dist/` changes after building; do not commit incidental artifact
+regeneration. No global OS configuration change or production project is needed.
+
+### Real R2 follow-up
+
+`scripts/dev/t18-r2-probe.mjs` uses the hub's actual S3 multipart adapter for a
+96 MiB upload, streamed download and SHA-256 comparison. Configure the existing
+`MAUDE_S3_ENDPOINT`, `MAUDE_S3_BUCKET`, `MAUDE_S3_ACCESS_KEY_ID`,
+`MAUDE_S3_SECRET_ACCESS_KEY` variables securely (`MAUDE_S3_REGION=auto`). Then:
+
+```sh
+node scripts/dev/t18-r2-probe.mjs --scratch-write <account-id> <isolated-test-bucket>
+```
+
+The endpoint and bucket must match the explicit arguments. The probe creates a
+unique scratch prefix, deletes only its own object, and checks that no objects
+or incomplete multipart uploads remain. Secrets never appear in its report.
+Guard tests alone are not R2 evidence; F2 remains open until the real run passes.
+
+## Original matrix and evidence contract
+
 The runner records real observations from a real three-participant rig. It still
 does **not** certify T1: `baselineComplete` is false in every artifact it writes,
 because five of the contract's 116 declared actions still assert nothing (each

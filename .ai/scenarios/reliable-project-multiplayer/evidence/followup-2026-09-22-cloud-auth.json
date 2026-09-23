@@ -1,0 +1,43 @@
+{
+  "status": "partial",
+  "scope": "Actual Cloudflare control-plane invite/auth subset of S01 and S02; not complete backend certification",
+  "date": "2026-09-22",
+  "backend": "Cloudflare Worker with independent real D1 database",
+  "worker": "maude-multiplayer-control-test-20260922",
+  "url": "https://maude-multiplayer-control-test-20260922.maude1agh.workers.dev",
+  "database": {
+    "name": "maude-multiplayer-test-20260922",
+    "id": "43cfa0b8-a262-46db-996d-a0a4705de015",
+    "schemaVersion": 16
+  },
+  "projectId": "f3-cloud",
+  "fixtureSetup": "Owner registered through the real signup form. One disposable project was inserted into the independent test database, without Stripe, provisioning credentials, cron, real email delivery or production project access.",
+  "sourceHashes": {
+    "deployedControlBundle": "6a2a5f3760faea5fad845d398ebae06724293b54e08cbdd3a492eb6ed6342fc3",
+    "apps/cloud/worker.mjs": "96b57b1022625a67e8031a6841d00fc7bf2e81c38a38a8dd6d264a1b3da62bbb",
+    "apps/cloud/schema.mjs": "d5750231b6736fdd1f0cbe0eb85d4e40c1dc42a193adbeb30870a54413ba83df",
+    "apps/cloud/migrate.mjs": "6085e24c29c45fe1257f03623c282dc1443b01b551ac1c631bb3a07981ebcf59"
+  },
+  "observations": [
+    { "case": "owner-registration", "status": "pass", "method": "Browser form", "oracle": "Signed-in project dashboard and new owner account in D1" },
+    { "case": "designer-a-invite-accept", "status": "pass", "method": "Owner invitation form, independent browser profile, invite password/consent form", "oracle": "Designer dashboard lists the project; D1 membership is member" },
+    { "case": "designer-b-invite-accept", "status": "pass", "method": "Same real form flow in another isolated browser profile", "oracle": "Designer dashboard lists the project; D1 membership is member" },
+    { "case": "viewer-invite-accept", "status": "pass", "method": "Owner selects viewer in the invitation form; independent browser accepts", "oracle": "D1 membership is viewer; People page has no invitation or role-changing controls" },
+    { "case": "viewer-forged-invite", "status": "pass", "method": "HTTP POST using the viewer session issued by the real browser login", "oracle": "HTTP 403; zero invitations for the forged target in D1" },
+    { "case": "expired-invite", "status": "pass", "method": "Real owner-created invite; expiry moved into the past only in the disposable database", "oracle": "Browser shows neutral invalid-link guidance; POST returns 404 with the same guidance; no account created" },
+    { "case": "revoked-invite", "status": "pass", "method": "Real owner-created invite, verified join form before revocation; revoked_at set only in disposable D1", "oracle": "Reload shows neutral invalid-link guidance; POST returns 404; no account created" }
+  ],
+  "screenshots": [
+    ".ai/browser/screenshots/followup-f3-cloud-invite-accepted.png",
+    ".ai/browser/screenshots/followup-f3-cloud-viewer-people.png",
+    ".ai/browser/screenshots/followup-f3-cloud-expired-invite.png",
+    ".ai/browser/screenshots/followup-f3-cloud-revoked-invite.png"
+  ],
+  "remaining": [
+    "Native clean login, project pick, managed copy and first accepted edit",
+    "Cloud cell and self-host runtime/backend matrix S01-S19",
+    "Same-name projects across servers and removed-designer recovery",
+    "Final cleanup of test Worker, D1, cell resources and R2 objects"
+  ],
+  "cleanup": { "complete": false, "reason": "Isolated fixture retained for continuing F3; browser processes closed, private profiles retained" }
+}

@@ -1,0 +1,73 @@
+{
+  "date": "2026-09-22",
+  "worker": "maude-t32-test-20260922",
+  "project": "followup-20260922",
+  "workerBundleSha256": "e950a1199415bfe942fafcf2e7c6f243a1d6826fd3c2dffbbe25b8641eda65ca",
+  "sourceSha256": {
+    "apps/cells/project-store-do.mjs": "5faea2c235db6b762d08aaa43fadb9a29a9a1e3df31042e5c7e89924eadc1ed3",
+    "apps/cells/project-store.mjs": "bf5c3f8a4a09dcfc4e12ed9cf95c31bc4ca1b81844739de004f1cf7330c346ae",
+    "scripts/dev/t32-verify.mjs": "ac13ac6a3b2630a64a7957dc39911c0d7d9825c209d4035396685a7fe04ba6f2",
+    "scripts/dev/t32-store-worker/worker.mjs": "38f28f34a00cbf77899911007b5fb3d2acc6a0b159c804cc4ae0441276a50ca6"
+  },
+  "cleanup": { "workerAndDurableObjectsDeleted": true, "endpointStatusAfterDelete": 404 },
+  "scope": "Real Cloudflare ProjectStore Durable Object; local hub killed and restarted on fresh local directories. T8 crash subset, not S01-S19 product certification.",
+  "store": "cloudflare-durable-object",
+  "n": 40,
+  "rounds": [
+    {
+      "round": 0,
+      "inflightAnsweredBeforeKill": false,
+      "bootHadHead": true,
+      "retryStatus": "accepted",
+      "inflightRevisions": 1,
+      "revisionsInStore": 41,
+      "acknowledgedLost": 0,
+      "duplicateRevisions": 0,
+      "duplicateTransactions": 0,
+      "headIsLastAcknowledged": true
+    },
+    {
+      "round": 1,
+      "inflightAnsweredBeforeKill": false,
+      "bootHadHead": true,
+      "retryStatus": "accepted",
+      "inflightRevisions": 1,
+      "revisionsInStore": 82,
+      "acknowledgedLost": 0,
+      "duplicateRevisions": 0,
+      "duplicateTransactions": 0,
+      "headIsLastAcknowledged": true
+    },
+    {
+      "round": 2,
+      "inflightAnsweredBeforeKill": false,
+      "bootHadHead": true,
+      "retryStatus": "accepted",
+      "inflightRevisions": 1,
+      "revisionsInStore": 123,
+      "acknowledgedLost": 0,
+      "duplicateRevisions": 0,
+      "duplicateTransactions": 0,
+      "headIsLastAcknowledged": true
+    },
+    {
+      "round": 3,
+      "inflightAnsweredBeforeKill": false,
+      "bootHadHead": true,
+      "retryStatus": "accepted",
+      "inflightRevisions": 1,
+      "revisionsInStore": 164,
+      "acknowledgedLost": 0,
+      "duplicateRevisions": 0,
+      "duplicateTransactions": 0,
+      "headIsLastAcknowledged": true
+    }
+  ],
+  "ackMs": {
+    "p50": 265.7,
+    "p95": 404.1,
+    "p99": 509,
+    "n": 160
+  },
+  "ok": true
+}

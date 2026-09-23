@@ -1,0 +1,161 @@
+{
+  "date": "2026-09-23",
+  "backend": "self-host (production hub image apps/hub/Dockerfile, workspace mode, SQLite accepted store on the data volume, R2 object storage in an isolated tenant prefix)",
+  "image": {
+    "tag": "maude-f3-selfhost:local",
+    "id": "sha256:59c7bf4f57cf2a7961d902f084335ef687ed9197ec98213dbf121fe3d0e2ca8b"
+  },
+  "bucket": "maude-multiplayer-test-20260922",
+  "tenantPrefix": "f3-selfhost-2026-09-23t16-29-34-067z",
+  "topology": "docker run on loopback; HUB_PUBLIC_URL http://studio.selfhost.localhost:1234, MAUDE_PUBLIC_CANVAS_ORIGIN http://canvas.selfhost.localhost:1234 (the workspace-plan operator path); second hub on :1235 with the same project name for S02",
+  "accounts": "owner via MAUDE_ADMIN_EMAIL/PASSWORD first-user seed; designers via operator invite + POST /join; sessions via POST /auth/login (password)",
+  "runners": ".ai/scenarios/reliable-project-multiplayer/runners/f3/",
+  "results": {
+    "S01": {
+      "status": "pass",
+      "native": "selfhost-entry-2026-09-23T16-35-49.479Z (clean Linux native profile, team-server form, create + UI text edit)",
+      "ownerBrowser": "Native selfhost CiNoaL edited by designer",
+      "acceptedHashVerified": true,
+      "revision": 194,
+      "screenshotsInspected": [
+        "native-desktop/step-*.png",
+        "peer/owner-browser.png"
+      ]
+    },
+    "S02": {
+      "id": "S02",
+      "backend": "selfhost",
+      "status": "pass",
+      "expiredInvite": {
+        "status": 410,
+        "accountCreated": false
+      },
+      "revokedInvite": {
+        "status": 410,
+        "accountCreated": false
+      },
+      "viewerInvite": {
+        "status": 400,
+        "error": "role must be one of: admin, member (use a read-only token for view-only access)"
+      },
+      "removedDesigner": {
+        "revoked": 2,
+        "kicked": 0,
+        "writeAfterRemoval": 401,
+        "readAfterRemoval": 401,
+        "signInAfterRemoval": 401,
+        "acceptedWorkKept": true
+      },
+      "sameNameOtherServer": {
+        "projectName": "F3 self-host (both)",
+        "projectIds": [
+          "f3-selfhost-2026-09-23t16-29-34-067z",
+          "f3-selfhost-2026-09-23t16-42-00-462z"
+        ],
+        "crossCredentialStatus": 401
+      }
+    },
+    "S03": {
+      "status": "pass",
+      "outcome": "merged (title + color from the same base both survive)"
+    },
+    "S05": {
+      "status": "pass",
+      "note": "raw Update/SyncStep2 on an already-open socket leave accepted head, log and fresh replicas unchanged; old epoch refused epoch-stale"
+    },
+    "S08": {
+      "status": "pass",
+      "note": "text/css/attr/insert/move/delete-element edits visible to the other designer; canvas move + delete; stale writes to old and moved names refused dependency-missing"
+    },
+    "S10": {
+      "status": "pass",
+      "note": "own undo/redo keep peer color; foreign undo 403; ABA refused undo-conflict; deleted target refused"
+    },
+    "S15": {
+      "status": "pass",
+      "rounds": 4,
+      "n": 40,
+      "ackMs": {
+        "p50": 8.9,
+        "p95": 17.2,
+        "p99": 21.8,
+        "n": 160
+      },
+      "rounds_detail": [
+        {
+          "round": 0,
+          "restartMs": 3376,
+          "inflightAnsweredBeforeKill": true,
+          "retryStatus": "accepted",
+          "retryReplayed": false,
+          "inflightRevisions": 1,
+          "acknowledgedLost": 0,
+          "duplicateRevisions": 0,
+          "duplicateTransactions": 0,
+          "headIsLastAcknowledged": true
+        },
+        {
+          "round": 1,
+          "restartMs": 3757,
+          "inflightAnsweredBeforeKill": true,
+          "retryStatus": "accepted",
+          "retryReplayed": false,
+          "inflightRevisions": 1,
+          "acknowledgedLost": 0,
+          "duplicateRevisions": 0,
+          "duplicateTransactions": 0,
+          "headIsLastAcknowledged": true
+        },
+        {
+          "round": 2,
+          "restartMs": 3360,
+          "inflightAnsweredBeforeKill": true,
+          "retryStatus": "accepted",
+          "retryReplayed": false,
+          "inflightRevisions": 1,
+          "acknowledgedLost": 0,
+          "duplicateRevisions": 0,
+          "duplicateTransactions": 0,
+          "headIsLastAcknowledged": true
+        },
+        {
+          "round": 3,
+          "restartMs": 3418,
+          "inflightAnsweredBeforeKill": true,
+          "retryStatus": "accepted",
+          "retryReplayed": false,
+          "inflightRevisions": 1,
+          "acknowledgedLost": 0,
+          "duplicateRevisions": 0,
+          "duplicateTransactions": 0,
+          "headIsLastAcknowledged": true
+        }
+      ],
+      "limitation": "the in-flight proposal was answered before SIGKILL in every round (self-host acks in ~9 ms), so this proves retry-after-unknown-outcome and durability across process death, not a kill inside the commit"
+    }
+  },
+  "productFix": {
+    "file": "apps/hub/src/invites.mjs",
+    "finding": "a viewer invitation answered 201 role viewer while storing member; the joined account could write",
+    "fix": "createInvite refuses roles other than admin|member (400); regression in apps/hub/test/invites.test.mjs fails without it"
+  },
+  "fixtureCorrection": "a first fixture without a canvas hostname rendered blank canvas frames (ERR_CONNECTION_REFUSED to a container-internal port) — the documented M7 requirement, not a product defect; the fixture now follows workspace-plan",
+  "remaining": [
+    "S04",
+    "S06",
+    "S07",
+    "S09",
+    "S11",
+    "S12",
+    "S13",
+    "S14",
+    "S16",
+    "S17",
+    "S18",
+    "S19"
+  ],
+  "cleanup": {
+    "complete": false,
+    "reason": "fixture retained for the remaining self-host scenarios; containers maude-f3-selfhost-*, R2 prefixes f3-selfhost-2026-09-23t16-29-34-067z and the second hub tenant to delete at the end"
+  }
+}

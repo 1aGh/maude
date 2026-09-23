@@ -1,0 +1,59 @@
+{
+  "date": "2026-09-22",
+  "backend": "Cloudflare",
+  "project": "f3-cloud",
+  "image": "test-20260922-r3",
+  "scope": "Read-only post-rollout historical source/media verification and browser dialog keyboard/theme subset",
+  "status": "pass",
+  "head": 20,
+  "epoch": 1,
+  "documents": 6,
+  "historical": [
+    {
+      "revision": 16,
+      "sourceSha256": "1f3e0cf0daab096b6d9076a2d6a2457e055c6b7e2480bcc59d2ecad7adfead0a",
+      "asset": "60230674.png",
+      "assetSha256": "60230674a65a92072ebcaacdd703f5721037f439baf9ca344a130aa246df88c2",
+      "bytes": 164
+    },
+    {
+      "revision": 17,
+      "sourceSha256": "96c7c8e626bce1a2db437d5dd5be42a3b4712ebed2718c75aab6c615094ed9a0",
+      "asset": "1c9da7a5.png",
+      "assetSha256": "1c9da7a5ea94a3fbdcd5721c275c49930ce65a1b8d86a05ec99c9815313b300d",
+      "bytes": 164
+    }
+  ],
+  "browser": {
+    "identity": "designer-b@maude-f3.invalid",
+    "session": "maude-f3-designer-b",
+    "previewRevision": 17,
+    "savedHeading": "New media",
+    "currentHeading": "Old media",
+    "bothDistinctImagesVisuallyVerified": true,
+    "dialogRole": "dialog",
+    "dialogLabel": "Compare F3MediaHistory",
+    "ariaModal": "true",
+    "initialFocus": "dialog",
+    "tabFocus": "Saved version of F3MediaHistory to compare against",
+    "escapeClosedDialog": true,
+    "escapeRestoredFocus": "project-history-preview-17",
+    "themes": ["dark", "light"],
+    "restoredOriginalTheme": "dark",
+    "restoreInvoked": false,
+    "screenshotsInspected": [
+      ".ai/browser/screenshots/f3-r3-media-history-preserved.png",
+      ".ai/browser/screenshots/f3-r3-media-history-light.png",
+      ".ai/browser/screenshots/f3-r3-media-history-light-loaded.png"
+    ]
+  },
+  "limitations": [
+    "Small non-sparse image fixtures, not large-media or scale proof.",
+    "Browser only; native-cloud media-history remains required.",
+    "The first light screenshot captures initial empty preview loading; the later snapshot and screenshot verify loaded content.",
+    "Onboarding notices overlap the comparison chrome. This is not a zero-blocker DS/a11y certification.",
+    "Only initial Tab focus and Escape restoration tested, not every keyboard or screen-reader state.",
+    "Cloud image r3 predates the latest inline text editor lifetime fix.",
+    "S01-S19 on both backend families and fixture cleanup remain incomplete."
+  ]
+}

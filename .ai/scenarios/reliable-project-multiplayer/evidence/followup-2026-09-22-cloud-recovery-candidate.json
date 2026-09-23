@@ -1,0 +1,61 @@
+{
+  "date": "2026-09-22",
+  "status": "verified-subset-isolated-source-copy",
+  "scope": "Actual cloud-backed Linux local client, original draft/repair across process death, concurrent designer B edit, browser conflict review and take-accepted resolution. Not whole S04/S19/F3.",
+  "candidateRoot": "/tmp/maude-recovery-fix-uRkuj6",
+  "patchBackup": ".ai/browser/eval/recovery-candidate.patch",
+  "patchSha256": "95e4eb1c025c59276e42252f791c955f3d6b07bbdb532b2d2d8e1b7f9d2a68bf",
+  "patchReadOnlyApplyCheck": "passed against main tree; not applied",
+  "decisionId": "d_6374e5fe36f8d657b2ce5dc3",
+  "mainTreeChanged": false,
+  "deployedToCloudCell": false,
+  "project": "f3-cloud",
+  "document": "ui-f3repairfixed",
+  "epoch": 1,
+  "checks": [
+    { "id": "accepted-start", "revision": 23, "sha256": "44d1b2e25da8a8fff17263c6630da47e8019e6a00ec11260c1e3163372ca54bf" },
+    { "id": "invalid-original-retained", "status": "pass", "sha256": "f92b75f543749b82dc4cadbca9cf9d9e7e5115ddc562d566bc5c36eecf947b8e", "result": "No proposal; accepted head remains r23; original and proven base pinned before stop." },
+    { "id": "process-death", "status": "pass", "pid": 1284780, "result": "Exact fixture root and port checked; SIGKILL; exit 137." },
+    { "id": "repair-while-stopped", "sha256": "3bd1fe829ca4bd8e74d2ac3d156a9a1a55934092b9135c9dd714fca450a04dcb" },
+    { "id": "independent-peer-color", "status": "pass", "actor": "designer-b@maude-f3.invalid", "revision": 24, "sha256": "1791f7f053b40fb70ec448fe6b65a29c197c471840b0a7659c513120f631837f", "actionId": "a_647bf1a6-d8a8-4400-8a84-d951b1c8eb56", "transactionId": "tx_f3_f1522a11-81f5-4fd8-a632-11e09e5e0e62" },
+    { "id": "restart", "status": "pass", "result": "U2 held with local-edit; original U1 and proven base remain exact; r24 peer color preserved." },
+    { "id": "review-original-and-base", "status": "pass", "result": "Actual dialog exposes exact original U1 and base separately from U2/current accepted diff." },
+    { "id": "keyboard-boundary", "status": "pass", "result": "Shift+Tab from Close focuses Use project version inside modal; Tab returns Close. Keyboard Enter on project version completes resolution." },
+    { "id": "take-accepted", "status": "pass", "result": "Disk equals accepted r24; original U1 remains in resolved record; U2 remains in local.tsx and last-valid.tsx; independent owner and local client render accepted title in red. No canonical revision change." },
+    { "id": "resolved-summary", "status": "pass-after-fix", "result": "Initial actual UI exposed a separate bug: clearSourceConflict removed only the notice, not facts read by summary. Two fail-before tests cover removal with/without notice and preservation of other sources/notes. After targeted status fix, a fresh U3 conflict is created and resolved via keyboard UI. Status conflicts=[], no Resolve button, no stale source attention message, summary synced; r24 unchanged." },
+    { "id": "fresh-episode", "status": "pass", "originalSha256": "e96b52efdd99248106f3edf9bc002bc8ca1609089a9bf911c65b0e019e4f75b8", "baseSha256": "1791f7f053b40fb70ec448fe6b65a29c197c471840b0a7659c513120f631837f", "result": "New U3 replaces the already resolved previous episode, then remains retained after its own successful resolution. Storage remains bounded." }
+  ],
+  "verification": {
+    "scopedTests": { "pass": 156, "fail": 0, "assertions": 538, "files": 10, "seconds": 34.4, "log": "/tmp/maude-recovery-fix-uRkuj6/verified-tests.log" },
+    "typecheck": "passed; initial isolated copy lacked cli import, corrected by read-only link to existing CLI",
+    "biome": "7 changed TS/test files pass; client JSX/CSS outside configured Biome surface",
+    "releaseBuild": "passed again after status repair; runtime bundles not regenerated; client 2156292 bytes, styles 299123 bytes",
+    "redBeforeFix": "Main-tree recovery regression fails. Isolated four lifetime cases, two dialog cases, two status-clear cases fail before their fixes. Real filesystem-fault control additionally caught a rejected accepted-resolution promise; preserved actual acceptance and reported recovery failure. Its initial fixture omitted the local repair write; corrected the fixture without weakening the assertions.",
+    "axe": { "version": "4.13.0", "scope": "expanded source-conflict dialog only", "tags": ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"], "lightViolations": [], "darkViolations": [] }
+  },
+  "sourceHashes": {
+    "apps/studio/sync/source-recovery.ts": "8959b084cc1c8430d3fa3b2214dc78b7b7a7a12914e3944e72f92a2d73b47aa4",
+    "apps/studio/sync/projection.ts": "79bd3a62f3b5f4e7ee6ce9c3a2579ab1629cf8e02c1bcf0d4556613810447eff",
+    "apps/studio/sync/status.ts": "01faedec2f5e7ab267a1f2a82f3736437206e3721d878d675f31c7306bc1e08e",
+    "apps/studio/client/panels/SourceConflictPanel.jsx": "d6749a519929980c1a087fb00abf378e1341acb75a6c604a2fc51b83103b5abc",
+    "apps/studio/client/styles/3-shell-maude.css": "6c26541fecf715036975bdb61c89b1f6227f128bd6d7e1d3612cce47592bfb07",
+    "apps/studio/dist/client.bundle.js": "5853bee8af03475d3e0930f4f3c75a437d781fc914539a9862d193222ba3131f",
+    "apps/studio/dist/styles.css": "6dee2c763626ac2c56b05e43ea11472170446eb6dded85fb8e35adb5ca0f1968"
+  },
+  "screenshotsInspected": [
+    ".ai/browser/screenshots/f3-repair-fixed-dialog-dark.png",
+    ".ai/browser/screenshots/f3-repair-fixed-dialog-light.png",
+    ".ai/browser/screenshots/f3-repair-fixed-dialog-light-settled.png",
+    ".ai/browser/screenshots/f3-repair-fixed-resolved.png",
+    ".ai/browser/screenshots/f3-repair-fixed-peer.png",
+    ".ai/browser/screenshots/f3-repair-fixed-summary-resolved.png"
+  ],
+  "limitations": [
+    "First Escape observation returned focus to the canvas iframe; settled repeat returned it to the Resolve button. No blanket focus-restoration certification; retain this timing observation for investigation.",
+    "Expanded original/base details need vertical scrolling at a 633px viewport. Collapsed view and keyboard-focused action are visible. First light screenshot was during animation; settled capture also inspected.",
+    "Server executes isolated source; cloud cell still r4. Native/main-tree transfer and verification remain after frozen full run terminates.",
+    "Client-side-invalid U1 is not the separate network dependsOn replay scenario.",
+    "Storage-failure API result semantics, broader backend/scenario matrix, native/manual screen-reader and cleanup remain uncertified.",
+    "No archive, repository commit, push or production rollout."
+  ]
+}

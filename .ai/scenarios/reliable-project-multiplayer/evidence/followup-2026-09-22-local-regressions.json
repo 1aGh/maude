@@ -1,0 +1,339 @@
+{
+  "date": "2026-09-22",
+  "status": "focused-regressions-verified-not-full-certification",
+  "scope": "Linux staged debug native WebKitGTK plus hub and peer Chromium; local real hub, not Cloudflare durability",
+  "runs": [
+    {
+      "path": ".ai/device/scenario-runs/reliable-project-multiplayer/2026-09-22T15-48-31.013Z",
+      "driver": {
+        "exitCode": 0,
+        "completed": true,
+        "expectedSamples": 1
+      },
+      "counts": {
+        "pass": 20,
+        "not-run": 775
+      },
+      "history": [
+        {
+          "id": "L18.history.preview-restore",
+          "direction": "hub-to-peers",
+          "status": "pass",
+          "observations": [
+            {
+              "receiver": "hub",
+              "status": "pass",
+              "persistedMs": 396.6781570000021,
+              "observedMs": 1089.3782070000016,
+              "finalVisible": true,
+              "finalPersisted": true
+            },
+            {
+              "receiver": "native",
+              "status": "pass",
+              "persistedMs": 396.68197900000087,
+              "observedMs": 931.3640090000044,
+              "finalVisible": true,
+              "finalPersisted": true
+            },
+            {
+              "receiver": "peer",
+              "status": "pass",
+              "persistedMs": 396.6825450000033,
+              "observedMs": 830.2676879999999,
+              "finalVisible": true,
+              "finalPersisted": true
+            }
+          ],
+          "selectedRevision": 24,
+          "openedRevision": 25,
+          "restoredRevision": 26
+        },
+        {
+          "id": "L18.history.preview-restore",
+          "direction": "native-to-peers",
+          "status": "pass",
+          "observations": [
+            {
+              "receiver": "hub",
+              "status": "pass",
+              "persistedMs": 520.2121370000023,
+              "observedMs": 529.9424320000035,
+              "finalVisible": true,
+              "finalPersisted": true
+            },
+            {
+              "receiver": "native",
+              "status": "pass",
+              "persistedMs": 520.2142870000025,
+              "observedMs": 706.9086549999993,
+              "finalVisible": true,
+              "finalPersisted": true
+            },
+            {
+              "receiver": "peer",
+              "status": "pass",
+              "persistedMs": 520.2147079999995,
+              "observedMs": 530.1710689999964,
+              "finalVisible": true,
+              "finalPersisted": true
+            }
+          ],
+          "selectedRevision": 27,
+          "openedRevision": 28,
+          "restoredRevision": 29
+        },
+        {
+          "id": "L18.history.preview-restore",
+          "direction": "peer-to-peers",
+          "status": "pass",
+          "observations": [
+            {
+              "receiver": "hub",
+              "status": "pass",
+              "persistedMs": 274.7105750000046,
+              "observedMs": 715.779051000005,
+              "finalVisible": true,
+              "finalPersisted": true
+            },
+            {
+              "receiver": "native",
+              "status": "pass",
+              "persistedMs": 274.71337300000596,
+              "observedMs": 590.8569850000058,
+              "finalVisible": true,
+              "finalPersisted": true
+            },
+            {
+              "receiver": "peer",
+              "status": "pass",
+              "persistedMs": 295.3659570000018,
+              "observedMs": 610.2676009999996,
+              "finalVisible": true,
+              "finalPersisted": true
+            }
+          ],
+          "selectedRevision": 30,
+          "openedRevision": 31,
+          "restoredRevision": 32
+        }
+      ],
+      "audit": {
+        "parsed": 138,
+        "syntaxFailures": 0,
+        "compared": 0,
+        "mismatched": 0,
+        "missing": 0
+      }
+    },
+    {
+      "path": ".ai/device/scenario-runs/reliable-project-multiplayer/2026-09-22T15-52-40.984Z",
+      "driver": {
+        "exitCode": 0,
+        "completed": true,
+        "expectedSamples": 1
+      },
+      "counts": {
+        "pass": 2,
+        "not-run": 790,
+        "fail": 3
+      },
+      "history": [
+        {
+          "id": "L18.history.preview-restore",
+          "direction": "hub-to-peers",
+          "status": "fail",
+          "error": "Error: Condition absent after 30000 ms"
+        },
+        {
+          "id": "L18.history.preview-restore",
+          "direction": "native-to-peers",
+          "status": "fail",
+          "error": "Error: Condition absent after 30000 ms"
+        },
+        {
+          "id": "L18.history.preview-restore",
+          "direction": "peer-to-peers",
+          "status": "fail",
+          "error": "Error: Condition absent after 30000 ms"
+        }
+      ],
+      "audit": {
+        "parsed": 129,
+        "syntaxFailures": 0,
+        "compared": 0,
+        "mismatched": 0,
+        "missing": 0
+      }
+    },
+    {
+      "path": ".ai/device/scenario-runs/reliable-project-multiplayer/2026-09-22T15-55-59.016Z",
+      "driver": {
+        "exitCode": 0,
+        "completed": true,
+        "expectedSamples": 1
+      },
+      "counts": {
+        "pass": 2,
+        "not-run": 790,
+        "fail": 3
+      },
+      "history": [
+        {
+          "id": "L18.history.preview-restore",
+          "direction": "hub-to-peers",
+          "status": "fail",
+          "error": "Error: Condition absent after 30000 ms"
+        },
+        {
+          "id": "L18.history.preview-restore",
+          "direction": "native-to-peers",
+          "status": "fail",
+          "error": "Error: Condition absent after 30000 ms"
+        },
+        {
+          "id": "L18.history.preview-restore",
+          "direction": "peer-to-peers",
+          "status": "fail",
+          "error": "Error: Condition absent after 30000 ms"
+        }
+      ],
+      "audit": {
+        "parsed": 129,
+        "syntaxFailures": 0,
+        "compared": 0,
+        "mismatched": 0,
+        "missing": 0
+      }
+    },
+    {
+      "path": ".ai/device/scenario-runs/reliable-project-multiplayer/2026-09-22T15-58-35.918Z",
+      "driver": {
+        "exitCode": 0,
+        "completed": true,
+        "expectedSamples": 1
+      },
+      "counts": {
+        "pass": 5,
+        "not-run": 790
+      },
+      "history": [
+        {
+          "id": "L18.history.preview-restore",
+          "direction": "hub-to-peers",
+          "status": "pass",
+          "observations": [
+            {
+              "receiver": "hub",
+              "status": "pass",
+              "persistedMs": 111.01077399999849,
+              "observedMs": 514.5773379999991,
+              "finalVisible": true,
+              "finalPersisted": true
+            },
+            {
+              "receiver": "native",
+              "status": "pass",
+              "persistedMs": 111.04189899999983,
+              "observedMs": 637.1442319999987,
+              "finalVisible": true,
+              "finalPersisted": true
+            },
+            {
+              "receiver": "peer",
+              "status": "pass",
+              "persistedMs": 111.04480299999886,
+              "observedMs": 380.4588760000006,
+              "finalVisible": true,
+              "finalPersisted": true
+            }
+          ],
+          "selectedRevision": 3,
+          "openedRevision": 4,
+          "restoredRevision": 5
+        },
+        {
+          "id": "L18.history.preview-restore",
+          "direction": "native-to-peers",
+          "status": "pass",
+          "observations": [
+            {
+              "receiver": "hub",
+              "status": "pass",
+              "persistedMs": 104.73400100000072,
+              "observedMs": 448.9699550000005,
+              "finalVisible": true,
+              "finalPersisted": true
+            },
+            {
+              "receiver": "native",
+              "status": "pass",
+              "persistedMs": 104.75085400000171,
+              "observedMs": 458.29319100000066,
+              "finalVisible": true,
+              "finalPersisted": true
+            },
+            {
+              "receiver": "peer",
+              "status": "pass",
+              "persistedMs": 104.75187500000175,
+              "observedMs": 336.7331780000022,
+              "finalVisible": true,
+              "finalPersisted": true
+            }
+          ],
+          "selectedRevision": 6,
+          "openedRevision": 7,
+          "restoredRevision": 8
+        },
+        {
+          "id": "L18.history.preview-restore",
+          "direction": "peer-to-peers",
+          "status": "pass",
+          "observations": [
+            {
+              "receiver": "hub",
+              "status": "pass",
+              "persistedMs": 116.45747599999959,
+              "observedMs": 531.2876660000002,
+              "finalVisible": true,
+              "finalPersisted": true
+            },
+            {
+              "receiver": "native",
+              "status": "pass",
+              "persistedMs": 116.47713800000201,
+              "observedMs": 496.89980300000025,
+              "finalVisible": true,
+              "finalPersisted": true
+            },
+            {
+              "receiver": "peer",
+              "status": "pass",
+              "persistedMs": 116.47854300000108,
+              "observedMs": 427.33953699999984,
+              "finalVisible": true,
+              "finalPersisted": true
+            }
+          ],
+          "selectedRevision": 9,
+          "openedRevision": 10,
+          "restoredRevision": 11
+        }
+      ],
+      "audit": {
+        "parsed": 129,
+        "syntaxFailures": 0,
+        "compared": 0,
+        "mismatched": 0,
+        "missing": 0
+      }
+    }
+  ],
+  "limitations": [
+    "The first run proves restore effects but captured preview panes before render and did not require the new history row.",
+    "Two isolated follow-ups failed because the history helper depended on an already-open dock; their results are retained, not acceptance evidence.",
+    "The last run verifies both rendered preview panes, a changed picker revision, the new accepted restore action, the visible history row and rendered/source parity on all three participants.",
+    "Full local matrix, real cloud/self-host S01–S19, latency target and cleanup remain open."
+  ]
+}

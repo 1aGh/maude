@@ -1,0 +1,44 @@
+{
+  "date": "2026-09-22",
+  "status": "partial-with-product-failures",
+  "scope": "S04 actual cloud-backed local source draft, SIGKILL/restart and concurrent designer change; S19 source-conflict keyboard subset. Not complete S04/S19 or F3.",
+  "project": "f3-cloud",
+  "document": "ui-f3repair",
+  "entryId": "n_f8a65754-6a86-490b-b31d-55493783f52f",
+  "epoch": 1,
+  "generation": 1,
+  "sequence": [
+    { "step": "create", "revision": 21, "sha256": "bc92e5c0f36f94bd24cafe44533da4ea82951bba38f861f0d0d0359e55669908", "actionId": "a_499b91c9-240b-40c4-9833-1c071b3cc37e" },
+    { "step": "invalid U1 local file write", "sha256": "757eb383696183970d3c03c47bcc62335484275528cf8a1798140276d116d9aa", "result": "Client rejects before proposal; accepted head stays r21. Original U1 initially present in sync-recovery/local.tsx. Independent owner still renders accepted title." },
+    { "step": "SIGKILL", "pid": 1177544, "result": "Exact fixture root/port validated before signal; process exited 137." },
+    { "step": "repair U2 while stopped", "sha256": "6656d75ba82afa6c1b765a7441b8515140d783ce3323c17035cb9f3296918267" },
+    { "step": "designer B adds red color", "revision": 22, "sha256": "c722c04ddb7a1f035906549b3f86e668785266a1f5726c44fc65842052b517d6", "actionId": "a_4ca2b79e-4d2b-4dad-9bf4-df0b7d96ad20", "transactionId": "tx_f3_a8bdab6c-72a8-44b4-8da2-02aa4ed69bfa" },
+    { "step": "restart A", "result": "U2 is safely held with local-edit conflict. Head remains r22 during 45-second observation; owner renders accepted title in red. Recovery local/last-valid now contain U2; incoming contains r22; no original U1 remains." }
+  ],
+  "failures": [
+    { "id": "original-candidate-lifetime", "expected": "Original candidate bytes survive until actual successful resolution, including restart and repair.", "actual": "Mutable recovery slots overwrite original U1 with U2 before resolution.", "regression": ".ai/browser/eval/f3-recovery-original.test.ts", "red": "0 pass, 1 fail, 7 assertions; repeated against actual main-tree projection on 2026-09-22." },
+    { "id": "source-conflict-focus", "expected": "Tab and Shift+Tab stay inside the modal.", "actual": "Shift+Tab from modal Close focuses the background Sync panel Close. Escape does close and restore focus to sync-resolve-ui-f3repair." }
+  ],
+  "candidate": {
+    "location": "/tmp/maude-recovery-fix-uRkuj6",
+    "status": "isolated-only; not transferred to frozen main inputs or deployed",
+    "approach": "A bounded atomic recovery record pins the first rejected source and proven base across repairs/restarts; successful resolution retains bytes and allows a later episode. Taking accepted bytes no longer clears the conflict before materialization succeeds.",
+    "red": "Four focused lifetime cases fail before implementation: restart, retained bytes after resolution, failed real filesystem write, bounded repeated repairs.",
+    "initialGreen": "44 tests, 0 failures, 144 assertions over lifetime, source safety, shared projection and incident replay. Deliberate EISDIR fault logs are expected.",
+    "remaining": "Subsequent isolated verification, UI and actual-cloud repeat are recorded in followup-2026-09-22-cloud-recovery-candidate.json. Main-tree transfer, native/full verification and broader failure coverage remain. Not a completion claim."
+  },
+  "screenshots": [
+    { "path": ".ai/browser/screenshots/f3-repair-u1-held.png", "sha256": "d74add0adf2e11df7a8b0b81abc7d1606dc737fa1e9d7aabfc165dafbf02a8ea" },
+    { "path": ".ai/browser/screenshots/f3-repair-restart-conflict.png", "sha256": "19ec906ca2e87174c667348383ea9657072ec3584ec9d2ba3811b147a1472abd" },
+    { "path": ".ai/browser/screenshots/f3-repair-resolution-dialog.png", "sha256": "e07526cae3274ccb4ffd877c149f51eb2967a7b0ce0d80b3bbc4aae0ef9c1dfd" },
+    { "path": ".ai/browser/screenshots/f3-repair-peer-preserved.png", "sha256": "993e6445b05adb03b67b2a17dcbd5301f07cf60100c9cc1c9e9b86b85f0e1f9e" }
+  ],
+  "screenshotsInspected": true,
+  "limitations": [
+    "This U1 is rejected client-side; explicit network dependsOn U1/U2 replay remains separate required coverage.",
+    "No conflict resolution choice was made in the original cloud fixture; retained for investigation.",
+    "Cloud r4 and main tree do not contain the isolated recovery candidate.",
+    "Full surface run 2026-09-22T19-09-46.637Z remains active with frozen source/build inputs.",
+    "No production deployment, cleanup, archive, repository commit or push."
+  ]
+}
