@@ -297,6 +297,35 @@
         "photo transform (no crop/transform control: L13 unsupported)",
         "timeline edit on this backend (covered locally by L15)"
       ]
+    },
+    "S06": {
+      "tag": "d5ae78",
+      "rounds": {
+        "offlineRestart": {
+          "localEditsKeptWhileOffline": true,
+          "bothChangesInX": true,
+          "offlineYAccepted": true,
+          "desktopConverged": true,
+          "offlineActionsBy": [
+            "designer-a@f3-selfhost.invalid"
+          ]
+        },
+        "rejectedFirst": {
+          "acceptedXUnchanged": true,
+          "invalidDraftKeptLocally": true,
+          "independentZAccepted": true,
+          "desktopToldAboutX": true
+        }
+      },
+      "status": "pass",
+      "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s06-2026-09-23",
+      "participant": "source studio server (the desktop sidecar) over its own copy, linked like maude design link, reaching the hub through a toggle proxy that cuts its sockets",
+      "note": "round 1: offline edits to X and Y, the app SIGKILLed with the queue unsent, a teammate edits X, restart still offline, reconnect: X holds both changes, Y accepted, the desktop converges, the offline actions are attributed to designer A only; round 2: offline an unparseable X then a valid Z — Z is accepted, X stays unchanged in the project, the draft is kept locally and reported body-rejected/invalid-source",
+      "productFixesFound": [
+        "a desktop that restarted without the network forgot the project saves through accepted revisions (mode held only in memory): its offline edits took the legacy shared-document path, the hub fenced those raw updates and the work never reached the project while the status read synced — the last verdict now persists in _state/accepted-mode.json per hub (sync-accepted-mode-restart.test.ts fails without it)",
+        "with that fixed, draining the outbox before the hub was reachable threw from its binding bootstrap and the unhandled rejection ended the studio process — the bootstrap now waits out transport failures like delivery does (sync-transaction-client.test.ts \"a restart while the hub is still unreachable\" fails without it)"
+      ],
+      "failWithoutE2E": "the first run of this scenario (before either fix) timed out: the desktop reported 15/15 synced while the project held neither offline edit"
     }
   },
   "productFix": {
@@ -307,7 +336,6 @@
   "fixtureCorrection": "a first fixture without a canvas hostname rendered blank canvas frames (ERR_CONNECTION_REFUSED to a container-internal port) — the documented M7 requirement, not a product defect; the fixture now follows workspace-plan",
   "remaining": [
     "S04",
-    "S06",
     "S07",
     "S12",
     "S13",

@@ -12,6 +12,9 @@
 // Nothing here writes a Y.Doc. The documents change when the hub publishes the
 // accepted revision, through the same providers that deliver a peer's edit.
 
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { createActionStage, type StageSummary } from './action-stage.ts';
 import type { AcceptedLaneLink, LaneProposal, ProposalOutcome } from './projection.ts';
 import {
@@ -71,7 +74,36 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       retryMs: opts.retryMs,
     });
 
-  let mode: AcceptedMode = 'unknown';
+  // THE LAST VERDICT SURVIVES A RESTART (F3/S06). Held only in memory, a
+  // desktop that restarted without the network came back 'unknown', treated
+  // its offline edits as legacy shared-document writes, and the hub fenced
+  // those raw updates: the work never reached the project while the status
+  // read "synced". The hub still has the last word — the next bootstrap
+  // replaces this — but until it answers, the answer it last gave stands.
+  // Keyed by hub, so a relinked copy starts from 'unknown' again.
+  const modeFile = path.join(opts.designRoot, '_state', 'accepted-mode.json');
+  const loadMode = (): AcceptedMode => {
+    try {
+      const v = JSON.parse(readFileSync(modeFile, 'utf8'));
+      if (v?.v === 1 && v.hub === opts.hubUrl && (v.mode === 'transactions' || v.mode === 'legacy'))
+        return v.mode;
+    } catch {
+      /* absent or unreadable — ask the hub */
+    }
+    return 'unknown';
+  };
+  const saveMode = (next: AcceptedMode): void => {
+    if (next === 'unknown') return;
+    try {
+      mkdirSync(path.dirname(modeFile), { recursive: true });
+      const tmp = `${modeFile}.tmp`;
+      writeFileSync(tmp, JSON.stringify({ v: 1, hub: opts.hubUrl, mode: next, at: Date.now() }));
+      renameSync(tmp, modeFile);
+    } catch {
+      /* the in-memory verdict still holds for this run */
+    }
+  };
+  let mode: AcceptedMode = loadMode();
   let manifest: Bootstrap | null = null;
 
   // T16 — AI and multi-file action boundaries (see action-stage.ts).
@@ -96,12 +128,16 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       if (next !== mode && mode !== 'unknown') {
         log.log(`[sync/tx] project save mode changed: ${mode} → ${next}`);
       }
+      if (next !== mode) saveMode(next);
       mode = next;
       manifest = b;
       opts.onBootstrap?.(b);
       return b;
     } catch (err) {
-      if (err instanceof TransactionError && err.code === 'absent') mode = 'legacy';
+      if (err instanceof TransactionError && err.code === 'absent') {
+        if (mode !== 'legacy') saveMode('legacy');
+        mode = 'legacy';
+      }
       return null;
     }
   }
@@ -114,7 +150,10 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
    * confirmed by the next `refresh()`.
    */
   function noteMode(next: 'transactions' | 'legacy'): void {
-    if (next !== mode) log.log(`[sync/tx] the project switched its save mode: ${mode} → ${next}`);
+    if (next !== mode) {
+      log.log(`[sync/tx] the project switched its save mode: ${mode} → ${next}`);
+      saveMode(next);
+    }
     mode = next;
   }
 
