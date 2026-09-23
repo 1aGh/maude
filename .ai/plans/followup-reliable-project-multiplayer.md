@@ -240,28 +240,49 @@ app throughout; macOS WKWebView is not certified by these runs.
   scoped Biome clean (one pre-existing warning in `canvas-shell.tsx`); the
   committed release bundles were rebuilt with the pinned Bun 1.3.3 and are
   unchanged by the test runs.
-- **F3 self-host (in progress, 2026-09-23):** the production hub image
-  (`apps/hub/Dockerfile`) in workspace mode, SQLite accepted store on its data
-  volume, R2 object storage in an isolated tenant prefix, and the operator's
-  canvas hostname (`workspace-plan`, M7). Real accounts: first-user seed, operator
-  invites accepted through `/join`, password `/auth/login`. Runners in
-  `.ai/scenarios/reliable-project-multiplayer/runners/f3/`; manifest
-  `followup-2026-09-23-selfhost.json`. **Passed:** S01 (clean Linux native profile
-  signs in through the team-server form, creates + edits a canvas; the owner's
-  independent Chromium renders the edit; accepted history names the designer),
-  S02 (expired/revoked invites 410 with no account; removed designer 401 on
-  write/read/sign-in with accepted work kept; same-named project on a second hub
-  is a distinct project that rejects the first hub's credential), S03, S05, S08,
-  S10, S15 (4 × 40 with SIGKILL + restart: 0 lost acks, 0 duplicate
-  revisions/transactions; ack p95 17 ms — the in-flight write was answered before
-  each kill, so this is retry-after-unknown, not a kill inside the commit).
-  **Product fix found here:** a viewer invitation answered 201 `role: viewer` but
-  stored `member`, so the joined account could write; `createInvite` now refuses
-  any role but admin/member (fail-without regression in `invites.test.mjs`).
-  A hub's accounts have no view-only role; S02's viewer row is therefore
-  "refused", not "read-only". **Remaining on self-host:** S04, S06, S07, S09, S11,
-  S12, S13/S14, S16, S17, S18, S19, then cleanup of the two containers and both
-  R2 tenant prefixes.
+- **F3 self-host (2026-09-23): S01–S19 run, 17 pass, S17 open.** The production
+  hub image (`apps/hub/Dockerfile`) in workspace mode, SQLite accepted store on
+  its data volume, R2 object storage, the operator's canvas hostname
+  (`workspace-plan`, M7); real accounts (first-user seed, `/join` invites,
+  `/auth/login`). Runners in `.ai/scenarios/reliable-project-multiplayer/runners/f3/`
+  plus `scripts/dev/t32-scale.mjs --selfhost`; manifest
+  `followup-2026-09-23-selfhost.json` (per-row detail and the product fixes
+  each row found), scale report `followup-2026-09-23-selfhost-scale.json`.
+  **Pass:** S01–S16, S18, S19. Highlights: S13/S14 full inventory (692 raw files /
+  1.05 GB; 487 eligible incl. 96 + 513 MiB) with two SIGKILLs of the seeder,
+  resumed, B = C = hub byte-identical, 0 unexplained differences, edit ack p95
+  1.0 s while media moved; S16 two hub processes on one volume keep one fenced
+  head, a merge from a missing payload is refused with no ack, a full disk
+  answers 503 within 33 ms with no false ack, 14 backup generations retained and
+  a whole-generation restore onto empty disks reproduces head, chain and a
+  deleted canvas's history (a lone replaced checkout is refused loudly — the
+  runbook's DR path is the whole generation).
+  **Product fixes found on self-host** (each with a fail-without regression):
+  viewer invite stored as member; journal paths with a space silently dropped by
+  every peer (`aec0a2b6`); a save right after our own accepted edit read as a
+  conflict (`19d846d2`); token last-use stamp blocked the hub ~7 s per project
+  open (`b2692e20`); a streamed-download hash blocked the receiving peer
+  (`579e9736`); after a rollback a studio admitted read-only held its saves, and a
+  double-submitted switch answered 503 (`dad3760e`); switching forward through a
+  stale second hub rolled 8 accepted revisions back (`6aa142ca`); plus the S06
+  offline/restart fixes above.
+  **Open (S17):** a save written while the desktop's socket was silently dead,
+  just before the switch, is applied to the replica, reaches the hub after the
+  fence and is dropped; the desktop says synced (0 pending, 0 conflicts) and the
+  change stays only on its disk until a restart, whose cold start proposes it
+  (verified, nothing lost). A live fix needs a replica reset under shared-doc (the
+  collab room owns the Y.Doc) — design work, not done. Operator mitigation today:
+  runbook step 5 (let apps finish saving before the switch) or restart the app.
+  S17's other 13 checks pass (dry run persists nothing, SIGKILL mid-switch
+  resumes the import, 409 on a double switch, parity, stale raw socket fenced,
+  rollback keeps accepted work and history, legacy-era work carried forward,
+  monotonic epochs, desktop converges).
+  **Cleanup done:** every self-host container removed; 1,608 fixture objects
+  deleted from the test bucket (only `tenants/f3-cloud` remains); no incomplete
+  multipart upload; fixture dirs with test credentials deleted. **Decision for the
+  owner:** `MAUDE_CELL_PAIRING` is still off by default for self-host
+  (`workspace-plan` does not emit it) — without it the browser History is git, not
+  accepted history.
 - **F3 cloud: blocked, owner deferred (2026-09-23).** This session has no
   Cloudflare credentials (`wrangler whoami`: not authenticated) and the test
   control plane's owner/designer-B browser sessions expired. The owner chose to

@@ -927,13 +927,37 @@
   "fixtureCorrection": "a first fixture without a canvas hostname rendered blank canvas frames (ERR_CONNECTION_REFUSED to a container-internal port) \u2014 the documented M7 requirement, not a product defect; the fixture now follows workspace-plan",
   "remaining": [],
   "cleanup": {
-    "complete": false,
-    "reason": "fixture retained for the remaining self-host scenarios; containers maude-f3-selfhost-*, R2 prefixes f3-selfhost-2026-09-23t16-29-34-067z and the second hub tenant to delete at the end"
+    "complete": true,
+    "at": "2026-09-23",
+    "containers": "every maude-f3-selfhost-* container removed (docker ps -a shows none)",
+    "objectStorage": "1,608 objects deleted from maude-multiplayer-test-20260922 (root assets/ and files/ written by unscoped fixtures, and every f3-selfhost-* prefix); ListMultipartUploads empty; only tenants/f3-cloud remains (the cloud cell, untouched \u2014 no authorization)",
+    "local": "fixture work dirs (holding test passwords/sessions) deleted",
+    "image": "maude-f3-selfhost:local image kept locally (no data)"
   },
   "findings": [
     {
       "finding": "MAUDE_CELL_PAIRING is not emitted by the self-host provisioning path (cli/lib/workspace-plan.mjs); without it the browser studio on a self-host workspace is not a doc-lane participant (browser-created canvases never become Y.Docs; History shows git, not accepted revisions). The fleet gates it per tenant (CELL_LIVE_PAIRING pilot). The F3 fixture sets it, like scripts/dev/local-cell.mjs.",
       "decision": "owner decision pending: make it the self-host default or keep it opt-in"
     }
-  ]
+  ],
+  "statusSummary": {
+    "S01": "pass",
+    "S02": "pass",
+    "S03": "pass",
+    "S05": "pass",
+    "S08": "pass",
+    "S10": "pass",
+    "S15": "pass",
+    "S19": "pass",
+    "S11": "pass",
+    "S09": "pass",
+    "S06": "pass",
+    "S04": "pass",
+    "S18": "pass",
+    "S07": "pass",
+    "S12": "pass",
+    "S13/S14": "pass",
+    "S17": "fail",
+    "S16": "pass"
+  }
 }
