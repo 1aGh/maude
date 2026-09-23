@@ -495,11 +495,23 @@ export function listTokenLabels(dataDir) {
  * @param {string} dataDir
  * @param {string} label
  */
-export function recordTokenUse(dataDir, label) {
+// How often one token's `last_used_at` is re-stamped. The column is advisory
+// (the admin list's "last used"), but the stamp runs inside WebSocket
+// authentication, which fires once per DOCUMENT: a 64-canvas socket made 64
+// synchronous, fsync'd writes on the hub's event loop — 7.5 s on a laptop
+// disk, blocking every other request during each project open (F3 S14,
+// 2026-09-23). A minute of resolution is what the column can honestly claim.
+const TOKEN_USE_STAMP_MS = 60_000;
+/** `${dataDir}\0${label}` → when it was last stamped (bounded by token count). */
+const lastStamped = new Map();
+
+export function recordTokenUse(dataDir, label, now = Date.now()) {
+  const key = `${dataDir}\0${label}`;
+  const prev = lastStamped.get(key);
+  if (prev !== undefined && now - prev < TOKEN_USE_STAMP_MS) return;
+  lastStamped.set(key, now);
   try {
-    db(dataDir)
-      .prepare('UPDATE tokens SET last_used_at = ? WHERE label = ?')
-      .run(Date.now(), label);
+    db(dataDir).prepare('UPDATE tokens SET last_used_at = ? WHERE label = ?').run(now, label);
   } catch {
     /* best-effort */
   }

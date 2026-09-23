@@ -9,7 +9,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { addToken, generateToken, readTokens, tokensDbPath, verifyToken } from '../src/tokens.mjs';
+import {
+  addToken,
+  generateToken,
+  readTokens,
+  recordTokenUse,
+  tokensDbPath,
+  verifyToken,
+} from '../src/tokens.mjs';
 
 const require = createRequire(import.meta.url);
 const Database = require('better-sqlite3');
@@ -180,4 +187,21 @@ test('an expired credential is refused exactly like an unknown one (plan T22)', 
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// F3 S14 (2026-09-23): WebSocket auth fires once per DOCUMENT, and each stamp
+// was a synchronous fsync'd write — 64 canvases cost 7.5 s of blocked event
+// loop on every project open. The stamp now has a minute's resolution.
+test('recordTokenUse stamps a token at most once a minute', () => {
+  withDataDir((dir) => {
+    addToken(dir, { label: 'laptop', scope: '*' });
+    const lastUsed = () => readTokens(dir).tokens.find((t) => t.label === 'laptop').lastUsedAt;
+    const t0 = 1_800_000_000_000;
+    recordTokenUse(dir, 'laptop', t0);
+    assert.equal(lastUsed(), t0);
+    for (let i = 1; i <= 64; i++) recordTokenUse(dir, 'laptop', t0 + i * 100);
+    assert.equal(lastUsed(), t0, 'a burst of document authentications writes once');
+    recordTokenUse(dir, 'laptop', t0 + 60_000);
+    assert.equal(lastUsed(), t0 + 60_000, 'a minute later it is stamped again');
+  });
 });
