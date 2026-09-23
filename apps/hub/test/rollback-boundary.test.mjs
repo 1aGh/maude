@@ -173,4 +173,89 @@ describe('the rollback boundary', () => {
       await built.server.destroy();
     }
   });
+
+  // F3 S16 (2026-09-23): a second hub process on the same volumes kept stale
+  // replicas; switching forward THROUGH it imported its old copy as a
+  // "legacy change" and rolled eight accepted revisions back. A value the lane
+  // already had before its head is a stale replica, not an edit: it is
+  // reported, not imported, and the document is brought to the head.
+  test('re-entry never imports a replica that holds an older accepted value', {
+    timeout: 60000,
+  }, async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'maude-rollback-stale-'));
+    dirs.push(dataDir);
+    const owner = addToken(dataDir, { label: 'owner', scope: '*' }).value;
+    const built = createHub({ port: 0, dataDir, secret: 'test-secret', verbose: false });
+    await built.server.listen();
+    await built.acceptedReady;
+    const http = built.server.httpURL.replace('0.0.0.0', '127.0.0.1');
+    const ws = built.server.webSocketURL.replace('0.0.0.0', '127.0.0.1');
+    const name = 'ws/local/main/ui-stale';
+    const call = async (route, body) => {
+      const res = await fetch(`${http}/api/projects/local/v1/${route}`, {
+        method: body ? 'POST' : 'GET',
+        headers: { authorization: `Bearer ${owner}`, 'content-type': 'application/json' },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+      return { status: res.status, body: await res.json() };
+    };
+    const propose = (epoch, operations) =>
+      call('proposals', {
+        protocol: 1,
+        projectId: 'local',
+        epoch,
+        transactionId: `tx_stale_${++tx}_${Date.now()}`,
+        origin: { deviceId: 'test', sessionId: 's1' },
+        action: { kind: 'edit', label: 'stale drill', operations },
+      });
+    const doc = new Y.Doc();
+    const provider = new HocuspocusProvider({ url: ws, name, token: owner, document: doc });
+    try {
+      const on = await call('mode', { mode: 'transactions', expectEpoch: 0 });
+      assert.equal(
+        (
+          await propose(on.body.epoch, [
+            { op: 'doc.create', doc: name, path: 'ui/stale.tsx', lanes: { html: src('v1') } },
+          ])
+        ).status,
+        200
+      );
+      const { createHash } = await import('node:crypto');
+      const h = (s) => createHash('sha256').update(s).digest('hex');
+      assert.equal(
+        (
+          await propose(on.body.epoch, [
+            { op: 'lane.replace', doc: name, lane: 'html', base: h(src('v1')), content: src('v2') },
+          ])
+        ).status,
+        200
+      );
+      const back = await call('mode', { mode: 'legacy', expectEpoch: on.body.epoch });
+      await until(() => doc.getText('html').toString() === src('v2'), 10000, 'the doc at v2');
+      // A stale replica's content reaches the document while legacy.
+      doc.transact(() => {
+        doc.getText('html').delete(0, doc.getText('html').length);
+        doc.getText('html').insert(0, src('v1'));
+      });
+      await new Promise((r) => setTimeout(r, 600));
+      const again = await call('mode', { mode: 'transactions', expectEpoch: back.body.epoch });
+      assert.equal(again.status, 200);
+      assert.ok(
+        again.body.imported.skipped.some((x) => x.doc === name && /stale/.test(x.reason)),
+        JSON.stringify(again.body.imported)
+      );
+      const boot = await call('bootstrap');
+      const d = boot.body.docs.find((x) => x.doc === name);
+      assert.equal(d.lanes.html.hash, h(src('v2')), 'the head stays the newest accepted value');
+      await until(
+        () => doc.getText('html').toString() === src('v2'),
+        10000,
+        'the doc brought to the head'
+      );
+    } finally {
+      provider.destroy();
+      doc.destroy();
+      await built.server.destroy();
+    }
+  });
 });

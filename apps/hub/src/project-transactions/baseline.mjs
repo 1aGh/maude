@@ -164,6 +164,24 @@ export async function importBaseline(deps) {
       const headHash = head.lanes[lane]?.hash ?? null;
       const currentHash = current === '' ? null : laneHash(current);
       if ((headHash ?? null) === currentHash) continue;
+      // A value this lane already HAD, before its head, is not an edit made
+      // while the project was legacy: it is a replica that never saw the
+      // later revisions (F3 S16 — a second hub process on the same volumes
+      // switched forward and rolled eight accepted revisions back). Reported,
+      // never imported; the reconcile after the import brings it to the head.
+      // (A deliberate legacy revert to an earlier accepted body is reported
+      // the same way — the conservative answer to an ambiguous document.)
+      if (currentHash && head.entry && typeof store.effectsAfter === 'function') {
+        const past = await store.effectsAfter(head.entry, lane, 0);
+        if (past.some((e) => e.afterHash === currentHash)) {
+          report.skipped.push({
+            doc: name,
+            lane,
+            reason: 'stale replica — it holds an earlier accepted value; the head is kept',
+          });
+          continue;
+        }
+      }
       ops.push({
         op: 'lane.replace',
         doc: name,
