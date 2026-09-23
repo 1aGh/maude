@@ -326,6 +326,27 @@
         "with that fixed, draining the outbox before the hub was reachable threw from its binding bootstrap and the unhandled rejection ended the studio process — the bootstrap now waits out transport failures like delivery does (sync-transaction-client.test.ts \"a restart while the hub is still unreachable\" fails without it)"
       ],
       "failWithoutE2E": "the first run of this scenario (before either fix) timed out: the desktop reported 15/15 synced while the project held neither offline edit"
+    },
+    "S04": {
+      "doc": "ui-f3repair78c46d",
+      "tag": "78c46d",
+      "u1Held": {
+        "reason": "invalid-source"
+      },
+      "after": {
+        "acceptedHasRepairAndTeammate": true,
+        "acceptedHash": "b17a657094feb10de1611ce8cde9b84375f9c57d67992bec02c176617d4ec1aa",
+        "revisionsChecked": 3,
+        "u1InAnyRevision": [],
+        "originalU1Recoverable": true,
+        "startingVersionRecoverable": true,
+        "candidateMarkedResolved": true,
+        "conflictClearedAfterRepair": true
+      },
+      "status": "pass",
+      "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s04-2026-09-23",
+      "note": "desktop sidecar: unparseable U1 held (body-rejected/invalid-source), SIGKILL, repair U2 written while down, teammate colour change accepted meanwhile, restart: the repair lands on the teammate change, no revision of the canvas ever holds U1, the recovery candidate still holds U1 and its starting version (marked resolved), the conflict clears",
+      "limitation": "client-invalid U1; network-dependent U1/U2 replay is covered by the local sync suite, not this run"
     }
   },
   "productFix": {
@@ -335,7 +356,6 @@
   },
   "fixtureCorrection": "a first fixture without a canvas hostname rendered blank canvas frames (ERR_CONNECTION_REFUSED to a container-internal port) — the documented M7 requirement, not a product defect; the fixture now follows workspace-plan",
   "remaining": [
-    "S04",
     "S07",
     "S12",
     "S13",
