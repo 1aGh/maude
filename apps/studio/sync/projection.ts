@@ -490,6 +490,21 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
         next = repeated.unit;
       }
     }
+    if (acceptedOwn !== null && next !== lastHtml) {
+      // The replica moved. When it moved to exactly our accepted value and the
+      // disk already holds a newer save, that save is ours on top of it: agree
+      // on the accepted value and leave the file for the watcher to propose.
+      const own = next === acceptedOwn;
+      acceptedOwn = null;
+      if (own) {
+        const local = readLocal(paths.html);
+        if (local !== null && local !== next && local !== observedBody) {
+          lastHtml = next;
+          rememberBase(next);
+          return true;
+        }
+      }
+    }
     if (next === lastHtml) return true;
     // Don't clobber a non-empty local body with an empty doc (cold-start before
     // the doc is seeded — the safe-reconcile invariant; full adopt is Phase E).
@@ -704,9 +719,19 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     return lane === 'comments' ? paths.comments : paths.annotations;
   }
 
+  /**
+   * Our own html proposal the hub accepted, whose publication has not reached
+   * this replica yet. Until it does, it — not the older replica value — is
+   * what the next save on this disk was made on top of (F3 S14, 2026-09-23:
+   * a save in that window was proposed on the value before the first save and
+   * refused as a base conflict, and the echo itself read as "a local edit
+   * overlaps an incoming change").
+   */
+  let acceptedOwn: string | null = null;
+
   /** The value disk and the accepted replica last agreed on for `lane`. */
   function agreedValue(lane: ProposalLane): string {
-    if (lane === 'html') return lastHtml ?? htmlFromDoc(doc);
+    if (lane === 'html') return acceptedOwn ?? lastHtml ?? htmlFromDoc(doc);
     if (lane === 'css') return lastCss ?? cssFromDoc(doc) ?? '';
     return readLaneFromDoc(doc, lane);
   }
@@ -807,6 +832,15 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       }
       if (outcome.status === 'accepted') {
         if (!pending.has(lane)) held.delete(lane);
+        if (lane === 'html' && !pending.has(lane)) {
+          // Our accepted value is the base of whatever this disk holds next —
+          // whichever arrives first, the answer or the publication.
+          // Persisted too: a cold start judges the disk against this base.
+          if (readLaneFromDoc(doc, 'html') === value) {
+            lastHtml = value;
+            rememberBase(value);
+          } else acceptedOwn = value;
+        }
         if (lane === 'html') recovered();
         if (outcome.actionId) {
           try {

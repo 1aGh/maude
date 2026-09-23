@@ -29,6 +29,7 @@ import {
   type LaneProposal,
   type ProposalOutcome,
 } from '../sync/projection.ts';
+import { readRecoveryBody } from '../sync/source-recovery.ts';
 import { laneHash } from '../sync/transaction-client.ts';
 
 const REMOTE = { remote: true };
@@ -157,6 +158,70 @@ describe('projection in accepted-revisions mode', () => {
     expect(r.sent).toHaveLength(2);
     expect(r.sent[1]?.p.baseContent).toBe(src('B'));
     expect(r.sent[1]?.p.dependsOn).toEqual([r.sent[0]?.p.transactionId as string]);
+  });
+
+  // F3 S14 (2026-09-23): a second save right after the first was accepted —
+  // before the hub's publication of it reached this replica — was reported as
+  // "a local edit overlaps an incoming change" (the incoming change being our
+  // own accepted edit) and proposed on the value BEFORE the first save, so the
+  // hub refused it as a base conflict.
+  test('a save made after our accepted edit, before its echo, is not a conflict (echo last)', async () => {
+    const r = rig(src('A'));
+    r.edit(src('B'));
+    r.sent[0]?.answer({ status: 'accepted' });
+    await r.settle();
+    writeFileSync(r.paths.html, src('C')); // the next save lands on disk
+    r.publish(src('B')); // …and only then our own accepted B arrives
+    await r.settle();
+    expect(r.conflicts).toHaveLength(0);
+    expect(r.disk()).toBe(src('C'));
+    r.projection.applyFromFs({
+      path: r.paths.html,
+      bytes: enc(src('C')),
+      hash: hashBytes(src('C')),
+    });
+    expect(r.sent).toHaveLength(2);
+    expect(r.sent[1]?.p).toMatchObject({ content: src('C'), baseContent: src('B') });
+  });
+
+  test('a save made after our accepted edit, before its echo, is based on that edit (event first)', async () => {
+    const r = rig(src('A'));
+    r.edit(src('B'));
+    r.sent[0]?.answer({ status: 'accepted' });
+    await r.settle();
+    r.edit(src('C')); // the watcher reports the next save before the echo
+    expect(r.sent[1]?.p).toMatchObject({ content: src('C'), baseContent: src('B') });
+    r.publish(src('B'));
+    await r.settle();
+    expect(r.conflicts).toHaveLength(0);
+    expect(r.disk()).toBe(src('C'));
+  });
+
+  test('an accepted edit becomes the persisted base a cold start judges the disk by', async () => {
+    const r = rig(src('A'));
+    r.edit(src('B'));
+    r.publish(src('B')); // the publication first, then the answer
+    r.sent[0]?.answer({ status: 'accepted' });
+    await r.settle();
+    expect(readRecoveryBody(join(dir, '_history', 'ui-home'), r.paths.html, 'base')).toBe(src('B'));
+  });
+
+  test('a save made after our accepted edit is not a conflict when the echo beat the answer', async () => {
+    const r = rig(src('A'));
+    r.edit(src('B'));
+    r.publish(src('B')); // the publication arrives first…
+    await r.settle();
+    writeFileSync(r.paths.html, src('C')); // …the next save lands…
+    r.sent[0]?.answer({ status: 'accepted' }); // …and only then the answer
+    await r.settle();
+    expect(r.conflicts).toHaveLength(0);
+    expect(r.disk()).toBe(src('C'));
+    r.projection.applyFromFs({
+      path: r.paths.html,
+      bytes: enc(src('C')),
+      hash: hashBytes(src('C')),
+    });
+    expect(r.sent[1]?.p).toMatchObject({ content: src('C'), baseContent: src('B') });
   });
 
   test('while a proposal is in flight the projection does not write the old accepted value over the candidate', async () => {
