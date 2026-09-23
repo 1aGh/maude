@@ -320,10 +320,10 @@
       "status": "pass",
       "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s06-2026-09-23",
       "participant": "source studio server (the desktop sidecar) over its own copy, linked like maude design link, reaching the hub through a toggle proxy that cuts its sockets",
-      "note": "round 1: offline edits to X and Y, the app SIGKILLed with the queue unsent, a teammate edits X, restart still offline, reconnect: X holds both changes, Y accepted, the desktop converges, the offline actions are attributed to designer A only; round 2: offline an unparseable X then a valid Z — Z is accepted, X stays unchanged in the project, the draft is kept locally and reported body-rejected/invalid-source",
+      "note": "round 1: offline edits to X and Y, the app SIGKILLed with the queue unsent, a teammate edits X, restart still offline, reconnect: X holds both changes, Y accepted, the desktop converges, the offline actions are attributed to designer A only; round 2: offline an unparseable X then a valid Z \u2014 Z is accepted, X stays unchanged in the project, the draft is kept locally and reported body-rejected/invalid-source",
       "productFixesFound": [
-        "a desktop that restarted without the network forgot the project saves through accepted revisions (mode held only in memory): its offline edits took the legacy shared-document path, the hub fenced those raw updates and the work never reached the project while the status read synced — the last verdict now persists in _state/accepted-mode.json per hub (sync-accepted-mode-restart.test.ts fails without it)",
-        "with that fixed, draining the outbox before the hub was reachable threw from its binding bootstrap and the unhandled rejection ended the studio process — the bootstrap now waits out transport failures like delivery does (sync-transaction-client.test.ts \"a restart while the hub is still unreachable\" fails without it)"
+        "a desktop that restarted without the network forgot the project saves through accepted revisions (mode held only in memory): its offline edits took the legacy shared-document path, the hub fenced those raw updates and the work never reached the project while the status read synced \u2014 the last verdict now persists in _state/accepted-mode.json per hub (sync-accepted-mode-restart.test.ts fails without it)",
+        "with that fixed, draining the outbox before the hub was reachable threw from its binding bootstrap and the unhandled rejection ended the studio process \u2014 the bootstrap now waits out transport failures like delivery does (sync-transaction-client.test.ts \"a restart while the hub is still unreachable\" fails without it)"
       ],
       "failWithoutE2E": "the first run of this scenario (before either fix) timed out: the desktop reported 15/15 synced while the project held neither offline edit"
     },
@@ -353,39 +353,39 @@
       "states": {
         "synced": {
           "label": "synced",
-          "title": "Synced with desktop-status — all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) — They are new to this machine — look them over before editing."
+          "title": "Synced with desktop-status \u2014 all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) \u2014 They are new to this machine \u2014 look them over before editing."
         },
         "offline-queued": {
           "label": "offline",
-          "title": "Not reachable: desktop-status. Your edits are safe on this machine and queued. — Nothing to do — syncing resumes by itself when the hub is back."
+          "title": "Not reachable: desktop-status. Your edits are safe on this machine and queued. \u2014 Nothing to do \u2014 syncing resumes by itself when the hub is back."
         },
         "back-online": {
           "label": "synced",
-          "title": "Synced with desktop-status — all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) — They are new to this machine — look them over before editing."
+          "title": "Synced with desktop-status \u2014 all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) \u2014 They are new to this machine \u2014 look them over before editing."
         },
         "refused-draft": {
           "label": "1 to review",
-          "title": "A change needs your attention in desktop-status: 1 source change was not applied. (ui-f3statusbc0424) — Open the Sync panel to see what is waiting and why."
+          "title": "A change needs your attention in desktop-status: 1 source change was not applied. (ui-f3statusbc0424) \u2014 Open the Sync panel to see what is waiting and why."
         },
         "draft-resolved": {
           "label": "synced",
-          "title": "Synced with desktop-status — all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) — They are new to this machine — look them over before editing."
+          "title": "Synced with desktop-status \u2014 all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) \u2014 They are new to this machine \u2014 look them over before editing."
         },
         "media-too-large": {
           "label": "1 to review",
-          "title": "A change needs your attention in desktop-status: 1 file is too large to sync. — Open the Sync panel to see what is waiting and why."
+          "title": "A change needs your attention in desktop-status: 1 file is too large to sync. \u2014 Open the Sync panel to see what is waiting and why."
         },
         "media-removed": {
           "label": "synced",
-          "title": "Synced with desktop-status — all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) — They are new to this machine — look them over before editing."
+          "title": "Synced with desktop-status \u2014 all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) \u2014 They are new to this machine \u2014 look them over before editing."
         },
         "hub-cannot-persist": {
           "label": "1 to review",
-          "title": "A change needs your attention in desktop-status: 1 file could not be delivered. — Open the Sync panel to see what is waiting and why."
+          "title": "A change needs your attention in desktop-status: 1 file could not be delivered. \u2014 Open the Sync panel to see what is waiting and why."
         },
         "hub-persists-again": {
           "label": "synced",
-          "title": "Synced with desktop-status — all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) — They are new to this machine — look them over before editing."
+          "title": "Synced with desktop-status \u2014 all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) \u2014 They are new to this machine \u2014 look them over before editing."
         }
       },
       "checks": {
@@ -441,6 +441,56 @@
       "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s07-2026-09-23",
       "note": "desktop sidecar driven through the agent routes (/_api/ai/start, file writes to two canvases, /_api/ai/end outcome failed), SIGKILL + cold start, then /_api/project/ai-action publish; a second publish is refused",
       "limitation": "two canvases stand in for canvas + code module: code modules travel only to a consenting copy (DDR-217) and have no consent control yet (the local matrix records L16.module.edit unsupported)"
+    },
+    "S12": {
+      "path": "assets/f3-large-679a5d.mp4",
+      "size": 125829120,
+      "sha256": "eff0a00b16dc990018f15818baea86311898d40bd37ed931bf765c128ffef9be",
+      "resume": {
+        "status": 200,
+        "receivedAfterRestart": 8,
+        "verifiedBeforeKill": 7
+      },
+      "corruptPart": {
+        "part": 8,
+        "status": 400,
+        "keptAfter": false
+      },
+      "complete": {
+        "first": 200,
+        "second": 200,
+        "sameReceipt": true
+      },
+      "readBack": {
+        "status": 200,
+        "sha256Matches": true
+      },
+      "checkout": {
+        "present": true,
+        "strayTemps": []
+      },
+      "objectStorage": {
+        "objects": [
+          {
+            "key": "assets/f3-large-679a5d.mp4",
+            "size": 125829120
+          }
+        ],
+        "sizeMatches": true,
+        "wrongHashObjectAbsent": true
+      },
+      "wrongWholeHash": {
+        "status": 422,
+        "landed": false
+      },
+      "overCeiling": {
+        "status": 413,
+        "error": "over the 2147483648-byte project file ceiling"
+      },
+      "status": "pass",
+      "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s12-2026-09-23",
+      "note": "120 MiB through /api/file-uploads; the hub container is SIGKILLed with a part in flight and restarted; resume keeps the verified parts, a corrupted copy of a missing part is refused (400) and not kept, completion sent twice returns the same receipt, read back through the hub byte-identical, one object in R2 of the full size; a wrong whole hash (422) and a size over the ceiling (413) land nothing in checkout or storage",
+      "limitation": "self-hosted hub keys objects unscoped (assets/<name>); the tenant-prefix assertion belongs to the cloud run"
     }
   },
   "productFix": {
@@ -448,9 +498,8 @@
     "finding": "a viewer invitation answered 201 role viewer while storing member; the joined account could write",
     "fix": "createInvite refuses roles other than admin|member (400); regression in apps/hub/test/invites.test.mjs fails without it"
   },
-  "fixtureCorrection": "a first fixture without a canvas hostname rendered blank canvas frames (ERR_CONNECTION_REFUSED to a container-internal port) — the documented M7 requirement, not a product defect; the fixture now follows workspace-plan",
+  "fixtureCorrection": "a first fixture without a canvas hostname rendered blank canvas frames (ERR_CONNECTION_REFUSED to a container-internal port) \u2014 the documented M7 requirement, not a product defect; the fixture now follows workspace-plan",
   "remaining": [
-    "S12",
     "S13",
     "S14",
     "S16",
