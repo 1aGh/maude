@@ -614,6 +614,141 @@
         "run 18:42Z pass with edit ack p95 8.7 s (before b2692e20)",
         "run 19:1?Z pass before 579e9736"
       ]
+    },
+    "S17": {
+      "tag": "5f115f",
+      "start": {
+        "schema": 1,
+        "mode": "legacy",
+        "epoch": 0,
+        "revision": 0,
+        "importPending": false
+      },
+      "dryRun": {
+        "status": 200,
+        "created": 2,
+        "skipped": [],
+        "modeAfter": "legacy",
+        "epochAfter": 0,
+        "revisionAfter": 0
+      },
+      "interruptedSwitch": {
+        "answered": 0,
+        "modeAfterRestart": "transactions",
+        "epochAfterRestart": 1,
+        "importPending": false
+      },
+      "switch": {
+        "status": "completed-by-restart",
+        "mode": "transactions",
+        "epoch": 1,
+        "importPending": false,
+        "doubleSubmit": {
+          "status": 409,
+          "code": "epoch-stale"
+        },
+        "epochAfterDouble": 1
+      },
+      "afterSwitch": {
+        "parity": {
+          "ok": true,
+          "checked": 2,
+          "mismatches": []
+        },
+        "qBytesConserved": true,
+        "pImportedAsLegacy": true
+      },
+      "staleSocket": {
+        "stillOpen": true,
+        "headUnchanged": true,
+        "acceptedUnchanged": true,
+        "checkoutUnchanged": true,
+        "freshReplicaUnchanged": true
+      },
+      "pendingWork": {
+        "landed": false,
+        "landedAfterRestart": true,
+        "statusWhileUndelivered": {
+          "conflicts": [],
+          "docs": {
+            "synced": 2,
+            "pending": 0,
+            "rejected": 0
+          },
+          "accepted": null
+        },
+        "onDiskStill": true,
+        "actor": "designer-a@f3-selfhost.invalid",
+        "migrationActions": 1
+      },
+      "rollbackAfterWrite": {
+        "status": 200,
+        "mode": "legacy",
+        "epoch": 2,
+        "acceptedWriteKept": true,
+        "storeHeadKept": true,
+        "historyReadable": true,
+        "proposalRefused": {
+          "status": 409,
+          "code": "mode-off"
+        }
+      },
+      "forwardAgain": {
+        "status": 200,
+        "epoch": 3,
+        "carriedLegacyWrite": true,
+        "revisionAdvanced": true,
+        "oldRevisionReadable": true,
+        "parity": {
+          "ok": true,
+          "checked": 2,
+          "mismatches": []
+        }
+      },
+      "rollbackBeforeWrite": {
+        "status": 200,
+        "identicalInLegacy": true,
+        "forwardStatus": 200,
+        "headUnchangedByRoundTrip": true,
+        "bytesUnchanged": true,
+        "epochs": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "desktopConverged": true,
+      "checks": {
+        "dryRunPersistsNothing": true,
+        "interruptedSwitchConsistent": true,
+        "doubleSubmitRefused": true,
+        "parityAfterSwitch": true,
+        "bytesConserved": true,
+        "staleSocketFenced": true,
+        "pendingWorkConserved": false,
+        "rollbackKeepsAcceptedWrite": true,
+        "noAcceptedWriterWhileLegacy": true,
+        "forwardCarriesLegacyWrite": true,
+        "historyConserved": true,
+        "rollbackBeforeWriteIsNoop": true,
+        "epochsMonotonic": true,
+        "desktopConverged": true
+      },
+      "status": "fail",
+      "runner": "runners/f3/s17-migration.mjs (fresh legacy project, runbook commands, desktop sidecar through the toggle proxy, raw stale socket)",
+      "finding": {
+        "id": "F3-S17-offline-across-switch",
+        "summary": "A save written while the desktop socket was silently dead, just before the switch, is applied to the local replica, reaches the hub only after the fence and is dropped. The desktop reports synced (0 pending, 0 conflicts) and the change stays on disk; a restart cold start proposes it (landedAfterRestart true, no loss). Fixing it live needs a replica reset under shared-doc (the collab room owns the Y.Doc) \u2014 design work, not done here.",
+        "severity": "blocks S17 pass",
+        "workaround": "runbook step 5 (let apps finish saving before the switch) or restart the app"
+      },
+      "productFixes": [
+        "dad3760e rollback to legacy: studio admitted read-only during accepted mode held its legacy saves until reconnect; mode notice now carries per-connection writable",
+        "dad3760e double-submitted switch answered 503; now 409 epoch-stale"
+      ]
     }
   },
   "productFix": {
@@ -623,8 +758,7 @@
   },
   "fixtureCorrection": "a first fixture without a canvas hostname rendered blank canvas frames (ERR_CONNECTION_REFUSED to a container-internal port) \u2014 the documented M7 requirement, not a product defect; the fixture now follows workspace-plan",
   "remaining": [
-    "S16",
-    "S17"
+    "S16"
   ],
   "cleanup": {
     "complete": false,
