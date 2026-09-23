@@ -404,6 +404,43 @@
         "s18-hub-cannot-persist.png"
       ],
       "screenshotNote": "screenshots not retained: the desktop harness showed the operator machine global git identity; the harness now isolates git config"
+    },
+    "S07": {
+      "tag": "23384b",
+      "checks": {
+        "nothingPublishedMidway": true,
+        "failedEndHeld": true,
+        "heldStatusShown": true,
+        "coldStartDidNotPublish": true,
+        "candidateKeptOnDisk": true,
+        "publishOk": true,
+        "oneAction": true,
+        "oneRevision": true,
+        "bothEffectsInThatAction": true,
+        "actor": "designer-a@f3-selfhost.invalid",
+        "secondPublishAddsNothing": true
+      },
+      "detail": {
+        "headBefore": 270,
+        "midHead": 270,
+        "afterRestart": {
+          "head": 270,
+          "pUnchanged": true,
+          "qUnchanged": true,
+          "candidateKeptOnDisk": true,
+          "stageHeld": true
+        },
+        "headPublished": 271,
+        "publish": {
+          "ok": true,
+          "status": "accepted"
+        },
+        "again": 409
+      },
+      "status": "pass",
+      "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s07-2026-09-23",
+      "note": "desktop sidecar driven through the agent routes (/_api/ai/start, file writes to two canvases, /_api/ai/end outcome failed), SIGKILL + cold start, then /_api/project/ai-action publish; a second publish is refused",
+      "limitation": "two canvases stand in for canvas + code module: code modules travel only to a consenting copy (DDR-217) and have no consent control yet (the local matrix records L16.module.edit unsupported)"
     }
   },
   "productFix": {
@@ -413,7 +450,6 @@
   },
   "fixtureCorrection": "a first fixture without a canvas hostname rendered blank canvas frames (ERR_CONNECTION_REFUSED to a container-internal port) — the documented M7 requirement, not a product defect; the fixture now follows workspace-plan",
   "remaining": [
-    "S07",
     "S12",
     "S13",
     "S14",
