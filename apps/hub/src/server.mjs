@@ -1300,6 +1300,9 @@ export function createHub(config = {}) {
           method,
           dataDir,
           secret,
+          // Sessions survive a fresh disk through the project's object store
+          // (a cloud cell's container disk goes with every restart).
+          s3: s3Source.configured ? await s3Source.config() : null,
           designRoot: journalDesignRoot,
           journal,
           onWritten: noteCheckoutWrite,

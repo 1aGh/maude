@@ -26,9 +26,16 @@
 //     one declared at creation — under the same per-path lock and
 //     compare-and-swap as a single PUT, with the same journal receipt. A lost
 //     completion answer is harmless: completing again returns the receipt.
-//   • A session belongs to the token label that made it, and dies after
-//     SESSION_TTL_MS; its parts never enter the checkout or the journal, so a
-//     half-uploaded file is invisible to every peer.
+//   • A session belongs to the PERSON who made it (the token's owner; the
+//     label for an ownerless token), and dies after SESSION_TTL_MS; its parts
+//     never enter the checkout or the journal, so a half-uploaded file is
+//     invisible to every peer.
+//   • DURABLE beside the disk when the hub has object storage: the session
+//     record and every verified part are copied to
+//     `<tenant>/upload-sessions/<id>/` before the part is acknowledged, so a
+//     hub on a fresh disk — a cloud cell after any restart — resumes instead
+//     of answering "no such upload" (F3 S12, cloud, 2026-09-24). Parts a
+//     restarted process does not hold locally are fetched at completion.
 
 import { createHash, randomBytes } from 'node:crypto';
 import {
@@ -45,9 +52,18 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 
+import { assetPrefixFromEnv } from './asset-key.mjs';
 import { currentHashFor, quotaFor, seqFor, withPathLock } from './file-door.mjs';
 import { MAX_PROJECT_FILE_BYTES, PART_BYTES } from './file-limits.mjs';
 import { checkoutFileClass, resolveCheckoutFileWrite } from './file-manifest.mjs';
+import {
+  deleteObject,
+  getObject,
+  getObjectToFile,
+  listObjects,
+  putObject,
+  putObjectFromFile,
+} from './s3.mjs';
 import { matchesScope, verifyToken } from './tokens.mjs';
 
 export const UPLOADS_PREFIX = '/api/file-uploads';
@@ -140,6 +156,110 @@ export function sweepUploadSessions(dataDir, now = Date.now()) {
   return removed;
 }
 
+/**
+ * The durable store for sessions on an object-storage-backed hub. Keys live
+ * under the tenant's prefix, apart from `assets/`, so nothing that lists media
+ * ever sees a part.
+ */
+export function s3UploadStore(cfg, prefix = assetPrefixFromEnv()) {
+  const p = String(prefix ?? '').replace(/^\/+|\/+$/g, '');
+  const base = `${p ? `${p}/` : ''}upload-sessions/`;
+  const key = (id, name) => `${base}${id}/${name}`;
+  const partName = (n) => `${String(n).padStart(6, '0')}.part`;
+  return {
+    async putSession(s) {
+      await putObject(cfg, key(s.id, 'session.json'), JSON.stringify(s));
+    },
+    async getSession(id) {
+      const b = await getObject(cfg, key(id, 'session.json'));
+      return b ? JSON.parse(b.toString('utf8')) : null;
+    },
+    async listSessions() {
+      const out = [];
+      for (const o of await listObjects(cfg, base)) {
+        if (!o.key.endsWith('/session.json')) continue;
+        const b = await getObject(cfg, o.key).catch(() => null);
+        if (b) out.push(JSON.parse(b.toString('utf8')));
+      }
+      return out;
+    },
+    async putPart(id, n, abs) {
+      await putObjectFromFile(cfg, key(id, partName(n)), abs);
+    },
+    async listParts(id) {
+      return (await listObjects(cfg, `${base}${id}/`))
+        .map((o) => /\/(\d{6})\.part$/.exec(o.key)?.[1])
+        .filter(Boolean)
+        .map(Number);
+    },
+    async partToFile(id, n, abs) {
+      return (await getObjectToFile(cfg, key(id, partName(n)), abs)) !== null;
+    },
+    async removeParts(id) {
+      for (const o of await listObjects(cfg, `${base}${id}/`))
+        if (o.key.endsWith('.part')) await deleteObject(cfg, o.key);
+    },
+    async remove(id) {
+      for (const o of await listObjects(cfg, `${base}${id}/`)) await deleteObject(cfg, o.key);
+    },
+  };
+}
+
+function storeFor(ctx) {
+  if (ctx.uploadStore !== undefined) return ctx.uploadStore;
+  return ctx.s3 ? s3UploadStore(ctx.s3) : null;
+}
+
+/** The same PERSON: a fresh sign-in is a new token label, not a new owner. */
+function owns(s, match) {
+  if (s.owner) return s.owner === (match.owner ?? null);
+  return s.label === match.label;
+}
+
+/** Best-effort durable copy: a store fault never fails the local session. */
+async function durably(what, fn) {
+  try {
+    await fn();
+    return true;
+  } catch (err) {
+    console.warn(`[hub] upload ${what} not made durable: ${err.message}`);
+    return false;
+  }
+}
+
+async function receivedAll(dataDir, s, store) {
+  const local = receivedParts(dataDir, s);
+  if (!store || s.completedAt) return local;
+  let remote = [];
+  try {
+    remote = await store.listParts(s.id);
+  } catch {
+    /* the local view stands */
+  }
+  return [...new Set([...local, ...remote])].filter((n) => n < s.parts).sort((a, b) => a - b);
+}
+
+async function viewOf(dataDir, s, store) {
+  return {
+    ...view(dataDir, s),
+    received: s.completedAt ? [] : await receivedAll(dataDir, s, store),
+  };
+}
+
+function expired(s, now = Date.now()) {
+  const age = now - (s.completedAt ?? s.createdAt);
+  return age >= (s.completedAt ? 3600_000 : SESSION_TTL_MS);
+}
+
+/** Expired sessions leave the durable store too (checked on each creation). */
+async function sweepDurable(store) {
+  try {
+    for (const s of await store.listSessions()) if (expired(s)) await store.remove(s.id);
+  } catch {
+    /* the next creation sweeps again */
+  }
+}
+
 function release(s) {
   const row = quotaFor(s.label);
   row.used = Math.max(0, row.used - (s.reserved ?? 0));
@@ -208,6 +328,7 @@ export async function handleUploadSessions(ctx) {
   }
   const { match } = a;
   sweepUploadSessions(dataDir);
+  const store = storeFor(ctx);
 
   // ---- create
   if (rest.length === 0) {
@@ -244,17 +365,41 @@ export async function handleUploadSessions(ctx) {
         if (
           s &&
           !s.completedAt &&
-          s.label === match.label &&
+          owns(s, match) &&
           s.path === ad.landing &&
           s.sha256 === sha256 &&
           s.size === size
         ) {
-          respondJson(response, 200, view(dataDir, s));
+          respondJson(response, 200, await viewOf(dataDir, s, store));
           return true;
         }
       }
     } catch {
       /* no sessions yet */
+    }
+    // …including one this process never saw, from the durable store.
+    if (store) {
+      await sweepDurable(store);
+      let remote = [];
+      try {
+        remote = await store.listSessions();
+      } catch {
+        /* the store is down: a new session starts, locally */
+      }
+      const s = remote.find(
+        (r) =>
+          !r.completedAt &&
+          !expired(r) &&
+          owns(r, match) &&
+          r.path === ad.landing &&
+          r.sha256 === sha256 &&
+          r.size === size
+      );
+      if (s) {
+        saveSession(dataDir, s);
+        respondJson(response, 200, await viewOf(dataDir, s, store));
+        return true;
+      }
     }
     const row = quotaFor(match.label);
     if (row.used + size > row.cap) {
@@ -268,6 +413,7 @@ export async function handleUploadSessions(ctx) {
     const s = {
       id: `up_${randomBytes(16).toString('hex')}`,
       label: match.label,
+      owner: match.owner ?? null,
       path: ad.landing,
       size,
       sha256,
@@ -278,13 +424,22 @@ export async function handleUploadSessions(ctx) {
       createdAt: Date.now(),
     };
     saveSession(dataDir, s);
+    if (store) await durably(`${s.id} session`, () => store.putSession(s));
     respondJson(response, 201, view(dataDir, s));
     return true;
   }
 
   const id = rest[0];
-  const s = loadSession(dataDir, id);
-  if (!s || s.label !== match.label) {
+  let s = loadSession(dataDir, id);
+  if (!s && store && ID.test(id)) {
+    // A process on a fresh disk: the durable record is the session.
+    const remote = await store.getSession(id).catch(() => null);
+    if (remote && !expired(remote)) {
+      saveSession(dataDir, remote);
+      s = remote;
+    }
+  }
+  if (!s || !owns(s, match)) {
     respondJson(response, 404, { error: 'no such upload' });
     return true;
   }
@@ -292,12 +447,13 @@ export async function handleUploadSessions(ctx) {
   // ---- status / abort
   if (rest.length === 1) {
     if (method === 'GET') {
-      respondJson(response, 200, view(dataDir, s));
+      respondJson(response, 200, await viewOf(dataDir, s, store));
       return true;
     }
     if (method === 'DELETE') {
       if (!s.completedAt) release(s);
       rmSync(dirOf(dataDir, s.id), { recursive: true, force: true });
+      if (store) await durably(`${s.id} removal`, () => store.remove(s.id));
       respondJson(response, 200, { ok: true, aborted: !s.completedAt });
       return true;
     }
@@ -315,13 +471,36 @@ export async function handleUploadSessions(ctx) {
       respondJson(response, 200, s.receipt);
       return true;
     }
-    const missing = s.parts - receivedParts(dataDir, s).length;
+    const missing = s.parts - (await receivedAll(dataDir, s, store)).length;
     if (missing > 0) {
       respondJson(response, 409, {
         error: `${missing} part(s) still missing`,
-        ...view(dataDir, s),
+        ...(await viewOf(dataDir, s, store)),
       });
       return true;
+    }
+    // Parts this process does not hold on its own disk come back from the
+    // durable store before assembly (a restarted cell resumed this session).
+    if (store) {
+      for (let n = 0; n < s.parts; n += 1) {
+        const p = partPath(dataDir, s.id, n);
+        let have = false;
+        try {
+          have = statSync(p).size === partSize(s, n);
+        } catch {
+          /* fetch it */
+        }
+        if (have) continue;
+        mkdirSync(dirOf(dataDir, s.id), { recursive: true });
+        const ok = await store.partToFile(s.id, n, p).catch(() => false);
+        if (!ok) {
+          respondJson(response, 409, {
+            error: `part ${n} is missing`,
+            ...(await viewOf(dataDir, s, store)),
+          });
+          return true;
+        }
+      }
     }
     const ad = admit(ctx, match, s.path);
     if (!ad.landing) {
@@ -365,6 +544,7 @@ export async function handleUploadSessions(ctx) {
         rmSync(tmp, { force: true });
         release(s);
         rmSync(dirOf(dataDir, s.id), { recursive: true, force: true });
+        if (store) await durably(`${s.id} removal`, () => store.remove(s.id));
         respondJson(response, 422, {
           error: 'the assembled file does not match its declared hash',
           got: whole,
@@ -382,7 +562,12 @@ export async function handleUploadSessions(ctx) {
       };
       // The parts go; the receipt stays an hour, so a lost answer is replayed.
       for (let n = 0; n < s.parts; n += 1) rmSync(partPath(dataDir, s.id, n), { force: true });
-      saveSession(dataDir, { ...s, completedAt: Date.now(), receipt });
+      const completed = { ...s, completedAt: Date.now(), receipt };
+      saveSession(dataDir, completed);
+      if (store) {
+        await durably(`${s.id} receipt`, () => store.putSession(completed));
+        await durably(`${s.id} parts cleanup`, () => store.removeParts(s.id));
+      }
       respondJson(response, 200, receipt);
       return true;
     });
@@ -426,6 +611,9 @@ export async function handleUploadSessions(ctx) {
       return true;
     }
     renameSync(tmp, partPath(dataDir, s.id, n));
+    // Acknowledged only once it is durable (when the hub has a store).
+    if (store)
+      await durably(`${s.id} part ${n}`, () => store.putPart(s.id, n, partPath(dataDir, s.id, n)));
     respondJson(response, 200, { ok: true, part: n, sha256: got.sha256 });
     return true;
   }
