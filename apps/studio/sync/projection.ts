@@ -516,7 +516,10 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     // Don't clobber a non-empty local body with an empty doc (cold-start before
     // the doc is seeded — the safe-reconcile invariant; full adopt is Phase E).
     if (next === '') {
-      lastHtml = next;
+      // Accepted mode: an empty replica is one the project's publication has
+      // not reached yet, never a value this disk agreed on — a base already
+      // known (a canvas this disk just added, adopted on acceptance) stays.
+      if (lastHtml === null || !acceptedOn()) lastHtml = next;
       return true;
     }
     if (!withinCap(paths.html, next, MAX_HTML_BYTES)) return false;

@@ -50,7 +50,7 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-function rig(initial = src('A')) {
+function rig(initial = src('A'), { seeded = true } = {}) {
   const paths = {
     html: join(dir, 'ui', 'home.tsx'),
     comments: join(dir, '_comments', 'ui-home.json'),
@@ -61,7 +61,7 @@ function rig(initial = src('A')) {
   writeFileSync(paths.html, initial);
   const doc = new Y.Doc();
   // The accepted state arrives from the hub.
-  doc.transact(() => applyHtmlToDoc(doc, initial, REMOTE), REMOTE);
+  if (seeded) doc.transact(() => applyHtmlToDoc(doc, initial, REMOTE), REMOTE);
   const sent: Sent[] = [];
   let on = true;
   let n = 0;
@@ -214,6 +214,26 @@ describe('projection in accepted-revisions mode', () => {
     await r.settle();
     expect(r.conflicts).toHaveLength(0);
     expect(r.disk()).toBe(src('C'));
+  });
+
+  // F3 S14 on the cloud cell (2026-09-24): a canvas this disk had just added
+  // to the project (doc.create accepted, its body adopted as the base) was
+  // flushed while the replica was still empty — the empty value replaced the
+  // base, so the next save was proposed on '' and conflicted with the canvas's
+  // own creation, then held.
+  test('a canvas this disk just added keeps its body as the base while the replica is still empty', async () => {
+    const r = rig(src('A'), { seeded: false });
+    r.projection.adoptBase(src('A')); // the doc.create was accepted
+    // Something else about the document arrives first (its path stamp).
+    r.doc.transact(() => r.doc.getMap('syncMeta').set('path', 'ui/home.tsx'), REMOTE);
+    await r.settle();
+    r.edit(src('B')); // the next save, before the creation's publication
+    expect(r.sent[0]?.p).toMatchObject({ content: src('B'), baseContent: src('A') });
+    r.publish(src('A'));
+    r.sent[0]?.answer({ status: 'accepted' });
+    await r.settle();
+    expect(r.conflicts).toHaveLength(0);
+    expect(r.disk()).toBe(src('B'));
   });
 
   test('an accepted edit becomes the persisted base a cold start judges the disk by', async () => {
