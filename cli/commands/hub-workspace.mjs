@@ -46,6 +46,10 @@ export function usage() {
                            their own origin; without a public name for it the
                            iframe points at a container-internal port and every
                            canvas is a blank frame. Point DNS here too.
+  --embed-origin ORIGIN    an app allowed to FRAME the studio read-only
+                           (https://orbit.acme.com), for the ?embed=1 view.
+                           Repeatable, or comma-separated. Framing only: an
+                           embedder never gets write access to a canvas.
   --acme-email EMAIL       Let's Encrypt contact
   --admin-email EMAIL      the first person who can sign in
   --admin-password PASS    their initial password (>= 12 chars; generated if omitted)
@@ -89,6 +93,20 @@ export function usage() {
 `;
 }
 
+/** Every value of a repeatable `--name V` / `--name=V` flag, comma lists split. */
+export function repeatedFlag(args, name) {
+  const out = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === `--${name}` && i + 1 < args.length) out.push(args[++i]);
+    else if (a.startsWith(`--${name}=`)) out.push(a.slice(name.length + 3));
+  }
+  return out
+    .flatMap((v) => String(v).split(','))
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
 export async function run({ args, pkgRoot }) {
   const { flags } = parseArgs(args, {
     booleans: ['help', 'dry-run', 'json', 'dev-minio', 'local', 'render'],
@@ -112,6 +130,10 @@ export async function run({ args, pkgRoot }) {
     render: flags.render === true || raw.render === true,
     seedRepo: flags['seed-repo'] ?? raw.seedRepo,
     canvasDomain: flags['canvas-domain'] ?? raw.canvasDomain,
+    // Repeatable, which parseArgs (last one wins) cannot express.
+    embedOrigins: repeatedFlag(args, 'embed-origin').length
+      ? repeatedFlag(args, 'embed-origin')
+      : raw.embedOrigins,
     imageTag: flags['image-tag'] ?? raw.imageTag,
     ...(flags['s3-endpoint'] || raw.s3
       ? {
@@ -910,6 +932,9 @@ function printDryRun({ config, outDir, files, plan, duties, reusedSecret }) {
       `  storage     ${config.s3 ? `${config.s3.bucket} @ ${config.s3.endpoint}${config.s3.dev ? ' (dev MinIO)' : ''}` : 'none — media stays in git'}\n` +
       `  project     ${safeSeedUrl(config.seedRepo) ?? 'starts fresh'}\n` +
       `  canvas      ${config.canvasDomain ? `${config.local ? 'http' : 'https'}://${config.canvasDomain}` : config.local ? 'same-machine (local mode — the browser can reach the container port)' : 'NOT SET — canvases will not render in remote browsers'}\n` +
+      (config.embedOrigins?.length
+        ? `  embeds      ${config.embedOrigins.join(' ')}  (may frame the studio read-only)\n`
+        : '') +
       `  image       ghcr.io/1agh/maude-hub:${config.imageTag}\n` +
       `  out         ${outDir}\n` +
       (reusedSecret ? '  secrets     reusing HUB_SECRET from the existing .env\n' : '') +

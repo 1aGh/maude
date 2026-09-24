@@ -94,6 +94,7 @@ import {
   handleDocumentItemRoute,
   handleDocumentsRoute,
 } from './documents.mjs';
+import { embedSignInPage, isEmbedPageRequest, parseEmbedOrigins } from './embed-page.mjs';
 import {
   FILE_DOOR_PREFIX,
   FILE_LIMITS_PATH,
@@ -607,7 +608,7 @@ export function createHub(config = {}) {
         // The canvas token is OPTIONAL by construction — `?? null` at the call
         // site, and the canvas origin simply stays unauthenticated without it.
         // So a mint that cannot happen degrades to "no token", loudly, once.
-        mintCanvasToken: (session) => {
+        mintCanvasToken: (session, { readOnly = false } = {}) => {
           try {
             return mintRenderToken({
               secret,
@@ -617,7 +618,10 @@ export function createHub(config = {}) {
               // origin's collab socket opens at it (annotations need an editor).
               // The HTTP canvas lane keeps the viewer floor regardless — see
               // render-token.mjs for why this widens nothing over HTTP.
-              role: session.role,
+              // DDR-242 — the `?embed=1` view gets a read-only capability at
+              // the viewer floor instead, enforced by the canvas door.
+              role: readOnly ? 'viewer' : session.role,
+              readOnly,
               ttlMs: canvasTokenTtlMs(),
             });
           } catch (err) {
@@ -1597,6 +1601,20 @@ export function createHub(config = {}) {
           bailFromOnRequest();
         }
         if (verdict?.kind === 'sign-in') {
+          // DDR-242 — an EMBEDDED studio (`/?open=…&embed=1`, framed by an app
+          // on MAUDE_EMBED_ORIGINS) cannot follow that redirect: the sign-in
+          // page refuses to be framed. It gets a frameable page that says so,
+          // links to the normal sign-in in a new tab, and tells the embedder
+          // `auth-required`. Only when embedders are configured at all.
+          if (
+            isEmbedPageRequest(request, authPath) &&
+            parseEmbedOrigins(process.env.MAUDE_EMBED_ORIGINS).length > 0
+          ) {
+            const page = embedSignInPage({ request });
+            response.writeHead(401, page.headers);
+            response.end(request.method === 'HEAD' ? undefined : page.html);
+            bailFromOnRequest();
+          }
           // An HTML navigation gets a redirect it can follow; an API call gets
           // a 401 it can read. Sending a fetch() to the control plane's sign-in
           // page produces a CORS error in the console and nothing on screen.

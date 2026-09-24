@@ -1,0 +1,77 @@
+{
+  "date": "2026-09-22",
+  "status": "partial-with-failure",
+  "scope": "S11 actual Cloudflare browser source preview/restore during another browser's inspector edit; not full S11/F3",
+  "projectId": "f3-cloud",
+  "epoch": 1,
+  "candidate": {
+    "image": "registry.cloudflare.com/b5b596efe65abb732777c7171dc18145/maude-followup-cell:test-20260922-r2",
+    "imageDigest": "sha256:dae0a8585d76ba589d7fc00b8adfd7ea4980c8d4b3779becce30e8a070397df3",
+    "rolloutId": "fbc711fc-7c11-4f5a-9dac-f4929d3ae9cf",
+    "applicationVersion": 2,
+    "instanceLocation": "ams22",
+    "sourceManifest": ".ai/device/scenario-runs/reliable-project-multiplayer/2026-09-22T16-00-42.733Z/source-manifest.json",
+    "sourceManifestSha256": "8d744fee54bb169b65ffb897509e4ccee39d8a096b9f5b4bba7316e7334d3108",
+    "sealedClientSha256": "223539853e29753dde78dfe9718546cfa183e17ad84068607dffdf17a34d667e",
+    "servedClientHashPrefix": "223539853e29",
+    "health": "ready; zero studio restarts; served seal matches",
+    "preservedAfterRollout": {
+      "revision": 13,
+      "epoch": 1,
+      "documents": 5
+    }
+  },
+  "checks": [
+    {
+      "id": "selected-preview",
+      "status": "pass",
+      "method": "Owner opens History Preview at r13 and changes picker to r6",
+      "oracle": "Saved pane renders Original title in black; current pane Designer A title in red; no Git HEAD option"
+    },
+    {
+      "id": "peer-activity",
+      "status": "pass",
+      "method": "Designer B changes title attribute through the actual inspector while owner's preview remains open",
+      "revision": 14,
+      "actionId": "a_294781f6-6080-4eda-98f5-ff4d6febefc0",
+      "sourceSha256": "33c44343e0ada871405b8392c2da1d3d42eb0a236e0ff9e123e10fb5b60a5386",
+      "oracle": "Accepted source has peer attribute; owner history automatically adds r14 and picker remains r6"
+    },
+    {
+      "id": "restore-selected-preview",
+      "status": "pass",
+      "method": "Owner clicks Restore saved version and accepts actual confirmation naming version 6",
+      "revision": 15,
+      "actionId": "a_7531f3e6-06a7-42f2-99b2-25a8ebdcc649",
+      "transactionId": "tx_3c47d4bc42a64691a351ec325dd94ea3",
+      "kind": "history.restore",
+      "sourceSha256": "2616f93c7c6df9ac5ae7aff381ea24f92c7164667209af8970d6045f7ca1c39c",
+      "oracle": "Current HTML equals r6 HTML effect hash and blob SHA-256; both canvases render Original title in black, preview closes, new history row 15 appears without refresh; r14 remains in history"
+    },
+    {
+      "id": "receiving-inspector-refresh",
+      "status": "fail",
+      "expected": "Original title",
+      "actual": "Peer edit while history preview is open",
+      "inputFocused": false,
+      "liveHeadingId": "e84b9355",
+      "liveHeadingTitle": "Original title",
+      "recovery": "Explicit heading click refreshed the inspector; manual recovery is not a passing no-refresh result",
+      "investigation": "Soft HMR remount does not re-emit the initial loaded handshake that schedules shell selection readback. Needs fail-without regression before modifying frozen runtime inputs."
+    }
+  ],
+  "screenshots": [
+    ".ai/browser/screenshots/followup-f3-cloud-r2-preview-r6.png",
+    ".ai/browser/screenshots/followup-f3-cloud-r2-peer-edit.png",
+    ".ai/browser/screenshots/followup-f3-cloud-r2-restored-owner.png",
+    ".ai/browser/screenshots/followup-f3-cloud-r2-restored-peer.png"
+  ],
+  "screenshotsInspected": true,
+  "limitations": [
+    "Media history/native cloud restore not covered",
+    "Browser action attribution remains cell-loopback-sync, not per-designer undo proof",
+    "Initial read-only oracle picked doc.create's null hash; corrected HTML-effect oracle passes",
+    "Other S01-S19 backend variants, stale inspector fix and cleanup remain",
+    "No production deployment, version bump, archive, commit or push"
+  ]
+}

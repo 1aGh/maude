@@ -567,6 +567,50 @@ test('a canvas domain renders the full chain: .env, compose passthrough, Caddy s
   assert.match(caddy, /\{\$CANVAS_DOMAIN\} \{/);
 });
 
+// DDR-242 — the embed allowlist is threaded through .env AND compose, like
+// every other hub variable here; the drift between those two lists is the
+// shape that shipped MAUDE_ADMIN_PASSWORD half-wired.
+test('embed origins render into .env and are forwarded to the hub container', () => {
+  const cfg = ok({
+    ...BASE,
+    embedOrigins: [
+      'https://Orbit.Acme.com/tasks',
+      'https://orbit.acme.com',
+      'http://localhost:3100',
+    ],
+  });
+  assert.deepEqual(cfg.embedOrigins, ['https://orbit.acme.com', 'http://localhost:3100']);
+  const env = renderEnv(envEntries(cfg, { hubSecret: 'x', adminPassword: 'y'.repeat(12) }));
+  assert.match(env, /MAUDE_EMBED_ORIGINS='https:\/\/orbit\.acme\.com http:\/\/localhost:3100'/);
+  assert.match(renderCompose(cfg), /MAUDE_EMBED_ORIGINS: \$\{MAUDE_EMBED_ORIGINS\}/);
+
+  const none = ok(BASE);
+  assert.deepEqual(none.embedOrigins, []);
+  assert.ok(!/MAUDE_EMBED_ORIGINS/.test(renderCompose(none)));
+});
+
+test('an embed origin wider than one https origin is refused, not dropped', () => {
+  for (const bad of [
+    '*',
+    'https://*.acme.com',
+    'http://orbit.acme.com',
+    'orbit.acme.com',
+    'ftp://x.acme.com',
+  ]) {
+    const r = validateWorkspaceConfig({ ...BASE, embedOrigins: [bad] });
+    assert.equal(r.ok, false, bad);
+    assert.ok(
+      r.errors.some((e) => e.includes('embedOrigin')),
+      bad
+    );
+  }
+  // A comma/space list from a config file splits the same way.
+  assert.deepEqual(
+    ok({ ...BASE, embedOrigins: 'https://a.acme.com, https://b.acme.com' }).embedOrigins,
+    ['https://a.acme.com', 'https://b.acme.com']
+  );
+});
+
 test('no canvas domain leaves no empty canvas variables to misread', () => {
   const cfg = ok(BASE);
   assert.equal(cfg.canvasDomain, null);

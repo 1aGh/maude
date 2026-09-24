@@ -42,10 +42,19 @@
             return resolve({ error: 'Active canvas frame hidden', visible: false });
           const id = ++sequence;
           const origin = new URL(frame.src).origin;
+          // play() waits for asynchronous media startup, not just a DOM turn.
+          // Linux WebKitGTK can already decode/play while that promise settles
+          // after 1 s. Keep ordinary probes fast and media startup bounded; the
+          // surface runner separately asserts advancing time and decoded pixels.
+          // A drag with a hold lasts as long as the test asked it to hold
+          // (bounded to 2 s in the frame); the reply must be allowed to
+          // arrive after the gesture, not only after a DOM turn.
+          const hold = Number.isFinite(value?.hold) ? Math.min(Math.max(value.hold, 0), 2000) : 0;
+          const timeoutMs = operation === 'play' ? 5000 : 1000 + hold;
           const timer = setTimeout(() => {
             pending.delete(id);
             resolve({ error: 'Active canvas probe response timed out', visible: false });
-          }, 1000);
+          }, timeoutMs);
           pending.set(id, { resolve, timer, source: frame.contentWindow, origin });
           frame.contentWindow.postMessage(
             { protocol, kind: 'request', id, selector, operation, value },

@@ -1,0 +1,13 @@
+{
+  "date": "2026-09-22",
+  "adapter": "apps/hub/src/s3.mjs",
+  "backend": "r2",
+  "bucket": "maude-multiplayer-test-20260922",
+  "prefix": "maude-sync-conformance/f2-24d3f027-da1b-45b9-8df8-e22e21387a4d/",
+  "bytes": 100663296,
+  "status": "passed",
+  "cleanup": true,
+  "uploadMs": 38239,
+  "parts": 6,
+  "sha256": "416e6d97166205f3ce1c0f7d7bcdb11f5d2daa552b82dc5cb99928a922b4f4c0"
+}

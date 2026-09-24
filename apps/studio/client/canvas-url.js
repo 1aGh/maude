@@ -78,6 +78,15 @@ export function canvasUrl(p, cfg, opts) {
   // reads this flag). Boot-static on purpose — a role is per-session, and a
   // query param can't race the way a post-load message could.
   if (cfg?.readOnly) params.set('ro', '1');
+  // DDR-242 — the chromeless `?embed=1` view another app frames. Read-only
+  // whatever the viewer's role (the embed offers looking, nothing else), no
+  // comment layer, and `embed=1` so the canvas keeps its camera to itself
+  // instead of persisting the embed's fit over the designer's own view.
+  if (opts?.embed) {
+    params.set('ro', '1');
+    params.set('comments', '0');
+    params.set('embed', '1');
+  }
   // Cloud Phase 27 (DDR-209) — the canvas origin's capability. On a desktop the
   // canvas origin is loopback and needs none, so this is absent and the URL is
   // byte-identical to before. In the cloud it is a cookieless, cross-site

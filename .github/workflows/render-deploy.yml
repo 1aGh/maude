@@ -243,18 +243,22 @@ jobs:
 
       - name: Verify the service answers at the release version
         if: ${{ github.ref_type == 'tag' }}
-        # 15 min, not 5: the rollout above is ACCEPTED immediately but the ~3 GB
-        # Chromium image takes minutes to pull + boot to healthy, so a 5-min
-        # window raced the roll and failed the verify while the new instance was
-        # still starting (the container reported the previous version until it
-        # flipped). The version poll IS the completion check — give it room.
+        timeout-minutes: 30
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+        # Each request resets the container's 10-minute sleepAfter. A 10-second
+        # poll kept the previous environment alive for the entire verify window.
+        # Allow 11 idle minutes between attempts (worker.mjs currently uses 10),
+        # plus bounded cold-start requests. This does not force-stop live exports;
+        # sustained real traffic can still prevent sleep and must fail visibly.
         run: |
-          for i in $(seq 1 90); do
-            BODY=$(curl -sf https://render.cloud.maude.sh/_health || true)
-            if echo "$BODY" | jq -e --arg v "${{ github.ref_name }}" '.ok and .version == $v' >/dev/null 2>&1; then
-              echo "render service is live at ${{ github.ref_name }}"; exit 0
+          for i in $(seq 1 3); do
+            BODY=$(curl -sf --connect-timeout 10 --max-time 60 https://render.cloud.maude.sh/_health || true)
+            if echo "$BODY" | jq -e --arg v "$RELEASE_VERSION" '.ok and .version == $v' >/dev/null 2>&1; then
+              echo "render service is live at $RELEASE_VERSION"; exit 0
             fi
-            echo "attempt $i: $BODY"; sleep 10
+            echo "attempt $i: $BODY"
+            if [ "$i" -lt 3 ]; then sleep 660; fi
           done
           echo "::error::the render service never reported the release version — the rollout did not land"
           exit 1

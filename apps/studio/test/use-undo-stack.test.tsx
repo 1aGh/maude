@@ -12,6 +12,7 @@ import {
   _clearStackStore,
   type CommandRecord,
   type CommandSinks,
+  loadStackState,
   registerCommand,
 } from '../undo-stack.ts';
 import {
@@ -120,6 +121,43 @@ describe('use-undo-stack / contract outside provider', () => {
 });
 
 describe('use-undo-stack / runner side-effects', () => {
+  test('HMR replacement waits for the old provider ACK before undoing the next entry', async () => {
+    const file = '.design/ui/HmrUndo.tsx';
+    const seen: unknown[] = [];
+    const confirmations: Array<() => void> = [];
+    registerCommand('deferred', (record) => ({
+      kind: record.kind,
+      label: record.label,
+      do() {},
+      async undo() {
+        seen.push(record.payload);
+        if (record.payload === 'second')
+          await new Promise<void>((resolve) => {
+            confirmations.push(resolve);
+          });
+      },
+    }));
+    const old = captureProvider(file);
+    old.record({ kind: 'deferred', label: 'first', payload: 'first' });
+    old.record({ kind: 'deferred', label: 'second', payload: 'second' });
+    const firstUndo = old.undo();
+    // Wait until the actual side effect starts, without wall-clock timing.
+    for (let i = 0; i < 10 && seen.length === 0; i++) await Promise.resolve();
+    expect(seen).toEqual(['second']);
+    const replacement = captureProvider(file);
+    const secondUndo = replacement.undo();
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+    const beforeAck = [...seen];
+    // Release every started request, including duplicates in the failing case.
+    for (const confirm of confirmations) confirm();
+    await firstUndo;
+    await secondUndo;
+    expect(beforeAck).toEqual(['second']);
+    expect(seen).toEqual(['second', 'first']);
+    expect(loadStackState(file).past).toEqual([]);
+    expect(loadStackState(file).future.map((r) => r.payload)).toEqual(['second', 'first']);
+  });
+
   test('push() invokes rebuilt cmd.do() exactly once', async () => {
     const v = captureProvider(undefined, { layoutPatchFn: () => {} });
     await v.push(rec('move 1'));

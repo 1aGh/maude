@@ -295,7 +295,7 @@ describe('pulling hub-only documents down', () => {
     expect(targets[0].fromPath).toBe(true);
   });
 
-  test('a refused path degrades to the fallback and says why', () => {
+  test('a refused path ends the pull and says why', () => {
     const refusals: string[] = [];
     const targets = pullTargets(
       [{ name: 'ui-welcome', bytes: 1 }],
@@ -312,8 +312,7 @@ describe('pulling hub-only documents down', () => {
         onRefused: (slug, reason) => refusals.push(`${slug}: ${reason}`),
       }
     );
-    expect(targets[0].bodyAbs).toBe('/p/.design/ui/welcome.tsx');
-    expect(targets[0].fromPath).toBe(false);
+    expect(targets).toEqual([]);
     expect(refusals.length).toBe(1);
   });
 

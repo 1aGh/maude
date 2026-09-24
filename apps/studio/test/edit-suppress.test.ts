@@ -75,6 +75,24 @@ async function mkRig(): Promise<Rig> {
 }
 
 describe('inline edits arm activity:suppress (RC1)', () => {
+  test('only completed changed writes announce their exact source bytes', async () => {
+    const rig = await mkRig();
+    const written: Array<{ rel: string; content: string }> = [];
+    rig.ctx.bus.on('source-written', (event) => written.push(event));
+    const result = await rig.api.editText({ canvas: 'ui/Knob', id: rig.ids.a, text: 'Gamma' });
+    expect(result.ok).toBe(true);
+    expect(written).toEqual([
+      {
+        rel: 'ui/Knob.tsx',
+        content: await Bun.file(join(rig.ctx.paths.designRoot, 'ui/Knob.tsx')).text(),
+      },
+    ]);
+    expect(written[0]?.content).toContain('Gamma');
+    await rig.api.editCss({ canvas: 'ui/Knob', id: rig.ids.a, property: 'color', reset: true });
+    await rig.api.editCss({ canvas: 'ui/Knob', id: '00000000', property: 'color', value: 'red' });
+    expect(written).toHaveLength(1);
+  });
+
   test('editCss arms suppress before the write and does not disarm on success', async () => {
     const rig = await mkRig();
     const res = await rig.api.editCss({

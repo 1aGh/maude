@@ -182,6 +182,7 @@ export default function GitPanel({
   // is swapped at the same call site; this prop is only how the panel knows
   // which repo the rows it just received describe, so it can name it.
   historySource = 'local',
+  historyRefresh = 0, // applied project revisions and restores invalidate this list
   // `{ branch, project, hubHost }` — what the cell reported alongside the log.
   // Null until the first successful cloud load.
   cloudHistory = null,
@@ -465,7 +466,7 @@ export default function GitPanel({
   useEffect(() => {
     setLogFailed(false);
     setLogScope(undefined);
-  }, [historySource]);
+  }, [historySource, historyRefresh]);
 
   function toggleAll() {
     setUnchecked((prev) => (prev.size === 0 ? new Set(files.map((f) => f.path)) : new Set()));

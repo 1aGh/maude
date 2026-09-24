@@ -207,6 +207,51 @@ describe('transaction client', () => {
     expect(outboxFiles()).toHaveLength(0);
   });
 
+  test('a restart while the hub is still unreachable waits to bind the outbox instead of throwing', async () => {
+    // F3/S06 on a real self-host hub: a desktop restarted OFFLINE drained its
+    // outbox, the binding bootstrap failed on the network, and the rejection
+    // went unhandled — the studio process exited.
+    const silent = { log() {}, warn() {}, error() {} };
+    const hub = fakeHub();
+    hub.setDown(true);
+    const a = createTransactionClient({
+      hubUrl: 'http://hub',
+      token: () => 't',
+      designRoot: dir,
+      fetchImpl: hub.fetchImpl,
+      retryMs: 5,
+      log: silent,
+    });
+    void a
+      .propose({ label: 'offline', operations: [{ op: 'dir.create', path: 'ui/Offline' }] })
+      .catch(() => {});
+    expect(outboxFiles()).toHaveLength(1);
+    await new Promise((r) => setTimeout(r, 30));
+    a.stop();
+
+    const b = createTransactionClient({
+      hubUrl: 'http://hub',
+      token: () => 't',
+      designRoot: dir,
+      fetchImpl: hub.fetchImpl,
+      retryMs: 5,
+      log: silent,
+    });
+    const drained = b.drainOutbox();
+    let settled = false;
+    drained.then(
+      () => (settled = true),
+      () => (settled = true)
+    );
+    await new Promise((r) => setTimeout(r, 60));
+    expect(settled).toBe(false); // still waiting for the network, not failed
+    hub.setDown(false);
+    const results = await drained;
+    expect(results.map((r) => r.status)).toEqual(['accepted']);
+    expect(outboxFiles()).toHaveLength(0);
+    b.stop();
+  });
+
   test('a sign-in the project no longer accepts is reported, the change stays kept, and a new sign-in delivers it', async () => {
     const hub = fakeHub();
     let token = 'revoked';

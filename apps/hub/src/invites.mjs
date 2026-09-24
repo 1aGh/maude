@@ -115,6 +115,15 @@ export function inviteTtlMs(hours) {
  * an invite in a small team.
  */
 export function createInvite(dataDir, { email, role = 'member', ttlHours, createdBy } = {}) {
+  // An invite becomes an ACCOUNT, and a hub's accounts are 'admin' | 'member'.
+  // Anything else used to be stored as 'member' while the response echoed the
+  // requested role — so "invite a viewer" silently minted a writer. Refuse it:
+  // an unknown role must never be an escalation (read-only access on a hub is
+  // a read-only token, not an invite).
+  if (role !== 'admin' && role !== 'member')
+    throw new Error(
+      'role must be one of: admin, member — a self-hosted hub has no view-only accounts'
+    );
   const handle = db(dataDir);
   const value = INVITE_PREFIX + randomBytes(24).toString('hex');
   const id = randomBytes(8).toString('hex');
@@ -129,7 +138,7 @@ export function createInvite(dataDir, { email, role = 'member', ttlHours, create
       id,
       hashInvite(handle, value),
       email ? String(email).trim().toLowerCase() : null,
-      role === 'admin' ? 'admin' : 'member',
+      role,
       now,
       expiresAt,
       createdBy ?? null

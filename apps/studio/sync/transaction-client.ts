@@ -337,9 +337,33 @@ export function createTransactionClient(opts: TransactionClientOptions) {
    * process knew the project is bound first — it was never sent, so its bytes
    * may still change; once sent, they never do.
    */
+  /**
+   * Learn the project (id + epoch) before binding or rebasing an entry. A
+   * transport failure is WAITED OUT like an unknown delivery — a desktop that
+   * restarts offline drains its outbox before the hub is reachable, and a
+   * throw here was an unhandled rejection that ended the process (F3/S06).
+   * An answer — a legacy hub (`absent`), a refused sign-in — is still thrown.
+   */
+  async function bootstrapWhenReachable(): Promise<void> {
+    for (let attempt = 1; ; attempt++) {
+      if (stopped) throw new TransactionError('client stopped', 'stopped');
+      try {
+        await bootstrap();
+        return;
+      } catch (err) {
+        if (err instanceof TransactionError) throw err;
+        if (attempt === 1 || attempt % 10 === 0)
+          log.warn(
+            `[sync/tx] the project is not reachable yet (${(err as Error).message}); waiting`
+          );
+        await sleep(Math.min(retryMs * 2 ** Math.min(attempt - 1, 4), 30_000));
+      }
+    }
+  }
+
   async function settle(file: string, entry: OutboxEntry): Promise<ProposalResult> {
     if (entry.unbound || projectId === null) {
-      if (projectId === null) await bootstrap();
+      if (projectId === null) await bootstrapWhenReachable();
       if (entry.unbound && entry.action) {
         entry = { ...entry, bytes: envelope(entry.action, entry.transactionId) };
         delete entry.unbound;
@@ -351,7 +375,7 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     if (result.status === 'rejected' && result.code === 'epoch-stale' && entry.action) {
       // A rebase is a NEW transaction under the current epoch, never a mutated
       // retry — and anything that depended on the old id now depends on this.
-      await bootstrap();
+      await bootstrapWhenReachable();
       const action = {
         ...entry.action,
         ...(entry.action.dependsOn

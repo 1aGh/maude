@@ -1,0 +1,43 @@
+{
+  "status": "partial",
+  "scope": "Isolated actual Cloudflare cell fixture; not S01-S19 certification",
+  "date": "2026-09-22",
+  "projectId": "f3-cloud",
+  "worker": "maude-multiplayer-cell-test-20260922",
+  "containerApplication": "a03073b4-13ac-42ee-8b75-b58b598e3240",
+  "maxInstances": 1,
+  "image": "registry.cloudflare.com/b5b596efe65abb732777c7171dc18145/maude-followup-cell:test-20260922-r2",
+  "imageDigest": "sha256:dae0a8585d76ba589d7fc00b8adfd7ea4980c8d4b3779becce30e8a070397df3",
+  "previousImage": "registry.cloudflare.com/b5b596efe65abb732777c7171dc18145/maude-followup-cell:test-20260922",
+  "previousImageDigest": "sha256:d70218325b946a54bf2f93ef5d548bf9f227648e74bd8e8b3781c67f15ff6ae9",
+  "rolloutId": "fbc711fc-7c11-4f5a-9dac-f4929d3ae9cf",
+  "applicationVersion": 2,
+  "cellWorkerBundleSha256": "7870cb31d2f61926815d36c42e12f8965721de7bbfedea268c02bc2dfa270cc7",
+  "durableObjects": {
+    "MaudeCellB": "ea826c1335ef46edb1481752a64076c7",
+    "ProjectStore": "de8efb6b384343c5a66b4ad1b30683e6"
+  },
+  "domains": [
+    { "hostname": "f3-cloud.multiplayer-test-20260922.maude.sh", "id": "590c102c4e58afda32236dee722d032515df4922" },
+    { "hostname": "canvas-f3-cloud.multiplayer-test-20260922.maude.sh", "id": "2053e08a4bb4a6e50960eca5599304281ea28ffa" }
+  ],
+  "storage": {
+    "bucket": "maude-multiplayer-test-20260922",
+    "credentials": "Bucket-scoped legacy S3 keys through the existing cell fallback; not proof of temporary credential refresh"
+  },
+  "observations": [
+    { "case": "cell-start", "status": "pass", "oracle": "Real container started; studio ready, storage configured; version 1.4.4" },
+    { "case": "owner-switch-accepted-mode", "status": "pass", "method": "Real dashboard Saving page: Preview the switch, Switch to accepted revisions", "oracle": "Accepted revisions — on; zero canvases migrated" },
+    { "case": "owner-create-canvas", "status": "pass", "method": "New blank brief board browser UI", "oracle": "Cloud acceptance renders; /_api/project/history records canvas.create at revision 1", "actionId": "a_dacf19db-098a-4f2a-8248-c5b1ac18641b", "actor": "cell-loopback-sync", "path": "ui/Cloud acceptance.tsx" }
+  ],
+  "limitations": [
+    "Candidate r2 includes the follow-up HMR, accepted discovery and history fixes; see followup-2026-09-22-cloud-history.json. A stale receiving inspector remains open",
+    "Browser-created action is attributed to cell-loopback-sync; this is not proof of per-designer history attribution or safe own-action undo",
+    "Full cloud and self-host S01-S19 matrix, native entry and resource cleanup are still required"
+  ],
+  "screenshots": [
+    ".ai/browser/screenshots/followup-f3-cloud-accepted-mode.png",
+    ".ai/browser/screenshots/followup-f3-cloud-first-canvas.png"
+  ],
+  "cleanup": { "complete": false, "reason": "Fixture retained for continuing backend certification; delete only these exact isolated resources when finished" }
+}

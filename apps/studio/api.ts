@@ -4234,6 +4234,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       }
       const after = await Bun.file(abs).text();
       const seq = after !== before ? logUndo(abs, before, after) : undefined;
+      // This API write is complete: accepted sync need not wait for an
+      // external editor's quiet window. It is still only a proposal, not an
+      // acknowledgement; the normal hub validation/acceptance path owns that.
+      if (after !== before) ctx.bus.emit('source-written', { rel, content: after });
       return { ok: true, delta: res.delta, seq, ...previous };
     } catch (err) {
       ctx.bus.emit('activity:unsuppress', rel);

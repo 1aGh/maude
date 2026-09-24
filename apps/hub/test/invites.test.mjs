@@ -58,6 +58,30 @@ test('an invite is minted once and its raw value is never stored', () => {
   assert.ok(!raw.includes(invite.value), 'the raw invite value must not appear on disk');
 });
 
+test('an invite for a role accounts cannot hold is refused, never stored as a writer', () => {
+  // F3/S02 on a real self-host hub: "invite a viewer" answered 201 with
+  // role 'viewer' while storing 'member', and the joined account could write.
+  for (const role of ['viewer', 'owner', 'superuser', null]) {
+    assert.throws(() => createInvite(dataDir, { role }), /role must be one of: admin, member/);
+  }
+  const created = [];
+  const redeemed = redeemInvite(dataDir, {
+    value: createInvite(dataDir, { role: 'member' }).value,
+    email: 'bob@example.com',
+    password: 'correct horse battery staple',
+    createAccount: (account) => {
+      created.push(account);
+      return { email: account.email, role: account.role };
+    },
+  });
+  assert.equal(redeemed.ok, true);
+  assert.deepEqual(
+    created.map((a) => a.role),
+    ['member']
+  );
+  assert.equal(createInvite(dataDir, { role: 'admin' }).role, 'admin');
+});
+
 test('the token sits in the PATH, not a query string', () => {
   // Query strings are what analytics and link-preview tooling copy around.
   const invite = createInvite(dataDir);

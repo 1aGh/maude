@@ -152,12 +152,14 @@ export function SelectionSetProvider({
 }) {
   const [selected, setSelected] = useState<Selection[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingPostRef = useRef<(() => void) | null>(null);
 
   const post = useCallback(
     (next: Selection[]) => {
       if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => {
+      pendingPostRef.current = () => {
         timerRef.current = null;
+        pendingPostRef.current = null;
         const target = postTarget ?? (typeof window !== 'undefined' ? window.parent : null);
         if (!target) return;
         // Wire shape: single object for N=1 (back-compat), array for N>1, null for empty.
@@ -168,15 +170,19 @@ export function SelectionSetProvider({
         } catch {
           /* iframe likely cross-origin or detached */
         }
-      }, POST_DEBOUNCE_MS);
+      };
+      timerRef.current = setTimeout(() => pendingPostRef.current?.(), POST_DEBOUNCE_MS);
     },
     [postTarget]
   );
 
-  // Cleanup the debounce timer on unmount.
+  // Soft HMR replaces this provider too. Deliver the last local selection
+  // before the replacement's loaded handshake, so the shell can reselect it.
+  // Cancelling silently loses a click made inside the 50 ms debounce window.
   useEffect(
     () => () => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      pendingPostRef.current?.();
     },
     []
   );

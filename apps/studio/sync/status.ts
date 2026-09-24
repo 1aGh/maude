@@ -447,9 +447,17 @@ export function createSyncStatusStore(opts: SyncStatusStoreOptions): SyncStatusS
     clearSourceConflict(slug) {
       const id = `source-conflict-${slug}`;
       const index = notices.findIndex((n) => n.id === id);
-      if (index < 0) return;
-      notices.splice(index, 1);
-      flush(true);
+      let changed = index >= 0;
+      if (index >= 0) notices.splice(index, 1);
+      // The presentation reads these facts, not the dismissible notice. Clear
+      // every rejection of this source while keeping other sources and notes.
+      for (let i = conflicts.length - 1; i >= 0; i--) {
+        if (conflicts[i].slug === slug && conflicts[i].kind === 'body-rejected') {
+          conflicts.splice(i, 1);
+          changed = true;
+        }
+      }
+      if (changed) flush(true);
     },
     get: payload,
   };

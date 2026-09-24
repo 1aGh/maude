@@ -227,6 +227,13 @@ export interface Context {
    */
   mainOrigin?: string;
   /**
+   * DDR-242 — third-party apps allowed to FRAME the studio page (and so the
+   * canvas shell inside it) for the read-only `?embed=1` view, parsed from
+   * `MAUDE_EMBED_ORIGINS` by server.ts. Framing only: never a writer, never a
+   * shell. Undefined / empty = nobody but the shell origins.
+   */
+  embedOrigins?: string[];
+  /**
    * Phase 9.2 (DDR-064) — `MAUDE_SHARED_DOC` feature flag. When true, the
    * collab room's Y.Doc becomes the SINGLE shared doc per canvas: the
    * hub-facing HocuspocusProvider attaches to it directly (no second doc, no

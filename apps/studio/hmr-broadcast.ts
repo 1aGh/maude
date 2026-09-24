@@ -24,9 +24,11 @@
 // loaded via the importmap + Bun.build-produced ESM — there's no React Fast
 // Refresh runtime to register with. Full-reload is the reliable path.
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
+import { recallCanvasBuild } from './canvas-source-memo.ts';
+import { type TextPatch, textOnlyPatches } from './canvas-text-patch.ts';
 import type { Context } from './context.ts';
 
 const DEBOUNCE_MS = 50;
@@ -54,6 +56,12 @@ export interface HmrMessage {
    * lost race re-applied onto theirs).
    */
   remote?: boolean;
+  /**
+   * F4 — `module` only: the change is nothing but the text of this element
+   * (versus the source of the canvas's last build). The iframe may show them at once; the remount it still
+   * performs confirms them. Absent whenever anything else changed.
+   */
+  patches?: TextPatch[];
 }
 
 /** How long after a sync write its file's change still counts as remote. */
@@ -93,6 +101,30 @@ export function createHmrBroadcaster(
     hard: 3,
   };
 
+  // Diff the canvas as it is now against the source the iframe renders (its
+  // last build). Read at flush, not per event, so a burst diffs end to end.
+  // String scanning plus the build's locator — never a parse (see
+  // canvas-text-patch.ts: in a cell this is the credential-holding process).
+  function withTextPatches(msg: HmrMessage): HmrMessage {
+    const root = ctx.paths?.designRoot;
+    if (msg.mode !== 'module' || !msg.file?.endsWith('.tsx') || !root) return msg;
+    const abs = path.join(root, msg.file);
+    let now: string;
+    try {
+      now = readFileSync(abs, 'utf8');
+    } catch {
+      return msg;
+    }
+    const built = recallCanvasBuild(abs);
+    if (built === undefined) return msg;
+    try {
+      const patches = textOnlyPatches(built.source, now, built.locator);
+      return patches?.length ? { ...msg, patches } : msg;
+    } catch {
+      return msg; // the remount still renders it
+    }
+  }
+
   function flush() {
     // A pending `hard` supersedes the per-file queue — every open canvas does a
     // full reload anyway, so the softer messages would be redundant churn.
@@ -100,7 +132,7 @@ export function createHmrBroadcaster(
     if (hard?.mode === 'hard') {
       broadcast(hard);
     } else {
-      for (const msg of pendingByKey.values()) broadcast(msg);
+      for (const msg of pendingByKey.values()) broadcast(withTextPatches(msg));
     }
     pendingByKey.clear();
     pending = null;
@@ -116,6 +148,11 @@ export function createHmrBroadcaster(
 
   // Files sync just wrote (see HmrMessage.remote), with the time of the write.
   const projectedAt = new Map<string, number>();
+  // A real watcher and the cell fallback can report the same completed write
+  // more than 50 ms apart. A second import invalidates the first even when its
+  // bytes are already arriving. Deduplicate disk VERSIONS, never merely paths
+  // or a time window: another edit to this file must still reach the canvas.
+  const remoteVersions = new Map<string, string>();
   const isRemote = (rel: string | undefined): boolean => {
     if (!rel) return false;
     const at = projectedAt.get(rel);
@@ -146,7 +183,25 @@ export function createHmrBroadcaster(
   const offAny = ctx.bus.on('fs:any', (rel: string) => {
     const msg = classify(rel);
     if (!msg) return;
-    if (isRemote(rel.replace(/\\/g, '/')) || isRemote(msg.file)) msg.remote = true;
+    const normalized = rel.replace(/\\/g, '/');
+    if (isRemote(normalized) || isRemote(msg.file)) msg.remote = true;
+    if (msg.remote && (msg.mode === 'module' || msg.mode === 'css') && ctx.paths.designRoot) {
+      try {
+        const s = statSync(path.join(ctx.paths.designRoot, normalized), { bigint: true });
+        // Nanosecond ctime also detects a same-size rewrite with restored mtime;
+        // inode detects atomic replacement. No source or large media is read.
+        const version = `${msg.mode}:${msg.file}:${s.dev}:${s.ino}:${s.size}:${s.mtimeNs}:${s.ctimeNs}`;
+        if (remoteVersions.get(normalized) === version) return;
+        remoteVersions.delete(normalized);
+        remoteVersions.set(normalized, version);
+        if (remoteVersions.size > 256) {
+          const oldest = remoteVersions.keys().next().value;
+          if (oldest !== undefined) remoteVersions.delete(oldest);
+        }
+      } catch {
+        remoteVersions.delete(normalized); // missing/unreadable: fail open
+      }
+    } else remoteVersions.delete(normalized);
     enqueue(msg);
   });
 
@@ -157,6 +212,7 @@ export function createHmrBroadcaster(
       if (pending) clearTimeout(pending);
       pending = null;
       pendingByKey.clear();
+      remoteVersions.clear();
     },
   };
 }

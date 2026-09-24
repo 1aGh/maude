@@ -332,6 +332,19 @@ const native: Surface = {
   },
   async click(q) {
     await (await $(q)).click();
+    // The embedded driver clicks synthetically and then calls el.focus(), a
+    // no-op on a non-focusable target — focus stays wherever it was (e.g. a
+    // tree row, whose roving keys then swallow the next shortcut). A real
+    // pointer press focuses the nearest focusable ancestor or clears focus.
+    await browser.execute((query) => {
+      const target = document.querySelector(query);
+      if (!target || target.contains(document.activeElement)) return;
+      const focusable = target.closest(
+        'a[href], button, input, select, textarea, summary, [tabindex], [contenteditable="true"]'
+      ) as HTMLElement | null;
+      if (focusable) focusable.focus();
+      else (document.activeElement as HTMLElement | null)?.blur?.();
+    }, q);
   },
   async fill(q, value) {
     await (await $(q)).setValue(value);
@@ -680,7 +693,7 @@ async function receivers(
   );
 }
 
-describe('multiplayer surface baseline (real hub + WKWebView + independent peer)', () => {
+describe('multiplayer surface baseline (real hub + native webview + independent peer)', () => {
   it('observes already-open receiving UIs without refresh', async () => {
     // @wdio/tauri-service 1.1 re-checks window focus before every find/click by
     // asking `window.__TAURI__.core.invoke` for window states. The studio page
@@ -691,7 +704,31 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
     await (browser as unknown as { tauri?: { switchWindow(label: string): Promise<void> } }).tauri
       ?.switchWindow('main')
       .catch((error: unknown) => console.warn(`[surface] window pin failed: ${String(error)}`));
-    const chromiumBrowser = await chromium.launch({ headless: true });
+    let closingBrowser = false;
+    // The public server handle exposes process termination without DEBUG logs
+    // (which include capability-bearing URLs). Keep its RPC loopback-only.
+    const chromiumServer = await chromium.launchServer({ headless: true, host: '127.0.0.1' });
+    chromiumServer
+      .process()
+      .once('exit', (code, signal) =>
+        appendFileSync(
+          join(run.out, 'browser-lifecycle.jsonl'),
+          `${JSON.stringify({ at: new Date().toISOString(), case: currentCase, kind: 'process-exit', code, signal, expected: closingBrowser })}\n`
+        )
+      );
+    const chromiumBrowser = await chromium
+      .connect(chromiumServer.wsEndpoint())
+      .catch(async (error) => {
+        closingBrowser = true;
+        await chromiumServer.close();
+        throw error;
+      });
+    chromiumBrowser.on('disconnected', () =>
+      appendFileSync(
+        join(run.out, 'browser-lifecycle.jsonl'),
+        `${JSON.stringify({ at: new Date().toISOString(), case: currentCase, kind: 'disconnected', expected: closingBrowser })}\n`
+      )
+    );
     const hubPage = await chromiumBrowser.newPage({ viewport: { width: 1440, height: 1000 } });
     const peerPage = await chromiumBrowser.newPage({ viewport: { width: 1440, height: 1000 } });
     const indexAttempts: Array<Record<string, unknown>> = [];
@@ -733,6 +770,8 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         }
       };
       page.on('pageerror', (error) => log({ kind: 'page-error', message: error.message }));
+      page.on('crash', () => log({ kind: 'page-crash' }));
+      page.on('close', () => log({ kind: 'page-close', expected: closingBrowser }));
       // Shell warnings name refused writes (`[/_api/…] <reason>`); bounded text
       // only — never page content.
       page.on('console', (message) => {
@@ -746,9 +785,69 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           error: request.failure()?.errorText,
         })
       );
+      page.on('requestfinished', (request) => {
+        if (!new URL(request.url()).pathname.endsWith('/SurfaceText.tsx')) return;
+        const timing = request.timing();
+        log({
+          kind: 'text-module-loaded',
+          requestMs: timing.responseEnd,
+          firstByteMs: timing.responseStart,
+        });
+      });
+      page.on('websocket', (socket) => {
+        socket.on('framereceived', ({ payload }) => {
+          if (typeof payload !== 'string') return;
+          try {
+            const message = JSON.parse(payload);
+            if (message.type === 'canvas-hmr')
+              log({
+                kind: 'canvas-hmr',
+                mode: message.mode,
+                file: message.file,
+                remote: message.remote,
+                patches: Array.isArray(message.patches) ? message.patches.length : undefined,
+              });
+          } catch {
+            // Binary/protocol frames are not diagnostic text; never log payloads.
+          }
+        });
+      });
+      let refusals = 0;
       page.on('response', (response) => {
         if (response.status() >= 400)
           log({ kind: 'http-error', route: route(response.url()), status: response.status() });
+        // The door's own refusal sentence (never a credential) for the first
+        // few 401s, so an auth failure says WHICH check refused it.
+        if (response.status() === 401 && refusals++ < 5)
+          response
+            .json()
+            .then((b: { error?: unknown; reason?: unknown }) =>
+              log({
+                kind: 'auth-refusal',
+                route: route(response.url()),
+                error: String(b?.error ?? '').slice(0, 120),
+                reason: String(b?.reason ?? '').slice(0, 60),
+              })
+            )
+            .catch(() => {});
+        else if (/\/_api\/edit-(css|attr|text)$/.test(new URL(response.url()).pathname))
+          log({ kind: 'edit-response', route: route(response.url()), status: response.status() });
+      });
+      // Debug-only fixture telemetry: distinguish a lost inspector record
+      // during iframe navigation from an undo that reached the API and failed.
+      // No source text, messages, tokens or storage contents are logged.
+      await page.addInitScript(() => {
+        if (window === window.top) return;
+        window.addEventListener('message', (event) => {
+          if (event.source === window.parent && event.data?.dgn === 'record-edit') {
+            console.warn('[surface-undo-trace] record-edit received');
+          }
+        });
+        window.addEventListener('keydown', (event) => {
+          if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
+            console.warn('[surface-undo-trace] undo key received');
+          }
+        });
       });
       page.on('framenavigated', (frame) =>
         log({
@@ -829,7 +928,12 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         nativeUrl,
         roots: run.roots,
         roles: ['member', 'member', 'member'],
-        transport: ['hub browser', 'bundled WKWebView', 'independent source sidecar'],
+        transport: [
+          'hub browser',
+          run.nativeArtifactKind ?? 'macos-bundle',
+          'independent source sidecar',
+        ],
+        nativePlatform: run.nativePlatform ?? 'darwin',
         noWatch: run.watch === 'control',
         notesProfile: run.notes ?? 'isolated',
         browsers: {
@@ -880,7 +984,7 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         id: 'bootstrap.render',
         status: 'pass',
         receiverUI: true,
-        note: 'Hard assertion inside all three canvas documents, including native WKWebView.',
+        note: 'Hard assertion inside all three canvas documents, including the native webview.',
       });
       // L06 external editor is deliberately a filesystem gesture. Record it
       // separately from UI source editing; no direct API substitutes for UI.
@@ -994,25 +1098,82 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
       // T5 / audit P1 #5 — personal CSS undo must not overwrite a teammate's
       // newer value. Real inspector knob + real Cmd+Z in the canvas; the oracle
       // is every participant's source file and the author's own notice.
-      // Only an enabled knob means the heading itself is the selection.
+      // Knob availability alone is not selection identity: it can describe a
+      // previous canvas while a new selection is still crossing the frame.
       const weight = 'select[aria-label="font-weight"]:not(:disabled)';
       const weightIn = (p: Surface, rel: string, value: string) =>
         new RegExp(`fontWeight:\\s*"${value}"`).test(bytes(p.root, rel).toString());
       const selectHeading = async (p: Surface) => {
+        // Read-only ordering trace: a preparation failure must distinguish a
+        // missed pointer from a later frame/selection message overwriting it.
+        await p.shell(`(() => {
+          const key = '__maudeSelectionPreparationTrace';
+          if (!window[key]) {
+            window[key] = [];
+            window.addEventListener('message', (event) => {
+              const frame = document.querySelector('[data-testid="canvas-frame"]');
+              if (event.source !== frame?.contentWindow) return;
+              const m = event.data;
+              if (!['select', 'select-set', 'clear-select', 'loaded', 'apply-edit'].includes(m?.dgn)) return;
+              window[key].push(
+                m.dgn === 'apply-edit'
+                  ? { at: performance.now(), kind: m.dgn, op: m.op ?? null, key: String(m.key ?? '').slice(0, 40),
+                      before: String(m.before ?? '').slice(0, 40), after: String(m.after ?? '').slice(0, 40) }
+                  : { at: performance.now(), kind: m.dgn, selection: m.selection ?? null }
+              );
+              if (window[key].length > 100) window[key].shift();
+            });
+          }
+          window[key].push({ at: performance.now(), kind: 'preparation-start' });
+        })()`);
         await until(async () => !!(await p.probe(selector('palette-mode-edit')))?.visible);
         await gesture(p, selector('palette-mode-edit'), 'click');
-        // Same real selection path as the text lane: clicks drill the hierarchy
-        // until the inspector offers the heading's knobs.
-        for (let level = 0; level < 6 && (await p.read(weight)) === null; level++) {
-          await gesture(p, 'h1', level === 0 ? 'click' : 'doubleClick');
-          await sleep(150);
+        const selectedValue = '[aria-label="Selected element"] .val';
+        // Discard the parked selection through the visible shell control.
+        // Waiting for it to disappear prevents a same-id heading in the old
+        // canvas from satisfying the new canvas's precondition.
+        if ((await p.read('[aria-label="Clear selection"]')) !== null) {
+          await p.click('[aria-label="Clear selection"]');
+          await until(async () => (await p.read(selectedValue)) === null);
         }
-        if ((await p.read(weight)) === null) {
+        const heading = await p.probe('h1');
+        const id = /data-cd-id="([^"]+)"/.exec(heading?.markup ?? '')?.[1];
+        if (!id || !heading?.visible || !heading.text)
+          throw new Error('Current heading has no visible stamped identity');
+        const headingText = heading.text.slice(0, 60);
+        // Cmd/Ctrl+click is the product's direct/deep selection gesture. A
+        // bare click selects the section; double-click may enter text editing.
+        await gesture(p, 'h1', 'pointer', { meta: true });
+        await p.shell(
+          `window.__maudeSelectionPreparationTrace.push({ at: performance.now(), kind: 'pointer-returned' })`
+        );
+        try {
+          await until(async () => {
+            const selected = await p.read(selectedValue);
+            return (
+              (await p.read('.st-cp-idtag')) === 'h1' &&
+              !!selected?.includes(`[data-cd-id="${id}"]`) &&
+              selected.includes(headingText) &&
+              (await p.read(weight)) !== null
+            );
+          });
+        } catch (error) {
           await p.screenshot(join(run.out, `L18-select-${p.name}-no-inspector.png`));
+          writeFileSync(
+            join(run.out, `L18-select-${p.name}-trace.json`),
+            JSON.stringify(
+              {
+                case: currentCase,
+                headingBefore: heading,
+                headingAfter: await p.probe('h1'),
+                messages: await p.shell('window.__maudeSelectionPreparationTrace'),
+              },
+              null,
+              2
+            )
+          );
           throw new Error(
-            `Inspector knob absent after selecting the heading (panel: ${
-              (await p.read(selector('inspector-panel'))) === null ? 'closed' : 'open'
-            })`
+            `Inspector did not select current h1 ${id} (selected: ${await p.read(selectedValue)}, tag: ${await p.read('.st-cp-idtag')}): ${String(error)}`
           );
         }
       };
@@ -1073,20 +1234,52 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
           const before =
             ['300', '400', '500', '600', '700', '800'].find((v) => weightIn(from, rel, v)) ?? null;
           const next = before === '500' ? '600' : '500';
+          const mark = (kind: string) =>
+            from.shell(
+              `window.__maudeSelectionPreparationTrace?.push({ at: performance.now(), kind: ${JSON.stringify(kind)} })`
+            );
+          await mark('weight-select');
           await from.select(weight, next);
           await until(() => all.every((p) => weightIn(p, rel, next)));
+          // No marker here: Cmd+Z immediately after the write reaches disk is
+          // exactly the window this row exists to cover.
           const start = performance.now();
           await gesture(from, 'body', 'key', { key: 'z', meta: true });
-          return {
-            stimulus: 'inspector font-weight, then Cmd+Z by the same author',
-            ...(await observeAll(
-              all,
-              `L18-css-undo-own-${from.name}`,
-              start,
-              async (p) => (before ? weightIn(p, rel, before) : !weightIn(p, rel, next)),
-              (p) => (before ? weightIn(p, rel, before) : !weightIn(p, rel, next))
-            )),
-          };
+          await mark('cmd-z-sent');
+          const observed = await observeAll(
+            all,
+            `L18-css-undo-own-${from.name}`,
+            start,
+            async (p) => (before ? weightIn(p, rel, before) : !weightIn(p, rel, next)),
+            (p) => (before ? weightIn(p, rel, before) : !weightIn(p, rel, next))
+          );
+          // Read-only: what the author was told and what every disk and the
+          // author's canvas hold, so an intermittent refusal names its cause.
+          if (observed.status !== 'pass')
+            writeFileSync(
+              join(run.out, `L18-css-undo-own-${from.name}-diag.json`),
+              JSON.stringify(
+                {
+                  before,
+                  next,
+                  authorToasts: ((await from.read('body')) ?? '')
+                    .split('\n')
+                    .filter((l) => /undo|redo|changed|conflict|could not|not confirmed/i.test(l))
+                    .slice(0, 20),
+                  disks: Object.fromEntries(
+                    all.map((p) => [
+                      p.name,
+                      /fontWeight:\s*"(\d+)"/.exec(bytes(p.root, rel).toString())?.[1] ?? null,
+                    ])
+                  ),
+                  authorCanvasHeading: (await from.probe('h1'))?.markup?.slice(0, 300) ?? null,
+                  trace: await from.shell('window.__maudeSelectionPreparationTrace ?? null'),
+                },
+                null,
+                2
+              )
+            );
+          return { stimulus: 'inspector font-weight, then Cmd+Z by the same author', ...observed };
         });
       }
       // L06 property and attribute edits through the inspector's Advanced
@@ -6419,12 +6612,10 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         const src = (p: Surface) => readFileSync(join(p.root, '.design', rel), 'utf8');
         const rowsQ = '[data-testid^="project-history-row-"]';
         const openHistory = async (p: Surface) => {
-          // A dock tab TOGGLES: pressing the one already showing closes it.
-          if (
-            (await p.read(selector('dock-tab-changes'))) !== null &&
-            (await p.read(`${selector('dock-tab-changes')}[aria-selected="true"]`)) === null
-          )
-            await p.click(selector('dock-tab-changes'));
+          // The dock tabs do not exist until a panel is open. The status-bar
+          // button also works in an isolated history-only run (no prior L07).
+          if ((await p.read(`${selector('open-changes')}[aria-pressed="true"]`)) === null)
+            await p.click(selector('open-changes'));
           await until(
             async () =>
               ((await p.probe('body'))?.visible ?? false) && (await p.read(rowsQ)) !== null,
@@ -6433,6 +6624,196 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
         };
         const author = all[0] as Surface;
         const teammate = all[1] as Surface;
+        for (const from of all) {
+          await check('L18.history.preview-restore', `${from.name}-to-peers`, async () => {
+            const previewRel = `ui/SurfaceHistoryPreview-${from.name}.tsx`;
+            const first = version(`Preview original ${from.name}`);
+            const second = version(`Preview current ${from.name}`).replace(
+              'fontWeight: "400"',
+              'fontWeight: "700"'
+            );
+            const body = (p: Surface) => readFileSync(join(p.root, '.design', previewRel), 'utf8');
+            await seedCanvas(from, previewRel, first);
+            await openSeeded(
+              previewRel,
+              `Preview original ${from.name}`,
+              `L18-preview-${from.name}`
+            );
+            writeFileSync(join(from.root, '.design', previewRel), second);
+            await until(() => all.every((p) => body(p) === second), 30000);
+            // Start with the actual Inspector selected on every participant.
+            // This catches the status-bar button leaving History hidden behind
+            // Inspector, and lets the receiver prove its controls refresh after
+            // a remote soft-HMR restore without a click/reselection.
+            const inspectedWeight = (p: Surface) =>
+              p.shell('document.querySelector(\'select[aria-label="font-weight"]\')?.value');
+            // Both preview documents through the same isolated, debug-only DOM
+            // protocol as the main canvas. A frame that never answers reports
+            // `{ error: 'no response' }`, distinct from `null` (answered, but the
+            // selector matched nothing), so a blank pane says which it is.
+            const previewFrameProbe = (query: string) =>
+              `Promise.all(['Saved version', 'Your version (now)'].map(title => new Promise(resolve => {
+                const frame = Array.from(document.querySelectorAll('iframe')).find(f => f.title === title);
+                if (!frame?.contentWindow) return resolve({ error: 'no frame' });
+                const origin = new URL(frame.src).origin;
+                const id = 'history-preview-' + crypto.randomUUID();
+                const protocol = 'maude-e2e-frame-probe-v1';
+                const done = result => { clearTimeout(timer); window.removeEventListener('message', receive); resolve(result); };
+                const receive = event => {
+                  if (event.source === frame.contentWindow && event.origin === origin && event.data?.protocol === protocol && event.data?.id === id && event.data?.kind === 'response') done(event.data.result);
+                };
+                const timer = setTimeout(() => done({ error: 'no response' }), 1000);
+                window.addEventListener('message', receive);
+                frame.contentWindow.postMessage({ protocol, kind: 'request', id, selector: ${JSON.stringify(query)}, operation: 'read', value: null }, origin);
+              })))`;
+            let previewHeadings: Array<ProbeResult | null> = [];
+            const failedStep = async (step: string, p: Surface, error: unknown): Promise<never> => {
+              const prefix = `L18-preview-${from.name}-${p.name}-${step}`;
+              await p.screenshot(join(run.out, `${prefix}.png`));
+              const state = {
+                heading: await p.probe('h1'),
+                weight: await inspectedWeight(p),
+                inspectorSelected: await p.read(
+                  `${selector('dock-tab-inspector')}[aria-selected="true"]`
+                ),
+                historySelected: await p.read(
+                  `${selector('dock-tab-changes')}[aria-selected="true"]`
+                ),
+                previewOpen: (await p.read(selector('history-preview-version'))) !== null,
+                previewHeadings,
+                previewBodies: await p.shell(previewFrameProbe('body')).catch((e) => String(e)),
+                previewFrames:
+                  await p.shell(`Array.from(document.querySelectorAll('.dv-frame'), frame => {
+                  const url = new URL(frame.src);
+                  const bounds = frame.getBoundingClientRect();
+                  return { title: frame.title, origin: url.origin, path: url.pathname,
+                    thumbnail: url.searchParams.get('thumbnail'), sha: url.searchParams.get('sha'),
+                    width: bounds.width, height: bounds.height,
+                    resources: performance.getEntriesByType('resource').filter(e => e.name === frame.src)
+                      .map(e => ({ start: e.startTime, duration: e.duration, responseStatus: e.responseStatus })) };
+                })`),
+                historyPanel: await p.read('.gp-panel'),
+                historyRequests: await p.shell(
+                  `performance.getEntriesByType('resource').filter(e => e.name.includes('/_api/project/history')).map(e => ({ path: new URL(e.name).pathname, start: e.startTime, duration: e.duration, responseStatus: e.responseStatus }))`
+                ),
+              };
+              writeFileSync(join(run.out, `${prefix}.json`), JSON.stringify(state, null, 2));
+              throw new Error(`${step} on ${p.name}: ${String(error)}`);
+            };
+            for (const p of all) {
+              await until(
+                async () => (await p.read('h1', true)) === `Preview current ${from.name}`
+              ).catch((error) => failedStep('current-heading', p, error));
+              // Auto-open intentionally preserves a different active dock
+              // panel. Establish this case's Inspector precondition explicitly
+              // after the previous direction left History selected.
+              if (
+                (await p.read(`${selector('dock-tab-inspector')}[aria-selected="false"]`)) !== null
+              )
+                await p.click(selector('dock-tab-inspector'));
+              await selectHeading(p);
+              await until(async () => (await inspectedWeight(p)) === '700').catch((error) =>
+                failedStep('current-inspector', p, error)
+              );
+            }
+            await openHistory(from);
+            let revisions: number[] = [];
+            await until(async () => {
+              revisions = (await from.shell(
+                `Array.from(document.querySelectorAll('[data-testid^="project-history-row-"]'), e => Number(e.dataset.testid.split('-').pop()))`
+              )) as number[];
+              return revisions.length >= 2;
+            }, 30000);
+            const newest = revisions[0];
+            const original = revisions[revisions.length - 1];
+            // Open one revision, select another in the actual preview, then
+            // restore. A callback using the opener's revision cannot pass.
+            await from.click(selector(`project-history-preview-${newest}`));
+            await until(
+              async () => (await from.read(selector('history-preview-version'))) !== null,
+              15000
+            ).catch((error) => failedStep('preview-dialog', from, error));
+            await from.select(selector('history-preview-version'), `r${original}`);
+            // Read both rendered preview documents through the same isolated,
+            // debug-only DOM protocol as the main canvas. No product API or
+            // state is used to manufacture the before/after image.
+            await until(async () => {
+              const headings = (await from.shell(
+                previewFrameProbe('h1')
+              )) as Array<ProbeResult | null>;
+              previewHeadings = headings;
+              return (
+                headings[0]?.visible === true &&
+                headings[0]?.text === `Preview original ${from.name}` &&
+                headings[1]?.visible === true &&
+                headings[1]?.text === `Preview current ${from.name}`
+              );
+            }, 15000).catch((error) => failedStep('preview-render', from, error));
+            await from.screenshot(join(run.out, `L18-preview-selected-${from.name}.png`));
+            await from.confirmNext();
+            const start = performance.now();
+            await from.click(selector('history-preview-restore'));
+            await until(
+              async () => (await from.read(selector('history-preview-restore'))) === null,
+              15000
+            );
+            const observation = await observeAll(
+              all,
+              `L18-preview-restored-${from.name}`,
+              start,
+              async (p) =>
+                (await p.read('h1', true)) === `Preview original ${from.name}` &&
+                (p === from || (await inspectedWeight(p)) === '400'),
+              (p) => body(p) === first
+            );
+            const token = JSON.parse(readFileSync(run.identities['designer-a'], 'utf8')).hubs[
+              `http://127.0.0.1:${run.port}`
+            ].token as string;
+            const response = await fetch(
+              `http://127.0.0.1:${run.port}/api/projects/current/v1/history?limit=200`,
+              {
+                headers: { authorization: `Bearer ${token}` },
+              }
+            );
+            if (!response.ok) throw new Error(`History verification: HTTP ${response.status}`);
+            const history = (await response.json()) as {
+              history: Array<{
+                kind: string;
+                revision: number;
+                effects: Array<{ doc: string }>;
+              }>;
+            };
+            const restore = history.history.find(
+              (row) =>
+                row.revision > newest &&
+                row.kind === 'history.restore' &&
+                row.effects.some((effect) => effect.doc === slug(previewRel.replace(/\.tsx$/, '')))
+            );
+            if (!restore)
+              throw new Error('Preview restore did not create a new history.restore action');
+            await until(
+              async () =>
+                (await from.read(selector(`project-history-row-${restore.revision}`))) !== null,
+              15000
+            ).catch((error) => failedStep('history-row', from, error));
+            return {
+              ...observation,
+              selectedRevision: original,
+              openedRevision: newest,
+              restoredRevision: restore.revision,
+              receivingInspectors: await Promise.all(
+                all
+                  .filter((p) => p !== from)
+                  .map(async (p) => ({
+                    receiver: p.name,
+                    fontWeight: await inspectedWeight(p),
+                    expected: '400',
+                    reselectedAfterRestore: false,
+                  }))
+              ),
+            };
+          });
+        }
         await check('L18.history.restore', `${author.name}-to-peers`, async () => {
           const v1 = version('History v1');
           const v2 = version('History v2');
@@ -7041,7 +7422,12 @@ describe('multiplayer surface baseline (real hub + WKWebView + independent peer)
             .join(' · ')}`,
         });
       }
-      await chromiumBrowser.close();
+      closingBrowser = true;
+      try {
+        await chromiumBrowser.close();
+      } finally {
+        await chromiumServer.close();
+      }
     }
   });
 });

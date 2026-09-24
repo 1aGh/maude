@@ -1,0 +1,369 @@
+{
+  "date": "2026-09-22T19:07:02.034Z",
+  "scope": "Local Chromium shell on isolated fixture; not cloud, native, self-host or screen-reader certification",
+  "tests": {
+    "command": "bun test test/file-tree-navigation.test.tsx test/shell-accessibility.test.ts test/shell-text-contrast.test.ts test/tree-row-menu-placement.test.ts",
+    "pass": 25,
+    "fail": 0,
+    "assertions": 75,
+    "files": 4,
+    "redBeforeFix": "Initial tree navigation and tree ownership guards failed before component/wiring. Loading caption failed both themes. Focused empty tree population failed before transferring focus only when root owns it; outside-focus control passed."
+  },
+  "gates": {
+    "studioTypecheck": "passed",
+    "biomeNewTests": "3 files passed",
+    "catalogueAndDragSerializer": "2 passed",
+    "releaseBuild": "passed, runtime regeneration skipped",
+    "linuxNativeDebugBuild": "passed"
+  },
+  "audit": {
+    "date": "2026-09-22T19:06:10.468Z",
+    "scope": "Local browser shell, not cloud/native certification",
+    "results": [
+      {
+        "engine": {
+          "name": "axe-core",
+          "version": "4.13.0"
+        },
+        "frameTitle": "Canvas: .design/ui/Nested/Child.html",
+        "language": "en",
+        "menubar": "st-menus",
+        "passes": [
+          "aria-allowed-attr",
+          "aria-conditional-attr",
+          "aria-deprecated-role",
+          "aria-hidden-body",
+          "aria-hidden-focus",
+          "aria-prohibited-attr",
+          "aria-required-attr",
+          "aria-required-children",
+          "aria-required-parent",
+          "aria-roles",
+          "aria-valid-attr-value",
+          "aria-valid-attr",
+          "avoid-inline-spacing",
+          "button-name",
+          "color-contrast",
+          "document-title",
+          "form-field-multiple-labels",
+          "frame-title-unique",
+          "frame-title",
+          "html-has-lang",
+          "html-lang-valid",
+          "label",
+          "nested-interactive"
+        ],
+        "theme": "light",
+        "violations": []
+      },
+      {
+        "engine": {
+          "name": "axe-core",
+          "version": "4.13.0"
+        },
+        "frameTitle": "Canvas: .design/ui/Nested/Child.html",
+        "language": "en",
+        "menubar": "st-menus",
+        "passes": [
+          "aria-allowed-attr",
+          "aria-conditional-attr",
+          "aria-deprecated-role",
+          "aria-hidden-body",
+          "aria-hidden-focus",
+          "aria-prohibited-attr",
+          "aria-required-attr",
+          "aria-required-children",
+          "aria-required-parent",
+          "aria-roles",
+          "aria-valid-attr-value",
+          "aria-valid-attr",
+          "avoid-inline-spacing",
+          "button-name",
+          "color-contrast",
+          "document-title",
+          "form-field-multiple-labels",
+          "frame-title-unique",
+          "frame-title",
+          "html-has-lang",
+          "html-lang-valid",
+          "label",
+          "nested-interactive"
+        ],
+        "theme": "dark",
+        "violations": []
+      }
+    ]
+  },
+  "keyboard": {
+    "date": "2026-09-22T19:05:14.582Z",
+    "scope": "Local Chromium, actual rendered tree with hidden files enabled",
+    "checks": [
+      {
+        "theme": "light",
+        "name": "collapse",
+        "actual": "false",
+        "expected": "false",
+        "pass": true
+      },
+      {
+        "theme": "light",
+        "name": "enter nested child",
+        "actual": "Child",
+        "expected": "Child",
+        "pass": true
+      },
+      {
+        "theme": "light",
+        "name": "activate native button",
+        "actual": ".design/ui/Nested/Child.html",
+        "expected": ".design/ui/Nested/Child.html",
+        "pass": true
+      },
+      {
+        "theme": "light",
+        "name": "return to parent",
+        "actual": "Nested",
+        "expected": "Nested",
+        "pass": true
+      },
+      {
+        "theme": "light",
+        "name": "first visible row",
+        "actual": "PROJECT",
+        "expected": "PROJECT",
+        "pass": true
+      },
+      {
+        "theme": "light",
+        "name": "last visible row",
+        "actual": "RUNTIME · GITIGNORED",
+        "expected": "RUNTIME · GITIGNORED",
+        "pass": true
+      },
+      {
+        "theme": "light",
+        "name": "type ahead",
+        "actual": "Nested",
+        "expected": "Nested",
+        "pass": true
+      },
+      {
+        "theme": "light",
+        "name": "row action reachable",
+        "actual": "Folder actions for Nested",
+        "expected": "Folder actions for Nested",
+        "pass": true
+      },
+      {
+        "theme": "light",
+        "name": "row menu opened",
+        "actual": true,
+        "expected": true,
+        "pass": true
+      },
+      {
+        "theme": "light",
+        "name": "menu returns focus",
+        "actual": "Folder actions for Nested",
+        "expected": "Folder actions for Nested",
+        "pass": true
+      },
+      {
+        "theme": "light",
+        "name": "action returns tree focus",
+        "actual": "Nested",
+        "expected": "Nested",
+        "pass": true
+      },
+      {
+        "theme": "light",
+        "name": "sidecar child",
+        "actual": "Accessibility.css",
+        "expected": "Accessibility.css",
+        "pass": true
+      },
+      {
+        "theme": "light",
+        "name": "sidecar ownership",
+        "actual": "Accessibility",
+        "expected": "Accessibility",
+        "pass": true
+      },
+      {
+        "theme": "light",
+        "name": "design system child",
+        "actual": "colors_and_type.css",
+        "expected": "colors_and_type.css",
+        "pass": true
+      },
+      {
+        "theme": "light",
+        "name": "single roving tab stop",
+        "actual": 1,
+        "expected": 1,
+        "pass": true
+      },
+      {
+        "theme": "dark",
+        "name": "collapse",
+        "actual": "false",
+        "expected": "false",
+        "pass": true
+      },
+      {
+        "theme": "dark",
+        "name": "enter nested child",
+        "actual": "Child",
+        "expected": "Child",
+        "pass": true
+      },
+      {
+        "theme": "dark",
+        "name": "activate native button",
+        "actual": ".design/ui/Nested/Child.html",
+        "expected": ".design/ui/Nested/Child.html",
+        "pass": true
+      },
+      {
+        "theme": "dark",
+        "name": "return to parent",
+        "actual": "Nested",
+        "expected": "Nested",
+        "pass": true
+      },
+      {
+        "theme": "dark",
+        "name": "first visible row",
+        "actual": "PROJECT",
+        "expected": "PROJECT",
+        "pass": true
+      },
+      {
+        "theme": "dark",
+        "name": "last visible row",
+        "actual": "RUNTIME · GITIGNORED",
+        "expected": "RUNTIME · GITIGNORED",
+        "pass": true
+      },
+      {
+        "theme": "dark",
+        "name": "type ahead",
+        "actual": "Nested",
+        "expected": "Nested",
+        "pass": true
+      },
+      {
+        "theme": "dark",
+        "name": "row action reachable",
+        "actual": "Folder actions for Nested",
+        "expected": "Folder actions for Nested",
+        "pass": true
+      },
+      {
+        "theme": "dark",
+        "name": "row menu opened",
+        "actual": true,
+        "expected": true,
+        "pass": true
+      },
+      {
+        "theme": "dark",
+        "name": "menu returns focus",
+        "actual": "Folder actions for Nested",
+        "expected": "Folder actions for Nested",
+        "pass": true
+      },
+      {
+        "theme": "dark",
+        "name": "action returns tree focus",
+        "actual": "Nested",
+        "expected": "Nested",
+        "pass": true
+      },
+      {
+        "theme": "dark",
+        "name": "sidecar child",
+        "actual": "Accessibility.css",
+        "expected": "Accessibility.css",
+        "pass": true
+      },
+      {
+        "theme": "dark",
+        "name": "sidecar ownership",
+        "actual": "Accessibility",
+        "expected": "Accessibility",
+        "pass": true
+      },
+      {
+        "theme": "dark",
+        "name": "design system child",
+        "actual": "colors_and_type.css",
+        "expected": "colors_and_type.css",
+        "pass": true
+      },
+      {
+        "theme": "dark",
+        "name": "single roving tab stop",
+        "actual": 1,
+        "expected": 1,
+        "pass": true
+      }
+    ]
+  },
+  "harnessNotes": [
+    "Initial keyboard driver passed 30 checks. After reload one repeat failed at sidecar child (11 checks passed): the expansion was not settled before the next arrow. Added a DOM aria-expanded wait, without changing gestures/assertions; all 30 then passed.",
+    "Both theme screenshots inspected. Screenshot CLI required explicit body selector plus output path; earlier captures in its default temp location are not the referenced artifacts."
+  ],
+  "limitations": [
+    "Cloud r4 predates these changes.",
+    "Native L01/L07/L18 focused run 2026-09-22T19-04-45.975Z completed 47 pass, 0 fail, 1 unsupported and 1044 not-run. It is not native S19 certification.",
+    "Automated document scan is not a manual screen-reader, all-dialog or cross-origin canvas audit.",
+    "Full F1/F3/F4 remain open."
+  ],
+  "files": [
+    {
+      "path": "apps/studio/client/file-tree.jsx",
+      "sha256": "514f83420c0b4218eaabe3d11a6d3f438301ebca7a908c70ad6664e43e680129"
+    },
+    {
+      "path": "apps/studio/client/app.jsx",
+      "sha256": "23a673a02481053feaaca779fd70a504413be32d3fa487d514dab56f02d3a4bc"
+    },
+    {
+      "path": "apps/studio/client/styles/3-shell-maude.css",
+      "sha256": "698ec708ae0a67687787406f30c20bf84539969df7804650ee7f53f4c9ffdf0b"
+    },
+    {
+      "path": "apps/studio/test/file-tree-navigation.test.tsx",
+      "sha256": "547af69dc17b59fb90b7f371975c089369a6f054d071b6fb70e130933990756c"
+    },
+    {
+      "path": "apps/studio/test/shell-accessibility.test.ts",
+      "sha256": "cc2373f057125ae1147905a4c154f2831eff911e65f4d188c7526b4362851a6f"
+    },
+    {
+      "path": "apps/studio/test/shell-text-contrast.test.ts",
+      "sha256": "e77c90aae9e6801ab9a1232d80fd193f365c20db912976d99f9b1f31efa7403a"
+    },
+    {
+      "path": "apps/studio/dist/client.bundle.js",
+      "sha256": "b45b7061a9726150ce21dc661b966e4ccfa77e35b88c7fb99a4c9542e3ec7e13"
+    },
+    {
+      "path": "apps/studio/dist/styles.css",
+      "sha256": "c658bd7175b2ab04ccef79350ef259e9d89be5b96b17f651b90da656c5fea18c"
+    },
+    {
+      "path": ".ai/browser/eval/s19-tree-keyboard.mjs",
+      "sha256": "8d753ffa7b1f0e7d6446ea4d28aacbb7ae75acb5818c35cce5f1b9227624f215"
+    },
+    {
+      "path": ".ai/browser/screenshots/s19-tree-light.png",
+      "sha256": "0e580b1cbac251a25186be55e62938daeac849f746b33b2ea19570eed11d8f83"
+    },
+    {
+      "path": ".ai/browser/screenshots/s19-tree-dark.png",
+      "sha256": "fae9f3f4f111f51025dd06a51a209eb67867019dc17d8110cd0cfb2ad7db7c2f"
+    }
+  ]
+}

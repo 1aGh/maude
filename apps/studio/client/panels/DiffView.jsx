@@ -170,7 +170,9 @@ function CanvasView({ src, view, setView, label }) {
           className="dv-frame-wrap"
           style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}
         >
-          <iframe className="dv-frame" src={src} title={label} />
+          {/* A read-only preview: out of the tab order, so the modal's focus
+              never falls into a document whose keys the shell cannot see. */}
+          <iframe className="dv-frame" src={src} title={label} tabIndex={-1} />
         </div>
       ) : (
         <div className="dv-thumb-note">No saved version of this canvas to compare yet.</div>
@@ -236,6 +238,7 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
   // HEAD), then re-pointable in-place via the "Saved version" picker.
   const tgtFile = target?.file;
   const tgtBeforeSha = target?.beforeSha;
+  const acceptedPreview = /^r\d+$/.test(tgtBeforeSha || '');
   const [beforeSha, setBeforeSha] = useState(tgtBeforeSha || 'HEAD');
   const [versions, setVersions] = useState(null); // per-file saved versions, or null while loading
 
@@ -253,7 +256,7 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
     let cancelled = false;
     (async () => {
       const entries = (await loadLog(tgtFile)) || [];
-      if (!cancelled) setVersions(entries);
+      if (!cancelled) setVersions(Array.isArray(entries) ? entries : []);
     })();
     return () => {
       cancelled = true;
@@ -263,16 +266,38 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
   useEffect(() => {
     if (!target) return;
     const opener = document.activeElement;
+    // A modal keeps the keyboard inside it (S19): Tab / Shift+Tab cycle the
+    // sheet's own controls, and Escape is taken before anything behind it.
+    const controls = () =>
+      [
+        ...(sheetRef.current?.querySelectorAll(
+          'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex="-1"])'
+        ) ?? []),
+      ].filter((el) => !el.closest('[hidden]'));
     const onKey = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault();
+        e.stopImmediatePropagation();
         onClose();
+      } else if (e.key === 'Tab') {
+        const items = controls();
+        if (!items.length) return;
+        const inside = sheetRef.current?.contains(document.activeElement);
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (e.shiftKey && (!inside || document.activeElement === first || document.activeElement === sheetRef.current)) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (!inside || document.activeElement === last)) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
-    window.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey, true);
     sheetRef.current?.focus();
     return () => {
-      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
       if (opener instanceof HTMLElement) opener.focus();
     };
   }, [target, onClose]);
@@ -335,12 +360,13 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
             <label className="dv-verpick">
               <span className="dv-verpick-lbl">Compare against</span>
               <select
+                data-testid="history-preview-version"
                 className="dv-verpick-sel"
                 value={beforeSha}
                 onChange={(e) => setBeforeSha(e.target.value)}
                 aria-label={`Saved version of ${baseName(file)} to compare against`}
               >
-                <option value="HEAD">Last saved</option>
+                {!acceptedPreview && <option value="HEAD">Last saved</option>}
                 {versions.map((v) => (
                   <option key={v.sha} value={v.sha}>
                     {`${v.message || 'Saved version'} · ${timeAgo(v.date)}`}
@@ -506,7 +532,7 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
                   <div className="dv-col">
                     <div className="dv-col-hd">
                       <span className="dv-col-tag is-after">Your version</span>
-                      <span className="dv-col-who">now · unsaved</span>
+                      <span className="dv-col-who">{acceptedPreview ? 'now · working copy' : 'now · unsaved'}</span>
                     </div>
                     <div className="dv-thumb is-after">
                       <CanvasView
@@ -559,17 +585,20 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
                 <button
                   type="button"
                   className="btn btn--ghost btn--sm"
+                  data-testid="history-preview-restore"
                   disabled={busy}
                   onClick={async () => {
                     if (
                       !window.confirm(
-                        `Restore the saved version of “${baseName(file)}”? Your unsaved changes to it are discarded.`
+                        acceptedPreview
+                          ? `Restore version ${beforeSha.slice(1)} of “${baseName(file)}” as a new saved version?`
+                          : `Restore the saved version of “${baseName(file)}”? Your unsaved changes to it are discarded.`
                       )
                     )
                       return;
                     setBusy(true);
                     try {
-                      await onRestore(file);
+                      await onRestore(file, beforeSha);
                     } finally {
                       setBusy(false);
                     }

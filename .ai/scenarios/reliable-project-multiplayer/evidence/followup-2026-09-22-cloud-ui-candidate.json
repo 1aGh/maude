@@ -1,0 +1,87 @@
+{
+  "date": "2026-09-22",
+  "status": "verified-subset-isolated-source-copy",
+  "project": "f3-cloud",
+  "epoch": 1,
+  "cloudOrigin": "https://f3-cloud.multiplayer-test-20260922.maude.sh",
+  "receivingOrigin": "http://localhost:19777",
+  "sourceRoot": "/tmp/maude-hmr-fix-vzwuAZ/apps/studio",
+  "sourceSha256": {
+    "canvas-comment-mount.tsx": "b96fb4413176933502bc3a101c3644c2d49233bfecc65767db1684296d402788",
+    "client/app.jsx": "e6afda82a343d4c1cb1e84a26c77bdfc3cfc86bfa4d06ad5f8a49bce4eb28470",
+    "test/canvas-hmr-loaded.test.tsx": "985d418b96481539f569a72c4dff1a50072d03f50b41fd1a27627c8801471eed",
+    "test/history-preview-routing.test.ts": "2e89ef9982484416491d0dc03fb4ecf42fb97431cf14350fb0ea201d306b1704"
+  },
+  "servedBuild": {
+    "releaseMinified": true,
+    "client": {
+      "route": "/_client/client.bundle.js",
+      "bytes": 2153226,
+      "sha256": "6562683deb4db8c79f62bd329d47055cc7ee4d80ef28fd1c6c1e0a4b8076cb72",
+      "matchesDisk": true
+    },
+    "commentMount": {
+      "route": "/_client/comment-mount.js",
+      "bytes": 61242,
+      "sha256": "e094db28705d74d01235d2175353b43f90c1e7c72ff04ebb0b08b8209c2e8e94",
+      "matchesDisk": true
+    }
+  },
+  "historyPanel": {
+    "reproduction": "On the old cloud build, select Inspector and press status-bar Changes: aria-pressed is true but Inspector remains selected and history has zero visible rows.",
+    "cause": "Direct setChangesOpen(true) bypasses same-dock exclusive selection; Inspector has earlier dock precedence.",
+    "candidateFix": "Use existing openRightPanel('changes').",
+    "observedRedThenGreen": true,
+    "actualCandidateUi": "Starting with an inspected heading, the status-bar button selects History/Changes, deselects Inspector and displays revision 15 without an extra tab click.",
+    "screenshots": [
+      ".ai/browser/screenshots/followup-f3-cloud-history-open-behind-inspector.png",
+      ".ai/browser/screenshots/followup-f3-fixed-history-opens-over-inspector.png"
+    ]
+  },
+  "receivingInspector": {
+    "document": "ui-f3concurrency",
+    "candidateFix": "Successful soft-HMR commits repeat the existing loaded handshake so the shell rereads the selected element; failed renders do not announce success.",
+    "observedRedThenGreen": true,
+    "before": {
+      "revision": 19,
+      "actionId": "a_f5e0150a-4c96-4194-9c79-64a256381113",
+      "actor": "designer-a@maude-f3.invalid",
+      "titleAttribute": "Fixed candidate pre-restore",
+      "htmlSha256": "be252c46656a81915e23d6c5088d4fb86827ca75fe28fe1039e1e1ebef5e6b38"
+    },
+    "restore": {
+      "selectedRevision": 15,
+      "revision": 20,
+      "actionId": "a_b4cfc5a0-f7da-49f5-a558-90ddf03676d5",
+      "actor": "cell-loopback-sync",
+      "kind": "history.restore",
+      "performedVia": "Owner's actual cloud history preview, version picker and confirmed Restore button"
+    },
+    "after": {
+      "titleAttribute": "Original title",
+      "inspectorInput": "Original title",
+      "inspectorStillSelected": true,
+      "inputUnfocused": true,
+      "receiverReloadOrReselect": false,
+      "htmlSha256": "2616f93c7c6df9ac5ae7aff381ea24f92c7164667209af8970d6045f7ca1c39c",
+      "localDiskMatchesCloud": true,
+      "revision19RetainedInHistory": true
+    },
+    "screenshots": [
+      ".ai/browser/screenshots/followup-f3-fixed-inspector-before-restore.png",
+      ".ai/browser/screenshots/followup-f3-fixed-inspector-after-restore.png"
+    ]
+  },
+  "allFourScreenshotsInspected": true,
+  "verification": {
+    "hmrTests": { "pass": 7, "fail": 0 },
+    "historyTests": { "pass": 50, "fail": 0 },
+    "studioTypecheck": "pass",
+    "scopedTestLint": "pass; client/app.jsx is excluded by the repository config, not lint-certified"
+  },
+  "limitations": [
+    "At the time of this browser observation fixes were isolated. They were later transferred after full-run termination and passed 57 main-tree tests; see the evidence report.",
+    "Actual receiving UI is Chromium plus a local studio connected to the real cloud, not a packaged native run or an updated cloud-cell image.",
+    "No full F1/F3 certification, latency claim, production deployment or fixture cleanup is claimed."
+  ]
+}

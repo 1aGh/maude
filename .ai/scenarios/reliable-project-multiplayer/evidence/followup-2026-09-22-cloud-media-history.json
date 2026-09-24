@@ -1,0 +1,66 @@
+{
+  "date": "2026-09-22",
+  "status": "partial-pass",
+  "scope": "S11 real-cloud media preview/restore and post-restart durability subset; not full S11/S15/F3 certification",
+  "projectId": "f3-cloud",
+  "epoch": 1,
+  "candidate": "test-20260922-r2",
+  "servedClientHashPrefix": "223539853e29",
+  "fixture": {
+    "doc": "ui-f3mediahistory",
+    "path": "ui/F3MediaHistory.tsx",
+    "creationMethod": "Authenticated production file/proposal APIs, separate from browser UI stimulus",
+    "oldRevision": 16,
+    "oldSourceSha256": "1f3e0cf0daab096b6d9076a2d6a2457e055c6b7e2480bcc59d2ecad7adfead0a",
+    "newRevision": 17,
+    "newSourceSha256": "96c7c8e626bce1a2db437d5dd5be42a3b4712ebed2718c75aab6c615094ed9a0"
+  },
+  "uiRestore": {
+    "method": "Owner opened actual history preview at r17, selected r16, clicked Restore and accepted confirmation naming revision 16",
+    "revision": 18,
+    "actionId": "a_ae9783b9-82e4-47fc-be3e-c34f420fe820",
+    "kind": "history.restore",
+    "oracle": "Both preview panes rendered distinct old/new images; both participants rendered the old image after restore; current HTML hash equals r16; owner history lists r18"
+  },
+  "restart": {
+    "at": "2026-09-22T16:30:32.698Z",
+    "method": "POST /_cell/restart using the isolated tenant's derived operator credential; both test browser sessions closed first",
+    "response": { "status": 200, "restarted": true },
+    "uptimeBeforeMs": 947928,
+    "uptimeAtFirstReadyMs": 34592,
+    "assetsRestored": { "restored": 2, "present": 0, "failed": 0 },
+    "after": {
+      "revision": 18,
+      "epoch": 1,
+      "currentSourceEqualsRevision16": true,
+      "historicalRevisions16And17ReadableWithExactHashes": true,
+      "bothAssetBytesMatch": true,
+      "ownerAndPeerRenderRestoredImage": true
+    }
+  },
+  "r2DirectGet": {
+    "checkedAt": "2026-09-22T16:37:51.146Z",
+    "bucket": "maude-multiplayer-test-20260922",
+    "objects": [
+      { "key": "tenants/f3-cloud/assets/60230674.png", "status": 200, "bytes": 164, "sha256": "60230674a65a92072ebcaacdd703f5721037f439baf9ca344a130aa246df88c2" },
+      { "key": "tenants/f3-cloud/assets/1c9da7a5.png", "status": 200, "bytes": 164, "sha256": "1c9da7a5ea94a3fbdcd5721c275c49930ce65a1b8d86a05ec99c9815313b300d" }
+    ]
+  },
+  "screenshots": [
+    ".ai/browser/screenshots/followup-f3-cloud-media-before-peer.png",
+    ".ai/browser/screenshots/followup-f3-cloud-media-preview.png",
+    ".ai/browser/screenshots/followup-f3-cloud-media-restored-owner.png",
+    ".ai/browser/screenshots/followup-f3-cloud-media-restored-peer.png",
+    ".ai/browser/screenshots/followup-f3-cloud-media-restarted-owner.png",
+    ".ai/browser/screenshots/followup-f3-cloud-media-restarted-peer.png"
+  ],
+  "screenshotsInspected": true,
+  "limitations": [
+    "No native-cloud media restore evidence yet; concurrent source restore is in the separate cloud-history report",
+    "Controlled restart is not the full S15 kill-point matrix",
+    "Both image fixtures are small; this does not prove S12/S14 large-media behavior",
+    "Cross-frame wait --text timed out in the browser helper; fresh snapshots and separately captured/inspected screenshots show the loaded image",
+    "The stale receiving inspector remains an open product failure",
+    "Resources and historical objects retained for remaining scenarios and final cleanup"
+  ]
+}

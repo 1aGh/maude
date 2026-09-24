@@ -2225,17 +2225,6 @@
       "phaseKey": null
     },
     {
-      "id": "feature-goal-unattended-pipelines",
-      "title": "Feature: /goal-aware unattended pipelines for flow + design commands",
-      "status": "planned",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, frontmatter, and closing-prompt conventions.",
-      "planPath": ".ai/plans/feature-goal-unattended-pipelines.md",
-      "archived": false,
-      "phaseKey": null
-    },
-    {
       "id": "feature-harness-environment-projection",
       "title": "Feature: Harness environment projection",
       "status": "planned",

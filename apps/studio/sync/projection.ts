@@ -54,7 +54,12 @@ import type { RevisionBarrier } from './revision-barrier.ts';
 import { repairSeedDuplication } from './seed-repair.ts';
 import { mergeSource } from './source-merge.ts';
 import type { SourceOp } from './source-ops.ts';
-import { saveRecoveryBody } from './source-recovery.ts';
+import {
+  preserveRecoveryCandidate,
+  readRecoveryCandidate,
+  resolveRecoveryCandidate,
+  saveRecoveryBody,
+} from './source-recovery.ts';
 import { sourceError } from './source-validation.ts';
 import { laneHash } from './transaction-client.ts';
 
@@ -240,8 +245,13 @@ export interface DocProjection {
    * recovery slots. Returns false when nothing is held.
    */
   takeAccepted(): boolean;
-  /** T28 — the two sides of a held source conflict (null when none). */
-  conflictSides(): { mine: string | null; theirs: string } | null;
+  /** T28 — current sides plus the first candidate and proven base (null when unknown). */
+  conflictSides(): {
+    mine: string | null;
+    theirs: string;
+    original: string | null;
+    base: string | null;
+  } | null;
   /** Re-deliver file changes held while the document was not writable. */
   retryDeferred(): void;
   /**
@@ -290,6 +300,22 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
   let validationCache: { body: string; error: string | null } | null = null;
 
   function recovered(): void {
+    // An older accepted proposal is not resolution of a later pending/held one.
+    if (pending.has('html') || held.has('html')) return;
+    try {
+      if (opts.historyDir) resolveRecoveryCandidate(opts.historyDir, paths.html);
+    } catch {
+      // The accepted action is real even if updating our local recovery record
+      // fails. Keep the original pinned and the storage problem visible.
+      rejectedKey ??= 'recovery-failed';
+      opts.onConflict?.({
+        slug,
+        kind: 'body-rejected',
+        reason: 'history-failed',
+        snapshotFailed: true,
+      });
+      return;
+    }
     if (rejectedKey !== null) opts.onRecovered?.();
     rejectedKey = null;
   }
@@ -325,13 +351,16 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     reason: BodyRejection['reason'],
     local: string | null,
     incoming: string,
-    file = paths.html
+    file = paths.html,
+    base: string | null = lastHtml
   ): void {
     const key = `${file}:${reason}:${hashBytes(local ?? '')}:${hashBytes(incoming)}`;
     if (key === rejectedKey) return;
     rejectedKey = key;
     let snapshotFailed = false;
     try {
+      if (file === paths.html && opts.historyDir)
+        preserveRecoveryCandidate(opts.historyDir, file, local, base);
       if (file === paths.html) preserveLocal(local);
       if (opts.historyDir) {
         if (local !== null) saveRecoveryBody(opts.historyDir, file, 'local', local);
@@ -682,7 +711,12 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     return readLaneFromDoc(doc, lane);
   }
 
-  function onRejected(lane: ProposalLane, local: string, outcome: ProposalOutcome): void {
+  function onRejected(
+    lane: ProposalLane,
+    local: string,
+    outcome: ProposalOutcome,
+    base: string
+  ): void {
     held.add(lane);
     // The candidate stays on disk: the projection's local-edit guard protects
     // it (html), `held` blocks the lane writer (css/meta), and the recovery
@@ -704,7 +738,8 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       REJECTION_REASON[outcome.code ?? ''] ?? 'local-edit',
       local,
       readLaneFromDoc(doc, lane),
-      pathOfLane(lane)
+      pathOfLane(lane),
+      base
     );
   }
 
@@ -793,7 +828,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
           lastMeta = null;
         }
       } else {
-        onRejected(lane, local, outcome);
+        onRejected(lane, local, outcome, baseContent);
       }
       scheduleFlush();
       return outcome;
@@ -1146,12 +1181,17 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       lastHtml = null;
       dirty = true;
       void flush();
-      recovered();
       return true;
     },
     conflictSides() {
       if (!held.has('html') && rejectedKey === null) return null;
-      return { mine: readLocal(paths.html), theirs: htmlFromDoc(doc) };
+      const candidate = opts.historyDir ? readRecoveryCandidate(opts.historyDir, paths.html) : null;
+      return {
+        mine: readLocal(paths.html),
+        theirs: htmlFromDoc(doc),
+        original: candidate?.original ?? null,
+        base: candidate?.base ?? null,
+      };
     },
     proposeLane(lane, value, o) {
       if (!acceptedOn() || stopped) return null;

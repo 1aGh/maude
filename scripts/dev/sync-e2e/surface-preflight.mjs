@@ -8,6 +8,7 @@ import { cpus, platform, release } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
+import { resolveSurfaceNative } from './surface-native.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const stamp = new Date().toISOString().replaceAll(':', '-');
@@ -56,17 +57,17 @@ try {
   await browser?.close();
 }
 
-const app = join(
-  root,
-  'apps/desktop/src-tauri/target/debug/bundle/macos/Maude.app/Contents/MacOS/maude-desktop'
-);
-checks.push({
-  id: 'bundled-native',
-  status: 'not-run',
-  reason: existsSync(app)
-    ? 'Bundle exists; real WDIO multiplayer participant still required.'
-    : 'No bundled debug app at the existing WDIO default path. Run the desktop E2E build.',
-});
+try {
+  const native = resolveSurfaceNative({ root, app: process.env.MAUDE_E2E_APP });
+  checks.push({
+    id: 'native-artifact',
+    status: 'not-run',
+    kind: native.kind,
+    reason: 'Native artifact exists; real WDIO multiplayer participant still required.',
+  });
+} catch (error) {
+  checks.push({ id: 'native-artifact', status: 'not-run', reason: error.message });
+}
 // Never emit baseline.json here: candidate comparison must not accept this
 // environment report as the immutable, measured L01–L24 product baseline.
 const result = {

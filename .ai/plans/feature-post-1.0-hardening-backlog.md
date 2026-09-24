@@ -210,7 +210,10 @@ smoke run, so none is a regression from the gate set. Cosmetic, none blocking.
 
 - **Increment 8** — delete `agent.ts` + the two-doc relay (deliberately held so the `MAUDE_SHARED_DOC` flip keeps a config rollback; unblocks only after A7-notice ships).
 - Two open RCA items in `.ai/logs/rca/issue-cloud-assets-open-findings.md` §3 + live half of §4.
-- Duplicate DDR-223 file numbering; `maude kg record-log` ENOENT on `/` in derived names.
+- Duplicate DDR-223 file numbering remains open.
+- **`maude kg record-log` ENOENT — RESOLVED.** Repo-namespaced slugs containing
+  `/` are handled by `cli/commands/kg.mjs` and pinned by
+  `cli/commands/kg.test.mjs` (the regression names the former ENOENT failure).
 
 ---
 

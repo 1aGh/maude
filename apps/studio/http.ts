@@ -34,12 +34,14 @@ import { buildCanvasModule } from './canvas-build.ts';
 import { buildCanvasSandboxed, buildStats } from './canvas-build-sandbox.ts';
 import { canvasLibPath } from './canvas-lib-resolver.ts';
 import { TranspileError } from './canvas-pipeline.ts';
+import { rememberCanvasBuild } from './canvas-source-memo.ts';
 import { createCloudEndpoints } from './cloud/endpoints.ts';
 import type { AiActivity } from './collab/ai-activity.ts';
 import type { Context } from './context.ts';
 import { reloadConfig } from './context.ts';
 import { buildDebugBundle } from './debug-bundle.ts';
 import { probeSetupReadiness } from './design-setup-readiness.ts';
+import { frameAncestors } from './embed-origins.ts';
 import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-scopes.ts';
 import { type Format, isFormat, isScope, type Scope } from './exporters/index.ts';
 import { type ExportJobQueue, ExportQueueFullError } from './exporters/jobs.ts';
@@ -225,7 +227,35 @@ export function rootIdentity(root: string): string {
   return createHash('sha256').update(resolved, 'utf8').digest('hex').slice(0, 12);
 }
 
-export function cspForCanvasShell(html: string, mainOrigin?: string): string {
+/**
+ * DDR-242 — the studio page's CSP. Always `frame-ancestors`; in the `?embed=1`
+ * view also `frame-src 'self' <canvas origin>`: the embed frames exactly one
+ * canvas, and a hostile canvas must not be able to navigate its own frame to a
+ * foreign origin (a look-alike sign-in page) inside someone else's app.
+ */
+export function studioPageCsp(
+  mainOrigin: string | undefined,
+  embedOrigins: readonly string[],
+  { embed = false, canvasOrigin }: { embed?: boolean; canvasOrigin?: string } = {}
+): string {
+  const directives = [`frame-ancestors ${frameAncestors(mainOrigin, embedOrigins)}`];
+  if (embed) {
+    let canvas = '';
+    try {
+      canvas = canvasOrigin ? new URL(canvasOrigin).origin : '';
+    } catch {
+      /* unparseable — 'self' alone, the canvas then fails closed */
+    }
+    directives.push(`frame-src ${["'self'", canvas].filter(Boolean).join(' ')}`);
+  }
+  return directives.join('; ');
+}
+
+export function cspForCanvasShell(
+  html: string,
+  mainOrigin?: string,
+  embedOrigins: readonly string[] = []
+): string {
   const hashes: string[] = [];
   // Match inline <script> blocks only (no src=). `[^>]*` excludes any with src.
   const re = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi;
@@ -255,7 +285,9 @@ export function cspForCanvasShell(html: string, mainOrigin?: string): string {
     "form-action 'none'",
     "webrtc 'block'",
   ];
-  if (mainOrigin) directives.push(`frame-ancestors 'self' ${mainOrigin}`);
+  // DDR-242 — an embedder of the studio page is an ANCESTOR of this frame too,
+  // and frame-ancestors checks every ancestor, so it is listed here as well.
+  if (mainOrigin) directives.push(`frame-ancestors ${frameAncestors(mainOrigin, embedOrigins)}`);
   return directives.join('; ');
 }
 
@@ -687,6 +719,7 @@ export async function serveCanvasTsx(
         deps,
       };
       canvasCache.set(absPath, cached);
+      rememberCanvasBuild(absPath, { source, locator: result.locator });
       await writeLocator(locatorAbsPath, canvasSlug(absPath, ctx.paths.designRoot), result.locator);
       return respondWithCanvasModule(req, cached);
     }
@@ -725,6 +758,7 @@ export async function serveCanvasTsx(
       deps,
     };
     canvasCache.set(absPath, cached);
+    rememberCanvasBuild(absPath, { source, locator: result.locator });
     // Persist the locator map. Awaited so the inspector / Phase-12 layers
     // panel sees a consistent (cdId -> source) view by the time the canvas
     // mounts. Per-path mutex inside writeLocator() makes concurrent transpiles
@@ -1793,6 +1827,10 @@ export function createHttp(
         ...ctx.cfg,
         canvasOrigin: ctx.canvasOrigin,
         readOnly: projectReadOnly(req),
+        // DDR-242 — the apps allowed to frame this studio for `?embed=1`. The
+        // embed view posts its status ONLY to a parent on this list, never to
+        // '*'. Public already: the same origins ride in the page's CSP header.
+        ...(ctx.embedOrigins?.length ? { embedOrigins: ctx.embedOrigins } : {}),
         // WHICH RELEASE THIS IS. `/_config` reaches the browser in cloud mode,
         // so the bar for adding a field here is "would I publish it" — and a
         // version is the git tag, which is public. Nothing else rides along.
@@ -5523,8 +5561,14 @@ export function createHttp(
       return new Response(null, { status: 204 });
     },
 
-    '/': () => serveFile(join(CLIENT_DIR, 'index.html')),
-    '/index.html': () => serveFile(join(CLIENT_DIR, 'index.html')),
+    // DDR-242 — the studio page names who may frame it. It used to say
+    // nothing, so any site could frame a signed-in studio (clickjacking).
+    // Nothing legitimate frames it cross-origin: the desktop navigates its
+    // webview to it top-level and every studio iframe is a canvas shell. The
+    // shell origins stay listed; the configured embedders are added ONLY for
+    // the read-only `?embed=1` view — the full studio is never theirs to frame.
+    '/': (req: Request) => serveStudioPage(req),
+    '/index.html': (req: Request) => serveStudioPage(req),
   } satisfies Record<string, (req: Request) => Response | Promise<Response>>;
 
   // Named `handleFallthrough`, not `fetch` — a same-named local function shadows
@@ -5793,6 +5837,25 @@ export function createHttp(
     }
   }
 
+  function serveStudioPage(req: Request): Promise<Response> {
+    let embed = false;
+    try {
+      embed = new URL(req.url).searchParams.get('embed') === '1';
+    } catch {
+      /* no usable URL — the ordinary page */
+    }
+    return serveFile(join(CLIENT_DIR, 'index.html'), {
+      'Content-Security-Policy': studioPageCsp(
+        ctx.mainOrigin,
+        embed ? (ctx.embedOrigins ?? []) : [],
+        {
+          embed,
+          canvasOrigin: ctx.canvasOrigin,
+        }
+      ),
+    });
+  }
+
   async function serveCanvasShell(applyCsp: boolean, capture = false): Promise<Response> {
     const shellHtml = await Bun.file(join(TEMPLATES_DIR, '_shell.html')).text();
     // Inject inspector overlay — Cmd+Click selection + add-comment flow.
@@ -5806,7 +5869,11 @@ export function createHttp(
     // this is the SSRF/exfil boundary the export otherwise lacked (attacker F1).
     if (capture) headers['Content-Security-Policy'] = cspForCapture();
     else if (applyCsp)
-      headers['Content-Security-Policy'] = cspForCanvasShell(injected, ctx.mainOrigin);
+      headers['Content-Security-Policy'] = cspForCanvasShell(
+        injected,
+        ctx.mainOrigin,
+        ctx.embedOrigins
+      );
     return new Response(injected, { headers });
   }
 

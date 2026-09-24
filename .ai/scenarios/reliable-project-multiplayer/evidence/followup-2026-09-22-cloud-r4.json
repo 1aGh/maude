@@ -1,0 +1,231 @@
+{
+  "date": "2026-09-22",
+  "status": "verified-rollout-subset",
+  "scope": "Only isolated f3-cloud; not full S01-S19 certification",
+  "application": "a03073b4-13ac-42ee-8b75-b58b598e3240",
+  "rollout": "6989e4b2-d053-4d28-bd10-3864f186aaf0",
+  "image": "registry.cloudflare.com/b5b596efe65abb732777c7171dc18145/maude-followup-cell:test-20260922-r4",
+  "digest": "sha256:27c34bdd204acc066f7d1e1afa4159d856d35246c72e9146605e2b48ff5f7789",
+  "applicationVersion": 4,
+  "activeInstances": 1,
+  "errors": [],
+  "canvasShellSha256": "5025c0c0e3a096ef8fe5e14cbf99da7db8508e56fa06c6e9616c04df15546c30",
+  "textLifetimeFixPresentInImage": true,
+  "servedArtifacts": [
+    {
+      "path": "/_client/client.bundle.js",
+      "status": 200,
+      "bytes": 2154603,
+      "sha256": "01ca7ed2497a23d6dbe598d1f21f3214fd4361292d3cef507d1498e98e1a5522"
+    },
+    {
+      "path": "/_client/comment-mount.js",
+      "status": 200,
+      "bytes": 61295,
+      "sha256": "b1efbefd8352a85fbeef1d632abc9704f0d0cbb1291f35eb09a64d4f1ee8ba48"
+    },
+    {
+      "path": "/_client/styles.css",
+      "status": 200,
+      "bytes": 298484,
+      "sha256": "b82026c747519579800c6cb85e465b0145ac90cb6e3795a32ce0821fabd6bc69"
+    }
+  ],
+  "before": {
+    "projectId": "f3-cloud",
+    "revision": 20,
+    "epoch": 1,
+    "docs": [
+      {
+        "doc": "ui-browser_ownership_probe",
+        "path": "ui/Browser ownership probe.tsx",
+        "generation": 1,
+        "retired": false,
+        "lanes": {
+          "html": {
+            "hash": "c31e4292c49353ffb1f3f4d34dd5e70c3b4a7a085c06894c23245c8ef9cb3b3d",
+            "effect": "e_62fa28a1-41fd-4fb7-8f1d-b1272959e743"
+          },
+          "meta": {
+            "hash": "f92681b783a264cc1e5a52255fd608b7d9eeab7dd53484997ce6228f22c8d00f",
+            "effect": "e_2ee13c6f-697d-41f8-aad4-406417d6d38b"
+          }
+        }
+      },
+      {
+        "doc": "ui-cloud_acceptance",
+        "path": "ui/Cloud acceptance.tsx",
+        "generation": 1,
+        "retired": false,
+        "lanes": {
+          "html": {
+            "hash": "89a98f31ec7fb9e3f47aca796ab008f5edd42239571e7bb05960b9a7bfbba2b8",
+            "effect": "e_1e7d1c15-2e9e-43e4-9fe2-c6cab3c4bba5"
+          },
+          "meta": {
+            "hash": "db705e2c9b4ccd1de0b63818ed474c496f787cbf97271799f524bbf81dad3aef",
+            "effect": "e_4f059ce7-d144-4dd5-824c-e4c356669c2f"
+          }
+        }
+      },
+      {
+        "doc": "ui-f3concurrency",
+        "path": "ui/F3Concurrency.tsx",
+        "generation": 1,
+        "retired": false,
+        "lanes": {
+          "html": {
+            "hash": "2616f93c7c6df9ac5ae7aff381ea24f92c7164667209af8970d6045f7ca1c39c",
+            "effect": "e_e2e6ff3b-397f-4342-bdeb-db9bad850554"
+          }
+        }
+      },
+      {
+        "doc": "ui-f3mediahistory",
+        "path": "ui/F3MediaHistory.tsx",
+        "generation": 1,
+        "retired": false,
+        "lanes": {
+          "html": {
+            "hash": "1f3e0cf0daab096b6d9076a2d6a2457e055c6b7e2480bcc59d2ecad7adfead0a",
+            "effect": "e_1e38954f-1a19-4870-bdc5-64340b8b005c"
+          }
+        }
+      },
+      {
+        "doc": "ui-native_cloud_acceptance",
+        "path": "ui/Native cloud acceptance.tsx",
+        "generation": 1,
+        "retired": false,
+        "lanes": {
+          "html": {
+            "hash": "a14d275022278429c94eabc244b29dc46616716b802c9226d796196698e1fd4e",
+            "effect": "e_91e1f1f5-0e59-491e-806a-6a2b9e4be7c1"
+          },
+          "meta": {
+            "hash": "675fff6a8cc10abc9420a562150c6a95a9c104eb1a11cc2c338b4653ef51fe15",
+            "effect": "e_e1f51fa1-bbf8-425c-8283-371b690e7eb2"
+          }
+        }
+      },
+      {
+        "doc": "ui-native_cloud_uncrl8",
+        "path": "ui/Native cloud UncRL8.tsx",
+        "generation": 1,
+        "retired": false,
+        "lanes": {
+          "html": {
+            "hash": "b7a5e931a9b0626523c0f23207f9b76e824569bcbf0841d355a0b1e9c7d2e43c",
+            "effect": "e_34e8c3e1-b67d-4f40-9755-1aa6a9013b2b"
+          },
+          "meta": {
+            "hash": "86c6bb180b9641f6d31cc5386ded24c5706a43de472ab27fa4cfe74993dadf13",
+            "effect": "e_5dd3271d-0178-4097-8a4a-7d205488c209"
+          }
+        }
+      }
+    ]
+  },
+  "after": {
+    "projectId": "f3-cloud",
+    "revision": 20,
+    "epoch": 1,
+    "docs": [
+      {
+        "doc": "ui-browser_ownership_probe",
+        "path": "ui/Browser ownership probe.tsx",
+        "generation": 1,
+        "retired": false,
+        "lanes": {
+          "html": {
+            "hash": "c31e4292c49353ffb1f3f4d34dd5e70c3b4a7a085c06894c23245c8ef9cb3b3d",
+            "effect": "e_62fa28a1-41fd-4fb7-8f1d-b1272959e743"
+          },
+          "meta": {
+            "hash": "f92681b783a264cc1e5a52255fd608b7d9eeab7dd53484997ce6228f22c8d00f",
+            "effect": "e_2ee13c6f-697d-41f8-aad4-406417d6d38b"
+          }
+        }
+      },
+      {
+        "doc": "ui-cloud_acceptance",
+        "path": "ui/Cloud acceptance.tsx",
+        "generation": 1,
+        "retired": false,
+        "lanes": {
+          "html": {
+            "hash": "89a98f31ec7fb9e3f47aca796ab008f5edd42239571e7bb05960b9a7bfbba2b8",
+            "effect": "e_1e7d1c15-2e9e-43e4-9fe2-c6cab3c4bba5"
+          },
+          "meta": {
+            "hash": "db705e2c9b4ccd1de0b63818ed474c496f787cbf97271799f524bbf81dad3aef",
+            "effect": "e_4f059ce7-d144-4dd5-824c-e4c356669c2f"
+          }
+        }
+      },
+      {
+        "doc": "ui-f3concurrency",
+        "path": "ui/F3Concurrency.tsx",
+        "generation": 1,
+        "retired": false,
+        "lanes": {
+          "html": {
+            "hash": "2616f93c7c6df9ac5ae7aff381ea24f92c7164667209af8970d6045f7ca1c39c",
+            "effect": "e_e2e6ff3b-397f-4342-bdeb-db9bad850554"
+          }
+        }
+      },
+      {
+        "doc": "ui-f3mediahistory",
+        "path": "ui/F3MediaHistory.tsx",
+        "generation": 1,
+        "retired": false,
+        "lanes": {
+          "html": {
+            "hash": "1f3e0cf0daab096b6d9076a2d6a2457e055c6b7e2480bcc59d2ecad7adfead0a",
+            "effect": "e_1e38954f-1a19-4870-bdc5-64340b8b005c"
+          }
+        }
+      },
+      {
+        "doc": "ui-native_cloud_acceptance",
+        "path": "ui/Native cloud acceptance.tsx",
+        "generation": 1,
+        "retired": false,
+        "lanes": {
+          "html": {
+            "hash": "a14d275022278429c94eabc244b29dc46616716b802c9226d796196698e1fd4e",
+            "effect": "e_91e1f1f5-0e59-491e-806a-6a2b9e4be7c1"
+          },
+          "meta": {
+            "hash": "675fff6a8cc10abc9420a562150c6a95a9c104eb1a11cc2c338b4653ef51fe15",
+            "effect": "e_e1f51fa1-bbf8-425c-8283-371b690e7eb2"
+          }
+        }
+      },
+      {
+        "doc": "ui-native_cloud_uncrl8",
+        "path": "ui/Native cloud UncRL8.tsx",
+        "generation": 1,
+        "retired": false,
+        "lanes": {
+          "html": {
+            "hash": "b7a5e931a9b0626523c0f23207f9b76e824569bcbf0841d355a0b1e9c7d2e43c",
+            "effect": "e_34e8c3e1-b67d-4f40-9755-1aa6a9013b2b"
+          },
+          "meta": {
+            "hash": "86c6bb180b9641f6d31cc5386ded24c5706a43de472ab27fa4cfe74993dadf13",
+            "effect": "e_5dd3271d-0178-4097-8a4a-7d205488c209"
+          }
+        }
+      }
+    ]
+  },
+  "bootstrapIdentical": true,
+  "limitations": [
+    "CanvasShell is compiled from source in the cell; the three unchanged r3/r4 bundle hashes alone do not prove the text lifetime fix. The actual built image source hash was checked before push and the exact pushed image was rolled.",
+    "Native-cloud edit verification remains pending. This deploy does not contain the subsequently isolated pending-selection delivery fix.",
+    "Image build overlapped native run 2026-09-22T18-03-24.145Z; that functional run is not a matched F4 performance benchmark.",
+    "No production resources modified. Fixture resources retained for remaining F3 scenarios and eventual cleanup."
+  ]
+}

@@ -1,0 +1,518 @@
+{
+  "date": "2026-09-23",
+  "backend": "self-host (production hub image apps/hub/Dockerfile, workspace mode, SQLite accepted store on the data volume, R2 object storage in an isolated tenant prefix)",
+  "image": {
+    "tag": "maude-f3-selfhost:local",
+    "id": "sha256:59c7bf4f57cf2a7961d902f084335ef687ed9197ec98213dbf121fe3d0e2ca8b"
+  },
+  "bucket": "maude-multiplayer-test-20260922",
+  "tenantPrefix": "f3-selfhost-2026-09-23t16-29-34-067z",
+  "topology": "docker run on loopback; HUB_PUBLIC_URL http://studio.selfhost.localhost:1234, MAUDE_PUBLIC_CANVAS_ORIGIN http://canvas.selfhost.localhost:1234 (the workspace-plan operator path); second hub on :1235 with the same project name for S02",
+  "accounts": "owner via MAUDE_ADMIN_EMAIL/PASSWORD first-user seed; designers via operator invite + POST /join; sessions via POST /auth/login (password)",
+  "runners": ".ai/scenarios/reliable-project-multiplayer/runners/f3/",
+  "results": {
+    "S01": {
+      "status": "pass",
+      "native": "selfhost-entry-2026-09-23T16-35-49.479Z (clean Linux native profile, team-server form, create + UI text edit)",
+      "ownerBrowser": "Native selfhost CiNoaL edited by designer",
+      "acceptedHashVerified": true,
+      "revision": 194,
+      "screenshotsInspected": [
+        "native-desktop/step-*.png",
+        "peer/owner-browser.png"
+      ]
+    },
+    "S02": {
+      "id": "S02",
+      "backend": "selfhost",
+      "status": "pass",
+      "expiredInvite": {
+        "status": 410,
+        "accountCreated": false
+      },
+      "revokedInvite": {
+        "status": 410,
+        "accountCreated": false
+      },
+      "viewerInvite": {
+        "status": 400,
+        "error": "role must be one of: admin, member (use a read-only token for view-only access)"
+      },
+      "removedDesigner": {
+        "revoked": 2,
+        "kicked": 0,
+        "writeAfterRemoval": 401,
+        "readAfterRemoval": 401,
+        "signInAfterRemoval": 401,
+        "acceptedWorkKept": true
+      },
+      "sameNameOtherServer": {
+        "projectName": "F3 self-host (both)",
+        "projectIds": [
+          "f3-selfhost-2026-09-23t16-29-34-067z",
+          "f3-selfhost-2026-09-23t16-42-00-462z"
+        ],
+        "crossCredentialStatus": 401
+      }
+    },
+    "S03": {
+      "status": "pass",
+      "outcome": "merged (title + color from the same base both survive)"
+    },
+    "S05": {
+      "status": "pass",
+      "note": "raw Update/SyncStep2 on an already-open socket leave accepted head, log and fresh replicas unchanged; old epoch refused epoch-stale"
+    },
+    "S08": {
+      "status": "pass",
+      "note": "text/css/attr/insert/move/delete-element edits visible to the other designer; canvas move + delete; stale writes to old and moved names refused dependency-missing"
+    },
+    "S10": {
+      "status": "pass",
+      "note": "own undo/redo keep peer color; foreign undo 403; ABA refused undo-conflict; deleted target refused"
+    },
+    "S15": {
+      "status": "pass",
+      "rounds": 4,
+      "n": 40,
+      "ackMs": {
+        "p50": 8.9,
+        "p95": 17.2,
+        "p99": 21.8,
+        "n": 160
+      },
+      "rounds_detail": [
+        {
+          "round": 0,
+          "restartMs": 3376,
+          "inflightAnsweredBeforeKill": true,
+          "retryStatus": "accepted",
+          "retryReplayed": false,
+          "inflightRevisions": 1,
+          "acknowledgedLost": 0,
+          "duplicateRevisions": 0,
+          "duplicateTransactions": 0,
+          "headIsLastAcknowledged": true
+        },
+        {
+          "round": 1,
+          "restartMs": 3757,
+          "inflightAnsweredBeforeKill": true,
+          "retryStatus": "accepted",
+          "retryReplayed": false,
+          "inflightRevisions": 1,
+          "acknowledgedLost": 0,
+          "duplicateRevisions": 0,
+          "duplicateTransactions": 0,
+          "headIsLastAcknowledged": true
+        },
+        {
+          "round": 2,
+          "restartMs": 3360,
+          "inflightAnsweredBeforeKill": true,
+          "retryStatus": "accepted",
+          "retryReplayed": false,
+          "inflightRevisions": 1,
+          "acknowledgedLost": 0,
+          "duplicateRevisions": 0,
+          "duplicateTransactions": 0,
+          "headIsLastAcknowledged": true
+        },
+        {
+          "round": 3,
+          "restartMs": 3418,
+          "inflightAnsweredBeforeKill": true,
+          "retryStatus": "accepted",
+          "retryReplayed": false,
+          "inflightRevisions": 1,
+          "acknowledgedLost": 0,
+          "duplicateRevisions": 0,
+          "duplicateTransactions": 0,
+          "headIsLastAcknowledged": true
+        }
+      ],
+      "limitation": "the in-flight proposal was answered before SIGKILL in every round (self-host acks in ~9 ms), so this proves retry-after-unknown-outcome and durability across process death, not a kill inside the commit"
+    },
+    "S19": {
+      "status": "pass",
+      "scope": "browser studio on the self-host hub (owner session): axe-core 4.13.0 WCAG 2/2.1 A/AA on the sign-in page, shell + open canvas, the cross-origin canvas document, History and the accepted-version preview dialog, light and dark; dialog keyboard contract; nothing painted over the modal; live status regions",
+      "scans": [
+        {
+          "scope": "sign-in page",
+          "violations": 0
+        },
+        {
+          "scope": "shell + open canvas (light)",
+          "violations": 0
+        },
+        {
+          "scope": "canvas document (light)",
+          "violations": 0
+        },
+        {
+          "scope": "history panel (light)",
+          "violations": 0
+        },
+        {
+          "scope": "accepted-version preview dialog (light)",
+          "violations": 0
+        },
+        {
+          "scope": "shell + open canvas (dark)",
+          "violations": 0
+        },
+        {
+          "scope": "canvas document (dark)",
+          "violations": 0
+        },
+        {
+          "scope": "history panel (dark)",
+          "violations": 0
+        },
+        {
+          "scope": "accepted-version preview dialog (dark)",
+          "violations": 0
+        }
+      ],
+      "keyboard": {
+        "light": {
+          "focusMovedIn": true,
+          "tabStayedIn": true,
+          "shiftTabStayedIn": true,
+          "escapeClosed": true,
+          "focusReturnedToOpener": true,
+          "controlsObscured": []
+        },
+        "dark": {
+          "focusMovedIn": true,
+          "tabStayedIn": true,
+          "shiftTabStayedIn": true,
+          "escapeClosed": true,
+          "focusReturnedToOpener": true,
+          "controlsObscured": []
+        }
+      },
+      "live": {
+        "statusRegions": 3,
+        "lang": "en",
+        "canvasFrameTitle": "Canvas: .design/ui/Native selfhost CiNoaL.tsx"
+      },
+      "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s19-2026-09-23",
+      "screenshotsInspected": [
+        "preview-dialog-light.png",
+        "preview-dialog-dark.png"
+      ],
+      "fixesFound": [
+        "accepted-version preview dialog let Tab/Shift+Tab leave the modal and then ignored Escape (focus trap + capture-phase Escape, preview iframes out of the tab order; history-preview-focus.test.tsx fails without it)",
+        "branch chip .gp-draft text fg-2 on bg-2 failed contrast in light (now fg-1)",
+        "role notice (.st-banner--info) and tour nudge painted over the modal scrim, covering the dialog header (now below the scrim; warnings/errors unchanged)"
+      ],
+      "notCertified": [
+        "native WebKitGTK shell a11y scan",
+        "manual screen-reader pass",
+        "desktop Sync panel (desktop-only surface)"
+      ]
+    },
+    "S11": {
+      "status": "pass",
+      "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s11-2026-09-23",
+      "revisions": {
+        "created": 226,
+        "replaced": 227,
+        "peer": 228
+      },
+      "preview": {
+        "oldImageDecoded": true,
+        "currentImageDecoded": true
+      },
+      "teammateRendersRestored": true,
+      "after": {
+        "currentIsOldSource": true,
+        "head": 229,
+        "newest": {
+          "revision": 229,
+          "kind": "history.restore",
+          "actor": "cell-loopback-sync"
+        },
+        "peerRevisionKeptInHistory": true,
+        "historicalLanesReadable": {
+          "226": true,
+          "227": true
+        },
+        "assetsReadable": {
+          "60230674.png": true,
+          "1c9da7a5.png": true
+        }
+      },
+      "afterRestart": {
+        "currentIsOldSource": true,
+        "head": 229,
+        "newest": {
+          "revision": 229,
+          "kind": "history.restore",
+          "actor": "cell-loopback-sync"
+        },
+        "peerRevisionKeptInHistory": true,
+        "historicalLanesReadable": {
+          "226": true,
+          "227": true
+        },
+        "assetsReadable": {
+          "60230674.png": true,
+          "1c9da7a5.png": true
+        }
+      },
+      "attribution": "cell loopback credential (known limitation: workspace-browser actions are not attributed to the person)",
+      "screenshotsInspected": [
+        "owner-preview.png",
+        "teammate-after-restore.png"
+      ],
+      "note": "owner previews the old revision in the browser (both images decode), designer B edits while the preview is open, owner restores through the UI; restore is a new history.restore action, the peer revision stays in history, designer A renders the old image, historical lanes and both R2-backed objects stay readable after SIGKILL + restart"
+    },
+    "S09": {
+      "doc": "ui-f3effectscf9bf4",
+      "steps": {
+        "cameraAndPresence": {
+          "newRevisions": 0
+        }
+      },
+      "revisions": 4,
+      "everyRevisionHasTransaction": true,
+      "everyActionHasId": true,
+      "lanes": [
+        "meta",
+        "annotations",
+        "comments",
+        "@manifest",
+        "html"
+      ],
+      "metaHasNoCamera": true,
+      "status": "pass",
+      "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s09-2026-09-23",
+      "screenshotsInspected": [
+        "s09-after-effects.png"
+      ],
+      "note": "real Chromium pointer/keyboard in the owner browser: comment tool + composer, sticky tool drag, artboard label drag (the persisted meta effect was a layout size change 600x400 -> 602x402, not a position move), after 6 wheel pans + a ctrl-zoom + 20 cursor moves; camera/presence produced 0 revisions and the accepted meta lane holds no viewport; every revision carries its transaction and every action its id",
+      "notCovered": [
+        "photo transform (no crop/transform control: L13 unsupported)",
+        "timeline edit on this backend (covered locally by L15)"
+      ]
+    },
+    "S06": {
+      "tag": "d5ae78",
+      "rounds": {
+        "offlineRestart": {
+          "localEditsKeptWhileOffline": true,
+          "bothChangesInX": true,
+          "offlineYAccepted": true,
+          "desktopConverged": true,
+          "offlineActionsBy": [
+            "designer-a@f3-selfhost.invalid"
+          ]
+        },
+        "rejectedFirst": {
+          "acceptedXUnchanged": true,
+          "invalidDraftKeptLocally": true,
+          "independentZAccepted": true,
+          "desktopToldAboutX": true
+        }
+      },
+      "status": "pass",
+      "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s06-2026-09-23",
+      "participant": "source studio server (the desktop sidecar) over its own copy, linked like maude design link, reaching the hub through a toggle proxy that cuts its sockets",
+      "note": "round 1: offline edits to X and Y, the app SIGKILLed with the queue unsent, a teammate edits X, restart still offline, reconnect: X holds both changes, Y accepted, the desktop converges, the offline actions are attributed to designer A only; round 2: offline an unparseable X then a valid Z \u2014 Z is accepted, X stays unchanged in the project, the draft is kept locally and reported body-rejected/invalid-source",
+      "productFixesFound": [
+        "a desktop that restarted without the network forgot the project saves through accepted revisions (mode held only in memory): its offline edits took the legacy shared-document path, the hub fenced those raw updates and the work never reached the project while the status read synced \u2014 the last verdict now persists in _state/accepted-mode.json per hub (sync-accepted-mode-restart.test.ts fails without it)",
+        "with that fixed, draining the outbox before the hub was reachable threw from its binding bootstrap and the unhandled rejection ended the studio process \u2014 the bootstrap now waits out transport failures like delivery does (sync-transaction-client.test.ts \"a restart while the hub is still unreachable\" fails without it)"
+      ],
+      "failWithoutE2E": "the first run of this scenario (before either fix) timed out: the desktop reported 15/15 synced while the project held neither offline edit"
+    },
+    "S04": {
+      "doc": "ui-f3repair78c46d",
+      "tag": "78c46d",
+      "u1Held": {
+        "reason": "invalid-source"
+      },
+      "after": {
+        "acceptedHasRepairAndTeammate": true,
+        "acceptedHash": "b17a657094feb10de1611ce8cde9b84375f9c57d67992bec02c176617d4ec1aa",
+        "revisionsChecked": 3,
+        "u1InAnyRevision": [],
+        "originalU1Recoverable": true,
+        "startingVersionRecoverable": true,
+        "candidateMarkedResolved": true,
+        "conflictClearedAfterRepair": true
+      },
+      "status": "pass",
+      "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s04-2026-09-23",
+      "note": "desktop sidecar: unparseable U1 held (body-rejected/invalid-source), SIGKILL, repair U2 written while down, teammate colour change accepted meanwhile, restart: the repair lands on the teammate change, no revision of the canvas ever holds U1, the recovery candidate still holds U1 and its starting version (marked resolved), the conflict clears",
+      "limitation": "client-invalid U1; network-dependent U1/U2 replay is covered by the local sync suite, not this run"
+    },
+    "S18": {
+      "status": "pass",
+      "states": {
+        "synced": {
+          "label": "synced",
+          "title": "Synced with desktop-status \u2014 all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) \u2014 They are new to this machine \u2014 look them over before editing."
+        },
+        "offline-queued": {
+          "label": "offline",
+          "title": "Not reachable: desktop-status. Your edits are safe on this machine and queued. \u2014 Nothing to do \u2014 syncing resumes by itself when the hub is back."
+        },
+        "back-online": {
+          "label": "synced",
+          "title": "Synced with desktop-status \u2014 all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) \u2014 They are new to this machine \u2014 look them over before editing."
+        },
+        "refused-draft": {
+          "label": "1 to review",
+          "title": "A change needs your attention in desktop-status: 1 source change was not applied. (ui-f3statusbc0424) \u2014 Open the Sync panel to see what is waiting and why."
+        },
+        "draft-resolved": {
+          "label": "synced",
+          "title": "Synced with desktop-status \u2014 all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) \u2014 They are new to this machine \u2014 look them over before editing."
+        },
+        "media-too-large": {
+          "label": "1 to review",
+          "title": "A change needs your attention in desktop-status: 1 file is too large to sync. \u2014 Open the Sync panel to see what is waiting and why."
+        },
+        "media-removed": {
+          "label": "synced",
+          "title": "Synced with desktop-status \u2014 all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) \u2014 They are new to this machine \u2014 look them over before editing."
+        },
+        "hub-cannot-persist": {
+          "label": "1 to review",
+          "title": "A change needs your attention in desktop-status: 1 file could not be delivered. \u2014 Open the Sync panel to see what is waiting and why."
+        },
+        "hub-persists-again": {
+          "label": "synced",
+          "title": "Synced with desktop-status \u2014 all 29 canvases. 29 came down from the project on this connect. (ui-f3crash9ac78ac7, ui-f3effectscf9bf4, ui-f3fence5175e390) \u2014 They are new to this machine \u2014 look them over before editing."
+        }
+      },
+      "checks": {
+        "onlySettledSaysSynced": true,
+        "failingStatesExplain": true,
+        "recoveredEveryTime": true,
+        "persistFailureHeld": true
+      },
+      "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s18-2026-09-23",
+      "surface": "the desktop studio status bar (hub-sync chip label + title) read in a browser, plus the Sync panel; conflict resolved through chip -> Sync -> Resolve -> Use the project version",
+      "operatorSettings": {
+        "MAUDE_MAX_PROJECT_FILE_BYTES": "100000000"
+      },
+      "persistenceFailure": "one folder of the hub checkout made read-only (as the local L22 does); the file waits, is named, and delivers itself when writes return",
+      "screenshotsInspected": [
+        "s18-hub-cannot-persist.png"
+      ],
+      "screenshotNote": "screenshots not retained: the desktop harness showed the operator machine global git identity; the harness now isolates git config"
+    },
+    "S07": {
+      "tag": "23384b",
+      "checks": {
+        "nothingPublishedMidway": true,
+        "failedEndHeld": true,
+        "heldStatusShown": true,
+        "coldStartDidNotPublish": true,
+        "candidateKeptOnDisk": true,
+        "publishOk": true,
+        "oneAction": true,
+        "oneRevision": true,
+        "bothEffectsInThatAction": true,
+        "actor": "designer-a@f3-selfhost.invalid",
+        "secondPublishAddsNothing": true
+      },
+      "detail": {
+        "headBefore": 270,
+        "midHead": 270,
+        "afterRestart": {
+          "head": 270,
+          "pUnchanged": true,
+          "qUnchanged": true,
+          "candidateKeptOnDisk": true,
+          "stageHeld": true
+        },
+        "headPublished": 271,
+        "publish": {
+          "ok": true,
+          "status": "accepted"
+        },
+        "again": 409
+      },
+      "status": "pass",
+      "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s07-2026-09-23",
+      "note": "desktop sidecar driven through the agent routes (/_api/ai/start, file writes to two canvases, /_api/ai/end outcome failed), SIGKILL + cold start, then /_api/project/ai-action publish; a second publish is refused",
+      "limitation": "two canvases stand in for canvas + code module: code modules travel only to a consenting copy (DDR-217) and have no consent control yet (the local matrix records L16.module.edit unsupported)"
+    },
+    "S12": {
+      "path": "assets/f3-large-679a5d.mp4",
+      "size": 125829120,
+      "sha256": "eff0a00b16dc990018f15818baea86311898d40bd37ed931bf765c128ffef9be",
+      "resume": {
+        "status": 200,
+        "receivedAfterRestart": 8,
+        "verifiedBeforeKill": 7
+      },
+      "corruptPart": {
+        "part": 8,
+        "status": 400,
+        "keptAfter": false
+      },
+      "complete": {
+        "first": 200,
+        "second": 200,
+        "sameReceipt": true
+      },
+      "readBack": {
+        "status": 200,
+        "sha256Matches": true
+      },
+      "checkout": {
+        "present": true,
+        "strayTemps": []
+      },
+      "objectStorage": {
+        "objects": [
+          {
+            "key": "assets/f3-large-679a5d.mp4",
+            "size": 125829120
+          }
+        ],
+        "sizeMatches": true,
+        "wrongHashObjectAbsent": true
+      },
+      "wrongWholeHash": {
+        "status": 422,
+        "landed": false
+      },
+      "overCeiling": {
+        "status": 413,
+        "error": "over the 2147483648-byte project file ceiling"
+      },
+      "status": "pass",
+      "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s12-2026-09-23",
+      "note": "120 MiB through /api/file-uploads; the hub container is SIGKILLed with a part in flight and restarted; resume keeps the verified parts, a corrupted copy of a missing part is refused (400) and not kept, completion sent twice returns the same receipt, read back through the hub byte-identical, one object in R2 of the full size; a wrong whole hash (422) and a size over the ceiling (413) land nothing in checkout or storage",
+      "limitation": "self-hosted hub keys objects unscoped (assets/<name>); the tenant-prefix assertion belongs to the cloud run"
+    }
+  },
+  "productFix": {
+    "file": "apps/hub/src/invites.mjs",
+    "finding": "a viewer invitation answered 201 role viewer while storing member; the joined account could write",
+    "fix": "createInvite refuses roles other than admin|member (400); regression in apps/hub/test/invites.test.mjs fails without it"
+  },
+  "fixtureCorrection": "a first fixture without a canvas hostname rendered blank canvas frames (ERR_CONNECTION_REFUSED to a container-internal port) \u2014 the documented M7 requirement, not a product defect; the fixture now follows workspace-plan",
+  "remaining": [
+    "S13",
+    "S14",
+    "S16",
+    "S17"
+  ],
+  "cleanup": {
+    "complete": false,
+    "reason": "fixture retained for the remaining self-host scenarios; containers maude-f3-selfhost-*, R2 prefixes f3-selfhost-2026-09-23t16-29-34-067z and the second hub tenant to delete at the end"
+  },
+  "findings": [
+    {
+      "finding": "MAUDE_CELL_PAIRING is not emitted by the self-host provisioning path (cli/lib/workspace-plan.mjs); without it the browser studio on a self-host workspace is not a doc-lane participant (browser-created canvases never become Y.Docs; History shows git, not accepted revisions). The fleet gates it per tenant (CELL_LIVE_PAIRING pilot). The F3 fixture sets it, like scripts/dev/local-cell.mjs.",
+      "decision": "owner decision pending: make it the self-host default or keep it opt-in"
+    }
+  ]
+}

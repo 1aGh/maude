@@ -433,11 +433,17 @@ fn cloud_url_allowed(url: &str, base: &reqwest::Url) -> Option<reqwest::Url> {
 /// view, dashboard) in the OS browser. Zone-locked in Rust against the address
 /// resolved at call time; the webview's argument never widens what is allowed.
 #[tauri::command]
-pub fn open_cloud_url(url: String) -> Result<(), String> {
+pub async fn open_cloud_url(url: String) -> Result<(), String> {
     // Launch the PARSED url, never the caller's string — see cloud_url_allowed.
     let validated = cloud_url_allowed(&url, &cloud_base())
         .ok_or_else(|| "Refusing to open a URL outside Maude Cloud.".to_string())?;
-    open::that(validated.as_str()).map_err(|e| format!("Couldn't open the browser: {e}"))
+    // Linux launchers can wait for the browser to exit. A synchronous Tauri
+    // command then freezes the main event loop, including the device-code UI.
+    // Keep both that wait and its error reporting off the UI/runtime workers.
+    tauri::async_runtime::spawn_blocking(move || open::that(validated.as_str()))
+        .await
+        .map_err(|e| format!("Couldn't launch the browser task: {e}"))?
+        .map_err(|e| format!("Couldn't open the browser: {e}"))
 }
 
 #[cfg(test)]

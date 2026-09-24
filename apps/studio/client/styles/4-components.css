@@ -1614,7 +1614,9 @@
   position: fixed;
   left: 16px;
   bottom: 16px;
-  z-index: 9001;
+  /* below a modal's scrim (.st-scrim 9000): it sat on top of the history
+     preview dialog (S19). */
+  z-index: 8990;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -2030,7 +2032,7 @@
 .st-cloudwho-out {
   font: inherit;
   font-size: 12px;
-  color: var(--u-fg-3);
+  color: var(--u-fg-2);
   background: none;
   border: 0;
   cursor: pointer;

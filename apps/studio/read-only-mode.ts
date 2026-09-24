@@ -30,7 +30,60 @@ export function isReadOnlyCanvas(): boolean {
   return cached;
 }
 
+let embedCached: boolean | null = null;
+
+/**
+ * DDR-242 — is this canvas the chromeless view another app frames
+ * (`client/embed-view.jsx` appends `?embed=1`)? Boot-static for the same reason
+ * as `isReadOnlyCanvas`. An embed pans and zooms, but never persists its
+ * camera: the designer's own view of the canvas is not the embed's to move.
+ */
+export function isEmbedCanvas(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (embedCached === null) {
+    try {
+      embedCached = new URLSearchParams(window.location.search).get('embed') === '1';
+    } catch {
+      embedCached = false;
+    }
+  }
+  return embedCached;
+}
+
+/**
+ * DDR-242 — Escape inside an embedded canvas belongs to the app around it.
+ * Keys pressed in this frame never reach the embedding page, so an embed shown
+ * in a dialog would trap a keyboard user: the dialog's own Escape stops
+ * working. When nothing in the canvas consumed the key (`defaultPrevented`,
+ * read after every listener has run), tell the studio page, which relays it to
+ * the embedder as the contract's `escape`. Never in the studio itself.
+ */
+export function installEmbedEscapeRelay(win: Window = window): () => void {
+  let embed = false;
+  try {
+    embed = new URLSearchParams(win.location?.search ?? '').get('embed') === '1';
+  } catch {
+    /* not a canvas URL */
+  }
+  if (!embed || win.parent === win) return () => {};
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape' || e.isComposing) return;
+    setTimeout(() => {
+      if (e.defaultPrevented) return;
+      try {
+        // The studio page checks origin + source before relaying anything.
+        win.parent.postMessage({ dgn: 'embed-escape' }, '*');
+      } catch {
+        /* parent gone */
+      }
+    }, 0);
+  };
+  win.addEventListener('keydown', onKey);
+  return () => win.removeEventListener('keydown', onKey);
+}
+
 /** Test seam — reset the module cache (bun:test re-uses the module registry). */
 export function _resetReadOnlyCache(): void {
   cached = null;
+  embedCached = null;
 }

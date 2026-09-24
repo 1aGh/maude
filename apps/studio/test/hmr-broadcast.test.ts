@@ -1,7 +1,8 @@
 // hmr-broadcast — Phase 3.6.1 Task 8. fs:any → canvas-hmr WS message classifier.
 
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { type Context, createBus } from '../context.ts';
@@ -241,6 +242,36 @@ describe('the PhotoEdit sidecar reaches open canvases', () => {
 // optimistic style edit (anti-flicker). A write by SYNC must never be skipped:
 // it can carry a teammate's change merged under that person's edit.
 describe('sync writes reach an open canvas even right after an own edit', () => {
+  test('a delayed watcher fallback does not reload the same disk version twice; the next write still does', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'maude-hmr-repeat-'));
+    const ctx = mkCtx();
+    ctx.paths.designRoot = root;
+    const got: HmrMessage[] = [];
+    const h = createHmrBroadcaster(ctx, (m) => got.push(m));
+    try {
+      writeFileSync(join(root, 'Theirs.tsx'), 'export default 1;');
+      ctx.bus.emit('sync:projected', 'Theirs.tsx');
+      ctx.bus.emit('fs:any', 'Theirs.tsx');
+      await awaitNextFlush();
+      expect(got).toHaveLength(1);
+      // Outside HMR's 50 ms debounce: the cell's synthetic fallback used to
+      // start a second import and invalidate the first import still in flight.
+      ctx.bus.emit('fs:any', 'Theirs.tsx');
+      await awaitNextFlush();
+      expect(got).toHaveLength(1);
+      // Equal-size rapid edits are not echoes, even within the remote window.
+      writeFileSync(join(root, 'Theirs.tsx'), 'export default 2;');
+      ctx.bus.emit('sync:projected', 'Theirs.tsx');
+      ctx.bus.emit('fs:any', 'Theirs.tsx');
+      await awaitNextFlush();
+      expect(got).toHaveLength(2);
+      expect(got.every((m) => m.remote)).toBe(true);
+    } finally {
+      h.stop();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test('a change sync just wrote is marked remote; an own edit is not', async () => {
     const ctx = mkCtx();
     const got: HmrMessage[] = [];

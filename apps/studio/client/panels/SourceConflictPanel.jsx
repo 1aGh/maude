@@ -12,7 +12,8 @@
 //
 // No hashes, epochs or lane names: "Your version" / "The project's version".
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLinkDialogFocus } from '../share-dialog.jsx';
 
 /** Line diff by longest common subsequence — bounded, for a canvas source. */
 export function lineDiff(a, b, max = 2000) {
@@ -63,7 +64,7 @@ export default function SourceConflictPanel({ slug, onClose }) {
   const [sides, setSides] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
-  const ref = useRef(null);
+  const ref = useLinkDialogFocus(onClose);
 
   useEffect(() => {
     let alive = true;
@@ -79,19 +80,6 @@ export default function SourceConflictPanel({ slug, onClose }) {
       alive = false;
     };
   }, [slug]);
-
-  useEffect(() => {
-    const prev = document.activeElement;
-    ref.current?.querySelector('button')?.focus();
-    const onKey = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      prev?.focus?.();
-    };
-  }, [onClose]);
 
   const rows = useMemo(() => (sides ? withContext(lineDiff(sides.mine ?? '', sides.theirs ?? '')) : []), [sides]);
 
@@ -120,8 +108,8 @@ export default function SourceConflictPanel({ slug, onClose }) {
       <div className="gi-dialog scp-dialog" ref={ref} data-testid="source-conflict-panel">
         <div className="tp-dialog-head">
           <div>
-            <h2 id="scp-title">Two versions of {slug}</h2>
-            <p>Your change and a teammate’s touched the same lines. Nothing is lost — choose which one the project keeps.</p>
+            <h2 id="scp-title">Review changes to {slug}</h2>
+            <p>Your draft has not been shared. Compare it with the project’s version before choosing what to keep.</p>
           </div>
           <button type="button" className="btn btn--ghost btn--sm" onClick={() => onClose()} aria-label="Close" data-testid="source-conflict-close">
             ×
@@ -129,6 +117,20 @@ export default function SourceConflictPanel({ slug, onClose }) {
         </div>
         {sides && (
           <>
+            <div className="scp-recovery">
+              <details>
+                <summary>Original draft</summary>
+                {sides.original !== null && sides.original !== undefined ? (
+                  <pre tabIndex={0} role="region" aria-label="Original draft" data-testid="source-conflict-original">{sides.original}</pre>
+                ) : <p>The original draft is not available on this device.</p>}
+              </details>
+              <details>
+                <summary>Starting version</summary>
+                {sides.base !== null && sides.base !== undefined ? (
+                  <pre tabIndex={0} role="region" aria-label="Starting version" data-testid="source-conflict-base">{sides.base}</pre>
+                ) : <p>The version this draft started from is not known.</p>}
+              </details>
+            </div>
             <div className="scp-legend" aria-hidden="true">
               <span className="scp-key scp-key--mine">Your version</span>
               <span className="scp-key scp-key--theirs">The project’s version</span>

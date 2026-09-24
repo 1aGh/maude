@@ -1,0 +1,43 @@
+{
+  "date": "2026-09-22",
+  "status": "passed",
+  "scope": "S01 actual cloud invite-to-first-edit flow; not full F3 certification",
+  "backend": "Isolated Cloudflare control Worker, D1, cell container, ProjectStore and R2",
+  "projectId": "f3-cloud",
+  "nativeSurface": "Linux WebKitGTK debug app, separate com.maude.app.e2e identity, fresh XDG profile",
+  "run": ".ai/device/scenario-runs/reliable-project-multiplayer/cloud-entry-2026-09-22T14-43-16.173Z",
+  "designer": "designer-a@maude-f3.invalid",
+  "peer": "owner@maude-f3.invalid in an independent browser profile",
+  "steps": [
+    "Owner invitation and designer acceptance through real forms (cloud-auth evidence)",
+    "Clean first-run native app, invited-project door, real device-code request",
+    "Approval in the signed-in designer dashboard; native polling and project list",
+    "Project pick without token, terminal, Git or folder selection",
+    "Managed copy created; user-facing sync consent accepted through its button",
+    "New brief board created and rendered through native UI",
+    "Text edited through native leaf editor and Enter; persisted and rendered locally",
+    "Independent owner browser renders the exact edited title; accepted history confirms the designer's action"
+  ],
+  "createdCanvas": "ui/Native cloud UncRL8.tsx",
+  "editedTitle": "Native cloud UncRL8 edited by designer",
+  "acceptedCreate": { "revision": 3, "actionId": "a_934f6dd6-2638-48b9-a31b-241c1b4b9dbd" },
+  "acceptedEdit": { "revision": 4, "actionId": "a_23568527-e5bd-4f0c-9485-35342a50687d", "actor": "designer-a@maude-f3.invalid", "kind": "edit" },
+  "screenshots": {
+    "native": "Five images in the run's native-desktop directory; all inspected",
+    "peer": ".ai/browser/screenshots/followup-f3-native-edit-browser-peer.png"
+  },
+  "regression": {
+    "failure": "Synchronous open_cloud_url waited for xdg-open on the main thread; device-code UI and WebDriver became unresponsive",
+    "redRuns": ["cloud-entry-2026-09-22T14-23-39.615Z", "cloud-entry-2026-09-22T14-26-15.697Z", "cloud-entry-2026-09-22T14-29-50.002Z"],
+    "fix": "Async command awaits launcher on blocking pool, preserving URL validation and error reporting",
+    "urlPolicyTests": "11 passed",
+    "nativeResult": "1 passed, 0 failed; 50.7 seconds"
+  },
+  "limitations": [
+    "Linux debug evidence does not certify a signed release or macOS",
+    "Cell image predates local HMR optimization; only the recorded source/build combination was exercised",
+    "Earlier create-only run clicked behind a consent modal and is not the S01 acceptance evidence",
+    "Self-host S01 and remaining cloud/self-host scenarios are still pending"
+  ],
+  "cleanup": { "complete": false, "reason": "Test resources retained for remaining F3 scenarios" }
+}

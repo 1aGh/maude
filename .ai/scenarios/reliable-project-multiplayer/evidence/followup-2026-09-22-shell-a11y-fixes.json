@@ -1,0 +1,396 @@
+{
+  "date": "2026-09-22T18:45:33.580Z",
+  "scope": "Partial S19 repair; local Chromium shell fixture. Not actual-cloud/native certification.",
+  "fixes": [
+    "Move menubar role from header to menu trigger group, preserving header landmark and other controls.",
+    "Declare English shell language.",
+    "Name each canvas iframe from its file path.",
+    "Use existing fg-2 text token for small readable labels, tabs, version, project name, preview zoom-lock label and sign-out."
+  ],
+  "sourceAndBuildSha256": {
+    "apps/studio/client/app.jsx": "bdf9f4a92ed1a987dfc86cef001367c549458d03c4347abbee0ced704d6a1a22",
+    "apps/studio/client/index.html": "4ffa7417ba3247347d3ddc995c1869d483f4df4195ff9f84fc17559907102833",
+    "apps/studio/client/styles/3-shell-maude.css": "a995b3c9645f8021c91165dfc052db716f44d32967c8122169ffc1f779d051f7",
+    "apps/studio/client/styles/4-components.css": "10b97ee42b201eba90aa45e911fe3d396ea0bff81604c2fdf9662b58c9de4ac3",
+    "apps/studio/dist/client.bundle.js": "1117a581ff801d7c6ff46b7cc9a07329a62a3d1e99c1c444cbc50bb251432773",
+    "apps/studio/dist/styles.css": "2cd4c83e5b22dc7593a857744f76843b566c5d0de6fa7c0bcf709bdd8976f963"
+  },
+  "tests": {
+    "semanticsBefore": {
+      "pass": 0,
+      "fail": 3
+    },
+    "contrastBefore": {
+      "pass": 1,
+      "fail": 11
+    },
+    "affectedAfter": {
+      "pass": 21,
+      "fail": 0,
+      "assertions": 60,
+      "files": 5
+    },
+    "typecheck": "pass",
+    "biomeNewTests": "pass",
+    "releaseBuild": "pass"
+  },
+  "beforeContrast": {
+    "date": "2026-09-22T18:42:25.529Z",
+    "scope": "Local browser shell, not cloud/native certification",
+    "results": [
+      {
+        "engine": {
+          "name": "axe-core",
+          "version": "4.13.0"
+        },
+        "frameTitle": "Canvas: .design/ui/Accessibility.html",
+        "language": "en",
+        "menubar": "st-menus",
+        "passes": [
+          "aria-allowed-attr",
+          "aria-conditional-attr",
+          "aria-deprecated-role",
+          "aria-hidden-body",
+          "aria-hidden-focus",
+          "aria-prohibited-attr",
+          "aria-required-attr",
+          "aria-required-children",
+          "aria-required-parent",
+          "aria-roles",
+          "aria-valid-attr-value",
+          "aria-valid-attr",
+          "avoid-inline-spacing",
+          "button-name",
+          "color-contrast",
+          "document-title",
+          "form-field-multiple-labels",
+          "frame-title-unique",
+          "frame-title",
+          "html-has-lang",
+          "html-lang-valid",
+          "label",
+          "nested-interactive"
+        ],
+        "theme": "light",
+        "violations": [
+          {
+            "id": "aria-required-children",
+            "impact": "critical",
+            "targets": [
+              [
+                ".st-tree"
+              ]
+            ]
+          },
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "targets": [
+              [
+                ".st-mb-proj"
+              ],
+              [
+                "button[data-testid=\"dock-tab-layers\"]"
+              ],
+              [
+                ".st-sb-active > .lbl"
+              ],
+              [
+                "span[aria-label=\"Open comments\"] > .lbl"
+              ],
+              [
+                "span[aria-label=\"Connection\"] > .lbl"
+              ],
+              [
+                "span[data-testid=\"statusbar-version\"]"
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "engine": {
+          "name": "axe-core",
+          "version": "4.13.0"
+        },
+        "frameTitle": "Canvas: .design/ui/Accessibility.html",
+        "language": "en",
+        "menubar": "st-menus",
+        "passes": [
+          "aria-allowed-attr",
+          "aria-conditional-attr",
+          "aria-deprecated-role",
+          "aria-hidden-body",
+          "aria-hidden-focus",
+          "aria-prohibited-attr",
+          "aria-required-attr",
+          "aria-required-children",
+          "aria-required-parent",
+          "aria-roles",
+          "aria-valid-attr-value",
+          "aria-valid-attr",
+          "avoid-inline-spacing",
+          "button-name",
+          "color-contrast",
+          "document-title",
+          "form-field-multiple-labels",
+          "frame-title-unique",
+          "frame-title",
+          "html-has-lang",
+          "html-lang-valid",
+          "label",
+          "nested-interactive"
+        ],
+        "theme": "dark",
+        "violations": [
+          {
+            "id": "aria-required-children",
+            "impact": "critical",
+            "targets": [
+              [
+                ".st-tree"
+              ]
+            ]
+          },
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "targets": [
+              [
+                "button[data-testid=\"dock-tab-layers\"]"
+              ],
+              [
+                ".st-sb-active > .lbl"
+              ],
+              [
+                "span[aria-label=\"Open comments\"] > .lbl"
+              ],
+              [
+                "span[aria-label=\"Connection\"] > .lbl"
+              ],
+              [
+                "span[data-testid=\"statusbar-version\"]"
+              ]
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "afterContrastEarly": {
+    "date": "2026-09-22T18:44:38.516Z",
+    "scope": "Local browser shell, not cloud/native certification",
+    "results": [
+      {
+        "engine": {
+          "name": "axe-core",
+          "version": "4.13.0"
+        },
+        "frameTitle": "Canvas: .design/ui/Accessibility.html",
+        "language": "en",
+        "menubar": "st-menus",
+        "passes": [
+          "aria-allowed-attr",
+          "aria-conditional-attr",
+          "aria-deprecated-role",
+          "aria-hidden-body",
+          "aria-hidden-focus",
+          "aria-prohibited-attr",
+          "aria-required-attr",
+          "aria-required-children",
+          "aria-required-parent",
+          "aria-roles",
+          "aria-valid-attr-value",
+          "aria-valid-attr",
+          "avoid-inline-spacing",
+          "button-name",
+          "color-contrast",
+          "document-title",
+          "form-field-multiple-labels",
+          "frame-title-unique",
+          "frame-title",
+          "html-has-lang",
+          "html-lang-valid",
+          "label",
+          "nested-interactive"
+        ],
+        "theme": "light",
+        "violations": [
+          {
+            "id": "aria-required-children",
+            "impact": "critical",
+            "targets": [
+              [
+                ".st-tree"
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "engine": {
+          "name": "axe-core",
+          "version": "4.13.0"
+        },
+        "frameTitle": "Canvas: .design/ui/Accessibility.html",
+        "language": "en",
+        "menubar": "st-menus",
+        "passes": [
+          "aria-allowed-attr",
+          "aria-conditional-attr",
+          "aria-deprecated-role",
+          "aria-hidden-body",
+          "aria-hidden-focus",
+          "aria-prohibited-attr",
+          "aria-required-attr",
+          "aria-required-children",
+          "aria-required-parent",
+          "aria-roles",
+          "aria-valid-attr-value",
+          "aria-valid-attr",
+          "avoid-inline-spacing",
+          "button-name",
+          "color-contrast",
+          "document-title",
+          "form-field-multiple-labels",
+          "frame-title-unique",
+          "frame-title",
+          "html-has-lang",
+          "html-lang-valid",
+          "label",
+          "nested-interactive"
+        ],
+        "theme": "dark",
+        "violations": [
+          {
+            "id": "aria-required-children",
+            "impact": "critical",
+            "targets": [
+              [
+                ".st-tree"
+              ]
+            ]
+          },
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "targets": [
+              [
+                ".st-skel-cap"
+              ]
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "afterSettled": {
+    "date": "2026-09-22T18:45:33.580Z",
+    "scope": "Local browser shell, not cloud/native certification",
+    "results": [
+      {
+        "engine": {
+          "name": "axe-core",
+          "version": "4.13.0"
+        },
+        "frameTitle": "Canvas: .design/ui/Accessibility.html",
+        "language": "en",
+        "menubar": "st-menus",
+        "passes": [
+          "aria-allowed-attr",
+          "aria-conditional-attr",
+          "aria-deprecated-role",
+          "aria-hidden-body",
+          "aria-hidden-focus",
+          "aria-prohibited-attr",
+          "aria-required-attr",
+          "aria-required-children",
+          "aria-required-parent",
+          "aria-roles",
+          "aria-valid-attr-value",
+          "aria-valid-attr",
+          "avoid-inline-spacing",
+          "button-name",
+          "color-contrast",
+          "document-title",
+          "form-field-multiple-labels",
+          "frame-title-unique",
+          "frame-title",
+          "html-has-lang",
+          "html-lang-valid",
+          "label",
+          "nested-interactive"
+        ],
+        "theme": "light",
+        "violations": [
+          {
+            "id": "aria-required-children",
+            "impact": "critical",
+            "targets": [
+              [
+                ".st-tree"
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "engine": {
+          "name": "axe-core",
+          "version": "4.13.0"
+        },
+        "frameTitle": "Canvas: .design/ui/Accessibility.html",
+        "language": "en",
+        "menubar": "st-menus",
+        "passes": [
+          "aria-allowed-attr",
+          "aria-conditional-attr",
+          "aria-deprecated-role",
+          "aria-hidden-body",
+          "aria-hidden-focus",
+          "aria-prohibited-attr",
+          "aria-required-attr",
+          "aria-required-children",
+          "aria-required-parent",
+          "aria-roles",
+          "aria-valid-attr-value",
+          "aria-valid-attr",
+          "avoid-inline-spacing",
+          "button-name",
+          "color-contrast",
+          "document-title",
+          "form-field-multiple-labels",
+          "frame-title-unique",
+          "frame-title",
+          "html-has-lang",
+          "html-lang-valid",
+          "label",
+          "nested-interactive"
+        ],
+        "theme": "dark",
+        "violations": [
+          {
+            "id": "aria-required-children",
+            "impact": "critical",
+            "targets": [
+              [
+                ".st-tree"
+              ]
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "screenshotsInspected": [
+    ".ai/browser/screenshots/s19-shell-fixed-dark.png",
+    ".ai/browser/screenshots/s19-shell-fixed-light.png"
+  ],
+  "remaining": [
+    "File-tree ARIA ownership still fails in both themes.",
+    "An early scan during loading also reported .st-skel-cap contrast; retained, not waived by the settled rerun.",
+    "Cloud sign-out and preview zoom label have CSS/token tests but still need rendered verification in their actual deployed states.",
+    "Manual keyboard/focus/screen-reader, native, real-cloud and self-host matrix remain pending.",
+    "Native history preview current pane was blank in focused run 2026-09-22T18-23-28.273Z; no fix claimed."
+  ]
+}
