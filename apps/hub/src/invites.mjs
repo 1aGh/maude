@@ -121,7 +121,9 @@ export function createInvite(dataDir, { email, role = 'member', ttlHours, create
   // an unknown role must never be an escalation (read-only access on a hub is
   // a read-only token, not an invite).
   if (role !== 'admin' && role !== 'member')
-    throw new Error("role must be one of: admin, member — a self-hosted hub has no view-only accounts");
+    throw new Error(
+      'role must be one of: admin, member — a self-hosted hub has no view-only accounts'
+    );
   const handle = db(dataDir);
   const value = INVITE_PREFIX + randomBytes(24).toString('hex');
   const id = randomBytes(8).toString('hex');
