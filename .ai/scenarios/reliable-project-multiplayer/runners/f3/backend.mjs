@@ -3,7 +3,7 @@
 // each backend's REAL sign-in path and held in memory only.
 import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 export const sha = (s) => createHash('sha256').update(s).digest('hex');
 
@@ -55,15 +55,35 @@ async function cloudHubToken(who) {
     body: { project: CLOUD.project },
   });
   if (opened.status !== 200) throw new Error(`cloud open ${who}: ${opened.status}`);
-  const login = await request(`${CLOUD.origin}/auth/login`, { body: { token: opened.body.token } });
+  // The cell rate-limits sign-in per client (a real control, kept): wait it out.
+  let login;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    login = await request(`${CLOUD.origin}/auth/login`, { body: { token: opened.body.token } });
+    if (login.status !== 429) break;
+    await new Promise((r) => setTimeout(r, 15000));
+  }
   if (login.status !== 200) throw new Error(`cloud login ${who}: ${login.status}`);
   return { token: login.body.token, role: login.body.user?.role ?? opened.body.role, projectToken: opened.body.token };
 }
 
 export async function loadBackend(name, opts = {}) {
   if (name === 'cloud') {
-    const tokens = {};
-    for (const who of ['owner', 'a', 'b']) tokens[who] = await cloudHubToken(who);
+    // Cached per run directory (0600) so a series of runners does not sign in
+    // again each time; a cached token the cell refuses is minted afresh.
+    const cache = opts.cache ?? process.env.F3_CLOUD_SESSIONS ?? null;
+    let tokens = null;
+    if (cache && existsSync(cache)) {
+      tokens = JSON.parse(readFileSync(cache, 'utf8'));
+      const probe = await request(`${CLOUD.origin}/api/projects/current/v1/bootstrap`, {
+        headers: { authorization: `Bearer ${tokens.owner?.token}` },
+      }).catch(() => ({ status: 0 }));
+      if (probe.status !== 200) tokens = null;
+    }
+    if (!tokens) {
+      tokens = {};
+      for (const who of ['owner', 'a', 'b']) tokens[who] = await cloudHubToken(who);
+      if (cache) writeFileSync(cache, JSON.stringify(tokens), { mode: 0o600 });
+    }
     return makeBackend({ name, origin: CLOUD.origin, projectId: CLOUD.project, tokens, cloud: CLOUD });
   }
   if (name === 'selfhost') {
