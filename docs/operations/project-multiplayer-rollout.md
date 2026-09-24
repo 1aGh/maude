@@ -25,6 +25,25 @@ either direction: entering imports the documents' final state; leaving keeps
 the accepted state in the documents; re-entering carries forward anything
 written while the project was back in legacy mode.
 
+### Legacy mode on a cloud cell: what a restart keeps
+
+A cell's disk goes with its container, and every wake restores the newest
+backup generation (`MAUDE_BACKUP_INTERVAL_MS`, 10 minutes in a cell). In
+`legacy` mode the shared documents live only in that working set, so:
+
+- **A graceful stop** — a platform migration or rollout, a sleep after
+  inactivity (SIGTERM) — loses nothing: the hub writes every pending document
+  and takes a final generation before it exits.
+- **A hard kill** — the container dies without SIGTERM (a crash, an operator
+  `POST /_cell/restart`, which destroys it) — comes back from the previous
+  generation. Anything written since then survives only on the desktops that
+  still hold it (they send it again when they reconnect); an edit made only in
+  the browser is gone.
+
+`transactions` mode has no such window: every accepted revision is durable in
+the tenant's `ProjectStore` before it is acknowledged. That is a reason to
+switch a cloud project early, not a reason to hurry a switch.
+
 ## Preflight (read-only)
 
 All commands use the project owner's token (`$OWNER`, a hub admin/owner token

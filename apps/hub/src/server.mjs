@@ -2162,6 +2162,34 @@ export function createHub(config = {}) {
         console.error(`[workspace] shutdown flush did NOT commit: ${outcome.reason}`);
       }
     },
+    /**
+     * The graceful-shutdown generation: every document the store still has
+     * pending is written to `hub.db` first, then one last backup is taken.
+     * Without it a cell that is stopped (platform migration, sleep after
+     * inactivity) comes back from the previous generation and loses whatever
+     * was written in between (F3 S17 on the cloud cell, 2026-09-24).
+     */
+    async finalBackup() {
+      try {
+        server.hocuspocus?.flushPendingStores?.();
+        const debouncer = server.hocuspocus?.debouncer;
+        const end = Date.now() + 5000;
+        while (
+          debouncer &&
+          Date.now() < end &&
+          [...(server.hocuspocus?.documents?.keys?.() ?? [])].some((n) =>
+            debouncer.isCurrentlyExecuting?.(`onStoreDocument-${n}`)
+          )
+        ) {
+          await new Promise((r) => setTimeout(r, 50));
+        }
+      } catch (err) {
+        console.error(`[hub] document flush before the final backup failed: ${err.message}`);
+      }
+      const r = await stopBackups.final();
+      if (r) console.log(`[hub] final backup ${r.prefix} on shutdown`);
+      return r;
+    },
     /** Stop the backup schedule + close the rate store. Tests call this; the
      *  process exiting does the same thing in production. */
     stopBackgroundWork() {
@@ -3521,6 +3549,10 @@ async function runAsMain() {
       // debounce window is exactly the rewind the tail exists to prevent.
       .then(() => built.stopJournal())
       .catch((err) => console.error('[hub] journal tail flush error:', err))
+      // After the commit and the tail: the last generation carries both, and
+      // every document still pending in the store (a cell's disk goes with it).
+      .then(() => built.finalBackup())
+      .catch((err) => console.error('[hub] final backup error:', err))
       // The studio owns `_server.json` and a couple of pending writes; stopping
       // it politely is what keeps the next boot from reading stale state as a
       // live instance.
