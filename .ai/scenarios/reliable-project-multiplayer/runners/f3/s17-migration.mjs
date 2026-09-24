@@ -60,7 +60,7 @@ const replace = (r, text) =>
 const start = await mode();
 assert.equal(start.mode, 'legacy', 'S17 needs a fresh legacy project');
 const port = fx.port;
-const proxy = await startProxy({ listen: port + 110, target: port, control: port + 111 });
+const proxy = await startProxy({ listen: port + 110, target: fx.backend === "cloud" ? fx.url : port, control: port + 111 });
 const A = await startDesktop({
   root: join(scratch, `desktop-migrate-${tag}`),
   port: port + 120,

@@ -31,7 +31,7 @@ const base = canvasSource(name, 'Base title');
 assert.equal((await B.propose('b', [{ op: 'doc.create', doc, path: rel, lanes: { html: base } }])).status, 200);
 const created = (await B.bootstrap('owner')).revision;
 const port = fx.port;
-const proxy = await startProxy({ listen: port + 70, target: port, control: port + 71 });
+const proxy = await startProxy({ listen: port + 70, target: fx.backend === "cloud" ? fx.url : port, control: port + 71 });
 const A = await startDesktop({
   root: join(scratch, `desktop-repair-${tag}`),
   port: port + 80,

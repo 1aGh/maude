@@ -21,7 +21,8 @@ const work = arg('work');
 const out = arg('out');
 mkdirSync(out, { recursive: true });
 const fx = JSON.parse(readFileSync(join(work, 'fixture.json'), 'utf8'));
-const token = fx.sessions.a.token;
+let token = fx.sessions.a.token;
+const cloud = fx.backend === 'cloud';
 const sha = (b) => createHash('sha256').update(b).digest('hex');
 const tag = randomBytes(3).toString('hex');
 const call = async (method, route, body, headers = {}) => {
@@ -45,7 +46,8 @@ const result = { path, size, sha256: whole };
 
 const session = await call('POST', '/api/file-uploads', { path, size, sha256: whole });
 assert.ok([200, 201].includes(session.status), `session ${session.status} ${JSON.stringify(session.body)}`);
-const { id, partBytes, parts } = session.body;
+let { id } = session.body;
+const { partBytes, parts } = session.body;
 const part = (n) => bytes.subarray(n * partBytes, Math.min(size, (n + 1) * partBytes));
 const put = (n, data = part(n), claimed = sha(part(n))) =>
   call('PUT', `/api/file-uploads/${id}/${n}`, new Uint8Array(data), {
@@ -60,13 +62,27 @@ await new Promise((r) => setTimeout(r, 50));
 execSync(arg('kill'), { stdio: 'ignore' });
 await inflight;
 execSync(arg('start'), { stdio: 'ignore' });
+// A cloud cell's sessions live on its disposable disk: a restart signs everyone
+// out, and a real desktop renews through the control plane. Do the same.
+if (fx.backend === 'cloud') {
+  const { loadBackend } = await import('./backend.mjs');
+  token = (await loadBackend('cloud', { cache: null })).tokens.a.token;
+}
 const resumed = await call('GET', `/api/file-uploads/${id}`);
 result.resume = {
   status: resumed.status,
   receivedAfterRestart: resumed.body?.received?.length ?? null,
   verifiedBeforeKill: half,
 };
-assert.ok(resumed.body.received.length >= half, 'verified parts survived the restart');
+if (!Array.isArray(resumed.body?.received)) {
+  // Recorded as the finding it is, then carried on the way the desktop does:
+  // ask again (creation is idempotent) and send what the hub does not hold.
+  result.resume.lostAcrossRestart = { status: resumed.status, error: resumed.body?.error ?? null };
+  const again = await call('POST', '/api/file-uploads', { path, size, sha256: whole });
+  assert.ok([200, 201].includes(again.status), `re-created session ${again.status}`);
+  id = again.body.id;
+  result.resume.recreated = { received: again.body.received?.length ?? 0 };
+}
 // A corrupted copy of a part the hub does not have yet is refused and not kept.
 const missing = (await call('GET', `/api/file-uploads/${id}`)).body.received;
 const target = [...Array(parts).keys()].find((n) => !missing.includes(n));
@@ -87,11 +103,14 @@ result.complete = { first: done1.status, second: done2.status, sameReceipt: JSON
 // Read back through the hub.
 const back = await fetch(`${fx.url}/${path}`, { headers: { authorization: `Bearer ${token}` } });
 result.readBack = { status: back.status, sha256Matches: sha(Buffer.from(await back.arrayBuffer())) === whole };
+// The self-hosted hub's checkout is on this machine; the cloud cell's is not.
 const checkoutDir = join(work, 'repo', '.design', 'assets');
-result.checkout = {
-  present: existsSync(join(checkoutDir, `f3-large-${tag}.mp4`)),
-  strayTemps: readdirSync(checkoutDir).filter((n) => n.includes(`f3-large-${tag}`) && n !== `f3-large-${tag}.mp4`),
-};
+result.checkout = cloud
+  ? { notOnThisMachine: true }
+  : {
+      present: existsSync(join(checkoutDir, `f3-large-${tag}.mp4`)),
+      strayTemps: readdirSync(checkoutDir).filter((n) => n.includes(`f3-large-${tag}`) && n !== `f3-large-${tag}.mp4`),
+    };
 // Object storage (the tenant's R2 prefix), through the hub's own S3 adapter.
 const { listObjects, s3ConfigFromEnv } = await import(join(REPO, 'apps/hub/src/s3.mjs'));
 const envFile = Object.fromEntries(
@@ -105,12 +124,13 @@ const cfg = s3ConfigFromEnv({
   MAUDE_S3_BUCKET: 'maude-multiplayer-test-20260922',
   ...envFile,
 });
+const prefix = cloud ? `tenants/${fx.projectId}/assets/` : fx.assetPrefix ? `${fx.assetPrefix}/assets/` : 'assets/';
 // A self-hosted hub keeps an UNSCOPED namespace (asset-key.mjs) and mirrors
 // write-behind, so look for the object by name for a while.
 let seen = [];
 const end = Date.now() + 120000;
 while (!seen.length && Date.now() < end) {
-  seen = (await listObjects(cfg, fx.assetPrefix ? `${fx.assetPrefix}/assets/` : 'assets/')).filter((o) => String(o.key).includes(`f3-large-${tag}`));
+  seen = (await listObjects(cfg, prefix)).filter((o) => String(o.key).includes(`f3-large-${tag}`));
   if (!seen.length) await new Promise((r) => setTimeout(r, 3000));
 }
 result.objectStorage = {
@@ -128,16 +148,17 @@ if ([200, 201].includes(wrong.status)) {
     await call('PUT', `/api/file-uploads/${w.id}/${n}`, new Uint8Array(d), { 'content-type': 'application/octet-stream', 'x-maude-part-sha256': sha(d) });
   }
   const c = await call('POST', `/api/file-uploads/${w.id}/complete`);
-  result.wrongWholeHash = { status: c.status, landed: existsSync(join(checkoutDir, `f3-wrong-hash-${tag}.mp4`)) };
+  result.wrongWholeHash = { status: c.status, landed: cloud ? null : existsSync(join(checkoutDir, `f3-wrong-hash-${tag}.mp4`)) };
 } else result.wrongWholeHash = { status: wrong.status, landed: false, refusedAtCreation: true };
 await new Promise((r) => setTimeout(r, 10000)); // past one write-behind round
-result.objectStorage.wrongHashObjectAbsent = !(await listObjects(cfg, fx.assetPrefix ? `${fx.assetPrefix}/assets/` : 'assets/')).some((o) =>
+result.objectStorage.wrongHashObjectAbsent = !(await listObjects(cfg, prefix)).some((o) =>
   String(o.key).includes(`f3-wrong-hash-${tag}`)
 );
 // Over the project's ceiling is refused at the door.
 const huge = await call('POST', '/api/file-uploads', { path: `assets/f3-huge-${tag}.mp4`, size: 3 * 1024 * 1024 * 1024, sha256: whole });
 result.overCeiling = { status: huge.status, error: huge.body?.error ?? null };
 result.status =
+  !result.resume.lostAcrossRestart &&
   result.resume.receivedAfterRestart >= half &&
   result.corruptPart.status >= 400 &&
   result.corruptPart.keptAfter === false &&
@@ -146,8 +167,7 @@ result.status =
   result.complete.sameReceipt &&
   result.readBack.status === 200 &&
   result.readBack.sha256Matches &&
-  result.checkout.present &&
-  result.checkout.strayTemps.length === 0 &&
+  (cloud || (result.checkout.present && result.checkout.strayTemps.length === 0)) &&
   result.objectStorage.sizeMatches &&
   result.objectStorage.wrongHashObjectAbsent &&
   result.wrongWholeHash.status >= 400 &&

@@ -27,7 +27,15 @@ const out = arg('out');
 mkdirSync(scratch, { recursive: true });
 mkdirSync(out, { recursive: true });
 const fx = JSON.parse(readFileSync(join(work, 'fixture.json'), 'utf8'));
-assert.equal(fx.extraEnv?.MAUDE_MAX_PROJECT_FILE_BYTES, '100000000', 'hub file ceiling for the media state');
+const cloud = fx.backend === 'cloud';
+if (!cloud)
+  assert.equal(fx.extraEnv?.MAUDE_MAX_PROJECT_FILE_BYTES, '100000000', 'hub file ceiling for the media state');
+// What "too large" means here is the backend's own answer: above the resumable
+// session ceiling nothing can move it (a sparse file — never read or hashed).
+const limits = await (
+  await fetch(`${fx.url}/api/file-limits`, { headers: { authorization: `Bearer ${fx.sessions.a.token}` } })
+).json();
+const tooLarge = cloud ? Number(limits.maxSessionBytes ?? limits.maxFileBytes) + 50_000_000 : 110_000_000;
 const tag = randomBytes(3).toString('hex');
 const B = await loadBackend('selfhost', { work });
 const name = `F3Status${tag}`;
@@ -36,7 +44,7 @@ const rel = `ui/${name}.tsx`;
 const src = canvasSource(name, 'Status title');
 assert.equal((await B.propose('b', [{ op: 'doc.create', doc, path: rel, lanes: { html: src } }])).status, 200);
 const port = fx.port;
-const proxy = await startProxy({ listen: port + 90, target: port, control: port + 91 });
+const proxy = await startProxy({ listen: port + 90, target: fx.backend === "cloud" ? fx.url : port, control: port + 91 });
 const A = await startDesktop({
   root: join(scratch, `desktop-status-${tag}`),
   port: port + 100,
@@ -90,7 +98,7 @@ try {
   // project file at all, so "synced" would be the truth for it).
   const big = join(A.design, 'ui', `F3TooLarge${tag}.mp4`);
   writeFileSync(big, '');
-  truncateSync(big, 110_000_000);
+  truncateSync(big, tooLarge);
   await capture('media-too-large', (r) => r.label !== 'synced' && /review|refused|blocked/.test(`${r.label} ${r.title}`), 120000);
   rmSync(big);
   await capture('media-removed', (r) => r.label === 'synced', 120000);
@@ -98,6 +106,12 @@ try {
   // The hub cannot persist: one folder of its checkout refuses writes (the
   // local matrix's L22 does the same). A file the desktop adds there must be
   // told as waiting — never "synced" — and deliver itself once writes return.
+  // Not injectable on the cloud cell: its disk is the platform's, and the one
+  // persistence dependency (the ProjectStore Durable Object / R2) cannot be made
+  // to fail for one test without breaking the cell. Recorded, not faked.
+  if (cloud) {
+    states['hub-cannot-persist'] = { label: null, title: null, notInjectable: true };
+  } else {
   const folder = `ui/F3Storage${tag}`;
   mkdirSync(join(A.design, folder), { recursive: true });
   writeFileSync(join(A.design, folder, '.gitkeep'), '');
@@ -120,23 +134,24 @@ try {
   }
   await until(() => existsSync(join(hubFolder, 'held.png')), 'the held file delivered itself', 240000);
   await capture('hub-persists-again', (r) => r.label === 'synced', 240000);
+  }
 } finally {
   await browser.close();
   writeFileSync(join(out, 'desktop.log'), A.log.replace(/mau_[0-9a-f]+/g, 'mau_<redacted>'));
   await A.stop();
   proxy.stop();
 }
-const failing = ['offline-queued', 'refused-draft', 'media-too-large', 'hub-cannot-persist'];
+const failing = ['offline-queued', 'refused-draft', 'media-too-large', ...(cloud ? [] : ['hub-cannot-persist'])];
 const result = {
   doc,
   states: Object.fromEntries(Object.entries(states).map(([k, v]) => [k, { label: v.label, title: v.title }])),
   checks: {
     onlySettledSaysSynced: failing.every((k) => states[k] && states[k].label !== 'synced'),
     failingStatesExplain: failing.every((k) => states[k] && states[k].title.length > 20),
-    recoveredEveryTime: ['back-online', 'draft-resolved', 'media-removed', 'hub-persists-again'].every(
+    recoveredEveryTime: ['back-online', 'draft-resolved', 'media-removed', ...(cloud ? [] : ['hub-persists-again'])].every(
       (k) => states[k]?.label === 'synced'
     ),
-    persistFailureHeld: states['hub-cannot-persist']?.stillNotSyncedAfter20s === true,
+    persistFailureHeld: cloud ? 'not-injectable' : states['hub-cannot-persist']?.stillNotSyncedAfter20s === true,
   },
 };
 result.status = Object.values(result.checks).every(Boolean) ? 'pass' : 'fail';

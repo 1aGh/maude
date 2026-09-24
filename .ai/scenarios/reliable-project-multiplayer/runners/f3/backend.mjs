@@ -45,11 +45,33 @@ function browserCookie(session, host) {
     .join('; ');
 }
 
+// A dashboard session of this adapter's OWN, through the real sign-in form —
+// never the browser profile's cookie: the control plane rotates a session when
+// it is used, so sharing one signed the browser out (and vice versa).
+async function formSession(email, password) {
+  const r = await fetch(`${CLOUD.control}/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ email, password }),
+    redirect: 'manual',
+    signal: AbortSignal.timeout(20000),
+  });
+  const cookie = (r.headers.getSetCookie?.() ?? [])
+    .map((c) => c.split(';')[0])
+    .find((c) => c.startsWith('maude_session='));
+  if (!cookie) throw new Error(`cloud sign-in ${email}: ${r.status}`);
+  return cookie;
+}
+
 async function cloudHubToken(who) {
+  const creds = process.env.F3_CLOUD_CREDS ? JSON.parse(readFileSync(process.env.F3_CLOUD_CREDS, 'utf8')) : null;
+  const person = { owner: 'owner', b: 'designer-b' }[who];
   const headers =
     who === 'a'
       ? { authorization: `Bearer ${JSON.parse(readFileSync(CLOUD.personalA, 'utf8')).token}` }
-      : { cookie: browserCookie(CLOUD.sessions[who], new URL(CLOUD.control).hostname) };
+      : creds?.[person]
+        ? { cookie: await formSession(creds[person].email, creds[person].password) }
+        : { cookie: browserCookie(CLOUD.sessions[who], new URL(CLOUD.control).hostname) };
   const opened = await request(`${CLOUD.control}/projects/open`, {
     headers,
     body: { project: CLOUD.project },
