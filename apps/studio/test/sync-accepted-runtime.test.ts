@@ -1223,6 +1223,68 @@ describe.skipIf(!HUB_READY)('accepted revisions — switching a live project', (
     );
   }, 60_000);
 
+  // F3 S17 on the cloud cell (2026-09-24): a desktop that came back while the
+  // project took proposals added its canvas with doc.create; after the
+  // rollback, its legacy save of that canvas never reached the hub.
+  test('after a rollback, a canvas the studio added in accepted mode takes its legacy saves', async () => {
+    await bob.runtime.stop();
+    const on = await api(hub, 'mode', {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'transactions' }),
+    });
+    expect(on.status).toBe(200);
+    writeFileSync(bob.file('ui/added-accepted.tsx'), src('added while accepted'));
+    bob = await startPeer('bob', join(root, 'bob'), `http://localhost:${hub.port}`);
+    await waitFor(
+      () => alice.read('ui/added-accepted.tsx') === src('added while accepted'),
+      'the added canvas on alice',
+      30_000
+    );
+    const back = await api(hub, 'mode', {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'legacy' }),
+    });
+    expect(back.status).toBe(200);
+    await waitFor(() => !bob.runtime.acceptedMode?.(), 'bob to learn legacy');
+    bob.write('ui/added-accepted.tsx', src('saved after the rollback'));
+    await waitFor(
+      () => alice.read('ui/added-accepted.tsx') === src('saved after the rollback'),
+      "bob's legacy save of the added canvas to reach alice",
+      30_000
+    );
+  }, 90_000);
+
+  // F3 S17 on the cloud cell (2026-09-24): a desktop that started while the
+  // project was unreachable, with a save on disk nobody had proposed, only
+  // delivered it after another restart.
+  test('a studio started offline proposes its unproposed save once the project is reachable', async () => {
+    const on = await api(hub, 'mode', {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'transactions' }),
+    });
+    expect(on.status).toBe(200);
+    await waitFor(() => bob.runtime.acceptedMode?.(), 'bob in accepted mode');
+    await bob.runtime.stop();
+    writeFileSync(bob.file('ui/added-accepted.tsx'), src('saved while away and offline'));
+    const dataDir = join(root, 'hub');
+    const port = hub.port;
+    await stopHub(hub);
+    bob = await startPeer('bob', join(root, 'bob'), `http://localhost:${port}`);
+    await new Promise((r) => setTimeout(r, 1500));
+    hub = await startHub(dataDir, port);
+    await waitFor(
+      () => alice.read('ui/added-accepted.tsx') === src('saved while away and offline'),
+      "bob's offline-start save to reach alice",
+      45_000
+    );
+    const back = await api(hub, 'mode', {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'legacy' }),
+    });
+    expect(back.status).toBe(200);
+    await waitFor(() => !bob.runtime.acceptedMode?.(), 'bob to learn legacy');
+  }, 120_000);
+
   // F3 S17 (2026-09-23): a save applied to the replica while the project was
   // legacy, just as the socket died, reached the hub only after the switch's
   // fence and was dropped; the studio reported "synced" and held the change on
