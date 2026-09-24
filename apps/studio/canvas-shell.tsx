@@ -87,7 +87,7 @@ import {
 import { ElementMarqueeOverlay } from './marquee-overlay.tsx';
 import { MeasureOverlay } from './measure-overlay.tsx';
 import { ParticipantsChrome } from './participants-chrome.tsx';
-import { isReadOnlyCanvas } from './read-only-mode.ts';
+import { installEmbedEscapeRelay, isEmbedCanvas, isReadOnlyCanvas } from './read-only-mode.ts';
 import { mountCaret, placeCaretAt } from './text-caret.ts';
 import { ToolPalette } from './tool-palette.tsx';
 import { UndoHud } from './undo-hud.tsx';
@@ -2964,6 +2964,17 @@ function CanvasRouter({
         else if (op === 'out') zoomController.zoomOut();
         else if (op === 'fit') zoomController.fit();
         else if (op === 'actual') zoomController.reset();
+        else if (op === 'artboard') {
+          // DDR-242 — the embed view's `&artboard=<id>`: frame one artboard,
+          // found by its `data-dc-screen` id through the same world-coordinate
+          // manifest the whiteboard toolkit reads. Unknown id ⇒ nothing moves.
+          const id = (m as { id?: unknown }).id;
+          const rect =
+            typeof id === 'string'
+              ? window.__maudeCanvasRects?.().artboards.find((a) => a.id === id)
+              : undefined;
+          if (rect) zoomController.jumpTo(rect);
+        }
         return;
       }
       // Shell View-menu chrome toggles + Presentation Mode. Only the fields the
@@ -3428,9 +3439,12 @@ function CanvasRouter({
       <SnapGuideOverlay />
       <PhotoPreviewBridge />
       <UndoHud />
-      <CursorsOverlay />
-      <AiBanner />
-      <ParticipantsChrome />
+      {/* DDR-242 — an embed inside another app shows the design, not who
+          else is in the room: collaborator cursors, the AI banner and the
+          avatar stack are studio chrome. */}
+      {!isEmbedCanvas() && <CursorsOverlay />}
+      {!isEmbedCanvas() && <AiBanner />}
+      {!isEmbedCanvas() && <ParticipantsChrome />}
     </>
   );
 }
@@ -4565,3 +4579,6 @@ function classifyContextKind(target: HoverTarget | null): ContextTargetKind {
   if (target.artboardId) return 'artboard-chrome';
   return 'world';
 }
+
+// DDR-242 — an embedded canvas hands an unconsumed Escape to the app around it.
+if (typeof window !== 'undefined') installEmbedEscapeRelay();

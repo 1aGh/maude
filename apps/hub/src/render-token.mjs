@@ -63,6 +63,10 @@ export function mintRenderToken({
   project,
   subject,
   role = null,
+  /** DDR-242 — a capability for the `?embed=1` view: reads only. The canvas
+   *  door refuses EVERY unsafe method and every collab socket carrying it,
+   *  whatever `role` says — the comment lane a viewer keeps included. */
+  readOnly = false,
   now = Date.now(),
   ttlMs = RENDER_TOKEN_TTL_MS,
 }) {
@@ -71,11 +75,13 @@ export function mintRenderToken({
   // addresses contain dots, so a `a.b.c` payload split back into the wrong
   // three fields and every token read as expired. Structured in, structured
   // out — no parsing rule to get subtly wrong.
-  const payload = JSON.stringify(
-    role
-      ? { p: project, s: subject, r: role, e: now + ttlMs }
-      : { p: project, s: subject, e: now + ttlMs }
-  );
+  const payload = JSON.stringify({
+    p: project,
+    s: subject,
+    ...(role ? { r: role } : {}),
+    ...(readOnly ? { ro: 1 } : {}),
+    e: now + ttlMs,
+  });
   return `${Buffer.from(payload).toString('base64url')}.${sign(secret, payload)}`;
 }
 
@@ -113,5 +119,7 @@ export function verifyRenderToken({ secret, token, project, now = Date.now() }) 
     subject: claims.s,
     // Fail toward the floor: a token without a role claim is a viewer's.
     role: typeof claims.r === 'string' ? claims.r : null,
+    // DDR-242 — signed, so a holder cannot strip it to regain the role's writes.
+    readOnly: claims.ro === 1,
   };
 }

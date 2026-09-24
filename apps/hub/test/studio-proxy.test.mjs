@@ -363,7 +363,8 @@ test('an owner capability writes the canvas-authored lanes at its own role', asy
     await proxy.handleCanvas({
       request: {
         headers: { origin: CANVAS_ORIGIN, cookie: 'maude_canvas=own' },
-        url: path,
+        // DDR-242 — the shell appends the frame's capability to every write.
+        url: `${path}?t=own`,
       },
       response: r,
       pathname: path,
@@ -385,7 +386,7 @@ test('a roleless capability stays on the viewer floor: comment yes, annotate no'
   await proxy.handleCanvas({
     request: {
       headers: { origin: CANVAS_ORIGIN, cookie: 'maude_canvas=cap' },
-      url: '/_api/comments/abc123/reply',
+      url: '/_api/comments/abc123/reply?t=cap',
     },
     response: reply,
     pathname: '/_api/comments/abc123/reply',
@@ -401,7 +402,7 @@ test('a roleless capability stays on the viewer floor: comment yes, annotate no'
   await proxy.handleCanvas({
     request: {
       headers: { origin: CANVAS_ORIGIN, cookie: 'maude_canvas=cap' },
-      url: '/_api/annotations',
+      url: '/_api/annotations?t=cap',
     },
     response: annotate,
     pathname: '/_api/annotations',
@@ -438,7 +439,7 @@ test('the project shell is the other legitimate writer', async () => {
     request: {
       // publicUrl in makeProxy — the tenant's own shell origin.
       headers: { origin: 'https://alligators.cloud.maude.sh', cookie: 'maude_canvas=own' },
-      url: '/_api/annotations',
+      url: '/_api/annotations?t=own',
     },
     response: r,
     pathname: '/_api/annotations',
@@ -447,6 +448,226 @@ test('the project shell is the other legitimate writer', async () => {
   });
   assert.equal(r.statusCode, 200);
   assert.equal(forwarded.at(-1).headers[`${INJECTED_HEADER_PREFIX}readonly`], '0');
+});
+
+test('an embed origin may frame the studio but never writes through the canvas door (DDR-242)', async () => {
+  // MAUDE_EMBED_ORIGINS is a FRAMING list. If it ever leaked into the write
+  // allowlist beside MAUDE_EXTRA_SHELL_ORIGINS, the app embedding a read-only
+  // view would hold the member's write capability — the whole reason the two
+  // lists are separate.
+  const { proxy, forwarded } = makeProxy({
+    env: {
+      MAUDE_PUBLIC_CANVAS_ORIGIN: CANVAS_ORIGIN,
+      MAUDE_EMBED_ORIGINS: 'https://orbit.studyfi.com',
+    },
+  });
+  const r = fakeResponse();
+  await proxy.handleCanvas({
+    request: {
+      headers: { origin: 'https://orbit.studyfi.com', cookie: 'maude_canvas=own' },
+      url: '/_api/annotations?t=own',
+    },
+    response: r,
+    pathname: '/_api/annotations',
+    method: 'PUT',
+    verifyToken: writeVerify,
+  });
+  assert.equal(r.statusCode, 403);
+  assert.match(JSON.parse(r.body).error, /cross-origin canvas write refused/);
+  assert.equal(forwarded.length, 0);
+});
+
+// ---------------------------------------------- DDR-242: the embed is read-only
+
+test('the embed view is handed a READ-ONLY capability; the studio keeps its own', async () => {
+  const minted = [];
+  const { proxy, forwarded } = makeProxy({
+    mintCanvasToken: (_session, opts) => {
+      minted.push(opts ?? null);
+      return opts?.readOnly ? 'ro-cap' : 'full-cap';
+    },
+  });
+  const session = { email: 'o@b.c', role: 'owner', sessionKey: 'k' };
+  for (const url of ['/_config?embed=1', '/_config']) {
+    await proxy.handle({
+      request: { headers: {}, url },
+      response: fakeResponse(),
+      pathname: '/_config',
+      method: 'GET',
+      session,
+    });
+  }
+  assert.equal(forwarded[0].headers[`${INJECTED_HEADER_PREFIX}canvas-token`], 'ro-cap');
+  assert.equal(forwarded[1].headers[`${INJECTED_HEADER_PREFIX}canvas-token`], 'full-cap');
+  assert.deepEqual(minted, [{ readOnly: true }, null]);
+});
+
+test('a read-only capability writes NOTHING at the canvas door — not even a comment', async () => {
+  const roVerify = (t) =>
+    t === 'ro' ? { ok: true, role: 'viewer', subject: 'o@b.c', readOnly: true } : writeVerify(t);
+  for (const [method, path] of [
+    ['PUT', '/_api/annotations'],
+    ['PATCH', '/_api/canvas-meta'],
+    ['POST', '/_api/asset'],
+    ['POST', '/_api/comments/c_1/reply'],
+    ['DELETE', '/_api/annotations'],
+  ]) {
+    const { proxy, forwarded } = makeWriteProxy();
+    const r = fakeResponse();
+    await proxy.handleCanvas({
+      request: { headers: { origin: CANVAS_ORIGIN }, url: `${path}?t=ro` },
+      response: r,
+      pathname: path,
+      method,
+      verifyToken: roVerify,
+    });
+    assert.equal(r.statusCode, 403, `${method} ${path}`);
+    assert.equal(JSON.parse(r.body).reason, 'read-only');
+    assert.equal(forwarded.length, 0);
+  }
+});
+
+test('a write or socket never rides the ambient cookie — even a FULL one (DDR-242)', async () => {
+  // The chain the re-review found: the designer's own studio tab plants a
+  // full capability as `maude_canvas`; the embed's canvas is same-site with
+  // orbit, so that cookie reaches the embedded frame too. Canvas code there
+  // omits `?t=` to fall back on it. It must get nothing.
+  for (const [method, path] of [
+    ['PUT', '/_api/annotations'],
+    ['POST', '/_api/asset'],
+    ['POST', '/_api/comments/c_1/reply'],
+  ]) {
+    const { proxy, forwarded } = makeWriteProxy();
+    const r = fakeResponse();
+    await proxy.handleCanvas({
+      request: { headers: { origin: CANVAS_ORIGIN, cookie: 'maude_canvas=own' }, url: path },
+      response: r,
+      pathname: path,
+      method,
+      verifyToken: writeVerify,
+    });
+    assert.equal(r.statusCode, 401, `${method} ${path}`);
+    assert.equal(forwarded.length, 0);
+  }
+  const { proxy, forwarded } = makeProxy({ env: { MAUDE_PUBLIC_CANVAS_ORIGIN: CANVAS_ORIGIN } });
+  const socket = fakeSocket();
+  proxy.handleCanvasUpgrade({
+    request: {
+      headers: { upgrade: 'websocket', origin: CANVAS_ORIGIN, cookie: 'maude_canvas=own' },
+      url: '/_ws/collab/ui-home',
+    },
+    socket,
+    head: null,
+    verifyToken: writeVerify,
+  });
+  assert.equal(forwarded.length, 0);
+  assert.match(socket.written.join(''), /401/);
+  // An explicit read-only `?t=` beside the full cookie is still read-only.
+  const ro = makeWriteProxy();
+  const r = fakeResponse();
+  await ro.proxy.handleCanvas({
+    request: {
+      headers: { origin: CANVAS_ORIGIN, cookie: 'maude_canvas=own' },
+      url: '/_api/annotations?t=ro',
+    },
+    response: r,
+    pathname: '/_api/annotations',
+    method: 'PUT',
+    verifyToken: (t) =>
+      t === 'ro' ? { ok: true, role: 'viewer', readOnly: true } : writeVerify(t),
+  });
+  assert.equal(r.statusCode, 403);
+  assert.equal(ro.forwarded.length, 0);
+});
+
+test('an embed never overwrites the full cookie; its own one still loads assets (DDR-242)', async () => {
+  const verifyToken = (t) =>
+    t === 'ro'
+      ? { ok: true, role: 'viewer', readOnly: true }
+      : t === 'own'
+        ? { ok: true, role: 'owner' }
+        : { ok: false };
+  const shell = makeWriteProxy();
+  const embedShell = fakeResponse();
+  await shell.proxy.handleCanvas({
+    request: { headers: {}, url: '/_canvas-shell.html?t=ro' },
+    response: embedShell,
+    pathname: '/_canvas-shell.html',
+    method: 'GET',
+    verifyToken,
+  });
+  const planted = String(embedShell.preset['set-cookie']);
+  assert.match(planted, /^maude_canvas_embed=ro;/);
+  assert.doesNotMatch(planted, /(^|, )maude_canvas=/);
+
+  const studioShell = fakeResponse();
+  await shell.proxy.handleCanvas({
+    request: { headers: {}, url: '/_canvas-shell.html?t=own' },
+    response: studioShell,
+    pathname: '/_canvas-shell.html',
+    method: 'GET',
+    verifyToken,
+  });
+  assert.match(String(studioShell.preset['set-cookie']), /^maude_canvas=own;/);
+
+  // An asset the embedded canvas references (no `?t=`) loads on the embed cookie.
+  const asset = fakeResponse();
+  await shell.proxy.handleCanvas({
+    request: { headers: { cookie: 'maude_canvas_embed=ro' }, url: '/.design/assets/a1b2c3d4.png' },
+    response: asset,
+    pathname: '/.design/assets/a1b2c3d4.png',
+    method: 'GET',
+    verifyToken,
+  });
+  assert.equal(asset.statusCode, 200);
+});
+
+test('a read-only capability still READS, and a normal one still writes', async () => {
+  const roVerify = (t) =>
+    t === 'ro' ? { ok: true, role: 'viewer', subject: 'o@b.c', readOnly: true } : writeVerify(t);
+  const read = makeWriteProxy();
+  const r1 = fakeResponse();
+  await read.proxy.handleCanvas({
+    request: { headers: {}, url: '/_canvas-shell.html?t=ro' },
+    response: r1,
+    pathname: '/_canvas-shell.html',
+    method: 'GET',
+    verifyToken: roVerify,
+  });
+  assert.equal(r1.statusCode, 200);
+  const write = makeWriteProxy();
+  const r2 = fakeResponse();
+  await write.proxy.handleCanvas({
+    request: { headers: { origin: CANVAS_ORIGIN }, url: '/_api/annotations?t=own' },
+    response: r2,
+    pathname: '/_api/annotations',
+    method: 'PUT',
+    verifyToken: roVerify,
+  });
+  assert.equal(r2.statusCode, 200);
+});
+
+test('a read-only capability opens no collab socket, but keeps the HMR one', () => {
+  const verifyToken = (t) =>
+    t === 'ro' ? { ok: true, subject: 'o@b.c', role: 'viewer', readOnly: true } : { ok: false };
+  const collab = makeProxy();
+  const s1 = fakeSocket();
+  collab.proxy.handleCanvasUpgrade({
+    request: { headers: { upgrade: 'websocket' }, url: '/_ws/collab/ui-home?t=ro' },
+    socket: s1,
+    head: null,
+    verifyToken,
+  });
+  assert.equal(collab.forwarded.length, 0);
+  assert.match(s1.written.join(''), /403/);
+  const hmr = makeProxy();
+  hmr.proxy.handleCanvasUpgrade({
+    request: { headers: { upgrade: 'websocket' }, url: '/_ws?t=ro' },
+    socket: fakeSocket(),
+    head: null,
+    verifyToken,
+  });
+  assert.equal(hmr.forwarded.length, 1);
 });
 
 test('a non-browser write needs the explicit URL capability, and then passes', async () => {
@@ -500,7 +721,7 @@ test('an asset landing through the canvas door is mirrored like the shell door',
   await proxy.handleCanvas({
     request: {
       headers: { origin: CANVAS_ORIGIN, cookie: 'maude_canvas=own' },
-      url: '/_api/asset',
+      url: '/_api/asset?t=own',
     },
     response: r,
     pathname: '/_api/asset',
@@ -521,7 +742,7 @@ test('a write the manifest refuses outright is 404 at this door too', async () =
   await proxy.handleCanvas({
     request: {
       headers: { origin: CANVAS_ORIGIN, cookie: 'maude_canvas=own' },
-      url: '/_api/export',
+      url: '/_api/export?t=own',
     },
     response: r,
     pathname: '/_api/export',
@@ -899,29 +1120,36 @@ test('a capability in the URL opens the collab socket at the token role, canvas 
   assert.equal(f.headers[`${INJECTED_HEADER_PREFIX}collab-realm`], 'canvas');
 });
 
-test('the HttpOnly capability cookie opens the socket too — the WS URL carries no token', () => {
+test('the capability cookie alone opens NO socket — the shell appends ?t= (DDR-242)', () => {
   // use-collab.tsx builds `wss://<canvas-origin>/_ws/collab/<slug>` with no
-  // query string; the same-site WS connect carries the cookie the shell
-  // document planted. This is the vehicle production actually rides.
-  //
-  // The `Origin` is now part of that vehicle, not decoration: a cookie-only
-  // handshake with no Origin is refused (see the CSWSH tests below), because
-  // a WS handshake bypasses the same-origin policy and carries cookies anyway.
-  // A real browser always sends it, so the production path is unchanged.
+  // query string, and the shell document (templates/_shell.html) appends this
+  // frame's capability to every socket it opens. The cookie is one per canvas
+  // origin — inside an embed it can be ANOTHER tab's full capability — so it
+  // never authorises a socket, which carries writes.
+  const verifyToken = (t) =>
+    t === 'cap' ? { ok: true, subject: 'v@b.c', role: 'viewer' } : { ok: false };
+  const headers = {
+    upgrade: 'websocket',
+    cookie: 'maude_canvas=cap',
+    origin: 'https://alligators.cloud.maude.sh',
+  };
+  const bare = makeProxy();
+  const socket = fakeSocket();
+  bare.proxy.handleCanvasUpgrade({
+    request: { headers, url: '/_ws/collab/ui-home' },
+    socket,
+    head: null,
+    verifyToken,
+  });
+  assert.equal(bare.forwarded.length, 0);
+  assert.match(socket.written.join(''), /401/);
+
   const { proxy, forwarded } = makeProxy();
   proxy.handleCanvasUpgrade({
-    request: {
-      headers: {
-        upgrade: 'websocket',
-        cookie: 'maude_canvas=cap',
-        origin: 'https://alligators.cloud.maude.sh',
-      },
-      url: '/_ws/collab/ui-home',
-    },
+    request: { headers, url: '/_ws/collab/ui-home?t=cap' },
     socket: fakeSocket(),
     head: null,
-    verifyToken: (t) =>
-      t === 'cap' ? { ok: true, subject: 'v@b.c', role: 'viewer' } : { ok: false },
+    verifyToken,
   });
   assert.equal(forwarded.length, 1);
   assert.equal(forwarded[0].headers[`${INJECTED_HEADER_PREFIX}role`], 'viewer');
@@ -950,7 +1178,7 @@ test('the HMR socket (/_ws) rides the same lane; anything else on the origin is 
         cookie: 'maude_canvas=cap',
         origin: 'https://alligators.cloud.maude.sh',
       },
-      url: '/_ws',
+      url: '/_ws?t=cap',
     },
     socket: fakeSocket(),
     head: null,
@@ -1041,6 +1269,26 @@ test('the render token carries the role; an older token verifies to role null', 
   assert.equal(old.role, null);
 });
 
+test('the read-only claim is signed: minted, verified, and never forged off (DDR-242)', () => {
+  const secret = 'test-secret';
+  const ro = mintRenderToken({
+    secret,
+    project: 'p',
+    subject: 'o@b.c',
+    role: 'viewer',
+    readOnly: true,
+  });
+  assert.equal(verifyRenderToken({ secret, token: ro, project: 'p' }).readOnly, true);
+  const full = mintRenderToken({ secret, project: 'p', subject: 'o@b.c', role: 'owner' });
+  assert.equal(verifyRenderToken({ secret, token: full, project: 'p' }).readOnly, false);
+  // Stripping `ro` from the payload breaks the signature.
+  const [body, mac] = [ro.slice(0, ro.lastIndexOf('.')), ro.slice(ro.lastIndexOf('.') + 1)];
+  const claims = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+  const { ro: _stripped, ...rest } = claims;
+  const forged = `${Buffer.from(JSON.stringify(rest)).toString('base64url')}.${mac}`;
+  assert.equal(verifyRenderToken({ secret, token: forged, project: 'p' }).ok, false);
+});
+
 test('Secure comes OFF only for a deployment that declared itself plaintext', async () => {
   // The first version derived Secure from `MAUDE_PUBLIC_CANVAS_ORIGIN`
   // starting with `https://`, so a missing / empty / scheme-less / misspelled
@@ -1128,7 +1376,7 @@ test('the canvas collab socket refuses a foreign origin', async () => {
     const writes = [];
     const socket = { write: (s) => writes.push(String(s)), destroy() {} };
     proxy.handleCanvasUpgrade({
-      request: { headers: { origin, cookie: 'maude_canvas=cap' }, url: '/_ws/collab/x' },
+      request: { headers: { origin, cookie: 'maude_canvas=cap' }, url: '/_ws/collab/x?t=cap' },
       socket,
       head: null,
       verifyToken: () => ({ ok: true, subject: 'v@b.c' }),

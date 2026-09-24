@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 const BIN = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'maude.mjs');
 
-const { classifyDrillFailure } = await import('./hub-workspace.mjs');
+const { classifyDrillFailure, repeatedFlag } = await import('./hub-workspace.mjs');
 
 function runCli(args, { cwd, env } = {}) {
   return spawnSync(process.execPath, [BIN, ...args], {
@@ -160,6 +160,42 @@ test('--canvas-domain silences the warning and renders the full chain', () => {
     assert.match(r.stdout, /canvas\s+https:\/\/canvas\.acme\.com/);
     // The duty list tells the operator the second DNS record is on them.
     assert.match(r.stdout, /DNS for the canvas domain/);
+  });
+});
+
+test('--embed-origin is repeatable and comma-splittable (DDR-242)', () => {
+  assert.deepEqual(
+    repeatedFlag(
+      [
+        '--embed-origin',
+        'https://a.acme.com',
+        '--x',
+        'y',
+        '--embed-origin=https://b.acme.com, https://c.acme.com',
+      ],
+      'embed-origin'
+    ),
+    ['https://a.acme.com', 'https://b.acme.com', 'https://c.acme.com']
+  );
+  withDir((dir) => {
+    const r = runCli(
+      [
+        ...BASE,
+        '--dry-run',
+        '--embed-origin',
+        'https://orbit.acme.com',
+        '--embed-origin',
+        'https://b.acme.com',
+      ],
+      { cwd: dir }
+    );
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /embeds\s+https:\/\/orbit\.acme\.com https:\/\/b\.acme\.com/);
+  });
+  withDir((dir) => {
+    const r = runCli([...BASE, '--dry-run', '--embed-origin', 'https://*.acme.com'], { cwd: dir });
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /embedOrigin/);
   });
 });
 

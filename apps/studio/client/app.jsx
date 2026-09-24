@@ -55,6 +55,8 @@ import SyncConsentDialog from './panels/SyncConsentDialog.jsx';
 import SyncPanel from './panels/SyncPanel.jsx';
 import CloudBar from './panels/CloudBar.jsx';
 import { buildShareLinks, normalizeOpenPath, readOpenParam, withOpenParam } from './share-link.js';
+import { isEmbedLocation } from './embed.js';
+import EmbedView from './embed-view.jsx';
 import { ShareDialog, copyShareLink } from './share-dialog.jsx';
 import IdentityBar from './panels/IdentityBar.jsx';
 import OnboardingWizard from './panels/OnboardingWizard.jsx';
@@ -10339,6 +10341,10 @@ function App() {
           // dialogs gate on it. Absent on older servers → undefined, treated
           // as `local` (the pre-lane behavior) everywhere it is read.
           exportLane: data.exportLane,
+          // DDR-242 — the apps allowed to frame this studio. Read by the
+          // `?embed=1` root (embed-view.jsx), which never mounts <App>; named
+          // here so the projection stays total (config-projection.test.ts).
+          embedOrigins: data.embedOrigins,
         }));
       })
       .catch(() => {});
@@ -17133,4 +17139,6 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+// DDR-242 — `?embed=1` is a different root, not a mode of <App>: nothing the
+// shell does (prefs, address bar, panels) runs inside another app's frame.
+createRoot(document.getElementById('root')).render(isEmbedLocation(location) ? <EmbedView /> : <App />);

@@ -159,6 +159,16 @@ test('the bug-report endpoint override actually reaches the studio', () => {
   assert.equal(on.MAUDE_REPORT_URL, 'https://reports.internal.example/report');
 });
 
+test('the embed allowlist reaches the studio, which frames with it (DDR-242)', () => {
+  const off = childEnv({ PATH: '/bin' }, { port: 4399 });
+  assert.equal(off.MAUDE_EMBED_ORIGINS, undefined);
+  const on = childEnv(
+    { PATH: '/bin', MAUDE_EMBED_ORIGINS: 'https://orbit.studyfi.com' },
+    { port: 4399 }
+  );
+  assert.equal(on.MAUDE_EMBED_ORIGINS, 'https://orbit.studyfi.com');
+});
+
 test('the child environment never grows a wildcard', () => {
   // The whole guarantee is "an allowlist, not a spread". A future edit adding
   // `...env` would pass every other test in this file.

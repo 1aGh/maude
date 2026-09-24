@@ -222,6 +222,48 @@
         const abs = u.startsWith('/') ? base + u : u;
         return cap ? abs + (abs.includes('?') ? '&' : '?') + 't=' + encodeURIComponent(cap) : abs;
       };
+      // DDR-242 — THE AMBIENT COOKIE READS, IT NEVER WRITES. The hub's canvas
+      // door authorises a write (POST/PUT/PATCH/DELETE) or a live socket only
+      // from an EXPLICIT `?t=`, because the `maude_canvas` cookie is one per
+      // canvas origin: inside an embed another tab's full capability would ride
+      // it. So every same-origin write and socket this document's code opens
+      // carries the capability THIS frame was given — read live, so a re-minted
+      // one (`canvas-cap` below) applies at once. In an embed that capability is
+      // read-only and the door refuses the write, which is the point. Canvas
+      // code could always read `?t=` from its own URL; this exposes nothing new.
+      // Cloud only: a desktop canvas has no capability and nothing is wrapped.
+      if (cap) {
+        const withLiveCap = (u) => {
+          try {
+            const url = new URL(u, location.href);
+            if (url.host !== location.host) return null;
+            url.searchParams.set('t', cap);
+            return url.toString();
+          } catch {
+            return null;
+          }
+        };
+        const nativeFetch = window.fetch.bind(window);
+        window.fetch = function (input, init) {
+          const isReq = typeof Request !== 'undefined' && input instanceof Request;
+          const method = String((init && init.method) || (isReq ? input.method : 'GET')).toUpperCase();
+          if (method !== 'GET' && method !== 'HEAD') {
+            const next = withLiveCap(isReq ? input.url : String(input));
+            if (next) input = isReq ? new Request(next, input) : next;
+          }
+          return nativeFetch(input, init);
+        };
+        const NativeWebSocket = window.WebSocket;
+        const CapWebSocket = function (url, protocols) {
+          const next = withLiveCap(String(url)) || url;
+          return protocols === undefined
+            ? new NativeWebSocket(next)
+            : new NativeWebSocket(next, protocols);
+        };
+        CapWebSocket.prototype = NativeWebSocket.prototype;
+        Object.setPrototypeOf(CapWebSocket, NativeWebSocket);
+        window.WebSocket = CapWebSocket;
+      }
       const canvasQuery = shaParam ? ('?sha=' + encodeURIComponent(shaParam)) : '';
       let canvasUrl = canvasRel ? withCap('/' + designRel + '/' + canvasRel + canvasQuery) : null;
       const myFileKey = canvasRel ? (designRel + '/' + canvasRel) : null;

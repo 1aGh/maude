@@ -177,6 +177,48 @@ export function validateWorkspaceConfig(raw = {}) {
     cfg.canvasDomain = null;
   }
 
+  // DDR-242 — apps allowed to FRAME the studio for its read-only `?embed=1`
+  // view (orbit showing a design next to a task). A FRAMING list, never a
+  // writing one: the hub keeps it out of the canvas door's write allowlist,
+  // which is why it is not more MAUDE_EXTRA_SHELL_ORIGINS. Each entry is
+  // normalized to an origin; a wildcard or a non-https origin (other than a
+  // loopback dev app) is an error here rather than a silently dropped entry
+  // on the server.
+  cfg.embedOrigins = [];
+  const embedRaw = Array.isArray(raw.embedOrigins)
+    ? raw.embedOrigins
+    : String(raw.embedOrigins ?? '').split(/[\s,]+/);
+  for (const entry of embedRaw.map((e) => String(e ?? '').trim()).filter(Boolean)) {
+    let url = null;
+    try {
+      url = new URL(entry);
+    } catch {
+      /* reported below */
+    }
+    if (
+      !url ||
+      entry.includes('*') ||
+      url.username ||
+      url.password ||
+      !/^https?:$/.test(url.protocol)
+    ) {
+      errors.push(`embedOrigin "${entry}" is not an origin (https://app.example.com)`);
+      continue;
+    }
+    const loopback =
+      url.hostname === 'localhost' ||
+      url.hostname.endsWith('.localhost') ||
+      url.hostname === '127.0.0.1' ||
+      url.hostname === '[::1]';
+    if (url.protocol === 'http:' && !loopback) {
+      errors.push(
+        `embedOrigin "${entry}" must be https — only a loopback dev app may be plain http`
+      );
+      continue;
+    }
+    if (!cfg.embedOrigins.includes(url.origin)) cfg.embedOrigins.push(url.origin);
+  }
+
   cfg.acmeEmail = String(raw.acmeEmail ?? '').trim();
   if (!cfg.acmeEmail) {
     if (!cfg.local) errors.push('acmeEmail is required (Let’s Encrypt expiry notices)');
@@ -420,6 +462,14 @@ export function envEntries(cfg, { hubSecret, adminPassword, renderSecret }) {
       }
     );
   }
+  if (cfg.embedOrigins?.length) {
+    entries.push({
+      key: 'MAUDE_EMBED_ORIGINS',
+      value: cfg.embedOrigins.join(' '),
+      comment:
+        'apps that may FRAME the studio read-only (?embed=1) — framing only, never write access',
+    });
+  }
   if (cfg.render) {
     entries.push(
       {
@@ -533,6 +583,7 @@ export function renderCompose(cfg) {
     // S3 block above, same failure mode when they drift (M7: the origin was
     // supported end to end and no deployment path ever set it).
     ...(cfg.canvasDomain ? ['MAUDE_PUBLIC_CANVAS_ORIGIN'] : []),
+    ...(cfg.embedOrigins?.length ? ['MAUDE_EMBED_ORIGINS'] : []),
     ...(cfg.render ? ['MAUDE_RENDER_SECRET', 'MAUDE_RENDER_URL', 'MAUDE_RENDER_CANVAS_BASE'] : []),
   ];
 

@@ -27,6 +27,7 @@ import { createGitLifecycle } from './collab/git-lifecycle.ts';
 import { createCollab } from './collab/index.ts';
 import { createContext, reloadConfig } from './context.ts';
 import { installLogRing } from './debug-bundle.ts';
+import { parseEmbedOrigins } from './embed-origins.ts';
 import { createExportJobQueue } from './exporters/jobs.ts';
 import { createFsWatch } from './fs-watch.ts';
 import { createGenerationJobQueue } from './generation/jobs.ts';
@@ -682,6 +683,10 @@ const extraShellOrigins = (process.env.MAUDE_EXTRA_SHELL_ORIGINS ?? '')
   .map((o) => ` ${o}`)
   .join('');
 ctx.mainOrigin = `http://localhost:${server.port} http://127.0.0.1:${server.port}${publicShellOrigin}${extraShellOrigins}`;
+// DDR-242 — apps that may FRAME the studio for the read-only `?embed=1` view.
+// Deliberately NOT folded into `mainOrigin` above: those are shells, and the
+// hub's canvas door accepts shells as writers. An embedder only gets framing.
+ctx.embedOrigins = parseEmbedOrigins(process.env.MAUDE_EMBED_ORIGINS);
 
 // T2 (9.1-A) — segregated canvas-content origin. ON BY DEFAULT (opt-OUT) since
 // phase-9.1: a second listener binds an OS-assigned free port, advertised as

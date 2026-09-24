@@ -96,6 +96,14 @@ export const INJECTED_HEADER_PREFIX = 'x-maude-';
 export const CANVAS_CAPABILITY_COOKIE = 'maude_canvas';
 
 /**
+ * DDR-242 — the `?embed=1` view's read-only capability, as a cookie of its own.
+ * Same attributes, same host scope; it authorises asset GETs and nothing else
+ * (so does `maude_canvas` now — writes and sockets need `?t=`), and it exists
+ * so an embed never overwrites the designer's full cookie on the same origin.
+ */
+export const EMBED_CAPABILITY_COOKIE = 'maude_canvas_embed';
+
+/**
  * Serialize it, with `Secure` DEFAULTED ON.
  *
  * The first version derived `Secure` from `MAUDE_PUBLIC_CANVAS_ORIGIN`
@@ -106,11 +114,11 @@ export const CANVAS_CAPABILITY_COOKIE = 'maude_canvas';
  * itself plaintext, which is the same signal the hub already refuses to serve
  * a public host without.
  */
-export function canvasCapabilityCookie(token, env = process.env) {
+export function canvasCapabilityCookie(token, env = process.env, name = CANVAS_CAPABILITY_COOKIE) {
   const plaintext =
     env.HUB_INSECURE_HTTP === '1' || (env.MAUDE_PUBLIC_CANVAS_ORIGIN ?? '').startsWith('http://');
   return (
-    `${CANVAS_CAPABILITY_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; ` +
+    `${name}=${encodeURIComponent(token)}; Path=/; HttpOnly; ` +
     `SameSite=Strict; Max-Age=${canvasCookieMaxAge}${plaintext ? '' : '; Secure'}`
   );
 }
@@ -141,6 +149,15 @@ function cookieFrom(request, name) {
     }
   }
   return null;
+}
+
+/** DDR-242 — a shell request made by the `?embed=1` view. */
+function isEmbedRequest(request) {
+  try {
+    return new URL(request?.url ?? '/', 'http://cell.invalid').searchParams.get('embed') === '1';
+  } catch {
+    return false;
+  }
 }
 
 /** The shell document — the one response allowed to plant the cookie. */
@@ -369,7 +386,12 @@ export function createStudioProxy({
         user: session.email,
         sessionKey: session.sessionKey,
         publicUrl,
-        canvasToken: mintCanvasToken?.(session) ?? null,
+        // DDR-242 — the `?embed=1` view asks with `embed=1` (its `/_config`
+        // and every re-mint) and is handed a READ-ONLY capability, so the
+        // canvas it frames can never write, whatever the member's role.
+        canvasToken:
+          mintCanvasToken?.(session, isEmbedRequest(request) ? { readOnly: true } : undefined) ??
+          null,
         renderToken: mintRenderToken?.(session) ?? null,
       }),
     });
@@ -494,15 +516,27 @@ export function createStudioProxy({
           refuse(response, 403, { error: 'cross-origin canvas write refused' });
           return true;
         }
-      } else if (!urlToken) {
+      }
+      // DDR-242 — A WRITE NEEDS THE EXPLICIT CAPABILITY, from every client.
+      // The cookie is one per canvas origin, so inside an embed (a frame on
+      // another app, same site) it can hold ANOTHER tab's full capability —
+      // canvas code there would write with it by simply omitting `?t=`. The
+      // shell document appends this frame's own capability to every write it
+      // makes (templates/_shell.html), so the cookie is left to what it was
+      // invented for: the asset GETs no code of ours builds.
+      if (!urlToken) {
         refuse(response, 401, { error: 'a canvas write requires an explicit capability' });
         return true;
       }
     }
     const verdict = isVendorRuntime ? { ok: true } : (verifyToken(urlToken) ?? { ok: false });
+    // Reads only (see above). The full cookie first, then the embed's own
+    // read-only one — which exists so an embed never overwrites the other.
     const cookieVerdict =
-      !isVendorRuntime && !verdict?.ok
-        ? verifyToken(cookieFrom(request, CANVAS_CAPABILITY_COOKIE))
+      !isVendorRuntime && !unsafeMethod && !verdict?.ok
+        ? ([CANVAS_CAPABILITY_COOKIE, EMBED_CAPABILITY_COOKIE]
+            .map((name) => verifyToken(cookieFrom(request, name)))
+            .find((v) => v?.ok) ?? null)
         : null;
     if (!verdict?.ok && !cookieVerdict?.ok) {
       refuse(response, 401, { error: 'this canvas link has expired — reload the project' });
@@ -512,6 +546,15 @@ export function createStudioProxy({
     // vouches. Older tokens carry no claim — the floor is `viewer`.
     const auth = verdict?.ok ? verdict : cookieVerdict;
     const role = auth?.role ?? 'viewer';
+    // DDR-242 — an embed's capability reads and nothing else. Checked before
+    // the role table on purpose: a viewer may still comment, an embed may not.
+    if (unsafeMethod && auth?.readOnly) {
+      refuse(response, 403, {
+        error: 'this embedded view is read-only',
+        reason: 'read-only',
+      });
+      return true;
+    }
     // ---- One table, one authority (Cloud Phase 25 C4) ----------------------
     //
     // The same `decide()` the shell door runs, at the role the capability
@@ -545,7 +588,16 @@ export function createStudioProxy({
     // Set-Cookie on any of them would be noise — and the narrower the surface
     // that mints an ambient credential, the easier it is to reason about.
     if (!isVendorRuntime && verdict?.ok && urlToken && isCanvasShellPath(rest)) {
-      response.setHeader('set-cookie', [canvasCapabilityCookie(urlToken, env)]);
+      // DDR-242 — an embed's read-only capability goes into a cookie of its
+      // own: planting it as `maude_canvas` would downgrade the designer's open
+      // studio tab on the same canvas origin.
+      response.setHeader('set-cookie', [
+        canvasCapabilityCookie(
+          urlToken,
+          env,
+          verdict.readOnly ? EMBED_CAPABILITY_COOKIE : CANVAS_CAPABILITY_COOKIE
+        ),
+      ]);
     }
     const up = canvasUpstream?.();
     if (!up?.ok || !up.port) {
@@ -668,10 +720,27 @@ export function createStudioProxy({
       socket.destroy();
       return true;
     }
-    const token = urlToken ?? cookieFrom(request, CANVAS_CAPABILITY_COOKIE);
-    const verdict = verifyToken(token) ?? { ok: false };
+    // DDR-242 — sockets carry writes (the collab lanes), so like an HTTP write
+    // they open only on the explicit capability, never on the ambient cookie:
+    // inside an embed the cookie may be another tab's full one. The shell
+    // document appends this frame's capability to every socket it opens.
+    if (!urlToken) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
+      socket.destroy();
+      return true;
+    }
+    const verdict = verifyToken(urlToken) ?? { ok: false };
     if (!verdict.ok) {
       socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
+      socket.destroy();
+      return true;
+    }
+    // DDR-242 — the collab socket carries WRITES (a viewer's comments among
+    // them); an embed's read-only capability gets none. The HMR socket
+    // (`/_ws`) ignores inbound frames and stays open, so the embed still
+    // follows edits to the source.
+    if (verdict.readOnly && rest !== '/_ws') {
+      socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
       socket.destroy();
       return true;
     }

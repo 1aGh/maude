@@ -203,6 +203,9 @@ export function childEnv(env = process.env, { port }) {
     ...(env.MAUDE_EXTRA_SHELL_ORIGINS
       ? { MAUDE_EXTRA_SHELL_ORIGINS: env.MAUDE_EXTRA_SHELL_ORIGINS }
       : {}),
+    // DDR-242 — apps that may FRAME the studio (read-only `?embed=1`). Framing
+    // only: the canvas door's write allowlist never reads this variable.
+    ...(env.MAUDE_EMBED_ORIGINS ? { MAUDE_EMBED_ORIGINS: env.MAUDE_EMBED_ORIGINS } : {}),
     ...(env.HUB_PUBLIC_URL ? { HUB_PUBLIC_URL: env.HUB_PUBLIC_URL } : {}),
     // C4 — a browser tab has no window title, so the client has to be told
     // which project it is showing and where "back" is.

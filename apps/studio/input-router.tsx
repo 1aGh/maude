@@ -29,6 +29,8 @@
 
 import { type RefObject, useEffect } from 'react';
 
+import { isEmbedCanvas } from './read-only-mode.ts';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Drag-vs-click threshold (T25)
 //
@@ -732,7 +734,11 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
       );
       if (
         action.kind === 'tool' ||
-        action.kind === 'escape' ||
+        // DDR-242 — in an embed, the router's catch-all Escape (drop the
+        // selection) does not CONSUME the key: left unprevented, it reaches
+        // the embed's relay and closes the app's dialog around it. Anything
+        // that genuinely owns Escape (a menu, an inline edit) still prevents it.
+        (action.kind === 'escape' && !isEmbedCanvas()) ||
         action.kind === 'undo' ||
         action.kind === 'redo'
       ) {
