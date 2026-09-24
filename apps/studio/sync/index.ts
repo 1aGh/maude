@@ -933,7 +933,16 @@ export function createSyncRuntime(
         retryMs: opts.transactionRetryMs,
         onStats: (stats) => statusStore?.updateAccepted?.(stats),
         onStage: (summary) => statusStore?.updateAiAction?.(summary),
-        onBootstrap: (b) => noteProjectConfig(b.projectConfig),
+        onBootstrap: (b) => {
+          noteProjectConfig(b.projectConfig);
+          // F3 S17 — a save made as the socket died is held (the connection
+          // was not writable). After the reconnect the handshake re-admits the
+          // socket read-only BEFORE this peer learns the project now takes
+          // proposals, so its retry found the write still blocked and nothing
+          // retried again: the save stayed on disk, and the status said
+          // synced, until a restart. Knowing the mode, hand it back now.
+          if (b.mode === 'transactions') for (const p of projections.values()) p.retryDeferred();
+        },
       })
     : null;
   /**

@@ -1119,6 +1119,72 @@ describe.skipIf(!HUB_READY)('accepted revisions — switching a live project', (
       30_000
     );
   }, 60_000);
+
+  // F3 S17 (2026-09-23): a save applied to the replica while the project was
+  // legacy, just as the socket died, reached the hub only after the switch's
+  // fence and was dropped; the studio reported "synced" and held the change on
+  // disk until a restart.
+  test('a legacy save caught by the switch on a dead socket is proposed without a restart', async () => {
+    const PROXY = join(
+      import.meta.dir,
+      '..',
+      '..',
+      '..',
+      'scripts',
+      'dev',
+      'sync-e2e',
+      'toggle-proxy.mjs'
+    );
+    const listen = 20000 + Math.floor(Math.random() * 20000);
+    const control = listen + 1;
+    const proxy = spawn('node', [PROXY, String(listen), String(hub.port), String(control)], {
+      stdio: 'ignore',
+    });
+    const flip = (to: string) => fetch(`http://127.0.0.1:${control}/${to}`, { method: 'POST' });
+    const carolUrl = `http://127.0.0.1:${listen}`;
+    let carol: Peer | null = null;
+    try {
+      await waitFor(async () => {
+        try {
+          return (await fetch(`http://127.0.0.1:${control}/state`)).ok;
+        } catch {
+          return false;
+        }
+      }, 'the proxy');
+      const hubsFile = process.env.HUBS_CONFIG_PATH as string;
+      const hubs = JSON.parse(readFileSync(hubsFile, 'utf8'));
+      hubs.hubs[carolUrl] = { token: hub.tokens.alice };
+      writeFileSync(hubsFile, JSON.stringify(hubs), { mode: 0o600 });
+      await waitFor(() => !alice.runtime.acceptedMode?.(), 'the project in legacy');
+      carol = await startPeer('carol', join(root, 'carol'), carolUrl);
+      const before = alice.read('ui/board.tsx') as string;
+      await waitFor(() => carol?.read('ui/board.tsx') === before, 'carol to pull the canvas');
+      await flip('offline');
+      carol.write('ui/board.tsx', src('carol saved as the cable went'));
+      await new Promise((r) => setTimeout(r, 1500));
+      const mode = await api(hub, 'mode');
+      const on = await api(hub, 'mode', {
+        method: 'POST',
+        body: JSON.stringify({ mode: 'transactions', expectEpoch: mode.body.epoch }),
+      });
+      expect(on.status).toBe(200);
+      await flip('online');
+      await waitFor(
+        () => alice.read('ui/board.tsx') === src('carol saved as the cable went'),
+        "carol's save to reach alice without a restart",
+        40_000
+      );
+      // Delivered once, not doubled on carol's own replica or disk.
+      await waitFor(
+        () => carol?.read('ui/board.tsx') === src('carol saved as the cable went'),
+        'carol converged'
+      );
+      expect(carol.runtime.acceptedWriteViolations?.()).toBe(0);
+    } finally {
+      await carol?.runtime.stop();
+      proxy.kill();
+    }
+  }, 90_000);
 });
 
 // Plan T20 — rights are rechecked on every accepted mutation, and a person
