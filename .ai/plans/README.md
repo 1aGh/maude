@@ -14,7 +14,6 @@ historical context and is not an active task list.
 | [`feature-local-media-generation.md`](./feature-local-media-generation.md) | Planned; native keychain, local adapters, and desktop E2E not started. |
 | [`feature-post-1.0-hardening-backlog.md`](./feature-post-1.0-hardening-backlog.md) | Open backlog; resolved entries stay as evidence, remaining program is not empty. |
 | [`feature-video-tracking-and-stabilization.md`](./feature-video-tracking-and-stabilization.md) | Planned; even the `s3Assets` JSON-sidecar prerequisite remains open. |
-| [`followup-reliable-project-multiplayer.md`](./followup-reliable-project-multiplayer.md) | Partial; F2 real R2 proof and F5–F7 complete. F1 full native matrix, F3 full backend scenarios and F4 latency remain open. |
 
 Rejected or completed plans live under [`archive/`](./archive/), including the
 unimplemented, stale `/goal` integration proposal rejected on 2026-09-22.
@@ -23,7 +22,7 @@ unimplemented, stale `/goal` integration proposal rejected on 2026-09-22.
 
 [`archive/feature-reliable-project-multiplayer.md`](./archive/feature-reliable-project-multiplayer.md) (closed 2026-09-16, shipped in v1.4.2; T1 certified with one reservation) turned the [hub/desktop audit](../../docs/audits/2026-09-13-hub-sync/README.md) into 35 ordered tasks across seven milestones: loss containment → accepted transactions/durability → all writers/offline → media/project entry → logical history/undo → migration evidence → both-backend rollout and retirement. Full designer workflow on Cloudflare and self-hosted hubs is the completion boundary; the initial pilot is not the whole feature.
 
-Scenario: [`reliable-project-multiplayer/spec.md`](../scenarios/reliable-project-multiplayer/spec.md). **T1 first captures the unchanged working product through the mandatory [local surface E2E matrix](../scenarios/reliable-project-multiplayer/local-e2e.md)**: 24 surface groups, explicit CRUD/gesture variants, both peer UIs, decoded photo/video checks and baseline latency comparison. All milestones protect existing working flows from regression. What it deferred lives in [`followup-reliable-project-multiplayer.md`](./followup-reliable-project-multiplayer.md) (F1–F7).
+Scenario: [`reliable-project-multiplayer/spec.md`](../scenarios/reliable-project-multiplayer/spec.md). **T1 first captures the unchanged working product through the mandatory [local surface E2E matrix](../scenarios/reliable-project-multiplayer/local-e2e.md)**: 24 surface groups, explicit CRUD/gesture variants, both peer UIs, decoded photo/video checks and baseline latency comparison. All milestones protect existing working flows from regression. What it deferred was closed on 2026-09-24 in [`archive/followup-reliable-project-multiplayer.md`](./archive/followup-reliable-project-multiplayer.md) (F1–F7, including S01–S19 on a real Cloudflare cell and a self-hosted hub).
 
 ## Lifecycle (per-plan convention)
 

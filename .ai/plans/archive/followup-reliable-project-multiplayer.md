@@ -1,7 +1,7 @@
 # Follow-up: reliable project multiplayer
 
 Deferred by the owner on 2026-09-16 from
-`archive/feature-reliable-project-multiplayer.md` (T1 certified with one reservation;
+`feature-reliable-project-multiplayer.md` in this folder (T1 certified with one reservation;
 T31 and T35 closed). Everything here was open when the parent plan closed.
 
 ## Tasks
@@ -26,8 +26,15 @@ T31 and T35 closed). Everything here was open when the parent plan closed.
   the input. The object was removed, the scratch prefix is empty, and no
   incomplete multipart upload remains. See `followup-2026-09-22-r2.json` beside
   the linked evidence report.
-- [ ] **F3 — T32 S01–S19 on real backends.** Run the scenarios and the T8 crash
+- [x] **F3 — T32 S01–S19 on real backends.** Run the scenarios and the T8 crash
   oracle on disposable cloud and self-host projects, with cleanup.
+  **Done 2026-09-24.** Self-host: S01–S19 pass (S16 and S17 re-run on the final
+  build: S16 A–D pass, S17 14/14). Cloud: S01–S16, S18, S19 pass; S13/S14 pass on
+  a clean tenant; S17 accepted by the owner with the documented hard-kill legacy
+  residual after `36e48e90`. Seven product fixes came out of the cloud runs (see
+  the 2026-09-24 checkpoint). Native L01–L24 on the final studio build: 1,079
+  pass, 0 fail, 13 unsupported, 0 regressed; F4 still met (p95 146–236 ms). All
+  isolated cloud and self-host test resources were deleted.
 - [x] **F4 — Latency target.** Peer render p95 is still ~480–650 ms against the
   300 ms target; measure under matched conditions and close or re-scope.
   **Met 2026-09-23** (owner chose "reach 300 ms now", not re-scope): three matched
@@ -192,7 +199,7 @@ passed 74/74; all screenshots were inspected, with unresolved visual warnings
 (so not a clean visual certification). Detailed current results are below.
 
 Commands, fail-without results and limitations:
-[`followup-2026-09-22.md`](../scenarios/reliable-project-multiplayer/evidence/followup-2026-09-22.md).
+[`followup-2026-09-22.md`](../../scenarios/reliable-project-multiplayer/evidence/followup-2026-09-22.md).
 
 ## Execution checkpoint — 2026-09-23
 
@@ -240,7 +247,7 @@ app throughout; macOS WKWebView is not certified by these runs.
   scoped Biome clean (one pre-existing warning in `canvas-shell.tsx`); the
   committed release bundles were rebuilt with the pinned Bun 1.3.3 and are
   unchanged by the test runs.
-- **F3 self-host (2026-09-23): S01–S19 run, 17 pass, S17 open.** The production
+- **F3 self-host (2026-09-23/24): S01–S19 all pass.** The production
   hub image (`apps/hub/Dockerfile`) in workspace mode, SQLite accepted store on
   its data volume, R2 object storage, the operator's canvas hostname
   (`workspace-plan`, M7); real accounts (first-user seed, `/join` invites,
@@ -266,17 +273,15 @@ app throughout; macOS WKWebView is not certified by these runs.
   double-submitted switch answered 503 (`dad3760e`); switching forward through a
   stale second hub rolled 8 accepted revisions back (`6aa142ca`); plus the S06
   offline/restart fixes above.
-  **Open (S17):** a save written while the desktop's socket was silently dead,
-  just before the switch, is applied to the replica, reaches the hub after the
-  fence and is dropped; the desktop says synced (0 pending, 0 conflicts) and the
-  change stays only on its disk until a restart, whose cold start proposes it
-  (verified, nothing lost). A live fix needs a replica reset under shared-doc (the
-  collab room owns the Y.Doc) — design work, not done. Operator mitigation today:
-  runbook step 5 (let apps finish saving before the switch) or restart the app.
-  S17's other 13 checks pass (dry run persists nothing, SIGKILL mid-switch
-  resumes the import, 409 on a double switch, parity, stale raw socket fenced,
-  rollback keeps accepted work and history, legacy-era work carried forward,
-  monotonic epochs, desktop converges).
+  **S17 (fixed 2026-09-24, `27306d83`):** a save made as the desktop's socket
+  died, just before the switch, was held (not writable); the reconnect
+  re-admitted the socket read-only before the studio learned the project now
+  takes proposals, so it stayed on disk with the status saying synced until a
+  restart. Every accepted-mode bootstrap now hands held writes back; S17 passes
+  14/14 on a fresh self-host project (dry run persists nothing, SIGKILL
+  mid-switch resumes the import, 409 on a double switch, parity, stale raw socket
+  fenced, the pending save lands live, rollback keeps accepted work and history,
+  legacy-era work carried forward, monotonic epochs, desktop converges).
   **Cleanup done:** every self-host container removed; 1,608 fixture objects
   deleted from the test bucket (only `tenants/f3-cloud` remains); no incomplete
   multipart upload; fixture dirs with test credentials deleted. **Decision for the
@@ -292,14 +297,86 @@ app throughout; macOS WKWebView is not certified by these runs.
   release client bundles are byte-identical before and after. F4 still holds:
   L06 author→receiver p95 93–281 ms (max 390 ms). Gates: sync lane 1,221/1,221,
   hub 996/996, studio typecheck clean.
-- **F3 cloud: blocked, owner deferred (2026-09-23).** This session has no
-  Cloudflare credentials (`wrangler whoami`: not authenticated) and the test
-  control plane's owner/designer-B browser sessions expired. The owner chose to
-  skip the cloud half for now. Isolated cloud resources remain as listed in the
-  2026-09-22 checkpoint (test cell `f3-cloud`, workers
-  `maude-multiplayer-{control,cell}-test-20260922`, D1, R2 bucket
-  `maude-multiplayer-test-20260922`) and still need S01–S19 completion on the
-  current build and cleanup. The plan cannot close while this is open.
+- **F3 cloud: blocked, owner deferred (2026-09-23)** — resolved 2026-09-24, see
+  the next checkpoint.
+
+## Execution checkpoint — 2026-09-24 (F3 cloud)
+
+The isolated Cloudflare cell (`maude-multiplayer-cell-test-20260922`, tenant
+`f3-cloud`, ProjectStore Durable Object, R2 `tenants/f3-cloud`) was rolled from
+`test-20260924-r5` to `r10b` as fixes landed; every scenario ran against real
+accounts through the real control-plane sign-in. Evidence:
+`.ai/scenarios/reliable-project-multiplayer/evidence/followup-2026-09-24-cloud.json`.
+
+- **S01–S12, S15, S16, S18, S19 pass on the cloud.** Where a self-host fault is
+  not injectable on the cloud it is recorded as such, not faked (S16 B/C: payloads
+  and head live in the DO; S18 "hub cannot persist"). S16 on the cloud is two
+  people racing one document through the one cell (every head equals an
+  independent three-way merge; `noop` acknowledgments leave no row), the cell
+  killed with 40 proposals in flight (the one in flight retried with its own id,
+  accepted exactly once, chain contiguous), and a deleted canvas's history across
+  a fresh cell disk (head, chain, live docs, deleted history and parity 118/118).
+- **Product fixes found on the cloud:** `a433fb49` (stale file event over a
+  newer accepted body — S15), `b96754d8` (tree pill contrast — S19), `489854f4`
+  (resumable upload sessions durable in object storage — S12), `b18b22fd` (a
+  cold start bases the disk on its own drained outbox save — S14), `58b27496`
+  (a checkout restored from backup, i.e. every cell wake, is brought to the head
+  instead of held as a conflict forever — S16), `0e881a3c` (an empty replica no
+  longer replaces the adopted base of a canvas just created — S14), `36e48e90`
+  (a graceful hub stop flushes pending documents and takes a final backup
+  generation — S17, owner decision below). Regression tests for each; `9a11e85a`
+  adds two S17 paths.
+- **S17 on the cloud: accepted by the owner with a documented residual.** 10 of
+  14 checks pass (dry run, stale socket fenced, double submit 409, parity,
+  rollback keeps accepted work and history, epochs, desktop converges). The four
+  others fail on the hard kill the scenario uses mid-switch: in legacy mode a
+  cell's documents are only as durable as its last backup generation (measured:
+  documents written 5 s and 70 s before a hard kill were gone). **Owner decision
+  (2026-09-24): narrow the window now** — `36e48e90`; verified on the cloud: a
+  legacy document written 5 s before a platform rollout (SIGTERM) survived with
+  its edit. The hard-kill window, the `503` a long switch can answer while it
+  completes (55 s for ~130 canvases), and one import that stayed pending until a
+  cell restart resumed it (cause not found without the container log) are in
+  `docs/operations/project-multiplayer-rollout.md`.
+- **S13/S14 on the cloud:** on the shared `f3-cloud` project five runs found
+  `b18b22fd` and `0e881a3c` and two harness faults (per-run synthetic and probe
+  paths); the last run's seed and oracle were clean but 3/762 edits took >60 s
+  while the 1/2-vCPU cell moved ~10 GB — about three times the designed load,
+  because the delete breaker (25/h) keeps earlier runs' files on a shared project.
+  **Owner decision: re-measure on a clean project** — tenant `f3-scale` (same
+  worker, own DO and R2 prefix, `CELL_PROJECT_STORE`/`CELL_LIVE_PAIRING`
+  allowlisted, container `max_instances` 2). **Result: pass** — seed killed mid
+  small-file seed (83/311) and mid large upload (19/65 parts): neither restarted
+  from zero, the large object resumed its own session with no part re-sent and
+  landed; clean clients B/C complete in 293/298 s; oracle 0 unexplained; 386
+  edits, 0 over 60 s, hub p50 1.1 s / p95 1.7 s, peers p95 1.6 s while media
+  moved. The slowest (44 s) is the first edit on a brand-new project, queued
+  behind A adding its 77 canvases on the one serialized transaction queue — not
+  behind media. Report `followup-2026-09-24-cloud-scale.json`.
+- **Self-host re-run on the final build (image from `36e48e90`):** S16 A/B/C/D
+  pass (D now encodes the designed refusal of a checkout-only disk replacement
+  and the whole-generation recovery), S17 14/14.
+- **Native L01–L24 on the final studio build** (`2026-09-24T14-47-34.208Z`, 100
+  samples, 30-minute soak): **1,079 pass, 0 fail, 13 unsupported, 0 not-run**;
+  baseline compare 778 held · **0 regressed** · 1 repaired · 300 new; fresh
+  reopen and final parity pass; release client bundles byte-identical before and
+  after. F4 holds: L06 author→receiver p95 **146–236 ms** (max 364 ms).
+- **Gates:** sync lane 1,230/1,230, hub 1,002/1,002, studio typecheck clean.
+- **Cleanup (owner decision: delete everything after closing):** Cloudflare —
+  workers `maude-multiplayer-{cell,control}-test-20260922`, their four custom
+  domains, container application `a03073b4…`, D1 `maude-multiplayer-test-20260922`
+  (accounts, sessions, invitations with it), R2 bucket
+  `maude-multiplayer-test-20260922` (1,671 objects and 3 incomplete multipart
+  uploads removed first) and all 11 `maude-followup-cell` registry images;
+  production (`maude-cells`, `maude-render`, `maude-container-probe`,
+  `maude-cloud-assets`) untouched. Local — self-host containers and volumes, 23
+  test images, fixture directories, test credentials, native cloud-entry profiles
+  and the test browser sessions. **Left for the owner:** the bucket-scoped R2 API
+  token behind the old S3 keys (its bucket is gone) can only be revoked in the
+  Cloudflare dashboard.
+
+**Status: closed 2026-09-24.** F1–F7 done. The fixes are on `main`, not yet in a
+release.
 
 ## Validation
 

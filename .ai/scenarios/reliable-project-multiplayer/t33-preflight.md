@@ -326,4 +326,4 @@ S20, and none was made.
   the deploy job's version poll timed out because its own polling kept the
   old container awake (`sleepAfter` 10 m). Left alone for 12 minutes, the
   container slept and the next start answered `v1.4.2`. Recorded as F7 in
-  `followup-reliable-project-multiplayer.md`.
+  `archive/followup-reliable-project-multiplayer.md`.
