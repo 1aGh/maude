@@ -112,6 +112,16 @@ finishes it before anything reconciles — the import only creates what the
 store lacks — and logs `resumed import: …`. Nothing to do by hand; run the
 parity check below once it is up. A finished import is never re-run.
 
+**If the request itself times out (cloud).** A cell's edge cuts a request that
+runs longer than the platform allows, and the switch's import can: on the F3
+test cell a ~130-canvas project took 55 s, and a larger one answered `503`
+while the switch went on. A `503` or a client timeout is not an answer — poll
+`GET …/mode` until `importPending` is `false` (then verify as below). If it
+stays `true` for more than a few minutes with the revision not moving, restart
+the cell (`POST /_cell/restart`): the next start resumes the import, as above.
+On the F3 cell this happened once (2026-09-24) and the resumed import finished
+at once; the cause was not found without the container log.
+
 **Git in an accepted project.** The checkout is the shared history's
 projection. The studio refuses the Git operations that rewrite its files
 (switch or add a draft, discard, get latest, resolve) with `409

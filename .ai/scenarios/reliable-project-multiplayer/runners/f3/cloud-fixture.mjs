@@ -18,7 +18,7 @@ const fx = {
   backend: 'cloud',
   url: B.origin,
   port: 1800,
-  projectId: 'f3-cloud',
+  projectId: B.cloud.project,
   sessions: B.tokens,
   users: {
     owner: { email: 'owner@maude-f3.invalid' },

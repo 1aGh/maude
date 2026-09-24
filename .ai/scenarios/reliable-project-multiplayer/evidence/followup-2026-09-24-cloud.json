@@ -28,6 +28,27 @@
       "image": "test-20260924-r7",
       "content": "+ b96754d8 (CSS only)",
       "reason": "S19 contrast"
+    },
+    {
+      "image": "test-20260924-r8",
+      "content": "+ 489854f4 durable upload sessions",
+      "reason": "S12 cloud"
+    },
+    {
+      "image": "test-20260924-r9",
+      "content": "+ b18b22fd + 58b27496 cold-start fixes",
+      "reason": "S14/S16 cloud",
+      "applicationVersion": 9
+    },
+    {
+      "image": "test-20260924-r10",
+      "content": "+ 0e881a3c + 36e48e90",
+      "applicationVersion": 10
+    },
+    {
+      "image": "test-20260924-r10b",
+      "content": "same digest as r10; rolled to verify the SIGTERM path",
+      "applicationVersion": 11
     }
   ],
   "results": {
@@ -1543,23 +1564,16 @@
       "note": "the hub-cannot-persist state is not injectable on the cloud cell (platform disk; the ProjectStore DO / R2 cannot be made to fail for one test) \u2014 recorded, not counted as passed"
     },
     "S12": {
-      "path": "assets/f3-large-d7842d.mp4",
+      "path": "assets/f3-large-5f5f68.mp4",
       "size": 125829120,
-      "sha256": "bc88d6105501266371a9e3ddcee8c6eda6928a5b42e0856c7489565b4969df4b",
+      "sha256": "91696346741a0de745033f6ed596ee760dab0bd16017fc024f6acfd257775503",
       "resume": {
-        "status": 404,
-        "receivedAfterRestart": null,
-        "verifiedBeforeKill": 7,
-        "lostAcrossRestart": {
-          "status": 404,
-          "error": "no such upload"
-        },
-        "recreated": {
-          "received": 0
-        }
+        "status": 200,
+        "receivedAfterRestart": 7,
+        "verifiedBeforeKill": 7
       },
       "corruptPart": {
-        "part": 0,
+        "part": 7,
         "status": 400,
         "keptAfter": false
       },
@@ -1578,7 +1592,7 @@
       "objectStorage": {
         "objects": [
           {
-            "key": "tenants/f3-cloud/assets/f3-large-d7842d.mp4",
+            "key": "tenants/f3-cloud/assets/f3-large-5f5f68.mp4",
             "size": 125829120
           }
         ],
@@ -1593,13 +1607,18 @@
         "status": 413,
         "error": "over the 2147483648-byte project file ceiling"
       },
-      "status": "fail",
-      "image": "r6",
-      "finding": {
-        "id": "F3-cloud-S12-upload-session-not-durable",
-        "summary": "A resumable upload session lives on the cell container disk: a cell restart (rollout, crash, sleep) answers 404 no such upload, so the upload restarts from part 0. No data is lost or wrongly accepted \u2014 the desktop re-creates the session (creation is idempotent) and sends every part again \u2014 but S12 resume-verified-bytes does not hold on cloud.",
-        "needsDecision": "persist parts beyond the container (R2 multipart / DO storage) or accept restart-from-zero on cloud"
-      }
+      "status": "pass",
+      "image": "r8",
+      "previousRun": {
+        "image": "r6",
+        "status": "fail",
+        "finding": {
+          "id": "F3-cloud-S12-upload-session-not-durable",
+          "summary": "A resumable upload session lives on the cell container disk: a cell restart (rollout, crash, sleep) answers 404 no such upload, so the upload restarts from part 0. No data is lost or wrongly accepted \u2014 the desktop re-creates the session (creation is idempotent) and sends every part again \u2014 but S12 resume-verified-bytes does not hold on cloud.",
+          "needsDecision": "persist parts beyond the container (R2 multipart / DO storage) or accept restart-from-zero on cloud"
+        }
+      },
+      "r2AfterComplete": "only the receipt session.json under tenants/f3-cloud/upload-sessions/ (swept after an hour); no parts"
     },
     "S09": {
       "doc": "ui-f3effects2fa734",
@@ -1780,15 +1799,495 @@
       "status": "pass",
       "image": "r7",
       "note": "Control-plane invite rows (expired, revoked, viewer forged invite) were verified on 2026-09-22 against the same, unchanged control worker (followup-2026-09-22-cloud-auth.json). A removed designer's already-open cell session keeps working until the cell's revocation sweep \u2014 the product states this on the removal page (\"stops working within the hour\"); measured 121 s; writes in that window are allowed by design. Same-named projects on different servers: covered by self-host S02."
+    },
+    "S16": {
+      "tag": "b45338",
+      "backend": "cloud",
+      "B": {
+        "notInjectable": true
+      },
+      "C": {
+        "notInjectable": true
+      },
+      "A": {
+        "races": {
+          "rounds": 20,
+          "outcomes": {
+            "200": 39,
+            "409 base-conflict": 1
+          },
+          "bothWon": 19,
+          "noopAcks": 6,
+          "everyHeadAsExpected": true,
+          "notAsExpected": []
+        },
+        "restart": {
+          "killed": 200,
+          "uptimeMs": 4802
+        },
+        "burst": {
+          "sent": 40,
+          "ackedBeforeCut": 2,
+          "retries": [
+            {
+              "i": 2,
+              "first": 0,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 3,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 4,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 5,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 6,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 7,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 8,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 9,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 10,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 11,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 12,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 13,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 14,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 15,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 16,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 17,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 18,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 19,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 20,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 21,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 22,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 23,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 24,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 25,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 26,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 27,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 28,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 29,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 30,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 31,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 32,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 33,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 34,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 35,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 36,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 37,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 38,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 39,
+              "retry": 200,
+              "code": null
+            }
+          ]
+        },
+        "replayOfAcked": {
+          "status": 200,
+          "code": null,
+          "revision": 970
+        },
+        "chain": {
+          "revisions": 1009,
+          "contiguous": true,
+          "duplicateTransactions": 0
+        },
+        "ackedNotAtItsRevision": [],
+        "everyAckInStoreOnce": true,
+        "noopAcksLeaveNoRow": true,
+        "headIsLastBurstStep": true,
+        "status": "pass"
+      },
+      "D": {
+        "restart": {
+          "killed": 200,
+          "uptimeMs": 3368
+        },
+        "deletedCanvasRevisions": [
+          1010,
+          1011,
+          1012,
+          1013
+        ],
+        "historyBeforeRestart": true,
+        "afterFreshDisk": {
+          "sameHead": true,
+          "sameChain": true,
+          "sameLiveDocs": true,
+          "deletedStaysDeleted": true,
+          "deletedHistoryReadable": true,
+          "parity": true,
+          "parityChecked": 118,
+          "mismatches": []
+        },
+        "status": "pass"
+      },
+      "status": "pass",
+      "image": "r9",
+      "runner": "runners/f3/s16-cloud.mjs",
+      "notInjectable": {
+        "A-two-coordinators": "one ProjectStore Durable Object per project; the platform runs one instance per id and serializes it \u2014 the cloud form is two people racing through the one cell plus the cell killed mid-burst (measured above)",
+        "B-missing-payload": "payloads live in the DO storage; a test cannot delete one without corrupting the platform object",
+        "C-full-store": "the DO storage cannot be filled for one test without breaking the cell"
+      },
+      "previousRuns": [
+        {
+          "image": "r8",
+          "status": "fail",
+          "finding": "D: parity mismatch ui-t32-probe (checkout) that survived two cell restarts \u2014 the cell studio held the canvas as body-rejected/local-edit on every wake: the checkout restored from the newest backup held an OLDER accepted version with no recorded base. Fixed 58b27496 (r9); after the r9 wake parity 115/115 with no cell-studio conflict, before any test write."
+        },
+        {
+          "image": "r8",
+          "status": "harness",
+          "finding": "A oracle wrong: one coordinator merges a same-base race character-wise (19/20 rounds both win, 6 noop acks) \u2014 verified against the hub mergeLane; oracle now checks every head against an independent merge and excludes noop acks from the row check. The first burst finished before the kill; now 40 steps, kill at 700 ms (step 2 in flight)."
+        }
+      ]
+    },
+    "S13/S14": {
+      "status": "pass",
+      "project": "f3-scale (clean tenant on the same test worker: own ProjectStore DO, own R2 prefix tenants/f3-scale; empty at start)",
+      "image": "test-20260924-r10b; clients from source at 36e48e90",
+      "report": "evidence/followup-2026-09-24-cloud-scale.json",
+      "seed": {
+        "kills": [
+          {
+            "label": "mid small-file seed",
+            "restartedFirstPass": {
+              "down": 0,
+              "up": 200,
+              "conflicts": 0,
+              "alreadyInStep": 84
+            },
+            "restartedFromZero": false
+          },
+          {
+            "label": "mid large-object upload",
+            "restartedFirstPass": {
+              "down": 0,
+              "up": 1,
+              "conflicts": 0,
+              "alreadyInStep": 310
+            },
+            "restartedFromZero": false
+          }
+        ],
+        "largeObjectSession": {
+          "sameSessionResumed": true,
+          "preKillPartsRewritten": [],
+          "landedInJournal": true,
+          "partsReceivedBeforeKill": 19,
+          "partsTotal": 65
+        }
+      },
+      "cleanClients": "B complete 293 s, C complete 298 s",
+      "oracle": {
+        "unexplained": 0,
+        "preexistingOnHub": {
+          "paths": 0,
+          "extraOnB": 0,
+          "extraOnC": 0
+        }
+      },
+      "edits": {
+        "count": 386,
+        "timedOut": 0,
+        "interruptedByKill": 2,
+        "latencyMs": {
+          "hub": {
+            "n": 384,
+            "p50": 1139,
+            "p95": 1679,
+            "max": 44314
+          },
+          "peersWhileMediaMoving": {
+            "n": 398,
+            "p50": 1103,
+            "p95": 1629,
+            "max": 3601
+          }
+        }
+      },
+      "slowestEdit": "n=1 at 20.7 s, 44.3 s: the first edit on a brand-new project queued behind A adding its 77 canvases (doc.create, one serialized transaction queue, cloud round trips); self-host reached the same point after its creates (380 ms). Under the 60 s bound; no edit waited on media.",
+      "sharedProjectRuns": {
+        "status": "fail",
+        "image": "r9 cell (clients from source incl. 0e881a3c)",
+        "runner": "scripts/dev/t32-scale.mjs --scale full --cloud <fixture>",
+        "final": {
+          "seed": {
+            "kills": [
+              {
+                "label": "mid small-file seed",
+                "restartedFirstPass": {
+                  "down": 142,
+                  "up": 42,
+                  "conflicts": 0,
+                  "alreadyInStep": 203
+                },
+                "restartedFromZero": false
+              },
+              {
+                "label": "mid large-object upload",
+                "restartedFirstPass": {
+                  "down": 1,
+                  "up": 1,
+                  "conflicts": 0,
+                  "alreadyInStep": 919
+                },
+                "restartedFromZero": false
+              }
+            ],
+            "largeObjectSession": {
+              "sameSessionResumed": true,
+              "preKillPartsRewritten": [],
+              "landedInJournal": true,
+              "partsReceivedBeforeKill": 19,
+              "partsTotal": 65
+            },
+            "restartedFromZero": false
+          },
+          "oracle": {
+            "unexplained": 0
+          },
+          "edits": {
+            "count": 762,
+            "timedOut": 3,
+            "latencyMs": {
+              "hub": {
+                "n": 759,
+                "p50": 1210,
+                "p95": 2211,
+                "max": 47887
+              },
+              "peersWhileMediaMoving": {
+                "n": 888,
+                "p50": 1196,
+                "p95": 2211,
+                "max": 13291
+              }
+            }
+          },
+          "starvedEdits": [
+            {
+              "n": 51,
+              "n2": 58,
+              "cause": "A's proposal POST timed out at 20 s and was retried ('not acknowledged yet (The operation timed out.)'): the standard-1 cell (1/2 vCPU) was moving ~10 GB at once \u2014 A pulling the 2.6 GB this shared test project accumulated over earlier runs and uploading 0.64 GB, B and C each pulling ~3.2 GB"
+            },
+            {
+              "n": 692,
+              "cause": "oracle artefact: B and C received the edit in 11 s through the hub; only the hub-head poll missed it"
+            }
+          ],
+          "note": "The load is ~3x the scenario design because the delete breaker (25/h) leaves earlier runs' files on the shared project; a fair re-measure needs a fresh test project."
+        },
+        "runs": [
+          {
+            "run": 1,
+            "finding": "1/502 edits starved: a save made on top of one still in the outbox conflicted with itself after a restart -> b18b22fd; harness counted pre-existing hub files -> fixed"
+          },
+          {
+            "run": 2,
+            "finding": "invalid: synthetic paths deterministic, nothing left to move on the shared project -> per-run RUN_TAG"
+          },
+          {
+            "run": 3,
+            "finding": "invalid: probe canvas path shared with run 1 -> per-run probe"
+          },
+          {
+            "run": 4,
+            "finding": "1 edit starved: an empty replica replaced the adopted base of a canvas just created -> 0e881a3c"
+          },
+          {
+            "run": 5,
+            "finding": "seed clean, oracle clean; 3/762 edits >60 s under a ~10 GB concurrent transfer on a 1/2-vCPU cell (see final)"
+          }
+        ]
+      }
+    },
+    "S17": {
+      "status": "accepted-with-residual",
+      "image": "r9",
+      "runner": "runners/f3/s17-migration.mjs (cloud: relink after the cell restart, hub copy read through a socket)",
+      "checks": {
+        "dryRunPersistsNothing": false,
+        "interruptedSwitchConsistent": true,
+        "doubleSubmitRefused": true,
+        "parityAfterSwitch": true,
+        "bytesConserved": false,
+        "staleSocketFenced": true,
+        "pendingWorkConserved": false,
+        "rollbackKeepsAcceptedWrite": true,
+        "noAcceptedWriterWhileLegacy": true,
+        "forwardCarriesLegacyWrite": false,
+        "historyConserved": true,
+        "rollbackBeforeWriteIsNoop": true,
+        "epochsMonotonic": true,
+        "desktopConverged": true
+      },
+      "passed": 10,
+      "of": 14,
+      "failingCause": "The switch is interrupted by a HARD kill of the cell (destroy = SIGKILL). In legacy mode a cell's documents are only as durable as the last backup generation, so the legacy writes of the last minutes were gone after the restart (measured directly: documents written 5 s and 70 s before a hard kill, both lost). The desktop re-supplied them as new actions (desktopConverged true), so dryRun/bytesConserved/pendingWork fail on attribution, not on lost bytes on the desktop. forwardAgain answered 503 (platform request limit) while the switch completed.",
+      "ownerDecision": "2026-09-24: narrow the window now (final backup on SIGTERM) and document the hard-kill residual -> 36e48e90",
+      "gracefulStopVerified": {
+        "image": "r10 -> r10b rollout (platform SIGTERM)",
+        "legacyDocWritten5sBefore": "survived with its edit",
+        "switchBackToTransactions": {
+          "status": 200,
+          "ms": 55525
+        }
+      },
+      "importHangObserved": "once: after a 503 on the switch, importPending stayed true >5 min with the revision not moving; a cell restart resumed and finished it at once. Cause not found (no container log access); runbook documents the recovery.",
+      "regressionTests": "9a11e85a (rollback after an accepted-mode create; offline start with an unproposed save)",
+      "ownerAcceptance": "2026-09-24: owner accepted S17 on the cloud with the documented hard-kill legacy residual (runbook) after 36e48e90 closed the graceful-stop window"
     }
   },
   "productFixes": [
     "a433fb49 the cell studio (loopback participant) proposed a stale file-event body over a teammate accepted edit (v13 over v14, rev 61) \u2014 found by S15 on r5",
-    "b96754d8 tree section count pill contrast 3.03:1 -> --fg-2 (found by S19 on r6)"
+    "b96754d8 tree section count pill contrast 3.03:1 -> --fg-2 (found by S19 on r6)",
+    "489854f4 resumable upload sessions durable in object storage (session + parts under <tenant>/upload-sessions/, owner-bound), found by S12 on r6",
+    "b18b22fd cold start waits for the outbox drain and bases the disk on its own drained accepted save (found by S14 on the cloud: 1/502 edits starved after a SIGKILL)",
+    "58b27496 cold start materializes a disk that holds a value the store accepted (a checkout restored from backup on every cell wake), found by S16 on r8",
+    "0e881a3c an empty replica no longer replaces the adopted base of a canvas just created (found by S14 cloud run 4)",
+    "36e48e90 a graceful hub stop flushes pending documents and takes a final backup generation (found by S17 cloud; owner decision)"
   ],
-  "remaining": [
-    "S13/S14",
-    "S16",
-    "S17"
-  ]
+  "remaining": []
 }

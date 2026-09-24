@@ -957,5 +957,57 @@
     "S13/S14": "pass",
     "S17": "pass",
     "S16": "pass"
+  },
+  "rerun20260924": {
+    "why": "re-verify the store and migration scenarios on the build carrying the cloud fixes (b18b22fd, 58b27496, 0e881a3c studio; 36e48e90 hub final backup on SIGTERM)",
+    "image": "maude-f3-selfhost:local rebuilt from 36e48e90",
+    "S16": {
+      "A": "pass",
+      "B": "pass",
+      "C": "pass",
+      "D": "pass",
+      "D_detail": {
+        "checkoutOnlyDisk": {
+          "hubStarted": false,
+          "refusal": "[rehydrate] refusing to start \u2014 the documents are present but the checkout is gone. Restoring the checkout alone would pair it with newer documents, and restoring the whole generation would discard them. Restore deliberately, or set MAUDE_ALLOW_EMPTY_START=1 to start without the history."
+        },
+        "afterRecovery": {
+          "sameHead": true,
+          "sameChain": true,
+          "deletedHistoryReadable": true,
+          "parity": true,
+          "currentCanvasOnDisk": true
+        },
+        "afterBothDisks": {
+          "sameHead": true,
+          "sameChain": true,
+          "sameLiveDocs": true,
+          "deletedStaysDeleted": true,
+          "deletedHistoryReadable": true,
+          "parity": true
+        },
+        "backupGenerations": 14
+      },
+      "runnerCorrection": "D now encodes the designed outcome of a checkout-only disk replacement (the 2026-09-23 run recorded it by hand): rehydrate refuses to start, and the runbook DR path (whole latest generation, wipe-disk) recovers head, chain, deleted history, parity and the canvas on disk"
+    },
+    "S17": {
+      "status": "pass",
+      "checks": {
+        "dryRunPersistsNothing": true,
+        "interruptedSwitchConsistent": true,
+        "doubleSubmitRefused": true,
+        "parityAfterSwitch": true,
+        "bytesConserved": true,
+        "staleSocketFenced": true,
+        "pendingWorkConserved": true,
+        "rollbackKeepsAcceptedWrite": true,
+        "noAcceptedWriterWhileLegacy": true,
+        "forwardCarriesLegacyWrite": true,
+        "historyConserved": true,
+        "rollbackBeforeWriteIsNoop": true,
+        "epochsMonotonic": true,
+        "desktopConverged": true
+      }
+    }
   }
 }

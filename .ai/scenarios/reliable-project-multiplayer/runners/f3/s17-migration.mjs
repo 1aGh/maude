@@ -18,7 +18,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { canvasSource, loadBackend } from './backend.mjs';
+import { canvasSource, loadBackend, platformRetries } from './backend.mjs';
 import { startDesktop, startProxy, until } from './desktop.mjs';
 
 const REPO = fileURLToPath(new URL('../../../../../', import.meta.url));
@@ -33,14 +33,29 @@ mkdirSync(out, { recursive: true });
 const fx = JSON.parse(readFileSync(join(work, 'fixture.json'), 'utf8'));
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 const tag = randomBytes(3).toString('hex');
+const cloud = fx.backend === 'cloud';
 const B = await loadBackend('selfhost', { work });
-const hub = (verb) => execFileSync('node', [join(HERE, 'selfhost.mjs'), verb, '--work', work], { stdio: 'ignore' });
+const hub = (verb) =>
+  cloud
+    ? execFileSync('node', [join(HERE, 'cloud-ops.mjs'), verb], { stdio: 'ignore', timeout: 360000 })
+    : execFileSync('node', [join(HERE, 'selfhost.mjs'), verb, '--work', work], { stdio: 'ignore' });
+// A cloud cell's sessions die with it: everyone signs in again.
+const signInAgain = async () => {
+  const fresh = await loadBackend('cloud', { cache: null });
+  Object.assign(B.tokens, fresh.tokens);
+  for (const who of Object.keys(fresh.tokens)) fx.sessions[who] = fresh.tokens[who];
+  return fresh.tokens;
+};
 const mode = async () => (await B.api('owner', 'mode')).body;
 const setMode = (body) => B.api('owner', 'mode', body, { timeout: 120000 });
-const checkout = (rel) => {
+// The self-hosted hub's checkout is on this machine. The cloud cell's is not:
+// there the hub's own copy is read the way any client reads it — a fresh
+// owner socket on the document (legacy's canonical state), synced and closed.
+const checkoutLocal = (rel) => {
   const p = join(work, 'repo', '.design', rel);
   return existsSync(p) ? readFileSync(p, 'utf8') : null;
 };
+const checkout = (rel) => (cloud ? hubText(`ui-${rel.slice(3, -4).toLowerCase()}`) : checkoutLocal(rel));
 
 const require = createRequire(join(REPO, 'apps/hub/package.json'));
 const { HocuspocusProvider } = require('@hocuspocus/provider');
@@ -50,6 +65,17 @@ const socket = (doc, who = 'b') => {
   const provider = new HocuspocusProvider({ url: fx.url.replace(/^http/, 'ws'), name: doc, token: fx.sessions[who].token, document: d });
   return { d, provider, html: () => d.getText('html').toString() };
 };
+async function hubText(doc) {
+  const r = socket(doc, 'owner');
+  try {
+    await until(() => r.provider.synced, `hub copy of ${doc}`, 30000, 100);
+    return r.html();
+  } catch {
+    return null;
+  } finally {
+    r.provider.destroy();
+  }
+}
 const replace = (r, text) =>
   r.d.transact(() => {
     const t = r.d.getText('html');
@@ -80,17 +106,39 @@ const sockets = [];
 try {
   // ── legacy: the desktop writes two canvases; they reach the hub checkout ──
   for (const c of [P, Q]) A.write(c.rel, c.src);
-  for (const c of [P, Q]) await until(() => checkout(c.rel) === c.src, `legacy ${c.rel} on the hub`, 90000);
+  for (const c of [P, Q]) await until(async () => (await checkout(c.rel)) === c.src, `legacy ${c.rel} on the hub`, 90000, 1000);
   // A legacy edit by a real legacy client (the desktop, writing its file).
   const qLegacyEdit = Q.src.replace('color: "red"', 'color: "olive"');
   A.write(Q.rel, qLegacyEdit);
-  await until(() => checkout(Q.rel) === qLegacyEdit, 'a legacy edit reaches the hub', 60000);
+  await until(async () => (await checkout(Q.rel)) === qLegacyEdit, 'a legacy edit reaches the hub', 60000, 1000);
   Q.legacy = qLegacyEdit;
   // A stale process of an older build: a raw socket opened now and never
   // closed, which knows nothing of accepted revisions.
-  const stale = socket(Q.doc);
-  sockets.push(stale);
-  await until(() => stale.provider.synced && stale.html() === Q.legacy, 'stale socket synced', 30000);
+  // (On the cloud a socket opened now dies with the cell the switch kills —
+  // so there the stale socket is opened after the restart, still in legacy.)
+  let stale = null;
+  const openStale = async (expected = Q.legacy) => {
+    stale = socket(Q.doc);
+    sockets.push(stale);
+    await until(() => stale.provider.synced && stale.html() === expected, 'stale socket synced', 30000);
+  };
+  const staleCheck = async (expected) => {
+    const headBefore = (await B.bootstrap('owner')).revision;
+    replace(stale, expected.replace('color: "olive"', 'color: "maroon"'));
+    await new Promise((r) => setTimeout(r, 3000));
+    const out = {
+      stillOpen: stale.provider.configuration.websocketProvider.webSocket?.readyState === 1,
+      headUnchanged: (await B.bootstrap('owner')).revision === headBefore,
+      acceptedUnchanged: (await B.doc(Q.doc, 'owner')).source === expected,
+      checkoutUnchanged: cloud ? null : (await checkout(Q.rel)) === expected,
+    };
+    const witness = socket(Q.doc, 'owner');
+    sockets.push(witness);
+    await until(() => witness.provider.synced, 'witness synced', 30000);
+    out.freshReplicaUnchanged = witness.html() === expected;
+    return out;
+  };
+  if (!cloud) await openStale();
 
   // ── dry run: reports, persists nothing ──
   const dry = await setMode({ mode: 'transactions', dryRun: true });
@@ -116,7 +164,14 @@ try {
   hub('kill');
   const interrupted = await inflight;
   hub('start');
+  if (cloud) {
+    const t = await signInAgain();
+    // The desktop signs in again too — still offline, its edit only on disk.
+    await A.relink(t.a.token);
+    result.relinkedAfterCellRestart = true;
+  }
   let m = await mode();
+  if (cloud && m.mode === 'legacy') await openStale();
   result.interruptedSwitch = { answered: interrupted.status, modeAfterRestart: m.mode, epochAfterRestart: m.epoch, importPending: m.importPending };
   let sw = null;
   if (m.mode === 'legacy') {
@@ -146,19 +201,9 @@ try {
   };
 
   // ── the stale socket cannot write any more ──
-  const headBefore = (await B.bootstrap('owner')).revision;
-  replace(stale, Q.legacy.replace('color: "olive"', 'color: "maroon"'));
-  await new Promise((r) => setTimeout(r, 3000));
-  result.staleSocket = {
-    stillOpen: stale.provider.configuration.websocketProvider.webSocket?.readyState === 1,
-    headUnchanged: (await B.bootstrap('owner')).revision === headBefore,
-    acceptedUnchanged: (await B.doc(Q.doc, 'owner')).source === Q.legacy,
-    checkoutUnchanged: checkout(Q.rel) === Q.legacy,
-  };
-  const witness = socket(Q.doc, 'owner');
-  sockets.push(witness);
-  await until(() => witness.provider.synced, 'witness synced', 30000);
-  result.staleSocket.freshReplicaUnchanged = witness.html() === Q.legacy;
+  // (Cloud, switch completed by the restart: no legacy socket survived it, so
+  // the stale socket is measured at the next legacy → accepted flip instead.)
+  result.staleSocket = stale ? { atFlip: 'first-switch', ...(await staleCheck(Q.legacy)) } : null;
 
   // ── the pending desktop edit is conserved and lands as an action ──
   await proxy.online();
@@ -196,14 +241,14 @@ try {
   const headAccepted = (await B.bootstrap('owner')).revision;
   const back1 = await setMode({ mode: 'legacy' });
   const m2 = await mode();
-  await until(() => checkout(P.rel) === pPending, 'legacy checkout keeps the accepted write', 30000).catch(() => null);
+  await until(async () => (await checkout(P.rel)) === pPending, 'legacy checkout keeps the accepted write', 30000, 1000).catch(() => null);
   const refusedWhileLegacy = await B.propose('owner', [{ op: 'dir.create', path: `ui/F3MigRefused${tag}` }], { epoch: m2.epoch });
   const histLegacy = await B.api('owner', 'history?limit=100');
   result.rollbackAfterWrite = {
     status: back1.status,
     mode: m2.mode,
     epoch: m2.epoch,
-    acceptedWriteKept: checkout(P.rel) === pPending,
+    acceptedWriteKept: (await checkout(P.rel)) === pPending,
     storeHeadKept: m2.revision === headAccepted,
     historyReadable: histLegacy.status === 200 && (histLegacy.body.history ?? []).length >= hist1.length,
     proposalRefused: { status: refusedWhileLegacy.status, code: refusedWhileLegacy.body?.code ?? null },
@@ -214,14 +259,14 @@ try {
   const qBetween = Q.legacy.replaceAll('F3MigPanel legacy', 'Written while legacy again');
   A.write(Q.rel, qBetween);
   const betweenAt = Date.now();
-  await until(() => checkout(Q.rel) === qBetween, 'legacy write between switches', 90000).catch(async (e) => {
+  await until(async () => (await checkout(Q.rel)) === qBetween, 'legacy write between switches', 90000, 1000).catch(async (e) => {
     const peek = socket(Q.doc, 'owner');
     sockets.push(peek);
     await until(() => peek.provider.synced, 'peek synced', 20000).catch(() => null);
     writeFileSync(
       join(out, 'between-failure.json'),
       JSON.stringify(
-        { sinceWriteMs: Date.now() - betweenAt, desktop: A.read(Q.rel), checkout: checkout(Q.rel), hubDoc: peek.html(), stale: stale.html(), status: await A.status() },
+        { sinceWriteMs: Date.now() - betweenAt, desktop: A.read(Q.rel), checkout: await checkout(Q.rel), hubDoc: peek.html(), stale: stale?.html() ?? null, status: await A.status() },
         null,
         1
       )
@@ -230,6 +275,7 @@ try {
   });
 
   // ── forward again: the in-between legacy write is carried, history kept ──
+  if (!result.staleSocket) await openStale(qBetween);
   const fwd = await setMode({ mode: 'transactions', expectEpoch: m2.epoch });
   const m3 = await mode();
   const parity2 = await until(async () => {
@@ -246,6 +292,7 @@ try {
     oldRevisionReadable: oldLane.status === 200 && oldLane.body?.body === pPending,
     parity: { ok: parity2.ok, checked: parity2.checked, mismatches: parity2.mismatches },
   };
+  if (!result.staleSocket) result.staleSocket = { atFlip: 'forward-again', ...(await staleCheck(qBetween)) };
 
   // ── rollback BEFORE any new write, then forward: nothing moves ──
   const headNow = m3.revision;
@@ -253,7 +300,7 @@ try {
   const qNow = (await B.doc(Q.doc, 'owner')).source;
   const back2 = await setMode({ mode: 'legacy' });
   await new Promise((r) => setTimeout(r, 2000));
-  const identicalInLegacy = checkout(P.rel) === pNow && checkout(Q.rel) === qNow;
+  const identicalInLegacy = (await checkout(P.rel)) === pNow && (await checkout(Q.rel)) === qNow;
   const m4 = await mode();
   const fwd2 = await setMode({ mode: 'transactions', expectEpoch: m4.epoch });
   const m5 = await mode();
@@ -284,7 +331,8 @@ const checks = {
   doubleSubmitRefused: r.switch.doubleSubmit.status === 409 && r.switch.epochAfterDouble === r.switch.epoch,
   parityAfterSwitch: r.afterSwitch.parity.ok === true,
   bytesConserved: r.afterSwitch.qBytesConserved,
-  staleSocketFenced: r.staleSocket.headUnchanged && r.staleSocket.acceptedUnchanged && r.staleSocket.checkoutUnchanged && r.staleSocket.freshReplicaUnchanged,
+  staleSocketFenced:
+    r.staleSocket.headUnchanged && r.staleSocket.acceptedUnchanged && r.staleSocket.checkoutUnchanged !== false && r.staleSocket.freshReplicaUnchanged,
   pendingWorkConserved: r.pendingWork.landed === true && r.pendingWork.actor === fx.users.a.email,
   rollbackKeepsAcceptedWrite: r.rollbackAfterWrite.status === 200 && r.rollbackAfterWrite.acceptedWriteKept && r.rollbackAfterWrite.historyReadable,
   noAcceptedWriterWhileLegacy: r.rollbackAfterWrite.proposalRefused.status >= 400,
@@ -295,6 +343,7 @@ const checks = {
   desktopConverged: r.desktopConverged === true,
 };
 result.checks = checks;
+result.platformRetries = platformRetries;
 result.status = Object.values(checks).every(Boolean) ? 'pass' : 'fail';
 writeFileSync(join(out, 's17-migration.json'), JSON.stringify(result, null, 2));
 console.log(JSON.stringify(result));

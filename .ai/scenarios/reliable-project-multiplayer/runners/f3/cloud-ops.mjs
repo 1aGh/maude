@@ -10,7 +10,8 @@ import { readFileSync } from 'node:fs';
 
 const ACCOUNT = 'b5b596efe65abb732777c7171dc18145';
 const APP = 'a03073b4-13ac-42ee-8b75-b58b598e3240';
-const ORIGIN = 'https://f3-cloud.multiplayer-test-20260922.maude.sh';
+const TENANT = process.env.F3_CLOUD_PROJECT ?? 'f3-cloud';
+const ORIGIN = `https://${TENANT}.multiplayer-test-20260922.maude.sh`;
 const token = /oauth_token\s*=\s*"([^"]+)"/.exec(
   readFileSync(`${process.env.HOME}/.config/.wrangler/config/default.toml`, 'utf8')
 )?.[1];
@@ -42,7 +43,7 @@ if (cmd === 'instances') {
     new URL('../../../../../apps/cells/cell-config.mjs', import.meta.url).href
   );
   const { cellSecret } = JSON.parse(readFileSync('/tmp/maude-followup-staging-u6SNrA/credentials.json', 'utf8'));
-  const secret = await deriveSecret(cellSecret, 'f3-cloud');
+  const secret = await deriveSecret(cellSecret, TENANT);
   const r = await fetch(`${ORIGIN}${RESTART_PATH}`, { method: 'POST', headers: { authorization: `Bearer ${secret}` } });
   console.log(JSON.stringify({ status: r.status, body: await r.text().then((t) => t.slice(0, 120)) }));
 } else if (cmd === 'start') {

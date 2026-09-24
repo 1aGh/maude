@@ -100,17 +100,30 @@ const PRIOR = arg('prior');
 const KEEP = has('keep-data');
 const TIMEOUT_MS = Number(arg('timeout-min', SCALE === 'full' ? '60' : '20')) * 60_000;
 const SELFHOST = arg('selfhost') ? resolve(arg('selfhost')) : null;
-const FX = SELFHOST ? JSON.parse(readFileSync(join(SELFHOST, 'fixture.json'), 'utf8')) : null;
+// --cloud <dir>: the isolated cloud cell through a runners/f3/cloud-fixture.mjs
+// fixture. The hub's disk is not on this machine, so the hub-side oracles read
+// the journal and file manifest through the API and the upload sessions from
+// their durable store (<tenant>/upload-sessions/ in R2).
+const CLOUD_DIR = arg('cloud') ? resolve(arg('cloud')) : null;
+const FX =
+  SELFHOST || CLOUD_DIR
+    ? JSON.parse(readFileSync(join(SELFHOST ?? CLOUD_DIR, 'fixture.json'), 'utf8'))
+    : null;
+const CLOUD = FX?.backend === 'cloud';
 
 const MIB = 1024 * 1024;
+// A shared cloud project keeps every earlier run's files, and the synthetic
+// media are deterministic by path — so on the cloud each run's synthetic set
+// gets its own folder, or there is nothing left to move (and to kill).
+const RUN_TAG = CLOUD ? `-${Date.now().toString(36)}` : '';
 const PROFILE =
   SCALE === 'full'
     ? {
         // The whole of this repo's `.design/` (raw, runtime state included).
         copy: 'all',
         synthetic: [
-          { rel: 'assets/t32-synthetic/master-096m.mp4', bytes: 96 * MIB },
-          { rel: 'assets/t32-synthetic/master-513m.mp4', bytes: 513 * MIB },
+          { rel: `assets/t32-synthetic${RUN_TAG}/master-096m.mp4`, bytes: 96 * MIB },
+          { rel: `assets/t32-synthetic${RUN_TAG}/master-513m.mp4`, bytes: 513 * MIB },
         ],
         smallFiles: 200,
       }
@@ -119,15 +132,21 @@ const PROFILE =
         // runtime state — about 100 MB with the synthetic media.
         copy: 'small',
         synthetic: [
-          { rel: 'assets/t32-synthetic/master-040m.mp4', bytes: 40 * MIB },
-          { rel: 'assets/t32-synthetic/master-100m.mp4', bytes: 100 * MIB },
+          { rel: `assets/t32-synthetic${RUN_TAG}/master-040m.mp4`, bytes: 40 * MIB },
+          { rel: `assets/t32-synthetic${RUN_TAG}/master-100m.mp4`, bytes: 100 * MIB },
         ],
         smallFiles: 50,
       };
 const BIG_REL = PROFILE.synthetic.at(-1).rel;
-const PROBE_REL = 'ui/t32-probe.tsx';
+// Per run on a shared cloud project, like the synthetic media: an earlier
+// run's probe is already an accepted canvas there.
+const PROBE_REL = `ui/t32-probe${RUN_TAG}.tsx`;
 const PORTS = { hub: BASE_PORT, a: BASE_PORT + 1, b: BASE_PORT + 2, c: BASE_PORT + 3 };
-const HUB_URL = FX ? `http://127.0.0.1:${FX.port}` : `http://127.0.0.1:${PORTS.hub}`;
+const HUB_URL = CLOUD
+  ? FX.url
+  : FX
+    ? `http://127.0.0.1:${FX.port}`
+    : `http://127.0.0.1:${PORTS.hub}`;
 const CANVAS_GROUPS = [
   { label: 'Design system', path: 'system' },
   { label: 'UI kit', path: 'ui' },
@@ -142,8 +161,16 @@ const rel = (p) => relative(WORK, p) || '.';
 /* ------------------------------------------------------------ layout ----- */
 
 const P = {
-  hubData: SELFHOST ? join(SELFHOST, 'data') : join(WORK, 'hub-data'),
-  hubRepo: SELFHOST ? join(SELFHOST, 'repo') : join(WORK, 'hub-repo'),
+  hubData: SELFHOST
+    ? join(SELFHOST, 'data')
+    : CLOUD
+      ? join(WORK, 'no-hub-disk', 'data')
+      : join(WORK, 'hub-data'),
+  hubRepo: SELFHOST
+    ? join(SELFHOST, 'repo')
+    : CLOUD
+      ? join(WORK, 'no-hub-disk', 'repo')
+      : join(WORK, 'hub-repo'),
   logs: join(WORK, 'logs'),
   homes: join(WORK, 'homes'),
   a: join(WORK, 'client-a'),
@@ -455,9 +482,11 @@ const report = {
   command: `node scripts/dev/t32-scale.mjs ${argv.map((a) => (a.startsWith('/') ? '<path>' : a)).join(' ')}`,
   environment: {},
   topology: {
-    hub: FX
-      ? `production hub image ${FX.image} (${FX.imageId}) in workspace mode, SQLite accepted store on its /data volume, R2 object storage (runners/f3/selfhost.mjs); clients use real account sessions`
-      : 'serve-hub.mjs --transactions, HUB_WORKSPACE_MODE=1, MAUDE_REPO_DIR=<work>/hub-repo, MAUDE_STUDIO_CHILD=0 (self-host workspace hub, file journal on, accepted revisions on)',
+    hub: CLOUD
+      ? `the isolated Cloudflare test cell ${FX.url} (ProjectStore Durable Object, R2); clients use real account sessions; hub-side oracles through /api/journal, /api/files and the durable upload-session store`
+      : FX
+        ? `production hub image ${FX.image} (${FX.imageId}) in workspace mode, SQLite accepted store on its /data volume, R2 object storage (runners/f3/selfhost.mjs); clients use real account sessions`
+        : 'serve-hub.mjs --transactions, HUB_WORKSPACE_MODE=1, MAUDE_REPO_DIR=<work>/hub-repo, MAUDE_STUDIO_CHILD=0 (self-host workspace hub, file journal on, accepted revisions on)',
     clients:
       'bun apps/studio/server.ts --root <dir> (MAUDE_NO_AUTOBUILD=1, isolated HOME/XDG/HUBS_CONFIG_PATH/MAUDE_CLOUD_CONFIG), linkedHub.syncFiles=true, owner-role hub record',
     ports: PORTS,
@@ -565,7 +594,7 @@ function buildInventory() {
   // The canvas edited throughout the run.
   writeFileSync(join(dst, PROBE_REL), probeSource('t32e0'));
   writeFileSync(
-    join(dst, 'ui/t32-probe.meta.json'),
+    join(dst, PROBE_REL.replace(/\.tsx$/, '.meta.json')),
     `${JSON.stringify({ title: 'T32 probe', kind: 'web' }, null, 2)}\n`
   );
 
@@ -578,7 +607,7 @@ function buildInventory() {
   }
   let smallBytes = 0;
   for (let i = 0; i < PROFILE.smallFiles; i++) {
-    const r = `assets/t32-small/still-${String(i).padStart(3, '0')}.png`;
+    const r = `assets/t32-small${RUN_TAG}/still-${String(i).padStart(3, '0')}.png`;
     const png = noisePng(i + 1);
     mkdirSync(dirname(join(dst, r)), { recursive: true });
     writeFileSync(join(dst, r), png);
@@ -594,7 +623,7 @@ function buildInventory() {
       small: {
         files: PROFILE.smallFiles,
         bytes: smallBytes,
-        pattern: 'assets/t32-small/still-NNN.png',
+        pattern: `assets/t32-small${RUN_TAG}/still-NNN.png`,
       },
       generator:
         'AES-256-CTR keystream keyed by sha256("t32-scale:"+rel), after an ISO-BMFF ftyp box; streamed in 8 MiB chunks',
@@ -635,8 +664,13 @@ function mintTokens() {
 
 async function startHub() {
   if (FX) {
-    const r = await fetch(`${HUB_URL}/health`, { signal: AbortSignal.timeout(5000) });
-    if (!r.ok) throw new Error(`self-host hub not healthy: ${r.status}`);
+    const r = await fetch(`${HUB_URL}/health`, { signal: AbortSignal.timeout(15000) });
+    if (!r.ok)
+      throw new Error(`${CLOUD ? 'cloud cell' : 'self-host hub'} not healthy: ${r.status}`);
+    if (CLOUD) {
+      await cloudRefresh();
+      startCloudPoll();
+    }
     return true;
   }
   mkdirSync(designOf(P.hubRepo), { recursive: true });
@@ -677,8 +711,101 @@ async function hubApi(route, { token = tokens.monitor } = {}) {
   return { status: res.status, body: await res.json().catch(() => null) };
 }
 
+/** Cloud: the hub-side state the oracles read, refreshed in the background. */
+const cloudCache = { rows: null, sessions: [], files: null };
+/** Paths on the hub before this run began (cloud: a shared test project). */
+const preexisting = new Set();
+let cloudPoll = null;
+async function cloudRefresh() {
+  const headers = { authorization: `Bearer ${tokens.monitor}` };
+  try {
+    const r = await fetch(`${HUB_URL}/api/journal?since=0`, {
+      headers,
+      signal: AbortSignal.timeout(15000),
+    });
+    if (r.ok) {
+      const b = await r.json();
+      cloudCache.rows = (b.entries ?? []).map((e) => ({
+        ...e,
+        deleted: e.deleted ? 1 : 0,
+        source: e.source ?? null,
+      }));
+    }
+  } catch {
+    /* next tick */
+  }
+  try {
+    const { listObjects, getObject, s3ConfigFromEnv } = await import(
+      join(ROOT, 'apps/hub/src/s3.mjs')
+    );
+    const env = Object.fromEntries(
+      readFileSync('/tmp/maude-r2-test.env', 'utf8')
+        .split('\n')
+        .filter((l) => l.includes('='))
+        .map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)])
+    );
+    const cfg = s3ConfigFromEnv({
+      MAUDE_S3_ENDPOINT: 'https://b5b596efe65abb732777c7171dc18145.r2.cloudflarestorage.com',
+      MAUDE_S3_BUCKET: 'maude-multiplayer-test-20260922',
+      ...env,
+    });
+    const base = `tenants/${FX.projectId}/upload-sessions/`;
+    const byId = new Map();
+    for (const o of await listObjects(cfg, base)) {
+      const [id, name] = o.key.slice(base.length).split('/');
+      if (!byId.has(id)) byId.set(id, { id, have: {}, session: null });
+      const e = byId.get(id);
+      const m = /^(\d{6})\.part$/.exec(name ?? '');
+      if (m) e.have[Number(m[1])] = { ino: o.lastModified, mtimeMs: o.lastModified, size: o.size };
+      else if (name === 'session.json') {
+        const b = await getObject(cfg, o.key).catch(() => null);
+        if (b) e.session = JSON.parse(b.toString('utf8'));
+      }
+    }
+    cloudCache.sessions = [...byId.values()]
+      .filter((e) => e.session)
+      .map((e) => ({
+        id: e.id,
+        path: e.session.path,
+        size: e.session.size,
+        parts: e.session.parts,
+        completedAt: e.session.completedAt ?? null,
+        have: e.have,
+      }));
+  } catch {
+    /* next tick */
+  }
+}
+function startCloudPoll() {
+  if (cloudPoll) return;
+  let busy = false;
+  cloudPoll = setInterval(async () => {
+    if (busy) return;
+    busy = true;
+    try {
+      await cloudRefresh();
+    } finally {
+      busy = false;
+    }
+  }, 1500);
+}
+async function cloudHubInventory() {
+  const r = await fetch(`${HUB_URL}/api/files`, {
+    headers: { authorization: `Bearer ${tokens.monitor}` },
+  });
+  const b = await r.json();
+  const eligible = new Map();
+  for (const f of b.files ?? []) {
+    const cls = classifyProjectFile(f.path, { canvasGroups: CANVAS_GROUPS });
+    if (!isFilePlaneClass(cls)) continue;
+    eligible.set(f.path, { size: f.size, cls, plane: 'B', sha256: f.sha256 });
+  }
+  return { files: [], eligible, excluded: [] };
+}
+
 /** The hub journal, read-only, straight from its SQLite file. */
 function journalRows() {
+  if (CLOUD) return cloudCache.rows;
   const file = join(P.hubData, 'journal.db');
   if (!existsSync(file)) return [];
   let db;
@@ -702,6 +829,7 @@ function journalRows() {
 
 /** Upload sessions on the hub, with per-part identity for the resume proof. */
 function uploadSessions() {
+  if (CLOUD) return cloudCache.sessions;
   const dir = join(P.hubData, 'uploads');
   const out = [];
   let ids = [];
@@ -946,6 +1074,22 @@ async function main() {
   mintTokens();
   await startHub();
   log(`hub up on ${HUB_URL}`);
+  // A shared cloud test project already holds earlier runs' files and
+  // canvases; the clean clients rightly pull them. Recorded now so the oracle
+  // can tell them from files this run should not have produced.
+  if (CLOUD) {
+    const inv = await cloudHubInventory();
+    const boot = await hubApi('bootstrap');
+    for (const r of inv.eligible.keys()) preexisting.add(r);
+    for (const d of boot.body?.docs ?? []) {
+      if (d.retired || !d.path) continue;
+      preexisting.add(d.path);
+      // A canvas doc's sidecar lanes materialise next to it.
+      for (const ext of ['.meta.json', '.annotations.svg'])
+        preexisting.add(d.path.replace(/\.[jt]sx$/, ext));
+    }
+    log(`cloud project already holds ${preexisting.size} path(s) from earlier runs`);
+  }
 
   const samplerRes = setInterval(() => void sampleResources(), 1000);
   let diskBusy = false;
@@ -1058,9 +1202,7 @@ async function main() {
   const blobHas = new Map();
   async function hubProbeHas(marker) {
     const r = await hubApi('bootstrap').catch(() => null);
-    const d = r?.body?.docs?.find?.(
-      (x) => !x.retired && String(x.path ?? '').endsWith('t32-probe.tsx')
-    );
+    const d = r?.body?.docs?.find?.((x) => !x.retired && String(x.path ?? '').endsWith(PROBE_REL));
     const h = d?.lanes?.html?.hash;
     if (!h) return false;
     probeHash = h;
@@ -1156,6 +1298,14 @@ async function main() {
   // After each, A restarts on the same directory. Resume is judged from the
   // hub's own disk and journal, never from A's claims.
   const deliveredCount = () => {
+    // A shared cloud project also holds earlier runs' files: count the ones
+    // this run moves.
+    if (CLOUD) {
+      const mine = new Set(planeB.map(([r]) => r).filter((r) => !preexisting.has(r)));
+      return new Set(
+        (cloudCache.rows ?? []).filter((r) => !r.deleted && mine.has(r.path)).map((r) => r.path)
+      ).size;
+    }
     const file = join(P.hubData, 'journal.db');
     if (!existsSync(file)) return 0;
     let db;
@@ -1174,8 +1324,9 @@ async function main() {
       }
     }
   };
-  const smallTarget = Math.max(2, Math.floor((planeB.length - PROFILE.synthetic.length) * 0.25));
-  const smallCeiling = Math.floor((planeB.length - PROFILE.synthetic.length) * 0.75);
+  const movingFiles = planeB.filter(([r]) => !preexisting.has(r)).length;
+  const smallTarget = Math.max(2, Math.floor((movingFiles - PROFILE.synthetic.length) * 0.25));
+  const smallCeiling = Math.floor((movingFiles - PROFILE.synthetic.length) * 0.75);
   const kills = [];
   const progressTrail = [];
   const progTimer = setInterval(() => {
@@ -1677,7 +1828,7 @@ async function main() {
   const invA = inventory(aDesign, { hash: true });
   const invB = inventory(designOf(P.b), { hash: true });
   const invC = inventory(designOf(P.c), { hash: true });
-  const hubChk = inventory(designOf(P.hubRepo), { hash: true });
+  const hubChk = CLOUD ? await cloudHubInventory() : inventory(designOf(P.hubRepo), { hash: true });
   const deliveryState = (root, r) => syncJson(root)?.files?.delivery?.[r] ?? null;
   // Mirrors apps/studio/sync/codec.ts META_LOCAL_KEYS — per-machine keys the
   // meta lane never carries (DDR-115: the camera lives in _canvas-state/).
@@ -1817,12 +1968,16 @@ async function main() {
   const isExplained = (x) => !!x.explained || x.semantic === 'json-equal (formatting only)';
   const unexplainedList = [
     ...b.missing.filter((x) => !isExplained(x)).map((x) => ({ side: 'b', kind: 'missing', ...x })),
-    ...b.extra.map((x) => ({ side: 'b', kind: 'extra', ...x })),
+    ...b.extra
+      .filter((x) => !preexisting.has(x.rel))
+      .map((x) => ({ side: 'b', kind: 'extra', ...x })),
     ...b.mismatched
       .filter((x) => !isExplained(x))
       .map((x) => ({ side: 'b', kind: 'mismatch', ...x })),
     ...c.missing.filter((x) => !isExplained(x)).map((x) => ({ side: 'c', kind: 'missing', ...x })),
-    ...c.extra.map((x) => ({ side: 'c', kind: 'extra', ...x })),
+    ...c.extra
+      .filter((x) => !preexisting.has(x.rel))
+      .map((x) => ({ side: 'c', kind: 'extra', ...x })),
     ...c.mismatched
       .filter((x) => !isExplained(x))
       .map((x) => ({ side: 'c', kind: 'mismatch', ...x })),
@@ -1833,6 +1988,13 @@ async function main() {
   const explainedCount = [...b.missing, ...b.mismatched, ...c.missing, ...c.mismatched].filter(
     isExplained
   ).length;
+  if (CLOUD) {
+    report.preexistingOnHub = {
+      paths: preexisting.size,
+      extraOnB: b.extra.filter((x) => preexisting.has(x.rel)).length,
+      extraOnC: c.extra.filter((x) => preexisting.has(x.rel)).length,
+    };
+  }
   report.oracle = {
     method:
       'SHA-256 of every eligible file (classifier: apps/hub/src/file-membership.mjs, the pinned mirror of apps/studio/sync/file-membership.ts) on A, B, C; Plane B also against the hub checkout',
@@ -1861,6 +2023,7 @@ async function main() {
   clearInterval(sessTimer);
   clearInterval(journalTimer);
   clearInterval(samplerRes);
+  if (cloudPoll) clearInterval(cloudPoll);
   clearInterval(samplerDisk);
   await sampleDisk();
 
@@ -2009,7 +2172,9 @@ try {
   exitCode = report.ok ? 0 : 1;
   // Keep logs next to the report; drop the big data.
   if (!KEEP) {
-    for (const d of FX ? [P.a, P.b, P.c, P.homes] : [P.a, P.b, P.c, P.hubRepo, P.hubData, P.homes]) {
+    for (const d of FX
+      ? [P.a, P.b, P.c, P.homes]
+      : [P.a, P.b, P.c, P.hubRepo, P.hubData, P.homes]) {
       try {
         rmSync(d, { recursive: true, force: true });
       } catch {

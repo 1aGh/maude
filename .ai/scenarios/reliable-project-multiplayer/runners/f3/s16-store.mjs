@@ -22,7 +22,7 @@
 //
 //   node s16-store.mjs --work <fresh selfhost dir, transactions mode> --scratch <dir> --out <dir>
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -431,11 +431,24 @@ if (only.includes('D')) {
   B = await loadBackend('selfhost', { work });
   const afterWipe = await snapshot();
   const parityWipe = (await B.api('owner', 'parity')).body;
-  // 2. Only the checkout (renderer) disk replaced; the store stays.
+  // 2. Only the checkout (renderer) disk replaced; the store stays. By design
+  //    the hub REFUSES this boot (rehydrate.mjs): restoring the checkout alone
+  //    would pair it with newer documents. The runbook's recovery is the whole
+  //    latest generation into empty disks (`wipe-disk`), measured after it.
   docker('stop', fx().container);
   rmSync(join(work, 'repo'), { recursive: true, force: true });
   mkdirSync(join(work, 'repo'));
   docker('start', fx().container);
+  const startedTorn = await healthy(fx().url, 60000);
+  const refusal = startedTorn
+    ? null
+    : (() => {
+        // The entrypoint writes to the container's stderr; read both streams.
+        const r = spawnSync('docker', ['logs', '--tail', '40', fx().container], { encoding: 'utf8' });
+        return `${r.stdout}\n${r.stderr}`.split('\n').find((l) => /refusing to start/.test(l)) ?? null;
+      })();
+  selfhost('wipe-disk');
+  B = await loadBackend('selfhost', { work });
   const upFresh = await healthy(fx().url, 300000);
   const afterRepo = upFresh ? await snapshot() : null;
   const parityRepo = upFresh ? (await B.api('owner', 'parity')).body : null;
@@ -456,6 +469,7 @@ if (only.includes('D')) {
       deletedHistoryReadable: JSON.stringify(afterWipe.deletedHistory) === JSON.stringify(expectedDeletedHistory),
       parity: parityWipe?.ok ?? null,
     },
+    checkoutOnlyDisk: { hubStarted: startedTorn, refusal },
     afterCheckoutDisk: afterRepo && {
       sameHead: afterRepo.revision === before.revision,
       sameChain: afterRepo.chainHash === before.chainHash,
@@ -470,6 +484,7 @@ if (only.includes('D')) {
     result.D.retentionHeld &&
     result.D.historyBeforeWipe &&
     a.sameHead && a.sameChain && a.sameLiveDocs && a.deletedStaysDeleted && a.deletedHistoryReadable && a.parity === true &&
+    !startedTorn && /documents are present but the checkout is gone/.test(refusal ?? '') &&
     c && c.sameHead && c.sameChain && c.deletedHistoryReadable && c.parity === true && c.currentCanvasOnDisk
       ? 'pass'
       : 'fail';

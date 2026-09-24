@@ -122,6 +122,15 @@ export async function startDesktop({ root, port, hubUrl, hubPublicUrl, token, ro
       await kill();
       await start();
     },
+    // Signed in again (a cloud cell's sessions do not outlive it): the linked
+    // hub's credential is replaced the way the sign-in flow writes it.
+    relink: async (newToken) => {
+      await kill();
+      writeFileSync(hubs, JSON.stringify({ hubs: { [hubUrl]: { token: newToken, role, linkedAt: Date.now() } } }), {
+        mode: 0o600,
+      });
+      await start();
+    },
     stop: () => kill('SIGTERM'),
   };
 }

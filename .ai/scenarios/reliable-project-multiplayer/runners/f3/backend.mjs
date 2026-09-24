@@ -7,7 +7,20 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 export const sha = (s) => createHash('sha256').update(s).digest('hex');
 
-async function request(url, { method, headers = {}, body, timeout = 20000 } = {}) {
+// The cloud platform answers a request it could not hand to the container
+// ("Container suddenly disconnected, try again") with a 500 of its own — a
+// transport blip, not the backend's answer. A client retries it; so does this
+// (safe: reads are idempotent, a proposal carries its own transaction id).
+export const platformRetries = [];
+async function request(url, opts = {}) {
+  for (let attempt = 0; ; attempt++) {
+    const r = await requestOnce(url, opts);
+    if (!(r.status >= 500 && /Container suddenly disconnected/.test(r.body?.raw ?? '')) || attempt >= 4) return r;
+    platformRetries.push({ url: url.replace(/\?.*/, ''), at: Date.now() });
+    await new Promise((res) => setTimeout(res, 2000 * (attempt + 1)));
+  }
+}
+async function requestOnce(url, { method, headers = {}, body, timeout = 20000 } = {}) {
   const r = await fetch(url, {
     method: method ?? (body !== undefined ? 'POST' : 'GET'),
     headers: { ...headers, ...(body !== undefined ? { 'content-type': 'application/json' } : {}) },
@@ -26,9 +39,11 @@ async function request(url, { method, headers = {}, body, timeout = 20000 } = {}
 }
 
 const CLOUD = {
-  origin: 'https://f3-cloud.multiplayer-test-20260922.maude.sh',
+  // One isolated test tenant per scenario family: `f3-cloud` by default,
+  // `F3_CLOUD_PROJECT` for another (a clean project for the scale run).
+  origin: `https://${process.env.F3_CLOUD_PROJECT ?? 'f3-cloud'}.multiplayer-test-20260922.maude.sh`,
   control: 'https://maude-multiplayer-control-test-20260922.maude1agh.workers.dev',
-  project: 'f3-cloud',
+  project: process.env.F3_CLOUD_PROJECT ?? 'f3-cloud',
   personalA: '/tmp/maude-cloud-entry-UncRL8/cloud.json',
   sessions: { owner: 'maude-f3-owner', b: 'maude-f3-designer-b' },
 };
