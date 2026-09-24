@@ -151,6 +151,25 @@ describe('projection in accepted-revisions mode', () => {
     expect(r.localWrites()).toBe(0);
   });
 
+  // F3 S15 on the cloud cell (2026-09-24): the cell's own studio proposed v13
+  // over an accepted v14 (reverting a teammate) — a watcher event read the file
+  // while the projection still held v13 and was delivered after v14 landed.
+  test('a stale file event (disk has moved on) proposes nothing', async () => {
+    const r = rig(src('A'));
+    r.publish(src('B'));
+    await r.settle();
+    r.publish(src('C'));
+    await r.settle();
+    expect(r.disk()).toBe(src('C'));
+    r.projection.applyFromFs({
+      path: r.paths.html,
+      bytes: enc(src('B')),
+      hash: hashBytes(src('B')),
+    });
+    expect(r.sent).toHaveLength(0);
+    expect(r.conflicts).toHaveLength(0);
+  });
+
   test('an edit on top of an unanswered one is based on it AND depends on it (U1 → U2)', async () => {
     const r = rig(src('A'));
     r.edit(src('B'));

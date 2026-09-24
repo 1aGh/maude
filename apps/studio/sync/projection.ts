@@ -933,6 +933,14 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     // 2026-09-15, L09 delete). Every edit to these lanes arrives through the
     // API with the base it was made from (`proposeLane`).
     if (lane === 'comments' || lane === 'annotations') return false;
+    // A STALE EVENT PROPOSES NOTHING. The reader took these bytes before a
+    // later write reached the file — typically this projection materializing a
+    // newer accepted value — and delivered them after. Proposing them would
+    // put an older body back over a teammate's accepted edit (F3 S15, cloud
+    // cell, 2026-09-24: v13 over v14). What the disk holds now arrives with its
+    // own event.
+    const onDisk = readLocal(evt.path);
+    if (onDisk !== null && onDisk !== str) return false;
     if (lane === 'html') {
       if (str === lastHtml && !held.has('html')) return false; // a redelivered projection
       if (!withinCap(paths.html, str, MAX_HTML_BYTES)) return false;
