@@ -616,7 +616,7 @@
       ]
     },
     "S17": {
-      "tag": "5f115f",
+      "tag": "bc1c7f",
       "start": {
         "schema": 1,
         "mode": "legacy",
@@ -666,17 +666,9 @@
         "freshReplicaUnchanged": true
       },
       "pendingWork": {
-        "landed": false,
-        "landedAfterRestart": true,
-        "statusWhileUndelivered": {
-          "conflicts": [],
-          "docs": {
-            "synced": 2,
-            "pending": 0,
-            "rejected": 0
-          },
-          "accepted": null
-        },
+        "landed": true,
+        "landedAfterRestart": null,
+        "statusWhileUndelivered": null,
         "onDiskStill": true,
         "actor": "designer-a@f3-selfhost.invalid",
         "migrationActions": 1
@@ -728,7 +720,7 @@
         "parityAfterSwitch": true,
         "bytesConserved": true,
         "staleSocketFenced": true,
-        "pendingWorkConserved": false,
+        "pendingWorkConserved": true,
         "rollbackKeepsAcceptedWrite": true,
         "noAcceptedWriterWhileLegacy": true,
         "forwardCarriesLegacyWrite": true,
@@ -737,18 +729,24 @@
         "epochsMonotonic": true,
         "desktopConverged": true
       },
-      "status": "fail",
+      "status": "pass",
       "runner": "runners/f3/s17-migration.mjs (fresh legacy project, runbook commands, desktop sidecar through the toggle proxy, raw stale socket)",
-      "finding": {
-        "id": "F3-S17-offline-across-switch",
-        "summary": "A save written while the desktop socket was silently dead, just before the switch, is applied to the local replica, reaches the hub only after the fence and is dropped. The desktop reports synced (0 pending, 0 conflicts) and the change stays on disk; a restart cold start proposes it (landedAfterRestart true, no loss). Fixing it live needs a replica reset under shared-doc (the collab room owns the Y.Doc) \u2014 design work, not done here.",
-        "severity": "blocks S17 pass",
-        "workaround": "runbook step 5 (let apps finish saving before the switch) or restart the app"
-      },
+      "date": "2026-09-24",
       "productFixes": [
         "dad3760e rollback to legacy: studio admitted read-only during accepted mode held its legacy saves until reconnect; mode notice now carries per-connection writable",
-        "dad3760e double-submitted switch answered 503; now 409 epoch-stale"
-      ]
+        "dad3760e double-submitted switch answered 503; now 409 epoch-stale",
+        "27306d83 a save held by a dead socket across the switch is proposed once the peer learns the mode (was: delivered only after a restart, status said synced)"
+      ],
+      "previousRun": {
+        "date": "2026-09-23",
+        "status": "fail",
+        "finding": {
+          "id": "F3-S17-offline-across-switch",
+          "summary": "A save written while the desktop socket was silently dead, just before the switch, is applied to the local replica, reaches the hub only after the fence and is dropped. The desktop reports synced (0 pending, 0 conflicts) and the change stays on disk; a restart cold start proposes it (landedAfterRestart true, no loss). Fixing it live needs a replica reset under shared-doc (the collab room owns the Y.Doc) \u2014 design work, not done here.",
+          "severity": "blocks S17 pass",
+          "workaround": "runbook step 5 (let apps finish saving before the switch) or restart the app"
+        }
+      }
     },
     "S16": {
       "status": "pass",
@@ -957,7 +955,7 @@
     "S07": "pass",
     "S12": "pass",
     "S13/S14": "pass",
-    "S17": "fail",
+    "S17": "pass",
     "S16": "pass"
   }
 }
