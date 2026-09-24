@@ -98,6 +98,13 @@ export interface AcceptedColdStartInput {
    * is the base — the recovery slot still holds the value before it.
    */
   ownAccepted?: string | null;
+  /**
+   * Did the project ever accept exactly this value? A disk with no record of
+   * its base that holds a value the store accepted at some revision holds an
+   * OLDER accepted state (a checkout restored from a backup — every cloud
+   * cell wake), not an edit: it is materialized, never held.
+   */
+  wasAccepted?: (content: string) => Promise<boolean | null>;
   createDoc: (lanes: Partial<Record<ProposalLane, string>>) => Promise<{
     status: 'accepted' | 'rejected';
     code?: string;
@@ -165,7 +172,13 @@ export async function acceptedColdStart(
         (i.historyDir ? readRecoveryBody(i.historyDir, i.paths.html, 'base') : null),
       baseHash: i.journal?.get(i.slug)?.bodyHash ?? null,
     });
-    verdicts.push({ lane: 'html', ...d, ...(localHtml !== null ? { local: localHtml } : {}) });
+    const older =
+      d.decision === 'hold' && localHtml !== null && (await i.wasAccepted?.(localHtml)) === true;
+    verdicts.push({
+      lane: 'html',
+      ...(older ? { decision: 'materialize' as const } : d),
+      ...(localHtml !== null ? { local: localHtml } : {}),
+    });
   }
 
   // ---- css — opaque text, journal-checkpointed
@@ -177,7 +190,13 @@ export async function acceptedColdStart(
       knownBase: i.historyDir ? readRecoveryBody(i.historyDir, i.paths.css, 'base') : null,
       baseHash: i.journal?.get(i.slug)?.cssHash ?? null,
     });
-    verdicts.push({ lane: 'css', ...d, ...(localCss !== null ? { local: localCss } : {}) });
+    const older =
+      d.decision === 'hold' && localCss !== null && (await i.wasAccepted?.(localCss)) === true;
+    verdicts.push({
+      lane: 'css',
+      ...(older ? { decision: 'materialize' as const } : d),
+      ...(localCss !== null ? { local: localCss } : {}),
+    });
   }
 
   // ---- meta — the shared layout keys (viewport never travels)

@@ -813,6 +813,49 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     expect(bob.runtime.conflictVersions?.('design/ui/stacked.tsx')).toBeNull();
   }, 90_000);
 
+  // F3 S16 on the cloud cell (2026-09-24): every cell wake restores its
+  // checkout from the newest backup, with no per-machine sync state. A canvas
+  // edited after that backup came back as an OLDER accepted version with no
+  // recorded base, was held as a conflict forever, and the cell rendered the
+  // stale canvas to everyone.
+  const restoreFromBackup = async (content: string) => {
+    await bob.runtime.stop();
+    for (const d of ['_history', '_state', '_canvas-state'])
+      rmSync(join(bob.ctx.paths.designRoot, d), { recursive: true, force: true });
+    writeFileSync(bob.file('ui/restored.tsx'), content);
+    bob = await startPeer('bob', join(root, 'bob'), `http://localhost:${hub.port}`);
+  };
+  test('a disk restored to an older accepted version is brought to the head, not held', async () => {
+    alice.write('ui/restored.tsx', src('v1'));
+    await alice.runtime.rescanNow();
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return bob.read('ui/restored.tsx') === src('v1');
+    }, 'v1 on bob');
+    alice.write('ui/restored.tsx', src('v2'));
+    await waitFor(() => bob.read('ui/restored.tsx') === src('v2'), 'v2 on bob');
+    await restoreFromBackup(src('v1'));
+    await waitFor(() => bob.read('ui/restored.tsx') === src('v2'), 'the head back on bob', 30_000);
+    expect(bob.runtime.conflictVersions?.('design/ui/restored.tsx')).toBeNull();
+  }, 90_000);
+
+  test('a disk with no base and a version the project never accepted is still held', async () => {
+    await restoreFromBackup(src('never proposed'));
+    await waitFor(
+      () => bob.runtime.conflictVersions?.('design/ui/restored.tsx'),
+      'the conflict to be held',
+      30_000
+    );
+    expect(bob.read('ui/restored.tsx')).toBe(src('never proposed'));
+    expect(alice.read('ui/restored.tsx')).toBe(src('v2'));
+    // Leave bob agreeing with the project for the tests after this one.
+    await restoreFromBackup(src('v2'));
+    await waitFor(
+      () => bob.runtime.conflictVersions?.('design/ui/restored.tsx') === null,
+      'bob agreed again'
+    );
+  }, 90_000);
+
   test('a multi-canvas action shows whole on the peer: never the edit without the canvas it created (T14)', async () => {
     alice.write('ui/pair-a.tsx', src('Pair v1'));
     await alice.runtime.rescanNow();

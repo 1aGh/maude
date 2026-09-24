@@ -479,6 +479,22 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     });
   }
 
+  /**
+   * Is `content` a value the project store holds — i.e. one it accepted at
+   * some revision? `null` when it cannot tell (unreachable, older hub).
+   */
+  async function holdsValue(content: string): Promise<boolean | null> {
+    try {
+      if (projectId === null) await bootstrap();
+      const hash = createHash('sha256').update(content, 'utf8').digest('hex');
+      const { status, json } = await request('GET', `blobs/${hash}`);
+      if (status === 200) return (json as { body?: unknown } | null)?.body === content;
+      return status === 404 ? false : null;
+    } catch {
+      return null;
+    }
+  }
+
   /** A read route (`history`, `lane`, `revisions`) — no retry, bounded. */
   async function read(route: string, params: Record<string, string | number>): Promise<unknown> {
     if (projectId === null) await bootstrap();
@@ -496,6 +512,7 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     read,
     newTransactionId,
     drainOutbox,
+    holdsValue,
     /** The epoch proposals are currently made under. */
     get epoch() {
       return epoch;

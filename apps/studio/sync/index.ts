@@ -3124,6 +3124,7 @@ export function createSyncRuntime(
           historyDir: path.join(ctx.paths.historyDir, canvas.slug),
           journal: journal ?? undefined,
           ownAccepted,
+          wasAccepted: (content) => acceptedLink.client.holdsValue(content),
           createDoc: (lanes) => acceptedLink.createDoc(canvas.slug, rel, lanes),
         });
         projection.reconcile();
