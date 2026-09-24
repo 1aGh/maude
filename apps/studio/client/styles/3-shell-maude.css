@@ -308,8 +308,10 @@
    accent language as .st-row.is-drop-target. */
 .st-tree-sec-hd.is-drop-target { background: var(--accent-tint); color: var(--fg-0); box-shadow: inset 2px 0 0 var(--accent); }
 .st-tree-sec-hd .st-sec-name { font-family: var(--font-mono); font-size: var(--type-xs); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+/* --fg-2, not --fg-3: a 10px count is text, and --fg-3 is 3.0:1 on the
+   sidebar — below WCAG AA (axe on the cloud cell, F3 S19, 2026-09-24). */
 .st-tree-sec-hd .st-pill {
-  margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--fg-3);
+  margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--fg-2);
   padding: 0 6px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
 }
 .st-tree-empty { padding: var(--space-2) var(--space-5); color: var(--fg-3); font-size: var(--type-xs); font-style: italic; }
