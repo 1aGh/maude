@@ -228,6 +228,13 @@ export interface DocProjection {
    */
   adoptBase(body: string): void;
   /**
+   * Accepted mode, cold start: `value` is this disk's own html proposal that a
+   * previous run left in the outbox and the drain just had accepted. It is
+   * what the disk was saved as — the base of whatever it holds next — even
+   * while this replica still shows the value before it.
+   */
+  adoptOwnAccepted(value: string): void;
+  /**
    * Accepted-revisions mode: propose one lane value that did not come through
    * the watcher (a comment/annotation API write). Resolves with the outcome;
    * `null` when the projection is not in accepted mode.
@@ -1203,6 +1210,17 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     adoptBase(body: string) {
       lastHtml = body;
       observedBody = body;
+    },
+    adoptOwnAccepted(value: string) {
+      // Exactly what an answer in this process does (see `submit`): the
+      // replica either holds it already, or its publication is still coming.
+      const replica = htmlFromDoc(doc);
+      if (replica === value) lastHtml = value;
+      else {
+        lastHtml = replica;
+        acceptedOwn = value;
+      }
+      rememberBase(value);
     },
     hold(lane, base, local) {
       held.add(lane);

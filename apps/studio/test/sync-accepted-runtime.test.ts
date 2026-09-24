@@ -753,6 +753,66 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     );
   }, 90_000);
 
+  // F3 S14 on the cloud cell (2026-09-24): a save left unanswered in the
+  // outbox by a killed studio, and a later save on top of it. On restart the
+  // drain had the first accepted — and the cold start then proposed the second
+  // on the base BEFORE it, so the second conflicted with the first, its own
+  // predecessor, and stayed held until the person saved yet again.
+  test('a save made on top of one the outbox still holds is not a conflict after a restart', async () => {
+    alice.write('ui/stacked.tsx', src('before'));
+    await alice.runtime.rescanNow();
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return bob.read('ui/stacked.tsx') === src('before');
+    }, 'the canvas on bob');
+
+    const dataDir = join(root, 'hub');
+    const port = hub.port;
+    await stopHub(hub);
+    const outbox = join(bob.ctx.paths.designRoot, '_state', 'outbox');
+    bob.write('ui/stacked.tsx', src('first save'));
+    await waitFor(
+      () => existsSync(outbox) && readdirSync(outbox).some((n) => n.endsWith('.json')),
+      'the first save in the durable outbox'
+    );
+    await bob.runtime.stop();
+    // The second save, on top of the first, while the studio is down.
+    writeFileSync(bob.file('ui/stacked.tsx'), src('second save'));
+    hub = await startHub(dataDir, port);
+    bob = await startPeer('bob', join(root, 'bob'), `http://localhost:${hub.port}`);
+    await waitFor(
+      () => alice.read('ui/stacked.tsx') === src('second save'),
+      'the second save on alice',
+      45_000
+    );
+    expect(bob.runtime.conflictVersions?.('design/ui/stacked.tsx')).toBeNull();
+    expect(bob.read('ui/stacked.tsx')).toBe(src('second save'));
+  }, 90_000);
+
+  test('a restart whose outbox holds the disk’s own save never writes the older version over it', async () => {
+    const dataDir = join(root, 'hub');
+    const port = hub.port;
+    await stopHub(hub);
+    const outbox = join(bob.ctx.paths.designRoot, '_state', 'outbox');
+    bob.write('ui/stacked.tsx', src('third save'));
+    await waitFor(
+      () => existsSync(outbox) && readdirSync(outbox).some((n) => n.endsWith('.json')),
+      'the save in the durable outbox'
+    );
+    await bob.runtime.stop();
+    hub = await startHub(dataDir, port);
+    bob = await startPeer('bob', join(root, 'bob'), `http://localhost:${hub.port}`);
+    const seen = new Set<string | null>();
+    const end = Date.now() + 4000;
+    while (Date.now() < end) {
+      seen.add(bob.read('ui/stacked.tsx'));
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    expect([...seen]).toEqual([src('third save')]);
+    await waitFor(() => alice.read('ui/stacked.tsx') === src('third save'), 'the save on alice');
+    expect(bob.runtime.conflictVersions?.('design/ui/stacked.tsx')).toBeNull();
+  }, 90_000);
+
   test('a multi-canvas action shows whole on the peer: never the edit without the canvas it created (T14)', async () => {
     alice.write('ui/pair-a.tsx', src('Pair v1'));
     await alice.runtime.rescanNow();

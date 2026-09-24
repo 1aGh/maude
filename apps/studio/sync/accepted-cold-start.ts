@@ -92,6 +92,12 @@ export interface AcceptedColdStartInput {
   projection: DocProjection;
   historyDir?: string;
   journal?: SyncJournal;
+  /**
+   * This disk's own html proposal a previous run left unanswered, which the
+   * outbox drain has just had accepted. The disk was saved on top of it, so it
+   * is the base — the recovery slot still holds the value before it.
+   */
+  ownAccepted?: string | null;
   createDoc: (lanes: Partial<Record<ProposalLane, string>>) => Promise<{
     status: 'accepted' | 'rejected';
     code?: string;
@@ -145,11 +151,18 @@ export async function acceptedColdStart(
     // An invalid local body cannot be proposed; the projection keeps its bytes
     // in recovery and reports it when it materializes the accepted source.
     verdicts.push({ lane: 'html', decision: 'materialize', local: localHtml });
+  } else if (i.ownAccepted != null && localHtml === i.ownAccepted) {
+    // Disk IS the drained, accepted save; its publication may still be on the
+    // way. Nothing to propose, and nothing older to write over it.
+    verdicts.push({ lane: 'html', decision: 'agreed', local: localHtml });
+    i.projection.adoptOwnAccepted(i.ownAccepted);
   } else {
     const d = decideSourceLane({
       local: localHtml,
       accepted: acceptedHtml,
-      knownBase: i.historyDir ? readRecoveryBody(i.historyDir, i.paths.html, 'base') : null,
+      knownBase:
+        i.ownAccepted ??
+        (i.historyDir ? readRecoveryBody(i.historyDir, i.paths.html, 'base') : null),
       baseHash: i.journal?.get(i.slug)?.bodyHash ?? null,
     });
     verdicts.push({ lane: 'html', ...d, ...(localHtml !== null ? { local: localHtml } : {}) });

@@ -923,6 +923,8 @@ export function createSyncRuntime(
   // change is a proposal through the durable outbox, and the documents change
   // when the project publishes the accepted revision. Shared-doc only: the
   // two-doc agent path has no proposal lane and stays legacy.
+  /** Resolves once a previous run's outbox is drained: doc → own accepted html. */
+  let outboxDrained: Promise<Map<string, string>> = Promise.resolve(new Map());
   const acceptedLink: AcceptedLink | null = useSharedDoc
     ? createAcceptedLink({
         hubUrl: linkedHub.url,
@@ -2264,10 +2266,29 @@ export function createSyncRuntime(
         );
         // Work a previous run left unanswered goes first, in creation order —
         // before any cold start can propose something built on top of it.
-        void acceptedLink.client.drainOutbox().then((results) => {
-          if (results.length)
-            console.log(`[sync/tx] resent ${results.length} unanswered change(s).`);
-        });
+        // What each canvas's disk was last saved as, when that save was one of
+        // these: the base its cold start judges the disk against.
+        const own = new Map<string, string>();
+        outboxDrained = acceptedLink.client
+          .drainOutbox((result, operations) => {
+            for (const o of operations) {
+              const html =
+                o.op === 'lane.replace' && o.lane === 'html'
+                  ? o.content
+                  : o.op === 'doc.create'
+                    ? (o.lanes as Record<string, unknown> | undefined)?.html
+                    : undefined;
+              if (typeof o.doc !== 'string' || typeof html !== 'string') continue;
+              if (result.status === 'accepted') own.set(o.doc, html);
+              else own.delete(o.doc);
+            }
+          })
+          .then((results) => {
+            if (results.length)
+              console.log(`[sync/tx] resent ${results.length} unanswered change(s).`);
+            return own;
+          })
+          .catch(() => own);
         applyProjectDirs(acceptedLink.manifest?.dirs ?? []);
         proposeLocalFolders();
       }
@@ -3089,6 +3110,10 @@ export function createSyncRuntime(
           inProject = acceptedLink.manifest?.docs.some((d) => d.doc === docName && !d.retired);
         }
         const rel = path.relative(ctx.paths.designRoot, canvas.html).split(path.sep).join('/');
+        // A save a previous run left unanswered is answered first: a disk
+        // edited after it was edited ON it (F3 S14 on the cloud cell — judged
+        // against the older base, the save conflicted with itself).
+        const ownAccepted = (await outboxDrained).get(docName) ?? null;
         await acceptedColdStart({
           slug: canvas.slug,
           doc: provider.document,
@@ -3098,6 +3123,7 @@ export function createSyncRuntime(
           projection,
           historyDir: path.join(ctx.paths.historyDir, canvas.slug),
           journal: journal ?? undefined,
+          ownAccepted,
           createDoc: (lanes) => acceptedLink.createDoc(canvas.slug, rel, lanes),
         });
         projection.reconcile();

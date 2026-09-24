@@ -457,7 +457,9 @@ export function createTransactionClient(opts: TransactionClientOptions) {
    * Resend what a previous process left in the outbox — in creation order, the
    * same bytes, each resolved first in case its answer was simply lost.
    */
-  function drainOutbox(): Promise<ProposalResult[]> {
+  function drainOutbox(
+    onEach?: (result: ProposalResult, operations: Operation[]) => void
+  ): Promise<ProposalResult[]> {
     return enqueue(async () => {
       const entries = readOutbox().filter(({ file }) => !owned.has(file));
       const results: ProposalResult[] = [];
@@ -465,7 +467,9 @@ export function createTransactionClient(opts: TransactionClientOptions) {
         waiting.set(entry.transactionId, entry.createdAt);
         setPending(1);
         try {
-          results.push(await settle(file, entry));
+          const result = await settle(file, entry);
+          results.push(result);
+          onEach?.(result, entry.action?.operations ?? []);
         } finally {
           waiting.delete(entry.transactionId);
           setPending(-1);
