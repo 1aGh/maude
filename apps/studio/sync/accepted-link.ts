@@ -79,7 +79,18 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
   // the serialized queue); see `queueCreate` below.
   const propose: TransactionClient['propose'] = (action) => {
     flushCreates();
-    return client.propose(action);
+    // A proposal about a canvas whose batched create is still unanswered waits
+    // until that create is settled or re-queued on its own: a refused batch
+    // falls back to one create each, and those must stay AHEAD of it.
+    const waits = [
+      ...new Set(
+        action.operations
+          .map((op) => (typeof op.doc === 'string' ? createsInFlight.get(op.doc) : undefined))
+          .filter((w): w is Promise<void> => !!w)
+      ),
+    ];
+    if (!waits.length) return client.propose(action);
+    return Promise.all(waits).then(() => client.propose(action));
   };
 
   // THE LAST VERDICT SURVIVES A RESTART (F3/S06). Held only in memory, a
@@ -234,6 +245,8 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
   let createBatch: PendingCreate[] = [];
   let createBatchBytes = 0;
   let createTimer: ReturnType<typeof setTimeout> | null = null;
+  /** doc → the gate a batched create of it holds until settled or re-queued. */
+  const createsInFlight = new Map<string, Promise<void>>();
   const proposeCreates = (ops: Operation[]) =>
     client
       .propose({
@@ -249,20 +262,36 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     createBatch = [];
     createBatchBytes = 0;
     if (!batch.length) return;
+    const docs = batch.map((c) => c.op.doc).filter((d): d is string => typeof d === 'string');
+    let settled: () => void = () => {};
+    const gate = new Promise<void>((r) => {
+      settled = r;
+    });
+    for (const d of docs) createsInFlight.set(d, gate);
+    const release = () => {
+      for (const d of docs) if (createsInFlight.get(d) === gate) createsInFlight.delete(d);
+      settled();
+    };
     const fail = (err: unknown) => {
+      release();
       for (const c of batch)
         c.resolve({ status: 'rejected', code: (err as TransactionError)?.code ?? 'failed' });
     };
     void proposeCreates(batch.map((c) => c.op)).then((o) => {
       if (o.status === 'accepted' || batch.length === 1) {
+        release();
         for (const c of batch) c.resolve(o);
         return;
       }
-      for (const c of batch) void proposeCreates([c.op]).then(c.resolve, () => c.resolve(o));
+      // Each create is queued (and so ahead of anything waiting on the gate)
+      // before the gate opens.
+      const each = batch.map((c) => proposeCreates([c.op]));
+      release();
+      each.forEach((answer, i) => void answer.then(batch[i].resolve, () => batch[i].resolve(o)));
     }, fail);
   }
   function queueCreate(op: Operation): Promise<ProposalOutcome> {
-    const bytes = JSON.stringify(op).length;
+    const bytes = Buffer.byteLength(JSON.stringify(op), 'utf8');
     if (
       createBatch.length &&
       (createBatch.length >= CREATE_BATCH_MAX || createBatchBytes + bytes > CREATE_BATCH_BYTES)

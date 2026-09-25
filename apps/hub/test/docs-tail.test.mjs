@@ -146,6 +146,174 @@ test('nothing is written in accepted mode, and the control document never', asyn
   );
 });
 
+test('a save still pending when its document was deleted never brings it back (security review M2)', async () => {
+  const target = fileTarget(`file://${fresh('docs-tail-bucket-')}`);
+  const gone = new Set();
+  const tail = createDocsTail({ target, isGone: (n) => gone.has(n), log: quiet });
+  tail.remove('ws/l/main/ui-x');
+  gone.add('ws/l/main/ui-x');
+  await tail.flush();
+  // Hocuspocus stores on the last disconnect — after the deletion.
+  tail.store('ws/l/main/ui-x', docWith('stale'));
+  await tail.flush();
+  assert.deepEqual(
+    (await target.list('docs/')).map((o) => parseDocsTailKey(o.key).kind),
+    ['gone']
+  );
+});
+
+test('a state and a marker left in one sequence replay as deleted', async () => {
+  // A crash between writing one kind and removing the other.
+  const bucket = fresh('docs-tail-bucket-');
+  const target = fileTarget(`file://${bucket}`);
+  await target.put('docs/local/0000000001/ws%2Fl%2Fmain%2Fui-y.gone', new Uint8Array());
+  await target.put(
+    'docs/local/0000000001/ws%2Fl%2Fmain%2Fui-y.ystate',
+    Y.encodeStateAsUpdate(docWith('superseded'))
+  );
+  const dataDir = fresh('docs-tail-data-');
+  const db = hubDb(dataDir);
+  await replayDocsTail({ target, db, dataDir, log: quiet });
+  assert.equal(
+    db.prepare('SELECT count(*) AS n FROM documents WHERE name = ?').get('ws/l/main/ui-y').n,
+    0
+  );
+  assert.equal(isTombstoned(dataDir, 'ws/l/main/ui-y'), true);
+  db.close();
+});
+
+test('an async target is resolved for every write', async () => {
+  const target = fileTarget(`file://${fresh('docs-tail-bucket-')}`);
+  let resolved = 0;
+  const tail = createDocsTail({
+    target: async () => {
+      resolved += 1;
+      return target;
+    },
+    log: quiet,
+  });
+  tail.store('ws/l/main/ui-a', docWith('a'));
+  await tail.flush();
+  tail.store('ws/l/main/ui-b', docWith('b'));
+  await tail.flush();
+  assert.ok(resolved >= 3, 'the startup listing and each write');
+  assert.equal((await target.list('docs/')).length, 2);
+});
+
+test('two hubs on one bucket root never replay or rotate each other (security review A4)', async () => {
+  const target = fileTarget(`file://${fresh('docs-tail-bucket-')}`);
+  const a = createDocsTail({ target, workspaceId: 'wsa', shared: true, log: quiet });
+  const b = createDocsTail({ target, workspaceId: 'wsb', shared: true, log: quiet });
+  a.store('home', docWith('from A'));
+  b.remove('home');
+  await Promise.all([a.flush(), b.flush()]);
+  // B's wake: its own deletion, never A's state.
+  const dataDir = fresh('docs-tail-data-');
+  const db = hubDb(dataDir);
+  const res = await replayDocsTail({
+    target,
+    db,
+    dataDir,
+    workspaceId: 'wsb',
+    shared: true,
+    log: quiet,
+  });
+  assert.equal(res.merged, 0);
+  assert.equal(res.deleted, 1);
+  // B's rotation leaves A's entry alone.
+  await b.endGeneration(await b.beginGeneration());
+  assert.deepEqual(
+    (await target.list('docs/')).map((o) => parseDocsTailKey(o.key).ws),
+    ['wsa']
+  );
+  // A hub that lost its identity replays nothing at a shared root.
+  const none = await replayDocsTail({
+    target,
+    db,
+    dataDir,
+    workspaceId: null,
+    shared: true,
+    log: quiet,
+  });
+  assert.deepEqual(none, { state: 'empty' });
+  db.close();
+});
+
+test('a deletion in accepted mode purges the legacy-era state (security review A3)', async () => {
+  const target = fileTarget(`file://${fresh('docs-tail-bucket-')}`);
+  let legacy = true;
+  const tail = createDocsTail({ target, writing: () => legacy, log: quiet });
+  tail.store('ws/l/main/ui-a', docWith('legacy era'));
+  tail.store('ws/l/main/ui-b', docWith('kept'));
+  await tail.flush();
+  legacy = false;
+  tail.remove('ws/l/main/ui-a');
+  await tail.flush();
+  assert.deepEqual(
+    (await target.list('docs/')).map((o) => parseDocsTailKey(o.key).name),
+    ['ws/l/main/ui-b'],
+    'no marker (the store decides), and no state to bring it back'
+  );
+});
+
+test('a state still in flight when its document is deleted cannot erase the marker (security review A2)', async () => {
+  const inner = fileTarget(`file://${fresh('docs-tail-bucket-')}`);
+  const log = [];
+  let releaseState = () => {};
+  const slow = {
+    ...inner,
+    list: (p) => inner.list(p),
+    get: (k) => inner.get(k),
+    async put(key, bytes) {
+      log.push(`put ${key.split('.').pop()}`);
+      if (key.endsWith('.ystate')) await new Promise((r) => (releaseState = r));
+      return inner.put(key, bytes);
+    },
+    async remove(key) {
+      log.push(`remove ${key.split('.').pop()}`);
+      return inner.remove(key);
+    },
+  };
+  const tail = createDocsTail({ target: slow, log: quiet });
+  await tail.ready();
+  tail.store('ws/l/main/ui-z', docWith('racing'));
+  await new Promise((r) => setTimeout(r, 10));
+  tail.remove('ws/l/main/ui-z');
+  await new Promise((r) => setTimeout(r, 10));
+  assert.deepEqual(log, ['put ystate'], 'the marker waits for the state');
+  releaseState();
+  await tail.flush();
+  assert.deepEqual(log, ['put ystate', 'put gone', 'remove ystate']);
+  assert.deepEqual(
+    (await inner.list('docs/')).map((o) => parseDocsTailKey(o.key).kind),
+    ['gone']
+  );
+});
+
+test('a plain save issues no delete, and a flush that cannot drain gives up', async () => {
+  const inner = fileTarget(`file://${fresh('docs-tail-bucket-')}`);
+  let removes = 0;
+  let hang = false;
+  const counted = {
+    ...inner,
+    list: (p) => inner.list(p),
+    put: (k, b) => (hang ? new Promise(() => {}) : inner.put(k, b)),
+    remove: (k) => {
+      removes += 1;
+      return inner.remove(k);
+    },
+  };
+  const tail = createDocsTail({ target: counted, log: quiet });
+  tail.store('ws/l/main/ui-a', docWith('1'));
+  await tail.flush();
+  tail.store('ws/l/main/ui-a', docWith('2'));
+  await tail.flush();
+  assert.equal(removes, 0);
+  hang = true;
+  tail.store('ws/l/main/ui-a', docWith('3'));
+  assert.equal(await tail.flush({ timeoutMs: 50 }), false);
+});
+
 test('a wake with no tail leaves the generation as it is', async () => {
   const target = fileTarget(`file://${fresh('docs-tail-bucket-')}`);
   const dataDir = fresh('docs-tail-data-');

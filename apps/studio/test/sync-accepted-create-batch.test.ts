@@ -118,3 +118,51 @@ test('an edit made during the window never overtakes the create of its canvas', 
   await Promise.all([created, edited]);
   expect(sent.map((s) => s.operations[0]?.op)).toEqual(['doc.create', 'lane.replace']);
 });
+
+test('an edit waiting on a refused batch goes after its canvas is created on its own', async () => {
+  // The batch answer is held open so the edit arrives while it is in flight.
+  const sent: string[] = [];
+  let answerBatch: (r: ProposalResult) => void = () => {};
+  const client = {
+    propose: (a: { operations: Operation[] }) => {
+      sent.push(a.operations.map((o) => `${o.op}:${o.doc}`).join(','));
+      if (a.operations.length > 1)
+        return new Promise<ProposalResult>((r) => {
+          answerBatch = r;
+        });
+      return Promise.resolve({
+        protocol: 1,
+        status: 'accepted',
+        transactionId: `tx_${sent.length}`,
+        actionId: `a_${sent.length}`,
+      } as ProposalResult);
+    },
+    newTransactionId: () => `tx_new_${sent.length}`,
+    bootstrap: async () => {
+      throw new Error('not used');
+    },
+  } as unknown as TransactionClient;
+  const l = link(client);
+  const created = Promise.all([
+    l.createDoc('ui-a', 'ui/a.tsx', { html: html('a') }),
+    l.createDoc('ui-b', 'ui/b.tsx', { html: html('b') }),
+  ]);
+  await new Promise((r) => setTimeout(r, 60));
+  expect(sent).toEqual(['doc.create:ui-a,doc.create:ui-b']);
+  const edited = l.laneLink('ui-b').propose({
+    lane: 'html',
+    content: html('b1'),
+    baseContent: html('b'),
+    transactionId: 'tx_edit',
+  });
+  await new Promise((r) => setTimeout(r, 10));
+  expect(sent).toHaveLength(1);
+  answerBatch({
+    protocol: 1,
+    status: 'rejected',
+    transactionId: 'tx_b',
+    code: 'path-conflict',
+  } as ProposalResult);
+  await Promise.all([created, edited]);
+  expect(sent.slice(1)).toEqual(['doc.create:ui-a', 'doc.create:ui-b', 'lane.replace:ui-b']);
+});

@@ -38,10 +38,14 @@ backup generation (`MAUDE_BACKUP_INTERVAL_MS`, 10 minutes in a cell). In
   `POST /_cell/restart`, which destroys it) — comes back from the previous
   generation, and the wake then replays the documents' write-behind over it:
   every document the hub stored in legacy mode is also written to object
-  storage (`<prefix>/docs/`), so what was written since the generation comes
-  back too. What can still be lost is only what had not been stored yet — the
-  store's ~2 s debounce and the upload behind it — plus anything while object
-  storage was failing (the hub logs `[docs-tail] write-behind FAILED`).
+  storage (`<prefix>/docs/<workspace id>/`), so what was written since the
+  generation comes back too — also on a tenant's first boots, before any
+  generation exists. What can still be lost is only what had not been stored
+  yet — the store's ~2 s debounce and the upload behind it — plus anything
+  while object storage was failing (the hub logs `[docs-tail] write-behind
+  FAILED`). At a bucket root shared by several hubs each replays only its own
+  entries; a hub that lost its disk there cannot tell which are its own, so
+  give every hub a `MAUDE_BACKUP_PREFIX`.
 
 `transactions` mode has no such window: every accepted revision is durable in
 the tenant's `ProjectStore` before it is acknowledged. A **brand-new** project
@@ -61,7 +65,9 @@ browser-not-paired`, listed under `blockers` in the preview), reports
 project already in `transactions` mode runs unpaired. `maude hub workspace-up`
 writes `MAUDE_CELL_PAIRING=1`; a deployment created before that (check
 `docker compose exec hub env | grep MAUDE_CELL_PAIRING`) needs it added and the
-hub restarted. Cloud cells get it per tenant (`CELL_LIVE_PAIRING`).
+hub restarted. Cloud cells get it per tenant (`CELL_LIVE_PAIRING`). The
+studio's loopback credential is a project **member**: it edits and proposes,
+it cannot switch the save mode or run a parity check.
 
 ## Preflight (read-only)
 

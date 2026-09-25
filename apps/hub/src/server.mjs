@@ -164,10 +164,11 @@ import {
   rotateToken,
   verifyToken,
 } from './tokens.mjs';
-import { clearTombstone, listTombstones, recordTombstone } from './tombstones.mjs';
+import { clearTombstone, isTombstoned, listTombstones, recordTombstone } from './tombstones.mjs';
 import { handleUploadSessions, UPLOADS_PREFIX } from './upload-sessions.mjs';
 import { countLinkedOidc } from './users.mjs';
 import { createWorkspaceAgent } from './workspace-agent.mjs';
+import { ensureWorkspaceId } from './workspace-identity.mjs';
 
 const HUB_VERSION = readOwnVersion();
 
@@ -392,8 +393,15 @@ export function createHub(config = {}) {
   // generation (docs-tail.mjs). Nothing is written in accepted mode, where the
   // project store is durable before it acknowledges.
   const docsTail = createDocsTail({
-    target: bootTarget,
+    // Resolved per write against the credentials valid NOW (a cell's are
+    // temporary), exactly like the backup schedule's target.
+    target: bootTarget ? async () => targetFromConfig(process.env, await s3Source.config()) : null,
+    // Whose entries these are at a shared bucket root (review A4); under a
+    // dedicated prefix the keyspace is ours by construction.
+    workspaceId: () => ensureWorkspaceId(dataDir),
+    shared: !process.env.MAUDE_BACKUP_PREFIX,
     writing: () => !accepted?.acceptedMode?.(),
+    isGone: (name) => isTombstoned(dataDir, name),
   });
   const backupTarget = bootTarget
     ? async () => targetFromConfig(process.env, await s3Source.config())
@@ -2224,7 +2232,7 @@ export function createHub(config = {}) {
         ) {
           await new Promise((r) => setTimeout(r, 50));
         }
-        await docsTail.flush();
+        await docsTail.flush({ timeoutMs: 10_000 });
       } catch (err) {
         console.error(`[hub] document flush before the final backup failed: ${err.message}`);
       }
@@ -2771,6 +2779,11 @@ export function mintLoopbackSyncToken(dataDir, env = process.env) {
     const record = addToken(dataDir, {
       label: LOOPBACK_SYNC_TOKEN_LABEL,
       scope: '*',
+      // A MEMBER, not the unroled machine token that reads as admin: the child
+      // edits documents and proposes, it never switches the save mode or
+      // deletes as the owner (security review A8 — pairing is on by default
+      // for self-host now).
+      role: 'member',
       // No `owner`. An owner address is what `afterStoreDocument` attributes a
       // commit to, and inventing one here would sign the tenant's git history
       // with a machine identity dressed up as a person.

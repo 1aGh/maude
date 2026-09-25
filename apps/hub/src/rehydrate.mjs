@@ -185,9 +185,19 @@ async function settleDocuments(dataDir, target) {
   let db;
   try {
     const { createRequire } = await import('node:module');
+    const { mkdirSync } = await import('node:fs');
     const Database = createRequire(import.meta.url)('better-sqlite3');
+    mkdirSync(dataDir, { recursive: true });
     db = new Database(join(dataDir, 'hub.db'));
-    await replayDocsTail({ target, db, dataDir });
+    await replayDocsTail({
+      target,
+      db,
+      dataDir,
+      // At a shared bucket root only our own entries (review A4) — and a hub
+      // that lost its identity with its disk cannot tell which those are.
+      workspaceId: readWorkspaceId(dataDir),
+      shared: !process.env.MAUDE_BACKUP_PREFIX,
+    });
   } catch (err) {
     console.error(`[rehydrate] documents tail replay failed: ${err.message}`);
   } finally {
@@ -280,6 +290,9 @@ async function main() {
     // that restore nothing else.
     console.log(`[rehydrate] ${verdict.action} — ${verdict.reason}`);
     await settleJournal(dataDir, target);
+    // A tenant's documents written before its first generation (review A9):
+    // seed and fresh restore nothing else, so the tail is all there is.
+    if (verdict.action !== 'proceed') await settleDocuments(dataDir, target);
     process.exit(0);
   }
 

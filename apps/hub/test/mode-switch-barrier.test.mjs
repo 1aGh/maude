@@ -63,6 +63,7 @@ function coordinator({
   docs = [],
   checkoutHasCanvases = () => false,
   resumeBackoffMs = [5],
+  resumeAttempts,
 }) {
   // One writer connection per document, plus a viewer on the second.
   const conn = (readOnly) => ({ context: { user: { readOnly } }, sendStateless: broadcast });
@@ -87,6 +88,7 @@ function coordinator({
     browserUnpaired,
     checkoutHasCanvases,
     resumeBackoffMs,
+    ...(resumeAttempts ? { resumeAttempts } : {}),
     switchGraceMs: 0,
     log: { warn: () => {}, error: () => {}, log: () => {} },
   });
@@ -135,6 +137,59 @@ describe('an import that a store blip interrupts keeps going (G1)', () => {
     for (let i = 0; i < 200 && pending; i++) await new Promise((r) => setTimeout(r, 5));
     assert.equal(pending, false, 'the resumed import finished without a restart');
     assert.equal(imported, 1);
+  });
+});
+
+/** A store whose import never succeeds — a value over its size limit. */
+function stuckStore() {
+  let mode = 'legacy';
+  let epoch = 0;
+  const calls = { manifest: 0 };
+  return {
+    calls,
+    durable: true,
+    async state() {
+      return { mode, epoch, revision: 0, importPending: mode === 'transactions' };
+    },
+    async setMode({ mode: next }) {
+      mode = next;
+      epoch += 1;
+      return { mode, epoch, revision: 0, importPending: next === 'transactions' };
+    },
+    async manifest() {
+      if (mode === 'transactions') {
+        calls.manifest += 1;
+        throw new Error('value too large');
+      }
+      return { revision: 0, docs: [], dirs: [] };
+    },
+    async markImported() {},
+  };
+}
+
+describe('a resume that can never finish does not hold the project (security review M1)', () => {
+  test('it gives up after its attempts', async () => {
+    const store = stuckStore();
+    const acc = coordinator({ broadcast() {}, store, resumeAttempts: 3 });
+    await acc.setMode({ mode: 'transactions', expectEpoch: 0 });
+    await new Promise((r) => setTimeout(r, 150));
+    // The switch's own attempt, then exactly three resumes.
+    assert.equal(store.calls.manifest, 4);
+  });
+
+  test("the owner's switch back to legacy is not queued behind it", async () => {
+    const store = stuckStore();
+    const acc = coordinator({
+      broadcast() {},
+      store,
+      resumeBackoffMs: [60_000],
+      resumeAttempts: 100,
+    });
+    await acc.setMode({ mode: 'transactions', expectEpoch: 0 });
+    const t0 = Date.now();
+    const back = await acc.setMode({ mode: 'legacy', expectEpoch: 1 });
+    assert.equal(back.mode, 'legacy');
+    assert.ok(Date.now() - t0 < 5_000, 'answered without waiting out the resume');
   });
 });
 
@@ -304,5 +359,59 @@ describe('an unknown mode fences', () => {
     const writer = { readOnly: true };
     acc.fence({ connection: writer, context: { user: { readOnly: false } } });
     assert.equal(writer.readOnly, false, 'a known legacy project still writes');
+  });
+});
+
+describe('a proposal is refused or held before its body is read (security review, chain 2)', () => {
+  const unreadable = () => ({
+    headers: {},
+    [Symbol.asyncIterator]() {
+      throw new Error('the body was read');
+    },
+  });
+  const route = (acc, who) => {
+    let answered = null;
+    const done = acc.handleRoutes({
+      path: '/api/projects/local/v1/proposals',
+      method: 'POST',
+      query: {},
+      request: unreadable(),
+      auth: () => who,
+      respondJson: (status, body) => {
+        answered = { status, body };
+      },
+    });
+    return { done, answered: () => answered };
+  };
+
+  test('a viewer is refused without reading what it sent', async () => {
+    const acc = coordinator({ broadcast() {} });
+    const r = route(acc, { actor: 'v', readOnly: true });
+    await r.done;
+    assert.equal(r.answered().status, 403);
+    assert.equal(r.answered().body.code, 'forbidden');
+  });
+
+  test('past the cap, a proposal waiting on a switch is told to retry', async () => {
+    const acc = coordinator({
+      broadcast() {},
+      store: stuckStore(),
+      resumeBackoffMs: [60_000],
+      resumeAttempts: 100,
+    });
+    await acc.setMode({ mode: 'transactions', expectEpoch: 0 });
+    // The resume holds proposals; 64 wait, the 65th is answered at once.
+    const held = Array.from({ length: 64 }, () => route(acc, { actor: 'e', readOnly: false }));
+    await new Promise((r) => setTimeout(r, 20));
+    assert.ok(
+      held.every((h) => h.answered() === null),
+      'held, body unread'
+    );
+    const extra = route(acc, { actor: 'e', readOnly: false });
+    await extra.done;
+    assert.equal(extra.answered().status, 503);
+    // The owner's switch back releases them (their bodies then fail to read here).
+    await acc.setMode({ mode: 'legacy', expectEpoch: 1 });
+    await Promise.allSettled(held.map((h) => h.done));
   });
 });

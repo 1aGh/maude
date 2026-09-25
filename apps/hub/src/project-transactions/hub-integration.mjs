@@ -17,6 +17,9 @@ const ROUTE =
   /^\/api\/projects\/([A-Za-z0-9._-]{1,128})\/v1\/([a-z-]+)(?:\/([A-Za-z0-9_-]{1,128}))?$/;
 export const MAX_BODY_BYTES = 17 * 1024 * 1024;
 
+/** More than this many proposals waiting on a switch are told to retry. */
+const MAX_WAITING_PROPOSALS = 64;
+
 export function createAcceptedRevisions({
   server,
   store,
@@ -52,6 +55,8 @@ export function createAcceptedRevisions({
   checkoutHasCanvases = () => false,
   /** Waits between attempts to resume an unfinished import (tests shorten them). */
   resumeBackoffMs = [2_000, 5_000, 15_000, 30_000, 60_000],
+  /** …and how many (≈ 10 minutes with the default waits). */
+  resumeAttempts = 13,
   log = console,
 }) {
   let state = { mode: 'legacy', epoch: 0, revision: 0 };
@@ -278,6 +283,8 @@ export function createAcceptedRevisions({
 
   /** A mode switch in progress — proposals wait for it (see `setMode`). */
   let switching = Promise.resolve();
+  /** Proposals held behind a switch — bounded, each one an open request. */
+  let waitingProposals = 0;
 
   /**
    * Switch the project's save mode. THE ORDER IS THE SAFETY ARGUMENT:
@@ -297,6 +304,8 @@ export function createAcceptedRevisions({
    * not hold the imported documents yet.
    */
   function setMode({ mode, expectEpoch }) {
+    // A new decision by the owner outranks a resume still in progress.
+    cancelResume?.();
     if (mode === 'transactions' && browserUnpaired) {
       return Promise.reject(
         Object.assign(
@@ -410,28 +419,52 @@ export function createAcceptedRevisions({
    * the store lacks, so every attempt is safe). Backoff 2 s → 60 s; stops when
    * the project is no longer in accepted mode or the import is noted done.
    */
+  // BOUNDED, AND NEVER IN THE OWNER'S WAY (security review M1). The kernel
+  // reports every failed store commit as `retryable`, including ones that will
+  // never succeed (a value over the store's size limit), so an unbounded loop
+  // held every proposal — and the owner's own switch back to legacy, queued
+  // behind it — forever. Now it gives up after `resumeAttempts` (proposals are
+  // released; the import stays noted pending for the next start, bounded the
+  // same way), and any new setMode cancels it at once.
+  let cancelResume = null;
   async function resumeUntilImported() {
-    for (let attempt = 0; ; attempt++) {
-      await new Promise((r) => {
-        const t = setTimeout(r, resumeBackoffMs[Math.min(attempt, resumeBackoffMs.length - 1)]);
-        t.unref?.();
-      });
-      try {
-        const s = await store.state();
-        state = { ...state, ...s };
-        if (s.mode !== 'transactions') return null;
-        if (!s.importPending) {
-          await reconcile();
-          return null;
+    let cancelled = false;
+    let wake = null;
+    cancelResume = () => {
+      cancelled = true;
+      wake?.();
+    };
+    try {
+      for (let attempt = 0; attempt < resumeAttempts; attempt++) {
+        await new Promise((r) => {
+          wake = r;
+          const t = setTimeout(r, resumeBackoffMs[Math.min(attempt, resumeBackoffMs.length - 1)]);
+          t.unref?.();
+        });
+        if (cancelled) return null;
+        try {
+          const s = await store.state();
+          state = { ...state, ...s };
+          if (s.mode !== 'transactions') return null;
+          if (!s.importPending) {
+            await reconcile();
+            return null;
+          }
+          const imported = await importAndReconcile();
+          log.log?.(
+            `[transactions] resumed import: ${imported.created} created, ${imported.updated} updated, ${imported.dirs} folders`
+          );
+          return imported;
+        } catch (err) {
+          log.warn?.(`[transactions] import still unfinished (${err.message}) — retrying`);
         }
-        const imported = await importAndReconcile();
-        log.log?.(
-          `[transactions] resumed import: ${imported.created} created, ${imported.updated} updated, ${imported.dirs} folders`
-        );
-        return imported;
-      } catch (err) {
-        log.warn?.(`[transactions] import still unfinished (${err.message}) — retrying`);
       }
+      log.error?.(
+        `[transactions] the import did not finish after ${resumeAttempts} attempts — proposals are no longer held for it; the next start resumes it. Check the store (a value over its size limit, credentials).`
+      );
+      return null;
+    } finally {
+      cancelResume = null;
     }
   }
 
@@ -642,8 +675,30 @@ export function createAcceptedRevisions({
         return true;
       }
       if (route === 'proposals' && method === 'POST') {
+        // Refuse, and wait, BEFORE the body is read (security review, chain
+        // 2): a switch or a resume holds proposals, and each waiting request
+        // would otherwise pin a body of up to 17 MB in memory — a viewer could
+        // run the hub out of memory while it waited.
+        if (who.readOnly) {
+          respondJson(403, {
+            protocol: 1,
+            status: 'rejected',
+            code: 'forbidden',
+            reason: 'this account can view but not edit',
+          });
+          return true;
+        }
+        if (waitingProposals >= MAX_WAITING_PROPOSALS) {
+          respondJson(503, { protocol: 1, status: 'rejected', code: 'retryable' });
+          return true;
+        }
+        waitingProposals += 1;
+        try {
+          await switching;
+        } finally {
+          waitingProposals -= 1;
+        }
         const bytes = await readBody(request);
-        await switching;
         const t0 = performance.now();
         const { status, body } = await kernel.submit(bytes, {
           actor: who.actor,
