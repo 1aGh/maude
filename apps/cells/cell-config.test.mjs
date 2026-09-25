@@ -444,6 +444,36 @@ test('cellEnv carries the pairing switch only for an allowlisted tenant', async 
   assert.equal(other.MAUDE_CELL_PAIRING, undefined);
 });
 
+test('a brand-new project starts in accepted revisions only where the store AND the pairing are on (G3a)', async () => {
+  const both = {
+    ...baseEnv,
+    CELL_ZONE: 'cloud.maude.sh',
+    CELL_LIVE_PAIRING: 'alligators',
+    CELL_PROJECT_STORE: 'alligators',
+  };
+  const on = await cellEnv({
+    tenantId: 'alligators',
+    env: both,
+    hostname: 'alligators.cloud.maude.sh',
+  });
+  assert.equal(on.MAUDE_NEW_PROJECT_MODE, 'transactions');
+  for (const env of [
+    { ...baseEnv, CELL_ZONE: 'cloud.maude.sh', CELL_PROJECT_STORE: 'alligators' },
+    { ...baseEnv, CELL_ZONE: 'cloud.maude.sh', CELL_LIVE_PAIRING: 'alligators' },
+  ]) {
+    const off = await cellEnv({
+      tenantId: 'alligators',
+      env,
+      hostname: 'alligators.cloud.maude.sh',
+    });
+    assert.equal(
+      off.MAUDE_NEW_PROJECT_MODE,
+      undefined,
+      'no store or no paired browser studio → legacy until the owner switches'
+    );
+  }
+});
+
 test('a cell declares its disk disposable, and gets the durable project store only when the fleet has the route', async () => {
   const off = await cellEnv({
     tenantId: 'alligators',

@@ -56,7 +56,13 @@ function silentStore() {
   };
 }
 
-function coordinator({ broadcast, store, browserUnpaired = false }) {
+function coordinator({
+  broadcast,
+  store,
+  browserUnpaired = false,
+  docs = [],
+  checkoutHasCanvases = () => false,
+}) {
   // One writer connection per document, plus a viewer on the second.
   const conn = (readOnly) => ({ context: { user: { readOnly } }, sendStateless: broadcast });
   const documents = new Map([
@@ -71,17 +77,59 @@ function coordinator({ broadcast, store, browserUnpaired = false }) {
     designRel: '.design',
     deleteDocument: () => {},
     reviveDocument: () => {},
-    listDocuments: () => [],
+    listDocuments: () => docs,
     tombstoned: () => [],
     checkoutPath: () => null,
     checkoutBody: () => null,
     checkoutDirs: () => [],
     storeDurable: true,
     browserUnpaired,
+    checkoutHasCanvases,
     switchGraceMs: 0,
     log: { warn: () => {}, error: () => {}, log: () => {} },
   });
 }
+
+describe('a brand-new project starts in accepted revisions (G3a)', () => {
+  test('an empty project switches itself at boot', async () => {
+    const acc = coordinator({ broadcast() {} });
+    const next = await acc.adoptNewProjectMode('transactions');
+    assert.equal(next.mode, 'transactions');
+    assert.equal((await acc.refresh()).mode, 'transactions');
+  });
+
+  test('a project with canvases — in the hub or in the checkout — waits for its owner', async () => {
+    const withDocs = coordinator({ broadcast() {}, docs: [{ name: 'ws/local/main/ui-a' }] });
+    assert.deepEqual(await withDocs.adoptNewProjectMode('transactions'), {
+      skipped: 'has-canvases',
+    });
+    assert.equal((await withDocs.refresh()).mode, 'legacy');
+    const withFiles = coordinator({ broadcast() {}, checkoutHasCanvases: () => true });
+    assert.deepEqual(await withFiles.adoptNewProjectMode('transactions'), {
+      skipped: 'has-canvases',
+    });
+    // The control document alone is not content.
+    const ctlOnly = coordinator({ broadcast() {}, docs: [{ name: 'maude.files' }] });
+    assert.equal((await ctlOnly.adoptNewProjectMode('transactions')).mode, 'transactions');
+  });
+
+  test('nothing happens unless asked, or once the project has ever switched, or without a paired browser studio', async () => {
+    assert.equal(await coordinator({ broadcast() {} }).adoptNewProjectMode(undefined), null);
+    const once = coordinator({ broadcast() {} });
+    await once.setMode({ mode: 'transactions', expectEpoch: 0 });
+    await once.setMode({ mode: 'legacy', expectEpoch: 1 });
+    assert.equal(
+      await once.adoptNewProjectMode('transactions'),
+      null,
+      'a rolled-back project stays where its owner put it'
+    );
+    const unpaired = coordinator({ broadcast() {}, browserUnpaired: true });
+    assert.deepEqual(await unpaired.adoptNewProjectMode('transactions'), {
+      skipped: 'browser-not-paired',
+    });
+    assert.equal((await unpaired.refresh()).mode, 'legacy');
+  });
+});
 
 describe('a browser studio that is not a participant', () => {
   // F3 S09 (2026-09-25): on an accepted self-host without MAUDE_CELL_PAIRING,

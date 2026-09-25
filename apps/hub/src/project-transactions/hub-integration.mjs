@@ -48,6 +48,8 @@ export function createAcceptedRevisions({
    * refused, and an accepted project that boots this way says so loudly.
    */
   browserUnpaired = false,
+  /** Does the checkout hold any canvas? (A brand-new project holds none.) */
+  checkoutHasCanvases = () => false,
   log = console,
 }) {
   let state = { mode: 'legacy', epoch: 0, revision: 0 };
@@ -394,6 +396,38 @@ export function createAcceptedRevisions({
     return imported;
   }
 
+  /**
+   * A BRAND-NEW project starts in accepted revisions (MAUDE_NEW_PROJECT_MODE,
+   * followup-multiplayer-hardening G3a): legacy is only as durable as the last
+   * backup generation on a cloud cell, and a project that never had legacy
+   * content has nothing to migrate. Brand new means the store never switched
+   * (epoch 0, revision 0) and neither the hub's documents nor the checkout hold
+   * a canvas — anything else waits for the owner's switch. The switch is the
+   * owner's path, with its every guard (durable store, paired browser studio).
+   */
+  async function adoptNewProjectMode(initialMode) {
+    if (initialMode !== 'transactions') return null;
+    const s = await store.state();
+    if (s.mode !== 'legacy' || s.epoch !== 0 || s.revision !== 0) return null;
+    const docs = listDocuments().filter(({ name }) => name !== 'maude.files');
+    if (docs.length || checkoutHasCanvases()) {
+      log.log?.(
+        '[transactions] new-project mode skipped — the project already has canvases; the owner switches it'
+      );
+      return { skipped: 'has-canvases' };
+    }
+    try {
+      const next = await setMode({ mode: 'transactions', expectEpoch: 0 });
+      log.log?.(
+        `[transactions] a new project — it saves through accepted revisions from the start (epoch ${next.epoch})`
+      );
+      return next;
+    } catch (err) {
+      log.error?.(`[transactions] new-project mode not applied: ${err.message}`);
+      return { skipped: err.code ?? 'refused' };
+    }
+  }
+
   /** T30 — what switching to accepted revisions WOULD import (no write). */
   async function previewSwitch() {
     return importBaseline({
@@ -635,6 +669,7 @@ export function createAcceptedRevisions({
     kernel,
     reconcile,
     resumeImport,
+    adoptNewProjectMode,
     refresh,
     acceptedMode,
     fence,

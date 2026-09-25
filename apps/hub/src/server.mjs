@@ -1917,6 +1917,7 @@ export function createHub(config = {}) {
     checkoutDirs: () => checkoutFolders(),
     storeDurable,
     browserUnpaired: studioEnabled && !studioPairingToken,
+    checkoutHasCanvases: () => checkoutCanvasPaths().size > 0,
   });
   // The persistent mode decides the fence, and the reconcile then makes every
   // accepted document match its store head.
@@ -1932,6 +1933,8 @@ export function createHub(config = {}) {
     .refresh()
     // A switch that died mid-import is finished before anything reconciles.
     .then(() => accepted.resumeImport())
+    // A brand-new project may start in accepted revisions (G3a).
+    .then(() => accepted.adoptNewProjectMode(process.env.MAUDE_NEW_PROJECT_MODE))
     .then(() => accepted.reconcile())
     .catch((err) => console.error(`[transactions] startup reconcile failed: ${err.message}`));
 

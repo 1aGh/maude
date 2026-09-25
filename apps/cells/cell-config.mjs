@@ -585,6 +585,14 @@ export async function cellEnv({ tenantId, env, hostname, config = NO_CONFIG, s3C
     // is the same reason the seed repo and the admin email stopped being
     // Worker globals in B1.
     ...(livePairingEnabled(env, tenantId) ? { MAUDE_CELL_PAIRING: '1' } : {}),
+    // A BRAND-NEW project on a tenant that has both a durable store and a
+    // paired browser studio starts in accepted revisions: legacy on a cell is
+    // only as durable as its last backup generation. The hub applies it only
+    // to a project with no canvases yet (hub-integration adoptNewProjectMode);
+    // an existing project keeps its mode until the owner switches it.
+    ...(projectStoreEnabled(env, tenantId) && livePairingEnabled(env, tenantId)
+      ? { MAUDE_NEW_PROJECT_MODE: 'transactions' }
+      : {}),
     MAUDE_S3_REGION: 'auto',
     // Checkpoint cadence. A cell's disk is ephemeral and the platform migrates
     // instances freely, so the gap between checkpoints IS the window of
