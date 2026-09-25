@@ -33,9 +33,12 @@ the same `store-core`) served over HTTP with DO-like latency.
 - [x] **G3a — New cloud projects start in accepted revisions.** **`ee57c97d`** —
   MAUDE_NEW_PROJECT_MODE, applied only to a brand-new project through the
   owner's switch; cell-config emits it where store AND pairing are on.
-- [ ] **G3b — Legacy documents survive a hard kill.** Write-behind of the
-  legacy document store to object storage; a wake replays it over the restored
-  generation.
+- [x] **G3b — Legacy documents survive a hard kill.** **`50004fad`** — every
+  document stored in legacy mode is written behind as its Y state
+  (`docs/<workspace>/<seq>/…`, deletions as markers), rotated per backup generation and
+  merged over the restored hub.db at wake. Verified (legacy-hardkill.mjs): a
+  canvas edited and one created after the last generation, SIGKILL with both
+  disks replaced — both back, 2 states replayed, no generation in between.
 - [x] **G4 — A fresh link's canvases do not hold up the first edit.** **`93951124`**
   — creates within 25 ms travel as one proposal; a refused batch falls back
   to one each; no edit overtakes its canvas's create. (Was: 77 serialized
@@ -58,3 +61,53 @@ the same `store-core`) served over HTTP with DO-like latency.
   `design.studyfi.com` per the 2026-09-13 audit) needs `MAUDE_CELL_PAIRING=1`
   in its environment; if it is already in accepted mode, its browser edits do
   not reach the project today.
+
+## Close-out security review (2026-09-25)
+
+Defender + attacker both returned **NEEDS FIXES** on the committed diff; all
+blocking findings fixed before the close commit (reports in
+`.ai/logs/security-reviews/followup-multiplayer-hardening-{defender,attacker}.md`):
+
+- **Import that can never finish froze the project** (M1/A1/chain 1): the
+  cloud store refused any lane over 2 MB (Durable Object row limit) while a lane
+  may be 4 MB, the kernel calls every store failure `retryable`, and the G1
+  resume looped forever holding every proposal and the owner's rollback. Now the
+  store keeps large bodies in parts (`blob_parts`), the resume is bounded (13
+  attempts ≈ 10 min) and any `setMode` cancels it.
+- **Deleted canvases could come back after a hard kill** (M2/A2/A3): a save
+  pending at delete time erased the marker. Now tombstoned names get no state,
+  writes of one name are serialized, deletion replays last, and an accepted-mode
+  delete purges the legacy-era entries.
+- **Shared bucket root** (A4): tail keys carry the workspace identity; a hub
+  replays/rotates only its own entries at a shared root.
+- **Proposals held behind a switch pinned their bodies** (chain 2): read-only
+  refused and the switch awaited before the body is read; at most 64 wait.
+- Also: bounded `flush()` before the final backup (A5), no DELETE per save (A6),
+  per-write credential resolution, create-batch fallback ordering (A7),
+  loopback studio token is a `member` not admin (A8), tail replayed on
+  seed/fresh boots (A9).
+- Follow-ups (not blocking): purpose-scoped nudge secret; attribute browser
+  edits to the browser user instead of `cell-loopback-sync`; kernel
+  classification of permanent store errors.
+
+## Retro
+
+- **The cloud-shaped local fixture paid for itself.** RustFS + a node:sqlite
+  ProjectStore with DO-like latency reproduced G1 and measured G2 without a
+  cloud account; keep it as the default for multiplayer work instead of an
+  isolated cell.
+- **A resilience fix needs an adversarial pass on its failure path.** G1's
+  "keep resuming until it lands" turned a transient-error fix into a
+  project-wide freeze for a *permanent* error; the review, not the tests, found
+  it. When adding a retry loop, ask in `/plan` what a permanent failure does
+  and bound it by construction.
+- **Check platform limits against our own limits.** A 4 MB lane cap next to a
+  2 MB Durable Object row limit was latent since DDR-241's cloud rollout; G3a
+  (accepted by default) would have made it a first-save failure for new cloud
+  projects.
+- **Write-behind needs the same identity and ordering rules as backups.** The
+  first G3b cut copied the backup's rotation but not its workspace ownership or
+  per-name causality; both came back as review findings.
+- **Verify on the real image, not only unit tests.** G7's S09 run on the
+  production image proved the pairing gap was real before changing a default.
+
