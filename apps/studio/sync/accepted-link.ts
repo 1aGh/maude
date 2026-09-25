@@ -74,6 +74,14 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       retryMs: opts.retryMs,
     });
 
+  // Every proposal this link sends goes out AFTER the creates queued before it
+  // (a lane edit of a canvas being added must never overtake its doc.create on
+  // the serialized queue); see `queueCreate` below.
+  const propose: TransactionClient['propose'] = (action) => {
+    flushCreates();
+    return client.propose(action);
+  };
+
   // THE LAST VERDICT SURVIVES A RESTART (F3/S06). Held only in memory, a
   // desktop that restarted without the network came back 'unknown', treated
   // its offline edits as legacy shared-document writes, and the hub fenced
@@ -109,7 +117,7 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
   // T16 — AI and multi-file action boundaries (see action-stage.ts).
   const stage = createActionStage({
     designRoot: opts.designRoot,
-    propose: (action) => client.propose(action),
+    propose: (action) => propose(action),
     newTransactionId: client.newTransactionId,
     onChange: opts.onStage,
     log,
@@ -172,24 +180,22 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
         const doc = opts.docNameFor(slug);
         if (stage.captures(slug, p.stageable === true)) return stage.capture(slug, doc, p);
         const send = (dependsOn: string[] | undefined) =>
-          client
-            .propose({
-              kind: 'edit',
-              label: LANE_LABEL[p.lane],
-              transactionId: p.transactionId,
-              dependsOn,
-              operations: [
-                {
-                  op: 'lane.replace',
-                  doc,
-                  lane: p.lane,
-                  content: p.content,
-                  baseContent: p.baseContent,
-                  ...(p.writeId ? { writeId: p.writeId } : {}),
-                },
-              ],
-            })
-            .then(outcome);
+          propose({
+            kind: 'edit',
+            label: LANE_LABEL[p.lane],
+            transactionId: p.transactionId,
+            dependsOn,
+            operations: [
+              {
+                op: 'lane.replace',
+                doc,
+                lane: p.lane,
+                content: p.content,
+                baseContent: p.baseContent,
+                ...(p.writeId ? { writeId: p.writeId } : {}),
+              },
+            ],
+          }).then(outcome);
         if (stage.holdsDependency(p.dependsOn)) {
           // Authored on top of an agent's unpublished bytes: it waits behind
           // the stage, and goes out right after the group (or is discarded
@@ -214,13 +220,68 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
    * it). The caller proceeds with its local change either way — the designer
    * never waits on the network to move a canvas.
    */
+  // ONE PROPOSAL FOR A BURST OF NEW CANVASES. A fresh link adds every local
+  // canvas the project does not have, each from its own cold start, all at
+  // once; sent one by one they are that many round trips on the one
+  // serialized transaction queue, and the first edit waits behind all of them
+  // (F3 S14 on the cloud cell: 77 creates, 44 s). Creates that arrive within a
+  // short window travel together; a refused batch falls back to one proposal
+  // each, so one canvas the project will not take cannot hold back the rest.
+  const CREATE_WINDOW_MS = 25;
+  const CREATE_BATCH_MAX = 100;
+  const CREATE_BATCH_BYTES = 4 * 1024 * 1024;
+  type PendingCreate = { op: Operation; bytes: number; resolve: (o: ProposalOutcome) => void };
+  let createBatch: PendingCreate[] = [];
+  let createBatchBytes = 0;
+  let createTimer: ReturnType<typeof setTimeout> | null = null;
+  const proposeCreates = (ops: Operation[]) =>
+    client
+      .propose({
+        kind: 'canvas.create',
+        label: ops.length === 1 ? 'Create canvas' : `Add ${ops.length} canvases`,
+        operations: ops,
+      })
+      .then(outcome);
+  function flushCreates(): void {
+    if (createTimer) clearTimeout(createTimer);
+    createTimer = null;
+    const batch = createBatch;
+    createBatch = [];
+    createBatchBytes = 0;
+    if (!batch.length) return;
+    const fail = (err: unknown) => {
+      for (const c of batch)
+        c.resolve({ status: 'rejected', code: (err as TransactionError)?.code ?? 'failed' });
+    };
+    void proposeCreates(batch.map((c) => c.op)).then((o) => {
+      if (o.status === 'accepted' || batch.length === 1) {
+        for (const c of batch) c.resolve(o);
+        return;
+      }
+      for (const c of batch) void proposeCreates([c.op]).then(c.resolve, () => c.resolve(o));
+    }, fail);
+  }
+  function queueCreate(op: Operation): Promise<ProposalOutcome> {
+    const bytes = JSON.stringify(op).length;
+    if (
+      createBatch.length &&
+      (createBatch.length >= CREATE_BATCH_MAX || createBatchBytes + bytes > CREATE_BATCH_BYTES)
+    )
+      flushCreates();
+    return new Promise((resolve) => {
+      createBatch.push({ op, bytes, resolve });
+      createBatchBytes += bytes;
+      createTimer ??= setTimeout(flushCreates, CREATE_WINDOW_MS);
+    });
+  }
+
   function structural(
     label: string,
     kind: string,
     operations: Operation[],
     waitMs: number
   ): Promise<StructuralOutcome> {
-    const answer = client.propose({ kind, label, operations }).then(outcome);
+    const answer = propose({ kind, label, operations }).then(outcome);
     if (!Number.isFinite(waitMs)) return answer;
     return Promise.race([
       answer,
@@ -253,12 +314,19 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
     ): Promise<StructuralOutcome> {
       const clean: Record<string, string> = {};
       for (const [lane, v] of Object.entries(lanes)) if (v) clean[lane] = v;
-      return structural(
-        'Create canvas',
-        'canvas.create',
-        [{ op: 'doc.create', doc: opts.docNameFor(slug), path: rel, lanes: clean }],
-        waitMs
-      );
+      const answer = queueCreate({
+        op: 'doc.create',
+        doc: opts.docNameFor(slug),
+        path: rel,
+        lanes: clean,
+      });
+      if (!Number.isFinite(waitMs)) return answer;
+      return Promise.race([
+        answer,
+        new Promise<StructuralOutcome>((resolve) =>
+          setTimeout(() => resolve({ status: 'accepted', queued: true }), waitMs)
+        ),
+      ]);
     },
     deleteDoc(slug: string, waitMs = 8_000): Promise<StructuralOutcome> {
       return structural(
