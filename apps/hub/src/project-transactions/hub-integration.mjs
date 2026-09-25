@@ -41,6 +41,13 @@ export function createAcceptedRevisions({
   switchGraceMs = 1500,
   /** False when the store sits on a disposable disk — see setMode. */
   storeDurable = true,
+  /**
+   * The hub supervises a browser studio that is NOT a paired participant
+   * (workspace mode without MAUDE_CELL_PAIRING). Its edits never become
+   * accepted actions, so this hub must not take proposals: the switch is
+   * refused, and an accepted project that boots this way says so loudly.
+   */
+  browserUnpaired = false,
   log = console,
 }) {
   let state = { mode: 'legacy', epoch: 0, revision: 0 };
@@ -172,11 +179,18 @@ export function createAcceptedRevisions({
     return { reconciled };
   }
 
+  let warnedUnpaired = false;
   async function refresh() {
     try {
       state = await store.state();
       ready = true;
       storeError = null;
+      if (browserUnpaired && state.mode === 'transactions' && !warnedUnpaired) {
+        warnedUnpaired = true;
+        log.error?.(
+          '[transactions] this project saves through accepted revisions, but the browser studio is NOT a participant (MAUDE_CELL_PAIRING is off): browser edits will not reach the project. Set MAUDE_CELL_PAIRING=1 and restart the hub.'
+        );
+      }
     } catch (err) {
       storeError = err.message;
       throw err;
@@ -201,6 +215,7 @@ export function createAcceptedRevisions({
       ...base,
       epoch: state.epoch,
       revision: state.revision,
+      browserPaired: !browserUnpaired,
       // Bounded: three numbers and a timestamp, no per-document cardinality.
       render: {
         revision: renderedRevision,
@@ -261,6 +276,16 @@ export function createAcceptedRevisions({
    * not hold the imported documents yet.
    */
   function setMode({ mode, expectEpoch }) {
+    if (mode === 'transactions' && browserUnpaired) {
+      return Promise.reject(
+        Object.assign(
+          new Error(
+            'the browser studio on this hub is not a project participant (MAUDE_CELL_PAIRING is off), so its edits would never become accepted actions — set MAUDE_CELL_PAIRING=1 and restart the hub first'
+          ),
+          { status: 409, code: 'browser-not-paired' }
+        )
+      );
+    }
     if (mode === 'transactions' && !storeDurable) {
       return Promise.reject(
         Object.assign(
@@ -580,6 +605,7 @@ export function createAcceptedRevisions({
             mode: state.mode,
             epoch: state.epoch,
             imported: await previewSwitch(),
+            ...(browserUnpaired ? { blockers: ['browser-not-paired'] } : {}),
           });
           return true;
         }

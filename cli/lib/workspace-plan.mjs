@@ -358,6 +358,15 @@ export function envEntries(cfg, { hubSecret, adminPassword, renderSecret }) {
       comment: 'containment invariant enforced (DDR-193 §2)',
     },
     {
+      // The browser studio joins the project as a participant (loopback
+      // pairing, DDR-209). Without it a browser edit on a project that saves
+      // through accepted revisions never becomes an accepted action (F3 S09,
+      // 2026-09-25) — and the hub refuses that switch.
+      key: 'MAUDE_CELL_PAIRING',
+      value: '1',
+      comment: 'the browser studio is a project participant (required for accepted revisions)',
+    },
+    {
       key: 'MAUDE_ADMIN_EMAIL',
       value: cfg.adminEmail,
       comment: 'first user, created on first boot',
@@ -501,6 +510,7 @@ export function renderCompose(cfg) {
     'HUB_WORKSPACE_MODE',
     ...(cfg.local ? ['HUB_INSECURE_HTTP'] : []),
     'MAUDE_WORKSPACE_MODE',
+    'MAUDE_CELL_PAIRING',
     'MAUDE_ADMIN_EMAIL',
     // The password has to cross into the container too, or the hub knows WHO
     // the first user is and has no way to create them — which is precisely the

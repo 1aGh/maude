@@ -56,7 +56,7 @@ function silentStore() {
   };
 }
 
-function coordinator({ broadcast, store }) {
+function coordinator({ broadcast, store, browserUnpaired = false }) {
   // One writer connection per document, plus a viewer on the second.
   const conn = (readOnly) => ({ context: { user: { readOnly } }, sendStateless: broadcast });
   const documents = new Map([
@@ -77,10 +77,34 @@ function coordinator({ broadcast, store }) {
     checkoutBody: () => null,
     checkoutDirs: () => [],
     storeDurable: true,
+    browserUnpaired,
     switchGraceMs: 0,
     log: { warn: () => {}, error: () => {}, log: () => {} },
   });
 }
+
+describe('a browser studio that is not a participant', () => {
+  // F3 S09 (2026-09-25): on an accepted self-host without MAUDE_CELL_PAIRING,
+  // a browser edit never became an accepted action.
+  test('blocks the switch to accepted revisions, loudly and with its reason', async () => {
+    const acc = coordinator({ broadcast() {}, browserUnpaired: true });
+    await assert.rejects(acc.setMode({ mode: 'transactions', expectEpoch: 0 }), (err) => {
+      assert.equal(err.status, 409);
+      assert.equal(err.code, 'browser-not-paired');
+      assert.match(err.message, /MAUDE_CELL_PAIRING/);
+      return true;
+    });
+    assert.equal((await acc.refresh()).mode, 'legacy', 'nothing switched');
+  });
+
+  test('never blocks going back to legacy, and health names the state', async () => {
+    const acc = coordinator({ broadcast() {}, browserUnpaired: true });
+    await acc.refresh();
+    assert.equal((await acc.setMode({ mode: 'legacy', expectEpoch: 0 })).mode, 'legacy');
+    assert.equal(acc.health({ privileged: true }).browserPaired, false);
+    assert.equal(coordinator({ broadcast() {} }).health({ privileged: true }).browserPaired, true);
+  });
+});
 
 describe('the switch barrier needs no answer', () => {
   test('a peer that cannot be told still gets a completed switch', async () => {

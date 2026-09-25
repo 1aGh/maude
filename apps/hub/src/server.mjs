@@ -1898,6 +1898,7 @@ export function createHub(config = {}) {
     },
     checkoutDirs: () => checkoutFolders(),
     storeDurable,
+    browserUnpaired: studioEnabled && !studioPairingToken,
   });
   // The persistent mode decides the fence, and the reconcile then makes every
   // accepted document match its store head.

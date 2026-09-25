@@ -115,6 +115,17 @@ test('.env carries the trusted-proxy setting UNCONDITIONALLY', () => {
   assert.equal(byKey.MAUDE_WORKSPACE_MODE, '1', 'the containment invariant must be on');
 });
 
+test('the browser studio is a project participant by default (MAUDE_CELL_PAIRING)', () => {
+  // F3 S09 (2026-09-25): on a self-host saving through accepted revisions, an
+  // unpaired browser studio's edits never became accepted actions. The hub now
+  // refuses that switch; the deployment it provisions must not be that hub.
+  const byKey = Object.fromEntries(
+    envEntries(ok(BASE), { hubSecret: 'x' }).map((e) => [e.key, e.value])
+  );
+  assert.equal(byKey.MAUDE_CELL_PAIRING, '1');
+  assert.match(renderCompose(ok(BASE)), /MAUDE_CELL_PAIRING: \$\{MAUDE_CELL_PAIRING\}/);
+});
+
 test('.env includes S3 only when configured', () => {
   const without = envEntries(ok(BASE), { hubSecret: 'x' }).map((e) => e.key);
   assert.ok(!without.includes('MAUDE_S3_BUCKET'));
