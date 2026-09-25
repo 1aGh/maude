@@ -3,8 +3,8 @@
   "entries": [
     {
       "id": "team-projects-hold-up",
-      "version": null,
-      "date": null,
+      "version": "1.4.5",
+      "date": "2026-09-25",
       "kind": "fix",
       "title": "Team projects that hold up under failure",
       "summary": "Edits made in the browser on a self-hosted workspace now reach the project, switching a project to saved revisions finishes on its own even if the connection drops for a moment, and removing a teammate ends their access at once. Cloud projects also keep work written just before a server crash.",

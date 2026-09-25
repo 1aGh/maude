@@ -1,5 +1,27 @@
 # @1agh/maude
 
+## 1.4.5
+
+### Patch Changes
+
+- a0282e2: Shared projects hold up better when things go wrong: a browser edit on a self-hosted workspace reaches the project, a switch to accepted revisions finishes on its own, removed teammates lose access at once, and cloud work survives a crash.
+
+  - **Self-hosted workspaces pair the browser studio by default.** A workspace set up with `maude hub workspace-up` now turns on `MAUDE_CELL_PAIRING`, so the studio people open in the browser takes part in the project. Before, on a project saving through accepted revisions, a comment or edit made in the browser never became part of the project. The browser studio takes part as a member and cannot change how the project saves. A hub whose browser studio is not paired now refuses that switch and says why, and an existing deployment that is already switched logs a warning at start. Existing self-hosted workspaces need `MAUDE_CELL_PAIRING=1` added to their environment.
+  - **Large canvases save on cloud projects in accepted revisions.** A canvas over 2 MB was refused by the cloud project store, and a switch whose import met one never finished — every edit in the project waited behind it. The store now keeps such a canvas in parts, and an import that still cannot finish stops holding the project after about ten minutes; the owner can always switch back.
+  - **Switching a project to accepted revisions finishes by itself.** If the connection to the project store drops for a moment during the switch, the owner gets an honest answer straight away and the import carries on until it completes. Before, it stayed half done until the server restarted. The switch also makes about half as many calls to the store, so large projects answer much sooner.
+  - **Removing someone from a cloud project ends their open sessions right away**, instead of at the next check up to ten minutes later.
+  - **Cloud projects keep work written just before a crash.** A new cloud project now starts with accepted revisions from its first save. Older projects that still save the legacy way now also copy each saved canvas to storage, so a server that crashes brings back what was written since its last backup — and a canvas deleted just before the crash stays deleted.
+  - **A first link no longer holds up your first edit.** Linking a folder full of canvases to a new project adds them in one step, not one by one, so the first change you make appears in about a second.
+
+- Shared projects that save through accepted revisions lose less and conflict less, found by running every multiplayer scenario on a real self-hosted hub and a real cloud cell.
+
+  - **A graceful stop keeps everything.** A hub that is stopped — a rollout, a platform move, a sleep after inactivity — now takes one last backup before it exits, so a cloud project no longer returns to a backup up to ten minutes old.
+  - **Large uploads survive a lost disk.** A resumable upload that was in progress when a server lost its disk carries on instead of starting over.
+  - **Fewer false conflicts.** A save made right after your own accepted edit, a save made while the outbox was draining, and a save held by a connection that died during a mode switch are all proposed normally, not reported as conflicts. A late file event from the disk never overwrites a newer accepted version.
+  - **Switching back and forth is safe.** Returning a project to the older saving mode tells every open connection it may write again, switching back to accepted revisions never re-imports a stale copy, and a checkout restored to an older accepted version is no longer held.
+  - **File sync paths with spaces** are recorded in the same shape everywhere, and a large download is checked without freezing the app.
+  - The file tree's section counts meet WCAG AA contrast.
+
 ## 1.4.4
 
 ### Patch Changes
