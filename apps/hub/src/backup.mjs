@@ -636,6 +636,12 @@ export function scheduleBackups({
    */
   onGeneration = null,
   /**
+   * Called right before a generation snapshots; its result is handed to
+   * `onGeneration`. The documents' write-behind (docs-tail.mjs) starts a new
+   * sequence here, so it knows which of its writes the generation covers.
+   */
+  beforeGeneration = null,
+  /**
    * Fired after EVERY tick with the durability state — Phase 0 F5.
    *
    * This exists because the refusal above trades one silent failure for
@@ -671,6 +677,12 @@ export function scheduleBackups({
       return;
     }
     if (!resolved) return null;
+    let covered = null;
+    try {
+      covered = await beforeGeneration?.();
+    } catch (err) {
+      log.error?.(`[hub] pre-generation hook failed: ${err.message}`);
+    }
     return runBackup({ dataDir, target: resolved, keep, repoDir, run })
       .then(async (r) => {
         log.log?.(
@@ -678,7 +690,7 @@ export function scheduleBackups({
         );
         onStatus?.({ state: 'ok', generation: r.prefix, at: Date.now() });
         try {
-          await onGeneration?.(r);
+          await onGeneration?.(r, covered);
         } catch (err) {
           log.error?.(`[hub] post-generation hook failed: ${err.message}`);
         }

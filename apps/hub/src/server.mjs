@@ -92,6 +92,7 @@ import { clientIpFor, parseTrustedProxies } from './client-ip.mjs';
 import { projectTokenKey, verifyAccessToken } from './cloud-identity.mjs';
 import { designRootFor } from './design-root.mjs';
 import { groupCanvases } from './doc-namespace.mjs';
+import { createDocsTail } from './docs-tail.mjs';
 import { createDocumentEvents } from './document-events.mjs';
 import {
   DOCUMENT_PATH_PREFIX,
@@ -386,6 +387,14 @@ export function createHub(config = {}) {
   // valid initial config at boot (static keys, or the fresh mint the DO
   // injected), so this is safe to resolve once.
   const bootTarget = targetFromEnv();
+  // G3b — legacy documents survive a HARD kill: every stored document is also
+  // written behind to object storage, and a wake replays it over the restored
+  // generation (docs-tail.mjs). Nothing is written in accepted mode, where the
+  // project store is durable before it acknowledges.
+  const docsTail = createDocsTail({
+    target: bootTarget,
+    writing: () => !accepted?.acceptedMode?.(),
+  });
   const backupTarget = bootTarget
     ? async () => targetFromConfig(process.env, await s3Source.config())
     : null;
@@ -430,8 +439,10 @@ export function createHub(config = {}) {
     // can start again from here (DDR-226 §3). Guarded on both sides: replay
     // skips rows at or below the restored head, so a missed rotation is a
     // longer tail, never a wrong journal.
-    onGeneration: async () => {
+    beforeGeneration: () => docsTail.beginGeneration(),
+    onGeneration: async (_generation, covered) => {
       if (journal && journalTail) await journalTail.rotate(journal.head());
+      await docsTail.endGeneration(covered);
     },
   });
   if (backupTarget) {
@@ -691,7 +702,15 @@ export function createHub(config = {}) {
     // reach the document store — an empty row there would show up in listings,
     // in the restore drill's document count, and in the operator's canvas
     // count. See files-ctl.mjs.
-    extensions: [withoutCtlPersistence(new SQLite({ database: sqlitePath }))],
+    extensions: [
+      withoutCtlPersistence(new SQLite({ database: sqlitePath })),
+      // After the SQLite extension: what is written behind is what hub.db holds.
+      {
+        async onStoreDocument({ documentName, document }) {
+          docsTail.store(documentName, document);
+        },
+      },
+    ],
 
     async onAuthenticate({ token, documentName, request, connectionConfig }) {
       // DDR-053 §5: defend against log forging + future XSS regression by
@@ -1217,7 +1236,7 @@ export function createHub(config = {}) {
           verify: (token) => verifyToken(dataDir, token, secret),
           matchesScope,
           deleteDocument: (name) => {
-            deleteDocument({ name, server, sqlitePath, dataDir });
+            deleteDocument({ name, server, sqlitePath, dataDir, docsTail });
             documentEvents.changed();
           },
           reviveDocument: (name) => {
@@ -1890,7 +1909,7 @@ export function createHub(config = {}) {
     projectConfig: acceptedProjectConfig,
     designRel: '.design',
     deleteDocument: (name) => {
-      deleteDocument({ name, server, sqlitePath, dataDir });
+      deleteDocument({ name, server, sqlitePath, dataDir, docsTail });
     },
     reviveDocument: (name) => {
       try {
@@ -2205,6 +2224,7 @@ export function createHub(config = {}) {
         ) {
           await new Promise((r) => setTimeout(r, 50));
         }
+        await docsTail.flush();
       } catch (err) {
         console.error(`[hub] document flush before the final backup failed: ${err.message}`);
       }
@@ -3116,12 +3136,14 @@ function listCanvases(sqlitePath, peers) {
  * "the tombstone is recorded", which is what actually stops the resurrection.
  * A locked SQLite file costs a stale row, not a failed delete.
  */
-function deleteDocument({ name, server, sqlitePath, dataDir }) {
+function deleteDocument({ name, server, sqlitePath, dataDir, docsTail = null }) {
   try {
     recordTombstone(dataDir, name);
   } catch {
     /* a store we cannot write is reported by the absent tombstone, not a 500 */
   }
+  // …and a wake after a hard kill must not bring it back (docs-tail.mjs).
+  docsTail?.remove(name);
   try {
     server?.closeConnections?.(name);
   } catch {

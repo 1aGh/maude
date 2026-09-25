@@ -25,9 +25,11 @@
 //   node src/rehydrate.mjs --data /data --repo /repo
 
 import { existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { baseTargetFromEnv, listBackups, restoreLatest, targetFromEnv } from './backup.mjs';
+import { replayDocsTail } from './docs-tail.mjs';
 import { createGitRunner } from './git-runner.mjs';
 import { closeJournal, openJournal, replayTailFromTarget } from './journal.mjs';
 import { adoptWorkspaceId, readWorkspaceId } from './workspace-identity.mjs';
@@ -171,6 +173,29 @@ async function settleJournal(dataDir, target) {
     closeJournal(dataDir);
   } catch (err) {
     console.error(`[rehydrate] journal tail replay failed: ${err.message}`);
+  }
+}
+
+/**
+ * Merge the documents' write-behind over the restored hub.db (docs-tail.mjs).
+ * Best-effort like settleJournal: a tail that cannot be read leaves the
+ * documents at the generation — what a wake did before G3b — and the hub boots.
+ */
+async function settleDocuments(dataDir, target) {
+  let db;
+  try {
+    const { createRequire } = await import('node:module');
+    const Database = createRequire(import.meta.url)('better-sqlite3');
+    db = new Database(join(dataDir, 'hub.db'));
+    await replayDocsTail({ target, db, dataDir });
+  } catch (err) {
+    console.error(`[rehydrate] documents tail replay failed: ${err.message}`);
+  } finally {
+    try {
+      db?.close();
+    } catch {
+      /* closed */
+    }
   }
 }
 
@@ -353,6 +378,9 @@ async function main() {
     // The generation is on disk. NOW replay the tail and decide the epoch —
     // in that order, never the other way round (see settleJournal).
     await settleJournal(dataDir, target);
+    // …and the documents written after the generation (G3b): a hard kill lost
+    // them before the write-behind existed.
+    await settleDocuments(dataDir, target);
     process.exit(0);
   } catch (err) {
     console.error(`[rehydrate] restore failed: ${err.message}`);
