@@ -181,22 +181,31 @@ export function createKernel({
     const effects = [];
     const blobs = new Map();
 
+    const toState = (h) =>
+      h
+        ? {
+            ...h,
+            orig: { ...h, lanes: { ...h.lanes } },
+            lanes: Object.fromEntries(Object.entries(h.lanes).map(([k, v]) => [k, { ...v }])),
+          }
+        : null;
     async function load(doc) {
       if (!docs.has(doc)) {
         const heads = await store.heads([doc]);
-        const h = heads[doc];
-        docs.set(
-          doc,
-          h
-            ? {
-                ...h,
-                orig: { ...h, lanes: { ...h.lanes } },
-                lanes: Object.fromEntries(Object.entries(h.lanes).map(([k, v]) => [k, { ...v }])),
-              }
-            : null
-        );
+        docs.set(doc, toState(heads[doc]));
       }
       return docs.get(doc);
+    }
+    /**
+     * Load the heads of many documents in ONE store call. A cell's store is a
+     * round trip away; an import chunk of a hundred canvases loaded its heads
+     * one call per document (G2). Same states as `load`, fetched together.
+     */
+    async function prime(names) {
+      const missing = names.filter((n) => !docs.has(n));
+      if (missing.length < 2) return;
+      const heads = await store.heads(missing);
+      for (const n of missing) docs.set(n, toState(heads[n]));
     }
     async function content(hash) {
       if (!hash || hash === EMPTY_HASH) return '';
@@ -254,6 +263,7 @@ export function createKernel({
     return {
       docs,
       load,
+      prime,
       content,
       laneContent,
       setLane,
@@ -722,6 +732,13 @@ export function createKernel({
     }
 
     const work = createWork();
+    await work.prime([
+      ...new Set(
+        (Array.isArray(p.action.operations) ? p.action.operations : [])
+          .map((op) => op?.doc)
+          .filter((d) => typeof d === 'string')
+      ),
+    ]);
     const merged = [];
     let undo = null;
     for (const op of p.action.operations) {

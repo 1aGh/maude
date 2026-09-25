@@ -62,6 +62,7 @@ function coordinator({
   browserUnpaired = false,
   docs = [],
   checkoutHasCanvases = () => false,
+  resumeBackoffMs = [5],
 }) {
   // One writer connection per document, plus a viewer on the second.
   const conn = (readOnly) => ({ context: { user: { readOnly } }, sendStateless: broadcast });
@@ -85,10 +86,57 @@ function coordinator({
     storeDurable: true,
     browserUnpaired,
     checkoutHasCanvases,
+    resumeBackoffMs,
     switchGraceMs: 0,
     log: { warn: () => {}, error: () => {}, log: () => {} },
   });
 }
+
+describe('an import that a store blip interrupts keeps going (G1)', () => {
+  // Reproduced on the cloud-shaped fixture: one store call failed mid-import
+  // ("mode failed: fetch failed"), the switch answered an error and the import
+  // stayed pending until the hub restarted.
+  test('the owner gets the truth at once, and the import resumes in-process until it lands', async () => {
+    let mode = 'legacy';
+    let epoch = 0;
+    let pending = false;
+    let blips = 1;
+    let imported = 0;
+    const store = {
+      durable: true,
+      async state() {
+        return { mode, epoch, revision: 0, importPending: pending };
+      },
+      async setMode({ mode: next }) {
+        mode = next;
+        epoch += 1;
+        pending = next === 'transactions';
+        return { mode, epoch, revision: 0, importPending: pending };
+      },
+      async manifest() {
+        if (mode === 'transactions' && blips > 0) {
+          blips -= 1;
+          throw new TypeError('fetch failed');
+        }
+        return { revision: 0, docs: [], dirs: [] };
+      },
+      async markImported() {
+        imported += 1;
+        pending = false;
+        return { importPending: false };
+      },
+    };
+    const acc = coordinator({ broadcast() {}, store });
+    const answer = await acc.setMode({ mode: 'transactions', expectEpoch: 0 });
+    assert.equal(answer.mode, 'transactions');
+    assert.equal(answer.importPending, true);
+    assert.equal(answer.importResuming, true);
+    assert.match(answer.reason, /fetch failed/);
+    for (let i = 0; i < 200 && pending; i++) await new Promise((r) => setTimeout(r, 5));
+    assert.equal(pending, false, 'the resumed import finished without a restart');
+    assert.equal(imported, 1);
+  });
+});
 
 describe('a brand-new project starts in accepted revisions (G3a)', () => {
   test('an empty project switches itself at boot', async () => {

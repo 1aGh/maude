@@ -50,6 +50,8 @@ export function createAcceptedRevisions({
   browserUnpaired = false,
   /** Does the checkout hold any canvas? (A brand-new project holds none.) */
   checkoutHasCanvases = () => false,
+  /** Waits between attempts to resume an unfinished import (tests shorten them). */
+  resumeBackoffMs = [2_000, 5_000, 15_000, 30_000, 60_000],
   log = console,
 }) {
   let state = { mode: 'legacy', epoch: 0, revision: 0 };
@@ -157,12 +159,22 @@ export function createAcceptedRevisions({
     if (state.mode !== 'transactions') return { reconciled: 0 };
     const manifest = await store.manifest();
     let reconciled = 0;
-    for (const d of manifest.docs) {
-      if (d.retired) continue;
+    // A cell's store is a round trip away, so the old loop — every lane of
+    // every document fetched one after the other, even where the document
+    // already held the head — was most of a switch's time (G2: ~130 canvases,
+    // 55 s through the Durable Object). Now a lane is fetched only when the
+    // document differs from its head, and documents go eight at a time.
+    const one = async (d) => {
+      const held = {};
+      await withDoc(d.doc, { accepted: { reconcile: true } }, (doc) => {
+        for (const lane of LANE_NAMES) held[lane] = readLane(doc, lane);
+      });
       const lanes = {};
       for (const lane of LANE_NAMES) {
         const hash = d.lanes[lane]?.hash;
-        lanes[lane] = hash ? ((await store.blob(hash)) ?? '') : '';
+        if (!hash) lanes[lane] = '';
+        else if (held[lane] && laneHash(held[lane]) === hash) lanes[lane] = held[lane];
+        else lanes[lane] = (await store.blob(hash)) ?? '';
       }
       await withDoc(d.doc, { accepted: { reconcile: true } }, (doc) => {
         const meta = doc.getMap('syncMeta');
@@ -177,7 +189,14 @@ export function createAcceptedRevisions({
         }
       });
       reconciled++;
-    }
+    };
+    const live = manifest.docs.filter((d) => !d.retired);
+    let next = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(8, live.length) }, async () => {
+        while (next < live.length) await one(live[next++]);
+      })
+    );
     return { reconciled };
   }
 
@@ -333,17 +352,87 @@ export function createAcceptedRevisions({
       // authoritative one there is. Without this the fence would stay closed
       // after a switch on a coordinator whose first refresh had not run.
       ready = true;
-      if (mode !== 'transactions') return next;
+      if (mode !== 'transactions') {
+        answer(next);
+        return;
+      }
       // IMPORT BEFORE RECONCILE — reconciling first would roll back any
       // document the store already knew with content from a legacy interval.
-      const imported = await runBaselineImport();
-      await reconcile();
-      // The state AFTER the import — `next` still carries step 1's note.
-      return { ...next, importPending: !!state.importPending, imported };
+      try {
+        const imported = await importAndReconcile();
+        // The state AFTER the import — `next` still carries step 1's note.
+        answer({ ...next, importPending: !!state.importPending, imported });
+      } catch (err) {
+        // A store call that failed mid-import (a transport blip on a cell) left
+        // the switch half done, and nothing retried it until the next start
+        // (F3 on the cloud cell, reproduced on the cloud-shaped fixture as
+        // "mode failed: fetch failed"). The owner is told the truth now; the
+        // import keeps resuming, and proposals keep waiting for it, until it
+        // lands.
+        log.warn?.(
+          `[transactions] the switch's import did not finish (${err.message}) — resuming it until it does`
+        );
+        answer({ ...next, importPending: true, importResuming: true, reason: err.message });
+        await resumeUntilImported();
+      }
     };
+    let answer;
+    const answered = new Promise((resolve) => {
+      answer = resolve;
+    });
     const p = switching.then(run, run);
     switching = p.catch(() => {});
-    return p;
+    // `p` rejecting before an answer (the store refused the mode itself)
+    // rejects the caller; an answer given first stands.
+    return Promise.race([answered, p.then(() => answered)]);
+  }
+
+  /**
+   * The import, then the reconcile. A TRANSIENT failure (a store call that
+   * threw, or a chunk refused as `retryable`) is thrown for the caller to
+   * resume; a chunk the kernel refused for good is returned as it was before —
+   * resuming it forever would hold every proposal behind it.
+   */
+  async function importAndReconcile() {
+    const imported = await runBaselineImport();
+    if (imported.failed && imported.failed.code === 'retryable') {
+      throw Object.assign(
+        new Error(`import incomplete at chunk ${imported.failed.chunk} (${imported.failed.code})`),
+        { imported }
+      );
+    }
+    await reconcile();
+    return imported;
+  }
+
+  /**
+   * Resume an unfinished import until it lands (the import creates only what
+   * the store lacks, so every attempt is safe). Backoff 2 s → 60 s; stops when
+   * the project is no longer in accepted mode or the import is noted done.
+   */
+  async function resumeUntilImported() {
+    for (let attempt = 0; ; attempt++) {
+      await new Promise((r) => {
+        const t = setTimeout(r, resumeBackoffMs[Math.min(attempt, resumeBackoffMs.length - 1)]);
+        t.unref?.();
+      });
+      try {
+        const s = await store.state();
+        state = { ...state, ...s };
+        if (s.mode !== 'transactions') return null;
+        if (!s.importPending) {
+          await reconcile();
+          return null;
+        }
+        const imported = await importAndReconcile();
+        log.log?.(
+          `[transactions] resumed import: ${imported.created} created, ${imported.updated} updated, ${imported.dirs} folders`
+        );
+        return imported;
+      } catch (err) {
+        log.warn?.(`[transactions] import still unfinished (${err.message}) — retrying`);
+      }
+    }
   }
 
   /**
@@ -389,11 +478,20 @@ export function createAcceptedRevisions({
     state = { ...state, ...s };
     if (s.mode !== 'transactions' || !s.importPending) return null;
     log.warn?.('[transactions] the last switch did not finish importing — resuming it now');
-    const imported = await runBaselineImport();
-    log.log?.(
-      `[transactions] resumed import: ${imported.created} created, ${imported.updated} updated, ${imported.dirs} folders${imported.failed ? ' — still incomplete' : ''}`
-    );
-    return imported;
+    try {
+      const imported = await importAndReconcile();
+      log.log?.(
+        `[transactions] resumed import: ${imported.created} created, ${imported.updated} updated, ${imported.dirs} folders`
+      );
+      return imported;
+    } catch (err) {
+      // Not "until the next start" again: keep resuming in this process, and
+      // hold proposals behind it exactly as a switch does.
+      log.warn?.(`[transactions] resumed import did not finish (${err.message}) — retrying`);
+      const done = resumeUntilImported();
+      switching = switching.then(() => done).catch(() => {});
+      return { resuming: true, reason: err.message };
+    }
   }
 
   /**
