@@ -53,18 +53,36 @@ test('removing a member writes a revocation; the cell reads it with its derived 
     )
     .run(memberId);
 
-  const res = await worker.fetch(
-    new Request('https://cloud.test/projects/alligators/people', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/x-www-form-urlencoded',
-        cookie: `maude_session=${owner}`,
-      },
-      body: form({ do: 'remove', account: memberId }),
-    }),
-    env
-  );
+  // The cell is asked to sweep NOW (G5) — record the knock instead of sending it.
+  const knocks = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    knocks.push({ url: String(url), init });
+    return new Response(JSON.stringify({ ran: true, seen: 1, revoked: 1 }), { status: 200 });
+  };
+  let res;
+  try {
+    res = await worker.fetch(
+      new Request('https://cloud.test/projects/alligators/people', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          cookie: `maude_session=${owner}`,
+        },
+        body: form({ do: 'remove', account: memberId }),
+      }),
+      env
+    );
+  } finally {
+    globalThis.fetch = realFetch;
+  }
   assert.ok(res.status < 400, `removal succeeded (${res.status})`);
+  const expectedSecret = await deriveCellSecret('master', 'alligators');
+  assert.equal(knocks.length, 1, 'the cell is asked once, right after the removal');
+  assert.equal(knocks[0].url, 'https://alligators.cloud.maude.sh/internal/revocation-sweep');
+  assert.equal(knocks[0].init.method, 'POST');
+  assert.equal(knocks[0].init.headers.authorization, `Bearer ${expectedSecret}`);
+  assert.equal(knocks[0].init.redirect, 'manual', 'never follows the cell elsewhere');
 
   const row = sqlite.prepare('SELECT * FROM member_revocations').get();
   assert.equal(row.project_id, 'alligators');

@@ -253,6 +253,18 @@ export async function fetchRevocations(
 }
 
 /**
+ * The control plane's "a member was just removed — look now" (G5): only the
+ * tenant's own derived secret may ask, and the answer runs the sweep, which
+ * reads the list itself — the request names nobody and grants nothing else.
+ */
+export async function answerRevocationNudge({ authorized, sweep }) {
+  if (!authorized) return { status: 401, body: { error: 'unauthorized' } };
+  if (!sweep?.enabled) return { status: 404, body: { error: 'no revocation sweep on this hub' } };
+  const result = await sweep.tick();
+  return { status: 200, body: { ran: result !== null, ...(result ?? { queued: true }) } };
+}
+
+/**
  * The revocation sweep (Phase 23 B2) — the missing half of "removal lands
  * within 12 hours". The TTL merely BOUNDS how long an already-open session
  * survives a removal; this clock actively ends it, usually within minutes.
@@ -281,8 +293,15 @@ export function scheduleRevocationSweep({
   }
 
   let running = false;
+  let again = false;
   const tick = async () => {
-    if (running) return null;
+    // A tick asked for while one runs (the control plane's nudge right after
+    // a removal) must not be dropped: the running one may have read the list
+    // before the removal was written. It runs once more when this one ends.
+    if (running) {
+      again = true;
+      return null;
+    }
     running = true;
     try {
       const { revocations } = await fetchRevocations(
@@ -309,6 +328,10 @@ export function scheduleRevocationSweep({
       return null;
     } finally {
       running = false;
+      if (again) {
+        again = false;
+        void tick();
+      }
     }
   };
 

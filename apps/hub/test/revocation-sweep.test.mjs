@@ -7,7 +7,11 @@ import { join } from 'node:path';
 import { after, test } from 'node:test';
 
 import { handleAuthRoutes } from '../src/auth-routes.mjs';
-import { fetchRevocations, scheduleRevocationSweep } from '../src/cell-ops.mjs';
+import {
+  answerRevocationNudge,
+  fetchRevocations,
+  scheduleRevocationSweep,
+} from '../src/cell-ops.mjs';
 import { accessClaims, authenticateForMode, signAccessToken } from '../src/cloud-identity.mjs';
 import { isRevoked, recordRevocations, resetRevocationCache } from '../src/revocations.mjs';
 import { addToken, listTokensForOwner } from '../src/tokens.mjs';
@@ -222,4 +226,79 @@ test('the registry survives a restart and an outage never empties it', () => {
   // An outage yields an EMPTY fetch; recording nothing must not forget.
   recordRevocations(dir, []);
   assert.equal(isRevoked(dir, 'gone@example.com', 4_000), true);
+});
+
+// followup-multiplayer-hardening G5 — the control plane asks for a sweep right
+// after a removal. If a tick is already running it may have read the list
+// BEFORE the removal was written, so the ask must not be dropped: one more
+// tick runs when it ends, and that one sees the removal.
+test('a tick asked for while one runs is not dropped — it runs once more afterwards', async () => {
+  const dir = dataDir();
+  const { revokeTokensForOwner } = await import('../src/tokens.mjs');
+  addToken(dir, { label: 'u-cccccccccccc', scope: '*', owner: 'late@example.com' });
+  let calls = 0;
+  let release;
+  const firstAnswered = new Promise((r) => {
+    release = r;
+  });
+  const fetchImpl = async () => {
+    calls += 1;
+    // The first read is slow and predates the removal; the second sees it.
+    if (calls === 1) await firstAnswered;
+    const revocations = calls === 1 ? [] : [{ email: 'late@example.com', at: Date.now() }];
+    return new Response(JSON.stringify({ revocations }), {
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  const kicked = [];
+  const sweep = scheduleRevocationSweep({
+    dataDir: dir,
+    revokeForOwner: revokeTokensForOwner,
+    kickLabel: (label) => kicked.push(label),
+    env: CP_ENV,
+    fetchImpl,
+    log: { log() {}, error() {} },
+  });
+  const running = sweep.tick();
+  assert.equal(
+    await sweep.tick(),
+    null,
+    'the nudge during a running tick is queued, not run twice at once'
+  );
+  release();
+  assert.deepEqual(await running, { seen: 0, revoked: 0 });
+  for (let i = 0; i < 100 && kicked.length === 0; i++) await new Promise((r) => setTimeout(r, 10));
+  sweep.stop();
+  assert.equal(calls, 2, 'exactly one more read');
+  assert.deepEqual(kicked, ['u-cccccccccccc']);
+  assert.equal(listTokensForOwner(dir, 'late@example.com').length, 0);
+});
+
+test('the nudge route: only the derived secret may ask, and it runs the sweep', async () => {
+  let ticks = 0;
+  const sweep = {
+    enabled: true,
+    tick: async () => {
+      ticks += 1;
+      return { seen: 2, revoked: 1 };
+    },
+  };
+  assert.deepEqual(await answerRevocationNudge({ authorized: false, sweep }), {
+    status: 401,
+    body: { error: 'unauthorized' },
+  });
+  assert.equal(ticks, 0, 'an unauthorized knock runs nothing');
+  assert.deepEqual(await answerRevocationNudge({ authorized: true, sweep }), {
+    status: 200,
+    body: { ran: true, seen: 2, revoked: 1 },
+  });
+  assert.equal(
+    (await answerRevocationNudge({ authorized: true, sweep: { enabled: false } })).status,
+    404
+  );
+  const busy = { enabled: true, tick: async () => null };
+  assert.deepEqual((await answerRevocationNudge({ authorized: true, sweep: busy })).body, {
+    ran: false,
+    queued: true,
+  });
 });

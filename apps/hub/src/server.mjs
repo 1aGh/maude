@@ -82,7 +82,12 @@ import {
   identityForHealth,
   readStudioReleaseVersion,
 } from './bundle-identity.mjs';
-import { handleExportRoute, scheduleMirror, scheduleRevocationSweep } from './cell-ops.mjs';
+import {
+  answerRevocationNudge,
+  handleExportRoute,
+  scheduleMirror,
+  scheduleRevocationSweep,
+} from './cell-ops.mjs';
 import { clientIpFor, parseTrustedProxies } from './client-ip.mjs';
 import { projectTokenKey, verifyAccessToken } from './cloud-identity.mjs';
 import { designRootFor } from './design-root.mjs';
@@ -879,6 +884,19 @@ export function createHub(config = {}) {
         // 503, not 200-with-ok-false. A router reads the STATUS; a payload it
         // has to parse to learn the truth is a payload it will not parse.
         respondJson(response, health.ok ? 200 : 503, health);
+        bailFromOnRequest();
+      }
+      // IMMEDIATE REVOCATION. The control plane asks right after it records a
+      // removal, so a removed member's open sessions end now rather than at
+      // the next sweep (up to MAUDE_REVOCATION_INTERVAL_MS). Only the tenant's
+      // own derived secret may ask; the sweep then reads the list itself, so
+      // the request carries no names and grants nothing but "look now".
+      if (method === 'POST' && url === '/internal/revocation-sweep') {
+        const answer = await answerRevocationNudge({
+          authorized: presentsCellSecret(request, secret),
+          sweep: revocationSweep,
+        });
+        respondJson(response, answer.status, answer.body);
         bailFromOnRequest();
       }
       if (!studioProxy && method === 'GET' && (url === '/' || url === '' || url.startsWith('/?'))) {
