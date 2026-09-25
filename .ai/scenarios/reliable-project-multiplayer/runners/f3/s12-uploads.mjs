@@ -112,18 +112,9 @@ result.checkout = cloud
       strayTemps: readdirSync(checkoutDir).filter((n) => n.includes(`f3-large-${tag}`) && n !== `f3-large-${tag}.mp4`),
     };
 // Object storage (the tenant's R2 prefix), through the hub's own S3 adapter.
-const { listObjects, s3ConfigFromEnv } = await import(join(REPO, 'apps/hub/src/s3.mjs'));
-const envFile = Object.fromEntries(
-  readFileSync('/tmp/maude-r2-test.env', 'utf8')
-    .split('\n')
-    .filter((l) => l.includes('='))
-    .map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)])
-);
-const cfg = s3ConfigFromEnv({
-  MAUDE_S3_ENDPOINT: 'https://b5b596efe65abb732777c7171dc18145.r2.cloudflarestorage.com',
-  MAUDE_S3_BUCKET: 'maude-multiplayer-test-20260922',
-  ...envFile,
-});
+const { listObjects } = await import(join(REPO, 'apps/hub/src/s3.mjs'));
+const { hostS3Config } = await import('./s3-fixture.mjs');
+const cfg = await hostS3Config();
 const prefix = cloud ? `tenants/${fx.projectId}/assets/` : fx.assetPrefix ? `${fx.assetPrefix}/assets/` : 'assets/';
 // A self-hosted hub keeps an UNSCOPED namespace (asset-key.mjs) and mirrors
 // write-behind, so look for the object by name for a while.

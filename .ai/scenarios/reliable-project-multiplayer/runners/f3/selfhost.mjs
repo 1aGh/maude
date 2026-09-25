@@ -12,6 +12,7 @@
 //
 // Secrets (S3 keys, passwords, tokens) live only in <work>/fixture.json (0600).
 import { fileURLToPath } from 'node:url';
+import { hubS3Env, NETWORK } from './s3-fixture.mjs';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -32,21 +33,9 @@ const fixturePath = join(work, 'fixture.json');
 const docker = (...a) =>
   execFileSync('docker', a, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 
-function r2Env() {
-  const env = Object.fromEntries(
-    readFileSync('/tmp/maude-r2-test.env', 'utf8')
-      .split('\n')
-      .filter((l) => l.includes('='))
-      .map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)])
-  );
-  return {
-    MAUDE_S3_ENDPOINT: 'https://b5b596efe65abb732777c7171dc18145.r2.cloudflarestorage.com',
-    MAUDE_S3_BUCKET: 'maude-multiplayer-test-20260922',
-    MAUDE_S3_REGION: 'auto',
-    MAUDE_S3_ACCESS_KEY_ID: env.MAUDE_S3_ACCESS_KEY_ID,
-    MAUDE_S3_SECRET_ACCESS_KEY: env.MAUDE_S3_SECRET_ACCESS_KEY,
-  };
-}
+// Object storage: a local S3-compatible server by default, a real bucket with
+// F3_S3_ENV (s3-fixture.mjs). Resolved only by the commands that run a hub.
+const S3ENV = ['up', 'wipe-disk', 'recreate'].includes(cmd) ? await hubS3Env() : {};
 
 async function waitHealthy(url, ms = 120000) {
   const end = Date.now() + ms;
@@ -87,7 +76,7 @@ function runContainer(fx, { allowEmpty }) {
     ...(allowEmpty ? { MAUDE_ALLOW_EMPTY_START: '1' } : {}),
     // Operator settings a scenario sets on purpose (`recreate --set K=V`).
     ...(fx.extraEnv ?? {}),
-    ...r2Env(),
+    ...S3ENV,
   };
   const envArgs = Object.entries(envs).flatMap(([k, v]) => ['-e', `${k}=${v}`]);
   return docker(
@@ -95,6 +84,8 @@ function runContainer(fx, { allowEmpty }) {
     '-d',
     '--name',
     fx.container,
+    '--network',
+    NETWORK,
     '-p',
     `127.0.0.1:${fx.port}:1234`,
     '-v',

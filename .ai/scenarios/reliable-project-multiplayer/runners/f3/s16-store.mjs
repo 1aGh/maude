@@ -394,18 +394,9 @@ if (only.includes('D')) {
   const K = await create(B, `F3Kept${tag}`, `Kept ${tag}`);
   // Wait past retention, then two more intervals after the last write.
   await sleep(200000);
-  const { listObjects, s3ConfigFromEnv } = await import(join(REPO, 'apps/hub/src/s3.mjs'));
-  const envFile = Object.fromEntries(
-    readFileSync('/tmp/maude-r2-test.env', 'utf8')
-      .split('\n')
-      .filter((l) => l.includes('='))
-      .map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)])
-  );
-  const cfg = s3ConfigFromEnv({
-    MAUDE_S3_ENDPOINT: 'https://b5b596efe65abb732777c7171dc18145.r2.cloudflarestorage.com',
-    MAUDE_S3_BUCKET: 'maude-multiplayer-test-20260922',
-    ...envFile,
-  });
+  const { listObjects } = await import(join(REPO, 'apps/hub/src/s3.mjs'));
+  const { hostS3Config } = await import('./s3-fixture.mjs');
+  const cfg = await hostS3Config();
   const backupKeys = (await listObjects(cfg, `${fx().tenant}/`)).map((o) => o.key);
   const generations = [...new Set(backupKeys.filter((k) => k.includes('manifest')).map((k) => k.split('/').slice(0, -1).join('/')))];
   const snapshot = async () => {
