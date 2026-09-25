@@ -13,7 +13,7 @@
     "build": "bun run build.ts",
     "build:dry": "bun run build.ts --dry-run",
     "dev": "node --watch src/server.mjs",
-    "test": "node --test --test-force-exit test/*.test.mjs"
+    "test": "node --test --import ./test/early-exit-guard.mjs test/*.test.mjs"
   },
   "dependencies": {
     "@hocuspocus/extension-sqlite": "^4.3.0",
