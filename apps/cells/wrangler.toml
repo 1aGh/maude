@@ -142,14 +142,22 @@ MAUDE_TUNNEL_HOST = "t-alligators.cloud.maude.sh"
 # NB: env applies at CONTAINER START. Changing this value does not reach a
 # running instance — the cell has to stop and be woken again (idle timeout, or
 # an explicit /_cell/restart). A byte-identical config is a no-op roll.
-CELL_LIVE_PAIRING = "alligators"
+#
+# Widened to the fleet 2026-09-25 (followup-multiplayer-hardening G3a): a new
+# cloud project starts in accepted revisions, which needs BOTH this and
+# CELL_PROJECT_STORE — an unpaired studio's browser edits never become accepted
+# actions (G7). The pilot (alligators) has run on both since 2026-09-16, and it
+# was the only active tenant at the time of widening.
+CELL_LIVE_PAIRING = "*"
 # ACCEPTED REVISIONS (DDR-241) — which tenants' cells get their durable
 # ProjectStore (the Durable Object bound above). Same shape as live pairing: a
 # tenant allowlist, `do` or `*` for the fleet. A listed cell can switch its
 # project to accepted revisions; the switch itself is still the project
 # owner's step (docs/operations/project-multiplayer-rollout.md). Env applies
-# at container start.
-CELL_PROJECT_STORE = "alligators"
+# at container start. Fleet-wide since 2026-09-25 (see CELL_LIVE_PAIRING): an
+# existing project keeps its mode until its owner switches; only a brand-new
+# one starts in accepted revisions (MAUDE_NEW_PROJECT_MODE, cell-config).
+CELL_PROJECT_STORE = "*"
 # feature-cloud-export-render-workers (DDR-230) — where a cell dispatches
 # browser-format export jobs. Reaches the studio child via cellEnv →
 # childEnv. Remove (or leave unset) to put the fleet's export lane back to
