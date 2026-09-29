@@ -53,6 +53,7 @@ import {
   stampCanvasPath,
   stampMovedTo,
 } from './codec.ts';
+import { commentLedgerFor } from './comment-ledger.ts';
 import {
   type ConnectionMonitor,
   createConnectionMonitor,
@@ -2722,6 +2723,9 @@ export function createSyncRuntime(
     // in `_history/<slug>/` via history.ts so /design:rollback recovers them.
     journal = loadJournal(ctx.paths.designRoot);
     journal.invalidateIfHubChanged(linkedHub.url);
+    // Issue #133 — same per-hub rule for the comment ledger: "synced before"
+    // against one hub says nothing about another.
+    commentLedgerFor(ctx.paths.designRoot).invalidateIfHubChanged(linkedHub.url);
     const history = createHistory(ctx);
 
     // ---- DDR-102 helpers: auth aggregation, re-probe, settle bookkeeping ----
@@ -3123,6 +3127,7 @@ export function createSyncRuntime(
           projection,
           historyDir: path.join(ctx.paths.historyDir, canvas.slug),
           journal: journal ?? undefined,
+          commentLedger: commentLedgerFor(ctx.paths.designRoot),
           ownAccepted,
           wasAccepted: (content) => acceptedLink.client.holdsValue(content),
           createDoc: (lanes) => acceptedLink.createDoc(canvas.slug, rel, lanes),
@@ -3142,6 +3147,7 @@ export function createSyncRuntime(
           paths: canvasPaths,
           historyDir: path.join(ctx.paths.historyDir, canvas.slug),
           journal: journal ?? undefined,
+          commentLedger: commentLedgerFor(ctx.paths.designRoot),
           snapshot: async (content, reason) => {
             try {
               const snap = await history.writeSnapshot(relBody, content, reason);
@@ -3755,6 +3761,7 @@ export function createSyncRuntime(
                 echoGuard,
                 adopt: adoptOnce,
                 journal: journal ?? undefined,
+                commentLedger: commentLedgerFor(ctx.paths.designRoot),
                 snapshot: async (content, reason) => {
                   try {
                     const snap = await history.writeSnapshot(relBody, content, reason);

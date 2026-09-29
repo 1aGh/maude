@@ -33,9 +33,13 @@
  * trade-off), which can silently reanchor a comment to the wrong element or to
  * nothing. `resolveCommentTarget` tries the stored selector first, falls back
  * to a structural match via `resolveByDomPath` (dom-selection.ts) when the
- * direct hit is missing or looks like the wrong element (tag mismatch), and —
- * per DDR-034's deferred future-work item — `CommentPin` auto-deletes a
- * comment whose target stays unresolvable past a short grace window.
+ * direct hit is missing or looks like the wrong element (tag mismatch). A
+ * comment whose target stays unresolvable past a short grace window is
+ * DETACHED — kept, shown at its last known place, and marked — never deleted:
+ * software deleting a comment is how #134/#136 lost every comment placed on a
+ * sticky or on empty canvas, and how one peer's missing element deleted a
+ * comment for everyone. Only a person deletes a comment. Comments on
+ * annotations and on empty canvas anchor through `comment-anchor.ts`.
  *
  * Popup placement — `CommentComposer` / `CommentThread` pick a side
  * (left/right, above/below the anchor) that actually fits the viewport via
@@ -49,6 +53,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import {
+  annotationElement,
+  isAnnotationId,
+  isWorldPoint,
+  type WorldPoint,
+  worldToClient,
+} from './comment-anchor.ts';
 import { resolveByDomPath } from './dom-selection.ts';
 import { isReadOnlyCanvas } from './read-only-mode.ts';
 import { useCollab } from './use-collab.tsx';
@@ -84,6 +95,10 @@ interface ComposeSelection {
   dom_path: string[];
   bounds: OverlayBounds | null;
   html: string;
+  /** Set when the click landed on an annotation (comment-anchor.ts). */
+  annotationId?: string;
+  /** World point of the click, when the canvas has a world plane. */
+  world?: WorldPoint;
 }
 
 interface ComposerState {
@@ -121,6 +136,11 @@ export interface OverlayComment {
   tag?: string;
   classes?: string;
   dom_path?: string[];
+  /** Anchor on an annotation (sticky, shape, stroke…) — see comment-anchor.ts. */
+  annotationId?: string;
+  /** World point of the comment — the anchor of a floating comment, and the
+   * last known place of an anchored one whose target is gone. */
+  world?: WorldPoint;
   // html_excerpt unused at overlay layer; kept off the type to keep the
   // surface tight.
 }
@@ -176,6 +196,7 @@ export interface TargetRef {
   tag?: string;
   classes?: string;
   dom_path?: string[];
+  annotationId?: string;
 }
 
 /**
@@ -187,6 +208,9 @@ export interface TargetRef {
  * match via `resolveByDomPath`.
  */
 export function resolveCommentTarget(target: TargetRef): HTMLElement | null {
+  if (isAnnotationId(target.annotationId)) {
+    return annotationElement(target.annotationId) as HTMLElement | null;
+  }
   if (!target.selector) return null;
   let el: HTMLElement | null = null;
   try {
@@ -426,6 +450,8 @@ export function CommentsOverlay(): React.ReactNode {
         classes: sel.classes,
         bounds: sel.bounds,
         html_excerpt: sel.html,
+        ...(sel.annotationId ? { annotationId: sel.annotationId } : {}),
+        ...(sel.world ? { world: sel.world } : {}),
         text,
       };
       if (typeof window === 'undefined') return;
@@ -547,7 +573,6 @@ export function CommentsOverlay(): React.ReactNode {
             sequence={n}
             focused={focusedId === c.id}
             onClick={handlePinClick}
-            onOrphaned={handleDelete}
           />
         );
       })}
@@ -836,28 +861,54 @@ function MentionAwareTextarea({
 // reflow, font load). Falls back to the stored `bounds` when the target is
 // gone from the DOM.
 
-// How long a pin is allowed to stay unresolvable (no live target AND no
-// structural-fallback match) before its comment is presumed orphaned and
-// auto-deleted. Long enough to ride out a canvas HMR remount; short enough
-// that a genuinely deleted element's comment doesn't linger.
-const ORPHAN_GRACE_MS = 3000;
+// How long a pin may stay unresolvable before it is shown as DETACHED. Long
+// enough to ride out a canvas HMR remount. Detached is a view of this client's
+// DOM, never a fact written back: another peer may still resolve the target.
+const DETACH_GRACE_MS = 3000;
+
+/** The pin box for a client point — the pin centres on the point. */
+function pointBox(p: { x: number; y: number }): OverlayBounds {
+  return { x: p.x - 12, y: p.y - 12, w: 24, h: 24 };
+}
+
+/**
+ * Where a comment's pin goes this frame, and whether its target is missing.
+ *
+ *   - anchored (element selector or annotation id) and resolved → on the target;
+ *   - anchored but unresolved → last known place (world point, else the
+ *     create-time screen bounds), `missing: true`;
+ *   - floating (no anchor) → its world point, else legacy screen bounds.
+ */
+export function locateComment(comment: OverlayComment): {
+  pos: OverlayBounds | null;
+  missing: boolean;
+} {
+  const anchored = !!comment.selector || isAnnotationId(comment.annotationId);
+  if (anchored) {
+    const live = screenRectFor(comment);
+    if (live) return { pos: live, missing: false };
+  }
+  const at = isWorldPoint(comment.world) ? worldToClient(comment.world) : null;
+  const pos = at ? pointBox(at) : (comment.bounds ?? null);
+  return { pos, missing: anchored };
+}
 
 function CommentPin({
   comment,
   sequence,
   focused,
   onClick,
-  onOrphaned,
 }: {
   comment: OverlayComment;
   sequence: number;
   focused: boolean;
   onClick: (id: string) => void;
-  onOrphaned: (id: string) => void;
 }) {
   const ref = useRef<HTMLButtonElement | null>(null);
   const rafRef = useRef<number | null>(null);
-  const unresolvedSinceRef = useRef<number | null>(null);
+  const missingSinceRef = useRef<number | null>(null);
+  const [detached, setDetached] = useState(false);
+  const detachedRef = useRef(false);
 
   useEffect(() => {
     const tick = () => {
@@ -865,27 +916,18 @@ function CommentPin({
       const pin = ref.current;
       if (!pin) return;
 
-      // Live screen-coord lookup mirrors SelectionHalos in canvas-shell.tsx
-      // (resolveCommentTarget tries the stored selector, then a structural
-      // fallback). Falls back to stored bounds (a screen-coord capture at
-      // create time) when neither resolves — better than vanishing entirely.
-      let pos = screenRectFor(comment);
-      if (pos) {
-        unresolvedSinceRef.current = null;
+      // Live screen-coord lookup mirrors SelectionHalos in canvas-shell.tsx.
+      const { pos, missing } = locateComment(comment);
+      let nowDetached = false;
+      if (missing) {
+        if (missingSinceRef.current == null) missingSinceRef.current = Date.now();
+        nowDetached = Date.now() - missingSinceRef.current > DETACH_GRACE_MS;
       } else {
-        if (unresolvedSinceRef.current == null) {
-          unresolvedSinceRef.current = Date.now();
-        } else if (Date.now() - unresolvedSinceRef.current > ORPHAN_GRACE_MS) {
-          onOrphaned(comment.id);
-        }
-        if (comment.bounds) {
-          pos = {
-            x: comment.bounds.x,
-            y: comment.bounds.y,
-            w: comment.bounds.w,
-            h: comment.bounds.h,
-          };
-        }
+        missingSinceRef.current = null;
+      }
+      if (nowDetached !== detachedRef.current) {
+        detachedRef.current = nowDetached;
+        setDetached(nowDetached);
       }
       if (!pos) {
         pin.style.display = 'none';
@@ -905,10 +947,10 @@ function CommentPin({
     return () => {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
-  }, [comment, onOrphaned]);
+  }, [comment]);
 
   const author = comment.author?.trim() || 'unknown';
-  const label = `Comment ${sequence} by ${author}`;
+  const label = `Comment ${sequence} by ${author}${detached ? ' (detached: its target is gone)' : ''}`;
 
   return (
     <button
@@ -917,6 +959,7 @@ function CommentPin({
       className="cm-pin"
       data-resolved={comment.status === 'resolved' ? 'true' : 'false'}
       data-focused={focused ? 'true' : 'false'}
+      data-detached={detached ? 'true' : 'false'}
       data-comment-pin={comment.id}
       aria-label={label}
       aria-expanded={focused}
@@ -1002,7 +1045,7 @@ function CommentComposer({
   // tight inside the 300px card.
   const selectorChip = useMemo(() => {
     const s = state.selection.selector || '';
-    if (!s) return state.selection.tag || 'canvas';
+    if (!s) return state.selection.tag || (state.selection.annotationId ? 'annotation' : 'canvas');
     // [data-cd-id="…"] → cd:<id> · keeps the chip readable when stable ids
     // are present.
     const cd = s.match(/data-cd-id="([^"]+)"/);

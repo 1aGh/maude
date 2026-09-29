@@ -67,7 +67,8 @@ import {
   unionCommentsById,
 } from './cold-start.ts';
 import { applyColdStart, type ColdStartSnapshotReason } from './cold-start-apply.ts';
-import { dedupeCommentsById, hasDuplicateComments } from './comment-identity.ts';
+import { commentKey, dedupeCommentsById, hasDuplicateComments } from './comment-identity.ts';
+import { type CommentLedger, withoutRemotelyDeleted } from './comment-ledger.ts';
 import { type EchoGuard, hashBytes } from './echo-guard.ts';
 import type { SyncJournal } from './journal.ts';
 import { rememberSeed, repairSeedDuplication } from './seed-repair.ts';
@@ -119,6 +120,14 @@ export interface CanvasSyncAgentOptions {
    * without it simply degrade to the conservative conflict path.
    */
   journal?: SyncJournal;
+  /**
+   * Issue #133 — comment ids synced from this machine before
+   * (sync/comment-ledger.ts). The cold-start union drops a local comment the
+   * ledger knows and the hub's doc no longer holds: that is a delete made
+   * while this machine was away, not a local-only comment. Optional — absent,
+   * the union keeps everything, as before.
+   */
+  commentLedger?: CommentLedger;
   /**
    * Snapshot writer (DDR-102 conflict protocol) — persists a body version to
    * `_history/<slug>/` and resolves with the snapshot's ISO ts (null on
@@ -339,6 +348,7 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
     echoGuard.record(paths.comments, hash);
     writer(paths.comments, serialized);
     lastComments = serialized;
+    opts.commentLedger?.record(slug, next.map(commentKey));
   }
 
   function writeAnnotationsIfChanged(): void {
@@ -411,6 +421,7 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
       if (parsed === null) return false;
       const changed = applyCommentsToDoc(doc, parsed, origin);
       if (changed) lastComments = str;
+      opts.commentLedger?.record(slug, commentsFromDoc(doc).map(commentKey));
       return changed;
     }
     if (evt.path === paths.annotations) {
@@ -562,7 +573,13 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
     const bodyWinner = applied.bodyWinner;
 
     // ---- comments: id-union merge (DDR-102 — union loses nothing) ----------
-    const localParsedComments = localComments !== null ? tryParseJsonArray(localComments) : null;
+    const localParsed = localComments !== null ? tryParseJsonArray(localComments) : null;
+    // Issue #133 — a local comment that was synced from here before and that
+    // the hub's doc no longer holds was deleted while this machine was away.
+    // Unioning it back resurrected it for everyone.
+    const localParsedComments = localParsed
+      ? withoutRemotelyDeleted(localParsed, docComments, opts.commentLedger?.get(slug))
+      : null;
     if (localParsedComments !== null && localParsedComments.length > 0) {
       const merged = unionCommentsById(docComments, localParsedComments);
       const mergedStr = merged.length > 0 ? `${JSON.stringify(merged, null, 2)}\n` : '';
@@ -573,6 +590,7 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
         writer(paths.comments, mergedStr);
       }
       lastComments = mergedStr;
+      opts.commentLedger?.record(slug, merged.map(commentKey));
     } else {
       // No (parseable) local comments — hub state materializes as before.
       lastComments = docCommentsStr;
@@ -581,6 +599,7 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
         echoGuard.record(paths.comments, hash);
         writer(paths.comments, docCommentsStr);
       }
+      opts.commentLedger?.record(slug, docComments.map(commentKey));
     }
 
     // ---- annotations: PER-LANE newest-wins (the 2026-08-14 eraser fix) -----

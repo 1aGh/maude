@@ -39,6 +39,7 @@ import {
 } from 'react';
 import { createRoot } from 'react-dom/client';
 
+import { annotationElement, annotationIdAt, clientToWorld } from './comment-anchor.ts';
 import { CommentsOverlay } from './comments-overlay.tsx';
 import { deriveFile, hoverTargetToSelection } from './dom-selection.ts';
 import {
@@ -394,6 +395,36 @@ function dropComment(
   file: string | undefined
 ): void {
   if (typeof document === 'undefined') return;
+  const world = clientToWorld(clientX, clientY) ?? undefined;
+
+  // A click on an annotation (sticky, shape, stroke, image, link, media card)
+  // anchors to it (#134/#136). Checked first: annotations draw above the
+  // artboards, so what the user clicked is the annotation, not the element
+  // underneath it.
+  const annotationId = annotationIdAt(clientX, clientY);
+  if (annotationId) {
+    const el = annotationElement(annotationId);
+    const r = el?.getBoundingClientRect();
+    const annotationSel: Selection = {
+      file,
+      id: undefined,
+      selector: '',
+      artboardId: null,
+      tag: el?.getAttribute('data-tool') ?? 'annotation',
+      classes: '',
+      text: '',
+      dom_path: [],
+      bounds: r
+        ? { x: r.left, y: r.top, w: r.width, h: r.height }
+        : { x: clientX - 12, y: clientY - 12, w: 24, h: 24 },
+      html: '',
+      annotationId,
+      ...(world ? { world } : {}),
+    };
+    openComposer(annotationSel, clientX, clientY);
+    return;
+  }
+
   let target = resolveHoverTarget(document, clientX, clientY, { deep: true });
   if (!target) target = resolveHoverTarget(document, clientX, clientY, { deep: false });
   // UI-canvas recovery — when both passes bail on a `pointer-events: none`
@@ -428,8 +459,9 @@ function dropComment(
 
   if (!target) {
     // Floating comment — no element anchor, just the click point (e.g. a click
-    // on empty canvas/specimen dead space). The overlay renders a pin at the
-    // stored bounds.
+    // on empty canvas/specimen dead space). The overlay renders the pin at the
+    // WORLD point, so it stays put through pan and zoom; `bounds` is the
+    // screen-space fallback for surfaces without a world plane (specimens).
     const floatingSel: Selection = {
       file,
       id: undefined,
@@ -441,6 +473,7 @@ function dropComment(
       dom_path: [],
       bounds: { x: clientX - 12, y: clientY - 12, w: 24, h: 24 },
       html: '',
+      ...(world ? { world } : {}),
     };
     openComposer(floatingSel, clientX, clientY);
     return;

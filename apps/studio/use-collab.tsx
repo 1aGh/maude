@@ -323,6 +323,27 @@ export function useCollab(): CollabValue | null {
 // ─────────────────────────────────────────────────────────────────────────────
 // Hook: foreign awareness peers (the cursor overlay subscribes to this).
 
+export interface AwarenessChanges {
+  added: number[];
+  updated: number[];
+  removed: number[];
+}
+
+/**
+ * Could this awareness `change` alter the foreign peers we show? False only
+ * when every touched client is the local one (our own cursor publish — #131).
+ * Unknown shape → true, the safe direction.
+ */
+export function touchesForeignClient(changes: AwarenessChanges | undefined, myId: number): boolean {
+  if (!changes) return true;
+  const touched = [
+    ...(changes.added ?? []),
+    ...(changes.updated ?? []),
+    ...(changes.removed ?? []),
+  ];
+  return touched.length === 0 || touched.some((id) => id !== myId);
+}
+
 /**
  * Returns the current set of foreign peers (excludes the local client). The
  * returned array is stable-reference between awareness updates — useful for
@@ -351,7 +372,13 @@ export function useForeignAwareness(): ForeignAwareness[] {
       return out;
     }
     setPeers(compute());
-    const onChange = () => setPeers(compute());
+    // Issue #131 — `change` fires for OUR OWN publishes too (the 30 Hz cursor),
+    // and each one rebuilt every peer object and re-rendered every consumer.
+    // Only a change that touches another client can change what we show.
+    const onChange = (changes?: AwarenessChanges) => {
+      if (!touchesForeignClient(changes, awareness.clientID)) return;
+      setPeers(compute());
+    };
     awareness.on('change', onChange);
     return () => {
       awareness.off('change', onChange);

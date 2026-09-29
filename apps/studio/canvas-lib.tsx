@@ -2869,11 +2869,16 @@ function buildCanvasRectsManifest(): CanvasRectsManifest {
 declare global {
   interface Window {
     __maudeCanvasRects?: () => CanvasRectsManifest;
+    /** The live camera, for layers built in another bundle (the comment
+     *  overlay mounts from canvas-comment-mount, which gets its own copy of
+     *  this module's state) — see comment-anchor.ts. */
+    __maudeViewport?: () => ViewportState | null;
   }
 }
 
 if (typeof window !== 'undefined') {
   window.__maudeCanvasRects = buildCanvasRectsManifest;
+  window.__maudeViewport = getLiveViewport;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

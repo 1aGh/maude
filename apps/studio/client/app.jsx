@@ -13711,6 +13711,9 @@ function App() {
               classes: p.classes,
               bounds: p.bounds,
               html_excerpt: p.html_excerpt,
+              // #134/#136 anchors — shape-checked server-side (api.ts commentsAdd).
+              annotationId: p.annotationId,
+              world: p.world,
               text: txt,
             },
           });

@@ -58,6 +58,7 @@ import {
   unionCommentsById,
 } from './cold-start.ts';
 import { applyColdStart, type ColdStartSnapshotReason } from './cold-start-apply.ts';
+import { type CommentLedger, withoutRemotelyDeleted } from './comment-ledger.ts';
 import { hashBytes } from './echo-guard.ts';
 import type { SyncJournal } from './journal.ts';
 import { ORIGINS } from './origins.ts';
@@ -85,6 +86,8 @@ export interface MigrateSeedOptions {
   historyDir?: string;
   /** DDR-102 — per-machine journal; gates fast-forward vs conflict. */
   journal?: SyncJournal;
+  /** Issue #133 — comment ids synced from here before (sync/comment-ledger.ts). */
+  commentLedger?: CommentLedger;
   /** DDR-102 — body snapshot writer (history.ts), same contract as the agent's. */
   snapshot?: (content: string, reason: ColdStartSnapshotReason) => Promise<string | null>;
   /**
@@ -414,9 +417,13 @@ export async function migrateSeed(opts: MigrateSeedOptions): Promise<MigrateSeed
   // delete-then-insert codec — same-id entries keep the doc's version, so the
   // duplication trap stays closed; local-only comments survive.
   if (localComments) {
-    const parsed = tryParseJsonArray(localComments);
+    const docList = doc.getArray(Y_TYPES.comments).toArray();
+    const read = tryParseJsonArray(localComments);
+    // Issue #133 — never union back a comment a peer deleted while we were away.
+    const parsed = read
+      ? withoutRemotelyDeleted(read, docList, opts.commentLedger?.get(slug))
+      : null;
     if (parsed && parsed.length > 0) {
-      const docList = doc.getArray(Y_TYPES.comments).toArray();
       const merged = unionCommentsById(docList, parsed);
       if (merged.length !== docList.length) {
         doc.transact(() => {

@@ -654,6 +654,37 @@ export function rid(): string {
   return `s_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/**
+ * The id of an annotation element that was written WITHOUT a `data-id` (a
+ * hand-edited or externally generated SVG). It used to be `rid()` — a new
+ * random id on every parse — so the same element had a different id in every
+ * tab, on every peer and after every reload, and nothing could point at it: a
+ * comment anchored to it (#134/#136), a peer's selection halo, an agent's
+ * `annotate update`. Now it is derived from the element's own markup, plus its
+ * occurrence among identical elements, so every parse of the same SVG gives
+ * every element the same id everywhere. The first edit writes it back as a real
+ * `data-id` (strokesToSvg always emits one), after which it never changes.
+ *
+ * Contract for the annotations-v2 element model
+ * (.ai/plans/feature-annotations-v2-element-model.md): an annotation's id is
+ * stable for the life of the element — across edits, moves, undo/redo, sync
+ * and reload — and is what external references (comments' `annotationId`)
+ * hold. A migration must carry ids over unchanged.
+ */
+export function stableAnnotationId(el: Element, seen: Map<string, number>): string {
+  const content = el.outerHTML;
+  const n = seen.get(content) ?? 0;
+  seen.set(content, n + 1);
+  // FNV-1a, 32-bit — deterministic, dependency-free, plenty for a per-board id.
+  let h = 0x811c9dc5;
+  const key = `${content}#${n}`;
+  for (let i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return `s_h${h.toString(36)}`;
+}
+
 /** FigJam v3 — group ids mirror the stroke id scheme (`g_` prefix). */
 export function gid(): string {
   return `g_${Math.random().toString(36).slice(2, 10)}`;
@@ -1424,9 +1455,10 @@ export function svgToStrokes(svgText: string): Stroke[] {
     const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
     if (doc.querySelector('parsererror')) return [];
     const out: Stroke[] = [];
+    const seenContent = new Map<string, number>();
     for (const el of Array.from(doc.querySelectorAll('[data-tool]'))) {
       const tool = el.getAttribute('data-tool');
-      const id = el.getAttribute('data-id') || rid();
+      const id = el.getAttribute('data-id') || stableAnnotationId(el, seenContent);
       const color = el.getAttribute('stroke') || el.getAttribute('fill') || DEFAULT_COLOR;
       const width = Number.parseFloat(el.getAttribute('stroke-width') || '2') || 2;
       // FigJam v3 — every branch funnels through push() so the shared attrs

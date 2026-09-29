@@ -19,6 +19,7 @@ import { canvasArtifacts, locatorKeyFor, relocatedName } from './canvas-artifact
 import { renderBriefBoard, validateCanvasName, validateFolderName } from './canvas-create.ts';
 import { rewriteRelativeImports } from './canvas-imports.ts';
 import { canvasSlugFromRel } from './canvas-slug.ts';
+import { isAnnotationId, isWorldPoint } from './comment-anchor.ts';
 import { atomicWrite } from './sync/atomic-write.ts';
 import { dedupeCommentsById } from './sync/comment-identity.ts';
 import { isRuntimeStateRel } from './sync/file-membership.ts';
@@ -323,6 +324,12 @@ export interface Comment {
    *  text is untrusted user/peer text (DDR-054) — rendered as text, never
    *  into TSX. */
   timeline?: { clipStableId?: string; frameOffset?: number; frame?: number; lane?: string };
+  /** #134/#136 — anchor on an annotation (`data-id` in `*.annotations.svg`).
+   *  Absent on element and floating comments. See comment-anchor.ts. */
+  annotationId?: string;
+  /** World point of the comment: the anchor of a floating comment, the last
+   *  known place of an anchored one. Absent on legacy comments. */
+  world?: { x: number; y: number };
 }
 
 export interface GitCommitter {
@@ -1247,6 +1254,11 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       thread: Array.isArray(c.thread) ? c.thread : [],
       mentions: Array.isArray(c.mentions) ? c.mentions : [],
       ...(timeline ? { timeline } : { timeline: undefined }),
+      // Same trust boundary for the #134/#136 anchors: a peer-synced comment
+      // never passed commentsAdd, so an anchor that fails its shape is dropped
+      // (the comment then renders from `bounds`, detached — never deleted).
+      annotationId: isAnnotationId(c.annotationId) ? c.annotationId : undefined,
+      world: isWorldPoint(c.world) ? { x: c.world.x, y: c.world.y } : undefined,
     };
   }
 
@@ -1462,6 +1474,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       }
       if (anchor.clipStableId != null || anchor.frame != null) c.timeline = anchor;
     }
+    // #134/#136 — annotation / world anchors (peer-supplied: shape-checked).
+    if (isAnnotationId(payload.annotationId)) c.annotationId = payload.annotationId;
+    if (isWorldPoint(payload.world)) c.world = { x: payload.world.x, y: payload.world.y };
     list.push(c);
     await publishComments(payload.file, list, base);
     return c;

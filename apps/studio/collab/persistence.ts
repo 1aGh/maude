@@ -11,6 +11,7 @@ import type { Context } from '../context.ts';
 // From the LEAF, never from `sync/codec.ts` — codec imports `Y_TYPES` from this
 // file, so reaching for it here would close a cycle (see sync/limits.ts).
 import { commentKey } from '../sync/comment-identity.ts';
+import { type CommentLedger, commentLedgerFor } from '../sync/comment-ledger.ts';
 import { MAX_ANNOTATIONS_BYTES, MAX_COMMENTS_BYTES, withinByteCap } from '../sync/limits.ts';
 import { ensureStateDir, type RoomCallbacks } from './room.ts';
 
@@ -60,6 +61,12 @@ export interface PersistenceDeps {
    * seed). Absent → cache-only restore, the previous behavior.
    */
   reconcileAfterCache?: (slug: string, doc: Y.Doc, cachedAtMs: number) => Promise<void>;
+  /**
+   * Issue #133 — which comment ids this machine synced before (see
+   * sync/comment-ledger.ts). Defaults to the process-wide ledger for the design
+   * root; tests inject a fresh one per simulated launch.
+   */
+  commentLedger?: CommentLedger;
 }
 
 /**
@@ -93,6 +100,7 @@ function withinCap(slug: string, lane: string, value: string, max: number): bool
 export function createPersistence(deps: PersistenceDeps): RoomCallbacks {
   const { ctx, api, fileForSlug } = deps;
   const stateDir = ensureStateDir(ctx.paths.designRoot);
+  const ledger = deps.commentLedger ?? commentLedgerFor(ctx.paths.designRoot);
 
   // Per-slug: every comment identity this doc has EVER carried (issue #111).
   //
@@ -284,10 +292,20 @@ export function createPersistence(deps: PersistenceDeps): RoomCallbacks {
       // brings that id into the doc is itself a doc update, which re-arms the
       // flush, and the next pass writes the merged state. A delete still
       // materializes — its id IS in `everSeen`, so the write proceeds.
+      //
+      // Issue #133 — `everSeen` starts empty on every launch, so an id deleted
+      // by a peer while this machine was closed also reads as "never carried"
+      // and froze the file for good. The ledger knows it was synced from here
+      // before: an id in the ledger and absent from the doc is a delete.
       const onDisk = await api.loadCommentsForFile(file);
-      const behind = onDisk.some((c) => !everSeen.has(commentKey(c)));
+      const synced = ledger.get(slug);
+      const behind = onDisk.some((c) => {
+        const k = commentKey(c);
+        return !everSeen.has(k) && !synced.has(k);
+      });
       if (!behind && withinCap(slug, 'comments', JSON.stringify(list), MAX_COMMENTS_BYTES)) {
         await api.saveCommentsForFile(file, list);
+        ledger.record(slug, list.map(commentKey));
       }
     }
 

@@ -18,16 +18,31 @@
 // A canvas the project does not know yet is proposed as `doc.create` with all
 // of its lanes, so it arrives on every peer as ONE action.
 //
-// Comments and annotations are never re-proposed from disk here: every change
-// the studio made to them went through the durable outbox (drained before any
-// cold start), so a difference on disk is an older accepted state the room had
-// not re-projected — the accepted value wins, and the local file is kept in a
+// Annotations are never re-proposed from disk here: every change the studio
+// made to them went through the durable outbox (drained before any cold start),
+// so a difference on disk is an older accepted state the room had not
+// re-projected — the accepted value wins, and the local file is kept in a
 // recovery slot in case a raw edit made while the studio was down lived there.
+//
+// Comments had the same rule, and the premise did not hold for them (issue
+// #133, reproduced end-to-end): a comment added while the sync runtime was not
+// up yet (`proposeLane` unavailable, server.ts) went to the local room and disk
+// only, never into the outbox — so the web never saw it, and the file then
+// froze behind it. Comments carry stable ids, so the difference is decidable:
+// an id on disk that the accepted state lacks and that the comment ledger says
+// was never synced from here is a local comment still owed to the project; it
+// is proposed, as the accepted list plus those comments (a three-way id merge
+// on the hub). Ids the ledger knows were synced are deletions made while this
+// machine was away and are not proposed back. With no ledger record for the
+// canvas (first launch after upgrading) nothing is decidable: the old rule —
+// accepted wins, local kept in recovery — stands.
 
 import { existsSync, readFileSync } from 'node:fs';
 import type * as Y from 'yjs';
 
 import { cssFromDoc, htmlFromDoc, laneValueFromFile, readLaneFromDoc } from './codec.ts';
+import { commentKey } from './comment-identity.ts';
+import type { CommentLedger } from './comment-ledger.ts';
 import { hashBytes } from './echo-guard.ts';
 import type { SyncJournal } from './journal.ts';
 import type { DocProjection, ProjectionPaths, ProposalLane } from './projection.ts';
@@ -51,6 +66,38 @@ function readText(p: string | undefined): string | null {
   } catch {
     return null;
   }
+}
+
+function parseList(v: string): unknown[] {
+  if (!v) return [];
+  try {
+    const parsed = JSON.parse(v) as unknown;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The comments list to propose at cold start — the accepted list plus the local
+ * comments never synced from here — or null when there is nothing owed (or no
+ * ledger record to decide by). See the header.
+ */
+export function commentsOwedToProject(
+  local: string,
+  accepted: string,
+  slug: string,
+  ledger: CommentLedger | undefined
+): string | null {
+  if (!ledger?.known(slug)) return null;
+  const acceptedList = parseList(accepted);
+  const inProject = new Set(acceptedList.map(commentKey));
+  const synced = ledger.get(slug);
+  const owed = parseList(local).filter((c) => {
+    const k = commentKey(c);
+    return !inProject.has(k) && !synced.has(k);
+  });
+  return owed.length > 0 ? JSON.stringify([...acceptedList, ...owed]) : null;
 }
 
 /**
@@ -92,6 +139,8 @@ export interface AcceptedColdStartInput {
   projection: DocProjection;
   historyDir?: string;
   journal?: SyncJournal;
+  /** Issue #133 — comment ids synced from here before (see the header). */
+  commentLedger?: CommentLedger;
   /**
    * This disk's own html proposal a previous run left unanswered, which the
    * outbox drain has just had accepted. The disk was saved on top of it, so it
@@ -224,6 +273,13 @@ export async function acceptedColdStart(
     if (local === null || local === accepted) {
       verdicts.push({ lane, decision: local === null ? 'materialize' : 'agreed' });
       continue;
+    }
+    if (lane === 'comments') {
+      const owed = commentsOwedToProject(local, accepted, i.slug, i.commentLedger);
+      if (owed) {
+        verdicts.push({ lane, decision: 'propose', base: accepted, local: owed });
+        continue;
+      }
     }
     if (i.historyDir && text) {
       try {
