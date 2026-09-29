@@ -35,6 +35,17 @@ jobs:
       - name: Lint (biome)
         run: pnpm lint
 
+      - name: Install Bun (harness tests + cloud-binary gate)
+        # Before Test: `pnpm test` ends in test:harness, whose source audit runs
+        # under `bun test` (`bun: not found` once this step sat after it). The
+        # cloud-binary gate below also compiles apps/studio twice with Bun.
+        # Same EXACT pin as build-binaries/build-desktop:
+        # Bun's minifier output is not stable across patch releases (see the
+        # rationale on build-desktop.yml's Install Bun step).
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+
       - name: Test (node:test)
         run: pnpm test
 
@@ -57,16 +68,6 @@ jobs:
         run: |
           bash scripts/check-containment.sh
           sh -n infra/cell/entrypoint.sh
-
-      - name: Install Bun (cloud-binary gate)
-        # The gate below compiles apps/studio twice with Bun — which this job
-        # otherwise never needs (its first run failed with `bun: command not
-        # found`, exit 127). Same EXACT pin as build-binaries/build-desktop:
-        # Bun's minifier output is not stable across patch releases (see the
-        # rationale on build-desktop.yml's Install Bun step).
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .bun-version
 
       - name: Cloud binary elimination (Phase 27 D1)
         # Containment says a cell REFUSES these surfaces; this says the code is
