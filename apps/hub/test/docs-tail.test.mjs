@@ -311,7 +311,14 @@ test('a plain save issues no delete, and a flush that cannot drain gives up', as
   assert.equal(removes, 0);
   hang = true;
   tail.store('ws/l/main/ui-a', docWith('3'));
-  assert.equal(await tail.flush({ timeoutMs: 50 }), false);
+  // flush()'s give-up timer is unref'd (it must never hold shutdown) and the
+  // hung put holds nothing, so without a ref'd handle Node ends the loop first.
+  const keepAlive = setTimeout(() => {}, 1_000);
+  try {
+    assert.equal(await tail.flush({ timeoutMs: 50 }), false);
+  } finally {
+    clearTimeout(keepAlive);
+  }
 });
 
 test('a wake with no tail leaves the generation as it is', async () => {
