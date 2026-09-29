@@ -2,6 +2,15 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "sync-no-phantom-waiting-files",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Sync stops counting files that are done",
+      "summary": "The Sync panel no longer shows files as waiting or stuck when there is nothing left to deliver, and Resync now brings down a file the project changed while you were uploading it.",
+      "surface": "design-ui"
+    },
+    {
       "id": "team-projects-hold-up",
       "version": "1.4.5",
       "date": "2026-09-25",

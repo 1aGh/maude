@@ -641,6 +641,21 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
   let reanchorHeldSince = 0;
 
   /**
+   * A conflict row is waiting on a remote only a FULL read can tell it.
+   *
+   * A push answered `conflict` defers to "the next pass, against what the hub
+   * holds now" — but for a path the hub then leaves alone, a cursor read says
+   * nothing, the remembered remote stays unknown, and the row sat in
+   * `conflict` for good: Resync restarted the plane and read the same silence
+   * (rca issue-file-ledger-orphaned-rows). So a conflict owes one full read.
+   * Seeded from the ledger, which is what makes Resync (a restart) pay it.
+   * Capped at one per `REANCHOR_HOLD_RECOVERY_MS`, like the re-anchor storm,
+   * so a hub answering `conflict` to every push cannot farm full reads.
+   */
+  let fullReadOwed = Object.values(ledger.rows()).some((r) => r.state === 'conflict');
+  let lastOwedFullReadAt = Number.NEGATIVE_INFINITY;
+
+  /**
    * When the plane may talk to the hub again. Issue #109.
    *
    * A 429 is the one refusal where the retry IS the cause: every re-request
@@ -1497,7 +1512,14 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     requestsThisPass = 0;
 
     // ── 1. The hub's side ────────────────────────────────────────────────
-    const startedFrom = ledger.cursor();
+    const payOwedRead = fullReadOwed && now() - lastOwedFullReadAt >= REANCHOR_HOLD_RECOVERY_MS;
+    if (payOwedRead) {
+      fullReadOwed = false;
+      lastOwedFullReadAt = now();
+    }
+    // An owed read is a compaction read in the SAME epoch: the ancestors still
+    // describe this log, so nothing is degraded — it only refreshes remotes.
+    const startedFrom = payOwedRead ? 0 : ledger.cursor();
     let fullRead = startedFrom === 0;
     let page = await fetchJournal({
       hubUrl: opts.hubUrl,
@@ -1648,6 +1670,45 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         ledger.forget(rel);
         continue;
       }
+      // NOT OURS ON EITHER SIDE ANY MORE — forget it, do not keep refusing it.
+      //
+      // A path can leave the file plane while the ledger still tracks it: a
+      // `.css` written before its `.tsx` becomes the canvas's sidecar, or the
+      // canvas groups change. The local scan stops offering it, the hub stops
+      // listing it, and the row stayed behind forever — re-stamped `stuck` by
+      // the admission drop against a remembered remote, or frozen in
+      // `conflict` with nothing left to decide — counted as "waiting" in the
+      // panel (rca issue-file-ledger-orphaned-rows). Only when this page did
+      // not offer it: a path the hub is actively naming still goes through
+      // admission, which reports the refusal.
+      if (!here && !row && kept) {
+        const cls = classifyProjectFile(rel, {
+          canvasGroups: opts.canvasGroups,
+          hasFile: (r) => local.has(r) || existsSync(path.join(designRoot, r)),
+        });
+        if (!isFilePlaneClass(cls)) {
+          ledger.forget(rel);
+          continue;
+        }
+      }
+      // A DELETE IS A TRANSFER TOO. The code-module gate below only sees a
+      // non-null remote, so a tombstone walked past it: an ancestor this peer
+      // recorded (by push, or by agreement) was all `tombstone-agreed` needed
+      // to quarantine a code module on the word of a hub that may not move
+      // one. Refuse it here, reported, with the file and its row untouched.
+      if (row?.deleted && here && !opts.allowCodeModules) {
+        const cls = classifyProjectFile(rel, {
+          canvasGroups: opts.canvasGroups,
+          hasFile: (r) => local.has(r) || existsSync(path.join(designRoot, r)),
+        });
+        if (cls === 'code-module') {
+          out.dropped.push({
+            rel,
+            reason: 'code modules are removed only by an owner-vouched or loopback hub',
+          });
+          continue;
+        }
+      }
       // What the hub holds: this page when it spoke about the path, otherwise
       // what we last learned. `undefined` (never learned) reads as null only
       // after a full read has had the chance to say so.
@@ -1673,6 +1734,20 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           continue;
         }
         if (cls === 'code-module' && !opts.allowCodeModules) {
+          // AGREEMENT IS NOT A TRANSFER. The gate refuses to move a code
+          // module from an unvouched hub (DDR-054); identical bytes on both
+          // sides move nothing, and reporting them as refused left a
+          // converged file permanently "stuck".
+          if (here && here.hash === remoteHash) {
+            void ledger.adoptAfter(rel, here.hash, () => {}, {
+              ...(row ? { remoteSeq: row.seq } : {}),
+              size: here.size,
+              mtimeMs: here.mtimeMs,
+              state: 'on-hub',
+            });
+            out.synced += 1;
+            continue;
+          }
           drop(
             out,
             rel,
@@ -2082,6 +2157,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           ledger.setState(rel, 'conflict', {
             reason: 'the hub changed this file while the upload was in flight',
           });
+          fullReadOwed = true;
           out.conflicts.push({ rel, copy: null });
           return true;
         }

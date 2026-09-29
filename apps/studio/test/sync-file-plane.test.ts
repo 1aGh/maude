@@ -1662,3 +1662,122 @@ describe('pull order', () => {
     expect(order).toEqual(['assets/a.png', 'assets/b.png', 'assets/master.mp4']);
   });
 });
+
+// rca issue-file-ledger-orphaned-rows — rows the plane could never decide again
+// sat in `stuck` / `conflict` for good, the panel counted them as "waiting",
+// and Resync (a restart over the persisted ledger) read the same silence.
+describe('orphaned ledger rows', () => {
+  test('a .css that became a canvas sidecar is forgotten, not re-refused forever', async () => {
+    const hub = fakeHub({ 'ui/orbit/Board.css': '.a{}' });
+    expect((await plane(hub).reconcile()).pulled).toEqual(['ui/orbit/Board.css']);
+    // The canvas arrives afterwards — the `.css`-before-`.tsx` authoring order.
+    write('ui/orbit/Board.tsx', 'export default () => null');
+    write('ui/orbit/Board.css', '.a{color:red}');
+
+    const p = plane(hub);
+    const res = await p.reconcile();
+    expect(res.dropped.filter((d) => d.rel === 'ui/orbit/Board.css')).toEqual([]);
+    expect(p.doruceka()['ui/orbit/Board.css']).toBeUndefined();
+    expect(hub.puts).toEqual([]);
+    expect(read('ui/orbit/Board.css')).toBe('.a{color:red}');
+  });
+
+  test('a conflict row for a canvas-owned path with no remote is forgotten', async () => {
+    const hub = fakeHub();
+    write('ui/orbit/Cmd K.tsx', 'export default () => null');
+    write('ui/orbit/Cmd K.css', '.k{}');
+    ledger.setState('ui/orbit/Cmd K.css', 'conflict', {
+      reason: 'the hub changed this file while the upload was in flight',
+    });
+
+    const p = plane(hub);
+    await p.reconcile();
+    expect(p.doruceka()['ui/orbit/Cmd K.css']).toBeUndefined();
+    expect(hub.puts).toEqual([]);
+  });
+
+  test('a conflict whose hub body the cursor never mentions again is pulled after a restart', async () => {
+    const hub = fakeHub({ 'ui/orbit/Notes.md': 'v1' });
+    await plane(hub).reconcile();
+    // The hub moves on, and this peer's cursor is already past that move while
+    // its remembered remote is gone — the state a push race + a later full
+    // read left behind. A cursor read from here is silent about the path.
+    hub.add('ui/orbit/Notes.md', 'v2');
+    ledger.pruneRemotes(new Set());
+    ledger.setState('ui/orbit/Notes.md', 'conflict', {
+      reason: 'the hub changed this file while the upload was in flight',
+    });
+    ledger.setPosition(hub.epoch(), hub.head());
+
+    // A restart — what Resync does.
+    const p = plane(hub);
+    const res = await p.reconcile();
+    expect(res.pulled).toEqual(['ui/orbit/Notes.md']);
+    expect(read('ui/orbit/Notes.md')).toBe('v2');
+    expect(p.doruceka()['ui/orbit/Notes.md']).toBe('on-hub');
+  });
+
+  test('the owed full read is paid once per window, not on every pass', async () => {
+    const hub = fakeHub({ 'ui/orbit/Notes.md': 'v1' });
+    await plane(hub).reconcile();
+    const sinces: string[] = [];
+    const watched = (async (url: string, init?: RequestInit) => {
+      const u = new URL(String(url));
+      if (u.pathname === '/api/journal') sinces.push(u.searchParams.get('since') ?? '');
+      return hub.fetchImpl(url, init);
+    }) as unknown as typeof fetch;
+    // A conflict that stays a conflict: both sides differ from the ancestor.
+    hub.add('ui/orbit/Notes.md', 'hub side');
+    write('ui/orbit/Notes.md', 'local side');
+    ledger.setState('ui/orbit/Notes.md', 'conflict', { reason: 'x' });
+    ledger.setPosition(hub.epoch(), hub.head());
+
+    const p = plane(hub, { fetchImpl: watched });
+    await p.reconcile();
+    ledger.setState('ui/orbit/Notes.md', 'conflict', { reason: 'x' });
+    await p.reconcile();
+    await p.reconcile();
+    expect(sinces.filter((s) => s === '0').length).toBe(1);
+  });
+
+  test('a code module identical on both sides is in step, not refused', async () => {
+    const hub = fakeHub({ 'system/ds/preview/_x.ts': 'export const a = 1' });
+    write('system/ds/preview/_x.ts', 'export const a = 1');
+    const p = plane(hub);
+    const res = await p.reconcile();
+    expect(res.dropped).toEqual([]);
+    expect(p.doruceka()['system/ds/preview/_x.ts']).toBe('on-hub');
+  });
+
+  test('an agreed code module is still refused once the hub moves it', async () => {
+    const hub = fakeHub({ 'system/ds/preview/_x.ts': 'export const a = 1' });
+    write('system/ds/preview/_x.ts', 'export const a = 1');
+    await plane(hub).reconcile();
+    // Agreement made the ancestor; a hub-side change now reads as a pull to
+    // the decision table — the gate in front of it must still say no.
+    hub.add('system/ds/preview/_x.ts', 'export const a = 666');
+    const res = await plane(hub).reconcile();
+    expect(res.pulled).toEqual([]);
+    expect(res.dropped[0]?.reason).toContain('owner-vouched');
+    expect(read('system/ds/preview/_x.ts')).toBe('export const a = 1');
+  });
+
+  test('an unvouched hub cannot quarantine an agreed code module with a tombstone', async () => {
+    const hub = fakeHub({ 'system/ds/preview/_x.ts': 'export const a = 1' });
+    write('system/ds/preview/_x.ts', 'export const a = 1');
+    await plane(hub).reconcile();
+    hub.tombstone('system/ds/preview/_x.ts');
+    const res = await plane(hub).reconcile();
+    expect(res.deleted).toEqual([]);
+    expect(res.dropped.some((d) => d.reason.includes('owner-vouched'))).toBe(true);
+    expect(read('system/ds/preview/_x.ts')).toBe('export const a = 1');
+  });
+
+  test('…but differing code-module bytes are still refused from an unvouched hub', async () => {
+    const hub = fakeHub({ 'system/ds/preview/_x.ts': 'export const a = 1' });
+    write('system/ds/preview/_x.ts', 'export const a = 2');
+    const res = await plane(hub).reconcile();
+    expect(res.dropped[0]?.reason).toContain('owner-vouched');
+    expect(read('system/ds/preview/_x.ts')).toBe('export const a = 2');
+  });
+});
