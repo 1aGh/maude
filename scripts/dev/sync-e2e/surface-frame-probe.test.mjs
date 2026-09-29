@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { test } from 'node:test';
 import { chromium } from '@playwright/test';
@@ -8,7 +8,11 @@ const script = readFileSync(
   new URL('../../../apps/desktop/src-tauri/src/e2e-frame-probe.js', import.meta.url),
   'utf8'
 );
-test('debug probe observes an isolated canvas without disabling same-origin enforcement', async () => {
+// Quality CI installs no Playwright browser; without one this is a skip, not a failure.
+const noBrowser = !existsSync(chromium.executablePath()) && 'no Playwright chromium installed';
+test('debug probe observes an isolated canvas without disabling same-origin enforcement', {
+  skip: noBrowser,
+}, async () => {
   const canvas = createServer((_req, res) => {
     res.setHeader('content-type', 'text/html');
     res.end(`<h1>Rendered on another origin</h1><input value="unchanged">
@@ -33,8 +37,11 @@ test('debug probe observes an isolated canvas without disabling same-origin enfo
     );
   });
   await new Promise((done) => shell.listen(0, '127.0.0.1', done));
-  const browser = await chromium.launch();
+  let browser;
   try {
+    // Launched inside try: a failed launch must still close both servers, or
+    // the open listeners keep the test process alive forever.
+    browser = await chromium.launch();
     const page = await browser.newPage();
     await page.addInitScript(script);
     await page.goto(`http://127.0.0.1:${shell.address().port}`);
@@ -130,7 +137,7 @@ test('debug probe observes an isolated canvas without disabling same-origin enfo
     assert.match(blocked.error, /obscured/);
     assert.equal(blocked.visible, false);
   } finally {
-    await browser.close();
+    await browser?.close();
     await Promise.all([
       new Promise((done) => shell.close(done)),
       new Promise((done) => canvas.close(done)),
