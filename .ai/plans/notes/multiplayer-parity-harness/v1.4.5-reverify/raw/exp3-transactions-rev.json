@@ -1,0 +1,314 @@
+{
+  "result": {
+    "mode": "transactions",
+    "reverse": true,
+    "nodelete": false,
+    "step1_P": true,
+    "step1_Q": true,
+    "step1_Q_all": [
+      "A",
+      "B"
+    ],
+    "samples": [
+      {
+        "dt": 0,
+        "disk": [
+          "A",
+          "B"
+        ],
+        "all": [
+          "A",
+          "B"
+        ],
+        "Pdisk": [
+          "B",
+          "C",
+          "E"
+        ]
+      },
+      {
+        "dt": 5003,
+        "disk": [
+          "A",
+          "B"
+        ],
+        "all": [
+          "A",
+          "B"
+        ],
+        "Pdisk": [
+          "B",
+          "C",
+          "E"
+        ]
+      },
+      {
+        "dt": 10014,
+        "disk": [
+          "A",
+          "B"
+        ],
+        "all": [
+          "A",
+          "B"
+        ],
+        "Pdisk": [
+          "B",
+          "C",
+          "E"
+        ]
+      },
+      {
+        "dt": 15018,
+        "disk": [
+          "A",
+          "B"
+        ],
+        "all": [
+          "A",
+          "B"
+        ],
+        "Pdisk": [
+          "B",
+          "C",
+          "E"
+        ]
+      },
+      {
+        "dt": 20028,
+        "disk": [
+          "A",
+          "B"
+        ],
+        "all": [
+          "A",
+          "B"
+        ],
+        "Pdisk": [
+          "B",
+          "C",
+          "E"
+        ]
+      },
+      {
+        "dt": 25034,
+        "disk": [
+          "A",
+          "B"
+        ],
+        "all": [
+          "A",
+          "B"
+        ],
+        "Pdisk": [
+          "B",
+          "C",
+          "E"
+        ]
+      },
+      {
+        "dt": 30042,
+        "disk": [
+          "A",
+          "B"
+        ],
+        "all": [
+          "A",
+          "B"
+        ],
+        "Pdisk": [
+          "B",
+          "C",
+          "E"
+        ]
+      },
+      {
+        "dt": 35049,
+        "disk": [
+          "A",
+          "B"
+        ],
+        "all": [
+          "A",
+          "B"
+        ],
+        "Pdisk": [
+          "B",
+          "C",
+          "E"
+        ]
+      },
+      {
+        "dt": 40055,
+        "disk": [
+          "A",
+          "B"
+        ],
+        "all": [
+          "A",
+          "B"
+        ],
+        "Pdisk": [
+          "B",
+          "C",
+          "E"
+        ]
+      },
+      {
+        "dt": 45061,
+        "disk": [
+          "A",
+          "B"
+        ],
+        "all": [
+          "A",
+          "B"
+        ],
+        "Pdisk": [
+          "B",
+          "C",
+          "E"
+        ]
+      },
+      {
+        "dt": 50068,
+        "disk": [
+          "A",
+          "B"
+        ],
+        "all": [
+          "A",
+          "B"
+        ],
+        "Pdisk": [
+          "B",
+          "C",
+          "E"
+        ]
+      },
+      {
+        "dt": 55073,
+        "disk": [
+          "A",
+          "B"
+        ],
+        "all": [
+          "A",
+          "B"
+        ],
+        "Pdisk": [
+          "B",
+          "C",
+          "E"
+        ]
+      }
+    ],
+    "final": {
+      "Qdisk": [
+        "A",
+        "B"
+      ],
+      "Qall": [
+        "A",
+        "B"
+      ],
+      "Pdisk": [
+        "B",
+        "C",
+        "E"
+      ]
+    }
+  },
+  "log": [
+    {
+      "t": 1719,
+      "msg": "hub up",
+      "http": "http://127.0.0.1:4781"
+    },
+    {
+      "t": 2265,
+      "msg": "W health",
+      "ok": true
+    },
+    {
+      "t": 6781,
+      "msg": "D health",
+      "ok": true
+    },
+    {
+      "t": 6781,
+      "msg": "D has board.tsx",
+      "gotCanvas": true
+    },
+    {
+      "t": 9593,
+      "msg": "ok P disk has A,B",
+      "disk": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "t": 10096,
+      "msg": "ok Q disk has A,B",
+      "disk": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "t": 10100,
+      "msg": "Q /_comments-all",
+      "v": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "t": 10117,
+      "msg": "Q stopped"
+    },
+    {
+      "t": 10925,
+      "msg": "ok P disk [B,C] (or A,B,C)",
+      "disk": [
+        "B",
+        "C"
+      ]
+    },
+    {
+      "t": 14433,
+      "msg": "Q restarted",
+      "ok": true
+    },
+    {
+      "t": 24441,
+      "msg": "Q disk after restart+10s",
+      "disk": [
+        "A",
+        "B"
+      ],
+      "all": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "t": 84924,
+      "msg": "FINAL",
+      "Qdisk": [
+        "A",
+        "B"
+      ],
+      "Qall": [
+        "A",
+        "B"
+      ],
+      "Pdisk": [
+        "B",
+        "C",
+        "E"
+      ]
+    }
+  ]
+}

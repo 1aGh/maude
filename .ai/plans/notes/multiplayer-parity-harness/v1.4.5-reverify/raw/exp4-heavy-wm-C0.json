@@ -1,0 +1,83 @@
+[
+  {
+    "run": 1,
+    "cond": "C0",
+    "fit": true,
+    "load": "{ 5.23 5.07 5.69 }",
+    "pre": {
+      "own": 0,
+      "peerSel": 0,
+      "cursors": 0
+    },
+    "warm": null,
+    "canvas": {
+      "frames": 12,
+      "p50": 928,
+      "p95": 1543,
+      "p99": 1543,
+      "max": 1543,
+      "over33": 12,
+      "over50": 12,
+      "longtasks": 0,
+      "gbcr": 13,
+      "foreignCursors": 0,
+      "peerSel": 0,
+      "ownHalos": 0,
+      "panApplied": true
+    }
+  },
+  {
+    "run": 2,
+    "cond": "C0",
+    "fit": true,
+    "load": "{ 5.73 5.18 5.71 }",
+    "pre": {
+      "own": 0,
+      "peerSel": 0,
+      "cursors": 0
+    },
+    "warm": null,
+    "canvas": {
+      "frames": 12,
+      "p50": 852,
+      "p95": 1711,
+      "p99": 1711,
+      "max": 1711,
+      "over33": 12,
+      "over50": 12,
+      "longtasks": 0,
+      "gbcr": 13,
+      "foreignCursors": 0,
+      "peerSel": 0,
+      "ownHalos": 0,
+      "panApplied": true
+    }
+  },
+  {
+    "run": 3,
+    "cond": "C0",
+    "fit": true,
+    "load": "{ 6.00 5.30 5.74 }",
+    "pre": {
+      "own": 0,
+      "peerSel": 0,
+      "cursors": 0
+    },
+    "warm": null,
+    "canvas": {
+      "frames": 10,
+      "p50": 1148,
+      "p95": 1610,
+      "p99": 1610,
+      "max": 1610,
+      "over33": 10,
+      "over50": 10,
+      "longtasks": 0,
+      "gbcr": 11,
+      "foreignCursors": 0,
+      "peerSel": 0,
+      "ownHalos": 0,
+      "panApplied": true
+    }
+  }
+]

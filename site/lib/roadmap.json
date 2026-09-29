@@ -2236,6 +2236,17 @@
       "phaseKey": null
     },
     {
+      "id": "feature-annotations-v2-element-model",
+      "title": "Feature: Annotations v2 — parametrized element model, per-element sync, rebuilt text + containment",
+      "status": "planned",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. The line numbers below were taken on 2026-09-29 (HEAD 612ba084). Re-grep before you ed...",
+      "planPath": ".ai/plans/feature-annotations-v2-element-model.md",
+      "archived": false,
+      "phaseKey": null
+    },
+    {
       "id": "feature-desktop-project-tabs-and-identity-profiles",
       "title": "Feature: Desktop project tabs + per-project identity profiles",
       "status": "planned",
@@ -2276,6 +2287,17 @@
       "date": null,
       "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
       "planPath": ".ai/plans/feature-video-tracking-and-stabilization.md",
+      "archived": false,
+      "phaseKey": null
+    },
+    {
+      "id": "followup-multiplayer-parity-issues",
+      "title": "Follow-up: multiplayer parity issues (#131, #133, #134, #136)",
+      "status": "planned",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
+      "planPath": ".ai/plans/followup-multiplayer-parity-issues.md",
       "archived": false,
       "phaseKey": null
     },
