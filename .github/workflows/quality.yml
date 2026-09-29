@@ -12,6 +12,8 @@ jobs:
   quality:
     name: Quality (lint+test+links)
     runs-on: ubuntu-latest
+    # A hung test must fail in minutes, not sit to GitHub's 6 h job limit.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
@@ -190,6 +192,8 @@ jobs:
     # whose clean-CI health is still unmeasured.
     name: Export lanes E2E (browser + worker)
     runs-on: ubuntu-latest
+    # Hang guard — see the quality job.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
 
@@ -249,6 +253,8 @@ jobs:
     # `continue-on-error` comes off and it becomes required.
     name: Studio suite (full, non-blocking)
     runs-on: ubuntu-latest
+    # Hang guard — see the quality job.
+    timeout-minutes: 45
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
