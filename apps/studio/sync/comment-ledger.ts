@@ -27,6 +27,7 @@
 // behaviour (defer), the safe direction. Lives under `_state/`, which is
 // already per-machine runtime state (DDR-115 taxonomy), so no new path.
 
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -51,17 +52,38 @@ interface LedgerFileShape {
   slugs: Record<string, string[]>;
 }
 
+/** A read-only view of the identities recorded for one canvas. */
+export interface SyncedSet {
+  readonly size: number;
+  /** Takes a raw `commentKey`; the ledger stores only its hash. */
+  has(key: string): boolean;
+}
+
+/**
+ * The stored form of a comment key. Hashed (security review F3): an id-less
+ * comment's key is its whole JSON body, which a peer controls — the ledger must
+ * not grow with comment bodies, only with how many there are.
+ */
+export function ledgerKey(key: string): string {
+  return createHash('sha256').update(key).digest('base64url').slice(0, 22);
+}
+
 export interface CommentLedger {
-  /** Identities last known synced for `slug` (empty set when never recorded). */
-  get(slug: string): ReadonlySet<string>;
+  /** Identities last known synced for `slug` (empty when never recorded). */
+  get(slug: string): SyncedSet;
   /** Has `slug` ever been recorded (under the current hub)? Distinguishes
    *  "synced, and had no comments" from "no knowledge" (first launch after
    *  upgrading, a fresh link) — only the first may act on a difference. */
   known(slug: string): boolean;
   /** Replace `slug`'s record with the identities of a list both sides now agree on. */
   record(slug: string, keys: Iterable<string>): void;
-  /** Linked to a (different) hub → drop every record. `null` = no hub. */
-  invalidateIfHubChanged(url: string | null): void;
+  /**
+   * Linked to a (different) hub → drop every record. The identity must name
+   * the document namespace, not just the URL: one hub serves several
+   * workspaces (and branches), and "synced before" in one says nothing about
+   * another (security review F1c). `null` = no hub.
+   */
+  invalidateIfHubChanged(identity: string | null): void;
   /** Persist now. Best-effort. */
   flush(): void;
 }
@@ -141,7 +163,11 @@ export function loadCommentLedger(
 
   return {
     get(slug) {
-      return slugs.get(slug) ?? new Set();
+      const set = slugs.get(slug);
+      return {
+        size: set?.size ?? 0,
+        has: (key: string) => !!set && set.has(ledgerKey(key)),
+      };
     },
     known(slug) {
       return slugs.has(slug);
@@ -149,7 +175,7 @@ export function loadCommentLedger(
     record(slug, keys) {
       const next = new Set<string>();
       for (const k of keys) {
-        next.add(k);
+        next.add(ledgerKey(k));
         if (next.size >= MAX_IDS_PER_SLUG) break;
       }
       const prev = slugs.get(slug);
@@ -178,7 +204,7 @@ export function loadCommentLedger(
 export function withoutRemotelyDeleted(
   local: unknown[],
   docList: unknown[],
-  syncedBefore: ReadonlySet<string> | undefined
+  syncedBefore: Pick<SyncedSet, 'size' | 'has'> | undefined
 ): unknown[] {
   if (!syncedBefore || syncedBefore.size === 0) return local;
   const inDoc = new Set(docList.map(commentKey));

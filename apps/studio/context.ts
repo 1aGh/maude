@@ -274,6 +274,7 @@ export interface Context {
           | { op: 'dir.move'; from: string; to: string }
       ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean }> | null;
       acceptedMode?(): boolean;
+      commentsConfirmedOnHub?(slug: string): boolean;
       acceptedHistory?(q: {
         limit?: number;
         before?: number | null;

@@ -129,6 +129,12 @@ export interface CanvasSyncAgentOptions {
    */
   commentLedger?: CommentLedger;
   /**
+   * Does the hub hold this doc's current state (nothing unacknowledged)? The
+   * ledger records comment ids as synced only then — see
+   * `commentsConfirmedOnHub` in sync/index.ts. Absent → never records.
+   */
+  commentsConfirmed?: () => boolean;
+  /**
    * Snapshot writer (DDR-102 conflict protocol) — persists a body version to
    * `_history/<slug>/` and resolves with the snapshot's ISO ts (null on
    * failure). The runtime wires this to history.ts `writeSnapshot`. Optional —
@@ -348,7 +354,7 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
     echoGuard.record(paths.comments, hash);
     writer(paths.comments, serialized);
     lastComments = serialized;
-    opts.commentLedger?.record(slug, next.map(commentKey));
+    if (opts.commentsConfirmed?.()) opts.commentLedger?.record(slug, next.map(commentKey));
   }
 
   function writeAnnotationsIfChanged(): void {
@@ -421,7 +427,8 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
       if (parsed === null) return false;
       const changed = applyCommentsToDoc(doc, parsed, origin);
       if (changed) lastComments = str;
-      opts.commentLedger?.record(slug, commentsFromDoc(doc).map(commentKey));
+      if (opts.commentsConfirmed?.())
+        opts.commentLedger?.record(slug, commentsFromDoc(doc).map(commentKey));
       return changed;
     }
     if (evt.path === paths.annotations) {
@@ -590,7 +597,7 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
         writer(paths.comments, mergedStr);
       }
       lastComments = mergedStr;
-      opts.commentLedger?.record(slug, merged.map(commentKey));
+      if (opts.commentsConfirmed?.()) opts.commentLedger?.record(slug, merged.map(commentKey));
     } else {
       // No (parseable) local comments — hub state materializes as before.
       lastComments = docCommentsStr;
@@ -599,7 +606,8 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
         echoGuard.record(paths.comments, hash);
         writer(paths.comments, docCommentsStr);
       }
-      opts.commentLedger?.record(slug, docComments.map(commentKey));
+      if (opts.commentsConfirmed?.())
+        opts.commentLedger?.record(slug, docComments.map(commentKey));
     }
 
     // ---- annotations: PER-LANE newest-wins (the 2026-08-14 eraser fix) -----

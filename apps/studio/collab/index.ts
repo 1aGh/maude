@@ -64,6 +64,15 @@ export function createCollab(ctx: Context, api: Api): Collab {
     api,
     fileForSlug,
     shouldSeed: (slug) => !(ctx.sharedDoc && registryRef?.isPinned(slug)),
+    // Issue #133 — record comment ids as synced only once the hub holds them,
+    // and only for the room that IS the hub's doc (pinned). No hub linked:
+    // nothing is "synced" — recording then would label local comments with
+    // the last hub's identity and a relink would drop them (security review
+    // F1a). Linked but the runtime is not up yet: not confirmed.
+    commentsConfirmed: (slug) => {
+      if (!ctx.cfg?.linkedHub || !registryRef?.isPinned(slug)) return false;
+      return ctx.syncControl?.current?.()?.commentsConfirmedOnHub?.(slug) === true;
+    },
     // A room restored from its own `.ydoc.bin` must not outrank a sidecar the
     // hub (or an editor) wrote after that cache — see `reconcileAfterCache`.
     // Only for rooms no hub provider owns: a pinned doc is the hub's replica

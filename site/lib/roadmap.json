@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-25T00:00:00.000Z",
+  "generated": "2026-09-29T00:00:00.000Z",
   "currentPhase": null,
   "phases": [
     {
@@ -2225,6 +2225,17 @@
       "phaseKey": null
     },
     {
+      "id": "followup-multiplayer-parity-issues",
+      "title": "Follow-up: multiplayer parity issues (#131, #133, #134, #136)",
+      "status": "done",
+      "shipTarget": null,
+      "date": "2026-09-29",
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
+      "planPath": ".ai/plans/archive/followup-multiplayer-parity-issues.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
       "id": "cloud-live-payments-rollout",
       "title": "Cloud live payments — rollout plan",
       "status": "planned",
@@ -2287,17 +2298,6 @@
       "date": null,
       "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
       "planPath": ".ai/plans/feature-video-tracking-and-stabilization.md",
-      "archived": false,
-      "phaseKey": null
-    },
-    {
-      "id": "followup-multiplayer-parity-issues",
-      "title": "Follow-up: multiplayer parity issues (#131, #133, #134, #136)",
-      "status": "planned",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
-      "planPath": ".ai/plans/followup-multiplayer-parity-issues.md",
       "archived": false,
       "phaseKey": null
     },

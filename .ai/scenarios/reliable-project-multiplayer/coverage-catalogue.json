@@ -30,7 +30,7 @@
     },
     {
       "path": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
-      "sha256": "eceab5f5a2b6eb17a0bc7bb975c17a10855118868a2de0208bb84fcef5dc9f70"
+      "sha256": "b1aec2f0caa1411e577e24f27bef9c2a26b2c8960ae43b7dcdf1181093288ec0"
     },
     {
       "path": "apps/studio/use-canvas-media-drop.tsx",
@@ -2869,6 +2869,22 @@
       "requiresTargetExpansion": false,
       "covers": [
         "L11.comment.delete"
+      ]
+    },
+    {
+      "id": "L11.requirement.comment-on-an-annotation-empty-canvas",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "comment on an annotation / empty canvas",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L11.comment.on-sticky",
+        "L11.comment.on-empty-canvas"
       ]
     },
     {

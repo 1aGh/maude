@@ -1130,9 +1130,52 @@ interface DsThemeSupport {
 }
 
 let _dsThemeSupport: DsThemeSupport | null = null;
+// A NEGATIVE answer is cached too (#131). The probe below appends DOM to
+// <body> and reads getComputedStyle for every candidate, which forces a style
+// recalc of the whole document. Only a positive answer was cached, so on a
+// canvas whose DS has a single theme it re-ran on EVERY call — and the element
+// toolbar's menu asks on every render, i.e. every frame of a pan with something
+// selected. On a 160-board canvas in Safari that alone held pan at ~1.3 fps
+// (hundreds of ms per probe, two per frame). The reason a negative answer was
+// not cached — a DS stylesheet that parses after first paint — is honoured
+// precisely instead: the negative answer holds until a stylesheet is added to
+// or finishes loading in the document, then the next call probes again.
+let _dsThemeUnsupported = false;
+let _dsThemeWatch = false;
+const _unsupported: DsThemeSupport = { supported: false, wrapperClass: '' };
 
-function detectDsThemeSupport(): DsThemeSupport {
+function watchStylesheetsOnce(): void {
+  if (_dsThemeWatch || typeof document === 'undefined') return;
+  _dsThemeWatch = true;
+  const invalidate = (): void => {
+    _dsThemeUnsupported = false;
+  };
+  try {
+    new MutationObserver((records) => {
+      for (const r of records) {
+        for (const n of Array.from(r.addedNodes)) {
+          const tag = (n as Element).tagName;
+          if (tag === 'STYLE' || tag === 'LINK') return invalidate();
+        }
+      }
+    }).observe(document.head ?? document.documentElement, { childList: true, subtree: true });
+    // A <link> that was already in the DOM finishing its load (capture: load
+    // does not bubble).
+    document.addEventListener(
+      'load',
+      (e) => {
+        if ((e.target as Element | null)?.tagName === 'LINK') invalidate();
+      },
+      true
+    );
+  } catch {
+    _dsThemeWatch = false;
+  }
+}
+
+export function detectDsThemeSupport(): DsThemeSupport {
   if (_dsThemeSupport) return _dsThemeSupport;
+  if (_dsThemeUnsupported) return _unsupported;
   const fallback: DsThemeSupport = { supported: false, wrapperClass: '' };
   if (typeof document === 'undefined' || !document.body) return fallback;
   try {
@@ -1181,6 +1224,10 @@ function detectDsThemeSupport(): DsThemeSupport {
     // unsupported. Caching that would permanently disable theming; instead
     // re-probe until support is confirmed (or the DS genuinely has one theme).
     if (found.supported) _dsThemeSupport = found;
+    else {
+      _dsThemeUnsupported = true;
+      watchStylesheetsOnce();
+    }
     return found;
   } catch {
     return fallback;

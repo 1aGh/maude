@@ -707,7 +707,14 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
     let closingBrowser = false;
     // The public server handle exposes process termination without DEBUG logs
     // (which include capability-bearing URLs). Keep its RPC loopback-only.
-    const chromiumServer = await chromium.launchServer({ headless: true, host: '127.0.0.1' });
+    // MAUDE_E2E_CHROMIUM: an already-installed Chromium build to use instead of
+    // the exact one this Playwright version pins (lets a run proceed on a
+    // machine whose browser cache holds a neighbouring build).
+    const chromiumServer = await chromium.launchServer({
+      headless: true,
+      host: '127.0.0.1',
+      ...(process.env.MAUDE_E2E_CHROMIUM ? { executablePath: process.env.MAUDE_E2E_CHROMIUM } : {}),
+    });
     chromiumServer
       .process()
       .once('exit', (code, signal) =>
@@ -3673,6 +3680,89 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             async (p) => (await p.probe(pin(id)))?.visible !== true,
             (p) => !commentsOf(p, rel).some((c) => c.id === id)
           );
+        });
+      }
+      // L11b — comments that are not on an element (#134/#136): one placed on a
+      // sticky anchors to the sticky's id, one placed on empty canvas holds a
+      // world point. Both used to be saved and then deleted ~3.5 s later, for
+      // everyone, by the pin's orphan timer. The oracle is every receiver's pin
+      // and disk AND that both are still there after that window.
+      const stickyId = 'st_l11b';
+      const stickySvg = `<svg xmlns="http://www.w3.org/2000/svg" data-mdcc-annotations="1"><g data-id="${stickyId}" data-tool="sticky" data-r="8" data-fs="14" fill="#cfc4ec"><rect x="360" y="220" width="180" height="140" rx="8" ry="8"/><text data-sticky-body="1" x="372" y="232" font-size="14" fill="#1a1a1a" dominant-baseline="hanging">Sticky</text></g></svg>`;
+      const surviving = async (
+        id: string,
+        rel: string,
+        text: string,
+        anchor: (c: Record<string, unknown>) => boolean
+      ) => {
+        // The deletion used to land 3–3.5 s after the save.
+        await new Promise((r) => setTimeout(r, 5000));
+        for (const p of all) {
+          const c = commentsOf(p, rel).find((x) => x.text === text) as
+            | Record<string, unknown>
+            | undefined;
+          if (!c) throw new Error(`${p.name}: ${id} comment deleted after the save`);
+          if (!anchor(c)) throw new Error(`${p.name}: ${id} comment lost its anchor`);
+          if (!(await p.probe(pin(String(c.id))))?.visible)
+            throw new Error(`${p.name}: ${id} pin gone after the save`);
+        }
+      };
+      for (const from of all) {
+        const rel = `ui/SurfaceFloating-${from.name}.tsx`;
+        const title = `Floating ${from.name}`;
+        const onSticky = `On the sticky from ${from.name}`;
+        const onCanvas = `On the canvas from ${from.name}`;
+        const composeAt = async (q: string, where: Record<string, number> | null, text: string) => {
+          await gesture(from, '.dc-tool-palette button[aria-label^="Comment"]', 'click');
+          await gesture(from, q, 'pointer', where);
+          await until(async () => !!(await from.probe('[aria-label="Comment body"]'))?.visible);
+          await gesture(from, '[aria-label="Comment body"]', 'fill', text);
+          await gesture(from, '.cm-composer .cm-btn--primary', 'click');
+        };
+        await check('L11.comment.on-sticky', `${from.name}-to-peers`, async () => {
+          await seedCanvas(from, rel, elementCanvas(title));
+          const sidecar = `ui-${slug(`SurfaceFloating-${from.name}`)}.annotations.svg`;
+          writeFileSync(join(from.root, '.design', sidecar), stickySvg);
+          await until(() => all.every((p) => existsSync(join(p.root, '.design', sidecar))), 30000);
+          await openSeeded(rel, title, `L11b-${from.name}`);
+          for (const p of all)
+            await until(async () => !!(await p.probe(`[data-id="${stickyId}"]`))?.visible);
+          const start = performance.now();
+          await composeAt(`[data-id="${stickyId}"]`, null, onSticky);
+          const seen = await observeAll(
+            all,
+            `L11b-sticky-${from.name}`,
+            start,
+            async (p) => {
+              const c = commentsOf(p, rel).find((x) => x.text === onSticky);
+              return !!c && !!(await p.probe(pin(c.id)))?.visible;
+            },
+            (p) => commentsOf(p, rel).some((c) => c.text === onSticky)
+          );
+          await surviving('on-sticky', rel, onSticky, (c) => c.annotationId === stickyId);
+          return seen;
+        });
+        await check('L11.comment.on-empty-canvas', `${from.name}-to-peers`, async () => {
+          const canvas = (await from.probe('.dc-canvas'))?.rect;
+          const board = (await from.probe('[data-dc-screen="el"]'))?.rect;
+          if (!canvas || !board) throw new Unexercised('Canvas geometry absent');
+          // The fit leaves a margin around the board; aim into its left edge.
+          const x = (board.x - 12 - canvas.x) / canvas.width;
+          if (!(x > 0)) throw new Unexercised('No empty canvas beside the board');
+          const start = performance.now();
+          await composeAt('.dc-canvas', { x, y: 0.5 }, onCanvas);
+          const seen = await observeAll(
+            all,
+            `L11b-canvas-${from.name}`,
+            start,
+            async (p) => {
+              const c = commentsOf(p, rel).find((x) => x.text === onCanvas);
+              return !!c && !!(await p.probe(pin(c.id)))?.visible;
+            },
+            (p) => commentsOf(p, rel).some((c) => c.text === onCanvas)
+          );
+          await surviving('on-empty-canvas', rel, onCanvas, (c) => !!c.world);
+          return seen;
         });
       }
       // L03 — a supporting file beside the canvases (a note): created and edited

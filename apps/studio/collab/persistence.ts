@@ -67,6 +67,13 @@ export interface PersistenceDeps {
    * root; tests inject a fresh one per simulated launch.
    */
   commentLedger?: CommentLedger;
+  /**
+   * May the ledger record `slug`'s projected comments as synced? Only when the
+   * hub is known to hold them (see `commentsConfirmedOnHub`, sync/index.ts). A
+   * projection of a comment added offline would otherwise read as "synced" and
+   * the next cold start would drop it. Absent → always (tests, local projects).
+   */
+  commentsConfirmed?: (slug: string) => boolean;
 }
 
 /**
@@ -188,6 +195,27 @@ export function createPersistence(deps: PersistenceDeps): RoomCallbacks {
     return ids;
   }
 
+  // Issue #133 (plan Task 8) — a comment that stays on this disk and out of the
+  // shared document is invisible to every other peer, and nothing said so: the
+  // report behind #133 had to be reconstructed from code. Say it once per
+  // change of the count, in the server log (which the in-app bug report
+  // attaches), and say when it clears.
+  const localOnlyBySlug = new Map<string, number>();
+  function reportLocalOnly(slug: string, n: number): void {
+    const prev = localOnlyBySlug.get(slug) ?? 0;
+    if (n === prev) return;
+    localOnlyBySlug.set(slug, n);
+    if (n > 0) {
+      console.warn(
+        `[collab/${slug}] comments: ${n} on this disk ${n === 1 ? 'is' : 'are'} not in the shared document yet — kept, not overwritten; other peers do not see ${n === 1 ? 'it' : 'them'} until ${n === 1 ? 'it arrives' : 'they arrive'}.`
+      );
+    } else {
+      console.log(
+        `[collab/${slug}] comments: every comment on this disk is in the shared document again.`
+      );
+    }
+  }
+
   function ydocBinPath(slug: string): string {
     return path.join(stateDir, `${slug}.ydoc.bin`);
   }
@@ -299,13 +327,15 @@ export function createPersistence(deps: PersistenceDeps): RoomCallbacks {
       // before: an id in the ledger and absent from the doc is a delete.
       const onDisk = await api.loadCommentsForFile(file);
       const synced = ledger.get(slug);
-      const behind = onDisk.some((c) => {
+      const localOnly = onDisk.filter((c) => {
         const k = commentKey(c);
         return !everSeen.has(k) && !synced.has(k);
-      });
+      }).length;
+      const behind = localOnly > 0;
+      reportLocalOnly(slug, localOnly);
       if (!behind && withinCap(slug, 'comments', JSON.stringify(list), MAX_COMMENTS_BYTES)) {
         await api.saveCommentsForFile(file, list);
-        ledger.record(slug, list.map(commentKey));
+        if (deps.commentsConfirmed?.(slug) ?? true) ledger.record(slug, list.map(commentKey));
       }
     }
 

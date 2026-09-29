@@ -1,0 +1,322 @@
+[
+  {
+    "run": 1,
+    "cond": "C0",
+    "fit": true,
+    "load": "{ 3.39 3.57 3.61 }",
+    "pre": {
+      "own": 0,
+      "peerSel": 0,
+      "cursors": 0
+    },
+    "warm": null,
+    "canvas": {
+      "gaps": [
+        {
+          "at": 72,
+          "dt": 72,
+          "events": {
+            "attr:dc-world:style": 1,
+            "mut:attributes:dc-world:wc=transform": 1,
+            "add:BODY>DIV": 1,
+            "mut:childList:BODY": 2,
+            "add:DIV>DIV": 2,
+            "mut:childList:DIV": 12,
+            "rm:DIV>DIV": 2,
+            "add:DIV>mdcc": 2,
+            "rm:DIV>mdcc": 2,
+            "add:DIV>app": 2,
+            "rm:DIV>app": 2,
+            "rm:BODY>DIV": 1
+          }
+        },
+        {
+          "at": 408,
+          "dt": 336,
+          "events": {
+            "attr:dc-world:style": 1,
+            "mut:attributes:dc-world:wc=transform": 1,
+            "attr:dc-elem-ctx-tb:data-on": 2,
+            "mut:attributes:dc-elem-ctx-tb": 2,
+            "add:BODY>DIV": 1,
+            "mut:childList:BODY": 2,
+            "add:DIV>DIV": 2,
+            "mut:childList:DIV": 12,
+            "rm:DIV>DIV": 2,
+            "add:DIV>mdcc": 2,
+            "rm:DIV>mdcc": 2,
+            "add:DIV>app": 2,
+            "rm:DIV>app": 2,
+            "rm:BODY>DIV": 1,
+            "attr:dc-artboard dc-positioned:aria-current": 2,
+            "mut:attributes:dc-artboard dc-positioned": 2
+          }
+        },
+        {
+          "at": 1158,
+          "dt": 750,
+          "events": {
+            "attr:dc-world:style": 1,
+            "mut:attributes:dc-world:wc=transform": 1,
+            "add:BODY>DIV": 2,
+            "mut:childList:BODY": 4,
+            "add:DIV>DIV": 4,
+            "mut:childList:DIV": 24,
+            "rm:DIV>DIV": 4,
+            "add:DIV>mdcc": 4,
+            "rm:DIV>mdcc": 4,
+            "add:DIV>app": 4,
+            "rm:DIV>app": 4,
+            "rm:BODY>DIV": 2,
+            "attr:dc-elem-ctx-tb:data-on": 2,
+            "mut:attributes:dc-elem-ctx-tb": 2,
+            "msg:request-layers": 2,
+            "attr:dc-artboard dc-positioned:aria-current": 2,
+            "mut:attributes:dc-artboard dc-positioned": 2
+          }
+        },
+        {
+          "at": 2026,
+          "dt": 868,
+          "events": {
+            "attr:dc-world:style": 1,
+            "mut:attributes:dc-world:wc=transform": 1,
+            "add:BODY>DIV": 2,
+            "mut:childList:BODY": 4,
+            "add:DIV>DIV": 4,
+            "mut:childList:DIV": 24,
+            "rm:DIV>DIV": 4,
+            "add:DIV>mdcc": 4,
+            "rm:DIV>mdcc": 4,
+            "add:DIV>app": 4,
+            "rm:DIV>app": 4,
+            "rm:BODY>DIV": 2,
+            "attr:dc-elem-ctx-tb:data-on": 2,
+            "mut:attributes:dc-elem-ctx-tb": 2
+          }
+        },
+        {
+          "at": 2771,
+          "dt": 745,
+          "events": {
+            "attr:dc-world:style": 1,
+            "mut:attributes:dc-world:wc=transform": 1,
+            "add:BODY>DIV": 2,
+            "mut:childList:BODY": 4,
+            "add:DIV>DIV": 4,
+            "mut:childList:DIV": 24,
+            "rm:DIV>DIV": 4,
+            "add:DIV>mdcc": 4,
+            "rm:DIV>mdcc": 4,
+            "add:DIV>app": 4,
+            "rm:DIV>app": 4,
+            "rm:BODY>DIV": 2,
+            "attr:dc-elem-ctx-tb:data-on": 2,
+            "mut:attributes:dc-elem-ctx-tb": 2,
+            "attr:dc-artboard dc-positioned:aria-current": 2,
+            "mut:attributes:dc-artboard dc-positioned": 2,
+            "msg:request-layers": 1
+          }
+        },
+        {
+          "at": 3481,
+          "dt": 710,
+          "events": {
+            "attr:dc-world:style": 1,
+            "mut:attributes:dc-world:wc=transform": 1,
+            "add:BODY>DIV": 2,
+            "mut:childList:BODY": 4,
+            "add:DIV>DIV": 4,
+            "mut:childList:DIV": 24,
+            "rm:DIV>DIV": 4,
+            "add:DIV>mdcc": 4,
+            "rm:DIV>mdcc": 4,
+            "add:DIV>app": 4,
+            "rm:DIV>app": 4,
+            "rm:BODY>DIV": 2,
+            "attr:dc-elem-ctx-tb:data-on": 2,
+            "mut:attributes:dc-elem-ctx-tb": 2
+          }
+        },
+        {
+          "at": 4199,
+          "dt": 718,
+          "events": {
+            "attr:dc-world:style": 1,
+            "mut:attributes:dc-world:wc=transform": 1,
+            "add:BODY>DIV": 2,
+            "mut:childList:BODY": 4,
+            "add:DIV>DIV": 4,
+            "mut:childList:DIV": 24,
+            "rm:DIV>DIV": 4,
+            "add:DIV>mdcc": 4,
+            "rm:DIV>mdcc": 4,
+            "add:DIV>app": 4,
+            "rm:DIV>app": 4,
+            "rm:BODY>DIV": 2,
+            "attr:dc-elem-ctx-tb:data-on": 2,
+            "mut:attributes:dc-elem-ctx-tb": 2
+          }
+        },
+        {
+          "at": 4958,
+          "dt": 759,
+          "events": {
+            "attr:dc-world:style": 1,
+            "mut:attributes:dc-world:wc=transform": 1,
+            "add:BODY>DIV": 2,
+            "mut:childList:BODY": 4,
+            "add:DIV>DIV": 4,
+            "mut:childList:DIV": 24,
+            "rm:DIV>DIV": 4,
+            "add:DIV>mdcc": 4,
+            "rm:DIV>mdcc": 4,
+            "add:DIV>app": 4,
+            "rm:DIV>app": 4,
+            "rm:BODY>DIV": 2,
+            "attr:dc-elem-ctx-tb:data-on": 2,
+            "mut:attributes:dc-elem-ctx-tb": 2
+          }
+        },
+        {
+          "at": 5665,
+          "dt": 707,
+          "events": {
+            "attr:dc-world:style": 1,
+            "mut:attributes:dc-world:wc=transform": 1,
+            "add:BODY>DIV": 2,
+            "mut:childList:BODY": 4,
+            "add:DIV>DIV": 4,
+            "mut:childList:DIV": 24,
+            "rm:DIV>DIV": 4,
+            "add:DIV>mdcc": 4,
+            "rm:DIV>mdcc": 4,
+            "add:DIV>app": 4,
+            "rm:DIV>app": 4,
+            "rm:BODY>DIV": 2,
+            "attr:dc-elem-ctx-tb:data-on": 2,
+            "mut:attributes:dc-elem-ctx-tb": 2,
+            "attr:dc-artboard dc-positioned:aria-current": 2,
+            "mut:attributes:dc-artboard dc-positioned": 2,
+            "msg:request-layers": 1
+          }
+        },
+        {
+          "at": 6700,
+          "dt": 1035,
+          "events": {
+            "attr:dc-world:style": 1,
+            "mut:attributes:dc-world:wc=transform": 1,
+            "add:BODY>DIV": 2,
+            "mut:childList:BODY": 4,
+            "add:DIV>DIV": 4,
+            "mut:childList:DIV": 24,
+            "rm:DIV>DIV": 4,
+            "add:DIV>mdcc": 4,
+            "rm:DIV>mdcc": 4,
+            "add:DIV>app": 4,
+            "rm:DIV>app": 4,
+            "rm:BODY>DIV": 2,
+            "attr:dc-elem-ctx-tb:data-on": 2,
+            "mut:attributes:dc-elem-ctx-tb": 2
+          }
+        },
+        {
+          "at": 7928,
+          "dt": 1228,
+          "events": {
+            "attr:dc-world:style": 1,
+            "mut:attributes:dc-world:wc=transform": 1,
+            "add:BODY>DIV": 2,
+            "mut:childList:BODY": 4,
+            "add:DIV>DIV": 4,
+            "mut:childList:DIV": 24,
+            "rm:DIV>DIV": 4,
+            "add:DIV>mdcc": 4,
+            "rm:DIV>mdcc": 4,
+            "add:DIV>app": 4,
+            "rm:DIV>app": 4,
+            "rm:BODY>DIV": 2,
+            "attr:dc-elem-ctx-tb:data-on": 2,
+            "mut:attributes:dc-elem-ctx-tb": 2
+          }
+        },
+        {
+          "at": 8989,
+          "dt": 1061,
+          "events": {
+            "attr:dc-world:style": 1,
+            "mut:attributes:dc-world:wc=transform": 1,
+            "add:BODY>DIV": 2,
+            "mut:childList:BODY": 4,
+            "add:DIV>DIV": 4,
+            "mut:childList:DIV": 24,
+            "rm:DIV>DIV": 4,
+            "add:DIV>mdcc": 4,
+            "rm:DIV>mdcc": 4,
+            "add:DIV>app": 4,
+            "rm:DIV>app": 4,
+            "rm:BODY>DIV": 2,
+            "attr:dc-elem-ctx-tb:data-on": 2,
+            "mut:attributes:dc-elem-ctx-tb": 2
+          }
+        },
+        {
+          "at": 10030,
+          "dt": 1041,
+          "events": {
+            "attr:dc-world:style": 1,
+            "mut:attributes:dc-world:wc=transform": 1,
+            "add:BODY>DIV": 2,
+            "mut:childList:BODY": 4,
+            "add:DIV>DIV": 4,
+            "mut:childList:DIV": 24,
+            "rm:DIV>DIV": 4,
+            "add:DIV>mdcc": 4,
+            "rm:DIV>mdcc": 4,
+            "add:DIV>app": 4,
+            "rm:DIV>app": 4,
+            "rm:BODY>DIV": 2,
+            "attr:dc-elem-ctx-tb:data-on": 2,
+            "mut:attributes:dc-elem-ctx-tb": 2,
+            "attr:dc-artboard dc-positioned:aria-current": 2,
+            "mut:attributes:dc-artboard dc-positioned": 2,
+            "msg:request-layers": 1
+          }
+        }
+      ],
+      "aggAll": {
+        "attr:dc-world:style": 13,
+        "mut:attributes:dc-world:wc=transform": 13,
+        "add:BODY>DIV": 24,
+        "mut:childList:BODY": 48,
+        "add:DIV>DIV": 48,
+        "mut:childList:DIV": 288,
+        "rm:DIV>DIV": 48,
+        "add:DIV>mdcc": 48,
+        "rm:DIV>mdcc": 48,
+        "add:DIV>app": 48,
+        "rm:DIV>app": 48,
+        "rm:BODY>DIV": 24,
+        "attr:dc-elem-ctx-tb:data-on": 24,
+        "mut:attributes:dc-elem-ctx-tb": 24,
+        "attr:dc-artboard dc-positioned:aria-current": 10,
+        "mut:attributes:dc-artboard dc-positioned": 10,
+        "msg:request-layers": 5
+      },
+      "frames": 13,
+      "p50": 750,
+      "p95": 1228,
+      "p99": 1228,
+      "max": 1228,
+      "over33": 13,
+      "over50": 13,
+      "longtasks": 0,
+      "gbcr": 14,
+      "foreignCursors": 0,
+      "peerSel": 0,
+      "ownHalos": 0,
+      "panApplied": true
+    }
+  }
+]

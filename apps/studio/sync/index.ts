@@ -521,6 +521,14 @@ export interface SyncRuntime {
   ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean }> | null;
   /** True while the linked project is in accepted-revisions mode. */
   acceptedMode?(): boolean;
+  /**
+   * Issue #133 — may the comment ledger record `slug`'s current comments as
+   * synced? Only when the hub is known to hold them: accepted mode (the doc IS
+   * the accepted replica), or a synced provider with nothing unacknowledged. A
+   * comment added offline and not yet delivered must never read as "synced",
+   * or the next cold start would take it for a remote delete.
+   */
+  commentsConfirmedOnHub?(slug: string): boolean;
   /** Tripwire count: local writes that reached an accepted replica. */
   acceptedWriteViolations?(): number;
   /** Accepted revisions: the project's logical history (T27). Null when legacy. */
@@ -2725,7 +2733,9 @@ export function createSyncRuntime(
     journal.invalidateIfHubChanged(linkedHub.url);
     // Issue #133 — same per-hub rule for the comment ledger: "synced before"
     // against one hub says nothing about another.
-    commentLedgerFor(ctx.paths.designRoot).invalidateIfHubChanged(linkedHub.url);
+    commentLedgerFor(ctx.paths.designRoot).invalidateIfHubChanged(
+      `${linkedHub.url} ${docNameFor('_')}`
+    );
     const history = createHistory(ctx);
 
     // ---- DDR-102 helpers: auth aggregation, re-probe, settle bookkeeping ----
@@ -3762,6 +3772,13 @@ export function createSyncRuntime(
                 adopt: adoptOnce,
                 journal: journal ?? undefined,
                 commentLedger: commentLedgerFor(ctx.paths.designRoot),
+                commentsConfirmed: () => {
+                  const p = provider as unknown as {
+                    synced?: boolean;
+                    hasUnsyncedChanges?: boolean;
+                  };
+                  return p.synced === true && p.hasUnsyncedChanges === false;
+                },
                 snapshot: async (content, reason) => {
                   try {
                     const snap = await history.writeSnapshot(relBody, content, reason);
@@ -4943,6 +4960,19 @@ export function createSyncRuntime(
     },
     proposeFolder,
     acceptedMode: acceptedOn,
+    commentsConfirmedOnHub: (slug) => {
+      // The canvas must be live on the hub right now: a provider that has
+      // synced. In accepted mode its doc is the accepted replica (local writes
+      // are refused), but only once THIS canvas's projection exists — before
+      // that, a comment falls back to the local room and is not on the hub
+      // (security review F1b). In legacy mode nothing may be unacknowledged.
+      const p = providers.get(slug) as unknown as
+        | { synced?: boolean; hasUnsyncedChanges?: boolean }
+        | undefined;
+      if (!p || p.synced !== true) return false;
+      if (acceptedOn()) return projections.has(slug);
+      return p.hasUnsyncedChanges === false;
+    },
     acceptedWriteViolations: () => acceptedWriteViolations,
     acceptedHistory: async (q) => {
       if (!acceptedOn() || !acceptedLink) return null;

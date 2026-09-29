@@ -81,11 +81,17 @@ function project() {
       return [];
     }
   };
-  function launch() {
+  function launch(commentsConfirmed?: (slug: string) => boolean) {
     // A NEW ledger instance per launch — what a process restart reads back.
     const commentLedger = loadCommentLedger(designRoot, { flushMs: 0 });
     const api = createApi(ctx, { onCommentsChanged: () => {} });
-    return createPersistence({ ctx, api, fileForSlug: async () => FILE, commentLedger });
+    return createPersistence({
+      ctx,
+      api,
+      fileForSlug: async () => FILE,
+      commentLedger,
+      ...(commentsConfirmed ? { commentsConfirmed } : {}),
+    });
   }
   return { designRoot, commentsFile, onDisk, launch };
 }
@@ -240,5 +246,86 @@ describe('#133(b) — a comment written before the sync runtime was up is propos
     const { commentsOwedToProject } = await import('../sync/accepted-cold-start.ts');
     const ledger = loadCommentLedger(mkdtempSync(join(tmpdir(), 'owed-')), { flushMs: 0 });
     expect(commentsOwedToProject(json(['A', 'EARLY']), json(['A']), 's', ledger)).toBeNull();
+  });
+});
+
+describe('#133 Task 8 — a comment stuck on this disk is reported', () => {
+  test('the log says how many are local-only, once per change, and when it clears', async () => {
+    const p = project();
+    writeFileSync(p.commentsFile, JSON.stringify([comment('A'), comment('LOCAL')]));
+    const persistence = p.launch();
+    const doc = new Y.Doc();
+    const arr = doc.getArray(Y_TYPES.comments);
+    arr.push([comment('A')]);
+    const warn = console.warn;
+    const log = console.log;
+    const lines: string[] = [];
+    console.warn = (...a: unknown[]) => lines.push(`W ${a.join(' ')}`);
+    console.log = (...a: unknown[]) => lines.push(`L ${a.join(' ')}`);
+    try {
+      await persistence.persistJson(SLUG, doc);
+      await persistence.persistJson(SLUG, doc); // same count — not repeated
+      arr.push([comment('LOCAL')]); // it reached the document
+      await persistence.persistJson(SLUG, doc);
+    } finally {
+      console.warn = warn;
+      console.log = log;
+    }
+    const mine = lines.filter((l) => l.includes(`[collab/${SLUG}] comments:`));
+    expect(mine).toHaveLength(2);
+    expect(mine[0]).toContain('1 on this disk is not in the shared document yet');
+    expect(mine[1]).toContain('in the shared document again');
+  });
+});
+
+describe('#133 review — a comment the hub has not acknowledged is never "synced"', () => {
+  test('added offline, quit before delivery, relaunch: the comment is kept, not taken for a delete', async () => {
+    const p = project();
+    // Session 1, offline: the doc holds A (synced long ago) and B (just added,
+    // never delivered). The hub has not confirmed anything this session.
+    const first = p.launch(() => false);
+    const doc1 = new Y.Doc();
+    doc1.getArray(Y_TYPES.comments).push([comment('A'), comment('B')]);
+    await first.persistJson(SLUG, doc1);
+    expect(p.onDisk()).toEqual(['A', 'B']);
+
+    // Session 2, online: the hub's doc has only A. B must survive on disk
+    // (deferred as in flight), never be projected away as a remote delete.
+    const second = p.launch(() => true);
+    const doc2 = new Y.Doc();
+    doc2.getArray(Y_TYPES.comments).push([comment('A')]);
+    await second.persistJson(SLUG, doc2);
+    expect(p.onDisk()).toEqual(['A', 'B']);
+  });
+});
+
+describe('#133 review — ledger identity and storage', () => {
+  test('another workspace on the same hub URL starts from nothing (F1c)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ledger-ws-'));
+    const l = loadCommentLedger(dir, { flushMs: 0 });
+    l.invalidateIfHubChanged('https://hub.example ws/one/main/_');
+    l.record('s', ['id:A']);
+    l.invalidateIfHubChanged('https://hub.example ws/one/main/_'); // same → kept
+    expect(l.get('s').has('id:A')).toBe(true);
+    l.invalidateIfHubChanged('https://hub.example ws/two/main/_');
+    expect(l.get('s').has('id:A')).toBe(false);
+    expect(l.known('s')).toBe(false);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test('keys are stored hashed — a peer-controlled comment body never lands in the file (F3)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ledger-hash-'));
+    const l = loadCommentLedger(dir, { flushMs: 0 });
+    const idless = `json:${JSON.stringify({ text: 'x'.repeat(5000) })}`;
+    l.record('s', ['id:A', idless]);
+    const raw = readFileSync(join(dir, '_state', 'comment-ledger.json'), 'utf8');
+    expect(raw).not.toContain('xxxxxxxx');
+    expect(raw).not.toContain('id:A');
+    expect(raw.length).toBeLessThan(400);
+    // …and a fresh load still answers for the raw keys.
+    const again = loadCommentLedger(dir, { flushMs: 0 });
+    expect(again.get('s').has('id:A')).toBe(true);
+    expect(again.get('s').has(idless)).toBe(true);
+    rmSync(dir, { recursive: true, force: true });
   });
 });

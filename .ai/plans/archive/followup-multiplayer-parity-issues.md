@@ -11,7 +11,7 @@ each hypothesis was measured (E2E in Playwright, a unit repro at the persistence
 seam), then **re-verified on the shipped v1.4.5 binaries** after the 2026-09-29
 rollout (cloud fleet + design.studyfi.com): real hub, two shipped studios, real
 Safari. The evidence is summarised below and the harness is kept in
-[`notes/multiplayer-parity-harness/`](./notes/multiplayer-parity-harness/)
+[`notes/multiplayer-parity-harness/`](../notes/multiplayer-parity-harness/)
 (`v1.4.5-reverify/` for the shipped-binary runs).
 
 | Issue | Symptom | Cause (evidence) | Status |
@@ -46,7 +46,7 @@ As a designer working on one project from the web and the desktop app at the sam
 - **Type**: Bug Fix
 - **Complexity**: High
 - **App/Package**: `apps/studio` (client, canvas runtime, collab, sync), `apps/hub` (comments lane only if the merge needs a change), `apps/desktop/e2e`
-- **Related plans**: [`feature-annotations-v2-element-model.md`](./feature-annotations-v2-element-model.md) provides the stable annotation ids that Task 4 anchors to, and may own the fix for H3 if the pan cost is in the annotation layer
+- **Related plans**: [`feature-annotations-v2-element-model.md`](../feature-annotations-v2-element-model.md) provides the stable annotation ids that Task 4 anchors to, and may own the fix for H3 if the pan cost is in the annotation layer
 - **Affected Systems**: comment overlay and mount, comments API + persistence projection, accepted-revision proposals, presence/awareness overlay, perf harness
 - **Dependencies**: none new
 
@@ -127,6 +127,8 @@ Execute in order. Each task is atomic and testable. **Regression tests must fail
 
 ✅ Task 1 — completed 2026-09-29: `test/comments-detached.test.tsx` (4 tests, all red on `main`), `test/comments-annotation-anchor.test.ts` (6; API half red without the fix), `test/annotation-stable-id.test.ts` (3; stability red without the fix). **Deviation:** the desktop E2E rows (L11b) are not added — the Tauri debug build was not run in this session; the Playwright harness `notes/multiplayer-parity-harness/exp1-comments.mjs` against the source server is the E2E evidence (before: sticky/empty deleted at ~3.5 s; after: all three persist, sticky comment stored with `annotationId: sticky_1` + `world`, empty-canvas comment with `world`). Porting it into `surface.e2e.ts` stays open for `/flow:done`.
 
+✅ Task 1 (desktop E2E) — completed 2026-09-29: new rows `L11.comment.on-sticky` and `L11.comment.on-empty-canvas` in `apps/desktop/e2e/multiplayer/surface.e2e.ts`. Each asserts that the comment reaches every receiver's pin and disk, and is still there, with its `annotationId` / `world` anchor, 5 s later. They are declared in `local-e2e.md` (L11), mapped in `surface-requirements.mjs`, and the catalogue is regenerated (283 cases). **Real run** `surface-run.mjs --only L11` against a fresh debug `Maude.app` build: **24/24 pass**, all three directions (hub, native WKWebView, peer); evidence `.ai/device/scenario-runs/reliable-project-multiplayer/2026-09-29T18-14-02.653Z`. The run-evidence tripwire now accepts listed supplementary `--only` runs besides the full certification. `MAUDE_E2E_CHROMIUM` lets the rig use an installed Chromium build. Fixed along the way: the pre-existing red `surface-native.test.mjs` on macOS (`/var` vs `/private/var`); `pnpm test:harness` 26/26.
+
 - **Do**: In `comments-detached.test.tsx`, render `CommentPin`/the overlay with (a) `selector: ''`, (b) a selector that matches nothing, (c) a resolvable selector. Advance timers past 3 s and assert that no `comment-delete` postMessage is ever sent. Port `notes/multiplayer-parity-harness/exp1-comments.mjs` into a desktop E2E row next to L11 (`surface.e2e.ts`): *comment on a sticky*, *comment on empty canvas*, *comment whose element is deleted by a peer*. Every row must still show the comment on both peers after 10 s.
 - **Pattern**: `comments-overlay.test.ts`; L11 in `surface.e2e.ts:3499-3590`
 - **Gotcha**: The canvas iframe is unreachable from the shell DOM (memory `maude-canvas-iframe-unreachable-by-dom`). Use frame locators or coordinates, as the exp1 harness does.
@@ -152,7 +154,7 @@ Execute in order. Each task is atomic and testable. **Regression tests must fail
 
 ✅ Task 4 — completed 2026-09-29, **ahead of annotations v2 by owner decision** ("implement it first, the other session builds on it"). `annotationIdAt` (geometric, smallest box, sections excluded) runs before element resolution in `dropComment`; `resolveCommentTarget` resolves `annotationId`. Annotation ids were already persisted as `data-id`; the one unstable case — an element written without `data-id` got a new `rid()` on every parse — is now `stableAnnotationId` (content hash + occurrence), with the stability contract documented in `annotations-model.ts` for the v2 migration to keep.
 
-- **Sequencing**: [`feature-annotations-v2-element-model.md`](./feature-annotations-v2-element-model.md) (planned 2026-09-29 by a parallel session) replaces the single-SVG annotation store with per-element JSON records and **stable ids**, and names this task as its dependent. Land Task 4 only after its Milestone B, and anchor to v2 ids. Tasks 1–3 do **not** wait: with no auto-delete and world coordinates, a comment placed on a sticky already persists and stays put, which closes the #134/#136 symptom. Task 4 adds "follows the sticky when it moves".
+- **Sequencing**: [`feature-annotations-v2-element-model.md`](../feature-annotations-v2-element-model.md) (planned 2026-09-29 by a parallel session) replaces the single-SVG annotation store with per-element JSON records and **stable ids**, and names this task as its dependent. Land Task 4 only after its Milestone B, and anchor to v2 ids. Tasks 1–3 do **not** wait: with no auto-delete and world coordinates, a comment placed on a sticky already persists and stays put, which closes the #134/#136 symptom. Task 4 adds "follows the sticky when it moves".
 
 - **Do**: In comment mode, a click whose hit target is inside the annotation layer (element with `data-id` under the annotations portal) produces a target `{ annotationId, world }` instead of the floating branch (`input-router.tsx:800-819`, `canvas-comment-mount.tsx:420-445`). `resolveCommentTarget` resolves `[data-id="<escaped>"]` inside the annotation layer (same lookup as `PeerAnnotationSelection`). If the annotation is gone, the comment is **detached**, never deleted, and falls back to `world`. The composer chip shows "sticky" / "drawing" instead of "canvas".
 - **Gotcha**: `annotationId` is peer-supplied. Validate it as a bounded token and always `CSS.escape` it. Check that annotation ids are stable across edits and undo (the annotation-operation-identity work in `feature-reliable-project-multiplayer`). If they are not, anchor to the id the whiteboard toolkit (DDR-151) already treats as stable.
@@ -207,17 +209,23 @@ Execute in order. Each task is atomic and testable. **Regression tests must fail
 
 ✅ Task 10 (test part) — completed 2026-09-29: `test/presence-render-budget.test.tsx`. A peer's cursor move causes 0 layout reads in `PeerSelection` / `PeerAnnotationSelection` (30 moves re-measured 30× on `main`); a camera change or a selection change still re-measures; the `touchesForeignClient` predicate is covered. **Deviation:** not ported into `perf.sh --peer`; the Safari harness `notes/.../v1.4.5-reverify/exp4-safari.mjs` was used directly against the source server.
 
+✅ Task 10 (perf mode) — closed as not needed 2026-09-29: the Task 11 RCA showed the stutter was not presence traffic, so a `perf.sh --peer` mode would measure the wrong thing. The regression guard for the real cause is a unit test (`ds-theme-probe-cache.test.ts`); `perf.sh --studio --fit-all --engine safari` stays the straight-pan check. The diagnostic probe (per-frame mutation attribution) and the raw numbers are kept in `notes/multiplayer-parity-harness/rca-131/`.
+
 - **Do**: Port `notes/multiplayer-parity-harness/v1.4.5-reverify/exp4-safari.mjs` + `exp4-matrix*.sh` into `perf.sh --engine safari --peer idle|move|move-select` (the peer is a headless Chromium; the observer is real Safari via safaridriver, already enabled on this machine). Report frames over 50 ms, p99, max and `getBoundingClientRect` counts, delta'd against history like the other lanes. Always run the "second browser, not connected" control. (The fixture annotation-slug mismatch in `perf-canvas.mjs` is fixed by annotations v2 Task 3; do not duplicate it here.) In `presence-render-budget.test.tsx`, drive a fake awareness and assert that a foreign selection causes at most one layout-read pass per frame, and zero reads when only a cursor moves.
 - **Gotcha**: On a single local server, two browsers share `_active.json`, so B's selection leaks into A's own selection. The harness must clear A's selection and record it (see `sel-probe.mjs`). Safari's rAF cadence flips between ~14 ms and 28/42 ms from run to run even with no peer, so gate on frames over 50 ms and on max, not p50/p95. Perf timings are not a CI gate (CLAUDE.md, `perf.sh`). Only the unit test gates.
 - **Validate**: layout-read test RED on `main`
 
 ### Task 11: RCA H3 — slow pan on large boards in WebKit (no peer)
 
-⏳ Task 11 — open. New evidence from the Task 12 measurement: on the heavy board in Safari, a peer **with a selection** (C3) still produces isolated 2–2.7 s stalls after the fix, **even with zero layout reads** (halo refresh disabled). C0 and C2 have none. So the remaining #131 cost is not the halo: look at what a peer's selection triggers elsewhere (the canvas shell's reaction to awareness selection, the single-server shared `_active.json` confound, editing-presence), together with the pan cost. Machine load was 14–26 during these runs, so repeat on a quiet machine.
-
-- **Do**: Run `/flow:bug-rca` on this: "panning a 160-artboard + 400-sticky board at fit-all runs at ~1 s per frame in Safari 26.5 (p50 928 ms), and 48 boards at the stored viewport at ~0.5 s per frame; Chromium on the same fixtures holds 60 fps". Profile with Safari Web Inspector timelines (layout, paint, compositing, style recalc) on the fixtures from `exp2-make-fixture*.mjs`. Check the existing pan path: per-frame React commits in `canvas-shell.tsx` (C0 showed ~340 overlay commits / 10 s during a pan), the annotation layer's SVG size at fit-all, `will-change` / compositing layers per artboard, and whether WebKit re-rasterizes each artboard per camera change. Compare against the #94 scroll fix and DDR decisions on canvas camera (`kg search "canvas camera pan performance"`). **Check the overlap with annotations v2 first**: today the whole board is one sanitized SVG string, and at 400 stickies that layer alone may be the WebKit paint cost. Measure the heavy fixture with and without its annotations. If the cost is in the annotation layer, the fix belongs to annotations v2 (record the numbers there as its gate) rather than here. The RCA decides the fix; do not guess it in this plan.
-- **Gotcha**: This is the most likely real cause of #131: the reporter was on the native mac app (WKWebView), on a large board. A peer joining may be what made the user start panning or looking, and it adds H2 hitches on top. Measure in WebKit only.
-- **Validate**: an RCA document with a measured cause, and a fix task appended to this plan (Task 11b) with a gate: pan at fit-all on the heavy fixture has p95 ≤ 50 ms in Safari, or the RCA explains the floor
+✅ Task 11 — root-caused and fixed 2026-09-29 (real Safari 26.5, source server, quiet machine).
+- **Cause, the real #131.** `detectDsThemeSupport` (`canvas-shell.tsx`) caches only a POSITIVE answer. On a canvas whose DS has a single theme, which covers the perf fixture and most boards, it re-probes on every call: it appends elements to `<body>` and calls `getComputedStyle` per candidate class, which forces a style recalc of the whole document. The element toolbar's context menu asks on every render, which means every frame of a pan while something is selected, and a joining peer adds re-renders on top. In Safari on the 160-board fixture this held a pan at 13 frames / 10 s (p50 ~750 ms), with the peer present or not.
+- **How it was found.** A per-frame `MutationObserver` probe in the canvas iframe recorded a `DIV` holding `mdcc`/`app` children being added to and removed from `<body>` twice per slow frame. Those are the probe's candidate classes.
+- **Fix.** The negative answer is cached as well, and invalidated when a `<style>`/`<link>` is added to the document or a `<link>` finishes loading. That is exactly the case the negative answer was left uncached for.
+- **After the fix** (heavy fixture, fit-all, wheel+mouse pan): 13 → ~500 frames / 10 s, p95 ~25 ms. With a moving peer holding a selection (C3) the numbers equal C0. `perf.sh --studio` straight pan is unchanged (p95 42 ms).
+- **Test.** `test/ds-theme-probe-cache.test.ts`, red without the fix.
+- **Tried and reverted: a GPU-layer budget** (stop promoting artboards above 64 M units² on screen). It removed the collapse in the oscillating-pan harness but made `perf.sh` straight pans worse (p95 42 → 107 ms). With the probe fixed it is unnecessary.
+- **Ruled out, measured:** the halo's `will-change`, the halo itself, layout reads, server work, `_active.json` writes, and the annotation layer.
+- **Residual, not peer-related:** settle hitches on the 160-board canvas (p99 ~300 ms, an occasional ~1 s). These are the settle-time React publish on a very large board. Follow-up candidate; outside #131's "someone joins" scope.
 
 ### Task 12: FIX H2 — layout reads out of render (H1 cleanup included)
 
@@ -271,3 +279,24 @@ Execute in order. Each task is atomic and testable. **Regression tests must fail
 - [ ] Every new regression test was seen RED before its fix
 - [ ] `/flow:validate` passes; security review of the new peer-supplied fields has no blockers
 - [ ] What's New entry pending; issues closed with evidence
+
+## Close-out (2026-09-29)
+
+- **Validate.** Format, lint (exit 0; only pre-existing warnings), typecheck + tsc coverage (304/304), studio targeted 647/647, sync lane 1242/1243, site build, harness 26/26, CLI 587/588, desktop E2E `--only L11` 24/24, smoke 74/74.
+  - Sync-lane red: `sync-accepted-runtime` "an open room before doc.create…", which fails identically on a clean HEAD. Spun off as its own task.
+  - CLI red: the Codex smoke, which needs a local `codex` install.
+  - The hub suite hung once, in `project-transactions.test.mjs`. That file passes 13/13 alone, and the full suite was rerun with a per-test timeout.
+- **Security.**
+  - Defender: PASS WITH SUGGESTIONS. W3 (the ledger recorded unacknowledged ids) is fixed.
+  - Attacker: NEEDS FIXES. F1 (a/b/c, ledger data loss) and F2 (agent scope for non-element comments) are fixed with tests.
+  - F3: hashed keys are done; slug pruning is deferred.
+  - Reports are in `.ai/logs/security-reviews/followup-multiplayer-parity-issues-{defender,attacker}.md`.
+- **Not done here:** Task 9 (stranded pre-pairing comments on design.studyfi.com) and Task 13 (two-machine WKWebView check with the #131 reporter) need the owner. #131 stays open until Task 13.
+
+## Retro
+
+- **Measure before planning, then re-measure on the shipped binary.** Three of the four issues were real, but the plan's #131 hypothesis (presence re-render and forced layouts) was wrong about the cause. The real one, a theme probe running on every render, only showed up once a per-frame mutation probe attributed the slow frames. Two hours of A/B on plausible suspects (the halo, `will-change`, the layer budget) each ruled one out, but only attribution found the cause.
+- **Two harnesses disagreeing is a finding, not noise.** The layer budget "fixed" the oscillating-pan harness and regressed `perf.sh` 2.5×. Chasing the disagreement is what led to the real cause, and the budget was reverted. When harnesses disagree, look for what differs in the scenario: here, a selection was present.
+- **Durable state needs the same confirmation rule as the thing it records.** The comment ledger's first cut recorded ids when they reached the local doc. The defender and then the attacker found three ways that loses offline work (unlinked, before projection, another workspace). The rule that holds is: record only what the hub is known to hold, keyed by the document namespace, not the URL.
+- **Unit-green is not end-to-end green.** The ledger passed its unit tests and still failed E2E twice. The first time, a 500 ms debounce lost the record on quit. The second time, the resurrection came from `migrate-seed`, not the agent. Run the real-hub harness before calling a sync fix done.
+- **Removing an auto-delete moves risk onto the agent.** Comments that used to vanish now persist, so `/design:edit` had to learn their anchors. The agent-facing reference is part of the fix surface.

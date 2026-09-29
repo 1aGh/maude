@@ -14,7 +14,6 @@ historical context and is not an active task list.
 | [`feature-local-media-generation.md`](./feature-local-media-generation.md) | Planned; native keychain, local adapters, and desktop E2E not started. |
 | [`feature-post-1.0-hardening-backlog.md`](./feature-post-1.0-hardening-backlog.md) | Open backlog; resolved entries stay as evidence, remaining program is not empty. |
 | [`feature-video-tracking-and-stabilization.md`](./feature-video-tracking-and-stabilization.md) | Planned; even the `s3Assets` JSON-sidecar prerequisite remains open. |
-| [`followup-multiplayer-parity-issues.md`](./followup-multiplayer-parity-issues.md) | Planned 2026-09-29, re-verified on shipped v1.4.5: floating comments self-delete, desktop comments freeze after relaunch (legacy resurrects deletes), slow large-board pan in WebKit + peer-selection hitches. |
 
 Rejected or completed plans live under [`archive/`](./archive/), including the
 unimplemented, stale `/goal` integration proposal rejected on 2026-09-22.
