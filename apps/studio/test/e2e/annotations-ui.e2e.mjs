@@ -497,6 +497,66 @@ describe('R7 — Task 19: drafts and a collaborator while editing', () => {
   });
 });
 
+describe('R8 — Milestone D: an operation on a section acts on its contents', () => {
+  /** Select the section by its title chip. */
+  async function selectSection(id) {
+    await reset();
+    const chip = await c.frame
+      .locator(`[data-id="${id}"] [data-section-chip]`)
+      .first()
+      .boundingBox({ timeout: 1000 });
+    await c.click(chip.x + 12, chip.y + chip.height / 2);
+    await sleep(200);
+    assert.deepEqual(await c.selection(), [id]);
+  }
+  const childrenOf = (b, id) =>
+    [...b.values()]
+      .filter((e) => e.parent === id)
+      .map((e) => e.id)
+      .sort();
+
+  test('arrow-key nudge moves the section and its contents together', async () => {
+    const before = await waitForBoard(server.root, () => true);
+    await selectSection('sec');
+    await c.page.keyboard.press('ArrowRight');
+    const after = await waitForBoard(server.root, (b) => b.get('sec')?.x !== before.get('sec').x);
+    assert.ok(after.get('sec').x > before.get('sec').x, 'the section moved right');
+    for (const id of childrenOf(before, 'sec')) {
+      assert.equal(after.get(id).parent, 'sec', `${id} is still inside`);
+      assert.equal(after.get(id).x, before.get(id).x, `${id} moved with it (same place inside)`);
+    }
+  });
+
+  test('⌘D duplicates the section with its contents', async () => {
+    const before = await waitForBoard(server.root, () => true);
+    const kids = childrenOf(before, 'sec');
+    assert.ok(kids.length > 0, 'precondition: the section has contents');
+    await selectSection('sec');
+    await c.page.keyboard.press('Meta+d');
+    const after = await waitForBoard(server.root, (b) => b.size > before.size);
+    const copies = [...after.values()].filter((e) => e.type === 'section' && !before.has(e.id));
+    assert.equal(copies.length, 1, 'one new section');
+    assert.equal(
+      childrenOf(after, copies[0].id).length,
+      kids.length,
+      'its contents were copied into it'
+    );
+    assert.deepEqual(childrenOf(after, 'sec'), kids, 'the original keeps its own');
+  });
+
+  test('Delete on a section removes its contents', async () => {
+    const before = await waitForBoard(server.root, () => true);
+    const copy = [...before.values()].find((e) => e.type === 'section' && e.id !== 'sec');
+    assert.ok(copy, 'precondition: the copy from the previous step');
+    const kids = childrenOf(before, copy.id);
+    await selectSection(copy.id);
+    await c.page.keyboard.press('Delete');
+    const after = await waitForBoard(server.root, (b) => !b.has(copy.id));
+    for (const k of kids) assert.equal(after.has(k), false, `${k} went with its section`);
+    assert.ok(after.has('sec'), 'the other section is untouched');
+  });
+});
+
 test('no page errors during the run', () => {
   assert.deepEqual(c.errors, []);
 });

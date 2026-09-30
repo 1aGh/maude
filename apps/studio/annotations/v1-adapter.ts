@@ -369,7 +369,9 @@ export function strokesToElements(
       if ((zOf.get(s.id) ?? 0) >= (zOf.get(el.id) ?? Number.POSITIVE_INFINITY)) continue;
       if (cx < s.box.x || cx > s.box.x + s.box.w || cy < s.box.y || cy > s.box.y + s.box.h)
         continue;
-      if (!best || area(s.box) < best.a) best = { id: s.id, a: area(s.box) };
+      // Equal size (a copy lying exactly on its original): the one painted
+      // later — nearest below the element — is its container.
+      if (!best || area(s.box) <= best.a) best = { id: s.id, a: area(s.box) };
     }
     if (best) parentOf.set(el.id, best.id);
   }

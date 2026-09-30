@@ -170,7 +170,8 @@ export function v1ToV2(strokes: readonly Stroke[], opts: V1ToV2Opts = {}): Migra
       // A section only nests inside a strictly larger one (no cycles by construction).
       if (selfArea !== null && area(sb) <= selfArea) continue;
       if (cx < sb.x || cx > sb.x + sb.w || cy < sb.y || cy > sb.y + sb.h) continue;
-      if (!best || area(sb) < best.area) best = { id: sec.id, area: area(sb) };
+      // Equal size: the later-painted (nearest below) section wins.
+      if (!best || area(sb) <= best.area) best = { id: sec.id, area: area(sb) };
     }
     return best?.id;
   };

@@ -3,6 +3,13 @@ import { defOf } from './annotations/registry.ts';
 import { observeReplica } from './annotations/replica.ts';
 import { parseBoard } from './annotations/schema.ts';
 import type { AnnotationElement } from './annotations/types.ts';
+import {
+  Containment,
+  expandForOp,
+  insertSection,
+  type MarqueeItem,
+  marqueeHits,
+} from './annotations/ui/containment.ts';
 import type { EditRequest } from './annotations/ui/element-node.tsx';
 import { type RenderItem, renderItemsFromStrokes } from './annotations/ui/render-model.ts';
 import { AnnotationScene } from './annotations/ui/scene.tsx';
@@ -879,6 +886,11 @@ function scaleStrokeInGroup(
   return null;
 }
 
+/** The copies of `ids` in a duplicate result (what to select afterwards). */
+function cloneRoots(ids: readonly string[], res: { idMap: ReadonlyMap<string, string> }): string[] {
+  return ids.map((id) => res.idMap.get(id)).filter((x): x is string => !!x);
+}
+
 /** The element an editing target edits (a shape label edits on the shape). */
 function editTargetId(t: EditingTarget): string | null {
   if (!t) return null;
@@ -1385,8 +1397,13 @@ export function AnnotationsLayer() {
       );
       commitStrokes(prev, next);
     };
+    // Task 20 — an operation on a section acts on its subtree (containment.ts).
+    const containmentNow = () =>
+      new Containment(strokesToElementMap(strokesRef.current, elementsRef.current).values());
+    const withSubtree = (ids: readonly string[]) =>
+      expandForOp(ids, (x) => expandIdsToGroups(x, strokesRef.current), containmentNow());
     const deleteStrokes = (ids: string[]): void => {
-      const set = new Set(ids);
+      const set = new Set(withSubtree(ids));
       const prev = strokesRef.current;
       const filtered = prev.filter(
         (s) => !set.has(s.id) && !(s.tool === 'text' && s.anchorId != null && set.has(s.anchorId))
@@ -1403,7 +1420,7 @@ export function AnnotationsLayer() {
       commitStrokes(prev, recomputeBoundArrows(normalizeGroups(filtered)));
     };
     const translateStrokes = (ids: string[], dx: number, dy: number): void => {
-      const set = new Set(ids);
+      const set = new Set(withSubtree(ids));
       const prev = strokesRef.current;
       const next = recomputeBoundArrows(
         prev.map((s) => (set.has(s.id) ? translateOne(s, dx, dy) : s))
@@ -1445,11 +1462,12 @@ export function AnnotationsLayer() {
     };
     const duplicateSelection = (ids: readonly string[], dx: number, dy: number): string[] => {
       const prev = strokesRef.current;
-      const res = duplicateStrokes(prev, ids, dx, dy);
+      const res = duplicateStrokes(prev, withSubtree(ids), dx, dy);
       if (res.strokes.length === prev.length) return [];
       const added = res.strokes.length - prev.length;
       commitStrokes(prev, res.strokes, `duplicate ${added} stroke${added === 1 ? '' : 's'}`);
-      return res.newIds;
+      // Select the copies of what was selected (their contents ride along).
+      return cloneRoots(ids, res);
     };
     const reorderSelection = (ids: readonly string[], op: ZOrderOp): void => {
       const prev = strokesRef.current;
@@ -1463,13 +1481,19 @@ export function AnnotationsLayer() {
     };
     const alignSelection = (ids: readonly string[], edge: AlignEdge): void => {
       const prev = strokesRef.current;
-      const next = recomputeBoundArrows(alignStrokes(prev, ids, edge));
+      const c = containmentNow();
+      const next = recomputeBoundArrows(
+        alignStrokes(prev, c.roots(ids), edge, (id) => c.contentsOf(id))
+      );
       if (strokesShallowEqual(prev, next)) return;
       commitStrokes(prev, next, `align ${edge}`);
     };
     const distributeSelection = (ids: readonly string[], axis: DistributeAxis): void => {
       const prev = strokesRef.current;
-      const next = recomputeBoundArrows(distributeStrokes(prev, ids, axis));
+      const c = containmentNow();
+      const next = recomputeBoundArrows(
+        distributeStrokes(prev, c.roots(ids), axis, (id) => c.contentsOf(id))
+      );
       if (strokesShallowEqual(prev, next)) return;
       commitStrokes(prev, next, 'distribute');
     };
@@ -2233,8 +2257,22 @@ export function AnnotationsLayer() {
       const committed = final;
       const prev = strokesRef.current;
       // FigJam — sections are CONTAINERS: they slot in at the BACK of the
-      // z-order so content placed on them keeps rendering above.
-      const next = committed.tool === 'section' ? [committed, ...prev] : [...prev, committed];
+      // z-order so content placed on them keeps rendering above — and a
+      // section drawn INSIDE another goes right above that one (Task 20), so
+      // it renders in front of its outer section and adopts what sits on it.
+      let next: Stroke[];
+      if (committed.tool === 'section') {
+        const bb = strokeBBox(committed);
+        const outer = bb
+          ? new Containment(strokesToElementMap(prev, elementsRef.current).values()).containerAt(
+              bb.x + bb.w / 2,
+              bb.y + bb.h / 2
+            )
+          : null;
+        next = insertSection(prev, committed, outer);
+      } else {
+        next = [...prev, committed];
+      }
       commitStrokes(prev, next, `draw ${committed.tool}`);
       // T18 — auto-select the freshly drawn shape so the user can immediately
       // see + adjust it. annotSel is optional (some test harnesses mount
@@ -2539,12 +2577,21 @@ export function AnnotationsLayer() {
         // Alt+click can't silently mint copies. undoBase stays pre-clone, so
         // clone + move commit as one record.
         if (e.altKey) {
-          const res = duplicateStrokes(undoBase, ids, 0, 0);
+          // The section's contents are cloned with it and only the CLONES move.
+          const subtree = expandForOp(
+            ids,
+            (x) => expandIdsToGroups(x, undoBase),
+            new Containment(strokesToElementMap(undoBase, elementsRef.current).values())
+          );
+          const res = duplicateStrokes(undoBase, subtree, 0, 0);
           if (res.newIds.length) {
             altDup = true;
             dragSnapshot = res.strokes;
             setStrokesState(res.strokes);
-            annotSel.replace(res.newIds);
+            // Select the copies of what was selected; drag EVERY clone — the
+            // copied contents move with the copied section by id, not by
+            // geometry (the copy lies exactly on its original).
+            annotSel.replace(cloneRoots(ids, res));
             ids = res.newIds;
           }
         }
@@ -2558,22 +2605,16 @@ export function AnnotationsLayer() {
           altDup,
         };
         const movedSet = new Set(ids);
-        // FigJam v3 — dragging a SECTION carries everything sitting on it
-        // (bbox-center containment, captured at gesture start).
-        for (const s of dragSnapshot) {
-          if (s.tool !== 'section' || !movedSet.has(s.id)) continue;
-          const sx = Math.min(s.x, s.x + s.w);
-          const sy = Math.min(s.y, s.y + s.h);
-          const sx2 = sx + Math.abs(s.w);
-          const sy2 = sy + Math.abs(s.h);
-          for (const t of dragSnapshot) {
-            if (movedSet.has(t.id) || t.tool === 'section') continue;
-            const bb = strokeBBox(t);
-            if (!bb) continue;
-            const ccx = bb.x + bb.w / 2;
-            const ccy = bb.y + bb.h / 2;
-            if (ccx >= sx && ccx <= sx2 && ccy >= sy && ccy <= sy2) movedSet.add(t.id);
-          }
+        // A section carries its whole subtree — nested sections and their
+        // contents too (explicit containment, Task 20), captured at start.
+        if (dragSnapshot.some((x) => x.tool === 'section' && movedSet.has(x.id))) {
+          const c = new Containment(
+            strokesToElementMap(
+              dragSnapshot.filter((x) => !isEphemeralHref(x)),
+              elementsRef.current
+            ).values()
+          );
+          for (const id of c.withContents([...movedSet])) movedSet.add(id);
         }
         // FigJam v3 — snap setup, computed ONCE per gesture: candidates are
         // the bboxes of every non-moved stroke plus the artboard rects (in
@@ -2714,32 +2755,15 @@ export function AnnotationsLayer() {
         const final = marqueeRef.current;
         setMarquee(null);
         if (!final) return;
-        const xMin = Math.min(final.ax, final.bx);
-        const xMax = Math.max(final.ax, final.bx);
-        const yMin = Math.min(final.ay, final.by);
-        const yMax = Math.max(final.ay, final.by);
-        const hits: string[] = [];
+        // Anchored text rides its host (selected with it); a section is taken
+        // only when the marquee encloses it (containment.ts marqueeHits).
+        const items: MarqueeItem[] = [];
         for (const s of strokesStoreRef.current.strokes) {
-          // Anchored text inherits its host's bbox (selected with the host);
-          // standalone text (Phase 21) has its own synthetic bbox and IS
-          // marquee-selectable.
           if (s.tool === 'text' && s.anchorId != null && s.anchorId !== '') continue;
           const bb = strokeBBox(s);
-          if (!bb) continue;
-          // A section is a container: a marquee drawn over its CONTENT must
-          // select that content, not the section — it takes the section only
-          // when it encloses the whole section (FigJam). Everything else is
-          // selected by touch, as before.
-          if (s.tool === 'section') {
-            if (bb.x >= xMin && bb.x + bb.w <= xMax && bb.y >= yMin && bb.y + bb.h <= yMax) {
-              hits.push(s.id);
-            }
-            continue;
-          }
-          if (bb.x + bb.w >= xMin && bb.x <= xMax && bb.y + bb.h >= yMin && bb.y <= yMax) {
-            hits.push(s.id);
-          }
+          if (bb) items.push({ id: s.id, box: bb, container: s.tool === 'section' });
         }
+        const hits = marqueeHits(items, { x1: final.ax, y1: final.ay, x2: final.bx, y2: final.by });
         // Marquee that captured no strokes — preserve existing selection.
         if (hits.length === 0) return;
         // FigJam v3 — a marquee touching any group member selects the whole
@@ -3201,7 +3225,13 @@ export function AnnotationsLayer() {
       const sel = annotSel.selectedIds;
       if (sel.length === 0) return false;
       const store = strokesStoreRef.current;
-      const expanded = new Set(expandIdsToGroups(sel, store.strokes));
+      const expanded = new Set(
+        expandForOp(
+          sel,
+          (x) => expandIdsToGroups(x, store.strokes),
+          new Containment(strokesToElementMap(store.strokes, elementsRef.current).values())
+        )
+      );
       const payload = store.strokes.filter(
         (s) =>
           expanded.has(s.id) ||

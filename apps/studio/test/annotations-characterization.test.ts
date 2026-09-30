@@ -762,18 +762,14 @@ describe('align / distribute — sections and groups', () => {
     expect(distributeStrokes(arr2, ['r2', 's1'], 'h')).toBe(arr2);
   });
 
-  test('today: aligning a section moves ONLY the section frame (contents stay put)', () => {
-    // Pinned here as the current observable result so Milestone D's change is
-    // visible; the v2 expectation is the todo below.
+  test('alignStrokes with no contents callback moves only the frame (the layer always passes one)', () => {
+    // The pure function stays unit-level; carrying a section's contents is
+    // the caller's job (containment.ts) — see annotations-v2-containment.test.ts.
     const out = alignStrokes([s1, onS1, r2], ['s1', 'r2'], 'right');
     const byId = new Map(out.map((s) => [s.id, s]));
     expect((byId.get('s1') as SectionStroke).x).toBe(210);
     expect(byId.get('on')).toBe(onS1);
   });
-
-  test.todo(
-    'align / distribute a section carries its contents — expected v2 behaviour: containment is explicit (parent id) and every section op moves children; bug ref annotations-layer.tsx:1356 (translateStrokes/applyToStrokes ignore sections), annotations-align.ts:46-76 (unitsOf has no section expansion)'
-  );
 });
 
 describe('computeSnap — tie-breaking + grid fallback', () => {
@@ -892,28 +888,8 @@ describe('undo of a multi-select move', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Known bugs — flipped to real assertions in Milestone D.
-
-describe('known bugs (Milestone D flips these)', () => {
-  test.todo(
-    'nudge (arrow keys) moves a section AND its contents — expected v2 behaviour: nudge goes through the same containment-aware move as drag; bug ref annotations-layer.tsx:1356 (translateStrokes translates only the selected ids)'
-  );
-  test.todo(
-    'a marquee STARTED inside a section interior does not select the section — expected v2 behaviour: the marquee selects only the strokes it touches inside the section, the section itself only when fully enclosed; bug ref annotations-layer.tsx:2643-2653 (bbox-intersection test includes the section containing the marquee)'
-  );
-  test.todo(
-    'Alt-duplicate of a section drags the CLONE plus cloned contents and leaves the original contents in place — expected v2 behaviour: duplicate clones the section subtree and moves only clones; bug ref annotations-layer.tsx:2462-2497 (duplicateStrokes clones only the frame, then the carry set is computed over the snapshot that still holds the ORIGINAL children, so they move)'
-  );
-  test.todo(
-    'a nested inner section drawn inside an outer one renders in FRONT of the outer — expected v2 behaviour: z-order by containment (child above parent); bug ref annotations-layer.tsx:2189 (every new section is prepended to the back of the array)'
-  );
-  test.todo(
-    'dragging an outer section carries a nested inner section frame together with its contents — expected v2 behaviour: nested sections move as a subtree; bug ref annotations-layer.tsx:2491 (t.tool === "section" is excluded from the carry set)'
-  );
-  test.todo(
-    'delete / copy / duplicate of a section include its contents — expected v2 behaviour: section ops act on the subtree; bug ref annotations-layer.tsx:1340-1354 (delete filters selected ids only), annotations-groups.ts:157-212 (duplicateStrokes has no section expansion)'
-  );
-  test.todo(
-    'a peer deleting the element I am editing does not drop my typed text — expected v2 behaviour: the local draft survives (re-create or prompt), never silently lost; bug ref annotations-layer.tsx:2974-2978 (commitEditing returns early when editingTarget resolved to null after the peer delete)'
-  );
-});
+// Known bugs — flipped to real assertions in Milestone D:
+//   section ops on the subtree, marquee, Alt-duplicate, nesting
+//     → annotations-v2-containment.test.ts
+//   a peer deleting the element being edited keeps the typed text
+//     → annotations-v2-text-session.test.ts + browser E2E R7
