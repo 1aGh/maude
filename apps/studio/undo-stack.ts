@@ -69,9 +69,7 @@ export interface CommandRecord<P = unknown> {
 export interface CommandSinks {
   /** Wired by canvas-lib `DesignCanvasInner`. */
   layoutPatchFn?: unknown;
-  /** Wired by `AnnotationsLayer`. */
-  strokesPutFn?: unknown;
-  /** Wired by the element-native annotation layer (DDR-242): apply + send an op batch. */
+  /** Wired by `AnnotationsLayer` (DDR-242): apply + send an annotation op batch. */
   annotationOpsFn?: unknown;
   /**
    * Wired by `CanvasShell` (canvas-shell.tsx). Applies a single inline source

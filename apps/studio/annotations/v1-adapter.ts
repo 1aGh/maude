@@ -83,8 +83,15 @@ function shared(el: AnnotationElement): Partial<Stroke> {
 export function elementsToStrokes(elements: Iterable<AnnotationElement>): Stroke[] {
   const scene = new Scene(elements);
   const out: Stroke[] = [];
-  for (const el of scene.paintOrder()) {
-    if (!isKnownType(el.type)) continue;
+  for (const el of scene.paintOrder()) out.push(...elementStrokes(scene, el));
+  return out;
+}
+
+/** One element as the strokes the UI draws for it (a labelled shape is two). */
+export function elementStrokes(scene: Scene, el: AnnotationElement): Stroke[] {
+  const out: Stroke[] = [];
+  {
+    if (!isKnownType(el.type)) return out;
     const o = scene.originOf(el);
     const x = num(el.x) + o.x;
     const y = num(el.y) + o.y;

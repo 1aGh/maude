@@ -12,8 +12,6 @@
 //     annotations-roundtrip.test.ts ("a frozen Phase-21 SVG round-trips BYTE-IDENTICAL")
 //   - byte-identical round trip of test/fixtures/figjam-v3-groups-bindings.svg →
 //     figjam-v3-model.test.ts ("figjam-v3 fixture canary")
-//   - basic do/undo/label/deep-clone of the strokes command →
-//     annotation-strokes-command.test.ts
 //
 // Logic characterized (line refs as of 2026-09-30, file-relative to apps/studio):
 //   section drag carry (inline in React)   annotations-layer.tsx:2482-2498
@@ -25,12 +23,15 @@
 //   recomputeBoundArrows / facingAnchor    annotations-bindings.ts:179-276
 //   alignStrokes / distributeStrokes       annotations-align.ts:89-149
 //   computeSnap                            annotations-snap.ts:85-165
-//   createAnnotationStrokesCommand         commands/annotation-strokes-command.ts:60-78
+//   op-batch undo (inverse)                annotations/ops.ts applyOps
 
 import { afterAll, beforeAll, describe, expect, mock, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { projectBoard } from '../annotations/ai-read.ts';
 import { v1ToV2 } from '../annotations/migrate-v1.ts';
+import { applyOps, diffToOps } from '../annotations/ops.ts';
+import type { AnnotationElement } from '../annotations/types.ts';
+import { strokesToElementMap } from '../annotations/v1-adapter.ts';
 import { alignStrokes, distributeStrokes } from '../annotations-align.ts';
 import { anchorPoint, facingAnchor, recomputeBoundArrows } from '../annotations-bindings.ts';
 import { expandIdsToGroups, outermostGroupOf } from '../annotations-groups.ts';
@@ -56,7 +57,6 @@ import {
   translateOne,
 } from '../annotations-model.ts';
 import { computeSnap } from '../annotations-snap.ts';
-import { createAnnotationStrokesCommand } from '../commands/annotation-strokes-command.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Fixtures — one of every Stroke kind.
@@ -797,7 +797,7 @@ describe('computeSnap — tie-breaking + grid fallback', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Undo of a multi-select move (commands/annotation-strokes-command.ts).
+// Undo of a multi-select move (commands/annotation-ops-command.ts).
 
 describe('undo of a multi-select move', () => {
   const A: RectStroke = { ...rect, id: 'A', x: 0, y: 0, w: 100, h: 100 };
@@ -834,56 +834,26 @@ describe('undo of a multi-select move', () => {
     expect(l.startBind).toMatchObject({ hostId: 'A' });
   });
 
-  test('do() puts AFTER (with BEFORE as baseline); undo() puts BEFORE (with AFTER as baseline)', async () => {
-    const putFn = mock((_n: readonly Stroke[], _b: readonly Stroke[]) => Promise.resolve());
-    const cmd = createAnnotationStrokesCommand({ before, after, putFn });
-    await cmd.do();
-    await cmd.undo();
-    expect(putFn).toHaveBeenCalledTimes(2);
-    expect(putFn.mock.calls[0]?.[0]).toEqual(after);
-    expect(putFn.mock.calls[0]?.[1]).toEqual(before);
-    expect(putFn.mock.calls[1]?.[0]).toEqual(before);
-    expect(putFn.mock.calls[1]?.[1]).toEqual(after);
+  // Task 26 flipped the snapshot undo: one gesture is one op batch, and undo
+  // is its inverse (DDR-242 AD4) — only what the move changed travels.
+  const empty = new Map<string, AnnotationElement>();
+  const ops = diffToOps(strokesToElementMap(before, empty), strokesToElementMap(after, empty));
+
+  test('the batch names only what moved (the rewritten arrow resolves from its hosts)', () => {
+    const ids = ops.map((o) => ('id' in o ? o.id : o.el.id)).sort();
+    expect(ids).toEqual(['A', 'S']);
   });
 
-  test('the record is a FULL-ARRAY snapshot pair (every stroke, not a per-element diff)', async () => {
-    const putFn = mock((_n: readonly Stroke[], _b: readonly Stroke[]) => Promise.resolve());
-    const cmd = createAnnotationStrokesCommand({ before, after, putFn });
-    await cmd.undo();
-    // All five strokes travel, including the three that did not change.
-    expect(putFn.mock.calls[0]?.[0]).toHaveLength(5);
-  });
-
-  test('each call hands out FRESH clones (callers may mutate them freely)', async () => {
-    const putFn = mock((_n: readonly Stroke[], _b: readonly Stroke[]) => Promise.resolve());
-    const cmd = createAnnotationStrokesCommand({ before, after, putFn });
-    await cmd.undo();
-    await cmd.undo();
-    const first = putFn.mock.calls[0]?.[0];
-    const second = putFn.mock.calls[1]?.[0];
-    expect(first).toEqual(second);
-    expect(first).not.toBe(second);
-    expect(first?.[0]).not.toBe(second?.[0]);
-    expect(first?.[0]).not.toBe(A);
-  });
-
-  test('default label for a same-count move is "edit N strokes" (the layer overrides it with "move N")', () => {
-    const cmd = createAnnotationStrokesCommand({ before, after, putFn: () => undefined });
-    expect(cmd.label).toBe('edit 5 strokes');
-  });
-
-  test('undo restores BEFORE wholesale — a peer change made after the move would be reverted by the snapshot', async () => {
-    // Characterizes plan Problem §7: the command replays a full snapshot; any
-    // concurrent change is only protected by the layer's reconcileCommit, not
-    // by the command itself.
-    const peerAdded: RectStroke = rectAt('peer', 900, 900);
-    let state: readonly Stroke[] = [...after, peerAdded];
-    const putFn = (next: readonly Stroke[]) => {
-      state = next;
-    };
-    const cmd = createAnnotationStrokesCommand({ before, after, putFn });
-    await cmd.undo();
-    expect(state.some((s) => s.id === 'peer')).toBe(false);
+  test('undo is the inverse batch — a peer change made after the move survives it', () => {
+    const peer = strokesToElementMap([rectAt('peer', 900, 900)], empty).get('peer');
+    let board = new Map(strokesToElementMap(before, empty));
+    const done = applyOps(board, ops);
+    board = done.state;
+    if (peer) board.set('peer', peer);
+    board = applyOps(board, done.inverse).state;
+    expect(board.has('peer')).toBe(true);
+    expect(board.get('A')?.y).toBe(0);
+    expect(board.get('S')?.y).toBe(300);
   });
 });
 

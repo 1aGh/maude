@@ -1,8 +1,10 @@
+import { v1ToV2 } from './annotations/migrate-v1.ts';
 import { type Op as AnnotationOp, applyOps, diffToOps } from './annotations/ops.ts';
 import { defOf } from './annotations/registry.ts';
 import { observeReplica } from './annotations/replica.ts';
-import { parseBoard } from './annotations/schema.ts';
+import { parseBoard, validateElements } from './annotations/schema.ts';
 import type { AnnotationElement } from './annotations/types.ts';
+import { BoardStore } from './annotations/ui/board.ts';
 import {
   Containment,
   expandForOp,
@@ -25,6 +27,7 @@ import {
   type TextSession,
 } from './annotations/ui/text-session.ts';
 import { TEXT_LAYER_CSS } from './annotations/ui/text-style.ts';
+import { projectStrokes, type StrokeCache } from './annotations/ui/world.ts';
 import { elementsToStrokes, strokesToElementMap } from './annotations/v1-adapter.ts';
 /**
  * @file       annotations-layer.tsx — FigJam-style annotation overlay
@@ -62,6 +65,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -168,8 +172,6 @@ import {
   strokeHitTest,
   strokeRotation,
   strokesShallowEqual,
-  strokesToSvg,
-  svgToStrokes,
   TEXT_LINE_HEIGHT,
   type TextAlign,
   type TextStroke,
@@ -194,7 +196,7 @@ import {
   useViewportControllerContext,
   useWorldRefContext,
 } from './canvas-lib.tsx';
-import { buildAnnotationStrokesRecord } from './commands/annotation-strokes-command.ts';
+import { buildAnnotationOpsRecord } from './commands/annotation-ops-command.ts';
 import { ensureMenuStyles as ensureCtxMenuStyles } from './context-menu.tsx';
 import { crossedDragThreshold, type Tool } from './input-router.tsx';
 import { createMediaCommitChain, type MediaCommitResult } from './media-commit-chain.ts';
@@ -229,6 +231,10 @@ import { useUndoSinks, useUndoStackOptional } from './use-undo-stack.tsx';
 // re-exports the whole model so every existing
 // `from './annotations-layer.tsx'` import keeps working unchanged.
 export * from './annotations-model.ts';
+// Arrow style enums are owned by canvas-arrowheads.ts (no cycle, DDR-067).
+export type { ArrowHead, ArrowLineType } from './canvas-arrowheads.ts';
+export { arrowHeadPoints } from './canvas-arrowheads.ts';
+export { useAnnotationsVisibility } from './use-annotations-visibility.tsx';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -236,7 +242,6 @@ export * from './annotations-model.ts';
 // Phase 24 — arrow style enums are OWNED by canvas-arrowheads.ts (so that
 // module imports nothing back from here — no cycle, see DDR-067) and re-exported
 // here for back-compat (context-toolbar etc. import them from this module).
-export type { ArrowHead, ArrowLineType } from './canvas-arrowheads.ts';
 
 /** Phase 24 — cursor-following ghost placeholder descriptor (pure chrome). */
 type GhostDescriptor =
@@ -288,9 +293,13 @@ function useCanvasChromeTheme(): 'light' | 'dark' {
 }
 
 // Phase 24 — moved to canvas-arrowheads.ts (single source for shaft + heads).
-// Re-exported so the existing test import (`from '../annotations-layer.tsx'`)
+// Re-exported so the existing test import (`from './annotations/annotations-layer.tsx'`)
 // and the byte-identical canary keep working.
-export { arrowHeadPoints } from './canvas-arrowheads.ts';
+
+/** A whiteboard clipboard payload (v2 elements, or a pre-v2 strokes list). */
+function isBoardClipboard(txt: string): boolean {
+  return txt.startsWith('{"maudeElements"') || txt.startsWith('{"maudeStrokes"');
+}
 
 function isEditable(t: EventTarget | null): boolean {
   if (!t || !(t as HTMLElement).tagName) return false;
@@ -350,83 +359,12 @@ function resolveAssetHref(href: string): string {
 }
 
 /**
- * An optimistic ImageStroke's `blob:`/`data:` href must never be PUT to the
- * server. `sanitizeAnnotationSvg` (api.ts) strips an href it doesn't
- * recognize — keeping the `<image>` element, dropping only the attribute —
- * so the server's STORED + broadcast SVG silently diverges from whatever the
- * client just sent. That divergence defeats the collab-echo self-suppression
- * guard (the `annotationEchoRef` operation history, near `putStrokes` below): the
- * echo's content no longer matches anything we recorded as "already
- * applied", so a real `setStrokesState` fires from the (href-stripped)
- * server copy — which can wipe out a SIBLING stroke's still-in-flight
- * optimistic insert that was never itself part of that PUT. This is the
- * concrete failure a 3-file concurrent drop hit: one
- * image ended up href-stripped (a blank frame) and another was dropped
- * entirely once an unrelated commit's echo round-tripped while both were
- * still uploading. See media-commit-chain.ts for the sibling accumulator fix
- * — this closes the other half, at the persistence layer.
+ * An optimistic ImageStroke's `blob:`/`data:` href (an upload in flight) is
+ * never sent to the board: the image is shown from `uploading` and committed
+ * once, with its `assets/…` href, when the upload lands.
  */
 function isEphemeralHref(s: Stroke): boolean {
   return s.tool === 'image' && /^(?:blob|data):/i.test(s.href);
-}
-
-/**
- * Fold a local mutation's `next` against the live-rendered `prev`, restoring
- * only strokes that are genuinely concurrent additions from ANOTHER
- * in-flight commit — never reverting THIS mutation's own deletions.
- * Disambiguated via `opBefore`, the baseline this mutation's `next` was
- * itself computed from: an id present in `prev` but absent from BOTH
- * `opBefore` and `next` was added by someone else after `opBefore` was
- * captured (fold it in — this is the sibling-insert race this helper was
- * originally written for). An id present in `opBefore` but absent from
- * `next` was deliberately removed BY THIS MUTATION and must stay removed
- * even though `prev` (React's rendered state) hasn't caught up to that
- * removal yet.
- *
- * The prior version of this helper compared only `prev` against `next` —
- * exactly the shape of every delete (an id in `prev`, absent from `next`) —
- * so it silently folded every erased stroke straight back in locally, while
- * the smaller, correct set still went out over PUT. Backspace looked like a
- * no-op until a reload picked up the server's already-correct copy.
- */
-export function reconcileCommit(
-  prev: readonly Stroke[],
-  opBefore: readonly Stroke[],
-  next: readonly Stroke[]
-): Stroke[] {
-  const beforeIds = new Set(opBefore.map((s) => s.id));
-  const nextIds = new Set(next.map((s) => s.id));
-  const extra = prev.filter((s) => !beforeIds.has(s.id) && !nextIds.has(s.id));
-  return extra.length ? [...next, ...extra] : (next as Stroke[]);
-}
-
-/**
- * Fold a FOREIGN collab-echo snapshot against local state. A foreign
- * broadcast legitimately omits an id that was deleted (by us or a peer) —
- * reviving it just because local `prev` hasn't caught up would make deletes
- * unsyncable across tabs/peers. The only strokes worth resurrecting here are
- * ones that are still purely local, not-yet-synced optimistic previews (an
- * ephemeral blob:/data: href image mid-upload) that a foreign broadcast could
- * never have known about in the first place.
- *
- * issue-106 deliberately does NOT carve out the stroke a local editor has open.
- * That was tried: hold back its `text` so a peer's commit could not overwrite
- * the editor. But this function's output IS the persisted store — it is
- * serialized to `*.annotations.svg` and re-broadcast on the next commit of ANY
- * stroke — so holding a field back doesn't shield a view, it silently reverts
- * the peer's write and republishes the stale text under the local user's name,
- * for as long as the editor stays open. The editor never needed it: the clobber
- * was React rewriting an UNCONTROLLED contentEditable, which `useSessionValue`
- * fixes at the DOM, and the commit reads `innerText` off the node rather than
- * off the stroke. Last-write-wins stays the model here.
- */
-export function reconcileForeignEcho(
-  prev: readonly Stroke[],
-  incoming: readonly Stroke[]
-): Stroke[] {
-  const incomingIds = new Set(incoming.map((s) => s.id));
-  const extra = prev.filter((s) => !incomingIds.has(s.id) && isEphemeralHref(s));
-  return extra.length ? [...incoming, ...extra] : (incoming as Stroke[]);
 }
 
 /**
@@ -732,6 +670,10 @@ function ensureAnnotStyles(): void {
 // Strokes store — lifted out of the layer so the contextual toolbar (Phase 5.1
 // Task 8) can mutate strokes without prop-drilling.
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Strokes store — lifted out of the layer so the contextual toolbar (Phase 5.1
+// Task 8) can mutate strokes without prop-drilling.
+
 export interface StrokesStoreValue {
   strokes: Stroke[];
   setStrokes: (next: Stroke[]) => void;
@@ -817,7 +759,6 @@ function showOnceHint(key: string, msg: string): void {
 // Annotations visibility now lives in use-annotations-visibility.tsx so the
 // ToolPalette (a sibling under CanvasRouter, not a descendant of this layer)
 // can read the same state. Re-exported here for back-compat.
-export { useAnnotationsVisibility } from './use-annotations-visibility.tsx';
 
 /**
  * Phase 2 (whiteboard-improvements) — proportional group resize. Maps one
@@ -990,7 +931,29 @@ export function AnnotationsLayer() {
     [pipeline]
   );
 
-  const [strokes, setStrokesState] = useState<Stroke[]>([]);
+  // DDR-242 AD8 (Task 26) — the board is the element store: what the project
+  // delivered plus this tab's optimistic op batches. The editing UI reads it
+  // as world-space strokes, projected per element (unchanged elements keep
+  // their identity, so only what changed re-renders).
+  const boardRef = useRef<BoardStore | null>(null);
+  if (!boardRef.current) boardRef.current = new BoardStore();
+  const board = boardRef.current;
+  const boardVersion = useSyncExternalStore(board.subscribe, board.getVersion, board.getVersion);
+  const strokeCacheRef = useRef<StrokeCache>(new WeakMap());
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-projected per board version
+  const boardStrokes = useMemo(
+    () => projectStrokes(board.scene(), strokeCacheRef.current),
+    [board, boardVersion]
+  );
+  // Images still uploading (a `blob:` href) — shown, never on the board.
+  const [uploading, setUploading] = useState<Stroke[]>([]);
+  // A gesture in flight (drag, resize): the strokes as the gesture shows them.
+  // Never stored; the gesture commits once, as one op batch.
+  const [preview, setPreview] = useState<Stroke[] | null>(null);
+  const strokes = useMemo(
+    () => preview ?? (uploading.length ? [...boardStrokes, ...uploading] : boardStrokes),
+    [preview, uploading, boardStrokes]
+  );
   const [drawing, setDrawing] = useState<Stroke | null>(null);
   // Theme-aware live default ink (items 3/5/6). Initialized from the current
   // theme; tracked-untouched until the user picks a swatch, after which it
@@ -1116,7 +1079,6 @@ export function AnnotationsLayer() {
   }, []);
 
   const fileRef = useRef<string | undefined>(undefined);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drawingRef = useRef<Stroke | null>(null);
   drawingRef.current = drawing;
   // Phase 24 — pointer-down anchor + last cursor (world coords) for the active
@@ -1131,6 +1093,8 @@ export function AnnotationsLayer() {
    */
   const strokesRef = useRef<Stroke[]>(strokes);
   strokesRef.current = strokes;
+  const uploadingRef = useRef(uploading);
+  uploadingRef.current = uploading;
   // Phase 23 batch-drop fix — see media-commit-chain.ts. Every async media
   // completion (image upload swap, video/audio upload commit) that can be
   // triggered concurrently (N Finder files dropped at once) enqueues onto
@@ -1193,12 +1157,10 @@ export function AnnotationsLayer() {
     if (!ghostCapable || !visible) setGhost(null);
   }, [ghostCapable, visible]);
 
-  // DDR-242 — the board as the project last delivered it (canonical v2
-  // elements). The UI still edits `Stroke[]` (v1 adapter, removed in Task 26);
-  // every commit is diffed against this into element ops.
-  const elementsRef = useRef<Map<string, AnnotationElement>>(new Map());
-  // Action ids this canvas authored — their replica echo is not re-applied.
-  const ownActionsRef = useRef<string[]>([]);
+  // Op batches applied here but not yet seen back from the replica, in send
+  // order. A snapshot from the replica is rebased onto them, so a
+  // collaborator's change never hides an edit of ours still in flight.
+  const pendingRef = useRef<Array<{ actionId: string; ops: readonly AnnotationOp[] }>>([]);
   const annotationsChangedRef = useRef(false);
   // Task 19 — the open text edit session (text-session.ts): its base (undo
   // target) and the text it last sent (every text op expects it). `commit…`
@@ -1220,12 +1182,7 @@ export function AnnotationsLayer() {
       .then((r) => (r.ok ? r.text() : ''))
       .then((text) => {
         if (cancelled || annotationsChangedRef.current) return;
-        const { elements } = parseBoard(text);
-        elementsRef.current = new Map(elements.map((e) => [e.id, e]));
-        const loaded = elementsToStrokes(elements);
-        if (loaded.length) {
-          setStrokesState(loaded);
-        }
+        board.setAll(parseBoard(text).elements);
       })
       .catch(() => {
         /* network blip — start with an empty annotation set */
@@ -1233,21 +1190,17 @@ export function AnnotationsLayer() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [board]);
 
   useEffect(() => {
     if (!collab) return;
     return observeReplica(collab.doc, (elements, _changed, actionId) => {
       annotationsChangedRef.current = true;
-      elementsRef.current = new Map(elements.map((e) => [e.id, e]));
-      // Our own echo is skipped only while a LATER batch of ours is still in
-      // flight (its optimistic state is ahead of this echo). The echo of our
-      // newest batch is applied: the server may have merged it (a concurrent
-      // text edit, a stale undo), and hiding that left this tab showing a
-      // board no one else has (code review M2). An unmerged echo is a no-op.
-      const own = ownActionsRef.current;
-      if (actionId && own.includes(actionId) && own[own.length - 1] !== actionId) return;
-      const isOwn = !!actionId && own.includes(actionId);
+      const pending = pendingRef.current;
+      const landed = actionId ? pending.findIndex((p) => p.actionId === actionId) : -1;
+      // Batches reach the board in send order: this one and every earlier one landed.
+      if (landed >= 0) pending.splice(0, landed + 1);
+      const isOwn = landed >= 0;
       // A collaborator changed the text under an open editor: the editor keeps
       // the user's text and shows a marker; the commit merges both (Task 19).
       const session = textSessionRef.current;
@@ -1255,15 +1208,11 @@ export function AnnotationsLayer() {
         const el = elements.find((e) => e.id === session.id);
         if (el && remotelyEdited(session, el)) setRemoteEdited(true);
       }
-      const incoming = elementsToStrokes(elements);
-      setStrokesState((prev) => {
-        const next = reconcileForeignEcho(prev, incoming);
-        // Our unmerged echo keeps the same state object: no re-render under
-        // an open text editor (caret stability).
-        return isOwn && JSON.stringify(next) === JSON.stringify(prev) ? (prev as Stroke[]) : next;
-      });
+      let state = new Map(elements.map((e) => [e.id, e]));
+      for (const p of pending) state = applyOps(state, p.ops).state;
+      board.setAll(state.values());
     });
-  }, [collab]);
+  }, [collab, board]);
 
   const undoStack = useUndoStackOptional();
   const undoSinks = useUndoSinks();
@@ -1278,28 +1227,22 @@ export function AnnotationsLayer() {
   const putChainRef = useRef<Promise<void>>(Promise.resolve());
 
   /**
-   * Apply a `Stroke[]` snapshot: update local React state AND send the
-   * element OPS that turn `before` into `next` (DDR-242 §4). Used as the
-   * `putFn` injected into the `AnnotationStrokesCommand` — both the initial
-   * push AND every undo/redo replay route through here, so the iframe's
-   * `strokes` state always tracks the server. Only what this edit changed is
-   * sent: a peer's concurrent edit to another element or another field is
-   * never overwritten, and a concurrent edit of the same text is merged.
-   */
-  /**
    * Send one element-op batch to the board (DDR-242 §4), in order after every
-   * batch before it, and apply it optimistically to `elementsRef` so the next
-   * batch diffs against the board this one produces. The replica echo of our
-   * own action id is recognised (see observeReplica above).
+   * batch before it. `local` marks a batch already applied to the store: it
+   * stays pending (re-applied over replica snapshots) until its echo arrives.
    */
-  const sendOps = useCallback((ops: readonly AnnotationOp[]): Promise<void> => {
+  const sendOps = useCallback((ops: readonly AnnotationOp[], local = false): Promise<void> => {
     const file = fileRef.current;
     if (!file || !ops.length) return putChainRef.current;
-    elementsRef.current = applyOps(elementsRef.current, ops).state;
     const actionId = crypto.randomUUID();
-    ownActionsRef.current = [...ownActionsRef.current.slice(-63), actionId];
-    const forget = () => {
-      ownActionsRef.current = ownActionsRef.current.filter((a) => a !== actionId);
+    const pending = pendingRef.current;
+    if (local) {
+      pending.push({ actionId, ops });
+      if (pending.length > 64) pending.splice(0, pending.length - 64);
+    }
+    const settle = () => {
+      const i = pending.findIndex((p) => p.actionId === actionId);
+      if (i >= 0) pending.splice(i, 1);
     };
     const dispatch = () =>
       fetch('/_api/annotations/ops', {
@@ -1314,7 +1257,7 @@ export function AnnotationsLayer() {
           // RCA). Optimistic local state is still the right UX; a persistence
           // failure being INVISIBLE is not.
           if (!r.ok) {
-            forget();
+            settle();
             console.warn(`[annotations] save refused (${r.status}) — strokes are local-only`);
             return undefined;
           }
@@ -1324,10 +1267,14 @@ export function AnnotationsLayer() {
           if (res?.rejected?.length) {
             console.warn('[annotations] some changes were not applied', res.rejected);
           }
+          // Without a replica no echo will come; with one, the echo settles
+          // it — unless the board had nothing to change (no echo either).
+          if (!collabRef.current || res?.rejected?.length) settle();
+          else setTimeout(settle, 10_000);
           return undefined;
         })
         .catch(() => {
-          forget();
+          settle();
           /* Pending persistence UX is handled by the project outbox work. */
         });
     const chained = putChainRef.current.then(dispatch, dispatch);
@@ -1335,95 +1282,87 @@ export function AnnotationsLayer() {
     return chained;
   }, []);
 
-  /**
-   * Apply a `Stroke[]` snapshot: update local React state AND send the
-   * element OPS that turn `before` into `next` (DDR-242 §4). Used as the
-   * `putFn` injected into the `AnnotationStrokesCommand` — both the initial
-   * push AND every undo/redo replay route through here, so the iframe's
-   * `strokes` state always tracks the server. Only what this edit changed is
-   * sent: a peer's concurrent edit to another element or another field is
-   * never overwritten, and a concurrent edit of the same text is merged.
-   * `aim` may re-target the batch's merge expectations (a text session's
-   * commit expects what the session last sent — text-session.ts).
-   */
-  const putStrokes = useCallback(
-    (
-      next: readonly Stroke[],
-      before: readonly Stroke[],
-      aim?: (ops: AnnotationOp[]) => AnnotationOp[]
-    ) => {
-      // See reconcileCommit — a direct setStrokesState(next) here can
-      // clobber a sibling file's concurrent optimistic insert; folding
-      // blindly against `prev` (no baseline) can just as easily revert this
-      // very mutation's own delete. `before` (this command's own baseline)
-      // disambiguates the two.
+  /** Apply a batch here (optimistic) and send it. Returns what undoes it. */
+  const applyOpsLocal = useCallback(
+    (ops: readonly AnnotationOp[]): AnnotationOp[] => {
+      if (!ops.length) return [];
       annotationsChangedRef.current = true;
-      setStrokesState((prev) => reconcileCommit(prev, before, next));
-      const persistable = next.some(isEphemeralHref)
-        ? next.filter((s) => !isEphemeralHref(s))
-        : next;
-      const persistableBefore = before.some(isEphemeralHref)
-        ? before.filter((s) => !isEphemeralHref(s))
-        : before;
-      const current = elementsRef.current;
-      const ops = diffToOps(
-        strokesToElementMap(persistableBefore, current),
-        strokesToElementMap(persistable, current)
-      );
-      return sendOps(aim ? aim(ops) : ops);
+      const r = board.apply(ops);
+      void sendOps(ops, true);
+      return r.inverse;
     },
-    [sendOps]
+    [board, sendOps]
   );
 
-  // Register the strokes put sink with the undo provider so the rebuilt
-  // AnnotationStrokesCommand (after a canvas switch + return) routes through
-  // THIS iframe's React state, not the gone iframe's stale closures.
+  // Undo / redo replay an op batch through THIS iframe's store (the stack is
+  // rebuilt from records after a canvas switch — DDR-050).
   useEffect(() => {
-    undoSinks.setSink('strokesPutFn', putStrokes);
-    return () => undoSinks.setSink('strokesPutFn', undefined);
-  }, [undoSinks, putStrokes]);
+    undoSinks.setSink('annotationOpsFn', (ops: readonly AnnotationOp[]) => {
+      setPreview(null);
+      return applyOpsLocal(ops);
+    });
+    return () => undoSinks.setSink('annotationOpsFn', undefined);
+  }, [undoSinks, applyOpsLocal]);
 
   /**
-   * Single entry point for every stroke mutation. Builds an undo record
-   * and pushes onto the stack — `push()` rebuilds the command via the
-   * registered `strokesPutFn` sink and calls `cmd.do() = putStrokes(next)`,
-   * which both updates local state and PUTs. Cancels any pending debounced
-   * save first — DDR-050 gotcha: a queued auto-save flushing AFTER our PUT
-   * would race the stack into a stale state.
+   * Single entry point for every stroke mutation: the change from `prev` to
+   * `next` becomes ONE element-op batch (only what the user changed — a
+   * peer's concurrent edit to another element or another field is never
+   * overwritten, and concurrent typing in the same text is merged), applied
+   * here, sent, and recorded as one undo step whose undo is the batch's
+   * inverse (peer-safe: it reverts only fields still holding our values).
    */
   const commitStrokes = useCallback(
     (prev: readonly Stroke[], next: readonly Stroke[], label?: string) => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = null;
+      setPreview(null);
+      // An upload still in flight is not on the board: it leaves the view
+      // when this commit removes it or when its uploaded form lands.
+      if (uploadingRef.current.length) {
+        const before = new Set(prev.map((s) => s.id));
+        const after = new Map(next.map((s) => [s.id, s]));
+        setUploading((list) =>
+          list.filter((u) => {
+            const n = after.get(u.id);
+            if (n) return isEphemeralHref(n);
+            return !before.has(u.id);
+          })
+        );
       }
+      const persist = (list: readonly Stroke[]) =>
+        list.some(isEphemeralHref) ? list.filter((s) => !isEphemeralHref(s)) : list;
+      const committed = board.committed;
+      const prevMap = strokesToElementMap(persist(prev), committed);
+      const nextMap = strokesToElementMap(persist(next), committed);
+      const ops = diffToOps(prevMap, nextMap);
       // A text edit session's commit (Task 19): the board merges against what
       // the session last SENT (its drafts), while undo goes back to the text
-      // before the edit — so the ops are sent here and the undo step is only
-      // recorded. Drafts never reach undo.
+      // before the edit. Drafts never reach undo.
       const session = commitSessionRef.current;
       if (session) {
         commitSessionRef.current = null;
         sessionCommittedRef.current = true;
-        void putStrokes(next, prev, (ops) => aimCommitOps(ops, session));
-        const undoBefore = withSlotText(prev, session);
+        applyOpsLocal(aimCommitOps(ops, session));
+        const baseMap = strokesToElementMap(persist(withSlotText(prev, session)), committed);
+        const redo = diffToOps(baseMap, nextMap);
+        if (!redo.length) return;
+        // Undo MERGES back (not a strict inverse): a collaborator's typing
+        // that landed in the same text survives the undo of ours.
         undoStackRef.current.record(
-          buildAnnotationStrokesRecord({
-            before: undoBefore,
-            after: next,
-            ...(label ? { label } : {}),
+          buildAnnotationOpsRecord({
+            ops: redo,
+            inverse: diffToOps(nextMap, baseMap),
+            label: label ?? 'edit text',
           })
         );
         return;
       }
-      const record = buildAnnotationStrokesRecord({
-        before: prev,
-        after: next,
-        ...(label ? { label } : {}),
-      });
-      void undoStackRef.current.push(record);
+      if (!ops.length) return;
+      const inverse = applyOpsLocal(ops);
+      undoStackRef.current.record(
+        buildAnnotationOpsRecord({ ops, inverse, label: label ?? 'edit annotations' })
+      );
     },
-    [putStrokes]
+    [board, applyOpsLocal]
   );
 
   const setStrokes = useCallback(
@@ -1446,7 +1385,7 @@ export function AnnotationsLayer() {
     };
     // Task 20 — an operation on a section acts on its subtree (containment.ts).
     const containmentNow = () =>
-      new Containment(strokesToElementMap(strokesRef.current, elementsRef.current).values());
+      new Containment(strokesToElementMap(strokesRef.current, board.committed).values());
     const withSubtree = (ids: readonly string[]) =>
       expandForOp(ids, (x) => expandIdsToGroups(x, strokesRef.current), containmentNow());
     const deleteStrokes = (ids: string[]): void => {
@@ -1552,7 +1491,7 @@ export function AnnotationsLayer() {
       const next = recomputeBoundArrows(
         strokesRef.current.map((s) => (s.id === id ? ({ ...s, ...patch } as Stroke) : s))
       );
-      setStrokesState(next);
+      setPreview(next);
       const moved = next.find((s) => s.id === id);
       const box = moved ? strokeBBox(moved) : null;
       if (box) publishGesture({ kind: 'resize', ids: [id], box });
@@ -1560,7 +1499,10 @@ export function AnnotationsLayer() {
     const commitGesture = (before: readonly Stroke[], label?: string): void => {
       publishGesture(null);
       const cur = strokesRef.current;
-      if (strokesShallowEqual(before, cur)) return;
+      if (strokesShallowEqual(before, cur)) {
+        setPreview(null);
+        return;
+      }
       commitStrokes(before, cur, label);
     };
     return {
@@ -1834,7 +1776,7 @@ export function AnnotationsLayer() {
         // drop fires this for every file independently, so two optimistic
         // inserts landing before a render commit must compose against each
         // other rather than each overwriting the other's array snapshot.
-        setStrokesState((prev) => [...prev, optimistic]);
+        setUploading((prev) => [...prev, optimistic]);
         void uploadAsset(file).then((res) => {
           if ('path' in res) {
             // Batch-drop fix (see media-commit-chain.ts) — N concurrent
@@ -1857,7 +1799,7 @@ export function AnnotationsLayer() {
             // never committed), so a plain functional updater (not the
             // chain) is enough: it still composes correctly against any
             // chain-driven setStrokesState queued in the same batch.
-            setStrokesState((prev) => prev.filter((s) => s.id !== id));
+            setUploading((prev) => prev.filter((s) => s.id !== id));
             deletedStrokeIdsRef.current.delete(id); // never reached the chain — nothing to consume there
             showCanvasToast(`Image upload failed — ${res.error}`, 'error');
           }
@@ -2316,7 +2258,7 @@ export function AnnotationsLayer() {
       if (committed.tool === 'section') {
         const bb = strokeBBox(committed);
         const outer = bb
-          ? new Containment(strokesToElementMap(prev, elementsRef.current).values()).containerAt(
+          ? new Containment(strokesToElementMap(prev, board.committed).values()).containerAt(
               bb.x + bb.w / 2,
               bb.y + bb.h / 2
             )
@@ -2430,10 +2372,10 @@ export function AnnotationsLayer() {
   }, [drawing, publishGesture]);
   // A newer peer's element types: v1 strokes can't hold them, the board still
   // does — they are drawn as placeholders (DDR-242: never dropped).
-  // biome-ignore lint/correctness/useExhaustiveDependencies: elementsRef moves with `strokes`
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-read per board version
   const unknownElements = useMemo(
-    () => [...elementsRef.current.values()].filter((e) => !defOf(e.type)),
-    [strokes]
+    () => [...board.elements.values()].filter((e) => !defOf(e.type)),
+    [board, boardVersion]
   );
 
   // Phase 24 — the ghost descriptor handed to the SVG layer. Suppressed while a
@@ -2661,13 +2603,13 @@ export function AnnotationsLayer() {
           const subtree = expandForOp(
             ids,
             (x) => expandIdsToGroups(x, undoBase),
-            new Containment(strokesToElementMap(undoBase, elementsRef.current).values())
+            new Containment(strokesToElementMap(undoBase, board.committed).values())
           );
           const res = duplicateStrokes(undoBase, subtree, 0, 0);
           if (res.newIds.length) {
             altDup = true;
             dragSnapshot = res.strokes;
-            setStrokesState(res.strokes);
+            setPreview(res.strokes);
             // Select the copies of what was selected; drag EVERY clone — the
             // copied contents move with the copied section by id, not by
             // geometry (the copy lies exactly on its original).
@@ -2691,7 +2633,7 @@ export function AnnotationsLayer() {
           const c = new Containment(
             strokesToElementMap(
               dragSnapshot.filter((x) => !isEphemeralHref(x)),
-              elementsRef.current
+              board.committed
             ).values()
           );
           for (const id of c.withContents([...movedSet])) movedSet.add(id);
@@ -2764,7 +2706,7 @@ export function AnnotationsLayer() {
                   st.snapshot.map((s) => (movedSet.has(s.id) ? translateOne(s, dx, dy) : s))
                 );
           // Local React state only. No commitStrokes — no PUT, no undo push.
-          setStrokesState(next);
+          setPreview(next);
           publishGesture({ kind: 'move', ids: [...movedSet].slice(0, 256), dx, dy });
         };
         const onUp = (up: PointerEvent) => {
@@ -2777,11 +2719,9 @@ export function AnnotationsLayer() {
           // (click without drag past threshold or drag back to origin).
           const final = strokesRef.current;
           if (strokesShallowEqual(st.snapshot, final)) {
-            if (st.altDup) {
-              // Alt+click without a drag — revert the eager clones.
-              setStrokesState(st.undoBase);
-              annotSel.replace(preAltIds);
-            }
+            // Nothing moved (an Alt+click also drops its eager clones).
+            setPreview(null);
+            if (st.altDup) annotSel.replace(preAltIds);
             return;
           }
           commitStrokes(
@@ -2956,7 +2896,7 @@ export function AnnotationsLayer() {
           return patch ? ({ ...s, ...patch } as Stroke) : s;
         })
       );
-      setStrokesState(next);
+      setPreview(next);
       publishGesture({ kind: 'resize', ids: d.ids.slice(0, 256), box: groupB1 });
     };
     const onUp = (e: PointerEvent) => {
@@ -2967,7 +2907,10 @@ export function AnnotationsLayer() {
       const final = strokesRef.current;
       // No-op drag (grabbed a handle, released without moving past the
       // resize's own resolution) skips the undo record.
-      if (strokesShallowEqual(d.undoBase, final)) return;
+      if (strokesShallowEqual(d.undoBase, final)) {
+        setPreview(null);
+        return;
+      }
       commitStrokes(d.undoBase, final, `resize ${d.ids.length} strokes`);
     };
     return pipeline.add({ priority: 3, name: 'group-resize', down: onDown });
@@ -3189,14 +3132,14 @@ export function AnnotationsLayer() {
       sessionElRef.current = null;
       return;
     }
-    const el = elementsRef.current.get(editingId);
+    const el = board.committed.get(editingId);
     if (el) {
       textSessionRef.current = openSession(el);
       sessionElRef.current = el;
     }
   }, [editingId]);
   if (editingId) {
-    const el = elementsRef.current.get(editingId);
+    const el = board.committed.get(editingId);
     if (el) sessionElRef.current = el;
   }
 
@@ -3204,7 +3147,7 @@ export function AnnotationsLayer() {
   const sessionFor = useCallback((id: string): TextSession | null => {
     const cur = textSessionRef.current;
     if (cur && cur.id === id) return cur;
-    const el = elementsRef.current.get(id);
+    const el = board.committed.get(id);
     const next = el ? openSession(el) : null;
     textSessionRef.current = next;
     return next;
@@ -3217,7 +3160,7 @@ export function AnnotationsLayer() {
       if (!id) return;
       const session = sessionFor(id);
       if (!session) return;
-      const op = draftOp(session, elementsRef.current.get(id), text);
+      const op = draftOp(session, board.committed.get(id), text);
       if (!op) return;
       void sendOps([op]);
       textSessionRef.current = markSent(session, text);
@@ -3244,9 +3187,9 @@ export function AnnotationsLayer() {
       if (!strokesRef.current.some((s) => s.id === id)) {
         const lastKnown = sessionElRef.current;
         if (!session || !lastKnown || !stored.trim()) return;
-        const parentExists = !!lastKnown.parent && elementsRef.current.has(lastKnown.parent);
+        const parentExists = !!lastKnown.parent && board.committed.has(lastKnown.parent);
         const bb = strokeBBox(editTargetStroke(target));
-        void sendOps([
+        applyOpsLocal([
           restoreOp(
             session,
             lastKnown,
@@ -3274,12 +3217,20 @@ export function AnnotationsLayer() {
       // No change to commit — but drafts may have moved the board: bring it
       // back to the text the element keeps (no undo step: nothing changed).
       if (session && !sessionCommittedRef.current) {
-        const op = draftOp(session, elementsRef.current.get(id), stored);
-        if (op) void sendOps([op]);
+        const op = draftOp(session, board.committed.get(id), stored);
+        if (op) applyOpsLocal([op]);
       }
       textSessionRef.current = null;
     },
-    [commitText, commitStickyText, commitStandaloneText, createStandaloneText, sessionFor, sendOps]
+    [
+      commitText,
+      commitStickyText,
+      commitStandaloneText,
+      createStandaloneText,
+      sessionFor,
+      applyOpsLocal,
+      board,
+    ]
   );
 
   const cancelEditing = useCallback(() => {
@@ -3290,7 +3241,7 @@ export function AnnotationsLayer() {
 
   /**
    * FigJam v3 — copy/cut the (expanded) selection to the OS clipboard as a
-   * `{"maudeStrokes":1}` JSON text payload. Shared by ⌘C/⌘X and the
+   * `{"maudeElements":2}` JSON text payload (v2 elements, world coordinates). Shared by ⌘C/⌘X and the
    * right-click menu. Returns true when something was copied.
    */
   const copySelection = useCallback(
@@ -3303,7 +3254,7 @@ export function AnnotationsLayer() {
         expandForOp(
           sel,
           (x) => expandIdsToGroups(x, store.strokes),
-          new Containment(strokesToElementMap(store.strokes, elementsRef.current).values())
+          new Containment(strokesToElementMap(store.strokes, board.committed).values())
         )
       );
       const payload = store.strokes.filter(
@@ -3314,7 +3265,12 @@ export function AnnotationsLayer() {
       if (payload.length === 0) return false;
       try {
         void navigator.clipboard
-          ?.writeText(JSON.stringify({ maudeStrokes: 1, strokes: payload }))
+          ?.writeText(
+            JSON.stringify({
+              maudeElements: 2,
+              elements: v1ToV2(payload, { flat: true }).elements,
+            })
+          )
           .catch(() => {
             /* clipboard permission denied — copy is best-effort */
           });
@@ -3331,24 +3287,30 @@ export function AnnotationsLayer() {
   );
 
   /**
-   * FigJam v3 — paste a strokes JSON payload (⌘V or the right-click menu).
-   * Round-trips through the serializer + parser so a malformed foreign payload
-   * coerces to valid strokes or drops; clones get fresh ids + a +16/+16 offset.
+   * FigJam v3 — paste a board clipboard payload (⌘V or the right-click menu).
+   * Every element is validated like a peer's (DDR-242 — foreign JSON is
+   * untrusted); a malformed one is dropped. Clones get fresh ids and a
+   * +16/+16 offset. A pre-v2 `{"maudeStrokes":1}` payload is upconverted.
    */
   const pasteStrokesText = useCallback(
     (txt: string): boolean => {
-      if (!annotSel) return false;
-      if (!txt.startsWith('{"maudeStrokes"')) return false;
-      let parsed: { maudeStrokes?: number; strokes?: unknown } | null = null;
-      try {
-        parsed = JSON.parse(txt) as { maudeStrokes?: number; strokes?: unknown };
-      } catch {
-        return false;
-      }
-      if (parsed?.maudeStrokes !== 1 || !Array.isArray(parsed.strokes)) return false;
+      if (!annotSel || !isBoardClipboard(txt)) return false;
       let safe: Stroke[] = [];
       try {
-        safe = svgToStrokes(strokesToSvg(parsed.strokes as Stroke[]));
+        const parsed = JSON.parse(txt) as {
+          maudeElements?: number;
+          elements?: unknown;
+          maudeStrokes?: number;
+          strokes?: unknown;
+        };
+        const raw =
+          parsed.maudeElements === 2 && Array.isArray(parsed.elements)
+            ? parsed.elements
+            : parsed.maudeStrokes === 1 && Array.isArray(parsed.strokes)
+              ? v1ToV2(parsed.strokes as Stroke[], { flat: true }).elements
+              : null;
+        if (!raw) return false;
+        safe = elementsToStrokes(validateElements(raw).elements);
       } catch {
         return false;
       }
@@ -3544,7 +3506,7 @@ export function AnnotationsLayer() {
     const onPaste = (e: ClipboardEvent) => {
       if (isEditable(e.target)) return;
       const txt = e.clipboardData?.getData('text/plain') ?? '';
-      if (!txt.startsWith('{"maudeStrokes"')) return;
+      if (!isBoardClipboard(txt)) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       pasteStrokesText(txt);

@@ -168,14 +168,12 @@ export async function openCanvas(server) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   // A returning user: the first-run tour would sit over the canvas.
-  // E2E_ENGINE=v2 — the element-native annotation layer (Task 26), per frame.
-  await page.addInitScript((engine) => {
+  await page.addInitScript(() => {
     try {
       localStorage.setItem('mdcc-usage-tour-seen', '1');
       localStorage.setItem('mdcc-collab-tour-seen', '1');
-      if (engine) localStorage.setItem('maude-annot-engine', engine);
     } catch {}
-  }, process.env.E2E_ENGINE ?? '');
+  });
   dbg('goto');
   await page.goto(`http://localhost:${server.port}/?open=ui/Board.tsx`, {
     waitUntil: 'domcontentloaded',
@@ -219,10 +217,6 @@ export async function openCanvas(server) {
     throw new Error(
       `annotation layer never mounted (${frame.url()})\nframe text: ${body}\nerrors: ${errors.join('\n')}\nshot: ${shot}\nserver: ${server.log().slice(-1500)}`
     );
-  }
-  if (process.env.E2E_ENGINE === 'v2') {
-    const v2 = await frame.evaluate(() => !!document.querySelector('[data-annot-engine="v2"]'));
-    if (!v2) throw new Error('E2E_ENGINE=v2 but the v1 annotation layer mounted');
   }
   await page.waitForTimeout(500);
   const frameBox = await page.locator('[data-testid="canvas-frame"]').boundingBox();
