@@ -1,11 +1,20 @@
-import { applyOps, diffToOps } from './annotations/ops.ts';
+import { type Op as AnnotationOp, applyOps, diffToOps } from './annotations/ops.ts';
 import { defOf } from './annotations/registry.ts';
 import { observeReplica } from './annotations/replica.ts';
 import { parseBoard } from './annotations/schema.ts';
 import type { AnnotationElement } from './annotations/types.ts';
 import type { EditRequest } from './annotations/ui/element-node.tsx';
-import { renderItemsFromStrokes } from './annotations/ui/render-model.ts';
+import { type RenderItem, renderItemsFromStrokes } from './annotations/ui/render-model.ts';
 import { AnnotationScene } from './annotations/ui/scene.tsx';
+import {
+  aimCommitOps,
+  draftOp,
+  markSent,
+  openSession,
+  remotelyEdited,
+  restoreOp,
+  type TextSession,
+} from './annotations/ui/text-session.ts';
 import { TEXT_LAYER_CSS } from './annotations/ui/text-style.ts';
 import { elementsToStrokes, strokesToElementMap } from './annotations/v1-adapter.ts';
 /**
@@ -870,6 +879,47 @@ function scaleStrokeInGroup(
   return null;
 }
 
+/** The element an editing target edits (a shape label edits on the shape). */
+function editTargetId(t: EditingTarget): string | null {
+  if (!t) return null;
+  if (t.kind === 'anchored') return t.anchorId;
+  if (t.kind === 'sticky') return t.sticky.id;
+  if (t.kind === 'standalone') return t.text.id;
+  if (t.kind === 'section') return t.section.id;
+  return null;
+}
+
+function editTargetStroke(t: Exclude<EditingTarget, null | { kind: 'pending' }>): Stroke {
+  if (t.kind === 'anchored') return t.host;
+  if (t.kind === 'sticky') return t.sticky;
+  if (t.kind === 'standalone') return t.text;
+  return t.section;
+}
+
+/** The text a slot keeps for what was typed (the commit writers' own rules). */
+function storedSlotText(kind: string, text: string): string {
+  if (kind === 'sticky') return text;
+  if (kind === 'section') return text.trim().replace(/\s*\n+\s*/g, ' ') || 'Section';
+  return text.trim();
+}
+
+/** `strokes` with the session's slot back at its base text — the undo target of a text commit. */
+function withSlotText(strokes: readonly Stroke[], s: TextSession): Stroke[] {
+  if (s.kind === 'label-record') {
+    const label = strokes.find((x) => x.tool === 'text' && x.anchorId === s.id);
+    if (!s.base) return strokes.filter((x) => x !== label);
+    return label
+      ? strokes.map((x) => (x === label ? { ...label, text: s.base } : x))
+      : [...strokes];
+  }
+  return strokes.map((x) => {
+    if (x.id !== s.id) return x;
+    if (x.tool === 'section') return { ...x, label: s.base };
+    if (x.tool === 'sticky' || x.tool === 'text') return { ...x, text: s.base };
+    return x;
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Component
 
@@ -1090,6 +1140,15 @@ export function AnnotationsLayer() {
   // Action ids this canvas authored — their replica echo is not re-applied.
   const ownActionsRef = useRef<string[]>([]);
   const annotationsChangedRef = useRef(false);
+  // Task 19 — the open text edit session (text-session.ts): its base (undo
+  // target) and the text it last sent (every text op expects it). `commit…`
+  // hands the session to commitStrokes for exactly one commit.
+  const textSessionRef = useRef<TextSession | null>(null);
+  const commitSessionRef = useRef<TextSession | null>(null);
+  const sessionCommittedRef = useRef(false);
+  // The edited element as the board last had it — what "keep my text" restores.
+  const sessionElRef = useRef<AnnotationElement | null>(null);
+  const [remoteEdited, setRemoteEdited] = useState(false);
   useEffect(() => {
     const file = deriveFile();
     fileRef.current = file;
@@ -1130,6 +1189,13 @@ export function AnnotationsLayer() {
       const own = ownActionsRef.current;
       if (actionId && own.includes(actionId) && own[own.length - 1] !== actionId) return;
       const isOwn = !!actionId && own.includes(actionId);
+      // A collaborator changed the text under an open editor: the editor keeps
+      // the user's text and shows a marker; the commit merges both (Task 19).
+      const session = textSessionRef.current;
+      if (session && !isOwn) {
+        const el = elements.find((e) => e.id === session.id);
+        if (el && remotelyEdited(session, el)) setRemoteEdited(true);
+      }
       const incoming = elementsToStrokes(elements);
       setStrokesState((prev) => {
         const next = reconcileForeignEcho(prev, incoming);
@@ -1161,28 +1227,16 @@ export function AnnotationsLayer() {
    * sent: a peer's concurrent edit to another element or another field is
    * never overwritten, and a concurrent edit of the same text is merged.
    */
-  const putStrokes = useCallback((next: readonly Stroke[], before: readonly Stroke[]) => {
-    // See reconcileCommit — a direct setStrokesState(next) here can
-    // clobber a sibling file's concurrent optimistic insert; folding
-    // blindly against `prev` (no baseline) can just as easily revert this
-    // very mutation's own delete. `before` (this command's own baseline)
-    // disambiguates the two.
-    annotationsChangedRef.current = true;
-    setStrokesState((prev) => reconcileCommit(prev, before, next));
+  /**
+   * Send one element-op batch to the board (DDR-242 §4), in order after every
+   * batch before it, and apply it optimistically to `elementsRef` so the next
+   * batch diffs against the board this one produces. The replica echo of our
+   * own action id is recognised (see observeReplica above).
+   */
+  const sendOps = useCallback((ops: readonly AnnotationOp[]): Promise<void> => {
     const file = fileRef.current;
-    if (!file) return Promise.resolve();
-    const persistable = next.some(isEphemeralHref) ? next.filter((s) => !isEphemeralHref(s)) : next;
-    const persistableBefore = before.some(isEphemeralHref)
-      ? before.filter((s) => !isEphemeralHref(s))
-      : before;
-    const current = elementsRef.current;
-    const ops = diffToOps(
-      strokesToElementMap(persistableBefore, current),
-      strokesToElementMap(persistable, current)
-    );
-    if (!ops.length) return putChainRef.current;
-    // Optimistic: the next commit diffs against the board this one produces.
-    elementsRef.current = applyOps(current, ops).state;
+    if (!file || !ops.length) return putChainRef.current;
+    elementsRef.current = applyOps(elementsRef.current, ops).state;
     const actionId = crypto.randomUUID();
     ownActionsRef.current = [...ownActionsRef.current.slice(-63), actionId];
     const forget = () => {
@@ -1222,6 +1276,46 @@ export function AnnotationsLayer() {
     return chained;
   }, []);
 
+  /**
+   * Apply a `Stroke[]` snapshot: update local React state AND send the
+   * element OPS that turn `before` into `next` (DDR-242 §4). Used as the
+   * `putFn` injected into the `AnnotationStrokesCommand` — both the initial
+   * push AND every undo/redo replay route through here, so the iframe's
+   * `strokes` state always tracks the server. Only what this edit changed is
+   * sent: a peer's concurrent edit to another element or another field is
+   * never overwritten, and a concurrent edit of the same text is merged.
+   * `aim` may re-target the batch's merge expectations (a text session's
+   * commit expects what the session last sent — text-session.ts).
+   */
+  const putStrokes = useCallback(
+    (
+      next: readonly Stroke[],
+      before: readonly Stroke[],
+      aim?: (ops: AnnotationOp[]) => AnnotationOp[]
+    ) => {
+      // See reconcileCommit — a direct setStrokesState(next) here can
+      // clobber a sibling file's concurrent optimistic insert; folding
+      // blindly against `prev` (no baseline) can just as easily revert this
+      // very mutation's own delete. `before` (this command's own baseline)
+      // disambiguates the two.
+      annotationsChangedRef.current = true;
+      setStrokesState((prev) => reconcileCommit(prev, before, next));
+      const persistable = next.some(isEphemeralHref)
+        ? next.filter((s) => !isEphemeralHref(s))
+        : next;
+      const persistableBefore = before.some(isEphemeralHref)
+        ? before.filter((s) => !isEphemeralHref(s))
+        : before;
+      const current = elementsRef.current;
+      const ops = diffToOps(
+        strokesToElementMap(persistableBefore, current),
+        strokesToElementMap(persistable, current)
+      );
+      return sendOps(aim ? aim(ops) : ops);
+    },
+    [sendOps]
+  );
+
   // Register the strokes put sink with the undo provider so the rebuilt
   // AnnotationStrokesCommand (after a canvas switch + return) routes through
   // THIS iframe's React state, not the gone iframe's stale closures.
@@ -1244,6 +1338,25 @@ export function AnnotationsLayer() {
         clearTimeout(saveTimerRef.current);
         saveTimerRef.current = null;
       }
+      // A text edit session's commit (Task 19): the board merges against what
+      // the session last SENT (its drafts), while undo goes back to the text
+      // before the edit — so the ops are sent here and the undo step is only
+      // recorded. Drafts never reach undo.
+      const session = commitSessionRef.current;
+      if (session) {
+        commitSessionRef.current = null;
+        sessionCommittedRef.current = true;
+        void putStrokes(next, prev, (ops) => aimCommitOps(ops, session));
+        const undoBefore = withSlotText(prev, session);
+        undoStackRef.current.record(
+          buildAnnotationStrokesRecord({
+            before: undoBefore,
+            after: next,
+            ...(label ? { label } : {}),
+          })
+        );
+        return;
+      }
       const record = buildAnnotationStrokesRecord({
         before: prev,
         after: next,
@@ -1251,7 +1364,7 @@ export function AnnotationsLayer() {
       });
       void undoStackRef.current.push(record);
     },
-    []
+    [putStrokes]
   );
 
   const setStrokes = useCallback(
@@ -2234,6 +2347,22 @@ export function AnnotationsLayer() {
     return map;
   }, [strokes]);
 
+  // Task 19 — an element that vanished (a collaborator deleted it, an undo
+  // removed it) leaves the selection, unless its editor is still open. Only
+  // ids that WERE on the board go: a just-created element selected before its
+  // stroke lands must stay selected.
+  const prevStrokeIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const now = new Set(strokes.map((s) => s.id));
+    const before = prevStrokeIdsRef.current;
+    prevStrokeIdsRef.current = now;
+    if (!annotSel || annotSel.selectedIds.length === 0) return;
+    const gone = annotSel.selectedIds.filter(
+      (id) => before.has(id) && !now.has(id) && id !== editingIdRef.current
+    );
+    if (gone.length) annotSel.remove(gone);
+  }, [strokes, annotSel]);
+
   const strokesById = useMemo(() => {
     const map = new Map<string, Stroke>();
     for (const s of strokes) map.set(s.id, s);
@@ -2925,21 +3054,78 @@ export function AnnotationsLayer() {
   // commit call to the right writer. `editingId` doubles as the host id
   // (anchored) OR the sticky/standalone stroke id; `pendingText` is the
   // not-yet-born text caret.
+  // The last resolved target: when a collaborator deletes the element being
+  // edited, the editor stays open on it (Task 19 — never drop typed text).
+  const lastTargetRef = useRef<EditingTarget>(null);
   const editingTarget = useMemo<EditingTarget>(() => {
     if (pendingText) return { kind: 'pending', x: pendingText.x, y: pendingText.y };
     if (!editingId) return null;
+    let t: EditingTarget = null;
     const host = anchorsById.get(editingId);
-    if (host) return { kind: 'anchored', anchorId: editingId, host };
     const s = strokesById.get(editingId);
-    if (s?.tool === 'sticky') return { kind: 'sticky', sticky: s };
-    if (s?.tool === 'section') return { kind: 'section', section: s };
-    if (s?.tool === 'text' && (s.anchorId == null || s.anchorId === ''))
-      return { kind: 'standalone', text: s };
-    return null;
+    if (host) t = { kind: 'anchored', anchorId: editingId, host };
+    else if (s?.tool === 'sticky') t = { kind: 'sticky', sticky: s };
+    else if (s?.tool === 'section') t = { kind: 'section', section: s };
+    else if (s?.tool === 'text' && (s.anchorId == null || s.anchorId === ''))
+      t = { kind: 'standalone', text: s };
+    if (t) {
+      lastTargetRef.current = t;
+      return t;
+    }
+    const last = lastTargetRef.current;
+    return last && editTargetId(last) === editingId ? last : null;
   }, [pendingText, editingId, anchorsById, strokesById]);
+  const editGone = !!editingId && !strokesById.has(editingId);
 
   const editingTargetRef = useRef(editingTarget);
   editingTargetRef.current = editingTarget;
+  const editingIdRef = useRef(editingId);
+  editingIdRef.current = editingId;
+
+  // One edit session per opened element (Task 19). Opened from the board as
+  // last delivered, so its base is what everyone agreed on at that moment.
+  useEffect(() => {
+    textSessionRef.current = null;
+    setRemoteEdited(false);
+    if (!editingId) {
+      sessionElRef.current = null;
+      return;
+    }
+    const el = elementsRef.current.get(editingId);
+    if (el) {
+      textSessionRef.current = openSession(el);
+      sessionElRef.current = el;
+    }
+  }, [editingId]);
+  if (editingId) {
+    const el = elementsRef.current.get(editingId);
+    if (el) sessionElRef.current = el;
+  }
+
+  /** The session for `id`, opened lazily (an element born a moment ago). */
+  const sessionFor = useCallback((id: string): TextSession | null => {
+    const cur = textSessionRef.current;
+    if (cur && cur.id === id) return cur;
+    const el = elementsRef.current.get(id);
+    const next = el ? openSession(el) : null;
+    textSessionRef.current = next;
+    return next;
+  }, []);
+
+  /** Idle-typing draft: the board (and every peer) sees the text so far. Never undo. */
+  const draftEditing = useCallback(
+    (text: string) => {
+      const id = editingIdRef.current;
+      if (!id) return;
+      const session = sessionFor(id);
+      if (!session) return;
+      const op = draftOp(session, elementsRef.current.get(id), text);
+      if (!op) return;
+      void sendOps([op]);
+      textSessionRef.current = markSent(session, text);
+    },
+    [sessionFor, sendOps]
+  );
 
   const commitEditing = useCallback(
     (text: string, fmt?: EditorFmt, measuredH?: number) => {
@@ -2948,19 +3134,54 @@ export function AnnotationsLayer() {
       setPendingText(null);
       setEditCaretPoint(null);
       if (!target) return;
-      if (target.kind === 'anchored') commitText(target.anchorId, text, fmt);
-      else if (target.kind === 'sticky') commitStickyText(target.sticky.id, text, fmt, measuredH);
-      else if (target.kind === 'standalone') commitStandaloneText(target.text.id, text, fmt);
-      else if (target.kind === 'section') {
-        const label = text.trim().replace(/\s*\n+\s*/g, ' ') || 'Section';
-        if (label !== target.section.label) {
+      if (target.kind === 'pending') {
+        createStandaloneText(target.x, target.y, text, fmt);
+        return;
+      }
+      const id = editTargetId(target) as string;
+      const session = sessionFor(id);
+      const stored = storedSlotText(target.kind, text);
+      // A collaborator deleted it while we typed: keep the text by putting the
+      // element back (same id) — unless the text is empty anyway.
+      if (!strokesRef.current.some((s) => s.id === id)) {
+        const lastKnown = sessionElRef.current;
+        if (!session || !lastKnown || !stored.trim()) return;
+        const parentExists = !!lastKnown.parent && elementsRef.current.has(lastKnown.parent);
+        const bb = strokeBBox(editTargetStroke(target));
+        void sendOps([
+          restoreOp(
+            session,
+            lastKnown,
+            stored,
+            parentExists,
+            bb ? { x: bb.x, y: bb.y } : undefined
+          ),
+        ]);
+        return;
+      }
+      commitSessionRef.current = session;
+      sessionCommittedRef.current = false;
+      try {
+        if (target.kind === 'anchored') commitText(target.anchorId, text, fmt);
+        else if (target.kind === 'sticky') commitStickyText(target.sticky.id, text, fmt, measuredH);
+        else if (target.kind === 'standalone') commitStandaloneText(target.text.id, text, fmt);
+        else if (target.kind === 'section' && stored !== target.section.label) {
           strokesStoreRef.current.updateStroke(target.section.id, {
-            label,
+            label: stored,
           } as Partial<Stroke>);
         }
-      } else if (target.kind === 'pending') createStandaloneText(target.x, target.y, text, fmt);
+      } finally {
+        commitSessionRef.current = null;
+      }
+      // No change to commit — but drafts may have moved the board: bring it
+      // back to the text the element keeps (no undo step: nothing changed).
+      if (session && !sessionCommittedRef.current) {
+        const op = draftOp(session, elementsRef.current.get(id), stored);
+        if (op) void sendOps([op]);
+      }
+      textSessionRef.current = null;
     },
-    [commitText, commitStickyText, commitStandaloneText, createStandaloneText]
+    [commitText, commitStickyText, commitStandaloneText, createStandaloneText, sessionFor, sendOps]
   );
 
   const cancelEditing = useCallback(() => {
@@ -3679,6 +3900,8 @@ export function AnnotationsLayer() {
           inkColor={color}
           onCommitEdit={commitEditing}
           onCancelEdit={cancelEditing}
+          onDraftEdit={draftEditing}
+          editNotice={editGone ? 'deleted' : remoteEdited ? 'edited' : null}
           unknownElements={unknownElements}
         />
       ) : null}
@@ -3842,12 +4065,18 @@ function AnnotationsSvg({
   inkColor,
   onCommitEdit,
   onCancelEdit,
+  onDraftEdit,
+  editNotice,
   unknownElements,
 }: {
   worldRef: ReturnType<typeof useWorldRefContext>;
   strokes: readonly Stroke[];
   /** Elements of a type this build does not know — drawn as placeholders, never dropped. */
   unknownElements: readonly AnnotationElement[];
+  /** Idle-typing draft of the open editor (Task 19). */
+  onDraftEdit: (text: string) => void;
+  /** A collaborator edited or deleted the element under the open editor. */
+  editNotice: 'edited' | 'deleted' | null;
   anchorsById: Map<string, AnchorHost>;
   selectMode: boolean;
   selectedStrokes: readonly Stroke[];
@@ -3889,7 +4118,7 @@ function AnnotationsSvg({
     return () => clearTimeout(id);
   }, [worldRef]);
   // DDR-242 AD7/AD8 — one node per element, text as HTML (annotations/ui/).
-  const items = useMemo(
+  const baseItems = useMemo(
     () => renderItemsFromStrokes(strokes, unknownElements),
     [strokes, unknownElements]
   );
@@ -3912,6 +4141,19 @@ function AnnotationsSvg({
   const sessionKey = editingTarget
     ? `${editingTarget.kind}:${editingId ?? `${pending?.x},${pending?.y}`}`
     : null;
+  // An element deleted by a collaborator mid-edit keeps drawing (its last
+  // known form) while its editor is open, so the typed text is never lost.
+  const lastEditItemRef = useRef<RenderItem | null>(null);
+  let items = baseItems;
+  if (editingId) {
+    const live = baseItems.find((it) => it.el.id === editingId);
+    if (live) lastEditItemRef.current = live;
+    else if (lastEditItemRef.current?.el.id === editingId) {
+      items = [...baseItems, lastEditItemRef.current];
+    }
+  }
+  const draftRef = useRef(onDraftEdit);
+  draftRef.current = onDraftEdit;
   const commitRef = useRef(onCommitEdit);
   commitRef.current = onCommitEdit;
   const cancelRef = useRef(onCancelEdit);
@@ -3925,6 +4167,8 @@ function AnnotationsSvg({
     const id = editingId;
     return {
       caretPoint: editCaretPoint,
+      notice: editNotice,
+      onDraft: pending ? undefined : (text: string) => draftRef.current(text),
       onCommit: (info) => {
         commitRef.current(info.text, info.fmt, info.measured.h);
         // ⌘Enter in a sticky or a shape label also spawns the next sibling.
@@ -3935,7 +4179,7 @@ function AnnotationsSvg({
       },
       onCancel: () => cancelRef.current(),
     };
-  }, [sessionKey]);
+  }, [sessionKey, editNotice]);
   const target = worldRef?.current ?? null;
   if (!target) return null;
   return (

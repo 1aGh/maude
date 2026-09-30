@@ -64,6 +64,8 @@ import {
 /** An open edit session on this element's text slot (only the edited node gets one). */
 export interface EditRequest {
   caretPoint: { x: number; y: number } | null;
+  /** A collaborator changed (merged on commit) or deleted (commit restores) the element. */
+  notice?: 'edited' | 'deleted' | null;
   onCommit: (info: CommitInfo) => void;
   onCancel: () => void;
   onDraft?: (text: string) => void;
@@ -197,6 +199,38 @@ function hit(interactive: boolean, mode: 'visiblePainted' | 'stroke' = 'visibleP
   return interactive ? mode : ('none' as const);
 }
 
+/** Marker above an open editor when a collaborator changed the element under it. */
+function EditNotice({ notice }: { notice: EditRequest['notice'] }) {
+  if (!notice) return null;
+  const text =
+    notice === 'deleted'
+      ? 'Deleted by a collaborator — Enter keeps your text, Esc discards it'
+      : 'Edited by a collaborator — both changes are kept';
+  return (
+    <div
+      className="dc-annot-edit-notice"
+      data-edit-notice={notice}
+      role="status"
+      style={{
+        position: 'absolute',
+        left: 0,
+        bottom: '100%',
+        marginBottom: 6,
+        whiteSpace: 'nowrap',
+        font: `11px ${TEXT_FONT}`,
+        color: '#1f1f1f',
+        background: notice === 'deleted' ? '#fde2e1' : '#fff3c4',
+        border: '1px solid rgba(0,0,0,0.12)',
+        borderRadius: 6,
+        padding: '2px 8px',
+        zIndex: 4,
+      }}
+    >
+      {text}
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Per-type views
 
@@ -268,6 +302,7 @@ function StickyView({ el, interactive, edit }: ElementNodeProps) {
           {withListMarkers(text, lst)}
         </div>
       )}
+      {edit ? <EditNotice notice={edit.notice} /> : null}
       {authorName ? (
         <span
           title={authorName}
@@ -339,6 +374,7 @@ function TextView({ el, interactive, edit }: ElementNodeProps) {
           {withListMarkers(text, lst)}
         </div>
       )}
+      {edit ? <EditNotice notice={edit.notice} /> : null}
     </Node>
   );
 }
@@ -407,6 +443,7 @@ function ShapeView({ el, interactive, edit }: ElementNodeProps) {
           </div>
         </div>
       ) : null}
+      {edit ? <EditNotice notice={edit.notice} /> : null}
     </Node>
   );
 }
@@ -758,6 +795,7 @@ function SectionChip({
           ariaLabel="Rename section"
           onCommit={edit.onCommit}
           onCancel={edit.onCancel}
+          onDraft={edit.onDraft}
         />
       </div>
     );
@@ -814,6 +852,7 @@ function SectionView({ el, interactive, edit }: ElementNodeProps) {
         ) : null}
       </Geo>
       <SectionChip el={el} interactive={interactive} edit={edit} />
+      {edit ? <EditNotice notice={edit.notice} /> : null}
     </Node>
   );
 }

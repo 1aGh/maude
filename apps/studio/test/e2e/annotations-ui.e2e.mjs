@@ -16,6 +16,7 @@ import { REPORT_BOARD } from './fixtures.mjs';
 import {
   makeProjectFor,
   openCanvas,
+  peerOps,
   readBoard,
   sleep,
   startServer,
@@ -432,6 +433,67 @@ describe('R6 — Milestone C: one text system (HTML text, textarea editor)', () 
     assert.ok((await zoomOf()) > z0, `zoomed in to edit (was ${z0})`);
     assert.ok(await c.editorState(), 'editor open');
     await c.page.keyboard.press('Escape');
+  });
+});
+
+describe('R7 — Task 19: drafts and a collaborator while editing', () => {
+  test('a pause while typing lands a draft on the board, with the editor still open', async () => {
+    await reset();
+    const [x, y] = await c.center('duo');
+    await c.page.mouse.dblclick(x, y);
+    await sleep(300);
+    await c.page.keyboard.press('End');
+    await c.page.keyboard.type(' A');
+    const board = await waitForBoard(server.root, (b) => b.get('duo')?.text === 'shared A');
+    assert.equal(board.get('duo').text, 'shared A');
+    assert.ok(await c.editorState(), 'still editing');
+  });
+
+  test('a collaborator’s edit shows a marker; the commit keeps both texts; undo removes only mine', async () => {
+    const cur = (await waitForBoard(server.root, () => true)).get('duo').text;
+    await peerOps(server, [
+      { op: 'patch', id: 'duo', set: { text: `Peer: ${cur}` }, expect: { text: cur } },
+    ]);
+    const marker = await c.frame
+      .locator('[data-edit-notice="edited"]')
+      .first()
+      .waitFor({ timeout: 3000 })
+      .then(() => true)
+      .catch(() => false);
+    assert.ok(marker, '"edited by a collaborator" marker is shown');
+    const state = await c.editorState();
+    assert.equal(state.text, 'shared A', 'the editor keeps what the user typed');
+    await c.page.keyboard.type(' B');
+    await c.page.keyboard.press('Enter');
+    let board = await waitForBoard(server.root, (b) => b.get('duo')?.text === 'Peer: shared A B');
+    assert.equal(board.get('duo').text, 'Peer: shared A B');
+    // Undo reverts this edit only — the collaborator's prefix stays.
+    await sleep(300);
+    await c.page.keyboard.press('Meta+z');
+    board = await waitForBoard(server.root, (b) => b.get('duo')?.text === 'Peer: shared');
+    assert.equal(board.get('duo').text, 'Peer: shared');
+  });
+
+  test('a collaborator deletes the sticky mid-edit — the editor stays, Enter restores it with the text', async () => {
+    await reset();
+    const [x, y] = await c.center('gone');
+    await c.page.mouse.dblclick(x, y);
+    await sleep(300);
+    await c.page.keyboard.press('End');
+    await c.page.keyboard.type(' kept');
+    await peerOps(server, [{ op: 'delete', id: 'gone' }]);
+    await waitForBoard(server.root, (b) => !b.has('gone'));
+    const marker = await c.frame
+      .locator('[data-edit-notice="deleted"]')
+      .first()
+      .waitFor({ timeout: 3000 })
+      .then(() => true)
+      .catch(() => false);
+    assert.ok(marker, '"deleted by a collaborator" marker is shown');
+    assert.equal((await c.editorState())?.text, 'fragile kept', 'the typed text is still there');
+    await c.page.keyboard.press('Enter');
+    const board = await waitForBoard(server.root, (b) => b.get('gone')?.text === 'fragile kept');
+    assert.equal(board.get('gone').type, 'sticky');
   });
 });
 

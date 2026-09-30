@@ -78,6 +78,9 @@ export const REPORT_BOARD = [
     h: 100,
     fill: '#dfe7f7',
   },
+  // Edited concurrently by "a collaborator" (Task 19 scenarios).
+  { id: 'duo', type: 'sticky', index: 'a7', x: 1700, y: 100, w: 220, h: 220, text: 'shared' },
+  { id: 'gone', type: 'sticky', index: 'a8', x: 1700, y: 400, w: 220, h: 220, text: 'fragile' },
   // Ink painted OVER the sticky: it must stay above the sticky's text (z-order).
   {
     id: 'ink',

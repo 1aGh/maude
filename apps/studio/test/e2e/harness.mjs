@@ -118,6 +118,20 @@ export async function startServer(root) {
   return { port, root, log: () => log, stop: () => proc.kill('SIGTERM') };
 }
 
+/**
+ * A collaborator's write: an op batch through the same endpoint a second
+ * browser uses. Reaches the open canvas over the collab room.
+ */
+export async function peerOps(server, ops) {
+  const r = await fetch(`http://localhost:${server.port}/_api/annotations/ops`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ file: '.design/ui/Board.tsx', actionId: `peer-${Date.now()}`, ops }),
+  });
+  if (!r.ok) throw new Error(`peer ops refused: ${r.status}`);
+  return r.json();
+}
+
 /** The board on disk (v2 JSON), keyed by id; null when absent. */
 export function readBoard(root) {
   try {
