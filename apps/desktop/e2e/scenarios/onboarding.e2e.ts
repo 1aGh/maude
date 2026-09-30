@@ -4,6 +4,7 @@ import { enterCanvasFrame, exitToTop } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
+import { canvasRow } from '../helpers/tree';
 
 /**
  * Phase 29 / E4 — the native COLD-START onboarding, driven through the real wizard DOM.
@@ -92,7 +93,7 @@ describe('native-onboarding (native-desktop)', () => {
 
     // The wizard is gone (app_is_first_run is now false) and the studio shows the SEEDED
     // canvas — proof the empty-studio gap is closed.
-    const welcomeRow = await $(tid('canvas-row-ui-welcome'));
+    const welcomeRow = await canvasRow('canvas-row-ui-welcome');
     await welcomeRow.waitForDisplayed({ timeout: 120_000 });
     await capture('05-studio-with-seeded-welcome-canvas');
 

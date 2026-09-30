@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
 import { waitForSidecar } from '../helpers/sidecar';
+import { canvasRow } from '../helpers/tree';
 
 /**
  * feature-file-tree-drag-drop-folders — the WKWebView verification gate for
@@ -56,7 +57,7 @@ describe('file-tree-move (native-desktop / WKWebView)', () => {
 
     const list = await $('[data-testid="canvas-list"]');
     await list.waitForDisplayed({ timeout: 120_000 });
-    const smokeRow = await $('[data-testid="canvas-row-ui-smoke"]');
+    const smokeRow = await canvasRow('canvas-row-ui-smoke');
     await smokeRow.waitForDisplayed({ timeout: 30_000 });
     await capture('booted-with-smoke-canvas');
 
@@ -95,7 +96,7 @@ describe('file-tree-move (native-desktop / WKWebView)', () => {
     expect(dragResult.ok).toBe(true);
 
     // 4 — the row reparents to the new slug; the old testid is gone.
-    const movedRow = await $('[data-testid="canvas-row-ui-archive-smoke"]');
+    const movedRow = await canvasRow('canvas-row-ui-archive-smoke');
     await movedRow.waitForDisplayed({ timeout: 15_000 });
     expect(await $('[data-testid="canvas-row-ui-smoke"]').isExisting()).toBe(false);
     await capture('row-reparented-under-archive');
