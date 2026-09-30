@@ -39,29 +39,8 @@ async function reset() {
   await sleep(250);
 }
 
-/** Where a caret is painted: our blinking caret, or the engine's (caret-color not transparent). */
-async function caretState() {
-  return c.frame.evaluate(() => {
-    const ed = document.querySelector('.dc-annot-editor');
-    if (!ed) return null;
-    const fake = document.querySelector('[data-maude-caret]');
-    const fakeShown = fake && getComputedStyle(fake).display !== 'none';
-    const lineTop = (() => {
-      const r = document.createRange();
-      r.selectNodeContents(ed);
-      return r.getClientRects()[0]?.top ?? ed.getBoundingClientRect().top;
-    })();
-    return {
-      text: ed.innerText,
-      fakeShown: !!fakeShown,
-      fakeTop: fakeShown ? fake.getBoundingClientRect().top : null,
-      nativeCaret:
-        getComputedStyle(ed).caretColor !== 'rgba(0, 0, 0, 0)' &&
-        ed.style.caretColor !== 'transparent',
-      firstLineTop: lineTop,
-    };
-  });
-}
+/** The open editor (v2 textarea or v1 contentEditable), or null. */
+const caretState = () => c.editorState();
 
 describe('R1 — Shift+Enter moves the caret to the new line', () => {
   for (const id of ['note', 'box', 'label']) {
@@ -76,14 +55,7 @@ describe('R1 — Shift+Enter moves the caret to the new line', () => {
       await sleep(200);
       const s = await caretState();
       assert.ok(s, 'editor still open after Shift+Enter');
-      if (s.fakeShown) {
-        assert.ok(
-          s.fakeTop > s.firstLineTop + 4,
-          `painted caret is on a later line (top ${s.fakeTop} vs first line ${s.firstLineTop})`
-        );
-      } else {
-        assert.ok(s.nativeCaret, 'with no painted caret, the native caret must be visible');
-      }
+      assert.ok(s.caretLine >= 1, `the caret moved off line one (line ${s.caretLine})`);
       // The keystroke lands on the new line, and the edit persists with the newline.
       await c.page.keyboard.type('Z');
       await sleep(100);
@@ -146,24 +118,11 @@ describe('R2b — double-click INSIDE an open editor selects a word; the view ne
       await c.page.mouse.move(x, y + 400);
       await c.page.mouse.wheel(40, -80);
       await sleep(300);
-      assert.ok(
-        await c.frame.evaluate(() => !!document.querySelector('.dc-annot-editor')),
-        'panning with the wheel keeps the editor open'
-      );
+      assert.ok(!!(await caretState()), 'panning with the wheel keeps the editor open');
       const ref = await c.pageBox('lone');
       // Double-click the middle word, inside the editor.
-      const word = await c.frame.evaluate(() => {
-        const ed = document.querySelector('.dc-annot-editor');
-        const node = [...ed.childNodes].find(
-          (n) => n.nodeType === 3 && n.textContent.includes('bravo')
-        );
-        const r = document.createRange();
-        const i = node.textContent.indexOf('bravo');
-        r.setStart(node, i + 1);
-        r.setEnd(node, i + 3);
-        const b = r.getBoundingClientRect();
-        return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
-      });
+      const word = await c.wordPoint('bravo');
+      assert.ok(word, 'the word is laid out in the editor');
       const frameBox = await c.page.locator('[data-testid="canvas-frame"]').boundingBox();
       await c.page.mouse.dblclick(word.x + frameBox.x, word.y + frameBox.y);
       await sleep(400);
@@ -173,11 +132,8 @@ describe('R2b — double-click INSIDE an open editor selects a word; the view ne
         [Math.round(ref.x), Math.round(ref.y)],
         'the camera did not move'
       );
-      const state = await c.frame.evaluate(() => ({
-        open: !!document.querySelector('.dc-annot-editor'),
-        selected: window.getSelection()?.toString() ?? '',
-      }));
-      assert.equal(state.open, true, 'still editing');
+      const state = await caretState();
+      assert.ok(state, 'still editing');
       assert.equal(state.selected.trim(), 'bravo', 'the word is selected');
     });
   }
@@ -295,7 +251,16 @@ describe('R5 — what reaches the board on disk (v2)', {
     // …and moving the section now carries it (one write: the section).
     const secBefore = board.get('sec');
     const loneBefore = board.get('lone');
-    const chip = [sec.x + 20, sec.y + 8];
+    // Grab the section by its title chip (v2: its own node above the section's
+    // box; v1: the top of the section's SVG group, which included the chip).
+    const chipBox = await c.frame
+      .locator('[data-id="sec"] [data-section-chip]')
+      .first()
+      .boundingBox({ timeout: 500 })
+      .catch(() => null);
+    const chip = chipBox
+      ? [chipBox.x + 20, chipBox.y + chipBox.height / 2]
+      : [sec.x + 20, sec.y + 8];
     await c.drag(chip, [chip[0] + 60, chip[1] + 40]);
     const moved = await waitForBoard(server.root, (b) => b.get('sec')?.x !== secBefore.x);
     assert.deepEqual(
@@ -331,6 +296,142 @@ describe('R5 — what reaches the board on disk (v2)', {
     board = await waitForBoard(server.root, (b) => b.has('circle'));
     assert.equal(board.has('circle'), true);
     assert.deepEqual(board.get('link').start, { el: 'circle' }, 'undo re-binds the arrow');
+  });
+});
+
+describe('R6 — Milestone C: one text system (HTML text, textarea editor)', () => {
+  test('text is HTML in the element’s own node, and ink painted above a sticky covers its text', async () => {
+    await reset();
+    const order = await c.frame.evaluate(() =>
+      [...document.querySelectorAll('.dc-annot-scene > [data-id]')].map((n) =>
+        n.getAttribute('data-id')
+      )
+    );
+    if (!order.length) return; // E2E_LEGACY: v1 has no scene
+    assert.ok(order.indexOf('ink') > order.indexOf('note'), 'the pen paints after the sticky');
+    const noteText = await c.frame.evaluate(
+      () => document.querySelector('[data-id="note"] .dc-annot-text')?.textContent ?? null
+    );
+    const onDisk = (await waitForBoard(server.root, () => true)).get('note').text;
+    assert.equal(noteText, onDisk, 'the sticky body is an HTML text block');
+    assert.equal(
+      await c.frame.evaluate(
+        () => document.querySelectorAll('.dc-annot-scene text[data-tool]').length
+      ),
+      0,
+      'no SVG <text> for object text'
+    );
+  });
+
+  test('typing into a shape without a label creates the label', async () => {
+    await reset();
+    const [x, y] = await c.center('plain');
+    await c.page.mouse.dblclick(x, y);
+    await sleep(300);
+    assert.ok(await c.editorState(), 'label editor open on an unlabelled shape');
+    await c.page.keyboard.type('New label');
+    await c.page.keyboard.press('Enter');
+    const board = await waitForBoard(
+      server.root,
+      (b) => b.get('plain')?.label?.text === 'New label'
+    );
+    assert.equal(board.get('plain').label.text, 'New label');
+    assert.equal(await c.editorState(), null, 'Enter closed the editor');
+  });
+
+  test('the Text tool drops a new text; Enter commits it to the board', async () => {
+    await reset();
+    const b = await c.pageBox('lone');
+    await c.page.keyboard.press('t');
+    await sleep(100);
+    await c.page.mouse.click(b.x + b.width + 120, b.y + b.height + 160);
+    await sleep(300);
+    assert.ok(await c.editorState(), 'a caret opened for the new text');
+    await c.page.keyboard.type('fresh words');
+    await c.page.keyboard.press('Enter');
+    const board = await waitForBoard(server.root, (bd) =>
+      [...bd.values()].some((e) => e.type === 'text' && e.text === 'fresh words')
+    );
+    assert.ok([...board.values()].some((e) => e.type === 'text' && e.text === 'fresh words'));
+  });
+
+  test('renaming a section from its title chip', async () => {
+    await reset();
+    const chip = await c.frame
+      .locator('[data-id="sec"] [data-section-chip]')
+      .first()
+      .boundingBox({ timeout: 500 })
+      .catch(() => null);
+    const sec = await c.pageBox('sec');
+    const pt = chip ? [chip.x + 12, chip.y + chip.height / 2] : [sec.x + 12, sec.y + 8];
+    await c.page.mouse.dblclick(pt[0], pt[1]);
+    await sleep(300);
+    assert.ok(await c.editorState(), 'rename field open');
+    await c.page.keyboard.press('Meta+a');
+    await c.page.keyboard.type('Plan');
+    await c.page.keyboard.press('Enter');
+    const board = await waitForBoard(server.root, (bd) => bd.get('sec')?.label === 'Plan');
+    assert.equal(board.get('sec').label, 'Plan');
+  });
+
+  test('⌘B while editing a sticky makes it bold; Esc on the next session saves nothing', async () => {
+    await reset();
+    const [x, y] = await c.center('note');
+    await c.page.mouse.dblclick(x, y);
+    await sleep(300);
+    await c.page.keyboard.press('Meta+b');
+    await c.page.keyboard.press('Enter');
+    let board = await waitForBoard(server.root, (bd) => bd.get('note')?.bold === true);
+    assert.equal(board.get('note').bold, true);
+    await c.page.mouse.dblclick(x, y);
+    await sleep(300);
+    await c.page.keyboard.press('Meta+a');
+    await c.page.keyboard.type('discard me');
+    await c.page.keyboard.press('Escape');
+    await sleep(600);
+    board = await waitForBoard(server.root, () => true);
+    assert.notEqual(board.get('note').text, 'discard me');
+  });
+
+  test('⌘Enter in a sticky commits and chains a new sticky with its editor open', async () => {
+    await reset();
+    const before = await waitForBoard(server.root, () => true);
+    const stickies = [...before.values()].filter((e) => e.type === 'sticky').length;
+    const [x, y] = await c.center('note');
+    await c.page.mouse.dblclick(x, y);
+    await sleep(300);
+    await c.page.keyboard.press('Meta+Enter');
+    await sleep(300);
+    assert.ok(await c.editorState(), 'the new sticky opened for typing');
+    await c.page.keyboard.type('next');
+    await c.page.keyboard.press('Enter');
+    const board = await waitForBoard(
+      server.root,
+      (bd) => [...bd.values()].filter((e) => e.type === 'sticky').length > stickies
+    );
+    assert.ok([...board.values()].some((e) => e.type === 'sticky' && e.text === 'next'));
+  });
+
+  test('below the editing zoom floor a double-click first zooms to the element', async () => {
+    await reset();
+    // Pinch-zoom out over empty canvas (ctrl+wheel is the trackpad pinch).
+    const lb = await c.pageBox('lone');
+    await c.page.mouse.move(lb.x + lb.width + 200, lb.y + 300);
+    await c.page.keyboard.down('Control');
+    for (let i = 0; i < 6; i++) await c.page.mouse.wheel(0, 240);
+    await c.page.keyboard.up('Control');
+    await sleep(600);
+    // The world scales by CSS zoom (Blink) or a transform (WebKit): measure
+    // the zoom from an element of known world width instead (lone: 160).
+    const zoomOf = async () => (await c.pageBox('lone')).width / 160;
+    const z0 = await zoomOf();
+    assert.ok(z0 < 0.5, `precondition: zoomed out below the floor (zoom ${z0})`);
+    const [x, y] = await c.center('lone');
+    await c.page.mouse.dblclick(x, y);
+    await sleep(900);
+    assert.ok((await zoomOf()) > z0, `zoomed in to edit (was ${z0})`);
+    assert.ok(await c.editorState(), 'editor open');
+    await c.page.keyboard.press('Escape');
   });
 });
 

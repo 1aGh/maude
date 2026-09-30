@@ -1,7 +1,12 @@
 import { applyOps, diffToOps } from './annotations/ops.ts';
+import { defOf } from './annotations/registry.ts';
 import { observeReplica } from './annotations/replica.ts';
 import { parseBoard } from './annotations/schema.ts';
 import type { AnnotationElement } from './annotations/types.ts';
+import type { EditRequest } from './annotations/ui/element-node.tsx';
+import { renderItemsFromStrokes } from './annotations/ui/render-model.ts';
+import { AnnotationScene } from './annotations/ui/scene.tsx';
+import { TEXT_LAYER_CSS } from './annotations/ui/text-style.ts';
 import { elementsToStrokes, strokesToElementMap } from './annotations/v1-adapter.ts';
 /**
  * @file       annotations-layer.tsx — FigJam-style annotation overlay
@@ -175,7 +180,6 @@ import { buildAnnotationStrokesRecord } from './commands/annotation-strokes-comm
 import { ensureMenuStyles as ensureCtxMenuStyles } from './context-menu.tsx';
 import { crossedDragThreshold, type Tool } from './input-router.tsx';
 import { createMediaCommitChain, type MediaCommitResult } from './media-commit-chain.ts';
-import { collapseEntrySelectAll, mountCaret, placeCaretAt } from './text-caret.ts';
 import {
   AnnotationResizeOverlay,
   bboxResize,
@@ -263,93 +267,6 @@ function useCanvasChromeTheme(): 'light' | 'dark' {
     return () => obs.disconnect();
   }, []);
   return theme;
-}
-
-/**
- * Shared inline-formatting state for the three text editors (sticky / anchored /
- * standalone) — the unification surface (item 4d). Cmd/Ctrl + B / I / U toggle
- * bold / italic / underline WHILE editing (preventing the browser's native
- * execCommand, which would inject markup the model can't read), preview live via
- * `style`, and commit on the stroke via `fmtRef`. `strike` rides along unchanged
- * (toolbar-only — no universal shortcut). One hook = identical behaviour across
- * all three editors.
- */
-function useEditorFormat(initial: EditorFmt): {
-  fmtRef: { current: EditorFmt };
-  style: CSSProperties;
-  onFormatKey: (e: ReactKeyboardEvent) => boolean;
-} {
-  const [bold, setBold] = useState(!!initial.bold);
-  const [italic, setItalic] = useState(!!initial.italic);
-  const [underline, setUnderline] = useState(!!initial.underline);
-  const [strike, setStrike] = useState(!!initial.strike);
-  // FigJam v3 — edit-mode toolbar extensions: size + alignment preview live in
-  // the editor and commit with the text (normFmt carries them through).
-  const [fontSize, setFontSize] = useState<number | undefined>(initial.fontSize);
-  const [align, setAlign] = useState<TextAlign | undefined>(initial.align);
-  const fmtRef = useRef<EditorFmt>({ bold, italic, underline, strike, fontSize, align });
-  fmtRef.current = { bold, italic, underline, strike, fontSize, align };
-  const style: CSSProperties = {
-    fontWeight: bold ? 700 : undefined,
-    fontStyle: italic ? 'italic' : undefined,
-    textDecoration: textDecoCss(strike, underline),
-    ...(fontSize != null && fontSize !== initial.fontSize ? { fontSize: `${fontSize}px` } : {}),
-    ...(align && align !== initial.align ? { textAlign: align } : {}),
-  };
-  // FigJam v3 — the edit-mode context toolbar drives the editor through this
-  // event (mutating the STROKE mid-edit would re-render the contentEditable
-  // and clobber typed text). The editor echoes its state back so the toolbar's
-  // pressed-states track live.
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const onFmt = (e: Event) => {
-      const d = (e as CustomEvent<{ key?: string; value?: unknown }>).detail;
-      if (!d?.key) return;
-      if (d.key === 'bold') setBold((v) => !v);
-      else if (d.key === 'italic') setItalic((v) => !v);
-      else if (d.key === 'underline') setUnderline((v) => !v);
-      else if (d.key === 'strike') setStrike((v) => !v);
-      else if (d.key === 'fontSize' && typeof d.value === 'number') setFontSize(d.value);
-      else if (d.key === 'align' && typeof d.value === 'string') setAlign(d.value as TextAlign);
-    };
-    document.addEventListener('maude:editor-format', onFmt);
-    return () => document.removeEventListener('maude:editor-format', onFmt);
-  }, []);
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const broadcast = () => {
-      document.dispatchEvent(
-        new CustomEvent('maude:editor-format-state', {
-          detail: { bold, italic, underline, strike, fontSize, align },
-        })
-      );
-    };
-    broadcast();
-    // The toolbar may mount AFTER the editor's first broadcast — it asks.
-    document.addEventListener('maude:editor-format-request', broadcast);
-    return () => document.removeEventListener('maude:editor-format-request', broadcast);
-  }, [bold, italic, underline, strike, fontSize, align]);
-  const onFormatKey = useCallback((e: ReactKeyboardEvent): boolean => {
-    if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return false;
-    const k = e.key.toLowerCase();
-    if (k === 'b') {
-      e.preventDefault();
-      setBold((v) => !v);
-      return true;
-    }
-    if (k === 'i') {
-      e.preventDefault();
-      setItalic((v) => !v);
-      return true;
-    }
-    if (k === 'u') {
-      e.preventDefault();
-      setUnderline((v) => !v);
-      return true;
-    }
-    return false;
-  }, []);
-  return { fmtRef, style, onFormatKey };
 }
 
 // Phase 24 — moved to canvas-arrowheads.ts (single source for shaft + heads).
@@ -763,26 +680,6 @@ const ANNOT_CSS = `
   stroke-width: 1;
   stroke-dasharray: 4 3;
 }
-/* Phase 24 — sticky-note body. Word-wrapped multi-line text inside the card's
-   foreignObject. Text sits TOP-LEFT (FigJam parity); the editor contentEditable
-   mirrors the same box metrics so the read-edit swap doesn't shift the text.
-   text-align is overridden inline per-sticky when align is not left. */
-.dc-sticky-body {
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-  padding: 14px 16px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  text-align: left;
-  color: #2a2a28;
-  font-family: var(--u-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  line-height: 1.35;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  overflow: hidden;
-}
 /* Phase 24 — while editing an annotation's text (a text label OR a sticky body,
    both carry the dc-annot-editor class), force the I-beam. The important flag
    plus the class selector beat use-tool-mode's blanket star-cursor rule (you
@@ -791,13 +688,13 @@ const ANNOT_CSS = `
    that fight on its own — a non-important inline style loses to !important.
    See DDR-067. (No backticks in this comment: the whole block is a JS template
    literal, so a backtick here would terminate the string.) */
-.dc-annot-editor, .dc-annot-editor * { cursor: text !important; }
+.dc-annot-editor, .dc-annot-editor *, textarea.dc-annot-text { cursor: text !important; }
 /* Phase 7 (unified-text-editing) — hover affordance parity with artboard leaf
    text: a standalone text stroke invites editing with the I-beam in Move mode
    (double-click / Text-tool click enters its editor in place). Shapes and
    stickies keep the selection arrow — their whole body is a move/select
    target first. */
-.dc-annot-svg text[data-tool="text"] { cursor: text; }
+.dc-annot-el[data-tool="text"] .dc-annot-text { cursor: text; }
 /* FigJam v3 — connection dots on a selected bindable shape. The important flag
    beats use-tool-mode's blanket star-cursor rule (same fight as the editor +
    resize handles — DDR-067). */
@@ -809,7 +706,7 @@ function ensureAnnotStyles(): void {
   if (document.getElementById('dc-annot-css')) return;
   const s = document.createElement('style');
   s.id = 'dc-annot-css';
-  s.textContent = ANNOT_CSS;
+  s.textContent = `${ANNOT_CSS}\n${TEXT_LAYER_CSS}`;
   document.head.appendChild(s);
 }
 
@@ -873,6 +770,9 @@ const CHROME_SELECTOR =
   '.dc-annot-conn-dot, .dc-annot-ctx, .dc-tool-palette, .dc-annot-chrome, .dc-mm, .dc-context-menu, .dc-tp-popover, .dc-multi-artboard-tb, .dc-elem-ctx-tb, .dc-cv-eq-spacing-layer, .cm-composer, .cm-thread, .cm-mention-popup, .cm-pin, .dc-annot-resize-handle, .dc-annot-rotate-zone, .dc-annot-editor, [data-group-resize-corner]';
 
 const HINTS_KEY = 'maude-annot-hints-v1';
+
+/** Below this zoom a pointer entry into text editing first zooms to the element (AD7). */
+const EDIT_ZOOM_FLOOR = 0.5;
 
 function showOnceHint(key: string, msg: string): void {
   if (typeof window === 'undefined') return;
@@ -980,6 +880,8 @@ export function AnnotationsLayer() {
   const theme = useCanvasChromeTheme();
   const controller = useViewportControllerContext();
   const vp = controller?.viewport ?? null;
+  const controllerRef = useRef(controller);
+  controllerRef.current = controller;
   const worldRef = useWorldRefContext();
   const annotSel = useAnnotationSelectionOptional();
   const elementSel = useSelectionSetOptional();
@@ -1078,6 +980,30 @@ export function AnnotationsLayer() {
   // text-tool click-through); keyboard entries (Enter, fresh-create,
   // ⌘Enter chain) leave it null → select-all, the rename convention.
   const [editCaretPoint, setEditCaretPoint] = useState<{ x: number; y: number } | null>(null);
+  /**
+   * Open an element's text editor from a pointer (double-click, Text-tool
+   * click). Below the editing zoom floor the view first zooms to the element
+   * (AD7), so the caret and the text are readable; the entry click then no
+   * longer points at the text, so the editor opens with the text selected.
+   */
+  const openEditorAt = useCallback((id: string, clientX: number, clientY: number) => {
+    const zoom = getLiveViewport()?.zoom ?? 1;
+    const s = strokesRef.current.find((x) => x.id === id);
+    const bb = s ? strokeBBox(s) : null;
+    if (zoom < EDIT_ZOOM_FLOOR && bb && controllerRef.current) {
+      const pad = 48;
+      controllerRef.current.jumpTo({
+        x: bb.x - pad,
+        y: bb.y - pad,
+        w: bb.w + pad * 2,
+        h: bb.h + pad * 2,
+      } as Parameters<NonNullable<typeof controller>['jumpTo']>[0]);
+      setEditCaretPoint(null);
+    } else {
+      setEditCaretPoint({ x: clientX, y: clientY });
+    }
+    setEditingId(id);
+  }, []);
 
   const fileRef = useRef<string | undefined>(undefined);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2007,8 +1933,7 @@ export function AnnotationsLayer() {
         // which owns the DOM/contentEditable side, via maude:enter-text-edit).
         const strokeId = findTextStrokeAt(wx, wy, strokesRef.current, vpRef.current?.zoom || 1);
         if (strokeId) {
-          setEditCaretPoint({ x: e.clientX, y: e.clientY });
-          setEditingId(strokeId);
+          openEditorAt(strokeId, e.clientX, e.clientY);
           if (annotSel) annotSel.replace(strokeId);
           // DDR-223 — back to the MODE's resting tool (move in edit, browse in
           // preview): editing a text annotation shouldn't exit preview.
@@ -2283,6 +2208,13 @@ export function AnnotationsLayer() {
   const renderStrokes = useMemo(
     () => (drawing ? [...strokes, drawing] : strokes),
     [strokes, drawing]
+  );
+  // A newer peer's element types: v1 strokes can't hold them, the board still
+  // does — they are drawn as placeholders (DDR-242: never dropped).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: elementsRef moves with `strokes`
+  const unknownElements = useMemo(
+    () => [...elementsRef.current.values()].filter((e) => !defOf(e.type)),
+    [strokes]
   );
 
   // Phase 24 — the ghost descriptor handed to the SVG layer. Suppressed while a
@@ -2823,6 +2755,8 @@ export function AnnotationsLayer() {
     const onDbl = (e: MouseEvent) => {
       if (isMediaPlayerTarget(e)) return; // mediaref inline player owns this event
       const target = e.target as Element | null;
+      // Inside an open editor a double-click selects a word (native).
+      if (target?.closest?.('[data-annot-editor]')) return;
       let node = target?.closest?.('[data-id][data-tool]');
       if (!node) return;
       // A shape's label is its own <text data-anchor-id=host>: a double-click
@@ -2857,15 +2791,13 @@ export function AnnotationsLayer() {
         // a shape's text jumped the viewport to fit().
         e.preventDefault();
         e.stopPropagation();
-        setEditCaretPoint({ x: e.clientX, y: e.clientY });
-        setEditingId(id);
+        openEditorAt(id, e.clientX, e.clientY);
         return;
       }
       if (t === 'text' && !node.getAttribute('data-anchor-id')) {
         e.preventDefault();
         e.stopPropagation();
-        setEditCaretPoint({ x: e.clientX, y: e.clientY });
-        setEditingId(id);
+        openEditorAt(id, e.clientX, e.clientY);
       }
     };
     document.addEventListener('dblclick', onDbl, true);
@@ -3747,6 +3679,7 @@ export function AnnotationsLayer() {
           inkColor={color}
           onCommitEdit={commitEditing}
           onCancelEdit={cancelEditing}
+          unknownElements={unknownElements}
         />
       ) : null}
       {/* DDR-150 dogfood #8 — inline players for media-reference chips (HTML
@@ -3909,9 +3842,12 @@ function AnnotationsSvg({
   inkColor,
   onCommitEdit,
   onCancelEdit,
+  unknownElements,
 }: {
   worldRef: ReturnType<typeof useWorldRefContext>;
   strokes: readonly Stroke[];
+  /** Elements of a type this build does not know — drawn as placeholders, never dropped. */
+  unknownElements: readonly AnnotationElement[];
   anchorsById: Map<string, AnchorHost>;
   selectMode: boolean;
   selectedStrokes: readonly Stroke[];
@@ -3952,33 +3888,69 @@ function AnnotationsSvg({
     const id = setTimeout(() => force({}), 0);
     return () => clearTimeout(id);
   }, [worldRef]);
+  // DDR-242 AD7/AD8 — one node per element, text as HTML (annotations/ui/).
+  const items = useMemo(
+    () => renderItemsFromStrokes(strokes, unknownElements),
+    [strokes, unknownElements]
+  );
+  // The element whose text slot is open: a shape's label edits on the shape,
+  // everything else on itself; `pending` is a caret not yet backed by an element.
+  const editingId =
+    editingTarget?.kind === 'anchored'
+      ? editingTarget.anchorId
+      : editingTarget?.kind === 'sticky'
+        ? editingTarget.sticky.id
+        : editingTarget?.kind === 'standalone'
+          ? editingTarget.text.id
+          : editingTarget?.kind === 'section'
+            ? editingTarget.section.id
+            : null;
+  const pending =
+    editingTarget?.kind === 'pending'
+      ? { x: editingTarget.x, y: editingTarget.y, color: inkColor, fontSize: DEFAULT_FONT_SIZE }
+      : null;
+  const sessionKey = editingTarget
+    ? `${editingTarget.kind}:${editingId ?? `${pending?.x},${pending?.y}`}`
+    : null;
+  const commitRef = useRef(onCommitEdit);
+  commitRef.current = onCommitEdit;
+  const cancelRef = useRef(onCancelEdit);
+  cancelRef.current = onCancelEdit;
+  const chainKindRef = useRef<string | null>(null);
+  chainKindRef.current = editingTarget?.kind ?? null;
+  // One request object per edit session, so only the edited node re-renders.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the session, callbacks via refs
+  const edit = useMemo<EditRequest | null>(() => {
+    if (!sessionKey) return null;
+    const id = editingId;
+    return {
+      caretPoint: editCaretPoint,
+      onCommit: (info) => {
+        commitRef.current(info.text, info.fmt, info.measured.h);
+        // ⌘Enter in a sticky or a shape label also spawns the next sibling.
+        const kind = chainKindRef.current;
+        if (info.chain && id && (kind === 'sticky' || kind === 'anchored')) {
+          document.dispatchEvent(new CustomEvent('maude:chain-create', { detail: { id } }));
+        }
+      },
+      onCancel: () => cancelRef.current(),
+    };
+  }, [sessionKey]);
   const target = worldRef?.current ?? null;
   if (!target) return null;
-  // A sticky whose body is being edited hides its read-only text so the
-  // editor textarea (rendered below at the same bbox) isn't double-painted.
-  const editingStickyId = editingTarget?.kind === 'sticky' ? editingTarget.sticky.id : null;
-  // Same double-paint issue for a section being renamed — its label chip must
-  // hide while the StandaloneTextEditor sits at the same spot, else the old
-  // label reads through behind the new text.
-  const editingSectionId = editingTarget?.kind === 'section' ? editingTarget.section.id : null;
-  const anchoredExisting =
-    editingTarget?.kind === 'anchored'
-      ? (strokes.find((s) => s.tool === 'text' && s.anchorId === editingTarget.anchorId) as
-          | TextStroke
-          | undefined)
-      : undefined;
-  // Same double-paint issue for a shape's anchored text — hide the read-only
-  // <text> stroke while TextEditor sits at the same bbox (Phase 1 jump-fix
-  // companion). Only applies once the TextStroke exists; a not-yet-created
-  // one has nothing to hide.
-  const editingAnchoredTextId = anchoredExisting?.id ?? null;
-  // A standalone text being re-edited hides its read-only <text> too — the
-  // editor paints at the same x/y, so leaving it visible double-paints (the
-  // pre-Phase-2 "ghost" under the editor).
-  const editingStandaloneTextId =
-    editingTarget?.kind === 'standalone' ? editingTarget.text.id : null;
   return (
     <>
+      {createPortal(
+        <AnnotationScene
+          items={items}
+          interactive={selectMode}
+          editingId={editingId}
+          edit={edit}
+          pending={pending}
+          resolveAsset={resolveAssetHref}
+        />,
+        target
+      )}
       {createPortal(
         <svg
           className="dc-annot-svg"
@@ -3999,20 +3971,6 @@ function AnnotationsSvg({
               />
             </filter>
           </defs>
-          {strokes.map((s) => (
-            <StrokeNode
-              key={s.id}
-              stroke={s}
-              anchorsById={anchorsById}
-              interactive={selectMode}
-              editing={
-                s.id === editingStickyId ||
-                s.id === editingSectionId ||
-                s.id === editingAnchoredTextId ||
-                s.id === editingStandaloneTextId
-              }
-            />
-          ))}
           {selectedStrokes.map((s) => (
             <SelectionHalo
               key={`halo-${s.id}`}
@@ -4124,111 +4082,7 @@ function AnnotationsSvg({
         </svg>,
         target
       )}
-      <AnnotEditors
-        worldRef={worldRef}
-        editingTarget={editingTarget}
-        anchoredExisting={anchoredExisting}
-        caretPoint={editCaretPoint}
-        inkColor={inkColor}
-        onCommitEdit={onCommitEdit}
-        onCancelEdit={onCancelEdit}
-      />
     </>
-  );
-}
-
-/**
- * The active annotation text editor, rendered as PLAIN HTML absolutely
- * positioned in the world div — NOT as SVG foreignObject. Same architectural
- * move as MediaRefPlayers below (read its docblock): foreignObject content
- * under the transformed `.dc-world` mis-hit-tests clicks at most zoom levels
- * (WebKit + Chromium), and the `.dc-annot-svg` root's pointer-events:none
- * additionally swallowed in-editor clicks — so caret-at-click could never
- * work. HTML children of the transformed div hit-test correctly by
- * construction. World coords map 1:1 (the div carries the pan/zoom
- * transform), so each editor's old foreignObject x/y/w/h becomes left/top/
- * width/height verbatim. The [data-annot-editor] attr keeps document-capture
- * annotation handlers out (isAnnotEditorTarget guard, mirroring
- * [data-mediaref-player]).
- */
-function AnnotEditors({
-  worldRef,
-  editingTarget,
-  anchoredExisting,
-  caretPoint,
-  inkColor,
-  onCommitEdit,
-  onCancelEdit,
-}: {
-  worldRef: ReturnType<typeof useWorldRefContext>;
-  editingTarget: EditingTarget;
-  anchoredExisting: TextStroke | undefined;
-  caretPoint: { x: number; y: number } | null;
-  inkColor: string;
-  onCommitEdit: (text: string, fmt?: EditorFmt, measuredH?: number) => void;
-  onCancelEdit: () => void;
-}) {
-  const target = worldRef?.current ?? null;
-  if (!target || !editingTarget) return null;
-  return createPortal(
-    <>
-      {editingTarget.kind === 'anchored' ? (
-        <TextEditor
-          anchorId={editingTarget.anchorId}
-          host={editingTarget.host}
-          existing={anchoredExisting}
-          caretPoint={caretPoint}
-          onCommit={(_anchorId, text, fmt) => onCommitEdit(text, fmt)}
-          onCancel={onCancelEdit}
-        />
-      ) : null}
-      {editingTarget.kind === 'sticky' ? (
-        <StickyEditor
-          sticky={editingTarget.sticky}
-          caretPoint={caretPoint}
-          onCommit={onCommitEdit}
-          onCancel={onCancelEdit}
-        />
-      ) : null}
-      {editingTarget.kind === 'standalone' ? (
-        <StandaloneTextEditor
-          x={editingTarget.text.x ?? 0}
-          y={editingTarget.text.y ?? 0}
-          fontSize={editingTarget.text.fontSize}
-          color={editingTarget.text.color}
-          initialText={editingTarget.text.text}
-          bold={editingTarget.text.bold}
-          italic={editingTarget.text.italic}
-          strike={editingTarget.text.strike}
-          underline={editingTarget.text.underline}
-          align={editingTarget.text.align ?? 'left'}
-          listType={editingTarget.text.listType}
-          caretPoint={caretPoint}
-          onCommit={onCommitEdit}
-          onCancel={onCancelEdit}
-        />
-      ) : null}
-      {editingTarget.kind === 'pending' ? (
-        <StandaloneTextEditor
-          x={editingTarget.x}
-          y={editingTarget.y}
-          fontSize={DEFAULT_FONT_SIZE}
-          color={inkColor}
-          initialText=""
-          onCommit={onCommitEdit}
-          onCancel={onCancelEdit}
-        />
-      ) : null}
-      {editingTarget.kind === 'section' ? (
-        <SectionTitleEditor
-          section={editingTarget.section}
-          caretPoint={caretPoint}
-          onCommit={onCommitEdit}
-          onCancel={onCancelEdit}
-        />
-      ) : null}
-    </>,
-    target
   );
 }
 
@@ -4319,567 +4173,6 @@ function MediaRefPlayers({
       })}
     </>,
     target
-  );
-}
-
-// An empty flex-centered contentEditable has no line box for `justifyContent:
-// 'center'` to center — WebKit parks the caret at the box's top, then jumps it
-// to the true centered position the instant a real character exists. A
-// zero-width space gives the box real (invisible) content from mount, so the
-// caret starts centered and never jumps. Stripped back off on commit.
-const JUMP_SENTINEL = '\u200B';
-function stripJumpSentinel(text: string): string {
-  return text.startsWith(JUMP_SENTINEL) ? text.slice(JUMP_SENTINEL.length) : text;
-}
-
-// Unified caret style across every contentEditable text surface (annotation
-// editors here + the artboard inline editor's `.dc-text-editing` CSS in
-// canvas-shell.tsx use the SAME `--maude-hud-accent` so the caret reads the
-// same everywhere). An explicit caretColor makes the caret visible against any
-// background. NOTE: deliberately NO `transform: translateZ(0)` / `will-change`
-// here \u2014 promoting a contentEditable onto its own compositing layer is a known
-// WebKit caret-BLINK killer (the compositor caches the layer and never repaints
-// the blink, so the caret shows as a static line). A prior dogfood pass added
-// translateZ(0) to "restore" the caret and instead froze its blink; removing it
-// lets WebKit run the native blink. The editor already lives inside the
-// transformed `.dc-world`, but that ancestor transform alone does not stop the
-// blink \u2014 only a compositing trigger ON the editable does.
-const CARET_FIX_STYLE = {
-  caretColor: 'var(--maude-hud-accent, #4a63e7)',
-} as const;
-
-/**
- * Phase 3 (unified-text-editing) — shared caret behavior for every annotation
- * editor. On mount: focus, place a collapsed caret at the entry click point
- * (`placeCaretAt`, the SAME chain the artboard's enterEditModeAt uses;
- * keyboard entry has no point → select-all, the rename convention), and mount
- * the custom blinking caret (text-caret.ts) for the session. Afterwards every
- * plain in-editor click re-places the caret from its coordinates on pointerup
- * so repositioning never depends on native hit-testing (synthetic e2e clicks
- * take the same path — untrusted events get no UA caret action at all).
- * Shift-clicks and drag-selections keep native behavior; ⌘A stays native.
- */
-function useEditorCaret(
-  ref: RefObject<HTMLDivElement | null>,
-  caretPoint: { x: number; y: number } | null | undefined
-) {
-  const entryPointRef = useRef(caretPoint ?? null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.focus();
-    placeCaretAt(el, window, entryPointRef.current ?? undefined);
-    return mountCaret(el, window);
-  }, [ref]);
-  const downRef = useRef<{ x: number; y: number } | null>(null);
-  const onPointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
-    downRef.current = e.button === 0 && !e.shiftKey ? { x: e.clientX, y: e.clientY } : null;
-  }, []);
-  const onPointerUp = useCallback(
-    (e: ReactPointerEvent<HTMLDivElement>) => {
-      const d = downRef.current;
-      downRef.current = null;
-      if (!d || e.shiftKey) return;
-      // A real drag is a range-selection gesture — leave it to the engine.
-      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 3) return;
-      const el = ref.current;
-      if (!el) return;
-      const sel = window.getSelection();
-      if (sel && !sel.isCollapsed) return; // double-click word-select etc.
-      placeCaretAt(el, window, { x: e.clientX, y: e.clientY }, false);
-    },
-    [ref]
-  );
-  return { onPointerDown, onPointerUp };
-}
-
-/**
- * issue-106 — the body an annotation editor hands React as its contentEditable
- * children, snapshotted for the life of ONE edit session.
- *
- * These editors are uncontrolled: the user types straight into the DOM. If the
- * rendered children value changes while the session is open, React writes the
- * new string into the live node and everything typed since — line breaks
- * included — is gone. That is exactly what a peer's commit arriving over
- * shared-doc sync (DDR-064) used to do, and what the hazard note above
- * `useEditorFormat` warns about for local mutations. Snapshotting per target id
- * makes the children a constant for the session, so no store update can reach
- * the DOM; the commit path reads `innerText` from the node itself, which is the
- * user's real content either way. Re-keys when the editor is reused for a
- * different stroke.
- *
- * `listType` is snapshotted through the same hook: the body is prefixed with
- * list markers at OPEN time and stripped again at commit, so if a peer flipped
- * the stroke's list style mid-session the strip would run a different rule than
- * the prefix did — turning a bullet into a literal "• " in the stored text, or
- * eating a leading "1. " the user actually typed.
- */
-function useSessionValue<T>(id: string, compute: () => T): T {
-  const ref = useRef<{ id: string; value: T } | null>(null);
-  if (ref.current === null || ref.current.id !== id) ref.current = { id, value: compute() };
-  return ref.current.value;
-}
-
-function TextEditor({
-  anchorId,
-  host,
-  existing,
-  caretPoint,
-  onCommit,
-  onCancel,
-}: {
-  anchorId: string;
-  host: AnchorHost | null;
-  existing: TextStroke | undefined;
-  caretPoint?: { x: number; y: number } | null;
-  onCommit: (anchorId: string, text: string, fmt?: EditorFmt) => void;
-  onCancel: () => void;
-}) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  // Show list markers WHILE editing so the read↔edit swap doesn't flicker
-  // (item 4c) — stripped back to raw text on commit.
-  const sessionListType = useSessionValue(anchorId, () => existing?.listType);
-  const initial = useSessionValue(anchorId, () =>
-    listPrefixedBody(existing?.text ?? '', sessionListType)
-  );
-  // Cmd/Ctrl+B/I/U formatting while editing (item 4d).
-  const {
-    fmtRef,
-    style: fmtStyle,
-    onFormatKey,
-  } = useEditorFormat({
-    bold: existing?.bold,
-    italic: existing?.italic,
-    underline: existing?.underline,
-    strike: existing?.strike,
-    fontSize: existing?.fontSize ?? DEFAULT_FONT_SIZE,
-    align: existing?.align ?? 'center',
-  });
-  // Both commit sites below (outside-click + Cmd/Ctrl+Enter) need the same
-  // sentinel-strip + marker-strip pipeline. Memoized so the outside-click
-  // effect below can depend on it directly instead of its own copy of
-  // existing?.listType (lint/correctness/useExhaustiveDependencies).
-  const toCommittedText = useCallback(
-    (raw: string) => stripEditorMarkers(stripJumpSentinel(raw), sessionListType),
-    [sessionListType]
-  );
-
-  // Caret-at-click on entry + custom blinking caret + click re-placement
-  // (select-all only for keyboard entry — see useEditorCaret).
-  const caretHandlers = useEditorCaret(ref, caretPoint);
-
-  // Commit on outside click; cancel-on-Esc handled in onKeyDown below.
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const onDown = (e: PointerEvent) => {
-      if (isMediaPlayerTarget(e)) return; // mediaref inline player owns this event
-      const el = ref.current;
-      if (!el) return;
-      if (el.contains(e.target as Node)) return;
-      // FigJam v3 — the edit-mode text toolbar drives THIS editor; clicking
-      // it must not commit-and-close the session.
-      if ((e.target as Element | null)?.closest?.('.dc-annot-ctx')) return;
-      onCommit(anchorId, toCommittedText(el.innerText || ''), fmtRef.current);
-    };
-    document.addEventListener('pointerdown', onDown, true);
-    return () => document.removeEventListener('pointerdown', onDown, true);
-  }, [anchorId, onCommit, fmtRef, toCommittedText]);
-
-  if (!host) return null;
-  const bbox = strokeBBox(host);
-  if (!bbox) return null;
-  const fontSize = existing?.fontSize ?? DEFAULT_FONT_SIZE;
-  // Phase 24 — match the committed render's bold / strike / align (anchored
-  // default align = centre).
-  const align = existing?.align ?? 'center';
-  return (
-    // Plain HTML host in the world div (NOT foreignObject — see AnnotEditors'
-    // docblock): world coords map 1:1 to left/top, clicks hit-test correctly.
-    <div
-      data-annot-editor="1"
-      style={{
-        position: 'absolute',
-        left: bbox.x,
-        top: bbox.y,
-        width: Math.max(20, bbox.w),
-        height: Math.max(20, bbox.h),
-        zIndex: 5,
-      }}
-    >
-      <div
-        ref={ref}
-        className="dc-annot-editor"
-        contentEditable
-        suppressContentEditableWarning
-        aria-label="Edit annotation text"
-        style={{
-          width: '100%',
-          height: '100%',
-          // Column flex (NOT row) so contentEditable line breaks stack
-          // vertically; justify-center keeps the block vertically centred in
-          // the host. The pre-Task-5 row-flex laid lines out side-by-side
-          // (item 4a — the mangled multi-line look).
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center',
-          padding: '0 8px',
-          boxSizing: 'border-box',
-          textAlign: align,
-          whiteSpace: 'pre-wrap',
-          color: existing?.color ?? '#1a1a1a',
-          fontSize: `${fontSize}px`,
-          fontFamily: 'var(--u-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
-          ...fmtStyle,
-          lineHeight: 1.25,
-          outline: 'none',
-          background: 'transparent',
-          cursor: 'text',
-          ...CARET_FIX_STYLE,
-        }}
-        onPointerDown={caretHandlers.onPointerDown}
-        onPointerUp={caretHandlers.onPointerUp}
-        onKeyDown={(e) => {
-          if (onFormatKey(e)) return; // Cmd/Ctrl+B/I/U
-          if (e.key === 'Escape') {
-            e.preventDefault();
-            onCancel();
-            return;
-          }
-          // issue-106 — Shift+Enter ADDS a line. On keyboard entry the whole
-          // body is still select-all'd (the retype convention), so letting the
-          // break replace the selection wiped the text. Collapse that entry
-          // selection to its end first; a user's own partial selection is left
-          // alone. See collapseEntrySelectAll.
-          if (e.key === 'Enter' && e.shiftKey && ref.current) {
-            collapseEntrySelectAll(ref.current, window);
-          }
-          // Unified across every text surface: plain Enter commits,
-          // Shift+Enter inserts a newline (falls through untouched). ⌘/Ctrl
-          // +Enter also commits AND chains a connected sibling (quick-create).
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            const el = ref.current;
-            onCommit(anchorId, toCommittedText(el?.innerText || ''), fmtRef.current);
-            if (e.metaKey || e.ctrlKey) {
-              document.dispatchEvent(
-                new CustomEvent('maude:chain-create', { detail: { id: anchorId } })
-              );
-            }
-          }
-        }}
-      >
-        {initial || JUMP_SENTINEL}
-      </div>
-    </div>
-  );
-}
-
-// Phase 21 — sticky body editor, hosted as plain HTML at the card's bbox in
-// the world div (word-wrap + zoom come from the div's own box + the world
-// transform). Commit on blur, cancel on Esc; Enter commits, Shift+Enter
-// inserts a newline.
-function StickyEditor({
-  sticky,
-  caretPoint,
-  onCommit,
-  onCancel,
-}: {
-  sticky: StickyStroke;
-  caretPoint?: { x: number; y: number } | null;
-  onCommit: (text: string, fmt?: EditorFmt, measuredH?: number) => void;
-  onCancel: () => void;
-}) {
-  // A flex-centered contentEditable (NOT a textarea) so the edit view matches
-  // the committed `.dc-sticky-body` exactly — text stays centered, no jump on
-  // commit. Multi-line: Shift+Enter inserts a line break, plain Enter commits;
-  // Esc cancels; blur commits; Cmd/Ctrl+B/I/U format (unified with the others).
-  const ref = useRef<HTMLDivElement | null>(null);
-  const doneRef = useRef(false);
-  const sessionListType = useSessionValue(sticky.id, () => sticky.listType);
-  const sessionBody = useSessionValue(sticky.id, () => stickyBodyText(sticky));
-  const {
-    fmtRef,
-    style: fmtStyle,
-    onFormatKey,
-  } = useEditorFormat({
-    bold: sticky.bold,
-    italic: sticky.italic,
-    underline: sticky.underline,
-    strike: sticky.strike,
-    fontSize: sticky.fontSize,
-    align: sticky.align ?? 'left',
-  });
-  const commit = () => {
-    if (doneRef.current) return;
-    doneRef.current = true;
-    const el = ref.current;
-    // issue-106 — the editor IS the measurement: same class, same width, same
-    // font as the committed body, and laid out in world units (the pan/zoom
-    // transform on `.dc-world` doesn't change layout), so its scrollHeight is
-    // the height the card needs. No offscreen measuring rig required.
-    onCommit(
-      stripEditorMarkers(el?.innerText ?? '', sessionListType),
-      fmtRef.current,
-      el?.scrollHeight
-    );
-  };
-  // FigJam v3 — a toolbar click steals focus for a tick; don't treat it as
-  // "done editing" (the button's onMouseDown preventDefault usually stops the
-  // blur, this guards the browsers where it doesn't).
-  const onBlur = (e: { relatedTarget?: EventTarget | null }) => {
-    const to = e.relatedTarget as Element | null;
-    if (to?.closest?.('.dc-annot-ctx')) return;
-    commit();
-  };
-  // Caret-at-click on entry + custom blinking caret + click re-placement.
-  const caretHandlers = useEditorCaret(ref, caretPoint);
-  const x = Math.min(sticky.x, sticky.x + sticky.w);
-  const y = Math.min(sticky.y, sticky.y + sticky.h);
-  const w = Math.abs(sticky.w);
-  const h = Math.abs(sticky.h);
-  const r = sticky.cornerRadius ?? STICKY_CORNER_RADIUS;
-  return (
-    <div
-      data-annot-editor="1"
-      style={{
-        position: 'absolute',
-        left: x,
-        top: y,
-        width: w,
-        // issue-106 — NOT a fixed `height: h`. The card clips at `overflow:
-        // hidden`, so on a sticky that is already full the line Shift+Enter
-        // inserts landed outside the box: the keystroke worked, nothing moved
-        // on screen, and it read as "shift+enter does nothing". While the
-        // editor is open it grows downward instead, painting its own paper so
-        // the overflow still reads as the note (the SVG card behind is still
-        // the old size until the commit below persists the grown height).
-        minHeight: h,
-        zIndex: 5,
-        // `backgroundColor`, never the `background` shorthand: `color` comes
-        // verbatim from a synced stroke's `fill` (peer-controlled, and the
-        // sanitizer does not touch `fill`), and the shorthand would accept a
-        // `url(...)` — an outbound request from the studio origin the moment a
-        // note is opened. `background-color` cannot take one.
-        backgroundColor: sticky.color,
-        // Mirrors stickyCornerPath: TL/TR/BL rounded, BR sharp.
-        borderRadius: `${r}px ${r}px 0 ${r}px`,
-      }}
-    >
-      <div
-        ref={ref}
-        className="dc-annot-editor dc-sticky-body"
-        contentEditable
-        suppressContentEditableWarning
-        aria-label="Edit sticky note text"
-        style={{
-          ...stickyBodyStyle(sticky),
-          ...fmtStyle,
-          outline: 'none',
-          cursor: 'text',
-          ...CARET_FIX_STYLE,
-          // Beats `.dc-sticky-body { height: 100%; overflow: hidden }` for the
-          // duration of the edit — see the wrapper note above.
-          height: 'auto',
-          minHeight: h,
-          overflow: 'visible',
-        }}
-        onBlur={onBlur}
-        onPointerDown={caretHandlers.onPointerDown}
-        onPointerUp={caretHandlers.onPointerUp}
-        onKeyDown={(e) => {
-          if (onFormatKey(e)) return; // Cmd/Ctrl+B/I/U
-          if (e.key === 'Escape') {
-            e.preventDefault();
-            doneRef.current = true; // suppress the unmount blur-commit
-            onCancel();
-            return;
-          }
-          // issue-106 — see the same guard in TextEditor: Shift+Enter must add
-          // a line, never consume the entry select-all and delete the body.
-          if (e.key === 'Enter' && e.shiftKey && ref.current) {
-            collapseEntrySelectAll(ref.current, window);
-          }
-          // Unified: plain Enter commits, Shift+Enter inserts a newline.
-          // ⌘/Ctrl+Enter also commits AND chains the next sticky beside it.
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            commit();
-            if (e.metaKey || e.ctrlKey) {
-              document.dispatchEvent(
-                new CustomEvent('maude:chain-create', { detail: { id: sticky.id } })
-              );
-            }
-          }
-        }}
-      >
-        {/* Show the list markers while editing (item 4c) so the read↔edit swap
-            doesn't flicker; stripped back to raw text on commit. */}
-        {sessionBody}
-      </div>
-    </div>
-  );
-}
-
-// Phase 21 — standalone text editor. A single-line contentEditable box anchored
-// at the world (x, y). Enter / blur / outside-click commit; Esc cancels.
-function StandaloneTextEditor({
-  x,
-  y,
-  fontSize,
-  color,
-  initialText,
-  bold,
-  italic,
-  strike,
-  underline,
-  align,
-  listType,
-  singleLine,
-  boxStyle,
-  caretPoint,
-  onCommit,
-  onCancel,
-}: {
-  x: number;
-  y: number;
-  fontSize: number;
-  color: string;
-  initialText: string;
-  bold?: boolean;
-  italic?: boolean;
-  strike?: boolean;
-  underline?: boolean;
-  align?: TextAlign;
-  listType?: ListType;
-  /** The click that opened the editor — caret lands there (Phase 3). */
-  caretPoint?: { x: number; y: number } | null;
-  /** A one-line field (e.g. a section title rename) — plain Enter commits
-   * instead of inserting a newline, matching a native text-input's Enter. */
-  singleLine?: boolean;
-  /** Extra style merged onto the editable box — e.g. a section rename wants
-   * the same chip background/padding/radius the read-only label chip has. */
-  boxStyle?: CSSProperties;
-  onCommit: (text: string, fmt?: EditorFmt) => void;
-  onCancel: () => void;
-}) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  // Cmd/Ctrl+B/I/U formatting while editing (item 4d).
-  const {
-    fmtRef,
-    style: fmtStyle,
-    onFormatKey,
-  } = useEditorFormat({
-    bold,
-    italic,
-    underline,
-    strike,
-    fontSize,
-    align: align ?? 'left',
-  });
-  // Single-fire commit guard — outside-click + blur can both fire in one tick;
-  // without this the text would commit twice (two undo records). Markers shown
-  // while editing (item 4c) are stripped back to raw text here on commit.
-  const doneRef = useRef(false);
-  const commitOnce = useCallback(
-    (text: string) => {
-      if (doneRef.current) return;
-      doneRef.current = true;
-      onCommit(stripEditorMarkers(text, listType), fmtRef.current);
-    },
-    [onCommit, listType, fmtRef]
-  );
-  // Caret-at-click on entry + custom blinking caret + click re-placement.
-  const caretHandlers = useEditorCaret(ref, caretPoint);
-  // Commit on outside click.
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const onDown = (e: PointerEvent) => {
-      if (isMediaPlayerTarget(e)) return; // mediaref inline player owns this event
-      const el = ref.current;
-      if (!el) return;
-      if (el.contains(e.target as Node)) return;
-      // FigJam v3 — clicks into the edit-mode text toolbar keep the session.
-      if ((e.target as Element | null)?.closest?.('.dc-annot-ctx')) return;
-      commitOnce(el.innerText || '');
-    };
-    document.addEventListener('pointerdown', onDown, true);
-    return () => document.removeEventListener('pointerdown', onDown, true);
-  }, [commitOnce]);
-  return (
-    // Generous box so multi-line text isn't clipped while typing (item 4a).
-    // The host passes pointer events through (empty area is not the editor —
-    // outside-click must still commit); only the editable itself is
-    // interactive, so clicks in it place the caret.
-    <div
-      data-annot-editor="1"
-      style={{
-        position: 'absolute',
-        left: x,
-        top: y,
-        width: 640,
-        height: 480,
-        zIndex: 5,
-        pointerEvents: 'none',
-      }}
-    >
-      <div
-        ref={ref}
-        className="dc-annot-editor"
-        contentEditable
-        suppressContentEditableWarning
-        aria-label="Edit text"
-        style={{
-          display: 'inline-block',
-          minWidth: '8px',
-          // The pass-through host (above) is inert — re-enable events HERE so
-          // in-editor clicks place the caret instead of falling through.
-          pointerEvents: 'auto',
-          // pre-wrap so Enter inserts a real newline (multi-line text), not a
-          // commit; long lines also wrap within the box.
-          whiteSpace: 'pre-wrap',
-          padding: '0 2px',
-          color,
-          fontSize: `${fontSize}px`,
-          fontFamily: 'var(--u-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
-          ...fmtStyle,
-          textAlign: align ?? 'left',
-          lineHeight: TEXT_LINE_HEIGHT,
-          outline: 'none',
-          background: 'transparent',
-          cursor: 'text',
-          ...CARET_FIX_STYLE,
-          ...boxStyle,
-        }}
-        onBlur={() => commitOnce(ref.current?.innerText || '')}
-        onPointerDown={caretHandlers.onPointerDown}
-        onPointerUp={caretHandlers.onPointerUp}
-        onKeyDown={(e) => {
-          if (onFormatKey(e)) return; // Cmd/Ctrl+B/I/U
-          if (e.key === 'Escape') {
-            e.preventDefault();
-            // Mark done so the unmount blur that follows doesn't commit.
-            doneRef.current = true;
-            onCancel();
-            return;
-          }
-          // issue-106 — same guard as the other two editors, for the multi-line
-          // case only (a singleLine field commits on Shift+Enter anyway).
-          if (e.key === 'Enter' && e.shiftKey && !singleLine && ref.current) {
-            collapseEntrySelectAll(ref.current, window);
-          }
-          // Unified: plain Enter commits, Shift+Enter inserts a newline. A
-          // singleLine field (section rename) is a title — Shift+Enter commits
-          // too rather than adding a newline the one-line chip can't show.
-          if (e.key === 'Enter' && (!e.shiftKey || singleLine)) {
-            e.preventDefault();
-            commitOnce(ref.current?.innerText || '');
-          }
-        }}
-      >
-        {listPrefixedBody(initialText, listType)}
-      </div>
-    </div>
   );
 }
 
@@ -5279,51 +4572,6 @@ function AnnotGroupBbox({
  * read↔edit swap doesn't shift). Applies bold / strike / align atop the
  * `.dc-sticky-body` defaults (top-left).
  */
-function stickyBodyStyle(s: StickyStroke): CSSProperties {
-  const align = s.align ?? 'left';
-  return {
-    fontSize: `${s.fontSize}px`,
-    fontWeight: s.bold ? 700 : undefined,
-    fontStyle: s.italic ? 'italic' : undefined,
-    textDecoration: textDecoCss(s.strike, s.underline),
-    textAlign: align,
-    justifyContent: align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center',
-  };
-}
-
-/** Sticky body content: raw text for a plain card, else per-line with list
- *  markers prepended (item 4c — markers are render-only). */
-function stickyBodyText(s: StickyStroke): string {
-  if (!s.listType) return s.text;
-  return splitTextLines(s.text)
-    .map((line, i) => listPrefixedLine(line, i, s.listType))
-    .join('\n');
-}
-
-/**
- * Render the inner content of a `<text>` stroke: a single string for single-
- * line unstyled text (item 4a parity with the legacy form), else one `<tspan>`
- * per line with list markers prepended (item 4c). `tx` is the per-line origin;
- * `centered` lifts the block half its height for vertically-centred anchored
- * text. Mirrors `textInnerSvg` so the live + persisted geometry agree.
- */
-function renderTextLines(
-  text: string,
-  fontSize: number,
-  tx: number,
-  centered: boolean,
-  list?: ListType
-) {
-  if (!list && !text.includes('\n')) return text;
-  const lines = splitTextLines(text);
-  return lines.map((line, i) => (
-    // biome-ignore lint/suspicious/noArrayIndexKey: lines are positional + immutable per render
-    <tspan key={i} x={tx} dy={textLineDy(i, fontSize, lines.length, centered)}>
-      {listPrefixedLine(line, i, list)}
-    </tspan>
-  ));
-}
-
 /**
  * Phase 24 — the translucent cursor-following ghost placeholder. Pure chrome:
  * `pointer-events:none`, never added to `strokes`, so it can't be selected,
@@ -5386,614 +4634,6 @@ function GhostPreview({ ghost }: { ghost: GhostDescriptor }) {
     return <rect x={x} y={y} width={sz} height={sz} rx={r} ry={r} {...common} />;
   }
   return <polygon points={polygonPoints(ghost.shapeKind, x, y, sz, sz)} {...common} />;
-}
-
-/**
- * FigJam v3 — rotation wrapper. The base node renders axis-aligned geometry;
- * a rotated stroke wraps it in a `rotate()` group around its bbox center
- * (anchored text inherits its HOST's rotation so labels turn with the shape).
- * Pointer events pass through the group, so hit-testing + the ctx-toolbar's
- * getBoundingClientRect positioning keep working on the rotated form.
- */
-/** Section title chip — deliberately screen-size-constant. The body/border
- * scale with the world like everything else, but a title that shrinks to
- * unreadable at zoom-out defeats the point of a label (matches the `r={5/zoom}`
- * counter-scale convention used for halos/connector-dots elsewhere in this file). */
-function SectionLabelChip({
-  stroke,
-  x,
-  y,
-  hitMode,
-}: {
-  stroke: SectionStroke;
-  x: number;
-  y: number;
-  hitMode: 'visiblePainted' | 'none';
-}) {
-  // Counter-scaled chrome — must hold a constant screen size while the world
-  // scales, so it needs the live zoom, not the settle-cadence published one.
-  const zoom = useLiveViewport().zoom || 1;
-  const fontSize = SECTION_LABEL_FONT / zoom;
-  const chipH = SECTION_LABEL_H / zoom;
-  const gap = 4 / zoom;
-  const padX = 9 / zoom;
-  const chipW = Math.max(56 / zoom, stroke.label.length * fontSize * 0.62 + 18 / zoom);
-  // NOTE: this chip geometry (chipW/chipH/gap vs the region's y) is mirrored
-  // by findTextStrokeAt's section branch — the Text tool's click-through
-  // renames a section only from its label chip. Keep the two in sync.
-  return (
-    <g pointerEvents={hitMode}>
-      <rect
-        x={x}
-        y={y - chipH - gap}
-        width={chipW}
-        height={chipH}
-        rx={5 / zoom}
-        ry={5 / zoom}
-        fill={stroke.color}
-        fillOpacity={0.16}
-      />
-      <text
-        x={x + padX}
-        y={y - chipH / 2 - gap}
-        dominantBaseline="middle"
-        fontSize={fontSize}
-        fill={stroke.color}
-        style={{
-          fontFamily: 'var(--u-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
-        }}
-      >
-        {stroke.label}
-      </text>
-    </g>
-  );
-}
-
-/** Section title RENAME field — same chip visuals + zoom-invariant sizing as
- * SectionLabelChip (read state), so switching into edit mode doesn't swap
- * the pill for a bare, ambient-zoomed sliver of text (it used to: the editor
- * had no background and its font-size wasn't counter-scaled, so at any zoom
- * below 1× the chip effectively vanished mid-rename). */
-function SectionTitleEditor({
-  section,
-  caretPoint,
-  onCommit,
-  onCancel,
-}: {
-  section: SectionStroke;
-  caretPoint?: { x: number; y: number } | null;
-  onCommit: (text: string, fmt?: EditorFmt) => void;
-  onCancel: () => void;
-}) {
-  // Counter-scaled chrome — must hold a constant screen size while the world
-  // scales, so it needs the live zoom, not the settle-cadence published one.
-  const zoom = useLiveViewport().zoom || 1;
-  const fontSize = SECTION_LABEL_FONT / zoom;
-  const chipH = SECTION_LABEL_H / zoom;
-  const gap = 4 / zoom;
-  const padX = 9 / zoom;
-  const x = Math.min(section.x, section.x + section.w);
-  const y = Math.min(section.y, section.y + section.h);
-  return (
-    <StandaloneTextEditor
-      x={x}
-      y={y - chipH - gap}
-      fontSize={fontSize}
-      color={section.color}
-      initialText={section.label}
-      caretPoint={caretPoint}
-      singleLine
-      boxStyle={{
-        background: `color-mix(in oklab, ${section.color} 16%, transparent)`,
-        borderRadius: `${5 / zoom}px`,
-        padding: `0 ${padX}px`,
-        minHeight: `${chipH}px`,
-        lineHeight: `${chipH}px`,
-        whiteSpace: 'nowrap',
-      }}
-      onCommit={onCommit}
-      onCancel={onCancel}
-    />
-  );
-}
-
-function StrokeNode(props: {
-  stroke: Stroke;
-  anchorsById: Map<string, AnchorHost>;
-  interactive: boolean;
-  editing?: boolean;
-}) {
-  const { stroke, anchorsById } = props;
-  let rot = strokeRotation(stroke);
-  let pivot = rot !== 0 ? strokeCenter(stroke) : null;
-  if (stroke.tool === 'text' && stroke.anchorId != null && stroke.anchorId !== '') {
-    const host = anchorsById.get(stroke.anchorId);
-    rot = host ? strokeRotation(host) : 0;
-    pivot = rot !== 0 && host ? strokeCenter(host) : null;
-  }
-  const node = <StrokeNodeBase {...props} />;
-  if (rot === 0 || !pivot) return node;
-  return <g transform={`rotate(${rot} ${pivot[0]} ${pivot[1]})`}>{node}</g>;
-}
-
-function StrokeNodeBase({
-  stroke,
-  anchorsById,
-  interactive,
-  editing = false,
-}: {
-  stroke: Stroke;
-  anchorsById: Map<string, AnchorHost>;
-  interactive: boolean;
-  /** Hide the read-only body/text while its editor is up (sticky, section, or
-   *  anchored shape text — whichever this stroke is). */
-  editing?: boolean;
-}) {
-  // In Move mode, individual stroke nodes claim pointer events so we can
-  // hit-test them from the doc-level capture listener. In draw mode the
-  // overlay above handles input, so the strokes themselves stay inert.
-  const hitMode = interactive ? 'visiblePainted' : ('none' as const);
-  const strokeHit = interactive ? 'stroke' : ('none' as const);
-  if (stroke.tool === 'text') {
-    // Anchored text renders centered in its host; standalone (Phase 21) renders
-    // top-left-anchored at its own world (x, y). bold / italic / strike /
-    // underline applied to the rendered <text>; multi-line + list markers via
-    // renderTextLines (one <tspan> per line).
-    const textStyle = {
-      fontFamily: 'var(--u-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
-      fontWeight: stroke.bold ? 700 : undefined,
-      fontStyle: stroke.italic ? 'italic' : undefined,
-      textDecoration: textDecoCss(stroke.strike, stroke.underline),
-    } as const;
-    if (stroke.anchorId != null && stroke.anchorId !== '') {
-      const host = anchorsById.get(stroke.anchorId);
-      const bbox = host ? strokeBBox(host) : null;
-      if (!bbox) return null;
-      // Its editor (TextEditor) paints the same bbox while active — skip the
-      // read-only <text> so the two don't double-paint (Phase 1 jump-fix
-      // companion: the editor was already exempt via editingStickyId's
-      // sibling, this stroke type never was).
-      if (editing) return null;
-      const cy = bbox.y + bbox.h / 2;
-      const align = stroke.align ?? 'center';
-      const pad = 8;
-      const anchor = align === 'left' ? 'start' : align === 'right' ? 'end' : 'middle';
-      const tx =
-        align === 'left'
-          ? bbox.x + pad
-          : align === 'right'
-            ? bbox.x + bbox.w - pad
-            : bbox.x + bbox.w / 2;
-      return (
-        <text
-          data-id={stroke.id}
-          data-tool="text"
-          data-anchor-id={stroke.anchorId}
-          data-font-size={stroke.fontSize}
-          x={tx}
-          y={cy}
-          fill={stroke.color}
-          fontSize={stroke.fontSize}
-          textAnchor={anchor}
-          dominantBaseline="middle"
-          style={textStyle}
-        >
-          {renderTextLines(stroke.text, stroke.fontSize, tx, true, stroke.listType)}
-        </text>
-      );
-    }
-    // Its editor (StandaloneTextEditor) paints at the same x/y while active —
-    // skip the read-only <text> so the two don't double-paint (the "ghost").
-    if (editing) return null;
-    const align = stroke.align ?? 'left';
-    const anchor = align === 'left' ? 'start' : align === 'right' ? 'end' : 'middle';
-    const tx = stroke.x ?? 0;
-    return (
-      <text
-        data-id={stroke.id}
-        data-tool="text"
-        data-font-size={stroke.fontSize}
-        x={tx}
-        y={stroke.y ?? 0}
-        fill={stroke.color}
-        fontSize={stroke.fontSize}
-        textAnchor={anchor}
-        dominantBaseline="hanging"
-        pointerEvents={interactive ? 'visiblePainted' : 'none'}
-        style={textStyle}
-      >
-        {renderTextLines(stroke.text, stroke.fontSize, tx, false, stroke.listType)}
-      </text>
-    );
-  }
-  if (stroke.tool === 'sticky') {
-    const x = Math.min(stroke.x, stroke.x + stroke.w);
-    const y = Math.min(stroke.y, stroke.y + stroke.h);
-    const w = Math.abs(stroke.w);
-    const h = Math.abs(stroke.h);
-    const r = stroke.cornerRadius ?? STICKY_CORNER_RADIUS;
-    return (
-      <g data-id={stroke.id} data-tool="sticky" pointerEvents={hitMode}>
-        {/* Paper card: soft drop shadow + hairline edge so it reads as a
-            lifted sticky, not a flat colored box (FigJam-style). The body is a
-            path with a SHARP bottom-right corner (item 1) — TL/TR/BL rounded.
-            The persisted form stays a <rect> (DDR), so this is render-only. */}
-        <path
-          d={stickyCornerPath(x, y, w, h, r)}
-          fill={stroke.color}
-          stroke="rgba(0,0,0,0.05)"
-          strokeWidth={1}
-          vectorEffect="non-scaling-stroke"
-          filter="url(#dc-sticky-shadow)"
-        />
-        {editing ? null : (
-          <foreignObject x={x} y={y} width={w} height={h} pointerEvents="none">
-            <div
-              xmlns="http://www.w3.org/1999/xhtml"
-              className="dc-sticky-body"
-              style={stickyBodyStyle(stroke)}
-            >
-              {stickyBodyText(stroke)}
-            </div>
-          </foreignObject>
-        )}
-        {/* Phase 3 (whiteboard-improvements) — author badge, bottom-right
-            corner. A name label (not an avatar — a full name/nickname reads
-            faster than initials and doesn't need a legend to decode). Color
-            re-derives from the (sanitized) name via colorForName — NEVER a
-            stored/wire color — so it matches the author's live presence hue
-            (cursor/avatar use the same function). foreignObject width is a
-            fixed generous box right-anchored via flex, since a name's pixel
-            width isn't known without measuring the DOM. */}
-        {stroke.authorName && (
-          <foreignObject
-            x={x + w - 160}
-            y={y + h - 20}
-            width={160}
-            height={20}
-            pointerEvents="none"
-          >
-            <div
-              xmlns="http://www.w3.org/1999/xhtml"
-              style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                alignItems: 'center',
-                height: '100%',
-                paddingRight: 4,
-              }}
-            >
-              <span
-                title={stroke.authorName}
-                style={{
-                  maxWidth: '100%',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  fontSize: 9,
-                  fontWeight: 600,
-                  fontFamily: 'var(--u-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
-                  color: colorForName(stroke.authorName),
-                  background: 'rgba(255,255,255,0.78)',
-                  padding: '1px 5px',
-                  borderRadius: 8,
-                  lineHeight: 1.4,
-                }}
-              >
-                {stroke.authorName}
-              </span>
-            </div>
-          </foreignObject>
-        )}
-      </g>
-    );
-  }
-  if (stroke.tool === 'image') {
-    const x = Math.min(stroke.x, stroke.x + stroke.w);
-    const y = Math.min(stroke.y, stroke.y + stroke.h);
-    const w = Math.abs(stroke.w);
-    const h = Math.abs(stroke.h);
-    return (
-      <image
-        data-id={stroke.id}
-        data-tool="image"
-        x={x}
-        y={y}
-        width={w}
-        height={h}
-        href={resolveAssetHref(stroke.href)}
-        preserveAspectRatio="xMidYMid meet"
-        aria-label={stroke.alt || undefined}
-        pointerEvents={hitMode}
-      />
-    );
-  }
-  if (stroke.tool === 'link') {
-    const x = Math.min(stroke.x, stroke.x + stroke.w);
-    const y = Math.min(stroke.y, stroke.y + stroke.h);
-    const w = Math.abs(stroke.w);
-    const h = Math.abs(stroke.h);
-    const lay = linkCardLayout(x, y, w, h);
-    const shownTitle = clampLinkTitle(stroke.title, lay.textMaxChars);
-    const textFont = {
-      fontFamily: 'var(--u-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
-    } as const;
-    return (
-      <g
-        data-id={stroke.id}
-        data-tool="link"
-        data-url={stroke.url}
-        data-title={stroke.title}
-        data-domain={stroke.domain}
-        pointerEvents={hitMode}
-      >
-        <rect
-          x={x}
-          y={y}
-          width={w}
-          height={h}
-          rx={8}
-          ry={8}
-          fill={LINK_CARD_FILL}
-          stroke={LINK_CARD_STROKE}
-          strokeWidth={1}
-          vectorEffect="non-scaling-stroke"
-          filter="url(#dc-sticky-shadow)"
-        />
-        <svg
-          x={lay.glyph.x}
-          y={lay.glyph.y}
-          width={lay.glyph.size}
-          height={lay.glyph.size}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke={LINK_GLYPH_STROKE}
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d={LINK_GLYPH_D1} />
-          <path d={LINK_GLYPH_D2} />
-        </svg>
-        <text
-          x={lay.textX}
-          y={lay.domain.y}
-          fontSize={lay.domain.fontSize}
-          fill={LINK_DOMAIN_FILL}
-          dominantBaseline="hanging"
-          style={textFont}
-        >
-          {stroke.domain}
-        </text>
-        <text
-          x={lay.textX}
-          y={lay.title.y}
-          fontSize={lay.title.fontSize}
-          fill={LINK_TITLE_FILL}
-          fontWeight={600}
-          dominantBaseline="hanging"
-          style={textFont}
-        >
-          {shownTitle}
-        </text>
-      </g>
-    );
-  }
-  if (stroke.tool === 'mediaref') {
-    // DDR-150 P4 + dogfood #8 — reference chip with a REAL inline player.
-    // LIVE-RENDER ONLY: the <foreignObject> + <video>/<audio> below never
-    // persist — the model serializer still writes the sanitizer-safe data-*
-    // card (foreignObject is stripped by sanitizeAnnotationSvg by design).
-    // The 26px header strip (badge + filename) is the select/drag handle; the
-    // player area is fenced off from the annotation handlers by the
-    // [data-mediaref-player] window-capture guard.
-    const x = Math.min(stroke.x, stroke.x + stroke.w);
-    const y = Math.min(stroke.y, stroke.y + stroke.h);
-    const w = Math.abs(stroke.w);
-    const h = Math.abs(stroke.h);
-    const HEADER = 26;
-    const isAudio = stroke.mediaKind === 'audio';
-    const mediaUrl = stroke.src ? resolveAssetHref(stroke.src) : '';
-    const shownTitle = clampLinkTitle(stroke.title, Math.max(8, Math.floor((w - 40) / 7)));
-    const textFont = {
-      fontFamily: 'var(--u-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
-    } as const;
-    return (
-      <g
-        data-id={stroke.id}
-        data-tool="mediaref"
-        data-src={stroke.src}
-        data-media-kind={stroke.mediaKind}
-        data-title={stroke.title}
-        pointerEvents={hitMode}
-      >
-        <rect
-          x={x}
-          y={y}
-          width={w}
-          height={h}
-          rx={8}
-          ry={8}
-          fill={LINK_CARD_FILL}
-          stroke={LINK_CARD_STROKE}
-          strokeWidth={1}
-          vectorEffect="non-scaling-stroke"
-          filter="url(#dc-sticky-shadow)"
-        />
-        <svg
-          x={x + 8}
-          y={y + 5}
-          width={16}
-          height={16}
-          viewBox="0 0 24 24"
-          fill={LINK_GLYPH_STROKE}
-          stroke="none"
-          aria-hidden="true"
-        >
-          <path d={isAudio ? MEDIAREF_AUDIO_GLYPH : MEDIAREF_VIDEO_GLYPH} />
-        </svg>
-        <text
-          x={x + 30}
-          y={y + 9}
-          fontSize={11}
-          fill={LINK_TITLE_FILL}
-          fontWeight={600}
-          dominantBaseline="hanging"
-          style={textFont}
-        >
-          {shownTitle}
-        </text>
-        {/* The inline player itself is an HTML overlay portaled beside this SVG
-            (MediaRefPlayers below) — NOT a foreignObject: Chromium hit-tests
-            foreignObject content under a CSS-transformed ancestor in the WRONG
-            coordinate space (the un-panned/un-zoomed one), so real clicks miss
-            the player at most zoom levels while elementFromPoint lies that
-            they'd land. Plain HTML in the transformed world hit-tests right. */}
-        {!mediaUrl ? (
-          <text
-            x={x + 30}
-            y={y + HEADER + 10}
-            fontSize={10}
-            fill={LINK_DOMAIN_FILL}
-            dominantBaseline="hanging"
-            style={textFont}
-          >
-            (missing media reference)
-          </text>
-        ) : null}
-      </g>
-    );
-  }
-  if (stroke.tool === 'section') {
-    const x = Math.min(stroke.x, stroke.x + stroke.w);
-    const y = Math.min(stroke.y, stroke.y + stroke.h);
-    const w = Math.abs(stroke.w);
-    const h = Math.abs(stroke.h);
-    return (
-      <g data-id={stroke.id} data-tool="section">
-        {/* Region body — pure backdrop, CLICK-THROUGH (FigJam: content on a
-            section selects normally; the section is grabbed by border/chip). */}
-        <rect
-          x={x}
-          y={y}
-          width={w}
-          height={h}
-          rx={SECTION_CORNER_RADIUS}
-          ry={SECTION_CORNER_RADIUS}
-          fill={stroke.color}
-          fillOpacity={0.07}
-          stroke={stroke.color}
-          strokeOpacity={0.45}
-          strokeWidth={1.5}
-          vectorEffect="non-scaling-stroke"
-          pointerEvents="none"
-        />
-        {/* Invisible border hit ring — the grabbable edge. */}
-        {interactive ? (
-          <rect
-            x={x}
-            y={y}
-            width={w}
-            height={h}
-            rx={SECTION_CORNER_RADIUS}
-            ry={SECTION_CORNER_RADIUS}
-            fill="none"
-            stroke="transparent"
-            strokeWidth={12}
-            vectorEffect="non-scaling-stroke"
-            pointerEvents="stroke"
-          />
-        ) : null}
-        {/* Label chip above the top-left corner — also a grab handle. Hidden
-            while the rename editor (StandaloneTextEditor) is up at the same
-            spot, else the old label reads through behind the new text. */}
-        {editing ? null : <SectionLabelChip stroke={stroke} x={x} y={y} hitMode={hitMode} />}
-      </g>
-    );
-  }
-  // Deliberately NO `vector-effect="non-scaling-stroke"` here: drawn ink is
-  // world-space content and must thicken/thin with the zoom, the way it does in
-  // Figma/FigJam. The attribute also rendered differently per engine — Blink
-  // honours it under the world's CSS `zoom` (ink stayed a fixed screen width at
-  // every zoom level), WebKit ignores it under `transform: scale`, so the same
-  // board drew differently in Chrome than in the desktop shell. Card hairlines
-  // and selection chrome below still opt in — those ARE fixed-px by intent.
-  const common = {
-    'data-id': stroke.id,
-    'data-tool': stroke.tool,
-    stroke: stroke.color,
-    strokeWidth: stroke.width,
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const,
-  };
-  if (stroke.tool === 'pen') {
-    // Highlighter (item 8) — overlaps darken via multiply; the translucent hue
-    // lives in `stroke.color`, the wide nib in `stroke.width`.
-    return (
-      <path
-        {...common}
-        fill="none"
-        d={penPathD(stroke.points)}
-        style={stroke.highlighter ? { mixBlendMode: 'multiply' } : undefined}
-        pointerEvents={strokeHit}
-      />
-    );
-  }
-  if (stroke.tool === 'rect') {
-    const x = Math.min(stroke.x, stroke.x + stroke.w);
-    const y = Math.min(stroke.y, stroke.y + stroke.h);
-    const r = stroke.cornerRadius ?? 0;
-    return (
-      <rect
-        {...common}
-        fill={stroke.fill ?? 'none'}
-        x={x}
-        y={y}
-        width={Math.abs(stroke.w)}
-        height={Math.abs(stroke.h)}
-        rx={r}
-        ry={r}
-        strokeDasharray={stroke.dashed ? '6 4' : undefined}
-        pointerEvents={hitMode}
-      />
-    );
-  }
-  if (stroke.tool === 'ellipse') {
-    return (
-      <ellipse
-        {...common}
-        fill={stroke.fill ?? 'none'}
-        cx={stroke.cx}
-        cy={stroke.cy}
-        rx={Math.max(0, stroke.rx)}
-        ry={Math.max(0, stroke.ry)}
-        strokeDasharray={stroke.dashed ? '6 4' : undefined}
-        pointerEvents={hitMode}
-      />
-    );
-  }
-  if (stroke.tool === 'polygon') {
-    const nx = Math.min(stroke.x, stroke.x + stroke.w);
-    const ny = Math.min(stroke.y, stroke.y + stroke.h);
-    return (
-      <polygon
-        {...common}
-        data-shape={stroke.shape}
-        fill={stroke.fill ?? 'none'}
-        points={polygonPoints(stroke.shape, nx, ny, Math.abs(stroke.w), Math.abs(stroke.h))}
-        strokeDasharray={stroke.dashed ? '6 4' : undefined}
-        pointerEvents={hitMode}
-      />
-    );
-  }
-  // arrow — Phase 24 renders the SAME ordered primitives the serializer emits
-  // (canvas-arrowheads), so the on-canvas and persisted forms can never drift.
-  return (
-    <g {...common} fill="none" pointerEvents={hitMode}>
-      {arrowPrimitives(stroke).map((p, i) => renderArrowPrimitive(p, i))}
-    </g>
-  );
 }
 
 /** Map one arrow primitive to JSX (heads inherit stroke from the parent <g>). */

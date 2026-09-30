@@ -66,4 +66,25 @@ export const REPORT_BOARD = [
     fill: '#fbe0e1',
     label: { text: 'Over' },
   },
+  // A shape with no label yet (Milestone C: typing creates one).
+  {
+    id: 'plain',
+    type: 'shape',
+    index: 'a5',
+    kind: 'rect',
+    x: 1500,
+    y: 420,
+    w: 140,
+    h: 100,
+    fill: '#dfe7f7',
+  },
+  // Ink painted OVER the sticky: it must stay above the sticky's text (z-order).
+  {
+    id: 'ink',
+    type: 'pen',
+    index: 'a6',
+    points: [1020, 180, 1120, 190, 1220, 185],
+    color: '#c0392b',
+    width: 6,
+  },
 ];
