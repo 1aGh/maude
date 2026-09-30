@@ -1,19 +1,21 @@
 /**
- * @file       figma/to-strokes.ts — FigJam board → the whiteboard Stroke model.
+ * @file       figma/to-strokes.ts — FigJam board → whiteboard elements.
  * @scope      apps/studio/figma/to-strokes.ts
  * @purpose    The flagship mapping: a FigJam document (normalized by
- *             `types.ts`) becomes `Stroke[]` that `strokesToSvg` serializes into
- *             `<slug>.annotations.svg`. Maude's whiteboard vocabulary is a close
- *             match for FigJam's primitives, and this is the piece no competitor
- *             ships.
+ *             `types.ts`) becomes `Stroke[]` (`toStrokes`), and those become
+ *             the v2 board ELEMENTS (`toBoardElements`, DDR-242) the importer
+ *             writes to `<slug>.annotations.json`. Maude's whiteboard vocabulary
+ *             is a close match for FigJam's primitives, and this is the piece no
+ *             competitor ships.
  *
- * @invariant  IMPORT THE CANONICAL MODEL, NEVER HAND-WRITE SVG. Same discipline
- *             as `annotate.mjs`: every stroke goes through the real `Stroke`
- *             types and the real serializer, so this translator can never emit
- *             a shape the canvas wouldn't accept.
+ * @invariant  IMPORT THE CANONICAL MODEL, NEVER HAND-WRITE A BOARD. Strokes are
+ *             the real `Stroke` types; elements come out of the same pure
+ *             transform the v1→v2 migration uses and are validated field by
+ *             field by the element registry, so this translator can never emit
+ *             an element the canvas wouldn't accept.
  *
  * @invariant  THE OUTPUT IS A VERSIONED, PEER-SYNCED, AGENT-READ ARTIFACT.
- *             `*.annotations.svg` is VERSIONED (DDR-115), commits and syncs
+ *             `*.annotations.json` is VERSIONED (DDR-115), commits and syncs
  *             (DDR-054), and `maude design read-annotations` parses it into JSON
  *             EXPRESSLY to put in a model's context. DDR-216 D1 calls this the
  *             sharpest consumption sink in the feature. So every string here
@@ -25,6 +27,9 @@
  *             (`_import-figma.mjs`) owns writes and asset downloads.
  */
 
+import { v1ToV2 } from '../annotations/migrate-v1.ts';
+import type { Dropped } from '../annotations/schema.ts';
+import type { AnnotationElement } from '../annotations/types.ts';
 import {
   type ArrowBind,
   type ArrowStroke,
@@ -748,4 +753,20 @@ export function toStrokes(doc: NormalizedDocument, opts: ToStrokesOptions = {}):
   }
 
   return { strokes, report, pendingImages, origin };
+}
+
+/**
+ * DDR-242 — translated strokes → v2 board ELEMENTS. The pure `v1ToV2`
+ * transform (the one every migration path uses): shape labels become embedded
+ * labels, section membership becomes explicit `parent` ids with relative
+ * coordinates, bound connectors keep only their hosts. Every element is then
+ * validated by the element registry — no SVG serializer, no SVG sanitizer, no
+ * round trip. Anything that can't be carried over is listed in `dropped`.
+ */
+export function toBoardElements(strokes: readonly Stroke[]): {
+  elements: AnnotationElement[];
+  dropped: Dropped[];
+} {
+  const r = v1ToV2(strokes);
+  return { elements: r.elements, dropped: r.report };
 }

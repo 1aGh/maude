@@ -17,7 +17,7 @@
 //
 // Logic characterized (line refs as of 2026-09-30, file-relative to apps/studio):
 //   section drag carry (inline in React)   annotations-layer.tsx:2482-2498
-//   section members (headless reader)      bin/read-annotations.mjs:690-747
+//   section members (headless reader)      annotations/ai-read.ts (v2 — explicit parents)
 //   grownStickyBox + STICKY_MAX_GROWN_H    annotations-model.ts:552, 570-584
 //   strokeBBox / translateOne              annotations-model.ts:2066-2170
 //   expandIdsToGroups / outermostGroupOf   annotations-groups.ts:18-53
@@ -29,7 +29,8 @@
 
 import { afterAll, beforeAll, describe, expect, mock, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
-
+import { projectBoard } from '../annotations/ai-read.ts';
+import { v1ToV2 } from '../annotations/migrate-v1.ts';
 import { alignStrokes, distributeStrokes } from '../annotations-align.ts';
 import { anchorPoint, facingAnchor, recomputeBoundArrows } from '../annotations-bindings.ts';
 import { expandIdsToGroups, outermostGroupOf } from '../annotations-groups.ts';
@@ -55,7 +56,6 @@ import {
   translateOne,
 } from '../annotations-model.ts';
 import { computeSnap } from '../annotations-snap.ts';
-import { attachSectionMembers, parseAnnotations } from '../bin/read-annotations.mjs';
 import { createAnnotationStrokesCommand } from '../commands/annotation-strokes-command.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -355,10 +355,11 @@ describe('svg round trip — every stroke kind', () => {
 //
 // The LAYER's rule is inline in the React pointerdown handler
 // (annotations-layer.tsx:2482-2498) and is not exported, so it is replicated
-// VERBATIM below as the executable spec of today's rule. The HEADLESS rule is
-// the real exported `attachSectionMembers` (bin/read-annotations.mjs:690-747),
-// tested directly. The two implementations agree on box-shaped kinds and
-// DIVERGE on standalone text (see the drift test).
+// VERBATIM below as the executable spec of today's rule. The HEADLESS reader
+// (DDR-242 Task 27) no longer has a rule of its own: membership is the explicit
+// `parent` the v1→v2 migration computed ONCE with the layer's rule, and the
+// reader (annotations/ai-read.ts) just lists a section's children in reading
+// order — so the old reader/layer drift on standalone text is gone.
 
 /** Verbatim replica of annotations-layer.tsx:2482-2498 (drag-start carry set). */
 function layerDragCarrySet(snapshot: readonly Stroke[], ids: readonly string[]): Set<string> {
@@ -381,11 +382,19 @@ function layerDragCarrySet(snapshot: readonly Stroke[], ids: readonly string[]):
   return movedSet;
 }
 
-/** Headless: real serializer → real reader → real attachSectionMembers. */
+/** Headless: the v1→v2 migration → the AI projection's nested members. */
 function readerMembers(strokes: readonly Stroke[], sectionId: string): string[] {
-  const anns = attachSectionMembers(parseAnnotations(strokesToSvg(strokes)));
-  const sec = anns.find((a: { id: string }) => a.id === sectionId);
-  return (sec?.members ?? []).map((m: { id: string }) => m.id);
+  type P = { id: string; members?: P[] };
+  const walk = (list: P[]): P | undefined => {
+    for (const e of list) {
+      if (e.id === sectionId) return e;
+      const hit = walk(e.members ?? []);
+      if (hit) return hit;
+    }
+    return undefined;
+  };
+  const sec = walk(projectBoard(v1ToV2(strokes).elements).elements as P[]);
+  return (sec?.members ?? []).map((m) => m.id);
 }
 
 const sec100: SectionStroke = { ...section, id: 's', x: 0, y: 0, w: 100, h: 100 };
@@ -488,7 +497,7 @@ describe('section membership — layer drag carry (replica of annotations-layer.
   });
 });
 
-describe('section membership — headless reader (bin/read-annotations.mjs attachSectionMembers)', () => {
+describe('section membership — headless reader (annotations/ai-read.ts over migrated parents)', () => {
   test('centre-in-box, border-inclusive — agrees with the layer on box kinds', () => {
     const strokes: Stroke[] = [
       sec100,
@@ -513,18 +522,23 @@ describe('section membership — headless reader (bin/read-annotations.mjs attac
     expect(readerMembers(strokes, 's')).toEqual(['topLeft', 'topRight', 'bottom']);
   });
 
-  test('nested sections are never members of the outer section', () => {
+  test('v2: a nested section IS a member of its outer section; contents belong to the innermost', () => {
+    // Deliberate change (DDR-242): v1's reader never listed a section as a
+    // member. With explicit parents the tree nests: outer → inner → on.
     const outer: SectionStroke = { ...sec100, id: 'outer', w: 400, h: 400 };
     const inner: SectionStroke = { ...sec100, id: 'inner', x: 50, y: 50 };
-    expect(readerMembers([outer, inner, rectAt('on', 100, 100)], 'outer')).toEqual(['on']);
+    const strokes = [outer, inner, rectAt('on', 100, 100)];
+    expect(readerMembers(strokes, 'outer')).toEqual(['inner']);
+    expect(readerMembers(strokes, 'inner')).toEqual(['on']);
   });
 
-  test('DRIFT: standalone text — reader uses its (x, y) POINT, layer uses its bbox centre', () => {
-    // Text anchored at (90, 90) with a long line: bbox centre is far right of
-    // the section, but the reader has no w/h for text and uses (x, y) itself.
+  test('standalone text: reader and layer now AGREE (one rule — the migrated explicit parent)', () => {
+    // v1 drift: the reader used the text's (x, y) POINT, the layer its bbox
+    // centre. Text at (90, 90) with a long line has its centre far right of
+    // the section — so it is not a member for either.
     const t: TextStroke = { ...standaloneText, id: 't', text: 'a long label here', x: 90, y: 90 };
     const strokes: Stroke[] = [sec100, t];
-    expect(readerMembers(strokes, 's')).toEqual(['t']);
+    expect(readerMembers(strokes, 's')).toEqual([]);
     expect(layerDragCarrySet(strokes, ['s']).has('t')).toBe(false);
   });
 });
@@ -901,8 +915,5 @@ describe('known bugs (Milestone D flips these)', () => {
   );
   test.todo(
     'a peer deleting the element I am editing does not drop my typed text — expected v2 behaviour: the local draft survives (re-create or prompt), never silently lost; bug ref annotations-layer.tsx:2974-2978 (commitEditing returns early when editingTarget resolved to null after the peer delete)'
-  );
-  test.todo(
-    'headless reader and layer agree on standalone-text section membership — expected v2 behaviour: one containment rule (explicit parent id) shared by both; drift ref bin/read-annotations.mjs:693-696 (w/h null → centre = (x,y)) vs annotations-layer.tsx:2492-2495 (strokeBBox centre)'
   );
 });

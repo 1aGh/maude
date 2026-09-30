@@ -6,10 +6,11 @@
 // against SPECIFIC IDS rather than "a board".
 
 import { describe, expect, test } from 'bun:test';
+import { parseBoard, serializeBoard } from '../annotations/schema.ts';
 import { isBindable } from '../annotations-bindings.ts';
 import type { ArrowStroke, SectionStroke, StickyStroke, Stroke } from '../annotations-model.ts';
 import { STICKY_PALETTE, sanitizeAnnotationSvg, strokesToSvg } from '../annotations-model.ts';
-import { nearestStickyColor, toStrokes } from './to-strokes.ts';
+import { nearestStickyColor, toBoardElements, toStrokes } from './to-strokes.ts';
 import { normalizeDocument } from './types.ts';
 
 const KEY = 'Em6NOwaOFTYV7NlQT4NK8l';
@@ -701,5 +702,45 @@ describe('loose vector artwork (the missing flow arrows)', () => {
     // …and the element itself stays either way, which is exactly why counting
     // `<image>` tags proved nothing.
     expect(withHref('assets/abc12345.svg')).toContain('<image');
+  });
+});
+
+// DDR-242 Task 27 — the importer writes v2 ELEMENTS straight from the
+// translated strokes (registry-validated), never via SVG.
+describe('toBoardElements — v2 elements, no SVG round trip', () => {
+  test('every translated stroke lands as a registry-valid element; the board is canonical', () => {
+    const { strokes } = translate();
+    const { elements, dropped } = toBoardElements(strokes);
+    expect(dropped).toEqual([]);
+    const text = serializeBoard(elements);
+    const reparsed = parseBoard(text);
+    expect(reparsed.dropped).toEqual([]);
+    expect(serializeBoard(reparsed.elements)).toBe(text);
+  });
+
+  test('nesting becomes explicit parents: the sticky belongs to the INNER section', () => {
+    const { strokes } = translate();
+    const { elements } = toBoardElements(strokes);
+    const inner = elements.find(
+      (e) => e.type === 'section' && e.label === 'Sekce vnitřní (nested)'
+    );
+    const outer = elements.find((e) => e.type === 'section' && e.id !== inner?.id);
+    const persona = elements.find((e) => e.type === 'sticky' && e.text === 'Persona A');
+    expect(inner?.parent).toBe(outer?.id);
+    expect(persona?.parent).toBe(inner?.id);
+  });
+
+  test('bound connectors keep only their hosts; provenance survives as a named author', () => {
+    const { strokes } = translate();
+    const { elements } = toBoardElements(strokes);
+    const bound = elements.filter(
+      (e) => e.type === 'arrow' && 'el' in (e.start as object) && 'el' in (e.end as object)
+    );
+    expect(bound.length).toBeGreaterThanOrEqual(3);
+    // (Connectors are translated after the provenance pass and carry none —
+    // unchanged from v1.)
+    for (const e of elements.filter((x) => x.type !== 'arrow')) {
+      expect(e.author).toEqual({ kind: 'human', name: 'imported-figma' });
+    }
   });
 });
