@@ -117,6 +117,7 @@ import { STICKERS_DIR } from './paths.ts';
 import { getPaperPreset, MAX_PRINT_MM } from './print/units.ts';
 import { sessionDir } from './session-scope.ts';
 import { describeSourceOp } from './sync/source-ops.ts';
+import { normalizeTreeState, type TreeState } from './tree-state.ts';
 import { isWorkspaceMode } from './workspace-mode.ts';
 
 // Directories that never hold user-facing canvases. Exported so the
@@ -424,6 +425,8 @@ export interface Api {
   // Canvas state
   loadCanvasState(file: string): Promise<Record<string, unknown> | null>;
   saveCanvasState(file: string, state: Record<string, unknown>): Promise<void>;
+  loadTreeState(): Promise<TreeState>;
+  saveTreeState(state: TreeState): Promise<TreeState>;
   timelineMediaLoad(key: string): Promise<Record<string, unknown> | null>;
   timelineMediaSave(key: string, data: Record<string, unknown>): Promise<boolean>;
   // Canvas meta sidecar (Phase 4 T5 — .design/ui/<slug>.meta.json)
@@ -1572,6 +1575,37 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     } catch {
       return null;
     }
+  }
+
+  // ---------- File-tree expansion (issue #124) ----------
+  //
+  // Which folders + sections of the Files panel the user left open. Per-user
+  // runtime state (DDR-115): it lives under `_canvas-state/` — already on every
+  // ignore list, never versioned or synced — and goes through `sessionDir`, so
+  // in a cell each member keeps their own tree. A SUBDIRECTORY, not a sibling
+  // file: `/_canvas-state` builds `<fileSlug(file)>.json` from user input with
+  // no host/origin guard, so any flat name here is reachable through it
+  // (`?file=_file-tree` hit `_file-tree.json`). A slug never contains `/`.
+  function treeStateDir(): string {
+    return path.join(sessionDir(paths.canvasStateDir), '_tree');
+  }
+  function treeStatePath(): string {
+    return path.join(treeStateDir(), 'state.json');
+  }
+
+  async function loadTreeState(): Promise<TreeState> {
+    try {
+      return normalizeTreeState(JSON.parse(await Bun.file(treeStatePath()).text()));
+    } catch {
+      return { dirs: [], sections: {} };
+    }
+  }
+
+  async function saveTreeState(state: TreeState): Promise<TreeState> {
+    const safe = normalizeTreeState(state);
+    await mkdir(treeStateDir(), { recursive: true });
+    await Bun.write(treeStatePath(), JSON.stringify(safe, null, 2));
+    return safe;
   }
 
   // ---------- Timeline media visuals cache (enhanced-video-editing Task 7) ----
@@ -6621,6 +6655,8 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     parseMentions,
     loadCanvasState,
     saveCanvasState,
+    loadTreeState,
+    saveTreeState,
     timelineMediaLoad,
     timelineMediaSave,
     loadCanvasMeta,

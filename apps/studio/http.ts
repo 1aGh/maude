@@ -117,6 +117,7 @@ import { isHubReadOnly } from './sync/hubs-config.ts';
 import { isFirstAnchorMode, readSyncSettings, writeSyncSettings } from './sync/settings.ts';
 import { listTrash, pruneTrash, restoreFromTrash } from './sync/trash.ts';
 import { signInToWorkspace, workspaceDisclosure } from './sync/workspace-signin.ts';
+import { normalizeTreeState } from './tree-state.ts';
 import { readUiPrefs, type UiPrefs, writeUiPrefs } from './ui-prefs.ts';
 import { loadWhatsNew, resolveMaudeVersion } from './whats-new.ts';
 import { isWorkspaceMode, resolveRenderLane } from './workspace-mode.ts';
@@ -400,6 +401,7 @@ export const READ_ONLY_ALLOWED_WRITES = new Set([
   '/_canvas-state', // per-user camera / view state (DDR-115: never versioned)
   '/_api/canvas-meta', // viewport lane only — the layout lane is refused in-handler
   '/_api/ui-prefs', // per-user UI preferences
+  '/_api/tree-state', // per-user Files-panel disclosure (issue #124)
   '/_api/timeline-media', // per-user runtime media cache (scrub read path)
   '/_api/export', // "look, comment and download" — the cell allows /api/export too
   '/_api/export-jobs',
@@ -5194,6 +5196,36 @@ export function createHttp(
         return new Response(err instanceof Error ? err.message : 'ui-prefs write failed', {
           status: 500,
         });
+      }
+    },
+
+    // Issue #124 — the Files panel's remembered folder/section disclosure, per
+    // project (and per member in a cell, via api.ts's sessionDir). GET returns
+    // the stored state (empty ⇒ everything closed); POST replaces it. MAIN-ORIGIN
+    // ONLY, same gates as /_api/ui-prefs — never reachable from a canvas.
+    '/_api/tree-state': async (req: Request) => {
+      if (!isTrustedRequestHost(req))
+        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+      if (req.method === 'GET') {
+        return Response.json(await api.loadTreeState(), {
+          headers: { 'Cache-Control': 'no-store' },
+        });
+      }
+      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+      if (!sameOriginWrite(req))
+        return new Response('cross-origin write rejected', { status: 403 });
+      const body = await readJson<Record<string, unknown>>(req, 256 * 1024);
+      if (!body || typeof body !== 'object' || Array.isArray(body))
+        return new Response('body must be a JSON object', { status: 400 });
+      try {
+        return Response.json(await api.saveTreeState(normalizeTreeState(body)), {
+          headers: { 'Cache-Control': 'no-store' },
+        });
+      } catch (err) {
+        // Log the cause here; the body stays generic — an fs error message
+        // carries the server's absolute path, and in a cell a viewer reads it.
+        console.error('[tree-state] write failed:', err instanceof Error ? err.message : err);
+        return new Response('tree-state write failed', { status: 500 });
       }
     },
 

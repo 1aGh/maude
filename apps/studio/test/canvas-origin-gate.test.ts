@@ -98,6 +98,9 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
         // routes, so a GET here 403s at the gate, not 405 from the handler.
         '/_api/fs-move',
         '/_api/fs-mkdir',
+        // Issue #124 — the Files panel's remembered disclosure is per-user
+        // runtime state; same MAIN-ORIGIN-ONLY posture as /_api/ui-prefs.
+        '/_api/tree-state',
         '/_api/edit-css',
         '/_api/edit-text',
         '/_api/edit-attr',

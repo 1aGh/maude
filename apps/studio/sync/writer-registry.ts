@@ -230,6 +230,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/sync/settings': { class: 'local' },
   '/_api/sync/trash': { class: 'local', rows: 'X15 (restore re-enters through cold start)' },
   '/_api/timeline-media': { class: 'local' },
+  '/_api/tree-state': { class: 'local' },
   '/_api/ui-prefs': { class: 'local' },
   '/_api/workspace/disclosure': { class: 'local' },
   '/_api/workspace/sign-in': { class: 'local' },

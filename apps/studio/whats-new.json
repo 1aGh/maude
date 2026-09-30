@@ -2,6 +2,15 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "file-tree-remembers-folders",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "The file tree remembers your folders",
+      "summary": "The Files panel now starts collapsed and keeps the folders you open, even after you switch panels, reload or restart the app. Opening a canvas unfolds the way to it.",
+      "surface": "design-ui"
+    },
+    {
       "id": "comments-stay-where-you-put-them",
       "version": "1.4.6",
       "date": "2026-09-30",
