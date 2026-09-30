@@ -588,8 +588,9 @@ function applyOriginOffset(ops, origin) {
 
 /**
  * POST the ops to a live, loopback dev-server. Returns the parsed response,
- * `null` when there is no usable server (then the caller writes the file), or
- * fails when the server refused the batch (a file write would bypass it).
+ * `null` when no server answers or it predates the op route (then the caller
+ * writes the file), and fails on any other refusal or a timeout — a file write
+ * would bypass the server and its live room.
  */
 async function postOps(designRoot, file, ops) {
   const serverJsonPath = join(designRoot, '_server.json');
@@ -615,16 +616,24 @@ async function postOps(designRoot, file, ops) {
         actionId: `ai-annotate-${Math.random().toString(36).slice(2, 12)}`,
         ops,
       }),
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(10_000),
     });
-  } catch {
-    return null; // stale _server.json / server down
+  } catch (err) {
+    // No server answering (a stale _server.json) → the file write is safe.
+    // A server that IS there but too slow must not be bypassed: writing the
+    // file would reseed its live room from a stale snapshot and erase what
+    // collaborators did meanwhile (security review A2).
+    if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
+      fail('the dev-server did not answer in time — nothing written; try again', 1);
+    }
+    return null;
   }
-  if (res.status === 409 || res.status === 413) {
+  // Only a server too old to have the op route falls back to the file.
+  if (res.status === 404 || res.status === 405) return null;
+  if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     fail(`the server refused the batch: ${body?.error ?? res.status} — nothing written`, 1);
   }
-  if (!res.ok) return null; // an older server without the op route
   return res.json().catch(() => ({ ok: true, rejected: [] }));
 }
 
@@ -721,7 +730,11 @@ async function main() {
       via = 'server';
       rejected = Array.isArray(res.rejected) ? res.rejected : [];
     } else {
-      writeBoardFileAtomic(designRoot, slug, text);
+      try {
+        writeBoardFileAtomic(designRoot, slug, text);
+      } catch (err) {
+        fail(err instanceof Error ? err.message : String(err), 2);
+      }
     }
   }
 

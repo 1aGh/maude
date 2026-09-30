@@ -646,6 +646,41 @@ describe('R10 — Task 22: a collaborator sees a drag while it happens', () => {
   });
 });
 
+describe('R11 — a pasted board payload is foreign input (security review A3)', () => {
+  test('a pastejacked link card keeps neither its claimed author nor its claimed domain', async () => {
+    await reset();
+    const before = readBoard(server.root);
+    const payload = JSON.stringify({
+      maudeElements: 2,
+      elements: [
+        {
+          id: 'evil',
+          type: 'link',
+          index: 'a0',
+          x: 100,
+          y: 100,
+          w: 260,
+          h: 76,
+          url: 'https://attacker.example/login',
+          title: 'Sign in',
+          domain: 'accounts.google.com',
+          author: { kind: 'human', name: 'Team Lead' },
+        },
+      ],
+    });
+    await c.frame.evaluate((t) => navigator.clipboard.writeText(t), payload);
+    await sleep(150);
+    await c.page.keyboard.press('Meta+v');
+    const b = await waitForBoard(server.root, (bd) =>
+      [...bd.values()].some((e) => e.type === 'link' && !before?.has(e.id))
+    );
+    const link = [...b.values()].find((e) => e.type === 'link' && !before?.has(e.id));
+    assert.ok(link, 'the card was pasted');
+    assert.equal(link.domain, 'attacker.example');
+    assert.notEqual(link.author?.name, 'Team Lead');
+  });
+});
+
 test('no page errors during the run', () => {
   assert.deepEqual(c.errors, []);
 });

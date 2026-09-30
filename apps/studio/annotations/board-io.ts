@@ -11,14 +11,15 @@
 
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { canonicalAnnotations } from './board-text.ts';
 import { MAX_BOARD_BYTES } from './constants.ts';
 import { parseBoard } from './schema.ts';
@@ -44,9 +45,12 @@ export function readBoardFile(designRoot: string, slug: string): BoardFile {
   const legacy = join(designRoot, `${slug}.annotations.svg`);
   const path = existsSync(json) ? json : existsSync(legacy) ? legacy : null;
   if (!path) return { boardText: '', elements: [] };
-  // A peer- or git-written file is untrusted (DDR-054): check the size BEFORE
-  // reading it, so an oversized board never reaches a parser.
-  if (statSync(path).size > MAX_BOARD_BYTES) return { tooLarge: true, boardText: '', elements: [] };
+  // A peer- or git-written file is untrusted (DDR-054): a regular file only
+  // (a symlink or a FIFO would read elsewhere or block forever), and the size
+  // checked BEFORE reading, so an oversized board never reaches a parser.
+  const st = lstatSync(path);
+  if (!st.isFile()) return { unreadable: true, boardText: '', elements: [] };
+  if (st.size > MAX_BOARD_BYTES) return { tooLarge: true, boardText: '', elements: [] };
   let clean: string | null = null;
   try {
     clean = canonicalAnnotations(readFileSync(path, 'utf8'));
@@ -63,8 +67,22 @@ export function readBoardFile(designRoot: string, slug: string): BoardFile {
  */
 export function writeBoardFileAtomic(designRoot: string, slug: string, text: string): string {
   const target = boardPath(designRoot, slug);
+  // Never write through a symlink (a committed one could point anywhere):
+  // the board must be a regular file or absent, and `_state/` a real
+  // directory inside the design root (security review W1).
+  if (existsSync(target) && !lstatSync(target).isFile()) {
+    throw new Error(`${slug}.annotations.json is not a regular file — nothing written`);
+  }
   const scratch = join(designRoot, '_state');
+  if (existsSync(scratch) && !lstatSync(scratch).isDirectory()) {
+    throw new Error('_state is not a directory — nothing written');
+  }
   mkdirSync(scratch, { recursive: true });
+  const realRoot = realpathSync(designRoot);
+  const realScratch = realpathSync(scratch);
+  if (realScratch !== realRoot && !realScratch.startsWith(realRoot + sep)) {
+    throw new Error('_state resolves outside the design root — nothing written');
+  }
   const tmp = join(scratch, `annotations-${process.pid}-${Date.now().toString(36)}.tmp`);
   try {
     writeFileSync(tmp, text, 'utf8');

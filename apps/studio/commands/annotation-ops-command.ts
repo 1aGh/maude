@@ -21,20 +21,31 @@ export const ANNOTATION_OPS_KIND = 'annotation-ops';
 export interface AnnotationOpsPayload {
   ops: readonly Op[];
   inverse: readonly Op[];
+  /**
+   * The canvas the batch belongs to. The stack's records live in origin-wide
+   * sessionStorage, so the layer replays only its own canvas's (security
+   * review A5 — another canvas must not steer this one's undo).
+   */
+  file?: string;
 }
 
 /** Applies a batch locally and sends it; returns the batch's own inverse. */
-export type AnnotationOpsFn = (ops: readonly Op[]) => readonly Op[] | void;
+export type AnnotationOpsFn = (ops: readonly Op[], file?: string) => readonly Op[] | void;
 
 export function buildAnnotationOpsRecord(opts: {
   ops: readonly Op[];
   inverse: readonly Op[];
   label: string;
+  file?: string;
 }): CommandRecord<AnnotationOpsPayload> {
   return {
     kind: ANNOTATION_OPS_KIND,
     label: opts.label,
-    payload: { ops: structuredClone(opts.ops), inverse: structuredClone(opts.inverse) },
+    payload: {
+      ops: structuredClone(opts.ops),
+      inverse: structuredClone(opts.inverse),
+      ...(opts.file ? { file: opts.file } : {}),
+    },
   };
 }
 
@@ -46,10 +57,10 @@ export function createAnnotationOpsCommand(
     kind: ANNOTATION_OPS_KIND,
     label: record.label,
     async do() {
-      fn(record.payload.ops);
+      fn(record.payload.ops, record.payload.file);
     },
     async undo() {
-      fn(record.payload.inverse);
+      fn(record.payload.inverse, record.payload.file);
     },
   };
 }

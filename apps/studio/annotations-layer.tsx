@@ -1,3 +1,4 @@
+import { MAX_BOARD_BYTES, MAX_ELEMENTS } from './annotations/constants.ts';
 import { v1ToV2 } from './annotations/migrate-v1.ts';
 import { type Op as AnnotationOp, applyOps, diffToOps } from './annotations/ops.ts';
 import { defOf } from './annotations/registry.ts';
@@ -298,6 +299,9 @@ function useCanvasChromeTheme(): 'light' | 'dark' {
 
 /** A whiteboard clipboard payload (v2 elements, or a pre-v2 strokes list). */
 function isBoardClipboard(txt: string): boolean {
+  // The clipboard is foreign input (any page the user copied from can set it):
+  // nothing larger than a whole board is ever parsed (security review W3/A6).
+  if (txt.length > MAX_BOARD_BYTES) return false;
   return txt.startsWith('{"maudeElements"') || txt.startsWith('{"maudeStrokes"');
 }
 
@@ -1297,7 +1301,9 @@ export function AnnotationsLayer() {
   // Undo / redo replay an op batch through THIS iframe's store (the stack is
   // rebuilt from records after a canvas switch — DDR-050).
   useEffect(() => {
-    undoSinks.setSink('annotationOpsFn', (ops: readonly AnnotationOp[]) => {
+    undoSinks.setSink('annotationOpsFn', (ops: readonly AnnotationOp[], file?: string) => {
+      // A record made on another canvas never applies here (security review A5).
+      if (file !== fileRef.current) return [];
       setPreview(null);
       return applyOpsLocal(ops);
     });
@@ -1352,6 +1358,7 @@ export function AnnotationsLayer() {
             ops: redo,
             inverse: diffToOps(nextMap, baseMap),
             label: label ?? 'edit text',
+            file: fileRef.current,
           })
         );
         return;
@@ -1359,7 +1366,12 @@ export function AnnotationsLayer() {
       if (!ops.length) return;
       const inverse = applyOpsLocal(ops);
       undoStackRef.current.record(
-        buildAnnotationOpsRecord({ ops, inverse, label: label ?? 'edit annotations' })
+        buildAnnotationOpsRecord({
+          ops,
+          inverse,
+          label: label ?? 'edit annotations',
+          file: fileRef.current,
+        })
       );
     },
     [board, applyOpsLocal]
@@ -3305,12 +3317,27 @@ export function AnnotationsLayer() {
         };
         const raw =
           parsed.maudeElements === 2 && Array.isArray(parsed.elements)
-            ? parsed.elements
+            ? parsed.elements.slice(0, MAX_ELEMENTS)
             : parsed.maudeStrokes === 1 && Array.isArray(parsed.strokes)
-              ? v1ToV2(parsed.strokes as Stroke[], { flat: true }).elements
+              ? v1ToV2((parsed.strokes as Stroke[]).slice(0, MAX_ELEMENTS), { flat: true }).elements
               : null;
         if (!raw) return false;
-        safe = elementsToStrokes(validateElements(raw).elements);
+        // What lands is THIS user's paste: it carries their authorship, never a
+        // name the clipboard claims, and a link card's domain comes from its
+        // url (a pastejacked card must not read "accounts.google.com" while
+        // pointing elsewhere — security review A3).
+        const me = collabRef.current?.myName;
+        const author = me
+          ? { kind: 'human', name: me, id: collabRef.current?.myConnId }
+          : undefined;
+        const mine = validateElements(raw).elements.map((el) => {
+          const out: Record<string, unknown> = { ...el };
+          delete out.author;
+          if (author) out.author = author;
+          if (el.type === 'link' && typeof el.url === 'string') out.domain = linkDomain(el.url);
+          return out;
+        });
+        safe = elementsToStrokes(validateElements(mine).elements);
       } catch {
         return false;
       }

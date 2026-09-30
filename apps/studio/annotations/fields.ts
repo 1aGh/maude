@@ -84,7 +84,7 @@ export interface StrOpts {
 }
 
 /** Control chars, C1, zero-width, bidi overrides/isolates, BOM. Newline/tab kept for text bodies. */
-function stripUnsafe(s: string, keepNewlines: boolean): string {
+export function stripUnsafe(s: string, keepNewlines: boolean): string {
   let out = '';
   for (const ch of s) {
     const cp = ch.codePointAt(0) ?? 0;

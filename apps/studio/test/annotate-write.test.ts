@@ -5,7 +5,15 @@
 // element ops it sends to a live server.
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Scene } from '../annotations/scene.ts';
@@ -522,6 +530,37 @@ describe('annotate — the board file is guarded', () => {
     expect(boardText('ui-corrupt')).toBe('{"format":"something-else"}');
   });
 
+  test('a symlinked board is never read through nor written through (W1)', () => {
+    const outside = mkdtempSync(join(tmpdir(), 'annotate-outside-'));
+    const victim = join(outside, 'victim.json');
+    writeFileSync(victim, 'keep me');
+    symlinkSync(victim, pathOf('ui-link'));
+    const res = annotate(['ui/Link.tsx'], {
+      ops: [{ op: 'create', type: 'sticky', text: 'x', x: 0, y: 0 }],
+    });
+    expect(res.code).not.toBe(0);
+    expect(readFileSync(victim, 'utf8')).toBe('keep me');
+    rmSync(outside, { recursive: true, force: true });
+  });
+
+  test('a symlinked _state/ scratch dir is refused — no temp file lands outside (W1)', () => {
+    const outside = mkdtempSync(join(tmpdir(), 'annotate-state-'));
+    const state = join(root, '.design', '_state');
+    const had = existsSync(state);
+    if (had) rmSync(state, { recursive: true, force: true });
+    symlinkSync(outside, state);
+    try {
+      const res = annotate(['ui/Scratch.tsx'], {
+        ops: [{ op: 'create', type: 'sticky', text: 'x', x: 0, y: 0 }],
+      });
+      expect(res.code).not.toBe(0);
+      expect(existsSync(pathOf('ui-scratch'))).toBe(false);
+    } finally {
+      rmSync(state, { force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
   test('an oversized board is refused before it is read', () => {
     writeFileSync(pathOf('ui-huge'), 'x'.repeat(4 * 1024 * 1024 + 10));
     const res = annotate(['ui/Huge.tsx'], {
@@ -898,6 +937,49 @@ describe('annotate — the live-server path', () => {
       expect(res.code).toBe(1);
       expect(res.err).toContain('refused the batch');
       expect(existsSync(pathOf('ui-refused'))).toBe(false);
+    } finally {
+      rmSync(serverJson, { force: true });
+      server.stop(true);
+    }
+  });
+
+  test.each([
+    400, 403, 500,
+  ])('a live server answering %i fails the verb — no file write behind its back (A2)', async (status) => {
+    const server = Bun.serve({
+      port: 0,
+      hostname: '127.0.0.1',
+      fetch: () => new Response('nope', { status }),
+    });
+    const serverJson = join(root, '.design', '_server.json');
+    writeFileSync(serverJson, JSON.stringify({ url: `http://127.0.0.1:${server.port}` }));
+    try {
+      const res = await annotateAsync([`ui/Status${status}.tsx`], {
+        ops: [{ op: 'create', type: 'sticky', text: 'x', x: 0, y: 0 }],
+      });
+      expect(res.code).toBe(1);
+      expect(res.err).toContain('refused the batch');
+      expect(existsSync(pathOf(`ui-status${status}`))).toBe(false);
+    } finally {
+      rmSync(serverJson, { force: true });
+      server.stop(true);
+    }
+  });
+
+  test('a server without the op route (404) — the verb writes the file', async () => {
+    const server = Bun.serve({
+      port: 0,
+      hostname: '127.0.0.1',
+      fetch: () => new Response('not found', { status: 404 }),
+    });
+    const serverJson = join(root, '.design', '_server.json');
+    writeFileSync(serverJson, JSON.stringify({ url: `http://127.0.0.1:${server.port}` }));
+    try {
+      const res = await annotateAsync(['ui/Old.tsx'], {
+        ops: [{ op: 'create', type: 'sticky', text: 'x', x: 0, y: 0 }],
+      });
+      expect(res.code).toBe(0);
+      expect(JSON.parse(res.out).via).toBe('file');
     } finally {
       rmSync(serverJson, { force: true });
       server.stop(true);

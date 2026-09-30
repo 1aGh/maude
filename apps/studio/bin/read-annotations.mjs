@@ -321,12 +321,13 @@ async function main() {
         if (artboards.length) out.artboard = findArtboard(b, artboards)?.id ?? null;
         if (domElements.length) {
           const el = findElement(b, domElements);
+          // The manifest comes from the canvas's own code — untrusted strings.
           out.element = el
             ? {
-                cdId: el.cdId ?? null,
-                selector: el.selector,
-                tag: el.tag ?? '',
-                text: el.text ?? '',
+                cdId: el.cdId == null ? null : ai.safeString(el.cdId, 64),
+                selector: ai.safeString(el.selector, 300),
+                tag: ai.safeString(el.tag, 32),
+                text: ai.safeString(el.text, 200),
               }
             : null;
         }

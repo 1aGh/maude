@@ -54,7 +54,9 @@ export const REGISTRY: ReadonlyMap<string, ElementDef> = TYPES;
  * cannot be replaced.
  */
 export function registerElementType(def: ElementDef): void {
-  if (!TYPE_RE.test(def.type)) throw new Error(`invalid element type "${def.type}"`);
+  if (!TYPE_RE.test(def.type) || def.type in Object.prototype) {
+    throw new Error(`invalid element type "${def.type}"`);
+  }
   const cur = TYPES.get(def.type);
   if (cur && DEFS.includes(cur)) throw new Error(`"${def.type}" is a built-in element type`);
   TYPES.set(def.type, def);
@@ -121,6 +123,9 @@ export function validateElement(raw: unknown): ElementResult {
   }
   const r = raw as Record<string, unknown>;
   const rawId = typeof r.id === 'string' ? r.id : undefined;
+  if (typeof r.type === 'string' && r.type in Object.prototype) {
+    return { ok: false, reason: 'reserved element type', id: rawId };
+  }
   const spec = typeof r.type === 'string' ? specOf(r.type) : null;
   let el: Record<string, unknown>;
   if (spec) {

@@ -20,7 +20,7 @@
  *             events only while the layer is interactive.
  */
 
-import { type CSSProperties, memo, type ReactNode } from 'react';
+import { Component, type CSSProperties, memo, type ReactNode } from 'react';
 import {
   clampLinkTitle,
   LINK_CARD_FILL,
@@ -857,17 +857,21 @@ function SectionView({ el, interactive, edit }: ElementNodeProps) {
   );
 }
 
-function PlaceholderView({ el, interactive }: ElementNodeProps) {
+/** A placeholder never grows past this (world units) — a hostile record can't blanket the board. */
+const PLACEHOLDER_MAX = 2000;
+const clampPx = (v: number, lo: number) => Math.min(PLACEHOLDER_MAX, Math.max(lo, v));
+
+function PlaceholderView({ el }: ElementNodeProps) {
   const x = num(el.x);
   const y = num(el.y);
-  const w = Math.max(num(el.w), 40);
-  const h = Math.max(num(el.h), 24);
+  const w = clampPx(num(el.w), 40);
+  const h = clampPx(num(el.h), 24);
   return (
-    <Node el={el} x={x} y={y} w={w} h={h} rot={num(el.rot)}>
+    <Node el={el} x={x} y={y} w={w} h={h}>
       <div
         className="dc-annot-placeholder"
         title="Made with a newer version of Maude — kept as is"
-        style={{ pointerEvents: interactive ? 'auto' : 'none' }}
+        style={{ pointerEvents: 'none' }}
       >
         {el.type}
       </div>
@@ -875,17 +879,19 @@ function PlaceholderView({ el, interactive }: ElementNodeProps) {
   );
 }
 
-const VIEWS: Record<string, (p: ElementNodeProps) => ReactNode> = {
-  sticky: StickyView,
-  text: TextView,
-  shape: ShapeView,
-  arrow: ArrowView,
-  pen: PenView,
-  image: ImageView,
-  link: LinkView,
-  mediaref: MediaRefView,
-  section: SectionView,
-};
+// A Map, never a plain object: `type` is peer data, and a lookup on an object
+// would resolve `constructor` & co. to inherited members (security review A1).
+const VIEWS = new Map<string, (p: ElementNodeProps) => ReactNode>([
+  ['sticky', StickyView],
+  ['text', TextView],
+  ['shape', ShapeView],
+  ['arrow', ArrowView],
+  ['pen', PenView],
+  ['image', ImageView],
+  ['link', LinkView],
+  ['mediaref', MediaRefView],
+  ['section', SectionView],
+]);
 
 /**
  * Register how a runtime-registered element type draws (see
@@ -893,16 +899,34 @@ const VIEWS: Record<string, (p: ElementNodeProps) => ReactNode> = {
  * `Node` is the positioned wrapper every view uses.
  */
 export function registerElementView(type: string, view: (p: ElementNodeProps) => ReactNode): void {
-  if (Object.hasOwn(VIEWS, type)) throw new Error(`"${type}" already has a view`);
-  VIEWS[type] = view;
+  if (VIEWS.has(type)) throw new Error(`"${type}" already has a view`);
+  VIEWS.set(type, view);
 }
 
 export { Node as ElementBox };
 
+/**
+ * One element that fails to render (a malformed peer record, a bug in a view)
+ * draws as a placeholder instead of unmounting the whole canvas.
+ */
+class ElementBoundary extends Component<ElementNodeProps, { failed: boolean }> {
+  override state = { failed: false };
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true };
+  }
+  override componentDidUpdate(prev: ElementNodeProps): void {
+    if (this.state.failed && prev.el !== this.props.el) this.setState({ failed: false });
+  }
+  override render(): ReactNode {
+    if (this.state.failed) return <PlaceholderView {...this.props} />;
+    const View = VIEWS.get(this.props.el.type) ?? PlaceholderView;
+    return <View {...this.props} />;
+  }
+}
+
 function ElementNodeImpl(props: ElementNodeProps) {
   countRender('annotationNodeRenders');
-  const View = VIEWS[props.el.type] ?? PlaceholderView;
-  return <View {...props} />;
+  return <ElementBoundary {...props} />;
 }
 
 function sameEnds(a?: ResolvedEnds, b?: ResolvedEnds): boolean {
