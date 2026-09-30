@@ -1,11 +1,11 @@
 {
-  "generated": "2026-09-25T00:00:00.000Z",
-  "version": "1.4.5",
+  "generated": "2026-09-30T00:00:00.000Z",
+  "version": "1.4.6",
   "entries": [
     {
       "id": "comments-stay-where-you-put-them",
-      "version": null,
-      "date": null,
+      "version": "1.4.6",
+      "date": "2026-09-30",
       "kind": "fix",
       "title": "Comments stay where you put them",
       "summary": "A comment on a sticky, a drawing or empty canvas no longer disappears a few seconds after you save it. A comment on a sticky moves with it, and if the thing it points at is deleted the comment stays, marked as detached, until you remove it.",
@@ -13,8 +13,8 @@
     },
     {
       "id": "comments-reach-every-peer",
-      "version": null,
-      "date": null,
+      "version": "1.4.6",
+      "date": "2026-09-30",
       "kind": "fix",
       "title": "Web comments reach the desktop app",
       "summary": "Comments added on the web while your desktop app was closed now show up when you reopen it, and a comment deleted elsewhere no longer comes back.",
@@ -22,8 +22,8 @@
     },
     {
       "id": "large-boards-pan-smoothly",
-      "version": null,
-      "date": null,
+      "version": "1.4.6",
+      "date": "2026-09-30",
       "kind": "improvement",
       "title": "Large boards pan smoothly again",
       "summary": "Panning a board with many artboards stays smooth while something is selected or a teammate is on the canvas — on the desktop app it could drop to a frame a second.",
@@ -31,8 +31,8 @@
     },
     {
       "id": "sync-no-phantom-waiting-files",
-      "version": null,
-      "date": null,
+      "version": "1.4.6",
+      "date": "2026-09-30",
       "kind": "fix",
       "title": "Sync stops counting files that are done",
       "summary": "The Sync panel no longer shows files as waiting or stuck when there is nothing left to deliver, and Resync now brings down a file the project changed while you were uploading it.",
