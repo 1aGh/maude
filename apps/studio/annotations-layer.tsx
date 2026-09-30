@@ -218,7 +218,7 @@ import {
   useCanvasMediaDrop,
 } from './use-canvas-media-drop.tsx';
 import { useChromeVisibility } from './use-chrome-visibility.tsx';
-import { colorForName, useCollab } from './use-collab.tsx';
+import { type AnnotationGesture, colorForName, useCollab } from './use-collab.tsx';
 import { useSelectionSetOptional } from './use-selection-set.tsx';
 import { type ShapeKind, useToolMode } from './use-tool-mode.tsx';
 import { useUndoSinks, useUndoStackOptional } from './use-undo-stack.tsx';
@@ -958,6 +958,16 @@ export function AnnotationsLayer() {
   // Task 21 — ONE pointer pipeline for every annotation gesture: stages tried
   // in explicit priority order, one owner per gesture (pointer-pipeline.ts).
   const pipeline = useMemo(() => new PointerPipeline(), []);
+  const collab = useCollab();
+  const collabRef = useRef(collab);
+  collabRef.current = collab;
+  /**
+   * Task 22 — the gesture in flight, for peers: awareness only (throttled,
+   * never storage). The op still commits once at gesture end; null clears.
+   */
+  const publishGesture = useCallback((g: AnnotationGesture | null) => {
+    collabRef.current?.publishAwareness({ annotationGesture: g });
+  }, []);
   const [gestureState, setGestureState] = useState('idle');
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -1225,7 +1235,6 @@ export function AnnotationsLayer() {
     };
   }, []);
 
-  const collab = useCollab();
   useEffect(() => {
     if (!collab) return;
     return observeReplica(collab.doc, (elements, _changed, actionId) => {
@@ -1540,13 +1549,16 @@ export function AnnotationsLayer() {
     // mirroring the move-drag's onMove. `commitGesture` closes it as ONE
     // record (no-op when the gesture ended where it started).
     const previewStroke = (id: string, patch: Partial<Stroke>): void => {
-      setStrokesState(
-        recomputeBoundArrows(
-          strokesRef.current.map((s) => (s.id === id ? ({ ...s, ...patch } as Stroke) : s))
-        )
+      const next = recomputeBoundArrows(
+        strokesRef.current.map((s) => (s.id === id ? ({ ...s, ...patch } as Stroke) : s))
       );
+      setStrokesState(next);
+      const moved = next.find((s) => s.id === id);
+      const box = moved ? strokeBBox(moved) : null;
+      if (box) publishGesture({ kind: 'resize', ids: [id], box });
     };
     const commitGesture = (before: readonly Stroke[], label?: string): void => {
+      publishGesture(null);
       const cur = strokesRef.current;
       if (strokesShallowEqual(before, cur)) return;
       commitStrokes(before, cur, label);
@@ -2400,6 +2412,22 @@ export function AnnotationsLayer() {
     () => (drawing ? [...strokes, drawing] : strokes),
     [strokes, drawing]
   );
+  // Task 22 — what is being drawn, live for peers (pen ink tail, or the box).
+  const drawPublishedRef = useRef(false);
+  useEffect(() => {
+    if (!drawing) {
+      if (drawPublishedRef.current) publishGesture(null);
+      drawPublishedRef.current = false;
+      return;
+    }
+    drawPublishedRef.current = true;
+    if (drawing.tool === 'pen') {
+      publishGesture({ kind: 'draw', ids: [], points: drawing.points.slice(-256).flat() });
+      return;
+    }
+    const box = strokeBBox(drawing);
+    if (box) publishGesture({ kind: 'draw', ids: [], box });
+  }, [drawing, publishGesture]);
   // A newer peer's element types: v1 strokes can't hold them, the board still
   // does — they are drawn as placeholders (DDR-242: never dropped).
   // biome-ignore lint/correctness/useExhaustiveDependencies: elementsRef moves with `strokes`
@@ -2723,12 +2751,14 @@ export function AnnotationsLayer() {
                 );
           // Local React state only. No commitStrokes — no PUT, no undo push.
           setStrokesState(next);
+          publishGesture({ kind: 'move', ids: [...movedSet].slice(0, 256), dx, dy });
         };
         const onUp = (up: PointerEvent) => {
           const st = dragStateRef.current;
           if (!st || up.pointerId !== st.pointerId) return;
           dragStateRef.current = null;
           setSnapGuides(null);
+          publishGesture(null);
           // Commit the gesture as ONE record. Skip on zero-movement
           // (click without drag past threshold or drag back to origin).
           const final = strokesRef.current;
@@ -2913,11 +2943,13 @@ export function AnnotationsLayer() {
         })
       );
       setStrokesState(next);
+      publishGesture({ kind: 'resize', ids: d.ids.slice(0, 256), box: groupB1 });
     };
     const onUp = (e: PointerEvent) => {
       const d = groupResizeRef.current;
       if (!d || e.pointerId !== d.pointerId) return;
       groupResizeRef.current = null;
+      publishGesture(null);
       const final = strokesRef.current;
       // No-op drag (grabbed a handle, released without moving past the
       // resize's own resolution) skips the undo record.

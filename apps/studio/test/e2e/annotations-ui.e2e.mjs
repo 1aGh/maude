@@ -614,6 +614,38 @@ describe('R9 — pointer routing regressions (Task 21 guards them before the pip
   });
 });
 
+describe('R10 — Task 22: a collaborator sees a drag while it happens', () => {
+  test('a second viewer sees the gesture ghost mid-drag, and it clears on release', async () => {
+    await reset();
+    const peerView = await openCanvas(server);
+    try {
+      const [x, y] = await c.center('lone');
+      await c.page.mouse.move(x, y);
+      await c.page.mouse.down();
+      await c.page.mouse.move(x + 40, y + 20, { steps: 6 });
+      await c.page.mouse.move(x + 80, y + 40, { steps: 6 });
+      const seen = await peerView.frame
+        .locator('[data-peer-gesture="move"]')
+        .first()
+        .waitFor({ timeout: 4000 })
+        .then(() => true)
+        .catch(() => false);
+      await c.page.mouse.up();
+      assert.ok(seen, 'the other viewer shows the drag ghost while the button is held');
+      const cleared = await peerView.frame
+        .locator('[data-peer-gesture]')
+        .first()
+        .waitFor({ state: 'detached', timeout: 4000 })
+        .then(() => true)
+        .catch(() => false);
+      assert.ok(cleared, 'the ghost goes away once the drag is committed');
+      await c.page.keyboard.press('Meta+z');
+    } finally {
+      await peerView.close();
+    }
+  });
+});
+
 test('no page errors during the run', () => {
   assert.deepEqual(c.errors, []);
 });
