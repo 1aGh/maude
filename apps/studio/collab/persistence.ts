@@ -73,6 +73,8 @@ export interface PersistenceDeps {
    * later edit.
    */
   onAnnotationsProjected?: (slug: string, board: string) => void;
+  /** The board a room was seeded from — the disk state it starts out agreeing with. */
+  onAnnotationsSeeded?: (slug: string, board: string) => void;
   /**
    * Issue #133 — which comment ids this machine synced before (see
    * sync/comment-ledger.ts). Defaults to the process-wide ledger for the design
@@ -303,6 +305,7 @@ export function createPersistence(deps: PersistenceDeps): RoomCallbacks {
         writeReplica(doc, parseBoard(svg).elements, 'seed');
       }
     }, 'seed');
+    if (svg && typeof svg === 'string') deps.onAnnotationsSeeded?.(slug, svg);
   }
 
   async function persistJson(slug: string, doc: Y.Doc): Promise<void> {

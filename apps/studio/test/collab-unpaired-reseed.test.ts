@@ -99,6 +99,25 @@ describe('live disk → room re-seed follows the pin, not ctx.sharedDoc', () => 
     collab.dispose();
   });
 
+  test('an external write is merged as a change: a room edit not yet on disk survives it', async () => {
+    // The multiplayer rig's L09 deletes: a peer's sync wrote a board that did
+    // not know the room had just deleted an element; the full re-seed brought
+    // it back. The external write's CHANGE (a new element) lands; the room's
+    // own delete stays.
+    const { ctx, collab } = harness();
+    writeFileSync(annPath(), OLD_SVG);
+    const room = collab.registry.get(SLUG);
+    await room.connect(conn());
+    collab.registry.applyOpsToRoom(SLUG, [{ op: 'delete', id: 'old' }]);
+    expect(parseBoard(svgOf(room.doc) ?? '').elements.map((e) => e.id)).toEqual([]);
+
+    writeFileSync(annPath(), NEW_SVG); // still has `old`, adds `new`
+    ctx.bus.emit('fs:any', `${SLUG}.annotations.json`);
+    await Bun.sleep(20);
+    expect(parseBoard(svgOf(room.doc) ?? '').elements.map((e) => e.id)).toEqual(['new']);
+    collab.dispose();
+  });
+
   test('a legacy .annotations.svg reappearing on disk is NOT a board write', async () => {
     // DDR-242 AD6 — only the boot migration may import a v1 sidecar (and one
     // that reappears next to a .json is quarantined), never the live reseed.
