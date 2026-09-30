@@ -55,8 +55,13 @@ function annotate(args: string[], stdin?: unknown): Run {
 }
 
 /** Async variant — the in-process stub server must keep serving while it runs. */
-async function annotateAsync(args: string[], stdin: unknown): Promise<Run> {
+async function annotateAsync(
+  args: string[],
+  stdin: unknown,
+  env: Record<string, string> = {}
+): Promise<Run> {
   const proc = Bun.spawn(['bun', BIN, ...args, '--root', root], {
+    env: { ...process.env, ...env },
     stdin: new TextEncoder().encode(JSON.stringify(stdin)),
     stdout: 'pipe',
     stderr: 'pipe',
@@ -915,6 +920,53 @@ describe('annotate — the live-server path', () => {
         author: { kind: 'ai' },
       });
       expect(existsSync(pathOf('ui-live'))).toBe(false);
+    } finally {
+      rmSync(serverJson, { force: true });
+      server.stop(true);
+    }
+  });
+
+  test('a path written with the design-root prefix reaches the SAME board on the server', async () => {
+    const got: Array<{ file: string }> = [];
+    const server = Bun.serve({
+      port: 0,
+      hostname: '127.0.0.1',
+      async fetch(req) {
+        got.push(await req.json());
+        return Response.json({ ok: true, changed: true, rejected: [] });
+      },
+    });
+    const serverJson = join(root, '.design', '_server.json');
+    writeFileSync(serverJson, JSON.stringify({ url: `http://127.0.0.1:${server.port}` }));
+    try {
+      const res = await annotateAsync(['.design/ui/Prefixed.tsx'], {
+        ops: [{ op: 'create', type: 'sticky', text: 'x', x: 0, y: 0 }],
+      });
+      expect(res.code).toBe(0);
+      expect(got[0]?.file).toBe('.design/ui/Prefixed.tsx');
+    } finally {
+      rmSync(serverJson, { force: true });
+      server.stop(true);
+    }
+  });
+
+  test('inside a cloud workspace a read-only refusal from its own studio writes the file', async () => {
+    const server = Bun.serve({
+      port: 0,
+      hostname: '127.0.0.1',
+      fetch: () => Response.json({ error: 'read-only' }, { status: 403 }),
+    });
+    const serverJson = join(root, '.design', '_server.json');
+    writeFileSync(serverJson, JSON.stringify({ url: `http://127.0.0.1:${server.port}` }));
+    try {
+      const res = await annotateAsync(
+        ['ui/Cell.tsx'],
+        { ops: [{ op: 'create', type: 'sticky', text: 'x', x: 0, y: 0 }] },
+        { MAUDE_WORKSPACE_MODE: '1' }
+      );
+      expect(res.code).toBe(0);
+      expect(JSON.parse(res.out).via).toBe('file');
+      expect(existsSync(pathOf('ui-cell'))).toBe(true);
     } finally {
       rmSync(serverJson, { force: true });
       server.stop(true);

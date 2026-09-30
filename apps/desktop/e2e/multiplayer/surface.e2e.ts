@@ -116,7 +116,28 @@ const photoTraceSource = readFileSync(new URL('./photo-trace.js', import.meta.ur
 /** The AI annotation write verb (`maude design annotate`, DDR-242 AD9), run from source. */
 const annotateBin = fileURLToPath(new URL('../../../studio/bin/annotate.mjs', import.meta.url));
 
+// The Files panel starts collapsed (issue #124): a canvas row inside a closed
+// section or folder is not in the DOM. Before a row is read, clicked or
+// hovered, the surface opens the closed sections/folders once — the way a user
+// reveals it. Browser-side source kept as a string (see treeDragSource).
+const TREE_ROW = /canvas-row-|tree-folder-|tree-row-menu-/;
+const expandTreeSource = `(() => {
+  const closed = Array.from(document.querySelectorAll(
+    '[data-testid^="tree-section-"][aria-expanded="false"], [data-testid^="tree-folder-"][aria-expanded="false"]'
+  ));
+  for (const el of closed) el.click();
+  return closed.length;
+})()`;
+
 function web(name: string, root: string, page: Page): Surface {
+  const reveal = async (q: string) => {
+    if (!TREE_ROW.test(q)) return;
+    for (let pass = 0; pass < 8; pass++) {
+      if (await page.evaluate((query) => !!document.querySelector(query), q)) return;
+      if (!(await page.evaluate(expandTreeSource))) return;
+      await page.waitForTimeout(150);
+    }
+  };
   return {
     name,
     root,
@@ -135,6 +156,7 @@ function web(name: string, root: string, page: Page): Surface {
         const result = await this.probe(q);
         return result?.visible ? result.text : null;
       }
+      await reveal(q);
       // One DOM snapshot: count→visibility→textContent races a deletion and
       // Playwright then auto-waits 30s for an element that correctly vanished.
       return page.evaluate((query) => {
@@ -151,6 +173,7 @@ function web(name: string, root: string, page: Page): Surface {
       }, q);
     },
     async hover(q) {
+      await reveal(q);
       await page.locator(q).hover();
     },
     async menu(text) {
@@ -168,6 +191,7 @@ function web(name: string, root: string, page: Page): Surface {
       page.once('dialog', (dialog) => dialog.accept(value));
     },
     async click(q) {
+      await reveal(q);
       await page.locator(q).click();
     },
     async fill(q, value) {
@@ -224,6 +248,15 @@ function web(name: string, root: string, page: Page): Surface {
     },
   };
 }
+async function nativeReveal(q: string): Promise<void> {
+  if (!TREE_ROW.test(q)) return;
+  for (let pass = 0; pass < 8; pass++) {
+    if (await browser.execute((query) => !!document.querySelector(query), q)) return;
+    if (!(await browser.execute(`return ${expandTreeSource}`))) return;
+    await browser.pause(150);
+  }
+}
+
 const native: Surface = {
   async count(q) {
     return (await browser.$$(q)).length;
@@ -294,6 +327,7 @@ const native: Surface = {
       const result = await this.probe(q);
       return result?.visible ? result.text : null;
     }
+    await nativeReveal(q);
     return browser.execute((query) => {
       const element = document.querySelector(query);
       if (!element || element.getBoundingClientRect().height === 0) return null;
@@ -301,6 +335,7 @@ const native: Surface = {
     }, q);
   },
   async hover(q) {
+    await nativeReveal(q);
     await (await $(q)).moveTo();
   },
   async menu(text) {
@@ -335,6 +370,7 @@ const native: Surface = {
     }, value);
   },
   async click(q) {
+    await nativeReveal(q);
     await (await $(q)).click();
     // The embedded driver clicks synthetically and then calls el.focus(), a
     // no-op on a non-focusable target — focus stays wherever it was (e.g. a

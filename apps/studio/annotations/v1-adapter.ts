@@ -310,27 +310,35 @@ export function strokesToElements(
   const parentOf = new Map<string, string>();
   // Same rule as the migration: a section adopts only what paints above it.
   const zOf = new Map(strokes.map((s, i) => [s.id, i]));
+  const inside = (box: Box, x: number, y: number) =>
+    x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h;
   for (const el of flat) {
     const prev = current.get(el.id);
-    const moved = !prev || !sameBox(curScene.worldBox(prev), boxOf(el.id));
-    if (prev && !moved && prev.parent && world.has(prev.parent)) {
-      parentOf.set(el.id, prev.parent);
-      continue;
-    }
     const b = boxOf(el.id);
     if (!b) continue;
     const cx = b.x + b.w / 2;
     const cy = b.y + b.h / 2;
     const self = el.type === 'section' ? area(b) : null;
+    // The smallest section under the element's centre that it painted above
+    // (the v1 rule: what sits on a section is in it).
     let best: { id: string; a: number } | null = null;
     for (const s of sections) {
       if (s.id === el.id || (self !== null && area(s.box) <= self)) continue;
       if ((zOf.get(s.id) ?? 0) >= (zOf.get(el.id) ?? Number.POSITIVE_INFINITY)) continue;
-      if (cx < s.box.x || cx > s.box.x + s.box.w || cy < s.box.y || cy > s.box.y + s.box.h)
-        continue;
+      if (!inside(s.box, cx, cy)) continue;
       // Equal size (a copy lying exactly on its original): the one painted
       // later — nearest below the element — is its container.
       if (!best || area(s.box) <= best.a) best = { id: s.id, a: area(s.box) };
+    }
+    // An element that did not move keeps its container while it still sits
+    // in it — unless a smaller section now holds it (one drawn around it, or
+    // moved or resized onto it: it adopts what it lands on, as in v1).
+    const moved = !prev || !sameBox(curScene.worldBox(prev), b);
+    const kept = prev?.parent;
+    const keptBox = kept && world.has(kept) ? boxOf(kept) : null;
+    if (!moved && kept && keptBox && inside(keptBox, cx, cy)) {
+      parentOf.set(el.id, best && best.a < area(keptBox) ? best.id : kept);
+      continue;
     }
     if (best) parentOf.set(el.id, best.id);
   }

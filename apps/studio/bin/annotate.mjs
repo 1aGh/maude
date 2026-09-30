@@ -630,6 +630,12 @@ async function postOps(designRoot, file, ops) {
   }
   // Only a server too old to have the op route falls back to the file.
   if (res.status === 404 || res.status === 405) return null;
+  // Inside a cloud workspace (MAUDE_WORKSPACE_MODE=1) the studio treats a
+  // loopback request without the proxy's role header as read-only; the
+  // workspace's own file write IS the agent's channel there (the workspace
+  // agent syncs it). Anywhere else a read-only refusal stands — a local write
+  // the hub refuses to sync is a silent fork.
+  if (res.status === 403 && process.env.MAUDE_WORKSPACE_MODE === '1') return null;
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     fail(`the server refused the batch: ${body?.error ?? res.status} — nothing written`, 1);
@@ -659,6 +665,13 @@ async function main() {
       : process.cwd();
   const { designRel, designRoot } = resolveDesignRoot(repoRoot);
   const slug = fileSlug(relPath, designRel);
+  // The canvas path the server keys its board by — relative to the design
+  // root, whether the caller wrote `ui/X.tsx` or `.design/ui/X.tsx` (the slug
+  // above tolerates both; the server must get the same file, or every op is
+  // refused as `gone` against a board that doesn't exist).
+  const designPrefix = `${designRel.replace(/^\/+|\/+$/g, '')}/`;
+  let canvasRel = String(relPath).replace(/^\/+/, '');
+  if (canvasRel.startsWith(designPrefix)) canvasRel = canvasRel.slice(designPrefix.length);
 
   const boardFile = readBoardFile(designRoot, slug);
   if (boardFile.tooLarge) {
@@ -725,7 +738,7 @@ async function main() {
   let via = 'file';
   let rejected = [];
   if (batch.ops.length) {
-    const res = await postOps(designRoot, `${designRel}/${relPath}`, batch.ops);
+    const res = await postOps(designRoot, `${designRel}/${canvasRel}`, batch.ops);
     if (res) {
       via = 'server';
       rejected = Array.isArray(res.rejected) ? res.rejected : [];
