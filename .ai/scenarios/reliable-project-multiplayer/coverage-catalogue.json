@@ -207,6 +207,105 @@
       ]
     },
     {
+      "id": "L09.v2.seed",
+      "source": "apps/studio/annotations/ops.ts",
+      "repairTask": "T29",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "plan": "setup"
+    },
+    {
+      "id": "L09.v2.concurrent-different-elements",
+      "source": "apps/studio/annotations/ops.ts",
+      "repairTask": "T29",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "plan": "V2"
+    },
+    {
+      "id": "L09.v2.same-element-different-fields",
+      "source": "apps/studio/annotations/ops.ts",
+      "repairTask": "T29",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "plan": "V3"
+    },
+    {
+      "id": "L09.v2.delete-while-editing",
+      "source": "apps/studio/annotations/ops.ts",
+      "repairTask": "T29",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "plan": "V5"
+    },
+    {
+      "id": "L09.v2.section-move-while-child-edited",
+      "source": "apps/studio/annotations/ops.ts",
+      "repairTask": "T29",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "plan": "V6"
+    },
+    {
+      "id": "L09.v2.nested-section-create",
+      "source": "apps/studio/annotations/ops.ts",
+      "repairTask": "T29",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "plan": "V8"
+    },
+    {
+      "id": "L09.v2.nested-sections-move-together",
+      "source": "apps/studio/annotations/ops.ts",
+      "repairTask": "T29",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "plan": "V8"
+    },
+    {
+      "id": "L09.v2.ai-update-while-selected",
+      "source": "apps/studio/annotations/ops.ts",
+      "repairTask": "T29",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "plan": "V14"
+    },
+    {
+      "id": "L09.v2.live-drag-preview",
+      "source": "apps/studio/annotations/ops.ts",
+      "repairTask": "T29",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "plan": "V15"
+    },
+    {
       "id": "L09.pen.create",
       "source": "apps/studio/tool-palette.tsx",
       "repairTask": "T26",
