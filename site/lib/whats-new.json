@@ -1,11 +1,11 @@
 {
   "generated": "2026-09-30T00:00:00.000Z",
-  "version": "1.4.6",
+  "version": "1.5.0",
   "entries": [
     {
       "id": "whiteboard-text-sections-live-previews",
-      "version": null,
-      "date": null,
+      "version": "1.5.0",
+      "date": "2026-09-30",
       "kind": "improvement",
       "title": "Smoother whiteboard editing, live together",
       "summary": "Typing in stickies and shapes now wraps exactly as it will look, works with any input method (accents, Japanese), and is never lost — it reaches teammates within a second, and if someone deletes the note you are typing in, Enter puts it back with your text. Sections move, copy and delete together with everything in them, teammates see your drag or resize live before you let go, and undo only takes back your own changes.",
@@ -13,8 +13,8 @@
     },
     {
       "id": "whiteboard-edits-sync-per-element",
-      "version": null,
-      "date": null,
+      "version": "1.5.0",
+      "date": "2026-09-30",
       "kind": "improvement",
       "title": "Whiteboard edits no longer overwrite each other",
       "summary": "Each sticky, shape and arrow now saves on its own, so two people editing the same board keep both changes, and even text typed into the same sticky at once is merged. Existing boards convert automatically on start, and editing text is steadier: the cursor stays on a new line after Shift+Enter, double-clicking a word selects it, and Shift+click removes an item from a selection.",
@@ -22,8 +22,8 @@
     },
     {
       "id": "file-tree-remembers-folders",
-      "version": null,
-      "date": null,
+      "version": "1.5.0",
+      "date": "2026-09-30",
       "kind": "improvement",
       "title": "The file tree remembers your folders",
       "summary": "The Files panel now starts collapsed and keeps the folders you open, even after you switch panels, reload or restart the app. Opening a canvas unfolds the way to it.",

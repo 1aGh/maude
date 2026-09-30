@@ -1,5 +1,35 @@
 # @1agh/maude
 
+## 1.5.0
+
+### Minor Changes
+
+- The whiteboard now edits its elements directly, and working together on it is smoother.
+
+  - **Typing is never lost.** Sticky notes, shape labels and text use one editor that wraps exactly as the result will look. It works with any input method, including accents and Japanese. Your text reaches teammates within about a second. If someone deletes the note you are typing in, Enter puts it back with your text.
+  - **Sections carry their contents.** Moving, copying (⌘D, Alt-drag) or deleting a section includes everything in it, nested sections too. A section drawn inside another one nests inside it.
+  - **Teammates see you working.** A drag, resize or drawing shows live on everyone's screen before you let go.
+  - **Undo only takes back your own changes.** A teammate's later edit to the same board survives your undo.
+  - **Multi-person sync is more reliable.** Edits that returned a value to an earlier state (thin after thick, removing a fill) and deletes no longer reappear when several people and the desktop app edit the same board.
+  - **`maude design annotate` fixes.** It now accepts a path written with the `.design/` prefix. It never writes the board file behind a running studio's back.
+  - **Security fixes.** A board element with a crafted type can no longer blank a collaborator's canvas. Pasted board content is re-attributed to you, and a link card's domain now matches its address.
+
+- 731c64c: Whiteboard annotations are now saved as a board of individual elements. Edits sync per element, and several long-standing editing bugs are fixed.
+
+  - **Your existing boards convert themselves.** On the next start, each `<canvas>.annotations.svg` becomes `<canvas>.annotations.json`. The original stays in `.design/_history/` and `.design/_trash/`. Nothing changes in how the board looks or works.
+  - **Edits no longer overwrite each other.** A move, a recolour or a text edit now sends only what changed. Two people editing different stickies, or different properties of the same sticky, both keep their change. Two people typing in the same sticky keep both edits.
+  - **Large boards stay light.** Saving one change costs the same whether the board has 20 elements or 2,000.
+  - **The caret stays on the new line.** Before, it jumped back to the start after Shift+Enter in a sticky, shape label or text.
+  - **Double-clicking a word while editing selects the word.** Before, it threw the view to the top-left.
+  - **Double-clicking a standalone text opens it for editing.** Before, the editor closed right away.
+  - **A marquee over a section's contents selects just those contents.** The section is selected only when the marquee encloses all of it.
+  - **Shift-click on a selected element removes it from the selection.**
+
+### Patch Changes
+
+- a25a75d: A canvas re-created in an accepted-revisions project under the name of a canvas deleted before the switch now reaches every desktop. The old deletion record used to make desktops skip it, so it showed on the web and never on the desktop, while the log claimed it was being pulled on every start. The accepted project is now the authority on which canvases are live, and the start-up log names only canvases that are actually pulled.
+- ff2534a: The Files panel starts collapsed and remembers which folders and sections you opened (#124). The choice used to live in each folder row, so every folder opened again after switching to the Layers tab, collapsing a section, reloading, or restarting the app. It is now kept per project on disk (per member in a cloud workspace), so it survives restarts in the desktop app too. Search opens the folders that hold results without changing what is remembered, and opening a canvas unfolds the folders above it.
+
 ## 1.4.6
 
 ### Patch Changes
