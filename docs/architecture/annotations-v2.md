@@ -149,8 +149,10 @@ untrusted input: it goes through the same sanitizer and validator.
   world-space view (parents resolved, world boxes, arrow endpoints) and is cached
   per version. The layer reads it through `useSyncExternalStore`.
 - **Gestures are op batches.** A drag, resize, draw or edit commits once, at
-  gesture end, as one batch with one `actionId` (`ui/edit-actions.ts`). While it
-  is in progress, collaborators see it over awareness.
+  gesture end, as one batch with one `actionId`. While it is in progress it is a
+  local preview (never stored), and collaborators see it over awareness. A
+  replica snapshot is rebased onto this tab's batches still in flight, so a
+  collaborator's change never hides an edit not yet echoed back.
 - **Undo** stores the inverse batch returned by `applyOps`. Replaying it as a
   `strict` patch reverts only fields that still hold this action's values. A
   text undo merges back through the 3-way rule, so a collaborator's later typing
@@ -168,8 +170,16 @@ untrusted input: it goes through the same sanitizer and validator.
   Alt-drag, marquee) come from `ui/containment.ts`.
 - **Clipboard.** The payload is `{"maudeElements":2,"elements":[…]}` in world
   coordinates. A paste mints new ids.
-- **Adapter.** `v1-adapter.ts` still bridges the remaining `Stroke[]`-shaped code
-  in `annotations-layer.tsx`, and is marked for removal.
+- **The editing view.** The tools (select, drag, snap, marquee, handles, eraser,
+  connectors, the context toolbar) work in world space on a `Stroke` view of each
+  element, projected per element and cached by record identity
+  (`ui/world.ts` → `v1-adapter.ts` `elementStrokes`). A commit diffs the view
+  back into element ops (`strokesToElementMap` + `diffToOps`), so only what
+  changed is sent. A type with no stroke form of its own rides the view as an
+  `ElementStroke` whose geometry comes from its registry definition — see
+  [adding an element type](annotations-v2-adding-an-element-type.md).
+  `ui/edit-actions.ts` holds the same edits written directly as element ops, for
+  code that works on the board without the view.
 
 ## AI surface
 
