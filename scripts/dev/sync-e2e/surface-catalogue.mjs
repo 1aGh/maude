@@ -33,6 +33,30 @@ function values(source, name, key) {
   if (!result.length) throw new Error(`No values enumerated from ${name}`);
   return result;
 }
+/** Rows `surface.e2e.ts` emits for the annotations-v2 plan (Task 29): [row id, plan row]. */
+export const ANNOTATIONS_V2_ROWS = [
+  ['L09.v2.seed', 'setup'],
+  ['L09.v2.concurrent-different-elements', 'V2'],
+  ['L09.v2.same-element-different-fields', 'V3'],
+  ['L09.v2.delete-while-editing', 'V5'],
+  ['L09.v2.section-move-while-child-edited', 'V6'],
+  ['L09.v2.nested-section-create', 'V8'],
+  ['L09.v2.nested-sections-move-together', 'V8'],
+  ['L09.v2.ai-update-while-selected', 'V14'],
+  ['L09.v2.live-drag-preview', 'V15'],
+];
+/** Task 29 plan rows with no rig row, and why — kept next to the rows so the gap is visible. */
+export const ANNOTATIONS_V2_NOT_DRIVEN = {
+  V1: 'parity is a run mode (`--mode candidate --baseline <Task 3 dir>` over the ported L09/L10 rows), not a row of its own',
+  V4: 'the frame probe can only replace a text field wholesale (`fill`); two caret-positioned insertions into one sticky need a typing primitive the rig lacks',
+  V7: 'Alt-duplicate needs an Alt modifier the frame probe does not dispatch; the marquee half is a single-peer selection with no multiplayer observable',
+  V9: 'IME composition (dead keys / Japanese IME) is not synthesizable through DOM events; it is a manual WKWebView step',
+  V10: 'boot-time migration of a legacy board: needs a legacy `.annotations.svg` seeded by `surface-fixture.mjs` BEFORE the studios start plus a golden screenshot — not yet built',
+  V11: 'hub upgrade with a persisted legacy doc needs two hub versions in one run',
+  V12: 'mixed studio versions need an old studio build alongside the candidate',
+  V13: 'a stale `.annotations.svg` reappearing is quarantined at studio boot; asserting it needs a studio restart after the file lands — not yet built',
+  V16: 'the offline half is the existing offline row (a sticky drawn while cut off, checked on the v2 board); upconverting queued pre-upgrade SVG proposals needs a pre-upgrade client to have queued them',
+};
 export function buildSurfaceCatalogue() {
   const paths = [
     'apps/studio/tool-palette.tsx',
@@ -59,6 +83,13 @@ export function buildSurfaceCatalogue() {
     'L14.upload-video.remove-reference',
   ])
     add(id, paths[4], 'T18', { directions });
+  // Annotations v2 (DDR-242) — the element model under concurrency, plan
+  // `feature-annotations-v2-element-model` Task 29. Explicit rows, like the
+  // uploads above: each names the plan row it asserts. `--only L09.v2.` runs
+  // just these. Plan rows the rig cannot drive (V4, V7, V9–V13, V16) are
+  // listed with their reasons in `ANNOTATIONS_V2_NOT_DRIVEN`.
+  for (const [id, plan] of ANNOTATIONS_V2_ROWS)
+    add(id, 'apps/studio/annotations/ops.ts', 'T29', { directions, plan });
   const tools = values(palette, 'DRAW_TOOLS');
   const shapes = values(palette, 'SHAPE_KINDS', 'kind');
   for (const tool of tools) {
