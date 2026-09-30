@@ -4113,6 +4113,10 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         const toolbar = '[aria-label="Annotation properties"]';
         const select = async (targets: string[]) => {
           await gesture(from, selector('palette-mode-edit'), 'click');
+          // Start from nothing: Shift+click on an element already in the
+          // selection removes it (annotations v2), so re-selecting the same
+          // three from the previous step would leave only the first.
+          await gesture(from, 'body', 'key', { key: 'Escape' });
           for (const [i, id] of targets.entries())
             await gesture(
               from,
