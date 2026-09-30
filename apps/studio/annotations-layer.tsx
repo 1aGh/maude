@@ -2629,6 +2629,20 @@ export function AnnotationsLayer() {
       if (ids?.length) {
         e.preventDefault();
         e.stopImmediatePropagation();
+        // preventDefault also stops the press from moving focus — so after the
+        // toolbar (its focused button then unmounted: focus on <body>) Esc,
+        // arrows and ⌘-shortcuts never reached the canvas. A press on the
+        // board gives the canvas its keyboard back, as a plain click would.
+        const canvasEl = target?.closest?.('.dc-canvas') as HTMLElement | null;
+        const focused = document.activeElement as HTMLElement | null;
+        if (
+          canvasEl &&
+          (!focused ||
+            !canvasEl.contains(focused) ||
+            focused.closest?.('.dc-annot-ctx, .dc-context-menu, .dc-annot-chrome'))
+        ) {
+          canvasEl.focus({ preventScroll: true });
+        }
         // Capture a snapshot of all strokes at drag start. Every pointermove
         // re-translates FROM the snapshot using the cumulative cursor delta
         // (NOT a delta-from-last-frame mutation), so dragging back to origin

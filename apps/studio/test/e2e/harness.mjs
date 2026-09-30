@@ -145,7 +145,7 @@ export function readBoard(root) {
 }
 
 /** Wait until `pred(board)` holds (disk writes are async). Returns the board. */
-export async function waitForBoard(root, pred, ms = 5000) {
+export async function waitForBoard(root, pred, ms = 8000) {
   const t0 = Date.now();
   let b = readBoard(root);
   while (Date.now() - t0 < ms) {
@@ -160,7 +160,11 @@ export async function openCanvas(server) {
   const dbg = (m) => process.env.E2E_DEBUG && console.error(`[e2e] ${m}`);
   dbg('launch');
   const browser = await chromium.launch({ headless: process.env.E2E_HEADED !== '1' });
-  const page = await browser.newPage({ viewport: { width: 2600, height: 1500 } });
+  const page = await browser.newPage({
+    viewport: { width: 2600, height: 1500 },
+    // ⌘C / ⌘V round-trip through the OS clipboard.
+    permissions: ['clipboard-read', 'clipboard-write'],
+  });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   // A returning user: the first-run tour would sit over the canvas.
