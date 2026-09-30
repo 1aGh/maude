@@ -37,10 +37,12 @@ import {
   applyMetaToDoc,
   cssFromDoc,
   htmlFromDoc,
+  importAnnotationsFromDisk,
   laneValueFromFile,
   mergeSharedMetaIntoLocal,
   metaFromDoc,
   movedToFromDoc,
+  noteAnnotationsOnDisk,
   readLaneFromDoc,
   stampAnnotationsEdit,
   stampBodyEdit,
@@ -449,6 +451,9 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
    * fire must never cost the write that already succeeded.
    */
   function writeAndAnnounce(path: string, value: string): void {
+    // The board disk holds from here on — the base a later file event is
+    // imported against (codec importAnnotationsFromDisk).
+    if (path === paths.annotations) noteAnnotationsOnDisk(doc, value);
     if (readLocal(path) === value) return;
     writer(path, value);
     try {
@@ -1159,7 +1164,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       // survives cold start on other peers (the 2026-08-14 eraser fix).
       let changed = false;
       doc.transact(() => {
-        changed = applyAnnotationsToDoc(doc, str, importOrigin);
+        changed = importAnnotationsFromDisk(doc, str, importOrigin);
         if (changed) stampAnnotationsEdit(doc, importOrigin);
       }, importOrigin);
       return changed;

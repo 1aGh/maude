@@ -27,8 +27,11 @@ import { diffChars } from 'diff';
 import type * as Y from 'yjs';
 
 import { annotationsLaneValue, canonicalAnnotations } from '../annotations/board-text.ts';
+import { applyOps, diffToOps } from '../annotations/ops.ts';
 import {
+  annotationsOnDiskOf,
   isEmptyBoardText,
+  noteAnnotationsOnDisk,
   readReplica,
   replicaBoardText,
   writeReplica,
@@ -344,6 +347,43 @@ export function isEmptyAnnotationsSvg(text: string | null): boolean {
  * filesystem import is a new operation, never the previous UI author's echo:
  * `writeReplica` clears '~action' on any change made without an action id.
  */
+/**
+ * A disk change to the board, imported into the doc as the CHANGE it made —
+ * the ops from what disk last held to what it holds now — never as a
+ * replacement. A projection written a moment before a newer edit, whose file
+ * event arrives after it, would otherwise put the older values back (the
+ * multiplayer rig's lost toolbar edits and deletes). Without a known base
+ * (first sight of the file) it is a full apply. Returns whether the doc changed.
+ */
+export { noteAnnotationsOnDisk };
+
+export function importAnnotationsFromDisk(
+  doc: Y.Doc,
+  next: string | null,
+  origin?: unknown,
+  fallbackBase?: string | null
+): boolean {
+  const text = next === null ? serializeBoard([]) : canonicalAnnotations(next);
+  if (text === null || byteLengthUtf8(text) > MAX_ANNOTATIONS_BYTES) {
+    return applyAnnotationsToDoc(doc, next, origin);
+  }
+  const known = annotationsOnDiskOf(doc);
+  const base =
+    (known !== undefined ? canonicalAnnotations(known) : null) ??
+    (fallbackBase ? canonicalAnnotations(fallbackBase) : null);
+  const cur = readReplica(doc);
+  noteAnnotationsOnDisk(doc, text);
+  if (base === null || cur === null) {
+    return applyAnnotationsToDoc(doc, text, origin);
+  }
+  const toMap = (t: string) => new Map(parseBoard(t).elements.map((e) => [e.id, e]));
+  const ops = diffToOps(toMap(base), toMap(text));
+  if (!ops.length) return false;
+  const r = applyOps(new Map(cur.elements.map((e) => [e.id, e])), ops);
+  if (!r.touched.size) return false;
+  return writeReplica(doc, [...r.state.values()], origin);
+}
+
 export function applyAnnotationsToDoc(doc: Y.Doc, next: string | null, origin?: unknown): boolean {
   if (next !== null && byteLengthUtf8(next) > MAX_ANNOTATIONS_BYTES) {
     console.warn(
