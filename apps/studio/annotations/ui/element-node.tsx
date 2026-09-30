@@ -43,7 +43,7 @@ import {
   type WorldPoint,
 } from '../../annotations-model.ts';
 import { arrowPrimitives, type SvgPrimitive } from '../../canvas-arrowheads.ts';
-import { useLiveViewport } from '../../canvas-lib.tsx';
+import { countRender, useLiveViewport } from '../../canvas-lib.tsx';
 import { colorForName } from '../../use-collab.tsx';
 import type { AnnotationElement } from '../types.ts';
 import type { ResolvedEnds } from './render-model.ts';
@@ -900,6 +900,7 @@ export function registerElementView(type: string, view: (p: ElementNodeProps) =>
 export { Node as ElementBox };
 
 function ElementNodeImpl(props: ElementNodeProps) {
+  countRender('annotationNodeRenders');
   const View = VIEWS[props.el.type] ?? PlaceholderView;
   return <View {...props} />;
 }

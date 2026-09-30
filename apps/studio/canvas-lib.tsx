@@ -265,6 +265,8 @@ const IS_WEBKIT =
 type DcPerfCounters = {
   artboardRenders: number;
   annotationRenders: number;
+  /** Annotation element nodes (re-)rendered — a drag should touch only what moves. */
+  annotationNodeRenders?: number;
   instrumented?: boolean;
 };
 
