@@ -63,7 +63,7 @@ maude design adopt https://maude-hub-acme.fly.dev --token mau_...
 # alias for: maude design link <url> --token ... --adopt
 ```
 
-`--adopt` pushes your local canvases, annotation SVGs, and comment JSON up to the hub unconditionally. Use it for first-time bootstrap from a populated repo, or hub-was-wiped recovery. Without `--adopt`, joining an already-active project simply materializes hub state — and when both sides genuinely have work, the conflict protocol below takes over (you never need `--adopt` "just to be safe").
+`--adopt` pushes your local canvases, annotation boards, and comment JSON up to the hub unconditionally. Use it for first-time bootstrap from a populated repo, or hub-was-wiped recovery. Without `--adopt`, joining an already-active project simply materializes hub state — and when both sides genuinely have work, the conflict protocol below takes over (you never need `--adopt` "just to be safe").
 
 ## What happens when both sides have work
 
@@ -117,7 +117,7 @@ Linked mode uses one gitignore strategy in v1.1 — **`full`**: canvases and the
 # maude:end
 ```
 
-Committed: `.design/config.json` (carries the `linkedHub` URL), your `.tsx` canvases + their `.meta.json` sidecars, `*.layout.json`, `*.annotations.svg`, `_comments/*.json`, `system/`. `maude design init` and `maude design link --adopt` write the block between the markers, idempotently — re-running never duplicates it, and `unlink` leaves it intact. See [DDR-056](https://github.com/1aGh/maude/blob/main/.ai/archive/decisions/DDR-056-linked-mode-gitignore-strategy.md).
+Committed: `.design/config.json` (carries the `linkedHub` URL), your `.tsx` canvases + their `.meta.json` sidecars, `*.layout.json`, `*.annotations.json` (annotation boards; a legacy `*.annotations.svg` is converted on first start), `_comments/*.json`, `system/`. `maude design init` and `maude design link --adopt` write the block between the markers, idempotently — re-running never duplicates it, and `unlink` leaves it intact. See [DDR-056](https://github.com/1aGh/maude/blob/main/.ai/archive/decisions/DDR-056-linked-mode-gitignore-strategy.md).
 
 ## When the hub goes offline
 

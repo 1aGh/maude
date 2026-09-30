@@ -20,7 +20,7 @@ The FigJam-style draw layer (`<designRoot>/<slug>.annotations.json`) is a two-wa
 ## `--from-figjam <url>` — pull a real FigJam board in
 
 The flagship Figma-import mapping: FigJam's primitives are a close match for
-Maude's whiteboard vocabulary, so a real board arrives as live strokes — stickies
+Maude's whiteboard vocabulary, so a real board arrives as live elements — stickies
 with their paper tints, sections, groups, and **connectors that stay bound and
 re-routable**, not frozen lines.
 
@@ -119,7 +119,7 @@ Write the spec/ops JSON to a temp file under `_history/$SLUG/` (gitignored) rath
 maude design screenshot --full --out "$DESIGN_ROOT/_history/$SLUG/screenshots/board-$(date +%s 2>/dev/null || echo now).png"
 ```
 
-Read the PNG. Confirm: new content renders, doesn't overlap existing strokes or artboards, text is legible. If it doesn't look right, iterate with `update` / `move` / `reparent` / `reorder` ops on the ids from the `refs` the previous `annotate` call printed — they patch only what you name — rather than delete-and-redo the whole thing.
+Read the PNG. Confirm: new content renders, doesn't overlap existing elements or artboards, text is legible. If it doesn't look right, iterate with `update` / `move` / `reparent` / `reorder` ops on the ids from the `refs` the previous `annotate` call printed — they patch only what you name — rather than delete-and-redo the whole thing.
 
 ### 5.5 Record the session (kgai — when active) — sparingly
 

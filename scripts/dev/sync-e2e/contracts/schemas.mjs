@@ -49,8 +49,8 @@ export const NAMED_OPERATION_FAMILIES = [
   'manifest.delete',
   'manifest.replace',
   'layout.assign',
-  'annotation.create',
-  'annotation.update',
+  'annotation.put',
+  'annotation.patch',
   'annotation.delete',
   'comment.create',
   'comment.reply',
@@ -127,7 +127,6 @@ export function createSchemas(overrides = {}) {
   const blob = obj({ sha256: hash, size: { ...int, maximum: l.maxBlobBytes }, mediaType });
   const asset = obj({ documentId: id, generation: positive, sha256: hash });
   const parent = nullable(obj(identity)); // null means the project root, never a physical path.
-  const point = obj({ x: num, y: num });
   const op = (kind, properties = {}, required = Object.keys(properties)) =>
     obj({ kind: constant(kind), ...identity, ...properties }, [
       'kind',
@@ -221,37 +220,80 @@ export function createSchemas(overrides = {}) {
     property: constant('title'),
     value: str(l.maxLabelChars),
   });
-  const position = { x: num, y: num };
-  const color = str(64, { minLength: 1 });
-  const dimensions = { width: { ...num, minimum: 0 }, height: { ...num, minimum: 0 } };
-  const stroke = {
-    oneOf: [
-      obj(
-        {
-          type: constant('path'),
-          ...position,
-          points: arr(point, l.maxAnnotationPoints, 1),
-          color,
-        },
-        ['type', 'x', 'y', 'points']
-      ),
-      ...['rectangle', 'ellipse'].map((type) =>
-        obj({ type: constant(type), ...position, ...dimensions, color }, [
-          'type',
-          'x',
-          'y',
-          'width',
-          'height',
-        ])
-      ),
-      obj({ type: constant('line'), ...position, end: point, color }, ['type', 'x', 'y', 'end']),
-      obj({ type: constant('text'), ...position, text, color }, ['type', 'x', 'y', 'text']),
-      obj({ type: constant('image'), ...position, ...dimensions, asset }),
+  // Annotations v2 (DDR-242): the board is a set of flat element records and
+  // every change is one of the three element ops the studio and hub apply
+  // (apps/studio/annotations/ops.ts) — put | patch | delete. The wire contract
+  // bounds shape and size only. The per-type field allowlist, clamps and the
+  // `assets/` href rules are the registry validator's job (annotations/
+  // registry.ts, shared by studio, hub and bin): an UNKNOWN element type must
+  // round-trip untouched so an older peer never erases a newer peer's element,
+  // so the contract cannot enumerate types.
+  const elementId = str(64, { minLength: 1, pattern: '^[A-Za-z0-9_-]{1,64}$' });
+  const orderKey = str(64, { minLength: 1, pattern: '^[0-9A-Za-z]{1,64}$' });
+  const fieldName = '^(?!constructor$|prototype$)[a-z][A-Za-z0-9]{0,31}$';
+  // The element's own fields; the four head fields are declared explicitly.
+  const typeFieldName =
+    '^(?!constructor$|prototype$|id$|type$|parent$|index$)[a-z][A-Za-z0-9]{0,31}$';
+  const patchFieldName = '^(?!constructor$|prototype$|id$|type$)[a-z][A-Za-z0-9]{0,31}$';
+  const scalar = { anyOf: [text, num, { type: 'boolean' }, { type: 'null' }] };
+  const fieldValue = {
+    anyOf: [
+      scalar,
+      // pen points: a flat [x0, y0, x1, y1, …] list
+      arr(num, l.maxAnnotationPoints * 2),
+      // groups: a flat tag list
+      arr(elementId, 16),
+      // a nested record — arrow end {el, nx?, ny?, pinned?} | {x, y}, shape
+      // label {text, fontSize, …}, author {kind, name?, id?}
+      {
+        type: 'object',
+        patternProperties: { [fieldName]: scalar },
+        additionalProperties: false,
+        maxProperties: 16,
+      },
     ],
   };
-  add('annotation.create', { annotationId: id, stroke });
-  add('annotation.update', { annotationId: id, stroke });
-  add('annotation.delete', { annotationId: id });
+  const fieldMap = (pattern) => ({
+    type: 'object',
+    patternProperties: { [pattern]: fieldValue },
+    additionalProperties: false,
+    minProperties: 1,
+    maxProperties: l.maxAnnotationFields,
+  });
+  const element = {
+    type: 'object',
+    properties: {
+      id: elementId,
+      type: str(32, { pattern: '^[a-z][a-z0-9-]{0,31}$' }),
+      // A container (section); makes x/y relative to it.
+      parent: elementId,
+      // Fractional z-order key, scoped per parent (ties broken by id).
+      index: orderKey,
+    },
+    patternProperties: { [typeFieldName]: fieldValue },
+    required: ['id', 'type', 'index'],
+    additionalProperties: false,
+    maxProperties: l.maxAnnotationFields,
+  };
+  add('annotation.put', { el: element });
+  operations.push({
+    ...op(
+      'annotation.patch',
+      {
+        id: elementId,
+        set: fieldMap(patchFieldName),
+        unset: arr(str(32, { pattern: patchFieldName }), l.maxAnnotationFields, 1, true),
+        // The values the author saw: the 3-way merge base for text fields, and
+        // the guard a strict (undo) patch applies only where it still holds.
+        expect: fieldMap(patchFieldName),
+        strict: { type: 'boolean' },
+      },
+      ['id']
+    ),
+    // A patch changes something: `expect`/`strict` alone are not an edit.
+    anyOf: ['set', 'unset'].map((k) => ({ properties: { [k]: true }, required: [k] })),
+  });
+  add('annotation.delete', { id: elementId });
   const anchor = obj({ elementId: id, x: num, y: num, frame: int }, []);
   add('comment.create', {
     threadId: id,

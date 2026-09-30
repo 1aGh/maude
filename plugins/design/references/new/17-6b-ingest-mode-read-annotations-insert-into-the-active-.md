@@ -1,6 +1,6 @@
 ### 6b. INGEST mode — read annotations + insert into the active board (Phase 22)
 
-> FigJam v3: the read surface also exposes `--graph` (bound arrows → nodes/edges — a sketched user flow reads back as a graph) and a WRITE verb (`maude design annotate`) for replying onto the board with stickies / bound connectors / auto-laid-out flow diagrams. Full contract: skill `design` § "Strokes annotation layer — AI read/write surface".
+> FigJam v3: the read surface also exposes `--graph` (bound arrows → nodes/edges — a sketched user flow reads back as a graph) and a WRITE verb (`maude design annotate`) for replying onto the board with stickies / bound connectors / auto-laid-out flow diagrams. Full contract: skill `design` § "Whiteboard annotation layer — AI read/write surface" (full spec: skill `whiteboard`).
 
 **Fires only when `INGEST=1` (step 1.6).** The back half of the brief-board loop: the active canvas IS a brief board the user annotated; read those notes verbatim, generate matching artboards, and **Edit them into the SAME canvas** below the brief frame. The annotation layer (`<slug>.annotations.json`) is never touched.
 

@@ -75,7 +75,7 @@ Cheat-sheet for the in-canvas chrome — independent of slash commands. Always p
 | `Cmd` + `+` / `Cmd` + `−`    | Zoom in / out                                       |
 | `Shift+P`                    | Toggle annotation visibility (presentation)         |
 
-Undo / redo cover drag, marquee batch-move, equal-spacing distribute, align, annotation strokes (add / erase / translate / text). Viewport + selection are intentionally NOT undoable (Figma convention). Stack is per-canvas-iframe, ring-capped at 50, cleared on external `.meta.json` edit. Comments are not undoable in v0.
+Undo / redo cover drag, marquee batch-move, equal-spacing distribute, align, and whiteboard edits (each gesture is one op batch and one undo step; undo applies its inverse and only reverts fields that still hold your value, never a collaborator's later edit — DDR-242). Viewport + selection are intentionally NOT undoable (Figma convention). Stack is per-canvas-iframe, ring-capped at 50, cleared on external `.meta.json` edit. Comments are not undoable in v0.
 
 ### Brief boards — sketch a brief, let Claude fill it in (Phase 22)
 
