@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # annotate.sh — thin wrapper around annotate.mjs (the AI annotation WRITE
-# verb). Runs under Bun, not node: the verb imports the CANONICAL TypeScript
-# annotation model (annotations-model.ts — serializer + sanitizer) so it can
-# never emit a shape the canvas wouldn't, and node can't import TS.
+# verb). Runs under Bun, not node: the verb imports the TypeScript element
+# registry (annotations/ai-write.ts — DDR-242) so it can never write an
+# element the canvas would not accept.
 # Reached via `maude design annotate` (DDR-062), never a raw bin path.
 #
 # Usage:
-#   annotate.sh <rel-path> [--ops <file|->] [--flow <file|->] [--near <id>]
+#   annotate.sh <rel-path> [--ops <file|->] [--flow <file|->] [--board <file|->]
 #               [--canvas-state <path>] [--root <repo>] [--dry-run]
 #   (see annotate.mjs --help for the full contract)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

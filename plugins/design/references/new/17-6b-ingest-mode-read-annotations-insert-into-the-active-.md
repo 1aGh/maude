@@ -26,7 +26,7 @@ fi
 
 #### 6b.2 Compose the verbatim brief
 
-Per CLAUDE.md ("pass the user's input verbatim — do not paraphrase"), the annotation text becomes a `## User annotations (verbatim)` block: one line per stroke with `text != null`, each prefixed with a positional hint from its world coords, the overlapped artboard, and — when a live-render `canvas-rects` manifest resolved one (skill `whiteboard`) — the specific UI element the note sits over.
+Per CLAUDE.md ("pass the user's input verbatim — do not paraphrase"), the annotation text becomes a `## User annotations (verbatim)` block: one line per element with a non-empty `text`, each prefixed with a positional hint from its world coords, the overlapped artboard, and — when a live-render `canvas-rects` manifest resolved one (skill `whiteboard`) — the specific UI element the note sits over.
 
 ```bash
 # Geometry manifest (feature-whiteboard-ai-toolkit) for artboard AND element
@@ -38,21 +38,23 @@ Per CLAUDE.md ("pass the user's input verbatim — do not paraphrase"), the anno
 # manifest is the one that actually works, and adds ELEMENT context too.
 RECTS_JSON="$REPO_ROOT/$DESIGN_ROOT/_history/$ACTIVE_SLUG/rects.json"
 maude design canvas-rects "$ACTIVE_REL" --root "$REPO_ROOT" > "$RECTS_JSON" 2>/dev/null || echo '{}' > "$RECTS_JSON"
-ANNOT_JSON=$(maude design read-annotations "$ACTIVE_REL" --root "$REPO_ROOT" --rects "$RECTS_JSON" 2>/dev/null || echo '[]')
+ANNOT_JSON=$(maude design read-annotations "$ACTIVE_REL" --root "$REPO_ROOT" --rects "$RECTS_JSON" 2>/dev/null || echo '{"elements":[]}')
 
-# Verbatim block: text strokes only, each with a positional hint. gsub collapses
-# multi-line sticky bodies to one line so the block stays one-line-per-note.
-# The element hint (skill `whiteboard`) only fires on a re-ingest with a live
-# render available — a first ingest onto a bare frame has no elements yet.
+# Verbatim block: text-bearing elements only (sticky/text bodies, shape labels,
+# section titles — `text` is the element's text slot, DDR-242), each with a
+# positional hint. Sections nest their members, so walk the tree (a section's
+# title comes before its members, in reading order). gsub collapses multi-line
+# bodies to one line so the block stays one-line-per-note. The element hint
+# (skill `whiteboard`) only fires on a re-ingest with a live render available —
+# a first ingest onto a bare frame has no elements yet.
 ANNOT_BLOCK=$(jq -r '
-  [ .[] | select(.text != null and (.text|length) > 0) ]
+  [ .elements | .. | objects | select(.type and (.text // "" | length) > 0) ]
   | map(
       ( if .element then "[near artboard \"" + (.artboard // "?") + "\", over the " + (.element.tag // "element") + " \"" + (.element.text // .element.selector) + "\"] "
         elif .artboard then "[near artboard \"" + .artboard + "\"] "
-        elif (.x != null and .y != null)
-          then "[at " + (.x|floor|tostring) + "," + (.y|floor|tostring) + "] "
+        elif .box then "[at " + (.box[0]|tostring) + "," + (.box[1]|tostring) + "] "
         else "" end )
-      + "- " + (.text | gsub("\n"; " / "))
+      + (if .type == "section" then "## " else "- " end) + (.text | gsub("\n"; " / "))
     )
   | .[]
 ' <<< "$ANNOT_JSON")
@@ -83,7 +85,7 @@ The positional hints (`[at x,y]`, `[near artboard "X"]`) are reading aids for `f
 #### 6b.3 Generate + insert (Edit-into-active, not Write-new)
 
 1. Run **step 4.5** (UX research, cache-first) + **step 5** (envelope) seeded by the composed brief, then **step 6** generation. In the generation prompt, **specify the splice contract**: emit ONLY the artboard subtree — one or more `<DCSection>` / `<DCArtboard>` blocks — NOT a full `<DesignCanvas>` file. The canvas wrapper already exists; you are inserting children.
-2. **Compute an insertion offset** so generated artboards clear the annotation clusters: the lowest annotation bottom edge is `jq '[.[]|((.y//0)+(.h//0))]|max' <<< "$ANNOT_JSON"`; place the new row below it (world-`y` ≈ lowestY + 120). The brief frame stays at top; generated artboards go in a fresh row beneath the notes. (v1 lays a single row — spatially aligning each artboard under its source cluster is deferred, see plan "Out of scope".)
+2. **Compute an insertion offset** so generated artboards clear the annotation clusters: the lowest annotation bottom edge is `jq '[.elements | .. | objects | select(.box) | .box[1] + .box[3]] | max // 0' <<< "$ANNOT_JSON"`; place the new row below it (world-`y` ≈ lowestY + 120). The brief frame stays at top; generated artboards go in a fresh row beneath the notes. (v1 lays a single row — spatially aligning each artboard under its source cluster is deferred, see plan "Out of scope".)
 3. **Edit (do NOT Write) the active `.tsx`** — `$ACTIVE_ABS`. Insert the generated `<DCSection>`/`<DCArtboard>` JSX inside `<DesignCanvas>`, after the existing brief `<DCSection>`. The annotation board sibling (`<slug>.annotations.json`) is never touched, so notes stay floating over the freshly inserted artboards. The file-watcher hard-reloads the iframe on `.tsx` change, but the annotation layer is a separate file preserved across the reload — **verify this in the smoke step**.
 4. **Parse-gate** the edited file (step 7 `oxc-parser parseSync`) before accepting. If the splice broke the JSX, re-prompt once with the parse error; if still broken, **restore the pre-edit file** (you read it before editing) and surface the failure — never leave the board in a non-mounting state.
 5. **Re-stamp `.meta.json`:** `annotations_sha: $ANNOT_SHA` + `last_ingest: <ISO>`, and **KEEP `kind: "brief-board"`** (the board stays a board you can keep annotating + re-ingesting). Append the new artboard ids to the meta's `sections`/`artboards`.
