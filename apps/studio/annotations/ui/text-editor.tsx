@@ -28,6 +28,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { formatCommands, formatState } from './editor-channel.ts';
 import {
   type ListStyle,
   stripListMarkers,
@@ -119,8 +120,7 @@ export interface EditorFmt {
 /**
  * Shared inline formatting for the editor. ⌘/Ctrl + B / I / U toggle while
  * editing and preview live via `style`; the edit-mode context toolbar drives
- * the same state (`maude:editor-format`) and reads it back
- * (`maude:editor-format-state`). The stroke is not touched until commit — a
+ * the same state and reads it back through editor-channel.ts. The stroke is not touched until commit — a
  * mid-edit store write would re-render the editor under the user's caret.
  */
 export function useEditorFormat(initial: EditorFmt): {
@@ -143,34 +143,23 @@ export function useEditorFormat(initial: EditorFmt): {
     ...(fontSize != null && fontSize !== initial.fontSize ? { fontSize: `${fontSize}px` } : {}),
     ...(align && align !== initial.align ? { textAlign: align } : {}),
   };
+  useEffect(
+    () =>
+      formatCommands.listen((d) => {
+        if (d.key === 'bold') setBold((v) => !v);
+        else if (d.key === 'italic') setItalic((v) => !v);
+        else if (d.key === 'underline') setUnderline((v) => !v);
+        else if (d.key === 'strike') setStrike((v) => !v);
+        else if (d.key === 'fontSize' && typeof d.value === 'number') setFontSize(d.value);
+        else if (d.key === 'align' && typeof d.value === 'string') setAlign(d.value as TextAlign);
+      }),
+    []
+  );
   useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const onFmt = (e: Event) => {
-      const d = (e as CustomEvent<{ key?: string; value?: unknown }>).detail;
-      if (!d?.key) return;
-      if (d.key === 'bold') setBold((v) => !v);
-      else if (d.key === 'italic') setItalic((v) => !v);
-      else if (d.key === 'underline') setUnderline((v) => !v);
-      else if (d.key === 'strike') setStrike((v) => !v);
-      else if (d.key === 'fontSize' && typeof d.value === 'number') setFontSize(d.value);
-      else if (d.key === 'align' && typeof d.value === 'string') setAlign(d.value as TextAlign);
-    };
-    document.addEventListener('maude:editor-format', onFmt);
-    return () => document.removeEventListener('maude:editor-format', onFmt);
-  }, []);
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const broadcast = () => {
-      document.dispatchEvent(
-        new CustomEvent('maude:editor-format-state', {
-          detail: { bold, italic, underline, strike, fontSize, align },
-        })
-      );
-    };
-    broadcast();
-    document.addEventListener('maude:editor-format-request', broadcast);
-    return () => document.removeEventListener('maude:editor-format-request', broadcast);
+    formatState.publish({ bold, italic, underline, strike, fontSize, align });
   }, [bold, italic, underline, strike, fontSize, align]);
+  // The session is over: the toolbar stops mirroring it.
+  useEffect(() => () => formatState.publish(null), []);
   const onFormatKey = useCallback((e: ReactKeyboardEvent): boolean => {
     if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return false;
     const k = e.key.toLowerCase();

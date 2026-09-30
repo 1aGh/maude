@@ -18,6 +18,7 @@
  */
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useAnnotationPipeline } from './annotations/ui/pipeline-context.ts';
 import { anchorPoint, BIND_THRESHOLD_PX, bindCandidate } from './annotations-bindings.ts';
 import {
   type ArrowStroke,
@@ -560,6 +561,7 @@ export function AnnotationResizeOverlay({ store }: { store: StrokesStoreValue | 
   const annotSel = useAnnotationSelection();
   const controller = useViewportControllerContext();
   const vp = controller?.viewport ?? null;
+  const pipeline = useAnnotationPipeline();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const dragRef = useRef<{
@@ -725,6 +727,17 @@ export function AnnotationResizeOverlay({ store }: { store: StrokesStoreValue | 
       } catch {
         /* some browsers reject capture on synthetic events */
       }
+      // The layer's pointer pipeline owns the moves and the release (Task 21);
+      // mounted without a layer (tests), the overlay listens itself.
+      if (pipeline) {
+        const pointerId = e.pointerId;
+        pipeline.begin(pointerId, {
+          kind: isRotCorner(corner) ? 'rotating' : 'resizing',
+          move: onMove,
+          up: onUp,
+          cancel: (ev) => onUp(ev ?? ({ pointerId } as PointerEvent)),
+        });
+      }
     };
     const applyResize = (
       clientX: number,
@@ -810,19 +823,15 @@ export function AnnotationResizeOverlay({ store }: { store: StrokesStoreValue | 
             matchIds.push(bestH.id);
           }
         }
-        document.dispatchEvent(
-          new CustomEvent('maude:resize-info', {
-            detail: {
-              box: { x: patch.x, y: patch.y, w: patch.w, h: patch.h },
-              matchIds,
-            },
-          })
-        );
+        store.setResizeInfo?.({
+          box: { x: patch.x, y: patch.y, w: patch.w, h: patch.h },
+          matchIds,
+        });
       }
       // FigJam v3 — dragging an arrow ENDPOINT re-anchors its bind: within the
       // magnet threshold of a bindable host the endpoint snaps + binds; free
       // space (or ⌘ held — Figma "suppress snap") clears the bind. The layer
-      // paints the candidate halo via the maude:bind-hint broadcast.
+      // paints the candidate halo (store.setBindHint).
       if (d.startStroke.tool === 'arrow' && (d.corner === 'ep1' || d.corner === 'ep2')) {
         const zoom = vp?.zoom || 1;
         const cand = suppressBind
@@ -852,9 +861,7 @@ export function AnnotationResizeOverlay({ store }: { store: StrokesStoreValue | 
             [d.corner === 'ep1' ? 'startBind' : 'endBind']: undefined,
           } as Partial<Stroke>;
         }
-        document.dispatchEvent(
-          new CustomEvent('maude:bind-hint', { detail: { hostId: cand?.hostId ?? null } })
-        );
+        store.setBindHint?.(cand?.hostId ?? null);
       }
       // Wave H — transient preview tick: no undo record, no PUT. The gesture
       // commits ONCE on pointerup (undo used to walk every resize pixel).
@@ -898,26 +905,28 @@ export function AnnotationResizeOverlay({ store }: { store: StrokesStoreValue | 
       );
       // Clear the bind-hint halo + size label regardless of what was dragged
       // (no-ops when nothing was hinted).
-      document.dispatchEvent(new CustomEvent('maude:bind-hint', { detail: { hostId: null } }));
-      document.dispatchEvent(
-        new CustomEvent('maude:resize-info', { detail: { box: null, matchIds: [] } })
-      );
+      store?.setBindHint?.(null);
+      store?.setResizeInfo?.(null);
     };
     c.addEventListener('pointerdown', onDown);
-    document.addEventListener('pointermove', onMove);
-    document.addEventListener('pointerup', onUp);
-    document.addEventListener('pointercancel', onUp);
+    if (!pipeline) {
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+      document.addEventListener('pointercancel', onUp);
+    }
     document.addEventListener('keydown', onKey, true);
     document.addEventListener('keyup', onKey, true);
     return () => {
       c.removeEventListener('pointerdown', onDown);
-      document.removeEventListener('pointermove', onMove);
-      document.removeEventListener('pointerup', onUp);
-      document.removeEventListener('pointercancel', onUp);
+      if (!pipeline) {
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        document.removeEventListener('pointercancel', onUp);
+      }
       document.removeEventListener('keydown', onKey, true);
       document.removeEventListener('keyup', onKey, true);
     };
-  }, [selectedStroke, store, screenToWorld, vp]);
+  }, [selectedStroke, store, screenToWorld, vp, pipeline]);
 
   // Only render when there's exactly one resizable stroke selected. Multi
   // resize is undefined for v1 (no canonical UX); text inherits anchor bbox.

@@ -11,6 +11,8 @@ import {
   marqueeHits,
 } from './annotations/ui/containment.ts';
 import type { EditRequest } from './annotations/ui/element-node.tsx';
+import { AnnotationPipelineContext } from './annotations/ui/pipeline-context.ts';
+import { type Claim, PointerPipeline } from './annotations/ui/pointer-pipeline.ts';
 import { type RenderItem, renderItemsFromStrokes } from './annotations/ui/render-model.ts';
 import { AnnotationScene } from './annotations/ui/scene.tsx';
 import {
@@ -766,6 +768,12 @@ export interface StrokesStoreValue {
   previewStroke: (id: string, patch: Partial<Stroke>) => void;
   /** Wave H — single undo record from a preview gesture's start snapshot. */
   commitGesture: (before: readonly Stroke[], label?: string) => void;
+  /** The host a dragged arrow endpoint would bind to (halo), or null. */
+  setBindHint?: (hostId: string | null) => void;
+  /** Live size label + dimension-match halos while resizing, or null. */
+  setResizeInfo?: (
+    info: { box: { x: number; y: number; w: number; h: number }; matchIds: string[] } | null
+  ) => void;
 }
 
 const StrokesStoreContext = createContext<StrokesStoreValue | null>(null);
@@ -947,6 +955,30 @@ export function AnnotationsLayer() {
   const worldRef = useWorldRefContext();
   const annotSel = useAnnotationSelectionOptional();
   const elementSel = useSelectionSetOptional();
+  // Task 21 — ONE pointer pipeline for every annotation gesture: stages tried
+  // in explicit priority order, one owner per gesture (pointer-pipeline.ts).
+  const pipeline = useMemo(() => new PointerPipeline(), []);
+  const [gestureState, setGestureState] = useState('idle');
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    pipeline.onState = setGestureState;
+    return pipeline.attach(document);
+  }, [pipeline]);
+  // Chrome owns its own presses (toolbars, handles, editors, menus, the
+  // palette, comments, an inline media player): one decision, here, instead of
+  // a skip-list copied into every handler (the ce641b18 class of bug).
+  useEffect(
+    () =>
+      pipeline.add({
+        priority: 5,
+        name: 'chrome',
+        down: (e) => {
+          const t = e.target as Element | null;
+          return isMediaPlayerTarget(e) || t?.closest?.(CHROME_SELECTOR) ? 'pass' : undefined;
+        },
+      }),
+    [pipeline]
+  );
 
   const [strokes, setStrokesState] = useState<Stroke[]>([]);
   const [drawing, setDrawing] = useState<Stroke | null>(null);
@@ -998,6 +1030,12 @@ export function AnnotationsLayer() {
   // id of the host a dragged arrow endpoint would bind to (accent halo).
   const [snapGuides, setSnapGuides] = useState<SnapGuide[] | null>(null);
   const [bindHintId, setBindHintId] = useState<string | null>(null);
+  // FigJam v3 — live size label + dimension-match halos while resizing (the
+  // resize overlay sets it through the strokes store; the SVG layer paints).
+  const [resizeInfo, setResizeInfo] = useState<{
+    box: { x: number; y: number; w: number; h: number } | null;
+    matchIds: string[];
+  } | null>(null);
   // Cmd/Ctrl held — suppresses binding at arrow draw-end (FigJam: ⌘ keeps the
   // endpoint free). Tracked here because endStroke (pointerup) carries no
   // modifier state of its own.
@@ -1515,6 +1553,8 @@ export function AnnotationsLayer() {
     };
     return {
       strokes,
+      setBindHint: setBindHintId,
+      setResizeInfo,
       setStrokes,
       updateStroke,
       deleteStrokes,
@@ -2488,12 +2528,10 @@ export function AnnotationsLayer() {
       return null;
     };
 
-    const onDown = (e: PointerEvent) => {
-      if (isMediaPlayerTarget(e)) return; // mediaref inline player owns this event
+    const onDown = (e: PointerEvent): Claim => {
       if (e.button !== 0) return;
       if (e.metaKey || e.ctrlKey) return; // escape hatch into element-selection
       const target = e.target as Element | null;
-      if (target?.closest?.(CHROME_SELECTOR)) return; // chrome owns its clicks
       const strokeId = findStrokeId(target);
       const [wx, wy] = screenToWorld(e.clientX, e.clientY);
       const startClientX = e.clientX;
@@ -2691,9 +2729,6 @@ export function AnnotationsLayer() {
           if (!st || up.pointerId !== st.pointerId) return;
           dragStateRef.current = null;
           setSnapGuides(null);
-          document.removeEventListener('pointermove', onMove, true);
-          document.removeEventListener('pointerup', onUp, true);
-          document.removeEventListener('pointercancel', onUp, true);
           // Commit the gesture as ONE record. Skip on zero-movement
           // (click without drag past threshold or drag back to origin).
           const final = strokesRef.current;
@@ -2713,10 +2748,12 @@ export function AnnotationsLayer() {
             }`
           );
         };
-        document.addEventListener('pointermove', onMove, true);
-        document.addEventListener('pointerup', onUp, true);
-        document.addEventListener('pointercancel', onUp, true);
-        return;
+        return {
+          kind: altDup ? 'duplicating' : 'dragging',
+          move: onMove,
+          up: onUp,
+          cancel: (ev) => onUp(ev ?? ({ pointerId: e.pointerId } as PointerEvent)),
+        };
       }
 
       // Not a stroke / hull-group drag. When pointerdown lands inside an
@@ -2741,10 +2778,7 @@ export function AnnotationsLayer() {
         const [cwx, cwy] = screenToWorld(mv.clientX, mv.clientY);
         setMarquee({ ax: wx, ay: wy, bx: cwx, by: cwy });
       };
-      const onUp = (_up: PointerEvent) => {
-        document.removeEventListener('pointermove', onMove, true);
-        document.removeEventListener('pointerup', onUp, true);
-        document.removeEventListener('pointercancel', onUp, true);
+      const onUp = () => {
         if (!moved) {
           // Click without movement on empty world → clear annotation
           // selection (post-Wave-3 user feedback). Shift-click preserves
@@ -2772,17 +2806,14 @@ export function AnnotationsLayer() {
         if (addToSelection) annotSel.add(expanded);
         else annotSel.replace(expanded);
       };
-      document.addEventListener('pointermove', onMove, true);
-      document.addEventListener('pointerup', onUp, true);
-      document.addEventListener('pointercancel', onUp, true);
+      return { kind: 'marquee', move: onMove, up: onUp, cancel: onUp };
     };
 
-    document.addEventListener('pointerdown', onDown, true);
-    return () => document.removeEventListener('pointerdown', onDown, true);
+    return pipeline.add({ priority: 100, name: 'select', down: onDown });
     // commitStrokes is included defensively (it is a stable useCallback([]) ref,
-    // so this never re-binds the listener) to remove the latent stale-closure
+    // so this never re-registers the stage) to remove the latent stale-closure
     // trap flagged in the Phase 24 frontend review.
-  }, [tool, annotSel, elementSel, screenToWorld, strokesStore, commitStrokes]);
+  }, [pipeline, tool, annotSel, elementSel, screenToWorld, strokesStore, commitStrokes]);
 
   // Latest marquee + strokes refs for the doc-level pointerup callback
   // (avoids re-binding the listener on every state tick).
@@ -2807,7 +2838,7 @@ export function AnnotationsLayer() {
     if (tool !== 'move') return;
     if (!annotSel) return;
 
-    const onDown = (e: PointerEvent) => {
+    const onDown = (e: PointerEvent): Claim => {
       const target = e.target as Element | null;
       const cornerEl = target?.closest?.('[data-group-resize-corner]') ?? null;
       if (!cornerEl) return;
@@ -2849,6 +2880,12 @@ export function AnnotationsLayer() {
       } catch {
         /* some browsers reject capture on synthetic events */
       }
+      return {
+        kind: 'resizing',
+        move: onMove,
+        up: onUp,
+        cancel: (ev) => onUp(ev ?? ({ pointerId: e.pointerId } as PointerEvent)),
+      };
     };
     const onMove = (e: PointerEvent) => {
       const d = groupResizeRef.current;
@@ -2887,17 +2924,8 @@ export function AnnotationsLayer() {
       if (strokesShallowEqual(d.undoBase, final)) return;
       commitStrokes(d.undoBase, final, `resize ${d.ids.length} strokes`);
     };
-    document.addEventListener('pointerdown', onDown, true);
-    document.addEventListener('pointermove', onMove, true);
-    document.addEventListener('pointerup', onUp, true);
-    document.addEventListener('pointercancel', onUp, true);
-    return () => {
-      document.removeEventListener('pointerdown', onDown, true);
-      document.removeEventListener('pointermove', onMove, true);
-      document.removeEventListener('pointerup', onUp, true);
-      document.removeEventListener('pointercancel', onUp, true);
-    };
-  }, [tool, annotSel, screenToWorld, anchorsById, commitStrokes]);
+    return pipeline.add({ priority: 3, name: 'group-resize', down: onDown });
+  }, [pipeline, tool, annotSel, screenToWorld, anchorsById, commitStrokes]);
 
   // Double-click enters text-edit mode: rect/ellipse (anchored text), sticky
   // (its own body), or a standalone text node (re-edit in place). Anchored text
@@ -3376,53 +3404,14 @@ export function AnnotationsLayer() {
   );
 
   // FigJam v3 — ⌘Enter pressed INSIDE a sticky/anchored editor commits there
-  // and asks the layer (via this event) to chain the next sibling. Deferred a
-  // tick so the editor's commit lands in strokesRef first.
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const onChain = (e: Event) => {
-      const id = (e as CustomEvent<{ id?: string }>).detail?.id;
-      if (!id) return;
-      window.setTimeout(() => {
-        chainCreate(id);
-      }, 0);
-    };
-    document.addEventListener('maude:chain-create', onChain);
-    return () => document.removeEventListener('maude:chain-create', onChain);
-  }, [chainCreate]);
-
-  // FigJam v3 — the resize overlay (a sibling component that owns the arrow
-  // endpoint handles) broadcasts the bind candidate while an endpoint drags;
-  // the halo renders here because the SVG layer owns the world overlay.
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const onHint = (e: Event) => {
-      setBindHintId((e as CustomEvent<{ hostId?: string | null }>).detail?.hostId ?? null);
-    };
-    document.addEventListener('maude:bind-hint', onHint);
-    return () => document.removeEventListener('maude:bind-hint', onHint);
-  }, []);
-
-  // FigJam v3 — live size label + dimension-match halos while resizing (the
-  // overlay broadcasts; the SVG layer paints).
-  const [resizeInfo, setResizeInfo] = useState<{
-    box: { x: number; y: number; w: number; h: number } | null;
-    matchIds: string[];
-  } | null>(null);
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const onInfo = (e: Event) => {
-      const detail = (
-        e as CustomEvent<{
-          box?: { x: number; y: number; w: number; h: number } | null;
-          matchIds?: string[];
-        }>
-      ).detail;
-      setResizeInfo(detail?.box ? { box: detail.box, matchIds: detail.matchIds ?? [] } : null);
-    };
-    document.addEventListener('maude:resize-info', onInfo);
-    return () => document.removeEventListener('maude:resize-info', onInfo);
-  }, []);
+  // and chains the next sibling. Deferred a tick so the editor's commit lands
+  // in strokesRef (React state) before the chain reads it.
+  const chainAfterCommit = useCallback(
+    (id: string) => {
+      window.setTimeout(() => chainCreate(id), 0);
+    },
+    [chainCreate]
+  );
 
   // FigJam v3 — manipulation shortcuts: ⌘G group / ⌘⇧G ungroup, ⌘D duplicate,
   // ] [ ⌘] ⌘[ z-order, ⌘C/⌘X copy/cut (selection → OS clipboard as a JSON
@@ -3603,7 +3592,7 @@ export function AnnotationsLayer() {
   useEffect(() => {
     if (typeof document === 'undefined') return;
     if (tool !== 'move') return;
-    const onDown = (e: PointerEvent) => {
+    const onDown = (e: PointerEvent): Claim => {
       if (isMediaPlayerTarget(e)) return; // mediaref inline player owns this event
       if (e.button !== 0) return;
       const dot = (e.target as Element | null)?.closest?.('.dc-annot-conn-dot');
@@ -3647,9 +3636,6 @@ export function AnnotationsLayer() {
       };
       const onUp = (up: PointerEvent) => {
         if (up.pointerId !== pointerId) return;
-        document.removeEventListener('pointermove', onMove, true);
-        document.removeEventListener('pointerup', onUp, true);
-        document.removeEventListener('pointercancel', onUp, true);
         const draft = connDraftRef.current;
         setConnDraft(null);
         setBindHintId(null);
@@ -3679,13 +3665,15 @@ export function AnnotationsLayer() {
           );
         }
       };
-      document.addEventListener('pointermove', onMove, true);
-      document.addEventListener('pointerup', onUp, true);
-      document.addEventListener('pointercancel', onUp, true);
+      return {
+        kind: 'connecting',
+        move: onMove,
+        up: onUp,
+        cancel: (ev) => onUp(ev ?? ({ pointerId } as PointerEvent)),
+      };
     };
-    document.addEventListener('pointerdown', onDown, true);
-    return () => document.removeEventListener('pointerdown', onDown, true);
-  }, [tool, screenToWorld, commitStrokes, annotSel, theme]);
+    return pipeline.add({ priority: 2, name: 'connector', down: onDown });
+  }, [pipeline, tool, screenToWorld, commitStrokes, annotSel, theme]);
 
   // FigJam v3 — right-click on a stroke SELECTS it (keeping a multi-selection
   // the press lands inside) and opens the annotation context menu (z-order,
@@ -3719,19 +3707,20 @@ export function AnnotationsLayer() {
     // capture listener fires before the router's host-capture one and stops
     // propagation WITHOUT preventDefault, so the native contextmenu event
     // (which opens OUR menu above) still follows.
-    const onDown = (e: PointerEvent) => {
-      if (isMediaPlayerTarget(e)) return; // mediaref inline player owns this event
+    const onDown = (e: PointerEvent): Claim => {
+      if (isMediaPlayerTarget(e)) return;
       if (e.button !== 2) return;
       if (!strokeAt(e.target as Element | null)) return;
       e.stopImmediatePropagation();
+      return 'pass';
     };
     document.addEventListener('contextmenu', onCtx, true);
-    document.addEventListener('pointerdown', onDown, true);
+    const unstage = pipeline.add({ priority: 1, name: 'context-menu', down: onDown });
     return () => {
       document.removeEventListener('contextmenu', onCtx, true);
-      document.removeEventListener('pointerdown', onDown, true);
+      unstage();
     };
-  }, [tool, annotSel]);
+  }, [pipeline, tool, annotSel]);
 
   // Keyboard: arrow nudge + Backspace/Delete remove selected strokes.
   useEffect(() => {
@@ -3901,95 +3890,99 @@ export function AnnotationsLayer() {
   }, [annotSel, strokesById]);
 
   return (
-    <StrokesStoreContext.Provider value={strokesStore}>
-      <AnnotationsInput
-        isActive={isActive}
-        visible={visible}
-        cursor={tools.find((t) => t.id === tool)?.cursor ?? 'crosshair'}
-        beginStroke={beginStroke}
-        moveStroke={moveStroke}
-        endStroke={endStroke}
-        onLeave={() => setGhost(null)}
-      />
-      {visible ? (
-        <AnnotationsSvg
-          worldRef={worldRef}
-          strokes={renderStrokes}
-          anchorsById={anchorsById}
-          selectMode={tool === 'move'}
-          selectedStrokes={selectedStrokes}
-          marquee={marquee}
-          snapGuides={snapGuides}
-          bindHintId={bindHintId}
-          resizeInfo={resizeInfo}
-          connDraft={connDraft}
-          addTextHintId={editingTarget ? null : addTextHintId}
-          ghost={ghostPreview}
-          editingTarget={editingTarget}
-          editCaretPoint={editCaretPoint}
-          inkColor={color}
-          onCommitEdit={commitEditing}
-          onCancelEdit={cancelEditing}
-          onDraftEdit={draftEditing}
-          editNotice={editGone ? 'deleted' : remoteEdited ? 'edited' : null}
-          unknownElements={unknownElements}
+    <AnnotationPipelineContext.Provider value={pipeline}>
+      <StrokesStoreContext.Provider value={strokesStore}>
+        <AnnotationsInput
+          isActive={isActive}
+          visible={visible}
+          cursor={tools.find((t) => t.id === tool)?.cursor ?? 'crosshair'}
+          beginStroke={beginStroke}
+          moveStroke={moveStroke}
+          endStroke={endStroke}
+          onLeave={() => setGhost(null)}
         />
-      ) : null}
-      {/* DDR-150 dogfood #8 — inline players for media-reference chips (HTML
+        {visible ? (
+          <AnnotationsSvg
+            worldRef={worldRef}
+            strokes={renderStrokes}
+            anchorsById={anchorsById}
+            selectMode={tool === 'move'}
+            selectedStrokes={selectedStrokes}
+            marquee={marquee}
+            snapGuides={snapGuides}
+            bindHintId={bindHintId}
+            resizeInfo={resizeInfo}
+            connDraft={connDraft}
+            addTextHintId={editingTarget ? null : addTextHintId}
+            ghost={ghostPreview}
+            editingTarget={editingTarget}
+            editCaretPoint={editCaretPoint}
+            inkColor={color}
+            onCommitEdit={commitEditing}
+            onCancelEdit={cancelEditing}
+            onDraftEdit={draftEditing}
+            onChainEdit={chainAfterCommit}
+            gestureState={gestureState}
+            editNotice={editGone ? 'deleted' : remoteEdited ? 'edited' : null}
+            unknownElements={unknownElements}
+          />
+        ) : null}
+        {/* DDR-150 dogfood #8 — inline players for media-reference chips (HTML
           overlay in the world div; see MediaRefPlayers for why not
           foreignObject). */}
-      <MediaRefPlayers worldRef={worldRef} strokes={renderStrokes} visible={visible} />
-      <AnnotationContextToolbar
-        editingId={
-          editingTarget?.kind === 'anchored'
-            ? editingTarget.anchorId
-            : editingTarget?.kind === 'sticky'
-              ? editingTarget.sticky.id
-              : editingTarget?.kind === 'standalone'
-                ? editingTarget.text.id
-                : null
-        }
-      />
-      {ctxMenu && annotSel ? (
-        <AnnotationContextMenu
-          pos={ctxMenu}
-          selCount={annotSel.selectedIds.length}
-          canUngroup={selectedStrokes.some((s) => (s.groupIds?.length ?? 0) > 0)}
-          canReplace={
-            selectedStrokes.length === 1 &&
-            (selectedStrokes[0]?.tool === 'image' || selectedStrokes[0]?.tool === 'mediaref')
+        <MediaRefPlayers worldRef={worldRef} strokes={renderStrokes} visible={visible} />
+        <AnnotationContextToolbar
+          editingId={
+            editingTarget?.kind === 'anchored'
+              ? editingTarget.anchorId
+              : editingTarget?.kind === 'sticky'
+                ? editingTarget.sticky.id
+                : editingTarget?.kind === 'standalone'
+                  ? editingTarget.text.id
+                  : null
           }
-          canEditPhoto={
-            selectedStrokes.length === 1 &&
-            selectedStrokes[0]?.tool === 'image' &&
-            /assets\/[0-9a-f]{8}\.[a-z0-9]+/i.test((selectedStrokes[0] as ImageStroke).href || '')
-          }
-          onAction={onMenuAction}
-          onClose={() => setCtxMenu(null)}
         />
-      ) : null}
-      {visible && tool === 'move' ? <AnnotationResizeOverlay store={strokesStore} /> : null}
-      {isActive ? (
-        <AnnotationsChrome
-          tool={tool}
-          theme={theme}
-          color={color}
-          setColor={setColor}
-          stickyColor={stickyColor}
-          setStickyColor={setStickyColor}
-          highlighterColor={highlighterColor}
-          setHighlighterColor={setHighlighterColor}
-          highlighterWidth={highlighterWidth}
-          setHighlighterWidth={setHighlighterWidth}
-          supportsFill={supportsFill}
-          fill={fill}
-          setFill={setFill}
-          supportsThickness={supportsThickness}
-          thickness={thickness}
-          setThickness={setThickness}
-        />
-      ) : null}
-    </StrokesStoreContext.Provider>
+        {ctxMenu && annotSel ? (
+          <AnnotationContextMenu
+            pos={ctxMenu}
+            selCount={annotSel.selectedIds.length}
+            canUngroup={selectedStrokes.some((s) => (s.groupIds?.length ?? 0) > 0)}
+            canReplace={
+              selectedStrokes.length === 1 &&
+              (selectedStrokes[0]?.tool === 'image' || selectedStrokes[0]?.tool === 'mediaref')
+            }
+            canEditPhoto={
+              selectedStrokes.length === 1 &&
+              selectedStrokes[0]?.tool === 'image' &&
+              /assets\/[0-9a-f]{8}\.[a-z0-9]+/i.test((selectedStrokes[0] as ImageStroke).href || '')
+            }
+            onAction={onMenuAction}
+            onClose={() => setCtxMenu(null)}
+          />
+        ) : null}
+        {visible && tool === 'move' ? <AnnotationResizeOverlay store={strokesStore} /> : null}
+        {isActive ? (
+          <AnnotationsChrome
+            tool={tool}
+            theme={theme}
+            color={color}
+            setColor={setColor}
+            stickyColor={stickyColor}
+            setStickyColor={setStickyColor}
+            highlighterColor={highlighterColor}
+            setHighlighterColor={setHighlighterColor}
+            highlighterWidth={highlighterWidth}
+            setHighlighterWidth={setHighlighterWidth}
+            supportsFill={supportsFill}
+            fill={fill}
+            setFill={setFill}
+            supportsThickness={supportsThickness}
+            thickness={thickness}
+            setThickness={setThickness}
+          />
+        ) : null}
+      </StrokesStoreContext.Provider>
+    </AnnotationPipelineContext.Provider>
   );
 }
 AnnotationsLayer.displayName = 'AnnotationsLayer';
@@ -4096,7 +4089,9 @@ function AnnotationsSvg({
   onCommitEdit,
   onCancelEdit,
   onDraftEdit,
+  onChainEdit,
   editNotice,
+  gestureState,
   unknownElements,
 }: {
   worldRef: ReturnType<typeof useWorldRefContext>;
@@ -4105,6 +4100,10 @@ function AnnotationsSvg({
   unknownElements: readonly AnnotationElement[];
   /** Idle-typing draft of the open editor (Task 19). */
   onDraftEdit: (text: string) => void;
+  /** ⌘Enter in a sticky / shape label: spawn the next sibling. */
+  onChainEdit: (id: string) => void;
+  /** The pointer pipeline's state (`idle`, `dragging`, `marquee`, …) — a tooling hook. */
+  gestureState: string;
   /** A collaborator edited or deleted the element under the open editor. */
   editNotice: 'edited' | 'deleted' | null;
   anchorsById: Map<string, AnchorHost>;
@@ -4184,6 +4183,8 @@ function AnnotationsSvg({
   }
   const draftRef = useRef(onDraftEdit);
   draftRef.current = onDraftEdit;
+  const chainRef = useRef(onChainEdit);
+  chainRef.current = onChainEdit;
   const commitRef = useRef(onCommitEdit);
   commitRef.current = onCommitEdit;
   const cancelRef = useRef(onCancelEdit);
@@ -4204,7 +4205,7 @@ function AnnotationsSvg({
         // ⌘Enter in a sticky or a shape label also spawns the next sibling.
         const kind = chainKindRef.current;
         if (info.chain && id && (kind === 'sticky' || kind === 'anchored')) {
-          document.dispatchEvent(new CustomEvent('maude:chain-create', { detail: { id } }));
+          chainRef.current(id);
         }
       },
       onCancel: () => cancelRef.current(),
@@ -4232,6 +4233,7 @@ function AnnotationsSvg({
           xmlns="http://www.w3.org/2000/svg"
           // DOM-driven E2E + tooling hook: the current annotation selection.
           data-selection={annotSel?.selectedIds.join(' ') ?? ''}
+          data-annot-state={gestureState}
         >
           <defs>
             {/* Phase 21 — soft "lifted paper" drop shadow for sticky notes. */}

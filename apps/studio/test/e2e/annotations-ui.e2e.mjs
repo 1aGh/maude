@@ -557,6 +557,63 @@ describe('R8 — Milestone D: an operation on a section acts on its contents', (
   });
 });
 
+describe('R9 — pointer routing regressions (Task 21 guards them before the pipeline change)', () => {
+  // World → page through `onart` (world 720,710, 120 wide; no scenario moves it).
+  async function worldToPage(wx, wy) {
+    const b = await c.pageBox('onart');
+    const k = b.width / 120;
+    return [b.x + (wx - 720) * k, b.y + (wy - 710) * k];
+  }
+
+  test('3db83a8a: dragging a multi-selection by its hull over an artboard moves the selection', async () => {
+    await reset();
+    const before = await waitForBoard(server.root, () => true);
+    const [ax, ay] = await c.center('onart');
+    const [px, py] = await c.center('plain');
+    await c.click(ax, ay);
+    await c.click(px, py, { modifiers: ['Shift'] });
+    await sleep(200);
+    assert.deepEqual(await c.selection(), ['onart', 'plain']);
+    // Inside the hull, over the artboard, on no element.
+    const [hx, hy] = await worldToPage(870, 760);
+    await c.drag([hx, hy], [hx + 60, hy + 40]);
+    const after = await waitForBoard(
+      server.root,
+      (b) => b.get('onart')?.x !== before.get('onart').x
+    );
+    assert.ok(after.get('onart').x > before.get('onart').x, 'onart moved');
+    assert.ok(after.get('plain').x > before.get('plain').x, 'plain moved with it');
+    assert.deepEqual(await c.selection(), ['onart', 'plain'], 'still selected');
+    await c.page.keyboard.press('Meta+z');
+    await waitForBoard(server.root, (b) => b.get('onart')?.x === before.get('onart').x);
+  });
+
+  test('ce641b18: dragging a resize handle resizes; no marquee, no deselect', async () => {
+    await reset();
+    const before = await waitForBoard(server.root, () => true);
+    const [px, py] = await c.center('plain');
+    await c.click(px, py);
+    await sleep(200);
+    const h = await c.frame
+      .locator('.dc-annot-resize-handle[data-corner="se"]')
+      .first()
+      .boundingBox({ timeout: 2000 });
+    const from = [h.x + h.width / 2, h.y + h.height / 2];
+    await c.drag(from, [from[0] + 40, from[1] + 30]);
+    const after = await waitForBoard(
+      server.root,
+      (b) => b.get('plain')?.w !== before.get('plain').w
+    );
+    assert.ok(after.get('plain').w > before.get('plain').w, 'wider');
+    assert.deepEqual(await c.selection(), ['plain'], 'still selected');
+    assert.equal(
+      await c.frame.evaluate(() => !!document.querySelector('.dc-annot-marquee')),
+      false,
+      'no marquee left behind'
+    );
+  });
+});
+
 test('no page errors during the run', () => {
   assert.deepEqual(c.errors, []);
 });
