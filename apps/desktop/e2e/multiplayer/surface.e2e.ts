@@ -4752,7 +4752,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               timeout: 30000,
               // The hub participant is a cloud workspace: there the verb runs
               // the way the in-cell agent does (MAUDE_WORKSPACE_MODE=1).
-              env: from.name === 'hub' ? { ...process.env, MAUDE_WORKSPACE_MODE: '1' } : process.env,
+              env:
+                from.name === 'hub' ? { ...process.env, MAUDE_WORKSPACE_MODE: '1' } : process.env,
             }
           );
           if (verb.error) {

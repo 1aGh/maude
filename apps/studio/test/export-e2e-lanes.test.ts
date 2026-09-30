@@ -188,7 +188,19 @@ async function openExportDialog(port: number) {
   // Open the canvas from the tree — the artboard must be MOUNTED for the
   // browser lane to have anything to capture.
   await page.waitForSelector('[data-testid="canvas-list"]', { timeout: 30_000 });
-  await page.click('[data-testid="canvas-row-ui-e2e-export"]', { timeout: 30_000 });
+  // The Files panel starts collapsed (#124): open the closed sections/folders
+  // the way a user would, until the row exists.
+  const row = '[data-testid="canvas-row-ui-e2e-export"]';
+  for (let pass = 0; pass < 8 && (await page.locator(row).count()) === 0; pass++) {
+    await page.evaluate(() => {
+      for (const el of document.querySelectorAll<HTMLElement>(
+        '[data-testid^="tree-section-"][aria-expanded="false"], [data-testid^="tree-folder-"][aria-expanded="false"]'
+      ))
+        el.click();
+    });
+    await page.waitForTimeout(150);
+  }
+  await page.click(row, { timeout: 30_000 });
   await page.waitForSelector('[data-testid="canvas-frame"]', { timeout: 30_000 });
   // The capture reaches INTO the canvas iframe, which the shell's own DOM
   // cannot see through — the canvas runs on its own origin (DDR-054), so

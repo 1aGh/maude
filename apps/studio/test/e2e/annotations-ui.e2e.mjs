@@ -523,7 +523,10 @@ describe('R7b — a second VIEWER deletes the sticky being typed in (rig L09.v2 
         .catch(() => false);
       assert.ok(told, 'the author is told');
       await c.page.keyboard.press('Enter');
-      const b = await waitForBoard(server.root, (bd) => bd.get(id)?.text === 'Typed through a delete');
+      const b = await waitForBoard(
+        server.root,
+        (bd) => bd.get(id)?.text === 'Typed through a delete'
+      );
       assert.equal(b.get(id)?.text, 'Typed through a delete');
       const onPeer = await peerView.frame
         .locator(`.dc-annot-scene [data-id="${id}"]`)
