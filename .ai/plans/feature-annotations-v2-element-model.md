@@ -1013,7 +1013,7 @@ Run these commands to confirm zero regressions (from `quality` in `.ai/workflows
 - [ ] All tasks completed; the adapter and dead v1 paths removed (Task 26) — *all tasks worked; the adapter survives as the editing view (deviation, see the Execution Log); Tasks 23/24 partial*
 - [x] `/flow:utils-verify` passes after each task (Edit-Verify Loop, max 3 iterations)
 - [ ] `/validate` passes overall: static, tests (studio alone + sync lane + hub + harness + CLI), build
-- [ ] Surface rig: 0 regressions against the Task 3 baseline; V1–V16 green in both sync modes, both backends, all directions — *`L09.v2.*` 28/28 in all three directions (legacy save mode, local hub); no Task 3 baseline exists, accepted mode and the cloud backend not run*
+- [ ] Surface rig: 0 regressions against the Task 3 baseline; V1–V16 green in both sync modes, both backends, all directions — *L09/L10: 0 regressions vs a v1 baseline run (a25a75d2) and `L09.v2.*` 28/28, all three directions, legacy save mode on a local hub; accepted mode and the cloud backend not run*
 - [x] Golden screenshot parity (except the recorded intended text-wrap diff) — side by side against `main` in Task 17
 - [ ] Perf / token gates from Task 30 met — *all but AI read (2.86× vs ≥ 3×)*
 - [x] Migration idempotent, non-destructive, with a quarantine for reappearing SVG; the hub keeps undo and restore across the upgrade
@@ -1376,6 +1376,27 @@ on `worktree-annotations-v2`.
     - Run 2: 25 / 4. The failures were in different rows than run 1, and in them no gesture had been executed at all
       — intermittent synthetic-gesture flakiness on the native lane.
     - Run 3: **28 pass / 0 fail.** One row was not run by design: V14 on the hub writes the file inside a workspace.
+- ✅ **Rig regression check against a v1 baseline (Task 29 V1).**
+  - **Baseline.** The old rig and old code at `a25a75d2`, just before #124, taken with `git archive` into a scratch
+    repo. It ran against a pre-v2 native debug build: `--mode baseline --only L09,L10` gave **368 pass / 0 fail**.
+  - **v2 before the fixes: 260 pass / 107 fail.** About 130 rows regressed: deletes, toolbar edits, undo and eraser.
+  - **Root cause 1** (`875da2b5`, `c29881da`, both proven red first):
+    - *What happened:* the file event of an older board projection was imported into the shared doc as a replacement
+      (`applyAnnotationsToDoc`). It overwrote newer per-field edits.
+    - *Why:* v1 moved one SVG blob, so the race rarely showed.
+    - *Where it was traced:* debug logging on the peer and on the cell studio.
+    - *Fix:* each doc now notes the board that disk last agreed with. Importers apply only the change from that board
+      (`importAnnotationsFromDisk`), and so does the collab disk→room reseed.
+  - **Root cause 2:** Shift+click now removes an element that is already selected (the user-reported fix). The rig
+    re-selected the same three elements by click plus Shift+click, so every second align row failed. The rig now presses
+    Esc before each selection (`test(multiplayer)` commit).
+  - **Result:**
+    - Full run after the sync fix: **382 pass / 12 fail**. Against the baseline, the only regressions were those 12
+      align rows.
+    - After the rig fix, `L09.context-control` + `L09.selection-align` gave **80 / 0**.
+    - Net: **0 regressions vs the v1 baseline on L09/L10** (legacy save mode, local hub, all three directions).
+    - The 27 candidate-only rows are the new `L09.v2.*`.
+  - **Not run:** accepted save mode, and the cloud backend (`wdio.cloud.conf.ts`).
 - ✅ **Task 32**: a pending What's New entry (`f79d0bdc`). `minStudioVersion` needs the release version, so it stays with
   the release flow.
 
