@@ -25,7 +25,7 @@ here, not permission to skip that requirement. Do not read all references at onc
 | When starting any design command | [Server lifecycle — every command starts here](./_guide-03-server-lifecycle-every-command-starts-here.md) |
 | When resolving the active canvas or selection | [Active state schema](./_guide-04-active-state-schema.md) |
 | When reading or resolving pinned comments | [Comments — element-pinned annotations](./_guide-05-comments-element-pinned-annotations.md) |
-| When reading or writing board annotations | [Strokes annotation layer — AI read/write surface (FigJam v3 + v4)](./_guide-06-strokes-annotation-layer-ai-read-write-surface-figjam-v.md) |
+| When reading or writing board annotations | [Whiteboard annotation layer — AI read/write surface](./_guide-06-strokes-annotation-layer-ai-read-write-surface-figjam-v.md) |
 | Before edits or rollback | [Snapshot protocol](./_guide-07-snapshot-protocol.md) |
 | When selecting a canvas operation | [Command routing](./_guide-08-command-routing.md) |
 | Before selecting or running critics | [Critic panel routing — orchestrator decides](./_guide-09-critic-panel-routing-orchestrator-decides.md) |
