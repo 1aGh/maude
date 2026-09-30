@@ -21,6 +21,7 @@ import * as Y from 'yjs';
 import { createCanvasSyncAgent } from '../sync/agent.ts';
 import { atomicWrite } from '../sync/atomic-write.ts';
 import {
+  annotationsFromDoc,
   applyAnnotationsToDoc,
   applyCommentsToDoc,
   applyHtmlToDoc,
@@ -305,10 +306,19 @@ describe('DDR-054 §2d — codec size caps', () => {
     expect(changed).toBe(false);
   });
 
+  test('applyAnnotationsToDoc refuses an oversize board (DDR-242)', () => {
+    const doc = new Y.Doc();
+    const huge = `{"format":"maude.annotations","v":2,"elements":[],"pad":"${'x'.repeat(MAX_ANNOTATIONS_BYTES)}"}`;
+    expect(applyAnnotationsToDoc(doc, huge)).toBe(false);
+    expect(annotationsFromDoc(doc)).toBeNull();
+  });
+
   test('caps are exported (consumers can reference them)', () => {
     expect(MAX_HTML_BYTES).toBe(4 * 1024 * 1024);
     expect(MAX_COMMENTS_BYTES).toBe(1024 * 1024);
-    expect(MAX_ANNOTATIONS_BYTES).toBe(1024 * 1024);
+    // DDR-242 — 4 MB (≈ 20k v2 elements); equals MAX_BOARD_BYTES (pinned in
+    // annotations-v2-replica.test.ts).
+    expect(MAX_ANNOTATIONS_BYTES).toBe(4 * 1024 * 1024);
   });
 });
 
@@ -422,7 +432,7 @@ describe('DDR-054 §2g — JSON.parse __proto__ reviver in agent', () => {
     const paths = {
       html: join(dir, 'screen.html'),
       comments: join(dir, '_comments', 'screen.json'),
-      annotations: join(dir, 'screen.annotations.svg'),
+      annotations: join(dir, 'screen.annotations.json'),
     };
     const agent = createCanvasSyncAgent({
       slug: 'screen',

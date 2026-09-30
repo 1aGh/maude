@@ -3,6 +3,15 @@
   "version": "1.4.5",
   "entries": [
     {
+      "id": "whiteboard-edits-sync-per-element",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "Whiteboard edits no longer overwrite each other",
+      "summary": "Each sticky, shape and arrow now saves on its own, so two people editing the same board keep both changes, and even text typed into the same sticky at once is merged. Existing boards convert automatically on start, and editing text is steadier: the cursor stays on a new line after Shift+Enter, double-clicking a word selects it, and Shift+click removes an item from a selection.",
+      "surface": "design-ui"
+    },
+    {
       "id": "comments-stay-where-you-put-them",
       "version": null,
       "date": null,

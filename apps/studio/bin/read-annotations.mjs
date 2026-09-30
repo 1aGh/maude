@@ -749,7 +749,7 @@ function attachSectionMembers(annotations) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Main
 
-function main() {
+async function main() {
   const args = parseArgv(process.argv.slice(2));
   if (args.help) {
     process.stdout.write(`${HELP}\n`);
@@ -770,9 +770,33 @@ function main() {
   const { designRel, designRoot } = resolveDesignRoot(repoRoot);
   const slug = fileSlug(relPath, designRel);
   const svgPath = join(designRoot, `${slug}.annotations.svg`);
+  const boardPath = join(designRoot, `${slug}.annotations.json`);
 
   let svg = '';
-  if (existsSync(svgPath)) {
+  if (existsSync(boardPath)) {
+    // DDR-242 — the v2 board. Rendered to the v1 SVG this reader parses until
+    // Task 27 moves it onto the registry. Needs a TS-capable runtime (bun, or
+    // node ≥ 22.18); read-annotations.sh prefers bun.
+    try {
+      const { readBoardFile } = await import('../annotations/v1-bridge-io.ts');
+      const board = readBoardFile(designRoot, slug);
+      if (board.tooLarge || board.unreadable) {
+        process.stderr.write(
+          `read-annotations: ${boardPath} is ${board.tooLarge ? 'over the size cap' : 'not a valid board'}\n`
+        );
+        process.exitCode = 1;
+        return;
+      }
+      svg = board.svg;
+    } catch (err) {
+      process.stderr.write(
+        `read-annotations: could not read ${boardPath} (${err?.message ?? err}) — ` +
+          'run it with bun (maude design read-annotations does)\n'
+      );
+      process.exitCode = 1;
+      return;
+    }
+  } else if (existsSync(svgPath)) {
     try {
       svg = readFileSync(svgPath, 'utf8');
     } catch {

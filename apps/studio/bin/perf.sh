@@ -14,7 +14,7 @@
 #
 # Usage:
 #   perf.sh [--root <repo>] [--canvas <rel-path>] [--fixture]
-#           [--boards N] [--strokes N]
+#           [--boards N] [--strokes N | --annotations N] [--mix]
 #           [--pan N] [--zoom N] [--timeout S] [--repeat N]
 #           [--engine chromium|safari]
 #           [--history <path>] [--json]
@@ -27,6 +27,12 @@
 #
 #   --canvas   Canvas to measure, relative to <designRoot> (default: _active.json).
 #   --fixture  Generate + measure the synthetic fixture instead (--boards/--strokes).
+#   --annotations N  Alias of --strokes: annotation element count (<= 5000).
+#   --mix      With --fixture: a MIXED legacy-v1 board (sections incl. nested,
+#              stickies, rect/ellipse/polygon with anchored labels, bound arrows,
+#              text, pen, groups) beside the artboards, instead of the
+#              sticky-only field. Serialized via strokesToSvg (needs bun). Warns
+#              when the v2 board exceeds the 4 MB cap (DDR-242; the v1 1 MB cap bit at ~3750 mixed elements).
 #   --json     Raw JSON (current + previous run) instead of the human report.
 #
 # Reads:  $DESIGN_ROOT/_server.json  (must exist — run `maude design server-up` first)
@@ -40,6 +46,7 @@ CANVAS=""
 FIXTURE=0
 BOARDS=128
 STROKES=150
+MIX=0
 PAN=60
 ZOOM=40
 REPEAT=3
@@ -56,7 +63,8 @@ while [ $# -gt 0 ]; do
     --canvas)   CANVAS="$2"; shift 2 ;;
     --fixture)  FIXTURE=1; shift ;;
     --boards)   BOARDS="$2"; shift 2 ;;
-    --strokes)  STROKES="$2"; shift 2 ;;
+    --strokes|--annotations) STROKES="$2"; shift 2 ;;
+    --mix)      MIX=1; shift ;;
     --pan)      PAN="$2"; shift 2 ;;
     --zoom)     ZOOM="$2"; shift 2 ;;
     --timeout)  TIMEOUT="$2"; shift 2 ;;
@@ -67,7 +75,7 @@ while [ $# -gt 0 ]; do
     --history)  HISTORY="$2"; shift 2 ;;
     --json)     JSON=1; shift ;;
     --help|-h)
-      sed -n '2,30p' "$0" | sed 's/^# \?//'
+      sed -n '2,42p' "$0" | sed 's/^# \?//'
       exit 0
       ;;
     *)
@@ -115,19 +123,25 @@ if [ "$FIXTURE" = "1" ]; then
   [ "$BOARDS" -le 2000 ] || { echo "perf.sh: --boards must be <= 2000" >&2; exit 2; }
   [ "$STROKES" -le 5000 ] || { echo "perf.sh: --strokes must be <= 5000" >&2; exit 2; }
   "$JS_RUNTIME" -e '
-    const [modPath, designRoot, boards, strokes] = process.argv.slice(1);
-    import(modPath).then((m) => {
-      const r = m.writePerfCanvas({
+    const [modPath, designRoot, boards, strokes, mix] = process.argv.slice(1);
+    import(modPath).then(async (m) => {
+      const r = await m.writePerfCanvas({
         designRoot,
         boards: Number(boards),
         strokes: Number(strokes),
+        mix: mix === "1",
       });
       console.error("→ fixture written: " + r.canvasPath);
+      if (r.annotationsPath) {
+        console.error("→ annotations: " + r.annotationsPath + " (" + r.annotationsBytes + " bytes)");
+        if (r.annotationsBytes > 4 * 1024 * 1024)
+          console.error("perf.sh: WARNING annotations exceed the 4 MB board cap (DDR-242) — saves/sync of this board will be refused");
+      }
     }).catch((e) => {
       console.error("perf.sh: fixture generation failed: " + e.message);
       process.exit(1);
     });
-  ' "$SCRIPT_DIR/../test/fixtures/perf-canvas.mjs" "$DESIGN_ROOT" "$BOARDS" "$STROKES" || exit 1
+  ' "$SCRIPT_DIR/../test/fixtures/perf-canvas.mjs" "$DESIGN_ROOT" "$BOARDS" "$STROKES" "$MIX" || exit 1
   CANVAS="ui/perf-fixture.tsx"
 fi
 

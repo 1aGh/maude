@@ -40,7 +40,7 @@ const SECTION = '[data-id="s_e2esection1"]';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE_FILES = [
   join(HERE, '../fixtures/project/.design/ui/Smoke.tsx'),
-  join(HERE, '../fixtures/project/.design/ui-smoke.annotations.svg'),
+  join(HERE, '../fixtures/project/.design/ui-smoke.annotations.json'),
 ];
 const fixtures = createFixtureGuard('canvas-text-editing', FIXTURE_FILES);
 

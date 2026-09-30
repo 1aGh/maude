@@ -108,9 +108,11 @@ export const STUDIO_ROUTES = Object.freeze({
   // ---- the one write a viewer holds --------------------------------------
   '/_comments': { safe: 'read', unsafe: 'comment' },
   // An annotation is drawn ON the design and versioned with it
-  // (`*.annotations.svg`, DDR-115), which is why the matrix files it with
-  // `edit` and not with `comment`.
+  // (`*.annotations.json`, DDR-115/DDR-242), which is why the matrix files it
+  // with `edit` and not with `comment`. `/ops` is the canvas's element-op write
+  // path (DDR-242 §4) — the same capability as the whole-board write.
   '/_api/annotations': { safe: 'read', unsafe: 'annotate' },
+  '/_api/annotations/ops': { safe: 'read', unsafe: 'annotate' },
   // A photo edit is a validated JSON sidecar next to the asset
   // (`assets/<sha8>.photo.json`) — the decode/compositing runs in the member's
   // browser, the exact division of labour that makes `/_canvas-shell`

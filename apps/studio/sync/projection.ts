@@ -84,7 +84,7 @@ export interface ProjectionPaths {
   html: string;
   /** Absolute path to `_comments/<slug>.json`. */
   comments: string;
-  /** Absolute path to `<slug>.annotations.svg`. */
+  /** Absolute path to `<slug>.annotations.json` (DDR-242). */
   annotations: string;
   /** Absolute path to the canvas `.meta.json` sibling (optional). */
   meta?: string;

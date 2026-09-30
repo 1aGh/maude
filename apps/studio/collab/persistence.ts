@@ -1,11 +1,13 @@
 // DDR-051 persistence wiring — bridges Room callbacks to the existing JSON
-// snapshots (Phase 6 _comments/<slug>.json) + Phase 5 annotations.svg + the
+// snapshots (Phase 6 _comments/<slug>.json) + the annotations board (DDR-242) + the
 // new `.ydoc.bin` cache under _state/<slug>.ydoc.bin.
 
 import path from 'node:path';
 
 import * as Y from 'yjs';
 
+import { replicaBoardText, writeReplica } from '../annotations/replica.ts';
+import { parseBoard } from '../annotations/schema.ts';
 import type { Api } from '../api.ts';
 import type { Context } from '../context.ts';
 // From the LEAF, never from `sync/codec.ts` — codec imports `Y_TYPES` from this
@@ -23,6 +25,8 @@ import { ensureStateDir, type RoomCallbacks } from './room.ts';
  */
 export const Y_TYPES = {
   comments: 'comments',
+  /** v1 annotations map (`svg` key) — read only for lazy migration; the v2
+   *  replica lives in 'annotations2' (annotations/replica.ts, DDR-242). */
   annotations: 'annotations',
   presentation: 'presentation',
 } as const;
@@ -61,6 +65,14 @@ export interface PersistenceDeps {
    * seed). Absent → cache-only restore, the previous behavior.
    */
   reconcileAfterCache?: (slug: string, doc: Y.Doc, cachedAtMs: number) => Promise<void>;
+  /**
+   * Called with the board text a flush just projected to
+   * `<slug>.annotations.json`. The disk→room re-seed uses it to recognise the
+   * room's OWN write coming back through the file watcher: by then the room
+   * may be ahead (a later op), and re-seeding it from that echo reverted the
+   * later edit.
+   */
+  onAnnotationsProjected?: (slug: string, board: string) => void;
   /**
    * Issue #133 — which comment ids this machine synced before (see
    * sync/comment-ledger.ts). Defaults to the process-wide ledger for the design
@@ -286,8 +298,9 @@ export function createPersistence(deps: PersistenceDeps): RoomCallbacks {
         if (missing.length > 0) arr.push(missing);
       }
       if (svg && typeof svg === 'string') {
-        const map = doc.getMap<string>(Y_TYPES.annotations);
-        map.set('svg', svg);
+        // DDR-242 — `loadAnnotations` returns canonical board text (a legacy
+        // sidecar arrives already migrated); the replica takes it per element.
+        writeReplica(doc, parseBoard(svg).elements, 'seed');
       }
     }, 'seed');
   }
@@ -339,16 +352,20 @@ export function createPersistence(deps: PersistenceDeps): RoomCallbacks {
       }
     }
 
-    // Annotations — Y.Map.svg → annotations.svg file. Task 5.
-    const map = doc.getMap<unknown>(Y_TYPES.annotations);
-    const svg = map.get('svg');
-    if (typeof svg === 'string' && svg) {
-      if (withinCap(slug, 'annotations', svg, MAX_ANNOTATIONS_BYTES)) {
+    // Annotations — the replica → `<slug>.annotations.json` (DDR-242). A doc
+    // that was never populated (null) writes nothing, so a cold room can't
+    // clobber the file with emptiness (DDR-223).
+    const board = replicaBoardText(doc);
+    if (board !== null) {
+      if (withinCap(slug, 'annotations', board, MAX_ANNOTATIONS_BYTES)) {
         // Projection must never re-enter onAnnotationsChanged: an old flush
-        // finishing after a new edit otherwise republishes the old SVG and
+        // finishing after a new edit otherwise republishes the old board and
         // rolls back every peer. The API checks freshness after async IO and
         // before its atomic rename; a later doc update schedules a new flush.
-        await api.projectAnnotations(file, svg, () => map.get('svg') === svg);
+        // Recorded BEFORE the write: the watcher event may be delivered before
+        // this await resumes.
+        deps.onAnnotationsProjected?.(slug, board);
+        await api.projectAnnotations(file, board, () => replicaBoardText(doc) === board);
       }
     }
   }

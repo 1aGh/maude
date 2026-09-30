@@ -18,6 +18,7 @@ import path from 'node:path';
 import { createAcp } from './acp/index.ts';
 import { cancelInstall, cancelSignin } from './acp/login-state.ts';
 import { createActivity } from './activity.ts';
+import { migrateAnnotationsV2 } from './annotations/migrate-boot.ts';
 import { ASSET_MAX_VIDEO_BYTES, createApi } from './api.ts';
 import { bootSelfHeal } from './boot-self-heal.ts';
 import { isSandboxArmed } from './canvas-build-sandbox.ts';
@@ -129,6 +130,13 @@ const api = createApi(ctx, {
       collab.registry.syncRoomFromAnnotations(api.fileSlug(file), svg, writeId);
     }
   },
+  // Code review H1 — the canvas op path goes to a live room's replica, not to a
+  // file its debounced flush hasn't caught up with. Accepted mode keeps the
+  // disk + proposeLane path: there the hub kernel merges against the base.
+  applyAnnotationOpsLive: (file, ops, actionId) => {
+    if (ctx.syncControl?.current?.()?.acceptedMode?.()) return null;
+    return collab?.registry.applyOpsToRoom(api.fileSlug(file), ops, actionId) ?? null;
+  },
   // feature-file-tree-drag-drop-folders (Task 3) — moveCanvas's collab guard
   // + `_active.json` retarget, bridged the same forward-declared way as the
   // comments/annotations hooks above.
@@ -181,6 +189,13 @@ ctx.bus.on('canvas-list-update', (change) => {
     for (const inspect of inspects.all()) inspect.remove(file);
   }
 });
+
+// DDR-242 — convert legacy `<slug>.annotations.svg` boards to
+// `.annotations.json` BEFORE any room seeds or sync scan reads them. Skipped in
+// a cloud workspace: the hub owns that checkout (its workspace agent migrates).
+if (process.env.MAUDE_WORKSPACE_MODE !== '1') {
+  migrateAnnotationsV2({ designRoot: ctx.paths.designRoot });
+}
 
 collab = createCollab(ctx, api);
 const aiActivity = createAiActivity(ctx);
@@ -518,6 +533,7 @@ function startCanvasServer(port: number): BunServer {
       '/_api/git-user': http.routes['/_api/git-user'],
       '/_api/canvas-meta': http.routes['/_api/canvas-meta'],
       '/_api/annotations': http.routes['/_api/annotations'],
+      '/_api/annotations/ops': http.routes['/_api/annotations/ops'],
       // Phase 23 — capped binary image upload (magic-byte sniff + category cap +
       // content-addressed name + traversal guard + no-SVG, in api.saveAsset).
       // Bun matches `routes` BEFORE `fetch`, so the route must be listed here

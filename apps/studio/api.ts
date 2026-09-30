@@ -14,6 +14,15 @@ import {
   stat as statp,
 } from 'node:fs/promises';
 import path from 'node:path';
+import { canonicalAnnotations } from './annotations/board-text.ts';
+import {
+  type Op as AnnotationOp,
+  type ApplyResult,
+  applyOps as applyAnnotationOpsPure,
+  diffToOps,
+} from './annotations/ops.ts';
+import { parseBoard, serializeBoard } from './annotations/schema.ts';
+import type { AnnotationElement } from './annotations/types.ts';
 import { createAssetMirror, s3ConfigFromEnv } from './assets-s3.ts';
 import { canvasArtifacts, locatorKeyFor, relocatedName } from './canvas-artifacts.ts';
 import { renderBriefBoard, validateCanvasName, validateFolderName } from './canvas-create.ts';
@@ -23,6 +32,7 @@ import { isAnnotationId, isWorldPoint } from './comment-anchor.ts';
 import { atomicWrite } from './sync/atomic-write.ts';
 import { dedupeCommentsById } from './sync/comment-identity.ts';
 import { isRuntimeStateRel } from './sync/file-membership.ts';
+import { MAX_ANNOTATIONS_BYTES } from './sync/limits.ts';
 
 // Re-exported so existing external callers (canvas-list-watch.ts, tests) keep
 // importing it from api.ts — the actual implementation now lives in
@@ -34,7 +44,7 @@ export { canvasSlugFromRel } from './canvas-slug.ts';
  *  delete: what it previews (notes, styles, data, images, media, fonts), minus
  *  the canvas's own sidecars, which only ever travel with their canvas. */
 export function isSupportingFileRel(rel: string): boolean {
-  if (/\.(meta\.json|annotations\.svg|registry\.json)$/i.test(rel)) return false;
+  if (/\.(meta\.json|annotations\.(?:svg|json)|registry\.json)$/i.test(rel)) return false;
   return /\.(md|css|json|txt|ya?ml|svg|png|jpe?g|gif|webp|avif|mp4|webm|mov|mp3|wav|ogg|m4a|woff2?|ttf|otf)$/i.test(
     rel
   );
@@ -324,7 +334,7 @@ export interface Comment {
    *  text is untrusted user/peer text (DDR-054) — rendered as text, never
    *  into TSX. */
   timeline?: { clipStableId?: string; frameOffset?: number; frame?: number; lane?: string };
-  /** #134/#136 — anchor on an annotation (`data-id` in `*.annotations.svg`).
+  /** #134/#136 — anchor on an annotation (an element `id` in `*.annotations.json`).
    *  Absent on element and floating comments. See comment-anchor.ts. */
   annotationId?: string;
   /** World point of the comment: the anchor of a floating comment, the last
@@ -436,11 +446,23 @@ export interface Api {
     file: string,
     patch: Record<string, unknown>
   ): Promise<Record<string, unknown> | null>;
-  // Annotations sidecar (Phase 5 — .design/<slug>.annotations.svg)
+  // Annotations board (DDR-242 — .design/<slug>.annotations.json)
+  /** Canonical board text; a not-yet-migrated legacy SVG is read through the migration. */
   loadAnnotations(file: string): Promise<string | null>;
-  saveAnnotations(file: string, svg: string, writeId?: string, base?: string): Promise<boolean>;
+  /** Strict read: an existing board that can't be read is `ok: false`, never an empty board. */
+  readBoard(
+    file: string
+  ): Promise<{ ok: true; text: string | null } | { ok: false; error: string }>;
+  /** Whole-board write (board text or legacy SVG, canonicalized). */
+  saveAnnotations(file: string, text: string, writeId?: string, base?: string): Promise<boolean>;
+  /** The canvas write path: an op batch under the DDR-242 merge rule. */
+  applyAnnotationOps(
+    file: string,
+    ops: readonly AnnotationOp[],
+    actionId?: string
+  ): Promise<AnnotationOpsResult>;
   /** Materialize a document snapshot without publishing it as another user edit. */
-  projectAnnotations(file: string, svg: string, isCurrent: () => boolean): Promise<boolean>;
+  projectAnnotations(file: string, text: string, isCurrent: () => boolean): Promise<boolean>;
   // Phase 23 — content-addressed binary image write (drag-drop / paste / picker)
   saveAsset(bytes: Uint8Array): Promise<SaveAssetResult>;
   /** Stage F1 — list content-addressed image/video assets for the AssetPicker. */
@@ -818,8 +840,22 @@ export interface ApiHooks {
    */
   /** `base` — the list this mutation started from (a merge hint for the project). */
   onCommentsChanged: (file: string, comments: Comment[], base?: Comment[]) => void | Promise<void>;
-  /** Phase 8 Task 5 — fires after a successful PUT /_api/annotations write. */
-  onAnnotationsChanged?: (file: string, svg: string, writeId?: string, base?: string) => void;
+  /**
+   * Fires after every successful annotations write with the new canonical
+   * board text, the action/write id and the board text it replaced (a merge
+   * base for accepted revisions).
+   */
+  onAnnotationsChanged?: (file: string, text: string, writeId?: string, base?: string) => void;
+  /**
+   * Apply an op batch to the canvas's LIVE collab room, when one holds the
+   * board (code review H1). `null` = no live room / accepted mode — the batch
+   * goes to disk. The room's persistence projects the result to the file.
+   */
+  applyAnnotationOpsLive?: (
+    file: string,
+    ops: readonly AnnotationOp[],
+    actionId?: string
+  ) => ApplyResult | 'too-large' | null;
   /**
    * Accepted-revisions mode (DDR-241): propose a folder operation as ONE
    * project action before touching disk. Absent, or answering `null`, means
@@ -865,8 +901,18 @@ export interface ApiHooks {
 // server modules). Re-exported here so every existing `from './api.ts'`
 // import keeps working unchanged.
 export { ASSET_IMAGE_HREF_RE, sanitizeAnnotationSvg } from './annotations-model.ts';
-
-import { sanitizeAnnotationSvg } from './annotations-model.ts';
+export type { AnnotationOp };
+/** Outcome of an annotations op batch (DDR-242 §4). */
+export interface AnnotationOpsResult {
+  ok: boolean;
+  /** Whether the board changed (false for a no-op batch). */
+  changed: boolean;
+  /** Ops the board could not take: `gone` (element deleted), `invalid`, `stale` (strict undo). */
+  rejected: Array<{ id?: string; reason: string; fields?: string[] }>;
+  error?: string;
+  /** The board on disk exists but can't be read — nothing was written (HTTP 409). */
+  unreadable?: boolean;
+}
 
 /**
  * Phase 23 — per-file ceiling for a still image. Raised 10 MB → 50 MB (still
@@ -2079,81 +2125,179 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     return await loadCanvasMeta(file);
   }
 
-  // ---------- Annotations sidecar (Phase 5) ----------
+  // ---------- Annotations sidecar (DDR-242 — annotations v2) ----------
   //
-  // Each canvas keeps a single `.annotations.svg` file under `<designRoot>/`
-  // named by the canonical `fileSlug()`. The client posts the full SVG string
-  // on every stroke commit; the server overwrites the file. SVG is bounded at
-  // 1 MB (rejects larger bodies) — well above realistic annotation sizes for
-  // hundreds of strokes but small enough that a malicious POST can't fill the
-  // disk in one round-trip.
+  // Each canvas keeps ONE `<slug>.annotations.json` board under `<designRoot>/`
+  // (canonical, one element per line — annotations/schema.ts). The canvas sends
+  // OPS (`applyAnnotationOps`), never the whole board; whole-board writes
+  // (`saveAnnotations`) remain for imports and headless writers. Every write is
+  // validated element-by-element (DDR-054 — the canvas origin and peers are
+  // untrusted) and capped at MAX_ANNOTATIONS_BYTES.
+  //
+  // A board still stored as a legacy `.annotations.svg` (not yet migrated) is
+  // READ through the v1→v2 migration; the boot migration (annotations/
+  // migrate-boot.ts) rewrites it on disk.
 
   function annotationsPath(file: string): string {
+    return path.join(paths.designRoot, `${fileSlug(file)}.annotations.json`);
+  }
+
+  function legacyAnnotationsPath(file: string): string {
     return path.join(paths.designRoot, `${fileSlug(file)}.annotations.svg`);
   }
 
-  async function loadAnnotations(file: string): Promise<string | null> {
-    try {
-      return await Bun.file(annotationsPath(file)).text();
-    } catch {
-      return null;
+  type BoardRead = { ok: true; text: string | null } | { ok: false; error: string };
+
+  /**
+   * Strict board read. `text: null` = the canvas has no annotations. A file
+   * that EXISTS but is oversized or not a board is `ok: false` — never an
+   * empty board, or the next write would silently erase it (code review H2).
+   */
+  async function readBoard(file: string): Promise<BoardRead> {
+    for (const p of [annotationsPath(file), legacyAnnotationsPath(file)]) {
+      const f = Bun.file(p);
+      if (!(await f.exists())) continue;
+      // Untrusted (peer / git) content: size gate BEFORE reading (DDR-054).
+      if (f.size > MAX_ANNOTATIONS_BYTES) {
+        return { ok: false, error: 'board file exceeds the size cap' };
+      }
+      let raw: string;
+      try {
+        raw = await f.text();
+      } catch {
+        return { ok: false, error: 'board file is unreadable' };
+      }
+      const text = canonicalAnnotations(raw);
+      return text === null
+        ? { ok: false, error: 'board file is not a valid board' }
+        : { ok: true, text };
     }
+    return { ok: true, text: null };
   }
 
+  /** Canonical board text, or null when the canvas has no annotations (or they can't be read). */
+  async function loadAnnotations(file: string): Promise<string | null> {
+    const r = await readBoard(file);
+    return r.ok ? r.text : null;
+  }
+
+  // Read-modify-write of one board is serialized per file: two op batches
+  // landing together must not both read the same state and drop one another.
+  const annotationChains = new Map<string, Promise<unknown>>();
+  function onAnnotationChain<T>(file: string, fn: () => Promise<T>): Promise<T> {
+    const key = fileSlug(file);
+    const prev = annotationChains.get(key) ?? Promise.resolve();
+    const next = prev.then(fn, fn);
+    annotationChains.set(
+      key,
+      next.catch(() => {})
+    );
+    return next;
+  }
+
+  async function writeBoardFile(file: string, text: string): Promise<void> {
+    await Bun.write(annotationsPath(file), text);
+    // Annotations reach OTHER VIEWERS over the collab room, but the file is also
+    // a versioned, file-plane sidecar (DDR-115), and the file plane learns about
+    // a cell's own writes through exactly this event.
+    announceWritten(`${fileSlug(file)}.annotations.json`);
+  }
+
+  /**
+   * Whole-board write (imports, headless writers, legacy PUT). Accepts board
+   * text or a legacy SVG (converted). `base` travels only as a merge hint for
+   * the project — bounded and canonicalized like the value, never written.
+   */
   async function saveAnnotations(
     file: string,
-    svg: string,
+    text: string,
     writeId?: string,
     base?: string
   ): Promise<boolean> {
-    if (typeof svg !== 'string') return false;
-    if (svg.length > 1024 * 1024) return false;
-    // Cheap content gate — must look like an <svg> document. Avoids accidental
-    // writes of arbitrary blobs through this endpoint.
-    if (!/^\s*<svg[\s>]/i.test(svg)) return false;
-    // A3 (DDR-060 F1 re-audit) — sanitize active content before persisting.
-    // This endpoint is on the canvas-origin allowlist (DDR-054 "inert collab
-    // write") and accepts ANY `file`, so a hub-pushed canvas can write a
-    // sibling's `.annotations.svg`. The persisted SVG is currently consumed only
-    // via `svgToStrokes` (DOMParser image/svg+xml → structured strokes → React
-    // re-render), so a `<script>`/`on*` payload is parsed inertly and discarded
-    // — the stored-XSS chain is LATENT today, not live. We sanitize anyway so
-    // "inert" stays true for any future raw-render consumer and for the synced
-    // file a peer/Claude-context ingests. The legit annotation vocabulary
-    // (strokesToSvg) is purely presentational — path/rect/ellipse/g/line/
-    // polyline/text — so stripping executable constructs is zero-regression.
-    const clean = sanitizeAnnotationSvg(svg);
-    // The edit's base travels only as a merge hint for the project — bounded
-    // and sanitized like the value itself, never written anywhere.
+    if (typeof text !== 'string' || text.length > MAX_ANNOTATIONS_BYTES) return false;
+    const clean = canonicalAnnotations(text);
+    if (clean === null) return false;
     const cleanBase =
-      typeof base === 'string' &&
-      base.length <= 1024 * 1024 &&
-      (base === '' || /^\s*<svg[\s>]/i.test(base))
-        ? base === ''
-          ? ''
-          : sanitizeAnnotationSvg(base)
+      typeof base === 'string' && base.length <= MAX_ANNOTATIONS_BYTES
+        ? (canonicalAnnotations(base) ?? undefined)
         : undefined;
-    await Bun.write(annotationsPath(file), clean);
-    onAnnotationsChanged?.(file, clean, writeId, cleanBase);
-    // Annotations reach OTHER VIEWERS over the collab room, which is why this
-    // never needed an `fs:any`. But the file is also a versioned, file-plane
-    // sidecar (DDR-115), and the file plane learns about a cell's own writes
-    // through exactly this event — so without it, a sticky note drawn in the
-    // cloud crossed to open browsers instantly and to a peer's DISK a quarter
-    // of an hour later.
-    announceWritten(`${fileSlug(file)}.annotations.svg`);
-    return true;
+    return onAnnotationChain(file, async () => {
+      // Never overwrite a board we can't read — it may hold work (review H2).
+      const read = await readBoard(file);
+      if (!read.ok) return false;
+      let next = clean;
+      if (cleanBase !== undefined) {
+        // With a base, the write is "what changed since base", merged onto the
+        // current board — a whole-board PUT no longer erases concurrent edits
+        // (code review M5). Same one merge rule as the op path.
+        const byId = (t: string) => new Map(parseBoard(t).elements.map((e) => [e.id, e]));
+        const ops = diffToOps(byId(cleanBase), byId(clean));
+        const live = hooks.applyAnnotationOpsLive?.(file, ops, writeId) ?? null;
+        if (live === 'too-large') return false;
+        if (live) return true;
+        const current = read.text ?? serializeBoard([]);
+        next = serializeBoard([...applyAnnotationOpsPure(byId(current), ops).state.values()]);
+        if (next.length > MAX_ANNOTATIONS_BYTES) return false;
+        if (next === current) return true;
+      }
+      await writeBoardFile(file, next);
+      onAnnotationsChanged?.(file, next, writeId, cleanBase);
+      return true;
+    });
+  }
+
+  /**
+   * The canvas write path (DDR-242 §4): apply an op batch under the one merge
+   * rule and persist the result. Ops the board can't take (gone / invalid /
+   * stale) are reported, never silently dropped.
+   */
+  async function applyAnnotationOps(
+    file: string,
+    ops: readonly AnnotationOp[],
+    actionId?: string
+  ): Promise<AnnotationOpsResult> {
+    return onAnnotationChain(file, async () => {
+      const rejectedOf = (r: ApplyResult) =>
+        r.rejected.map((x) => ({
+          id: 'id' in x.op ? x.op.id : x.op.el?.id,
+          reason: x.reason,
+          ...(x.fields ? { fields: x.fields } : {}),
+        }));
+      // A live room is ahead of the file (its flush is debounced): the batch
+      // goes to its replica, or it would revert a peer's unflushed edit (H1).
+      const live = hooks.applyAnnotationOpsLive?.(file, ops, actionId) ?? null;
+      if (live === 'too-large') {
+        return { ok: false, changed: false, rejected: [], error: 'board exceeds the size cap' };
+      }
+      if (live) return { ok: true, changed: live.touched.size > 0, rejected: rejectedOf(live) };
+      const read = await readBoard(file);
+      if (!read.ok) {
+        return { ok: false, changed: false, rejected: [], error: read.error, unreadable: true };
+      }
+      const before = read.text ? parseBoard(read.text).elements : [];
+      const beforeText = serializeBoard(before);
+      const r = applyAnnotationOpsPure(new Map(before.map((e) => [e.id, e])), ops);
+      const rejected = rejectedOf(r);
+      if (!r.touched.size) return { ok: true, changed: false, rejected };
+      const text = serializeBoard([...r.state.values()]);
+      if (text.length > MAX_ANNOTATIONS_BYTES) {
+        return { ok: false, changed: false, rejected, error: 'board exceeds the size cap' };
+      }
+      await writeBoardFile(file, text);
+      onAnnotationsChanged?.(file, text, actionId, beforeText);
+      return { ok: true, changed: true, rejected };
+    });
   }
 
   async function projectAnnotations(
     file: string,
-    svg: string,
+    text: string,
     isCurrent: () => boolean
   ): Promise<boolean> {
-    if (typeof svg !== 'string' || svg.length > 1024 * 1024 || !/^\s*<svg[\s>]/i.test(svg))
-      return false;
+    if (typeof text !== 'string' || text.length > MAX_ANNOTATIONS_BYTES) return false;
     if (!isCurrent()) return false;
-    const clean = sanitizeAnnotationSvg(svg);
+    const clean = canonicalAnnotations(text);
+    if (clean === null) return false;
     // Runtime scratch stays out of the file plane. The async IO must not touch
     // the serving file until we recheck the document; another edit may have
     // arrived while Bun.write was pending. Check + rename have no await gap.
@@ -2164,7 +2308,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       await Bun.write(temp, clean);
       if (!isCurrent()) return false;
       renameSync(temp, annotationsPath(file));
-      announceWritten(`${fileSlug(file)}.annotations.svg`);
+      announceWritten(`${fileSlug(file)}.annotations.json`);
       return true;
     } finally {
       await rm(temp, { force: true });
@@ -2982,12 +3126,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
     const slug = fileSlug(toRel);
     // The whiteboard layer is slug-keyed at the design root (canvas-artifacts).
-    const annotationsAbs = path.join(paths.designRoot, `${fileSlug(rel)}.annotations.svg`);
-    if (await Bun.file(annotationsAbs).exists()) {
-      await Bun.write(
-        path.join(paths.designRoot, `${slug}.annotations.svg`),
-        await Bun.file(annotationsAbs).arrayBuffer()
-      );
+    const board = await loadAnnotations(rel);
+    if (board !== null) {
+      await Bun.write(path.join(paths.designRoot, `${slug}.annotations.json`), board);
     }
     ctx.bus.emit('canvas-list-update', { action: 'added', rel: toRel, slug });
     ctx.bus.emit('canvas-created', { slug });
@@ -3192,7 +3333,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         if (e.isDirectory()) {
           const hit = await walk(abs, depth + 1);
           if (hit) return hit;
-        } else if (/\.(tsx|jsx|css|meta\.json|annotations\.svg)$/i.test(e.name)) {
+        } else if (/\.(tsx|jsx|css|meta\.json|annotations\.(?:svg|json))$/i.test(e.name)) {
           const other = path.relative(paths.designRoot, abs).split(path.sep).join('/');
           if (other === rel) continue;
           const text = await readFile(abs, 'utf8').catch(() => '');
@@ -6627,7 +6768,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     loadCanvasSource,
     patchCanvasMeta,
     loadAnnotations,
+    readBoard,
     saveAnnotations,
+    applyAnnotationOps,
     projectAnnotations,
     saveAsset,
     listAssets,

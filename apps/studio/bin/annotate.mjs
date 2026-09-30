@@ -80,7 +80,7 @@ import {
 
 // Mirrors MAX_ANNOTATIONS_BYTES (sync/codec.ts) — kept literal here so the bin
 // stays import-light; the server enforces the same cap on the PUT path anyway.
-const MAX_ANNOTATIONS_BYTES = 1024 * 1024;
+const MAX_ANNOTATIONS_BYTES = 4 * 1024 * 1024;
 
 const SVG_HEADER = '<svg xmlns="http://www.w3.org/2000/svg" data-mdcc-annotations="1">';
 
@@ -1135,16 +1135,18 @@ async function main() {
       : process.cwd();
   const { designRel, designRoot } = resolveDesignRoot(repoRoot);
   const slug = fileSlug(relPath, designRel);
-  const svgPath = join(designRoot, `${slug}.annotations.svg`);
-
-  let svg = '';
-  if (existsSync(svgPath)) {
-    try {
-      svg = readFileSync(svgPath, 'utf8');
-    } catch {
-      svg = '';
-    }
+  // DDR-242 — the board is `<slug>.annotations.json`; this verb still speaks v1
+  // SVG internally until Task 27, through the bridge (never a raw .svg write).
+  const svgPath = join(designRoot, `${slug}.annotations.json`);
+  const { readBoardFile, boardFromV1Svg } = await import('../annotations/v1-bridge-io.ts');
+  const boardFile = readBoardFile(designRoot, slug);
+  if (boardFile.tooLarge) {
+    fail(`annotations file exceeds ${MAX_ANNOTATIONS_BYTES} bytes on disk — refusing to read`, 2);
   }
+  if (boardFile.unreadable) {
+    fail(`${slug}.annotations.json is not a valid board — refusing to write over it`, 2);
+  }
+  const svg = boardFile.elements.length ? boardFile.svg : '';
   // Security (feature-whiteboard-ai-toolkit review): MAX_ANNOTATIONS_BYTES was
   // only ever checked on the MERGED OUTPUT. A file already at/near the cap
   // (peer-written per DDR-054, or git-committed by anyone) would still be
@@ -1224,6 +1226,8 @@ async function main() {
     return;
   }
 
+  const board = boardFromV1Svg(merged, boardFile.elements);
+
   // Prefer the live server (sanitize + persist + collab broadcast — open
   // canvases update in real time); fall back to a direct file write.
   let via = 'file';
@@ -1244,7 +1248,11 @@ async function main() {
           headers: { 'Content-Type': 'application/json' },
           // `base` — the SVG this edit was merged onto, so a peer's strokes
           // that landed meanwhile are merged, not replaced (DDR-241).
-          body: JSON.stringify({ file: `${designRel}/${relPath}`, svg: merged, base: svg }),
+          body: JSON.stringify({
+            file: `${designRel}/${relPath}`,
+            board,
+            base: boardFile.boardText,
+          }),
           signal: AbortSignal.timeout(3000),
         });
         if (res.ok) via = 'server';
@@ -1254,7 +1262,7 @@ async function main() {
     }
   }
   if (via === 'file') {
-    writeFileSync(svgPath, merged, 'utf8');
+    writeFileSync(svgPath, board, 'utf8');
   }
 
   const refs = {};

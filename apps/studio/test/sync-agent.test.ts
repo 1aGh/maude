@@ -15,11 +15,18 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as Y from 'yjs';
-
+import { canonicalAnnotations } from '../annotations/board-text.ts';
+import { REPLICA_TYPE } from '../annotations/replica.ts';
 import { type CanvasSyncAgent, createCanvasSyncAgent } from '../sync/agent.ts';
-import { applyHtmlToDoc, htmlFromDoc } from '../sync/codec.ts';
+import {
+  annotationsFromDoc,
+  applyAnnotationsToDoc,
+  applyHtmlToDoc,
+  htmlFromDoc,
+} from '../sync/codec.ts';
 import { createEchoGuard, hashBytes } from '../sync/echo-guard.ts';
 import { createFsReader } from '../sync/fs-mirror.ts';
+import { board, boardIds, sticky } from './fixtures/annotations-v2/boards.ts';
 
 let dir: string;
 let agent: CanvasSyncAgent;
@@ -30,7 +37,7 @@ function paths() {
   return {
     html: join(dir, 'screen.html'),
     comments: join(dir, '_comments', 'screen.json'),
-    annotations: join(dir, 'screen.annotations.svg'),
+    annotations: join(dir, 'screen.annotations.json'),
   };
 }
 
@@ -101,14 +108,38 @@ describe('CanvasSyncAgent — hub → disk (Flow B)', () => {
     expect(written).toEqual([{ id: 'c1', body: 'hello' }]);
   });
 
-  test('writes annotations SVG when Y.Map.svg changes', async () => {
+  test('writes the annotations board when the replica changes', async () => {
     agent = makeAgent();
-    docA.transact(() => {
-      docA.getMap('annotations').set('svg', '<svg>annot</svg>');
-    });
+    const b = board(sticky('s1', 'annot'));
+    applyAnnotationsToDoc(docA, b);
     await agent.flush();
 
-    expect(readFileSync(paths().annotations, 'utf8')).toBe('<svg>annot</svg>');
+    expect(readFileSync(paths().annotations, 'utf8')).toBe(b);
+  });
+
+  test('a hostile peer element is validated out before it reaches disk (DDR-054)', async () => {
+    // The doc is peer-writable; the doc→file write runs the v2 validator.
+    agent = makeAgent();
+    const good = board(sticky('ok', 'fine'));
+    applyAnnotationsToDoc(docA, good);
+    docA.transact(() => {
+      const bad = new Y.Map<unknown>();
+      bad.set('type', 'image');
+      bad.set('index', 'a1');
+      bad.set('x', 0);
+      bad.set('y', 0);
+      bad.set('w', 10);
+      bad.set('h', 10);
+      bad.set('href', 'javascript:alert(1)');
+      docA.getMap(REPLICA_TYPE).set('evil', bad);
+    });
+    await agent.flush();
+    const onDisk = readFileSync(paths().annotations, 'utf8');
+    // The unsafe field is stripped (the element itself may survive, inert);
+    // the file is canonical and carries no active content.
+    expect(onDisk).not.toContain('javascript:');
+    expect(onDisk).toBe(canonicalAnnotations(onDisk));
+    expect(boardIds(onDisk)).toContain('ok');
   });
 });
 
@@ -134,11 +165,14 @@ describe('CanvasSyncAgent — disk → hub (Flow A)', () => {
     expect(docA.getArray('comments').toArray()).toEqual(snap);
   });
 
-  test('applies annotations SVG from disk', () => {
+  test('applies the annotations board from disk', () => {
     agent = makeAgent();
-    const bytes = new TextEncoder().encode('<svg>x</svg>');
-    agent.applyFromFs({ path: paths().annotations, bytes, hash: hashBytes(bytes) });
-    expect(docA.getMap<string>('annotations').get('svg')).toBe('<svg>x</svg>');
+    const b = board(sticky('s1', 'x'));
+    const bytes = new TextEncoder().encode(b);
+    expect(agent.applyFromFs({ path: paths().annotations, bytes, hash: hashBytes(bytes) })).toBe(
+      true
+    );
+    expect(annotationsFromDoc(docA)).toBe(b);
   });
 
   test('drops the fs-watch echo of its own atomic write', async () => {

@@ -25,7 +25,7 @@ export function buildBlock(designRel = '.design', { s3Assets = false } = {}) {
   // The canonical IGNORED set is the DDR-115 runtime-state taxonomy — kept in
   // lockstep with `apps/studio/git/service.ts` (isMaudeRuntimeState backstop)
   // and the repo's own `.gitignore`. VERSIONED content (canvases, `.meta.json`,
-  // `*.annotations.svg`, `system/**`, `config.json`) is deliberately absent.
+  // `*.annotations.json` (v1 `.svg`), `system/**`, `config.json`) is deliberately absent.
   const lines = [
     BEGIN_MARKER,
     '# Maude design plugin runtime — gitignored even in linked mode (DDR-056/DDR-115).',

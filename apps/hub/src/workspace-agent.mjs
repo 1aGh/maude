@@ -28,6 +28,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
+import { migrateAnnotationsV2 } from '../../studio/annotations/migrate-boot.ts';
 import { createAutoCommit } from '../../studio/sync/autocommit.ts';
 import { resolveCanvasBodyRel } from '../../studio/sync/canvas-path.ts';
 // The SAME validator the studio projector gates disk writes with — a second
@@ -261,6 +262,19 @@ export function createWorkspaceAgent(opts) {
         // is the product.
         stageIgnored: true,
       });
+      // DDR-242 — this checkout is the hub's (the cell's studio child skips its
+      // own boot migration), so the v1 → v2 board migration runs HERE. The
+      // autocommit records `.annotations.svg` → `.annotations.json`; originals
+      // stay under _history/ and _trash/ (runtime state, never committed).
+      for (const m of migrateAnnotationsV2({
+        designRoot,
+        log: (line) => log.log?.(`[workspace] ${line}`),
+      })) {
+        if (m.action === 'failed') continue;
+        for (const name of [`${m.slug}.annotations.json`, `${m.slug}.annotations.svg`]) {
+          auto.note(relative(repoDir, join(designRoot, name)).split(sep).join('/'), null);
+        }
+      }
       ready = true;
       log.log?.(
         `[workspace] server-side history active — ${repo.state} at ${repoDir} ` +

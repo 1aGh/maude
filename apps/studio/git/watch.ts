@@ -30,7 +30,7 @@ function isVersionable(rel: string): boolean {
   const p = rel.replace(/\\/g, '/');
   if (p.includes('/_comments/') || p.startsWith('_comments/')) return true;
   if (p.includes('/_annotations/') || p.startsWith('_annotations/')) return true;
-  return /\.(tsx|css|meta\.json|svg)$/.test(p) || p.endsWith('.annotations.svg');
+  return /\.(tsx|css|meta\.json|svg)$/.test(p) || /\.annotations\.(?:svg|json)$/.test(p);
 }
 
 export function createGitWatch(ctx: Context): GitWatch {

@@ -1,0 +1,5 @@
+{"format":"maude.annotations","v":2,"elements":[
+{"id":"s_e2esticky1","type":"sticky","index":"a0","x":280,"y":180,"w":170,"h":110,"text":"Sticky seed text"},
+{"id":"s_e2etext1","type":"text","index":"a1","x":40,"y":270,"w":115.5,"h":16.8,"text":"Standalone seed","color":"#1a1a1a"},
+{"id":"s_e2esection1","type":"section","index":"a2","x":40,"y":150,"w":180,"h":90,"label":"Seed section"}
+]}

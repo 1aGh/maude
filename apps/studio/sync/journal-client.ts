@@ -212,6 +212,11 @@ export async function hubCapabilities(opts: {
   }
 }
 
+/** Does this hub keep annotations as the v2 element model (DDR-242)? */
+export function hasAnnotationsV2(capabilities: string[] | null): boolean {
+  return Array.isArray(capabilities) && capabilities.includes('annotations-v2');
+}
+
 /** Does this hub carry the journal file plane? */
 export function hasLedger(capabilities: string[] | null): boolean {
   return Array.isArray(capabilities) && capabilities.includes('ledger');

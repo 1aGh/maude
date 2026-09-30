@@ -31,10 +31,13 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as Y from 'yjs';
 
+import { writeReplica } from '../annotations/replica.ts';
+import { parseBoard } from '../annotations/schema.ts';
 import { type Comment, createApi } from '../api.ts';
 import { createPersistence, Y_TYPES } from '../collab/persistence.ts';
 import { type Context, createBus } from '../context.ts';
 import { makeSandbox } from './_helpers.ts';
+import { board, sticky } from './fixtures/annotations-v2/boards.ts';
 
 function mkCtx(root: string, designRoot: string): Context {
   return {
@@ -337,11 +340,12 @@ describe('issue #111 — persistJson never projects a doc that is behind the fil
     const persistence = persistenceFor(r);
     const doc = new Y.Doc();
     doc.getArray(Y_TYPES.comments).push([comment('c1')]);
-    doc.getMap<string>(Y_TYPES.annotations).set('svg', '<svg><path d="M0 0"/></svg>');
+    const b = board(sticky('s1', 'kept'));
+    writeReplica(doc, parseBoard(b).elements, 'test');
 
     await persistence.persistJson(SLUG, doc);
 
     expect(r.onDisk()).toHaveLength(2); // comments deferred
-    expect(await r.api.loadAnnotations(FILE)).toContain('<path'); // annotations wrote
+    expect(await r.api.loadAnnotations(FILE)).toBe(b); // annotations wrote
   });
 });

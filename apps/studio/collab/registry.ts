@@ -9,10 +9,13 @@
 import type { Awareness } from 'y-protocols/awareness';
 import type * as Y from 'yjs';
 
-import { ANNOTATION_WRITE_ID, validAnnotationWriteId } from '../annotations-sync.ts';
-import { applyCommentsToDoc } from '../sync/codec.ts';
+import { canonicalAnnotations } from '../annotations/board-text.ts';
+import { type ApplyResult, applyOps, type Op } from '../annotations/ops.ts';
+import { readReplica, validActionId, writeReplica } from '../annotations/replica.ts';
+import { parseBoard, serializeBoard } from '../annotations/schema.ts';
+import { applyCommentsToDoc, stampAnnotationsEdit } from '../sync/codec.ts';
+import { MAX_ANNOTATIONS_BYTES } from '../sync/limits.ts';
 import { bridgeAwareness } from './awareness-bridge.ts';
-import { Y_TYPES } from './persistence.ts';
 import type { Room, RoomCallbacks } from './room.ts';
 import { createRoom } from './room.ts';
 
@@ -49,12 +52,23 @@ export interface Registry {
    */
   syncRoomFromComments(slug: string, comments: readonly unknown[]): void;
   /**
-   * Phase 8 Task 5 bridge — same shape as syncRoomFromComments but for the
-   * `annotations` Y.Map. The PUT /_api/annotations endpoint passes the
-   * post-write SVG; the room replaces `Y.Map.svg` so collab peers see the
-   * updated stroke set without waiting for a cold-open re-seed.
+   * Same shape as syncRoomFromComments but for the annotations replica
+   * (DDR-242). Every annotations write passes the post-write board; the room's
+   * replica is diffed to it, so collab peers receive only the changed elements.
    */
-  syncRoomFromAnnotations(slug: string, svg: string, writeId?: string): void;
+  syncRoomFromAnnotations(slug: string, text: string, actionId?: string): void;
+  /**
+   * The canvas op path while a room is live (code review H1): apply the batch
+   * to the room's replica — the freshest state, ahead of a debounced flush —
+   * instead of to disk, where a peer's not-yet-flushed edit would be reverted.
+   * `null` when no room (or a never-populated one) is live; `'too-large'` when
+   * the result would exceed the board cap (nothing written).
+   */
+  applyOpsToRoom(
+    slug: string,
+    ops: readonly Op[],
+    actionId?: string
+  ): ApplyResult | 'too-large' | null;
   /**
    * Phase 30 — project agent editing-presence onto a slug's room awareness so
    * it crosses the hub (the loopback `ai-activity` bus event does not). `null`
@@ -110,27 +124,24 @@ export interface Registry {
 }
 
 /**
- * Replace a doc's annotation SVG — the one write shape shared by the live
- * disk→room bridge and the cache-restore reconcile (`collab/index.ts`).
- * Identical disk notifications stay no-ops (no update → no persist loop); a UI
- * operation may deliberately restore identical content under a new write id.
- * Returns whether the doc changed.
+ * Make a doc's annotations replica hold `text` (canonical board JSON, or a
+ * legacy SVG that is converted) — the one write shape shared by the live
+ * disk→room bridge and the cache-restore reconcile (`collab/index.ts`). Only the
+ * elements / fields that differ become Yjs updates (DDR-242 §5); identical
+ * content is a no-op (no update → no persist loop). `actionId` lets the author's
+ * canvas recognise its own echo. Returns whether the doc changed.
  */
 export function applyAnnotationsToDoc(
   doc: Y.Doc,
-  svg: string,
+  text: string,
   origin: unknown,
-  writeId?: string
+  actionId?: string
 ): boolean {
-  const map = doc.getMap<string>(Y_TYPES.annotations);
-  const id = validAnnotationWriteId(writeId) ? writeId : undefined;
-  if (map.get('svg') === svg && (!id || map.get(ANNOTATION_WRITE_ID) === id)) return false;
-  doc.transact(() => {
-    map.set('svg', svg);
-    if (id) map.set(ANNOTATION_WRITE_ID, id);
-    else map.delete(ANNOTATION_WRITE_ID);
-  }, origin);
-  return true;
+  const board = canonicalAnnotations(text);
+  if (board === null) return false;
+  return writeReplica(doc, parseBoard(board).elements, origin, {
+    ...(validActionId(actionId) ? { actionId } : {}),
+  });
 }
 
 export function createRegistry(callbacks: RoomCallbacks): Registry {
@@ -218,10 +229,35 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
     applyCommentsToDoc(room.doc, comments as unknown[], 'inspector-write');
   }
 
-  function syncRoomFromAnnotations(slug: string, svg: string, writeId?: string): void {
+  function syncRoomFromAnnotations(slug: string, text: string, actionId?: string): void {
     const room = rooms.get(slug);
     if (!room) return;
-    applyAnnotationsToDoc(room.doc, svg, 'inspector-write', writeId);
+    applyAnnotationsToDoc(room.doc, text, 'inspector-write', actionId);
+  }
+
+  function applyOpsToRoom(
+    slug: string,
+    ops: readonly Op[],
+    actionId?: string
+  ): ApplyResult | 'too-large' | null {
+    const room = rooms.get(slug);
+    // A replica that was never populated is not the board's truth — the
+    // caller takes the disk path instead (DDR-223: no value ≠ empty).
+    const cur = room ? readReplica(room.doc) : null;
+    if (!room || cur === null) return null;
+    const r = applyOps(new Map(cur.elements.map((e) => [e.id, e])), ops);
+    if (!r.touched.size) return r;
+    const next = [...r.state.values()];
+    if (serializeBoard(next).length > MAX_ANNOTATIONS_BYTES) return 'too-large';
+    // One transaction with the lane's newest-wins stamp, so peers get ONE
+    // update and the room's persistence projects it to disk.
+    room.doc.transact(() => {
+      writeReplica(room.doc, next, 'inspector-write', {
+        ...(validActionId(actionId) ? { actionId } : {}),
+      });
+      stampAnnotationsEdit(room.doc, 'inspector-write');
+    }, 'inspector-write');
+    return r;
   }
 
   function setAgentEditing(slug: string, state: { name: string; since: number } | null): void {
@@ -275,6 +311,7 @@ export function createRegistry(callbacks: RoomCallbacks): Registry {
     getDoc,
     syncRoomFromComments,
     syncRoomFromAnnotations,
+    applyOpsToRoom,
     setAgentEditing,
     attachHubAwareness,
     pin,

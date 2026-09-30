@@ -397,7 +397,7 @@ function draftPublishedNoPr(
 }
 
 /** DDR-112 — expand each selected path to include any DIRTY same-directory,
- *  same-stem sidecar (`<stem>.meta.json`, `<stem>.annotations.svg`, …). The `.`
+ *  same-stem sidecar (`<stem>.meta.json`, `<stem>.annotations.json`, …). The `.`
  *  delimiter prevents `ui/Pricing` from grabbing `ui/Pricing v3.*`. */
 export function expandSidecars(selected: string[], dirty: string[]): string[] {
   const out = new Set(selected);

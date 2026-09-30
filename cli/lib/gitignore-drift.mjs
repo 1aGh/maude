@@ -37,7 +37,8 @@
  * `gitignore-block.mjs` and the taxonomy in `apps/studio/git/service.ts`.
  */
 const VERSIONED_PATTERNS = [
-  { pattern: '*.annotations.svg', what: 'canvas draw layers (annotations)' },
+  { pattern: '*.annotations.json', what: 'canvas draw layers (annotations)' },
+  { pattern: '*.annotations.svg', what: 'canvas draw layers (annotations, v1 form)' },
   { pattern: '*.meta.json', what: 'canvas sidecars (layout, artboards, tags)' },
   { pattern: '*.tsx', what: 'canvas bodies' },
   { pattern: 'config.json', what: 'the project design config' },

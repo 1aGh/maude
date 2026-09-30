@@ -15,12 +15,13 @@
 //     <designRoot>/<name>.tsx              the canvas body
 //     <designRoot>/<name>.meta.json        shared meta, local keys preserved
 //     <designRoot>/<name>.css              the sibling stylesheet, when present
-//     <designRoot>/<name>.annotations.svg  the draw layer
+//     <designRoot>/<name>.annotations.json the draw layer (DDR-242 board)
 //
 // Comments are deliberately absent. They live in `_comments/`, which is
 // runtime state and gitignored — writing them here would put a per-machine
 // artifact into a tenant's permanent history.
 
+import { replicaBoardText } from '../../studio/annotations/replica.ts';
 import { mergeSharedMetaIntoLocal } from './meta-merge.mjs';
 
 /**
@@ -116,7 +117,7 @@ export function indexCanvasPaths(relPaths) {
  * `.meta.json` and `.css` really are SIBLINGS — `ui/Card.tsx` → `ui/Card.css`.
  * The annotations sidecar is NOT, and that asymmetry is the studio's, not ours:
  * it keys annotations by the flat canvas SLUG at the design root
- * (`ui/Card.tsx` → `ui-card.annotations.svg`).
+ * (`ui/Card.tsx` → `ui-card.annotations.json`).
  *
  * Deriving it as a sibling made the hub write a file NOBODY READS, and — worse
  * — commit that one while the real sidecar stayed untracked, so the junk path
@@ -137,13 +138,13 @@ export function siblingPaths(bodyRel) {
   const stem = bodyRel.replace(/\.(tsx|html)$/i, '');
   // `canvasSlug` strips leading dots, so an all-dots name (`..`, `.tsx`) slugs
   // to the empty string and would put every such canvas on one shared, hidden
-  // `.annotations.svg`. Contained either way, but the stem keeps them distinct
+  // `.annotations.json`. Contained either way, but the stem keeps them distinct
   // and keeps a dotfile out of the tenant's design root.
   const slug = canvasSlug(bodyRel);
   return {
     meta: `${stem}.meta.json`,
     css: `${stem}.css`,
-    annotations: `${slug || stem}.annotations.svg`,
+    annotations: `${slug || stem}.annotations.json`,
   };
 }
 
@@ -158,7 +159,10 @@ export function readDocContent(doc) {
     const t = doc.getText(name).toString();
     return t.length > 0 ? t : null;
   };
-  const svg = doc.getMap(DOC_TYPES.annotations).get('svg');
+  // DDR-242 — the per-element replica, validated on read (the doc is
+  // peer-written; this is the hub's own disk write, so it must never carry an
+  // unvalidated value — the pre-v2 path wrote the raw doc string).
+  const board = replicaBoardText(doc);
   // UNTRUSTED. `path` is whatever a peer put on the wire; the agent must put it
   // through `validateCanvasPath` before it can become a directory. Surfaced
   // here rather than read inline so the one place that reads a doc stays the
@@ -172,7 +176,7 @@ export function readDocContent(doc) {
     body: text(DOC_TYPES.html),
     css: text(DOC_TYPES.css),
     meta: text(DOC_TYPES.meta),
-    annotations: typeof svg === 'string' && svg.length > 0 ? svg : null,
+    annotations: board,
     path: typeof path === 'string' && path.length > 0 ? path : null,
     movedTo: typeof movedTo === 'string' && movedTo.length > 0 ? movedTo : null,
   };

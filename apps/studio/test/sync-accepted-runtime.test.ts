@@ -333,7 +333,13 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
         'the receiver to materialize the accepted canvas'
       );
       expect(bob.read(rel)).toBe(body);
-      expect(bob.read('ui/earlymixedcase.tsx')).toBeNull();
+      // Exactly ONE file, at the accepted (mixed-case) path — no slug-derived
+      // `earlymixedcase.tsx` sibling. Asserted on the directory listing, not by
+      // reading the lowercase path: on a case-insensitive filesystem (macOS
+      // APFS default) that read resolves to the correct file and is non-null.
+      expect(readdirSync(bob.file('ui')).filter((f) => /earlymixedcase/i.test(f))).toEqual([
+        'EarlyMixedCase.tsx',
+      ]);
     } finally {
       provider.destroy();
       doc.destroy();

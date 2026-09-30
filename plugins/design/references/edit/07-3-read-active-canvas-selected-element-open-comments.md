@@ -32,7 +32,7 @@ If `SEL_VALID=1`, the edit is **scoped** to the selected element (selector + dom
 **Where a comment points — never widen it.** A comment carries ONE anchor:
 
 - `selector` / `dom_path` (non-empty) → an element; scope the edit to it.
-- `annotationId` (and `selector: ""`) → a sticky, shape, stroke or other item on the board's draw layer, in `<designRoot>/<slug>.annotations.svg` (`[data-id="<annotationId>"]`). Read that item for context. It is **not** a canvas element: the edit is on the annotation (via the whiteboard skill / `/design:board`) or, when the text clearly asks for a canvas change, on the artboard content the annotation sits over. Name which one you chose.
+- `annotationId` (and `selector: ""`) → a sticky, shape, stroke or other item on the board's draw layer, in `<designRoot>/<slug>.annotations.json` (`[data-id="<annotationId>"]`). Read that item for context. It is **not** a canvas element: the edit is on the annotation (via the whiteboard skill / `/design:board`) or, when the text clearly asks for a canvas change, on the artboard content the annotation sits over. Name which one you chose.
 - `world` only (no selector, no `annotationId`) → a floating note at a point on the board. It has **no element target**: treat it as context, never as permission for a canvas-wide edit. Ask which element it means, or list it as open.
 - An anchor that no longer resolves (element or annotation gone — the UI shows the pin as *detached*) → report it; do not re-target it to something similar.
 

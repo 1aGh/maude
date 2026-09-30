@@ -69,7 +69,7 @@ function handle(evt) {
   }
   if (evt.type === 'fs:json' && evt.file) {
     // Phase 20 (DDR-049) — external edits to canvas `.meta.json` or
-    // `.annotations.svg` invalidate the iframe's in-memory undo stack
+    // `.annotations.json` invalidate the iframe's in-memory undo stack
     // (stale before/after snapshots would otherwise restore wrong state).
     // The iframe's UndoStackProvider self-echo-dampens our own PATCH-es
     // via window.__maude_last_meta_self_write_at, so we forward

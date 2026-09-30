@@ -4,6 +4,7 @@
 import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
+import { canonicalAnnotations } from '../annotations/board-text.ts';
 import type { Api } from '../api.ts';
 import type { Context } from '../context.ts';
 
@@ -59,10 +60,18 @@ export function createCollab(ctx: Context, api: Api): Collab {
   // (the predicate is only consulted at room-seed time, after `registry` is
   // assigned). Flag-OFF → predicate returns true → seed unchanged.
   let registryRef: Registry | null = null;
+  // Board texts this process's rooms projected to disk and whose watcher echo
+  // hasn't come back yet (a few per slug: flushes can outrun the watcher).
+  const ownProjections = new Map<string, string[]>();
   const persistence = createPersistence({
     ctx,
     api,
     fileForSlug,
+    onAnnotationsProjected: (slug, board) => {
+      const list = ownProjections.get(slug) ?? [];
+      list.push(board);
+      ownProjections.set(slug, list.slice(-4));
+    },
     shouldSeed: (slug) => !(ctx.sharedDoc && registryRef?.isPinned(slug)),
     // Issue #133 — record comment ids as synced only once the hub holds them,
     // and only for the room that IS the hub's doc (pinned). No hub linked:
@@ -88,9 +97,9 @@ export function createCollab(ctx: Context, api: Api): Collab {
       };
       const file = await fileForSlug(slug);
       if (!file) return;
-      if (newerThanCache(path.join(ctx.paths.designRoot, `${slug}.annotations.svg`))) {
-        const svg = await api.loadAnnotations(file);
-        if (svg) applyAnnotationsToDoc(doc, svg, 'seed');
+      if (newerThanCache(path.join(ctx.paths.designRoot, `${slug}.annotations.json`))) {
+        const board = await api.loadAnnotations(file);
+        if (board) applyAnnotationsToDoc(doc, board, 'seed');
       }
       if (newerThanCache(path.join(ctx.paths.commentsDir, `${slug}.json`))) {
         applyCommentsToDoc(doc, await api.loadCommentsForFile(file), 'seed');
@@ -124,7 +133,9 @@ export function createCollab(ctx: Context, api: Api): Collab {
     registry.peek(slug) !== null && !registry.isPinned(slug);
   const reseedFromDisk = async (rel: string): Promise<void> => {
     const cm = /^_comments\/(.+)\.json$/.exec(rel);
-    const am = /^(.+)\.annotations\.svg$/.exec(rel);
+    // DDR-242 — the board file. A legacy `.annotations.svg` reappearing on disk
+    // is NOT a board write (the boot migration quarantines it).
+    const am = /^(.+)\.annotations\.json$/.exec(rel);
     const slug = cm?.[1] ?? am?.[1];
     if (!slug) return;
     const abs = path.join(ctx.paths.designRoot, rel);
@@ -149,7 +160,18 @@ export function createCollab(ctx: Context, api: Api): Collab {
         if (ownsRoomFromDisk(slug)) registry.syncRoomFromComments(slug, parsed);
         if (file) ctx.bus.emit('comments', { file, comments: parsed });
       } else if (ownsRoomFromDisk(slug)) {
-        registry.syncRoomFromAnnotations(slug, readFileSync(abs, 'utf8'));
+        const text = readFileSync(abs, 'utf8');
+        // The room's own projection coming back: the room is at or AHEAD of
+        // it (an op may have landed since), so re-seeding from it would revert
+        // that op. Consumed once, so a later external write of the same bytes
+        // still re-seeds.
+        const own = ownProjections.get(slug);
+        const at = own ? own.indexOf(canonicalAnnotations(text) ?? '') : -1;
+        if (own && at >= 0) {
+          own.splice(0, at + 1);
+          return;
+        }
+        registry.syncRoomFromAnnotations(slug, text);
       }
     } catch {
       /* file vanished mid-flight or unreadable — leave state as-is */

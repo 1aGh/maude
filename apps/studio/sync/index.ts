@@ -33,6 +33,8 @@ import { hostname } from 'node:os';
 import path from 'node:path';
 import type { Awareness } from 'y-protocols/awareness';
 import * as Y from 'yjs';
+import { migrateAnnotationsV2 } from '../annotations/migrate-boot.ts';
+import { REPLICA_TYPE, replicaBoardText } from '../annotations/replica.ts';
 import { renewHubCredential } from '../cloud/renew.ts';
 import { Y_TYPES } from '../collab/persistence.ts';
 import type { Context, LinkedHub } from '../context.ts';
@@ -71,7 +73,7 @@ import { createFsReader, type FsReader } from './fs-mirror.ts';
 import { type HubDocRow, hubHolds, indexHubDocs } from './hub-listing.ts';
 import { getHubRecord } from './hubs-config.ts';
 import { loadJournal, type SyncJournal } from './journal.ts';
-import { hasLedger, hubCapabilities } from './journal-client.ts';
+import { hasAnnotationsV2, hasLedger, hubCapabilities } from './journal-client.ts';
 import { isLoopbackHost } from './loopback.ts';
 import { migrateFlatFallback } from './migrate-flat-fallback.ts';
 import { migrateSeed } from './migrate-seed.ts';
@@ -2242,6 +2244,9 @@ export function createSyncRuntime(
         designRoot: ctx.paths.designRoot,
         designRel: ctx.paths.designRel,
       });
+      // DDR-242 — idempotent; also covers a runtime cycled after boot (a
+      // project linked from the cloud panel) whose tree gained a v1 board.
+      migrateAnnotationsV2({ designRoot: ctx.paths.designRoot });
     }
 
     const scan = opts.canvases ? { canvases: opts.canvases, tsxCount: 0 } : await scanCanvases(ctx);
@@ -2386,14 +2391,14 @@ export function createSyncRuntime(
     if (pullNote) console.log(`[sync] ${pullNote}`);
     /** Descriptor paths for one slug at one body path. The sidecar rules live
      *  here, once: `.meta.json`/`.css` are SIBLINGS of the body, while
-     *  `.annotations.svg` is keyed by the flat slug at the design root — the
+     *  `.annotations.json` is keyed by the flat slug at the design root — the
      *  asymmetry `workspace-files.mjs` documents, and which moving the body
      *  must not quietly change. */
     const descriptorFor = (slug: string, bodyAbs: string): CanvasDescriptor => ({
       slug,
       html: bodyAbs,
       comments: path.join(ctx.paths.commentsDir, `${slug}.json`),
-      annotations: path.join(ctx.paths.designRoot, `${slug}.annotations.svg`),
+      annotations: path.join(ctx.paths.designRoot, `${slug}.annotations.json`),
       meta: bodyAbs.replace(/\.tsx$/i, '.meta.json'),
       css: bodyAbs.replace(/\.tsx$/i, '.css'),
     });
@@ -3892,21 +3897,23 @@ export function createSyncRuntime(
               const agentOrigin = agent.origin;
               const slug = canvas.slug;
               const provComments = provider.document.getArray(Y_TYPES.comments);
-              const provAnn = provider.document.getMap(Y_TYPES.annotations);
+              // DDR-242 — the annotations replica: relay the board, the room
+              // diffs it per element (writeReplica), so only changes cross.
+              const provAnn = provider.document.getMap(REPLICA_TYPE);
               const onComments = (_e: unknown, tx: { origin: unknown }) => {
                 if (tx.origin === agentOrigin) return;
                 reg.syncRoomFromComments?.(slug, provComments.toArray());
               };
               const onAnn = (_e: unknown, tx: { origin: unknown }) => {
                 if (tx.origin === agentOrigin) return;
-                const svg = provAnn.get('svg');
-                if (typeof svg === 'string') reg.syncRoomFromAnnotations?.(slug, svg);
+                const board = replicaBoardText(provider.document);
+                if (board !== null) reg.syncRoomFromAnnotations?.(slug, board);
               };
               provComments.observe(onComments);
-              provAnn.observe(onAnn);
+              provAnn.observeDeep(onAnn);
               noteDetach(statusDetaches, canvas.slug, () => {
                 provComments.unobserve(onComments);
-                provAnn.unobserve(onAnn);
+                provAnn.unobserveDeep(onAnn);
               });
             }
           },
@@ -4646,6 +4653,17 @@ export function createSyncRuntime(
       void hubCapabilities({ hubUrl: linkedHub.url, signal: fileEventsProbe.signal })
         .then((caps) => {
           if (stopped) return;
+          // DDR-242 — a hub that predates the annotations-v2 model still keeps
+          // boards as SVG: its workspace checkout and kernel would not carry
+          // this studio's `.annotations.json` edits. Say so loudly; the
+          // annotations themselves stay safe (a v1 hub never writes the v2
+          // replica, and this studio never reads its SVG as authoritative).
+          if (caps !== null && !hasAnnotationsV2(caps)) {
+            console.warn(
+              `[sync] ${linkedHub.url} does not advertise annotations-v2 — update the hub; ` +
+                'whiteboard edits will not reach its checkout until it is'
+            );
+          }
           if (!hasLedger(caps)) {
             // No journal on this hub ⇒ the legacy client carries the upward
             // lane, exactly as the pre-v2 desktop did (Open decision 4).
@@ -5355,7 +5373,7 @@ async function walk(
       slug,
       html: abs,
       comments: path.join(commentsDir, `${slug}.json`),
-      annotations: path.join(designRoot, `${slug}.annotations.svg`),
+      annotations: path.join(designRoot, `${slug}.annotations.json`),
       // The `.meta.json` sidecar sits next to the body: `Foo.tsx` → `Foo.meta.json`.
       meta: abs.replace(/\.(tsx|html)$/i, '.meta.json'),
       // The `.css` sibling: `Foo.tsx` → `Foo.css` (absent for inline-CSS canvases).

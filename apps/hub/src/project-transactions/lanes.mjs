@@ -8,7 +8,13 @@
 
 import { createHash } from 'node:crypto';
 
-import { sanitizeAnnotationSvg } from '../../../studio/annotations-model.ts';
+import {
+  annotationsLaneValue,
+  canonicalAnnotations,
+} from '../../../studio/annotations/board-text.ts';
+import { applyOps, diffToOps } from '../../../studio/annotations/ops.ts';
+import { readReplica, writeReplica } from '../../../studio/annotations/replica.ts';
+import { parseBoard, serializeBoard } from '../../../studio/annotations/schema.ts';
 import {
   MAX_ANNOTATIONS_BYTES,
   MAX_COMMENTS_BYTES,
@@ -29,8 +35,6 @@ const CAPS = {
   comments: MAX_COMMENTS_BYTES,
 };
 
-/** The annotation echo id the author's layer suppresses (annotations-sync.ts). */
-export const ANNOTATION_WRITE_ID = 'writeId';
 const WRITE_ID = /^[a-zA-Z0-9_-]{1,96}$/;
 
 export function laneHash(content) {
@@ -76,10 +80,15 @@ export function checkLane(lane, raw, { path = 'canvas.tsx' } = {}) {
     return { ok: true, content: raw };
   }
   if (lane === 'annotations') {
+    // DDR-242 — the lane value is the canonical annotations board. A legacy
+    // SVG (a pre-v2 history blob, or a v1 client) is upconverted through the
+    // v1→v2 migration instead of refused: restore/undo across the upgrade keep
+    // working, and a v1 client's edit still lands as a per-element diff.
     if (raw === '') return { ok: true, content: raw };
-    if (!/^\s*<svg[\s>]/i.test(raw))
-      return { ok: false, code: 'invalid', reason: 'annotations must be an SVG document' };
-    return { ok: true, content: sanitizeAnnotationSvg(raw) };
+    const content = annotationsLaneValue(raw);
+    return content === null
+      ? { ok: false, code: 'invalid', reason: 'annotations must be an annotations board' }
+      : { ok: true, content };
   }
   // comments — a JSON array of objects; canonical form is compact JSON.
   const parsed = parseJson(raw === '' ? '[]' : raw);
@@ -102,6 +111,18 @@ function stripDangerousKeys(value) {
     out[k] = stripDangerousKeys(v);
   }
   return out;
+}
+
+/**
+ * Elements of an annotations lane value. History blobs written before DDR-242
+ * are SVG — they go through the migration too, never through a JSON parse
+ * that would read them as an EMPTY board (and an undo/restore would then
+ * delete everything — the DDR-223 failure shape).
+ */
+function boardElements(text) {
+  if (text === '') return [];
+  const canonical = canonicalAnnotations(text);
+  return canonical === null ? [] : parseBoard(canonical).elements;
 }
 
 // ---------------------------------------------------------------- merge
@@ -154,70 +175,6 @@ function mergeById(base, ours, theirs) {
 }
 
 /**
- * Split an annotation SVG into its wrapper and top-level elements keyed by
- * `data-id`. Returns null when the document is not in the shape the studio
- * writes (then the merge refuses rather than guesses).
- */
-export function splitSvg(svg) {
-  const open = svg.match(/^\s*<svg\b[^>]*>/i);
-  if (!open) return null;
-  const endIdx = svg.lastIndexOf('</svg>');
-  if (endIdx < open[0].length) return null;
-  const body = svg.slice(open[0].length, endIdx);
-  const items = [];
-  let i = 0;
-  while (i < body.length) {
-    if (/\s/.test(body[i])) {
-      i++;
-      continue;
-    }
-    if (body[i] !== '<') return null;
-    const start = i;
-    let depth = 0;
-    const tag = /<\/?([A-Za-z][\w:-]*)\b[^>]*?(\/?)>/y;
-    for (;;) {
-      tag.lastIndex = i;
-      const m = tag.exec(body);
-      if (!m || m.index !== i) return null;
-      const closing = m[0].startsWith('</');
-      const selfClosing = m[2] === '/';
-      if (closing) depth--;
-      else if (!selfClosing) depth++;
-      i = tag.lastIndex;
-      // text between tags inside an element
-      if (depth > 0) {
-        const next = body.indexOf('<', i);
-        if (next < 0) return null;
-        i = next;
-        continue;
-      }
-      break;
-    }
-    const el = body.slice(start, i);
-    const id = el.match(/^<[A-Za-z][\w:-]*\b[^>]*\bdata-id="([^"]*)"/)?.[1];
-    if (!id) return null;
-    items.push({ id, el });
-  }
-  return { open: open[0], items };
-}
-
-function mergeSvg(base, ours, theirs) {
-  const [b, o, t] = [base, ours, theirs].map((s) =>
-    s === '' ? { open: null, items: [] } : splitSvg(s)
-  );
-  if (!b || !o || !t) return { ok: false };
-  const toRecords = (x) => x.items.map(({ id, el }) => ({ id, el }));
-  const m = mergeById(toRecords(b), toRecords(o), toRecords(t));
-  if (!m.ok) return m;
-  const open =
-    t.open ??
-    o.open ??
-    b.open ??
-    '<svg xmlns="http://www.w3.org/2000/svg" data-mdcc-annotations="1">';
-  return { ok: true, value: `${open}${m.value.map((r) => r.el).join('')}</svg>` };
-}
-
-/**
  * Merge `ours` (the proposal) and `theirs` (the current head), both derived
  * from `base`. `{ok:true, content}` or `{ok:false}` — an overlap is a
  * `base-conflict` for the caller, never a guess.
@@ -230,8 +187,13 @@ export function mergeLane(lane, base, ours, theirs) {
     return m.ok ? { ok: true, content: m.merged } : { ok: false };
   }
   if (lane === 'annotations') {
-    const m = mergeSvg(base, ours, theirs);
-    return m.ok ? { ok: true, content: m.value } : { ok: false };
+    // DDR-242 §4 — replay what the proposal changed (base → ours) onto the
+    // head as element ops: different elements / fields never conflict, the
+    // same field follows acceptance order, the same text merges by character.
+    const board = (t) => new Map(boardElements(t).map((e) => [e.id, e]));
+    const ops = diffToOps(board(base), board(ours));
+    const r = applyOps(board(theirs), ops);
+    return { ok: true, content: r.state.size ? serializeBoard([...r.state.values()]) : '' };
   }
   const parse = (s, empty) => (s === '' ? { ok: true, value: empty } : parseJson(s));
   const empty = lane === 'comments' ? [] : {};
@@ -281,16 +243,14 @@ export function applyLane(doc, lane, content, { writeId } = {}) {
   if (lane === 'html' || lane === 'css' || lane === 'meta')
     return applyText(doc.getText(lane), content);
   if (lane === 'annotations') {
-    const map = doc.getMap('annotations');
-    if (content === '') {
-      if (map.has('svg')) map.delete('svg');
-    } else if (map.get('svg') !== content) {
-      map.set('svg', content);
-    }
-    if (typeof writeId === 'string' && WRITE_ID.test(writeId))
-      map.set(ANNOTATION_WRITE_ID, writeId);
-    else if (map.has(ANNOTATION_WRITE_ID)) map.delete(ANNOTATION_WRITE_ID);
-    return true;
+    // DDR-242 §5 — the per-element replica; only changed elements / fields
+    // become updates. The author's action id rides along for echo suppression.
+    const elements = boardElements(content);
+    // '' on a doc that never held a board stays "no value" (no marker written).
+    if (!elements.length && readReplica(doc) === null) return false;
+    return writeReplica(doc, elements, undefined, {
+      ...(typeof writeId === 'string' && WRITE_ID.test(writeId) ? { actionId: writeId } : {}),
+    });
   }
   const arr = doc.getArray('comments');
   const next = content === '' ? [] : JSON.parse(content);
@@ -304,8 +264,8 @@ export function applyLane(doc, lane, content, { writeId } = {}) {
 export function readLane(doc, lane) {
   if (lane === 'html' || lane === 'css' || lane === 'meta') return doc.getText(lane).toString();
   if (lane === 'annotations') {
-    const svg = doc.getMap('annotations').get('svg');
-    return typeof svg === 'string' ? svg : '';
+    const r = readReplica(doc);
+    return r === null || r.elements.length === 0 ? '' : serializeBoard(r.elements);
   }
   const list = doc.getArray('comments').toArray();
   return list.length ? JSON.stringify(list) : '';

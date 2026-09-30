@@ -18,10 +18,17 @@ import { describe, expect, test } from 'bun:test';
 import * as Y from 'yjs';
 
 import { Y_TYPES } from '../collab/persistence.ts';
-import { applyHtmlToDoc, MAX_HTML_BYTES } from '../sync/codec.ts';
+import {
+  annotationsEditAtFromDoc,
+  annotationsFromDoc,
+  applyAnnotationsToDoc,
+  applyHtmlToDoc,
+  MAX_HTML_BYTES,
+} from '../sync/codec.ts';
 import { createEchoGuard, hashBytes } from '../sync/echo-guard.ts';
 import { ORIGINS } from '../sync/origins.ts';
 import { createDocProjection } from '../sync/projection.ts';
+import { board, sticky, v1, v1Sticky } from './fixtures/annotations-v2/boards.ts';
 
 const enc = (s: string) => new TextEncoder().encode(s);
 
@@ -55,7 +62,7 @@ function makeProjection(paths: {
 const PATHS = {
   html: '/d/ui/screen.html',
   comments: '/d/_comments/ui-screen.json',
-  annotations: '/d/ui-screen.annotations.svg',
+  annotations: '/d/ui-screen.annotations.json',
   meta: '/d/ui/screen.meta.json',
   css: '/d/ui/screen.css',
 };
@@ -81,7 +88,7 @@ describe('projection doc→file (html/css/meta only — room owns comments/annot
   test('does NOT write comments or annotations doc→file (the room owns those)', async () => {
     const { doc, writes, projection } = makeProjection(PATHS);
     doc.getArray(Y_TYPES.comments).push([{ id: 'c1', text: 'hi' }]);
-    doc.getMap(Y_TYPES.annotations).set('svg', '<svg/>');
+    applyAnnotationsToDoc(doc, board(sticky('s1', 'room owns me')));
     await projection.flush();
     expect(writes.find((w) => w.path === PATHS.comments)).toBeUndefined();
     expect(writes.find((w) => w.path === PATHS.annotations)).toBeUndefined();
@@ -131,11 +138,23 @@ describe('projection file→doc (diff-import, all five types, FILE_IMPORT origin
     ).toBe(true);
     expect(doc.getArray(Y_TYPES.comments).toArray()).toEqual([{ id: 'x', text: 'yo' }]);
 
-    const svg = '<svg><rect/></svg>';
+    const b = board(sticky('s1', 'from disk'));
     expect(
-      projection.applyFromFs({ path: PATHS.annotations, bytes: enc(svg), hash: hashBytes(svg) })
+      projection.applyFromFs({ path: PATHS.annotations, bytes: enc(b), hash: hashBytes(b) })
     ).toBe(true);
-    expect(doc.getMap(Y_TYPES.annotations).get('svg')).toBe(svg);
+    expect(annotationsFromDoc(doc)).toBe(b);
+    // Per-lane edit stamp in the same import (DDR-223).
+    expect(annotationsEditAtFromDoc(doc)).not.toBeNull();
+    // A legacy SVG arriving on the board path is converted, never stored raw.
+    const legacy = v1([v1Sticky('v', 'v1')]);
+    expect(
+      projection.applyFromFs({
+        path: PATHS.annotations,
+        bytes: enc(legacy.svg),
+        hash: hashBytes(legacy.svg),
+      })
+    ).toBe(true);
+    expect(annotationsFromDoc(doc)).toBe(legacy.board);
   });
 
   test('body import is a MINIMAL diff — preserves an untouched suffix region', () => {
