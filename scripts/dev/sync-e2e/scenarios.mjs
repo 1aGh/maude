@@ -27,7 +27,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-import { annotationSvg, makePng, sameBytes, sleep, waitFor } from './harness.mjs';
+import { annotationBoard, makePng, sameBytes, sleep, waitFor } from './harness.mjs';
 
 /** A per-run tag so repeat runs against a kept cell never collide. */
 export function tag(run, extra = '') {
@@ -446,6 +446,17 @@ const artboardPhoto = {
 
 /* ---------------------------------------------------------- annotations --- */
 
+/** The elements of a v2 board file on `side` ([] when absent or not a board). */
+function boardElements(side, rel) {
+  if (!side.has(rel)) return [];
+  try {
+    const els = JSON.parse(side.text(rel)).elements;
+    return Array.isArray(els) ? els : [];
+  } catch {
+    return [];
+  }
+}
+
 const annotationShapes = {
   id: 'annotation-shapes',
   title: 'sticky note, rectangle, arrow and section on the draw layer',
@@ -455,7 +466,9 @@ const annotationShapes = {
     await from.api('/_api/canvas', { method: 'POST', body: { name, group: 'ui' } });
     const rel = uiRel(name);
     const marker = `note-${dir}-${run}`;
-    const svg = annotationSvg([
+    // DDR-242 — a v2 element board, written whole (the import/restore path);
+    // the canvas itself sends op batches to /_api/annotations/ops.
+    const board = annotationBoard([
       { kind: 'sticky', x: 40, y: 40, text: marker },
       { kind: 'rect', x: 260, y: 40 },
       { kind: 'arrow', x: 40, y: 220 },
@@ -463,19 +476,20 @@ const annotationShapes = {
     ]);
     await from.api('/_api/annotations', {
       method: 'PUT',
-      body: { file: `.design/${rel}`, svg },
+      body: { file: `.design/${rel}`, board },
     });
-    return { rel, annRel: `${uiSlug(name)}.annotations.svg`, marker };
+    return { rel, annRel: `${uiSlug(name)}.annotations.json`, marker };
   },
   settle: ({ to }, m) =>
     waitFor(() => to.has(m.annRel) && to.text(m.annRel).includes(m.marker), { label: m.annRel }),
   async verify({ from, to }, m) {
-    const svg = to.has(m.annRel) ? to.text(m.annRel) : '';
+    const els = boardElements(to, m.annRel);
+    const has = (pred) => els.some(pred);
     return [
-      ['the sticky note text crossed', svg.includes(m.marker)],
-      ['the rectangle crossed', svg.includes('<rect')],
-      ['the arrow crossed', svg.includes('<path')],
-      ['the section crossed', svg.includes('stroke-dasharray')],
+      ['the sticky note text crossed', has((e) => e.type === 'sticky' && e.text === m.marker)],
+      ['the rectangle crossed', has((e) => e.type === 'shape' && (e.kind ?? 'rect') === 'rect')],
+      ['the arrow crossed', has((e) => e.type === 'arrow')],
+      ['the section crossed', has((e) => e.type === 'section')],
       ['byte-identical', sameBytes(from, to, m.annRel)],
     ];
   },
@@ -495,9 +509,9 @@ const annotationSticker = {
     const name = tag(run, `sticker-${dir}`);
     await from.api('/_api/canvas', { method: 'POST', body: { name, group: 'ui' } });
     const rel = uiRel(name);
-    const svg = annotationSvg([{ kind: 'image', x: 100, y: 100, href: asset.path }]);
-    await from.api('/_api/annotations', { method: 'PUT', body: { file: `.design/${rel}`, svg } });
-    return { annRel: `${uiSlug(name)}.annotations.svg`, asset: asset.path, size: png.length };
+    const board = annotationBoard([{ kind: 'image', x: 100, y: 100, href: asset.path }]);
+    await from.api('/_api/annotations', { method: 'PUT', body: { file: `.design/${rel}`, board } });
+    return { annRel: `${uiSlug(name)}.annotations.json`, asset: asset.path, size: png.length };
   },
   settle: ({ to }, m) =>
     waitFor(
