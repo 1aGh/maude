@@ -606,8 +606,7 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
         echoGuard.record(paths.comments, hash);
         writer(paths.comments, docCommentsStr);
       }
-      if (opts.commentsConfirmed?.())
-        opts.commentLedger?.record(slug, docComments.map(commentKey));
+      if (opts.commentsConfirmed?.()) opts.commentLedger?.record(slug, docComments.map(commentKey));
     }
 
     // ---- annotations: PER-LANE newest-wins (the 2026-08-14 eraser fix) -----
