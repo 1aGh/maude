@@ -497,6 +497,47 @@ describe('R7 — Task 19: drafts and a collaborator while editing', () => {
   });
 });
 
+describe('R7b — a second VIEWER deletes the sticky being typed in (rig L09.v2 V5)', () => {
+  test('the author keeps the text: Enter restores it everywhere', async () => {
+    await reset();
+    const peerView = await openCanvas(server);
+    try {
+      const id = 'gone'; // restored by R7 — a plain sticky again
+      assert.ok(readBoard(server.root)?.has(id), 'fixture sticky');
+      const [x, y] = await c.center(id);
+      await c.page.mouse.dblclick(x, y);
+      await sleep(300);
+      await c.frame.locator('textarea[data-annot-editor]').first().fill('Typed through a delete');
+      await sleep(200);
+      // The other viewer selects the same sticky and deletes it.
+      const [px, py] = await peerView.center(id);
+      await peerView.page.mouse.click(px, py);
+      await sleep(200);
+      await peerView.page.keyboard.press('Backspace');
+      await waitForBoard(server.root, (b) => !b.has(id));
+      const told = await c.frame
+        .locator('[data-edit-notice="deleted"]')
+        .first()
+        .waitFor({ timeout: 4000 })
+        .then(() => true)
+        .catch(() => false);
+      assert.ok(told, 'the author is told');
+      await c.page.keyboard.press('Enter');
+      const b = await waitForBoard(server.root, (bd) => bd.get(id)?.text === 'Typed through a delete');
+      assert.equal(b.get(id)?.text, 'Typed through a delete');
+      const onPeer = await peerView.frame
+        .locator(`.dc-annot-scene [data-id="${id}"]`)
+        .first()
+        .waitFor({ timeout: 4000 })
+        .then(() => true)
+        .catch(() => false);
+      assert.ok(onPeer, 'the restored sticky is back on the other viewer');
+    } finally {
+      await peerView.close();
+    }
+  });
+});
+
 describe('R8 — Milestone D: an operation on a section acts on its contents', () => {
   /** Select the section by its title chip. */
   async function selectSection(id) {
