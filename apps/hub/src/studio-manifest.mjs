@@ -93,6 +93,7 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_hmr': { safe: 'read', unsafe: 'session' },
   '/_api/ui-prefs': { safe: 'read', unsafe: 'session' },
   '/_api/timeline-media': { safe: 'read', unsafe: 'session' },
+  '/_api/tree-state': { safe: 'read', unsafe: 'session' }, // Files-panel disclosure (#124)
   // A bug report is about MAUDE, not about the project — the same reason the
   // desktop's read-only gate lets a viewer file one. The diagnostic bundle it
   // would have attached is refused below; a report without it still works.
