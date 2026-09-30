@@ -171,3 +171,64 @@ export function compareOrder(
   if (a.index !== b.index) return a.index < b.index ? -1 : 1;
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
+
+/**
+ * Keys for `ids` (desired order) that reuse `prev` keys where they are already
+ * in order (longest increasing run), minting new keys only for moved items.
+ */
+export function orderKeys(
+  ids: readonly string[],
+  prev: ReadonlyMap<string, string>
+): Map<string, string> {
+  const out = new Map<string, string>();
+  // Longest increasing subsequence over the items that have a previous key.
+  const cand = ids
+    .map((id, i) => ({ id, i, k: prev.get(id) }))
+    .filter((c) => c.k !== undefined) as Array<{ id: string; i: number; k: string }>;
+  const tails: number[] = [];
+  const back: number[] = new Array(cand.length).fill(-1);
+  for (let j = 0; j < cand.length; j++) {
+    const k = (cand[j] as { k: string }).k;
+    let lo = 0;
+    let hi = tails.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if ((cand[tails[mid] as number] as { k: string }).k < k) lo = mid + 1;
+      else hi = mid;
+    }
+    if (lo > 0) back[j] = tails[lo - 1] as number;
+    tails[lo] = j;
+  }
+  const keep = new Set<string>();
+  for (
+    let j = tails.length ? (tails[tails.length - 1] as number) : -1;
+    j >= 0;
+    j = back[j] as number
+  ) {
+    keep.add((cand[j] as { id: string }).id);
+  }
+  for (const id of keep) out.set(id, prev.get(id) as string);
+  // Fill the gaps between kept keys.
+  let i = 0;
+  while (i < ids.length) {
+    if (keep.has(ids[i] as string)) {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j < ids.length && !keep.has(ids[j] as string)) j++;
+    const lo = i > 0 ? (out.get(ids[i - 1] as string) ?? null) : null;
+    const hi = j < ids.length ? (out.get(ids[j] as string) ?? null) : null;
+    let keys: string[];
+    try {
+      keys = keysBetween(lo, hi, j - i);
+    } catch {
+      // Degenerate neighbours — renumber the whole sibling list.
+      const all = keysBetween(null, null, ids.length);
+      return new Map(ids.map((id, n) => [id, all[n] as string]));
+    }
+    for (let n = i; n < j; n++) out.set(ids[n] as string, keys[n - i] as string);
+    i = j;
+  }
+  return out;
+}

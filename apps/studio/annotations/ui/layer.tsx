@@ -1,20 +1,21 @@
-import { type Op as AnnotationOp, applyOps, diffToOps } from './annotations/ops.ts';
-import { defOf } from './annotations/registry.ts';
-import { observeReplica } from './annotations/replica.ts';
-import { parseBoard } from './annotations/schema.ts';
-import type { AnnotationElement } from './annotations/types.ts';
+import { type Op as AnnotationOp, applyOps, diffToOps } from '../ops.ts';
+import { defOf } from '../registry.ts';
+import { observeReplica } from '../replica.ts';
+import { parseBoard } from '../schema.ts';
+import type { AnnotationElement } from '../types.ts';
+import { elementsToStrokes, strokesToElementMap } from '../v1-adapter.ts';
 import {
   Containment,
   expandForOp,
   insertSection,
   type MarqueeItem,
   marqueeHits,
-} from './annotations/ui/containment.ts';
-import type { EditRequest } from './annotations/ui/element-node.tsx';
-import { AnnotationPipelineContext } from './annotations/ui/pipeline-context.ts';
-import { type Claim, PointerPipeline } from './annotations/ui/pointer-pipeline.ts';
-import { type RenderItem, renderItemsFromStrokes } from './annotations/ui/render-model.ts';
-import { AnnotationScene } from './annotations/ui/scene.tsx';
+} from './containment.ts';
+import type { EditRequest } from './element-node.tsx';
+import { AnnotationPipelineContext } from './pipeline-context.ts';
+import { type Claim, PointerPipeline } from './pointer-pipeline.ts';
+import { type RenderItem, renderItemsFromStrokes } from './render-model.ts';
+import { AnnotationScene } from './scene.tsx';
 import {
   aimCommitOps,
   draftOp,
@@ -23,9 +24,8 @@ import {
   remotelyEdited,
   restoreOp,
   type TextSession,
-} from './annotations/ui/text-session.ts';
-import { TEXT_LAYER_CSS } from './annotations/ui/text-style.ts';
-import { elementsToStrokes, strokesToElementMap } from './annotations/v1-adapter.ts';
+} from './text-session.ts';
+import { TEXT_LAYER_CSS } from './text-style.ts';
 /**
  * @file       annotations-layer.tsx — FigJam-style annotation overlay
  * @scope      apps/studio/annotations-layer.tsx
@@ -49,6 +49,23 @@ import { elementsToStrokes, strokesToElementMap } from './annotations/v1-adapter
  * on commit, debounced 200 ms.
  */
 
+/**
+ * Which annotation layer the canvas mounts: `v1` (annotations-layer.tsx, the
+ * stroke-based layer) or `v2` (this file, element-native — Task 26). Chosen
+ * per browser profile while v2 reaches parity: `?annotEngine=v2` or
+ * localStorage `maude-annot-engine`.
+ */
+export function annotationEngine(): 'v1' | 'v2' {
+  if (typeof window === 'undefined') return 'v1';
+  try {
+    const q = new URLSearchParams(window.location.search).get('annotEngine');
+    if (q === 'v1' || q === 'v2') return q;
+    return window.localStorage.getItem('maude-annot-engine') === 'v2' ? 'v2' : 'v1';
+  } catch {
+    return 'v1';
+  }
+}
+
 import type { JSX } from 'react';
 import {
   type CSSProperties,
@@ -69,15 +86,15 @@ import {
   alignStrokes,
   type DistributeAxis,
   distributeStrokes,
-} from './annotations-align.ts';
+} from '../../annotations-align.ts';
 import {
   anchorPoint,
   BIND_THRESHOLD_PX,
   bindCandidate,
   isBindable,
   recomputeBoundArrows,
-} from './annotations-bindings.ts';
-import { AnnotationContextToolbar } from './annotations-context-toolbar.tsx';
+} from '../../annotations-bindings.ts';
+import { AnnotationContextToolbar } from '../../annotations-context-toolbar.tsx';
 import {
   duplicateStrokes,
   expandIdsToGroups,
@@ -87,7 +104,8 @@ import {
   reorderStrokes,
   ungroupStrokes,
   type ZOrderOp,
-} from './annotations-groups.ts';
+} from '../../annotations-groups.ts';
+import { StrokesStoreContext, type StrokesStoreValue } from '../../annotations-layer.tsx';
 import {
   type AnchorHost,
   type ArrowStroke,
@@ -178,26 +196,26 @@ import {
   textLineDy,
   translateOne,
   type WorldPoint,
-} from './annotations-model.ts';
+} from '../../annotations-model.ts';
 import {
   computeSnap,
   GRID_PITCH_PX,
   SNAP_THRESHOLD_PX,
   type SnapGuide,
-} from './annotations-snap.ts';
-import { arrowPrimitives, type SvgPrimitive } from './canvas-arrowheads.ts';
-import { IconLineThick, IconLineThin } from './canvas-icons.tsx';
+} from '../../annotations-snap.ts';
+import { arrowPrimitives, type SvgPrimitive } from '../../canvas-arrowheads.ts';
+import { IconLineThick, IconLineThin } from '../../canvas-icons.tsx';
 import {
   countRender,
   getLiveViewport,
   useLiveViewport,
   useViewportControllerContext,
   useWorldRefContext,
-} from './canvas-lib.tsx';
-import { buildAnnotationStrokesRecord } from './commands/annotation-strokes-command.ts';
-import { ensureMenuStyles as ensureCtxMenuStyles } from './context-menu.tsx';
-import { crossedDragThreshold, type Tool } from './input-router.tsx';
-import { createMediaCommitChain, type MediaCommitResult } from './media-commit-chain.ts';
+} from '../../canvas-lib.tsx';
+import { buildAnnotationStrokesRecord } from '../../commands/annotation-strokes-command.ts';
+import { ensureMenuStyles as ensureCtxMenuStyles } from '../../context-menu.tsx';
+import { crossedDragThreshold, type Tool } from '../../input-router.tsx';
+import { createMediaCommitChain, type MediaCommitResult } from '../../media-commit-chain.ts';
 import {
   AnnotationResizeOverlay,
   bboxResize,
@@ -205,9 +223,9 @@ import {
   padDX,
   padDY,
   type ResizeMods,
-} from './use-annotation-resize.tsx';
-import { useAnnotationSelectionOptional } from './use-annotation-selection.tsx';
-import { useAnnotationsVisibility } from './use-annotations-visibility.tsx';
+} from '../../use-annotation-resize.tsx';
+import { useAnnotationSelectionOptional } from '../../use-annotation-selection.tsx';
+import { useAnnotationsVisibility } from '../../use-annotations-visibility.tsx';
 import {
   BATCH_DROP_CASCADE_PX,
   isHttpUrl,
@@ -216,19 +234,18 @@ import {
   showCanvasToast,
   uploadAsset,
   useCanvasMediaDrop,
-} from './use-canvas-media-drop.tsx';
-import { useChromeVisibility } from './use-chrome-visibility.tsx';
-import { type AnnotationGesture, colorForName, useCollab } from './use-collab.tsx';
-import { useSelectionSetOptional } from './use-selection-set.tsx';
-import { type ShapeKind, useToolMode } from './use-tool-mode.tsx';
-import { useUndoSinks, useUndoStackOptional } from './use-undo-stack.tsx';
+} from '../../use-canvas-media-drop.tsx';
+import { useChromeVisibility } from '../../use-chrome-visibility.tsx';
+import { type AnnotationGesture, colorForName, useCollab } from '../../use-collab.tsx';
+import { useSelectionSetOptional } from '../../use-selection-set.tsx';
+import { type ShapeKind, useToolMode } from '../../use-tool-mode.tsx';
+import { useUndoSinks, useUndoStackOptional } from '../../use-undo-stack.tsx';
 
 // FigJam v3 — the pure data model (Stroke types, palettes, serialize/parse,
 // geometry) lives in annotations-model.ts: React-free, importable headlessly
 // by bun tests and the `maude design annotate` write verb. The layer
 // re-exports the whole model so every existing
-// `from './annotations-layer.tsx'` import keeps working unchanged.
-export * from './annotations-model.ts';
+// `from '../../annotations-layer.tsx'` import keeps working unchanged.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -236,7 +253,6 @@ export * from './annotations-model.ts';
 // Phase 24 — arrow style enums are OWNED by canvas-arrowheads.ts (so that
 // module imports nothing back from here — no cycle, see DDR-067) and re-exported
 // here for back-compat (context-toolbar etc. import them from this module).
-export type { ArrowHead, ArrowLineType } from './canvas-arrowheads.ts';
 
 /** Phase 24 — cursor-following ghost placeholder descriptor (pure chrome). */
 type GhostDescriptor =
@@ -290,7 +306,6 @@ function useCanvasChromeTheme(): 'light' | 'dark' {
 // Phase 24 — moved to canvas-arrowheads.ts (single source for shaft + heads).
 // Re-exported so the existing test import (`from '../annotations-layer.tsx'`)
 // and the byte-identical canary keep working.
-export { arrowHeadPoints } from './canvas-arrowheads.ts';
 
 function isEditable(t: EventTarget | null): boolean {
   if (!t || !(t as HTMLElement).tagName) return false;
@@ -732,56 +747,6 @@ function ensureAnnotStyles(): void {
 // Strokes store — lifted out of the layer so the contextual toolbar (Phase 5.1
 // Task 8) can mutate strokes without prop-drilling.
 
-export interface StrokesStoreValue {
-  strokes: Stroke[];
-  setStrokes: (next: Stroke[]) => void;
-  updateStroke: (id: string, patch: Partial<Stroke>) => void;
-  deleteStrokes: (ids: string[]) => void;
-  translateStrokes: (ids: string[], dx: number, dy: number) => void;
-  /**
-   * FigJam v3 — bulk mutation in ONE undo record (the per-stroke
-   * `updateStroke` loop the context toolbar used pre-v3 pushed N records for
-   * an N-stroke selection). `fn` returns the patch for a stroke or null to
-   * leave it untouched.
-   */
-  applyToStrokes: (
-    ids: readonly string[],
-    fn: (s: Stroke) => Partial<Stroke> | null,
-    label?: string
-  ) => void;
-  /** Group the (expanded) selection; returns the member ids to select, or null. */
-  groupSelection: (ids: readonly string[]) => string[] | null;
-  /** Dissolve the outermost group of every selected stroke. */
-  ungroupSelection: (ids: readonly string[]) => void;
-  /** Cmd+D / paste — clone with fresh ids; returns the clone ids to select. */
-  duplicateSelection: (ids: readonly string[], dx: number, dy: number) => string[];
-  /** Z-order — `]` `[` `Cmd+]` `Cmd+[`; group units move contiguously. */
-  reorderSelection: (ids: readonly string[], op: ZOrderOp) => void;
-  alignSelection: (ids: readonly string[], edge: AlignEdge) => void;
-  distributeSelection: (ids: readonly string[], axis: DistributeAxis) => void;
-  /**
-   * Wave H — transient gesture preview: applies the patch to local React
-   * state ONLY (no undo record, no persistence), exactly like the move-drag's
-   * per-tick path. Close the gesture with `commitGesture` on pointerup so the
-   * whole drag lands as ONE undo record (undo used to walk every resize px).
-   */
-  previewStroke: (id: string, patch: Partial<Stroke>) => void;
-  /** Wave H — single undo record from a preview gesture's start snapshot. */
-  commitGesture: (before: readonly Stroke[], label?: string) => void;
-  /** The host a dragged arrow endpoint would bind to (halo), or null. */
-  setBindHint?: (hostId: string | null) => void;
-  /** Live size label + dimension-match halos while resizing, or null. */
-  setResizeInfo?: (
-    info: { box: { x: number; y: number; w: number; h: number }; matchIds: string[] } | null
-  ) => void;
-}
-
-export const StrokesStoreContext = createContext<StrokesStoreValue | null>(null);
-
-export function useStrokesStore(): StrokesStoreValue | null {
-  return useContext(StrokesStoreContext);
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // FigJam v3 — one-time contextual hints (first-use discoverability). Behaviour-
 // triggered micro-toasts, never a modal tour: each key fires at most once per
@@ -817,7 +782,6 @@ function showOnceHint(key: string, msg: string): void {
 // Annotations visibility now lives in use-annotations-visibility.tsx so the
 // ToolPalette (a sibling under CanvasRouter, not a descendant of this layer)
 // can read the same state. Re-exported here for back-compat.
-export { useAnnotationsVisibility } from './use-annotations-visibility.tsx';
 
 /**
  * Phase 2 (whiteboard-improvements) — proportional group resize. Maps one
@@ -943,7 +907,7 @@ function withSlotText(strokes: readonly Stroke[], s: TextSession): Stroke[] {
 // ─────────────────────────────────────────────────────────────────────────────
 // Component
 
-export function AnnotationsLayer() {
+export function AnnotationsLayerV2() {
   countRender('annotationRenders');
   ensureAnnotStyles();
   const { tool, setTool, resetTool, sticky, tools, shapeKind } = useToolMode();
@@ -4031,7 +3995,7 @@ export function AnnotationsLayer() {
     </AnnotationPipelineContext.Provider>
   );
 }
-AnnotationsLayer.displayName = 'AnnotationsLayer';
+AnnotationsLayerV2.displayName = 'AnnotationsLayerV2';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Input — transparent overlay portaled into the host (.dc-canvas). Receives
@@ -4280,6 +4244,7 @@ function AnnotationsSvg({
           // DOM-driven E2E + tooling hook: the current annotation selection.
           data-selection={annotSel?.selectedIds.join(' ') ?? ''}
           data-annot-state={gestureState}
+          data-annot-engine="v2"
         >
           <defs>
             {/* Phase 21 — soft "lifted paper" drop shadow for sticky notes. */}

@@ -37,6 +37,7 @@ import {
 } from 'react';
 
 import { AiBanner } from './ai-banner.tsx';
+import { AnnotationsLayerV2, annotationEngine } from './annotations/ui/layer.tsx';
 import { AnnotationsLayer } from './annotations-layer.tsx';
 import { ArtboardMarqueeOverlay } from './artboard-marquee.tsx';
 import {
@@ -3457,7 +3458,7 @@ function CanvasRouter({
       {children}
       {/* CommentsOverlay is mounted ONCE by the shell-owned comment mount layer
           (canvas-comment-mount.tsx), not here — single instance per surface. */}
-      <AnnotationsLayer />
+      {annotationEngine() === 'v2' ? <AnnotationsLayerV2 /> : <AnnotationsLayer />}
       <ToolPalette />
       <ArtboardMarqueeOverlay />
       <ElementMarqueeOverlay />

@@ -71,6 +71,8 @@ export interface CommandSinks {
   layoutPatchFn?: unknown;
   /** Wired by `AnnotationsLayer`. */
   strokesPutFn?: unknown;
+  /** Wired by the element-native annotation layer (DDR-242): apply + send an op batch. */
+  annotationOpsFn?: unknown;
   /**
    * Wired by `CanvasShell` (canvas-shell.tsx). Applies a single inline source
    * edit (CSS / text / attr) by posting `dgn:'apply-edit'` to the parent shell,
