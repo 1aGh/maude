@@ -5,6 +5,8 @@ import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 import { canonicalAnnotations } from '../annotations/board-text.ts';
+import { diffToOps } from '../annotations/ops.ts';
+import { parseBoard } from '../annotations/schema.ts';
 import type { Api } from '../api.ts';
 import type { Context } from '../context.ts';
 
@@ -63,6 +65,11 @@ export function createCollab(ctx: Context, api: Api): Collab {
   // Board texts this process's rooms projected to disk and whose watcher echo
   // hasn't come back yet (a few per slug: flushes can outrun the watcher).
   const ownProjections = new Map<string, string[]>();
+  // The board as disk last held it while the room agreed with it (the room's
+  // own projection, or an external write it imported). An external write is
+  // applied as the CHANGE from this base, never as a replacement: a room edit
+  // not yet flushed (a delete, a move) survives a writer that didn't know it.
+  const diskBase = new Map<string, string>();
   const persistence = createPersistence({
     ctx,
     api,
@@ -71,6 +78,10 @@ export function createCollab(ctx: Context, api: Api): Collab {
       const list = ownProjections.get(slug) ?? [];
       list.push(board);
       ownProjections.set(slug, list.slice(-4));
+      diskBase.set(slug, board);
+    },
+    onAnnotationsSeeded: (slug, board) => {
+      diskBase.set(slug, board);
     },
     shouldSeed: (slug) => !(ctx.sharedDoc && registryRef?.isPinned(slug)),
     // Issue #133 — record comment ids as synced only once the hub holds them,
@@ -171,6 +182,17 @@ export function createCollab(ctx: Context, api: Api): Collab {
           own.splice(0, at + 1);
           return;
         }
+        const next = canonicalAnnotations(text);
+        const base = diskBase.get(slug);
+        if (next !== null && base !== undefined) {
+          const toMap = (t: string) => new Map(parseBoard(t).elements.map((e) => [e.id, e]));
+          const ops = diffToOps(toMap(base), toMap(next));
+          diskBase.set(slug, next);
+          if (!ops.length) return;
+          const applied = registry.applyOpsToRoom(slug, ops);
+          if (applied !== null && applied !== 'too-large') return;
+        }
+        if (next !== null) diskBase.set(slug, next);
         registry.syncRoomFromAnnotations(slug, text);
       }
     } catch {

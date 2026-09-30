@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { canvasRow } from '../helpers/tree';
 
 /**
  * timeline-manual-cut — feature-enhanced-video-editing (Task 25).
@@ -62,7 +63,7 @@ describe('timeline — manual cut (select · split · delete · undo · zoom)', 
   });
 
   it('opens the Cut canvas and the Timeline shows all three beats', async () => {
-    const row = $('[data-testid="canvas-row-ui-cut"]');
+    const row = await canvasRow('canvas-row-ui-cut');
     await row.waitForExist({ timeout: 30000 });
     await row.click();
     await $('[data-testid="canvas-frame"]').waitForExist({ timeout: 30000 });

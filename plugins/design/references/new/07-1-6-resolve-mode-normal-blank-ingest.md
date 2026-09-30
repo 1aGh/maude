@@ -13,16 +13,17 @@ grep -q -- '--fresh'            <<< "$ARGS" && FRESH=1
 ACTIVE_CANVAS=$(jq -r '.active // empty' "$REPO_ROOT/$DESIGN_ROOT/_active.json" 2>/dev/null)
 ACTIVE_REL="${ACTIVE_CANVAS#"$DESIGN_ROOT"/}"; ACTIVE_REL="${ACTIVE_REL#./}"
 
-INGEST=0; ANNOT_JSON='[]'; ANNOT_COUNT=0; ACTIVE_KIND="canvas"
+INGEST=0; ANNOT_JSON='{"elements":[]}'; ANNOT_COUNT=0; ACTIVE_KIND="canvas"
 if [[ "$BLANK" -eq 0 && -n "$ACTIVE_REL" ]]; then
   ACTIVE_ABS="$REPO_ROOT/$DESIGN_ROOT/$ACTIVE_REL"
   ACTIVE_META="${ACTIVE_ABS%.tsx}.meta.json"
   ACTIVE_KIND=$(jq -r '.kind // "canvas"' "$ACTIVE_META" 2>/dev/null || echo canvas)
-  # One reader call does BOTH non-empty detection AND yields the strokes step 6b
+  # One reader call does BOTH non-empty detection AND yields the elements step 6b
   # composes the brief from — no second read. (DDR-062: maude design <verb>.)
-  ANNOT_JSON=$(maude design read-annotations "$ACTIVE_REL" --root "$REPO_ROOT" 2>/dev/null || echo '[]')
-  ANNOT_COUNT=$(jq 'length' <<< "$ANNOT_JSON" 2>/dev/null || echo 0)
-  TEXT_COUNT=$(jq '[.[] | select(.text != null and (.text | length) > 0)] | length' <<< "$ANNOT_JSON" 2>/dev/null || echo 0)
+  # Sections NEST their members (DDR-242), so count by walking the tree.
+  ANNOT_JSON=$(maude design read-annotations "$ACTIVE_REL" --root "$REPO_ROOT" 2>/dev/null || echo '{"elements":[]}')
+  ANNOT_COUNT=$(jq '[.elements | .. | objects | select(.type)] | length' <<< "$ANNOT_JSON" 2>/dev/null || echo 0)
+  TEXT_COUNT=$(jq '[.elements | .. | objects | select(.type and (.text // "" | length) > 0)] | length' <<< "$ANNOT_JSON" 2>/dev/null || echo 0)
   if [[ "$FRESH" -eq 0 ]]; then
     if [[ "$FROM_ANNOTATIONS" -eq 1 ]]; then
       INGEST=1
@@ -43,5 +44,5 @@ fi
 
 - `--from-annotations` on an active canvas whose annotation layer is empty (`ANNOT_COUNT == 0`) → warn `⚠ --from-annotations: <ACTIVE_REL> has no annotations to ingest; nothing to do` and **exit**.
 - `--fresh` while an ingest would otherwise have fired → print `→ --fresh: ignoring <ANNOT_COUNT> annotations on <ACTIVE_REL>; scaffolding a new file` and continue normal.
-- Ingest auto-detected (`brief-board` + strokes) but **no text-bearing** strokes (`TEXT_COUNT == 0`, only arrows/shapes) → the board has shapes but no words. If a `"<brief>"` was passed on the command line, use it as the generation brief and note `→ board has <ANNOT_COUNT> annotation(s) but no text; generating from the command-line brief instead`. If no brief either → warn `⚠ <ACTIVE_REL> has only non-text annotations and no brief was given; nothing to generate` and exit.
+- Ingest auto-detected (`brief-board` + elements) but **no text-bearing** elements (`TEXT_COUNT == 0`, only arrows/pen/unlabelled shapes) → the board has shapes but no words. If a `"<brief>"` was passed on the command line, use it as the generation brief and note `→ board has <ANNOT_COUNT> annotation(s) but no text; generating from the command-line brief instead`. If no brief either → warn `⚠ <ACTIVE_REL> has only non-text annotations and no brief was given; nothing to generate` and exit.
 - No active canvas at all (`ACTIVE_REL` empty) and no `--blank` → normal flow (this is the classic "scaffold a new canvas from a name+brief").

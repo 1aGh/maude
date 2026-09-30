@@ -131,7 +131,7 @@ describe('validateElement', () => {
   test('unknown types round-trip, bounded and key-sorted', () => {
     const r = validateElement({
       id: 'u1',
-      type: 'stamp',
+      type: 'hologram',
       index: 'a0',
       z: 1,
       a: { deep: [1, 2] },

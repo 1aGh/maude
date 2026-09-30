@@ -12,12 +12,10 @@
 //     annotations-roundtrip.test.ts ("a frozen Phase-21 SVG round-trips BYTE-IDENTICAL")
 //   - byte-identical round trip of test/fixtures/figjam-v3-groups-bindings.svg →
 //     figjam-v3-model.test.ts ("figjam-v3 fixture canary")
-//   - basic do/undo/label/deep-clone of the strokes command →
-//     annotation-strokes-command.test.ts
 //
 // Logic characterized (line refs as of 2026-09-30, file-relative to apps/studio):
 //   section drag carry (inline in React)   annotations-layer.tsx:2482-2498
-//   section members (headless reader)      bin/read-annotations.mjs:690-747
+//   section members (headless reader)      annotations/ai-read.ts (v2 — explicit parents)
 //   grownStickyBox + STICKY_MAX_GROWN_H    annotations-model.ts:552, 570-584
 //   strokeBBox / translateOne              annotations-model.ts:2066-2170
 //   expandIdsToGroups / outermostGroupOf   annotations-groups.ts:18-53
@@ -25,11 +23,15 @@
 //   recomputeBoundArrows / facingAnchor    annotations-bindings.ts:179-276
 //   alignStrokes / distributeStrokes       annotations-align.ts:89-149
 //   computeSnap                            annotations-snap.ts:85-165
-//   createAnnotationStrokesCommand         commands/annotation-strokes-command.ts:60-78
+//   op-batch undo (inverse)                annotations/ops.ts applyOps
 
 import { afterAll, beforeAll, describe, expect, mock, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
-
+import { projectBoard } from '../annotations/ai-read.ts';
+import { v1ToV2 } from '../annotations/migrate-v1.ts';
+import { applyOps, diffToOps } from '../annotations/ops.ts';
+import type { AnnotationElement } from '../annotations/types.ts';
+import { strokesToElementMap } from '../annotations/v1-adapter.ts';
 import { alignStrokes, distributeStrokes } from '../annotations-align.ts';
 import { anchorPoint, facingAnchor, recomputeBoundArrows } from '../annotations-bindings.ts';
 import { expandIdsToGroups, outermostGroupOf } from '../annotations-groups.ts';
@@ -55,8 +57,6 @@ import {
   translateOne,
 } from '../annotations-model.ts';
 import { computeSnap } from '../annotations-snap.ts';
-import { attachSectionMembers, parseAnnotations } from '../bin/read-annotations.mjs';
-import { createAnnotationStrokesCommand } from '../commands/annotation-strokes-command.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Fixtures — one of every Stroke kind.
@@ -355,10 +355,11 @@ describe('svg round trip — every stroke kind', () => {
 //
 // The LAYER's rule is inline in the React pointerdown handler
 // (annotations-layer.tsx:2482-2498) and is not exported, so it is replicated
-// VERBATIM below as the executable spec of today's rule. The HEADLESS rule is
-// the real exported `attachSectionMembers` (bin/read-annotations.mjs:690-747),
-// tested directly. The two implementations agree on box-shaped kinds and
-// DIVERGE on standalone text (see the drift test).
+// VERBATIM below as the executable spec of today's rule. The HEADLESS reader
+// (DDR-242 Task 27) no longer has a rule of its own: membership is the explicit
+// `parent` the v1→v2 migration computed ONCE with the layer's rule, and the
+// reader (annotations/ai-read.ts) just lists a section's children in reading
+// order — so the old reader/layer drift on standalone text is gone.
 
 /** Verbatim replica of annotations-layer.tsx:2482-2498 (drag-start carry set). */
 function layerDragCarrySet(snapshot: readonly Stroke[], ids: readonly string[]): Set<string> {
@@ -381,11 +382,19 @@ function layerDragCarrySet(snapshot: readonly Stroke[], ids: readonly string[]):
   return movedSet;
 }
 
-/** Headless: real serializer → real reader → real attachSectionMembers. */
+/** Headless: the v1→v2 migration → the AI projection's nested members. */
 function readerMembers(strokes: readonly Stroke[], sectionId: string): string[] {
-  const anns = attachSectionMembers(parseAnnotations(strokesToSvg(strokes)));
-  const sec = anns.find((a: { id: string }) => a.id === sectionId);
-  return (sec?.members ?? []).map((m: { id: string }) => m.id);
+  type P = { id: string; members?: P[] };
+  const walk = (list: P[]): P | undefined => {
+    for (const e of list) {
+      if (e.id === sectionId) return e;
+      const hit = walk(e.members ?? []);
+      if (hit) return hit;
+    }
+    return undefined;
+  };
+  const sec = walk(projectBoard(v1ToV2(strokes).elements).elements as P[]);
+  return (sec?.members ?? []).map((m) => m.id);
 }
 
 const sec100: SectionStroke = { ...section, id: 's', x: 0, y: 0, w: 100, h: 100 };
@@ -488,7 +497,7 @@ describe('section membership — layer drag carry (replica of annotations-layer.
   });
 });
 
-describe('section membership — headless reader (bin/read-annotations.mjs attachSectionMembers)', () => {
+describe('section membership — headless reader (annotations/ai-read.ts over migrated parents)', () => {
   test('centre-in-box, border-inclusive — agrees with the layer on box kinds', () => {
     const strokes: Stroke[] = [
       sec100,
@@ -513,18 +522,23 @@ describe('section membership — headless reader (bin/read-annotations.mjs attac
     expect(readerMembers(strokes, 's')).toEqual(['topLeft', 'topRight', 'bottom']);
   });
 
-  test('nested sections are never members of the outer section', () => {
+  test('v2: a nested section IS a member of its outer section; contents belong to the innermost', () => {
+    // Deliberate change (DDR-242): v1's reader never listed a section as a
+    // member. With explicit parents the tree nests: outer → inner → on.
     const outer: SectionStroke = { ...sec100, id: 'outer', w: 400, h: 400 };
     const inner: SectionStroke = { ...sec100, id: 'inner', x: 50, y: 50 };
-    expect(readerMembers([outer, inner, rectAt('on', 100, 100)], 'outer')).toEqual(['on']);
+    const strokes = [outer, inner, rectAt('on', 100, 100)];
+    expect(readerMembers(strokes, 'outer')).toEqual(['inner']);
+    expect(readerMembers(strokes, 'inner')).toEqual(['on']);
   });
 
-  test('DRIFT: standalone text — reader uses its (x, y) POINT, layer uses its bbox centre', () => {
-    // Text anchored at (90, 90) with a long line: bbox centre is far right of
-    // the section, but the reader has no w/h for text and uses (x, y) itself.
+  test('standalone text: reader and layer now AGREE (one rule — the migrated explicit parent)', () => {
+    // v1 drift: the reader used the text's (x, y) POINT, the layer its bbox
+    // centre. Text at (90, 90) with a long line has its centre far right of
+    // the section — so it is not a member for either.
     const t: TextStroke = { ...standaloneText, id: 't', text: 'a long label here', x: 90, y: 90 };
     const strokes: Stroke[] = [sec100, t];
-    expect(readerMembers(strokes, 's')).toEqual(['t']);
+    expect(readerMembers(strokes, 's')).toEqual([]);
     expect(layerDragCarrySet(strokes, ['s']).has('t')).toBe(false);
   });
 });
@@ -748,18 +762,14 @@ describe('align / distribute — sections and groups', () => {
     expect(distributeStrokes(arr2, ['r2', 's1'], 'h')).toBe(arr2);
   });
 
-  test('today: aligning a section moves ONLY the section frame (contents stay put)', () => {
-    // Pinned here as the current observable result so Milestone D's change is
-    // visible; the v2 expectation is the todo below.
+  test('alignStrokes with no contents callback moves only the frame (the layer always passes one)', () => {
+    // The pure function stays unit-level; carrying a section's contents is
+    // the caller's job (containment.ts) — see annotations-v2-containment.test.ts.
     const out = alignStrokes([s1, onS1, r2], ['s1', 'r2'], 'right');
     const byId = new Map(out.map((s) => [s.id, s]));
     expect((byId.get('s1') as SectionStroke).x).toBe(210);
     expect(byId.get('on')).toBe(onS1);
   });
-
-  test.todo(
-    'align / distribute a section carries its contents — expected v2 behaviour: containment is explicit (parent id) and every section op moves children; bug ref annotations-layer.tsx:1356 (translateStrokes/applyToStrokes ignore sections), annotations-align.ts:46-76 (unitsOf has no section expansion)'
-  );
 });
 
 describe('computeSnap — tie-breaking + grid fallback', () => {
@@ -787,7 +797,7 @@ describe('computeSnap — tie-breaking + grid fallback', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Undo of a multi-select move (commands/annotation-strokes-command.ts).
+// Undo of a multi-select move (commands/annotation-ops-command.ts).
 
 describe('undo of a multi-select move', () => {
   const A: RectStroke = { ...rect, id: 'A', x: 0, y: 0, w: 100, h: 100 };
@@ -824,85 +834,32 @@ describe('undo of a multi-select move', () => {
     expect(l.startBind).toMatchObject({ hostId: 'A' });
   });
 
-  test('do() puts AFTER (with BEFORE as baseline); undo() puts BEFORE (with AFTER as baseline)', async () => {
-    const putFn = mock((_n: readonly Stroke[], _b: readonly Stroke[]) => Promise.resolve());
-    const cmd = createAnnotationStrokesCommand({ before, after, putFn });
-    await cmd.do();
-    await cmd.undo();
-    expect(putFn).toHaveBeenCalledTimes(2);
-    expect(putFn.mock.calls[0]?.[0]).toEqual(after);
-    expect(putFn.mock.calls[0]?.[1]).toEqual(before);
-    expect(putFn.mock.calls[1]?.[0]).toEqual(before);
-    expect(putFn.mock.calls[1]?.[1]).toEqual(after);
+  // Task 26 flipped the snapshot undo: one gesture is one op batch, and undo
+  // is its inverse (DDR-242 AD4) — only what the move changed travels.
+  const empty = new Map<string, AnnotationElement>();
+  const ops = diffToOps(strokesToElementMap(before, empty), strokesToElementMap(after, empty));
+
+  test('the batch names only what moved (the rewritten arrow resolves from its hosts)', () => {
+    const ids = ops.map((o) => ('id' in o ? o.id : o.el.id)).sort();
+    expect(ids).toEqual(['A', 'S']);
   });
 
-  test('the record is a FULL-ARRAY snapshot pair (every stroke, not a per-element diff)', async () => {
-    const putFn = mock((_n: readonly Stroke[], _b: readonly Stroke[]) => Promise.resolve());
-    const cmd = createAnnotationStrokesCommand({ before, after, putFn });
-    await cmd.undo();
-    // All five strokes travel, including the three that did not change.
-    expect(putFn.mock.calls[0]?.[0]).toHaveLength(5);
-  });
-
-  test('each call hands out FRESH clones (callers may mutate them freely)', async () => {
-    const putFn = mock((_n: readonly Stroke[], _b: readonly Stroke[]) => Promise.resolve());
-    const cmd = createAnnotationStrokesCommand({ before, after, putFn });
-    await cmd.undo();
-    await cmd.undo();
-    const first = putFn.mock.calls[0]?.[0];
-    const second = putFn.mock.calls[1]?.[0];
-    expect(first).toEqual(second);
-    expect(first).not.toBe(second);
-    expect(first?.[0]).not.toBe(second?.[0]);
-    expect(first?.[0]).not.toBe(A);
-  });
-
-  test('default label for a same-count move is "edit N strokes" (the layer overrides it with "move N")', () => {
-    const cmd = createAnnotationStrokesCommand({ before, after, putFn: () => undefined });
-    expect(cmd.label).toBe('edit 5 strokes');
-  });
-
-  test('undo restores BEFORE wholesale — a peer change made after the move would be reverted by the snapshot', async () => {
-    // Characterizes plan Problem §7: the command replays a full snapshot; any
-    // concurrent change is only protected by the layer's reconcileCommit, not
-    // by the command itself.
-    const peerAdded: RectStroke = rectAt('peer', 900, 900);
-    let state: readonly Stroke[] = [...after, peerAdded];
-    const putFn = (next: readonly Stroke[]) => {
-      state = next;
-    };
-    const cmd = createAnnotationStrokesCommand({ before, after, putFn });
-    await cmd.undo();
-    expect(state.some((s) => s.id === 'peer')).toBe(false);
+  test('undo is the inverse batch — a peer change made after the move survives it', () => {
+    const peer = strokesToElementMap([rectAt('peer', 900, 900)], empty).get('peer');
+    let board = new Map(strokesToElementMap(before, empty));
+    const done = applyOps(board, ops);
+    board = done.state;
+    if (peer) board.set('peer', peer);
+    board = applyOps(board, done.inverse).state;
+    expect(board.has('peer')).toBe(true);
+    expect(board.get('A')?.y).toBe(0);
+    expect(board.get('S')?.y).toBe(300);
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Known bugs — flipped to real assertions in Milestone D.
-
-describe('known bugs (Milestone D flips these)', () => {
-  test.todo(
-    'nudge (arrow keys) moves a section AND its contents — expected v2 behaviour: nudge goes through the same containment-aware move as drag; bug ref annotations-layer.tsx:1356 (translateStrokes translates only the selected ids)'
-  );
-  test.todo(
-    'a marquee STARTED inside a section interior does not select the section — expected v2 behaviour: the marquee selects only the strokes it touches inside the section, the section itself only when fully enclosed; bug ref annotations-layer.tsx:2643-2653 (bbox-intersection test includes the section containing the marquee)'
-  );
-  test.todo(
-    'Alt-duplicate of a section drags the CLONE plus cloned contents and leaves the original contents in place — expected v2 behaviour: duplicate clones the section subtree and moves only clones; bug ref annotations-layer.tsx:2462-2497 (duplicateStrokes clones only the frame, then the carry set is computed over the snapshot that still holds the ORIGINAL children, so they move)'
-  );
-  test.todo(
-    'a nested inner section drawn inside an outer one renders in FRONT of the outer — expected v2 behaviour: z-order by containment (child above parent); bug ref annotations-layer.tsx:2189 (every new section is prepended to the back of the array)'
-  );
-  test.todo(
-    'dragging an outer section carries a nested inner section frame together with its contents — expected v2 behaviour: nested sections move as a subtree; bug ref annotations-layer.tsx:2491 (t.tool === "section" is excluded from the carry set)'
-  );
-  test.todo(
-    'delete / copy / duplicate of a section include its contents — expected v2 behaviour: section ops act on the subtree; bug ref annotations-layer.tsx:1340-1354 (delete filters selected ids only), annotations-groups.ts:157-212 (duplicateStrokes has no section expansion)'
-  );
-  test.todo(
-    'a peer deleting the element I am editing does not drop my typed text — expected v2 behaviour: the local draft survives (re-create or prompt), never silently lost; bug ref annotations-layer.tsx:2974-2978 (commitEditing returns early when editingTarget resolved to null after the peer delete)'
-  );
-  test.todo(
-    'headless reader and layer agree on standalone-text section membership — expected v2 behaviour: one containment rule (explicit parent id) shared by both; drift ref bin/read-annotations.mjs:693-696 (w/h null → centre = (x,y)) vs annotations-layer.tsx:2492-2495 (strokeBBox centre)'
-  );
-});
+// Known bugs — flipped to real assertions in Milestone D:
+//   section ops on the subtree, marquee, Alt-duplicate, nesting
+//     → annotations-v2-containment.test.ts
+//   a peer deleting the element being edited keeps the typed text
+//     → annotations-v2-text-session.test.ts + browser E2E R7

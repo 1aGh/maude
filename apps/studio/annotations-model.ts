@@ -25,6 +25,8 @@
  *   - sticky / polygon / image / link — see the per-tool serializers below.
  */
 
+import { defOf } from './annotations/registry.ts';
+import type { AnnotationElement, GeomCtx } from './annotations/types.ts';
 import {
   ARROW_HEADS,
   type ArrowHead,
@@ -318,7 +320,21 @@ export interface SectionStroke extends StrokeBase {
   color: string;
 }
 
+/**
+ * DDR-242 (Task 25) — an element of a registered type with no stroke form of
+ * its own. Its world-space record rides along and every geometry question is
+ * answered by its registry definition, so a new element type is one model file:
+ * the whiteboard draws, selects, moves, syncs and hands it to the AI verbs
+ * without another `tool ===` branch.
+ */
+export interface ElementStroke extends StrokeBase {
+  tool: 'element';
+  /** The element in WORLD coordinates, without `parent`. */
+  el: AnnotationElement;
+}
+
 export type Stroke =
+  | ElementStroke
   | PenStroke
   | RectStroke
   | EllipseStroke
@@ -1047,6 +1063,8 @@ export function strokeToSvgEl(s: Stroke): string {
 }
 
 function strokeToSvgElBase(s: Stroke): string {
+  // No legacy SVG form: such an element only ever lives in a v2 board.
+  if (s.tool === 'element') return '';
   if (s.tool === 'text') {
     // Phase 21 — anchored text keeps the byte-identical Phase 5.1 form;
     // standalone text (no anchorId) writes its own world x/y and omits
@@ -1800,6 +1818,7 @@ function pointSegmentDist(
 
 /** FigJam v3 — strokes whose `rotation` is honoured (see StrokeBase doc). */
 export function canRotate(s: Stroke): boolean {
+  if (s.tool === 'element') return false;
   if (s.tool === 'pen' || s.tool === 'arrow' || s.tool === 'section') return false;
   if (s.tool === 'text') return s.anchorId == null || s.anchorId === '';
   return true;
@@ -1866,6 +1885,9 @@ export function strokeHitTest(s: Stroke, wx: number, wy: number, tol: number): b
     return (
       wx >= bb.x - tol && wx <= bb.x + bb.w + tol && wy >= bb.y - tol && wy <= bb.y + bb.h + tol
     );
+  }
+  if (s.tool === 'element') {
+    return defOf(s.el.type)?.hitTest(s.el, wx, wy, tol, WORLD_CTX) ?? false;
   }
   if (s.tool === 'section') {
     // FigJam — a section is grabbed by its BORDER or its label chip; the
@@ -2072,6 +2094,7 @@ export function normalizeSticky(s: StickyStroke): StickyStroke {
 }
 
 export function isStrokeMeaningful(s: Stroke): boolean {
+  if (s.tool === 'element') return defOf(s.el.type)?.meaningful(s.el) ?? false;
   if (s.tool === 'pen') return s.points.length >= 2;
   if (s.tool === 'rect') return Math.abs(s.w) >= 4 && Math.abs(s.h) >= 4;
   if (s.tool === 'polygon') return Math.abs(s.w) >= 4 && Math.abs(s.h) >= 4;
@@ -2090,10 +2113,17 @@ export function isStrokeMeaningful(s: Stroke): boolean {
   return Math.hypot(s.x2 - s.x1, s.y2 - s.y1) >= 4;
 }
 
+const WORLD_CTX: GeomCtx = { origin: { x: 0, y: 0 }, resolve: () => null };
+
+function elementBox(s: ElementStroke): { x: number; y: number; w: number; h: number } | null {
+  return defOf(s.el.type)?.bounds(s.el, WORLD_CTX) ?? null;
+}
+
 export function strokeBBox(
   s: Stroke,
   anchors?: Map<string, AnchorHost>
 ): { x: number; y: number; w: number; h: number } | null {
+  if (s.tool === 'element') return elementBox(s);
   if (s.tool === 'pen') {
     if (!s.points.length) return null;
     let xMin = Number.POSITIVE_INFINITY;
@@ -2168,6 +2198,10 @@ export function strokeBBox(
 }
 
 export function translateOne(s: Stroke, dx: number, dy: number): Stroke {
+  if (s.tool === 'element') {
+    const def = defOf(s.el.type);
+    return def ? { ...s, el: { ...s.el, ...def.translate(s.el, dx, dy) } } : s;
+  }
   if (s.tool === 'pen') {
     return { ...s, points: s.points.map(([x, y]) => [x + dx, y + dy] as WorldPoint) };
   }

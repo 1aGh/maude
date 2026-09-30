@@ -352,36 +352,54 @@ function crc32(buf) {
 /* ----------------------------------------------------------- annotations --- */
 
 /**
- * An annotation SVG carrying one shape of the requested kind.
+ * An annotations-v2 board (DDR-242) carrying one element per requested shape:
+ * `{"format":"maude.annotations","v":2,"elements":[…]}`, one element per line.
  *
- * Written in the vocabulary `strokesToSvg` emits (purely presentational —
- * rect/path/ellipse/text/g), because `saveAnnotations` sanitizes anything else
- * and a scenario asserting on bytes that were rewritten in flight is a
- * scenario asserting on the sanitizer.
+ * Records use the registry's own field names and canonical key order (head
+ * `id,type,index`, then the type's fields), so the studio's validator keeps
+ * every one of them and the sender's canonical write is what the receiver
+ * compares byte-for-byte. Ids and fractional `index` keys are fixed per
+ * position, so the same shapes always build the same board.
  */
-export function annotationSvg(shapes) {
-  const body = shapes
-    .map((s) => {
-      switch (s.kind) {
-        case 'sticky':
-          return `<g data-kind="sticky"><rect x="${s.x}" y="${s.y}" width="180" height="120" rx="6" fill="#ffe27a"/><text x="${s.x + 12}" y="${s.y + 36}" font-size="16">${s.text}</text></g>`;
-        case 'rect':
-          return `<rect x="${s.x}" y="${s.y}" width="200" height="120" fill="none" stroke="#2b6cb0" stroke-width="3"/>`;
-        case 'arrow':
-          return `<path d="M ${s.x} ${s.y} L ${s.x + 160} ${s.y + 90}" fill="none" stroke="#c53030" stroke-width="4" marker-end="url(#a)"/>`;
-        case 'section':
-          return `<g data-kind="section"><rect x="${s.x}" y="${s.y}" width="420" height="300" fill="none" stroke="#718096" stroke-dasharray="8 6" stroke-width="2"/><text x="${s.x + 8}" y="${s.y - 8}" font-size="14">${s.text}</text></g>`;
-        case 'image':
-          // NO leading slash. `sanitizeAnnotationSvg` keeps an `<image href>`
-          // only when it matches `^assets/<name>.<ext>$` — relative, single
-          // segment, raster extension — and strips every other href outright.
-          // A `/assets/…` here is silently removed on write, and the scenario
-          // then "fails" against a file the product rewrote on purpose.
-          return `<image x="${s.x}" y="${s.y}" width="120" height="120" href="${s.href}"/>`;
-        default:
-          return `<path d="M ${s.x} ${s.y} l 60 40" fill="none" stroke="#111" stroke-width="3"/>`;
-      }
-    })
-    .join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">${body}</svg>`;
+export function annotationBoard(shapes) {
+  const elements = shapes.map((s, i) => {
+    const head = { id: `e2e_${i}`, type: '', index: `a${i}` };
+    switch (s.kind) {
+      case 'sticky':
+        return { ...head, type: 'sticky', x: s.x, y: s.y, w: 180, h: 120, text: s.text };
+      case 'rect':
+        return {
+          ...head,
+          type: 'shape',
+          x: s.x,
+          y: s.y,
+          w: 200,
+          h: 120,
+          color: '#2b6cb0',
+          width: 3,
+        };
+      case 'arrow':
+        return {
+          ...head,
+          type: 'arrow',
+          start: { x: s.x, y: s.y },
+          end: { x: s.x + 160, y: s.y + 90 },
+          color: '#c53030',
+          width: 4,
+        };
+      case 'section':
+        return { ...head, type: 'section', x: s.x, y: s.y, w: 420, h: 300, label: s.text };
+      case 'image':
+        // NO leading slash: the registry keeps an image `href` only when it
+        // matches `^assets/<name>.<ext>$` (relative, single segment, raster
+        // extension) and blanks anything else. A `/assets/…` here would be
+        // rewritten on write, and the scenario would then "fail" against a
+        // value the product changed on purpose.
+        return { ...head, type: 'image', x: s.x, y: s.y, w: 120, h: 120, href: s.href };
+      default:
+        return { ...head, type: 'pen', points: [s.x, s.y, s.x + 60, s.y + 40], width: 3 };
+    }
+  });
+  const lines = elements.map((e) => JSON.stringify(e)).join(',\n');
+  return `{"format":"maude.annotations","v":2,"elements":[\n${lines}\n]}\n`;
 }

@@ -95,7 +95,7 @@ export async function startServer(root) {
     'bun',
     ['run', join(STUDIO_DIR, 'server.ts'), '--root', root, '--port', String(port)],
     {
-      env: { ...process.env, MAUDE_NO_AUTOBUILD: '1' },
+      env: { ...process.env, MAUDE_NO_AUTOBUILD: '1', NO_OPEN: '1' },
       stdio: ['ignore', 'pipe', 'pipe'],
     }
   );
@@ -118,6 +118,20 @@ export async function startServer(root) {
   return { port, root, log: () => log, stop: () => proc.kill('SIGTERM') };
 }
 
+/**
+ * A collaborator's write: an op batch through the same endpoint a second
+ * browser uses. Reaches the open canvas over the collab room.
+ */
+export async function peerOps(server, ops) {
+  const r = await fetch(`http://localhost:${server.port}/_api/annotations/ops`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ file: '.design/ui/Board.tsx', actionId: `peer-${Date.now()}`, ops }),
+  });
+  if (!r.ok) throw new Error(`peer ops refused: ${r.status}`);
+  return r.json();
+}
+
 /** The board on disk (v2 JSON), keyed by id; null when absent. */
 export function readBoard(root) {
   try {
@@ -131,7 +145,7 @@ export function readBoard(root) {
 }
 
 /** Wait until `pred(board)` holds (disk writes are async). Returns the board. */
-export async function waitForBoard(root, pred, ms = 5000) {
+export async function waitForBoard(root, pred, ms = 8000) {
   const t0 = Date.now();
   let b = readBoard(root);
   while (Date.now() - t0 < ms) {
@@ -146,7 +160,11 @@ export async function openCanvas(server) {
   const dbg = (m) => process.env.E2E_DEBUG && console.error(`[e2e] ${m}`);
   dbg('launch');
   const browser = await chromium.launch({ headless: process.env.E2E_HEADED !== '1' });
-  const page = await browser.newPage({ viewport: { width: 2600, height: 1500 } });
+  const page = await browser.newPage({
+    viewport: { width: 2600, height: 1500 },
+    // ⌘C / ⌘V round-trip through the OS clipboard.
+    permissions: ['clipboard-read', 'clipboard-write'],
+  });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   // A returning user: the first-run tour would sit over the canvas.
@@ -221,7 +239,89 @@ export async function openCanvas(server) {
     // Playwright's boundingBox() is already relative to the MAIN frame's
     // viewport, even for elements inside the canvas iframe.
     async pageBox(id) {
-      return c.box(`.dc-annot-svg [data-id="${id}"]`);
+      // v2 draws one node per element in `.dc-annot-scene`; v1 (E2E_LEGACY
+      // baseline) drew SVG nodes in `.dc-annot-svg`.
+      return c.box(`.dc-annot-scene [data-id="${id}"], .dc-annot-svg [data-id="${id}"]`);
+    },
+    /**
+     * The open annotation editor, engine-neutral: a v2 `<textarea>` or a v1
+     * contentEditable. `caretLine` is the 0-based line the caret sits on,
+     * `selected` the selected text.
+     */
+    async editorState() {
+      return frame.evaluate(() => {
+        const ed = document.querySelector('textarea[data-annot-editor], .dc-annot-editor');
+        if (!ed) return null;
+        if (ed instanceof HTMLTextAreaElement) {
+          const before = ed.value.slice(0, ed.selectionStart);
+          return {
+            text: ed.value,
+            caretLine: before.split('\n').length - 1,
+            selected: ed.value.slice(ed.selectionStart, ed.selectionEnd),
+            focused: document.activeElement === ed,
+          };
+        }
+        const range = document.createRange();
+        range.selectNodeContents(ed);
+        const firstTop = range.getClientRects()[0]?.top ?? ed.getBoundingClientRect().top;
+        const fake = document.querySelector('[data-maude-caret]');
+        let caretTop = null;
+        if (fake && getComputedStyle(fake).display !== 'none') {
+          caretTop = fake.getBoundingClientRect().top;
+        } else {
+          const sel = window.getSelection();
+          if (sel?.rangeCount) {
+            const r = sel.getRangeAt(0).cloneRange();
+            r.collapse(true);
+            const rects = r.getClientRects();
+            caretTop = (rects.length ? rects[rects.length - 1] : r.getBoundingClientRect()).top;
+          }
+        }
+        return {
+          text: ed.innerText,
+          caretLine: caretTop !== null && caretTop > firstTop + 4 ? 1 : 0,
+          selected: window.getSelection()?.toString() ?? '',
+          focused: ed.contains(document.activeElement) || document.activeElement === ed,
+        };
+      });
+    },
+    /** Frame-client point on the middle of `word` inside the open editor. */
+    async wordPoint(word) {
+      return frame.evaluate((w) => {
+        const ed = document.querySelector('textarea[data-annot-editor], .dc-annot-editor');
+        if (!ed) return null;
+        let host = ed;
+        let mirror = null;
+        if (ed instanceof HTMLTextAreaElement) {
+          // A textarea's glyphs are not reachable by Range: measure a same-box twin.
+          mirror = document.createElement('div');
+          mirror.className = ed.className;
+          mirror.style.cssText = ed.style.cssText;
+          mirror.style.position = 'absolute';
+          mirror.style.left = `${ed.offsetLeft}px`;
+          mirror.style.top = `${ed.offsetTop}px`;
+          mirror.style.width = `${ed.offsetWidth}px`;
+          mirror.style.height = `${ed.offsetHeight}px`;
+          mirror.style.visibility = 'hidden';
+          mirror.textContent = ed.value;
+          ed.parentElement.insertBefore(mirror, ed);
+          host = mirror;
+        }
+        try {
+          const node = [...host.childNodes].find(
+            (n) => n.nodeType === 3 && n.textContent.includes(w)
+          );
+          if (!node) return null;
+          const i = node.textContent.indexOf(w);
+          const r = document.createRange();
+          r.setStart(node, i + 1);
+          r.setEnd(node, i + Math.max(2, w.length - 2));
+          const b = r.getBoundingClientRect();
+          return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+        } finally {
+          mirror?.remove();
+        }
+      }, word);
     },
     async center(id) {
       const b = await c.pageBox(id);

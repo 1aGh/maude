@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   appendFileSync,
@@ -12,6 +13,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { chromium, type Page } from '@playwright/test';
 import { $, browser } from '@wdio/globals';
 // @ts-expect-error — a plain .mjs data module shared with the runner; it has
@@ -25,7 +27,7 @@ const runPath = process.env.MAUDE_SURFACE_CONFIG;
 if (!runPath) throw new Error('Missing isolated surface configuration');
 const run = JSON.parse(readFileSync(runPath, 'utf8'));
 const rows: Array<Record<string, unknown>> = [];
-let notesSidecar = 'ui-surfacemedia.annotations.svg';
+let notesSidecar = 'ui-surfacemedia.annotations.json';
 let currentCase: Record<string, unknown> | null = null;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const selector = (id: string) => `[data-testid="${id}"]`;
@@ -111,8 +113,31 @@ type Surface = {
 // Node-side __name helper, which does not exist inside Chromium/WKWebView.
 const treeDragSource = readFileSync(new URL('./tree-drag.js', import.meta.url), 'utf8');
 const photoTraceSource = readFileSync(new URL('./photo-trace.js', import.meta.url), 'utf8');
+/** The AI annotation write verb (`maude design annotate`, DDR-242 AD9), run from source. */
+const annotateBin = fileURLToPath(new URL('../../../studio/bin/annotate.mjs', import.meta.url));
+
+// The Files panel starts collapsed (issue #124): a canvas row inside a closed
+// section or folder is not in the DOM. Before a row is read, clicked or
+// hovered, the surface opens the closed sections/folders once — the way a user
+// reveals it. Browser-side source kept as a string (see treeDragSource).
+const TREE_ROW = /canvas-row-|tree-folder-|tree-row-menu-/;
+const expandTreeSource = `(() => {
+  const closed = Array.from(document.querySelectorAll(
+    '[data-testid^="tree-section-"][aria-expanded="false"], [data-testid^="tree-folder-"][aria-expanded="false"]'
+  ));
+  for (const el of closed) el.click();
+  return closed.length;
+})()`;
 
 function web(name: string, root: string, page: Page): Surface {
+  const reveal = async (q: string) => {
+    if (!TREE_ROW.test(q)) return;
+    for (let pass = 0; pass < 8; pass++) {
+      if (await page.evaluate((query) => !!document.querySelector(query), q)) return;
+      if (!(await page.evaluate(expandTreeSource))) return;
+      await page.waitForTimeout(150);
+    }
+  };
   return {
     name,
     root,
@@ -131,6 +156,7 @@ function web(name: string, root: string, page: Page): Surface {
         const result = await this.probe(q);
         return result?.visible ? result.text : null;
       }
+      await reveal(q);
       // One DOM snapshot: count→visibility→textContent races a deletion and
       // Playwright then auto-waits 30s for an element that correctly vanished.
       return page.evaluate((query) => {
@@ -147,6 +173,7 @@ function web(name: string, root: string, page: Page): Surface {
       }, q);
     },
     async hover(q) {
+      await reveal(q);
       await page.locator(q).hover();
     },
     async menu(text) {
@@ -164,6 +191,7 @@ function web(name: string, root: string, page: Page): Surface {
       page.once('dialog', (dialog) => dialog.accept(value));
     },
     async click(q) {
+      await reveal(q);
       await page.locator(q).click();
     },
     async fill(q, value) {
@@ -220,6 +248,15 @@ function web(name: string, root: string, page: Page): Surface {
     },
   };
 }
+async function nativeReveal(q: string): Promise<void> {
+  if (!TREE_ROW.test(q)) return;
+  for (let pass = 0; pass < 8; pass++) {
+    if (await browser.execute((query) => !!document.querySelector(query), q)) return;
+    if (!(await browser.execute(`return ${expandTreeSource}`))) return;
+    await browser.pause(150);
+  }
+}
+
 const native: Surface = {
   async count(q) {
     return (await browser.$$(q)).length;
@@ -290,6 +327,7 @@ const native: Surface = {
       const result = await this.probe(q);
       return result?.visible ? result.text : null;
     }
+    await nativeReveal(q);
     return browser.execute((query) => {
       const element = document.querySelector(query);
       if (!element || element.getBoundingClientRect().height === 0) return null;
@@ -297,6 +335,7 @@ const native: Surface = {
     }, q);
   },
   async hover(q) {
+    await nativeReveal(q);
     await (await $(q)).moveTo();
   },
   async menu(text) {
@@ -331,6 +370,7 @@ const native: Surface = {
     }, value);
   },
   async click(q) {
+    await nativeReveal(q);
     await (await $(q)).click();
     // The embedded driver clicks synthetically and then calls el.focus(), a
     // no-op on a non-focusable target — focus stays wherever it was (e.g. a
@@ -491,7 +531,7 @@ async function observeAll(
     if (id.startsWith('L09') || id.startsWith('L12-upload') || id.startsWith('L14-upload')) {
       const path = join(p.root, '.design', notesSidecar);
       if (existsSync(path))
-        writeFileSync(join(run.out, `${id}-${p.name}.annotations.svg`), readFileSync(path));
+        writeFileSync(join(run.out, `${id}-${p.name}.annotations.json`), readFileSync(path));
     }
   }
   return {
@@ -499,49 +539,95 @@ async function observeAll(
     observations: finalObservations,
   };
 }
-function stickyDisk(p: Surface, id: string | undefined) {
-  if (!id || !/^s_[a-z0-9]+$/i.test(id)) throw new Error('Missing or unexpected fixture stroke ID');
-  const path = join(p.root, '.design', notesSidecar);
-  if (!existsSync(path)) return null;
-  // Bounded assertion for the known sticky serializer, not a general SVG parser.
-  return (
-    readFileSync(path, 'utf8').match(new RegExp(`<g data-id="${id}"[^>]*>[\\s\\S]*?</g>`))?.[0] ??
-    null
-  );
+// ── The annotations board on disk (DDR-242) ─────────────────────────────────
+// `<slug>.annotations.json`: `{"format":"maude.annotations","v":2,"elements":[…]}`,
+// one canonical record per line. The oracles compare RECORDS, never markup:
+// a record is `{id, type, parent?, index, …}`, parent-relative, with every
+// field that equals its default OMITTED — so a reader applies the defaults
+// before it compares a value (`field`). The values mirror
+// apps/studio/annotations/constants.ts, which says they never move once
+// shipped (changing one restyles every element that relied on it).
+type BoardRecord = { id: string; type: string; parent?: string; index: string } & Record<
+  string,
+  unknown
+>;
+const BOARD_DEFAULTS: Record<string, Record<string, unknown>> = {
+  sticky: { fill: '#fce8a6', radius: 8, fontSize: 14, rot: 0 },
+  shape: { kind: 'rect', radius: 0, width: 2, color: '#1f1f1f', fill: null, rot: 0 },
+  pen: { highlighter: false, width: 2, color: '#1f1f1f' },
+  text: { fontSize: 14, color: '#1f1f1f', rot: 0 },
+  section: { color: '#8b8b94' },
+  image: { href: '', rot: 0 },
+  mediaref: { src: '', media: 'video', rot: 0 },
+};
+/** A record's value for `key`, with the omitted default applied. */
+function field(el: BoardRecord | null | undefined, key: string): unknown {
+  if (!el) return undefined;
+  return key in el ? el[key] : BOARD_DEFAULTS[el.type]?.[key];
 }
-function imageDisk(p: Surface, id: string | undefined) {
-  if (!id || !/^s_[a-z0-9]+$/i.test(id)) throw new Error('Missing image fixture ID');
-  const path = join(p.root, '.design', notesSidecar);
-  if (!existsSync(path)) return null;
-  return (
-    readFileSync(path, 'utf8')
-      .match(/<image\b[^>]*>/g)
-      ?.find((node) => node.includes(`data-id="${id}"`)) ?? null
-  );
+/** The element's own text: a sticky/text body, a shape label, a section title. */
+function textOf(el: BoardRecord | null | undefined): string {
+  if (!el) return '';
+  if (el.type === 'section') return typeof el.label === 'string' ? el.label : '';
+  if (el.type === 'shape') {
+    const label = el.label as { text?: unknown } | undefined;
+    return typeof label?.text === 'string' ? label.text : '';
+  }
+  return typeof el.text === 'string' ? el.text : '';
 }
-function shapeDisk(p: Surface, id: string | undefined) {
-  if (!id || !/^s_[a-z0-9]+$/i.test(id)) throw new Error('Missing shape fixture ID');
-  const path = join(p.root, '.design', notesSidecar);
-  if (!existsSync(path)) return null;
-  return (
-    readFileSync(path, 'utf8')
-      .match(/<(?:rect|ellipse|polygon)\b[^>]*>/g)
-      ?.find((node) => node.includes(`data-id="${id}"`)) ?? null
-  );
+/** Board bytes for a seeded fixture (the studio re-canonicalizes what it writes). */
+function boardFile(elements: Array<Record<string, unknown>>) {
+  if (!elements.length) return '{"format":"maude.annotations","v":2,"elements":[]}\n';
+  return `{"format":"maude.annotations","v":2,"elements":[\n${elements
+    .map((e) => JSON.stringify(e))
+    .join(',\n')}\n]}\n`;
 }
-function drawingDisk(p: Surface, id: string | undefined) {
-  if (!id || !/^s_[a-z0-9]+$/i.test(id)) throw new Error('Missing drawing fixture ID');
-  const path = join(p.root, '.design', notesSidecar);
-  if (!existsSync(path)) return null;
-  // Known drawing serializers: path, flat group, or standalone text/tspans.
-  const source = readFileSync(path, 'utf8');
-  return (
-    source.match(new RegExp(`<path data-id="${id}"[^>]*>`))?.[0] ??
-    source.match(new RegExp(`<g data-id="${id}"[^>]*>[\\s\\S]*?</g>`))?.[0] ??
-    source.match(new RegExp(`<text data-id="${id}"[^>]*>[\\s\\S]*?</text>`))?.[0] ??
-    null
-  );
+/**
+ * Every element on `p`'s board, by id. A missing file is an empty board (the
+ * studio writes none until something is drawn). A file that is there but is
+ * not a board answers `undefined` — never an empty map, so a parse problem can
+ * never pass for "the element was deleted" (the DDR-223 lesson).
+ */
+function boardDisk(p: Surface, sidecar = notesSidecar): Map<string, BoardRecord> | undefined {
+  const path = join(p.root, '.design', sidecar);
+  if (!existsSync(path)) return new Map();
+  try {
+    const doc = JSON.parse(readFileSync(path, 'utf8')) as { format?: unknown; elements?: unknown };
+    if (doc?.format !== 'maude.annotations' || !Array.isArray(doc.elements)) return undefined;
+    const out = new Map<string, BoardRecord>();
+    for (const e of doc.elements as BoardRecord[])
+      if (e && typeof e.id === 'string') out.set(e.id, e);
+    return out;
+  } catch {
+    return undefined;
+  }
 }
+/** One record by id (and, when given, of that type): `null` = absent, `undefined` = unreadable board. */
+function diskRecord(
+  p: Surface,
+  id: string | undefined,
+  type?: string | readonly string[],
+  sidecar = notesSidecar
+): BoardRecord | null | undefined {
+  if (!id || !/^s_[a-z0-9]+$/i.test(id))
+    throw new Error('Missing or unexpected fixture element ID');
+  const board = boardDisk(p, sidecar);
+  if (!board) return undefined;
+  const el = board.get(id);
+  if (!el) return null;
+  if (type && !(typeof type === 'string' ? [type] : type).includes(el.type)) return null;
+  return el;
+}
+/** Two PRESENT records with the same content (key order is canonical on disk). */
+function sameRecord(a: BoardRecord | null | undefined, b: BoardRecord | null | undefined) {
+  return !!a && !!b && JSON.stringify(a) === JSON.stringify(b);
+}
+const stickyDisk = (p: Surface, id: string | undefined) => diskRecord(p, id, 'sticky');
+const imageDisk = (p: Surface, id: string | undefined) => diskRecord(p, id, 'image');
+const shapeDisk = (p: Surface, id: string | undefined) => diskRecord(p, id, 'shape');
+/** Pen / highlighter / arrow / text / section / media chip — the non-card drawings. */
+const drawingDisk = (p: Surface, id: string | undefined) =>
+  diskRecord(p, id, ['pen', 'arrow', 'text', 'section', 'mediaref', 'link']);
 class Unexercised extends Error {}
 
 /**
@@ -642,7 +728,7 @@ function eligibleInventory(root: string, assets = false) {
         );
     }
   };
-  walk(join(root, '.design', 'ui'), 'ui', /\.(tsx|meta\.json|annotations\.svg)$/);
+  walk(join(root, '.design', 'ui'), 'ui', /\.(tsx|meta\.json|annotations\.json)$/);
   if (assets) walk(join(root, '.design', 'assets'), 'assets', /\.(png|jpe?g|svg|mp4|webm)$/);
   return out;
 }
@@ -658,7 +744,7 @@ function referencesTo(p: { name: string; root: string }, asset: string) {
     ...readdirSync(join(design, 'ui'))
       .filter((f) => f.endsWith('.tsx'))
       .map((f) => `ui/${f}`),
-    ...readdirSync(design).filter((f) => f.endsWith('.annotations.svg')),
+    ...readdirSync(design).filter((f) => f.endsWith('.annotations.json')),
   ];
   return sources
     .filter((rel) => readFileSync(join(design, rel), 'utf8').includes(asset))
@@ -1618,7 +1704,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       }
       for (const from of all) {
         const name = `SurfaceShapes-${from.name}`;
-        notesSidecar = `ui-${slug(name)}.annotations.svg`;
+        notesSidecar = `ui-${slug(name)}.annotations.json`;
         const kinds = [
           ['square', 'Square', 'rect'],
           ['rounded', 'Rounded square', 'rect'],
@@ -1666,20 +1752,25 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 )?.id ?? undefined;
               return !!shapeId && !!shapeDisk(from, shapeId);
             });
-            const svg = shapeDisk(from, shapeId);
+            const created = shapeDisk(from, shapeId);
+            // One `shape` type, the outline in its `kind` (DDR-242): square and
+            // rounded are both `rect`, told apart by `radius`.
+            const modelKind = tool === 'polygon' ? kind : tool;
+            if (field(created, 'kind') !== modelKind)
+              throw new Error(
+                `The inserted shape is kind ${String(field(created, 'kind'))}, not ${modelKind}`
+              );
             if (tool === 'rect') {
-              const radius = Number(svg?.match(/\brx="([^"]+)"/)?.[1] ?? 0);
+              const radius = Number(field(created, 'radius') ?? 0);
               if ((kind === 'rounded' && radius <= 0) || (kind === 'square' && radius !== 0))
                 throw new Error('Rectangle corner radius does not match the selected shape kind');
             }
-            if (tool === 'polygon' && !svg?.includes(`data-shape="${kind}"`))
-              throw new Error('The inserted polygon is a different shape kind');
             return observeAll(
               all,
               `L09-shape-${kind}-create-${from.name}`,
               start,
-              async (p) => !!(await p.probe(q()))?.visible,
-              (p) => shapeDisk(p, shapeId) === svg
+              async (p) => !!(await p.probe(`${q()}[data-type="shape"]`))?.visible,
+              (p) => sameRecord(shapeDisk(p, shapeId), created)
             );
           });
           await check(`L09.shape-${kind}.move`, `${from.name}-to-peers`, async () => {
@@ -1699,8 +1790,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 return !!r && Math.abs(r.x - prior.x) > 10 && Math.abs(r.y - prior.y) > 5;
               },
               (p) =>
-                shapeDisk(from, shapeId) !== old &&
-                shapeDisk(p, shapeId) === shapeDisk(from, shapeId)
+                !sameRecord(shapeDisk(from, shapeId), old) &&
+                sameRecord(shapeDisk(p, shapeId), shapeDisk(from, shapeId))
             );
           });
           await check(`L09.shape-${kind}.resize`, `${from.name}-to-peers`, async () => {
@@ -1725,8 +1816,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 return !!r && r.width > prior.width + 10 && r.height > prior.height + 10;
               },
               (p) =>
-                shapeDisk(from, shapeId) !== old &&
-                shapeDisk(p, shapeId) === shapeDisk(from, shapeId)
+                !sameRecord(shapeDisk(from, shapeId), old) &&
+                sameRecord(shapeDisk(p, shapeId), shapeDisk(from, shapeId))
             );
           });
           await check(`L09.shape-${kind}.delete`, `${from.name}-to-peers`, async () => {
@@ -1779,10 +1870,16 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           ['section', 'Section', 'section'],
         ]) {
           const name = `SurfaceDrawing-${kind}-${from.name}`;
-          notesSidecar = `ui-${slug(name)}.annotations.svg`;
+          notesSidecar = `ui-${slug(name)}.annotations.json`;
           let drawingId: string | undefined;
           const q = () => `[data-id="${drawingId}"]`;
-          const geometryQ = () => (kind === 'section' ? `${q()} > rect` : q());
+          // v2 draws one `.dc-annot-el` per element; a section's body is the
+          // first rect of its geometry, and it is grabbed by its title chip
+          // (the body is click-through so what sits on it selects normally).
+          const geometryQ = () => (kind === 'section' ? `${q()} .dc-annot-geo > rect` : q());
+          const grabQ = () => (kind === 'section' ? `${q()} [data-section-chip="1"]` : q());
+          // The element record's type: the highlighter is a pen with a flag.
+          const modelType = kind === 'highlighter' ? 'pen' : tool;
           const snapshot = async () =>
             Promise.all(
               all.map(async (p) => {
@@ -1816,10 +1913,12 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               kind === 'text' ? { x: 0.35, y: 0.16 } : { x: 0.35, y: 0.3, dx: 110, dy: 80 }
             );
             if (kind === 'text') {
+              // v2 editors are a <textarea> (DDR-242): `fill` is what typing
+              // leaves behind; plain Enter commits (⌘Enter chains a sibling).
               const editor = '[aria-label="Edit text"]';
               await until(async () => !!(await from.probe(editor))?.visible);
-              await gesture(from, editor, 'editText', `Text annotation from ${from.name}`);
-              await gesture(from, editor, 'key', { key: 'Enter', meta: true });
+              await gesture(from, editor, 'fill', `Text annotation from ${from.name}`);
+              await gesture(from, editor, 'key', { key: 'Enter' });
             }
             await until(async () => {
               drawingId =
@@ -1828,36 +1927,43 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 )?.id ?? undefined;
               return !!drawingId && !!drawingDisk(from, drawingId);
             });
-            const svg = drawingDisk(from, drawingId);
-            if ((kind === 'highlighter') !== !!svg?.includes('data-highlighter="1"'))
+            const created = drawingDisk(from, drawingId);
+            if (created?.type !== modelType)
+              throw new Error(
+                `The drawn element is a ${String(created?.type)}, not a ${modelType}`
+              );
+            // The highlighter is a pen flag (DDR-090), omitted when false.
+            if ((kind === 'highlighter') !== (field(created, 'highlighter') === true))
               throw new Error('Persisted highlighter mode does not match the selected tool');
             return observeAll(
               all,
               `L09-${kind}-create-${from.name}`,
               start,
-              async (p) => !!(await p.probe(q()))?.visible,
-              (p) => drawingDisk(p, drawingId) === svg
+              async (p) => !!(await p.probe(`${q()}[data-type="${modelType}"]`))?.visible,
+              (p) => sameRecord(drawingDisk(p, drawingId), created)
             );
           });
           if (kind === 'text' || kind === 'section') {
             await check(`L09.${kind}.edit-text`, `${from.name}-to-peers`, async () => {
               await snapshot();
               await gesture(from, selector('palette-mode-edit'), 'click');
-              await gesture(from, q(), 'doubleClick');
-              const editor = '[aria-label="Edit text"]';
+              await gesture(from, grabQ(), 'doubleClick');
+              // A section's title is renamed in its chip; a text in place.
+              const editor =
+                kind === 'section' ? '[aria-label="Rename section"]' : '[aria-label="Edit text"]';
               await until(async () => !!(await from.probe(editor))?.visible);
               const text = `Edited ${kind} by ${from.name}`;
-              await gesture(from, editor, 'editText', text);
+              await gesture(from, editor, 'fill', text);
               const start = performance.now();
-              await gesture(from, editor, 'key', { key: 'Enter', meta: true });
+              await gesture(from, editor, 'key', { key: 'Enter' });
               return observeAll(
                 all,
                 `L09-${kind}-edit-text-${from.name}`,
                 start,
                 async (p) => (await p.read(q(), true))?.includes(text) === true,
                 (p) =>
-                  !!drawingDisk(p, drawingId)?.includes(text) &&
-                  drawingDisk(p, drawingId) === drawingDisk(from, drawingId)
+                  textOf(drawingDisk(p, drawingId)) === text &&
+                  sameRecord(drawingDisk(p, drawingId), drawingDisk(from, drawingId))
               );
             });
           }
@@ -1866,9 +1972,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               const before = await snapshot();
               const old = drawingDisk(from, drawingId);
               await gesture(from, selector('palette-mode-edit'), 'click');
-              let target = q();
+              let target = grabQ();
               if (action === 'resize') {
-                await gesture(from, q(), 'pointer');
+                await gesture(from, grabQ(), 'pointer');
                 if (kind === 'text') {
                   const handles = await from.probe('.dc-annot-resize-handle');
                   await from.screenshot(join(run.out, `L09-text-resize-controls-${from.name}.png`));
@@ -1909,15 +2015,15 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                   );
                 },
                 (p) =>
-                  drawingDisk(from, drawingId) !== old &&
-                  drawingDisk(p, drawingId) === drawingDisk(from, drawingId)
+                  !sameRecord(drawingDisk(from, drawingId), old) &&
+                  sameRecord(drawingDisk(p, drawingId), drawingDisk(from, drawingId))
               );
             });
           }
           await check(`L09.${kind}.delete`, `${from.name}-to-peers`, async () => {
             await snapshot();
             await gesture(from, selector('palette-mode-edit'), 'click');
-            await gesture(from, q(), 'pointer');
+            await gesture(from, grabQ(), 'pointer');
             const start = performance.now();
             await gesture(from, 'body', 'key', { key: 'Backspace' });
             return observeAll(
@@ -1955,7 +2061,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       for (const from of all) {
         let strokeId: string | undefined;
         const notesCanvas = run.notes === 'shared' ? 'SurfaceMedia' : `SurfaceNotes-${from.name}`;
-        notesSidecar = `ui-${slug(notesCanvas)}.annotations.svg`;
+        notesSidecar = `ui-${slug(notesCanvas)}.annotations.json`;
         const editor = '[aria-label="Edit sticky note text"]';
         await check('L09.sticky.create', `${from.name}-to-peers`, async () => {
           for (const p of all) {
@@ -1986,8 +2092,11 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               all,
               `L09-sticky-create-${from.name}`,
               start,
-              async (p) => !!(await p.probe(`[data-id="${strokeId}"]`))?.visible,
-              (p) => stickyDisk(p, strokeId) !== null
+              async (p) =>
+                !!(
+                  await p.probe(`[data-id="${strokeId}"][data-type="sticky"]`)
+                )?.visible,
+              (p) => !!stickyDisk(p, strokeId)
             )),
           };
         });
@@ -1995,7 +2104,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           if (!strokeId) throw new Unexercised('Create did not produce a sticky ID');
           await until(async () => !!(await from.probe(editor))?.visible);
           const text = `Multiplayer note from ${from.name}`;
-          await gesture(from, editor, 'editText', text);
+          // The v2 editor is a <textarea>: `fill` is what typing leaves behind.
+          await gesture(from, editor, 'fill', text);
           const start = performance.now();
           await gesture(from, editor, 'key', { key: 'Enter' });
           return {
@@ -2005,7 +2115,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               `L09-sticky-edit-${from.name}`,
               start,
               async (p) => (await p.read(`[data-id="${strokeId}"]`, true))?.includes(text) === true,
-              (p) => stickyDisk(p, strokeId)?.includes(text) === true
+              (p) => textOf(stickyDisk(p, strokeId)) === text
             )),
           };
         });
@@ -2035,8 +2145,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               );
             },
             (p) =>
-              stickyDisk(from, strokeId) !== oldDisk &&
-              stickyDisk(p, strokeId) === stickyDisk(from, strokeId)
+              !sameRecord(stickyDisk(from, strokeId), oldDisk) &&
+              sameRecord(stickyDisk(p, strokeId), stickyDisk(from, strokeId))
           );
         });
         await check('L09.sticky.resize', `${from.name}-to-peers`, async () => {
@@ -2067,8 +2177,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               return !!rect && rect.width > before[all.indexOf(p)].width + 10;
             },
             (p) =>
-              stickyDisk(from, strokeId) !== oldDisk &&
-              stickyDisk(p, strokeId) === stickyDisk(from, strokeId)
+              !sameRecord(stickyDisk(from, strokeId), oldDisk) &&
+              sameRecord(stickyDisk(p, strokeId), stickyDisk(from, strokeId))
           );
         });
         await check('L09.sticky.paper-color', `${from.name}-to-peers`, async () => {
@@ -2085,7 +2195,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             start,
             async (p) =>
               !!(await p.probe(`[data-id="${strokeId}"] path[fill="${color}"]`))?.visible,
-            (p) => stickyDisk(p, strokeId)?.includes(`fill="${color}"`) === true
+            // `fill` is omitted at its default (#fce8a6) — `field` applies it.
+            (p) => field(stickyDisk(p, strokeId), 'fill') === color
           );
         });
         await check('L09.sticky.delete', `${from.name}-to-peers`, async () => {
@@ -2123,7 +2234,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             start,
             async (p) =>
               (await p.read(q, true))?.includes(`Multiplayer note from ${from.name}`) === true,
-            (p) => stickyDisk(p, strokeId)?.includes(`Multiplayer note from ${from.name}`) === true
+            (p) => textOf(stickyDisk(p, strokeId)) === `Multiplayer note from ${from.name}`
           );
         });
         await check('L09.sticky.redo-delete', `${from.name}-to-peers`, async () => {
@@ -2145,9 +2256,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       }
       for (const from of all) {
         const name = `SurfaceDrawing-eraser-${from.name}`;
-        notesSidecar = `ui-${slug(name)}.annotations.svg`;
+        notesSidecar = `ui-${slug(name)}.annotations.json`;
         let eraseId: string | undefined;
-        let originalSvg: string | null = null;
+        let originalRecord: BoardRecord | null | undefined = null;
         const q = () => `[data-id="${eraseId}"]`;
         await check('L09.eraser.erase-stroke', `${from.name}-to-peers`, async () => {
           for (const p of all) {
@@ -2166,10 +2277,12 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               (await from.probe('[data-tool="pen"][data-id]'))?.matches?.[0]?.id ?? undefined;
             return !!eraseId && !!drawingDisk(from, eraseId);
           });
-          originalSvg = drawingDisk(from, eraseId);
+          originalRecord = drawingDisk(from, eraseId);
           for (const p of all)
             await until(
-              async () => !!(await p.probe(q()))?.visible && drawingDisk(p, eraseId) === originalSvg
+              async () =>
+                !!(await p.probe(q()))?.visible &&
+                sameRecord(drawingDisk(p, eraseId), originalRecord)
             );
           const stroke = (await from.probe(q()))?.rect;
           await gesture(from, '[aria-label^="Eraser ("]', 'click');
@@ -2194,7 +2307,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           );
         });
         await check('L09.eraser.undo', `${from.name}-to-peers`, async () => {
-          if (!eraseId || !originalSvg) throw new Unexercised('No erased fixture stroke');
+          if (!eraseId || !originalRecord) throw new Unexercised('No erased fixture stroke');
           for (const p of all)
             if ((await p.probe(q())) || drawingDisk(p, eraseId) !== null)
               throw new Unexercised(
@@ -2207,13 +2320,16 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             `L09-eraser-undo-${from.name}`,
             start,
             async (p) => !!(await p.probe(q()))?.visible,
-            (p) => drawingDisk(p, eraseId) === originalSvg
+            (p) => sameRecord(drawingDisk(p, eraseId), originalRecord)
           );
         });
         await check('L09.eraser.redo', `${from.name}-to-peers`, async () => {
-          if (!eraseId || !originalSvg) throw new Unexercised('No erased fixture stroke');
+          if (!eraseId || !originalRecord) throw new Unexercised('No erased fixture stroke');
           for (const p of all)
-            if (!(await p.probe(q()))?.visible || drawingDisk(p, eraseId) !== originalSvg)
+            if (
+              !(await p.probe(q()))?.visible ||
+              !sameRecord(drawingDisk(p, eraseId), originalRecord)
+            )
               throw new Unexercised(`Redo requires propagated undo; stroke absent at ${p.name}`);
           const start = performance.now();
           await gesture(from, 'body', 'key', { key: 'z', meta: true, shift: true });
@@ -2228,7 +2344,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       }
       for (const from of all) {
         const name = `SurfaceUpload-${from.name}`;
-        notesSidecar = `ui-${slug(name)}.annotations.svg`;
+        notesSidecar = `ui-${slug(name)}.annotations.json`;
         let imageId: string | undefined;
         let assetRel: string | undefined;
         const input = run.media.uploads?.[from.name];
@@ -2238,7 +2354,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await openCanvas(p, `ui/${name}.tsx`);
             await until(async () => (await p.read('h1', true)) === 'Surface upload baseline');
             await until(async () => !!(await p.probe(selector('palette-mode-edit')))?.visible);
-            if ((await p.probe('image[data-tool="image"]')) !== null)
+            if ((await p.probe('[data-type="image"][data-id]')) !== null)
               throw new Unexercised(`Upload requires a clean image fixture at ${p.name}`);
           }
           const payload = readFileSync(input.path);
@@ -2249,10 +2365,10 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             base64: payload.toString('base64'),
           });
           await until(async () => {
-            const uploaded = await from.probe('image[data-tool="image"]');
+            const uploaded = await from.probe('[data-type="image"][data-id]');
             imageId = uploaded?.matches?.[0]?.id ?? undefined;
-            const svg = imageId ? imageDisk(from, imageId) : null;
-            assetRel = svg?.match(/\bhref="(assets\/[^"]+)"/)?.[1];
+            const href = imageId ? field(imageDisk(from, imageId), 'href') : undefined;
+            assetRel = typeof href === 'string' && href.startsWith('assets/') ? href : undefined;
             return !!imageId && !!assetRel && !!uploaded?.visible;
           });
           if (!assetRel || assetRel.includes('..'))
@@ -2263,7 +2379,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             `L12-upload-create-${from.name}`,
             start,
             async (p) => {
-              const image = await p.probe(`image[data-id="${imageId}"]`);
+              const image = await p.probe(`[data-id="${imageId}"] image`);
               return (
                 !!image?.visible &&
                 image.width === 8 &&
@@ -2272,7 +2388,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               );
             },
             (p) =>
-              imageDisk(p, imageId)?.includes(`href="${rel}"`) === true &&
+              field(imageDisk(p, imageId), 'href') === rel &&
               existsSync(join(p.root, '.design', rel)) &&
               createHash('sha256').update(bytes(p.root, rel)).digest('hex') === input.sha256
           );
@@ -2290,7 +2406,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await check(`L13.photo.${op}`, `${from.name}-to-peers`, async () => {
             if (!imageId || !assetRel)
               throw new Unexercised('Photo editing requires the uploaded image');
-            const q = `image[data-id="${imageId}"]`;
+            const q = `[data-id="${imageId}"] image`;
             for (const p of all)
               if (!(await p.probe(q))?.visible)
                 throw new Unexercised(`Photo not rendered at ${p.name}`);
@@ -2526,7 +2642,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await check(step.id, `${from.name}-to-peers`, async () => {
               if (!imageId || !assetRel)
                 throw new Unexercised('Photo editing requires the uploaded image');
-              const q = `image[data-id="${imageId}"]`;
+              const q = `[data-id="${imageId}"] image`;
               for (const p of all)
                 if (!(await p.probe(q))?.visible)
                   throw new Unexercised(`Photo not rendered at ${p.name}`);
@@ -2573,7 +2689,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             'The Photo tab offers adjustments, effects, mask and background removal; there is no crop or transform control to drive.',
         }));
         {
-          const q = () => `image[data-id="${imageId}"]`;
+          const q = () => `[data-id="${imageId}"] image`;
           const editRel = () => (assetRel ?? '').replace(/\.png$/, '.photo.json');
           const brightnessOf = (p: Surface) => {
             const path = join(p.root, '.design', editRel());
@@ -2653,7 +2769,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         await check('L12.upload-png.replace', `${from.name}-to-peers`, async () => {
           if (!imageId || !assetRel)
             throw new Unexercised('Upload did not establish an image reference');
-          const q = `image[data-id="${imageId}"]`;
+          const q = `[data-id="${imageId}"] image`;
           const next = 'assets/surface-pattern.png';
           for (const p of all)
             if (!(await p.probe(q))?.visible)
@@ -2681,8 +2797,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               );
             },
             (p) =>
-              imageDisk(p, imageId)?.includes(`href="${next}"`) === true &&
-              imageDisk(p, imageId) === imageDisk(from, imageId)
+              field(imageDisk(p, imageId), 'href') === next &&
+              sameRecord(imageDisk(p, imageId), imageDisk(from, imageId))
           );
           // What each participant shows once everything has settled — a
           // render that went back while the file moved on is a divergence,
@@ -2695,7 +2811,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 receiver: p.name,
                 pixel: image?.pixel?.join(',') ?? null,
                 href: image?.href ?? null,
-                disk: imageDisk(p, imageId)?.match(/href="([^"]+)"/)?.[1] ?? null,
+                disk: (field(imageDisk(p, imageId), 'href') as string | undefined) ?? null,
               };
             })
           );
@@ -2711,7 +2827,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         await check('L12.asset.delete-unreferenced', `${from.name}-to-peers`, async () => {
           if (!imageId || !assetRel) throw new Unexercised('No uploaded asset');
           const doomed = assetRel;
-          const q = `image[data-id="${imageId}"]`;
+          const q = `[data-id="${imageId}"] image`;
           for (const p of all)
             if (!existsSync(join(p.root, '.design', doomed)))
               throw new Unexercised(`Upload absent before delete at ${p.name}`);
@@ -2739,7 +2855,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         await check('L12.upload-png.remove-reference', `${from.name}-to-peers`, async () => {
           if (!imageId || !assetRel)
             throw new Unexercised('Upload did not establish an image reference');
-          const q = `image[data-id="${imageId}"]`;
+          const q = `[data-id="${imageId}"] image`;
           for (const p of all)
             if (!(await p.probe(q))?.visible || !imageDisk(p, imageId))
               throw new Unexercised(
@@ -2765,7 +2881,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       // scenario once; subsequent media assertions never reload it.
       for (const from of all) {
         const name = `SurfaceDrawing-video-${from.name}`;
-        notesSidecar = `ui-${slug(name)}.annotations.svg`;
+        notesSidecar = `ui-${slug(name)}.annotations.json`;
         const input = run.media.videoUploads?.[from.name];
         let videoId: string | undefined;
         let assetRel: string | undefined;
@@ -2788,8 +2904,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await until(async () => {
             videoId =
               (await from.probe('[data-tool="mediaref"][data-id]'))?.matches?.[0]?.id ?? undefined;
-            const svg = videoId ? drawingDisk(from, videoId) : null;
-            assetRel = svg?.match(/\bdata-src="(assets\/[^"]+)"/)?.[1];
+            const src = videoId ? field(drawingDisk(from, videoId), 'src') : undefined;
+            assetRel = typeof src === 'string' && src.startsWith('assets/') ? src : undefined;
             return !!videoId && !!assetRel;
           });
           if (!assetRel || assetRel.includes('..'))
@@ -2812,7 +2928,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 return !!video?.visible && !!(await p.probe(q()))?.visible;
               },
               (p) =>
-                !!drawingDisk(p, videoId)?.includes(`data-src="${rel}"`) &&
+                field(drawingDisk(p, videoId), 'src') === rel &&
                 existsSync(join(p.root, '.design', rel)) &&
                 createHash('sha256').update(bytes(p.root, rel)).digest('hex') === input.sha256
             )),
@@ -2906,8 +3022,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 return !!video?.visible && video.width === 160 && video.height === 90;
               },
               (p) =>
-                drawingDisk(p, videoId)?.includes(`data-src="${next}"`) === true &&
-                drawingDisk(p, videoId) === drawingDisk(from, videoId)
+                field(drawingDisk(p, videoId), 'src') === next &&
+                sameRecord(drawingDisk(p, videoId), drawingDisk(from, videoId))
             )),
           };
         });
@@ -3217,6 +3333,27 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           }
         }
       };
+      /**
+       * Seed a whole annotations board the way an agent's `maude design
+       * annotate` does: through the author's own studio (`PUT
+       * /_api/annotations { board }`, DDR-242), never onto the sidecar — a file
+       * event on a board is never proposed; the collab room is its second
+       * writer. Answers the HTTP status.
+       */
+      const putBoard = async (from: Surface, rel: string, board: string): Promise<number> => {
+        const put = async (b: { file: string; board: string; base: string }) =>
+          (
+            await fetch('/_api/annotations', {
+              method: 'PUT',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(b),
+            })
+          ).status;
+        const body = { file: `.design/${rel}`, board, base: '' };
+        return from === native
+          ? await browser.execute(put, body)
+          : await (from.name === 'hub' ? hubPage : peerPage).evaluate(put, body);
+      };
       // L04 — rename in place and duplicate, through the file tree's own row
       // menu. Receivers keep the canvas open: their tab follows the rename.
       const rowOf = (rel: string) => selector(`canvas-row-${slug(rel.replace(/\.tsx$/, ''))}`);
@@ -3368,7 +3505,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           await p.click(folderRow(dir));
       };
       const annotationsOf = (rel: string) =>
-        `${slug(rel.replace(/\.tsx$/, '')).replace(/-+$/, '')}.annotations.svg`;
+        `${slug(rel.replace(/\.tsx$/, '')).replace(/-+$/, '')}.annotations.json`;
       const has = (p: Surface, rel: string) => existsSync(join(p.root, '.design', rel));
       for (const from of all) {
         const top = `Tree-${from.name}`;
@@ -3398,7 +3535,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           // A whiteboard with a mark on it: an empty wrapper is not content.
           writeFileSync(
             join(from.root, '.design', annotationsOf(inner())),
-            '<svg xmlns="http://www.w3.org/2000/svg"><rect data-id="s_nest1" data-tool="rect" x="10" y="10" width="40" height="30" fill="none" stroke="#111"/></svg>'
+            boardFile([{ id: 's_nest1', type: 'shape', index: 'a0', x: 10, y: 10, w: 40, h: 30 }])
           );
           return observeAll(
             all,
@@ -3688,7 +3825,19 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       // everyone, by the pin's orphan timer. The oracle is every receiver's pin
       // and disk AND that both are still there after that window.
       const stickyId = 'st_l11b';
-      const stickySvg = `<svg xmlns="http://www.w3.org/2000/svg" data-mdcc-annotations="1"><g data-id="${stickyId}" data-tool="sticky" data-r="8" data-fs="14" fill="#cfc4ec"><rect x="360" y="220" width="180" height="140" rx="8" ry="8"/><text data-sticky-body="1" x="372" y="232" font-size="14" fill="#1a1a1a" dominant-baseline="hanging">Sticky</text></g></svg>`;
+      const stickyBoard = boardFile([
+        {
+          id: stickyId,
+          type: 'sticky',
+          index: 'a0',
+          x: 360,
+          y: 220,
+          w: 180,
+          h: 140,
+          fill: '#cfc4ec',
+          text: 'Sticky',
+        },
+      ]);
       const surviving = async (
         id: string,
         rel: string,
@@ -3721,8 +3870,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         };
         await check('L11.comment.on-sticky', `${from.name}-to-peers`, async () => {
           await seedCanvas(from, rel, elementCanvas(title));
-          const sidecar = `ui-${slug(`SurfaceFloating-${from.name}`)}.annotations.svg`;
-          writeFileSync(join(from.root, '.design', sidecar), stickySvg);
+          const sidecar = `ui-${slug(`SurfaceFloating-${from.name}`)}.annotations.json`;
+          writeFileSync(join(from.root, '.design', sidecar), stickyBoard);
           await until(() => all.every((p) => existsSync(join(p.root, '.design', sidecar))), 30000);
           await openSeeded(rel, title, `L11b-${from.name}`);
           for (const p of all)
@@ -3872,14 +4021,15 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       }
       // L09 context controls — every annotation property the toolbar offers,
       // driven through the toolbar itself on seeded annotations. Two oracles:
-      // every participant's annotations sidecar is byte-identical to the
-      // author's and differs from before the step; every participant's own
-      // render of the target changed (each against itself, so WebKit and
-      // Chromium never have to agree on markup).
+      // every participant's annotations board is byte-identical to the
+      // author's (the board is canonical bytes, DDR-242 §3) and differs from
+      // before the step, and the changed RECORD carries the expected value;
+      // every participant's own render of the target changed (each against
+      // itself, so WebKit and Chromium never have to agree on markup).
       for (const from of all) {
         const name = `SurfaceCtx-${from.name}`;
         const rel = `ui/${name}.tsx`;
-        const sidecar = `ui-${slug(name)}.annotations.svg`;
+        const sidecar = `ui-${slug(name)}.annotations.json`;
         notesSidecar = sidecar; // the evidence dump (observeAll) copies this one
         const disk = (p: Surface) => {
           const path = join(p.root, '.design', sidecar);
@@ -3893,19 +4043,43 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           g2: 's_ctxg2',
           g3: 's_ctxg3',
         };
-        const rectOf = (id: string, x: number, y: number, w = 100, h = 70) =>
-          `<rect data-id="${id}" data-tool="rect" stroke="#1f1f1f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="#e7e7e7" x="${x}" y="${y}" width="${w}" height="${h}"/>`;
-        const seeded =
-          `<svg xmlns="http://www.w3.org/2000/svg" data-mdcc-annotations="1">` +
-          rectOf(ids.rect, 40, 120) +
-          `<text data-id="${ids.text}" data-tool="text" x="40" y="240" data-font-size="14" fill="#1f1f1f" text-anchor="start" dominant-baseline="hanging">Formatted text</text>` +
-          `<g data-id="${ids.arrow}" data-tool="arrow" stroke="#1f1f1f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="none"><line x1="200" y1="130" x2="320" y2="190"/><polyline points="302.3,186.8 320,190 311.5,174.1" fill="#1f1f1f"/></g>` +
+        const rectOf = (id: string, index: string, x: number, y: number, w = 100, h = 70) => ({
+          id,
+          type: 'shape',
+          index,
+          x,
+          y,
+          w,
+          h,
+          width: 3,
+          fill: '#e7e7e7',
+        });
+        const seeded = boardFile([
+          rectOf(ids.rect, 'a0', 40, 120),
+          {
+            id: ids.text,
+            type: 'text',
+            index: 'a1',
+            x: 40,
+            y: 240,
+            w: 160,
+            h: 20,
+            text: 'Formatted text',
+          },
+          {
+            id: ids.arrow,
+            type: 'arrow',
+            index: 'a2',
+            start: { x: 200, y: 130 },
+            end: { x: 320, y: 190 },
+            width: 3,
+          },
           // Three sizes and uneven gaps, so every align/distribute action
           // below moves something whatever ran before it.
-          rectOf(ids.g1, 380, 120, 40, 30) +
-          rectOf(ids.g2, 450, 170, 60, 50) +
-          rectOf(ids.g3, 600, 260, 80, 70) +
-          `</svg>`;
+          rectOf(ids.g1, 'a3', 380, 120, 40, 30),
+          rectOf(ids.g2, 'a4', 450, 170, 60, 50),
+          rectOf(ids.g3, 'a5', 600, 260, 80, 70),
+        ]);
         let ready = false;
         await check('L09.context-controls.seed', `${from.name}-to-peers`, async () => {
           await seedCanvas(from, rel, elementCanvas(`Context ${from.name}`));
@@ -3913,25 +4087,14 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           // the author's own studio, not onto the sidecar (a file event on an
           // annotations sidecar is never proposed — the collab room is its
           // second writer).
-          const put = async (b: { file: string; svg: string; base: string }) => {
-            const r = await fetch('/_api/annotations', {
-              method: 'PUT',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify(b),
-            });
-            return r.status;
-          };
-          const body = { file: `.design/${rel}`, svg: seeded, base: '' };
-          const status =
-            from === native
-              ? await browser.execute(put, body)
-              : await (from.name === 'hub' ? hubPage : peerPage).evaluate(put, body);
+          const status = await putBoard(from, rel, seeded);
           if (status >= 300) throw new Error(`annotations PUT answered ${status}`);
-          await until(() => all.every((p) => disk(p)?.includes(ids.g3) === true), 30000).catch(
-            () => {
-              throw new Unexercised('The seeded annotations did not reach everyone');
-            }
-          );
+          await until(
+            () => all.every((p) => boardDisk(p, sidecar)?.has(ids.g3) === true),
+            30000
+          ).catch(() => {
+            throw new Unexercised('The seeded annotations did not reach everyone');
+          });
           await openSeeded(rel, `Context ${from.name}`, `L09-ctx-open-${from.name}`);
           const start = performance.now();
           const result = await observeAll(
@@ -3950,6 +4113,10 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         const toolbar = '[aria-label="Annotation properties"]';
         const select = async (targets: string[]) => {
           await gesture(from, selector('palette-mode-edit'), 'click');
+          // Start from nothing: Shift+click on an element already in the
+          // selection removes it (annotations v2), so re-selecting the same
+          // three from the previous step would leave only the first.
+          await gesture(from, 'body', 'key', { key: 'Escape' });
           for (const [i, id] of targets.entries())
             await gesture(
               from,
@@ -3964,7 +4131,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           id: string,
           targets: string[],
           act: () => Promise<void>,
-          expectDisk?: (svg: string) => boolean,
+          expectDisk?: (board: Map<string, BoardRecord>) => boolean,
           // Group/ungroup change the data, not how the members render.
           renders = true
         ) =>
@@ -3990,12 +4157,14 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                       (r) => !!r?.visible
                     ),
               (p) => {
-                const svg = disk(p);
+                const bytes = disk(p);
+                const board = boardDisk(p, sidecar);
                 return (
-                  !!svg &&
-                  svg !== beforeDisk &&
-                  svg === disk(from) &&
-                  (expectDisk ? expectDisk(svg) : true)
+                  !!bytes &&
+                  !!board &&
+                  bytes !== beforeDisk &&
+                  bytes === disk(from) &&
+                  (expectDisk ? expectDisk(board) : true)
                 );
               }
             );
@@ -4018,10 +4187,13 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
           'L09.context-control.thick-stroke',
           r,
           click('[aria-label="Thick stroke"]'),
-          (s) => new RegExp(`data-id="${ids.rect}"[^>]*stroke-width="6"`).test(s)
+          (b) => field(b.get(ids.rect), 'width') === 6
         );
-        await step('L09.context-control.thin-stroke', r, click('[aria-label="Thin stroke"]'), (s) =>
-          new RegExp(`data-id="${ids.rect}"[^>]*stroke-width="3"`).test(s)
+        await step(
+          'L09.context-control.thin-stroke',
+          r,
+          click('[aria-label="Thin stroke"]'),
+          (b) => field(b.get(ids.rect), 'width') === 3
         );
         await step('L09.context-control.dashed-line', r, click('[aria-label="Dashed line"]'));
         await step(
@@ -4086,7 +4258,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               'click'
             );
           },
-          (s) => new RegExp(`data-id="${ids.text}"[^>]*data-font-size="24"`).test(s)
+          (b) => field(b.get(ids.text), 'fontSize') === 24
         );
         await step(
           'L09.context-control.custom-font-size-in-pixels',
@@ -4098,7 +4270,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             await gesture(from, input, 'fill', '40');
             await gesture(from, input, 'key', { key: 'Enter' });
           },
-          (s) => new RegExp(`data-id="${ids.text}"[^>]*data-font-size="40"`).test(s)
+          (b) => field(b.get(ids.text), 'fontSize') === 40
         );
         const a = [ids.arrow];
         for (const [value, label] of [
@@ -4172,10 +4344,516 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               `L09-ctx-delete-${from.name}`,
               start,
               async (p) => (await p.probe(`[data-id="${ids.rect}"]`)) === null,
-              (p) => disk(p)?.includes(ids.rect) === false && disk(p)?.includes(ids.text) === true
+              (p) => {
+                const board = boardDisk(p, sidecar);
+                return !!board && !board.has(ids.rect) && board.has(ids.text);
+              }
             );
           }
         );
+      }
+      // ── Annotations v2 — the element model under concurrency (DDR-242) ──
+      // Plan feature-annotations-v2-element-model Task 29, rows V2–V8/V14/V15.
+      // Two people act on the SAME board at the same moment; the oracles are
+      // every participant's RECORDS (parsed board, defaults applied) and every
+      // participant's own render. Each author gets its own canvas so a failed
+      // row never leaves state under the next direction; the partner is the
+      // next participant, so every pairing runs once.
+      for (const [i, from] of all.entries()) {
+        const other = all[(i + 1) % all.length] as Surface;
+        const name = `SurfaceV2-${from.name}`;
+        const rel = `ui/${name}.tsx`;
+        const title = `Annotations v2 ${from.name}`;
+        const sidecar = `ui-${slug(name)}.annotations.json`;
+        notesSidecar = sidecar; // the evidence dump (observeAll) copies this one
+        const rec = (p: Surface, id: string) => diskRecord(p, id, undefined, sidecar);
+        const q = (id: string) => `[data-id="${id}"]`;
+        // A section is grabbed by its title chip; its body is click-through.
+        const chip = (id: string) => `${q(id)} [data-section-chip="1"]`;
+        const editMode = (p: Surface) => gesture(p, selector('palette-mode-edit'), 'click');
+        const stickyEditor = '[aria-label="Edit sticky note text"]';
+        const swatch = (c: string) =>
+          `[aria-label="Annotation properties"] [aria-label="Sticky color ${c}"]`;
+        const ids = {
+          a: 's_v2alpha',
+          b: 's_v2beta',
+          c: 's_v2gamma',
+          d: 's_v2delta',
+          e: 's_v2echo',
+          sec: 's_v2sec',
+          kid: 's_v2kid',
+          out: 's_v2outer',
+          deep: 's_v2deep',
+        };
+        const stickyOf = (
+          id: string,
+          index: string,
+          x: number,
+          y: number,
+          text: string,
+          parent?: string
+        ) => ({
+          id,
+          type: 'sticky',
+          ...(parent ? { parent } : {}),
+          index,
+          x,
+          y,
+          w: parent ? 80 : 90,
+          h: parent ? 80 : 90,
+          text,
+        });
+        // Children are PARENT-relative (sections are containers, DDR-242).
+        const seeded = boardFile([
+          {
+            id: ids.sec,
+            type: 'section',
+            index: 'a0',
+            x: 40,
+            y: 260,
+            w: 200,
+            h: 150,
+            label: 'Section',
+          },
+          {
+            id: ids.out,
+            type: 'section',
+            index: 'a1',
+            x: 280,
+            y: 260,
+            w: 360,
+            h: 170,
+            label: 'Outer',
+          },
+          stickyOf(ids.a, 'a2', 40, 120, 'Alpha'),
+          stickyOf(ids.b, 'a3', 150, 120, 'Beta'),
+          stickyOf(ids.c, 'a4', 260, 120, 'Gamma'),
+          stickyOf(ids.d, 'a5', 370, 120, 'Delta'),
+          stickyOf(ids.e, 'a6', 480, 120, 'Echo'),
+          stickyOf(ids.kid, 'a0', 20, 40, 'Child', ids.sec),
+          stickyOf(ids.deep, 'a0', 180, 40, 'Deep', ids.out),
+        ]);
+        const rectOf = async (p: Surface, id: string) => (await p.probe(q(id)))?.rect;
+        const rects = (id: string) =>
+          Promise.all(
+            all.map(async (p) => {
+              const r = await rectOf(p, id);
+              if (!r) throw new Unexercised(`${id} is not rendered at ${p.name}`);
+              return r;
+            })
+          );
+        const moved = (r: { x: number; y: number } | undefined, prior: { x: number; y: number }) =>
+          !!r && (Math.abs(r.x - prior.x) > 10 || Math.abs(r.y - prior.y) > 10);
+        const at = (el: BoardRecord | null | undefined) =>
+          [field(el, 'x'), field(el, 'y')].join(',');
+        let ready = false;
+        const need = () => {
+          if (!ready) throw new Unexercised('The v2 rows need the seeded board everywhere');
+        };
+        await check('L09.v2.seed', `${from.name}-to-peers`, async () => {
+          await seedCanvas(from, rel, elementCanvas(title));
+          const status = await putBoard(from, rel, seeded);
+          if (status >= 300) throw new Error(`annotations PUT answered ${status}`);
+          await until(
+            () => all.every((p) => Object.values(ids).every((id) => !!rec(p, id))),
+            30000
+          ).catch(() => {
+            throw new Unexercised('The seeded board did not reach everyone');
+          });
+          await openSeeded(rel, title, `L09-v2-open-${from.name}`);
+          for (const p of all) await editMode(p);
+          const start = performance.now();
+          const result = await observeAll(
+            all,
+            `L09-v2-seed-${from.name}`,
+            start,
+            async (p) =>
+              (
+                await Promise.all(Object.values(ids).map((id) => p.probe(`${q(id)}[data-type]`)))
+              ).every((r) => !!r?.visible),
+            (p) => Object.values(ids).every((id) => sameRecord(rec(p, id), rec(from, id)))
+          );
+          ready = result.status === 'pass';
+          return result;
+        });
+        // V2 — A moves sticky 1 while B recolors sticky 2, at the same moment.
+        await check('L09.v2.concurrent-different-elements', `${from.name}-to-peers`, async () => {
+          need();
+          const color = '#bfe3c0';
+          const before = await rects(ids.a);
+          const seedA = rec(from, ids.a);
+          // Selecting is setup; only the drag and the recolor click race.
+          await editMode(other);
+          await gesture(other, q(ids.b), 'pointer');
+          await until(async () => !!(await other.probe(swatch(color)))?.visible);
+          await editMode(from);
+          const start = performance.now();
+          await Promise.all([
+            gesture(from, q(ids.a), 'pointer', { dx: 60, dy: 30 }),
+            gesture(other, swatch(color), 'click'),
+          ]);
+          return {
+            partner: other.name,
+            ...(await observeAll(
+              all,
+              `L09-v2-different-${from.name}`,
+              start,
+              async (p) =>
+                moved(await rectOf(p, ids.a), before[all.indexOf(p)]) &&
+                !!(
+                  await p.probe(`${q(ids.b)} path[fill="${color}"]`)
+                )?.visible,
+              (p) =>
+                at(rec(from, ids.a)) !== at(seedA) &&
+                sameRecord(rec(p, ids.a), rec(from, ids.a)) &&
+                field(rec(p, ids.b), 'fill') === color &&
+                sameRecord(rec(p, ids.b), rec(other, ids.b))
+            )),
+          };
+        });
+        // V3 — A moves a sticky while B recolors the SAME sticky: both fields survive.
+        await check('L09.v2.same-element-different-fields', `${from.name}-to-peers`, async () => {
+          need();
+          const color = '#a9dbdb';
+          const before = await rects(ids.b);
+          const seedB = rec(from, ids.b);
+          await editMode(other);
+          await gesture(other, q(ids.b), 'pointer');
+          await until(async () => !!(await other.probe(swatch(color)))?.visible);
+          await editMode(from);
+          const start = performance.now();
+          await Promise.all([
+            gesture(from, q(ids.b), 'pointer', { dx: 50, dy: 30 }),
+            gesture(other, swatch(color), 'click'),
+          ]);
+          return {
+            partner: other.name,
+            ...(await observeAll(
+              all,
+              `L09-v2-same-element-${from.name}`,
+              start,
+              async (p) =>
+                moved(await rectOf(p, ids.b), before[all.indexOf(p)]) &&
+                !!(
+                  await p.probe(`${q(ids.b)} path[fill="${color}"]`)
+                )?.visible,
+              (p) => {
+                const b = rec(p, ids.b);
+                return (
+                  at(b) !== at(seedB) &&
+                  field(b, 'fill') === color &&
+                  sameRecord(b, rec(from, ids.b))
+                );
+              }
+            )),
+          };
+        });
+        // V5 — B deletes the sticky A is typing in: A is told, keeps its text
+        // with Enter, and the text survives everywhere.
+        let restoredId: string | undefined;
+        await check('L09.v2.delete-while-editing', `${from.name}-to-peers`, async () => {
+          need();
+          const text = `Typed through a delete by ${from.name}`;
+          await editMode(from);
+          await gesture(from, q(ids.c), 'doubleClick');
+          await until(async () => !!(await from.probe(stickyEditor))?.visible);
+          await gesture(from, stickyEditor, 'fill', text);
+          await editMode(other);
+          await gesture(other, q(ids.c), 'pointer');
+          const start = performance.now();
+          await gesture(other, 'body', 'key', { key: 'Backspace' });
+          await until(
+            async () => !!(await from.probe('[data-edit-notice="deleted"]'))?.visible
+          ).catch(() => {
+            throw new Error('The author was never told the sticky was deleted under the editor');
+          });
+          await gesture(from, stickyEditor, 'key', { key: 'Enter' });
+          const kept = (p: Surface) => {
+            const board = boardDisk(p, sidecar);
+            return board
+              ? [...board.values()].find((e) => e.type === 'sticky' && textOf(e) === text)
+              : undefined;
+          };
+          const result = await observeAll(
+            all,
+            `L09-v2-delete-while-editing-${from.name}`,
+            start,
+            async (p) => {
+              const id = kept(p)?.id;
+              return !!id && (await p.read(q(id), true))?.includes(text) === true;
+            },
+            (p) => sameRecord(kept(p), kept(from))
+          );
+          restoredId = kept(from)?.id;
+          return { partner: other.name, restoredId, sameId: restoredId === ids.c, ...result };
+        });
+        // V6 — A moves a section while B edits its child's text: the child
+        // moves with the section (parent-relative, unchanged) and keeps B's text.
+        await check('L09.v2.section-move-while-child-edited', `${from.name}-to-peers`, async () => {
+          need();
+          const text = `Child edited by ${other.name}`;
+          const before = await rects(ids.kid);
+          const seedSec = rec(from, ids.sec);
+          const seedKid = rec(from, ids.kid);
+          await editMode(other);
+          await gesture(other, q(ids.kid), 'doubleClick');
+          await until(async () => !!(await other.probe(stickyEditor))?.visible);
+          await gesture(other, stickyEditor, 'fill', text);
+          await editMode(from);
+          const start = performance.now();
+          await Promise.all([
+            gesture(from, chip(ids.sec), 'pointer', { dx: 30, dy: 40 }),
+            gesture(other, stickyEditor, 'key', { key: 'Enter' }),
+          ]);
+          return {
+            partner: other.name,
+            ...(await observeAll(
+              all,
+              `L09-v2-section-child-${from.name}`,
+              start,
+              async (p) =>
+                moved(await rectOf(p, ids.kid), before[all.indexOf(p)]) &&
+                (await p.read(q(ids.kid), true))?.includes(text) === true,
+              (p) => {
+                const sec = rec(p, ids.sec);
+                const kid = rec(p, ids.kid);
+                return (
+                  at(sec) !== at(seedSec) &&
+                  kid?.parent === ids.sec &&
+                  at(kid) === at(seedKid) &&
+                  textOf(kid) === text &&
+                  sameRecord(sec, rec(from, ids.sec)) &&
+                  sameRecord(kid, rec(from, ids.kid))
+                );
+              }
+            )),
+          };
+        });
+        // V8 — a section drawn inside another is its child and renders above
+        // it; moving the outer one carries the inner one and its contents.
+        let innerId: string | undefined;
+        await check('L09.v2.nested-section-create', `${from.name}-to-peers`, async () => {
+          need();
+          await editMode(from);
+          const button = '[aria-label^="Section ("]';
+          await gesture(from, button, 'click');
+          await until(async () => !!(await from.probe(`${button}[aria-pressed="true"]`))?.visible);
+          const outer = await rectOf(from, ids.out);
+          const input = (await from.probe('.dc-annot-input'))?.rect;
+          if (!outer || !input?.width || !input.height)
+            throw new Unexercised('Outer section geometry unavailable');
+          // Around `deep` (outer-relative 180,40 80×80), inside Outer (360×170).
+          const sx = outer.x + outer.width * (160 / 360);
+          const sy = outer.y + outer.height * (25 / 170);
+          const before = new Set(
+            (await from.probe('[data-type="section"][data-id]'))?.matches?.map((m) => m.id)
+          );
+          const start = performance.now();
+          await gesture(from, '.dc-annot-input', 'pointer', {
+            x: (sx - input.x) / input.width,
+            y: (sy - input.y) / input.height,
+            dx: outer.width * (180 / 360),
+            dy: outer.height * (135 / 170),
+          });
+          await until(async () => {
+            innerId =
+              (await from.probe('[data-type="section"][data-id]'))?.matches?.find(
+                (m) => m.id && !before.has(m.id)
+              )?.id ?? undefined;
+            return !!innerId && !!rec(from, innerId);
+          });
+          const created = rec(from, innerId as string);
+          if (created?.parent !== ids.out)
+            throw new Error(
+              `The new section is not inside Outer (parent ${String(created?.parent)})`
+            );
+          const inner = innerId as string;
+          return {
+            innerId: inner,
+            adoptedDeep: rec(from, ids.deep)?.parent === inner,
+            ...(await observeAll(
+              all,
+              `L09-v2-nested-create-${from.name}`,
+              start,
+              // Paint order is scene order: the inner section after the outer.
+              async (p) =>
+                !!(
+                  await p.probe(`.dc-annot-scene ${q(ids.out)} ~ ${q(inner)}[data-type="section"]`)
+                )?.visible,
+              (p) => rec(p, inner)?.parent === ids.out && sameRecord(rec(p, inner), created)
+            )),
+          };
+        });
+        await check('L09.v2.nested-sections-move-together', `${from.name}-to-peers`, async () => {
+          need();
+          if (!innerId) throw new Unexercised('No inner section was drawn');
+          const inner = innerId;
+          const beforeInner = await rects(inner);
+          const beforeDeep = await rects(ids.deep);
+          const seedOut = rec(from, ids.out);
+          const seedInner = rec(from, inner);
+          const seedDeep = rec(from, ids.deep);
+          await editMode(from);
+          const start = performance.now();
+          await gesture(from, chip(ids.out), 'pointer', { dx: 30, dy: 30 });
+          return observeAll(
+            all,
+            `L09-v2-nested-move-${from.name}`,
+            start,
+            async (p) =>
+              moved(await rectOf(p, inner), beforeInner[all.indexOf(p)]) &&
+              moved(await rectOf(p, ids.deep), beforeDeep[all.indexOf(p)]) &&
+              !!(await p.probe(`.dc-annot-scene ${q(ids.out)} ~ ${q(inner)}`))?.visible,
+            (p) => {
+              const out = rec(p, ids.out);
+              const inn = rec(p, inner);
+              const deep = rec(p, ids.deep);
+              return (
+                at(out) !== at(seedOut) &&
+                inn?.parent === ids.out &&
+                at(inn) === at(seedInner) &&
+                deep?.parent === seedDeep?.parent &&
+                at(deep) === at(seedDeep) &&
+                [ids.out, inner, ids.deep].every((id) => sameRecord(rec(p, id), rec(from, id)))
+              );
+            }
+          );
+        });
+        // V14 — the agent's `annotate update` on a sticky a peer has selected:
+        // same id (no remove/re-add flicker), the peer keeps its selection,
+        // and every participant has the new text.
+        await check('L09.v2.ai-update-while-selected', `${from.name}-to-peers`, async () => {
+          need();
+          const text = `Rewritten by the agent for ${from.name}`;
+          await editMode(other);
+          await gesture(other, q(ids.d), 'pointer');
+          const handle = '.dc-annot-resize-handle[data-corner="se"]';
+          await until(async () => !!(await other.probe(handle))?.visible).catch((error) =>
+            unlessNotRendering(other, error)
+          );
+          let polling = true;
+          let vanished = false;
+          const watch = (async () => {
+            while (polling) {
+              if ((await other.probe(q(ids.d)).catch(() => undefined)) === null) vanished = true;
+              await sleep(50);
+            }
+          })();
+          const start = performance.now();
+          // The verb itself, on the author's machine: it posts its ops to the
+          // author's live studio (`via: "server"`) — a direct file write would
+          // not be the path an agent takes next to an open canvas.
+          const verb = spawnSync(
+            'bun',
+            [annotateBin, `.design/${rel}`, '--root', from.root, '--ops', '-'],
+            {
+              input: JSON.stringify({ ops: [{ op: 'update', id: ids.d, text }] }),
+              encoding: 'utf8',
+              timeout: 30000,
+              // The hub participant is a cloud workspace: there the verb runs
+              // the way the in-cell agent does (MAUDE_WORKSPACE_MODE=1).
+              env:
+                from.name === 'hub' ? { ...process.env, MAUDE_WORKSPACE_MODE: '1' } : process.env,
+            }
+          );
+          if (verb.error) {
+            polling = false;
+            await watch;
+            throw new Unexercised(`annotate could not run: ${verb.error.message}`);
+          }
+          const said = (() => {
+            try {
+              return JSON.parse(verb.stdout) as { via?: string };
+            } catch {
+              return null;
+            }
+          })();
+          if (verb.status !== 0 || said?.via !== 'server') {
+            polling = false;
+            await watch;
+            if (verb.status === 0)
+              throw new Unexercised(
+                `annotate wrote the board file directly (via ${String(said?.via)}) — no live studio at ${from.name}`
+              );
+            throw new Error(`annotate exited ${verb.status}: ${verb.stderr}`);
+          }
+          const result = await observeAll(
+            all,
+            `L09-v2-ai-update-${from.name}`,
+            start,
+            async (p) =>
+              !!(await p.probe(`${q(ids.d)}[data-type="sticky"]`))?.visible &&
+              (await p.read(q(ids.d), true))?.includes(text) === true &&
+              (p !== other || !!(await p.probe(handle))?.visible),
+            (p) => textOf(rec(p, ids.d)) === text && sameRecord(rec(p, ids.d), rec(from, ids.d))
+          );
+          polling = false;
+          await watch;
+          return {
+            partner: other.name,
+            ...result,
+            status: result.status === 'pass' && !vanished ? 'pass' : 'fail',
+            flickered: vanished,
+            notAsserted:
+              'comment-anchor survival and "not in the user\'s undo" (a Cmd+Z on the shared project history would undo unrelated rows)',
+          };
+        });
+        // V15 — a live drag is visible to the others BEFORE release: the
+        // awareness ghost (`cursors-overlay.tsx` PeerAnnotationGesture) shows
+        // while the author's board still has the element where it was.
+        await check('L09.v2.live-drag-preview', `${from.name}-to-peers`, async () => {
+          need();
+          const ghost = '[data-peer-gesture="move"]';
+          const seedE = rec(from, ids.e);
+          const receivers = all.filter((p) => p !== from);
+          for (const p of receivers)
+            if ((await p.probe(ghost))?.visible)
+              throw new Unexercised(`A gesture ghost is already showing at ${p.name}`);
+          await editMode(from);
+          let released = false;
+          const start = performance.now();
+          const drag = gesture(from, q(ids.e), 'pointer', {
+            dx: 70,
+            dy: 40,
+            // A locked screen throttles the native window's timers; a shorter
+            // hold keeps the drag bounded there.
+            hold: from.name === 'native' ? 600 : 2000,
+          }).finally(() => {
+            released = true;
+          });
+          const previews = await Promise.all(
+            receivers.map(async (p) => {
+              while (!released) {
+                const g = await p.probe(ghost).catch(() => null);
+                if (g?.visible)
+                  return {
+                    receiver: p.name,
+                    observedMs: performance.now() - start,
+                    // Nothing was committed yet: the ghost is awareness, not data.
+                    beforeRelease: sameRecord(rec(from, ids.e), seedE),
+                  };
+                await sleep(20);
+              }
+              return { receiver: p.name, observedMs: null, beforeRelease: false };
+            })
+          );
+          await drag;
+          const settled = await observeAll(
+            all,
+            `L09-v2-live-drag-${from.name}`,
+            start,
+            async (p) => !!(await p.probe(q(ids.e)))?.visible && !(await p.probe(ghost))?.visible,
+            (p) => at(rec(from, ids.e)) !== at(seedE) && sameRecord(rec(p, ids.e), rec(from, ids.e))
+          );
+          return {
+            ...settled,
+            previews,
+            status:
+              settled.status === 'pass' && previews.every((v) => v.beforeRelease) ? 'pass' : 'fail',
+            notAsserted:
+              "the receivers' own undo stacks (a Cmd+Z on the shared project history would undo unrelated rows)",
+          };
+        });
       }
       // L17 — one media file, several references: two canvases show the same
       // image; removing it from one keeps the other (and the file); renaming or
@@ -4542,7 +5220,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             // media on a polled lane rather than in the canvas document.
             //
             // Annotations are NOT added here, and the reason is worth keeping:
-            // a raw `.annotations.svg` write is not an import path. That
+            // a raw sidecar write (then `.annotations.svg`, now the v2
+            // `.annotations.json` board) is not an import path. That
             // sidecar is the projection of the canvas document's annotations
             // lane, fed by the drawing tools; writing the file by hand while
             // offline produced a file every receiver ignored, which the row
@@ -4554,7 +5233,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
             // link to the hub is cut — so a sticky drawn here is an ordinary
             // offline annotation, and the product writes the sidecar itself at
             // whatever path it uses.
-            const notesRel = `ui-${slug(mine.replace(/^ui\//, '').replace(/\.tsx$/, ''))}.annotations.svg`;
+            const notesRel = `ui-${slug(mine.replace(/^ui\//, '').replace(/\.tsx$/, ''))}.annotations.json`;
             let offlineStroke: string | undefined;
             await openCanvas(peer, mine);
             // The palette is part of the canvas chrome: clicking for it before
@@ -4573,16 +5252,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
                 (await peer.probe('[data-tool="sticky"][data-id]'))?.matches?.[0]?.id ?? undefined;
               return !!offlineStroke;
             }, 30000);
+            // The sticky's RECORD on that participant's board (DDR-242).
             const drewOffline = (p2: Surface) =>
-              (() => {
-                try {
-                  return readFileSync(join(p2.root, '.design', notesRel), 'utf8').includes(
-                    `data-id="${offlineStroke}"`
-                  );
-                } catch {
-                  return false;
-                }
-              })();
+              !!offlineStroke && boardDisk(p2, notesRel)?.get(offlineStroke)?.type === 'sticky';
             if (!drewOffline(peer))
               throw new Error('the offline sticky never reached the peer’s own disk');
             // AND A COMMENT, which travels on a lane of its own (S24). Same
@@ -5452,18 +6124,13 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
       // sidecar on disk and the sticker's asset bytes (which removal keeps).
       for (const from of all) {
         const rel = `ui/SurfaceStickers-${from.name}.tsx`;
-        const sidecar = `${slug(rel.replace(/\.tsx$/, ''))}.annotations.svg`;
-        const node = (p: Surface, id: string) => {
-          const path = join(p.root, '.design', sidecar);
-          if (!existsSync(path)) return null;
-          return (
-            readFileSync(path, 'utf8')
-              .match(/<image\b[^>]*>/g)
-              ?.find((n) => n.includes(`data-id="${id}"`)) ?? null
-          );
+        const sidecar = `${slug(rel.replace(/\.tsx$/, ''))}.annotations.json`;
+        // The sticker's `image` RECORD on that participant's board (DDR-242).
+        const node = (p: Surface, id: string) => diskRecord(p, id, 'image', sidecar);
+        const hrefOf = (rec: BoardRecord | null | undefined) => {
+          const href = field(rec, 'href');
+          return typeof href === 'string' && href ? href : null;
         };
-        const hrefOf = (svgNode: string | null) =>
-          /href="([^"]+)"/.exec(svgNode ?? '')?.[1] ?? null;
         const q = (id: string) => `[data-id="${id}"]`;
         const decoded = async (p: Surface, id: string) => {
           const r = await p.probe(`image[data-id="${id}"], [data-id="${id}"] image`);
@@ -5525,7 +6192,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               const b = before[all.indexOf(p)];
               return !!r && !!b && Math.abs(r.x - b.x) > 10;
             },
-            (p) => node(from, sid) !== oldDisk && node(p, sid) === node(from, sid)
+            (p) =>
+              !sameRecord(node(from, sid), oldDisk) && sameRecord(node(p, sid), node(from, sid))
           );
         });
         await check('L10.sticker.resize', `${from.name}-to-peers`, async () => {
@@ -5550,7 +6218,8 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               const b = before[all.indexOf(p)];
               return !!r && !!b && r.width > b.width + 10;
             },
-            (p) => node(from, sid) !== oldDisk && node(p, sid) === node(from, sid)
+            (p) =>
+              !sameRecord(node(from, sid), oldDisk) && sameRecord(node(p, sid), node(from, sid))
           );
         });
         // Replace — the sticker's own Replace… (annotation context menu →
@@ -5576,7 +6245,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               const r = await p.probe(`image[data-id="${sid}"], [data-id="${sid}"] image`);
               return !!r?.visible && r.pixel?.join(',') === '111,159,21,255';
             },
-            (p) => hrefOf(node(p, sid)) === next && node(p, sid) === node(from, sid)
+            (p) => hrefOf(node(p, sid)) === next && sameRecord(node(p, sid), node(from, sid))
           );
         });
         await check('L10.sticker.remove', `${from.name}-to-peers`, async () => {
@@ -6607,31 +7276,29 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
         for (const from of all) {
           const name = `SurfaceGesture-${from.name}`;
           const rel = `ui/${name}.tsx`;
-          const sidecar = `ui-${slug(name)}.annotations.svg`;
-          const disk = (p: Surface) => src(p, sidecar);
-          const svg =
-            `<svg xmlns="http://www.w3.org/2000/svg" data-mdcc-annotations="1">` +
-            `<rect data-id="s_gesture" data-tool="rect" stroke="#1f1f1f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" fill="#e7e7e7" x="60" y="140" width="120" height="80"/>` +
-            `</svg>`;
-          let beforeDrag: string | null = null;
+          const sidecar = `ui-${slug(name)}.annotations.json`;
+          // The dragged shape's RECORD on that participant's board (DDR-242).
+          const disk = (p: Surface) => diskRecord(p, 's_gesture', 'shape', sidecar);
+          const board = boardFile([
+            {
+              id: 's_gesture',
+              type: 'shape',
+              index: 'a0',
+              x: 60,
+              y: 140,
+              w: 120,
+              h: 80,
+              width: 3,
+              fill: '#e7e7e7',
+            },
+          ]);
+          let beforeDrag: BoardRecord | null | undefined = null;
           let dragged = false;
           await check('L18.gesture-group', `${from.name}-to-peers`, async () => {
             await seedCanvas(from, rel, elementCanvas(`Gesture ${from.name}`));
-            const put = async (b: { file: string; svg: string; base: string }) =>
-              (
-                await fetch('/_api/annotations', {
-                  method: 'PUT',
-                  headers: { 'content-type': 'application/json' },
-                  body: JSON.stringify(b),
-                })
-              ).status;
-            const body = { file: `.design/${rel}`, svg, base: '' };
-            const status =
-              from === native
-                ? await browser.execute(put, body)
-                : await (from.name === 'hub' ? hubPage : peerPage).evaluate(put, body);
+            const status = await putBoard(from, rel, board);
             if (status >= 300) throw new Error(`annotations PUT answered ${status}`);
-            await until(() => all.every((p) => disk(p)?.includes('s_gesture') === true), 30000);
+            await until(() => all.every((p) => !!disk(p)), 30000);
             await openSeeded(rel, `Gesture ${from.name}`, `L18-gesture-${from.name}`);
             await until(async () => !!(await from.probe('[data-id="s_gesture"]'))?.visible, 15000);
             beforeDrag = disk(from);
@@ -6652,7 +7319,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               `L18-gesture-${from.name}`,
               start,
               async (p) => !!(await p.probe('[data-id="s_gesture"]'))?.visible,
-              (p) => disk(p) !== beforeDrag && disk(p) === disk(from)
+              (p) => !sameRecord(disk(p), beforeDrag) && sameRecord(disk(p), disk(from))
             );
             await sleep(1500);
             const docSlug = slug(rel.replace(/\.tsx$/, ''));
@@ -6687,7 +7354,7 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
               `L18-gesture-undo-${from.name}`,
               start,
               async (p) => !!(await p.probe('[data-id="s_gesture"]'))?.visible,
-              (p) => disk(p) === beforeDrag
+              (p) => sameRecord(disk(p), beforeDrag)
             );
           });
         }

@@ -11,6 +11,7 @@
  *             endpoint frozen in place (Excalidraw `fixBindingsAfterDeletion`).
  */
 
+import { defOf } from './annotations/registry.ts';
 import {
   type ArrowBind,
   type ArrowStroke,
@@ -60,6 +61,7 @@ export const MAX_TEXT_BIND_H = 480;
  *     endpoint falls back to the group's geometric bbox and is reported.
  */
 export function isBindable(s: Stroke): boolean {
+  if (s.tool === 'element') return !!defOf(s.el.type)?.caps.bindable;
   if (
     s.tool === 'rect' ||
     s.tool === 'ellipse' ||

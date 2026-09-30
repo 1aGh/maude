@@ -28,8 +28,9 @@ Terminal rejections are retained; `retryable` is not.
 
 **Operations**: `lane.replace {doc, lane, content, base | baseContent, writeId?}`
 over the five canvas lanes (html, css, meta, annotations, comments) — the hub
-merges three-way from the base (char-level for source, by `data-id` for
-annotations, by id for comments, by key for meta) or rejects `base-conflict`;
+merges three-way from the base (char-level for source, per element and field
+for annotations — DDR-242 §4, the same `applyOps` the studio runs — by id for
+comments, by key for meta) or rejects `base-conflict`;
 `doc.create/move/delete`, `dir.create/move/delete` (folders are manifest entries,
 empty ones included; a folder delete/move carries its canvases in the same
 action); `history.undo/redo` (effect-aware: a revert is rebased through later
@@ -120,7 +121,7 @@ resulting content to the accepted action id — so a teammate's later change
 elsewhere in the canvas neither blocks the undo (a whole-file swap refuses
 once the file moved on) nor is reverted with it; redo reverts that undo.
 Comments keep their thread/resolve semantics as a lane merged by comment id;
-an annotation gesture saves the whole layer once at its end (one action); a
+an annotation gesture commits one op batch at its end (one action — DDR-242); a
 photo transform is one PhotoEdit sidecar write through the file plane; a
 timeline operation is one API op, one action. The shell's private undo stack
 remains the fallback when no accepted action is known (legacy mode, or an edit
@@ -292,7 +293,7 @@ The operation union separates user intent from whole-file replacement:
 | `source.structure` | Supported insert/duplicate/delete/reorder operation, stable targets/parent, generation and dependency checks; no arbitrary mutation script |
 | `manifest.create`, `manifest.move`, `manifest.delete` | Entry identity/generation, explicit parent/path conditions and referenced payloads; directory operations include descendants atomically |
 | `layout.assign` | Canvas/artboard identity and persistent property; camera, selection and viewport excluded |
-| `annotation.create`, `annotation.update`, `annotation.delete` | Stable annotation identity, generation and operation/effect identity; returning to an earlier value is a valid new action |
+| `annotation.put`, `annotation.patch`, `annotation.delete` | Stable element id (DDR-242); patches carry `expect` (text merge base, strict-undo guard); returning to an earlier value is a valid new action |
 | `comment.create`, `comment.reply`, `comment.update`, `comment.delete` | Stable thread/comment identity with capabilities checked per operation; never raw Yjs write permission |
 | `photo.assign`, `timeline.edit` | Asset/clip identity, supported edit fields and source/media dependencies; a reset/delete has explicit action identity |
 | `history.restore`, `history.undo`, `history.redo` | Reference to retained revision/action/effects; server constructs and validates the compensating operation against current state |
@@ -426,7 +427,7 @@ enumerated in a machine-checked registry. A row is not proof of migration.
 | `api.ts` `createCanvas`, `deleteCanvas`, `deleteFolder`, `moveCanvas`, `moveFolder`, `createFolder` | T17: manifest transaction, explicit empty directories and generation retirement |
 | `api.ts` `patchCanvasMeta`; artboard insert/duplicate/resize/style/guides/print/delete operations | T17/T25: persistent layout only, per-user camera excluded, structural dependencies preserved |
 | `api.ts` `commentsAdd`, `commentsAddReply`, `commentsPatch`, `commentsDelete`, `publishComments` | T17/T26: authenticated capabilities and persistent comment operations; no arbitrary body mutation via comments |
-| `api.ts` `saveAnnotations`; `annotations-layer.tsx` collaboration observer and PUT chain | T26: action/effect identity, valid A→B→A and concurrent intake; no content-history deduplication |
+| `api.ts` `applyAnnotationOps` (canvas op batches) and `saveAnnotations` (whole-board import/restore); `annotations/ui/board.ts` optimistic `BoardStore` | T26: action/effect identity, valid A→B→A and concurrent intake; no content-history deduplication |
 | HTTP `/_api/photo-edit` → photo store `savePhotoEdit` | T26: grouped photo action and peer-safe reset, decoded receiving pixels |
 | HTTP `/_api/footage`; `api.ts` `editArraySrcOp`, `reorderSequenceOp`, `reorderRevert`, `compClips` | T16/T26: declared multi-file action, source and media references consistent |
 | `api.ts` `saveAsset`, `saveAssetFromStream`; hub `handleFileDoor`; file plane `push`, `pushDelete`, `materialize` | T18/T20: durable blobs and authorized manifest entries, resumable large files, hash verification |
@@ -465,27 +466,32 @@ lifecycle and active inspector require explicit accepted deletion handling.
 These entries document migration seams, not completion of T13/T17 or attribution
 of every structural E2E failure.
 
-### Compatibility boundary: annotation echo IDs
+### Compatibility boundary: annotation action IDs
 
-The interim annotation PUT carries an optional bounded `writeId` through
-`saveAnnotations` → `onAnnotationsChanged` → `syncRoomFromAnnotations`.
-It prevents repeated-content undo/delete from being mistaken for a previous
-self echo and preserves suppression of delayed local PUTs. The registry changes
-`svg` and `writeId` in one Yjs transaction; external imports clear the old ID.
-No SVG sidecar schema changes. This metadata is client supplied and grants no
-rights. It is not a project transaction ID, idempotent result or durable ACK.
+Annotations are the v2 element model (DDR-242; see `annotations-v2.md`). The
+canvas sends one op batch per gesture — `POST /_api/annotations/ops` with
+`{file, actionId, ops}` — and the whole-board `PUT /_api/annotations` remains
+for imports, restore and headless writers. The bounded `actionId` (the PUT's
+`writeId`) travels with the batch: into a live room's replica directly when
+one is open (it is ahead of the debounced file flush), otherwise through the
+file write and `onAnnotationsChanged` → `syncRoomFromAnnotations`. The replica
+`Y.Map('annotations2')` stores it under `~action` in the same Yjs transaction
+as the element changes, so a tab suppresses its own echo per action. It is
+client supplied and grants no rights: not a project transaction ID, an
+idempotent result or a durable ACK.
 
-The annotation document projector now uses a separate disk-only API sink with
-an after-IO freshness check and synchronous final rename. It never calls the
-mutation publication hook. This closes the reproduced stale-flush republish
-race, but does not fence the independent hub writer or arbitrary external files;
-T14 still owns that stronger cross-process/revision boundary.
+The annotation document projector uses a separate disk-only API sink
+(`projectAnnotations`) with an after-IO freshness check and synchronous final
+rename. It never calls the mutation publication hook. This closes the
+reproduced stale-flush republish race, but does not fence the independent hub
+writer or arbitrary external files; T14 still owns that stronger
+cross-process/revision boundary.
 
-T26 must replace this compatibility identity with accepted action/effect IDs.
-Legacy file-mediated/two-document paths cannot promise to preserve transport
-metadata; their parity and retirement remain explicit migration gates. Whole-SVG
-replacement still cannot safely merge concurrent independent stroke edits.
-The new accepted representation must handle those edits by stable stroke IDs.
+Concurrent independent edits now merge by element and field: different
+elements or fields never conflict, a scalar field follows acceptance order,
+and a text field merges three-way at character level. In accepted-revisions
+mode the kernel replays a proposal's `base → ours` element diff onto the head
+through the same `applyOps`, so the merge rule is identical in every path.
 
 ## End-to-end action example
 

@@ -2,6 +2,15 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "whiteboard-text-sections-live-previews",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "Smoother whiteboard editing, live together",
+      "summary": "Typing in stickies and shapes now wraps exactly as it will look, works with any input method (accents, Japanese), and is never lost — it reaches teammates within a second, and if someone deletes the note you are typing in, Enter puts it back with your text. Sections move, copy and delete together with everything in them, teammates see your drag or resize live before you let go, and undo only takes back your own changes.",
+      "surface": "design-ui"
+    },
+    {
       "id": "whiteboard-edits-sync-per-element",
       "version": null,
       "date": null,

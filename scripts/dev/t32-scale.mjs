@@ -1085,7 +1085,7 @@ async function main() {
       if (d.retired || !d.path) continue;
       preexisting.add(d.path);
       // A canvas doc's sidecar lanes materialise next to it.
-      for (const ext of ['.meta.json', '.annotations.svg'])
+      for (const ext of ['.meta.json', '.annotations.json'])
         preexisting.add(d.path.replace(/\.[jt]sx$/, ext));
     }
     log(`cloud project already holds ${preexisting.size} path(s) from earlier runs`);
@@ -1850,11 +1850,11 @@ async function main() {
     );
   const canvasBodyFor = (r) => {
     // `<group>/<name>.meta.json|.css` → `<group>/<name>.tsx`; a flat
-    // `<slug>.annotations.svg` → any canvas whose slug matches.
+    // `<slug>.annotations.json` (DDR-242) → any canvas whose slug matches.
     if (r.endsWith('.meta.json')) return r.slice(0, -'.meta.json'.length) + '.tsx';
     if (r.endsWith('.css')) return r.slice(0, -'.css'.length) + '.tsx';
-    if (r.endsWith('.annotations.svg')) {
-      const slug = r.split('/').at(-1).slice(0, -'.annotations.svg'.length);
+    if (r.endsWith('.annotations.json')) {
+      const slug = r.split('/').at(-1).slice(0, -'.annotations.json'.length);
       const hit = [...invA.eligible.keys()].find(
         (x) =>
           x.endsWith('.tsx') &&
@@ -1878,13 +1878,20 @@ async function main() {
         return null;
       }
     }
-    if (r.endsWith('.annotations.svg')) {
+    if (r.endsWith('.annotations.json')) {
       const body = canvasBodyFor(r);
-      const empty = /^<svg[^>]*>\s*<\/svg>\s*$/.test(readFileSync(abs, 'utf8').trim());
+      // DDR-242: emptiness is zero elements, never a byte-length heuristic.
+      let empty = false;
+      try {
+        const els = JSON.parse(readFileSync(abs, 'utf8')).elements;
+        empty = Array.isArray(els) && els.length === 0;
+      } catch {
+        /* not a board — leave it to the mismatch report */
+      }
       if (!body)
-        return `orphan annotation layer — no canvas on the sender owns it${empty ? ' (and it is an empty wrapper)' : ''}`;
+        return `orphan annotation board — no canvas on the sender owns it${empty ? ' (and it is empty)' : ''}`;
       if (empty)
-        return 'empty annotation wrapper for an existing canvas — no strokes to materialise';
+        return 'empty annotation board for an existing canvas — no elements to materialise';
     }
     return null;
   };

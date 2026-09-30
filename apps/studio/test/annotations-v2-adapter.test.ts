@@ -13,7 +13,7 @@ import {
   strokesToElementMap,
   strokesToElements,
 } from '../annotations/v1-adapter.ts';
-import { translateOne } from '../annotations-model.ts';
+import { type Stroke, translateOne } from '../annotations-model.ts';
 
 const FIX = join(import.meta.dir, 'fixtures');
 const toMap = (els: AnnotationElement[]) => new Map(els.map((e) => [e.id, e]));
@@ -122,9 +122,55 @@ describe('UI edits become minimal ops', () => {
   test('unknown element types survive every UI commit', () => {
     const withUnknown = toMap([
       ...base,
-      { id: 'u1', type: 'stamp', index: 'a9', emoji: '🔥' } as AnnotationElement,
+      { id: 'u1', type: 'hologram', index: 'a9', emoji: '🔥' } as AnnotationElement,
     ]);
     const out = strokesToElementMap(elementsToStrokes(withUnknown.values()), withUnknown);
-    expect(out.get('u1')).toMatchObject({ type: 'stamp', emoji: '🔥' });
+    expect(out.get('u1')).toMatchObject({ type: 'hologram', emoji: '🔥' });
+  });
+});
+
+describe('containment across UI commits (rig L09.v2 nested sections)', () => {
+  const outer = validateElements([
+    { id: 'out', type: 'section', index: 'a1', x: 280, y: 260, w: 360, h: 170, label: 'Outer' },
+    { id: 'deep', type: 'sticky', index: 'a0', parent: 'out', x: 180, y: 40, w: 80, h: 80 },
+  ]).elements;
+
+  /** The UI's own edit: strokes in, strokes out, back to elements. */
+  const commit = (cur: Map<string, AnnotationElement>, edit: (s: Stroke[]) => Stroke[]) =>
+    strokesToElementMap(edit(elementsToStrokes(cur.values())), cur);
+
+  test('a section drawn around an element inside another adopts it; moving the outer keeps it there', () => {
+    let cur = toMap(outer);
+    // Draw `inner` around `deep`, inside `out` (inserted just above `out`).
+    cur = commit(cur, (s) => {
+      const at = s.findIndex((x) => x.id === 'out');
+      const inner = {
+        id: 'inner',
+        tool: 'section',
+        x: 440,
+        y: 285,
+        w: 180,
+        h: 135,
+        label: 'Inner',
+        color: '#8b8b94',
+      } as Stroke;
+      return [...s.slice(0, at + 1), inner, ...s.slice(at + 1)];
+    });
+    expect(cur.get('inner')?.parent).toBe('out');
+    expect(cur.get('deep')?.parent).toBe('inner');
+    // Drag the outer section by (30, 30): its whole subtree moves along.
+    const moved = commit(cur, (s) => s.map((x) => translateOne(x, 30, 30)));
+    const ops = diffToOps(cur, moved);
+    expect(ops.map((o) => ('id' in o ? o.id : o.el.id))).toEqual(['out']);
+    expect(moved.get('deep')?.parent).toBe('inner');
+  });
+
+  test('an element left outside its shrunken section leaves it', () => {
+    const cur = toMap(outer);
+    const next = commit(cur, (s) =>
+      s.map((x) => (x.id === 'out' ? ({ ...x, w: 100 } as Stroke) : x))
+    );
+    expect(next.get('deep')?.parent).toBeUndefined();
+    expect(new Scene(next.values()).worldBox('deep')).toMatchObject({ x: 460, y: 300 });
   });
 });

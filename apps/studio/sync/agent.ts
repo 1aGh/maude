@@ -51,10 +51,12 @@ import {
   commentsFromDoc,
   cssFromDoc,
   htmlFromDoc,
+  importAnnotationsFromDisk,
   isEmptyAnnotationsSvg,
   mergeSharedMetaIntoLocal,
   metaFromDoc,
   movedToFromDoc,
+  noteAnnotationsOnDisk,
   readLocalAnnotations,
   repairSharedMeta,
   stampAnnotationsEdit,
@@ -369,6 +371,7 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
     }
     const hash = hashBytes(value);
     echoGuard.record(paths.annotations, hash);
+    noteAnnotationsOnDisk(doc, value);
     writer(paths.annotations, value);
     lastAnnotations = value;
   }
@@ -439,7 +442,7 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
       // wrapper written by saveAnnotations) cold-start-safe on other peers.
       let changed = false;
       doc.transact(() => {
-        changed = applyAnnotationsToDoc(doc, str, origin);
+        changed = importAnnotationsFromDisk(doc, str, origin, lastAnnotations);
         if (changed) stampAnnotationsEdit(doc, origin);
       }, origin);
       if (changed) lastAnnotations = str;

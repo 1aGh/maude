@@ -22,7 +22,12 @@ import { memo, useEffect, useState } from 'react';
 
 import { REPLICA_TYPE } from './annotations/replica.ts';
 import { useLiveViewport } from './canvas-lib.tsx';
-import { type ForeignAwareness, useCollab, useForeignAwareness } from './use-collab.tsx';
+import {
+  type AnnotationGesture,
+  type ForeignAwareness,
+  useCollab,
+  useForeignAwareness,
+} from './use-collab.tsx';
 
 const CURSOR_CSS = `
 .dc-cursor-overlay {
@@ -77,6 +82,23 @@ const CURSOR_CSS = `
   border-radius: 2px;
   box-sizing: border-box;
   will-change: transform, width, height;
+}
+.dc-peer-gesture {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  border: 1.5px dashed;
+  border-radius: 3px;
+  box-sizing: border-box;
+}
+.dc-peer-gesture-ink {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
 }
 .dc-peer-selection__label {
   position: absolute;
@@ -271,6 +293,132 @@ export const PeerAnnotationSelection = memo(
 );
 
 /**
+ * Task 22 (DDR-242 AD5) — a peer's annotation gesture while it is in flight:
+ * the elements they drag, the box they resize or draw, the ink of a pen stroke
+ * — so peers watch it move instead of seeing it jump at the commit. Awareness
+ * only (sanitized in use-collab); nothing here reads or writes the board. A
+ * gesture that stops updating (a peer who vanished mid-drag) fades after
+ * GESTURE_STALE_MS even before awareness garbage-collects the peer.
+ */
+const GESTURE_STALE_MS = 3000;
+const MAX_GHOSTS = 64;
+
+function sameGesture(
+  a: AnnotationGesture | null | undefined,
+  b: AnnotationGesture | null | undefined
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.kind === b.kind &&
+    a.dx === b.dx &&
+    a.dy === b.dy &&
+    sameIds(a.ids, b.ids) &&
+    a.box?.x === b.box?.x &&
+    a.box?.y === b.box?.y &&
+    a.box?.w === b.box?.w &&
+    a.box?.h === b.box?.h &&
+    (a.points?.length ?? 0) === (b.points?.length ?? 0) &&
+    a.points?.[a.points.length - 1] === b.points?.[b.points.length - 1]
+  );
+}
+
+interface PeerAnnotationGestureProps {
+  peer: ForeignAwareness;
+  viewport: ViewportSnapshot;
+}
+
+export const PeerAnnotationGesture = memo(
+  function PeerAnnotationGesture({
+    peer,
+    viewport,
+  }: PeerAnnotationGestureProps): JSX.Element | null {
+    const g = peer.annotationGesture;
+    const [stale, setStale] = useState(false);
+    useEffect(() => {
+      setStale(false);
+      if (!g) return;
+      const t = setTimeout(() => setStale(true), GESTURE_STALE_MS);
+      return () => clearTimeout(t);
+    }, [g]);
+    if (!g || stale || typeof document === 'undefined') return null;
+    const z = viewport.zoom || 1;
+    const toScreen = (x: number, y: number) => [x * z + viewport.x, y * z + viewport.y] as const;
+    const boxes: Array<{ key: string; x: number; y: number; w: number; h: number }> = [];
+    if (g.kind === 'move' && g.dx !== undefined && g.dy !== undefined) {
+      for (const id of g.ids.slice(0, MAX_GHOSTS)) {
+        try {
+          const el = document.querySelector(`.dc-annot-scene [data-id="${CSS.escape(id)}"]`);
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          if (r.width <= 0 && r.height <= 0) continue;
+          boxes.push({
+            key: id,
+            x: r.left + g.dx * z,
+            y: r.top + g.dy * z,
+            w: r.width,
+            h: r.height,
+          });
+        } catch {
+          /* invalid id token — skip */
+        }
+      }
+    } else if (g.box) {
+      const [x, y] = toScreen(g.box.x, g.box.y);
+      boxes.push({ key: 'box', x, y, w: g.box.w * z, h: g.box.h * z });
+    }
+    let ink: string | null = null;
+    if (g.kind === 'draw' && g.points && g.points.length >= 4) {
+      const pts: string[] = [];
+      for (let i = 0; i + 1 < g.points.length; i += 2) {
+        const [sx, sy] = toScreen(g.points[i] as number, g.points[i + 1] as number);
+        pts.push(`${sx},${sy}`);
+      }
+      ink = pts.join(' ');
+    }
+    if (!boxes.length && !ink) return null;
+    return (
+      <>
+        {boxes.map((b, i) => (
+          <div
+            key={`g-${b.key}`}
+            className="dc-peer-gesture"
+            data-peer-gesture={g.kind}
+            style={{
+              transform: `translate(${b.x}px, ${b.y}px)`,
+              width: b.w,
+              height: b.h,
+              borderColor: peer.color,
+            }}
+          >
+            {i === 0 && (
+              <div className="dc-peer-selection__label" style={{ background: peer.color }}>
+                {peer.name}
+              </div>
+            )}
+          </div>
+        ))}
+        {ink ? (
+          <svg className="dc-peer-gesture-ink" data-peer-gesture="draw" aria-hidden="true">
+            <polyline
+              points={ink}
+              fill="none"
+              stroke={peer.color}
+              strokeWidth={2}
+              strokeOpacity={0.7}
+            />
+          </svg>
+        ) : null}
+      </>
+    );
+  },
+  (a, b) =>
+    sameViewport(a.viewport, b.viewport) &&
+    sameLabel(a.peer, b.peer) &&
+    sameGesture(a.peer.annotationGesture, b.peer.annotationGesture)
+);
+
+/**
  * Foreign-selection halo for canvas-shell elements (cdId-based selSet).
  * The peer publishes selection.cssPath; we re-resolve in the local DOM
  * each render so pan / zoom / hydration changes don't desync. Falls back
@@ -392,6 +540,9 @@ export function CursorsOverlay(): JSX.Element {
           viewport={vp}
           tick={tick}
         />
+      ))}
+      {peers.map((peer) => (
+        <PeerAnnotationGesture key={`gest-${peer.clientID}`} peer={peer} viewport={vp} />
       ))}
       {peers.map((peer) => (
         <Cursor key={peer.clientID} peer={peer} viewport={vp} />

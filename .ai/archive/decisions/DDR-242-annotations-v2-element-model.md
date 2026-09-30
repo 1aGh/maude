@@ -117,7 +117,10 @@ save can erase every annotation."*
      5. move the SVG to `_trash/annotations-v1/`
    - This runs at studio boot, in the hub workspace agent, and on hub document load (a `MIGRATION`-origin conversion).
    - Legacy SVG blobs in the hub history are upconverted lazily, so undo and restore across the upgrade keep working.
-   - A `.annotations.svg` that reappears next to a `.json` goes to `_untrusted/`. It is never imported silently.
+   - A `.annotations.svg` that reappears next to a `.json` (a checkout of an old branch) is quarantined as
+     `_trash/annotations-v1/stale-<time>-<name>`. It is never merged over the board or imported silently; it stays
+     recoverable by hand. (Amended 2026-09-30: the first draft said `_untrusted/`; `_trash/` is where every other
+     migrated original already goes, and both are ignored runtime state.)
 
 7. **Text system.**
    - All object text renders as HTML in a world-transformed layer. It never uses SVG `<text>` or `foreignObject`.

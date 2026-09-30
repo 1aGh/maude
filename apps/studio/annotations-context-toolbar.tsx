@@ -21,6 +21,7 @@
  */
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type FormatKey, formatCommands, formatState } from './annotations/ui/editor-channel.ts';
 import type { AlignEdge } from './annotations-align.ts';
 import {
   type ArrowHead,
@@ -439,9 +440,9 @@ export function AnnotationContextToolbar({
   /**
    * FigJam v3 — while an inline text editor is open, the toolbar flips into
    * TEXT mode: size / B / I / S / U / align controls that drive the EDITOR
-   * through `maude:editor-format` events (mutating the stroke mid-edit would
-   * re-render the contentEditable and clobber typed text). The editor echoes
-   * its live state back via `maude:editor-format-state`.
+   * through editor-channel.ts (mutating the stroke mid-edit would re-render
+   * the editor and clobber typed text). The editor echoes its live state back
+   * on the same channel.
    */
   editingId?: string | null;
 } = {}) {
@@ -461,14 +462,9 @@ export function AnnotationContextToolbar({
     align?: string;
   }>({});
   useEffect(() => {
-    if (!editingId || typeof document === 'undefined') return;
-    const onState = (e: Event) => {
-      setEditorFmt((e as CustomEvent<Record<string, unknown>>).detail ?? {});
-    };
-    document.addEventListener('maude:editor-format-state', onState);
-    // Ask the already-mounted editor for its current state (mount-order race).
-    document.dispatchEvent(new CustomEvent('maude:editor-format-request'));
-    return () => document.removeEventListener('maude:editor-format-state', onState);
+    if (!editingId) return;
+    // Called at once with the editor's current state (it may have mounted first).
+    return formatState.listen((s) => setEditorFmt(s ?? {}));
   }, [editingId]);
   // T30 / G_S1 — collapsed Stroke|Fill toggle state. Defaults to 'stroke';
   // auto-reverts to 'stroke' whenever caps.fill is false so the toggle
@@ -766,8 +762,8 @@ export function AnnotationContextToolbar({
   // FigJam v3 — TEXT mode while an inline editor is open: a focused strip of
   // text controls dispatching to the editor (Image-6 FigJam parity).
   if (editingId) {
-    const dispatchFmt = (key: string, value?: unknown) => {
-      document.dispatchEvent(new CustomEvent('maude:editor-format', { detail: { key, value } }));
+    const dispatchFmt = (key: FormatKey, value?: unknown) => {
+      formatCommands.send({ key, value });
     };
     const fmtBtn = (
       key: 'bold' | 'italic' | 'strike' | 'underline',

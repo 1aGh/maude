@@ -3,6 +3,7 @@ import { enterCanvasFrame, exitToTop } from '../helpers/canvas-frame';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
+import { canvasRow } from '../helpers/tree';
 
 /**
  * Pilot integration smoke for the bundled Maude desktop `.app`.
@@ -32,7 +33,7 @@ describe('app-boots-and-renders-canvas (native-desktop)', () => {
     await capture('canvas-list-visible');
 
     // 4 — open the fixture canvas (ui/Smoke.tsx → canvas-row-ui-smoke)
-    const row = await $('[data-testid="canvas-row-ui-smoke"]');
+    const row = await canvasRow('canvas-row-ui-smoke');
     await row.waitForExist({ timeout: 30_000 });
     await row.click();
     await capture('canvas-opened');

@@ -6,7 +6,7 @@ import path from 'node:path';
 
 import * as Y from 'yjs';
 
-import { replicaBoardText, writeReplica } from '../annotations/replica.ts';
+import { noteAnnotationsOnDisk, replicaBoardText, writeReplica } from '../annotations/replica.ts';
 import { parseBoard } from '../annotations/schema.ts';
 import type { Api } from '../api.ts';
 import type { Context } from '../context.ts';
@@ -73,6 +73,8 @@ export interface PersistenceDeps {
    * later edit.
    */
   onAnnotationsProjected?: (slug: string, board: string) => void;
+  /** The board a room was seeded from — the disk state it starts out agreeing with. */
+  onAnnotationsSeeded?: (slug: string, board: string) => void;
   /**
    * Issue #133 — which comment ids this machine synced before (see
    * sync/comment-ledger.ts). Defaults to the process-wide ledger for the design
@@ -303,6 +305,7 @@ export function createPersistence(deps: PersistenceDeps): RoomCallbacks {
         writeReplica(doc, parseBoard(svg).elements, 'seed');
       }
     }, 'seed');
+    if (svg && typeof svg === 'string') deps.onAnnotationsSeeded?.(slug, svg);
   }
 
   async function persistJson(slug: string, doc: Y.Doc): Promise<void> {
@@ -365,6 +368,7 @@ export function createPersistence(deps: PersistenceDeps): RoomCallbacks {
         // Recorded BEFORE the write: the watcher event may be delivered before
         // this await resumes.
         deps.onAnnotationsProjected?.(slug, board);
+        noteAnnotationsOnDisk(doc, board);
         await api.projectAnnotations(file, board, () => replicaBoardText(doc) === board);
       }
     }

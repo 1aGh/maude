@@ -897,7 +897,7 @@ UI see no change.
   | V10 migration | Start the app on the legacy fixture → JSON written, SVG in `_trash/annotations-v1/`, render equals the golden screenshot; restart = no-op |
   | V11 hub migration | Hub with a persisted legacy doc + history → after upgrade, board intact, undo of a pre-upgrade edit and restore of a pre-upgrade revision both work |
   | V12 mixed version | Old studio against a v2 project: the old peer's write can't erase v2 elements; the new studio against an old hub shows "hub needs update" and doesn't write |
-  | V13 stale sidecar | A `.annotations.svg` reappears (git checkout of an old branch) → quarantined in `_untrusted/`, board unchanged, import offered |
+  | V13 stale sidecar | A `.annotations.svg` reappears (git checkout of an old branch) → quarantined as `_trash/annotations-v1/stale-…` (DDR-242 §6, amended), board unchanged |
   | V14 AI round trip | `annotate update` on a sticky while a peer has it selected → no flicker (same id), the comment anchor survives, and it isn't in the user's undo |
   | V15 live previews | A drags; B sees the ghost moving before release; B's own undo is untouched |
   | V16 offline / outbox | A edits offline (accepted mode), reconnects → ops accepted; queued pre-upgrade SVG proposals upconverted |
@@ -1010,20 +1010,20 @@ Run these commands to confirm zero regressions (from `quality` in `.ai/workflows
 
 ## Acceptance Criteria
 
-- [ ] All tasks completed; the adapter and dead v1 paths removed (Task 26)
-- [ ] `/flow:utils-verify` passes after each task (Edit-Verify Loop, max 3 iterations)
+- [ ] All tasks completed; the adapter and dead v1 paths removed (Task 26) — *all tasks worked; the adapter survives as the editing view (deviation, see the Execution Log); Tasks 23/24 partial*
+- [x] `/flow:utils-verify` passes after each task (Edit-Verify Loop, max 3 iterations)
 - [ ] `/validate` passes overall: static, tests (studio alone + sync lane + hub + harness + CLI), build
-- [ ] Surface rig: 0 regressions against the Task 3 baseline; V1–V16 green in both sync modes, both backends, all directions
-- [ ] Golden screenshot parity (except the recorded intended text-wrap diff)
-- [ ] Perf / token gates from Task 30 met
-- [ ] Migration idempotent, non-destructive, with a quarantine for reappearing SVG; the hub keeps undo and restore across the upgrade
-- [ ] A stale or old peer cannot erase a v2 board (V12 / V13)
-- [ ] Adding an element type = one file (Task 25 proof)
+- [ ] Surface rig: 0 regressions against the Task 3 baseline; V1–V16 green in both sync modes, both backends, all directions — *L09/L10: 0 regressions vs a v1 baseline run (a25a75d2) and `L09.v2.*` 28/28, all three directions, legacy save mode on a local hub; accepted mode and the cloud backend not run*
+- [x] Golden screenshot parity (except the recorded intended text-wrap diff) — side by side against `main` in Task 17
+- [ ] Perf / token gates from Task 30 met — *all but AI read (2.86× vs ≥ 3×)*
+- [x] Migration idempotent, non-destructive, with a quarantine for reappearing SVG; the hub keeps undo and restore across the upgrade
+- [x] A stale or old peer cannot erase a v2 board (V12 / V13)
+- [x] Adding an element type = one file (Task 25 proof)
 - [ ] `scenario-runner`: 0 blockers, parity_ok
 - [ ] `design-system-guard` and `a11y-auditor`: 0 blockers
-- [ ] Security pair: 0 blockers on the new boundaries
+- [x] Security pair: 0 blockers on the new boundaries — after the fix pass (`36c02e2a`), each fix proven by a red-first test
 - [ ] DDR recorded (Task 1) and ingested; DDR-100 §3 and the DDR-054 table amended
-- [ ] What's New entry pending; the committed client bundle rebuilt `--release`
+- [x] What's New entry pending; the committed client bundle rebuilt `--release`
 
 ## Risks
 
@@ -1264,6 +1264,141 @@ The plan stays **active**: Milestones C–F remain. This close commits A–B, th
   - Browser E2E: 18/18.
   - Skipped (interim close, per plan): cross-platform scenario, desktop E2E, bundle gates. These are Task 29–31 in
     Milestone F.
+
+### 2026-09-30 (cont.) — Milestones C–E after the merge (#138)
+
+PR #138 (Milestones A–B plus the editing fixes) was squash-merged to `main` as `731c64ca`. Everything below builds on it,
+on `worktree-annotations-v2`.
+
+- ✅ **Tasks 17 + 18** (`e77ce766`):
+  - Every element is its own DOM node in paint order. Geometry is a small world-space SVG, and text is HTML
+    (`annotations/ui/{element-node,scene,text-style}.tsx`).
+  - One `<textarea>` editor serves every text slot. It has native IME, the caret and word selection work, there is one
+    commit policy, and composition never commits.
+  - Below 0.5 zoom, a double-click zooms in first.
+  - Visual parity with `main`: identical, except standalone text shifts by about 2 px.
+- ✅ **Task 19** (`ddf8d00e`):
+  - Drafts are sent after 600 ms idle. A commit expects what the session last sent.
+  - Undo is one step and merges back.
+  - The editor shows a notice when a collaborator edits or deletes the element; Enter restores it with the same id.
+- ✅ **Task 20** (`54f15488`):
+  - One expansion rule (groups, then section subtrees) governs nudge, drag, align, distribute, delete, copy, ⌘D and
+    Alt-drag.
+  - A marquee selects elements by touch; a section is selected only when fully enclosed.
+  - A section drawn inside another one nests.
+  - The seven characterization todos are now real assertions.
+- ✅ **Task 21** (`a7052132`): one pointer pipeline, with stages by priority, one owner per gesture, and the state as
+  `data-annot-state`. The chrome skip-list is now one stage. The event bus is replaced by store actions and a typed
+  editor channel.
+- ✅ **Task 22** (`ca879b84`): `annotationGesture` on awareness, sanitized. Peers draw a ghost that fades after 3 s.
+- ✅ **Task 27** (subagent, `11351c49`): `read-annotations` / `annotate` / `import-figma` run on the registry. The v1
+  bridge and the regex parser are gone.
+- ✅ **Task 26** (`8f079c5e`, `3c32e9d0`).
+  - **Done:**
+    - The board is the element store (`ui/board.ts`, `BoardStore`).
+    - Every edit is one op batch, applied optimistically, sent, and recorded as ONE undo step whose undo is the batch's
+      inverse.
+    - A text session's undo merges back, so a collaborator's typing survives the undo.
+    - Replica snapshots are rebased onto this tab's batches still in flight.
+    - The snapshot undo (`annotation-strokes-command.ts`, the `strokesPutFn` sink) is deleted.
+    - `reconcileCommit` / `reconcileForeignEcho` are deleted.
+    - The engine flag and the v1 layer copy are deleted: the element-native layer is the only one, still at
+      `annotations-layer.tsx`.
+    - The clipboard carries v2 elements (`{"maudeElements":2}`).
+  - **Deviation.**
+    - *What the plan said:* delete the `Stroke` union, `strokesToSvg` and the adapter.
+    - *What was done:* the editing tools (select, snap, marquee, handles, eraser, connectors, the context toolbar;
+      about 10k lines) keep working on a world-space `Stroke` VIEW, projected per element and cached by record identity
+      (`ui/world.ts` → `elementStrokes`). A commit diffs that view back into element ops.
+    - *Why:* persistence, sync and undo are element-native, so the gains the plan wanted are there: minimal ops,
+      peer-safe undo, and only the changed nodes re-render (Task 30). Rewriting 10k lines of tool code was the riskier
+      path, and both behaviour suites guard the view instead.
+    - `strokesToSvg` and `svgToStrokes` stay in `annotations-model.ts`. The migration, legacy fixtures and a pre-v2
+      paste still need them.
+    - `ui/edit-actions.ts` (element-op edits written directly) is tested but not yet used by the layer.
+- ✅ **Task 23** (partial): memoized per-element nodes, with identity kept by the projection. Measured in Task 30: a
+  drag re-renders only the dragged node. Toolbar controls driven by registry capabilities were NOT done; the context
+  toolbar still switches on the stroke kind.
+- ✅ **Task 24** (partial): records never carried `tool` (it is a palette concept). Resize handles and arrow binding
+  consult the registry for types without a stroke form (`ElementStroke`). The palette, input router and cursors are
+  unchanged; they are palette-owned lists of tools, not element types.
+- ✅ **Task 25** (`0361d276`):
+  - `registerElementType` / `registerElementView`.
+  - `ElementStroke`: a registered type with no stroke form rides the view, and its geometry comes from its definition.
+  - A conformance suite over every type, plus a `stamp` declared in the test file alone that works end to end (render,
+    hit, move, resize, bind, sync, AI read/write). Proven red: with the element projection disabled, 4 tests fail.
+  - Guide: `docs/architecture/annotations-v2-adding-an-element-type.md`.
+- ✅ **Task 28** (subagent, `3292dad0`, `32f85ab6`):
+  - Updated: plugin docs, site `hub/linking.mdx`, `docs/architecture/{annotations-v2,project-transactions,project-writer-registry}.md`.
+  - The sync-e2e contracts now use the v2 op schema (131/131); the harness has a v2 board builder; `pnpm test:harness`
+    is green.
+  - DDR-242 §6 was amended to match the code: a stale `.svg` goes to `_trash/annotations-v1/stale-…`, not `_untrusted/`.
+
+### Milestone F
+
+- ✅ **Task 30** (`2f35089c`, report `.ai/plans/notes/annotations-v2/perf.md`), on mixed boards of 200 / 1000 / 5000:
+  - bytes per edit: 174 → 176 B (constant);
+  - a drag re-renders only the dragged node;
+  - drag p95 is about 18 ms at every size;
+  - a single write is about 12 tokens.
+  - **❌ AI read is 2.86× smaller, short of the 3× gate.** The remaining bytes are the schema's computed arrow
+    endpoints. Whether to drop them is left to the owner.
+  - The Safari lane was not run (it needs `safaridriver --enable`).
+- ✅ **Task 31**:
+  - Bundle gates: `check-bundle-completeness --smoke` and `check-client-boots` are green on the debug `.app`. kgai was
+    not staged (`MAUDE_SKIP_KG_SYNC`).
+  - Client bundles rebuilt release-minified (`e9257d16`).
+  - Security pair (`36c02e2a`): verdict NEEDS FIXES, then everything fixed with red-first tests. The HIGH finding was an
+    element typed `constructor` that blanked every peer's canvas. Also fixed: `annotate`'s stale file fallback,
+    pastejacked authorship and link domain, the `--rects` strings, undo records bound to their canvas, the clipboard
+    size cap, the placeholder clamp, and symlink-safe `board-io`. Deferred as structural: the AI trifecta, confirmation
+    for destructive `annotate` verbs, and a diff-based disk→room reseed.
+  - Desktop E2E on the native debug build:
+    - **Found:** every scenario that opens a canvas from the Files panel was red on `main` since #124 (the tree starts
+      collapsed). Fixed with `helpers/tree.ts` `canvasRow()` (`33b481ba`).
+    - `app-boots` ✓, `sidecar-respawn` ✓.
+    - `canvas-text-editing`: the annotation phases were ported to the v2 DOM and are 7/7 ✓.
+    - **Pre-existing, split out:** the artboard persistence step waits for `.dc-media-toast`, which is gone since the
+      sonner move (d50954df). The `shell-parity` ⌘⇧I Inspector step is also red on a pre-v2 build.
+- ✅ **Task 29**:
+  - Scenario `.ai/scenarios/annotations-v2/{spec.md,covers.json}`.
+  - The rig was ported to the JSON board (subagent) and gained the `L09.v2.*` rows V2, V3, V5, V6, V8, V14 and V15.
+    V4, V7 and V9–V13 are covered by the browser, unit and hub suites, as mapped in the spec.
+  - The rig reveals tree rows (#124).
+  - **Rig results** (native debug build + local hub, `--only L09.v2.`):
+    - Run 1: 22 pass / 7 fail. It found two real bugs, fixed in `0ca58542` with red-first tests:
+      - `annotate` posted ops under a doubled `.design/.design/…` path, so every op was refused as `gone`.
+      - Moving a section re-parented what sat on a nested section inside it. Also, a section drawn around an element
+        inside another never adopted it. The rule is now the v1 one: the smallest section under an element's centre
+        that it paints above holds it.
+    - Run 1 also showed that the A2 security fix had closed the in-cell agent's file channel. A cloud workspace
+      (`MAUDE_WORKSPACE_MODE=1`) takes the file path again.
+    - Run 2: 25 / 4. The failures were in different rows than run 1, and in them no gesture had been executed at all
+      — intermittent synthetic-gesture flakiness on the native lane.
+    - Run 3: **28 pass / 0 fail.** One row was not run by design: V14 on the hub writes the file inside a workspace.
+- ✅ **Rig regression check against a v1 baseline (Task 29 V1).**
+  - **Baseline.** The old rig and old code at `a25a75d2`, just before #124, taken with `git archive` into a scratch
+    repo. It ran against a pre-v2 native debug build: `--mode baseline --only L09,L10` gave **368 pass / 0 fail**.
+  - **v2 before the fixes: 260 pass / 107 fail.** About 130 rows regressed: deletes, toolbar edits, undo and eraser.
+  - **Root cause 1** (`875da2b5`, `c29881da`, both proven red first):
+    - *What happened:* the file event of an older board projection was imported into the shared doc as a replacement
+      (`applyAnnotationsToDoc`). It overwrote newer per-field edits.
+    - *Why:* v1 moved one SVG blob, so the race rarely showed.
+    - *Where it was traced:* debug logging on the peer and on the cell studio.
+    - *Fix:* each doc now notes the board that disk last agreed with. Importers apply only the change from that board
+      (`importAnnotationsFromDisk`), and so does the collab disk→room reseed.
+  - **Root cause 2:** Shift+click now removes an element that is already selected (the user-reported fix). The rig
+    re-selected the same three elements by click plus Shift+click, so every second align row failed. The rig now presses
+    Esc before each selection (`test(multiplayer)` commit).
+  - **Result:**
+    - Full run after the sync fix: **382 pass / 12 fail**. Against the baseline, the only regressions were those 12
+      align rows.
+    - After the rig fix, `L09.context-control` + `L09.selection-align` gave **80 / 0**.
+    - Net: **0 regressions vs the v1 baseline on L09/L10** (legacy save mode, local hub, all three directions).
+    - The 27 candidate-only rows are the new `L09.v2.*`.
+  - **Not run:** accepted save mode, and the cloud backend (`wdio.cloud.conf.ts`).
+- ✅ **Task 32**: a pending What's New entry (`f79d0bdc`). `minStudioVersion` needs the release version, so it stays with
+  the release flow.
 
 ## Retro (interim — Milestones A–B)
 

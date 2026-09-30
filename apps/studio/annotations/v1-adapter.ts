@@ -25,9 +25,9 @@ import {
   DEFAULT_STICKY_FILL,
   STICKY_RADIUS,
 } from './constants.ts';
-import { keyBetween, keysBetween } from './fractional-index.ts';
+import { keyBetween, orderKeys } from './fractional-index.ts';
 import { v1ToV2 } from './migrate-v1.ts';
-import { isKnownType } from './registry.ts';
+import { defOf, isKnownType } from './registry.ts';
 import { Scene } from './scene.ts';
 import { validateElements } from './schema.ts';
 import type { AnnotationElement, ArrowEnd, Box } from './types.ts';
@@ -83,8 +83,15 @@ function shared(el: AnnotationElement): Partial<Stroke> {
 export function elementsToStrokes(elements: Iterable<AnnotationElement>): Stroke[] {
   const scene = new Scene(elements);
   const out: Stroke[] = [];
-  for (const el of scene.paintOrder()) {
-    if (!isKnownType(el.type)) continue;
+  for (const el of scene.paintOrder()) out.push(...elementStrokes(scene, el));
+  return out;
+}
+
+/** One element as the strokes the UI draws for it (a labelled shape is two). */
+export function elementStrokes(scene: Scene, el: AnnotationElement): Stroke[] {
+  const out: Stroke[] = [];
+  {
+    if (!isKnownType(el.type)) return out;
     const o = scene.originOf(el);
     const x = num(el.x) + o.x;
     const y = num(el.y) + o.y;
@@ -243,6 +250,16 @@ export function elementsToStrokes(elements: Iterable<AnnotationElement>): Stroke
           title: str(el.title),
         } as Stroke);
         break;
+      default: {
+        // A registry type with no stroke form of its own (Task 25): carried as
+        // its world-space record; geometry comes from its definition.
+        const def = defOf(el.type);
+        if (!def) break;
+        const world: Record<string, unknown> = { ...el, ...def.translate(el, o.x, o.y) };
+        delete world.parent;
+        out.push({ ...base, tool: 'element', el: world as AnnotationElement } as Stroke);
+        break;
+      }
       case 'section':
         out.push({
           ...base,
@@ -271,64 +288,6 @@ function sameBox(a: Box | null, b: Box | null): boolean {
 }
 
 /**
- * Keys for `ids` (desired order) that reuse `prev` keys where they are already
- * in order (longest increasing run), minting new keys only for moved items.
- */
-function orderKeys(ids: readonly string[], prev: ReadonlyMap<string, string>): Map<string, string> {
-  const out = new Map<string, string>();
-  // Longest increasing subsequence over the items that have a previous key.
-  const cand = ids
-    .map((id, i) => ({ id, i, k: prev.get(id) }))
-    .filter((c) => c.k !== undefined) as Array<{ id: string; i: number; k: string }>;
-  const tails: number[] = [];
-  const back: number[] = new Array(cand.length).fill(-1);
-  for (let j = 0; j < cand.length; j++) {
-    const k = (cand[j] as { k: string }).k;
-    let lo = 0;
-    let hi = tails.length;
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1;
-      if ((cand[tails[mid] as number] as { k: string }).k < k) lo = mid + 1;
-      else hi = mid;
-    }
-    if (lo > 0) back[j] = tails[lo - 1] as number;
-    tails[lo] = j;
-  }
-  const keep = new Set<string>();
-  for (
-    let j = tails.length ? (tails[tails.length - 1] as number) : -1;
-    j >= 0;
-    j = back[j] as number
-  ) {
-    keep.add((cand[j] as { id: string }).id);
-  }
-  for (const id of keep) out.set(id, prev.get(id) as string);
-  // Fill the gaps between kept keys.
-  let i = 0;
-  while (i < ids.length) {
-    if (keep.has(ids[i] as string)) {
-      i++;
-      continue;
-    }
-    let j = i;
-    while (j < ids.length && !keep.has(ids[j] as string)) j++;
-    const lo = i > 0 ? (out.get(ids[i - 1] as string) ?? null) : null;
-    const hi = j < ids.length ? (out.get(ids[j] as string) ?? null) : null;
-    let keys: string[];
-    try {
-      keys = keysBetween(lo, hi, j - i);
-    } catch {
-      // Degenerate neighbours — renumber the whole sibling list.
-      const all = keysBetween(null, null, ids.length);
-      return new Map(ids.map((id, n) => [id, all[n] as string]));
-    }
-    for (let n = i; n < j; n++) out.set(ids[n] as string, keys[n - i] as string);
-    i = j;
-  }
-  return out;
-}
-
-/**
  * The UI's `Stroke[]` → canonical elements, reconciled with the `current`
  * board so that what the v1 UI can't express survives: parents of unmoved
  * elements, sibling keys, unknown element types.
@@ -351,25 +310,35 @@ export function strokesToElements(
   const parentOf = new Map<string, string>();
   // Same rule as the migration: a section adopts only what paints above it.
   const zOf = new Map(strokes.map((s, i) => [s.id, i]));
+  const inside = (box: Box, x: number, y: number) =>
+    x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h;
   for (const el of flat) {
     const prev = current.get(el.id);
-    const moved = !prev || !sameBox(curScene.worldBox(prev), boxOf(el.id));
-    if (prev && !moved && prev.parent && world.has(prev.parent)) {
-      parentOf.set(el.id, prev.parent);
-      continue;
-    }
     const b = boxOf(el.id);
     if (!b) continue;
     const cx = b.x + b.w / 2;
     const cy = b.y + b.h / 2;
     const self = el.type === 'section' ? area(b) : null;
+    // The smallest section under the element's centre that it painted above
+    // (the v1 rule: what sits on a section is in it).
     let best: { id: string; a: number } | null = null;
     for (const s of sections) {
       if (s.id === el.id || (self !== null && area(s.box) <= self)) continue;
       if ((zOf.get(s.id) ?? 0) >= (zOf.get(el.id) ?? Number.POSITIVE_INFINITY)) continue;
-      if (cx < s.box.x || cx > s.box.x + s.box.w || cy < s.box.y || cy > s.box.y + s.box.h)
-        continue;
-      if (!best || area(s.box) < best.a) best = { id: s.id, a: area(s.box) };
+      if (!inside(s.box, cx, cy)) continue;
+      // Equal size (a copy lying exactly on its original): the one painted
+      // later — nearest below the element — is its container.
+      if (!best || area(s.box) <= best.a) best = { id: s.id, a: area(s.box) };
+    }
+    // An element that did not move keeps its container while it still sits
+    // in it — unless a smaller section now holds it (one drawn around it, or
+    // moved or resized onto it: it adopts what it lands on, as in v1).
+    const moved = !prev || !sameBox(curScene.worldBox(prev), b);
+    const kept = prev?.parent;
+    const keptBox = kept && world.has(kept) ? boxOf(kept) : null;
+    if (!moved && kept && keptBox && inside(keptBox, cx, cy)) {
+      parentOf.set(el.id, best && best.a < area(keptBox) ? best.id : kept);
+      continue;
     }
     if (best) parentOf.set(el.id, best.id);
   }

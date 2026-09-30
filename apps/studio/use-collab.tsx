@@ -106,6 +106,12 @@ export interface CollabAwarenessState {
    * annotation-shaped is selected.
    */
   annotationSelection: string[];
+  /**
+   * DDR-242 AD5 / Task 22 — an annotation gesture in flight (drag, resize,
+   * draw), so peers see it move live. It never touches storage: the op
+   * commits once at gesture end, and this goes back to null.
+   */
+  annotationGesture?: AnnotationGesture | null;
   viewport: { x: number; y: number; zoom: number };
   /**
    * Soft editing-presence (Phase 30). Set while THIS peer (a human editing via
@@ -129,6 +135,20 @@ export interface CollabAwarenessState {
 }
 
 export type ForeignAwareness = Omit<CollabAwarenessState, '__connId'> & { clientID: number };
+
+/** A live annotation gesture, in WORLD coordinates. */
+export interface AnnotationGesture {
+  kind: 'move' | 'resize' | 'draw';
+  /** Elements the gesture moves / resizes (empty while drawing a new one). */
+  ids: string[];
+  /** move: the drag offset. */
+  dx?: number;
+  dy?: number;
+  /** resize: the box being dragged out; draw: a shape / sticky / section being drawn. */
+  box?: { x: number; y: number; w: number; h: number };
+  /** draw: pen ink so far, flat [x0,y0,x1,y1,…] (the latest part, capped). */
+  points?: number[];
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Untrusted-input sanitization at the awareness trust boundary.
@@ -214,6 +234,58 @@ function sanitizeCursor(raw: unknown): { x: number; y: number } | null {
   return isFiniteNum(c.x) && isFiniteNum(c.y) ? { x: c.x, y: c.y } : null;
 }
 
+const GESTURE_KINDS = new Set(['move', 'resize', 'draw']);
+const MAX_GESTURE_POINTS = 512; // numbers, i.e. 256 points
+const GESTURE_COORD_LIMIT = 1e6;
+
+function gestureNum(v: unknown): number | undefined {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return undefined;
+  return Math.max(-GESTURE_COORD_LIMIT, Math.min(GESTURE_COORD_LIMIT, v));
+}
+
+/**
+ * Task 22 — a peer's gesture preview is untrusted like every other awareness
+ * field: kind allowlisted, ids through the same token + count gate as the
+ * selection, every number finite and clamped, pen points capped.
+ */
+export function sanitizeAnnotationGesture(raw: unknown): AnnotationGesture | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const g = raw as Record<string, unknown>;
+  if (typeof g.kind !== 'string' || !GESTURE_KINDS.has(g.kind)) return null;
+  const out: AnnotationGesture = {
+    kind: g.kind as AnnotationGesture['kind'],
+    ids: sanitizeAnnotationSelection(g.ids),
+  };
+  const dx = gestureNum(g.dx);
+  const dy = gestureNum(g.dy);
+  if (dx !== undefined && dy !== undefined) {
+    out.dx = dx;
+    out.dy = dy;
+  }
+  const b = g.box as Record<string, unknown> | undefined;
+  if (b && typeof b === 'object') {
+    const x = gestureNum(b.x);
+    const y = gestureNum(b.y);
+    const w = gestureNum(b.w);
+    const h = gestureNum(b.h);
+    if (x !== undefined && y !== undefined && w !== undefined && h !== undefined) {
+      out.box = { x, y, w: Math.abs(w), h: Math.abs(h) };
+    }
+  }
+  if (Array.isArray(g.points)) {
+    const pts: number[] = [];
+    const src = g.points.slice(-MAX_GESTURE_POINTS);
+    for (const v of src) {
+      const n = gestureNum(v);
+      if (n === undefined) break;
+      pts.push(n);
+    }
+    if (pts.length % 2 === 1) pts.pop();
+    if (pts.length) out.points = pts;
+  }
+  return out;
+}
+
 function sanitizeViewport(raw: unknown): { x: number; y: number; zoom: number } {
   const fallback = { x: 0, y: 0, zoom: 1 };
   if (!raw || typeof raw !== 'object') return fallback;
@@ -284,6 +356,7 @@ export function sanitizeForeignState(clientID: number, state: unknown): ForeignA
     cursor: sanitizeCursor(s.cursor),
     selection: sanitizeSelection(s.selection),
     annotationSelection: sanitizeAnnotationSelection(s.annotationSelection),
+    annotationGesture: sanitizeAnnotationGesture(s.annotationGesture),
     viewport: sanitizeViewport(s.viewport),
     editing: sanitizeEditingState(s.editing),
   };
@@ -586,6 +659,7 @@ function createSession(slug: string): CollabSession {
       cursor: cur.cursor ?? null,
       selection: cur.selection ?? null,
       annotationSelection: cur.annotationSelection ?? [],
+      annotationGesture: null,
       viewport: cur.viewport ?? { x: 0, y: 0, zoom: 1 },
       editing: cur.editing ?? null,
       __connId: connId,
@@ -894,6 +968,8 @@ export function CollabProvider({ slug, children }: CollabProviderProps): JSX.Ele
           cursor: current.cursor ?? null,
           selection: current.selection ?? null,
           annotationSelection: current.annotationSelection ?? [],
+          // Kept across other fields' publishes (a cursor move mid-drag).
+          annotationGesture: current.annotationGesture ?? null,
           viewport: current.viewport ?? { x: 0, y: 0, zoom: 1 },
           editing: current.editing ?? null,
           __connId: myConnId,

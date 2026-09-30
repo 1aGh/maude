@@ -101,6 +101,23 @@ export function replicaActionId(doc: Y.Doc): string | undefined {
   return validActionId(v) ? v : undefined;
 }
 
+/**
+ * The board text a doc's replica last AGREED with on disk — noted by every
+ * doc→disk projector (the room's flush, the sync agent's writer) and by the
+ * disk→doc importer. Keyed by the doc, so all projectors of a shared doc see
+ * the same base (sync/codec.ts `importAnnotationsFromDisk`).
+ */
+const onDisk = new WeakMap<Y.Doc, string>();
+
+/** Record that disk holds `text` as projected from / imported into `doc`. */
+export function noteAnnotationsOnDisk(doc: Y.Doc, text: string): void {
+  onDisk.set(doc, text);
+}
+
+export function annotationsOnDiskOf(doc: Y.Doc): string | undefined {
+  return onDisk.get(doc);
+}
+
 export interface WriteOpts {
   /** Recorded under '~action' so the author can recognise its own echo. */
   actionId?: string;

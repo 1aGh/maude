@@ -551,7 +551,7 @@ async function coldStart(ctx, cellRoot) {
 
   const canvases = want.filter((r) => r.endsWith('.tsx'));
   const assets = want.filter((r) => r.startsWith('assets/'));
-  const annotations = want.filter((r) => r.endsWith('.annotations.svg'));
+  const annotations = want.filter((r) => r.endsWith('.annotations.json'));
   const ds = want.filter((r) => r.startsWith('system/'));
   // Broken out by KIND, because "39 of 41 files" is not an answer a person can
   // act on and "every canvas but no pictures" is.
