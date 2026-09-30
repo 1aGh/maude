@@ -1,4 +1,8 @@
+import { MAX_ELEMENTS } from './annotations/constants.ts';
+import { parseOps as parseAnnotationOps } from './annotations/ops.ts';
+import { serializeBoard } from './annotations/schema.ts';
 import { validAnnotationWriteId } from './annotations-sync.ts';
+import { MAX_ANNOTATIONS_BYTES } from './sync/limits.ts';
 // HTTP layer for Bun.serve.
 //
 // Designed for extension — Phase 3.6 adds /ui/:slug + /_bun_hmr by appending to
@@ -2402,36 +2406,42 @@ export function createHttp(
     },
 
     '/_api/annotations': async (req: Request) => {
-      // Phase 5 — `<designRoot>/<slug>.annotations.svg` read / overwrite.
-      // GET ?file=<repo-relative-canvas-path>           → SVG text (empty if absent)
-      // PUT body { file, svg }                          → 204 on write, 4xx otherwise
+      // DDR-242 — `<designRoot>/<slug>.annotations.json` read / whole-board write.
+      // GET ?file=<repo-relative-canvas-path>     → canonical board JSON (empty board if absent)
+      // PUT body { file, board | svg, writeId?, base? } → 204 on write, 4xx otherwise
+      //   `board` is board JSON; `svg` (a v1 tab still open across an upgrade)
+      //   is converted through the v1→v2 migration. The canvas's own edits go
+      //   through /_api/annotations/ops, never a whole-board write.
       const url = new URL(req.url);
       if (req.method === 'GET') {
         const file = url.searchParams.get('file');
         if (!file) return new Response('file query param required', { status: 400 });
-        const svg = await api.loadAnnotations(file);
-        return new Response(svg ?? '', {
+        const read = await api.readBoard(file);
+        // An existing-but-unreadable board is NOT served as empty (review H2).
+        if (!read.ok) return new Response(read.error, { status: 409 });
+        const board = read.text ?? serializeBoard([]);
+        return new Response(board, {
           status: 200,
           headers: {
-            'Content-Type': 'image/svg+xml; charset=utf-8',
+            'Content-Type': 'application/json; charset=utf-8',
             'Cache-Control': 'no-store',
           },
         });
       }
       if (req.method === 'PUT' || req.method === 'POST') {
-        // `base` (optional) is the SVG this edit was derived from — the hub
-        // merges a concurrent peer's strokes from it (accepted revisions).
         const body = await readJson<{
           file?: string;
-          svg?: string;
+          board?: unknown;
+          svg?: unknown;
           writeId?: unknown;
           base?: unknown;
-        }>(req, 2 * 1024 * 1024 + 2048);
+        }>(req, MAX_ANNOTATIONS_BYTES * 2 + 2048);
         if (!body || typeof body.file !== 'string' || !body.file) {
-          return new Response('body must include { file, svg }', { status: 400 });
+          return new Response('body must include { file, board }', { status: 400 });
         }
-        if (typeof body.svg !== 'string') {
-          return new Response('body.svg must be a string', { status: 400 });
+        const text = typeof body.board === 'string' ? body.board : body.svg;
+        if (typeof text !== 'string') {
+          return new Response('body.board must be a string', { status: 400 });
         }
         if (body.writeId !== undefined && !validAnnotationWriteId(body.writeId)) {
           return new Response('invalid annotation writeId', { status: 400 });
@@ -2441,7 +2451,7 @@ export function createHttp(
         }
         const ok = await api.saveAnnotations(
           body.file,
-          body.svg,
+          text,
           body.writeId as string | undefined,
           body.base as string | undefined
         );
@@ -2449,6 +2459,38 @@ export function createHttp(
         return new Response(null, { status: 204 });
       }
       return new Response('Method not allowed', { status: 405 });
+    },
+
+    '/_api/annotations/ops': async (req: Request) => {
+      // DDR-242 §4 — the canvas write path: an op batch applied under the one
+      // merge rule. Canvas-origin reachable (inert collab data, DDR-054) — every
+      // op is validated element-by-element and the board stays capped.
+      // POST body { file, actionId, ops: Op[] } → 200 { ok, changed, rejected[] }
+      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+      const body = await readJson<{ file?: unknown; actionId?: unknown; ops?: unknown }>(
+        req,
+        MAX_ANNOTATIONS_BYTES + 2048
+      );
+      if (!body || typeof body.file !== 'string' || !body.file) {
+        return new Response('body must include { file, actionId, ops }', { status: 400 });
+      }
+      if (body.actionId !== undefined && !validAnnotationWriteId(body.actionId)) {
+        return new Response('invalid actionId', { status: 400 });
+      }
+      if (!Array.isArray(body.ops))
+        return new Response('body.ops must be an array', { status: 400 });
+      // Bounded to what a whole board can need (select-all + delete on a full
+      // board) and REFUSED past it — never truncated, which would half-apply a
+      // gesture. Batch cost is linear in the ops (ops.ts indexes).
+      if (body.ops.length > MAX_ELEMENTS) {
+        return new Response('too many ops in one batch', { status: 413 });
+      }
+      const { ops } = parseAnnotationOps(body.ops, MAX_ELEMENTS);
+      const r = await api.applyAnnotationOps(body.file, ops, body.actionId as string | undefined);
+      return Response.json(r, {
+        status: r.ok ? 200 : r.unreadable ? 409 : 413,
+        headers: { 'Cache-Control': 'no-store' },
+      });
     },
 
     '/_api/canvas': async (req: Request) => {
@@ -5881,7 +5923,8 @@ export function createHttp(
   const CANVAS_SAFE_API = new Set([
     '/_api/git-user', // presence display name
     '/_api/canvas-meta', // layout/viewport sidecar (GET + PATCH)
-    '/_api/annotations', // annotation SVG (GET + PUT) — drives the collab bridge
+    '/_api/annotations', // annotation board (GET + whole-board PUT) — drives the collab bridge
+    '/_api/annotations/ops', // DDR-242 annotation op batches (POST). MIRROR in server.ts routes.
     '/_api/asset', // Phase 23 — capped binary image upload (sniff+category cap+sha8 name+no-SVG)
     '/_api/photo-edit', // feature-photo-editor — PhotoEdit sidecar GET/PUT (cap-stack gated). MIRROR in server.ts routes.
     '/_api/git-committers', // @mention autocomplete

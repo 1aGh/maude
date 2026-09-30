@@ -1428,7 +1428,17 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     // receives events natively.
     const onPointerEnter = () => {
       try {
-        if (typeof window !== 'undefined' && document.activeElement !== host) {
+        const active = document.activeElement as HTMLElement | null;
+        // Never steal focus from something being TYPED into. An editor that
+        // mounts under a stationary pointer (double-click on a standalone
+        // text) makes the engine fire pointerenter on the host; focusing the
+        // host then blurred the editor, and blur commits — so the editor
+        // closed ~5 ms after it opened and a double-click never entered edit.
+        const typing =
+          !!active &&
+          active !== host &&
+          (active.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName));
+        if (typeof window !== 'undefined' && active !== host && !typing) {
           host.focus({ preventScroll: true });
         }
       } catch {

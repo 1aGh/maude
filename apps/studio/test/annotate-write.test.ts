@@ -5,10 +5,11 @@
 // readable back as a graph by read-annotations --graph.
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
+import { readBoardFile } from '../annotations/v1-bridge-io.ts';
 
 import {
   type ArrowStroke,
@@ -64,8 +65,19 @@ function runAnnotate(args: string[], stdin?: string): { code: number; out: strin
   };
 }
 
+/**
+ * DDR-242 — the verb writes the v2 board (`<slug>.annotations.json`), never a
+ * `.annotations.svg`. Render it back to the v1 SVG these assertions parse (the
+ * same bridge the verb itself reads through until Task 27).
+ */
+function boardSvg(slug: string): string {
+  const json = join(root, '.design', `${slug}.annotations.json`);
+  if (!existsSync(json)) return `<!-- no board written at ${json} -->`;
+  return readBoardFile(join(root, '.design'), slug).svg;
+}
+
 function readSvg(): string {
-  return readFileSync(join(root, '.design', 'ui-flow.annotations.svg'), 'utf8');
+  return boardSvg('ui-flow');
 }
 
 describe('annotate --flow', () => {
@@ -177,7 +189,7 @@ describe('annotate --ops', () => {
       JSON.stringify({ ops: [{ op: 'create', type: 'sticky', text: 'inside hero' }] })
     );
     expect(res.code).toBe(0);
-    const svg = readFileSync(join(root, '.design', 'ui-pin.annotations.svg'), 'utf8');
+    const svg = boardSvg('ui-pin');
     const [sticky] = svgToStrokes(svg).filter((s): s is StickyStroke => s.tool === 'sticky');
     expect(sticky?.x).toBe(1040); // hero.x + 40 inset
     expect(sticky?.y).toBe(2040); // hero.y + 40 inset
@@ -223,7 +235,7 @@ describe('annotate --ops', () => {
       JSON.stringify({ ops: [{ op: 'create', type: 'sticky', text: 'make this bigger' }] })
     );
     expect(res.code).toBe(0);
-    const svg = readFileSync(join(root, '.design', 'ui-callout.annotations.svg'), 'utf8');
+    const svg = boardSvg('ui-callout');
     expect(sanitizeAnnotationSvg(svg)).toBe(svg);
     const strokes = svgToStrokes(svg);
     expect(strokesToSvg(strokes)).toBe(svg);
@@ -283,9 +295,7 @@ describe('annotate --ops', () => {
       JSON.stringify({ ops: [{ op: 'create', type: 'sticky', text: 'quiet note' }] })
     );
     expect(res.code).toBe(0);
-    const strokes = svgToStrokes(
-      readFileSync(join(root, '.design', 'ui-nopointer.annotations.svg'), 'utf8')
-    );
+    const strokes = svgToStrokes(boardSvg('ui-nopointer'));
     expect(strokes.filter((s) => s.tool === 'sticky')).toHaveLength(1);
     expect(strokes.filter((s) => s.tool === 'arrow')).toHaveLength(0);
   });
@@ -320,9 +330,7 @@ describe('annotate --ops', () => {
       })
     );
     expect(res.code).toBe(0);
-    const strokes = svgToStrokes(
-      readFileSync(join(root, '.design', 'ui-oppin.annotations.svg'), 'utf8')
-    );
+    const strokes = svgToStrokes(boardSvg('ui-oppin'));
     const pinned = strokes.find(
       (s) => s.tool === 'sticky' && (s as StickyStroke).text === 'pinned'
     );
@@ -343,7 +351,7 @@ describe('annotate --ops', () => {
       expect(res.code).toBe(0);
       // via:"file" proves the off-box PUT was skipped (a successful PUT → "server").
       expect(JSON.parse(res.out).via).toBe('file');
-      const svg = readFileSync(join(root, '.design', 'ui-f2.annotations.svg'), 'utf8');
+      const svg = boardSvg('ui-f2');
       expect(svg).toContain('secret');
     } finally {
       rmSync(serverJson, { force: true });
@@ -388,7 +396,7 @@ describe('annotate --board', () => {
       join(root, 'retro-empty.json'),
     ]);
     expect(res.code).toBe(0);
-    const svg = readFileSync(join(root, '.design', 'ui-retroempty.annotations.svg'), 'utf8');
+    const svg = boardSvg('ui-retroempty');
     expect(sanitizeAnnotationSvg(svg)).toBe(svg);
     const strokes = svgToStrokes(svg);
     expect(strokesToSvg(strokes)).toBe(svg);
@@ -417,9 +425,7 @@ describe('annotate --board', () => {
       join(root, 'retro-seeded.json'),
     ]);
     expect(res.code).toBe(0);
-    const strokes = svgToStrokes(
-      readFileSync(join(root, '.design', 'ui-retroseeded.annotations.svg'), 'utf8')
-    );
+    const strokes = svgToStrokes(boardSvg('ui-retroseeded'));
     const secs = sections(strokes);
     expect(secs).toHaveLength(2);
     noOverlap(secs);
@@ -449,9 +455,7 @@ describe('annotate --board', () => {
       join(root, 'calendar.json'),
     ]);
     expect(res.code).toBe(0);
-    const strokes = svgToStrokes(
-      readFileSync(join(root, '.design', 'ui-calendar.annotations.svg'), 'utf8')
-    );
+    const strokes = svgToStrokes(boardSvg('ui-calendar'));
     const secs = sections(strokes);
     expect(secs).toHaveLength(7);
     expect(secs.map((s) => s.label)).toEqual(days);
@@ -481,7 +485,7 @@ describe('annotate --board', () => {
       join(root, 'userflow.json'),
     ]);
     expect(res.code).toBe(0);
-    const svg = readFileSync(join(root, '.design', 'ui-userflow.annotations.svg'), 'utf8');
+    const svg = boardSvg('ui-userflow');
     expect(sanitizeAnnotationSvg(svg)).toBe(svg);
     const strokes = svgToStrokes(svg);
     expect(strokesToSvg(strokes)).toBe(svg);
@@ -518,9 +522,7 @@ describe('annotate --board', () => {
       join(root, 'brainstorm.json'),
     ]);
     expect(res.code).toBe(0);
-    const strokes = svgToStrokes(
-      readFileSync(join(root, '.design', 'ui-brainstorm.annotations.svg'), 'utf8')
-    );
+    const strokes = svgToStrokes(boardSvg('ui-brainstorm'));
     const center = strokes.find((s) => s.tool === 'ellipse');
     expect(center).toBeDefined();
     const centerLabel = strokes.find(
@@ -551,9 +553,7 @@ describe('annotate --board', () => {
       join(root, 'connected.json'),
     ]);
     expect(res.code).toBe(0);
-    const strokes = svgToStrokes(
-      readFileSync(join(root, '.design', 'ui-connected.annotations.svg'), 'utf8')
-    );
+    const strokes = svgToStrokes(boardSvg('ui-connected'));
     const arrows = strokes.filter((s): s is ArrowStroke => s.tool === 'arrow');
     expect(arrows).toHaveLength(1);
     expect(arrows[0]?.startBind?.hostId).toBeDefined();
@@ -596,9 +596,7 @@ describe('annotate --board', () => {
       join(root, 'near-board.json'),
     ]);
     expect(res.code).toBe(0);
-    const strokes = svgToStrokes(
-      readFileSync(join(root, '.design', 'ui-nearboard.annotations.svg'), 'utf8')
-    );
+    const strokes = svgToStrokes(boardSvg('ui-nearboard'));
     const [sec] = sections(strokes);
     expect(sec?.x).toBe(2000 + 400 + 80); // hero.x + hero.w + 80 gap (existing --near math)
     expect(sec?.y).toBe(3000);
@@ -751,7 +749,11 @@ describe('annotate move / set-text / set-color', () => {
   }
 
   function readStrokes(canvasRel: string): Stroke[] {
-    return svgToStrokes(readFileSync(annotationsPath(canvasRel), 'utf8'));
+    const slug = canvasRel
+      .replace(/\//g, '-')
+      .replace(/\.tsx$/, '')
+      .toLowerCase();
+    return svgToStrokes(boardSvg(slug));
   }
 
   test('move preserves id + every other attribute (custom fontSize, bold, groupIds)', () => {
@@ -775,7 +777,7 @@ describe('annotate move / set-text / set-color', () => {
       JSON.stringify({ ops: [{ op: 'move', id: 'mv1', x: 900, y: 900 }] })
     );
     expect(res.code).toBe(0);
-    const svg = readFileSync(join(root, '.design', 'ui-move.annotations.svg'), 'utf8');
+    const svg = boardSvg('ui-move');
     expect(sanitizeAnnotationSvg(svg)).toBe(svg);
     const [after] = readStrokes('ui/Move.tsx') as [StickyStroke];
     expect(after.id).toBe('mv1');
@@ -941,16 +943,14 @@ describe('annotate move / set-text / set-color', () => {
 
   test('move on an unknown id fails loud, writes nothing', () => {
     seedCanvas('ui/MoveGhost.tsx', []);
-    const before = readFileSync(join(root, '.design', 'ui-moveghost.annotations.svg'), 'utf8');
+    const before = boardSvg('ui-moveghost');
     const res = runAnnotate(
       ['ui/MoveGhost.tsx', '--root', root],
       JSON.stringify({ ops: [{ op: 'move', id: 'ghost', x: 1, y: 1 }] })
     );
     expect(res.code).toBe(2);
     expect(res.err).toMatch(/unknown id "ghost"/);
-    expect(readFileSync(join(root, '.design', 'ui-moveghost.annotations.svg'), 'utf8')).toBe(
-      before
-    );
+    expect(boardSvg('ui-moveghost')).toBe(before);
   });
 
   test('move on an arrow fails loud (no single position)', () => {
@@ -988,7 +988,9 @@ describe('annotate move / set-text / set-color', () => {
       JSON.stringify({ ops: [{ op: 'move', id: 'anc1', x: 5, y: 5 }] })
     );
     expect(res.code).toBe(2);
-    expect(res.err).toMatch(/anchored text derives its position from its host/);
+    // DDR-242: a shape label is a field of its shape, not an element — the verb
+    // can't address it at all; the guarantee (fail loud, write nothing) holds.
+    expect(res.err).toMatch(/anchored text derives its position from its host|unknown id "anc1"/);
   });
 
   test('set-color / set-text on an image (no color/text field) fail loud', () => {
@@ -1061,7 +1063,7 @@ describe('annotate move / set-text / set-color', () => {
       y: 10,
       w: 200,
       h: 100,
-      text: 'x'.repeat(1024 * 1024 + 1),
+      text: 'x'.repeat(4 * 1024 * 1024 + 1),
     };
     seedCanvas('ui/HugeFile.tsx', [big]);
     const res = runAnnotate(
@@ -1069,6 +1071,6 @@ describe('annotate move / set-text / set-color', () => {
       JSON.stringify({ ops: [{ op: 'move', id: 'huge1', x: 20, y: 20 }] })
     );
     expect(res.code).toBe(2);
-    expect(res.err).toMatch(/exceeds 1048576 bytes on disk/);
+    expect(res.err).toMatch(/exceeds 4194304 bytes on disk/);
   });
 });

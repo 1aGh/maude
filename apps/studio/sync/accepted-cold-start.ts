@@ -40,7 +40,14 @@
 import { existsSync, readFileSync } from 'node:fs';
 import type * as Y from 'yjs';
 
-import { cssFromDoc, htmlFromDoc, laneValueFromFile, readLaneFromDoc } from './codec.ts';
+import {
+  cssFromDoc,
+  htmlFromDoc,
+  isEmptyAnnotationsSvg,
+  laneValueFromFile,
+  readLaneFromDoc,
+  readLocalAnnotations,
+} from './codec.ts';
 import { commentKey } from './comment-identity.ts';
 import type { CommentLedger } from './comment-ledger.ts';
 import { hashBytes } from './echo-guard.ts';
@@ -180,8 +187,9 @@ export async function acceptedColdStart(
     const metaText = readText(i.paths.meta);
     const meta = metaText === null ? null : laneValueFromFile('meta', metaText);
     if (meta && meta !== '{}') lanes.meta = meta;
-    const ann = readText(i.paths.annotations);
-    if (ann) lanes.annotations = ann;
+    // DDR-242 — canonical board text; a legacy sidecar arrives migrated.
+    const ann = readLocalAnnotations(i.paths.annotations, readText);
+    if (ann && !isEmptyAnnotationsSvg(ann)) lanes.annotations = ann;
     const commentsText = readText(i.paths.comments);
     const comments = commentsText === null ? null : laneValueFromFile('comments', commentsText);
     if (comments) lanes.comments = comments;
@@ -267,7 +275,7 @@ export async function acceptedColdStart(
   // ---- comments / annotations — the accepted value wins (see header)
   for (const lane of ['comments', 'annotations'] as const) {
     const p = lane === 'comments' ? i.paths.comments : i.paths.annotations;
-    const text = readText(p);
+    const text = lane === 'annotations' ? readLocalAnnotations(p, readText) : readText(p);
     const local = text === null ? null : laneValueFromFile(lane, text);
     const accepted = readLaneFromDoc(i.doc, lane);
     if (local === null || local === accepted) {

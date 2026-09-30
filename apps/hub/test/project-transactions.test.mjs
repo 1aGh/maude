@@ -9,9 +9,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, describe, test } from 'node:test';
-
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import * as Y from 'yjs';
+import { serializeBoard, validateElements } from '../../studio/annotations/schema.ts';
 import { accessClaims, signAccessToken } from '../src/cloud-identity.mjs';
 import { laneHash } from '../src/project-transactions/lanes.mjs';
 import { createHub } from '../src/server.mjs';
@@ -621,8 +621,21 @@ describe('accepted revisions on a real hub', () => {
       const alice = client(http, t.alice, epoch);
       const bob = client(http, t.bob, epoch);
       const doc = 'ws/local/main/ui-inline';
+      // DDR-242 — the annotations lane is the v2 board (canonical JSON).
       const svg = (...ids) =>
-        `<svg xmlns="http://www.w3.org/2000/svg">${ids.map((i) => `<rect data-id="${i}"/>`).join('')}</svg>`;
+        serializeBoard(
+          validateElements(
+            ids.map((i, n) => ({
+              id: i,
+              type: 'sticky',
+              index: `a${n + 1}`,
+              x: n * 200,
+              y: 0,
+              w: 100,
+              h: 100,
+            }))
+          ).elements
+        );
       assert.equal(
         (
           await alice.propose([
@@ -670,8 +683,9 @@ describe('accepted revisions on a real hub', () => {
       const blob = await alice.get(`/api/projects/local/v1/bootstrap`);
       const head = blob.body.docs.find((d) => d.doc === doc).lanes.annotations.hash;
       const body = (await alice.get(`/api/projects/local/v1/blobs/${head}`)).body.body;
-      for (const id of ['a', 'b', 'd']) assert.ok(body.includes(`data-id="${id}"`), `${id} kept`);
-      assert.ok(!body.includes('data-id="c"'), 'the head never had c');
+      const ids = JSON.parse(body).elements.map((e) => e.id);
+      for (const id of ['a', 'b', 'd']) assert.ok(ids.includes(id), `${id} kept`);
+      assert.ok(!ids.includes('c'), 'the head never had c');
       // An oversized inline base is refused before any merge work.
       const huge = await alice.propose([
         {

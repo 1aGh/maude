@@ -5,7 +5,7 @@
 //
 //   `.design/<slug>.html`           ←→ Y.Text  (Y_SYNC_TYPES.html)
 //   `.design/_comments/<slug>.json` ←→ Y.Array (Y_TYPES.comments)
-//   `.design/<slug>.annotations.svg`←→ Y.Map.svg (Y_TYPES.annotations)
+//   `.design/<slug>.annotations.json`←→ 'annotations2' replica (DDR-242)
 //
 // Provider is INJECTED — the agent doesn't import @hocuspocus/provider. This
 // keeps the orchestration testable with an in-memory pair of Y.Docs (no hub
@@ -55,6 +55,7 @@ import {
   mergeSharedMetaIntoLocal,
   metaFromDoc,
   movedToFromDoc,
+  readLocalAnnotations,
   repairSharedMeta,
   stampAnnotationsEdit,
   stampBodyEdit,
@@ -88,7 +89,7 @@ export interface CanvasSyncPaths {
   html: string;
   /** Absolute path to <designRoot>/_comments/<slug>.json. */
   comments: string;
-  /** Absolute path to <designRoot>/<slug>.annotations.svg. */
+  /** Absolute path to <designRoot>/<slug>.annotations.json (DDR-242). */
   annotations: string;
   /** Absolute path to the canvas `.meta.json` (sibling of the body). Optional:
    *  when set (always, in production wiring), shared meta keys (layout/artboards)
@@ -470,7 +471,7 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
     if (movedToFromDoc(doc) !== null) return;
     const localHtml = readLocal(paths.html);
     const localComments = readLocal(paths.comments);
-    const localAnnotations = readLocal(paths.annotations);
+    const localAnnotations = readLocalAnnotations(paths.annotations, readLocal);
     const localMeta = paths.meta ? readLocal(paths.meta) : null;
     const localCss = paths.css ? readLocal(paths.css) : null;
 

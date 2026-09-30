@@ -2397,7 +2397,7 @@ function holdOversized(out: FilePlaneResult, ledger: FileLedger, file: Oversized
 function referencedAssetNames(designRoot: string): Set<string> {
   const out = new Set<string>();
   const RE = /assets\/([A-Za-z0-9._-]+\.[A-Za-z0-9]+)/g;
-  const SCANNED = /\.(?:annotations\.svg|tsx|jsx|css|meta\.json)$/i;
+  const SCANNED = /\.(?:annotations\.(?:svg|json)|tsx|jsx|css|meta\.json)$/i;
   const walk = (dir: string, depth: number): void => {
     if (depth > MAX_WALK_DEPTH) return;
     let entries: Dirent[];

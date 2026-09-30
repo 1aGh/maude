@@ -656,6 +656,8 @@ export function createAcceptedRevisions({
           ...manifest,
           capabilities: {
             lanes: LANE_NAMES,
+            // DDR-242 — the annotations lane is the v2 board (JSON, '' = empty).
+            annotationsFormat: 2,
             operations: [
               'lane.replace',
               'doc.create',

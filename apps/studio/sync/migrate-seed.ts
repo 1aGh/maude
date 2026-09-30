@@ -34,10 +34,12 @@ import path from 'node:path';
 
 import type * as Y from 'yjs';
 
+import { readReplica } from '../annotations/replica.ts';
 import { Y_TYPES } from '../collab/persistence.ts';
 import { atomicWrite } from './atomic-write.ts';
 import {
   annotationsEditAtFromDoc,
+  annotationsFromDoc,
   applyAnnotationsToDoc,
   applyCommentsToDoc,
   applyCssToDoc,
@@ -45,6 +47,7 @@ import {
   applyMetaToDoc,
   bodyEditAtFromDoc,
   isEmptyAnnotationsSvg,
+  readLocalAnnotations,
   stampAnnotationsEdit,
   stampBodyEdit,
   Y_SYNC_TYPES,
@@ -155,8 +158,9 @@ export function docIsEmpty(doc: Y.Doc): boolean {
   if (doc.getText(Y_SYNC_TYPES.css).length > 0) return false;
   if (doc.getText(Y_SYNC_TYPES.meta).length > 0) return false;
   if (doc.getArray(Y_TYPES.comments).length > 0) return false;
-  const svg = doc.getMap<unknown>(Y_TYPES.annotations).get('svg');
-  if (typeof svg === 'string' && svg.length > 0) return false;
+  // DDR-242 — the annotations replica (or a legacy v1 value read through the
+  // migration): content means at least one element.
+  if ((readReplica(doc)?.elements.length ?? 0) > 0) return false;
   return true;
 }
 
@@ -174,7 +178,7 @@ export async function migrateSeed(opts: MigrateSeedOptions): Promise<MigrateSeed
   const localHtml =
     diskHtml !== null && sourceError(paths.html, diskHtml) === null ? diskHtml : null;
   const localComments = readLocal(paths.comments);
-  const localAnnotations = readLocal(paths.annotations);
+  const localAnnotations = readLocalAnnotations(paths.annotations, readLocal);
   const localMeta = paths.meta ? readLocal(paths.meta) : null;
   const readCss = paths.css ? readLocal(paths.css) : null;
   const localCss = readCss === null ? null : (collapseRepeatedText(readCss)?.unit ?? readCss);
@@ -355,8 +359,7 @@ export async function migrateSeed(opts: MigrateSeedOptions): Promise<MigrateSeed
   // right after this seed ran. Resolve the lane here, before the room
   // materializes: unstamped emptiness never beats content.
   {
-    const docSvg = doc.getMap<unknown>(Y_TYPES.annotations).get('svg');
-    const docAnnotations = typeof docSvg === 'string' ? docSvg : '';
+    const docAnnotations = annotationsFromDoc(doc) ?? '';
     const annDecision = decideAnnotationsColdStart({
       local: localAnnotations,
       doc: docAnnotations,

@@ -903,7 +903,9 @@ export function createHub(config = {}) {
           // matrix is BINDING). A client never attaches the control channel or
           // relaxes its polling against a hub that does not say `ledger` here.
           // A protocol marker, not customer data, so it rides the public half.
-          capabilities: journal ? ['ledger'] : [],
+          // `annotations-v2`: boards are the DDR-242 element model (kernel lane,
+          // replica, checkout `.annotations.json`).
+          capabilities: journal ? ['ledger', 'annotations-v2'] : ['annotations-v2'],
           // T19/T29 — the project coordinator (accepted revisions) apart from
           // the renderer: posture publicly, counters to the cell secret only.
           coordinator: accepted?.health?.({ privileged }) ?? null,

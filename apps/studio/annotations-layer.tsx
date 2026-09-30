@@ -1,9 +1,8 @@
-import {
-  annotationEditBase,
-  type ReceivedAnnotations,
-  receivedAnnotations,
-} from './annotation-edit-base.ts';
-import { createAnnotationEchoGuard, observeAnnotationSnapshots } from './annotations-sync.ts';
+import { applyOps, diffToOps } from './annotations/ops.ts';
+import { observeReplica } from './annotations/replica.ts';
+import { parseBoard } from './annotations/schema.ts';
+import type { AnnotationElement } from './annotations/types.ts';
+import { elementsToStrokes, strokesToElementMap } from './annotations/v1-adapter.ts';
 /**
  * @file       annotations-layer.tsx — FigJam-style annotation overlay
  * @scope      apps/studio/annotations-layer.tsx
@@ -1158,26 +1157,27 @@ export function AnnotationsLayer() {
     if (!ghostCapable || !visible) setGhost(null);
   }, [ghostCapable, visible]);
 
-  // Match specific authored operations, including delayed earlier PUTs. A
-  // peer undo/delete can legitimately return to any previously rendered SVG.
-  const annotationEchoRef = useRef(createAnnotationEchoGuard());
+  // DDR-242 — the board as the project last delivered it (canonical v2
+  // elements). The UI still edits `Stroke[]` (v1 adapter, removed in Task 26);
+  // every commit is diffed against this into element ops.
+  const elementsRef = useRef<Map<string, AnnotationElement>>(new Map());
+  // Action ids this canvas authored — their replica echo is not re-applied.
+  const ownActionsRef = useRef<string[]>([]);
   const annotationsChangedRef = useRef(false);
-  // The annotations as the project last delivered them — the base an edit on
-  // exactly that state names (annotation-edit-base.ts).
-  const receivedRef = useRef<ReceivedAnnotations | null>(null);
   useEffect(() => {
     const file = deriveFile();
     fileRef.current = file;
     if (!file) return;
     let cancelled = false;
     void fetch(`/_api/annotations?file=${encodeURIComponent(file)}`, {
-      headers: { Accept: 'image/svg+xml' },
+      headers: { Accept: 'application/json' },
     })
       .then((r) => (r.ok ? r.text() : ''))
       .then((text) => {
         if (cancelled || annotationsChangedRef.current) return;
-        const loaded = svgToStrokes(text);
-        receivedRef.current = receivedAnnotations(text, loaded);
+        const { elements } = parseBoard(text);
+        elementsRef.current = new Map(elements.map((e) => [e.id, e]));
+        const loaded = elementsToStrokes(elements);
         if (loaded.length) {
           setStrokesState(loaded);
         }
@@ -1193,12 +1193,24 @@ export function AnnotationsLayer() {
   const collab = useCollab();
   useEffect(() => {
     if (!collab) return;
-    return observeAnnotationSnapshots(collab.doc, (svg, writeId) => {
+    return observeReplica(collab.doc, (elements, _changed, actionId) => {
       annotationsChangedRef.current = true;
-      const incoming = svgToStrokes(svg);
-      receivedRef.current = receivedAnnotations(svg, incoming);
-      if (annotationEchoRef.current.isOwn(svg, writeId)) return;
-      setStrokesState((prev) => reconcileForeignEcho(prev, incoming));
+      elementsRef.current = new Map(elements.map((e) => [e.id, e]));
+      // Our own echo is skipped only while a LATER batch of ours is still in
+      // flight (its optimistic state is ahead of this echo). The echo of our
+      // newest batch is applied: the server may have merged it (a concurrent
+      // text edit, a stale undo), and hiding that left this tab showing a
+      // board no one else has (code review M2). An unmerged echo is a no-op.
+      const own = ownActionsRef.current;
+      if (actionId && own.includes(actionId) && own[own.length - 1] !== actionId) return;
+      const isOwn = !!actionId && own.includes(actionId);
+      const incoming = elementsToStrokes(elements);
+      setStrokesState((prev) => {
+        const next = reconcileForeignEcho(prev, incoming);
+        // Our unmerged echo keeps the same state object: no re-render under
+        // an open text editor (caret stability).
+        return isOwn && JSON.stringify(next) === JSON.stringify(prev) ? (prev as Stroke[]) : next;
+      });
     });
   }, [collab]);
 
@@ -1207,34 +1219,21 @@ export function AnnotationsLayer() {
   const undoStackRef = useRef(undoStack);
   undoStackRef.current = undoStack;
 
-  // feature-bulk-media-insert follow-up — dedicated PUT dispatch queue.
-  // The undo-stack's own `inFlightRef` serializes its PUSH TASKS (each
-  // awaits `cmd.do()` before the next task starts), but live network
-  // capture during a rapid-fire batch drop showed the actual PUT REQUESTS
-  // still overlapping (request N+1 starting before request N's response
-  // arrived) — some other async hop between "task starts" and "fetch
-  // fires" lets them interleave. Since every PUT body here is a strictly
-  // growing superset (the media-commit-chain guarantees each commit is at
-  // least as complete as the last), overlap is dangerous: if an EARLIER
-  // (smaller) request's write lands on disk AFTER a LATER (larger) one's,
-  // the smaller snapshot wins and silently erases the larger one's extra
-  // strokes. A dedicated chain — mirroring `editApplyChainRef` in
-  // client/app.jsx — makes the fetch DISPATCH itself wait for the
-  // previous one's response, independent of whatever the undo-stack does.
+  // feature-bulk-media-insert follow-up — dedicated dispatch queue. Rapid-fire
+  // commits (a batch media drop) must reach the server in order: ops are
+  // applied in arrival order, and an undo batch sent before the edit it undoes
+  // would be rejected as `gone`. A dedicated chain makes each POST wait for
+  // the previous one's response.
   const putChainRef = useRef<Promise<void>>(Promise.resolve());
 
   /**
-   * Apply a `Stroke[]` snapshot: update local React state AND fire-and-forget
-   * PUT to the server. Used as the `putFn` injected into the
-   * `AnnotationStrokesCommand` — both the initial push AND every undo/redo
-   * replay route through here, so the iframe's `strokes` state always
-   * tracks the server. (Without the setStrokesState here, Cmd+Z would
-   * silently PUT the prior SVG but the canvas would keep painting the
-   * post-edit strokes until the user reloaded.)
-   *
-   * The 200 ms scheduled-save debounce (legacy path) is cleared the moment
-   * we push a command, so the server only sees one PUT per edit instead
-   * of two-step racing.
+   * Apply a `Stroke[]` snapshot: update local React state AND send the
+   * element OPS that turn `before` into `next` (DDR-242 §4). Used as the
+   * `putFn` injected into the `AnnotationStrokesCommand` — both the initial
+   * push AND every undo/redo replay route through here, so the iframe's
+   * `strokes` state always tracks the server. Only what this edit changed is
+   * sent: a peer's concurrent edit to another element or another field is
+   * never overwritten, and a concurrent edit of the same text is merged.
    */
   const putStrokes = useCallback((next: readonly Stroke[], before: readonly Stroke[]) => {
     // See reconcileCommit — a direct setStrokesState(next) here can
@@ -1247,38 +1246,49 @@ export function AnnotationsLayer() {
     const file = fileRef.current;
     if (!file) return Promise.resolve();
     const persistable = next.some(isEphemeralHref) ? next.filter((s) => !isEphemeralHref(s)) : next;
-    const svg = strokesToSvg(persistable);
-    // What this edit was derived from — the project merges a peer's
-    // concurrent strokes from it instead of replacing them (DDR-241).
     const persistableBefore = before.some(isEphemeralHref)
       ? before.filter((s) => !isEphemeralHref(s))
       : before;
-    const base = annotationEditBase(persistableBefore, receivedRef.current);
-    // Phase 8 Task 5 — record the SVG we just authored locally so the
-    // server-broadcast echo (PUT → onAnnotationsChanged → syncRoom* →
-    // Y.Map.observe) doesn't trigger a redundant setStrokesState.
-    const writeId = crypto.randomUUID();
-    annotationEchoRef.current.remember(writeId, svg);
+    const current = elementsRef.current;
+    const ops = diffToOps(
+      strokesToElementMap(persistableBefore, current),
+      strokesToElementMap(persistable, current)
+    );
+    if (!ops.length) return putChainRef.current;
+    // Optimistic: the next commit diffs against the board this one produces.
+    elementsRef.current = applyOps(current, ops).state;
+    const actionId = crypto.randomUUID();
+    ownActionsRef.current = [...ownActionsRef.current.slice(-63), actionId];
+    const forget = () => {
+      ownActionsRef.current = ownActionsRef.current.filter((a) => a !== actionId);
+    };
     const dispatch = () =>
-      fetch('/_api/annotations', {
-        method: 'PUT',
+      fetch('/_api/annotations/ops', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file, svg, writeId, base }),
+        body: JSON.stringify({ file, actionId, ops }),
       })
-        .then((r) => {
+        .then(async (r) => {
           // A refused save (403 read-only, 405 at a proxy door) previously
-          // dissolved here without a trace — the user kept drawing on state
-          // that never reached disk, a peer, or a reload (the cloud
-          // canvas-writes RCA). Optimistic local state is still the right
-          // UX; a persistence failure being INVISIBLE is not.
+          // dissolved without a trace — the user kept drawing on state that
+          // never reached disk, a peer, or a reload (the cloud canvas-writes
+          // RCA). Optimistic local state is still the right UX; a persistence
+          // failure being INVISIBLE is not.
           if (!r.ok) {
-            annotationEchoRef.current.forget(writeId);
+            forget();
             console.warn(`[annotations] save refused (${r.status}) — strokes are local-only`);
+            return undefined;
+          }
+          const res = (await r.json().catch(() => null)) as {
+            rejected?: Array<{ id?: string; reason: string }>;
+          } | null;
+          if (res?.rejected?.length) {
+            console.warn('[annotations] some changes were not applied', res.rejected);
           }
           return undefined;
         })
         .catch(() => {
-          annotationEchoRef.current.forget(writeId);
+          forget();
           /* Pending persistence UX is handled by the project outbox work. */
         });
     const chained = putChainRef.current.then(dispatch, dispatch);
@@ -2414,6 +2424,14 @@ export function AnnotationsLayer() {
         // handler); an already-selected stroke keeps the current selection, so
         // a deep-selected member drags alone without re-expanding.
         const members = expandIdsToGroups([strokeId], strokesStoreRef.current.strokes);
+        if (e.shiftKey && members.every((m) => annotSel.contains(m))) {
+          // Shift-click on something already selected takes it OUT of the
+          // selection (FigJam / Figma toggle) and starts no drag.
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          annotSel.remove(members);
+          return;
+        }
         if (e.shiftKey) {
           annotSel.add(members);
           const merged = new Set([...annotSel.selectedIds, ...members]);
@@ -2647,6 +2665,16 @@ export function AnnotationsLayer() {
           if (s.tool === 'text' && s.anchorId != null && s.anchorId !== '') continue;
           const bb = strokeBBox(s);
           if (!bb) continue;
+          // A section is a container: a marquee drawn over its CONTENT must
+          // select that content, not the section — it takes the section only
+          // when it encloses the whole section (FigJam). Everything else is
+          // selected by touch, as before.
+          if (s.tool === 'section') {
+            if (bb.x >= xMin && bb.x + bb.w <= xMax && bb.y >= yMin && bb.y + bb.h <= yMax) {
+              hits.push(s.id);
+            }
+            continue;
+          }
           if (bb.x + bb.w >= xMin && bb.x <= xMax && bb.y + bb.h >= yMin && bb.y <= yMax) {
             hits.push(s.id);
           }
@@ -2795,8 +2823,20 @@ export function AnnotationsLayer() {
     const onDbl = (e: MouseEvent) => {
       if (isMediaPlayerTarget(e)) return; // mediaref inline player owns this event
       const target = e.target as Element | null;
-      const node = target?.closest?.('[data-id][data-tool]');
+      let node = target?.closest?.('[data-id][data-tool]');
       if (!node) return;
+      // A shape's label is its own <text data-anchor-id=host>: a double-click
+      // on the words of a label edits the SHAPE. It used to be skipped here,
+      // so the event fell through to the canvas-shell dblclick→fit() handler
+      // and the view jumped to "fit all" instead of opening the editor.
+      const hostId =
+        node.getAttribute('data-tool') === 'text' ? node.getAttribute('data-anchor-id') : null;
+      if (hostId) {
+        const host = node.ownerDocument?.querySelector?.(
+          `[data-id="${CSS.escape(hostId)}"][data-tool]`
+        );
+        if (host) node = host;
+      }
       const id = node.getAttribute('data-id');
       const t = node.getAttribute('data-tool');
       if (!id) return;
@@ -3905,6 +3945,7 @@ function AnnotationsSvg({
   onCommitEdit: (text: string, fmt?: EditorFmt, measuredH?: number) => void;
   onCancelEdit: () => void;
 }) {
+  const annotSel = useAnnotationSelectionOptional();
   const [, force] = useState({});
   useEffect(() => {
     if (worldRef?.current) return;
@@ -3939,7 +3980,13 @@ function AnnotationsSvg({
   return (
     <>
       {createPortal(
-        <svg className="dc-annot-svg" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+        <svg
+          className="dc-annot-svg"
+          aria-hidden="true"
+          xmlns="http://www.w3.org/2000/svg"
+          // DOM-driven E2E + tooling hook: the current annotation selection.
+          data-selection={annotSel?.selectedIds.join(' ') ?? ''}
+        >
           <defs>
             {/* Phase 21 — soft "lifted paper" drop shadow for sticky notes. */}
             <filter id="dc-sticky-shadow" x="-25%" y="-25%" width="150%" height="170%">

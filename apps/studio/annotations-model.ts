@@ -671,7 +671,7 @@ export function rid(): string {
  * and reload — and is what external references (comments' `annotationId`)
  * hold. A migration must carry ids over unchanged.
  */
-export function stableAnnotationId(el: Element, seen: Map<string, number>): string {
+export function stableAnnotationId(el: SvgElLike, seen: Map<string, number>): string {
   const content = el.outerHTML;
   const n = seen.get(content) ?? 0;
   seen.set(content, n + 1);
@@ -1348,7 +1348,7 @@ function parseFill(raw: string | null): string | null {
  * between them, so first-pair = start, last-pair = end recovers the ends
  * exactly → idempotent re-serialize).
  */
-function arrowEndpoints(el: Element): { x1: number; y1: number; x2: number; y2: number } | null {
+function arrowEndpoints(el: SvgElLike): { x1: number; y1: number; x2: number; y2: number } | null {
   const line = el.querySelector('line');
   if (line) {
     return {
@@ -1421,7 +1421,7 @@ function sanitizeAuthorName(raw: string): string {
 }
 
 /** FigJam v3 — read the cross-tool root attrs back onto a parsed stroke. */
-function readSharedAttrs(el: Element, s: Stroke): void {
+function readSharedAttrs(el: SvgElLike, s: Stroke): void {
   const g = el.getAttribute('data-group-ids');
   if (g) {
     const ids = g.split(/\s+/).filter(Boolean);
@@ -1447,12 +1447,39 @@ function readSharedAttrs(el: Element, s: Stroke): void {
   }
 }
 
+/**
+ * The slice of the DOM `Element` API the parser reads. A browser `Element`
+ * satisfies it; so does the DOM-free tree in `annotations/legacy/mini-dom.ts`,
+ * which lets the hub (Node, no DOMParser) upconvert legacy SVG history for the
+ * annotations-v2 migration (DDR-242 §6).
+ */
+export interface SvgElLike {
+  getAttribute(name: string): string | null;
+  querySelector(selector: string): SvgElLike | null;
+  querySelectorAll(selector: string): ArrayLike<SvgElLike>;
+  readonly textContent: string | null;
+  readonly outerHTML: string;
+}
+
+export interface SvgDocLike {
+  querySelector(selector: string): SvgElLike | null;
+  querySelectorAll(selector: string): ArrayLike<SvgElLike>;
+}
+
 export function svgToStrokes(svgText: string): Stroke[] {
   const text = (svgText ?? '').trim();
   if (!text) return [];
   if (typeof DOMParser === 'undefined') return [];
   try {
-    const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+    return strokesFromDocument(new DOMParser().parseFromString(text, 'image/svg+xml'));
+  } catch {
+    return [];
+  }
+}
+
+/** The parser proper, over any document exposing `SvgDocLike`. Never throws. */
+export function strokesFromDocument(doc: SvgDocLike): Stroke[] {
+  try {
     if (doc.querySelector('parsererror')) return [];
     const out: Stroke[] = [];
     const seenContent = new Map<string, number>();

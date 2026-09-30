@@ -1,0 +1,339 @@
+// Annotation layer — browser E2E (node --test). Real studio server + real
+// canvas in headless Chromium; assertions on the DOM AND on the board on disk.
+//
+//   node --test apps/studio/test/e2e/annotations-ui.e2e.mjs
+//   STUDIO_DIR=<other checkout>/apps/studio node --test …   (run against a baseline)
+//
+// Covers the 2026-09-30 user report + neighbours:
+//   R1 Shift+Enter in a sticky / shape label / text puts the caret on the NEW line
+//   R2 double-click on a shape (its label or its body) edits it — the view never jumps
+//   R3 a marquee over a section's CONTENT selects the content, not the section
+//   R4 Shift+click on a selected element removes it from the selection
+
+import assert from 'node:assert/strict';
+import { after, before, describe, test } from 'node:test';
+import { REPORT_BOARD } from './fixtures.mjs';
+import {
+  makeProjectFor,
+  openCanvas,
+  readBoard,
+  sleep,
+  startServer,
+  waitForBoard,
+} from './harness.mjs';
+
+let server;
+let c;
+
+before(async () => {
+  server = await startServer(await makeProjectFor(REPORT_BOARD));
+  c = await openCanvas(server);
+});
+after(async () => {
+  await c?.close();
+  server?.stop();
+});
+
+async function reset() {
+  for (let i = 0; i < 3; i++) await c.page.keyboard.press('Escape');
+  await sleep(250);
+}
+
+/** Where a caret is painted: our blinking caret, or the engine's (caret-color not transparent). */
+async function caretState() {
+  return c.frame.evaluate(() => {
+    const ed = document.querySelector('.dc-annot-editor');
+    if (!ed) return null;
+    const fake = document.querySelector('[data-maude-caret]');
+    const fakeShown = fake && getComputedStyle(fake).display !== 'none';
+    const lineTop = (() => {
+      const r = document.createRange();
+      r.selectNodeContents(ed);
+      return r.getClientRects()[0]?.top ?? ed.getBoundingClientRect().top;
+    })();
+    return {
+      text: ed.innerText,
+      fakeShown: !!fakeShown,
+      fakeTop: fakeShown ? fake.getBoundingClientRect().top : null,
+      nativeCaret:
+        getComputedStyle(ed).caretColor !== 'rgba(0, 0, 0, 0)' &&
+        ed.style.caretColor !== 'transparent',
+      firstLineTop: lineTop,
+    };
+  });
+}
+
+describe('R1 — Shift+Enter moves the caret to the new line', () => {
+  for (const id of ['note', 'box', 'label']) {
+    test(`${id}: after Shift+Enter the caret is not left on line one`, async () => {
+      await reset();
+      const [x, y] = await c.center(id);
+      await c.page.mouse.dblclick(x, y);
+      await sleep(300);
+      assert.ok(await caretState(), `double-click opens the ${id} editor`);
+      await c.page.keyboard.press('End');
+      await c.page.keyboard.press('Shift+Enter');
+      await sleep(200);
+      const s = await caretState();
+      assert.ok(s, 'editor still open after Shift+Enter');
+      if (s.fakeShown) {
+        assert.ok(
+          s.fakeTop > s.firstLineTop + 4,
+          `painted caret is on a later line (top ${s.fakeTop} vs first line ${s.firstLineTop})`
+        );
+      } else {
+        assert.ok(s.nativeCaret, 'with no painted caret, the native caret must be visible');
+      }
+      // The keystroke lands on the new line, and the edit persists with the newline.
+      await c.page.keyboard.type('Z');
+      await sleep(100);
+      const typed = await caretState();
+      assert.match(typed.text, /Ahoj\s*\nZ/);
+    });
+  }
+});
+
+describe('R2 — double-click on a shape edits it; the view never jumps', () => {
+  for (const [what, id, where] of [
+    ['label text', 'box', 'center'],
+    ['shape body', 'box', 'corner'],
+    ['circle label', 'circle', 'center'],
+  ]) {
+    test(`${what}`, async () => {
+      await reset();
+      const ref = await c.pageBox('lone');
+      const b = await c.pageBox(id);
+      const pt =
+        where === 'center'
+          ? [b.x + b.width / 2, b.y + b.height / 2]
+          : [b.x + 14, b.y + b.height - 14];
+      await c.page.mouse.dblclick(pt[0], pt[1]);
+      await sleep(400);
+      const after = await c.pageBox('lone');
+      assert.deepEqual(
+        [Math.round(after.x), Math.round(after.y)],
+        [Math.round(ref.x), Math.round(ref.y)],
+        'the camera did not move (no fit-to-view)'
+      );
+      const s = await caretState();
+      assert.ok(s, 'the label editor is open');
+    });
+  }
+
+  test('double-click on standalone text re-edits it', async () => {
+    await reset();
+    const [x, y] = await c.center('label');
+    await c.page.mouse.dblclick(x, y);
+    await sleep(300);
+    const s = await caretState();
+    assert.ok(s, 'text editor open');
+    assert.match(s.text, /Ahoj/);
+  });
+});
+
+describe('R2b — double-click INSIDE an open editor selects a word; the view never jumps', () => {
+  for (const id of ['note', 'box', 'label']) {
+    test(`${id}: double-click on a word while editing`, async () => {
+      await reset();
+      const [x, y] = await c.center(id);
+      await c.page.mouse.dblclick(x, y);
+      await sleep(300);
+      await c.page.keyboard.press('Meta+a');
+      await c.page.keyboard.type('alpha bravo charlie');
+      await sleep(150);
+      // Pan away from the fitted view first — otherwise a stray fit() would
+      // land exactly where we are and the jump would go unnoticed.
+      await c.page.mouse.move(x, y + 400);
+      await c.page.mouse.wheel(40, -80);
+      await sleep(300);
+      assert.ok(
+        await c.frame.evaluate(() => !!document.querySelector('.dc-annot-editor')),
+        'panning with the wheel keeps the editor open'
+      );
+      const ref = await c.pageBox('lone');
+      // Double-click the middle word, inside the editor.
+      const word = await c.frame.evaluate(() => {
+        const ed = document.querySelector('.dc-annot-editor');
+        const node = [...ed.childNodes].find(
+          (n) => n.nodeType === 3 && n.textContent.includes('bravo')
+        );
+        const r = document.createRange();
+        const i = node.textContent.indexOf('bravo');
+        r.setStart(node, i + 1);
+        r.setEnd(node, i + 3);
+        const b = r.getBoundingClientRect();
+        return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+      });
+      const frameBox = await c.page.locator('[data-testid="canvas-frame"]').boundingBox();
+      await c.page.mouse.dblclick(word.x + frameBox.x, word.y + frameBox.y);
+      await sleep(400);
+      const after = await c.pageBox('lone');
+      assert.deepEqual(
+        [Math.round(after.x), Math.round(after.y)],
+        [Math.round(ref.x), Math.round(ref.y)],
+        'the camera did not move'
+      );
+      const state = await c.frame.evaluate(() => ({
+        open: !!document.querySelector('.dc-annot-editor'),
+        selected: window.getSelection()?.toString() ?? '',
+      }));
+      assert.equal(state.open, true, 'still editing');
+      assert.equal(state.selected.trim(), 'bravo', 'the word is selected');
+    });
+  }
+});
+
+describe('R3 — marquee and sections', () => {
+  test('a marquee over content inside a section selects the content, not the section', async () => {
+    await reset();
+    const cb = await c.pageBox('circle');
+    const rb = await c.pageBox('box');
+    await c.drag(
+      [Math.min(cb.x, rb.x) - 20, Math.min(cb.y, rb.y) - 20],
+      [
+        Math.max(cb.x + cb.width, rb.x + rb.width) + 20,
+        Math.max(cb.y + cb.height, rb.y + rb.height) + 20,
+      ]
+    );
+    await sleep(300);
+    assert.deepEqual(await c.selection(), ['box', 'circle', 'link']);
+  });
+
+  test('a marquee that encloses the whole section selects the section too', async () => {
+    await reset();
+    const sb = await c.pageBox('sec');
+    // Start just above the title chip — still inside the canvas iframe.
+    await c.drag([sb.x - 20, sb.y - 12], [sb.x + sb.width + 30, sb.y + sb.height + 30]);
+    await sleep(300);
+    const sel = await c.selection();
+    assert.ok(sel.includes('sec'), `section selected (${sel})`);
+  });
+});
+
+describe('R4 — Shift+click toggles', () => {
+  test('shift-click adds, shift-click on a selected element removes it', async () => {
+    await reset();
+    const note = await c.center('note');
+    const lone = await c.center('lone');
+    await c.click(note[0], note[1]);
+    await sleep(150);
+    assert.deepEqual(await c.selection(), ['note']);
+    await c.click(lone[0], lone[1], { modifiers: ['Shift'] });
+    await sleep(150);
+    assert.deepEqual(await c.selection(), ['lone', 'note']);
+    await c.click(note[0], note[1], { modifiers: ['Shift'] });
+    await sleep(150);
+    assert.deepEqual(await c.selection(), ['lone']);
+    await c.click(lone[0], lone[1], { modifiers: ['Shift'] });
+    await sleep(150);
+    assert.deepEqual(await c.selection(), []);
+  });
+
+  test('shift-click on a selected element does not move it', async () => {
+    await reset();
+    const before = await c.pageBox('note');
+    const note = await c.center('note');
+    await c.click(note[0], note[1]);
+    await sleep(100);
+    await c.click(note[0], note[1], { modifiers: ['Shift'] });
+    await sleep(400);
+    assert.deepEqual(await c.pageBox('note'), before);
+    const disk = readBoard(server.root);
+    if (disk) assert.deepEqual([disk.get('note').x, disk.get('note').y], [1000, 100]);
+  });
+});
+
+describe('R5 — what reaches the board on disk (v2)', {
+  skip: process.env.E2E_LEGACY === '1',
+}, () => {
+  test('a multi-line sticky edit persists with its newline; Esc cancels without saving', async () => {
+    await reset();
+    const [x, y] = await c.center('note');
+    await c.page.mouse.dblclick(x, y);
+    await sleep(300);
+    await c.page.keyboard.press('Meta+a');
+    await c.page.keyboard.type('line one');
+    await c.page.keyboard.press('Shift+Enter');
+    await c.page.keyboard.type('line two');
+    await c.click(20 + 300, 1400); // outside → commit
+    const board = await waitForBoard(
+      server.root,
+      (b) => b.get('note')?.text === 'line one\nline two'
+    );
+    assert.equal(board.get('note').text, 'line one\nline two');
+
+    await c.page.mouse.dblclick(x, y);
+    await sleep(300);
+    await c.page.keyboard.type(' — not kept');
+    await c.page.keyboard.press('Escape');
+    await sleep(600);
+    assert.equal(
+      (await waitForBoard(server.root, () => true)).get('note').text,
+      'line one\nline two'
+    );
+  });
+
+  test('dragging an element into a section re-parents it on disk, at the same place on screen', async () => {
+    await reset();
+    const lone = await c.pageBox('lone');
+    const sec = await c.pageBox('sec');
+    const to = [sec.x + sec.width - 120, sec.y + sec.height - 90];
+    await c.drag([lone.x + 20, lone.y + 20], to);
+    const board = await waitForBoard(server.root, (b) => b.get('lone')?.parent === 'sec');
+    assert.equal(board.get('lone').parent, 'sec');
+    const after = await c.pageBox('lone');
+    // Snapping may nudge the drop point; what matters is that the element is
+    // DRAWN where its new parent-relative coordinates say (no jump on
+    // re-parent). Reference: the circle, a sibling with known relative (80, 80).
+    const circ = await c.pageBox('circle');
+    const rel = board.get('lone');
+    assert.ok(
+      Math.abs(after.x - circ.x - (rel.x - 80)) < 3 &&
+        Math.abs(after.y - circ.y - (rel.y - 80)) < 3,
+      `drawn at its stored relative place (${after.x - circ.x},${after.y - circ.y} vs ${rel.x - 80},${rel.y - 80})`
+    );
+    // …and moving the section now carries it (one write: the section).
+    const secBefore = board.get('sec');
+    const loneBefore = board.get('lone');
+    const chip = [sec.x + 20, sec.y + 8];
+    await c.drag(chip, [chip[0] + 60, chip[1] + 40]);
+    const moved = await waitForBoard(server.root, (b) => b.get('sec')?.x !== secBefore.x);
+    assert.deepEqual(
+      [moved.get('lone').x, moved.get('lone').y],
+      [loneBefore.x, loneBefore.y],
+      'child keeps its relative place'
+    );
+    const lone2 = await c.pageBox('lone');
+    const sec2 = await c.pageBox('sec');
+    // Snapping may round the section's move; the child must move by exactly the same amount.
+    assert.ok(
+      Math.abs(lone2.x - after.x - (sec2.x - sec.x)) < 2 &&
+        Math.abs(lone2.y - after.y - (sec2.y - sec.y)) < 2,
+      `child moved with its section (${lone2.x - after.x},${lone2.y - after.y} vs ${sec2.x - sec.x},${sec2.y - sec.y})`
+    );
+    assert.ok(sec2.x !== sec.x, 'the section moved');
+  });
+
+  test('Delete removes the selection from disk; ⌘Z brings it back', async () => {
+    await reset();
+    const [x, y] = await c.center('circle');
+    await c.click(x, y);
+    await sleep(150);
+    await c.page.keyboard.press('Delete');
+    let board = await waitForBoard(server.root, (b) => !b.has('circle'));
+    assert.equal(board.has('circle'), false);
+    // The arrow bound to it survives, frozen where it was drawn.
+    assert.ok(
+      board.has('link') && !('el' in board.get('link').start),
+      'arrow start is now a free point'
+    );
+    await c.page.keyboard.press('Meta+z');
+    board = await waitForBoard(server.root, (b) => b.has('circle'));
+    assert.equal(board.has('circle'), true);
+    assert.deepEqual(board.get('link').start, { el: 'circle' }, 'undo re-binds the arrow');
+  });
+});
+
+test('no page errors during the run', () => {
+  assert.deepEqual(c.errors, []);
+});

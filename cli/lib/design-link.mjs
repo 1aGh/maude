@@ -809,7 +809,11 @@ function collectAdoptManifest(cwd) {
   const files = [];
   try {
     for (const f of readdirSync(base)) {
-      if (f.endsWith('.html') || f.endsWith('.annotations.svg')) {
+      if (
+        f.endsWith('.html') ||
+        f.endsWith('.annotations.json') ||
+        f.endsWith('.annotations.svg')
+      ) {
         try {
           files.push({ rel: `.design/${f}`, bytes: statSync(resolve(base, f)).size });
         } catch {

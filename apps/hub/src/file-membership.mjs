@@ -115,6 +115,16 @@ export function isRuntimeStateRel(p) {
  *        flowing side; receivers re-check against their own disk.
  * @returns {'canvas-owned'|'inert-media'|'companion-text'|'code-module'|'never'}
  */
+/**
+ * The annotations board (DDR-242: `<slug>.annotations.json`) and its legacy v1
+ * form (`<slug>.annotations.svg`). BOTH stay canvas-owned: the board is the doc
+ * lane's, and a stale legacy sidecar must never ride the file plane between
+ * machines (the boot migration quarantines it locally).
+ */
+function isAnnotationsSidecar(lowerName) {
+  return lowerName.endsWith('.annotations.json') || lowerName.endsWith('.annotations.svg');
+}
+
 export function classifyProjectFile(rel, opts = {}) {
   const parts = relShape(rel);
   if (parts === null) return 'never';
@@ -132,7 +142,7 @@ export function classifyProjectFile(rel, opts = {}) {
   if (inGroup) {
     if (lowerLast.endsWith('.tsx')) return 'canvas-owned';
     if (lowerLast.endsWith('.meta.json')) return 'canvas-owned';
-    if (lowerLast.endsWith('.annotations.svg')) return 'canvas-owned';
+    if (isAnnotationsSidecar(lowerLast)) return 'canvas-owned';
     if (lowerLast.endsWith('.css') && opts.hasFile) {
       const sibling = `${rel.slice(0, -'.css'.length)}.tsx`;
       if (opts.hasFile(sibling)) return 'canvas-owned';
@@ -144,7 +154,7 @@ export function classifyProjectFile(rel, opts = {}) {
   // it, so it fell through to `inert-media` and the FILE plane carried a file
   // the DOC lane already owns — the two-lane erase described in the studio
   // classifier (sync/file-membership.ts), which this file must mirror.
-  if (parts.length === 1 && lowerLast.endsWith('.annotations.svg')) return 'canvas-owned';
+  if (parts.length === 1 && isAnnotationsSidecar(lowerLast)) return 'canvas-owned';
 
   if (COMPANION_SIDECAR_SUFFIXES.some((s) => lowerLast.endsWith(s))) return 'companion-text';
 

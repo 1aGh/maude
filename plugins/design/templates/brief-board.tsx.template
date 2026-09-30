@@ -13,7 +13,7 @@
  * a VERBATIM brief and inserts the matching generated artboards right here, below
  * this frame — the board becomes a living brief you sketch and Claude fills in.
  *
- * The annotation layer lives in a sibling `<slug>.annotations.svg` (NEVER in this
+ * The annotation layer lives in a sibling `<slug>.annotations.json` (NEVER in this
  * file), so your notes stay floating on top across every regeneration. No design
  * system tokens or classes are wired in — the board is a neutral surface; the
  * generated artboards bring the DS with them on ingest.

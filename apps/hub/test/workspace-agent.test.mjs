@@ -20,8 +20,9 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, describe, it } from 'node:test';
-
 import * as Y from 'yjs';
+import { writeReplica } from '../../studio/annotations/replica.ts';
+import { serializeBoard, validateElements } from '../../studio/annotations/schema.ts';
 
 import { createWriteBehind, writeBehindKey } from '../src/asset-lane.mjs';
 import { createGitRunner } from '../src/git-runner.mjs';
@@ -147,7 +148,7 @@ describe('workspace-files (pure)', () => {
       css: 'ui/Card.css',
       // NOT a sibling — the studio keys annotations by the flat slug at the
       // design root, and the hub must write the file the studio actually reads.
-      annotations: 'ui-card.annotations.svg',
+      annotations: 'ui-card.annotations.json',
     });
   });
 
@@ -217,12 +218,16 @@ describe('workspace-files (pure)', () => {
   it('reads the synced lanes off a real Y.Doc', () => {
     const doc = new Y.Doc();
     doc.getText('html').insert(0, '<main/>');
-    doc.getMap('annotations').set('svg', '<svg/>');
+    // DDR-242 — the v2 replica, read validated and canonical.
+    const board = validateElements([
+      { id: 's1', type: 'sticky', index: 'a0', x: 0, y: 0, w: 100, h: 100, text: 'hi' },
+    ]).elements;
+    writeReplica(doc, board);
     assert.deepEqual(readDocContent(doc), {
       body: '<main/>',
       css: null,
       meta: null,
-      annotations: '<svg/>',
+      annotations: serializeBoard(board),
       // The sync-internal path lane. Absent here — an older peer omits it, and
       // that is the normal case, not a degraded one.
       path: null,

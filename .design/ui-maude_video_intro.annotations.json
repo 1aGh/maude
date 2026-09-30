@@ -1,0 +1,7 @@
+{"format":"maude.annotations","v":2,"elements":[
+{"id":"s_opnmk55v","type":"section","index":"a0","x":927.39,"y":768,"w":819.9,"h":736.09},
+{"id":"s_f231djuo","type":"section","index":"a1","x":0,"y":768.16,"w":856.31,"h":736.09,"label":"ppodklady 1"},
+{"id":"s_jrow7tht","type":"image","parent":"s_f231djuo","index":"a0","x":574.61,"y":111.03,"w":221,"h":480,"href":"assets/c39386eb.png"},
+{"id":"s_48ninqdm","type":"image","parent":"s_f231djuo","index":"a1","x":46.61,"y":368.04,"w":480,"h":300,"href":"assets/a44d3d60.png"},
+{"id":"s_5rfojqqm","type":"image","parent":"s_f231djuo","index":"a2","x":22.61,"y":63.03,"w":480,"h":270,"href":"assets/a42ba453.gif"}
+]}

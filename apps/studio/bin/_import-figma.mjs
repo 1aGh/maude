@@ -42,8 +42,15 @@ import {
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
-
+import { migrateSvg } from '../annotations/migrate-v1.ts';
+import { serializeBoard } from '../annotations/schema.ts';
 import { sanitizeAnnotationSvg, strokesToSvg } from '../annotations-model.ts';
+
+/** v1 strokes → canonical v2 board text (DDR-242), through the sanitizer + migration. */
+function boardText(strokes) {
+  return serializeBoard(migrateSvg(sanitizeAnnotationSvg(strokesToSvg(strokes))).elements);
+}
+
 import {
   applyRewrites,
   FIGMA_ASSET_HOSTS,
@@ -553,7 +560,10 @@ export async function importBoard({
     const usable = strokes.filter((s) => s.tool !== 'image' || Boolean(s.href));
     // Paper, then region, then content — in paint order. Either one emitted
     // after the board would veil it.
-    const svgFinal = sanitizeAnnotationSvg(strokesToSvg([paper, backing, ...usable]));
+    // DDR-242 — the board is written as the v2 element model (`.annotations.json`);
+    // the v1 strokes this translator builds go through the same migration a
+    // legacy file does (sanitized SVG → v1ToV2), so both paths agree.
+    const svgFinal = boardText([paper, backing, ...usable]);
 
     // The board needs a canvas to live on — see `boardHostCanvas`. The
     // annotation layer is named after THAT canvas's slug, not after a slug of
@@ -562,7 +572,7 @@ export async function importBoard({
     const canvasRel = `ui/${title}.tsx`;
     const annSlug = canvasSlug(canvasRel);
 
-    const stagedSvg = join(staging, 'board.annotations.svg');
+    const stagedSvg = join(staging, 'board.annotations.json');
     const stagedTsx = join(staging, 'board.tsx');
     const stagedMeta = join(staging, 'board.meta.json');
     writeFileSync(stagedSvg, svgFinal, 'utf8');
@@ -583,7 +593,7 @@ export async function importBoard({
     const finalPath = assertContained(
       root,
       designRootRel,
-      join(root, designRootRel, `${annSlug}.annotations.svg`)
+      join(root, designRootRel, `${annSlug}.annotations.json`)
     );
     const finalTsx = assertContained(root, designRootRel, join(root, designRootRel, canvasRel));
     const finalMeta = assertContained(
@@ -1099,12 +1109,12 @@ export async function importPages({
 
         if (annStrokes.length > 0) {
           const annSlug = canvasSlug(`${relDir}/${title}.tsx`);
-          const stagedAnn = join(staging, 'page.annotations.svg');
-          writeFileSync(stagedAnn, sanitizeAnnotationSvg(strokesToSvg(annStrokes)), 'utf8');
+          const stagedAnn = join(staging, 'page.annotations.json');
+          writeFileSync(stagedAnn, boardText(annStrokes), 'utf8');
           const finalAnn = assertContained(
             root,
             designRootRel,
-            join(root, designRootRel, `${annSlug}.annotations.svg`)
+            join(root, designRootRel, `${annSlug}.annotations.json`)
           );
           promoteFile(stagedAnn, finalAnn);
         }

@@ -199,6 +199,16 @@ export interface ClassifyOptions {
  * `node_modules`, directory segments start alphanumeric, the final segment
  * may start with `_`.
  */
+/**
+ * The annotations board (DDR-242: `<slug>.annotations.json`) and its legacy v1
+ * form (`<slug>.annotations.svg`). BOTH stay canvas-owned: the board is the doc
+ * lane's, and a stale legacy sidecar must never ride the file plane between
+ * machines (the boot migration quarantines it locally).
+ */
+function isAnnotationsSidecar(lowerName: string): boolean {
+  return lowerName.endsWith('.annotations.json') || lowerName.endsWith('.annotations.svg');
+}
+
 export function classifyProjectFile(rel: string, opts: ClassifyOptions = {}): FileClass {
   const parts = relShape(rel);
   if (parts === null) return 'never';
@@ -219,7 +229,7 @@ export function classifyProjectFile(rel: string, opts: ClassifyOptions = {}): Fi
     // The canvas body and its NAMED sidecars — Plane A's, by construction.
     if (lowerLast.endsWith('.tsx')) return 'canvas-owned';
     if (lowerLast.endsWith('.meta.json')) return 'canvas-owned';
-    if (lowerLast.endsWith('.annotations.svg')) return 'canvas-owned';
+    if (isAnnotationsSidecar(lowerLast)) return 'canvas-owned';
     if (lowerLast.endsWith('.css') && opts.hasFile) {
       const sibling = `${rel.slice(0, -'.css'.length)}.tsx`;
       if (opts.hasFile(sibling)) return 'canvas-owned';
@@ -238,7 +248,7 @@ export function classifyProjectFile(rel: string, opts: ClassifyOptions = {}): Fi
   // pushed over them at 10:50:33). The annotations lane's own stamped
   // newest-wins protection never saw it coming — it guards the DOC lane, and
   // this was the file plane acting alone. One owner: the canvas.
-  if (parts.length === 1 && lowerLast.endsWith('.annotations.svg')) return 'canvas-owned';
+  if (parts.length === 1 && isAnnotationsSidecar(lowerLast)) return 'canvas-owned';
 
   if (COMPANION_SIDECAR_SUFFIXES.some((s) => lowerLast.endsWith(s))) return 'companion-text';
 

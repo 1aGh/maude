@@ -24,6 +24,9 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { parseBoard } from '../annotations/schema.ts';
+import { elementsToStrokes } from '../annotations/v1-adapter.ts';
+import { strokesToSvg } from '../annotations-model.ts';
 
 import {
   formatSummary,
@@ -108,6 +111,14 @@ afterEach(() => {
   rmSync(keysDir, { recursive: true, force: true });
   delete process.env.MAUDE_GEN_KEYS_PATH;
 });
+
+/**
+ * DDR-242 — the import writes a v2 board (`.annotations.json`). Render it to
+ * the v1 SVG these assertions (sanitizer-clean, paint order, sections) read.
+ */
+function boardSvgAt(path: string): string {
+  return strokesToSvg(elementsToStrokes(parseBoard(readFileSync(path, 'utf8')).elements));
+}
 
 describe('a rendered SVG never falls back to a SERIF (live-migration report)', () => {
   // Measured on the StudyFi cover page: Figma renders text as
@@ -262,7 +273,7 @@ describe('--board writes a sanitized annotation layer', () => {
 
   test('the written SVG is sanitizer-clean — no markup from the hostile name', async () => {
     const result = await importBoard({ url: BOARD_URL, root: sandbox });
-    const svg = readFileSync(result.path as string, 'utf8');
+    const svg = boardSvgAt(result.path as string);
     expect(svg.startsWith('<svg')).toBe(true);
     expect(svg).not.toContain('<b>');
     expect(svg).not.toContain('<script');
@@ -271,7 +282,7 @@ describe('--board writes a sanitized annotation layer', () => {
 
   test('a hidden node is not written', async () => {
     const result = await importBoard({ url: BOARD_URL, root: sandbox });
-    const svg = readFileSync(result.path as string, 'utf8');
+    const svg = boardSvgAt(result.path as string);
     expect(svg).not.toContain('you cannot see me');
   });
 
@@ -292,21 +303,21 @@ describe('--board writes a sanitized annotation layer', () => {
     // 0.06, so it cannot be the ground: white-at-6% over a dark-default DS is
     // still dark. Measured on the first migration into `studyfi-design`.
     const result = await importBoard({ url: BOARD_URL, root: sandbox });
-    const svg = readFileSync(result.path as string, 'utf8');
+    const svg = boardSvgAt(result.path as string);
     expect(svg).toContain('data-id="figma-board-paper"');
     expect(svg.toLowerCase()).toContain('fill="#ffffff"');
   });
 
   test('the region is a labelled SECTION, on the annotation layer', async () => {
     const result = await importBoard({ url: BOARD_URL, root: sandbox });
-    const svg = readFileSync(result.path as string, 'utf8');
+    const svg = boardSvgAt(result.path as string);
     expect(svg).toContain('data-tool="section"');
     expect(svg).toContain('data-id="figma-board-region"');
   });
 
   test('paint order is paper -> region -> content; either one later would veil the board', async () => {
     const result = await importBoard({ url: BOARD_URL, root: sandbox });
-    const svg = readFileSync(result.path as string, 'utf8');
+    const svg = boardSvgAt(result.path as string);
     const paper = svg.indexOf('data-id="figma-board-paper"');
     const region = svg.indexOf('data-id="figma-board-region"');
     const firstContent = svg.search(/data-tool="(sticky|image|text|ellipse|arrow)"/);
@@ -320,7 +331,7 @@ describe('--board writes a sanitized annotation layer', () => {
     // `--slug` names the CANVAS; the annotation layer follows from it.
     expect(result.canvas).toBe('ui/Retro Q3.tsx');
     expect(result.slug).toBe('ui-retro_q3');
-    expect(result.path?.endsWith('ui-retro_q3.annotations.svg')).toBe(true);
+    expect(result.path?.endsWith('ui-retro_q3.annotations.json')).toBe(true);
   });
 
   test.each([
@@ -340,7 +351,7 @@ describe('staging is outside the design root, and leaves nothing behind', () => 
   test('a successful run leaves the layer + its host canvas, and no staging residue', async () => {
     const result = await importBoard({ url: BOARD_URL, root: sandbox });
     const entries = readdirSync(join(sandbox, '.design'));
-    expect(entries.sort()).toEqual(['ui', `${result.slug}.annotations.svg`]);
+    expect(entries.sort()).toEqual([`${result.slug}.annotations.json`, 'ui'].sort());
     // The host canvas — without it the strokes are on disk and invisible.
     expect(readdirSync(join(sandbox, '.design', 'ui')).sort()).toEqual([
       'Figjam Em6nowao.meta.json',

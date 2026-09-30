@@ -1,11 +1,12 @@
 // Codec unit tests — Phase 9 Task 4.
 //
 // Verify Y.Doc <-> disk round-trips for the three classes of files the sync
-// agent shuttles: HTML body, comments JSON, annotations SVG.
+// agent shuttles: HTML body, comments JSON, annotations board (DDR-242).
 
 import { describe, expect, test } from 'bun:test';
 import * as Y from 'yjs';
 
+import { REPLICA_TYPE } from '../annotations/replica.ts';
 import { Y_TYPES } from '../collab/persistence.ts';
 import {
   annotationsFromDoc,
@@ -15,9 +16,11 @@ import {
   bodyEditAtFromDoc,
   commentsFromDoc,
   htmlFromDoc,
+  isEmptyAnnotationsSvg,
   stampBodyEdit,
   Y_SYNC_TYPES,
 } from '../sync/codec.ts';
+import { board, EMPTY_BOARD, sticky, v1, v1Sticky } from './fixtures/annotations-v2/boards.ts';
 
 describe('HTML codec', () => {
   test('htmlFromDoc returns empty string for a fresh doc', () => {
@@ -129,40 +132,61 @@ describe('Comments codec', () => {
   });
 });
 
-describe('Annotations codec', () => {
+describe('Annotations codec (DDR-242 replica)', () => {
+  const A = board(sticky('s1', 'one'));
+  const B = board(sticky('s1', 'one'), sticky('s2', 'two', { x: 300, index: 'a1' }));
+
   test('annotationsFromDoc returns null for a fresh doc', () => {
     expect(annotationsFromDoc(new Y.Doc())).toBeNull();
   });
 
-  test('applyAnnotationsToDoc → annotationsFromDoc round-trip', () => {
+  test('applyAnnotationsToDoc → annotationsFromDoc round-trip (canonical board text)', () => {
     const doc = new Y.Doc();
-    applyAnnotationsToDoc(doc, '<svg></svg>');
-    expect(annotationsFromDoc(doc)).toBe('<svg></svg>');
+    applyAnnotationsToDoc(doc, B);
+    expect(annotationsFromDoc(doc)).toBe(B);
   });
 
-  test('applyAnnotationsToDoc with null clears the entry', () => {
+  test('a legacy SVG value is converted on apply', () => {
     const doc = new Y.Doc();
-    applyAnnotationsToDoc(doc, '<svg></svg>');
+    const legacy = v1([v1Sticky('a', 'x')]);
+    applyAnnotationsToDoc(doc, legacy.svg);
+    expect(annotationsFromDoc(doc)).toBe(legacy.board);
+  });
+
+  test('applyAnnotationsToDoc with null empties the board (zero elements, not "never populated")', () => {
+    const doc = new Y.Doc();
+    applyAnnotationsToDoc(doc, A);
     applyAnnotationsToDoc(doc, null);
-    expect(annotationsFromDoc(doc)).toBeNull();
+    expect(annotationsFromDoc(doc)).toBe(EMPTY_BOARD);
+    expect(isEmptyAnnotationsSvg(annotationsFromDoc(doc))).toBe(true);
   });
 
   test('applyAnnotationsToDoc with identical content is a no-op', () => {
     const doc = new Y.Doc();
-    applyAnnotationsToDoc(doc, '<svg></svg>');
+    applyAnnotationsToDoc(doc, A);
     let updates = 0;
     doc.on('update', () => {
       updates++;
     });
-    const changed = applyAnnotationsToDoc(doc, '<svg></svg>');
+    const changed = applyAnnotationsToDoc(doc, A);
     expect(changed).toBe(false);
     expect(updates).toBe(0);
   });
 
-  test('annotations share Y_TYPES.annotations name with Phase 5 persistence', () => {
+  test('non-board text is refused, never treated as emptiness', () => {
     const doc = new Y.Doc();
-    applyAnnotationsToDoc(doc, '<svg>x</svg>');
-    expect(doc.getMap<string>(Y_TYPES.annotations).get('svg')).toBe('<svg>x</svg>');
+    applyAnnotationsToDoc(doc, A);
+    expect(applyAnnotationsToDoc(doc, 'not a board')).toBe(false);
+    expect(annotationsFromDoc(doc)).toBe(A);
+  });
+
+  test('annotations live in the per-element replica, never the v1 `svg` key', () => {
+    const doc = new Y.Doc();
+    applyAnnotationsToDoc(doc, B);
+    expect(doc.getMap<unknown>(Y_TYPES.annotations).has('svg')).toBe(false);
+    const replica = doc.getMap<unknown>(REPLICA_TYPE);
+    expect(replica.get('s1')).toBeInstanceOf(Y.Map);
+    expect(replica.get('s2')).toBeInstanceOf(Y.Map);
   });
 });
 

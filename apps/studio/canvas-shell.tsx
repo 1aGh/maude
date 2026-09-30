@@ -829,6 +829,12 @@ function CanvasCore({
         return;
       }
       if (t.closest('[data-dc-screen]')) return; // any part of an artboard
+      // Inside anything editable a double-click selects a WORD — the text
+      // editors of stickies / shape labels / texts sit over the world, not over
+      // an artboard, so this used to fit() and throw the view to the top-left
+      // mid-edit (user report 2026-09-30).
+      if (t.closest('[data-annot-editor], input, textarea, select')) return;
+      if ((t as HTMLElement).isContentEditable) return;
       e.preventDefault();
       controller.fit();
     };

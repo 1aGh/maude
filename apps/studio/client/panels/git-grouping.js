@@ -1,12 +1,12 @@
 // Pure grouping helpers for the Changes panel (GitPanel.jsx) — framework-free so
 // they unit-test without a DOM. DDR-115 follow-up: group changed files by parent
 // canvas + its supporting sidecars (same-stem `.meta.json`, slug-matched
-// `.annotations.svg`), mirroring the server's `expandSidecars` notion of "travels
+// `.annotations.json`), mirroring the server's `expandSidecars` notion of "travels
 // with the canvas" so the visual grouping is honest with what a unit commits.
 
 export const CANVAS_RE = /\.(tsx|html)$/i;
 export const META_RE = /\.meta\.json$/i;
-export const ANNOT_RE = /\.annotations\.svg$/i;
+export const ANNOT_RE = /\.annotations\.(?:svg|json)$/i;
 
 /** Display name for a file (last path segment, sidecar/canvas extension stripped). */
 export function baseName(p) {

@@ -12,6 +12,12 @@ import { join } from 'node:path';
 import { createApi } from '../api.ts';
 import { type Context, createBus } from '../context.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
+import { board, sticky, v1, v1Sticky } from './fixtures/annotations-v2/boards.ts';
+
+// DDR-242 — the whiteboard sidecar is `<slug>.annotations.json`.
+const BOARD_A = board(sticky('a', 'whiteboard'));
+const VICTIM_BOARD = board(sticky('victim', 'VICTIM'));
+const LEGACY = v1([v1Sticky('legacy', 'v1 note')]);
 
 async function createBoard(port: number, name: string, group?: string) {
   const r = await fetch(`http://localhost:${port}/_api/canvas`, {
@@ -178,10 +184,7 @@ describe('/_api/fs-move — POST round-trip', () => {
       );
       mkdirSync(join(designRoot, '_comments'), { recursive: true });
       writeFileSync(join(designRoot, '_comments', `${fromSlug}.json`), '[]');
-      writeFileSync(
-        join(designRoot, `${fromSlug}.annotations.svg`),
-        '<svg xmlns="http://www.w3.org/2000/svg" data-mdcc-annotations="1"></svg>'
-      );
+      writeFileSync(join(designRoot, `${fromSlug}.annotations.json`), BOARD_A);
       const locatorAbs = join(designRoot, '_locator.json');
       const locatorKey = 'ui/Full Rekey'; // locatorKeyFor shape: posix, ext-less, NOT slugified
       writeFileSync(
@@ -203,8 +206,8 @@ describe('/_api/fs-move — POST round-trip', () => {
       expect(existsSync(join(designRoot, '_canvas-state', `${toSlug}.view.json`))).toBe(true);
       expect(existsSync(join(designRoot, '_canvas-state', `${fromSlug}.view.json`))).toBe(false);
       expect(existsSync(join(designRoot, '_comments', `${toSlug}.json`))).toBe(true);
-      expect(existsSync(join(designRoot, `${toSlug}.annotations.svg`))).toBe(true);
-      expect(existsSync(join(designRoot, `${fromSlug}.annotations.svg`))).toBe(false);
+      expect(readFileSync(join(designRoot, `${toSlug}.annotations.json`), 'utf8')).toBe(BOARD_A);
+      expect(existsSync(join(designRoot, `${fromSlug}.annotations.json`))).toBe(false);
 
       const locator = JSON.parse(readFileSync(locatorAbs, 'utf8'));
       expect(locator['ui/nested/Full Rekey']).toBeDefined();
@@ -436,7 +439,7 @@ describe('/_api/fs-move — slug-collision guard (security review finding)', () 
       // sidecar so a silent clobber would be observable.
       const victim = await createBoard(port, 'a-b');
       expect(victim.slug).toBe('ui-a-b');
-      writeFileSync(join(designRoot, `${victim.slug}.annotations.svg`), '<svg>VICTIM</svg>');
+      writeFileSync(join(designRoot, `${victim.slug}.annotations.json`), VICTIM_BOARD);
 
       // Mover: ui/b.tsx, about to move into ui/a/ -> would become
       // ui/a/b.tsx -> slug "ui-a-b" too.
@@ -449,8 +452,8 @@ describe('/_api/fs-move — slug-collision guard (security review finding)', () 
       // Nothing moved; the victim's sidecar is untouched.
       expect(existsSync(join(designRoot, 'ui', 'b.tsx'))).toBe(true);
       expect(existsSync(join(designRoot, 'ui', 'a', 'b.tsx'))).toBe(false);
-      expect(readFileSync(join(designRoot, `${victim.slug}.annotations.svg`), 'utf8')).toBe(
-        '<svg>VICTIM</svg>'
+      expect(readFileSync(join(designRoot, `${victim.slug}.annotations.json`), 'utf8')).toBe(
+        VICTIM_BOARD
       );
     } finally {
       await killProc(proc);
@@ -619,7 +622,9 @@ describe('canvas rename and duplicate', () => {
     const proc = await bootServer(root, port);
     try {
       const created = await createBoard(port, 'Before');
-      writeFileSync(join(designRoot, 'ui-before.annotations.svg'), '<svg/>');
+      writeFileSync(join(designRoot, 'ui-before.annotations.json'), BOARD_A);
+      // A not-yet-migrated v1 sidecar travels with its canvas too.
+      writeFileSync(join(designRoot, 'ui-before.annotations.svg'), LEGACY.svg);
       const rename = (toName: string) =>
         fetch(`http://localhost:${port}/_api/fs-move`, {
           method: 'POST',
@@ -635,6 +640,8 @@ describe('canvas rename and duplicate', () => {
       expect(existsSync(join(designRoot, 'ui', 'Before.tsx'))).toBe(false);
       expect(existsSync(join(designRoot, 'ui', 'After name.tsx'))).toBe(true);
       expect(existsSync(join(designRoot, 'ui', 'After name.meta.json'))).toBe(true);
+      expect(existsSync(join(designRoot, 'ui-before.annotations.json'))).toBe(false);
+      expect(readFileSync(join(designRoot, `${j.toSlug}.annotations.json`), 'utf8')).toBe(BOARD_A);
       expect(existsSync(join(designRoot, 'ui-before.annotations.svg'))).toBe(false);
       expect(existsSync(join(designRoot, `${j.toSlug}.annotations.svg`))).toBe(true);
     } finally {
@@ -648,7 +655,7 @@ describe('canvas rename and duplicate', () => {
     const proc = await bootServer(root, port);
     try {
       const created = await createBoard(port, 'Orig');
-      writeFileSync(join(designRoot, 'ui-orig.annotations.svg'), '<svg id="a"/>');
+      writeFileSync(join(designRoot, 'ui-orig.annotations.json'), BOARD_A);
       const dup = () =>
         fetch(`http://localhost:${port}/_api/canvas`, {
           method: 'POST',
@@ -664,9 +671,9 @@ describe('canvas rename and duplicate', () => {
       );
       const meta = JSON.parse(readFileSync(join(designRoot, 'ui', 'Orig copy.meta.json'), 'utf8'));
       expect(meta.title).toBe('Orig copy');
-      expect(readFileSync(join(designRoot, `${j1.slug}.annotations.svg`), 'utf8')).toBe(
-        '<svg id="a"/>'
-      );
+      // The whiteboard is copied as the v2 board (DDR-242).
+      expect(readFileSync(join(designRoot, `${j1.slug}.annotations.json`), 'utf8')).toBe(BOARD_A);
+      expect(existsSync(join(designRoot, `${j1.slug}.annotations.svg`))).toBe(false);
       const r2 = await dup();
       expect(((await r2.json()) as { rel: string }).rel).toBe('ui/Orig copy 2.tsx');
       const outside = await fetch(`http://localhost:${port}/_api/canvas`, {
@@ -675,6 +682,22 @@ describe('canvas rename and duplicate', () => {
         body: JSON.stringify({ duplicateOf: '../outside.tsx' }),
       });
       expect(outside.status).toBe(400);
+
+      // A source still holding only a legacy v1 sidecar duplicates into the
+      // migrated v2 board — the copy is never a second v1 file.
+      const old = await createBoard(port, 'Old');
+      writeFileSync(join(designRoot, `${old.slug}.annotations.svg`), LEGACY.svg);
+      const r3 = await fetch(`http://localhost:${port}/_api/canvas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ duplicateOf: old.rel }),
+      });
+      expect(r3.status).toBe(201);
+      const j3 = (await r3.json()) as { slug: string };
+      expect(readFileSync(join(designRoot, `${j3.slug}.annotations.json`), 'utf8')).toBe(
+        LEGACY.board
+      );
+      expect(existsSync(join(designRoot, `${j3.slug}.annotations.svg`))).toBe(false);
     } finally {
       await killProc(proc);
     }

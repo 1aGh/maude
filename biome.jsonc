@@ -17,6 +17,8 @@
       "!**/.changeset/**/*.md",
       "!**/.ai",
       "!**/.design",
+      // Legacy v1 annotation boards — migration INPUT data, not UI markup.
+      "!**/apps/studio/test/fixtures/annotations-v2/*.svg",
       "!**/plugins/**/dist",
       // apps/studio/dist + apps/hub/dist hold committed build artifacts (minified
       // bundles, compiled binaries) — never linted (was covered by the

@@ -83,6 +83,12 @@ COPY apps/studio/sync/source-merge.ts /build/apps/studio/sync/source-merge.ts
 COPY apps/studio/sync/repeated-module.ts /build/apps/studio/sync/repeated-module.ts
 COPY apps/studio/annotations-model.ts /build/apps/studio/annotations-model.ts
 COPY apps/studio/canvas-arrowheads.ts /build/apps/studio/canvas-arrowheads.ts
+# DDR-242 — the annotations-v2 element model: the kernel validates, merges
+# (per element / per field) and applies the board with the studio's OWN
+# registry, ops and replica codec, and the workspace agent runs the studio's
+# boot migration on the checkout. React-free; `yjs` resolves from the hub's
+# install through the node_modules link below.
+COPY apps/studio/annotations /build/apps/studio/annotations
 # Same rule, third file: the `git log` format string, its argv (including the
 # GIT_LITERAL_PATHSPECS hardening that must travel WITH a scoped argv) and its
 # parser. `src/history.mjs` serves the cloud-managed desktop's History tab, and

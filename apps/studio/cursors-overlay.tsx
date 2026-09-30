@@ -20,6 +20,7 @@
 import type { JSX } from 'react';
 import { memo, useEffect, useState } from 'react';
 
+import { REPLICA_TYPE } from './annotations/replica.ts';
 import { useLiveViewport } from './canvas-lib.tsx';
 import { type ForeignAwareness, useCollab, useForeignAwareness } from './use-collab.tsx';
 
@@ -355,12 +356,14 @@ export function CursorsOverlay(): JSX.Element {
   const [tick, bumpTick] = useState(0);
   useEffect(() => {
     if (!collab) return;
-    const map = collab.doc.getMap('annotations');
+    // The v2 replica (DDR-242): element records are nested maps, so a field
+    // edit only reaches a deep observer.
+    const map = collab.doc.getMap(REPLICA_TYPE);
     const onChange = () => bumpTick((n) => n + 1);
-    map.observe(onChange);
+    map.observeDeep(onChange);
     return () => {
       try {
-        map.unobserve(onChange);
+        map.unobserveDeep(onChange);
       } catch {
         /* doc destroyed */
       }
