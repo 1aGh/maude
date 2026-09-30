@@ -122,9 +122,9 @@ describe('UI edits become minimal ops', () => {
   test('unknown element types survive every UI commit', () => {
     const withUnknown = toMap([
       ...base,
-      { id: 'u1', type: 'stamp', index: 'a9', emoji: '🔥' } as AnnotationElement,
+      { id: 'u1', type: 'hologram', index: 'a9', emoji: '🔥' } as AnnotationElement,
     ]);
     const out = strokesToElementMap(elementsToStrokes(withUnknown.values()), withUnknown);
-    expect(out.get('u1')).toMatchObject({ type: 'stamp', emoji: '🔥' });
+    expect(out.get('u1')).toMatchObject({ type: 'hologram', emoji: '🔥' });
   });
 });

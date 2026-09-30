@@ -45,7 +45,21 @@ const DEFS: readonly ElementDef[] = [
   section,
 ];
 
-export const REGISTRY: ReadonlyMap<string, ElementDef> = new Map(DEFS.map((d) => [d.type, d]));
+const TYPES = new Map(DEFS.map((d) => [d.type, d]));
+export const REGISTRY: ReadonlyMap<string, ElementDef> = TYPES;
+
+/**
+ * Register an element type at runtime — a plugin, or a test proving that a new
+ * type is one definition (the conformance suite's `stamp`). A built-in type
+ * cannot be replaced.
+ */
+export function registerElementType(def: ElementDef): void {
+  if (!TYPE_RE.test(def.type)) throw new Error(`invalid element type "${def.type}"`);
+  const cur = TYPES.get(def.type);
+  if (cur && DEFS.includes(cur)) throw new Error(`"${def.type}" is a built-in element type`);
+  TYPES.set(def.type, def);
+  specCache.delete(def.type);
+}
 
 export const TYPE_RE = /^[a-z][a-z0-9-]{0,31}$/;
 

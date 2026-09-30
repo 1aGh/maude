@@ -33,6 +33,7 @@ import {
 import { MAX_PEN_POINTS } from './constants.ts';
 import { keysBetween } from './fractional-index.ts';
 import { parseMiniDom } from './legacy/mini-dom.ts';
+import { defOf } from './registry.ts';
 import { type Dropped, validateElements } from './schema.ts';
 import type { AnnotationElement, Box } from './types.ts';
 
@@ -351,6 +352,13 @@ export function v1ToV2(strokes: readonly Stroke[], opts: V1ToV2Opts = {}): Migra
       case 'section':
         raw.push({ ...base, type: 'section', ...rel(b as Box, o), label: s.label, color: s.color });
         break;
+      case 'element': {
+        // A registry type with no stroke form: its own record, moved into parent space.
+        const def = defOf(s.el.type);
+        if (!def) break;
+        raw.push({ ...s.el, ...def.translate(s.el, -o.x, -o.y), ...base });
+        break;
+      }
     }
   }
   for (const { t, at } of extraText) {

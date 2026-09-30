@@ -18,11 +18,13 @@
  */
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
+import { defOf } from './annotations/registry.ts';
 import { useAnnotationPipeline } from './annotations/ui/pipeline-context.ts';
 import { anchorPoint, BIND_THRESHOLD_PX, bindCandidate } from './annotations-bindings.ts';
 import {
   type ArrowStroke,
   canRotate,
+  type ElementStroke,
   type EllipseStroke,
   HALO_PAD_PX,
   type ImageStroke,
@@ -142,6 +144,7 @@ export const padDY = (c: Corner): number =>
 function isResizable(
   s: Stroke
 ): s is
+  | ElementStroke
   | RectStroke
   | EllipseStroke
   | PolygonStroke
@@ -151,6 +154,10 @@ function isResizable(
   | ImageStroke
   | LinkStroke
   | SectionStroke {
+  if (s.tool === 'element') {
+    const caps = defOf(s.el.type)?.caps;
+    return !!caps?.box && caps.resizable;
+  }
   return (
     s.tool === 'rect' ||
     s.tool === 'ellipse' ||
@@ -386,6 +393,15 @@ export function resizeStroke(
     const b0 = { x: start.x, y: start.y, w: start.w, h: start.h };
     const box = bboxResizeRotAware(start, b0, corner, wx, wy, mods, start.tool === 'sticky');
     return box as Partial<RectStroke | StickyStroke | PolygonStroke | LinkStroke>;
+  }
+  if (start.tool === 'element') {
+    // A registry type: fit its box, the fields come from its definition.
+    const def = defOf(start.el.type);
+    const b0 = strokeBBox(start);
+    if (!def || !b0) return null;
+    const box = bboxResize(b0, corner, wx, wy, mods, !!def.caps.aspectLock);
+    const ctx = { origin: { x: 0, y: 0 }, resolve: () => null };
+    return { el: { ...start.el, ...def.resize(start.el, box, ctx) } } as Partial<Stroke>;
   }
   if (start.tool === 'image') {
     // Phase 23 — images aspect-LOCK by default and free-resize with Shift held

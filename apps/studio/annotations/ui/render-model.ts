@@ -81,6 +81,8 @@ export function strokeToRenderItem(s: Stroke, label?: Label): RenderItem | null 
   const head = { id: s.id, index: 'a0', ...author(s) };
   const rot = s.rotation ? { rot: s.rotation } : {};
   switch (s.tool) {
+    case 'element':
+      return { el: { ...s.el, id: s.id } };
     case 'sticky':
       return {
         el: {

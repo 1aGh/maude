@@ -27,7 +27,7 @@ import {
 } from './constants.ts';
 import { keyBetween, orderKeys } from './fractional-index.ts';
 import { v1ToV2 } from './migrate-v1.ts';
-import { isKnownType } from './registry.ts';
+import { defOf, isKnownType } from './registry.ts';
 import { Scene } from './scene.ts';
 import { validateElements } from './schema.ts';
 import type { AnnotationElement, ArrowEnd, Box } from './types.ts';
@@ -250,6 +250,16 @@ export function elementStrokes(scene: Scene, el: AnnotationElement): Stroke[] {
           title: str(el.title),
         } as Stroke);
         break;
+      default: {
+        // A registry type with no stroke form of its own (Task 25): carried as
+        // its world-space record; geometry comes from its definition.
+        const def = defOf(el.type);
+        if (!def) break;
+        const world: Record<string, unknown> = { ...el, ...def.translate(el, o.x, o.y) };
+        delete world.parent;
+        out.push({ ...base, tool: 'element', el: world as AnnotationElement } as Stroke);
+        break;
+      }
       case 'section':
         out.push({
           ...base,

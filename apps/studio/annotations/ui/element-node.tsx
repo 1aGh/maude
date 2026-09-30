@@ -887,6 +887,18 @@ const VIEWS: Record<string, (p: ElementNodeProps) => ReactNode> = {
   section: SectionView,
 };
 
+/**
+ * Register how a runtime-registered element type draws (see
+ * `registerElementType`). Without one it draws as a labelled placeholder.
+ * `Node` is the positioned wrapper every view uses.
+ */
+export function registerElementView(type: string, view: (p: ElementNodeProps) => ReactNode): void {
+  if (Object.hasOwn(VIEWS, type)) throw new Error(`"${type}" already has a view`);
+  VIEWS[type] = view;
+}
+
+export { Node as ElementBox };
+
 function ElementNodeImpl(props: ElementNodeProps) {
   const View = VIEWS[props.el.type] ?? PlaceholderView;
   return <View {...props} />;
