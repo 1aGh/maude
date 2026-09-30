@@ -78,6 +78,7 @@ import { migrateSeed } from './migrate-seed.ts';
 import { ORIGINS } from './origins.ts';
 import { createDocProjection, type DocProjection } from './projection.ts';
 import {
+  acceptedListing,
   describeRemoteDiff,
   diffRemoteDocs,
   fetchRemoteListing,
@@ -2070,12 +2071,10 @@ export function createSyncRuntime(
     // connect before doc.create commits; pulling that empty room would lock
     // the receiver onto a lossy slug-derived path before the real path arrives.
     // The accepted manifest alone names live canvases, including successors
-    // of retired documents whose transport rows may still linger.
-    const bytesByName = new Map((listing?.documents ?? []).map((d) => [d.name, d.bytes]));
-    const documents = manifest.docs
-      .filter((d) => !d.retired)
-      .map((d) => ({ name: d.doc, bytes: bytesByName.get(d.doc) ?? 1 }));
-    return { ...(listing ?? { tombstones: [] }), documents, tombstones: listing?.tombstones ?? [] };
+    // of retired documents whose transport rows may still linger — and a
+    // legacy tombstone for a name the manifest lists live no longer buries it
+    // (see `acceptedListing`).
+    return { ...(listing ?? {}), ...acceptedListing(listing, manifest.docs) };
   }
 
   /**
@@ -2382,7 +2381,12 @@ export function createSyncRuntime(
       path.sep,
       { ...pathOpts, realpath: realpathOfDeepestExisting, pathFor: manifestPathFor }
     );
-    const pullNote = describeRemoteDiff(remoteDiff);
+    // Named as it will actually happen: a canvas the project deleted is listed
+    // for a tick after its tombstone and is not pulled, so it is not announced.
+    const pullNote = describeRemoteDiff({
+      ...remoteDiff,
+      hubOnly: remoteDiff.hubOnly.filter((d) => !tombstoned.has(slugFromDocName(d.name) ?? '')),
+    });
     if (pullNote) console.log(`[sync] ${pullNote}`);
     /** Descriptor paths for one slug at one body path. The sidecar rules live
      *  here, once: `.meta.json`/`.css` are SIBLINGS of the body, while
