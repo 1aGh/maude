@@ -391,3 +391,37 @@ export function resolvePulledTarget(args: {
   }
   return { bodyAbs, fromPath };
 }
+
+/**
+ * The listing as an accepted-revisions project states it.
+ *
+ * In accepted mode the MANIFEST names the live canvases: an open Yjs room is
+ * not necessarily an accepted canvas (its author can connect before
+ * `doc.create` commits), so the documents come from the manifest, with the
+ * transport listing's byte counts where it has them.
+ *
+ * The same holds for DELETIONS. The transport's tombstones outlive the legacy
+ * era: a canvas deleted then and later re-created under the same name through
+ * `doc.create` stays tombstoned in the document store while the manifest lists
+ * it live — and every peer that honoured the tombstone skipped a live canvas
+ * (the web showed it, the desktop never pulled it). A tombstone for a name the
+ * manifest lists live is stale and dropped; one for a name the manifest
+ * retired, or does not carry, still stands. A peer's OWN just-made deletion is
+ * not affected: it is remembered locally and never passes through here.
+ */
+export function acceptedListing(
+  listing: RemoteListing | null,
+  manifestDocs: readonly { doc: string; retired: boolean }[]
+): RemoteListing {
+  const bytesByName = new Map((listing?.documents ?? []).map((d) => [d.name, d.bytes]));
+  const documents = manifestDocs
+    .filter((d) => !d.retired)
+    .map((d) => ({ name: d.doc, bytes: bytesByName.get(d.doc) ?? 1 }));
+  const live = new Set(
+    manifestDocs.filter((d) => !d.retired).map((d) => slugFromDocName(d.doc) ?? d.doc)
+  );
+  const tombstones = (listing?.tombstones ?? []).filter(
+    (t) => !live.has(slugFromDocName(t.name) ?? t.name)
+  );
+  return { documents, tombstones };
+}

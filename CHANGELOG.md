@@ -1,5 +1,22 @@
 # @1agh/maude
 
+## 1.4.6
+
+### Patch Changes
+
+- fb1969c: The Sync panel no longer reports project files as "waiting" when nothing is left to deliver, and Resync now actually rechecks a stuck file.
+
+  - **Files that became part of a canvas stop showing as stuck.** A stylesheet created before its canvas becomes that canvas's own file and travels with the canvas. Its old entry used to stay in the panel as "stuck" or "conflict" for good. It is now dropped.
+  - **A file the project changed during an upload arrives.** If the project changed a file while this machine was uploading it, and nobody touched it afterwards, the newer copy never came down. The next sync — or a Resync — now reads the project's full file list once and brings it down.
+  - **Identical code files are in step.** A `.ts` or `.js` file that is byte-for-byte the same here and on a self-hosted project no longer shows as refused.
+
+- fa3290b: Comments now stay where you put them and reach every peer, and large boards pan smoothly with something selected or a teammate on the canvas (#134, #136, #133, #131).
+
+  - **Comments on stickies and empty canvas stay.** A comment placed on a sticky, a drawing or empty canvas was saved and then deleted for everyone about three seconds later. Software no longer deletes comments. A comment on a sticky now follows the sticky. A comment on empty canvas keeps its place through pan and zoom. A comment whose target is gone is shown as detached, with a dashed pin, until a person removes it.
+  - **Web comments reach the desktop app.** A desktop app that was closed while a comment was deleted on the web stopped receiving comments after it reopened. In legacy projects, the deleted comment also came back for everyone. Both are fixed. A comment written before sync had started is now sent to the project when the app starts, instead of staying only on that machine.
+  - **Large boards pan smoothly.** With an element selected, a theme check ran again on every frame of a pan and recalculated the styles of the whole page. On a board with many artboards in the desktop app, this could drop panning to about one frame a second. It now runs once.
+  - The server log now says when comments on this machine have not reached the shared project yet.
+
 ## 1.4.5
 
 ### Patch Changes

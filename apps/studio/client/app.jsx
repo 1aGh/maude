@@ -130,6 +130,16 @@ import { acceptCanvasNotice } from '../canvas-notice-message.ts';
 import { ExportBadge, ExportPanel, ExportToast, useExportCenter } from './export-center.jsx';
 import { ReportBugDialog } from './report-bug.jsx';
 import { useWhatsNew, WhatsNewPanel, WhatsNewToast } from './whats-new.jsx';
+import {
+  collectDirPaths,
+  isDirOpen,
+  pruneDirs,
+  remapDirPrefix,
+  revealPath,
+  setDirOpen,
+  toggleSection as toggleSectionState,
+  useTreeExpansion,
+} from './tree-expansion.js';
 
 const USAGE_TOUR_STORE = 'mdcc-usage-tour-seen';
 // Phase 29 (E4) — the collab "rychlý kurz" is offered once after onboarding.
@@ -138,7 +148,6 @@ const COLLAB_TOUR_STORE = 'mdcc-collab-tour-seen';
 const SYSTEM_TAB = '__system__';
 const THEME_STORE = 'mdcc-theme';
 const SHOW_HIDDEN_STORE = 'mdcc-show-hidden';
-const SECTIONS_STORE = 'mdcc-sections-expanded';
 // DDR-171 — CSS panel vocabulary mode ('advanced' | 'designer'), read inside
 // CssKnobs.
 const CP_MODE_STORE = 'maude-cp-mode';
@@ -330,14 +339,14 @@ function readJsonStore(key, fallback) {
   }
 }
 
-// Section default-open: working sections (project + non-DS canvas groups)
-// open; meta sections (DS + runtime) collapsed. Users can override per-section
-// via the chevron; overrides persist in localStorage.
-function sectionDefaultOpen(g) {
-  if (g.kind === 'runtime') return false;
-  if (g.label === 'Design system') return false;
-  return true;
+// Section default-open: EVERY section starts collapsed (issue #124 — "default
+// should be collapsed"). The user's per-section choice is remembered per
+// project by useTreeExpansion (tree-expansion.js), next to the folder state.
+function sectionDefaultOpen() {
+  return false;
 }
+// Stable empty list for the Sidebar while the tree state hydrates.
+const EMPTY_GROUPS = [];
 
 // ---------- Utility ----------
 
@@ -2155,8 +2164,17 @@ function ExportDialog({
 const TREE_INDENT_BASE = 12;
 const TREE_INDENT_STEP = 16;
 
-function DirRow({ name, depth, defaultOpen, children, dirPath, drag, menu }) {
-  const [open, setOpen] = useState(defaultOpen);
+// Issue #124 — disclosure is CONTROLLED: `expansion` is App's tree state (see
+// tree-expansion.js), so a collapse outlives this row's unmount (dock-tab
+// switch, section toggle, reload). `forceOpen` = an active search; it shows
+// the hits without recording anything.
+function DirRow({ name, depth, children, dirPath, drag, menu, expansion, forceOpen }) {
+  const open = !!forceOpen || !!expansion?.isOpen(dirPath);
+  const setOpen = (v) => {
+    if (forceOpen) return; // search is showing hits — don't record a choice
+    const next = typeof v === 'function' ? v(open) : v;
+    if (next !== open) expansion?.setOpen(dirPath, next);
+  };
   // feature-file-tree-drag-drop-folders (Task 8) — a folder row IS the drop
   // target. `drag` is undefined for groups that can't accept a move (the
   // design-system group) — no handlers attach there, so the browser's default
@@ -2223,8 +2241,13 @@ function DirRow({ name, depth, defaultOpen, children, dirPath, drag, menu }) {
 // Split target: chevron toggles disclosure of the folder's contents; clicking
 // the folder name opens the SystemView focused on that DS (single SystemView
 // for now; the dsName is plumbed through so a future per-DS view can use it).
-function DsFolderRow({ name, dsName, depth, defaultOpen, active, onOpenSystem, children }) {
-  const [open, setOpen] = useState(defaultOpen);
+function DsFolderRow({ name, dsName, dirPath, depth, active, onOpenSystem, children, expansion, forceOpen }) {
+  const open = !!forceOpen || !!expansion?.isOpen(dirPath);
+  const setOpen = (v) => {
+    if (forceOpen) return; // search is showing hits — don't record a choice
+    const next = typeof v === 'function' ? v(open) : v;
+    if (next !== open) expansion?.setOpen(dirPath, next);
+  };
   return (
     <FileTreeItem label={name} expanded={open} selected={active}
       onToggle={() => setOpen(v => !v)} row={
@@ -2613,6 +2636,8 @@ function Tree({
   // feature-file-tree-drag-drop-folders (Task 9) — the shared row-menu
   // instance (useRowMenu()), undefined for groups that can't participate.
   menu,
+  // Issue #124 — App-level folder disclosure `{ isOpen, setOpen }`.
+  expansion,
 }) {
   const dirs = Object.keys(node)
     .filter((k) => k !== '_files')
@@ -2728,6 +2753,7 @@ function Tree({
             dirPath={childPath}
             drag={drag}
             menu={menu}
+            expansion={expansion}
           />
         );
         if (dsMatch && onOpenSystem) {
@@ -2736,8 +2762,10 @@ function Tree({
               key={d}
               name={d}
               dsName={dsMatch.name}
+              dirPath={childPath}
               depth={depth}
-              defaultOpen={true}
+              expansion={expansion}
+              forceOpen={hasSearch}
               active={activePath === SYSTEM_TAB && dsMatch.name === activeDsName}
               onOpenSystem={onOpenSystem}
             >
@@ -2750,8 +2778,9 @@ function Tree({
             key={d}
             name={d}
             depth={depth}
-            defaultOpen={true}
             dirPath={childPath}
+            expansion={expansion}
+            forceOpen={hasSearch}
             drag={drag}
             menu={drag ? menu : undefined}
           >
@@ -2809,6 +2838,8 @@ function Sidebar({
   showHidden,
   sectionsExpanded,
   onToggleSection,
+  // Issue #124 — App-level folder disclosure `{ isOpen, setOpen }`.
+  treeExpansion,
   onNewBoard,
   onDeleteBoard,
   onRefresh,
@@ -3264,6 +3295,7 @@ function Sidebar({
                     dirPath={g.fullPath}
                     drag={!isDs && g.kind === 'canvas' && !readOnly ? treeDrag : undefined}
                     menu={rowMenu}
+                    expansion={treeExpansion}
                   />
                 ) : (
                   <div className="st-tree-empty">{search ? 'No matches.' : 'Empty.'}</div>
@@ -10412,7 +10444,11 @@ function App() {
   const [openMenu, setOpenMenu] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(() => readBoolStore(SIDEBAR_STORE, true));
   const [showHidden, setShowHidden] = useState(() => readBoolStore(SHOW_HIDDEN_STORE, false));
-  const [sectionsExpanded, setSectionsExpanded] = useState(() => readJsonStore(SECTIONS_STORE, {}));
+  // Issue #124 — folder + section disclosure of the Files panel, remembered
+  // per project on disk (tree-expansion.js). Absent ⇒ closed.
+  const treeExp = useTreeExpansion();
+  const updateTreeExp = treeExp.update;
+  const sectionsExpanded = treeExp.state.sections;
   const [helpOpen, setHelpOpen] = useState(false);
   const [reportBugOpen, setReportBugOpen] = useState(false);
 
@@ -11750,11 +11786,6 @@ function App() {
   }, [showHidden]);
   useEffect(() => {
     try {
-      localStorage.setItem(SECTIONS_STORE, JSON.stringify(sectionsExpanded));
-    } catch {}
-  }, [sectionsExpanded]);
-  useEffect(() => {
-    try {
       localStorage.setItem(MINIMAP_STORE, minimapVisible ? '1' : '0');
     } catch {}
   }, [minimapVisible]);
@@ -11835,13 +11866,28 @@ function App() {
     } catch {}
   }, [layersMode]);
 
-  const toggleSection = useCallback((label, defaultOpen) => {
-    setSectionsExpanded((prev) => {
-      const cur = prev[label];
-      const isOpen = cur === undefined ? defaultOpen : cur;
-      return { ...prev, [label]: !isOpen };
-    });
-  }, []);
+  // #124 — forget folders that no longer exist (deleted, or moved outside
+  // Maude). ONCE per session, on the first loaded tree: pruning on every tree
+  // change would race a move's remap against the reload that follows it.
+  const treePruned = useRef(false);
+  useEffect(() => {
+    if (treePruned.current || !treeExp.ready || !treeLoaded || !groups.length) return;
+    treePruned.current = true;
+    const known = collectDirPaths(groups);
+    updateTreeExp((st) => pruneDirs(st, known));
+  }, [treeExp.ready, treeLoaded, groups, updateTreeExp]);
+
+  const toggleSection = useCallback(
+    (label) => updateTreeExp((st) => toggleSectionState(st, label)),
+    [updateTreeExp]
+  );
+  const treeExpansion = useMemo(
+    () => ({
+      isOpen: (dirPath) => isDirOpen(treeExp.state, dirPath),
+      setOpen: (dirPath, open) => updateTreeExp((st) => setDirOpen(st, dirPath, open)),
+    }),
+    [treeExp.state, updateTreeExp]
+  );
 
   const toggleTheme = useCallback(() => {
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
@@ -12354,7 +12400,12 @@ function App() {
   // The `tabs` state stays as a 0-or-1 array so the rest of the plumbing
   // (iframesRef, comments push, WS `tabs` message) doesn't need refactoring.
   // ARTBOARDS slot in the menubar reads `tabs.length` and reports 0 or 1.
-  const openTab = useCallback((path) => {
+  // `reveal: false` for opens the USER didn't just ask for (URL restore on
+  // boot, the cloud first-canvas auto-open): nothing expands itself on launch
+  // (#124). Every other open reveals the canvas's row in the Files tree.
+  const openTab = useCallback((path, { reveal = true } = {}) => {
+    if (reveal && path && path !== SYSTEM_TAB)
+      updateTreeExp((st) => revealPath(st, groups, path));
     addressMode.current = 'push';
     setFocusedCommentId(null);
     setPreviewPath(null);
@@ -12372,12 +12423,12 @@ function App() {
     // Canvas-compile skeleton — cleared by the iframe's dgn:'loaded' message,
     // the onLoad fallback timer (legacy .html), or a hard 15s cap.
     if (path !== SYSTEM_TAB) setLoadingPath(path);
-  }, [activePath]);
+  }, [activePath, groups, updateTreeExp]);
 
   // Resolve URL identities against the loaded tree, including non-canvas previews.
   const openLinkedFile = useCallback((rel, mode = 'push') => {
     const path = groups.flatMap((g) => g.paths || []).find((p) => normalizeOpenPath(p, cfg.designRel) === rel);
-    if (path && CANVAS_EXT_RE.test(path)) openTab(path);
+    if (path && CANVAS_EXT_RE.test(path)) openTab(path, { reveal: false });
     else if (path && previewKind(basename(path))) onPreview(path);
     else {
       setTabs([]);
@@ -12482,7 +12533,7 @@ function App() {
     }
     if (!first) return;
     autoOpened.current = true;
-    openTab(first);
+    openTab(first, { reveal: false });
   }, [cfg.cloud, groups, tabs.length, openTab]);
 
   const openSystem = useCallback(
@@ -12849,6 +12900,9 @@ function App() {
         );
         const fromFile = `${designRel}/${j.fromRel}`;
         const toFile = `${designRel}/${j.toRel}`;
+        // #124 — a moved folder keeps its (and its subfolders') open state, and
+        // the destination opens so the moved row is visible.
+        updateTreeExp((st) => revealPath(remapDirPrefix(st, fromFile, toFile), groups, toFile));
         await loadTree();
         setTabs((prev) => prev.map((t) => (t.path === fromFile ? { path: toFile } : t)));
         setActivePath((prev) => (prev === fromFile ? toFile : prev));
@@ -12865,7 +12919,7 @@ function App() {
         return { ok: false, error: 'network error' };
       }
     },
-    [loadTree, cfg]
+    [loadTree, cfg, groups, updateTreeExp]
   );
 
   // feature-file-tree-drag-drop-folders (Task 4/9/12) — create a folder under
@@ -12887,6 +12941,8 @@ function App() {
           shellToast(`Could not create folder: ${error}`);
           return { ok: false, error };
         }
+        // #124 — open the parent so the new folder is visible (it starts closed).
+        updateTreeExp((st) => revealPath(st, groups, parentDir, { includeSelf: true }));
         await loadTree();
         return { ok: true, dir: j.dir };
       } catch (e) {
@@ -12895,7 +12951,7 @@ function App() {
         return { ok: false, error };
       }
     },
-    [loadTree]
+    [loadTree, groups, updateTreeExp]
   );
 
   // feature-file-tree-drag-drop-folders (dogfood follow-up) — delete a
@@ -12943,12 +12999,16 @@ function App() {
           shellToast(`Could not rename folder: ${j.error || `error ${r.status}`}`);
           return;
         }
+        // #124 — the renamed folder keeps its open state (and its subfolders').
+        const designRel = (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '');
+        const toDir = typeof j.toRel === 'string' ? `${designRel}/${j.toRel}` : `${parent}/${name}`;
+        updateTreeExp((st) => remapDirPrefix(st, dirPath, toDir));
         await loadTree();
       } catch (e) {
         shellToast(`Rename failed: ${e instanceof Error ? e.message : 'network error'}`);
       }
     },
-    [loadTree]
+    [loadTree, cfg, updateTreeExp]
   );
 
   // Plan T25/L04 — rename a canvas in place (its sidecars follow; an open tab
@@ -15674,7 +15734,9 @@ function App() {
         <Sidebar
           cloud={cfg.cloud}
           readOnly={viewerMode}
-          groups={groups}
+          // Held back until the remembered disclosure is read, so the first
+          // paint is the user's tree rather than an all-closed flash (#124).
+          groups={treeExp.ready ? groups : EMPTY_GROUPS}
           activePath={activePath}
           previewPath={previewPath}
           activeDsName={activePath === SYSTEM_TAB ? (systemData?.ds?.name ?? null) : null}
@@ -15691,6 +15753,7 @@ function App() {
           showHidden={showHidden}
           sectionsExpanded={sectionsExpanded}
           onToggleSection={toggleSection}
+          treeExpansion={treeExpansion}
           onNewBoard={createBoard}
           onDeleteBoard={deleteBoard}
           onMoveCanvas={moveCanvasReq}
