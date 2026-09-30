@@ -29,7 +29,7 @@
 `apps/desktop/e2e/fixtures/project/.design/` — enriched for this scenario:
 
 - `ui/Smoke.tsx` — testids `smoke-h1` / `smoke-p` / `smoke-mixed`; the mixed `<p>Total: {1 + 1} items</p>` renders leaf-looking in the DOM but is mixed in source (the editability-gate probe).
-- `ui-smoke.annotations.svg` — seeded sticky `s_e2esticky1`, standalone text `s_e2etext1`, section `s_e2esection1` (annotations sidecar lives at the designRoot ROOT under the canvas slug, NOT sibling to the canvas).
+- `ui-smoke.annotations.json` (annotations v2, DDR-242) — seeded sticky `s_e2esticky1`, standalone text `s_e2etext1`, section `s_e2esection1` (annotations sidecar lives at the designRoot ROOT under the canvas slug, NOT sibling to the canvas).
 
 ## Steps (automated — `apps/desktop/e2e/scenarios/canvas-text-editing.e2e.ts`)
 
@@ -38,8 +38,8 @@
 | 1 | Boot + open fixture canvas; reset camera (fit + rect-stable). | Every seeded surface reachable (h1, mixed p, sticky, text, section). |
 | 2 | Artboard: synthetic dblclick on h1. | `contenteditable="plaintext-only"` + `dc-text-editing`; caret **collapsed at the click point** (not select-all); explicit caret-color; Escape reverts. |
 | 3 | Artboard: custom caret. | `[data-maude-caret]` present, `animationName` includes `maude-caret-blink`, positioned inside the h1 rect, native caret transparent; disposed on Escape. |
-| 4 | Sticky + standalone text editors, at fit AND zoomed ×2. | Editor is a plain HTML DIV in `.dc-world` (`closest('foreignObject') === null`), positioned over the stroke (±12px), read-render suppressed (no ghost/double-paint). |
-| 5 | Sticky caret-at-click. | Dblclick ~5 chars in → collapsed caret at that offset (±3); a second click farther in **moves** the caret; custom caret mounted on annotation editors. |
+| 4 | Sticky + standalone text editors, at fit AND zoomed ×2. | Editor is a `<textarea>` (annotations v2) in `.dc-world` (`closest('foreignObject') === null`), positioned over the element (±12px), its read text block replaced (no ghost/double-paint). |
+| 5 | Sticky caret-at-click. | Dblclick on the 5th character (aimed with a Range) → collapsed caret at that offset (±3), read from the textarea's `selectionStart`; the textarea shows the platform caret (the custom caret is artboard-only since annotations v2). |
 | 6 | Text tool click-through. | With T armed, click on the sticky opens ITS editor (stroke count unchanged); click on empty space opens a NEW pending editor (no stroke until commit; Escape leaves nothing). |
 | 7 | Keyboard unification. | Sticky/text: Enter commits (stroke re-renders new text), Shift+Enter keeps the editor open (+ emulated newline grows a line); section title (singleLine): Shift+Enter ALSO commits, label has no newline; artboard: Shift+Enter keeps editing, Enter commits. |
 | 8 | Persistence gate. | Mixed `<p>` dblclick → NO contenteditable + hint toast ("dynamic — edit via chat"); h1 edit persists **to disk** and through the HMR reload (⌘R-equivalent); sibling `<p>` byte-identical on disk and on canvas. |
