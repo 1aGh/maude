@@ -21,6 +21,7 @@ import {
   applyOps as applyAnnotationOpsPure,
   diffToOps,
 } from './annotations/ops.ts';
+import './annotations/ops-merge.ts';
 import { parseBoard, serializeBoard } from './annotations/schema.ts';
 import type { AnnotationElement } from './annotations/types.ts';
 import { createAssetMirror, s3ConfigFromEnv } from './assets-s3.ts';

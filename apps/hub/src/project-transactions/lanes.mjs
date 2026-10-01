@@ -12,6 +12,7 @@ import {
   annotationsLaneValue,
   canonicalAnnotations,
 } from '../../../studio/annotations/board-text.ts';
+import '../../../studio/annotations/ops-merge.ts';
 import { applyOps, diffToOps } from '../../../studio/annotations/ops.ts';
 import { readReplica, writeReplica } from '../../../studio/annotations/replica.ts';
 import { parseBoard, serializeBoard } from '../../../studio/annotations/schema.ts';

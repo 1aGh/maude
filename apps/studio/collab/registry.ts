@@ -11,6 +11,7 @@ import type * as Y from 'yjs';
 
 import { canonicalAnnotations } from '../annotations/board-text.ts';
 import { type ApplyResult, applyOps, type Op } from '../annotations/ops.ts';
+import '../annotations/ops-merge.ts';
 import { readReplica, validActionId, writeReplica } from '../annotations/replica.ts';
 import { parseBoard, serializeBoard } from '../annotations/schema.ts';
 import { applyCommentsToDoc, stampAnnotationsEdit } from '../sync/codec.ts';

@@ -28,6 +28,7 @@ import type * as Y from 'yjs';
 
 import { annotationsLaneValue, canonicalAnnotations } from '../annotations/board-text.ts';
 import { applyOps, diffToOps } from '../annotations/ops.ts';
+import '../annotations/ops-merge.ts';
 import {
   annotationsOnDiskOf,
   isEmptyBoardText,

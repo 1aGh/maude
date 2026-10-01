@@ -13,8 +13,9 @@
  *               • the same scalar field follows acceptance order (last wins —
  *                 DDR-241 §5);
  *               • the same TEXT field is merged 3-way at character level
- *                 against the patch's `expect` (sync/source-merge.ts), so two
- *                 people typing in one sticky both keep their words;
+ *                 against the patch's `expect` (sync/source-merge.ts, wired in
+ *                 by `ops-merge.ts` — see `setTextMerge`), so two people
+ *                 typing in one sticky both keep their words;
  *               • a patch on a missing element is rejected `gone` (the client
  *                 offers to restore — it never silently re-creates).
  *             A `strict` patch (undo) only touches fields that still hold the
@@ -26,7 +27,6 @@
  *             are not deleted with it (coordinates converted — they don't jump).
  */
 
-import { mergeSource } from '../sync/source-merge.ts';
 import { MAX_NESTING_DEPTH } from './constants.ts';
 import { DANGEROUS_KEYS, jsonEq } from './fields.ts';
 import { defOf, validateElement } from './registry.ts';
@@ -83,15 +83,40 @@ interface MergeBudget {
   left: number;
 }
 
+/** A 3-way text merge: `ok:false` means the edits touch (ours wins). */
+export type TextMerge = (
+  base: string,
+  ours: string,
+  theirs: string
+) => { ok: true; merged: string } | { ok: false };
+
+/**
+ * The character-level merge, injected rather than imported: it needs the
+ * `diff` package, and this module is in the canvas iframe's graph
+ * (`annotations-layer.tsx`), where only the prebuilt `/_canvas-runtime/`
+ * externals resolve — a static import broke every canvas build in v1.5.0.
+ * Server entry points import `ops-merge.ts`, which registers `mergeSource`;
+ * without it a same-field text race resolves by acceptance order (ours).
+ */
+let textMerge: TextMerge | null = null;
+
+export function setTextMerge(merge: TextMerge | null): void {
+  textMerge = merge;
+}
+
+export function hasTextMerge(): boolean {
+  return textMerge !== null;
+}
+
 /** Merge a text value: ours vs theirs against base. Overlap → ours (acceptance order). */
 function mergeText(base: unknown, ours: unknown, theirs: unknown, budget: MergeBudget): unknown {
   if (typeof base !== 'string' || typeof ours !== 'string' || typeof theirs !== 'string')
     return ours;
   if (theirs === base) return ours;
   if (ours === base) return theirs;
-  if (budget.left <= 0) return ours;
+  if (!textMerge || budget.left <= 0) return ours;
   budget.left--;
-  const m = mergeSource(base, ours, theirs);
+  const m = textMerge(base, ours, theirs);
   return m.ok ? m.merged : ours;
 }
 

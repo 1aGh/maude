@@ -21,6 +21,7 @@
 import { anchorPoint, facingAnchor } from './elements/arrow.model.ts';
 import { compareOrder, keyBetween } from './fractional-index.ts';
 import { type ApplyResult, applyOps, type Op } from './ops.ts';
+import './ops-merge.ts';
 import { defOf, REGISTRY, specOf } from './registry.ts';
 import { Scene } from './scene.ts';
 import type { AnnotationElement, Box } from './types.ts';

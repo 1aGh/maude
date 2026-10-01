@@ -1,6 +1,7 @@
 // annotations-v2 (DDR-242 §4) — ops, the one merge rule, inverse (undo), fix-ups.
 import { describe, expect, test } from 'bun:test';
 import { applyOps, diffToOps, type Op } from '../annotations/ops.ts';
+import '../annotations/ops-merge.ts'; // the server merge rule (browser: ours wins)
 import { Scene } from '../annotations/scene.ts';
 import { validateElements } from '../annotations/schema.ts';
 import type { AnnotationElement } from '../annotations/types.ts';
