@@ -1,11 +1,11 @@
 {
-  "generated": "2026-09-30T00:00:00.000Z",
-  "version": "1.5.3",
+  "generated": "2026-10-01T00:00:00.000Z",
+  "version": "1.6.0",
   "entries": [
     {
       "id": "cloud-projects-bigger-than-the-disk",
-      "version": null,
-      "date": null,
+      "version": "1.6.0",
+      "date": "2026-10-01",
       "kind": "improvement",
       "title": "Big cloud projects open with every photo",
       "summary": "A cloud workspace can now hold a project bigger than its own disk. Photos and videos stay in storage and are fetched, checked, when a canvas needs them, so every canvas renders with all its media. Large background images and fonts referenced from stylesheets now load too; they used to be silently missing.",
@@ -13,8 +13,8 @@
     },
     {
       "id": "desktop-sync-no-false-conflicts",
-      "version": null,
-      "date": null,
+      "version": "1.6.0",
+      "date": "2026-10-01",
       "kind": "fix",
       "title": "No more false sync conflicts on big projects",
       "summary": "File sync on large projects no longer fills up with conflicts that were not real. It reads the whole change history and recognises files the cloud already has, so uploads finish instead of retrying forever.",

@@ -1,5 +1,17 @@
 # @1agh/maude
 
+## 1.6.0
+
+### Minor Changes
+
+- b4415ea: A cloud workspace can now hold a project larger than its disk. The workspace keeps the project's photos and videos in cloud storage and downloads each one when a canvas needs it. Each file is checked against the project's record before it is shown. Files not used for a while are dropped from the workspace's disk and downloaded again on the next request. Every canvas renders with all of its media, including background images and fonts referenced from stylesheets. Large stylesheet images and fonts used to be silently missing everywhere; they now load. Deleting a file the workspace only holds in storage keeps a recoverable copy first.
+
+### Patch Changes
+
+- 88d1145: Idle cloud workspaces and the cloud export service now actually go to sleep. The hourly health check no longer wakes a sleeping project just to read its stats, so a project nobody is using no longer re-downloads its whole design library from storage every hour. The export service now shuts down after ten idle minutes. Before, it ignored the stop signal and ran around the clock.
+- f6052c5: Opening a cloud project that has been asleep now shows a friendly "Waking up…" page instead of a blank, spinning tab. The page explains that the server took a nap, that the wait is a one-off, and that your work is safe. It then opens the project by itself as soon as the project is ready. Canvases waking up inside the studio get the same treatment. When a project can't start, you get a clear page with a Try again button instead of raw error text.
+- b4415ea: Desktop file sync no longer reports a stream of false conflicts on large projects. It used to read only the first 2,000 entries of the workspace's change log, then forget what the workspace held beyond them and push those files again, getting "changed while uploading" every time. It now reads the whole log and remembers where it stopped, even when some files fail. A file the workspace already holds with identical bytes is recognised as in sync.
+
 ## 1.5.3
 
 ### Patch Changes
