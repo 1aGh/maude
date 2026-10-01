@@ -137,6 +137,7 @@ import {
   JOURNAL_REPORT_PATH,
   OWNER_DELETE_SOURCE,
   openJournal,
+  quarantineStaleInert,
   reportLostFiles,
   walkImport,
   walkIntervalFromEnv,
@@ -566,6 +567,9 @@ export function createHub(config = {}) {
   // The studio child's credential for the loopback hop — random per boot,
   // handed to that one process, accepted by `/_materialize` and nothing else.
   const materializeToken = materializer ? randomBytes(32).toString('hex') : null;
+  // …and the journal stops reading the checkout's media as evidence: absent is
+  // not deleted, present is not written (Task 13 — the tombstone guard).
+  if (materializer) journal.setInertCached(true);
   /** @type {ReturnType<typeof createJournalTail>|null} */
   let journalTail = null;
   /** @type {ReturnType<typeof setInterval>|null} */
@@ -3665,6 +3669,12 @@ async function runAsMain() {
           //      spent the budget on photos no canvas shows and left the 0.9 GB
           //      every canvas does show in the bucket (attacker review, #2).
           bootReport.hydrate = { state: 'running', restored: 0, skipped: 0, failed: 0 };
+          // CELL MODE (Task 13): a git-bundle restore can put back media the
+          // journal has since replaced — and the static route serves the
+          // checkout first. Move those aside before anything is served from it.
+          if (built.materializer && built.journal) {
+            quarantineStaleInert({ journal: built.journal, designRoot });
+          }
           const budget = await createHydrateBudget({ designRoot });
           const recordHydrated = (rel) => {
             // `built.journal`, not a bare `journal`: the latter is a const
@@ -3698,13 +3708,18 @@ async function runAsMain() {
             budget,
             onWritten: ({ path: rel }) => recordHydrated(rel),
           });
-          const mediaFiles = await hydrateFiles({
-            designRoot,
-            s3,
-            budget,
-            classes: ['inert-media'],
-            onWritten: ({ path: rel }) => recordHydrated(rel),
-          });
+          // On a cell, files/ media is never restored to its checkout path —
+          // the materializer serves it from the bucket on demand (Task 13).
+          // `assets/` above stays the warm second tier while it fits.
+          const mediaFiles = built.materializer
+            ? { restored: [], present: 0, failed: [], listed: 0, skippedForBudget: 0 }
+            : await hydrateFiles({
+                designRoot,
+                s3,
+                budget,
+                classes: ['inert-media'],
+                onWritten: ({ path: rel }) => recordHydrated(rel),
+              });
           const lanes = [buildFiles, restored, mediaFiles];
           const sum = (f) => lanes.reduce((n, r) => n + f(r), 0);
           const restoredFiles = {
@@ -3749,6 +3764,7 @@ async function runAsMain() {
               hydrate: { failed: totals.failed, skippedForBudget: totals.skipped },
               s3: () => s3Source.config(),
               keyFor: (rel) => writeBehindKey(rel, assetPrefixFromEnv()),
+              isPinned: built.materializer ? (sha) => built.materializer.isPinned(sha) : null,
             });
           }
           // The journal-driven write-behind (Sync v2 Increment 5). Every

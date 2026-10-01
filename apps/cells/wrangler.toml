@@ -158,6 +158,13 @@ CELL_LIVE_PAIRING = "*"
 # existing project keeps its mode until its owner switches; only a brand-new
 # one starts in accepted revisions (MAUDE_NEW_PROJECT_MODE, cell-config).
 CELL_PROJECT_STORE = "*"
+# CELL MATERIALIZER (plan feature-cell-materializer, Phase 1) — which tenants'
+# cells treat their disk as a bounded cache of the bucket: inert media is
+# fetched on demand, verified against the journal, and evicted, instead of
+# restored onto a disk that may be smaller than the project. Tenant allowlist,
+# `*` for the fleet. Pilot: alligators (~7.8 GB synced on an 8 GB disk — the
+# 2026-10-01 restart loop). Env applies at container start.
+CELL_MATERIALIZE = "alligators"
 # feature-cloud-export-render-workers (DDR-230) — where a cell dispatches
 # browser-format export jobs. Reaches the studio child via cellEnv →
 # childEnv. Remove (or leave unset) to put the fleet's export lane back to

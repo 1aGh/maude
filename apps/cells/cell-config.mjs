@@ -63,6 +63,25 @@ export function livePairingEnabled(env, tenantId) {
 }
 
 /**
+ * Does this tenant's cell run the MATERIALIZER — its disk a bounded cache of
+ * the bucket rather than a full copy of the project (cell materializer, Phase
+ * 1)? `CELL_MATERIALIZE` is a tenant allowlist like `CELL_LIVE_PAIRING`, `*`
+ * for the fleet: it changes what a cell's checkout means, so it rolls to the
+ * project that needed it (alligators, ~7.8 GB on an 8 GB disk) and is widened
+ * once that has been watched.
+ */
+export function materializeEnabled(env, tenantId) {
+  const raw = (env.CELL_MATERIALIZE ?? '').trim();
+  if (!raw) return false;
+  if (raw === '*') return true;
+  return raw
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(String(tenantId).toLowerCase());
+}
+
+/**
  * Does this tenant's cell get a durable project store (accepted revisions,
  * DDR-241)? `CELL_PROJECT_STORE` is a tenant allowlist like
  * `CELL_LIVE_PAIRING` — accepted revisions roll one project at a time — with
@@ -617,6 +636,18 @@ export async function cellEnv({ tenantId, env, hostname, config = NO_CONFIG, s3C
     // is the same reason the seed repo and the admin email stopped being
     // Worker globals in B1.
     ...(livePairingEnabled(env, tenantId) ? { MAUDE_CELL_PAIRING: '1' } : {}),
+    // CELL MATERIALIZER — the disk is a cache: inert media is served from the
+    // bucket on demand, verified against the journal, instead of restored onto
+    // a disk that may be smaller than the project. An optional byte cap on the
+    // cache rides along; without it the hub sizes the cache from free space.
+    ...(materializeEnabled(env, tenantId)
+      ? {
+          MAUDE_CELL_MATERIALIZE: '1',
+          ...(env.CELL_CACHE_BUDGET_BYTES
+            ? { MAUDE_CACHE_BUDGET_BYTES: String(env.CELL_CACHE_BUDGET_BYTES) }
+            : {}),
+        }
+      : {}),
     // A BRAND-NEW project on a tenant that has both a durable store and a
     // paired browser studio starts in accepted revisions: legacy on a cell is
     // only as durable as its last backup generation. The hub applies it only

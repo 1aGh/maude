@@ -39,9 +39,9 @@
 // path", and the hub looks. It cannot say what it found.
 
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, renameSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
 import { listProjectFiles, readCanvasGroups } from './file-manifest.mjs';
 import { classifyProjectFile, isFilePlaneClass, isProjectFileShape } from './file-membership.mjs';
@@ -250,8 +250,25 @@ function makeHandle({ db, getMeta, setMeta, now }) {
     }
   };
 
+  /** Cell materializer: inert media lives in the bucket + blob cache, and the
+   *  checkout's copy (or its absence) says nothing about it. */
+  let inertCached = false;
+
   const handle = {
     db,
+
+    /**
+     * Cell mode (cell materializer Task 13). Once on, absence of an inert-media
+     * file from the checkout is never a deletion and its presence never a
+     * write — the journal and the bucket are the truth for that class, and the
+     * disk is a disposable cache. This is the guard against the plan's top
+     * risk: an evicted or never-hydrated photo must not tombstone itself on
+     * every desktop.
+     */
+    setInertCached(on) {
+      inertCached = Boolean(on);
+    },
+    inertCached: () => inertCached,
 
     epoch: () => getMeta.get('epoch').v,
     head: () => stmts.head.get().head,
@@ -323,6 +340,9 @@ function makeHandle({ db, getMeta, setMeta, now }) {
       if (!designRoot || typeof rel !== 'string' || rel.length === 0) return null;
       const prev = stmts.latestForPath.get(rel);
       if (!prev || prev.deleted === 1) return null;
+      // On a cell an inert-media file is ABSENT from the checkout by design.
+      // A real delete of one comes through the write door, never from here.
+      if (inertCached && prev.class === 'inert-media') return null;
       if (existsSync(join(designRoot, rel))) return null;
       return handle.recordWrite({ designRoot, path: rel, source, deleted: true });
     },
@@ -1169,6 +1189,8 @@ export async function reportLostFiles({
   deps = {},
   env = process.env,
   log = console,
+  /** Cell mode: is this sha pinned in the blob cache (bytes held, unmirrored)? */
+  isPinned = null,
 }) {
   if (String(env.MAUDE_REPORT_LOST ?? '').trim() === '0') return { lost: 0, skipped: 'disabled' };
   if (!journal || !designRoot || !existsSync(designRoot)) return { lost: 0 };
@@ -1182,9 +1204,16 @@ export async function reportLostFiles({
 
   let lost = 0;
   try {
-    const absent = journal
-      .compaction()
-      .filter((r) => !r.deleted && r.sha256 && !existsSync(join(designRoot, r.path)));
+    const cell = journal.inertCached?.() === true;
+    const absent = journal.compaction().filter((r) => {
+      if (r.deleted || !r.sha256) return false;
+      // On a cell, inert media is SUPPOSED to be absent from the checkout. It
+      // is lost only when its bytes are nowhere: never mirrored, not pinned.
+      if (cell && r.class === 'inert-media') {
+        return r.mirroredAtMs == null && !(isPinned?.(r.sha256) ?? false);
+      }
+      return !existsSync(join(designRoot, r.path));
+    });
     if (absent.length === 0) return { lost: 0 };
 
     const confirmed = absent.filter((r) => r.mirroredAtMs == null);
@@ -1242,6 +1271,54 @@ export async function reportLostFiles({
 }
 
 /**
+ * Clear stale inert-media copies out of a cell's checkout (cell materializer
+ * Task 13).
+ *
+ * On a cell the static route serves the checkout FIRST, and a restart restores
+ * the checkout from the newest git-bundle generation — so a photo that was
+ * replaced since (the new bytes live pinned or in the bucket) comes back at its
+ * old path and would be served in place of the journal's row. A copy whose
+ * hash is not the live row's, or whose row is a tombstone, is moved to
+ * `_trash/stale-inert/<stamp>/` (quarantined, never unlinked). The studio's
+ * resulting report cannot tombstone anything: `recordGone` ignores inert media
+ * in cell mode. A copy with NO row is left alone — it is nobody's claim.
+ *
+ * @returns {{ moved: number, scanned: number }}
+ */
+export function quarantineStaleInert({ journal, designRoot, log = console }) {
+  if (!journal || !designRoot || !existsSync(designRoot)) return { moved: 0, scanned: 0 };
+  let files;
+  try {
+    files = listProjectFiles(designRoot).files.filter((f) => f.class === 'inert-media');
+  } catch (err) {
+    log.error?.(`[journal] stale-inert pass could not read ${designRoot}: ${err.message}`);
+    return { moved: 0, scanned: 0 };
+  }
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  let moved = 0;
+  for (const f of files) {
+    const row = journal.latestFor(f.path);
+    if (!row) continue;
+    if (!row.deleted && row.sha256 === f.sha256) continue;
+    const dest = join(designRoot, '_trash', 'stale-inert', stamp, f.path);
+    try {
+      mkdirSync(dirname(dest), { recursive: true });
+      renameSync(join(designRoot, f.path), dest);
+      moved += 1;
+    } catch (err) {
+      log.warn?.(`[journal] could not move stale ${f.path} aside: ${err.message}`);
+    }
+  }
+  if (moved > 0) {
+    log.warn?.(
+      `[journal] moved ${moved} stale media file(s) out of the checkout to _trash/stale-inert/${stamp} — ` +
+        'the journal names newer bytes, which are served from the cache.'
+    );
+  }
+  return { moved, scanned: files.length };
+}
+
+/**
  * The permanent walk-import reconciler (DDR-226 §2).
  *
  * Diffs the checkout against the journal's compaction and appends a row for
@@ -1267,9 +1344,14 @@ export function walkImport({ journal, designRoot, source = 'walk-import', log = 
   }
 
   const known = new Map(journal.compaction().map((r) => [r.path, r]));
+  // On a cell the checkout's media is a CACHE (or a stale git-bundle restore):
+  // journaling what happens to be on disk could put an older photo back over
+  // a newer row. The doors and the studio report journal real writes.
+  const skipInert = journal.inertCached?.() === true;
   let appended = 0;
   let unchanged = 0;
   for (const f of files) {
+    if (skipInert && f.class === 'inert-media') continue;
     const prev = known.get(f.path);
     if (prev && !prev.deleted && prev.sha256 === f.sha256) {
       unchanged += 1;
