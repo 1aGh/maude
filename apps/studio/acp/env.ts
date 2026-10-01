@@ -65,6 +65,9 @@ export function scrubAgentEnv(
     if (value === undefined) continue;
     if (PROVIDER_REDIRECT_RE.test(key)) continue;
     if (GENERATION_KEY_CUSTODY_RE.test(key)) continue;
+    // The cell materializer's loopback credential is the studio's alone — an
+    // agent it spawns has no business filling the cache (Phase 1 review L3).
+    if (key === 'MAUDE_MATERIALIZE_TOKEN') continue;
     out[key] = value;
   }
   return out;

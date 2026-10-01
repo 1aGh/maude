@@ -8,7 +8,17 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Writable } from 'node:stream';
@@ -292,12 +302,14 @@ describe('pin, unpin and eviction', () => {
     writeFileSync(up, 'PIN');
     m.pin(sha('PIN'), up);
     m.stop(); // flushes the index
-    // A stray non-digest file in blobs/ is garbage, not a blob.
+    // A stray non-digest entry in blobs/ is not a blob — never adopted, and
+    // never deleted recursively either (Phase 1 security review H1).
     writeFileSync(join(m.cacheDir, 'blobs', 'not-a-sha'), 'junk');
     const again = make({ rows: { [P]: { body: 'KEEP' } }, objects: {} }).m;
     assert.equal((await again.materialize(P)).sha, sha('KEEP'), 'a hit from the old cache');
     assert.equal(again.isPinned(sha('PIN')), true, 'pins survive');
-    assert.equal(existsSync(join(again.cacheDir, 'blobs', 'not-a-sha')), false);
+    assert.equal(again.stats().blobs, 2, 'the junk entry is not a blob');
+    assert.equal(existsSync(join(again.cacheDir, 'blobs', 'not-a-sha')), true);
   });
 });
 
@@ -449,5 +461,137 @@ describe('GET /_materialize — the studio child, and nobody else', () => {
       designRoot,
     });
     assert.equal(r, true);
+  });
+});
+
+// Phase 1 security review (defender + attacker, 2026-10-01) — each red-first.
+describe('security review fixes', () => {
+  it('H1: a planted symlink in the cache is never followed — the victim survives', () => {
+    // A tenant can commit `.design/_cache/blobs -> /data`; the cache now lives
+    // in the hub-owned data dir, and even there no directory is trusted.
+    const victim = mkdtempSync(join(tmpdir(), 'mat-victim-'));
+    try {
+      writeFileSync(join(victim, 'hub.db'), 'THE JOURNAL');
+      mkdirSync(join(victim, 'tmp'));
+      writeFileSync(join(victim, 'tmp', 'keep.txt'), 'x');
+      const cacheDir = join(dataDir, 'cache');
+      mkdirSync(cacheDir, { recursive: true });
+      symlinkSync(victim, join(cacheDir, 'blobs'));
+      symlinkSync(join(victim, 'tmp'), join(cacheDir, 'tmp'));
+      const m = createMaterializer({
+        designRoot,
+        cacheDir,
+        indexPath: join(dataDir, 'm.json'),
+        journal: journalOf({}),
+        s3: null,
+        prefix: '',
+        budgetBytes: 1e9,
+        log: quiet,
+      });
+      assert.equal(readFileSync(join(victim, 'hub.db'), 'utf8'), 'THE JOURNAL');
+      assert.equal(readFileSync(join(victim, 'tmp', 'keep.txt'), 'utf8'), 'x');
+      assert.equal(lstatSync(join(cacheDir, 'blobs')).isDirectory(), true, 'the link was replaced');
+      assert.equal(lstatSync(join(cacheDir, 'tmp')).isDirectory(), true);
+      m.stop();
+    } finally {
+      rmSync(victim, { recursive: true, force: true });
+    }
+  });
+
+  it('M1: a verified upload REPLACES an impostor already sitting at its name', () => {
+    const { m } = make({});
+    const real = 'THE-REAL-BYTES';
+    writeFileSync(blobPathFor(m.cacheDir, sha(real)), 'IMPOSTOR');
+    const up = m.tempPath();
+    writeFileSync(up, real);
+    m.pin(sha(real), up);
+    assert.equal(readFileSync(blobPathFor(m.cacheDir, sha(real)), 'utf8'), real);
+  });
+
+  it('M2: a pin is released only when NO unmirrored row still names the sha', () => {
+    let unmirrored = 2; // two paths, identical bytes
+    const { m } = make({});
+    m.stop();
+    const m2 = createMaterializer({
+      designRoot,
+      indexPath: join(dataDir, 'm2.json'),
+      journal: { latestFor: () => null, hasUnmirroredSha: () => unmirrored > 0 },
+      s3: null,
+      prefix: '',
+      budgetBytes: 1e9,
+      log: quiet,
+    });
+    const up = m2.tempPath();
+    writeFileSync(up, 'SHARED');
+    m2.pin(sha('SHARED'), up);
+    unmirrored = 1; // a.png mirrored, b.png still waiting
+    assert.equal(m2.release(sha('SHARED')), false);
+    assert.equal(m2.isPinned(sha('SHARED')), true);
+    unmirrored = 0;
+    assert.equal(m2.release(sha('SHARED')), true);
+    assert.equal(m2.isPinned(sha('SHARED')), false);
+    m2.stop();
+  });
+
+  it('L2: a bucket object bigger than its row is refused without filling the disk', async () => {
+    const asked = [];
+    const { m } = make({ rows: { [P]: { body: 'SMALL' } } });
+    m.stop();
+    const m3 = createMaterializer({
+      designRoot,
+      indexPath: join(dataDir, 'm3.json'),
+      journal: journalOf({ [P]: { body: 'SMALL' } }),
+      s3: { bucket: 'x' },
+      prefix: '',
+      budgetBytes: 1e9,
+      log: quiet,
+      deps: {
+        getObjectToFile: async (_c, _k, _abs, opts) => {
+          asked.push(opts.maxBytes);
+          throw new Error('S3 GET x: over the 5-byte ceiling');
+        },
+      },
+    });
+    assert.deepEqual(await m3.materialize(P), { miss: 'mismatch' });
+    assert.deepEqual(asked, [5], 'capped at the ROW size, not the project ceiling');
+    m3.stop();
+  });
+
+  it('pinned bytes are capped — canPin says no past half the budget', () => {
+    const { m } = make({ budgetBytes: 200 });
+    assert.equal(m.canPin(), true);
+    const up = m.tempPath();
+    writeFileSync(up, 'p'.repeat(100));
+    m.pin(sha('p'.repeat(100)), up);
+    assert.equal(m.canPin(), false);
+  });
+
+  it('keepCopy keeps a HUMAN-named asset; skips only a content-addressed one', async () => {
+    const puts = [];
+    const font = 'assets/fonts/Gators-Bold.woff2';
+    const cas = 'assets/aaaaaaaa.png';
+    const m4 = createMaterializer({
+      designRoot,
+      indexPath: join(dataDir, 'm4.json'),
+      journal: journalOf({ [font]: { body: 'WOFF' }, [cas]: { body: 'PNG' } }),
+      s3: { bucket: 'x' },
+      prefix: '',
+      budgetBytes: 1e9,
+      log: quiet,
+      deps: {
+        getObjectToFile: async (_c, key, abs) => {
+          const body = key.endsWith('.woff2') ? 'WOFF' : 'PNG';
+          writeFileSync(abs, body);
+          return body.length;
+        },
+        putObjectFromFile: async (_c, key) => {
+          puts.push(key);
+        },
+      },
+    });
+    assert.match(await m4.keepCopy(font), /^trash\/.+\/assets\/fonts\/Gators-Bold\.woff2$/);
+    assert.equal(await m4.keepCopy(cas), null);
+    assert.equal(puts.length, 1);
+    m4.stop();
   });
 });

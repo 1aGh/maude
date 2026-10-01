@@ -388,7 +388,7 @@ async function main() {
     // child then finds a stranger there ("wrong-project").
     spawnSync('sh', ['-c', `lsof -ti tcp:${STUDIO_PORT} | xargs kill -9 2>/dev/null; true`]);
     // A cell's disk goes with a restart: the blob cache does too.
-    rmSync(join(designRoot, '_cache'), { recursive: true, force: true });
+    rmSync(join(dataDir, 'cache'), { recursive: true, force: true });
     setTimeout(() => startHub(), 500);
   };
   const pushedAll = await settle(
@@ -463,7 +463,7 @@ async function main() {
     }
   );
 
-  const blobsDir = join(designRoot, '_cache', 'blobs');
+  const blobsDir = join(dataDir, 'cache', 'blobs'); // hub-owned (security review H1)
   const measure = () =>
     existsSync(blobsDir)
       ? readdirSync(blobsDir).reduce((n, f) => n + statSync(join(blobsDir, f)).size, 0)

@@ -56,7 +56,7 @@ import { dirname, join, resolve, sep } from 'node:path';
 import { assetObjectKey, assetPrefixFromEnv } from './asset-key.mjs';
 import { parseAssetPath } from './assets.mjs';
 import { diskReport } from './disk.mjs';
-import { MAX_PROJECT_FILE_BYTES } from './file-limits.mjs';
+import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
 import { checkoutFileClass, resolveCheckoutFileWrite } from './file-manifest.mjs';
 import { getObjectToFile, listObjects, putObject, putObjectFromFile } from './s3.mjs';
 
@@ -169,25 +169,30 @@ export function createWriteBehind({
       const byPath = new Map();
       for (const row of work) byPath.set(row.path, row); // seq ASC ⇒ last wins
       for (const [rel, row] of byPath) {
-        const seqs = work.filter((r) => r.path === rel).map((r) => r.seq);
+        const pathRows = work.filter((r) => r.path === rel);
+        const seqs = pathRows.map((r) => r.seq);
+        // Every sha these rows name — superseded and tombstoned ones included.
+        // A pin is released per SHA only once no unmirrored row still needs it
+        // (Phase 1 security review: a pin per path leaked on overwrite/delete,
+        // and was released too early for bytes shared by two paths).
+        const shas = new Set(pathRows.map((r) => r.sha256).filter(Boolean));
+        const settle = () => {
+          for (const seq of seqs) journal.markMirrored(seq);
+          if (materializer) for (const sha of shas) materializer.release(sha);
+        };
         if (row.deleted || row.sha256 == null) {
           // A tombstone mirrors NOTHING: the blob stays, unreferenced —
           // quarantine semantics, and the reason a delete is recoverable.
           // A `disk-lost` row (live, no hash) has no bytes to mirror either.
-          for (const seq of seqs) journal.markMirrored(seq);
+          settle();
           continue;
         }
-        // The checkout file, or — on a cell — the pinned blob that IS the
-        // bytes this row names (the checkout path is empty by design).
-        let abs = join(designRoot, rel);
-        let pinnedSha = null;
-        if (materializer && !existsSync(abs)) {
-          const blob = materializer.peek(row.sha256);
-          if (blob) {
-            abs = blob;
-            pinnedSha = row.sha256;
-          }
-        }
+        // THE SOURCE. On a cell, the pinned blob that IS this row's sha comes
+        // FIRST — the checkout's media is a cache or a stale git-bundle copy,
+        // never evidence (Task 13). Otherwise the checkout file.
+        const blob = materializer?.peek(row.sha256) ?? null;
+        const abs = blob ?? join(designRoot, rel);
+        const root = blob ? materializer.cacheDir : designRoot;
         try {
           // Realpath containment at the READ site, not only at the write door.
           // Every journal producer excludes symlinks today, so this is
@@ -195,25 +200,35 @@ export function createWriteBehind({
           // to durable, potentially peer-readable storage, so a committed
           // symlink that ever slipped a producer must not become an exfil of a
           // file outside the design root (defender finding L-2, 2026-08-18).
-          if (!containedReal(abs, designRoot)) {
-            log.warn?.(`[assets] ${rel} resolves outside the design root — NOT mirrored.`);
-            for (const seq of seqs) journal.markMirrored(seq); // deliberate refusal, not a retry
+          if (!containedReal(abs, root)) {
+            log.warn?.(`[assets] ${rel} resolves outside its root — NOT mirrored.`);
+            settle(); // deliberate refusal, not a retry
             continue;
           }
           const size = statSync(abs).size;
           if (size > MAX_ASSET_BYTES) {
             log.warn?.(`[assets] ${rel} is over ${MAX_ASSET_BYTES} bytes — NOT mirrored.`);
-            for (const seq of seqs) journal.markMirrored(seq); // deliberate refusal, not a retry
+            settle(); // deliberate refusal, not a retry
+            continue;
+          }
+          // On a cell a checkout copy must BE the row's bytes before it may
+          // stand in for them in the bucket. Uploading whatever sits at the
+          // path, then stamping a newer row mirrored, made the journal claim
+          // bytes the bucket never got (Phase 1 attacker review, finding 1).
+          if (materializer && !blob && sha256File(abs) !== row.sha256) {
+            log.error?.(
+              `[assets] ${rel}: the checkout holds different bytes than the row names — ` +
+                'NOT mirrored (a stale copy). The row stays unmirrored so it is reported lost.'
+            );
+            failedPaths.add(rel);
             continue;
           }
           if (putFile) await putFile(cfg, writeBehindKey(rel, scope), abs);
           else await put(cfg, writeBehindKey(rel, scope), readFileSync(abs));
           mirrored += 1;
-          for (const seq of seqs) journal.markMirrored(seq);
-          // Durable now — the blob may be evicted like any other cached file.
-          if (pinnedSha) materializer.unpin(pinnedSha);
+          settle();
         } catch (err) {
-          if (!pinnedSha && !existsSync(join(designRoot, rel))) {
+          if (!blob && !existsSync(join(designRoot, rel))) {
             // The file is gone from disk. If a tombstone follows, its row will
             // settle these; until then the row stays unstamped so a reappearing
             // file (a raced rename) is retried rather than forgotten.

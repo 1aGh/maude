@@ -224,15 +224,17 @@ export function childEnv(env = process.env, { port }) {
       ? { MAUDE_RENDER_CANVAS_BASE: env.MAUDE_RENDER_CANVAS_BASE }
       : {}),
     // Cell materializer (Task 10) — the loopback hop the static route takes on
-    // a disk miss for inert media. All three or none: the token is random per
+    // a disk miss for inert media. All four or none: the token is random per
     // boot, minted by the hub for this child and accepted by nothing else.
     ...(env.MAUDE_CELL_MATERIALIZE === '1' &&
     env.MAUDE_MATERIALIZE_URL &&
-    env.MAUDE_MATERIALIZE_TOKEN
+    env.MAUDE_MATERIALIZE_TOKEN &&
+    env.MAUDE_MATERIALIZE_CACHE_DIR
       ? {
           MAUDE_CELL_MATERIALIZE: '1',
           MAUDE_MATERIALIZE_URL: env.MAUDE_MATERIALIZE_URL,
           MAUDE_MATERIALIZE_TOKEN: env.MAUDE_MATERIALIZE_TOKEN,
+          MAUDE_MATERIALIZE_CACHE_DIR: env.MAUDE_MATERIALIZE_CACHE_DIR,
         }
       : {}),
     ...(env.MAUDE_PROJECT_NAME ? { MAUDE_PROJECT_NAME: env.MAUDE_PROJECT_NAME } : {}),

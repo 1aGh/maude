@@ -14,21 +14,27 @@ import { isCacheBlob, materializeMissing } from '../materialize-client.ts';
 const SHA = 'a'.repeat(64);
 let root: string;
 let outside: string;
-const ENV = {
-  MAUDE_CELL_MATERIALIZE: '1',
-  MAUDE_MATERIALIZE_URL: 'http://127.0.0.1:1234',
-  MAUDE_MATERIALIZE_TOKEN: 'tok',
-} as NodeJS.ProcessEnv;
+let cache: string;
+let ENV: NodeJS.ProcessEnv;
 
 beforeEach(() => {
   root = realpathSync(mkdtempSync(join(tmpdir(), 'mat-client-')));
   outside = realpathSync(mkdtempSync(join(tmpdir(), 'mat-outside-')));
-  mkdirSync(join(root, '_cache', 'blobs'), { recursive: true });
-  writeFileSync(join(root, '_cache', 'blobs', SHA), 'JPEG');
+  // The cache is HUB-OWNED, outside the design root (security review H1).
+  cache = realpathSync(mkdtempSync(join(tmpdir(), 'mat-cache-')));
+  mkdirSync(join(cache, 'blobs'), { recursive: true });
+  writeFileSync(join(cache, 'blobs', SHA), 'JPEG');
+  ENV = {
+    MAUDE_CELL_MATERIALIZE: '1',
+    MAUDE_MATERIALIZE_URL: 'http://127.0.0.1:1234',
+    MAUDE_MATERIALIZE_TOKEN: 'tok',
+    MAUDE_MATERIALIZE_CACHE_DIR: cache,
+  } as NodeJS.ProcessEnv;
 });
 afterEach(() => {
   rmSync(root, { recursive: true, force: true });
   rmSync(outside, { recursive: true, force: true });
+  rmSync(cache, { recursive: true, force: true });
 });
 
 /** A hub answering `answer` and recording what it was asked. */
@@ -48,7 +54,7 @@ const json = (status: number, body: unknown, headers: Record<string, string> = {
 
 describe('materializeMissing', () => {
   test('off unless the hub turned it on', async () => {
-    const h = hub(() => json(200, { path: join(root, '_cache', 'blobs', SHA) }));
+    const h = hub(() => json(200, { path: join(cache, 'blobs', SHA) }));
     const r = await materializeMissing(root, join(root, 'system/ds/assets/p.jpg'), {
       env: {} as NodeJS.ProcessEnv,
       fetchImpl: h.fetchImpl,
@@ -58,12 +64,12 @@ describe('materializeMissing', () => {
   });
 
   test('asks with the token and the rel, and serves a verified cache blob', async () => {
-    const h = hub(() => json(200, { path: join(root, '_cache', 'blobs', SHA), sha: SHA }));
+    const h = hub(() => json(200, { path: join(cache, 'blobs', SHA), sha: SHA }));
     const r = await materializeMissing(root, join(root, 'system/ds/assets/a photo.jpg'), {
       env: ENV,
       fetchImpl: h.fetchImpl,
     });
-    expect(r).toEqual({ path: join(root, '_cache', 'blobs', SHA) });
+    expect(r).toEqual({ path: join(cache, 'blobs', SHA) });
     expect(h.asked[0]?.auth).toBe('Bearer tok');
     expect(new URL(h.asked[0]?.url ?? '').searchParams.get('rel')).toBe(
       'system/ds/assets/a photo.jpg'
@@ -72,12 +78,16 @@ describe('materializeMissing', () => {
 
   test('a hostile hub cannot point the static route at any other file', async () => {
     writeFileSync(join(outside, SHA), 'SECRET');
-    symlinkSync(join(outside, SHA), join(root, '_cache', 'blobs', 'b'.repeat(64)));
+    symlinkSync(join(outside, SHA), join(cache, 'blobs', 'b'.repeat(64)));
+    // A tenant-planted `.design/_cache/blobs/<sha>` is no longer the cache.
+    mkdirSync(join(root, '_cache', 'blobs'), { recursive: true });
+    writeFileSync(join(root, '_cache', 'blobs', SHA), 'PLANTED');
     for (const path of [
       join(outside, SHA), // outside the cache
       join(root, 'config.json'), // inside the root, not a blob
-      join(root, '_cache', 'blobs', 'b'.repeat(64)), // a blob name that LINKS out
-      join(root, '_cache', 'blobs', '..', 'blobs', 'not-a-sha'),
+      join(cache, 'blobs', 'b'.repeat(64)), // a blob name that LINKS out
+      join(cache, 'blobs', '..', 'blobs', 'not-a-sha'),
+      join(root, '_cache', 'blobs', SHA), // the checkout's planted copy
     ]) {
       const h = hub(() => json(200, { path }));
       const r = await materializeMissing(root, join(root, 'assets/aaaaaaaa.png'), {
@@ -86,7 +96,7 @@ describe('materializeMissing', () => {
       });
       expect(r).toBeNull();
     }
-    expect(isCacheBlob(root, join(root, '_cache', 'blobs', SHA))).toBe(true);
+    expect(isCacheBlob(cache, join(cache, 'blobs', SHA))).toBe(true);
   });
 
   test('the token never leaves loopback', async () => {
@@ -102,7 +112,7 @@ describe('materializeMissing', () => {
   });
 
   test('only inert media takes the hop — code and stylesheets are checkout files', async () => {
-    const h = hub(() => json(200, { path: join(root, '_cache', 'blobs', SHA) }));
+    const h = hub(() => json(200, { path: join(cache, 'blobs', SHA) }));
     for (const rel of ['system/ds/tokens.css', 'system/ds/_brand.ts', '../escape.png']) {
       const r = await materializeMissing(root, join(root, rel), {
         env: ENV,

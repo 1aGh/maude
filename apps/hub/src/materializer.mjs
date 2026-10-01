@@ -32,18 +32,21 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
   renameSync,
   rmSync,
   statSync,
+  unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import { assetPrefixFromEnv } from './asset-key.mjs';
 import { writeBehindKey } from './asset-lane.mjs';
+import { isContentAddressed } from './assets.mjs';
 import { diskReportSync } from './disk.mjs';
 import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
 import { checkoutFileClass } from './file-manifest.mjs';
@@ -63,6 +66,16 @@ export const DEFAULT_MIN_RESIDENCY_MS = 10 * 60_000;
 /** Evict when the cache passes HIGH of its budget, down to LOW. */
 const HIGH_WATER = 0.8;
 const LOW_WATER = 0.6;
+
+/** Bucket fills in flight at once. Every reader of a listed photo can start
+ *  one; single-flight only dedupes per sha (Phase 1 attacker review #5). */
+const MAX_CONCURRENT_FILLS = 4;
+
+/** Pinned (not yet mirrored) bytes may hold at most this share of the cache
+ *  budget; past it the write doors answer 503 until the mirror drains. Pins
+ *  are not evictable, so without a cap a write token could fill the cache
+ *  with them and turn every miss into `full` (attacker review chain 2). */
+export const MAX_PINNED_FRACTION = 0.5;
 
 /** Index writes are coalesced — a burst of hits is one write, not hundreds. */
 const INDEX_FLUSH_MS = 2_000;
@@ -101,6 +114,12 @@ export function blobPathFor(cacheDir, sha) {
 /**
  * @param {object} o
  * @param {string} o.designRoot
+ * @param {string} [o.cacheDir] where blobs live. On a cell this is under the
+ *   HUB-OWNED data dir (`<DATA_DIR>/cache`), never under the design root: the
+ *   design root is the tenant's git clone, and a committed symlink at
+ *   `.design/_cache` would otherwise aim the cache's create/delete/rename at
+ *   any path the hub can write (Phase 1 defender review H1). Defaults to
+ *   `<designRoot>/_cache` for tests only.
  * @param {string} o.indexPath  where the sha → {size,lastAccess,pinned} index
  *   lives (`/data/materializer.json` on a cell). Rebuilt from a scan if absent.
  * @param {object} o.journal    the file journal (`latestFor`).
@@ -110,6 +129,7 @@ export function blobPathFor(cacheDir, sha) {
  */
 export function createMaterializer({
   designRoot,
+  cacheDir: cacheDirOpt = null,
   indexPath,
   journal,
   s3,
@@ -128,17 +148,52 @@ export function createMaterializer({
   const now = deps.now ?? Date.now;
   const budgetOf = typeof budgetBytes === 'function' ? budgetBytes : () => budgetBytes;
 
-  const cacheDir = join(designRoot, '_cache');
+  const cacheDir = cacheDirOpt ?? join(designRoot, '_cache');
   const blobsDir = join(cacheDir, 'blobs');
   const tmpDir = join(cacheDir, 'tmp');
-  mkdirSync(blobsDir, { recursive: true });
-  // A temp file left by a crash mid-fill is garbage by definition.
-  rmSync(tmpDir, { recursive: true, force: true });
-  mkdirSync(tmpDir, { recursive: true });
+  // NEVER FOLLOW A LINK HERE. Each directory must be a real directory; a
+  // symlink (or a file) in its place is removed AS A LINK and recreated —
+  // `rmSync(recursive)` through a link is exactly how a planted
+  // `_cache/blobs -> /data` deleted the journal (defender H1).
+  const realDir = (dir) => {
+    let st = null;
+    try {
+      st = lstatSync(dir);
+    } catch {
+      st = null;
+    }
+    if (st && !st.isDirectory()) unlinkSync(dir);
+    mkdirSync(dir, { recursive: true });
+  };
+  realDir(cacheDir);
+  realDir(blobsDir);
+  realDir(tmpDir);
+  // A temp file left by a crash mid-fill is garbage by definition — removed
+  // one entry at a time, as files, never recursively through anything.
+  for (const name of readdirSync(tmpDir)) {
+    try {
+      const st = lstatSync(join(tmpDir, name));
+      if (st.isFile() || st.isSymbolicLink()) unlinkSync(join(tmpDir, name));
+    } catch {
+      /* gone */
+    }
+  }
 
   /** sha → { size, lastAccess, filledAt, pinned } */
   const index = loadIndex();
   const inflight = new Map(); // sha → Promise<result>
+  let filling = 0;
+  const fillQueue = [];
+  const withFillSlot = async (fn) => {
+    if (filling >= MAX_CONCURRENT_FILLS) await new Promise((r) => fillQueue.push(r));
+    filling += 1;
+    try {
+      return await fn();
+    } finally {
+      filling -= 1;
+      fillQueue.shift()?.();
+    }
+  };
   const counters = { hits: 0, misses: 0, fills: 0, evictions: 0, mismatches: 0 };
   let flushTimer = null;
 
@@ -161,13 +216,14 @@ export function createMaterializer({
     }
     for (const name of names) {
       const abs = join(blobsDir, name);
-      if (!SHA.test(name)) {
-        rmSync(abs, { force: true, recursive: true });
-        continue;
-      }
+      // Only a regular file under a digest name is a blob. Anything else is
+      // left alone and not adopted — never deleted recursively (defender H1).
+      if (!SHA.test(name)) continue;
       let size;
       try {
-        size = statSync(abs).size;
+        const st = lstatSync(abs);
+        if (!st.isFile()) continue;
+        size = st.size;
       } catch {
         continue;
       }
@@ -295,15 +351,24 @@ export function createMaterializer({
     if (!cfg) return { miss: 'unavailable' };
     const tmp = join(tmpDir, `fill-${randomBytes(8).toString('hex')}`);
     try {
-      const n = await fetchToFile(cfg, writeBehindKey(rel, scope), tmp, {
-        maxBytes: MAX_PROJECT_FILE_BYTES,
-      });
+      // At most the row's own size: an object that is bigger is not these bytes,
+      // and must not get to fill the disk before the hash says so (defender L2).
+      const rowSize = Number.isInteger(row.size) && row.size >= 0 ? row.size : null;
+      let n;
+      try {
+        n = await fetchToFile(cfg, writeBehindKey(rel, scope), tmp, {
+          maxBytes: rowSize ?? MAX_PROJECT_FILE_BYTES,
+        });
+      } catch (err) {
+        if (rowSize !== null && /ceiling/.test(err.message)) n = -1;
+        else throw err;
+      }
       if (n === null) return { miss: 'absent' };
-      const got = await hashFile(tmp);
+      const got = n === -1 || (rowSize !== null && n !== rowSize) ? null : await hashFile(tmp);
       if (got !== sha) {
         counters.mismatches += 1;
         log.error?.(
-          `[materializer] STORE DRIFT: the bucket object for ${rel} hashes to ${got.slice(0, 12)}…, ` +
+          `[materializer] STORE DRIFT: the bucket object for ${rel} ${got ? `hashes to ${got.slice(0, 12)}…` : 'is not the size the row names'}, ` +
             `the journal says ${sha.slice(0, 12)}… — NOT served.`
         );
         return { miss: 'mismatch' };
@@ -349,7 +414,7 @@ export function createMaterializer({
       if (row.mirroredAtMs == null) return { miss: 'unmirrored' };
       let p = inflight.get(row.sha256);
       if (!p) {
-        p = fill(rel, row).finally(() => inflight.delete(row.sha256));
+        p = withFillSlot(() => fill(rel, row)).finally(() => inflight.delete(row.sha256));
         inflight.set(row.sha256, p);
       }
       let timer;
@@ -373,8 +438,10 @@ export function createMaterializer({
     pin(sha, file) {
       const abs = blobPathFor(cacheDir, sha);
       if (!abs) throw new Error('pin: not a sha256 digest');
-      if (existsSync(abs)) rmSync(file, { force: true });
-      else renameSync(file, abs);
+      // The VERIFIED bytes win. Keeping whatever already sat at this name and
+      // discarding the fresh upload let an unverified file stand in for it —
+      // and the write-behind would then mirror the impostor (defender M1).
+      renameSync(file, abs);
       const size = statSync(abs).size;
       const t = now();
       const prev = index.get(sha);
@@ -386,6 +453,17 @@ export function createMaterializer({
       });
       scheduleFlush();
       return abs;
+    },
+
+    /**
+     * Release a pin only when NO unmirrored live row still names this sha
+     * (defender M2). Pins are not per path: the same bytes uploaded to two
+     * paths share one blob, and an older row superseded or tombstoned before
+     * its mirror would otherwise leave its sha pinned forever.
+     */
+    release(sha) {
+      if (journal?.hasUnmirroredSha?.(sha)) return false;
+      return this.unpin(sha);
     },
 
     unpin(sha) {
@@ -413,7 +491,10 @@ export function createMaterializer({
      *   caller then refuses the delete (fail closed).
      */
     async keepCopy(rel) {
-      if (rel.startsWith('assets/')) return null;
+      // Only a CONTENT-ADDRESSED asset name is never overwritten. Human-named
+      // ones (`assets/fonts/Gators-Bold.woff2`) are path-keyed like files/ —
+      // and need the copy (attacker review #4).
+      if (rel.startsWith('assets/') && isContentAddressed(rel.slice('assets/'.length))) return null;
       const got = await this.materialize(rel);
       if (!got.path) {
         // No live hash, or bytes that were never durable and are not here —
@@ -430,6 +511,11 @@ export function createMaterializer({
     },
 
     isPinned: (sha) => index.get(sha)?.pinned === true,
+    /** May another upload be pinned right now? (see MAX_PINNED_FRACTION) */
+    canPin() {
+      const budget = budgetOf();
+      return !Number.isFinite(budget) || pinnedBytes() < budget * MAX_PINNED_FRACTION;
+    },
     /** The path of a cached blob, without touching LRU or counters. */
     peek(sha) {
       const abs = blobPathFor(cacheDir, sha);

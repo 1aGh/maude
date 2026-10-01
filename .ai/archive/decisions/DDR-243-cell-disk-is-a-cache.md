@@ -27,13 +27,13 @@ Observed: hub uptime 14 → 4 → 5 minutes; a sample of 150 live rows went from
 **On a cell, the journal says what exists, R2 holds the bytes, and the local disk holds two things:**
 
 - the **checkout for code-module + companion-text**, which is small and which Bun.build needs on disk;
-- a disposable, budgeted **blob cache** for inert media, `<designRoot>/_cache/blobs/<sha256>`.
+- a disposable, budgeted **blob cache** for inert media, `<DATA_DIR>/cache/blobs/<sha256>`. It lives in the hub-owned data dir, **not** under the design root. The design root is the tenant's git clone, where a committed symlink at `.design/_cache` would aim the cache's create, delete and rename at anything the hub can write; that was security review H1. `_cache/` stays in the runtime-state lists as a belt.
 
 The switch is per tenant: `CELL_MATERIALIZE` (`*` = the whole fleet) sets `MAUDE_CELL_MATERIALIZE=1`. The pilot is alligators. Desktops and self-hosted hubs are unchanged, and so is the wire contract, so no desktop release is required.
 
 ### The rules that make it safe
 
-1. **The cache lives outside the watched tree.** `_cache/` is runtime state in all four DDR-115 lists plus the hub mirror, and the tripwire fixture covers it. Inert media on a cell is never materialized at its checkout path. The studio's fs-watch therefore never sees a cache file come or go, and an eviction can never reach `recordGone` → tombstone → delete-on-every-desktop. This is guaranteed by construction, not by care.
+1. **The cache lives outside the watched tree, and outside the tenant's tree.** It sits in the hub-owned data dir. Every cache directory is `lstat`-checked: a link there is removed as a link and recreated, never followed, and unknown entries are skipped, never deleted recursively. Inert media on a cell is never materialized at its checkout path. The studio's fs-watch therefore never sees a cache file come or go, and an eviction can never reach `recordGone` → tombstone → delete-on-every-desktop. This is guaranteed by construction, not by care.
 2. **The disk is never evidence.** In cell mode (`journal.setInertCached`):
    - `recordGone` never tombstones inert media because it is absent;
    - `walkImport` never journals the media it finds on disk;
@@ -94,6 +94,22 @@ The desktop's conflicts went 43 → 135 in ten minutes and reached 1602, while i
 3. **A 409 whose `current` is our own hash was recorded as a conflict.** It is agreement and is now adopted.
 
 The cursor also advances past a pass that had failures: remotes are already in the ledger, so a failed file is retried from that memory, not by re-reading its row.
+
+## Security review of Phase 1 (defender + attacker, 2026-10-01) — both NEEDS FIXES, all fixed before release
+
+| Finding | Fix |
+| --- | --- |
+| **H1.** The cache sat inside the tenant's git clone. A committed `_cache/blobs -> /data` made the boot cleanup delete the journal. | The cache moved to `<DATA_DIR>/cache`. Directories are lstat-guarded, and nothing is deleted recursively. The studio checks answers against `MAUDE_MATERIALIZE_CACHE_DIR`. |
+| **Attacker #1.** The write-behind uploaded whatever sat at the checkout path, so a stale copy got marked mirrored under a newer row. | On a cell, the pinned blob is read first. A checkout copy must hash to the row's sha, or the row stays unmirrored and is later reported lost. |
+| **M2, attacker #2.** One pin flag per sha leaked on overwrite or delete, released too early for bytes shared by two paths, and leaked on a no-op re-upload. | Pins are released by the journal: a pin stays while any unmirrored row names its sha (`hasUnmirroredSha`). Every sha a settled path named is released, and a door releases right after a no-op append. |
+| **M1.** A planted file at a blob's name stood in for a fresh upload. | `pin()` renames the verified bytes over whatever is there. |
+| **Attacker #4.** `keepCopy` skipped human-named `assets/`, which are path-keyed. | It skips only content-addressed names. |
+| **Attacker #5.** Pins had no cap, and fills had no concurrency limit. | Pinned bytes are capped at 50 % of the budget; past that, the doors answer 503 until the mirror drains. At most 4 fills run concurrently. |
+| **L1.** The stale-copy quarantine went through a possibly symlinked `_trash`. | It uses the write door's `resolveProjectFileTarget` guard. |
+| **L2.** A fill downloaded up to the project ceiling. | A fill is capped at the row's size, and a size mismatch counts as a sha mismatch. |
+| **L3.** The token was inherited by the agent's subprocesses. | `MAUDE_MATERIALIZE_TOKEN` is scrubbed from the ACP env. |
+
+Accepted, not changed: 409-adopt cannot be gated on the hub's mirror state, because the 409 does not carry it. A hostile hub could already answer 200, so adopt gives it nothing new.
 
 ## Rejected alternatives
 

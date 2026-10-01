@@ -43,7 +43,7 @@ import { existsSync, mkdirSync, renameSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
-import { listProjectFiles, readCanvasGroups } from './file-manifest.mjs';
+import { listProjectFiles, readCanvasGroups, resolveProjectFileTarget } from './file-manifest.mjs';
 import { classifyProjectFile, isFilePlaneClass, isProjectFileShape } from './file-membership.mjs';
 import { headObject } from './s3.mjs';
 
@@ -219,6 +219,9 @@ function makeHandle({ db, getMeta, setMeta, now }) {
         ORDER BY j.path ASC`
     ),
     markMirrored: db.prepare('UPDATE file_journal SET mirrored_at_ms = ? WHERE seq = ?'),
+    unmirroredSha: db.prepare(
+      'SELECT 1 AS hit FROM file_journal WHERE sha256 = ? AND mirrored_at_ms IS NULL LIMIT 1'
+    ),
     getCursor: db.prepare('SELECT * FROM peer_cursors WHERE label = ?'),
     upsertCursor: db.prepare(
       `INSERT INTO peer_cursors (label, epoch, seq, healed_seq, refused, last_seen)
@@ -565,6 +568,11 @@ function makeHandle({ db, getMeta, setMeta, now }) {
     latestFor(rel) {
       const row = stmts.latestForPath.get(rel);
       return row ? toWire(row) : null;
+    },
+
+    /** Does any row naming this sha still wait for its mirror? (cell pins) */
+    hasUnmirroredSha(sha) {
+      return Boolean(stmts.unmirroredSha.get(sha));
     },
 
     markMirrored(seq, atMs = now()) {
@@ -1300,10 +1308,19 @@ export function quarantineStaleInert({ journal, designRoot, log = console }) {
     const row = journal.latestFor(f.path);
     if (!row) continue;
     if (!row.deleted && row.sha256 === f.sha256) continue;
-    const dest = join(designRoot, '_trash', 'stale-inert', stamp, f.path);
+    // The destination gets the write door's two-guard treatment: a committed
+    // `_trash` symlink must not carry the checkout outside the design root
+    // (Phase 1 security review L1, the same guard file-door's delete uses).
+    const dest = resolveProjectFileTarget(designRoot, `_trash/stale-inert/${stamp}/${f.path}`);
+    if (!dest.ok) {
+      log.warn?.(
+        `[journal] _trash does not resolve inside the design root — ${f.path} left in place.`
+      );
+      continue;
+    }
     try {
-      mkdirSync(dirname(dest), { recursive: true });
-      renameSync(join(designRoot, f.path), dest);
+      mkdirSync(dirname(dest.abs), { recursive: true });
+      renameSync(join(designRoot, f.path), dest.abs);
       moved += 1;
     } catch (err) {
       log.warn?.(`[journal] could not move stale ${f.path} aside: ${err.message}`);

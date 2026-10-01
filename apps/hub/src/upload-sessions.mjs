@@ -54,7 +54,14 @@ import { dirname, join } from 'node:path';
 
 import { assetPrefixFromEnv } from './asset-key.mjs';
 import { diskPressureRefusal, respondDiskPressure } from './disk.mjs';
-import { currentHashFor, quotaFor, seqFor, textFileMaxBytes, withPathLock } from './file-door.mjs';
+import {
+  currentHashFor,
+  moveFile,
+  quotaFor,
+  seqFor,
+  textFileMaxBytes,
+  withPathLock,
+} from './file-door.mjs';
 import { MAX_PROJECT_FILE_BYTES, PART_BYTES } from './file-limits.mjs';
 import { checkoutFileClass, resolveCheckoutFileWrite } from './file-manifest.mjs';
 import {
@@ -544,6 +551,13 @@ export async function handleUploadSessions(ctx) {
       // the blob cache and pinned there, exactly as the single-PUT door does.
       const intoCache =
         Boolean(ctx.materializer) && ad.cls === 'inert-media' && !existsSync(target.abs);
+      if (intoCache && !ctx.materializer.canPin()) {
+        respondDiskPressure(response, {
+          error: 'cache-pinned',
+          detail: 'waiting for the bucket mirror',
+        });
+        return true;
+      }
       mkdirSync(dirname(target.abs), { recursive: true });
       const tmp = intoCache
         ? ctx.materializer.tempPath()
@@ -582,8 +596,9 @@ export async function handleUploadSessions(ctx) {
       if (intoCache) {
         ctx.materializer.pin(whole, tmp);
         ctx.onPinned?.({ path: s.path, sha256: whole, bytes: s.size });
+        ctx.materializer.release(whole); // a no-op append needs no pin
       } else {
-        renameSync(tmp, target.abs);
+        moveFile(tmp, target.abs);
         ctx.onWritten?.({ path: s.path, bytes: s.size, sha256: whole });
       }
       const receipt = {

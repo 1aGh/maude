@@ -8,7 +8,9 @@
 //
 // THE HUB'S ANSWER IS CHECKED, NOT TRUSTED (DDR-054: the hub is semi-trusted).
 // It is a local path, and it is served only if it resolves — through symlinks
-// — to `<designRoot>/_cache/blobs/<64-hex>`. Anything else is a miss.
+// — to `<MAUDE_MATERIALIZE_CACHE_DIR>/blobs/<64-hex>`: the hub-owned cache, NOT
+// anything under the design root (a tenant's git clone, where a committed
+// symlink could aim the check itself). Anything else is a miss.
 //
 // Off unless the hub turned it on: absent env ⇒ `null` ⇒ the route's 404,
 // exactly as before (desktop, self-hosted hub).
@@ -45,7 +47,8 @@ export async function materializeMissing(
   if (env.MAUDE_CELL_MATERIALIZE !== '1') return null;
   const base = env.MAUDE_MATERIALIZE_URL;
   const token = env.MAUDE_MATERIALIZE_TOKEN;
-  if (!base || !token) return null;
+  const cacheDir = env.MAUDE_MATERIALIZE_CACHE_DIR;
+  if (!base || !token || !cacheDir) return null;
   let url: URL;
   try {
     url = new URL('/_materialize', base);
@@ -83,14 +86,14 @@ export async function materializeMissing(
     return null;
   }
   const path = typeof body?.path === 'string' ? body.path : '';
-  return path && isCacheBlob(designRoot, path) ? { path } : null;
+  return path && isCacheBlob(cacheDir, path) ? { path } : null;
 }
 
-/** Does `p` resolve, through symlinks, to `<designRoot>/_cache/blobs/<sha>`? */
-export function isCacheBlob(designRoot: string, p: string): boolean {
+/** Does `p` resolve, through symlinks, to `<cacheDir>/blobs/<sha>`? */
+export function isCacheBlob(cacheDir: string, p: string): boolean {
   if (!SHA.test(basename(p))) return false;
   try {
-    const blobs = realpathSync(join(designRoot, '_cache', 'blobs'));
+    const blobs = realpathSync(join(cacheDir, 'blobs'));
     const real = realpathSync(p);
     return dirname(real) === blobs && SHA.test(basename(real));
   } catch {

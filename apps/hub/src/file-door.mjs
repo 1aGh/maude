@@ -40,7 +40,14 @@
 
 import { createHash, randomBytes } from 'node:crypto';
 import { once } from 'node:events';
-import { createWriteStream, existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
+import {
+  copyFileSync,
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  renameSync,
+  rmSync,
+} from 'node:fs';
 import { dirname, join } from 'node:path';
 import { diskPressureRefusal, respondDiskPressure } from './disk.mjs';
 import {
@@ -118,6 +125,24 @@ export function quotaSnapshot(now = Date.now(), windowMs = QUOTA_WINDOW_MS) {
 export function textFileMaxBytes(env = process.env) {
   const raw = Number(env.MAUDE_TEXT_FILE_MAX_BYTES);
   return Number.isFinite(raw) && raw > 0 ? Math.trunc(raw) : 5 * 1024 * 1024;
+}
+
+/**
+ * rename(src → dest), across filesystems if it has to be. On a cell the blob
+ * cache lives under the hub's data dir, and a body streamed there may still
+ * have to land in the checkout (a copy appeared mid-flight) — two volumes on
+ * a self-hosted install, where rename answers EXDEV.
+ */
+export function moveFile(src, dest) {
+  try {
+    renameSync(src, dest);
+  } catch (err) {
+    if (err?.code !== 'EXDEV') throw err;
+    const tmp = `${dest}.tmp-${process.pid}-${randomBytes(6).toString('hex')}`;
+    copyFileSync(src, tmp);
+    renameSync(tmp, dest);
+    rmSync(src, { force: true });
+  }
 }
 
 /** Test seam — the quota map is process-global by design. */
@@ -455,6 +480,16 @@ export async function handleFileDoor(ctx) {
   // ever appears or disappears for it. A copy already at the checkout path
   // (restored from the git bundle) is overwritten in place, as everywhere else.
   const intoCache = Boolean(ctx.materializer) && cls === 'inert-media';
+  // Pinned bytes cannot be evicted, so they are capped (materializer.mjs
+  // MAX_PINNED_FRACTION): past it this is a HOLD until the mirror drains —
+  // 503 + Retry-After, the word the desktop already obeys.
+  if (intoCache && !existsSync(target.abs) && !ctx.materializer.canPin()) {
+    respondDiskPressure(response, {
+      error: 'cache-pinned',
+      detail: 'waiting for the bucket mirror',
+    });
+    return true;
+  }
   const textCap =
     ctx.materializer && (cls === 'code-module' || cls === 'companion-text')
       ? textFileMaxBytes()
@@ -508,7 +543,7 @@ export async function handleFileDoor(ctx) {
     const pinIt = intoCache && !existsSync(target.abs);
     try {
       if (pinIt) ctx.materializer.pin(r.sha256, r.tmp);
-      else renameSync(r.tmp, target.abs);
+      else moveFile(r.tmp, target.abs);
     } catch (err) {
       rmSync(r.tmp, { force: true });
       console.error(`[hub] file door ${landing} rename failed: ${err.message}`);
@@ -522,8 +557,15 @@ export async function handleFileDoor(ctx) {
     // landed, so a symlinked path cannot alias one file under two CAS states.
     // A pinned blob has no disk path for the journal to read, so it is
     // journaled from the digest THIS door computed of the bytes it received.
-    if (pinIt) ctx.onPinned?.({ path: landing, sha256: r.sha256, bytes: r.total });
-    else ctx.onWritten?.({ path: landing, bytes: r.total });
+    if (pinIt) {
+      ctx.onPinned?.({ path: landing, sha256: r.sha256, bytes: r.total });
+      // Identical bytes re-uploaded to a path that already holds them append
+      // nothing — and a pin no unmirrored row needs would never be released
+      // (attacker review 2b). `release` keeps it only while a row waits.
+      ctx.materializer.release(r.sha256);
+    } else {
+      ctx.onWritten?.({ path: landing, bytes: r.total });
+    }
 
     const seq = ctx.journal ? seqFor(ctx.journal, landing) : null;
     respondJson(response, 200, {

@@ -555,6 +555,10 @@ export function createHub(config = {}) {
     process.env.MAUDE_CELL_MATERIALIZE === '1' && journal && s3Source.configured
       ? createMaterializer({
           designRoot: journalDesignRoot,
+          // HUB-OWNED, outside the tenant's git clone: a committed symlink at
+          // `.design/_cache` must not be able to aim the cache's create /
+          // delete / rename anywhere (Phase 1 security review H1).
+          cacheDir: join(dataDir, 'cache'),
           indexPath: join(dataDir, 'materializer.json'),
           journal,
           s3: () => s3Source.config(),
@@ -679,6 +683,9 @@ export function createHub(config = {}) {
           MAUDE_CELL_MATERIALIZE: '1',
           MAUDE_MATERIALIZE_URL: `http://127.0.0.1:${port}`,
           MAUDE_MATERIALIZE_TOKEN: materializeToken,
+          // Where a materialized path must resolve — the child checks the
+          // hub's answer against this, not against anything in the checkout.
+          MAUDE_MATERIALIZE_CACHE_DIR: materializer.cacheDir,
         }
       : {}),
   };

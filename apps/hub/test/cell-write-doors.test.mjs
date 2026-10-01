@@ -44,6 +44,8 @@ beforeEach(() => {
   resetQuotas();
   materializer = createMaterializer({
     designRoot,
+    // Hub-owned, as on a cell (security review H1) — not under the checkout.
+    cacheDir: join(dataDir, 'cache'),
     indexPath: join(dataDir, 'materializer.json'),
     journal: openJournal(dataDir),
     s3: { bucket: 'b' },
@@ -366,5 +368,80 @@ describe('upload sessions on a cell', () => {
     assert.equal(existsSync(join(designRoot, 'system/ds/assets/clip.mp4')), false);
     assert.equal(materializer.isPinned(sha(bytes)), true);
     assert.equal(journal().latestFor('system/ds/assets/clip.mp4').sha256, sha(bytes));
+  });
+});
+
+// Phase 1 security review (attacker findings 1, 2b, 5) — each red-first.
+describe('security review fixes — the write-behind and the doors', () => {
+  const wbFor = () =>
+    createWriteBehind({
+      designRoot,
+      s3: { bucket: 'b' },
+      journal: journal(),
+      prefix: '',
+      log: quiet,
+      materializer,
+      deps: {
+        putObject: async (_c, key, body) => {
+          bucket.set(key, Buffer.from(body));
+        },
+      },
+    });
+
+  it('a STALE checkout copy is never mirrored under a newer row', async () => {
+    await put(PHOTO, 'NEW-BYTES'); // pinned
+    // A restart wiped the cache…
+    materializer.evict(0);
+    rmSync(join(dataDir, 'cache', 'blobs', sha('NEW-BYTES')), { force: true });
+    // …and the git bundle put the OLD photo back at the checkout path.
+    writeFileSync(join(designRoot, PHOTO), 'OLD-BYTES');
+    const wb = wbFor();
+    await wb.flush();
+    wb.stop();
+    assert.equal(bucket.has(`files/${PHOTO}`), false, 'old bytes never reached the bucket');
+    assert.equal(
+      journal().latestFor(PHOTO).mirroredAtMs,
+      null,
+      'still owed — reported lost, re-pushed'
+    );
+  });
+
+  it('the pinned blob is the source even when a stale copy sits at the path', async () => {
+    await put(PHOTO, 'NEW-BYTES');
+    writeFileSync(join(designRoot, PHOTO), 'OLD-BYTES');
+    const wb = wbFor();
+    await wb.flush();
+    wb.stop();
+    assert.equal(bucket.get(`files/${PHOTO}`).toString(), 'NEW-BYTES');
+  });
+
+  it('re-uploading identical bytes does not leak a pin', async () => {
+    await put(PHOTO, 'SAME');
+    const wb = wbFor();
+    await wb.flush();
+    wb.stop();
+    assert.equal(materializer.isPinned(sha('SAME')), false);
+    const again = await put(PHOTO, 'SAME', { headers: { 'x-maude-expect-hash': sha('SAME') } });
+    assert.equal(again.status, 200);
+    assert.equal(materializer.isPinned(sha('SAME')), false, 'no unmirrored row needs this pin');
+  });
+
+  it('past the pinned-bytes cap the door HOLDS (503), it does not pin more', async () => {
+    materializer.stop();
+    materializer = createMaterializer({
+      designRoot,
+      cacheDir: join(dataDir, 'cache2'),
+      indexPath: join(dataDir, 'm-cap.json'),
+      journal: journal(),
+      s3: { bucket: 'b' },
+      prefix: '',
+      budgetBytes: 100,
+      minResidencyMs: 0,
+      log: quiet,
+    });
+    assert.equal((await put('system/ds/assets/a.jpg', 'x'.repeat(60))).status, 200);
+    const held = await put('system/ds/assets/b.jpg', 'y'.repeat(10));
+    assert.equal(held.status, 503);
+    assert.equal(held.json.error, 'cache-pinned');
   });
 });
