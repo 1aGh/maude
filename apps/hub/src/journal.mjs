@@ -59,6 +59,7 @@ export const JOURNAL_SOURCES = Object.freeze([
   'boot-scan', // first walk of a checkout with no journal
   'hydrate', // bucket→checkout asset refill at boot
   'tail-replay', // reconstructed from the R2 tail after a rehydrate
+  'disk-lost', // a live row whose bytes neither the checkout nor the bucket has
 ]);
 
 /** Refuse an implausible file rather than hash it — the file-manifest figure. */
@@ -299,6 +300,42 @@ function makeHandle({ db, getMeta, setMeta, now }) {
       if (!prev || prev.deleted === 1) return null;
       if (existsSync(join(designRoot, rel))) return null;
       return handle.recordWrite({ designRoot, path: rel, source, deleted: true });
+    },
+
+    /**
+     * The hub LOST a file it still lists as live — not a delete.
+     *
+     * A cell's checkout is ephemeral and the boot hydrate refills it from the
+     * bucket, so a file that never reached the bucket (the v1.5.x expired
+     * write-behind credentials) is simply gone after a restart, while its
+     * journal row still says "the hub holds sha X". Every peer agreed with that
+     * row, so nobody ever pushed the file again: the canvas that imports it
+     * stays a 422 forever.
+     *
+     * The repair row is LIVE with no hash. A peer reads it as "the hub holds
+     * nothing" without a tombstone — `remote-regressed` in `decide-file.ts`,
+     * which pushes its copy back (absence is not authority, DDR-076). It is
+     * never a tombstone: a tombstone would delete the file on every desktop.
+     * No epoch rotation either — the row travels on the ordinary cursor.
+     */
+    recordLost({ designRoot, path: rel }) {
+      if (!designRoot || typeof rel !== 'string' || rel.length === 0) return null;
+      const prev = stmts.latestForPath.get(rel);
+      if (!prev || prev.deleted === 1 || prev.sha256 == null) return null;
+      if (existsSync(join(designRoot, rel))) return null;
+      const info = stmts.insert.run({
+        path: rel,
+        sha256: null,
+        size: null,
+        mtime_ms: null,
+        class: prev.class,
+        deleted: 0,
+        source: 'disk-lost',
+        at_ms: now(),
+      });
+      const row = stmts.byId.get(info.lastInsertRowid);
+      emit(row);
+      return { seq: row.seq };
     },
 
     /**
@@ -840,7 +877,10 @@ export function createJournalTail({
     let lastErr = null;
     for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
       try {
-        await target.put(JOURNAL_TAIL_KEY, Buffer.from(body, 'utf8'));
+        // Resolved per attempt: a cell's credentials expire mid-process.
+        const t = typeof target === 'function' ? await target() : target;
+        if (!t) throw new Error('no object storage target');
+        await t.put(JOURNAL_TAIL_KEY, Buffer.from(body, 'utf8'));
         if (failures > 0) {
           log.log?.(`[journal] tail write-behind recovered after ${failures} failure(s).`);
         }
@@ -1004,6 +1044,27 @@ export function walkIntervalFromEnv(env = process.env) {
  *
  * @returns {{ appended: number, scanned: number, unchanged: number }}
  */
+export function reportLostFiles({ journal, designRoot, log = console }) {
+  if (!journal || !designRoot || !existsSync(designRoot)) return { lost: 0 };
+  let lost = 0;
+  try {
+    for (const row of journal.compaction()) {
+      if (row.deleted || !row.sha256) continue;
+      if (existsSync(join(designRoot, row.path))) continue;
+      if (journal.recordLost({ designRoot, path: row.path })) lost += 1;
+    }
+  } catch (err) {
+    log.error?.(`[journal] lost-file pass failed: ${err.message}`);
+  }
+  if (lost > 0) {
+    log.warn?.(
+      `[journal] ${lost} file(s) are listed as live but missing from the checkout and the bucket — ` +
+        'marked lost so peers that still hold them push them back.'
+    );
+  }
+  return { lost };
+}
+
 export function walkImport({ journal, designRoot, source = 'walk-import', log = console }) {
   if (!designRoot || !existsSync(designRoot)) return { appended: 0, scanned: 0, unchanged: 0 };
   let files;

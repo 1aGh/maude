@@ -127,6 +127,7 @@ import {
   JOURNAL_PATH,
   JOURNAL_REPORT_PATH,
   openJournal,
+  reportLostFiles,
   walkImport,
   walkIntervalFromEnv,
 } from './journal.mjs';
@@ -3463,7 +3464,13 @@ async function runAsMain() {
   // load-bearing). Fire-and-forget: a hub whose journal cannot arm still
   // serves, and says so.
   built
-    .startJournalReconciler({ target: targetFromEnv() })
+    .startJournalReconciler({
+      // A resolver, not a boot snapshot: a cell's credentials are temporary
+      // (s3-creds.mjs), same as the docs tail and the backup schedule.
+      target: targetFromEnv()
+        ? async () => targetFromConfig(process.env, await s3Source.config())
+        : null,
+    })
     .catch((err) => console.error(`[journal] could not arm: ${err.message}`));
 
   // Cloud Phase 16 — server-owned history + the server-side asset lane.
@@ -3543,12 +3550,21 @@ async function runAsMain() {
               failed: restored.failed.length + restoredFiles.failed.length,
             });
           }
+          // What the bucket could not give back is LOST, not deleted: say so
+          // in the journal so every peer that still holds it pushes it back.
+          if (built.journal) reportLostFiles({ journal: built.journal, designRoot });
           // The journal-driven write-behind (Sync v2 Increment 5). Every
           // accepted file-plane write already lands a journal row — through
           // the door, the studio child's report, walk-import or a hydrate —
           // so subscribing to the append IS subscribing to every write
           // surface at once, with no per-door hook to forget.
-          const wb = createWriteBehind({ designRoot, s3, journal: built.journal });
+          // `s3Source.config` — not the boot `s3` above — so the mirror keeps
+          // working past the cell credentials' 12 h expiry.
+          const wb = createWriteBehind({
+            designRoot,
+            s3: () => s3Source.config(),
+            journal: built.journal,
+          });
           built.setWriteBehind(wb);
           built.journal?.onAppend(() => wb.note());
           return wb.flush();

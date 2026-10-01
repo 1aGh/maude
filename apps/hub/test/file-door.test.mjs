@@ -39,7 +39,7 @@ import {
   quotaSnapshot,
   resetQuotas,
 } from '../src/file-door.mjs';
-import { closeJournal, openJournal } from '../src/journal.mjs';
+import { closeJournal, openJournal, reportLostFiles } from '../src/journal.mjs';
 import { addToken } from '../src/tokens.mjs';
 
 let dataDir;
@@ -233,6 +233,26 @@ describe('compare-and-swap — why this door exists', () => {
     assert.equal(res.json.current, sha('v1'));
     // The bytes on disk are untouched — a refused CAS writes nothing.
     assert.equal(readFileSync(join(designRoot, 'system/ds/brand.css'), 'utf8'), 'v1');
+  });
+
+  it('a file the hub LOST takes the peer push back ("none" holds)', async () => {
+    // The repair loop: a restart wiped bytes the bucket never had, the boot
+    // pass marked the row lost, and the desktop (`remote-regressed`) pushes
+    // its copy with "the hub must hold nothing".
+    await call(exchange({ rel: 'system/ds/brand.css', body: 'v1' }));
+    rmSync(join(designRoot, 'system/ds/brand.css'));
+    const marked = reportLostFiles({ journal: openJournal(dataDir), designRoot, log: {} });
+    assert.equal(marked.lost, 1);
+    const res = await call(
+      exchange({
+        rel: 'system/ds/brand.css',
+        body: 'v1',
+        headers: { 'x-maude-expect-hash': 'none' },
+      })
+    );
+    assert.equal(res.status, 200);
+    assert.equal(readFileSync(join(designRoot, 'system/ds/brand.css'), 'utf8'), 'v1');
+    assert.equal(openJournal(dataDir).latestFor('system/ds/brand.css').sha256, sha('v1'));
   });
 
   it('an expectation that MATCHES lands', async () => {

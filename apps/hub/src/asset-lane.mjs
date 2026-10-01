@@ -110,6 +110,12 @@ export function fileRelFromKey(key, prefix = '') {
  * delayed retry per pass, and is loud in the log either way.
  */
 export function createWriteBehind({ designRoot, s3, journal, prefix, log = console, deps = {} }) {
+  // `s3` is the config OR a resolver for it. A platform cell's credentials are
+  // temporary (12 h, refreshed by s3-creds.mjs): a config captured at boot
+  // expires mid-process and every later mirror fails, leaving those bytes
+  // checkout-only until the next rollout wipes them (v1.5.x, Brno Alligators:
+  // `_layout.css` and photos gone after a restart). Resolve per pass.
+  const resolveS3 = typeof s3 === 'function' ? s3 : async () => s3;
   const scope = prefix ?? assetPrefixFromEnv();
   const put = deps.putObject ?? putObject;
   // Large files stream from disk in parts (never read whole into memory).
@@ -122,6 +128,24 @@ export function createWriteBehind({ designRoot, s3, journal, prefix, log = conso
   async function flushOnce() {
     const failedPaths = new Set();
     let mirrored = 0;
+    let cfg;
+    try {
+      cfg = await resolveS3();
+    } catch (err) {
+      cfg = null;
+      log.error?.(`[assets] could not resolve object-storage credentials: ${err.message}`);
+    }
+    if (!cfg) {
+      // Rows stay unstamped — the queue survives; retry like any failure.
+      if (retryTimer === null) {
+        retryTimer = setTimeout(() => {
+          retryTimer = null;
+          void flush();
+        }, RETRY_DELAY_MS);
+        retryTimer.unref?.();
+      }
+      return { mirrored: 0, failed: 0, skipped: 'no-credentials' };
+    }
     for (let i = 0; i < MAX_FLUSH_ITERATIONS; i += 1) {
       const rows = journal.unmirrored(WRITE_BEHIND_BATCH);
       const work = rows.filter((r) => !failedPaths.has(r.path));
@@ -132,9 +156,10 @@ export function createWriteBehind({ designRoot, s3, journal, prefix, log = conso
       for (const row of work) byPath.set(row.path, row); // seq ASC ⇒ last wins
       for (const [rel, row] of byPath) {
         const seqs = work.filter((r) => r.path === rel).map((r) => r.seq);
-        if (row.deleted) {
+        if (row.deleted || row.sha256 == null) {
           // A tombstone mirrors NOTHING: the blob stays, unreferenced —
           // quarantine semantics, and the reason a delete is recoverable.
+          // A `disk-lost` row (live, no hash) has no bytes to mirror either.
           for (const seq of seqs) journal.markMirrored(seq);
           continue;
         }
@@ -157,8 +182,8 @@ export function createWriteBehind({ designRoot, s3, journal, prefix, log = conso
             for (const seq of seqs) journal.markMirrored(seq); // deliberate refusal, not a retry
             continue;
           }
-          if (putFile) await putFile(s3, writeBehindKey(rel, scope), abs);
-          else await put(s3, writeBehindKey(rel, scope), readFileSync(abs));
+          if (putFile) await putFile(cfg, writeBehindKey(rel, scope), abs);
+          else await put(cfg, writeBehindKey(rel, scope), readFileSync(abs));
           mirrored += 1;
           for (const seq of seqs) journal.markMirrored(seq);
         } catch (err) {

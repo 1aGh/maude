@@ -382,6 +382,42 @@ describe('write-behind (Sync v2 Increment 5)', () => {
     }
   });
 
+  it('resolves credentials per pass, so an expired boot snapshot never strands uploads', async () => {
+    // A cell's object-storage credentials are temporary. The write-behind used
+    // to keep the boot config for the process lifetime: past expiry every
+    // mirror failed, the bytes stayed checkout-only, and a rollout wiped them
+    // (v1.5.x — Alligators lost `_layout.css` and photos).
+    const { dataDir, designRoot, journal, record } = scene();
+    try {
+      let creds = { bucket: 'x', token: 'boot' };
+      const used = [];
+      const wb = createWriteBehind({
+        designRoot,
+        s3: async () => creds,
+        journal,
+        prefix: '',
+        log: silent(),
+        deps: {
+          putObject: async (c, key) => {
+            if (c.token !== 'fresh') throw new Error('403 expired token');
+            used.push(key);
+          },
+        },
+      });
+      record('system/ds/_layout.css', '.l{}');
+      await wb.flush();
+      assert.deepEqual(used, []);
+      assert.equal(journal.unmirrored().length, 1); // still queued, not dropped
+      creds = { bucket: 'x', token: 'fresh' }; // s3-creds.mjs refreshed
+      await wb.flush();
+      assert.deepEqual(used, ['files/system/ds/_layout.css']);
+      assert.deepEqual(journal.unmirrored(), []);
+      wb.stop();
+    } finally {
+      closeJournal(dataDir);
+    }
+  });
+
   it('a tombstone mirrors nothing and settles its own row', async () => {
     // The blob stays in the bucket, unreferenced — quarantine semantics, the
     // reason a propagated delete is recoverable. The ROW still has to settle,

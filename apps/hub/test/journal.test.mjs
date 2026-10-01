@@ -21,6 +21,7 @@ import {
   JOURNAL_TAIL_KEY,
   openJournal,
   replayTailFromTarget,
+  reportLostFiles,
   walkImport,
   walkIntervalFromEnv,
 } from '../src/journal.mjs';
@@ -67,6 +68,43 @@ afterEach(() => {
   closeJournal(dataDir);
   rmSync(dataDir, { recursive: true, force: true });
   rmSync(designRoot, { recursive: true, force: true });
+});
+
+describe('reportLostFiles — a live row whose bytes the hub lost', () => {
+  // v1.5.x: a cell restart wiped checkout files the write-behind had never
+  // mirrored (expired credentials). Their rows still said "the hub holds sha
+  // X", every desktop agreed, and nobody pushed them back — `_layout.css` and
+  // photos stayed missing on Brno Alligators.
+  it('marks it live-with-no-hash (never a tombstone), once', () => {
+    const j = openJournal(dataDir);
+    walkImport({ journal: j, designRoot, log: { log() {} } });
+    const before = j.latestFor('system/ds/brand.css');
+    assert.match(before.sha256, /^[0-9a-f]{64}$/);
+    rmSync(join(designRoot, 'system/ds/brand.css'));
+
+    const warn = [];
+    const first = reportLostFiles({ journal: j, designRoot, log: { warn: (m) => warn.push(m) } });
+    assert.equal(first.lost, 1);
+    assert.equal(warn.length, 1);
+    const lost = j.latestFor('system/ds/brand.css');
+    assert.equal(lost.deleted, false); // a tombstone would delete it on every desktop
+    assert.equal(lost.sha256, null);
+    assert.equal(lost.seq > before.seq, true); // travels on the ordinary cursor
+    // Present files are untouched; a second pass is a no-op.
+    assert.match(j.latestFor('assets/a1b2c3d4.png').sha256, /^[0-9a-f]{64}$/);
+    assert.equal(reportLostFiles({ journal: j, designRoot, log: {} }).lost, 0);
+  });
+
+  it('a peer push of the file lands a normal row again', () => {
+    const j = openJournal(dataDir);
+    walkImport({ journal: j, designRoot, log: { log() {} } });
+    rmSync(join(designRoot, 'system/ds/brand.css'));
+    reportLostFiles({ journal: j, designRoot, log: {} });
+    writeFileSync(join(designRoot, 'system/ds/brand.css'), ':root{}');
+    const res = j.recordWrite({ designRoot, path: 'system/ds/brand.css', source: 'peer-put' });
+    assert.equal(res.noop, false);
+    assert.match(j.latestFor('system/ds/brand.css').sha256, /^[0-9a-f]{64}$/);
+  });
 });
 
 describe('recordWrite — the hub reads its own disk', () => {
