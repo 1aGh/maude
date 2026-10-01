@@ -227,9 +227,15 @@ export function createMaterializer({
   }
 
   /**
-   * Evict down to the low watermark once past the high one. Only unpinned
-   * blobs older than the minimum residency, least recently used first.
-   * `need` asks for room for one more blob of that size on top.
+   * Evict down to the low watermark once past the high one, least recently
+   * used first, UNPINNED blobs only (pinned bytes exist nowhere else).
+   *
+   * Minimum residency is SOFT. It keeps housekeeping from churning a gallery
+   * bigger than the cache — but when a fill NEEDS room (`need` > 0), or the
+   * cache is over its budget, resident blobs go too. The first cut held residency
+   * hard, and the Task 15 E2E caught it: with a cache smaller than the working
+   * set, every blob was "fresh", nothing could be evicted, and every miss
+   * answered 503 for ten minutes. Thrash is a cost; unavailability is an outage.
    */
   function evict(need = 0) {
     const budget = budgetOf();
@@ -238,16 +244,29 @@ export function createMaterializer({
     if (total + need <= budget * HIGH_WATER) return 0;
     const target = Math.max(0, budget * LOW_WATER - need);
     const t = now();
-    const candidates = [...index.entries()]
-      .filter(([, e]) => !e.pinned && t - e.filledAt >= minResidencyMs)
-      .sort((a, b) => a[1].lastAccess - b[1].lastAccess);
+    const lru = (a, b) => a[1].lastAccess - b[1].lastAccess;
+    const unpinned = [...index.entries()].filter(([, e]) => !e.pinned);
+    const settled = unpinned.filter(([, e]) => t - e.filledAt >= minResidencyMs).sort(lru);
+    const resident = unpinned.filter(([, e]) => t - e.filledAt < minResidencyMs).sort(lru);
     let evicted = 0;
-    for (const [sha, e] of candidates) {
-      if (total <= target) break;
+    const drop = ([sha, e]) => {
       rmSync(blobPathFor(cacheDir, sha), { force: true });
       index.delete(sha);
       total -= e.size;
       evicted += 1;
+    };
+    for (const entry of settled) {
+      if (total <= target) break;
+      drop(entry);
+    }
+    // Residency yields to a fill that would otherwise not fit, and to a cache
+    // that is OVER its budget (released pins land here fresh) — the budget is
+    // the disk's protection, residency is only an anti-churn preference.
+    if (need > 0 || total > budget) {
+      for (const entry of resident) {
+        if (total + need <= budget) break;
+        drop(entry);
+      }
     }
     if (evicted) {
       counters.evictions += evicted;

@@ -235,17 +235,51 @@ describe('pin, unpin and eviction', () => {
     assert.equal((await m.materialize('x.jpg')).size, 100);
   });
 
-  it('a freshly filled blob stays for the minimum residency (no thrash)', async () => {
+  it('residency steers WHICH blob goes — a settled one before a fresh one', async () => {
+    let t = 1_000;
+    const rows = {};
+    const objects = {};
+    for (const n of ['a', 'c', 'd']) {
+      rows[`${n}.jpg`] = { body: n.repeat(100) };
+      objects[`files/${n}.jpg`] = n.repeat(100);
+    }
+    const { m } = make({ rows, objects, budgetBytes: 250, clock: () => t, minResidencyMs: 60_000 });
+    await m.materialize('a.jpg');
+    t += 120_000; // a is settled now
+    await m.materialize('c.jpg'); // c is fresh…
+    t += 1_000;
+    await m.materialize('a.jpg'); // …and the least recently used
+    t += 1_000;
+    assert.equal((await m.materialize('d.jpg')).size, 100);
+    assert.equal(m.peek(sha('a'.repeat(100))), null, 'the settled blob went, though used later');
+    assert.ok(m.peek(sha('c'.repeat(100))), 'the fresh one stayed');
+  });
+
+  it('…but residency never makes a fill impossible (the Task 15 E2E finding)', async () => {
+    // A cache smaller than the working set: every blob is fresh. Holding
+    // residency hard answered every miss 503 for ten minutes.
     let t = 1_000;
     const rows = { 'a.jpg': { body: 'a'.repeat(100) }, 'b.jpg': { body: 'b'.repeat(100) } };
     const objects = { 'files/a.jpg': 'a'.repeat(100), 'files/b.jpg': 'b'.repeat(100) };
     const { m } = make({ rows, objects, budgetBytes: 150, clock: () => t, minResidencyMs: 60_000 });
     await m.materialize('a.jpg');
     t += 1_000; // well inside a's residency
-    assert.deepEqual(await m.materialize('b.jpg'), { miss: 'full' });
-    t += 60_000; // past it
     assert.equal((await m.materialize('b.jpg')).size, 100);
     assert.equal(m.peek(sha('a'.repeat(100))), null);
+  });
+
+  it('released pins over budget are evicted at unpin, residency or not', async () => {
+    let t = 1_000;
+    const { m } = make({ budgetBytes: 250, clock: () => t, minResidencyMs: 60_000 });
+    for (const n of ['p', 'q', 'r']) {
+      const f = m.tempPath();
+      writeFileSync(f, n.repeat(100));
+      m.pin(sha(n.repeat(100)), f); // 300 bytes pinned: over budget, untouchable
+    }
+    assert.equal(m.stats().bytes, 300);
+    t += 1_000;
+    for (const n of ['p', 'q', 'r']) m.unpin(sha(n.repeat(100))); // mirrored
+    assert.ok(m.stats().bytes <= 250, `cache at ${m.stats().bytes}`);
   });
 
   it('the index survives a restart; the disk stays the truth', async () => {
