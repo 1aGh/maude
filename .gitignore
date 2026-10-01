@@ -32,6 +32,7 @@ dev-server/.cache/
 .design/_canvas-state/
 .design/_chat/
 .design/_untrusted/
+.design/_cache/
 # kgai knowledge-graph store. The split is LOG (durable truth) vs CACHE/IDENTITY
 # (per-machine) — kgai's own store-level .gitignore draws the same line:
 #   • log/*.ndjson  → VERSIONED. The append-only decision log IS the knowledge.

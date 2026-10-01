@@ -54,6 +54,7 @@ export function buildBlock(designRel = '.design', { s3Assets = false } = {}) {
     `${root}/_canvas-state/`, // per-machine canvas scratch + camera (`*.view.json`, DDR-115)
     `${root}/_chat/`, // ACP transcripts (per-machine)
     `${root}/_untrusted/`, // hub-synced untrusted file mirror (DDR-054)
+    `${root}/_cache/`, // cell blob cache — content-addressed, disposable, re-fetched from the bucket (cell materializer)
     `${root}/_comments/`, // hub-sync-only collab comments (DDR-102/DDR-115 — never git)
     // Cloud Phase 3 Task 2 — when an S3/R2 asset lane is configured, binary
     // media lives in the bucket and must STOP entering git: a 60 MB clip is

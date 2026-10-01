@@ -277,7 +277,7 @@ export function isMaudeRuntimeState(p: string): boolean {
       p
     ) ||
     /(^|\/)_server\.(?:lock|log)$/.test(p) ||
-    /(^|\/)_(?:history|trash|draw|photo|smoke|reports|canvas-state|state|chat|comments|untrusted|export-jobs)(?:\/|$)/.test(
+    /(^|\/)_(?:history|trash|draw|photo|smoke|reports|canvas-state|state|chat|comments|untrusted|export-jobs|cache)(?:\/|$)/.test(
       p
     ) ||
     // kgai per-machine graph projection (feature-kgai-ecosystem-integration,
