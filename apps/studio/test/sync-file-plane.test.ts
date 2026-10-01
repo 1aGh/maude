@@ -74,6 +74,8 @@ function fakeHub(initial: Record<string, string> = {}) {
   let forceReanchor = false;
   let reanchorBudget = 0;
   let epochValue = 'epoch-1';
+  /** Entries per journal page — the real hub caps at 2000 (MAX_JOURNAL_PAGE). */
+  let pageSize = Number.POSITIVE_INFINITY;
   const add = (rel: string, body: string) => {
     seq += 1;
     rows.set(rel, { seq, sha256: sha(body), size: body.length, body });
@@ -118,8 +120,14 @@ function fakeHub(initial: Record<string, string> = {}) {
           deleted: r.deleted === true,
         }))
         .sort((a, b) => a.seq - b.seq);
+      const page = entries.slice(0, pageSize);
       return new Response(
-        JSON.stringify({ epoch: epochValue, head: seq, entries, truncated: false }),
+        JSON.stringify({
+          epoch: epochValue,
+          head: seq,
+          entries: page,
+          truncated: entries.length > page.length,
+        }),
         {
           status: 200,
         }
@@ -206,6 +214,15 @@ function fakeHub(initial: Record<string, string> = {}) {
     /** Answer `reanchor` for the next `n` requests only. */
     reanchorFor: (n: number) => {
       reanchorBudget = n;
+    },
+    /** Cap journal pages at `n` entries, as the real hub caps at 2000. */
+    pageAt: (n: number) => {
+      pageSize = n;
+    },
+    /** A live row with no hash — the hub's `disk-lost` marker (v1.5.2). */
+    lose: (rel: string) => {
+      seq += 1;
+      rows.set(rel, { seq, sha256: null, size: 0, body: '' });
     },
     /** A LEGITIMATE epoch rotation (a restore, DDR-226 §3). */
     rotateEpoch: () => {
@@ -1809,5 +1826,90 @@ describe('orphaned ledger rows', () => {
     const res = await plane(hub).reconcile();
     expect(res.dropped[0]?.reason).toContain('owner-vouched');
     expect(read('system/ds/preview/_x.ts')).toBe('export const a = 2');
+  });
+});
+
+// Cell materializer Phase 0.5 (Task 6b). Brno Alligators, 2026-10-01: the
+// desktop's conflicts grew 43 → 135 in ten minutes (1602 by the afternoon),
+// every push answered 409, and the ledger cursor sat at 294 against a hub
+// head of ~4875. Three defects, one test each.
+describe('a journal longer than one page', () => {
+  const files = (n: number) => {
+    const out: Record<string, string> = {};
+    for (let i = 0; i < n; i += 1) out[`system/ds/f${i}.css`] = `.f${i}{}`;
+    return out;
+  };
+
+  test('is read to its END — the cursor reaches the head in one pass', async () => {
+    // One page per pass and a cursor that never moved on `truncated`: every
+    // pass re-read the same first page, and nothing past it ever arrived.
+    const hub = fakeHub(files(7));
+    hub.pageAt(3);
+    const res = await plane(hub).reconcile();
+    expect(res.pulled.length).toBe(7);
+    expect(ledger.cursor()).toBe(hub.head());
+  });
+
+  test('a TRUNCATED full read never retracts what the hub holds', async () => {
+    // The amplifier: a one-page full read ran `pruneRemotes` over every path
+    // past that page, the plane concluded the hub had lost them, pushed each as
+    // "the hub must hold nothing", and met a 409 for every one.
+    const hub = fakeHub(files(7));
+    await plane(hub).reconcile(); // converged, whole log read
+    hub.pageAt(3);
+    hub.reanchorFor(1); // the next read is a full one (since=0)
+    const res = await plane(hub).reconcile();
+    expect(res.conflicts).toEqual([]);
+    expect(hub.puts).toEqual([]);
+    expect(Object.values(ledger.rows()).filter((r) => r.state === 'conflict')).toHaveLength(0);
+  });
+
+  test('the cursor advances past a pass that had failures', async () => {
+    // Remotes are remembered in the ledger before any decision, and every
+    // tracked path is re-decided each pass — so a failure does not need its
+    // row re-read. Holding the cursor on any failure pinned it forever on a
+    // project that always has one (515 unreachable rows on Alligators).
+    const hub = fakeHub(files(4));
+    const broken = (async (url: string, init?: RequestInit) => {
+      if (String(url).includes('/_project-file/system/ds/f0.css')) {
+        return new Response('nope', { status: 500 });
+      }
+      return hub.fetchImpl(url as never, init as never);
+    }) as unknown as typeof fetch;
+    const res = await plane(hub, { fetchImpl: broken }).reconcile();
+    expect(res.failed.length).toBeGreaterThan(0);
+    expect(ledger.cursor()).toBe(hub.head());
+    // …and the failed file still arrives once the hub answers again (an hour
+    // on, past any per-path backoff), from the ledger's memory alone.
+    const again = await plane(hub, { now: () => 1_700_000_000_000 + 3_600_000 }).reconcile();
+    expect(again.pulled).toContain('system/ds/f0.css');
+  });
+});
+
+describe('a 409 that names OUR bytes', () => {
+  test('is agreement — adopted, never a conflict', async () => {
+    // The hub marked the file lost (v1.5.2 `disk-lost`), so this machine
+    // pushed it back with "the hub must hold nothing" — but the hub had
+    // refilled the same bytes from the bucket meanwhile. The 409's `current`
+    // is our own hash: nothing differs, nothing should be parked or retried.
+    const hub = fakeHub({ 'system/ds/brand.css': 'v1' });
+    await plane(hub).reconcile();
+    hub.lose('system/ds/brand.css');
+    const refilled = (async (url: string, init?: RequestInit) => {
+      const u = new URL(String(url));
+      if (u.pathname.startsWith('/api/file/') && init?.method === 'PUT') {
+        hub.add('system/ds/brand.css', 'v1'); // the bucket refill, mid-flight
+        return new Response(JSON.stringify({ error: 'moved', current: sha('v1') }), {
+          status: 409,
+        });
+      }
+      return hub.fetchImpl(url as never, init as never);
+    }) as unknown as typeof fetch;
+    const res = await plane(hub, { fetchImpl: refilled }).reconcile();
+    expect(res.conflicts).toEqual([]);
+    expect(ledger.row('system/ds/brand.css')?.state).toBe('on-hub');
+    expect(readdirSync(join(root, 'system/ds')).some((n) => n.includes('maude-conflict'))).toBe(
+      false
+    );
   });
 });

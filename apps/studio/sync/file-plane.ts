@@ -72,7 +72,7 @@ import {
   type FileClass,
   isFilePlaneClass,
 } from './file-membership.ts';
-import { fetchJournal, type JournalEntry } from './journal-client.ts';
+import { fetchJournal, type JournalEntry, type JournalPage } from './journal-client.ts';
 import { createPullBudget } from './pull-budget.ts';
 import { failureReason, isBackpressure, retryAfterMs } from './retry-after.ts';
 import { classifyTransportError } from './transport-error.ts';
@@ -212,6 +212,23 @@ export const REANCHOR_STORM_LIMIT = 5;
  * a real rotation recovers on the first quiet retry.
  */
 export const REANCHOR_HOLD_RECOVERY_MS = 15 * 20_000; // 15 poll ticks (index.ts REMOTE_POLL_MS)
+
+/**
+ * Journal pages one pass may read — `MAX_JOURNAL_PAGE` (2000) entries each.
+ *
+ * A pass used to read ONE page. On a log longer than that (Brno Alligators,
+ * 2026-10-01: cursor 294, hub head ~4875) the page came back `truncated`, the
+ * cursor never moved, and every pass re-read the same 2000 rows — the hub's
+ * newer rows never arrived at all. Worse, an owed full read (`since=0`) of one
+ * page then ran `pruneRemotes` over everything past it, so this machine
+ * "forgot" the hub held thousands of files, pushed them as "the hub must hold
+ * nothing", met 409 for each, and owed another full read for every conflict:
+ * 43 → 135 conflicts in ten minutes, 1602 by the afternoon.
+ *
+ * Bounded so a hostile or enormous log still costs a known amount per pass;
+ * whatever is left is read from the advanced cursor on the next one.
+ */
+export const MAX_JOURNAL_PAGES_PER_PASS = 20;
 
 /**
  * How many FIRST-ANCHOR conflicts one pass will resolve before it stops and asks.
@@ -1511,6 +1528,32 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     await ensureHubLimits();
     requestsThisPass = 0;
 
+    /**
+     * Follow `truncated` to the end of the log (bounded). Stops — leaving the
+     * merged page `truncated` — on any refusal, a re-anchor or an epoch change
+     * mid-read: what was read is still true, it is just not everything.
+     */
+    const readRemainingPages = async (first: JournalPage): Promise<JournalPage> => {
+      let merged = first;
+      for (let n = 1; merged.truncated && n < MAX_JOURNAL_PAGES_PER_PASS; n += 1) {
+        const last = merged.entries.at(-1)?.seq;
+        if (last === undefined) break;
+        const next = await fetchJournal({
+          hubUrl: opts.hubUrl,
+          token: opts.token(),
+          since: last,
+          epoch: merged.epoch,
+          fetchImpl,
+          onRefused: async (res) => {
+            await refusal(res);
+          },
+        });
+        if (next === null || next.reanchor || next.epoch !== merged.epoch) break;
+        merged = { ...next, entries: [...merged.entries, ...next.entries] };
+      }
+      return merged;
+    };
+
     // ── 1. The hub's side ────────────────────────────────────────────────
     const payOwedRead = fullReadOwed && now() - lastOwedFullReadAt >= REANCHOR_HOLD_RECOVERY_MS;
     if (payOwedRead) {
@@ -1598,6 +1641,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       reanchorsInARow = 0;
       reanchorHeldSince = 0;
     }
+    page = await readRemainingPages(page);
 
     // THE HUB'S SIDE IS THE LEDGER'S REPLICA, UPDATED BY THIS PAGE — not the
     // page itself. A delta says "these changed"; it says nothing at all about
@@ -1625,7 +1669,11 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       }
       ledger.noteRemote(rel, row.deleted ? null : row.sha256, row.seq);
     }
-    if (fullRead) ledger.pruneRemotes(new Set(delta.keys()));
+    // Only a COMPLETE full read may say "the hub does not have this". A
+    // truncated one is silent about every path past its last page, and
+    // pruning on it retracted the hub's copy of thousands of files at once
+    // (see MAX_JOURNAL_PAGES_PER_PASS).
+    if (fullRead && !page.truncated) ledger.pruneRemotes(new Set(delta.keys()));
 
     // ── 2. Ours ──────────────────────────────────────────────────────────
     const local = scanLocalFiles(designRoot, ledger, opts.canvasGroups);
@@ -1983,14 +2031,15 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
 
     // ── 5. Position ──────────────────────────────────────────────────────
     //
-    // Only advance the cursor when the pass actually consumed the page. A
-    // partial pass re-reads the same range next time, which is free (the
-    // decisions for already-converged paths are `noop`).
-    if (!page.truncated && out.failed.length === 0) {
-      ledger.setPosition(page.epoch, page.head);
-    } else {
-      ledger.setPosition(page.epoch, ledger.cursor());
-    }
+    // Advance to what this pass READ — the head when it read to the end,
+    // else the last entry it got. Every remote it learned is already in the
+    // ledger (`noteRemote`, step 1), and every path the ledger tracks is
+    // re-decided each pass, so a file that failed is retried from that
+    // memory, not by re-reading its row. Holding the cursor on any failure
+    // pinned it forever on a project that always has one (515 unreachable
+    // rows on Alligators), which is half of what kept it at 294.
+    const readTo = page.truncated ? (page.entries.at(-1)?.seq ?? 0) : page.head;
+    ledger.setPosition(page.epoch, Math.max(ledger.cursor(), readTo));
     ledger.flush();
 
     if (out.pulled.length || out.pushed.length || out.conflicts.length) {
@@ -2148,6 +2197,22 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           // overrunning a window it was told the start of.
           quotaSpentThisPass += here.size;
           out.pushed.push(rel);
+          return true;
+        }
+        if (res.conflict && res.current !== null && res.current === here.hash) {
+          // THE HUB ALREADY HOLDS EXACTLY THESE BYTES. A 409 whose `current`
+          // is our own hash is agreement, not a conflict: the hub got the same
+          // file another way (a bucket refill after a restart, another peer's
+          // identical push) while we decided from an older view. Recording it
+          // as a conflict owed a full read per file and parked nothing anyone
+          // needed — the 2026-10-01 Alligators storm was mostly this.
+          await ledger.adoptAfter(rel, here.hash, () => {}, {
+            size: here.size,
+            mtimeMs: here.mtimeMs,
+            state: 'on-hub',
+          });
+          ledger.noteRemote(rel, here.hash);
+          out.synced += 1;
           return true;
         }
         if (res.conflict) {
