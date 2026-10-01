@@ -2258,6 +2258,17 @@
       "phaseKey": null
     },
     {
+      "id": "feature-cell-materializer",
+      "title": "Feature: Cell materializer — a cell's disk is a cache, not the project",
+      "status": "planned",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. Read the prior decisions listed below in full (kg search / the DDR files) before touch...",
+      "planPath": ".ai/plans/feature-cell-materializer.md",
+      "archived": false,
+      "phaseKey": null
+    },
+    {
       "id": "feature-desktop-project-tabs-and-identity-profiles",
       "title": "Feature: Desktop project tabs + per-project identity profiles",
       "status": "planned",
