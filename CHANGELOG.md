@@ -1,5 +1,11 @@
 # @1agh/maude
 
+## 1.5.2
+
+### Patch Changes
+
+- Fix: cloud cells no longer lose photos, fonts and design-system files across restarts. Files already lost are pushed back automatically by any desktop that still has them.
+
 ## 1.5.1
 
 ### Patch Changes
