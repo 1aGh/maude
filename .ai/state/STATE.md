@@ -24,6 +24,13 @@ Phase A of the gate set found six silent bugs by pointing a typechecker at 52 fi
 **Active plan:** —
 **Active task:** —
 
+_2026-10-01:_ **hotfix — v1.5.1** | `87dac924`. v1.5.0 broke every canvas build on cells, self-hosted hubs and the desktop app with `Could not resolve: "diff"`.
+- **Cause.** annotations/ops.ts statically imported sync/source-merge.ts, which uses `diff`. ops.ts is in the canvas-lib graph, and that graph only resolves the `/_canvas-runtime/` externals.
+- **Fix.** The text merge is injected via `setTextMerge`. `annotations/ops-merge.ts` wires it, and only server entry points import that module. New guard: `test/canvas-lib-graph.test.ts`. It was red against the v1.5.0 import.
+- **Cloud.** Hub image, self-host images, cells and render are green. Alligators cell reports `releaseVersion 1.5.1`.
+- **design.studyfi.com.** On v1.5.1, with checkpoint `/opt/maude-hub/pre-v1.5.1-*`. "Retention 7 Dni" builds: 200, 984 kB.
+- **BLOCKED: desktop + npm 1.5.1.** Apple notarization returns 403 ("required agreement is missing or has expired"). The Apple Developer agreement must be accepted, then re-run build-desktop and then build-binaries (its blank-window gate blocks `publish-main`).
+
 _2026-09-30:_ **released — v1.5.0** | tag on `d9bfe215` (annotations v2, Milestones A–F: #138 + #139). All six tag pipelines are green: binaries + npm (`@1agh/maude` 1.5.0), desktop, hub image, self-host images, cells, and render.
 - **Fleet.** Cell `alligators` reports `releaseVersion 1.5.0` with capability `annotations-v2`. Render reports `v1.5.0`. The canvas origin answers 401 without a capability.
 - **StudyFi `design.studyfi.com`:**
