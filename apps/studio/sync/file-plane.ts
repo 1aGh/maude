@@ -428,6 +428,15 @@ export interface FilePlaneOptions {
   /** Increment 6. Off means a local absence is HELD, never propagated. */
   propagateDeletes?: boolean;
   /**
+   * The outbound delete breaker is OFF: a deliberate bulk delete on this
+   * machine propagates in one pass. Computed by the caller from LOCAL consent
+   * (`hubs.json` `unlimitedDeletes`) — never from the hub. The hub still gates
+   * it: only an owner-role token deletes past its budget, anyone else gets the
+   * 429 that holds this plane. The INBOUND breaker is untouched — what the hub
+   * asks this machine to remove is still held past the limits.
+   */
+  unlimitedOutboundDeletes?: boolean;
+  /**
    * The user's bulk answer to a first-anchor storm — `'keep-local'` pushes
    * ours over theirs, `'keep-cloud'` takes theirs and parks ours. Absent means
    * a storm holds and asks (see `FIRST_ANCHOR_STORM_LIMIT`).
@@ -1857,6 +1866,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
      *                drain the first two are blind to, and survives a restart.
      */
     const overBreaker = (direction: 'out' | 'in', n: number): boolean => {
+      if (direction === 'out' && opts.unlimitedOutboundDeletes === true) return false;
       const already = ledger.deletesInWindow(direction, DELETE_BUDGET_WINDOW_MS);
       if (n > DELETE_BREAKER_MAX) return true;
       if (

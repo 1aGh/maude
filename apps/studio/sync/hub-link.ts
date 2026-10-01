@@ -44,6 +44,8 @@ interface HubsFile {
       expiresAt?: number;
       /** Local consent — see `HubRecord.codeModulesAllowed` in hubs-config.ts. */
       codeModulesAllowed?: boolean;
+      /** Local consent — see `HubRecord.unlimitedDeletes` in hubs-config.ts. */
+      unlimitedDeletes?: boolean;
     }
   >;
   trusted?: string[];
@@ -149,12 +151,14 @@ export function saveHubCredential(
   // sign-in response can change what the hub claims your role is; it must not
   // be able to change what you agreed this hub may deliver.
   const priorConsent = cfg.hubs[normUrl]?.codeModulesAllowed;
+  const priorDeletes = cfg.hubs[normUrl]?.unlimitedDeletes;
   cfg.hubs[normUrl] = {
     token,
     linkedAt: Date.now(),
     ...(role ? { role } : {}),
     ...(typeof expiresAt === 'number' && Number.isFinite(expiresAt) ? { expiresAt } : {}),
     ...(typeof priorConsent === 'boolean' ? { codeModulesAllowed: priorConsent } : {}),
+    ...(typeof priorDeletes === 'boolean' ? { unlimitedDeletes: priorDeletes } : {}),
   };
   if (!Array.isArray(cfg.trusted)) cfg.trusted = [];
   if (!cfg.trusted.includes(normUrl)) cfg.trusted.push(normUrl);

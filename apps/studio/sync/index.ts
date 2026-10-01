@@ -882,6 +882,9 @@ export function createSyncRuntime(
   // by a login response, or this cell's own loopback pairing — where the hub
   // and the checkout are one trust domain and there is no remote party.
   const allowCodeModules = cellPairing !== null || storedRecord?.codeModulesAllowed === true;
+  // Same shape of consent for the OUTBOUND delete breaker: only what this
+  // machine's owner recorded (`maude design bulk-deletes on`), never the hub.
+  const unlimitedDeletes = storedRecord?.unlimitedDeletes === true;
 
   // DDR-102 — the default factory multiplexes every provider over ONE shared
   // WebSocket per hub URL; the runtime owns its disposal (stop(), after the
@@ -4707,6 +4710,7 @@ export function createSyncRuntime(
               ledger: fileLedger,
               canvasGroups: ctx.cfg.canvasGroups,
               allowCodeModules,
+              unlimitedOutboundDeletes: unlimitedDeletes,
               // Increment 6, DEFAULT ON: a hub-owned mirror that ignores
               // deletes contradicts the model it is selling — you delete a
               // file and it comes back. `linkedHub.propagateDeletes: false`

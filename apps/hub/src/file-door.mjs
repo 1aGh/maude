@@ -405,7 +405,7 @@ export async function handleFileDoor(ctx) {
   const expect = String(request.headers?.['x-maude-expect-hash'] ?? '').trim();
 
   if (method === 'DELETE') {
-    return await handleDelete({ ctx, response, landing, target, expect });
+    return await handleDelete({ ctx, response, landing, target, expect, role: match.role });
   }
   const casHolds = () => {
     if (!expect) return { ok: true };
@@ -532,7 +532,7 @@ export async function handleFileDoor(ctx) {
  * raced somebody's edit loses the race and says so, which is the whole point:
  * an edit beats a delete, and the peer re-decides against the hash it is told.
  */
-async function handleDelete({ ctx, response, landing, target, expect }) {
+async function handleDelete({ ctx, response, landing, target, expect, role }) {
   return await withPathLock(landing, async () => {
     // B14 (post-1.0 burn-down) — the precondition is REQUIRED on DELETE.
     // Every real client has sent `x-maude-expect-hash` since Increment 6
@@ -599,7 +599,12 @@ async function handleDelete({ ctx, response, landing, target, expect }) {
     // concurrent DELETEs cannot each read the budget as available and then all
     // spend it, and so nothing is moved for a request that is about to be
     // refused.
-    const budget = ctx.journal?.deleteBudget?.() ?? { ok: true };
+    //
+    // AN OWNER IS OUTSIDE IT (journal.mjs `OWNER_DELETE_SOURCE`). The role is
+    // the one the token match vouched for, not anything the request says, and
+    // the quarantine below still parks every file before its tombstone.
+    const ownerDelete = role === 'owner';
+    const budget = ownerDelete ? { ok: true } : (ctx.journal?.deleteBudget?.() ?? { ok: true });
     if (!budget.ok) {
       // 429, not 403: the credential is fine and the path is fine — this is a
       // rate, and a rate is something the caller can act on by waiting or by
@@ -635,7 +640,7 @@ async function handleDelete({ ctx, response, landing, target, expect }) {
     // the journal never heard of is a delete that did not happen.
     let tombstone = null;
     if (ctx.onDeleted) {
-      tombstone = ctx.onDeleted({ path: landing, parked }) ?? null;
+      tombstone = ctx.onDeleted({ path: landing, parked, owner: ownerDelete }) ?? null;
       if (!tombstone) {
         if (parked) {
           try {

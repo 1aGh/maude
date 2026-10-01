@@ -135,6 +135,7 @@ import {
   handleJournalRoutes,
   JOURNAL_PATH,
   JOURNAL_REPORT_PATH,
+  OWNER_DELETE_SOURCE,
   openJournal,
   reportLostFiles,
   walkImport,
@@ -591,7 +592,7 @@ export function createHub(config = {}) {
         journal.recordWrite({
           designRoot: journalDesignRoot,
           path: rel,
-          source: 'peer-put',
+          source: info?.owner === true ? OWNER_DELETE_SOURCE : 'peer-put',
           deleted: true,
         }) ?? null
       );

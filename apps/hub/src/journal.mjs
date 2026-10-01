@@ -55,6 +55,7 @@ const Database = require('better-sqlite3');
 /** Where a write came from. Recorded for forensics; never an authority. */
 export const JOURNAL_SOURCES = Object.freeze([
   'peer-put', // a desktop PUT through a hub write door
+  'owner-delete', // a DELETE through the write door by an owner-role token — outside the delete budget
   'studio-report', // the studio child nudged us about its own write
   'walk-import', // the reconciler found drift the hooks missed
   'boot-scan', // first walk of a checkout with no journal
@@ -92,6 +93,25 @@ export const MAX_JOURNAL_PAGE = 2000;
  */
 export const DELETE_BUDGET_WINDOW_MS = 60 * 60 * 1000;
 export const DELETE_BUDGET_PER_WINDOW = 25;
+
+/**
+ * OWNERS ARE OUTSIDE THE DOOR BUDGET.
+ *
+ * The budget exists for the accident shapes — a branch switch, a `git clean`,
+ * a botched restore on ONE machine — and for a leaked low-value token. An
+ * owner reorganising their own project is neither, and a 25-per-hour ceiling
+ * turned an 80-file cleanup into an afternoon of babysitting. So the door lets
+ * an owner-role token delete without a ceiling (`file-door.mjs`) and records
+ * the tombstone as `owner-delete`, which the window count below leaves out, so
+ * an owner's purge does not spend the budget everyone else's accidents need.
+ *
+ * What stays: every deleted file is still quarantined before its tombstone is
+ * written, so an owner delete is as recoverable as any other. And the R2 TAIL
+ * REPLAY still counts every tombstone, `owner-delete` included — `source` in
+ * the tail is data, not authority, and exempting a label is exactly how an
+ * injected purge would dress itself.
+ */
+export const OWNER_DELETE_SOURCE = 'owner-delete';
 
 /** One open handle per dataDir. Native init is expensive; cache it. */
 const handleCache = new Map();
@@ -185,7 +205,11 @@ function makeHandle({ db, getMeta, setMeta, now }) {
     ),
     since: db.prepare('SELECT * FROM file_journal WHERE seq > ? ORDER BY seq ASC LIMIT ?'),
     byId: db.prepare('SELECT * FROM file_journal WHERE seq = ?'),
+    // Owner deletes are outside the door budget (see OWNER_DELETE_SOURCE).
     deletionsSince: db.prepare(
+      "SELECT COUNT(*) AS n FROM file_journal WHERE deleted = 1 AND at_ms >= ? AND source != 'owner-delete'"
+    ),
+    allDeletionsSince: db.prepare(
       'SELECT COUNT(*) AS n FROM file_journal WHERE deleted = 1 AND at_ms >= ?'
     ),
     compaction: db.prepare(
@@ -424,6 +448,18 @@ function makeHandle({ db, getMeta, setMeta, now }) {
     },
 
     /**
+     * Every tombstone in the window, `owner-delete` included — what the R2 tail
+     * replay counts against, because a label read back from the tail is data.
+     *
+     * @param {number} sinceMs
+     * @returns {number}
+     */
+    allDeletionsSince(sinceMs) {
+      const row = stmts.allDeletionsSince.get(Number.isFinite(sinceMs) ? sinceMs : 0);
+      return row?.n ?? 0;
+    },
+
+    /**
      * Is there budget for one more deletion right now?
      *
      * @returns {{ ok: true } | { ok: false, used: number, limit: number, windowMs: number }}
@@ -567,7 +603,7 @@ function makeHandle({ db, getMeta, setMeta, now }) {
       // top the budget back up by being a separate operation.
       let tombstoneBudget = Math.max(
         0,
-        DELETE_BUDGET_PER_WINDOW - handle.deletionsSince(now() - DELETE_BUDGET_WINDOW_MS)
+        DELETE_BUDGET_PER_WINDOW - handle.allDeletionsSince(now() - DELETE_BUDGET_WINDOW_MS)
       );
       const lines = String(text ?? '')
         .split('\n')

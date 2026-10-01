@@ -1003,6 +1003,36 @@ describe('the deletion breakers — the only protection now that this ships ON',
     throw new Error('the budget did not survive being reconstructed');
   });
 
+  test('bulk-deletes consent lets a deliberate cleanup through in one pass', async () => {
+    // `maude design bulk-deletes on` — the owner's own consent, recorded
+    // locally. The hub still decides who may delete past ITS budget.
+    const seeded: Record<string, string> = {};
+    for (let i = 0; i < 40; i++) seeded[`system/ds/f${i}.css`] = `.a${i}{}`;
+    const hub = fakeHub(seeded);
+    const p = plane(hub, { propagateDeletes: true, unlimitedOutboundDeletes: true });
+    await p.reconcile();
+
+    for (let i = 0; i < 40; i++) rmSync(join(root, `system/ds/f${i}.css`));
+
+    const res = await p.reconcile();
+    expect(res.deleteHeld).toBeUndefined();
+    expect(hub.deletes.length).toBe(40);
+  });
+
+  test('bulk-deletes consent leaves the INBOUND breaker alone', async () => {
+    const seeded: Record<string, string> = {};
+    for (let i = 0; i < 20; i++) seeded[`system/ds/f${i}.css`] = `.a${i}{}`;
+    const hub = fakeHub(seeded);
+    const p = plane(hub, { propagateDeletes: true, unlimitedOutboundDeletes: true });
+    await p.reconcile();
+
+    for (let i = 0; i < 20; i++) hub.tombstone(`system/ds/f${i}.css`);
+
+    const res = await p.reconcile();
+    expect(res.deleteHeld?.direction).toBe('in');
+    expect(existsSync(join(root, 'system/ds/f0.css'))).toBe(true);
+  });
+
   test('an ordinary single delete is not a storm', async () => {
     const seeded: Record<string, string> = {};
     for (let i = 0; i < 20; i++) seeded[`system/ds/f${i}.css`] = `.a${i}{}`;

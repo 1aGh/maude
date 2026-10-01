@@ -24,6 +24,7 @@ import {
   normalizeUrl,
   removeHub,
   setHubCodeModules,
+  setHubUnlimitedDeletes,
   trustHub,
 } from './hubs-config.mjs';
 
@@ -378,6 +379,56 @@ export async function runDetach({ args, cwd = process.cwd() }) {
   const res = detachToRepo(cwd);
   process.stdout.write(
     `[design detach] repo-owned: .gitignore ${res.action}. Every file is already on disk — commit .design/ when you are ready:\n\n      git add .design && git commit -m "take the design folder back into the repo"\n\n`
+  );
+}
+
+// ---------------------------------------------------------------- bulk-deletes
+
+/**
+ * `maude design bulk-deletes on|off|status [--hub <url>]`
+ *
+ * Turns THIS machine's outbound delete breaker off (or back on) for the
+ * project's linked hub, so a deliberate cleanup propagates in one pass instead
+ * of 10 per pass and 25 per hour. Local consent, recorded in hubs.json as
+ * `unlimitedDeletes` — the studio reads it at sync start, so restart
+ * `maude design serve` / the desktop app after changing it.
+ *
+ * The hub decides the other half: it admits deletes past its budget only from
+ * an owner-role token. For anyone else this setting changes nothing but where
+ * the refusal comes from.
+ */
+export async function runBulkDeletes({ args, cwd = process.cwd() }) {
+  const tail = args.slice(args.indexOf('bulk-deletes') + 1);
+  const { flags, positional } = parseArgs(tail);
+  const verb = positional[0] ?? 'status';
+  if (!['on', 'off', 'status'].includes(verb)) {
+    process.stderr.write('usage: maude design bulk-deletes on|off|status [--hub <url>]\n');
+    process.exit(2);
+  }
+  let url = typeof flags.hub === 'string' ? flags.hub : null;
+  if (!url) {
+    const designConfigPath = resolve(cwd, DESIGN_CONFIG_PATH);
+    const cfg = existsSync(designConfigPath) ? readDesignConfig(designConfigPath) : null;
+    url = cfg?.linkedHub?.url ?? null;
+  }
+  if (!url) {
+    process.stderr.write(
+      '[design bulk-deletes] no linked hub here — run it in a linked project or pass --hub <url>.\n'
+    );
+    process.exit(1);
+  }
+  const normUrl = normalizeUrl(url);
+  const record = getHub(normUrl);
+  if (!record) {
+    process.stderr.write(`[design bulk-deletes] ${normUrl} is not linked on this machine.\n`);
+    process.exit(1);
+  }
+  if (verb !== 'status') setHubUnlimitedDeletes(normUrl, verb === 'on');
+  const on = verb === 'status' ? record.unlimitedDeletes === true : verb === 'on';
+  process.stdout.write(
+    on
+      ? `[design bulk-deletes] ON for ${normUrl} — deletes on this machine propagate without the 10/pass · 25/hour breaker. The hub admits that only from an owner-role token. Restart the sync (maude design serve / the app) to apply.\n`
+      : `[design bulk-deletes] off for ${normUrl} — the delete breaker holds bulk deletes (10 per pass, 25 per hour).${verb === 'off' ? ' Restart the sync to apply.' : ''}\n`
   );
 }
 

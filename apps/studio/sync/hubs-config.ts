@@ -53,6 +53,16 @@ export interface HubRecord {
    * the same direction every other default in this file leans.
    */
   codeModulesAllowed?: boolean;
+  /**
+   * LOCAL consent: this machine's outbound delete breaker is OFF for this hub,
+   * so a deliberate bulk cleanup propagates at once instead of 10 per pass and
+   * 25 per hour. Same discipline as `codeModulesAllowed` — written only by
+   * `maude design bulk-deletes`, never by a sign-in response. It pairs with the
+   * hub, which admits unlimited deletes only from an OWNER-role token
+   * (`apps/hub/src/journal.mjs` OWNER_DELETE_SOURCE): a non-owner who sets it
+   * just meets the hub's 429 sooner. Absent means the breaker is on.
+   */
+  unlimitedDeletes?: boolean;
 }
 
 export interface HubsConfig {
