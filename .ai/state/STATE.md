@@ -24,6 +24,12 @@ Phase A of the gate set found six silent bugs by pointing a typechecker at 52 fi
 **Active plan:** —
 **Active task:** —
 
+_2026-10-01:_ **hotfix — v1.5.2** | `00f8cecb`. Cloud cells lost file-plane files (photos, fonts, DS `preview/_layout.css`) across restarts. The Alligators canvases showed `Could not resolve ../../../system/alligators/preview/_layout.css` (the project's `.design/` is gitignored, so it reaches the cell only through the file plane).
+- **Cause 1.** The write-behind (checkout → R2) and the journal tail kept the boot S3 config. Cell credentials expire after 12 h, so every later mirror failed silently and a restart wiped the bytes. Both now resolve credentials per pass/write.
+- **Cause 2.** The journal still listed lost files as live, so no desktop re-pushed them. After the bucket hydrate, `reportLostFiles` appends a live row with `sha256: null` (source `disk-lost`). Desktops classify it as `remote-regressed` and push with `expect: none`. It is never a tombstone, and there is no epoch rotation.
+- **Fleet + StudyFi.** v1.5.2 is green everywhere. design.studyfi.com: checkpoint `pre-v1.5.2-*`, 88/88 canvases build, 7 of 539 asset refs missing (16 bucket objects fail to hydrate — the next thing to look at).
+- **Open.** Confirm that Alligators files come back once its desktop is online. The desktop ledger shows 521 `stuck` and 304 `conflict` rows — not investigated.
+
 _2026-10-01:_ **hotfix — v1.5.1** | `87dac924`. v1.5.0 broke every canvas build on cells, self-hosted hubs and the desktop app with `Could not resolve: "diff"`.
 - **Cause.** annotations/ops.ts statically imported sync/source-merge.ts, which uses `diff`. ops.ts is in the canvas-lib graph, and that graph only resolves the `/_canvas-runtime/` externals.
 - **Fix.** The text merge is injected via `setTextMerge`. `annotations/ops-merge.ts` wires it, and only server entry points import that module. New guard: `test/canvas-lib-graph.test.ts`. It was red against the v1.5.0 import.
