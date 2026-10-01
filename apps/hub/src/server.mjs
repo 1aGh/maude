@@ -39,7 +39,7 @@ import { rememberReturnTo } from './return-to.mjs';
 //   - All log lines that interpolate user data go through sanitizeForLog.
 
 import { Buffer } from 'node:buffer';
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
@@ -142,6 +142,12 @@ import {
   walkIntervalFromEnv,
 } from './journal.mjs';
 import { LOOPBACK_HOSTS, sanitizeForLog } from './log-safety.mjs';
+import {
+  cacheBudgetFor,
+  createMaterializer,
+  handleMaterializeRoute,
+  MATERIALIZE_PATH,
+} from './materializer.mjs';
 import { assertStrictIsSurvivable, oidcConfig } from './oidc-routes.mjs';
 import { createAcceptedRevisions } from './project-transactions/hub-integration.mjs';
 import { openRemoteProjectStore } from './project-transactions/store-remote.mjs';
@@ -540,6 +546,26 @@ export function createHub(config = {}) {
   // durability half has to have soaked before anything depends on the seqs.
   const journalDesignRoot = workspaceMode && repoDir ? designRootFor() : null;
   const journal = journalDesignRoot ? openJournal(dataDir) : null;
+  // CELL MATERIALIZER (Phase 1). On a cell with object storage the disk is a
+  // cache: the journal says what exists, the bucket holds the bytes, and inert
+  // media is materialized into `<designRoot>/_cache/` on demand. Off — exactly
+  // DDR-226 §6 — on a desktop or a self-hosted hub with a persistent disk.
+  const materializer =
+    process.env.MAUDE_CELL_MATERIALIZE === '1' && journal && s3Source.configured
+      ? createMaterializer({
+          designRoot: journalDesignRoot,
+          indexPath: join(dataDir, 'materializer.json'),
+          journal,
+          s3: () => s3Source.config(),
+          // Asked per fill: free space plus what the cache already holds, less
+          // two floors — a full cache must never shut the write doors.
+          budgetBytes: () =>
+            cacheBudgetFor({ dir: journalDesignRoot, cacheBytes: materializer?.bytes() ?? 0 }),
+        })
+      : null;
+  // The studio child's credential for the loopback hop — random per boot,
+  // handed to that one process, accepted by `/_materialize` and nothing else.
+  const materializeToken = materializer ? randomBytes(32).toString('hex') : null;
   /** @type {ReturnType<typeof createJournalTail>|null} */
   let journalTail = null;
   /** @type {ReturnType<typeof setInterval>|null} */
@@ -614,13 +640,23 @@ export function createHub(config = {}) {
   // `createStudioChild` falls through to its own `env = process.env` default —
   // the LIVE object, not a snapshot copy — exactly as it did before pairing
   // existed. Only pairing's own two variables justify a copy at all.
-  const studioEnv = studioPairingToken
-    ? {
-        ...process.env,
-        MAUDE_LOOPBACK_SYNC_URL: `http://127.0.0.1:${port}`,
-        MAUDE_LOOPBACK_SYNC_TOKEN: studioPairingToken,
-      }
-    : undefined;
+  const studioEnvExtra = {
+    ...(studioPairingToken
+      ? {
+          MAUDE_LOOPBACK_SYNC_URL: `http://127.0.0.1:${port}`,
+          MAUDE_LOOPBACK_SYNC_TOKEN: studioPairingToken,
+        }
+      : {}),
+    ...(materializeToken
+      ? {
+          MAUDE_CELL_MATERIALIZE: '1',
+          MAUDE_MATERIALIZE_URL: `http://127.0.0.1:${port}`,
+          MAUDE_MATERIALIZE_TOKEN: materializeToken,
+        }
+      : {}),
+  };
+  const studioEnv =
+    Object.keys(studioEnvExtra).length > 0 ? { ...process.env, ...studioEnvExtra } : undefined;
   const studio = studioEnabled ? createStudioChild(studioEnv ? { env: studioEnv } : {}) : null;
   const studioProxy = studioEnabled
     ? createStudioProxy({
@@ -1314,6 +1350,25 @@ export function createHub(config = {}) {
       // ceiling guesses wrong: the push side used the 512 MB PULL cap while
       // this door refuses anything over 95 MB, so oversized files retried
       // forever against a wall neither side named (2026-09-03).
+      // Cell materializer — the studio child's loopback hop. Hub-internal: in
+      // NEITHER canvas allowlist, never proxied, a bare 404 to anyone without
+      // the per-boot child token (see handleMaterializeRoute).
+      if (authPath === MATERIALIZE_PATH && !(studioProxy && isCanvasHost(request))) {
+        try {
+          await handleMaterializeRoute({
+            request,
+            response,
+            method,
+            materializer,
+            token: materializeToken,
+            designRoot: journalDesignRoot,
+          });
+        } catch (err) {
+          console.error(`[materializer] route failed: ${err.message}`);
+          if (!response.headersSent) response.writeHead(500).end();
+        }
+        bailFromOnRequest();
+      }
       if (authPath === FILE_LIMITS_PATH && !(studioProxy && isCanvasHost(request))) {
         if (
           handleFileLimits({
@@ -2005,6 +2060,8 @@ export function createHub(config = {}) {
     repoDir,
     /** The supervised studio child. Null outside workspace mode. */
     studio,
+    /** The cell blob cache (MAUDE_CELL_MATERIALIZE). Null everywhere else. */
+    materializer,
     /** The live agent, once started. Null outside workspace mode. */
     get workspace() {
       return workspace;

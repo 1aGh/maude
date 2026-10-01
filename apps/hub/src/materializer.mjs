@@ -29,7 +29,7 @@
 // ever removes unpinned blobs, so bytes that exist nowhere else cannot be
 // evicted.
 
-import { randomBytes } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -46,6 +46,8 @@ import { assetPrefixFromEnv } from './asset-key.mjs';
 import { writeBehindKey } from './asset-lane.mjs';
 import { diskReportSync } from './disk.mjs';
 import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
+import { checkoutFileClass } from './file-manifest.mjs';
+import { isProjectFileShape } from './file-membership.mjs';
 import { getObjectToFile } from './s3.mjs';
 
 const SHA = /^[0-9a-f]{64}$/;
@@ -400,4 +402,83 @@ export function createMaterializer({
       flushIndex();
     },
   };
+}
+
+/** The loopback hop the studio child takes on a disk miss (Task 10). */
+export const MATERIALIZE_PATH = '/_materialize';
+
+/** Misses a later request may not meet — answered 503 + Retry-After. */
+const TRANSIENT_MISSES = new Set(['timeout', 'full', 'unavailable']);
+
+const LOOPBACK_ADDRESSES = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+
+function sameSecret(offered, expected) {
+  const a = Buffer.from(String(offered ?? ''));
+  const b = Buffer.from(String(expected ?? ''));
+  return a.length > 0 && a.length === b.length && timingSafeEqual(a, b);
+}
+
+/**
+ * `GET /_materialize?rel=<designRoot-rel>` → `{ path, sha, size }`.
+ *
+ * For the studio child ONLY. Two gates, both required:
+ *   • the per-boot token the hub minted for the child (the real gate — the
+ *     hub's public listener is the same port, and a front proxy inside the
+ *     container could make any request look local);
+ *   • a loopback peer address (defense in depth).
+ * Every refusal is a bare 404 — this route does not exist for anyone else,
+ * and it is in NEITHER canvas allowlist (DDR-088).
+ *
+ * The answer is a LOCAL PATH inside `_cache/blobs/`, never bytes: the child
+ * re-checks containment (DDR-054 — the hub is semi-trusted) and serves the
+ * file with its own static-route headers.
+ */
+export async function handleMaterializeRoute({
+  request,
+  response,
+  method,
+  materializer,
+  token,
+  designRoot,
+}) {
+  const send = (status, payload, extra = {}) => {
+    const body = JSON.stringify(payload);
+    response
+      .writeHead(status, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+        'Content-Length': Buffer.byteLength(body),
+        'X-Content-Type-Options': 'nosniff',
+        ...extra,
+      })
+      .end(body);
+    return true;
+  };
+  const bearer = String(request.headers?.authorization ?? '')
+    .replace(/^Bearer\s+/i, '')
+    .trim();
+  if (
+    !materializer ||
+    !token ||
+    !LOOPBACK_ADDRESSES.has(request.socket?.remoteAddress ?? '') ||
+    !sameSecret(bearer, token)
+  ) {
+    return send(404, { error: 'not found' });
+  }
+  if (method !== 'GET') return send(405, { error: 'method not allowed' });
+  let rel = '';
+  try {
+    rel = new URL(request.url ?? '', 'http://loopback').searchParams.get('rel') ?? '';
+  } catch {
+    rel = '';
+  }
+  // Inert media only: code modules and companion text stay real checkout
+  // files (Bun.build reads them), and nothing else belongs in the cache.
+  if (!isProjectFileShape(rel) || checkoutFileClass(rel, designRoot) !== 'inert-media') {
+    return send(400, { error: 'not an inert-media path' });
+  }
+  const res = await materializer.materialize(rel);
+  if (res.path) return send(200, res);
+  if (TRANSIENT_MISSES.has(res.miss)) return send(503, res, { 'Retry-After': '5' });
+  return send(404, res);
 }

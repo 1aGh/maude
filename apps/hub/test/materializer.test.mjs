@@ -11,9 +11,15 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Writable } from 'node:stream';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 
-import { blobPathFor, cacheBudgetFor, createMaterializer } from '../src/materializer.mjs';
+import {
+  blobPathFor,
+  cacheBudgetFor,
+  createMaterializer,
+  handleMaterializeRoute,
+} from '../src/materializer.mjs';
 
 const sha = (b) => createHash('sha256').update(b).digest('hex');
 const quiet = { log() {}, warn() {}, error() {} };
@@ -295,5 +301,119 @@ describe('cacheBudgetFor — the same headroom rule as the boot hydrate', () => 
     assert.deepEqual(await m2.materialize('a.jpg'), { miss: 'full' });
     budget = 1e9;
     assert.equal((await m2.materialize('a.jpg')).size, 100);
+  });
+});
+
+describe('GET /_materialize — the studio child, and nobody else', () => {
+  const TOKEN = 'per-boot-child-token';
+  function call({
+    rel = 'system/ds/assets/p.jpg',
+    auth = `Bearer ${TOKEN}`,
+    ip = '127.0.0.1',
+    method = 'GET',
+    answer,
+  } = {}) {
+    const asked = [];
+    const materializer = {
+      materialize: async (r) => {
+        asked.push(r);
+        return answer ?? { path: '/x/_cache/blobs/abc', sha: 'abc', size: 1 };
+      },
+    };
+    let status = 0;
+    let head = {};
+    let body = '';
+    const response = new Writable({
+      write(c, _e, cb) {
+        body += c;
+        cb();
+      },
+    });
+    response.writeHead = (s, h = {}) => {
+      status = s;
+      head = h;
+      return response;
+    };
+    const request = {
+      url: `/_materialize?rel=${encodeURIComponent(rel)}`,
+      headers: auth ? { authorization: auth } : {},
+      socket: { remoteAddress: ip },
+    };
+    return handleMaterializeRoute({
+      request,
+      response,
+      method,
+      materializer,
+      token: TOKEN,
+      designRoot,
+    }).then(() => ({ status, head, json: body ? JSON.parse(body) : null, asked }));
+  }
+
+  it('answers the child with the cache path', async () => {
+    const r = await call();
+    assert.equal(r.status, 200);
+    assert.equal(r.json.path, '/x/_cache/blobs/abc');
+    assert.deepEqual(r.asked, ['system/ds/assets/p.jpg']);
+  });
+
+  it('is a bare 404 without the token, with a wrong one, or from off-box', async () => {
+    for (const over of [
+      { auth: null },
+      { auth: 'Bearer nope' },
+      { auth: `Bearer ${TOKEN}x` },
+      { ip: '10.0.0.7' },
+      { ip: '203.0.113.9' },
+    ]) {
+      const r = await call(over);
+      assert.equal(r.status, 404, JSON.stringify(over));
+      assert.deepEqual(r.asked, [], 'nothing was materialized');
+    }
+  });
+
+  it('only inert media — never code, stylesheets, runtime state or traversal', async () => {
+    for (const rel of [
+      'system/ds/tokens.css',
+      'system/ds/_brand.ts',
+      '_cache/blobs/abc',
+      '_history/x.png',
+      '../etc/passwd.png',
+      'config.json',
+    ]) {
+      const r = await call({ rel });
+      assert.equal(r.status, 400, rel);
+      assert.deepEqual(r.asked, []);
+    }
+  });
+
+  it('a transient miss is 503 + Retry-After; a real one is 404', async () => {
+    for (const miss of ['timeout', 'full', 'unavailable']) {
+      const r = await call({ answer: { miss } });
+      assert.equal(r.status, 503, miss);
+      assert.equal(r.head['Retry-After'], '5');
+    }
+    for (const miss of ['absent', 'unmirrored', 'mismatch']) {
+      assert.equal((await call({ answer: { miss } })).status, 404, miss);
+    }
+  });
+
+  it('a hub not in cell mode has no such route', async () => {
+    const r = await handleMaterializeRoute({
+      request: {
+        url: '/_materialize?rel=a.png',
+        headers: {},
+        socket: { remoteAddress: '127.0.0.1' },
+      },
+      response: Object.assign(new Writable({ write: (_c, _e, cb) => cb() }), {
+        writeHead(s) {
+          this.s = s;
+          return this;
+        },
+      }),
+      method: 'GET',
+      materializer: null,
+      token: null,
+      designRoot,
+    });
+    assert.equal(r, true);
   });
 });

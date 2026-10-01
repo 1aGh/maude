@@ -110,6 +110,7 @@ import { createGitHubEndpoints } from './github/endpoints.ts';
 import type { InspectRegistry } from './inspect.ts';
 import { canvasSlug, writeLocator } from './locator.ts';
 import { prepareManagedProject } from './managed-projects.ts';
+import { materializeMissing } from './materialize-client.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
 import { createPhotoStore, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
@@ -1054,6 +1055,49 @@ const RANGE_MEDIA_EXTS = new Set(['.mp4', '.m4v', '.mov', '.webm', '.mp3', '.wav
  * (`bytes=a-b`, suffix `bytes=-n`, open `bytes=a-`); malformed ranges fall back
  * to a full 200; an unsatisfiable one gets an honest 416.
  */
+/**
+ * Serve a cell-materialized blob (`_cache/blobs/<sha>`) with the headers its
+ * LOGICAL name would get on the static route — type, caching, nosniff and the
+ * inert-SVG CSP are all judged on the path the canvas asked for, never on the
+ * extension-less cache file (cell materializer Task 10).
+ */
+async function serveMaterialized(
+  cacheAbs: string,
+  logicalAbs: string,
+  req: Request
+): Promise<Response> {
+  const e = ext(logicalAbs);
+  const policy = cacheControlFor(logicalAbs);
+  const headers: Record<string, string> = {
+    'Content-Type': MIME[e] || 'application/octet-stream',
+    'Cache-Control': policy.cacheControl,
+    'X-Content-Type-Options': 'nosniff',
+    // The blob's name IS its sha256 — a stronger validator than size+mtime.
+    ...(policy.addEtag ? { ETag: `"${basename(cacheAbs)}"` } : {}),
+    ...(e === '.svg' ? { 'Content-Security-Policy': INERT_DOCUMENT_CSP } : {}),
+  };
+  if (RANGE_MEDIA_EXTS.has(e)) return serveMediaFile(cacheAbs, req, headers);
+  return new Response(Bun.file(cacheAbs), { headers });
+}
+
+/**
+ * A static-route miss: on a cell, ask the hub to materialize the file; else
+ * (or when the hub has nothing) the 404 it always was. A transient miss —
+ * the fill is still running, the cache is momentarily full — is a 503 with
+ * Retry-After, not a 404 a browser would cache as "gone".
+ */
+async function materializedOr404(designRoot: string, logicalAbs: string, req: Request) {
+  const m = await materializeMissing(designRoot, logicalAbs);
+  if (m && 'path' in m) return serveMaterialized(m.path, logicalAbs, req);
+  if (m && 'unavailable' in m) {
+    return new Response('Fetching this file from storage — retry shortly', {
+      status: 503,
+      headers: { 'Retry-After': String(m.retryAfterS), 'Cache-Control': 'no-store' },
+    });
+  }
+  return new Response('Not found', { status: 404 });
+}
+
 async function serveMediaFile(
   absPath: string,
   req: Request,
@@ -5734,6 +5778,10 @@ export function createHttp(
         const isLogoSubdir = /^logos\/[a-z0-9]{8}\.(svg|png)$/.test(name);
         if (isFlat || isLogoSubdir) {
           const abs = join(ctx.paths.designRoot, 'assets', name);
+          // A cell's disk is a cache — absent here may still be servable.
+          if (!(await Bun.file(abs).exists())) {
+            return materializedOr404(ctx.paths.designRoot, abs, req);
+          }
           // Range-aware for video/audio (scrubbing + WKWebView compat).
           if (RANGE_MEDIA_EXTS.has(ext(name))) {
             return serveMediaFile(abs, req, { 'X-Content-Type-Options': 'nosniff' });
@@ -5829,7 +5877,15 @@ export function createHttp(
 
       const file = Bun.file(fp);
       const exists = await file.exists();
-      if (!exists) return new Response('Not found', { status: 404 });
+      if (!exists) {
+        // A cell's disk is a cache: the bytes may be in the bucket and not
+        // here. Only under the design root — the repo's other files are not
+        // the file plane's.
+        if (`${fp}/`.startsWith(`${ctx.paths.designRoot}/`)) {
+          return materializedOr404(ctx.paths.designRoot, fp, req);
+        }
+        return new Response('Not found', { status: 404 });
+      }
 
       const e = ext(fp);
       const underDesignRoot = `${fp}/`.startsWith(`${ctx.paths.designRoot}/`);

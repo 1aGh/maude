@@ -223,6 +223,18 @@ export function childEnv(env = process.env, { port }) {
     ...(env.MAUDE_RENDER_CANVAS_BASE
       ? { MAUDE_RENDER_CANVAS_BASE: env.MAUDE_RENDER_CANVAS_BASE }
       : {}),
+    // Cell materializer (Task 10) — the loopback hop the static route takes on
+    // a disk miss for inert media. All three or none: the token is random per
+    // boot, minted by the hub for this child and accepted by nothing else.
+    ...(env.MAUDE_CELL_MATERIALIZE === '1' &&
+    env.MAUDE_MATERIALIZE_URL &&
+    env.MAUDE_MATERIALIZE_TOKEN
+      ? {
+          MAUDE_CELL_MATERIALIZE: '1',
+          MAUDE_MATERIALIZE_URL: env.MAUDE_MATERIALIZE_URL,
+          MAUDE_MATERIALIZE_TOKEN: env.MAUDE_MATERIALIZE_TOKEN,
+        }
+      : {}),
     ...(env.MAUDE_PROJECT_NAME ? { MAUDE_PROJECT_NAME: env.MAUDE_PROJECT_NAME } : {}),
     ...(env.MAUDE_TENANT_ID ? { MAUDE_TENANT_ID: env.MAUDE_TENANT_ID } : {}),
     // A dev checkout resolves Playwright (the E2E harness) and would otherwise

@@ -98,6 +98,9 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
         // routes, so a GET here 403s at the gate, not 405 from the handler.
         '/_api/fs-move',
         '/_api/fs-mkdir',
+        // Cell materializer (Task 10) — the loopback hop is HUB-internal and
+        // token-gated; no canvas origin may even name it.
+        '/_materialize',
         // Issue #124 — the Files panel's remembered disclosure is per-user
         // runtime state; same MAIN-ORIGIN-ONLY posture as /_api/ui-prefs.
         '/_api/tree-state',
