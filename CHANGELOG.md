@@ -1,5 +1,11 @@
 # @1agh/maude
 
+## 1.5.1
+
+### Patch Changes
+
+- Fix: every canvas failed to open on cloud cells, self-hosted hubs and the desktop app with `Could not resolve: "diff"` (v1.5.0 regression). The annotations text merge no longer enters the canvas bundle.
+
 ## 1.5.0
 
 ### Minor Changes
