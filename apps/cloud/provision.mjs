@@ -202,7 +202,7 @@ export async function probeCell(env, projectId, { fetchImpl = fetch, timeoutMs =
 export async function probeCellBody(
   env,
   projectId,
-  { fetchImpl = fetch, timeoutMs = 8000, secret = null, maxBytes = 64 * 1024 } = {}
+  { fetchImpl = fetch, timeoutMs = 8000, secret = null, maxBytes = 64 * 1024, wake = true } = {}
 ) {
   const hostname = `${projectId}.${env.CELL_ZONE ?? 'cloud.maude.sh'}`;
   try {
@@ -219,7 +219,13 @@ export async function probeCellBody(
       // the tenant's own derived secret goes with the ask. Without it the cell
       // answers the public posture and the sweep records nothing — the same
       // "unknown" an older image produces.
-      ...(secret ? { headers: { authorization: `Bearer ${secret}` } } : {}),
+      //
+      // `wake: false` (the hourly telemetry read) asks the cell NOT to start
+      // for this. A sleeping cell answers `{state:'asleep'}` — no stats, which
+      // the board renders as unknown — instead of re-hydrating a whole project
+      // from R2 so we can count it. Waking callers (checkout, cold-start
+      // measurement) leave it at the default.
+      ...probeHeaders({ secret, wake }),
     });
     if (!res.ok) return { state: 'pending', body: null };
     // BOUNDED. `res.json()` will happily buffer whatever a cell sends, and a
@@ -238,6 +244,15 @@ export async function probeCellBody(
   } catch {
     return { state: 'pending', body: null };
   }
+}
+
+/** `{headers}` only when there is something to send — a bare probe stays bare. */
+function probeHeaders({ secret, wake }) {
+  const headers = {
+    ...(secret ? { authorization: `Bearer ${secret}` } : {}),
+    ...(wake ? {} : { 'x-maude-wake': 'never' }),
+  };
+  return Object.keys(headers).length ? { headers } : {};
 }
 
 /** Read at most `maxBytes` of a response, or null when it exceeds that. */

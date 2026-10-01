@@ -676,7 +676,11 @@ export async function reconcileSweep(env, { now = Date.now() } = {}) {
           const secret = env.CELL_SECRET_MASTER
             ? await deriveCellSecret(env.CELL_SECRET_MASTER, row.id)
             : null;
-          const probed = await probeCellBody(env, row.id, { timeoutMs: 5000, secret });
+          const probed = await probeCellBody(env, row.id, {
+            timeoutMs: 5000,
+            secret,
+            wake: false,
+          });
           for (const event of statsDatapoints(row.id, probed.body)) track(env, null, event);
         } catch (err) {
           console.warn(`[stats] ${row.id}: ${err.message}`);

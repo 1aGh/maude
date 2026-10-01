@@ -2269,6 +2269,17 @@
       "phaseKey": null
     },
     {
+      "id": "feature-cloud-cost-and-cold-start-ux",
+      "title": "Feature: Cloud cost cut + cold-start waiting room",
+      "status": "planned",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. Read the comments in apps/cells/cell-do.mjs in full before touching the wake path. Alm...",
+      "planPath": ".ai/plans/feature-cloud-cost-and-cold-start-ux.md",
+      "archived": false,
+      "phaseKey": null
+    },
+    {
       "id": "feature-desktop-project-tabs-and-identity-profiles",
       "title": "Feature: Desktop project tabs + per-project identity profiles",
       "status": "planned",

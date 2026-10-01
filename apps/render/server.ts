@@ -320,3 +320,26 @@ console.log(
     `${SECRET ? 'secret set' : 'NO SECRET (all jobs refused)'}, ` +
     `${ALLOWED_ORIGINS.length ? `origins: ${ALLOWED_ORIGINS.join(', ')}` : 'NO ORIGINS (all jobs refused)'}`
 );
+
+// SLEEP MUST BE ABLE TO HAPPEN. This process is PID 1 in its container, and
+// Linux delivers no default action to PID 1: without a handler SIGTERM is
+// IGNORED. The DO's idle stop is exactly a SIGTERM, so the render instance
+// never slept — September 2026 ran it 24/7 at ~30 requests a day (~$23 of a
+// ~$65 bill), while the platform logged "Activity expired" every few minutes.
+// Nothing here is durable (no store, no tenant state — DDR-230 §1), so the
+// right answer to a stop is to stop — after letting a render that is already
+// running finish, for a short while. The idle stop never fires mid-job (the
+// DO counts open requests), but a platform stop (rollout, host move) can.
+const DRAIN_MS = 25_000;
+let stopping = false;
+for (const sig of ['SIGTERM', 'SIGINT'] as const) {
+  process.on(sig, async () => {
+    if (stopping) return;
+    stopping = true;
+    console.log(`[maude-render] ${sig} — stopping (running=${running}, queued=${queued})`);
+    server.stop(false); // no new connections; in-flight ones keep going
+    const deadline = Date.now() + DRAIN_MS;
+    while (running + queued > 0 && Date.now() < deadline) await Bun.sleep(250);
+    process.exit(0);
+  });
+}

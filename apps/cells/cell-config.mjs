@@ -312,6 +312,38 @@ export function needsStartupState(container) {
   return container?.running !== true;
 }
 
+/**
+ * Ask a cell about itself WITHOUT waking it.
+ *
+ * The control plane's hourly sweep reads each live cell's `/health` for the
+ * operator board. Before this header existed that read started every sleeping
+ * container, and a start re-hydrates the whole project from R2 — Alligators
+ * (7.5 GB) spent September awake on the hour, every hour, for a stats line
+ * nobody needed fresh (~4,800 GETs / ~7 GB per overnight hour).
+ *
+ * The header can only SUPPRESS a start, never cause one. It is still honoured
+ * only alongside this cell's own derived secret (the bearer the sweep already
+ * sends): from anyone else an "asleep" answer would be a free oracle for
+ * whether a project is in use right now. Without the secret the header is
+ * simply ignored and the request takes the ordinary path.
+ */
+export const WAKE_HEADER = 'x-maude-wake';
+
+/**
+ * What a cell does with one request, decided from nothing but the request and
+ * the platform's own running flag.
+ *
+ *   `asleep-reply`     answer `{state:'asleep'}` — no config fetch, no
+ *                      credential mint, no activity renewal, no start
+ *   `proxy`            the container is up; forward as today
+ *   `block-and-start`  today's cold path: start, wait, forward
+ */
+export function wakePolicy({ headers, running, authorized = false }) {
+  if (running === true) return 'proxy';
+  if (authorized && headers?.get?.(WAKE_HEADER) === 'never') return 'asleep-reply';
+  return 'block-and-start';
+}
+
 export async function fetchTenantS3Credentials({ tenantId, env, fetchImpl = fetch }) {
   if (!env.CELL_SECRET_MASTER) {
     return {

@@ -27,6 +27,8 @@ import {
   RESTART_PATH,
   secretsMatch,
   TENANT_HEADER,
+  WAKE_HEADER,
+  wakePolicy,
 } from './cell-config.mjs';
 import { createCredentialResolver } from './cell-credentials.mjs';
 
@@ -133,6 +135,31 @@ export class MaudeCell extends Container {
     this.tenantId = tenantId;
 
     const hostname = new URL(request.url).hostname;
+
+    // A PROBE THAT MUST NOT WAKE (WAKE_HEADER). Decided before ANY of the
+    // start-path work below — config fetch, credential mint, activity renewal
+    // — because each of those is a cost or a timer the probe exists to avoid.
+    const running = this.ctx.container?.running;
+    const policy = wakePolicy({
+      headers: request.headers,
+      running,
+      // Only worked out when it could matter: a no-wake ask to a cold cell.
+      authorized:
+        running !== true &&
+        request.headers.get(WAKE_HEADER) === 'never' &&
+        secretsMatch(
+          (request.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim(),
+          await deriveSecret(this.env.CELL_SECRET_MASTER, tenantId)
+        ),
+    });
+    if (policy === 'asleep-reply') {
+      return Response.json({ state: 'asleep' }, { headers: { 'cache-control': 'no-store' } });
+    }
+    if (request.headers.has(WAKE_HEADER)) {
+      // The hub never needs to see it.
+      request = new Request(request);
+      request.headers.delete(WAKE_HEADER);
+    }
 
     // A RUNNING CONTAINER NEEDS NEITHER ITS CONFIG NOR FRESH CREDENTIALS.
     //

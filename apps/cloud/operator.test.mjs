@@ -349,6 +349,8 @@ describe('statsDatapoints — absent is never zero', () => {
     // board that a customer with sixty canvases has none.
     assert.deepEqual(statsDatapoints('p', {}), []);
     assert.deepEqual(statsDatapoints('p', null), []);
+    // A cell the sweep chose not to wake (x-maude-wake: never).
+    assert.deepEqual(statsDatapoints('p', { state: 'asleep' }), []);
     assert.deepEqual(statsDatapoints('p', { ok: true, version: 'x' }), []);
     assert.deepEqual(statsDatapoints('p', { stats: 'not an object' }), []);
   });
