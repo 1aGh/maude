@@ -1,5 +1,11 @@
 # @1agh/maude
 
+## 1.6.1
+
+### Patch Changes
+
+- The cloud export service now deploys with this release. v1.6.0's export-service rollout stopped on a CI ordering bug, so it kept running the previous version, and with it the never-sleeping container that this cycle's cost fix removes.
+
 ## 1.6.0
 
 ### Minor Changes
