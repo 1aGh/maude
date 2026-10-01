@@ -39,7 +39,7 @@ As a Maude Cloud user with a large design project, I want my cloud workspace to 
 
 Consensus of all three seats.
 
-1. **Crash handlers.** In `apps/hub`, add process-level `unhandledRejection` / `uncaughtException` handlers. ENOSPC / EIO are logged loudly and the hub keeps serving (degraded). Truly unknown errors keep today's behavior (exit) but log first.
+1. **Crash handlers.** In `apps/hub`, add process-level `unhandledRejection` / `uncaughtException` handlers. ENOSPC / EDQUOT are logged loudly and the hub keeps serving (degraded). **EIO deliberately exits** (a wrong answer from the disk, not a full one: the write-behind re-reads disk bytes, so surviving EIO risks making a corrupt copy the durable one in the bucket). Every other error keeps today's behavior (exit) but logs first.
 2. **Free-space gate on every write door.** Cover `file-door.mjs` PUT, `upload-sessions.mjs` part PUT + complete, and `/_asset-file` PUT. Below a floor (`statfs` free < max(1 GiB, 12 % of disk), env-overridable), answer **503 + `Retry-After`** with a `disk-pressure` reason.
    - The desktop already treats 503 + Retry-After as backpressure (`apps/studio/sync/file-plane.ts` `refusal()` → `isBackpressure`). Do **not** use 507: that is the hourly-quota word with its own UX.
 3. **Budgeted hydrate.**
@@ -190,7 +190,8 @@ Execute in order. Each task is atomic and testable. **Phase 0 (Tasks 1-6) is rel
   - `floorBytes(env, total)`: `MAUDE_DISK_FLOOR_BYTES` or max(1 GiB, 12 % of total).
   - `underPressure(dir)`.
   - In `server.mjs` `runAsMain`, install `process.on('unhandledRejection'|'uncaughtException')`:
-    - `code` ENOSPC / EDQUOT / EIO → `console.error('[hub] DISK …')`, set a `degraded.disk` flag, **do not exit**;
+    - `code` ENOSPC / EDQUOT → `console.error('[hub] DISK …')`, set a `degraded.disk` flag, **do not exit**;
+    - EIO → exit like any other error (see Solution §1; agreed with the plan author 2026-10-01);
     - anything else → log the stack, then exit 1 (today's behavior, now with a log).
 - **Gotcha**: don't swallow everything. A corrupt-state error must still restart the cell. Handlers are installed only in `runAsMain`, not in `createHub` (tests import it).
 - **Validate**: `cd apps/hub && node --test test/disk-gate.test.mjs`. Cover: an injected statfs gives pressure true/false; an ENOSPC rejection does not exit (child-process test).
@@ -231,10 +232,24 @@ Execute in order. Each task is atomic and testable. **Phase 0 (Tasks 1-6) is rel
 
 - **Do**:
   - Release per `.ai/release-guide.md` (changeset patch).
-  - After the fleet rolls, watch `https://alligators.cloud.maude.sh/health` for 30 min. `uptimeMs` must increase monotonically (no restarts), `disk.pressure` must eventually be false, and `hydrate.state` must be `budget` or `done`.
+  - After the fleet rolls, watch `https://alligators.cloud.maude.sh/health` for 30 min. The **public** payload carries only `disk.pressure` and `hydrate.state`. Bytes and counts need `Authorization: Bearer <cell secret>`. The cell secret is `HUB_SECRET` in the cell's env, derived by `deriveSecret(CELL_SECRET_MASTER, tenantId)` (`apps/cells/cell-config.mjs`). On a self-hosted hub (design.studyfi.com) it is `HUB_SECRET` in `/opt/maude-hub/.env`. `uptimeMs` must increase monotonically (no restarts), `disk.pressure` must eventually be false, and `hydrate.state` must be `budget` or `done`.
   - Desktop `~/Maude/alligators/.design/_sync.json` should show pushes progressing or `paused` with backpressure, not a growing `conflicts`.
   - Also upgrade design.studyfi.com (SSM procedure, checkpoint `pre-v1.5.3-*`).
 - **Validate**: the health samples are recorded in STATE.md.
+
+### Phase 0.5 — desktop conflict storm (separate fix, before Phase 1)
+
+### Task 6b: FIX the desktop file-plane conflict loop
+
+Reported by the plan author (2026-10-01): on Alligators the desktop `conflicts` count grew 43 → 135 in 10 min (1602 by 15:25Z). Every push came back 409 "the hub changed this file while the upload was in flight". The desktop's file-ledger cursor for the hub was stuck at 294 (epoch `9b976739`, hub head ~4875), and the worker tail showed repeated `GET /api/journal?since=0`.
+
+- **Hypothesis:**
+  - The desktop never commits its cursor, so it decides against stale remote state, and the hub's hydrate / `disk-lost` rows bump the current hash in between.
+  - The 409 path sets `conflict` even when `body.current` equals the local hash. That case should **adopt**, not conflict.
+- **Where:** `apps/studio/sync/file-plane.ts` (409 handling), `apps/studio/sync/file-ledger.ts` (cursor commit).
+- **Also check:** budget-skipped media (404 on pull until Phase 1) must back off, never feed the conflict path.
+- **Before anything empties `_trash`:** some conflict copies went to `_trash` as "older copy". Verify whether they are the user's originals.
+- Run `/flow:bug-rca` first. Phase 1 does not fix this.
 
 ### Phase 1 — materializer
 
@@ -252,6 +267,7 @@ Execute in order. Each task is atomic and testable. **Phase 0 (Tasks 1-6) is rel
 
 ### Task 8: CREATE `apps/hub/src/materializer.mjs`
 
+- **Budget (Phase 0 lesson):** do not take a fixed 50 %. Compute it from `disk.mjs`, the same way as the hydrate headroom: `cacheBudget = min(MAUDE_CACHE_BUDGET_BYTES, total − 2×floor − checkoutBytes)`, and run the eviction watermarks against that. Otherwise a full cache closes the write doors exactly as an unbounded hydrate would have.
 - **Do**: `createMaterializer({ designRoot, journal, s3 /*resolver*/, budgetBytes, deadlineMs, log })` with:
   - `materialize(rel) → { path, sha, size } | { miss: 'absent'|'unmirrored'|'mismatch'|'timeout' }`
   - `pin(sha, file)` (adopt an upload) and `unpin(sha)`
@@ -311,7 +327,7 @@ Execute in order. Each task is atomic and testable. **Phase 0 (Tasks 1-6) is rel
 - **Do** (cell mode):
   - `file-door.mjs` PUT, `upload-sessions` complete and `/_asset-file` PUT, for inert-media classes: after the streamed hash verifies, rename into `_cache/blobs/<sha>` (pinned) instead of the checkout path. Then `journal.recordWrite` with the **verified** sha. This needs a `recordWrite` variant that takes a verified `{ sha256, size }` from the door, because the disk path is absent; it is still never caller-supplied over HTTP.
   - Write-behind reads the pinned blob and calls `unpin(sha)` after stamping `mirrored_at_ms`.
-  - Code-module / companion-text keep landing in the checkout as today.
+  - Code-module / companion-text keep landing in the checkout as today. **Add a per-class size cap for these at the write door** (e.g. 5 MB, env-tunable). They stay on the checkout, so pin/evict never bounds them. This closes the Phase 0 residual where one token spends the hydrate budget on large companion-text files.
 - **Gotcha**:
   - This is the delicate one: the CAS (`currentHashFor`) is unchanged, but `recordWrite`'s "the hub reads its own disk" invariant gets a sibling. Document it in the DDR and add the tripwire hook.
   - Delete of an evicted / cache-only row: quarantine has nothing to move. Write a bucket quarantine copy (`<prefix>/trash/<ts>/<rel>`) **before** the tombstone, so §8 "never unlink CAS / recoverable" still holds.
@@ -320,7 +336,7 @@ Execute in order. Each task is atomic and testable. **Phase 0 (Tasks 1-6) is rel
 ### Task 13: UPDATE boot + reconcilers for cell mode
 
 - **Do**: When `MAUDE_CELL_MATERIALIZE=1`:
-  - Boot hydrate restores only code-module + companion-text (Task 3's budget still applies).
+  - Boot hydrate restores code-module + companion-text, then **`assets/` as a second tier while it fits under the budget**. These are the content-addressed media that canvases actually reference, so restoring them avoids a burst of misses on first open. `files/` inert media goes only to the materializer. Task 3's budget and headroom still apply.
   - `walkImport` / `recordGone` / `reportLostFiles` ignore inert-media checkout paths. Presence comes from the journal.
   - The studio-report path (`journal.mjs` ~802) never tombstones an inert-media row because the disk lacks it.
   - `cell-config.mjs` sets `MAUDE_CELL_MATERIALIZE=1` + `MAUDE_CACHE_BUDGET_BYTES` (default 50 % of disk).
