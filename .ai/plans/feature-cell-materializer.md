@@ -374,7 +374,7 @@ Reported by the plan author (2026-10-01): on Alligators the desktop `conflicts` 
     - evicted media re-materializes.
 - **Validate**: script under `apps/hub/test/e2e/` or `scripts/dev/`, plus a captured report in `.ai/logs/`.
 
-### Task 16: RELEASE + live verification on Alligators
+### Task 16: RELEASE + live verification on Alligators — ✅ completed (browser checks pending: the user)
 
 - **Do**:
   - Release (minor: architecture change).
@@ -461,4 +461,15 @@ Not a UI feature. Coverage is the hub/studio test suites + the Task 15 e2e harne
 - **E2E** (`scripts/dev/cell-materialize-e2e.ts`): 11 of 11 oracles passed, including a genuinely mid-push SIGKILL. Reports are in `.ai/logs/e2e/` (local only).
 - **Gates:** lint, typecheck, parity, tarball, tokens, build and site-content are green. Hub tests: 1151/1151. Studio sync + canvas tests: 1296/1296. Cells: 74/74.
 - **Residual risk:** media written inside a cell without going through a door or the studio's report path goes unjournaled, because walk-import ignores inert media on a cell.
+
+**2026-10-01: Task 16, the release.** The release was cut jointly with the "Cloudflare optimalization" plan (idle cost + waiting room).
+
+- **v1.6.0** (tag on `a783255c`, cut here). Binaries + npm, desktop, hub image and cells were green. render-deploy failed on the other plan's test, which ran before `npm install`, and the self-host image job then had no render image.
+- **v1.6.1** (cut by the other session, with its fix `ed9656c2`). All six pipelines green; render `/_health` reports v1.6.1.
+- **Alligators on 1.6.1, materializer on:** `hydrate: done`, no disk pressure. Uptime was watched for 2 h 15 min: 0 restarts in 25 samples.
+- **design.studyfi.com** (self-hosted, so the materializer is off there) is upgraded to v1.6.1. Checkpoint: `/opt/maude-hub/pre-v1.6.1-20261001T190052Z`. It reports `ok`, studio `ready`, hydrate `done`.
+- **Still open (need a signed-in browser):**
+  - `PPF-vystroj-U19` and `alligators-moodboard-v3` render with their photos and fonts;
+  - one real export each on Alligators and design.studyfi.com (the render `/_health` version follows its env, not the image);
+  - the desktop Alligators sync converges once the project is opened in desktop 1.6.x.
 
