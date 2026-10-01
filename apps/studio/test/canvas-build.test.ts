@@ -187,3 +187,82 @@ describe('inlined stylesheets name their sources and refresh on re-import', () =
     expect(r.js).toContain('canvasCssSources="system/ds/tokens.css"');
   });
 });
+
+// Cell materializer Task 9. On a cell the disk is a cache — a photo a
+// stylesheet references may be in the bucket and not on disk — and a bundler
+// read of it made ONE missing file fail the whole canvas ("Could not
+// resolve"). Separately, Bun emits a large url() as a hashed `./name-<hash>`
+// output nothing serves. `assetUrlBase` rewrites url() onto the static route.
+describe('canvas-build / CSS url() onto the served design root', () => {
+  async function fixture(css: Record<string, string>, files: Record<string, string> = {}) {
+    const root = realpathSync(
+      await import('node:fs').then((fs) => fs.mkdtempSync(`${tmpdir()}/cb-url-`))
+    );
+    const { mkdirSync, writeFileSync } = await import('node:fs');
+    const put = (rel: string, body: string) => {
+      mkdirSync(`${root}/${rel.split('/').slice(0, -1).join('/')}`, { recursive: true });
+      writeFileSync(`${root}/${rel}`, body);
+    };
+    for (const [rel, body] of Object.entries({ ...css, ...files })) put(rel, body);
+    const src = `import './c.css';\nexport default () => <div className="a" />;\n`;
+    put('ui/c.tsx', src);
+    return { root, abs: `${root}/ui/c.tsx`, src };
+  }
+
+  test('a url() to a file NOT on disk no longer fails the canvas', async () => {
+    const { root, abs, src } = await fixture({
+      'ui/c.css': '.a { background: url("../system/ds/assets/gone.jpg?v=2"); }\n',
+    });
+    const r = await buildCanvasModule(abs, src, {
+      designRoot: root,
+      restrictImportsTo: root,
+      assetUrlBase: '/.design',
+    });
+    expect(r.js).toContain('url(\\"/.design/system/ds/assets/gone.jpg?v=2\\")');
+  });
+
+  test('…while without assetUrlBase the old behaviour stands (it fails)', async () => {
+    const { root, abs, src } = await fixture({
+      'ui/c.css': '.a { background: url("../system/ds/assets/gone.jpg"); }\n',
+    });
+    await expect(
+      buildCanvasModule(abs, src, { designRoot: root, restrictImportsTo: root })
+    ).rejects.toThrow(/Could not resolve/);
+  });
+
+  test('a url() in an @imported stylesheet resolves against THAT stylesheet', async () => {
+    // The inlined <style> resolves relative urls against the iframe document,
+    // so a DS stylesheet's `./fonts/a.woff2` must be made absolute from where
+    // it was written, not from the canvas.
+    const { root, abs, src } = await fixture(
+      {
+        'ui/c.css': "@import '../system/ds/tokens.css';\n.a { color: red; }\n",
+        'system/ds/tokens.css':
+          '@font-face { font-family: X; src: url(./fonts/a b.woff2) format("woff2"); }\n',
+      },
+      { 'system/ds/fonts/a b.woff2': 'WOFF' }
+    );
+    const r = await buildCanvasModule(abs, src, {
+      designRoot: root,
+      restrictImportsTo: root,
+      assetUrlBase: '/.design',
+    });
+    expect(r.js).toContain('/.design/system/ds/fonts/a%20b.woff2');
+    expect(r.js).not.toContain('data:font');
+  });
+
+  test('data: urls are untouched, and a url outside the root is still the allowlist’s', async () => {
+    const { root, abs, src } = await fixture({
+      'ui/c.css':
+        '.a { background: url("data:image/svg+xml,%3Csvg%3E%3C/svg%3E"); }\n' +
+        '.b { background: url("../../outside.png"); }\n',
+    });
+    await expect(
+      buildCanvasModule(abs, src, {
+        designRoot: root,
+        restrictImportsTo: root,
+        assetUrlBase: '/.design',
+      })
+    ).rejects.toThrow(/outside the project/);
+  });
+});

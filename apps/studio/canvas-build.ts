@@ -92,6 +92,81 @@ export interface BuildCanvasOptions {
    * Set to the absolute design root to arm it. Absent (desktop) ⇒ unchanged.
    */
   restrictImportsTo?: string;
+  /**
+   * The URL the design root is served under (e.g. `/.design`) — cell
+   * materializer Task 9.
+   *
+   * When set, every CSS `url()` that resolves inside the design root is
+   * rewritten to `<assetUrlBase>/<rel>` and left EXTERNAL, so the browser
+   * fetches it through the static route instead of the bundler reading it:
+   *
+   *  • On a cell the file may not be on disk at all (the disk is a cache; the
+   *    bytes are in the bucket) — a bundler read made ONE missing photo fail
+   *    the whole canvas with `Could not resolve`. The static route
+   *    materializes it on demand.
+   *  • Anywhere, Bun inlines a small url() as a data URI but emits a large one
+   *    as a hashed `./name-<hash>.ext` output that nothing serves — so every
+   *    CSS background photo and webfont past the inline limit was already a
+   *    broken reference. The route serves the real file at its real path.
+   *
+   * Absent ⇒ the bundler's own handling, unchanged.
+   */
+  assetUrlBase?: string;
+}
+
+/**
+ * Rewrite CSS `url()` references inside the design root to served absolute
+ * URLs (see `BuildCanvasOptions.assetUrlBase`).
+ *
+ * Done at LOAD, on the stylesheet text, because Bun keeps an external url's
+ * ORIGINAL text in the output whatever path `onResolve` returns — and a
+ * relative url inlined into the canvas's `<style>` then resolves against the
+ * iframe document, not the stylesheet it came from. The rewritten absolute
+ * URLs are then marked external on resolve, so the bundler never reads them.
+ * Anything outside the root is left as written, for the allowlist to judge.
+ */
+function cssUrlAssets(designRoot: string, base: string): import('bun').BunPlugin {
+  const prefix = base.replace(/\/+$/, '');
+  const real = (p: string) => {
+    try {
+      return realpathSync(p);
+    } catch {
+      return p;
+    }
+  };
+  const realRoot = real(path.resolve(designRoot));
+  const URL_TOKEN = /url\(\s*(['"]?)([^'")]+?)\1\s*\)/g;
+  const rewrite = (css: string, cssFile: string): string =>
+    css.replace(URL_TOKEN, (whole, quote: string, raw: string) => {
+      const ref = raw.trim();
+      // Schemes (data:, http:, blob:), fragments and root-absolute paths are
+      // not files beside this stylesheet.
+      if (/^[a-z][a-z0-9+.-]*:/i.test(ref) || ref.startsWith('#') || ref.startsWith('/')) {
+        return whole;
+      }
+      const bare = ref.replace(/[?#].*$/, '');
+      if (!bare || bare.endsWith('.css')) return whole; // @import is the bundler's
+      const abs = path.resolve(path.dirname(cssFile), bare);
+      const target = path.join(real(path.dirname(abs)), path.basename(abs));
+      if (!target.startsWith(realRoot + path.sep)) return whole; // the allowlist decides
+      const rel = path.relative(realRoot, target).split(path.sep).map(encodeURIComponent);
+      return `url(${quote}${prefix}/${rel.join('/')}${ref.slice(bare.length)}${quote})`;
+    });
+  return {
+    name: 'maude-css-url-assets',
+    setup(builder) {
+      builder.onLoad({ filter: /\.css$/ }, async (args: { path: string }) => ({
+        contents: rewrite(await Bun.file(args.path).text(), args.path),
+        loader: 'css',
+      }));
+      builder.onResolve({ filter: /.*/ }, (args: { path: string; importer: string }) => {
+        if (!args.importer?.endsWith('.css')) return null;
+        if (prefix && !args.path.startsWith(`${prefix}/`)) return null;
+        if (!prefix && !args.path.startsWith('/')) return null;
+        return { path: args.path, external: true };
+      });
+    },
+  };
 }
 
 /**
@@ -155,6 +230,9 @@ export async function buildCanvasModule(
       'process.env.NODE_ENV': '"production"',
     },
     plugins: [
+      ...(options.assetUrlBase && options.designRoot
+        ? [cssUrlAssets(options.designRoot, options.assetUrlBase)]
+        : []),
       {
         name: 'css-sources',
         setup(builder) {

@@ -329,10 +329,13 @@ export function isSandboxArmed(env: NodeJS.ProcessEnv = process.env): boolean {
 export async function buildCanvasSandboxed({
   designRoot,
   canvasAbs,
+  assetUrlBase,
   env = process.env,
 }: {
   designRoot: string;
   canvasAbs: string;
+  /** BuildCanvasOptions.assetUrlBase, passed to the worker as argv[4]. */
+  assetUrlBase?: string;
   env?: NodeJS.ProcessEnv;
 }): Promise<SandboxBuildResult> {
   maybeRoll();
@@ -352,7 +355,7 @@ export async function buildCanvasSandboxed({
   );
 
   const started = Date.now();
-  const result = await runWorker({ designRoot, canvasAbs, env });
+  const result = await runWorker({ designRoot, canvasAbs, assetUrlBase, env });
   const elapsed = Date.now() - started;
   counters.cpuMsTotal += elapsed;
   counters.durationsMs.push(elapsed);
@@ -374,23 +377,28 @@ export async function buildCanvasSandboxed({
 async function runWorker({
   designRoot,
   canvasAbs,
+  assetUrlBase,
   env,
 }: {
   designRoot: string;
   canvasAbs: string;
+  assetUrlBase?: string;
   env: NodeJS.ProcessEnv;
 }): Promise<SandboxBuildResult> {
   const bun = resolveBunPath(env);
   let child: Bun.Subprocess<'ignore', 'pipe', 'pipe'>;
   try {
-    child = Bun.spawn([bun, workerScript(env), designRoot, canvasAbs], {
-      // THE EMPTY ENVIRONMENT IS THE POINT — see workerEnv().
-      env: workerEnv(env),
-      cwd: designRoot,
-      stdin: 'ignore',
-      stdout: 'pipe',
-      stderr: 'pipe',
-    });
+    child = Bun.spawn(
+      [bun, workerScript(env), designRoot, canvasAbs, ...(assetUrlBase ? [assetUrlBase] : [])],
+      {
+        // THE EMPTY ENVIRONMENT IS THE POINT — see workerEnv().
+        env: workerEnv(env),
+        cwd: designRoot,
+        stdin: 'ignore',
+        stdout: 'pipe',
+        stderr: 'pipe',
+      }
+    );
   } catch (err) {
     return {
       ok: false,

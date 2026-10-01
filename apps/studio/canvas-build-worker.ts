@@ -36,7 +36,9 @@
 
 import { join } from 'node:path';
 
-const [, , designRoot, canvasAbs] = process.argv;
+// The optional third argument is the URL the design root is served under
+// (BuildCanvasOptions.assetUrlBase) — absent keeps the bundler's own handling.
+const [, , designRoot, canvasAbs, assetUrlBase] = process.argv;
 
 /**
  * Where the build engine lives.
@@ -67,6 +69,7 @@ async function main() {
   const built = await buildCanvasModule(canvasAbs, source, {
     designRoot,
     restrictImportsTo: designRoot,
+    ...(assetUrlBase ? { assetUrlBase } : {}),
   });
   process.stdout.write(
     JSON.stringify({ ok: true, js: built.js, locator: built.locator, etag: built.etag })

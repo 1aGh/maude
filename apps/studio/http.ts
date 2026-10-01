@@ -480,6 +480,16 @@ export function readOnlyRefusalResponse(): Response {
   );
 }
 
+/**
+ * The URL the design root is served under by the static fall-through below —
+ * `/<designRoot relative to repoRoot>` (`/.design` by default). Canvas builds
+ * rewrite CSS `url()` onto it (canvas-build.ts `assetUrlBase`).
+ */
+function designRootUrlBase(paths: { repoRoot: string; designRoot: string }): string {
+  const rel = relative(paths.repoRoot, paths.designRoot).split(sep).join('/');
+  return rel ? `/${rel.split('/').map(encodeURIComponent).join('/')}` : '';
+}
+
 function safePathUnderRoot(reqUrl: string, repoRoot: string): string | null {
   let pathname: string;
   try {
@@ -675,6 +685,7 @@ export async function serveCanvasTsx(
       const built = await buildCanvasSandboxed({
         designRoot: ctx.paths.designRoot,
         canvasAbs: absPath,
+        assetUrlBase: designRootUrlBase(ctx.paths),
       });
       if (!built.ok) {
         return new Response(`Canvas build error: ${built.error}`, {
@@ -707,6 +718,7 @@ export async function serveCanvasTsx(
         // a synced module cannot make the build read the wider filesystem.
         // The cell worker has always armed this (canvas-build-worker.ts).
         restrictImportsTo: ctx.paths.designRoot,
+        assetUrlBase: designRootUrlBase(ctx.paths),
       });
     } catch (err) {
       if (err instanceof TranspileError) {
@@ -926,6 +938,7 @@ async function serveHistoricalCanvas(
         // Same unconditional allowlist as the live build above — a HISTORICAL
         // source is still tenant/peer-authored content.
         restrictImportsTo: ctx.paths.designRoot,
+        assetUrlBase: designRootUrlBase(ctx.paths),
       });
       cached = {
         js: result.js,
