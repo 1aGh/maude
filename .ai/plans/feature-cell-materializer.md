@@ -228,7 +228,7 @@ Execute in order. Each task is atomic and testable. **Phase 0 (Tasks 1-6) is rel
 - **Do**: `bootReport.hydrate` is set at start (`running`) and at the end (`done|budget|failed` + counts). `workspace.disk` comes from `diskStatus` at request time. Always present on a workspace-mode hub.
 - **Validate**: `node --test test/server*.test.mjs` (find the `/health` workspace test). New assertion: fields present with no counts.
 
-### Task 6: RELEASE v1.5.3 + live verification on Alligators
+### Task 6: RELEASE v1.5.3 + live verification on Alligators — ✅ completed
 
 - **Do**:
   - Release per `.ai/release-guide.md` (changeset patch).
@@ -239,7 +239,7 @@ Execute in order. Each task is atomic and testable. **Phase 0 (Tasks 1-6) is rel
 
 ### Phase 0.5 — desktop conflict storm (separate fix, before Phase 1)
 
-### Task 6b: FIX the desktop file-plane conflict loop
+### Task 6b: FIX the desktop file-plane conflict loop — ✅ completed
 
 Reported by the plan author (2026-10-01): on Alligators the desktop `conflicts` count grew 43 → 135 in 10 min (1602 by 15:25Z). Every push came back 409 "the hub changed this file while the upload was in flight". The desktop's file-ledger cursor for the hub was stuck at 294 (epoch `9b976739`, hub head ~4875), and the worker tail showed repeated `GET /api/journal?since=0`.
 
@@ -253,7 +253,7 @@ Reported by the plan author (2026-10-01): on Alligators the desktop `conflicts` 
 
 ### Phase 1 — materializer
 
-### Task 7: REGISTER the `_cache/` runtime path (DDR-115, all four lists + mirror)
+### Task 7: REGISTER the `_cache/` runtime path (DDR-115, all four lists + mirror) — ✅ completed
 
 - **Do**: Add `_cache` to:
   - `isMaudeRuntimeState` (`apps/studio/git/service.ts`)
@@ -265,7 +265,7 @@ Reported by the plan author (2026-10-01): on Alligators the desktop `conflicts` 
 - **Gotcha**: a runtime path that leaks into the file plane would **sync to peers**. The tripwire test must cover `_cache/blobs/<sha>`.
 - **Validate**: `cd apps/studio && bun test test/sync-file-membership.test.ts` and `cd apps/hub && node --test test/file-membership*.test.mjs`.
 
-### Task 8: CREATE `apps/hub/src/materializer.mjs`
+### Task 8: CREATE `apps/hub/src/materializer.mjs` — ✅ completed
 
 - **Budget (Phase 0 lesson):** do not take a fixed 50 %. Compute it from `disk.mjs`, the same way as the hydrate headroom: `cacheBudget = min(MAUDE_CACHE_BUDGET_BYTES, total − 2×floor − checkoutBytes)`, and run the eviction watermarks against that. Otherwise a full cache closes the write doors exactly as an unbounded hydrate would have.
 - **Do**: `createMaterializer({ designRoot, journal, s3 /*resolver*/, budgetBytes, deadlineMs, log })` with:
@@ -291,7 +291,7 @@ Reported by the plan author (2026-10-01): on Alligators the desktop `conflicts` 
   - hysteresis + min residency
   - hostile sha / rel never escape `_cache/`
 
-### Task 9: SPIKE — canvas build with CSS `url()` → inert media on a miss
+### Task 9: SPIKE — canvas build with CSS `url()` → inert media on a miss — ✅ completed
 
 - **Do**: Prototype both options against a fixture where a canvas CSS references `system/x/assets/photo.jpg` that is **not** on disk:
   - (a) `onResolve` in `canvas-build.ts` awaits `GET /_materialize?rel=` on the loopback hub and returns the cache path;
@@ -300,7 +300,7 @@ Reported by the plan author (2026-10-01): on Alligators the desktop `conflicts` 
   Pick the one that keeps `test/canvas-build*.test.ts` green and renders a real Alligators canvas. Write the choice into the DDR.
 - **Validate**: `cd apps/studio && bun test test/canvas-build.test.ts test/canvas-lib-graph.test.ts`.
 
-### Task 10: ADD loopback `/_materialize` + route the studio static reads through it
+### Task 10: ADD loopback `/_materialize` + route the studio static reads through it — ✅ completed
 
 - **Do**:
   - **Hub side.** Add `GET /_materialize?rel=`, accepted only from the studio child: loopback + the pairing secret header. It is **not** in `CANVAS_SAFE_API`, not in `startCanvasServer` routes, and not reachable via studio-proxy. It returns `{ path }`, or 404 / 503 + Retry-After.
@@ -310,7 +310,7 @@ Reported by the plan author (2026-10-01): on Alligators the desktop `conflicts` 
   - Add a `GET → 405` / not-routable assertion for `/_materialize` from the canvas origin in `test/canvas-origin-gate.test.ts`.
 - **Validate**: `bun test test/canvas-origin-gate.test.ts test/canvas-route.test.ts` plus a new `test/cell-materialize-route.test.ts`.
 
-### Task 11: UPDATE the hub read paths — `/assets/<key>`, `/_project-file/`, `/api/files`, `/_asset-probe`
+### Task 11: UPDATE the hub read paths — `/assets/<key>`, `/_project-file/`, `/api/files`, `/_asset-probe` — ✅ completed
 
 - **Do** (cell mode only):
   - `/assets/<key>`: checkout first, then materializer, streamed. Remove the buffered `getObject` branch. Re-scope the STORE DRIFT alarm to sha mismatch only.
@@ -322,7 +322,7 @@ Reported by the plan author (2026-10-01): on Alligators the desktop `conflicts` 
   - `asset-probe.test.mjs` :94-153 (`bucket-only asset is ABSENT` becomes `present when mirrored` **on cells**; keep the old assertion for non-cell mode)
 - **Validate**: `node --test test/assets.test.mjs test/asset-probe.test.mjs test/file-manifest*.test.mjs`.
 
-### Task 12: UPDATE the write doors — inert-media uploads land pinned in the cache
+### Task 12: UPDATE the write doors — inert-media uploads land pinned in the cache — ✅ completed
 
 - **Do** (cell mode):
   - `file-door.mjs` PUT, `upload-sessions` complete and `/_asset-file` PUT, for inert-media classes: after the streamed hash verifies, rename into `_cache/blobs/<sha>` (pinned) instead of the checkout path. Then `journal.recordWrite` with the **verified** sha. This needs a `recordWrite` variant that takes a verified `{ sha256, size }` from the door, because the disk path is absent; it is still never caller-supplied over HTTP.
@@ -333,7 +333,7 @@ Reported by the plan author (2026-10-01): on Alligators the desktop `conflicts` 
   - Delete of an evicted / cache-only row: quarantine has nothing to move. Write a bucket quarantine copy (`<prefix>/trash/<ts>/<rel>`) **before** the tombstone, so §8 "never unlink CAS / recoverable" still holds.
 - **Validate**: `node --test test/file-door.test.mjs test/upload-sessions.test.mjs test/workspace-agent.test.mjs test/large-media.test.mjs test/journal-write-door-tripwire.test.mjs`.
 
-### Task 13: UPDATE boot + reconcilers for cell mode
+### Task 13: UPDATE boot + reconcilers for cell mode — ✅ completed
 
 - **Do**: When `MAUDE_CELL_MATERIALIZE=1`:
   - Boot hydrate restores code-module + companion-text, then **`assets/` as a second tier while it fits under the budget**. These are the content-addressed media that canvases actually reference, so restoring them avoids a burst of misses on first open. `files/` inert media goes only to the materializer. Task 3's budget and headroom still apply.
@@ -343,7 +343,7 @@ Reported by the plan author (2026-10-01): on Alligators the desktop `conflicts` 
 - **Gotcha**: this is the guard against the breaker's top risk. Add a test that unlinking an inert-media checkout path and sending a studio report produces **no** `deleted=1` row in cell mode.
 - **Validate**: `node --test test/journal.test.mjs test/cell-boot-budget.test.mjs` plus `cd apps/cells && node --test cell-config.test.mjs`.
 
-### Task 14: RECORD the DDR + kg import
+### Task 14: RECORD the DDR + kg import — ✅ completed
 
 - **Do**: Write `.ai/archive/decisions/DDR-<next>-cell-disk-is-a-cache.md`:
   - the incident and its numbers;
@@ -359,7 +359,7 @@ Reported by the plan author (2026-10-01): on Alligators the desktop `conflicts` 
   Then run `maude kg import --dry-run` followed by `maude kg import`.
 - **Validate**: `kg search "cell disk is a cache"` returns it.
 
-### Task 15: E2E — two-direction sync against an over-disk fixture
+### Task 15: E2E — two-direction sync against an over-disk fixture — ✅ completed
 
 - **Do**:
   - Run a local cell harness (memory: hub needs Node 24; boot with `NO_OPEN=1`) with an artificially small disk (`MAUDE_DISK_FLOOR_BYTES` / budget set so a ~2 GB fixture exceeds it) and a MinIO / file target for R2.
@@ -438,3 +438,27 @@ Not a UI feature. Coverage is the hub/studio test suites + the Task 15 e2e harne
 - The lost-file HEADs have a 15 s timeout.
 - The temp file is unlinked before the hydrate writes it (symlink hole that predates Phase 0).
 - **Residual for Phase 1:** one write token can still spend the hydrate budget with large companion-text uploads. Per-project eviction / pin is the real brake.
+
+**2026-10-01: Task 6 done.** v1.5.3 was released, the fleet rolled, and design.studyfi.com was upgraded (checkpoint `/opt/maude-hub/pre-v1.5.3-20261001T152128Z`). Alligators ran 98 minutes on 1.5.3 with no restart; `disk.pressure` stayed false, and `hydrate` went from `running` to `budget`.
+
+**2026-10-01: Phase 0.5 + Phase 1 done** (Tasks 6b–15; Task 16 is the joint release). Commits are `a7d72945`, `968ed092`, `6ee25698`, `3b71ab7b`, `690079ac`, `5e40bc17`, `f31c6823`, `e4322f2e`, `e299472b`, `a8b722bb`, `9e675253` and `001d3689`. Ownership: the plan author was taken off the work at the user's request, and Phase 0.5 was done here.
+
+- **6b.** The desktop's conflicts came from three file-plane defects:
+  - one journal page per pass;
+  - `pruneRemotes` running after a truncated full read;
+  - a 409 whose `current` equalled the local hash being treated as a conflict.
+
+  The desktop's `_trash` held nothing from the storm. The 249 conflict rows were ledger bookkeeping only.
+- **Task 9 picked option (b).** CSS `url()` is rewritten at load time onto the served design root. This also fixed a bug that predates Phase 1: large stylesheet images and fonts were never served.
+- **Deviations from the plan, all recorded in DDR-243:**
+  - The cache lives in `<DATA_DIR>/cache`, not `.design/_cache`. This came from the security review (H1).
+  - Minimum residency is soft. The Task 15 E2E caught it answering 503 for every request while every blob was "fresh".
+  - Pins are released by the journal.
+  - Pinned bytes are capped at 50 % of the budget.
+  - The cache budget is derived from the disk, with the same headroom as the hydrate.
+  - `CELL_MATERIALIZE` is a per-tenant allowlist. The pilot is alligators.
+- **Security pair:** defender and attacker both said NEEDS FIXES. Every finding was fixed in `001d3689`, each with a test that fails without its fix. One item was accepted: 409-adopt is not gated on the hub's mirror state.
+- **E2E** (`scripts/dev/cell-materialize-e2e.ts`): 11 of 11 oracles passed, including a genuinely mid-push SIGKILL. Reports are in `.ai/logs/e2e/` (local only).
+- **Gates:** lint, typecheck, parity, tarball, tokens, build and site-content are green. Hub tests: 1151/1151. Studio sync + canvas tests: 1296/1296. Cells: 74/74.
+- **Residual risk:** media written inside a cell without going through a door or the studio's report path goes unjournaled, because walk-import ignores inert media on a cell.
+
