@@ -53,6 +53,7 @@ import {
 import { dirname, join } from 'node:path';
 
 import { assetPrefixFromEnv } from './asset-key.mjs';
+import { diskPressureRefusal, respondDiskPressure } from './disk.mjs';
 import { currentHashFor, quotaFor, seqFor, withPathLock } from './file-door.mjs';
 import { MAX_PROJECT_FILE_BYTES, PART_BYTES } from './file-limits.mjs';
 import { checkoutFileClass, resolveCheckoutFileWrite } from './file-manifest.mjs';
@@ -471,6 +472,14 @@ export async function handleUploadSessions(ctx) {
       respondJson(response, 200, s.receipt);
       return true;
     }
+    // Assembly writes the whole file again beside its parts — the biggest
+    // single write the hub makes. Below the disk floor it is a hold, not an
+    // ENOSPC halfway through (disk.mjs). A replayed receipt above is free.
+    const pressure = await diskPressureRefusal(ctx.designRoot);
+    if (pressure) {
+      respondDiskPressure(response, pressure);
+      return true;
+    }
     const missing = s.parts - (await receivedAll(dataDir, s, store)).length;
     if (missing > 0) {
       respondJson(response, 409, {
@@ -589,6 +598,12 @@ export async function handleUploadSessions(ctx) {
       return true;
     }
     const expected = partSize(s, n);
+    // Gated before the part's body is read (disk.mjs).
+    const pressure = await diskPressureRefusal(ctx.designRoot);
+    if (pressure) {
+      respondDiskPressure(response, pressure);
+      return true;
+    }
     const declared = String(request.headers?.['x-maude-part-sha256'] ?? '')
       .trim()
       .toLowerCase();

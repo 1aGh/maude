@@ -32,10 +32,12 @@ import { after, describe, it } from 'node:test';
 
 import {
   assetNameFromKey,
+  createHydrateBudget,
   fileRelFromKey,
   hydrateAssets,
   hydrateFiles,
   missingFromCheckout,
+  transientFailures,
 } from '../src/asset-lane.mjs';
 
 const dirs = [];
@@ -374,5 +376,228 @@ describe('hydrateFiles — the files/ prefix, the restore half of the write-behi
     assert.equal(fileRelFromKey('t1/files/system/ds/a.css', 't1'), 'system/ds/a.css');
     assert.equal(fileRelFromKey('t2/files/system/ds/a.css', 't1'), null);
     assert.equal(fileRelFromKey('system/ds/a.css'), null);
+  });
+});
+
+// Cell materializer Phase 0 (Task 3). Brno Alligators, 2026-10-01: ~7.8 GB
+// synced onto an 8 GB cell disk. "Restore everything missing" drove boot into
+// ENOSPC, the process died, and the next cold start began the same download.
+describe('hydrate budget — the boot restore stops before the disk does', () => {
+  /** A streaming bucket: keys → bytes, through `getObjectToFile` only. */
+  function streamingBucket(objects) {
+    const order = [];
+    return {
+      order,
+      deps: {
+        listObjects: async (_c, prefix) =>
+          Object.entries(objects)
+            .filter(([k]) => k.startsWith(prefix))
+            .map(([key, v]) => ({ key, size: Buffer.byteLength(v) })),
+        getObjectToFile: async (_c, key, abs) => {
+          order.push(key);
+          if (!(key in objects)) return null;
+          writeFileSync(abs, objects[key]);
+          return Buffer.byteLength(objects[key]);
+        },
+      },
+    };
+  }
+  const report =
+    (free = 1e12, total = 2e12, floor = 0) =>
+    async () => ({ totalBytes: total, freeBytes: free, floorBytes: floor, pressure: free < floor });
+
+  it('restores code and companion text BEFORE inert media, whatever the key order', async () => {
+    const dir = tmp();
+    const b = streamingBucket({
+      'files/system/ds/assets/a-photo.jpg': 'JPG',
+      'files/system/ds/brand.css': '.a{}',
+      'files/system/ds/_brand-css.ts': 'export {}',
+    });
+    const r = await hydrateFiles({
+      designRoot: dir,
+      s3: {},
+      prefix: '',
+      log: silent(),
+      deps: b.deps,
+    });
+    assert.deepEqual(b.order, [
+      'files/system/ds/_brand-css.ts',
+      'files/system/ds/brand.css',
+      'files/system/ds/assets/a-photo.jpg',
+    ]);
+    assert.equal(r.restored.length, 3);
+    assert.equal(r.skippedForBudget, 0);
+  });
+
+  it('a spent byte budget leaves inert media in the bucket — and counts it', async () => {
+    const dir = tmp();
+    const b = streamingBucket({
+      'files/system/ds/_brand-css.ts': 'export {}', // 9 bytes
+      'files/system/ds/brand.css': '.a{}', // 4 bytes
+      'files/system/ds/assets/big.jpg': 'X'.repeat(100),
+    });
+    const budget = await createHydrateBudget({
+      designRoot: dir,
+      env: { MAUDE_HYDRATE_BUDGET_BYTES: '50' },
+      deps: { diskReport: report() },
+    });
+    const r = await hydrateFiles({
+      designRoot: dir,
+      s3: {},
+      prefix: '',
+      log: silent(),
+      deps: b.deps,
+      budget,
+    });
+    assert.deepEqual(r.restored, ['system/ds/_brand-css.ts', 'system/ds/brand.css']);
+    assert.equal(r.skippedForBudget, 1);
+    assert.equal(existsSync(join(dir, 'system/ds/assets/big.jpg')), false);
+    assert.ok(!b.order.includes('files/system/ds/assets/big.jpg'), 'never even downloaded');
+  });
+
+  it('the free-space floor stops it too, and ONE budget spans both hydrators', async () => {
+    const dir = tmp();
+    let free = 9_000;
+    const budget = await createHydrateBudget({
+      designRoot: dir,
+      env: {},
+      deps: { diskReport: async () => report(free, 10_000, 500)() },
+    });
+    assert.equal(budget.bytes, 5_000, 'default: half the disk');
+    const files = streamingBucket({ 'files/system/ds/brand.css': '.a{}' });
+    await hydrateFiles({
+      designRoot: dir,
+      s3: {},
+      prefix: '',
+      log: silent(),
+      deps: files.deps,
+      budget,
+    });
+    free = 900; // above the 500 floor — but inside the headroom above it
+    const assets = streamingBucket({ 'assets/aaaaaaaa.png': 'PNG' });
+    const r = await hydrateAssets({
+      designRoot: dir,
+      s3: {},
+      prefix: '',
+      log: silent(),
+      deps: assets.deps,
+      budget,
+    });
+    assert.equal(budget.spent(), 4);
+    assert.deepEqual(r.restored, []);
+    assert.equal(r.skippedForBudget, 1);
+    assert.deepEqual(assets.order, []);
+  });
+
+  it('hydrateAssets STREAMS — getObjectToFile, never a whole-object buffer', async () => {
+    const dir = tmp();
+    const b = streamingBucket({ 'assets/aaaaaaaa.png': 'PNG' });
+    const r = await hydrateAssets({
+      designRoot: dir,
+      s3: {},
+      prefix: '',
+      log: silent(),
+      deps: b.deps,
+    });
+    assert.deepEqual(r.restored, ['aaaaaaaa.png']);
+    assert.deepEqual(b.order, ['assets/aaaaaaaa.png']);
+    assert.equal(readFileSync(join(dir, 'assets/aaaaaaaa.png'), 'utf8'), 'PNG');
+  });
+
+  it('`classes` restricts the restore (Phase 1 restores only what builds)', async () => {
+    const dir = tmp();
+    const b = streamingBucket({
+      'files/system/ds/brand.css': '.a{}',
+      'files/system/ds/assets/p.jpg': 'JPG',
+    });
+    const r = await hydrateFiles({
+      designRoot: dir,
+      s3: {},
+      prefix: '',
+      log: silent(),
+      deps: b.deps,
+      classes: ['code-module', 'companion-text'],
+    });
+    assert.deepEqual(r.restored, ['system/ds/brand.css']);
+    assert.equal(r.skippedForBudget, 0, 'a class filter is not a budget skip');
+  });
+
+  it('stops ABOVE the floor — a floor-stopped boot must not shut the write doors', async () => {
+    // Attacker review #1: an `admit` that refused only once free < floor
+    // ended every floor-stopped hydrate exactly where the doors refuse, with
+    // nothing on the cell to reopen them. The hydrate keeps one more floor's
+    // worth of headroom, read fresh before every download.
+    const dir = tmp();
+    const budget = await createHydrateBudget({
+      designRoot: dir,
+      env: {},
+      deps: { diskReport: report(2_600, 1_000_000, 1_000) },
+    });
+    assert.equal(budget.bytes, 600, 'clamped to the free space above floor + headroom');
+    assert.equal(await budget.admit(500), 'ok'); // 2 100 left ≥ 2 000
+    assert.equal(await budget.admit(601), 'budget');
+  });
+
+  it('half the TOTAL disk is clamped to what is actually free', async () => {
+    const budget = await createHydrateBudget({
+      designRoot: tmp(),
+      env: { MAUDE_HYDRATE_BUDGET_BYTES: '1000000' },
+      deps: { diskReport: report(5_000, 10_000, 1_000) },
+    });
+    assert.equal(budget.bytes, 3_000);
+  });
+
+  it('a refused key is a PERMANENT failure — it never marks a boot partial', async () => {
+    // Defender W4: one key refused on every boot would otherwise switch the
+    // lost-file pass off forever.
+    const dir = tmp();
+    const b = streamingBucket({
+      'files/_history/x.png': 'X', // runtime state: refused by admission
+      'files/system/ds/brand.css': '.a{}',
+    });
+    const r = await hydrateFiles({
+      designRoot: dir,
+      s3: {},
+      prefix: '',
+      log: silent(),
+      deps: b.deps,
+    });
+    assert.equal(r.failed.length, 1);
+    assert.equal(transientFailures(r), 0);
+    const flaky = await hydrateFiles({
+      designRoot: tmp(),
+      s3: {},
+      prefix: '',
+      log: silent(),
+      deps: {
+        listObjects: b.deps.listObjects,
+        getObjectToFile: async () => {
+          throw new Error('S3 GET failed: 503');
+        },
+      },
+    });
+    assert.equal(transientFailures(flaky), 1);
+  });
+
+  it('a symlink planted at the temp name is unlinked, never written through', async () => {
+    // Defender W1 (predates Phase 0): containment is judged on the target,
+    // and the checkout is a tenant-controlled clone that can carry a link at
+    // `<name>.hydrating-<pid>`.
+    const dir = tmp();
+    const outside = tmp();
+    mkdirSync(join(dir, 'system/ds'), { recursive: true });
+    const victim = join(outside, 'victim.txt');
+    writeFileSync(victim, 'ORIGINAL');
+    symlinkSync(victim, join(dir, `system/ds/brand.css.hydrating-${process.pid}`));
+    const b = streamingBucket({ 'files/system/ds/brand.css': '.a{}' });
+    const r = await hydrateFiles({
+      designRoot: dir,
+      s3: {},
+      prefix: '',
+      log: silent(),
+      deps: b.deps,
+    });
+    assert.deepEqual(r.restored, ['system/ds/brand.css']);
+    assert.equal(readFileSync(victim, 'utf8'), 'ORIGINAL');
   });
 });

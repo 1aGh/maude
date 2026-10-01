@@ -209,3 +209,48 @@ test('/health advertises the sync-v2 capability set — the compat matrix is BIN
   assert.ok(Array.isArray(body.capabilities), 'capabilities must be advertised as an array');
   assert.equal(body.capabilities.includes('ledger'), false, 'no checkout ⇒ no file journal');
 });
+
+// ------------------------------------------- cell materializer Phase 0
+
+test('a workspace hub ALWAYS reports disk + hydrate — the state publicly, the bytes to the cell', async () => {
+  // The 2026-10-01 Alligators restart loop was invisible until the disk was
+  // already full: nothing on /health said how close it was. Both keys are
+  // present even before any restore (no object storage ⇒ `hydrate: null`),
+  // so a monitor can rely on them.
+  //
+  // But free bytes vs. the floor, polled from the internet, is a dial for how
+  // much more to push to shut the write doors (Phase 0 attacker review #5):
+  // the public payload carries only `pressure`; the bytes need the cell secret.
+  const repo = mkdtempSync(join(tmpdir(), 'maude-hub-health-ws-'));
+  mkdirSync(join(repo, '.design'), { recursive: true });
+  const saved = process.env.MAUDE_REPO_DIR;
+  process.env.MAUDE_REPO_DIR = repo;
+  const secret = 'cell-secret-for-health-test-0123456789';
+  const port = PORT + 7;
+  const ownDir = mkdtempSync(join(tmpdir(), 'maude-hub-health-secret-'));
+  const own = createHub({ port, dataDir: ownDir, secret, verbose: false }).server;
+  await own.listen();
+  try {
+    const pub = await (await fetch(`http://127.0.0.1:${port}/health`)).json();
+    assert.deepEqual(Object.keys(pub.workspace.disk), ['pressure']);
+    assert.equal(typeof pub.workspace.disk.pressure, 'boolean');
+    assert.ok('hydrate' in pub.workspace, '`hydrate` must be a key even before any restore');
+    assert.equal(pub.workspace.degraded, undefined, 'no disk error survived, nothing to report');
+
+    const cell = await (
+      await fetch(`http://127.0.0.1:${port}/health`, {
+        headers: { authorization: `Bearer ${secret}` },
+      })
+    ).json();
+    for (const k of ['totalBytes', 'freeBytes', 'floorBytes']) {
+      assert.equal(typeof cell.workspace.disk[k], 'number', k);
+    }
+    assert.equal(typeof cell.workspace.disk.pressure, 'boolean');
+  } finally {
+    await own.destroy();
+    rmSync(ownDir, { recursive: true, force: true });
+    if (saved === undefined) delete process.env.MAUDE_REPO_DIR;
+    else process.env.MAUDE_REPO_DIR = saved;
+    rmSync(repo, { recursive: true, force: true });
+  }
+});

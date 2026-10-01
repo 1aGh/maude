@@ -241,7 +241,7 @@ describe('compare-and-swap — why this door exists', () => {
     // its copy with "the hub must hold nothing".
     await call(exchange({ rel: 'system/ds/brand.css', body: 'v1' }));
     rmSync(join(designRoot, 'system/ds/brand.css'));
-    const marked = reportLostFiles({ journal: openJournal(dataDir), designRoot, log: {} });
+    const marked = await reportLostFiles({ journal: openJournal(dataDir), designRoot, log: {} });
     assert.equal(marked.lost, 1);
     const res = await call(
       exchange({

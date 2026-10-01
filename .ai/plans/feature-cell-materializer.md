@@ -183,7 +183,7 @@ Execute in order. Each task is atomic and testable. **Phase 0 (Tasks 1-6) is rel
 
 ### Phase 0 — hotfix
 
-### Task 1: CREATE `apps/hub/src/disk.mjs` + crash handlers
+### Task 1: CREATE `apps/hub/src/disk.mjs` + crash handlers — ✅ completed
 
 - **Do**:
   - `diskStatus(dir)` → `{ totalBytes, freeBytes }` via `fs.promises.statfs` (bsize × blocks / bavail), cached ≤ 2 s.
@@ -195,13 +195,13 @@ Execute in order. Each task is atomic and testable. **Phase 0 (Tasks 1-6) is rel
 - **Gotcha**: don't swallow everything. A corrupt-state error must still restart the cell. Handlers are installed only in `runAsMain`, not in `createHub` (tests import it).
 - **Validate**: `cd apps/hub && node --test test/disk-gate.test.mjs`. Cover: an injected statfs gives pressure true/false; an ENOSPC rejection does not exit (child-process test).
 
-### Task 2: ADD the free-space gate to every write door
+### Task 2: ADD the free-space gate to every write door — ✅ completed
 
 - **Do**: Before accepting bytes in `file-door.mjs` PUT, `upload-sessions.mjs` part PUT + complete, and the `/_asset-file` PUT forward, check `underPressure(designRoot)`. If true → 503, `Retry-After: 120`, body `{ error: 'disk-pressure', freeBytes, floorBytes }`.
 - **Gotcha**: check **before** streaming the body (the pre-CAS position at `file-door.mjs` ~404). A gate after the body is ENOSPC with extra steps. Reads and DELETEs are not gated.
 - **Validate**: `node --test test/file-door.test.mjs test/upload-sessions.test.mjs test/disk-gate.test.mjs`. New test: pressure → 503 + Retry-After and nothing written. Also a studio test that `file-plane.ts` `refusal()` classifies it `rateLimited` (not conflict): `cd apps/studio && bun test test/sync-file-plane*.test.ts`.
 
-### Task 3: UPDATE hydrate — order, byte budget, floor, streaming
+### Task 3: UPDATE hydrate — order, byte budget, floor, streaming — ✅ completed
 
 - **Do**: In `asset-lane.mjs`:
   - `hydrateFiles` sorts work code-module → companion-text → inert-media (classifier from `file-membership.mjs`).
@@ -211,7 +211,7 @@ Execute in order. Each task is atomic and testable. **Phase 0 (Tasks 1-6) is rel
 - **Pattern**: keep never-throw / never-overwrite / key-never-becomes-path (the existing `asset-hydrate.test.mjs` cases must stay green).
 - **Validate**: `node --test test/asset-hydrate.test.mjs`. New cases: the budget stops before inert media; code files restore first; streaming keeps memory flat (assert `getObjectToFile` is used).
 
-### Task 4: FIX `reportLostFiles` — ask the bucket, never after a partial hydrate
+### Task 4: FIX `reportLostFiles` — ask the bucket, never after a partial hydrate — ✅ completed
 
 - **Do**:
   - `reportLostFiles({ journal, designRoot, hydrate, s3, log })`. Return `{ lost: 0, skipped: 'hydrate-incomplete' }` when `hydrate.failed + hydrate.skippedForBudget > 0`.
@@ -222,7 +222,7 @@ Execute in order. Each task is atomic and testable. **Phase 0 (Tasks 1-6) is rel
 - **Gotcha**: `headObject` per row can be thousands of calls. Bound concurrency (8) and stop on the first credential error (skip the pass, don't mark).
 - **Validate**: `node --test test/journal.test.mjs test/file-door.test.mjs`. New cases: partial hydrate → nothing marked; mirrored + bucket 200 → not marked; unmirrored → marked; bucket 404 → marked.
 
-### Task 5: ADD `/health` disk + hydrate fields
+### Task 5: ADD `/health` disk + hydrate fields — ✅ completed
 
 - **Do**: `bootReport.hydrate` is set at start (`running`) and at the end (`done|budget|failed` + counts). `workspace.disk` comes from `diskStatus` at request time. Always present on a workspace-mode hub.
 - **Validate**: `node --test test/server*.test.mjs` (find the `/health` workspace test). New assertion: fields present with no counts.
@@ -398,3 +398,27 @@ Not a UI feature. Coverage is the hub/studio test suites + the Task 15 e2e harne
 - [ ] Self-hosted hub / desktop behavior is unchanged (cell mode is off).
 - [ ] DDR recorded and kg imported. Superseded decisions are linked.
 - [ ] `/flow:validate` passes. Security review covers `/_materialize` (loopback + secret only) and cache-path containment.
+
+## Execution Log
+
+**2026-10-01: Phase 0, Tasks 1–5 done** (uncommitted; Task 6, the release, waits for an explicit go).
+
+- Verify: hub `npm test` 1082/1082; studio `sync-file-plane*.test.ts` 100/100 (`dist/` untouched); biome is clean on the touched files.
+- Fail-first was checked by reverting each fix. Without the gates, the disk-gate tests fail (file door + upload session). Without the `reportLostFiles` change, 5 of 7 new cases fail. The other two (404 → lost, never-mirrored → lost) are behavior the old code already had.
+- **Deviation: floor formula.** The plan said max(1 GiB, 12 %). The first real-disk run refused every file-door write on a 460 GB laptop with 40 GB free (12 % = 55 GB). The shipped formula is max(1 GiB, min(12 %, 4 GiB)). A cell is unchanged: on 8 GB, 1 GiB wins. Self-hosted hubs and laptops no longer trip the gate.
+- `/_asset-file` PUT is gated by being delegated to the file door (`server.mjs` ~1098), so no separate hook was needed.
+- `hydrateFiles` now runs **before** `hydrateAssets`, sharing one budget, so code and companion text are restored ahead of any media. `hydrateFiles` gained a `classes` filter for Task 13.
+- `reportLostFiles` is now async. Its two test call sites were updated.
+- The desktop needs no change. A new studio test pins that a `503 disk-pressure` PUT reads as `rateLimited`, never as a conflict.
+
+
+**2026-10-01: `/flow:done` security pass on Phase 0.** Defender: PASS WITH SUGGESTIONS. Attacker: NEEDS FIXES. All fixes landed before commit; full table in `.ai/logs/security-reviews/cell-materializer-phase0.md` (local).
+
+- **Hydrate stops above the floor.** The budget is `min(configured, free − 2×floor)`, and `admit` reads the disk fresh before each download. Stopping *at* the floor would have ended every floor-stopped boot with the write doors shut.
+- **Boot order changed.** It is now `files/` code + companion text, then `assets/`, then `files/` inert media. The first cut put Alligators' 6.9 GB of unreferenced photos ahead of the 0.9 GB `assets/` that canvases show.
+- **Deviation: EIO is no longer survived.** The crash handlers survive only ENOSPC/EDQUOT; EIO exits, so a faulty disk can't feed the write-behind.
+- **Deviation: public `/health` shows state only.** It carries `disk.pressure` and `hydrate.state`. Bytes and counts need the cell secret. **For Task 6:** watch with `Authorization: Bearer <cell secret>` to see `freeBytes`.
+- Permanent hydrate failures no longer count as a partial hydrate.
+- The lost-file HEADs have a 15 s timeout.
+- The temp file is unlinked before the hydrate writes it (symlink hole that predates Phase 0).
+- **Residual for Phase 1:** one write token can still spend the hydrate budget with large companion-text uploads. Per-project eviction / pin is the real brake.

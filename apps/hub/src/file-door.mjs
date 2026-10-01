@@ -42,6 +42,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { once } from 'node:events';
 import { createWriteStream, existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { diskPressureRefusal, respondDiskPressure } from './disk.mjs';
 import {
   MAX_PROJECT_FILE_BYTES,
   PART_BYTES,
@@ -422,6 +423,16 @@ export async function handleFileDoor(ctx) {
       path: landing,
       current: pre.current,
     });
+    return true;
+  }
+
+  // DISK PRESSURE — before a byte of the body is read. Below the floor the
+  // write would end in ENOSPC halfway through, and on a cell that used to be a
+  // process exit and a cold start (disk.mjs). 503 + Retry-After is the word
+  // the desktop already reads as "hold", never as a conflict.
+  const pressure = await diskPressureRefusal(ctx.designRoot);
+  if (pressure) {
+    respondDiskPressure(response, pressure);
     return true;
   }
 

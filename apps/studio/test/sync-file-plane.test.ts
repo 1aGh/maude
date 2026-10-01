@@ -1213,6 +1213,36 @@ describe('rate limits', () => {
     expect(result.rateLimited?.waiting).toBeGreaterThan(0);
   });
 
+  test('a cell out of disk (503 disk-pressure) holds the PUSH — never a conflict', async () => {
+    // Cell materializer Phase 0: below the free-space floor every hub write
+    // door answers `503 Retry-After: 120 {error:'disk-pressure'}`. On the
+    // 2026-10-01 Alligators loop the desktop kept pushing into a full disk;
+    // the refusal has to read as "hold", and must not be mistaken for a CAS
+    // 409 that parks conflict copies of every file it touched.
+    const hub = fakeHub();
+    for (let i = 0; i < 5; i += 1) write(`assets/p${i}.png`, `PNG${i}`);
+    const puts: string[] = [];
+    const full = (async (url: string, init?: RequestInit) => {
+      const u = new URL(String(url));
+      if (u.pathname.startsWith('/api/file/') && init?.method === 'PUT') {
+        puts.push(u.pathname);
+        return new Response(
+          JSON.stringify({ error: 'disk-pressure', freeBytes: 1, floorBytes: 2 }),
+          { status: 503, headers: { 'content-type': 'application/json', 'retry-after': '120' } }
+        );
+      }
+      return hub.fetchImpl(url as never, init as never);
+    }) as unknown as typeof fetch;
+
+    const result = await plane(hub, { fetchImpl: full }).reconcile();
+
+    expect(puts).toHaveLength(1);
+    expect(result.rateLimited).toBeTruthy();
+    expect(result.conflicts).toEqual([]);
+    expect(result.pushed).toEqual([]);
+    expect(readdirSync(join(root, 'assets')).some((n) => n.includes('maude-conflict'))).toBe(false);
+  });
+
   test('a BARE 5xx is an ordinary refusal, not a wall', async () => {
     // The other half of the same rule. A cell that genuinely cannot obtain
     // storage answers a bare 503 — a broken deployment, not a busy one — and

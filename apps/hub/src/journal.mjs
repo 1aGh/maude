@@ -45,6 +45,7 @@ import { join } from 'node:path';
 import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
 import { listProjectFiles, readCanvasGroups } from './file-manifest.mjs';
 import { classifyProjectFile, isFilePlaneClass, isProjectFileShape } from './file-membership.mjs';
+import { headObject } from './s3.mjs';
 
 const require = createRequire(import.meta.url);
 // better-sqlite3 is a runtime-external native binding (see build.ts). Loading
@@ -1031,6 +1032,133 @@ export function walkIntervalFromEnv(env = process.env) {
   return Math.min(WALK_MAX_MS, Math.max(WALK_MIN_MS, Math.trunc(raw)));
 }
 
+/** Bucket HEADs in flight at once during the lost-file pass. A large project
+ *  has thousands of candidate rows after a budgeted hydrate; unbounded, that
+ *  is a self-inflicted rate limit on the account. */
+const LOST_HEAD_CONCURRENCY = 8;
+
+/** One HEAD may take this long. The write-behind starts only after this pass,
+ *  and a bucket that hangs must not hold the mirror back for undici's 300 s
+ *  default per request (Phase 0 defender W5) — a timeout is a bucket error,
+ *  which skips the pass. */
+const LOST_HEAD_TIMEOUT_MS = 15_000;
+
+function withTimeout(promise, ms) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`no answer within ${ms} ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * Mark live rows whose bytes are GONE as `disk-lost`, so peers that still hold
+ * them push them back (v1.5.2).
+ *
+ * THE BUCKET IS ASKED FIRST (cell materializer Phase 0). The v1.5.2 pass
+ * marked every live row missing from the checkout — without asking the
+ * bucket, and after a hydrate that may have died half-way. On the 2026-10-01
+ * Alligators loop that told every desktop to re-push gigabytes the bucket
+ * already held, into a disk that was already full. So a row is lost only when:
+ *
+ *   • the boot hydrate completed (no failures, nothing skipped for budget) —
+ *     after a partial hydrate, "absent from disk" means nothing; and
+ *   • it is absent from the checkout; and
+ *   • its bytes were never mirrored (`mirroredAtMs` null), OR the bucket
+ *     answers 404 for its key.
+ *
+ * Any bucket error skips the whole pass rather than guessing: a false "lost"
+ * costs a full re-upload from every peer, a missed one costs a minute until
+ * the next boot. `MAUDE_REPORT_LOST=0` turns the pass off entirely.
+ *
+ * @param {object} o
+ * @param {{failed: number, skippedForBudget: number}|null} [o.hydrate] the boot
+ *   hydrate's totals; null when no hydrate ran (a hub without storage).
+ * @param {object|(() => Promise<object>)|null} [o.s3] config or resolver.
+ * @param {(rel: string) => string} [o.keyFor] the write-behind's bucket key.
+ * @returns {Promise<{ lost: number, skipped?: string }>}
+ */
+export async function reportLostFiles({
+  journal,
+  designRoot,
+  hydrate = null,
+  s3 = null,
+  keyFor = null,
+  deps = {},
+  env = process.env,
+  log = console,
+}) {
+  if (String(env.MAUDE_REPORT_LOST ?? '').trim() === '0') return { lost: 0, skipped: 'disabled' };
+  if (!journal || !designRoot || !existsSync(designRoot)) return { lost: 0 };
+  if (hydrate && (hydrate.failed > 0 || hydrate.skippedForBudget > 0)) {
+    log.warn?.(
+      `[journal] lost-file pass skipped: the boot hydrate was partial (${hydrate.failed} failed, ` +
+        `${hydrate.skippedForBudget} left in the bucket) — absence from disk proves nothing.`
+    );
+    return { lost: 0, skipped: 'hydrate-incomplete' };
+  }
+
+  let lost = 0;
+  try {
+    const absent = journal
+      .compaction()
+      .filter((r) => !r.deleted && r.sha256 && !existsSync(join(designRoot, r.path)));
+    if (absent.length === 0) return { lost: 0 };
+
+    const confirmed = absent.filter((r) => r.mirroredAtMs == null);
+    const mirrored = absent.filter((r) => r.mirroredAtMs != null);
+    if (mirrored.length > 0) {
+      const head = deps.headObject ?? headObject;
+      let cfg = null;
+      try {
+        cfg = typeof s3 === 'function' ? await s3() : s3;
+      } catch (err) {
+        log.warn?.(`[journal] lost-file pass skipped: no bucket credentials (${err.message}).`);
+        return { lost: 0, skipped: 'bucket-unreachable' };
+      }
+      // Mirrored bytes the hub cannot ask about are NOT lost — they are
+      // unverified, and an unverified "lost" is the expensive mistake.
+      if (cfg && keyFor) {
+        let failure = null;
+        let next = 0;
+        const worker = async () => {
+          while (failure === null && next < mirrored.length) {
+            const row = mirrored[next++];
+            try {
+              const res = await withTimeout(head(cfg, keyFor(row.path)), LOST_HEAD_TIMEOUT_MS);
+              if (res === null) confirmed.push(row);
+            } catch (err) {
+              failure = err;
+            }
+          }
+        };
+        await Promise.all(
+          Array.from({ length: Math.min(LOST_HEAD_CONCURRENCY, mirrored.length) }, worker)
+        );
+        if (failure) {
+          log.warn?.(
+            `[journal] lost-file pass skipped: the bucket did not answer (${failure.message}).`
+          );
+          return { lost: 0, skipped: 'bucket-unreachable' };
+        }
+      }
+    }
+    for (const row of confirmed) {
+      if (journal.recordLost({ designRoot, path: row.path })) lost += 1;
+    }
+  } catch (err) {
+    log.error?.(`[journal] lost-file pass failed: ${err.message}`);
+  }
+  if (lost > 0) {
+    log.warn?.(
+      `[journal] ${lost} file(s) are listed as live but missing from the checkout, and the ` +
+        'bucket does not hold their bytes either (never mirrored, or 404) — marked lost so peers ' +
+        'that still hold them push them back.'
+    );
+  }
+  return { lost };
+}
+
 /**
  * The permanent walk-import reconciler (DDR-226 §2).
  *
@@ -1044,27 +1172,6 @@ export function walkIntervalFromEnv(env = process.env) {
  *
  * @returns {{ appended: number, scanned: number, unchanged: number }}
  */
-export function reportLostFiles({ journal, designRoot, log = console }) {
-  if (!journal || !designRoot || !existsSync(designRoot)) return { lost: 0 };
-  let lost = 0;
-  try {
-    for (const row of journal.compaction()) {
-      if (row.deleted || !row.sha256) continue;
-      if (existsSync(join(designRoot, row.path))) continue;
-      if (journal.recordLost({ designRoot, path: row.path })) lost += 1;
-    }
-  } catch (err) {
-    log.error?.(`[journal] lost-file pass failed: ${err.message}`);
-  }
-  if (lost > 0) {
-    log.warn?.(
-      `[journal] ${lost} file(s) are listed as live but missing from the checkout and the bucket — ` +
-        'marked lost so peers that still hold them push them back.'
-    );
-  }
-  return { lost };
-}
-
 export function walkImport({ journal, designRoot, source = 'walk-import', log = console }) {
   if (!designRoot || !existsSync(designRoot)) return { appended: 0, scanned: 0, unchanged: 0 };
   let files;

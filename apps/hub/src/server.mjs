@@ -55,7 +55,15 @@ import {
   verifyAdminAuth,
   writeAdminSecret,
 } from './admin-auth.mjs';
-import { createWriteBehind, hydrateAssets, hydrateFiles } from './asset-lane.mjs';
+import { assetPrefixFromEnv } from './asset-key.mjs';
+import {
+  createHydrateBudget,
+  createWriteBehind,
+  hydrateAssets,
+  hydrateFiles,
+  transientFailures,
+  writeBehindKey,
+} from './asset-lane.mjs';
 import {
   handleAssetProbeRoute,
   handleAssetRoute,
@@ -91,6 +99,7 @@ import {
 import { clientIpFor, parseTrustedProxies } from './client-ip.mjs';
 import { projectTokenKey, verifyAccessToken } from './cloud-identity.mjs';
 import { designRootFor } from './design-root.mjs';
+import { diskReportSync, installCrashHandlers } from './disk.mjs';
 import { groupCanvases } from './doc-namespace.mjs';
 import { createDocsTail } from './docs-tail.mjs';
 import { createDocumentEvents } from './document-events.mjs';
@@ -185,7 +194,16 @@ const HUB_VERSION = readOwnVersion();
  * never a path. Safe on the unauthenticated /health, which is the point — when
  * you need this, authentication is usually the thing that is broken.
  */
-const bootReport = { seed: null, history: null, assets: null, assetsRestored: null };
+const bootReport = {
+  seed: null,
+  history: null,
+  assets: null,
+  assetsRestored: null,
+  // Phase 0 (cell materializer) — the boot hydrate's progress, and whether a
+  // disk error escaped somewhere and the hub chose to stay up rather than exit.
+  hydrate: null,
+  degraded: null,
+};
 const DOCUMENT_NAME_REGEX = /^[A-Za-z0-9._/-]{1,256}$/;
 const PUBLIC_URL_REGEX = /^https?:\/\/[^\s;'"<>`]+$/;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -910,6 +928,7 @@ export function createHub(config = {}) {
           // T19/T29 — the project coordinator (accepted revisions) apart from
           // the renderer: posture publicly, counters to the cell secret only.
           coordinator: accepted?.health?.({ privileged }) ?? null,
+          privileged,
         });
         // 503, not 200-with-ok-false. A router reads the STATUS; a payload it
         // has to parse to learn the truth is a payload it will not parse.
@@ -2343,6 +2362,7 @@ async function handleAdminApi(ctx) {
         port: ctx.port,
         startedAt: ctx.startedAt,
         peersCount: peers.size,
+        privileged: true,
         coordinator: ctx.accepted?.health?.({ privileged: true }) ?? null,
       }),
       // Phase 0 F5. The console's Overview reads this: an identity conflict
@@ -2694,7 +2714,13 @@ export function gitLockState(repoDir, { now = Date.now, stat = statSync } = {}) 
   }
 }
 
-function workspaceStatus() {
+/** The full value for a privileged caller; `pick(value)` for the public one. */
+function publicOr(privileged, value, pick) {
+  if (value == null) return value ?? null;
+  return privileged ? value : pick(value);
+}
+
+function workspaceStatus({ privileged = false } = {}) {
   const repoDir = process.env.MAUDE_REPO_DIR;
   if (!repoDir) return null;
   const designRoot = join(repoDir, process.env.MAUDE_DESIGN_ROOT ?? '.design');
@@ -2727,6 +2753,20 @@ function workspaceStatus() {
     // is for whoever is looking, and for the alert that should page rather than
     // reroute.
     gitLock: gitLockState(repoDir),
+    // Cell materializer Phase 0 — ALWAYS present, not only on non-zero counts:
+    // the 2026-10-01 restart loop was invisible until the disk was already
+    // full. `disk` is read now (cached ≤ 2 s); `hydrate` is the boot restore's
+    // progress (`running` → `done` | `budget` | `failed`), null on a hub with
+    // no object storage. `degraded` appears once a disk error was survived.
+    //
+    // The public probe gets the STATE — `pressure` and the hydrate `state` are
+    // what a monitor and the Task 6 watch need. Exact bytes and counts stay
+    // behind the cell secret with `stats`: free space vs. floor, polled from
+    // the internet, is a dial for how much more to push to shut the doors
+    // (Phase 0 attacker review, finding 5).
+    disk: publicOr(privileged, diskReportSync(designRoot), (d) => ({ pressure: d.pressure })),
+    hydrate: publicOr(privileged, bootReport.hydrate, (h) => ({ state: h.state })),
+    ...(bootReport.degraded ? { degraded: bootReport.degraded } : {}),
   };
   try {
     const walk = (dir, depth = 0) => {
@@ -2834,9 +2874,10 @@ function buildStatusPayload({
   render = null,
   capabilities = null,
   coordinator = null,
+  privileged = false,
 }) {
   const { tokens } = readTokens(dataDir);
-  const workspace = workspaceStatus();
+  const workspace = workspaceStatus({ privileged });
   // Cloud Phase 27 A1/D5 — A CONTAINER THAT ANSWERS 200 WHILE HALF-DEAD IS
   // WORSE THAN ONE THAT IS DOWN. The hub process being fine says nothing about
   // the studio the customer actually opens, so `ok` is the AND of both. The
@@ -3382,6 +3423,14 @@ function bailFromOnRequest() {
 
 /** Run the hub as a CLI process. */
 async function runAsMain() {
+  // Before anything can reject: a disk error escaping a fire-and-forget promise
+  // used to exit the process, which on a cell is a cold start into the same
+  // full disk (the 2026-10-01 Alligators restart loop). See disk.mjs.
+  installCrashHandlers({
+    onDiskError: (err) => {
+      bootReport.degraded = { disk: { code: err.code, at: new Date().toISOString() } };
+    },
+  });
   const port = Number.parseInt(process.env.PORT ?? '1234', 10);
   const dataDir = process.env.DATA_DIR ?? resolve(process.cwd(), 'data');
   const secret = process.env.HUB_SECRET ?? '';
@@ -3506,38 +3555,78 @@ async function runAsMain() {
           // Hydrating first also makes the sweep that follows cheap and correct:
           // the gaps are filled, so it HEADs them, finds them present, and skips
           // — instead of racing a restore it cannot see.
+          //
+          // Phase 0 (cell materializer): ONE budget across the restore, in
+          // BUILD order — so a project bigger than the disk boots with every
+          // canvas buildable and the rest waiting in the bucket, instead of
+          // filling the disk and dying (2026-10-01):
+          //
+          //   1. `files/` code modules + companion text — what Bun.build needs;
+          //   2. `assets/` — the content-addressed media canvases REFERENCE;
+          //   3. `files/` inert media — on Alligators, 6.9 GB of mostly
+          //      unreferenced raw photo libraries. Restoring these before (2)
+          //      spent the budget on photos no canvas shows and left the 0.9 GB
+          //      every canvas does show in the bucket (attacker review, #2).
+          bootReport.hydrate = { state: 'running', restored: 0, skipped: 0, failed: 0 };
+          const budget = await createHydrateBudget({ designRoot });
+          const recordHydrated = (rel) => {
+            // `built.journal`, not a bare `journal`: the latter is a const
+            // inside `createHub` and this callback runs in `runAsMain`, so
+            // every call threw a ReferenceError. The hydrators catch per file,
+            // so the only symptom was a log line each — and a woken cell that
+            // refilled dozens of files and told no peer about any of them
+            // until the next walk-import, the exact gap this lane closes.
+            //
+            // `hydrate` rather than `peer-put`: the row's source is forensics,
+            // and "this came back from the bucket after a wake" is a different
+            // fact from "a desktop pushed it". A bucket→checkout refill IS an
+            // arrival, and peers have to be able to see it.
+            if (built.journal) {
+              built.journal.recordWrite({ designRoot, path: rel, source: 'hydrate' });
+            }
+          };
+          // `files/` is the same restore for every file-plane class beyond
+          // `assets/` — the prefix the write-behind fills. Durability without a
+          // way back is a receipt, not a backup (F-6/B2).
+          const buildFiles = await hydrateFiles({
+            designRoot,
+            s3,
+            budget,
+            classes: ['code-module', 'companion-text'],
+            onWritten: ({ path: rel }) => recordHydrated(rel),
+          });
           const restored = await hydrateAssets({
             designRoot,
             s3,
-            // Sync v2 — a bucket→checkout refill IS an arrival, and peers have
-            // to be able to see it. `hydrate` rather than `peer-put`: the row's
-            // source is forensics, and "this came back from the bucket after a
-            // wake" is a different fact from "a desktop pushed it".
-            onWritten: ({ path: rel }) => {
-              // `built.journal`, not a bare `journal`: the latter is a const
-              // inside `createHub` and this callback runs in `runAsMain`, so
-              // every call threw a ReferenceError. `hydrateAssets` catches per
-              // asset, so the only symptom was a log line each — and a hydrate
-              // source that appended nothing. A woken cell refilled dozens of
-              // assets and told no peer about any of them until the next
-              // walk-import, which is the exact gap this lane was added to close.
-              if (built.journal) {
-                built.journal.recordWrite({ designRoot, path: rel, source: 'hydrate' });
-              }
-            },
+            budget,
+            onWritten: ({ path: rel }) => recordHydrated(rel),
           });
-          // The same restore for every OTHER file-plane class — the `files/`
-          // prefix the write-behind fills. Durability without a way back is a
-          // receipt, not a backup (F-6/B2).
-          const restoredFiles = await hydrateFiles({
+          const mediaFiles = await hydrateFiles({
             designRoot,
             s3,
-            onWritten: ({ path: rel }) => {
-              if (built.journal) {
-                built.journal.recordWrite({ designRoot, path: rel, source: 'hydrate' });
-              }
-            },
+            budget,
+            classes: ['inert-media'],
+            onWritten: ({ path: rel }) => recordHydrated(rel),
           });
+          const lanes = [buildFiles, restored, mediaFiles];
+          const sum = (f) => lanes.reduce((n, r) => n + f(r), 0);
+          const restoredFiles = {
+            restored: [...buildFiles.restored, ...mediaFiles.restored],
+            present: buildFiles.present + mediaFiles.present,
+            failed: [...buildFiles.failed, ...mediaFiles.failed],
+          };
+          const totals = {
+            restored: sum((r) => r.restored.length),
+            skipped: sum((r) => r.skippedForBudget),
+            // Only failures a later boot could avoid count as "partial": a key
+            // refused on every boot would otherwise switch the lost-file pass
+            // off for good (defender W4). Permanent ones stay in `failed` below.
+            failed: sum(transientFailures),
+          };
+          bootReport.hydrate = {
+            state: totals.failed ? 'failed' : totals.skipped ? 'budget' : 'done',
+            ...totals,
+          };
           if (
             restored.restored.length ||
             restored.failed.length ||
@@ -3552,7 +3641,19 @@ async function runAsMain() {
           }
           // What the bucket could not give back is LOST, not deleted: say so
           // in the journal so every peer that still holds it pushes it back.
-          if (built.journal) reportLostFiles({ journal: built.journal, designRoot });
+          //
+          // Asked of the BUCKET, and never after a partial hydrate: v1.5.2
+          // marked every row missing from a half-filled disk, and every desktop
+          // re-pushed gigabytes the bucket already held (2026-10-01).
+          if (built.journal) {
+            await reportLostFiles({
+              journal: built.journal,
+              designRoot,
+              hydrate: { failed: totals.failed, skippedForBudget: totals.skipped },
+              s3: () => s3Source.config(),
+              keyFor: (rel) => writeBehindKey(rel, assetPrefixFromEnv()),
+            });
+          }
           // The journal-driven write-behind (Sync v2 Increment 5). Every
           // accepted file-plane write already lands a journal row — through
           // the door, the studio child's report, walk-import or a hydrate —
@@ -3576,6 +3677,9 @@ async function runAsMain() {
           });
         })
         .catch((err) => {
+          if (bootReport.hydrate?.state === 'running') {
+            bootReport.hydrate = { ...bootReport.hydrate, state: 'failed' };
+          }
           built.recordAssetSweep({ error: err.message.slice(0, 120) });
           console.error(`[hub] asset write-behind failed: ${err.message}`);
         });
