@@ -189,11 +189,16 @@ export function escapeHtml(value) {
 }
 
 /** A plain page for the states that are not the studio. */
-export function servicePage(title, message, { action = null } = {}) {
+export function servicePage(title, message, { action = null, refreshSeconds = null } = {}) {
   const esc = escapeHtml;
+  // Opt-in, script-free polling for the "still starting" states: the page
+  // re-asks the same URL and simply becomes the studio once it answers.
+  const refresh = refreshSeconds
+    ? `<meta http-equiv="refresh" content="${Number(refreshSeconds)}">\n`
+    : '';
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${esc(title)}</title>
+${refresh}<title>${esc(title)}</title>
 <link rel="stylesheet" href="/admin/style.css">
 </head>
 <body class="service-page"><main><h1>${esc(title)}</h1><p>${esc(message)}</p>${

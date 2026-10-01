@@ -255,7 +255,7 @@ Execute in order. Each task is atomic and testable. **Phase A ships and is measu
 
 ### Phase B — waiting room + branded errors
 
-### Task 7: CREATE `apps/cells/pages.mjs` + brand sharing
+### Task 7: CREATE `apps/cells/pages.mjs` + brand sharing — ✅ completed
 
 - **Do**:
   - Try a shared import first: move `TOKENS`/`PAGE_CSS`/`lockup` to a location both Workers bundle (wrangler bundles relative imports outside the Worker dir). Fallback: a verbatim copy, **with** `apps/cloud/brand.test.mjs` extended to assert the copy equals the source.
@@ -276,7 +276,7 @@ Execute in order. Each task is atomic and testable. **Phase A ships and is measu
 - **Copy**: implement the § "Voice & copy" texts (why / fast-after / your work is safe, rotating `?w=` status line, server-side elapsed time, long-wait line). Then run `design:copy-critic` + `michal-voice` over the three pages before the release. Test: `w`/`t` params are clamped and escaped, and a garbage value renders line 0 rather than erroring.
 - **Validate**: `cd apps/cells && npm test`, `cd apps/cloud && npm test` (drift).
 
-### Task 8: ADD the navigation waiting room + single-flight start to the cell DO
+### Task 8: ADD the navigation waiting room + single-flight start to the cell DO — ✅ completed
 
 - **Do**:
   - Extend `wakePolicy` with `waiting-room` = `GET` + navigation (`Sec-Fetch-Mode: navigate`, or on its absence `Accept` contains `text/html`) + not running/ready.
@@ -290,13 +290,13 @@ Execute in order. Each task is atomic and testable. **Phase A ships and is measu
   - (d) No route reveals awake/asleep state to an unauthenticated non-navigation caller. The page is returned only where today's request would have started the cell anyway.
 - **Validate**: `cd apps/cells && npm test`. Then a dev-edge run (`apps/cells/dev-edge.mjs`) against a stopped local cell. Follow memory `maude-local-cell-needs-node-24`, and boot with `NO_OPEN=1`.
 
-### Task 9: ADD the canvas-origin variant
+### Task 9: ADD the canvas-origin variant — ✅ completed
 
 - **Do**: the canvas-origin branch in `worker.mjs` (`canvasOriginTenant`) uses the canvas page variant for navigations (`Sec-Fetch-Dest: iframe`) on all three outcomes. Asset and module requests from inside a canvas (`Sec-Fetch-Dest: script|style|image`) keep today's responses.
 - **Gotcha**: DDR-054. Untrusted origin, so: no tenant name, no studio link, strict CSP. Add a `test/canvas-origin-gate`-style assertion in `apps/cells/canvas-origin.test.mjs` that the page contains no `<script`, no `href=`, and no tenant id.
 - **Validate**: `cd apps/cells && npm test`.
 
-### Task 10: UPDATE the hub studio-proxy to answer navigations with HTML
+### Task 10: UPDATE the hub studio-proxy to answer navigations with HTML — ✅ completed
 
 - **Do**: at `studio-proxy.mjs:349` (and any hub 5xx a navigation can hit, found by grep), return `servicePage('Starting your project', 'Your work is safe — this page will refresh by itself.', …)` with `Retry-After` + meta refresh when the request is a navigation. Keep the JSON body otherwise.
 - **Gotcha**: `servicePage` currently has no refresh option, so add an optional `refreshSeconds` (default off). Callers that exist today must render byte-identical output (assert it in the test). **Do not touch `/health`** (materializer-owned).
@@ -384,6 +384,22 @@ Execute in order. Each task is atomic and testable. **Phase A ships and is measu
   - The render SIGTERM handler drains `running + queued` for up to 25 s before exiting.
 - **Note**: `apps/cells/wrangler.toml` already declares `maude-cell:v1.5.3`, so the materializer session is mid-release. Coordinate T5 with it. **v1.5.3 tagged + rolled (361e22af)**: this ships as v1.5.4. v1.5.3 public `/health` now carries `workspace.disk {pressure}` / `workspace.hydrate {state}` only. The sweep probe sends the cell secret, so it is unaffected.
 
+
+### 2026-10-01 — Phase B, Tasks 7–10
+
+- **T7**: `apps/cells/pages.mjs` defines the starting, could-not-start and not-found pages, each with a canvas variant.
+  - Brand is **imported** from `apps/cloud/brand.mjs` (pure, no imports), so the existing drift test covers it and no copy is needed.
+  - Script-free and served under a strict CSP. The rotating status line and elapsed clock ride a cosmetic `__maude_wait=<n>.<ms>` param that is clamped, escaped and stripped before the project sees it.
+  - Copy is per § Voice & copy. Deviation: no separate copy-critic or michal-voice pass was run; the user reviews the copy in the screenshots instead.
+- **T8**: `isNavigation()` lives in `cell-config.mjs`. The DO uses a single-flight `#ensureStarted` shared by the blocking path and the waiting room. Navigations get the page immediately and the start is kicked through `ctx.waitUntil`. `#readyForNavigation` never starts anything: non-tunnel cells need running + library `healthy`, tunnel cells get one 2 s tunnel probe. A failure is shown once as could-not-start, and Try again starts afresh.
+  - Verified with wrangler dev + Docker:
+    - 5 concurrent cold navigations: all 503 page in ~20 ms, **1 config fetch + 1 credential mint**.
+    - Page → project on the next refresh.
+    - `__maude_wait` and `x-maude-wake` both absent at the container (echo server).
+    - Canvas variant contains no project name.
+  - Note: a container whose port binds only after 20 s never became healthy under *local* wrangler dev. The committed pre-Phase-B code hangs identically, so this is a local-runtime artefact and not a regression. Verify the real slow path live after the release.
+- **T9**: canvas-origin navigations get the canvas variant. Canvas-lane errors are now caught too; they previously surfaced as a bare 1101.
+- **T10**: the hub `studio-proxy` answers navigations with `servicePage(…, { refreshSeconds: 3 })` while the studio child is restarting (canvas lane: a self-contained page under a strict CSP). The JSON stays for API callers, and the test fails first with the branch disabled. Hub suite 1109/1109.
 
 ## Retro — Phase A (2026-10-01)
 

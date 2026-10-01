@@ -698,3 +698,26 @@ export function stripCanvasOriginMarker(request) {
   inbound.headers.delete(CANVAS_ORIGIN_HEADER);
   return inbound;
 }
+
+/**
+ * Is this a PERSON's browser loading a page (top-level or an iframe), as
+ * opposed to a script, a socket, a desktop sync call or a probe?
+ *
+ * Only these get the waiting room and the friendly error pages; everything
+ * else keeps today's exact behaviour (feature-cloud-cost-and-cold-start-ux B2).
+ * Fetch Metadata first — every current engine sends it. Its absence falls back
+ * to the oldest honest signal: a GET that prefers HTML. A socket upgrade is
+ * never a navigation, whatever else it says.
+ */
+export function isNavigation(request) {
+  if (request.method !== 'GET') return false;
+  const h = request.headers;
+  if ((h.get('upgrade') ?? '').toLowerCase() === 'websocket') return false;
+  const mode = h.get('sec-fetch-mode');
+  if (mode) {
+    if (mode !== 'navigate') return false;
+    const dest = h.get('sec-fetch-dest');
+    return !dest || dest === 'document' || dest === 'iframe';
+  }
+  return /\btext\/html\b/.test(h.get('accept') ?? '');
+}

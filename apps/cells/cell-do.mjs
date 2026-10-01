@@ -18,10 +18,12 @@
 import { Container } from '@cloudflare/containers';
 
 import {
+  CANVAS_ORIGIN_HEADER,
   CELL_PORT,
   cellEnv,
   deriveSecret,
   fetchTenantConfig,
+  isNavigation,
   isValidTenantId,
   needsStartupState,
   RESTART_PATH,
@@ -31,6 +33,20 @@ import {
   wakePolicy,
 } from './cell-config.mjs';
 import { createCredentialResolver } from './cell-credentials.mjs';
+import {
+  couldNotStartPage,
+  htmlResponse,
+  REFRESH_SECONDS,
+  startingPage,
+  stripWait,
+  WAIT_PARAM,
+} from './pages.mjs';
+
+/**
+ * How long a start may take before a person is told it failed: the port wait
+ * below (30 min — "how big may a project be", see the comment there).
+ */
+const START_DEADLINE_MS = 1_800_000;
 
 export {
   CELL_PORT,
@@ -127,6 +143,9 @@ export class MaudeCell extends Container {
     // still knows who it is.
     const tenantId = fromHeader ?? (await this.ctx.storage.get('tenantId'));
     if (!isValidTenantId(tenantId)) {
+      if (isNavigation(request)) {
+        return htmlResponse(couldNotStartPage({ url: new URL(request.url) }), 500);
+      }
       return new Response('this cell has no tenant', { status: 500 });
     }
     if (fromHeader && fromHeader !== (await this.ctx.storage.get('tenantId'))) {
@@ -161,6 +180,28 @@ export class MaudeCell extends Container {
       request.headers.delete(WAKE_HEADER);
     }
 
+    // A PERSON'S BROWSER GETS A PAGE, NOT A HANG (feature-cloud-cost-and-
+    // cold-start-ux B2). Everything else — scripts, sockets, desktop sync,
+    // probes — falls through to the blocking path below, byte-for-byte as
+    // before. The page is shown only where this request would have started
+    // the cell anyway, so it reveals nothing a request could not already learn.
+    if (isNavigation(request)) {
+      const url = new URL(request.url);
+      const canvas = request.headers.get(CANVAS_ORIGIN_HEADER) === '1';
+      if (!(await this.#readyForNavigation(tenantId))) {
+        const failed = this.#takeStartFailure();
+        if (failed) {
+          return htmlResponse(couldNotStartPage({ url, reason: failed, canvas }), 503);
+        }
+        const starting = this.#ensureStarted(tenantId, hostname);
+        // The refreshes keep this object busy, but the start must not depend on
+        // a person keeping the tab open.
+        this.ctx.waitUntil?.(starting);
+        return htmlResponse(startingPage({ url, canvas }), 503, { retryAfter: REFRESH_SECONDS });
+      }
+      if (url.searchParams.has(WAIT_PARAM)) request = new Request(stripWait(url), request);
+    }
+
     // A RUNNING CONTAINER NEEDS NEITHER ITS CONFIG NOR FRESH CREDENTIALS.
     //
     // Both are applied at container START — `startOptions.envVars` REPLACES
@@ -192,6 +233,96 @@ export class MaudeCell extends Container {
       }
     }
 
+    // THE BLOCKING PATH — every non-navigation caller, unchanged in behaviour.
+    // It goes through the SAME single-flight start a navigation kicks, so a
+    // page refresh and a desktop PUT arriving together cause one start, one
+    // config fetch and one credential resolve (the 2026-09-03 storm guard).
+    const started = await this.#ensureStarted(tenantId, hostname);
+    if (started.refuse) return started.refuse;
+    if (this.#tunnelMode(tenantId)) {
+      this.renewActivityTimeout?.();
+      return await this.#proxyThroughTunnel(request);
+    }
+    return this.containerFetch(request);
+  }
+
+  /** The start in flight, if any — ONE per object, shared by every caller. */
+  #starting = null;
+  /** When the current (or last) start began — the navigation deadline's clock. */
+  #startedAt = null;
+  /** Why the last start failed, for the next navigation to show once. */
+  #startFailure = null;
+
+  /** A failed start, shown once — the person's "Try again" starts afresh. */
+  #takeStartFailure() {
+    if (this.#starting || !this.#startFailure) return null;
+    const reason = this.#startFailure;
+    this.#startFailure = null;
+    return reason;
+  }
+
+  /**
+   * Is the project ready to be shown to a person? Never starts anything.
+   *
+   * Non-tunnel: the platform says the container runs AND the library marked
+   * its port healthy. Tunnel: one quick look through the tunnel — the same
+   * readiness test `#proxyThroughTunnel` polls, asked once per page refresh
+   * instead of in a two-minute blocking loop.
+   */
+  async #readyForNavigation(tenantId) {
+    if (this.ctx.container?.running !== true) return false;
+    if (!this.#tunnelMode(tenantId)) {
+      const state = await this.getState?.();
+      return state?.status === 'healthy';
+    }
+    if (this.#starting) return false;
+    const probe = await fetch(`https://${this.env.MAUDE_TUNNEL_HOST}/health`, {
+      cf: { cacheTtl: 0 },
+      signal: AbortSignal.timeout(2_000),
+    }).catch(() => null);
+    const up = Boolean(probe && ![530, 502, 523, 521].includes(probe.status));
+    if (!up && this.#startedAt && Date.now() - this.#startedAt > START_DEADLINE_MS) {
+      this.#startFailure ??= 'The project’s server didn’t come up in time.';
+    }
+    return up;
+  }
+
+  /**
+   * Start this cell, once, however many callers ask. Resolves `{}` when the
+   * container is up (tunnel: started; otherwise: port healthy), or
+   * `{ refuse }` with the response today's blocking callers return.
+   */
+  #ensureStarted(tenantId, hostname) {
+    if (this.#starting) return this.#starting;
+    this.#startedAt = Date.now();
+    this.#startFailure = null;
+    this.#starting = this.#start(tenantId, hostname)
+      .catch((err) => {
+        console.error(`[cell] ${tenantId} start failed: ${err?.message ?? err}`);
+        this.#startFailure = 'The project’s server didn’t manage to start this time.';
+        return {
+          refuse: new Response(
+            'This project could not be started. The operator has been given the reason.\n',
+            { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8' } }
+          ),
+        };
+      })
+      .finally(() => {
+        this.#starting = null;
+      });
+    return this.#starting;
+  }
+
+  async #start(tenantId, hostname) {
+    // ALREADY RUNNING (a navigation found it up but not yet healthy): nothing
+    // to configure — env applies only at START — so just wait for the port.
+    if (this.ctx.container?.running === true && !this.#tunnelMode(tenantId)) {
+      await this.startAndWaitForPorts({
+        cancellationOptions: { portReadyTimeoutMS: START_DEADLINE_MS },
+      });
+      return {};
+    }
+
     // Who this tenant is, asked of the control plane rather than read from a
     // fleet-wide variable (B1). Resolved per start; the DO's own storage is
     // the offline fallback, never another tenant's value.
@@ -214,7 +345,7 @@ export class MaudeCell extends Container {
       // `config` is the one resolved above — this branch used to re-fetch it,
       // doubling a control-plane call on every tunnel-mode cold start.
       const storage = await this.#resolveStorageCredentials(tenantId);
-      if (storage.refuse) return storage.refuse;
+      if (storage.refuse) return this.#refused(storage);
       try {
         // Idempotent when already running; never waits for the port.
         await this.start({
@@ -229,8 +360,7 @@ export class MaudeCell extends Container {
       } catch (err) {
         console.error(`[cell] ${tenantId} tunnel-mode start: ${err?.message ?? err}`);
       }
-      this.renewActivityTimeout?.();
-      return await this.#proxyThroughTunnel(request);
+      return {};
     }
 
     // This tenant's OWN storage credentials (Phase 25 A-1) — minted fresh on
@@ -240,7 +370,7 @@ export class MaudeCell extends Container {
     // start without storage rehydrates nothing and comes up as an empty
     // project — indistinguishable from a deleted one.
     const storage = await this.#resolveStorageCredentials(tenantId);
-    if (storage.refuse) return storage.refuse;
+    if (storage.refuse) return this.#refused(storage);
     const s3Creds = storage.s3Creds;
     await this.startAndWaitForPorts({
       startOptions: {
@@ -265,9 +395,20 @@ export class MaudeCell extends Container {
       // THE REAL FIX IS TO BIND FIRST AND RESTORE BEHIND a "restoring" page,
       // so availability stops being a function of project size. Until that
       // exists this number must stay ahead of the largest tenant.
-      cancellationOptions: { portReadyTimeoutMS: 1_800_000 },
+      cancellationOptions: { portReadyTimeoutMS: START_DEADLINE_MS },
     });
-    return this.containerFetch(request);
+    return {};
+  }
+
+  /** A credential refusal: today's response for API callers, a sentence for people. */
+  #refused(storage) {
+    // A retryable wall (cooldown, rate limit) is "still starting" to a person;
+    // only the fail-closed refusal is a failure worth a page of its own.
+    if (storage.refuse.status === 503 && !storage.refuse.headers.has('retry-after')) {
+      this.#startFailure =
+        'We couldn’t reach your project’s storage, so we didn’t start it — starting empty could look like lost work.';
+    }
+    return { refuse: storage.refuse };
   }
 
   /** Is this tenant reached through the outbound Cloudflare Tunnel? */

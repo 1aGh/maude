@@ -13,6 +13,7 @@ import {
 import {
   createStudioProxy,
   INJECTED_HEADER_PREFIX,
+  isNavigationRequest,
   sessionKeyFor,
   upstreamHeaders,
 } from '../src/studio-proxy.mjs';
@@ -153,6 +154,65 @@ test('a dead upstream is 503 with a retry, never a 500', async () => {
   assert.equal(response.statusCode, 503);
   assert.equal(response.headers['retry-after'], '2');
   assert.match(JSON.parse(response.body).error, /Your work is safe/);
+});
+
+const NAV = { 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document', accept: 'text/html' };
+
+test('a page load during a restart gets a page that refreshes itself, not JSON', async () => {
+  // feature-cloud-cost-and-cold-start-ux B4: a person opening the project
+  // while the studio child restarts used to read `{"error": …}` in the tab.
+  const { proxy } = makeProxy({ ok: false });
+  const response = fakeResponse();
+  await proxy.handle({
+    request: { method: 'GET', headers: NAV, url: '/' },
+    response,
+    pathname: '/',
+    method: 'GET',
+    session: { email: 'o@b.c', role: 'owner' },
+  });
+  assert.equal(response.statusCode, 503);
+  assert.match(response.headers['content-type'], /text\/html/);
+  assert.match(response.body, /http-equiv="refresh" content="3"/);
+  assert.match(response.body, /Your work is safe/);
+});
+
+test('the canvas iframe gets a page that names nothing, links nowhere, loads nothing', async () => {
+  const { proxy } = makeProxy({ ok: false });
+  const response = fakeResponse();
+  await proxy.handleCanvas({
+    request: {
+      method: 'GET',
+      headers: { ...NAV, 'sec-fetch-dest': 'iframe' },
+      url: '/_canvas-shell.html?t=x',
+    },
+    response,
+    pathname: '/_canvas-shell.html',
+    method: 'GET',
+    verifyToken: () => ({ ok: true }),
+  });
+  assert.equal(response.statusCode, 503);
+  assert.match(response.headers['content-security-policy'], /default-src 'none'/);
+  assert.doesNotMatch(response.body, /<script|href=|<link|alligators/i);
+});
+
+test('API callers keep the exact JSON answer', () => {
+  assert.equal(
+    isNavigationRequest({ method: 'GET', headers: { accept: 'application/json' } }),
+    false
+  );
+  assert.equal(
+    isNavigationRequest({
+      method: 'GET',
+      headers: { 'sec-fetch-mode': 'cors', accept: 'text/html' },
+    }),
+    false
+  );
+  assert.equal(isNavigationRequest({ method: 'POST', headers: NAV }), false);
+  assert.equal(
+    isNavigationRequest({ method: 'GET', headers: { ...NAV, upgrade: 'websocket' } }),
+    false
+  );
+  assert.equal(isNavigationRequest({ method: 'GET', headers: NAV }), true);
 });
 
 // ------------------------------------------------------- A3: the role travels

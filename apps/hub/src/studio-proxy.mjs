@@ -28,6 +28,7 @@ import { connect as netConnect } from 'node:net';
 
 import { RENDER_TOKEN_TTL_MS } from './render-token.mjs';
 import { isReadOnlyRole } from './role-matrix.mjs';
+import { servicePage } from './studio-door.mjs';
 import { decide } from './studio-manifest.mjs';
 
 /** Headers a client must never be able to speak. See property 2 above. */
@@ -252,6 +253,54 @@ export function sessionKeyFor(project, email, hash) {
   return hash(`${project}\0${email}`).slice(0, 16);
 }
 
+/**
+ * A PERSON's browser loading a page (top level or an iframe) — not a script, a
+ * socket, a desktop sync call or a probe. Only these get an HTML answer when
+ * the studio is not up yet; every API caller keeps its exact JSON
+ * (feature-cloud-cost-and-cold-start-ux B4). Mirrors `isNavigation` in
+ * apps/cells/cell-config.mjs, over Node's header shape.
+ */
+export function isNavigationRequest(request) {
+  if ((request.method ?? 'GET') !== 'GET') return false;
+  const h = request.headers ?? {};
+  if (String(h.upgrade ?? '').toLowerCase() === 'websocket') return false;
+  const mode = h['sec-fetch-mode'];
+  if (mode) {
+    if (mode !== 'navigate') return false;
+    const dest = h['sec-fetch-dest'];
+    return !dest || dest === 'document' || dest === 'iframe';
+  }
+  return /\btext\/html\b/.test(String(h.accept ?? ''));
+}
+
+const STARTING_TITLE = 'Almost there…';
+const STARTING_TEXT =
+  "Your project's server is finishing waking up. Your work is safe — this page refreshes by itself.";
+
+/**
+ * The "still starting" answer for a navigation. The shell gets the hub's own
+ * service page; the CANVAS origin (untrusted, cookieless — DDR-054) gets a
+ * self-contained page that names nothing, links nowhere and loads nothing.
+ */
+function respondStartingPage(response, { canvas = false } = {}) {
+  const html = canvas
+    ? `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="refresh" content="3"><title>${STARTING_TITLE}</title><style>body{margin:0;display:grid;place-items:center;min-height:100vh;font:15px/1.5 system-ui,sans-serif;background:#1b1d22;color:#c9ccd3}main{max-width:26rem;padding:24px;text-align:center}</style></head><body><main><p><strong>${STARTING_TITLE}</strong></p><p>${STARTING_TEXT}</p></main></body></html>`
+    : servicePage(STARTING_TITLE, STARTING_TEXT, { refreshSeconds: 3 });
+  response.writeHead(503, {
+    'content-type': 'text/html; charset=utf-8',
+    'cache-control': 'no-store',
+    'retry-after': '3',
+    'x-content-type-options': 'nosniff',
+    ...(canvas
+      ? {
+          'content-security-policy':
+            "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'",
+        }
+      : {}),
+  });
+  response.end(html);
+}
+
 function refuse(response, status, body) {
   const payload = JSON.stringify(body);
   response.writeHead(status, {
@@ -342,6 +391,10 @@ export function createStudioProxy({
     }
 
     const up = upstream();
+    if (!up?.ok && isNavigationRequest(request)) {
+      respondStartingPage(response);
+      return true;
+    }
     if (!up?.ok) {
       // 503 + Retry-After, because this is genuinely transient: the supervisor
       // is restarting the child and will succeed. Saying 500 here would make an
@@ -549,6 +602,10 @@ export function createStudioProxy({
     }
     const up = canvasUpstream?.();
     if (!up?.ok || !up.port) {
+      if (isNavigationRequest(request)) {
+        respondStartingPage(response, { canvas: true });
+        return true;
+      }
       response.writeHead(503, { 'cache-control': 'no-store', 'retry-after': '2' });
       response.end();
       return true;

@@ -22,8 +22,14 @@
 // project, for people who actually have access. A surface that stays
 // half-alive is worse than one that never shipped.
 
-import { canvasInnerRequest, canvasOriginTenant, stripCanvasOriginMarker } from './cell-config.mjs';
+import {
+  canvasInnerRequest,
+  canvasOriginTenant,
+  isNavigation,
+  stripCanvasOriginMarker,
+} from './cell-config.mjs';
 import { MaudeCell, routeToCell, tenantFromHostname } from './cell-do.mjs';
+import { couldNotStartPage, htmlResponse, notFoundPage } from './pages.mjs';
 import { PROJECT_STORE_HOST, projectStoreOutbound } from './project-store.mjs';
 import { ProjectStore } from './project-store-do.mjs';
 
@@ -78,6 +84,7 @@ export default {
     const canvasTenant = canvasOriginTenant(url, env.CELL_ZONE);
     if (canvasTenant) {
       if (!canvasTenant.tenant) {
+        if (isNavigation(request)) return htmlResponse(notFoundPage({ canvas: true }), 404);
         return new Response('the canvas origin needs a project in the path\n', {
           status: 404,
           headers: { 'content-type': 'text/plain; charset=utf-8' },
@@ -98,11 +105,26 @@ export default {
       // The header is STRIPPED on the tenant branch below, so it cannot be
       // forged into existence from outside; and the lane it opens is read-only
       // and capability-gated regardless.
-      return routeToCell(
-        canvasInnerRequest(request, url, canvasTenant.rest),
-        env,
-        canvasTenant.tenant
-      );
+      try {
+        return await routeToCell(
+          canvasInnerRequest(request, url, canvasTenant.rest),
+          env,
+          canvasTenant.tenant
+        );
+      } catch (err) {
+        // Same posture as the tenant lane below — and the iframe gets the
+        // canvas variant: no project name, no links (DDR-054).
+        console.error(
+          `[cells] ${canvasTenant.tenant} canvas failed to serve: ${err?.stack || err}`
+        );
+        if (isNavigation(request)) {
+          return htmlResponse(couldNotStartPage({ url, canvas: true }), 503);
+        }
+        return new Response('This canvas could not be loaded right now.\n', {
+          status: 503,
+          headers: { 'content-type': 'text/plain; charset=utf-8' },
+        });
+      }
     }
 
     const tenant = tenantFromHostname(url.hostname, env.CELL_ZONE);
@@ -110,6 +132,7 @@ export default {
       // A hostname routed here that is not a project is a provisioning
       // mistake, not a user error — say so rather than serving a 404 that
       // reads like the project was deleted.
+      if (isNavigation(request)) return htmlResponse(notFoundPage(), 404);
       return new Response('this hostname is not a Maude project\n', {
         status: 404,
         headers: { 'content-type': 'text/plain; charset=utf-8' },
@@ -127,6 +150,7 @@ export default {
       // the log and the visitor gets a sentence that is honest without being a
       // stack trace.
       console.error(`[cells] ${tenant} failed to serve: ${err?.stack || err}`);
+      if (isNavigation(request)) return htmlResponse(couldNotStartPage({ url }), 503);
       return new Response(
         'This project could not be started. The operator has been given the reason.\n',
         { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8' } }
