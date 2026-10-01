@@ -54,7 +54,7 @@ import { dirname, join } from 'node:path';
 
 import { assetPrefixFromEnv } from './asset-key.mjs';
 import { diskPressureRefusal, respondDiskPressure } from './disk.mjs';
-import { currentHashFor, quotaFor, seqFor, withPathLock } from './file-door.mjs';
+import { currentHashFor, quotaFor, seqFor, textFileMaxBytes, withPathLock } from './file-door.mjs';
 import { MAX_PROJECT_FILE_BYTES, PART_BYTES } from './file-limits.mjs';
 import { checkoutFileClass, resolveCheckoutFileWrite } from './file-manifest.mjs';
 import {
@@ -288,10 +288,11 @@ function admit(ctx, match, rel) {
   if (!matchesScope(match.scope, landing)) {
     return { status: 403, error: 'this token is not scoped to that path' };
   }
-  if (checkoutFileClass(landing, ctx.designRoot) === 'code-module' && match.role !== 'owner') {
+  const cls = checkoutFileClass(landing, ctx.designRoot);
+  if (cls === 'code-module' && match.role !== 'owner') {
     return { status: 403, error: 'code modules may only be written by an owner-scoped token' };
   }
-  return { target, landing };
+  return { target, landing, cls };
 }
 
 async function streamPart(request, tmp, expected) {
@@ -356,6 +357,18 @@ export async function handleUploadSessions(ctx) {
     if (!ad.landing) {
       respondJson(response, ad.status, { error: ad.error });
       return true;
+    }
+    // On a cell, code and companion text stay checkout files and are capped
+    // (file-door.mjs `textFileMaxBytes`) — refused at creation, before a part.
+    if (ctx.materializer && (ad.cls === 'code-module' || ad.cls === 'companion-text')) {
+      const cap = textFileMaxBytes();
+      if (size > cap) {
+        respondJson(response, 413, {
+          error: `over the ${cap}-byte ceiling for this file type`,
+          maxBytes: cap,
+        });
+        return true;
+      }
     }
     const expect = typeof body?.expectHash === 'string' ? body.expectHash.trim() : '';
     // Idempotent: the same person resuming the same bytes to the same place
@@ -527,8 +540,14 @@ export async function handleUploadSessions(ctx) {
         });
         return true;
       }
+      // CELL MODE (Task 12): inert media with no checkout copy is assembled in
+      // the blob cache and pinned there, exactly as the single-PUT door does.
+      const intoCache =
+        Boolean(ctx.materializer) && ad.cls === 'inert-media' && !existsSync(target.abs);
       mkdirSync(dirname(target.abs), { recursive: true });
-      const tmp = `${target.abs}.tmp-${process.pid}-${randomBytes(4).toString('hex')}`;
+      const tmp = intoCache
+        ? ctx.materializer.tempPath()
+        : `${target.abs}.tmp-${process.pid}-${randomBytes(4).toString('hex')}`;
       const hash = createHash('sha256');
       const out = createWriteStream(tmp);
       try {
@@ -560,8 +579,13 @@ export async function handleUploadSessions(ctx) {
         });
         return true;
       }
-      renameSync(tmp, target.abs);
-      ctx.onWritten?.({ path: s.path, bytes: s.size, sha256: whole });
+      if (intoCache) {
+        ctx.materializer.pin(whole, tmp);
+        ctx.onPinned?.({ path: s.path, sha256: whole, bytes: s.size });
+      } else {
+        renameSync(tmp, target.abs);
+        ctx.onWritten?.({ path: s.path, bytes: s.size, sha256: whole });
+      }
       const receipt = {
         ok: true,
         path: s.path,

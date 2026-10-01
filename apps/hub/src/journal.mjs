@@ -436,6 +436,52 @@ function makeHandle({ db, getMeta, setMeta, now }) {
     },
 
     /**
+     * Append a row for bytes the hub holds in its CELL BLOB CACHE, not at the
+     * checkout path (cell materializer Task 12).
+     *
+     * `recordWrite`'s invariant is "the hub reads its own disk": the caller
+     * says WHERE, never WHAT. On a cell an inert-media upload lands pinned in
+     * `_cache/blobs/<sha>` and the checkout path stays empty by design, so
+     * that read has nothing to read. This sibling keeps the invariant's point
+     * — content is never caller-supplied over HTTP — by accepting only the
+     * digest the WRITE DOOR computed from the bytes it streamed, and only for
+     * inert media (code and companion text always land in the checkout).
+     *
+     * @param {{ designRoot: string, path: string, sha256: string, size: number, source: string }} w
+     */
+    recordVerifiedWrite({ designRoot, path: rel, sha256, size, source }) {
+      if (!designRoot || typeof rel !== 'string' || rel.length === 0) return null;
+      if (!JOURNAL_SOURCES.includes(source)) {
+        console.error(`[journal] refusing an append with unknown source '${source}'`);
+        return null;
+      }
+      if (typeof sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(sha256)) return null;
+      if (!Number.isInteger(size) || size < 0 || size > MAX_FILE_BYTES) return null;
+      const cls = classifyProjectFile(rel, {
+        canvasGroups: readCanvasGroups(designRoot),
+        hasFile: (r) => existsSync(join(designRoot, r)),
+      });
+      if (cls !== 'inert-media') return null;
+      const prev = stmts.latestForPath.get(rel);
+      if (prev && prev.deleted === 0 && prev.sha256 === sha256) {
+        return { seq: prev.seq, sha256, noop: true, deleted: false };
+      }
+      const info = stmts.insert.run({
+        path: rel,
+        sha256,
+        size,
+        mtime_ms: now(),
+        class: cls,
+        deleted: 0,
+        source,
+        at_ms: now(),
+      });
+      const row = stmts.byId.get(info.lastInsertRowid);
+      emit(row);
+      return { seq: row.seq, sha256, noop: false, deleted: false };
+    },
+
+    /**
      * Tombstone rows appended at or after `sinceMs` — the delete breaker's
      * numerator. See `DELETE_BUDGET_PER_WINDOW`.
      *

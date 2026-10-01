@@ -598,6 +598,29 @@ export function createHub(config = {}) {
   };
 
   /**
+   * A write door PINNED an upload into the cell blob cache (cell materializer
+   * Task 12) — inert media whose checkout path stays empty by design. There is
+   * no disk file for `recordWrite` to read, so the row carries the digest the
+   * DOOR computed of the bytes it received (`recordVerifiedWrite`). The
+   * write-behind subscribes to the append, as for every other write.
+   */
+  const notePinnedWrite = (info) => {
+    const rel = typeof info?.path === 'string' ? info.path : null;
+    if (!journal || !journalDesignRoot || !rel) return;
+    try {
+      journal.recordVerifiedWrite({
+        designRoot: journalDesignRoot,
+        path: rel,
+        sha256: info.sha256,
+        size: info.bytes,
+        source: 'peer-put',
+      });
+    } catch (err) {
+      console.error(`[journal] pinned append failed for ${sanitizeForLog(rel)}: ${err.message}`);
+    }
+  };
+
+  /**
    * A peer deleted a file — Increment 6. The mirror image of the write hook.
    *
    * The tombstone is a journal ROW, so peers receive "deleted at seq N" in the
@@ -1161,7 +1184,9 @@ export function createHub(config = {}) {
             designRoot: journalDesignRoot,
             journal,
             onWritten: noteCheckoutWrite,
+            onPinned: notePinnedWrite,
             onDeleted: noteCheckoutDelete,
+            materializer,
             checkRateLimit: rateLimit
               ? (req) => checkRateLimit(rateBuckets, req, { store: rateStore, ip: clientIp(req) })
               : undefined,
@@ -1412,7 +1437,9 @@ export function createHub(config = {}) {
           designRoot: journalDesignRoot,
           journal,
           onWritten: noteCheckoutWrite,
+          onPinned: notePinnedWrite,
           onDeleted: noteCheckoutDelete,
+          materializer,
           checkRateLimit: rateLimit
             ? (req) => checkRateLimit(rateBuckets, req, { store: rateStore, ip: clientIp(req) })
             : undefined,
@@ -1437,6 +1464,8 @@ export function createHub(config = {}) {
           designRoot: journalDesignRoot,
           journal,
           onWritten: noteCheckoutWrite,
+          onPinned: notePinnedWrite,
+          materializer,
           checkWriteRateLimit: rateLimit
             ? (label) => checkConnRateLimit(assetWriteBuckets, label, assetWriteRateLimitMax)
             : undefined,
@@ -3733,6 +3762,8 @@ async function runAsMain() {
             designRoot,
             s3: () => s3Source.config(),
             journal: built.journal,
+            // Cell materializer — pinned uploads are mirrored from the cache.
+            materializer: built.materializer,
           });
           built.setWriteBehind(wb);
           built.journal?.onAppend(() => wb.note());

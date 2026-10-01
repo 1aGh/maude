@@ -110,7 +110,20 @@ export function fileRelFromKey(key, prefix = '') {
  * Never throws into a caller. A failed upload stays unstamped, gets ONE
  * delayed retry per pass, and is loud in the log either way.
  */
-export function createWriteBehind({ designRoot, s3, journal, prefix, log = console, deps = {} }) {
+export function createWriteBehind({
+  designRoot,
+  s3,
+  journal,
+  prefix,
+  log = console,
+  deps = {},
+  /**
+   * Cell materializer (Task 12): an upload pinned in the blob cache has no
+   * checkout file — its bytes are read from `_cache/blobs/<sha>` and the pin
+   * is released once they are durable. Null off-cell.
+   */
+  materializer = null,
+}) {
   // `s3` is the config OR a resolver for it. A platform cell's credentials are
   // temporary (12 h, refreshed by s3-creds.mjs): a config captured at boot
   // expires mid-process and every later mirror fails, leaving those bytes
@@ -164,8 +177,18 @@ export function createWriteBehind({ designRoot, s3, journal, prefix, log = conso
           for (const seq of seqs) journal.markMirrored(seq);
           continue;
         }
+        // The checkout file, or — on a cell — the pinned blob that IS the
+        // bytes this row names (the checkout path is empty by design).
+        let abs = join(designRoot, rel);
+        let pinnedSha = null;
+        if (materializer && !existsSync(abs)) {
+          const blob = materializer.peek(row.sha256);
+          if (blob) {
+            abs = blob;
+            pinnedSha = row.sha256;
+          }
+        }
         try {
-          const abs = join(designRoot, rel);
           // Realpath containment at the READ site, not only at the write door.
           // Every journal producer excludes symlinks today, so this is
           // defense-in-depth — but the write-behind reads bytes and ships them
@@ -187,8 +210,10 @@ export function createWriteBehind({ designRoot, s3, journal, prefix, log = conso
           else await put(cfg, writeBehindKey(rel, scope), readFileSync(abs));
           mirrored += 1;
           for (const seq of seqs) journal.markMirrored(seq);
+          // Durable now — the blob may be evicted like any other cached file.
+          if (pinnedSha) materializer.unpin(pinnedSha);
         } catch (err) {
-          if (!existsSync(join(designRoot, rel))) {
+          if (!pinnedSha && !existsSync(join(designRoot, rel))) {
             // The file is gone from disk. If a tombstone follows, its row will
             // settle these; until then the row stays unstamped so a reappearing
             // file (a raced rename) is retried rather than forgotten.

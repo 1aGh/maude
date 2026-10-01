@@ -107,6 +107,19 @@ export function quotaSnapshot(now = Date.now(), windowMs = QUOTA_WINDOW_MS) {
   return out;
 }
 
+/**
+ * The per-file ceiling for `code-module` and `companion-text` ON A CELL (cell
+ * materializer Task 12). Those classes stay real checkout files — Bun.build
+ * reads them — so the blob cache's eviction never bounds them, and without a
+ * cap one write token could fill the boot hydrate's budget with a few large
+ * "stylesheets" (Phase 0 attacker review, chain A). 5 MiB is far past any
+ * real stylesheet or module; `MAUDE_TEXT_FILE_MAX_BYTES` tunes it.
+ */
+export function textFileMaxBytes(env = process.env) {
+  const raw = Number(env.MAUDE_TEXT_FILE_MAX_BYTES);
+  return Number.isFinite(raw) && raw > 0 ? Math.trunc(raw) : 5 * 1024 * 1024;
+}
+
 /** Test seam — the quota map is process-global by design. */
 export function resetQuotas() {
   quotas.clear();
@@ -436,13 +449,28 @@ export async function handleFileDoor(ctx) {
     return true;
   }
 
+  // CELL MODE (cell materializer Task 12). Inert media with no copy at its
+  // checkout path lands in the blob cache, PINNED until the write-behind has
+  // mirrored it — the checkout path stays empty, so nothing the studio watches
+  // ever appears or disappears for it. A copy already at the checkout path
+  // (restored from the git bundle) is overwritten in place, as everywhere else.
+  const intoCache = Boolean(ctx.materializer) && cls === 'inert-media';
+  const textCap =
+    ctx.materializer && (cls === 'code-module' || cls === 'companion-text')
+      ? textFileMaxBytes()
+      : Number.POSITIVE_INFINITY;
+
   // The quota is per TOKEN and per window, so one peer's legitimate bulk
   // upload cannot lock the door for the tenant (see `quotaFor`).
   const budget = ctx.budget ?? quotaFor(match.label);
-  const r = await streamAndHash(request, target.abs, {
-    maxBytes: ctx.maxFileBytes ?? MAX_FILE_BYTES,
-    budget,
-  });
+  const r = await streamAndHash(
+    request,
+    intoCache && !existsSync(target.abs) ? ctx.materializer.tempPath() : target.abs,
+    {
+      maxBytes: Math.min(ctx.maxFileBytes ?? MAX_FILE_BYTES, textCap),
+      budget,
+    }
+  );
   if (!r.ok) {
     if (r.detail) console.error(`[hub] file door ${landing} failed: ${r.detail}`);
     respond(response, r.status, r.message);
@@ -474,8 +502,13 @@ export async function handleFileDoor(ctx) {
       return true;
     }
 
+    // Asked again UNDER the lock: a checkout copy that appeared while the body
+    // was in flight (a hydrate, a git restore) is overwritten in place rather
+    // than shadowing a fresh cache blob.
+    const pinIt = intoCache && !existsSync(target.abs);
     try {
-      renameSync(r.tmp, target.abs);
+      if (pinIt) ctx.materializer.pin(r.sha256, r.tmp);
+      else renameSync(r.tmp, target.abs);
     } catch (err) {
       rmSync(r.tmp, { force: true });
       console.error(`[hub] file door ${landing} rename failed: ${err.message}`);
@@ -487,7 +520,10 @@ export async function handleFileDoor(ctx) {
     // The journal append + the bucket mirror, through the one notifier. The row
     // it produces is the receipt below — and it names where the bytes ACTUALLY
     // landed, so a symlinked path cannot alias one file under two CAS states.
-    ctx.onWritten?.({ path: landing, bytes: r.total });
+    // A pinned blob has no disk path for the journal to read, so it is
+    // journaled from the digest THIS door computed of the bytes it received.
+    if (pinIt) ctx.onPinned?.({ path: landing, sha256: r.sha256, bytes: r.total });
+    else ctx.onWritten?.({ path: landing, bytes: r.total });
 
     const seq = ctx.journal ? seqFor(ctx.journal, landing) : null;
     respondJson(response, 200, {
@@ -629,6 +665,26 @@ async function handleDelete({ ctx, response, landing, target, expect, role }) {
       respond(response, 500, 'could not quarantine the file — refusing to delete it');
       return true;
     }
+    // CELL MODE (Task 12): nothing on disk to park — the bytes are in the
+    // bucket under a path-keyed object the next write would overwrite. Keep a
+    // verified copy there first, or refuse: same fail-closed rule as above.
+    let keptRemote = null;
+    if (
+      parked === null &&
+      ctx.materializer &&
+      checkoutFileClass(landing, ctx.designRoot) === 'inert-media'
+    ) {
+      try {
+        keptRemote = await ctx.materializer.keepCopy(landing);
+      } catch (err) {
+        console.error(`[hub] file door DELETE ${landing} could not keep a copy: ${err.message}`);
+        respondJson(response, 503, {
+          error: 'could not keep a recoverable copy — refusing to delete it',
+          path: landing,
+        });
+        return true;
+      }
+    }
 
     // F-7 — the receipt must name the TOMBSTONE, or admit there is none.
     // `onDeleted` used to be fire-and-forget while the response reported
@@ -657,7 +713,14 @@ async function handleDelete({ ctx, response, landing, target, expect, role }) {
       }
     }
     const seq = tombstone?.seq ?? null;
-    respondJson(response, 200, { ok: true, path: landing, deleted: true, parked, seq });
+    respondJson(response, 200, {
+      ok: true,
+      path: landing,
+      deleted: true,
+      parked,
+      ...(keptRemote ? { keptRemote } : {}),
+      seq,
+    });
     return true;
   });
 }

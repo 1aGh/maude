@@ -48,7 +48,7 @@ import { diskReportSync } from './disk.mjs';
 import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
 import { checkoutFileClass } from './file-manifest.mjs';
 import { isProjectFileShape } from './file-membership.mjs';
-import { getObjectToFile } from './s3.mjs';
+import { getObjectToFile, putObjectFromFile } from './s3.mjs';
 
 const SHA = /^[0-9a-f]{64}$/;
 
@@ -123,6 +123,7 @@ export function createMaterializer({
   const resolveS3 = typeof s3 === 'function' ? s3 : async () => s3;
   const scope = prefix ?? assetPrefixFromEnv();
   const fetchToFile = deps.getObjectToFile ?? getObjectToFile;
+  const putFile = deps.putObjectFromFile ?? putObjectFromFile;
   const hashFile = deps.sha256File ?? sha256File;
   const now = deps.now ?? Date.now;
   const budgetOf = typeof budgetBytes === 'function' ? budgetBytes : () => budgetBytes;
@@ -375,6 +376,38 @@ export function createMaterializer({
       scheduleFlush();
       evict();
       return true;
+    },
+
+    /**
+     * Keep a RECOVERABLE copy of `rel` before it is tombstoned (Task 12).
+     *
+     * Off-cell, a delete quarantines the checkout file into `_trash/`. On a
+     * cell the checkout path is usually empty and `_trash/` is on a disk that
+     * goes with the next restart, while `files/<rel>` in the bucket is
+     * path-keyed — the next write to the same path overwrites it. So the
+     * verified bytes are copied to `<scope>/trash/<stamp>/<rel>` first
+     * (DDR-226 §8: a delete is recoverable). `assets/<name>` is content-
+     * addressed and never overwritten — nothing to do.
+     *
+     * @returns {Promise<string|null>} the trash key, or null when there is
+     *   nothing to keep. THROWS when bytes exist but could not be copied — the
+     *   caller then refuses the delete (fail closed).
+     */
+    async keepCopy(rel) {
+      if (rel.startsWith('assets/')) return null;
+      const got = await this.materialize(rel);
+      if (!got.path) {
+        // No live hash, or bytes that were never durable and are not here —
+        // there is nothing anywhere to keep.
+        if (got.miss === 'absent' || got.miss === 'unmirrored') return null;
+        throw new Error(`no verified copy to keep (${got.miss})`);
+      }
+      const cfg = await resolveS3();
+      if (!cfg) throw new Error('no object storage to keep a copy in');
+      const stamp = new Date(now()).toISOString().replace(/[:.]/g, '-');
+      const key = scope ? `${scope}/trash/${stamp}/${rel}` : `trash/${stamp}/${rel}`;
+      await putFile(cfg, key, got.path);
+      return key;
     },
 
     isPinned: (sha) => index.get(sha)?.pinned === true,
