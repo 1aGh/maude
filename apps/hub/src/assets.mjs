@@ -22,7 +22,7 @@
 // network call, so a hostile key can neither traverse the bucket nor probe for
 // unrelated objects.
 
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 
 import { assetObjectKey, assetPrefixFromEnv } from './asset-key.mjs';
@@ -211,6 +211,44 @@ export async function handleAssetRoute(ctx) {
     } catch {
       /* checkout miss/unreadable — fall through to the bucket */
     }
+  }
+
+  // CELL MODE (cell materializer Task 11): the disk is a cache, so a checkout
+  // miss is ordinary, not drift. The materializer fills from the bucket,
+  // VERIFIES the bytes against the journal row, and the file is streamed —
+  // never the old buffered whole-object GET, and never unverified bucket bytes
+  // (a path-keyed object can be newer than the row; DDR-054). The drift alarm
+  // lives in the materializer now, where it means something: a sha mismatch.
+  if (ctx.materializer) {
+    const got = await ctx.materializer.materialize(`assets/${key}`);
+    if (got.path) {
+      const headers = {
+        'Content-Type': assetContentType(key),
+        'Content-Length': got.size,
+        ...cacheHeadersFor(key),
+      };
+      if (method === 'HEAD') {
+        response.writeHead(200, headers).end();
+        return true;
+      }
+      response.writeHead(200, headers);
+      createReadStream(got.path)
+        .on('error', () => response.destroy())
+        .pipe(response);
+      return true;
+    }
+    if (['timeout', 'full', 'unavailable'].includes(got.miss)) {
+      response
+        .writeHead(503, {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+          'Retry-After': '5',
+        })
+        .end(JSON.stringify({ error: 'fetching from storage', miss: got.miss }));
+      return true;
+    }
+    respond(response, 404, 'not found');
+    return true;
   }
 
   if (!s3) {
@@ -599,8 +637,21 @@ export async function handleAssetProbeRoute(ctx) {
   // answering "absent" for a file the bucket alone holds costs one idempotent
   // re-upload, which is the safe direction.
   const present = [];
+  // CELL MODE (cell materializer Task 11 — amends "asset presence means BOTH
+  // stores"): inert media lives in the bucket and a disk that is only a cache
+  // says nothing. Present = a live journal row whose bytes are durable
+  // (mirrored) or still held here pinned until they are.
+  const cellHolds = (rel) => {
+    const row = ctx.journal?.latestFor?.(rel);
+    if (!row || row.deleted || !row.sha256 || row.class !== 'inert-media') return null;
+    return row.mirroredAtMs != null || ctx.materializer.isPinned(row.sha256);
+  };
   const holds = (rel) => {
     if (typeof rel !== 'string' || !ctx.designRoot) return false;
+    if (ctx.materializer) {
+      const cell = cellHolds(rel);
+      if (cell !== null) return cell;
+    }
     if (rel.startsWith('assets/')) {
       const key = rel.slice('assets/'.length);
       if (!ASSET_KEY.test(key)) return false;

@@ -1181,6 +1181,9 @@ export function createHub(config = {}) {
           dataDir,
           secret,
           s3: await s3Source.config(),
+          // Cell materializer — null off-cell, where the bucket fallback below
+          // keeps its DDR-226 §6 shape.
+          materializer,
           // DDR-217 — where a pushed asset lands (the checkout the studio
           // child serves). Null on a hub with no checkout → PUT keeps its 405.
           designRoot:
@@ -1250,6 +1253,9 @@ export function createHub(config = {}) {
           dataDir,
           secret,
           s3: await s3Source.config(),
+          // Cell materializer — presence is the journal's, not the cache's.
+          materializer,
+          journal,
           designRoot:
             workspaceMode && repoDir
               ? join(repoDir, process.env.MAUDE_DESIGN_ROOT ?? '.design')
@@ -1335,6 +1341,8 @@ export function createHub(config = {}) {
               ? join(repoDir, process.env.MAUDE_DESIGN_ROOT ?? '.design')
               : null,
           respondJson: (status, payload) => respondAdminJson(response, status, payload),
+          // Cell materializer — inert media is the journal's word, not the cache's.
+          inertFromJournal: materializer ? journal : null,
         });
         if (handled) bailFromOnRequest();
       }
@@ -1582,6 +1590,8 @@ export function createHub(config = {}) {
             workspaceMode && repoDir
               ? join(repoDir, process.env.MAUDE_DESIGN_ROOT ?? '.design')
               : null,
+          // Cell materializer — a disk miss on a cell is a cache miss.
+          materializer,
           checkRateLimit: rateLimit
             ? (req) => checkRateLimit(rateBuckets, req, { store: rateStore, ip: clientIp(req) })
             : undefined,
