@@ -423,6 +423,15 @@ export interface FilePlaneOptions {
    * half a gate, so both ask.
    */
   allowCodeModules: boolean;
+  /**
+   * Whether this peer may SEND a `code-module` the hub does not hold yet. The
+   * hub's file door takes one only from an owner-role token (403 otherwise);
+   * asking first keeps that refusal from reading as a dead credential and
+   * ending the pass. This is the hub's own word about our role, and that is
+   * fine here: it only decides whether to TRY — the door decides the rest.
+   * Absent ⇒ `allowCodeModules` (the receive consent), the pre-existing reading.
+   */
+  canUploadCodeModules?: boolean;
   /** Names conflict copies. Same exposure class as `syncMeta.by` (hostname). */
   label: string;
   /** Increment 6. Off means a local absence is HELD, never propagated. */
@@ -1811,6 +1820,28 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
             'code modules replicate only from an owner-vouched or loopback hub',
             ledger
           );
+          continue;
+        }
+      }
+
+      // THE UPWARD HALF OF THE SAME GATE. The hub refuses a code module from
+      // anyone but an owner (file-door: 403), and that 403 used to come back
+      // here as "the workspace did not accept this connection" — a credential
+      // failure, which asked for a new token and ENDED THE PASS. One `.ts`
+      // helper written by a member therefore stalled every other upload behind
+      // it (2026-10-02, alligators: five `ui/club-web/_*.ts`, 264 refusals,
+      // passes stopped with 2 500+ paths still to do). Never ask: report it,
+      // keep the file, and let the rest of the pass run.
+      if (remoteHash === null && here && !(opts.canUploadCodeModules ?? opts.allowCodeModules)) {
+        const cls = classifyProjectFile(rel, {
+          canvasGroups: opts.canvasGroups,
+          hasFile: (r) => local.has(r) || existsSync(path.join(designRoot, r)),
+        });
+        if (cls === 'code-module') {
+          out.dropped.push({
+            rel,
+            reason: 'only the project owner can upload code modules (.ts/.js) to this workspace',
+          });
           continue;
         }
       }

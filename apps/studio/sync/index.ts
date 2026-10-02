@@ -78,6 +78,7 @@ import { isLoopbackHost } from './loopback.ts';
 import { migrateFlatFallback } from './migrate-flat-fallback.ts';
 import { migrateSeed } from './migrate-seed.ts';
 import { ORIGINS } from './origins.ts';
+import { createProjectConfigPusher } from './project-config-push.ts';
 import { createDocProjection, type DocProjection } from './projection.ts';
 import {
   acceptedListing,
@@ -916,6 +917,22 @@ export function createSyncRuntime(
   // Same shape of consent for the OUTBOUND delete breaker: only what this
   // machine's owner recorded (`maude design bulk-deletes on`), never the hub.
   const unlimitedDeletes = storedRecord?.unlimitedDeletes === true;
+  // The OWNER's copy tells its workspace the project's name and design systems
+  // (project-config-push.ts) — a cell synced from a desktop has no config.json
+  // of its own. Only when the hub says we own the project (it enforces that
+  // itself — this only decides whether to try); never from inside a cell.
+  const isProjectOwner = storedRecord?.role === 'owner';
+  const projectConfigPusher =
+    !cellPairing && isProjectOwner
+      ? createProjectConfigPusher({
+          designRoot: ctx.paths.designRoot,
+          hubUrl: linkedHub.url,
+          token: () => token,
+        })
+      : null;
+  const projectConfigUnsub = projectConfigPusher
+    ? ctx.bus.on('config-updated', () => void projectConfigPusher.push())
+    : null;
 
   // DDR-102 — the default factory multiplexes every provider over ONE shared
   // WebSocket per hub URL; the runtime owns its disposal (stop(), after the
@@ -983,6 +1000,7 @@ export function createSyncRuntime(
         onStage: (summary) => statusStore?.updateAiAction?.(summary),
         onBootstrap: (b) => {
           noteProjectConfig(b.projectConfig);
+          void projectConfigPusher?.push();
           // F3 S17 — a save made as the socket died is held (the connection
           // was not writable). After the reconnect the handshake re-admits the
           // socket read-only BEFORE this peer learns the project now takes
@@ -4741,6 +4759,7 @@ export function createSyncRuntime(
               ledger: fileLedger,
               canvasGroups: ctx.cfg.canvasGroups,
               allowCodeModules,
+              canUploadCodeModules: cellPairing !== null || isProjectOwner,
               unlimitedOutboundDeletes: unlimitedDeletes,
               // Increment 6, DEFAULT ON: a hub-owned mirror that ignores
               // deletes contradicts the model it is selling — you delete a
@@ -4859,6 +4878,7 @@ export function createSyncRuntime(
     remotePollSoonTimer = null;
     documentDiscoveryUnsub?.();
     documentDiscoveryUnsub = null;
+    projectConfigUnsub?.();
     documentDiscovery?.stop();
     documentDiscovery = null;
     remotePull = null;

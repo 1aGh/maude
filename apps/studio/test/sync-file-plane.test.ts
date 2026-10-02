@@ -1943,3 +1943,30 @@ describe('a 409 that names OUR bytes', () => {
     );
   });
 });
+
+// 2026-10-02 (alligators): a member's desktop pushed five `ui/club-web/_*.ts`
+// helpers, the hub's door answered 403 (owner-only), the plane read that as a
+// dead credential, asked for a new one and ENDED THE PASS — 264 times, with
+// 2 500+ other paths still waiting behind them.
+describe('a code module this peer may not upload', () => {
+  test('is reported and kept, never sent — and the rest of the pass still runs', async () => {
+    const hub = fakeHub();
+    write('ui/club-web/_boards.ts', 'export const boards = [];');
+    write('system/ds/brand.css', 'mine');
+    const res = await plane(hub).reconcile();
+    expect(hub.puts.map((p) => p.rel)).toEqual(['system/ds/brand.css']);
+    expect(res.pushed).toEqual(['system/ds/brand.css']);
+    expect(res.dropped.map((d) => d.rel)).toContain('ui/club-web/_boards.ts');
+    expect(read('ui/club-web/_boards.ts')).toBe('export const boards = [];');
+  });
+
+  test('an owner still uploads it — even without consenting to RECEIVE code', async () => {
+    for (const over of [{ canUploadCodeModules: true }, { allowCodeModules: true }]) {
+      rmSync(root, { recursive: true, force: true });
+      const hub = fakeHub();
+      write('ui/club-web/_boards.ts', 'export const boards = [];');
+      const res = await plane(hub, over).reconcile();
+      expect(res.pushed).toEqual(['ui/club-web/_boards.ts']);
+    }
+  });
+});

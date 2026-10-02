@@ -150,6 +150,7 @@ import {
   MATERIALIZE_PATH,
 } from './materializer.mjs';
 import { assertStrictIsSurvivable, oidcConfig } from './oidc-routes.mjs';
+import { handleProjectConfigDoor, PROJECT_CONFIG_PATH } from './project-config-door.mjs';
 import { createAcceptedRevisions } from './project-transactions/hub-integration.mjs';
 import { openRemoteProjectStore } from './project-transactions/store-remote.mjs';
 import { openSqliteProjectStore } from './project-transactions/store-sqlite.mjs';
@@ -1436,6 +1437,26 @@ export function createHub(config = {}) {
           bailFromOnRequest();
           return;
         }
+      }
+      // The owner's project config (name, groups, design systems) for a cell
+      // whose checkout has none — see project-config-door.mjs.
+      if (authPath === PROJECT_CONFIG_PATH && !(studioProxy && isCanvasHost(request))) {
+        const handled = await handleProjectConfigDoor({
+          request,
+          response,
+          pathname: authPath,
+          method,
+          dataDir,
+          secret,
+          designRoot: journalDesignRoot,
+          onChanged: () => {
+            projectConfigCache = { at: 0, value: null };
+          },
+          checkRateLimit: rateLimit
+            ? (req) => checkRateLimit(rateBuckets, req, { store: rateStore, ip: clientIp(req) })
+            : undefined,
+        });
+        if (handled) bailFromOnRequest();
       }
       if (authPath.startsWith(FILE_DOOR_PREFIX) && !(studioProxy && isCanvasHost(request))) {
         const handled = await handleFileDoor({
