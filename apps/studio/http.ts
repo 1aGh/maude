@@ -1225,6 +1225,13 @@ export function createHttp(
       err instanceof Error ? err.message : err
     );
   }
+  // An fs.watch 'error' with no listener is THROWN and exits the process
+  // (Bun's Linux recursive watcher emits ENOENT — the 2026-10-02 cell studio
+  // crash loop). These two only bust the canvas cache; losing one is harmless.
+  libWatcher?.on('error', (err) => {
+    console.warn('[canvas-lib] watcher error — stopped:', err instanceof Error ? err.message : err);
+    libWatcher?.close();
+  });
   void libWatcher;
 
   // G7v2 — canvas-lib.tsx transitively imports many dev-server siblings
@@ -1258,6 +1265,13 @@ export function createHttp(
       err instanceof Error ? err.message : err
     );
   }
+  devSrcWatcher?.on('error', (err) => {
+    console.warn(
+      '[dev-server-src] watcher error — stopped:',
+      err instanceof Error ? err.message : err
+    );
+    devSrcWatcher?.close();
+  });
   void devSrcWatcher;
 
   async function readJson<T = unknown>(req: Request, max = 256 * 1024): Promise<T | null> {

@@ -1,6 +1,7 @@
 // Smoke: recursive fs.watch fires when a file is written under designRoot.
 
 import { describe, expect, test } from 'bun:test';
+import { EventEmitter } from 'node:events';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -94,6 +95,50 @@ describe('fs-watch.ts', () => {
       expect(seen.some((f) => f.endsWith('Real.tsx'))).toBe(true);
     } finally {
       watch?.stop();
+      process.argv = origArgv;
+    }
+  });
+});
+
+// 2026-10-02, Brno Alligators: Bun's recursive watcher on Linux emitted
+// ENOENT while walking the tenant tree, nobody listened for 'error', the
+// throw exited the cell's studio child — 9 restarts in minutes — and the file
+// tree's /_index-data died with it ("0 / 0 canvases"). Reproduced in the
+// v1.6.1 image; this pins the fix with a watcher that errors on demand.
+describe('fs-watch.ts — a watcher error never takes the studio down', () => {
+  test('an error is caught, the watcher closed, and restarted with backoff', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'mdcc-fswatch-'));
+    mkdirSync(join(root, '.design'), { recursive: true });
+    writeFileSync(join(root, '.design', 'config.json'), '{"name":"t"}');
+    const origArgv = process.argv;
+    process.argv = [...origArgv, '--root', root];
+    const created: (EventEmitter & { close(): void; closed?: boolean })[] = [];
+    const fakeWatch = (() => {
+      const w = Object.assign(new EventEmitter(), {
+        close() {
+          (w as { closed?: boolean }).closed = true;
+        },
+      });
+      created.push(w);
+      return w;
+    }) as unknown as typeof import('node:fs').watch;
+    let fw: ReturnType<typeof createFsWatch> | null = null;
+    try {
+      fw = createFsWatch(createContext(), fakeWatch);
+      fw.start();
+      expect(created).toHaveLength(1);
+      // Without a listener this emit THROWS — the crash, in one line.
+      expect(() =>
+        created[0]?.emit(
+          'error',
+          Object.assign(new Error('ENOENT: no such file or directory'), { code: 'ENOENT' })
+        )
+      ).not.toThrow();
+      expect(created[0]?.closed).toBe(true);
+      await Bun.sleep(2_200); // RESTART_MIN_MS
+      expect(created).toHaveLength(2);
+    } finally {
+      fw?.stop();
       process.argv = origArgv;
     }
   });

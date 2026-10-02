@@ -43,7 +43,11 @@ function isUnderRuntimeDir(rel: string): boolean {
   );
 }
 
-export function createFsWatch(ctx: Context): FsWatch {
+export function createFsWatch(
+  ctx: Context,
+  /** Test seam: the `fs.watch` to use. */
+  watchImpl: typeof watch = watch
+): FsWatch {
   let watcher: ReturnType<typeof watch> | null = null;
   const seen = new Map<string, number>();
 
@@ -73,7 +77,7 @@ export function createFsWatch(ctx: Context): FsWatch {
     // filter layers per frame — not the watcher; this guard is belt-and-braces.)
     if (process.env.MAUDE_NO_WATCH === '1') return;
     try {
-      watcher = watch(ctx.paths.designRoot, { recursive: true }, (_event, filename) => {
+      watcher = watchImpl(ctx.paths.designRoot, { recursive: true }, (_event, filename) => {
         if (!filename) return;
         // Skip our own runtime artifacts.
         //
@@ -98,13 +102,48 @@ export function createFsWatch(ctx: Context): FsWatch {
         if (isUnderRuntimeDir(filename)) return;
         emit(filename);
       });
+      // A WATCHER ERROR MUST NOT KILL THE STUDIO. An fs.watch handle is an
+      // EventEmitter: an 'error' with no listener is thrown, and the process
+      // exits. Bun's recursive watcher on Linux emits ENOENT while walking a
+      // tenant tree (a directory under system/<ds>/assets on Brno Alligators,
+      // 2026-10-02): the cell's studio child crash-looped — 9 restarts in a few
+      // minutes — and every request in flight died with it, so the file tree
+      // read `/_index-data` as a dropped connection and showed 0 canvases. The
+      // watcher only speeds up hot-reload; losing it for a few seconds is
+      // nothing. Log, close, and come back with a backoff.
+      watcher.on('error', (err) => {
+        console.warn(
+          `[fs-watch] watcher error — restarting it in ${Math.round(restartDelay / 1000)} s: ${err instanceof Error ? err.message : err}`
+        );
+        stop();
+        scheduleRestart();
+      });
+      restartDelay = RESTART_MIN_MS;
     } catch (err) {
       console.warn('[fs-watch] failed to start:', err instanceof Error ? err.message : err);
+      scheduleRestart();
     }
+  }
+
+  /** Watcher restart backoff — doubles per failure, capped, reset on success. */
+  const RESTART_MIN_MS = 2_000;
+  const RESTART_MAX_MS = 60_000;
+  let restartDelay = RESTART_MIN_MS;
+  let restartTimer: ReturnType<typeof setTimeout> | null = null;
+  function scheduleRestart() {
+    if (restartTimer || process.env.MAUDE_NO_WATCH === '1') return;
+    const wait = restartDelay;
+    restartDelay = Math.min(restartDelay * 2, RESTART_MAX_MS);
+    restartTimer = setTimeout(() => {
+      restartTimer = null;
+      start();
+    }, wait);
+    (restartTimer as { unref?: () => void }).unref?.();
   }
 
   function stop() {
     if (!watcher) return;
+    watcher.removeAllListeners?.('error');
     try {
       watcher.close();
     } catch {
