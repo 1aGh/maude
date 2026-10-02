@@ -2823,6 +2823,42 @@ function sectionMetaFor(g) {
   return { title: g.label.toUpperCase(), pillFromCount: true };
 }
 
+// The file tree before its first index arrives. A large project — above all a
+// cloud one on a cold workspace — can take several seconds to list, and a blank
+// panel reading "0 / 0" looks like an empty or broken project. Skeleton rows
+// say "coming"; after a few seconds a line says why, and a failed attempt says
+// it is being retried (the index loader retries on its own).
+function TreeLoading({ failures, cloud }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 3000);
+    return () => clearTimeout(t);
+  }, []);
+  const hint =
+    failures > 0
+      ? 'The project is taking a while to answer — trying again…'
+      : cloud
+        ? 'Still loading — a large cloud project can take a few seconds to list.'
+        : 'Still loading — a large project can take a few seconds to list.';
+  return (
+    <div className="st-tree-loading" role="status" aria-live="polite" data-testid="tree-loading">
+      <div className="st-tree-loading-head">
+        <span className="st-canvas-loading-spinner" aria-hidden="true" />
+        <span>Loading files…</span>
+      </div>
+      {[64, 48, 72, 40, 56, 68, 44].map((w, i) => (
+        <span
+          key={i}
+          className="skel st-tree-loading-row"
+          style={{ width: `${w}%`, marginLeft: i % 3 ? 22 : 8 }}
+          aria-hidden="true"
+        />
+      ))}
+      {(slow || failures > 0) && <div className="st-tree-loading-hint">{hint}</div>}
+    </div>
+  );
+}
+
 function Sidebar({
   // Cloud Phase 25 C2 — viewer role: create / delete / move / rename
   // affordances are absent (buttons, composer, row menus, drag & drop).
@@ -2880,6 +2916,7 @@ function Sidebar({
   onLocalProject,
   onOpenLinkedFile,
   filesReady,
+  treeLoadFailures = 0,
   onShare,
   // feature-cloud-managed-git-posture — the widened DDR-218 gate, resolved once
   // in App and handed down. Withdraws the drafts switcher: a local branch
@@ -3233,6 +3270,7 @@ function Sidebar({
         </div>
       </div>
 
+      {!filesReady && <TreeLoading failures={treeLoadFailures} cloud={cloud} />}
       <FileTree aria-label="Project file tree" data-testid="canvas-list">
         {filteredGroups.map((g) => {
           // Hide gitignored runtime / orphan-only project sections by default.
@@ -9947,6 +9985,9 @@ function InspectorPanel({
 function App() {
   const [groups, setGroups] = useState([]);
   const [treeLoaded, setTreeLoaded] = useState(false);
+  // Failed /_index-data attempts since the last success — the tree's loading
+  // state says "still trying" instead of sitting blank (the loader retries).
+  const [treeLoadFailures, setTreeLoadFailures] = useState(0);
   const addressMode = useRef('push');
   const previousAddressPath = useRef(null);
   const [project, setProject] = useState('Design');
@@ -11984,6 +12025,7 @@ function App() {
         setProject(data.project || 'Design');
         setGroups(built);
         setTreeLoaded(true);
+        setTreeLoadFailures(0);
         // DDR-093 — fold the server-resolved per-canvas DS map into cfg so
         // canvasUrl() injects each UI canvas's OWN design-system tokens instead of
         // always designSystems[0]. Functional merge to coexist with the /_config
@@ -11999,7 +12041,10 @@ function App() {
           canvasKinds: data.canvasKinds ?? {},
         }));
       },
-      onError: (error) => console.error('failed to load tree', error),
+      onError: (error) => {
+        console.error('failed to load tree', error);
+        setTreeLoadFailures((n) => n + 1);
+      },
     });
     treeLoaderRef.current = loader;
     loadTree();
@@ -15825,6 +15870,7 @@ function App() {
           onPreview={onPreview}
           onOpenLinkedFile={openLinkedFile}
           filesReady={treeLoaded}
+          treeLoadFailures={treeLoadFailures}
           onShare={showShare}
           onOpenSystem={openSystem}
           wsConnected={wsConnected}

@@ -1569,6 +1569,22 @@ body.st-scrubbing, body.st-scrubbing * { cursor: ew-resize !important; user-sele
 .st-body.is-resizing iframe { pointer-events: none; }
 .st-sidebar.is-resizing, .st-rpanel.is-resizing { transition: none; }
 
+/* ─── File tree before its first index (TreeLoading) ───────────────────────── */
+.st-tree-loading {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) var(--space-4);
+}
+.st-tree-loading-head {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--type-sm); color: var(--fg-2);
+  margin-bottom: var(--space-1);
+}
+.st-tree-loading-row { height: 10px; }
+.st-tree-loading-hint {
+  margin-top: var(--space-2);
+  font-size: var(--type-xs); line-height: 1.45; color: var(--fg-2);
+}
+
 /* ─── Canvas-compile skeleton — DS skeletons recipe (.skel pulse) ──────────── */
 .st-canvas-loading {
   position: absolute; inset: 0;
