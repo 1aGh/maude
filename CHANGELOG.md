@@ -1,5 +1,11 @@
 # @1agh/maude
 
+## 1.6.4
+
+### Patch Changes
+
+- 4ef61e7: Cloud workspaces now only ever receive storage credentials that are scoped to their own project and expire automatically. The old shared storage key is no longer passed to any workspace.
+
 ## 1.6.3
 
 ### Patch Changes
