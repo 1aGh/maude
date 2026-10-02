@@ -1970,3 +1970,42 @@ describe('a code module this peer may not upload', () => {
     }
   });
 });
+
+// 2026-10-02 (alligators): six `assets/*.mp4` moved into `_trash`, an svg
+// deleted locally before it ever uploaded, and four hub files the hub then
+// deleted — none of them existed ANYWHERE any more, and the panel said
+// "11 waiting" ("only on this machine" / "stuck") for good.
+describe('a row for a file that exists nowhere', () => {
+  test('a local-only file that vanished before it uploaded is forgotten', async () => {
+    const hub = fakeHub();
+    ledger.setState('assets/f03bbad0.mp4', 'local-only');
+    ledger.setState('assets/letak-qr.svg', 'stuck', {
+      reason: 'Was there a typo in the url or port?',
+    });
+    const p = plane(hub);
+    await p.reconcile();
+    expect(p.doruceka()['assets/f03bbad0.mp4']).toBeUndefined();
+    expect(p.doruceka()['assets/letak-qr.svg']).toBeUndefined();
+    expect(hub.puts).toEqual([]);
+  });
+
+  test('a hub file refused here and then deleted on the hub is forgotten', async () => {
+    const hub = fakeHub({ 'ui-welcome.tsx': 'export default () => null' });
+    const p = plane(hub);
+    await p.reconcile(); // refused: a code module from a hub this peer did not vouch for
+    expect(p.doruceka()['ui-welcome.tsx']).toBe('stuck');
+    hub.tombstone('ui-welcome.tsx');
+    await p.reconcile();
+    expect(p.doruceka()['ui-welcome.tsx']).toBeUndefined();
+  });
+
+  test('a file that is still here, or still on the hub, is not forgotten', async () => {
+    const hub = fakeHub({ 'assets/b.png': 'B' });
+    write('assets/a.png', 'A');
+    ledger.setState('assets/a.png', 'local-only');
+    const p = plane(hub);
+    await p.reconcile();
+    expect(p.doruceka()['assets/a.png']).toBeDefined();
+    expect(p.doruceka()['assets/b.png']).toBe('on-hub');
+  });
+});

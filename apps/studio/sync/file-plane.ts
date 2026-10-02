@@ -1736,6 +1736,24 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         ledger.forget(rel);
         continue;
       }
+      // NOWHERE ANY MORE — not on this machine, not live on the hub, and not
+      // something we last agreed on (that is a deletion, which has its own
+      // lane). A file moved into `_trash` before it ever uploaded, or a hub
+      // file this peer refused and the hub has since deleted, left its row
+      // behind as "only on this machine" / "stuck" forever — the panel counted
+      // 11 of them as waiting on alligators (2026-10-02). There is nothing to
+      // move in either direction, so there is nothing to track.
+      if (
+        !here &&
+        kept &&
+        !kept.syncedHash &&
+        (kept.state === 'local-only' || kept.state === 'stuck') &&
+        !(row && !row.deleted) &&
+        !ledger.remoteOf(rel)
+      ) {
+        ledger.forget(rel);
+        continue;
+      }
       // NOT OURS ON EITHER SIDE ANY MORE — forget it, do not keep refusing it.
       //
       // A path can leave the file plane while the ledger still tracks it: a
