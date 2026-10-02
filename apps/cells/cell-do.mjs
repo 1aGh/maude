@@ -463,8 +463,9 @@ export class MaudeCell extends Container {
         unknown: true,
       };
     }
-    // The legacy fleet-wide key is still the migration-window fallback.
-    if (this.env.MAUDE_R2_ACCESS_KEY_ID) return { s3Creds: null };
+    // NO FALLBACK KEY. A fleet-wide MAUDE_R2_* Worker secret used to stand in
+    // here; it is never put into a container again (2026-10-02), whether or
+    // not the secret still exists on the Worker.
     if (resolved.retryable) {
       const secs = Math.max(1, Math.ceil((resolved.retryAfterMs ?? 60_000) / 1000));
       return {

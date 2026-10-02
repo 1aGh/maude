@@ -589,16 +589,17 @@ export async function cellEnv({ tenantId, env, hostname, config = NO_CONFIG, s3C
     // operator placeholder a customer should never meet, and (since B1) never
     // to another tenant's name.
     ...(config.projectName ? { MAUDE_PROJECT_NAME: config.projectName } : {}),
-    // Object storage — PER-TENANT credentials (Cloud Phase 25 A-1).
+    // Object storage — PER-TENANT credentials ONLY (Cloud Phase 25 A-1).
     //
     // `s3Creds` are temporary credentials the control plane minted for THIS
-    // tenant, scoped to `tenants/<id>/` and TTL-bounded. The legacy branch —
-    // the fleet-wide MAUDE_R2_* Worker secrets — exists only for the
-    // migration window and logs its own retirement; once the secrets are
-    // deleted from the Worker it is dead code. The entrypoint still derives
-    // the per-tenant key prefix from MAUDE_TENANT_ID either way (belt AND
-    // braces: scoped credentials fail hard on a prefix bug that the
-    // app-level prefix would have papered over).
+    // tenant, scoped to `tenants/<id>/` and TTL-bounded. There is no other
+    // branch any more: the fleet-wide MAUDE_R2_* key used to ride in here as a
+    // "migration window" fallback, and on 2026-10-02 scanner-started cells for
+    // tenants that do not exist were found carrying it. A cell with no minted
+    // credentials gets no storage at all — and `MaudeCell` refuses to start
+    // one rather than start it empty. The entrypoint still derives the
+    // per-tenant key prefix from MAUDE_TENANT_ID (belt AND braces: scoped
+    // credentials fail hard on a prefix bug the app-level prefix would hide).
     ...(s3Creds
       ? {
           MAUDE_S3_ENDPOINT: s3Creds.endpoint ?? env.MAUDE_R2_ENDPOINT ?? '',
@@ -612,12 +613,7 @@ export async function cellEnv({ tenantId, env, hostname, config = NO_CONFIG, s3C
           // /internal/cell-r2-credentials — it is the same derivation).
           MAUDE_S3_CREDS_URL: `${env.CONTROL_PLANE_URL ?? 'https://cloud.maude.sh'}/internal/cell-r2-credentials?tenant=${encodeURIComponent(tenantId)}`,
         }
-      : {
-          MAUDE_S3_ENDPOINT: env.MAUDE_R2_ENDPOINT ?? '',
-          MAUDE_S3_BUCKET: env.MAUDE_R2_BUCKET ?? 'maude-cloud-assets',
-          MAUDE_S3_ACCESS_KEY_ID: env.MAUDE_R2_ACCESS_KEY_ID ?? '',
-          MAUDE_S3_SECRET_ACCESS_KEY: env.MAUDE_R2_SECRET_ACCESS_KEY ?? '',
-        }),
+      : {}),
     // Outbound-ingress tunnel (Phase 25): with this set, the entrypoint runs
     // cloudflared alongside the hub and the cell dials OUT to the edge. Only
     // ever set for the tenant it belongs to — a token is one tunnel, and one

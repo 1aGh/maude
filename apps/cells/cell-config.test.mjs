@@ -241,6 +241,8 @@ test('storage is scoped to the tenant and the checkpoint cadence is explicit', a
     tenantId: 'alligators',
     env: { ...baseEnv, MAUDE_R2_BUCKET: 'maude-cloud-assets' },
     hostname: 'alligators.cloud.maude.sh',
+    // Storage exists only with minted credentials (2026-10-02).
+    s3Creds: { accessKeyId: 'tmp', secretAccessKey: 's' },
   });
   assert.equal(vars.MAUDE_TENANT_ID, 'alligators');
   assert.equal(vars.MAUDE_S3_BUCKET, 'maude-cloud-assets');
@@ -281,7 +283,9 @@ test('minted credentials replace the fleet-wide key, session token included', as
   );
 });
 
-test('without minted credentials the legacy branch still works (migration window)', async () => {
+test('without minted credentials a cell gets NO storage — never the fleet-wide key', async () => {
+  // The legacy MAUDE_R2_* Worker secret used to ride in here. On 2026-10-02
+  // scanner-started cells for tenants that do not exist were found carrying it.
   const vars = await cellEnv({
     tenantId: 'alligators',
     env: {
@@ -292,9 +296,10 @@ test('without minted credentials the legacy branch still works (migration window
     },
     hostname: 'alligators.cloud.maude.sh',
   });
-  assert.equal(vars.MAUDE_S3_ACCESS_KEY_ID, 'shared-id');
-  assert.equal(vars.MAUDE_S3_SESSION_TOKEN, undefined);
-  assert.equal(vars.MAUDE_S3_CREDS_URL, undefined);
+  assert.equal(vars.MAUDE_S3_ACCESS_KEY_ID, undefined);
+  assert.equal(vars.MAUDE_S3_SECRET_ACCESS_KEY, undefined);
+  assert.ok(!Object.values(vars).includes('shared-id'));
+  assert.ok(!Object.values(vars).includes('shared-secret'));
 });
 
 test('fetchTenantS3Credentials asks with the tenant-derived secret and fails closed', async () => {
