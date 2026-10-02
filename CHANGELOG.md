@@ -1,5 +1,12 @@
 # @1agh/maude
 
+## 1.6.2
+
+### Patch Changes
+
+- fa43d9a: A canvas that reloads after its access link has gone stale, for example after your laptop slept, now refreshes itself instead of showing a raw error message.
+- 810b2f3: The cloud no longer starts a workspace for a project that doesn't exist. Automated scanners probing random addresses were spinning up empty workspaces. They now get a "nothing here" page, and nothing is started.
+
 ## 1.6.1
 
 ### Patch Changes
