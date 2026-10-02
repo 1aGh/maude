@@ -1,5 +1,11 @@
 # @1agh/maude
 
+## 1.6.8
+
+### Patch Changes
+
+- The file tree shows a loading state (skeleton rows, a reason after a few seconds, "trying again" after a failed attempt) instead of a blank "0 / 0" while a large project is still being listed.
+
 ## 1.6.7
 
 ### Patch Changes
