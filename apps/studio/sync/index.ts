@@ -260,6 +260,39 @@ export const DISCOVERY_DEBOUNCE_MS = 400;
  */
 export const REMOTE_POLL_MS = 20_000;
 
+/**
+ * Does this studio run the FILE plane (Plane B) against its linked hub?
+ *
+ * NEVER inside a cell. The child shares the checkout with the hub it pairs
+ * with, so there is nothing to carry: the hub journals what the child writes
+ * (createCellWriteNudge + the walk), and it serves what the child is missing.
+ * This used to be left to an invariant — "every manifest entry is hash-equal
+ * by construction, so the pass skips itself" — which the cell materializer
+ * (DDR-243) ended: the disk is a cache, the bucket holds media the disk does
+ * not. A paired child then saw thousands of files "this peer is missing",
+ * pulled 200 a pass through its own hub onto the very disk the materializer
+ * keeps budgeted (most failing), and re-decided the whole set every 20 s — a
+ * multi-second event-loop stall on every poll that showed up as a file tree
+ * stuck at 0/0 and canvases slow to open (2026-10-02, alligators).
+ *
+ * Elsewhere `linkedHub.syncFiles: false` is the per-project opt-out and stays
+ * the documented rollback: a config key, not a terminal command (DDR-177).
+ */
+export function fileSyncEnabled({
+  linkedHub,
+  cellPairing,
+  env = process.env,
+}: {
+  linkedHub: { syncFiles?: boolean };
+  cellPairing: boolean;
+  env?: NodeJS.ProcessEnv;
+}): boolean {
+  if (cellPairing) return false;
+  return (
+    linkedHub.syncFiles !== false && (env.MAUDE_SYNC_FILES !== '0' || linkedHub.syncFiles === true)
+  );
+}
+
 /** Floor between two serve-log seed-progress lines. Long enough not to become
  *  the next thing that buries the log. */
 export const SEED_PROGRESS_LOG_MS = 15_000;
@@ -864,9 +897,7 @@ export function createSyncRuntime(
   //
   // `linkedHub.syncFiles: false` is the per-project opt-out and stays the
   // documented rollback: a config key, not a terminal command (DDR-177).
-  const syncFilesOn =
-    linkedHub.syncFiles !== false &&
-    (process.env.MAUDE_SYNC_FILES !== '0' || linkedHub.syncFiles === true);
+  const syncFilesOn = fileSyncEnabled({ linkedHub, cellPairing: !!cellPairing });
   // The gate for `code-module` entries — genuinely local state, at last.
   //
   // This used to read `storedRecord?.role === 'owner'`, described in the
@@ -4518,10 +4549,10 @@ export function createSyncRuntime(
      * canvas that arrived this tick has its design system resolved in the
      * same tick. Flag-gated; a no-op when off.
      *
-     * On a cell the hub shares the checkout, so every manifest entry is
-     * hash-equal by construction and the pass skips itself — deliberately
-     * NOT special-cased: the invariant covers it, and a special case would
-     * be one more branch that can drift.
+     * Never runs on a cell — `fileSyncEnabled()` turns the plane off there.
+     * It used to rely on "the hub shares the checkout, so every entry is
+     * hash-equal and the pass skips itself"; the materializer (DDR-243) made
+     * the disk a cache and broke that invariant (see `fileSyncEnabled`).
      */
     const pullFilesOnce = async (): Promise<void> => {
       if (stopped || !syncFilesOn) return;

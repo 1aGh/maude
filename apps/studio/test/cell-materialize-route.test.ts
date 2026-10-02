@@ -9,7 +9,13 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { isCacheBlob, materializeMissing } from '../materialize-client.ts';
+import { mergeMaterializable, PREVIEW_ASSET_EXTS } from '../api.ts';
+import {
+  isCacheBlob,
+  listMaterializable,
+  materializeMissing,
+  resetMaterializableListCache,
+} from '../materialize-client.ts';
 
 const SHA = 'a'.repeat(64);
 let root: string;
@@ -139,5 +145,92 @@ describe('materializeMissing', () => {
       fetchImpl: h.fetchImpl,
     });
     expect(r).toBeNull();
+  });
+});
+
+// 2026-10-02 (alligators) — the file tree showed every photo FOLDER and none
+// of the photos: the index walks the checkout, and on a cell media is not there.
+describe('listMaterializable', () => {
+  beforeEach(() => resetMaterializableListCache());
+
+  test('off unless the hub turned it on — the checkout alone, as before', async () => {
+    const h = hub(() => json(200, { rels: ['system/ds/assets/a.jpg'] }));
+    expect(
+      await listMaterializable({ env: {} as NodeJS.ProcessEnv, fetchImpl: h.fetchImpl })
+    ).toBeNull();
+    expect(h.asked).toHaveLength(0);
+  });
+
+  test('asks the loopback hub with the token, keeps only plain relative paths', async () => {
+    const h = hub(() =>
+      json(200, { rels: ['system/ds/assets/a.jpg', '../escape.jpg', '/abs.jpg', 'a//b.jpg', 7] })
+    );
+    const rels = await listMaterializable({ env: ENV, fetchImpl: h.fetchImpl });
+    expect(rels).toEqual(['system/ds/assets/a.jpg']);
+    expect(h.asked[0]?.auth).toBe('Bearer tok');
+    expect(new URL(h.asked[0]?.url ?? '').searchParams.get('list')).toBe('1');
+  });
+
+  test('one listing serves the tree for a while; a failed ask keeps the last one', async () => {
+    let t = 0;
+    let fail = false;
+    const h = hub(() => (fail ? json(503, {}) : json(200, { rels: ['system/ds/assets/a.jpg'] })));
+    const ask = () => listMaterializable({ env: ENV, fetchImpl: h.fetchImpl, now: () => t });
+    await ask();
+    await ask();
+    expect(h.asked).toHaveLength(1);
+    t = 60_000;
+    fail = true;
+    expect(await ask()).toEqual(['system/ds/assets/a.jpg']);
+    expect(h.asked).toHaveLength(2);
+  });
+
+  test('never off-box', async () => {
+    const h = hub(() => json(200, { rels: [] }));
+    const r = await listMaterializable({
+      env: { ...ENV, MAUDE_MATERIALIZE_URL: 'http://hub.example.com:1234' },
+      fetchImpl: h.fetchImpl,
+    });
+    expect(r).toBeNull();
+    expect(h.asked).toHaveLength(0);
+  });
+});
+
+describe('mergeMaterializable', () => {
+  const opts = { designRel: '.design', groupPath: 'system', exts: PREVIEW_ASSET_EXTS };
+
+  test('a photo the checkout lacks joins its group, with every folder above it', () => {
+    const files = ['.design/system/ds/README.md'];
+    const dirs = ['.design/system/ds'];
+    mergeMaterializable(files, dirs, ['system/ds/assets/photos/a b.jpg', 'ui/x/p.png'], opts);
+    expect(files).toEqual([
+      '.design/system/ds/assets/photos/a b.jpg',
+      '.design/system/ds/README.md',
+    ]);
+    expect(dirs).toEqual([
+      '.design/system/ds',
+      '.design/system/ds/assets',
+      '.design/system/ds/assets/photos',
+    ]);
+  });
+
+  test('no duplicates, nothing findFiles would skip, nothing but media', () => {
+    const files = ['.design/system/ds/assets/a.jpg'];
+    const dirs: string[] = [];
+    mergeMaterializable(
+      files,
+      dirs,
+      [
+        'system/ds/assets/a.jpg',
+        'system/ds/_history/b.jpg',
+        'system/ds/.hidden/c.jpg',
+        'system/ds/node_modules/d.jpg',
+        'system/ds/tokens.css',
+        'systemx/e.jpg',
+      ],
+      opts
+    );
+    expect(files).toEqual(['.design/system/ds/assets/a.jpg']);
+    expect(dirs).toEqual([]);
   });
 });

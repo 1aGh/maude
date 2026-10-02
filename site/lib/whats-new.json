@@ -3,6 +3,15 @@
   "version": "1.6.4",
   "entries": [
     {
+      "id": "cloud-loading-states-and-faster-tree",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "Clear loading states in cloud projects",
+      "summary": "Opening a canvas now shows a loading screen until it is fully drawn, instead of a white page with stray comment pins. Photos in the file tree show a spinner and fetch themselves when the cloud is still bringing them in, fonts that loaded late repair themselves without a reload, and the file tree of a large cloud project lists every photo and no longer stalls.",
+      "surface": "design-ui"
+    },
+    {
       "id": "cloud-projects-bigger-than-the-disk",
       "version": "1.6.0",
       "date": "2026-10-01",

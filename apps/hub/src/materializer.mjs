@@ -49,8 +49,8 @@ import { writeBehindKey } from './asset-lane.mjs';
 import { isContentAddressed } from './assets.mjs';
 import { diskReportSync } from './disk.mjs';
 import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
-import { checkoutFileClass } from './file-manifest.mjs';
-import { isProjectFileShape } from './file-membership.mjs';
+import { checkoutFileClass, readCanvasGroups } from './file-manifest.mjs';
+import { classifyProjectFile, isProjectFileShape } from './file-membership.mjs';
 import { getObjectToFile, putObjectFromFile } from './s3.mjs';
 
 const SHA = /^[0-9a-f]{64}$/;
@@ -430,6 +430,32 @@ export function createMaterializer({
     },
 
     /**
+     * Every inert-media path the project holds that this cell can serve —
+     * live in the journal, hashed, and durable in the bucket.
+     *
+     * The studio child lists the project by walking its checkout, and on a
+     * cell the checkout is no longer where media lives: a fresh container
+     * starts with none of it on disk, and nothing here ever puts it at its
+     * checkout path (DDR-243 rule 1). Without this the file tree showed the
+     * folders and none of the photos. Paths only — no hashes, sizes or cache
+     * paths cross to the child; the static route still asks `materialize()`
+     * for each one it serves.
+     *
+     * @returns {string[]}
+     */
+    listInertMedia() {
+      const rows = journal?.compaction?.() ?? [];
+      const out = [];
+      for (const row of rows) {
+        if (row.deleted || !row.sha256 || !SHA.test(row.sha256)) continue;
+        if (row.mirroredAtMs == null) continue;
+        if (row.class !== 'inert-media') continue;
+        out.push(row.path);
+      }
+      return out;
+    },
+
+    /**
      * Adopt a verified upload into the cache, pinned until mirrored.
      * `file` must be on the same filesystem (a temp beside the cache).
      * The CALLER verified `sha` against the bytes; it is re-validated as a
@@ -605,10 +631,31 @@ export async function handleMaterializeRoute({
   }
   if (method !== 'GET') return send(405, { error: 'method not allowed' });
   let rel = '';
+  let list = false;
   try {
-    rel = new URL(request.url ?? '', 'http://loopback').searchParams.get('rel') ?? '';
+    const params = new URL(request.url ?? '', 'http://loopback').searchParams;
+    rel = params.get('rel') ?? '';
+    list = params.get('list') === '1';
   } catch {
     rel = '';
+  }
+  // `?list=1` — the inert media the child's file tree must show although its
+  // checkout does not hold it (see `listInertMedia`). Same two gates as a fill.
+  if (list) {
+    // The groups are read ONCE for the whole listing — `checkoutFileClass`
+    // re-reads config.json per call, which is fine per fill and not per 5 000.
+    const canvasGroups = designRoot ? readCanvasGroups(designRoot) : [];
+    const rels = designRoot
+      ? (materializer.listInertMedia?.() ?? []).filter(
+          (r) =>
+            isProjectFileShape(r) &&
+            classifyProjectFile(r, {
+              canvasGroups,
+              hasFile: (x) => existsSync(join(designRoot, x)),
+            }) === 'inert-media'
+        )
+      : [];
+    return send(200, { rels });
   }
   // Inert media only: code modules and companion text stay real checkout
   // files (Bun.build reads them), and nothing else belongs in the cache.

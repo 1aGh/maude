@@ -124,6 +124,7 @@ import {
 } from './generation/audio-library.ts';
 import { createHistory } from './history.ts';
 import { clearLocatorSlug, readLocator, writeLocator } from './locator.ts';
+import { listMaterializable } from './materialize-client.ts';
 import { STICKERS_DIR } from './paths.ts';
 import { getPaperPreset, MAX_PRINT_MM } from './print/units.ts';
 import { sessionDir } from './session-scope.ts';
@@ -240,6 +241,66 @@ export async function findHtmlFiles(absRoot: string, prefixUnderRepo: string): P
  * traversal instead of adding a second full walk of `system/` (the largest
  * group) just to enumerate directories.
  */
+/**
+ * Fold the cell's materializable media into a group's checkout listing.
+ *
+ * On a materializing cell the checkout is not where media lives (DDR-243): a
+ * fresh container holds none of it, and the materializer never writes it at
+ * its checkout path. Walking the disk alone listed every photo FOLDER and none
+ * of the photos. `rels` is the hub journal's answer (designRoot-relative); a
+ * path joins the group when it sits under the group, carries an extension the
+ * group lists, and would have survived `findFiles`' own skips. Mutates
+ * `filePaths` / `dirs` in place, keeps both sorted and duplicate-free.
+ */
+export function mergeMaterializable(
+  filePaths: string[],
+  dirs: string[],
+  rels: readonly string[],
+  { designRel, groupPath, exts }: { designRel: string; groupPath: string; exts: readonly string[] }
+): void {
+  const groupSegs = groupPath.split('/').filter(Boolean);
+  const groupPrefix = `${groupSegs.join('/')}/`;
+  const have = new Set(filePaths);
+  const haveDirs = new Set(dirs);
+  let added = false;
+  for (const rel of rels) {
+    if (!rel.startsWith(groupPrefix)) continue;
+    const lower = rel.toLowerCase();
+    if (!exts.some((x) => lower.endsWith(x))) continue;
+    const segs = rel.split('/');
+    // The same skips `findFiles` applies on the way down.
+    if (
+      segs.some(
+        (seg) =>
+          !seg ||
+          seg === '..' ||
+          seg.startsWith('_') ||
+          (seg.startsWith('.') && !HIDDEN_OK.has(seg)) ||
+          SKIP_DIRS.has(seg)
+      )
+    ) {
+      continue;
+    }
+    const full = path.posix.join(designRel, rel);
+    if (have.has(full)) continue;
+    have.add(full);
+    filePaths.push(full);
+    added = true;
+    // Every folder between the group and the file, so the tree can nest it.
+    for (let i = groupSegs.length + 1; i < segs.length; i++) {
+      const dir = path.posix.join(designRel, ...segs.slice(0, i));
+      if (!haveDirs.has(dir)) {
+        haveDirs.add(dir);
+        dirs.push(dir);
+      }
+    }
+  }
+  if (added) {
+    filePaths.sort((a, b) => a.localeCompare(b));
+    dirs.sort((a, b) => a.localeCompare(b));
+  }
+}
+
 export async function findFiles(
   absRoot: string,
   prefix: string,
@@ -6481,6 +6542,9 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // we also include sibling .md / .css / .json so README, SKILL, and the
     // tokens CSS file render in the tree per CV-08 mock. Inert at click time
     // (FileRow non-HTML branch).
+    // Cell materializer — the media the hub can serve although this checkout
+    // does not hold it. `null` everywhere else (desktop, self-hosted hub).
+    const materializable = await listMaterializable();
     for (const g of cfg.canvasGroups) {
       const groupAbs = path.join(paths.designRoot, g.path);
       const groupRel = path.posix.join(paths.designRel, g.path);
@@ -6497,19 +6561,18 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       // traversal, so a freshly `mkdir`'d folder with no files yet is still
       // representable in the tree.
       const dirs: string[] = [];
-      const filePaths = isDs
-        ? await findFiles(
-            groupAbs,
-            groupRel,
-            ['.tsx', '.html', '.md', '.css', '.json', ...PREVIEW_ASSET_EXTS],
-            dirs
-          )
-        : await findFiles(
-            groupAbs,
-            groupRel,
-            ['.tsx', '.html', '.css', '.json', ...PREVIEW_ASSET_EXTS],
-            dirs
-          );
+      const groupExts = isDs
+        ? ['.tsx', '.html', '.md', '.css', '.json', ...PREVIEW_ASSET_EXTS]
+        : ['.tsx', '.html', '.css', '.json', ...PREVIEW_ASSET_EXTS];
+      const filePaths = await findFiles(groupAbs, groupRel, groupExts, dirs);
+      // A materializing cell lists media its checkout does not hold.
+      if (materializable) {
+        mergeMaterializable(filePaths, dirs, materializable, {
+          designRel: paths.designRel,
+          groupPath: g.path,
+          exts: PREVIEW_ASSET_EXTS,
+        });
+      }
       // DDR-093 — record each `.tsx` canvas's design system. canvasUrl() only
       // injects tokens for `.tsx`, so skip everything else. Path-owned DS wins
       // (system/<ds>/…); otherwise the sidecar's `meta.designSystem`, defaulting

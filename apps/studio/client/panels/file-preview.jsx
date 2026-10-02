@@ -3,7 +3,7 @@
 // static byte-serving route (no new server endpoint) and the chat panel's
 // hand-rolled Markdown renderer — no new dependency.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Markdown } from './chat-markdown.jsx';
 
 const TEXT_PREVIEW_MAX_BYTES = 2 * 1024 * 1024; // 2 MB — beyond this, just show a size note
@@ -91,6 +91,97 @@ function FontPreview({ url, name }) {
   );
 }
 
+// On a cloud workspace an image the tree lists may not be on the cell's disk
+// yet: the first request makes the hub fetch it from storage, and while that
+// runs the static route answers 503 (retry shortly). An <img> treats that as
+// a final failure and shows nothing — so retry with backoff and say what is
+// happening, instead of leaving an empty frame.
+const IMAGE_RETRY_DELAYS_MS = [1000, 2000, 3000, 4000, 6000, 8000, 10000];
+
+function ImagePreview({ url, name }) {
+  const [attempt, setAttempt] = useState(0);
+  const [state, setState] = useState('loading'); // loading | loaded | error
+  const timer = useRef(null);
+  useEffect(() => {
+    setAttempt(0);
+    setState('loading');
+    return () => clearTimeout(timer.current);
+  }, [url]);
+  const src = attempt === 0 ? url : `${url}?retry=${attempt}`;
+  const onError = () => {
+    if (attempt >= IMAGE_RETRY_DELAYS_MS.length) {
+      setState('error');
+      return;
+    }
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setAttempt((a) => a + 1), IMAGE_RETRY_DELAYS_MS[attempt]);
+  };
+  const retry = () => {
+    setState('loading');
+    setAttempt((a) => a + 1);
+  };
+  return (
+    <div className={'st-file-preview-image-wrap is-' + state} aria-busy={state === 'loading'}>
+      {state !== 'error' && (
+        <img
+          key={src}
+          src={src}
+          alt={`Preview: ${name}`}
+          className="st-file-preview-image"
+          decoding="async"
+          onLoad={() => setState('loaded')}
+          onError={onError}
+        />
+      )}
+      {state === 'loading' && (
+        <div className="st-file-preview-loading" role="status" aria-live="polite">
+          <span className="st-file-preview-spinner" aria-hidden="true" />
+          <span>{attempt === 0 ? `Loading ${name}…` : 'Still fetching the photo — the first open of a large file can take a moment…'}</span>
+        </div>
+      )}
+      {state === 'error' && (
+        <div className="st-file-preview-loading st-file-preview-error" role="alert">
+          <span>Couldn't load {name}.</span>
+          <button type="button" className="btn btn--ghost" onClick={retry}>
+            Try again
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Warm the next photo before it is clicked: hovering a row starts the fetch,
+// so by the time the click lands the bytes are on their way (or cached).
+// One fetch per URL per session, at most two at once.
+const prefetched = new Set();
+const prefetchQueue = [];
+let prefetchInFlight = 0;
+function pumpPrefetch() {
+  while (prefetchInFlight < 2 && prefetchQueue.length) {
+    const u = prefetchQueue.shift();
+    prefetchInFlight++;
+    const img = new Image();
+    img.decoding = 'async';
+    const done = () => {
+      prefetchInFlight--;
+      // A cloud miss answers 503 while it fills — let a later hover try again.
+      if (!img.naturalWidth) prefetched.delete(u);
+      pumpPrefetch();
+    };
+    img.onload = done;
+    img.onerror = done;
+    img.src = u;
+  }
+}
+export function prefetchPreviewImage(path) {
+  const u = `/${path}`;
+  if (prefetched.has(u)) return;
+  prefetched.add(u);
+  prefetchQueue.push(u);
+  pumpPrefetch();
+}
+
 export function FilePreview({ path, kind }) {
   if (!path || !kind) return null;
   const url = `/${path}`;
@@ -101,11 +192,7 @@ export function FilePreview({ path, kind }) {
       <div className="st-file-preview-body">
         {kind === 'markdown' && <TextPreview url={url} name={name} as="markdown" />}
         {kind === 'text' && <TextPreview url={url} name={name} as="text" />}
-        {kind === 'image' && (
-          <div className="st-file-preview-image-wrap">
-            <img src={url} alt={`Preview: ${name}`} className="st-file-preview-image" />
-          </div>
-        )}
+        {kind === 'image' && <ImagePreview url={url} name={name} />}
         {kind === 'video' && <video key={url} src={url} controls className="st-file-preview-media" />}
         {kind === 'audio' && <audio key={url} src={url} controls className="st-file-preview-audio" />}
         {kind === 'font' && <FontPreview url={url} name={name} />}

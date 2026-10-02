@@ -595,3 +595,93 @@ describe('security review fixes', () => {
     m4.stop();
   });
 });
+
+// 2026-10-02 (alligators) — the file tree showed the photo folders and none of
+// the photos: the studio lists the project by walking its checkout, and on a
+// cell media lives in the bucket and the cache, never at its checkout path.
+describe('listing the media the checkout does not hold', () => {
+  const TOKEN = 'per-boot-child-token';
+  const rowsWith = (rows) => ({
+    latestFor: () => null,
+    compaction: () => rows,
+  });
+  const LIVE = (path, over = {}) => ({
+    path,
+    sha256: sha(path),
+    deleted: false,
+    mirroredAtMs: 1,
+    class: 'inert-media',
+    ...over,
+  });
+
+  it('lists live, durable inert media — nothing deleted, unmirrored or non-media', () => {
+    const m = createMaterializer({
+      designRoot,
+      indexPath: join(dataDir, 'materializer.json'),
+      journal: rowsWith([
+        LIVE('system/ds/assets/a.jpg'),
+        LIVE('system/ds/assets/gone.jpg', { deleted: true }),
+        LIVE('system/ds/assets/local-only.jpg', { mirroredAtMs: null }),
+        LIVE('system/ds/assets/nohash.jpg', { sha256: null }),
+        LIVE('system/ds/README.md', { class: 'companion-text' }),
+        LIVE('ui/x.tsx', { class: 'canvas-owned' }),
+      ]),
+      s3: async () => ({ bucket: 'x' }),
+      prefix: '',
+      budgetBytes: 1e9,
+      log: quiet,
+    });
+    assert.deepEqual(m.listInertMedia(), ['system/ds/assets/a.jpg']);
+  });
+
+  function listCall({ auth = `Bearer ${TOKEN}`, ip = '127.0.0.1', rels }) {
+    let listed = 0;
+    const materializer = {
+      materialize: async () => assert.fail('a listing is not a fill'),
+      listInertMedia: () => {
+        listed += 1;
+        return rels;
+      },
+    };
+    let status = 0;
+    let body = '';
+    const response = new Writable({
+      write(c, _e, cb) {
+        body += c;
+        cb();
+      },
+    });
+    response.writeHead = (s) => {
+      status = s;
+      return response;
+    };
+    return handleMaterializeRoute({
+      request: {
+        url: '/_materialize?list=1',
+        headers: auth ? { authorization: auth } : {},
+        socket: { remoteAddress: ip },
+      },
+      response,
+      method: 'GET',
+      materializer,
+      token: TOKEN,
+      designRoot,
+    }).then(() => ({ status, json: body ? JSON.parse(body) : null, listed }));
+  }
+
+  it('answers the child with the paths, re-judged as inert media here', async () => {
+    const r = await listCall({
+      rels: ['system/ds/assets/a.jpg', 'system/ds/tokens.css', '_history/x.png', '../x.png'],
+    });
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.json, { rels: ['system/ds/assets/a.jpg'] });
+  });
+
+  it('is the same bare 404 as a fill to anyone without the token', async () => {
+    for (const over of [{ auth: null }, { auth: 'Bearer nope' }, { ip: '10.0.0.7' }]) {
+      const r = await listCall({ ...over, rels: ['system/ds/assets/a.jpg'] });
+      assert.equal(r.status, 404, JSON.stringify(over));
+      assert.equal(r.listed, 0);
+    }
+  });
+});

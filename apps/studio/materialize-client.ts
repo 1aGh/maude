@@ -100,3 +100,78 @@ export function isCacheBlob(cacheDir: string, p: string): boolean {
     return false;
   }
 }
+
+/** How long one listing is reused. The tree reloads on every file event and
+ *  every reconnect; the journal answer only changes when media is added or
+ *  removed, which reaches the tree through those same events a moment later. */
+const LIST_TTL_MS = 15_000;
+let listCache: { at: number; base: string; rels: string[] } | null = null;
+let listInflight: Promise<string[] | null> | null = null;
+
+/**
+ * Every inert-media path the hub can serve although this checkout may not
+ * hold it — designRoot-relative, `/`-separated. `null` when this is not a
+ * materializing cell (desktop, self-hosted hub) or the hub did not answer:
+ * the caller then lists the checkout alone, exactly as before.
+ *
+ * Paths only, and only as file-tree ROWS: serving any of them still goes
+ * through `materializeMissing`, which checks the hub's answer itself.
+ */
+export async function listMaterializable({
+  env = process.env,
+  fetchImpl = fetch,
+  now = Date.now,
+}: {
+  env?: NodeJS.ProcessEnv;
+  fetchImpl?: typeof fetch;
+  now?: () => number;
+} = {}): Promise<string[] | null> {
+  if (env.MAUDE_CELL_MATERIALIZE !== '1') return null;
+  const base = env.MAUDE_MATERIALIZE_URL;
+  const token = env.MAUDE_MATERIALIZE_TOKEN;
+  if (!base || !token) return null;
+  let url: URL;
+  try {
+    url = new URL('/_materialize', base);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'http:' || !LOOPBACK_HOSTS.has(url.hostname)) return null;
+  url.searchParams.set('list', '1');
+  if (listCache && listCache.base === base && now() - listCache.at < LIST_TTL_MS)
+    return listCache.rels;
+  if (listInflight) return listInflight;
+  listInflight = (async () => {
+    try {
+      const res = await fetchImpl(url, {
+        headers: { authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(HOP_TIMEOUT_MS),
+      });
+      if (!res.ok) return listCache?.rels ?? null;
+      const body = (await res.json()) as { rels?: unknown };
+      const rels = Array.isArray(body?.rels)
+        ? body.rels.filter(
+            (r): r is string =>
+              typeof r === 'string' &&
+              r.length > 0 &&
+              r.length < 1024 &&
+              !r.startsWith('/') &&
+              !r.split('/').some((seg) => seg === '' || seg === '.' || seg === '..')
+          )
+        : [];
+      listCache = { at: now(), base, rels };
+      return rels;
+    } catch {
+      return listCache?.rels ?? null;
+    } finally {
+      listInflight = null;
+    }
+  })();
+  return listInflight;
+}
+
+/** Test seam — forget the cached listing. */
+export function resetMaterializableListCache(): void {
+  listCache = null;
+  listInflight = null;
+}

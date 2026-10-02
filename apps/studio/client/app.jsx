@@ -67,7 +67,7 @@ import { ReadinessDialog } from './panels/ReadinessList.jsx';
 import IntroVideoDialog from './panels/IntroVideoDialog.jsx';
 import BrandUploadPanel from './panels/BrandUploadPanel.jsx';
 import FigmaImportPanel from './panels/FigmaImportPanel.jsx';
-import { FilePreview, sanitizeDisplayText } from './panels/file-preview.jsx';
+import { FilePreview, prefetchPreviewImage, sanitizeDisplayText } from './panels/file-preview.jsx';
 import SetupChecklistDialog, { useSetupReadiness } from './panels/SetupChecklist.jsx';
 import TimelinePanel from './panels/TimelinePanel.jsx';
 import { parseCompTimeline } from './panels/timeline-parse.js';
@@ -239,6 +239,9 @@ function DockSlot({ side, width, open, ids, activeId, onPick, children, labels =
   );
 }
 const CANVAS_EXT_RE = /\.(tsx|html?)$/i;
+// A canvas the shell builds as a module and that reports `canvas-rendered`
+// itself, as opposed to a legacy .html canvas that is drawn on `load`.
+const isModuleCanvasPath = (p) => /\.(tsx|jsx)$/i.test(String(p || ''));
 // feature-studio-file-preview — classifies a non-canvas tree row so FileRow
 // can open an inline preview instead of the old inert no-op. Kept in sync
 // with apps/studio/api.ts's PREVIEW_ASSET_EXTS (server won't list anything
@@ -2372,6 +2375,8 @@ function FileRow({
         if (isCanvas) onOpen(file.path);
         else if (pKind) onPreview?.(file.path);
       }}
+      onPointerEnter={pKind === 'image' ? () => prefetchPreviewImage(file.path) : undefined}
+      onFocus={pKind === 'image' ? () => prefetchPreviewImage(file.path) : undefined}
       onContextMenu={
         canShare
           ? (e) =>
@@ -4842,14 +4847,7 @@ function Viewport({
         // DS skeletons recipe — calm .skel pulse while the canvas-shell compiles
         // the TSX. Cleared by the iframe's dgn:'loaded' message (or the onLoad
         // fallback timer for legacy .html canvases that never post it).
-        <div className="st-canvas-loading" aria-hidden="true">
-          <div className="st-skel-card">
-            <div className="st-skel-cap st-mono">compiling canvas…</div>
-            <span className="skel st-skel-thumb" />
-            <span className="skel st-skel-line" style={{ width: '72%' }} />
-            <span className="skel st-skel-line" style={{ width: '46%' }} />
-          </div>
-        </div>
+        <CanvasLoading key={loadingPath} path={loadingPath} cloud={!!cfg?.cloud} />
       )}
       {canvasError && canvasError.path === activePath && (
         // issue #115 — what the blank pane used to be. Names which of the two
@@ -4890,6 +4888,39 @@ function Viewport({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// The canvas loading screen. OPAQUE on purpose: until the canvas reports
+// `canvas-rendered` the frame underneath is the bare shell — a white page,
+// and on a canvas with comments, pins floating over nothing — which reads as
+// "something broke". The card fades in after a beat so a warm canvas that
+// renders in a few hundred ms never flashes it; the hint after a few seconds
+// says why a cold canvas is slow instead of leaving the user to wonder.
+function CanvasLoading({ path, cloud }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 4000);
+    return () => clearTimeout(t);
+  }, []);
+  const name = sanitizeDisplayText(basename(path || '').replace(/\.(tsx|jsx|html?)$/i, ''));
+  return (
+    <div className="st-canvas-loading" role="status" aria-live="polite" data-testid="canvas-loading">
+      <div className="st-skel-card">
+        <div className="st-canvas-loading-head">
+          <span className="st-canvas-loading-spinner" aria-hidden="true" />
+          <span className="st-canvas-loading-title">Opening {name}…</span>
+        </div>
+        <span className="skel st-skel-thumb" aria-hidden="true" />
+        <span className="skel st-skel-line" style={{ width: '72%' }} aria-hidden="true" />
+        <span className="skel st-skel-line" style={{ width: '46%' }} aria-hidden="true" />
+        <div className={'st-canvas-loading-hint' + (slow ? ' is-shown' : '')}>
+          {cloud
+            ? 'Still working — the first open of a canvas fetches its images and fonts from cloud storage. It is quicker next time.'
+            : 'Still working — large canvases take a moment to build.'}
+        </div>
+      </div>
     </div>
   );
 }
@@ -10225,6 +10256,10 @@ function App() {
   // the iframe load event arms a short fallback for legacy .html canvases that
   // never post it; a hard cap guards against a canvas that dies mid-compile.
   const onIframeLoad = useCallback((path) => {
+    // A module canvas reports its own render; the iframe `load` event fires
+    // long before it has drawn anything, so a timer here would only bring
+    // back the white pane.
+    if (isModuleCanvasPath(path)) return;
     clearTimeout(loadFallbackTimer.current);
     loadFallbackTimer.current = setTimeout(() => {
       setLoadingPath((p) => (p === path ? null : p));
@@ -10266,6 +10301,11 @@ function App() {
   // was written for. It reached the branch because the PR carried a merge
   // conflict, which stops GitHub from building a merge ref, which means the
   // client-boot gate never ran on it (issue #112 close-out).
+  // Once the shell has said `loaded` the origin is demonstrably up and the
+  // wait is the canvas building — on a cold cloud canvas that can outlast 15 s
+  // without anything being wrong, so the cap stretches instead of calling it a
+  // failure. The shell reports a real build error itself (`canvas-failed`).
+  const shellAlive = !!loadingPath && loadedPath === loadingPath;
   useEffect(() => {
     if (!loadingPath) return;
     const path = loadingPath;
@@ -10281,9 +10321,9 @@ function App() {
       }
       setCanvasError({ path, kind });
       setLoadingPath((p) => (p === path ? null : p));
-    }, 15000);
+    }, shellAlive ? 60000 : 15000);
     return () => clearTimeout(cap);
-  }, [loadingPath, cfg?.canvasOrigin]);
+  }, [loadingPath, shellAlive, cfg?.canvasOrigin]);
   // WHO IS SAVING THIS PROJECT — one expression, read by every surface that
   // would otherwise offer to save it, poll for it, or badge it (DDR-218, widened
   // by feature-cloud-managed-git-posture).
@@ -13964,10 +14004,19 @@ function App() {
           if (typeof m.artboardId === 'string') setCanvasActiveArtboard(m.artboardId.slice(0, 120));
           setTimelineOpen(true);
         }
-      } else if (m.dgn === 'loaded' && m.file) {
-        // iframe finished loading — drop the compile skeleton, push current
-        // comments + carry over focused pin if any
+      } else if ((m.dgn === 'canvas-rendered' || m.dgn === 'canvas-failed') && m.file) {
+        // The canvas drew (or its shell is now showing its own build error) —
+        // only now drop the loading screen. See `loaded` below for why that
+        // one is not enough.
         setLoadingPath((p) => (p === m.file ? null : p));
+      } else if (m.dgn === 'loaded' && m.file) {
+        // The shell document ran — push current comments + carry over the
+        // focused pin. For a TSX/JSX canvas this is NOT "drawn": the module
+        // still has to build and render, which on a cold cloud canvas takes
+        // seconds, and dropping the loading screen here showed a white pane
+        // with bare comment pins. Those canvases clear it on `canvas-rendered`
+        // / `canvas-failed`; a legacy .html canvas has nothing to wait for.
+        if (!isModuleCanvasPath(m.file)) setLoadingPath((p) => (p === m.file ? null : p));
         setLoadedPath(m.file);
         // …and retire any #115 error panel for this canvas: it just proved it
         // can load (a late load, or a successful Retry).
