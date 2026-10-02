@@ -33,7 +33,12 @@ import { sizingModeOf, sizingModePatch } from '../sizing-mode.ts';
 // same "pull only pure logic into the client bundle" shape as the imports
 // above (a type-only SyncStatusSnapshot import that Bun erases).
 import { syncPresentation } from '../sync/presentation.ts';
-import { canvasTokenRefreshDelay, canvasUrl, setLiveCanvasToken } from './canvas-url.js';
+import {
+  canvasTokenRefreshDelay,
+  canvasUrl,
+  setLiveCanvasToken,
+  withCanvasToken,
+} from './canvas-url.js';
 import { applyEditRequest } from './apply-edit-request.ts';
 import { createIndexLoader } from './index-loader.ts';
 import {
@@ -10917,10 +10922,7 @@ function App() {
       setLiveCanvasToken(token);
       // To the canvas origin only, never '*': a frame the canvas content
       // navigated elsewhere must not be handed the capability.
-      let target = null;
-      try {
-        target = new URL(cfg.canvasOrigin, location.href).origin;
-      } catch {}
+      const target = canvasTarget();
       if (target) {
         for (const el of iframesRef.current.values()) {
           try {
@@ -10929,7 +10931,36 @@ function App() {
         }
       }
       schedule(token);
+      return token;
     }
+    function canvasTarget() {
+      try {
+        return new URL(cfg.canvasOrigin, location.href).origin;
+      } catch {
+        return null;
+      }
+    }
+    // A FRAME WHOSE OWN DOCUMENT WAS REFUSED AS EXPIRED. The re-mint above
+    // reaches a running canvas's fetches, but not a frame that re-navigates
+    // itself (a hard reload, a laptop that slept past the cadence): that load
+    // carries the URL it was built with, and the canvas origin answers with a
+    // small page that asks us for a fresh capability (hub studio-proxy). Mint
+    // one and point just that frame at it — no "reload the project".
+    let reviving = false;
+    async function onExpired(e) {
+      if (e.data?.dgn !== 'canvas-expired' || e.origin !== canvasTarget() || reviving) return;
+      reviving = true;
+      try {
+        const token = await refresh();
+        if (!token) return;
+        for (const el of iframesRef.current.values()) {
+          if (el.contentWindow === e.source) el.src = withCanvasToken(el.src, token);
+        }
+      } finally {
+        reviving = false;
+      }
+    }
+    window.addEventListener('message', onExpired);
     schedule(cfg.canvasToken);
     // A background tab's timers are throttled; one woken past its due time
     // re-mints at once rather than on the throttled tick.
@@ -10941,6 +10972,7 @@ function App() {
       stopped = true;
       clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('message', onExpired);
     };
   }, [cfg?.canvasToken, cfg?.canvasOrigin]);
 

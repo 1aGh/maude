@@ -46,6 +46,21 @@ export function canvasTokenRefreshDelay(token, now = Date.now()) {
   }
 }
 
+/**
+ * The same canvas URL carrying a different capability. Used when a frame's
+ * own document was refused as expired (a hard reload, a laptop that slept
+ * past the re-mint): only `t` changes, so the frame comes back where it was.
+ */
+export function withCanvasToken(src, token) {
+  try {
+    const u = new URL(src);
+    u.searchParams.set('t', token);
+    return u.toString();
+  } catch {
+    return src;
+  }
+}
+
 export function urlOf(p) {
   return '/' + p.split('/').map(encodeURIComponent).join('/');
 }

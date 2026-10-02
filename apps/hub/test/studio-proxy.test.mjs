@@ -195,6 +195,52 @@ test('the canvas iframe gets a page that names nothing, links nowhere, loads not
   assert.doesNotMatch(response.body, /<script|href=|<link|alligators/i);
 });
 
+test('an expired capability on a frame load asks the shell for a fresh one', async () => {
+  // Before: the iframe showed `{"error":"this canvas link has expired…"}`.
+  const { proxy } = makeProxy();
+  const response = fakeResponse();
+  await proxy.handleCanvas({
+    request: {
+      method: 'GET',
+      headers: { ...NAV, 'sec-fetch-dest': 'iframe' },
+      url: '/_canvas-shell.html?t=stale',
+    },
+    response,
+    pathname: '/_canvas-shell.html',
+    method: 'GET',
+    verifyToken: () => ({ ok: false }),
+  });
+  assert.equal(response.statusCode, 401);
+  assert.match(response.headers['content-type'], /text\/html/);
+  // To the project's own shell, never '*'.
+  assert.match(
+    response.body,
+    /postMessage\(\{dgn:'canvas-expired'\},"https:\/\/alligators\.cloud\.maude\.sh"\)/
+  );
+  // The only script is the one the CSP pins.
+  const script = /<script>([^<]*)<\/script>/.exec(response.body)[1];
+  const hash = createHash('sha256').update(script).digest('base64');
+  assert.match(
+    response.headers['content-security-policy'],
+    new RegExp(`script-src 'sha256-${hash.replace(/[+/=]/g, (c) => `\\${c}`)}'`)
+  );
+  assert.match(response.headers['content-security-policy'], /default-src 'none'/);
+});
+
+test('a non-navigation with an expired capability keeps its JSON', async () => {
+  const { proxy } = makeProxy();
+  const response = fakeResponse();
+  await proxy.handleCanvas({
+    request: { method: 'GET', headers: { accept: '*/*' }, url: '/_canvas/module?t=stale' },
+    response,
+    pathname: '/_canvas/module',
+    method: 'GET',
+    verifyToken: () => ({ ok: false }),
+  });
+  assert.equal(response.statusCode, 401);
+  assert.match(JSON.parse(response.body).error, /expired/);
+});
+
 test('API callers keep the exact JSON answer', () => {
   assert.equal(
     isNavigationRequest({ method: 'GET', headers: { accept: 'application/json' } }),

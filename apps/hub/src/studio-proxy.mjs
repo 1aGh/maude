@@ -23,6 +23,7 @@
 //    is correct for a local tool and is the whole ballgame on the internet; this
 //    proxy inverts that default and a test asserts it.
 
+import { createHash } from 'node:crypto';
 import { request as httpRequest } from 'node:http';
 import { connect as netConnect } from 'node:net';
 
@@ -301,6 +302,31 @@ function respondStartingPage(response, { canvas = false } = {}) {
   response.end(html);
 }
 
+/**
+ * A canvas frame whose OWN document arrived with an expired capability.
+ *
+ * Before: the iframe showed `{"error":"this canvas link has expired — reload
+ * the project"}`. Now it shows a short line and asks the shell, by message, for
+ * a fresh capability; the shell (app.jsx `onExpired`) re-mints and points just
+ * this frame at it, so the canvas comes back by itself.
+ *
+ * The one script is ours, pinned by hash in a CSP that allows nothing else,
+ * and the message goes to the project's own shell origin — never `*`.
+ */
+function respondCanvasExpiredPage(response, shellOrigin) {
+  const target = JSON.stringify(shellOrigin ?? '');
+  const script = `parent.postMessage({dgn:'canvas-expired'},${target});`;
+  const hash = createHash('sha256').update(script).digest('base64');
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Refreshing this canvas…</title><style>body{margin:0;display:grid;place-items:center;min-height:100vh;font:15px/1.5 system-ui,sans-serif;background:#1b1d22;color:#c9ccd3}main{max-width:26rem;padding:24px;text-align:center}</style></head><body><main><p><strong>Refreshing this canvas…</strong></p><p>Its access link went stale while it was open. It should be back in a second — if not, reload the project.</p></main><script>${script}</script></body></html>`;
+  response.writeHead(401, {
+    'content-type': 'text/html; charset=utf-8',
+    'cache-control': 'no-store',
+    'x-content-type-options': 'nosniff',
+    'content-security-policy': `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-${hash}'; base-uri 'none'; form-action 'none'`,
+  });
+  response.end(html);
+}
+
 function refuse(response, status, body) {
   const payload = JSON.stringify(body);
   response.writeHead(status, {
@@ -558,6 +584,10 @@ export function createStudioProxy({
         ? verifyToken(cookieFrom(request, CANVAS_CAPABILITY_COOKIE))
         : null;
     if (!verdict?.ok && !cookieVerdict?.ok) {
+      if (isNavigationRequest(request) && publicUrl) {
+        respondCanvasExpiredPage(response, originOf(publicUrl));
+        return true;
+      }
       refuse(response, 401, { error: 'this canvas link has expired — reload the project' });
       return true;
     }
