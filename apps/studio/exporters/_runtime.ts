@@ -110,6 +110,13 @@ const TIMING_LINE = /^MAUDE_TIMING (.+)$/;
 export async function spawnShim(args: string[], opts: SpawnShimOptions): Promise<SpawnShimResult> {
   const proc = Bun.spawn([resolveExportRuntime(), ...args], {
     cwd: opts.cwd,
+    // EXPLICIT, not inherited. Bun.spawn without `env` hands the child the
+    // environment the process STARTED with — a variable set at runtime never
+    // arrives (Bun 1.3.3, measured). The render worker sets
+    // MAUDE_RENDER_SKIP_WHOLE_COMP=1 at startup exactly that way, so every
+    // cloud mp4 still burned the 90 s renderMediaOnWeb timeout before falling
+    // to frame-step (2026-10-02).
+    env: { ...process.env },
     stdout: 'pipe',
     stderr: 'pipe',
     signal: opts.signal,
