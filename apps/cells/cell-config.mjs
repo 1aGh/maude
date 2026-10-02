@@ -231,6 +231,9 @@ export function canvasOriginTenant(url, zone) {
   if (host !== `${CANVAS_LABEL}.${z}`) return null;
   const [, first, ...rest] = url.pathname.split('/');
   if (!first) return { tenant: null, rest: '/' };
+  // A segment that cannot be a project id is not one — scanners walking this
+  // host (`/.env.prod`, `/database.sql`) were naming a Durable Object each.
+  if (!isValidTenantId(first)) return { tenant: null, rest: `/${rest.join('/')}` };
   return { tenant: first, rest: `/${rest.join('/')}` };
 }
 

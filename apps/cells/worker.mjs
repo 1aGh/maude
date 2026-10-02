@@ -26,6 +26,7 @@ import {
   canvasInnerRequest,
   canvasOriginTenant,
   isNavigation,
+  isValidTenantId,
   stripCanvasOriginMarker,
 } from './cell-config.mjs';
 import { MaudeCell, routeToCell, tenantFromHostname } from './cell-do.mjs';
@@ -83,7 +84,11 @@ export default {
     // would take the hostname every project's canvases are served from.)
     const canvasTenant = canvasOriginTenant(url, env.CELL_ZONE);
     if (canvasTenant) {
-      if (!canvasTenant.tenant) {
+      // A path segment is not a project until it at least LOOKS like one: the
+      // legacy shared host takes the project from the path, and scanners
+      // walking it (`/.env.prod`, `/database.sql`) were creating a Durable
+      // Object per probe.
+      if (!canvasTenant.tenant || !isValidTenantId(canvasTenant.tenant)) {
         if (isNavigation(request)) return htmlResponse(notFoundPage({ canvas: true }), 404);
         return new Response('the canvas origin needs a project in the path\n', {
           status: 404,

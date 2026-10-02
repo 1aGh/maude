@@ -124,7 +124,7 @@ export function createCredentialResolver({
    *
    * @returns {Promise<
    *   | { ok: true, credentials: object, source: 'cache' | 'mint' }
-   *   | { ok: false, retryable: boolean, retryAfterMs: number | null, detail: string, source: 'cooldown' | 'mint' }
+   *   | { ok: false, retryable: boolean, retryAfterMs: number | null, status?: number | null, detail: string, source: 'cooldown' | 'mint' }
    * >}
    */
   async function resolve(tenantId) {
@@ -183,6 +183,10 @@ export function createCredentialResolver({
           ok: false,
           retryable: minted.retryable === true,
           retryAfterMs: minted.retryAfterMs ?? null,
+          // The control plane's own status — 404 is "no such project", which
+          // the cell must treat as "do not start", never as a reason to reach
+          // for a fallback key.
+          status: minted.status ?? null,
           detail: minted.detail ?? 'credential mint refused',
           source: 'mint',
         };

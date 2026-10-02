@@ -36,6 +36,7 @@ import { createCredentialResolver } from './cell-credentials.mjs';
 import {
   couldNotStartPage,
   htmlResponse,
+  notFoundPage,
   REFRESH_SECONDS,
   startingPage,
   stripWait,
@@ -189,6 +190,7 @@ export class MaudeCell extends Container {
       const url = new URL(request.url);
       const canvas = request.headers.get(CANVAS_ORIGIN_HEADER) === '1';
       if (!(await this.#readyForNavigation(tenantId))) {
+        if (this.#unknownTenant) return htmlResponse(notFoundPage({ canvas }), 404);
         const failed = this.#takeStartFailure();
         if (failed) {
           return htmlResponse(couldNotStartPage({ url, reason: failed, canvas }), 503);
@@ -252,6 +254,8 @@ export class MaudeCell extends Container {
   #startedAt = null;
   /** Why the last start failed, for the next navigation to show once. */
   #startFailure = null;
+  /** The control plane said this tenant does not exist — never start it. */
+  #unknownTenant = false;
 
   /** A failed start, shown once — the person's "Try again" starts afresh. */
   #takeStartFailure() {
@@ -402,6 +406,11 @@ export class MaudeCell extends Container {
 
   /** A credential refusal: today's response for API callers, a sentence for people. */
   #refused(storage) {
+    if (storage.unknown) {
+      this.#startFailure = null;
+      this.#unknownTenant = true;
+      return { refuse: storage.refuse };
+    }
     // A retryable wall (cooldown, rate limit) is "still starting" to a person;
     // only the fail-closed refusal is a failure worth a page of its own.
     if (storage.refuse.status === 503 && !storage.refuse.headers.has('retry-after')) {
@@ -440,6 +449,20 @@ export class MaudeCell extends Container {
     }
     const resolved = await this.#credentials.resolve(tenantId);
     if (resolved.ok) return { s3Creds: resolved.credentials };
+    // NOT A PROJECT. The control plane has no such tenant (or it was purged).
+    // Scanners walking `canvas.<zone>/<anything>` used to land here — `feed`,
+    // `blog`, `web` — and the legacy fallback below then started a real
+    // container for them, carrying the BUCKET-WIDE key. An unknown tenant is
+    // never started, whatever fallback exists (2026-10-02).
+    if (resolved.status === 404) {
+      return {
+        refuse: new Response('this is not a Maude project\n', {
+          status: 404,
+          headers: { 'content-type': 'text/plain; charset=utf-8' },
+        }),
+        unknown: true,
+      };
+    }
     // The legacy fleet-wide key is still the migration-window fallback.
     if (this.env.MAUDE_R2_ACCESS_KEY_ID) return { s3Creds: null };
     if (resolved.retryable) {

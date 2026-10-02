@@ -412,3 +412,20 @@ test("one tenant's cooldown does not refuse another tenant's start", async () =>
   assert.equal(out.ok, true, 'a foreign cooldown is not ours to wait out');
   assert.equal(mints, 1);
 });
+
+test('an unknown tenant is reported as such, so the cell can refuse to start it', async () => {
+  // The cell's legacy fallback key used to start a container for any tenant the
+  // control plane refused — including scanner-chosen names (2026-10-02). The
+  // 404 has to survive the resolver for the cell to tell "no such project"
+  // apart from "storage is having a moment".
+  const r = createCredentialResolver({
+    env: {},
+    storage: fakeStorage(),
+    log: SILENT,
+    mint: async () => ({ ok: false, retryable: false, status: 404, detail: 'HTTP 404' }),
+  });
+  const out = await r.resolve('feed');
+  assert.equal(out.ok, false);
+  assert.equal(out.retryable, false);
+  assert.equal(out.status, 404);
+});

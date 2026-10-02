@@ -150,3 +150,21 @@ test('the project hostname strips any claim before the cell sees it', () => {
   // to open the canvas lane.
   assert.equal(inbound.headers.has(CANVAS_ORIGIN_HEADER), false);
 });
+
+test('a scanner path on the shared canvas host names no project (2026-10-02)', () => {
+  // Bots walking canvas.<zone>/<anything> were creating one Durable Object per
+  // probe — `.env.prod`, `database.sql`, `.git-credentials` all became names.
+  for (const probe of [
+    '/.env.prod',
+    '/database.sql',
+    '/.git-credentials',
+    '/wp-admin%2F',
+    '/A_B/x',
+  ]) {
+    const out = canvasOriginTenant(
+      new URL(`https://canvas.cloud.maude.sh${probe}`),
+      'cloud.maude.sh'
+    );
+    assert.equal(out.tenant, null, probe);
+  }
+});
