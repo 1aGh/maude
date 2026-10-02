@@ -1003,6 +1003,37 @@ export function cacheControlFor(absPath: string): { cacheControl: string; addEta
   return { cacheControl: 'no-cache', addEtag: true };
 }
 
+/**
+ * The studio page, with its bundle and stylesheet URLs VERSIONED.
+ *
+ * `/_client/client.bundle.js` used to be a fixed URL answered `no-cache`. Behind
+ * Cloudflare that header does not survive: the zone's default Browser Cache
+ * TTL turns a `.js` into `max-age=14400`, so after a release a cloud user ran
+ * the previous client for up to four hours, against a server that had moved on
+ * (measured on alligators after v1.6.5: new server, old bundle, none of the
+ * release's UI). A query that changes whenever the built file does makes every
+ * cache, ours or anyone's in front of us, fetch it again. `serveFile` ignores
+ * the query, so the old URL keeps working for anything that still asks for it.
+ */
+export async function serveIndexHtml(): Promise<Response> {
+  const index = Bun.file(join(CLIENT_DIR, 'index.html'));
+  if (!(await index.exists())) return new Response('Not found', { status: 404 });
+  let html = await index.text();
+  for (const name of ['client.bundle.js', 'styles.css']) {
+    const built = Bun.file(join(DIST_DIR, name));
+    if (!(await built.exists())) continue;
+    const v = `${built.size.toString(16)}-${Math.trunc(built.lastModified).toString(16)}`;
+    html = html.replaceAll(`"/_client/${name}"`, `"/_client/${name}?v=${v}"`);
+  }
+  return new Response(html, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  });
+}
+
 /** A weak validator from the file's own metadata — no read, no hash. */
 function etagFor(file: { size: number; lastModified: number }): string {
   return `W/"${file.size.toString(16)}-${Math.trunc(file.lastModified).toString(16)}"`;
@@ -5671,8 +5702,8 @@ export function createHttp(
       return new Response(null, { status: 204 });
     },
 
-    '/': () => serveFile(join(CLIENT_DIR, 'index.html')),
-    '/index.html': () => serveFile(join(CLIENT_DIR, 'index.html')),
+    '/': () => serveIndexHtml(),
+    '/index.html': () => serveIndexHtml(),
   } satisfies Record<string, (req: Request) => Response | Promise<Response>>;
 
   // Named `handleFallthrough`, not `fetch` — a same-named local function shadows
@@ -5954,7 +5985,18 @@ export function createHttp(
   }
 
   async function serveCanvasShell(applyCsp: boolean, capture = false): Promise<Response> {
-    const shellHtml = await Bun.file(join(TEMPLATES_DIR, '_shell.html')).text();
+    // `comment-mount.js` is versioned for the same reason as the studio page's
+    // bundle (see `serveIndexHtml`): a fixed URL outlives a release in any
+    // cache in front of the canvas origin. Replaced BEFORE the CSP hashes are
+    // taken over the inline scripts, so the policy matches what is served.
+    const mount = Bun.file(join(DIST_DIR, 'comment-mount.js'));
+    const mountV = (await mount.exists())
+      ? `?v=${mount.size.toString(16)}-${Math.trunc(mount.lastModified).toString(16)}`
+      : '';
+    const shellHtml = (await Bun.file(join(TEMPLATES_DIR, '_shell.html')).text()).replace(
+      "'/_client/comment-mount.js'",
+      `'/_client/comment-mount.js${mountV}'`
+    );
     // Inject inspector overlay — Cmd+Click selection + add-comment flow.
     const injected = inspect().injectInspector(shellHtml);
     const headers: Record<string, string> = {
