@@ -230,7 +230,7 @@ function normalizedGroups(canvasGroups) {
 
 /** One group path, or null when unusable as a containment prefix.
  *  @param {unknown} raw @returns {string|null} */
-function normalizeGroup(raw) {
+export function normalizeGroup(raw) {
   if (typeof raw !== 'string') return null;
   const p = raw.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
   if (!p) return null;

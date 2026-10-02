@@ -14052,8 +14052,10 @@ function App() {
       } else if ((m.dgn === 'canvas-rendered' || m.dgn === 'canvas-failed') && m.file) {
         // The canvas drew (or its shell is now showing its own build error) —
         // only now drop the loading screen. See `loaded` below for why that
-        // one is not enough.
-        setLoadingPath((p) => (p === m.file ? null : p));
+        // one is not enough. Only from the frame IN VIEW, like every branch
+        // that changes what the user sees (review F5).
+        const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
+        if (e.source === activeWin) setLoadingPath((p) => (p === m.file ? null : p));
       } else if (m.dgn === 'loaded' && m.file) {
         // The shell document ran — push current comments + carry over the
         // focused pin. For a TSX/JSX canvas this is NOT "drawn": the module

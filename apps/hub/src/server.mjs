@@ -1451,9 +1451,13 @@ export function createHub(config = {}) {
           designRoot: journalDesignRoot,
           onChanged: () => {
             projectConfigCache = { at: 0, value: null };
+            canvasGroupsCache = { at: 0, groups: null };
           },
           checkRateLimit: rateLimit
             ? (req) => checkRateLimit(rateBuckets, req, { store: rateStore, ip: clientIp(req) })
+            : undefined,
+          checkWriteRateLimit: rateLimit
+            ? (label) => checkConnRateLimit(assetWriteBuckets, label, assetWriteRateLimitMax)
             : undefined,
         });
         if (handled) bailFromOnRequest();

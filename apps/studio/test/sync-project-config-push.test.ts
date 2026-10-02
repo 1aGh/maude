@@ -93,6 +93,20 @@ describe('createProjectConfigPusher', () => {
     }
   });
 
+  test('a hub under a path prefix keeps it — the token never leaves the hub (review F4)', async () => {
+    writeFileSync(join(root, 'config.json'), JSON.stringify(CONFIG));
+    const h = hub();
+    const p = createProjectConfigPusher({
+      designRoot: root,
+      hubUrl: 'https://test.studyfi.com/hub/',
+      token: () => 'tok',
+      fetchImpl: h.fetchImpl,
+      log: { log() {}, warn() {} },
+    });
+    await p.push();
+    expect(h.sent[0]?.url).toBe('https://test.studyfi.com/hub/api/project-config');
+  });
+
   test('no config, nothing sent', async () => {
     const h = hub();
     const p = createProjectConfigPusher({

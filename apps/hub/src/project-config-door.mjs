@@ -18,13 +18,44 @@
 // scope only, and only a SANITIZED SUBSET travels — names and contained
 // relative paths. Nothing that names a hub, a token, a URL or a command.
 //
-// MERGED, NEVER REPLACED. A git-seeded checkout's config.json is the tenant's
-// versioned file and carries keys this door knows nothing about; only the
-// subset's keys are set, everything else stays as it was.
+// THE CHECKOUT IS TENANT-CONTROLLED (DDR-054). A peer with push access can
+// commit `config.json` as a symlink — to `/data/admin.json`, say — or plant a
+// link at a predictable temp name next to it. So this door never follows one:
+// a `config.json` that is not a plain, singly-linked file is refused, the read
+// opens with O_NOFOLLOW, and the new file is written to a RANDOM temp name
+// with O_EXCL (which refuses an existing path, link or not) and renamed over
+// the entry — rename replaces a link, it never writes through it.
+//
+// `canvasGroups` IS A PRIVILEGE BOUNDARY. Inside a group a `.tsx` is a canvas
+// any editor may write; outside one it is an owner-only code module. That is
+// why only the owner may set it — the same person who may write code modules.
+//
+// WHAT IT MAY CHANGE (security review F1). `canvasGroups` feeds the hub's own
+// classifier — the code-module gate, journal replay, the media listing — so it
+// is only ever FILLED when absent, never changed: two owners' desktops must not
+// flip the project's classification back and forth on every reconnect. The
+// display keys (name, label, tokens path, design systems) are overwritten
+// only in a config.json this door itself created (recorded in the hub's data
+// dir, outside the tenant's reach); a git-seeded, tenant-versioned config is
+// only ever filled in. Keys this door knows nothing about are never touched.
 
-import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
+import {
+  closeSync,
+  constants,
+  existsSync,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 
+import { normalizeGroup } from './file-membership.mjs';
 import { verifyToken } from './tokens.mjs';
 
 export const PROJECT_CONFIG_PATH = '/api/project-config';
@@ -59,9 +90,14 @@ export function sanitizeProjectConfigSubset(raw) {
   }
   if (Array.isArray(raw.canvasGroups)) {
     out.canvasGroups = raw.canvasGroups
-      .filter((g) => g && typeof g === 'object' && label(g.label) && containedRel(g.path))
+      // The HUB'S OWN group rule, not a looser one: a path the classifier
+      // would drop (`.`, `web.v2`) would make the studio and the hub disagree
+      // about what is a canvas — the two-lanes bug class (review F2).
+      .filter(
+        (g) => g && typeof g === 'object' && label(g.label) && normalizeGroup(g.path) === g.path
+      )
       .slice(0, 32)
-      .map((g) => ({ label: g.label, path: g.path.replace(/\/+$/, '') }));
+      .map((g) => ({ label: g.label, path: g.path }));
     if (out.canvasGroups.length === 0) delete out.canvasGroups;
   }
   if (Array.isArray(raw.designSystems)) {
@@ -94,6 +130,28 @@ export function currentProjectConfigSubset(designRoot) {
     );
   } catch {
     return null;
+  }
+}
+
+/** The hub-side record that this door CREATED the checkout's config.json. */
+const OWNED_MARKER = 'project-config-created.json';
+function doorOwnsConfig(dataDir) {
+  if (!dataDir) return false;
+  try {
+    return JSON.parse(readFileSync(join(dataDir, OWNED_MARKER), 'utf8'))?.createdByDoor === true;
+  } catch {
+    return false;
+  }
+}
+function markDoorOwnsConfig(dataDir) {
+  if (!dataDir) return;
+  try {
+    writeFileSync(
+      join(dataDir, OWNED_MARKER),
+      `${JSON.stringify({ createdByDoor: true, at: Date.now() })}\n`
+    );
+  } catch {
+    /* without the marker the next push only fills in — the safe direction */
   }
 }
 
@@ -132,6 +190,7 @@ async function readBody(request, max) {
  * @param {string} ctx.secret
  * @param {string|null} ctx.designRoot
  * @param {(req: unknown) => boolean} [ctx.checkRateLimit]
+ * @param {(label: string) => boolean} [ctx.checkWriteRateLimit]
  * @param {() => void} [ctx.onChanged]  told after config.json was rewritten
  */
 export async function handleProjectConfigDoor(ctx) {
@@ -179,26 +238,74 @@ export async function handleProjectConfigDoor(ctx) {
     return true;
   }
 
-  const file = join(ctx.designRoot, 'config.json');
+  if (ctx.checkWriteRateLimit && !ctx.checkWriteRateLimit(match.label)) {
+    respond(response, 429, 'too many writes');
+    return true;
+  }
+
+  let root;
+  try {
+    root = realpathSync(ctx.designRoot);
+  } catch {
+    respond(response, 405, 'this hub has no project to configure');
+    return true;
+  }
+  const file = join(root, 'config.json');
   let existing = {};
-  if (existsSync(file)) {
+  let present = false;
+  try {
+    const st = lstatSync(file);
+    present = true;
+    if (!st.isFile() || st.nlink > 1) {
+      respond(response, 409, 'config.json is not a plain file here — fix it in the repository');
+      return true;
+    }
+  } catch (err) {
+    if (err?.code !== 'ENOENT') {
+      respond(response, 500, 'could not read the project config');
+      return true;
+    }
+  }
+  if (present) {
+    let fd = -1;
     try {
-      const parsed = JSON.parse(readFileSync(file, 'utf8'));
+      fd = openSync(file, constants.O_RDONLY | constants.O_NOFOLLOW);
+      if (!fstatSync(fd).isFile()) throw new Error('not a file');
+      const parsed = JSON.parse(readFileSync(fd, 'utf8'));
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) existing = parsed;
     } catch {
       // An unparseable config is replaced by one that parses — it was not
-      // being read as anything but defaults anyway.
+      // being read as anything but defaults anyway. A link swapped in after
+      // the lstat fails O_NOFOLLOW and lands here too: nothing was read.
+    } finally {
+      if (fd >= 0) closeSync(fd);
     }
   }
-  const next = { ...existing, ...subset };
+  const ours = present && doorOwnsConfig(ctx.dataDir);
+  const next = { ...existing };
+  for (const [k, v] of Object.entries(subset)) {
+    if (!(k in existing)) next[k] = v;
+    else if (ours && k !== 'canvasGroups') next[k] = v;
+  }
   const before = JSON.stringify(existing);
   if (JSON.stringify(next) === before) {
     respond(response, 200, { ok: true, changed: false, config: subset });
     return true;
   }
-  const tmp = `${file}.${process.pid}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(next, null, 2)}\n`);
-  renameSync(tmp, file);
+  const tmp = join(root, `.config.json.${randomBytes(12).toString('hex')}.tmp`);
+  try {
+    writeFileSync(tmp, `${JSON.stringify(next, null, 2)}\n`, { flag: 'wx', mode: 0o644 });
+    renameSync(tmp, file);
+    if (!present) markDoorOwnsConfig(ctx.dataDir);
+  } catch {
+    try {
+      unlinkSync(tmp);
+    } catch {
+      /* never created, or already renamed */
+    }
+    respond(response, 500, 'could not write the project config');
+    return true;
+  }
   ctx.onChanged?.();
   respond(response, 200, { ok: true, changed: true, config: subset });
   return true;

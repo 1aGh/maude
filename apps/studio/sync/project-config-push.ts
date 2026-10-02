@@ -8,10 +8,13 @@
 // design systems and a tokens path that did not exist, so canvases relying on
 // the shell's tokens stylesheet lost their brand fonts (2026-10-02, alligators).
 //
-// OWNER ONLY, and decided from LOCAL state (the stored hub record), never from
-// anything the hub said — the same rule as code modules. Only a sanitized
-// subset leaves this machine: names and contained relative paths. `linkedHub`,
-// tokens and everything else in config.json stay here.
+// OWNER ONLY — and note WHOSE word that is (security review F3): the gate is
+// `storedRecord.role`, which is copied from the hub's sign-in response, i.e.
+// the hub's own claim about us. That is acceptable ONLY because what is sent
+// is a sanitized subset the hub can already see (names and contained relative
+// paths) and the hub enforces the owner bar itself. If this subset ever grows
+// past that, gate it on a recorded local consent the way `codeModulesAllowed`
+// is. `linkedHub`, tokens and everything else in config.json stay here.
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -119,7 +122,10 @@ export function createProjectConfigPusher({
     if (body === lastAccepted) return 'unchanged' as const;
     let res: Response;
     try {
-      res = await fetchImpl(new URL('/api/project-config', hubUrl), {
+      // `${base}/api/...` like the file plane — `new URL('/api/…', hubUrl)`
+      // would drop a hub's path prefix and send the owner's token to whatever
+      // answers at the host root (review F4).
+      res = await fetchImpl(`${hubUrl.replace(/\/+$/, '')}/api/project-config`, {
         method: 'PUT',
         headers: { authorization: `Bearer ${token()}`, 'content-type': 'application/json' },
         body,

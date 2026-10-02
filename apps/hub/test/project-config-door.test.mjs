@@ -6,7 +6,15 @@
 // its brand fonts. The door is owner-only and takes a sanitized subset.
 
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  linkSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Writable } from 'node:stream';
@@ -100,16 +108,40 @@ describe('PUT /api/project-config', () => {
     assert.equal(c.linkedHub, undefined);
   });
 
-  it('merges into an existing config and never drops keys it does not own', async () => {
+  it('a tenant-versioned config is only filled in — nothing it already says changes', async () => {
     writeFileSync(
       join(designRoot, 'config.json'),
-      JSON.stringify({ themeDefault: 'dark', handoffTargets: ['x'], tokensCssRel: 'old.css' })
+      JSON.stringify({
+        themeDefault: 'dark',
+        handoffTargets: ['x'],
+        tokensCssRel: 'old.css',
+        canvasGroups: [{ label: 'Mine', path: 'screens' }],
+      })
     );
     await put(ALLIGATORS);
     const c = config();
     assert.equal(c.themeDefault, 'dark');
     assert.deepEqual(c.handoffTargets, ['x']);
-    assert.equal(c.tokensCssRel, 'system/alligators/colors_and_type.css');
+    assert.equal(c.tokensCssRel, 'old.css');
+    assert.deepEqual(c.canvasGroups, [{ label: 'Mine', path: 'screens' }]);
+    assert.deepEqual(c.designSystems, [{ name: 'alligators', path: 'system/alligators' }]);
+  });
+
+  // Review F1: canvasGroups feed the hub's classifier — two owners' desktops
+  // must not flip them back and forth on every reconnect.
+  it('in a config this door created, display keys follow the owner but groups never change', async () => {
+    await put(ALLIGATORS);
+    await put({
+      ...ALLIGATORS,
+      projectLabel: 'Gators',
+      canvasGroups: [{ label: 'Other', path: 'elsewhere' }],
+    });
+    const c = config();
+    assert.equal(c.projectLabel, 'Gators');
+    assert.deepEqual(c.canvasGroups, [
+      { label: 'Design system', path: 'system' },
+      { label: 'UI kit', path: 'ui' },
+    ]);
   });
 
   it('the same config twice writes once', async () => {
@@ -151,6 +183,18 @@ describe('PUT /api/project-config', () => {
 });
 
 describe('sanitizeProjectConfigSubset', () => {
+  it("takes only group paths the hub's own classifier accepts (review F2)", () => {
+    const s = sanitizeProjectConfigSubset({
+      canvasGroups: [
+        { label: 'ok', path: 'ui' },
+        { label: 'dot', path: '.' },
+        { label: 'dotted', path: 'web.v2' },
+        { label: 'trailing', path: 'ui/' },
+      ],
+    });
+    assert.deepEqual(s, { canvasGroups: [{ label: 'ok', path: 'ui' }] });
+  });
+
   it('keeps only contained relative paths and plain names', () => {
     const s = sanitizeProjectConfigSubset({
       tokensCssRel: '../../etc/passwd',
@@ -170,5 +214,57 @@ describe('sanitizeProjectConfigSubset', () => {
       canvasGroups: [{ label: 'ok', path: 'ui' }],
       designSystems: [{ name: 'ok', path: 'system/ok', tokensCssRel: 'system/ok/t.css' }],
     });
+  });
+});
+
+// Security review 2026-10-02 (defender, CRITICAL): the temp name was
+// `config.json.<pid>.tmp` inside the tenant's checkout and the write followed
+// links — a committed symlink there overwrote /data/admin.json with JSON that
+// carried an attacker's `secret`. Each case below is red against that code.
+describe('the checkout is tenant-controlled — no link is ever followed', () => {
+  let victimDir;
+  beforeEach(() => {
+    victimDir = mkdtempSync(join(tmpdir(), 'pcfg-victim-'));
+    writeFileSync(join(victimDir, 'admin.json'), '{"secret":"real"}');
+  });
+  afterEach(() => rmSync(victimDir, { recursive: true, force: true }));
+  const victim = () => readFileSync(join(victimDir, 'admin.json'), 'utf8');
+
+  it('a link planted at every predictable temp name writes nothing through it', async () => {
+    writeFileSync(join(designRoot, 'config.json'), '{"secret":"attacker","name":"x"}');
+    for (let pid = 1; pid < 200; pid++) {
+      symlinkSync(join(victimDir, 'admin.json'), join(designRoot, `config.json.${pid}.tmp`));
+    }
+    symlinkSync(join(victimDir, 'admin.json'), join(designRoot, `config.json.${process.pid}.tmp`));
+    const r = await put(ALLIGATORS);
+    assert.equal(r.status, 200);
+    assert.equal(victim(), '{"secret":"real"}');
+    assert.equal(config().tokensCssRel, 'system/alligators/colors_and_type.css');
+  });
+
+  it('a config.json that is a symlink is refused — never read, never written through', async () => {
+    symlinkSync(join(victimDir, 'admin.json'), join(designRoot, 'config.json'));
+    const r = await put(ALLIGATORS);
+    assert.equal(r.status, 409);
+    assert.equal(victim(), '{"secret":"real"}');
+  });
+
+  it('a config.json hard-linked to another file is refused', async () => {
+    try {
+      linkSync(join(victimDir, 'admin.json'), join(designRoot, 'config.json'));
+    } catch {
+      return; // different filesystems — a hardlink cannot exist here at all
+    }
+    const r = await put(ALLIGATORS);
+    assert.equal(r.status, 409);
+    assert.equal(victim(), '{"secret":"real"}');
+  });
+
+  it('leaves no temp file behind', async () => {
+    await put(ALLIGATORS);
+    assert.deepEqual(
+      readdirSync(designRoot).filter((n) => n.endsWith('.tmp')),
+      []
+    );
   });
 });
