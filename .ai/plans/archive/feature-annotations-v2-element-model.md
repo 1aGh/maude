@@ -1412,3 +1412,7 @@ on `worktree-annotations-v2`.
 - **Change for `/plan`.** A storage-format rename must include "grep every doc/agent reference to the old path" in the
   same task. The ingest step hashed a file that no longer existed.
 - **Change for `/execute`.** Run the browser E2E after every review fix pass, not only after features.
+
+## Closed 2026-10-02
+
+Shipped in v1.5.0 (`731c64ca` #138, `2dd5fd83` #139, fix `87dac924`); DDR-242 recorded and ingested. The unchecked acceptance criteria above are not lost: adapter decision, Tasks 23/24, the AI-read perf gap, the remaining surface-rig matrix, a full `/flow:validate` and the DDR-100/054 amendments are carried as F1–F6 in [`../followup-annotations-v2.md`](../followup-annotations-v2.md).

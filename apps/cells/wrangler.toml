@@ -63,8 +63,8 @@ image = "registry.cloudflare.com/b5b596efe65abb732777c7171dc18145/maude-cell:v1.
 #                                          ≈ $0.074 /hour  ≈ $53 /month at 24×7
 #
 # A club volunteer designing ~2 h a day wakes a cell for roughly 75 h a month:
-# ~$5.50 against a €29 plan. A cell pinned awake all month is ~$53, which a
-# €29 plan does NOT cover — that is the number to watch, and the reason
+# ~$5.50 against the €19 plan (pricing.json). A cell pinned awake all month is ~$53, which a
+# €19 plan does NOT cover — that is the number to watch, and the reason
 # `sleepAfter` is load-bearing rather than tidy.
 #
 # WHY 5 AND NOT 25. This is a ceiling, but the platform has been observed

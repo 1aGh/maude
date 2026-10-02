@@ -223,7 +223,7 @@ Per-item, inherited from the original plan's per-task validation (see the pre-re
 
 ## Acceptance Criteria
 
-- [ ] "Before first external users" block completed BEFORE any release is promoted to a real external population (or each item carries a recorded, dated waiver)
+- [x] "Before first external users" block completed BEFORE any release is promoted to a real external population (or each item carries a recorded, dated waiver) — done: `aad9c633` + item commits `fee7150d`, `26cfbbcc`, `7f512e24`, `62b949ac`, `566096bd` (audited 2026-10-02)
 - [ ] Each remaining item scheduled into a 1.x plan or explicitly rejected with a DDR
 - [ ] This file archived only when empty
 

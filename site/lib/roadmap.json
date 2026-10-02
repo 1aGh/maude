@@ -3,6 +3,28 @@
   "currentPhase": null,
   "phases": [
     {
+      "id": "feature-annotations-v2-element-model",
+      "title": "Feature: Annotations v2 — parametrized element model, per-element sync, rebuilt text + containment",
+      "status": "done",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. The line numbers below were taken on 2026-09-29 (HEAD 612ba084). Re-grep before you ed...",
+      "planPath": ".ai/plans/archive/feature-annotations-v2-element-model.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
+      "id": "feature-cloud-cost-and-cold-start-ux",
+      "title": "Feature: Cloud cost cut + cold-start waiting room",
+      "status": "done",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. Read the comments in apps/cells/cell-do.mjs in full before touching the wake path. Alm...",
+      "planPath": ".ai/plans/archive/feature-cloud-cost-and-cold-start-ux.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
       "id": "phase-1-contribute-infra-changesets",
       "title": "Phase 1: Contribute infrastructure + Changesets bootstrap",
       "status": "done",
@@ -2258,28 +2280,6 @@
       "phaseKey": null
     },
     {
-      "id": "feature-annotations-v2-element-model",
-      "title": "Feature: Annotations v2 — parametrized element model, per-element sync, rebuilt text + containment",
-      "status": "planned",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. The line numbers below were taken on 2026-09-29 (HEAD 612ba084). Re-grep before you ed...",
-      "planPath": ".ai/plans/feature-annotations-v2-element-model.md",
-      "archived": false,
-      "phaseKey": null
-    },
-    {
-      "id": "feature-cloud-cost-and-cold-start-ux",
-      "title": "Feature: Cloud cost cut + cold-start waiting room",
-      "status": "planned",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. Read the comments in apps/cells/cell-do.mjs in full before touching the wake path. Alm...",
-      "planPath": ".ai/plans/feature-cloud-cost-and-cold-start-ux.md",
-      "archived": false,
-      "phaseKey": null
-    },
-    {
       "id": "feature-desktop-project-tabs-and-identity-profiles",
       "title": "Feature: Desktop project tabs + per-project identity profiles",
       "status": "planned",
@@ -2320,6 +2320,17 @@
       "date": null,
       "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
       "planPath": ".ai/plans/feature-video-tracking-and-stabilization.md",
+      "archived": false,
+      "phaseKey": null
+    },
+    {
+      "id": "followup-annotations-v2",
+      "title": "Follow-up: annotations v2 — what the v1.5.0 close left open",
+      "status": "planned",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Successor to archive/feature-annotations-v2-element-model.md. The v2 element model shipped in v1.5.0 (731c64ca #138, 2dd5fd83 #139, fix 87dac924), and DDR-242 is recorded. This file carries the res...",
+      "planPath": ".ai/plans/followup-annotations-v2.md",
       "archived": false,
       "phaseKey": null
     },

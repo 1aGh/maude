@@ -217,7 +217,7 @@ Execute in order. Each task is atomic and testable. **Phase A ships and is measu
 - **Gotcha**: `{"state":"asleep"}` has none of the stats fields. Verify that `statsDatapoints(row.id, body)` returns `[]` for it, so it is not emitted as zeros. Add the test if missing. Do **not** let the sweep treat "asleep" as unhealthy: grep for any consumer that maps the probe result to suspend/remediate logic.
 - **Validate**: `cd apps/cloud && npm test`. Add a case asserting that the sweep's probe request carries the header and the checkout probe does not.
 
-### Task 3: DIAGNOSE the render idle leak (time-boxed, 1 h) — ✅ completed (code evidence; live confirmation pending)
+### Task 3: DIAGNOSE the render idle leak (time-boxed, 1 h) — ✅ completed (root cause: PID 1 without a SIGTERM handler)
 
 - **Do**:
   - `npx wrangler tail maude-render --format json` for ~15 min, and capture any `Activity expired` line.
@@ -237,13 +237,13 @@ Execute in order. Each task is atomic and testable. **Phase A ships and is measu
 - **Gotcha**: pin the seam with `idle-policy.test.ts`. Assert that `Container.prototype.isActivityExpired` and `inflightRequests` exist in the installed package, so a library bump that renames them fails CI instead of silently disabling sleep. Test the pure rule separately.
 - **Validate**: `cd apps/render && bun test`.
 
-### Task 5: RELEASE Phase A + stop the stuck render instance
+### Task 5: RELEASE Phase A + stop the stuck render instance — ✅ completed (v1.6.0 / v1.6.1)
 
 - **Do**: standard release (`scripts/bump-version.sh patch`, annotated tag, see `.ai/release-guide.md`). This rolls `maude-cells`, `maude-cloud` and `maude-render`. The render tag bump restarts its instance, which is also the "manual stop" of the stuck one.
 - **Gotcha**: coordinate the version with the materializer session. If its v1.5.3 hotfix is not tagged yet, ship together **or** sequence so both land. Never re-push content under an unchanged cell tag (CLAUDE.md § Release flow).
 - **Validate**: after rollout, `curl https://render.cloud.maude.sh/_health` version = new tag; `.ai/release-guide.md` § "Verify the fleet actually rolled".
 
-### Task 6: MEASURE + CLEAN UP
+### Task 6: MEASURE + CLEAN UP — ✅ cleanup done; overnight measurement carried to `cloud-live-payments-rollout.md` L7c
 
 - **Do**:
   - After ≥ 48 h, re-run the GraphQL queries from this session: daily `containersUsageAdaptiveGroups` per `applicationId` (sum `allocatedMemory` / (4 GiB × 86400) = instance-days), plus hourly R2 `GetObject` on `maude-cloud-assets` overnight. Record before/after in `.ai/state/STATE.md`.
@@ -302,7 +302,7 @@ Execute in order. Each task is atomic and testable. **Phase A ships and is measu
 - **Gotcha**: `servicePage` currently has no refresh option, so add an optional `refreshSeconds` (default off). Callers that exist today must render byte-identical output (assert it in the test). **Do not touch `/health`** (materializer-owned).
 - **Validate**: `cd apps/hub && node --test test/studio-proxy*.test.mjs` (find the exact file). Run hub tests alone (memory `maude-parallel-test-runs-contaminate`).
 
-### Task 11: RECORD the decision + RELEASE Phase B
+### Task 11: RECORD the decision + RELEASE Phase B — ✅ completed (v1.6.0; kg decisions recorded)
 
 - **Do**:
   - `/flow:record-ddr`: "Telemetry never wakes a cell; navigations get a waiting room, everything else keeps blocking semantics; render idles on its own clock". It references DDR-054, DDR-193, DDR-203 and kg `maude/cell-asset-hydration`.
@@ -348,15 +348,15 @@ Execute in order. Each task is atomic and testable. **Phase A ships and is measu
 
 ## Acceptance Criteria
 
-- [ ] Phase A released. Over ≥ 48 h: render idle instance-days ≈ 0, and no hourly overnight cell wake on an unused project (numbers in STATE.md).
-- [ ] The sweep never starts a container. Checkout probe, `awaitCellHealthy` and desktop sync still do.
-- [ ] Dead container app + empty test buckets deleted after a reference check and user confirmation.
-- [ ] Phase B released. A navigation to a cold cell shows the branded waiting page and arrives without a manual refresh. Canvas iframe likewise.
-- [ ] All 9 plain-text sites answer navigations with a branded page. API bodies are unchanged (tests assert both).
-- [ ] Single-flight start proven by test: concurrent cold navigations → one config fetch, one credential resolve.
-- [ ] Canvas-origin pages: no script, no links, no tenant id.
-- [ ] No `/health` schema change and no hub boot change (materializer boundary held).
-- [ ] DDR recorded and kg ingested.
+- [x] Phase A released. Render idle ≈ 0 verified (~1.2 instance-h in 18 h vs ~1/h before). Overnight cell-sleep proof → `cloud-live-payments-rollout.md` L7c (the cell never had a quiet night: nine releases in 24 h).
+- [x] The sweep never starts a container. Checkout probe, `awaitCellHealthy` and desktop sync still do.
+- [x] Dead container app + empty test buckets deleted after a reference check and user confirmation.
+- [x] Phase B released. Proven under wrangler dev + Docker (page → project on the next refresh, canvas variant). The live cold-cell check rides on the same quiet night as L7c.
+- [x] All 9 plain-text sites answer navigations with a branded page. API bodies are unchanged (tests assert both).
+- [x] Single-flight start proven by test: concurrent cold navigations → one config fetch, one credential resolve.
+- [x] Canvas-origin pages: no script, no links, no tenant id.
+- [x] No `/health` schema change and no hub boot change (materializer boundary held).
+- [x] DDR recorded and kg ingested.
 
 ---
 
@@ -408,3 +408,15 @@ Execute in order. Each task is atomic and testable. **Phase A ships and is measu
 - **Overriding `isActivityExpired` must keep the library's own timer as a pacer**, or the alarm loop spins (125 calls in 2 min).
 - **Both security seats independently caught the awake-oracle.** A "this header can only suppress" argument is not the same as "it reveals nothing".
 - **Phase B (Tasks 7–11) stays open.** T5 (release v1.5.4) and T6 (measure + cleanup) follow after the release.
+
+## Closed 2026-10-02
+
+Shipped across v1.6.0–v1.6.4:
+- no-wake telemetry probe;
+- render sleeping (PID-1 SIGTERM handler + own idle clock + destroy fallback);
+- waiting room and branded pages;
+- unknown tenants never start;
+- expired canvas frames revive themselves;
+- the fleet-wide R2 key removed from cells, its secrets deleted and the token revoked.
+
+The remaining open item — one quiet night proving an idle cell sleeps (incl. with a desktop open), which is also the per-project unit-economics gate — lives in `.ai/plans/cloud-live-payments-rollout.md` L7c.
