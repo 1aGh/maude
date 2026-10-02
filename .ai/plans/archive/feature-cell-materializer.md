@@ -405,15 +405,15 @@ Not a UI feature. Coverage is the hub/studio test suites + the Task 15 e2e harne
 
 ## Acceptance Criteria
 
-- [ ] Phase 0 released as v1.5.3. Alligators hub uptime is monotonic for ≥ 30 min after the rollout and `/health` shows `disk` + `hydrate`.
-- [ ] `reportLostFiles` never marks a row whose bytes are in the bucket, and never runs after a partial hydrate.
-- [ ] A full disk produces 503 + Retry-After on writes, never a process exit.
-- [ ] Phase 1: on a cell, the checkout holds no inert media written after boot. The cache stays ≤ budget. Eviction produces no journal rows.
-- [ ] Every read path (canvas static, `/assets`, `/_project-file`, `/api/files`, `/_asset-probe`, canvas build CSS `url()`) works with media absent from disk.
-- [ ] Bucket bytes reach a client only after sha256 verification against the journal row.
-- [ ] Self-hosted hub / desktop behavior is unchanged (cell mode is off).
-- [ ] DDR recorded and kg imported. Superseded decisions are linked.
-- [ ] `/flow:validate` passes. Security review covers `/_materialize` (loopback + secret only) and cache-path containment.
+- [x] Phase 0 released as v1.5.3. Alligators hub uptime is monotonic for ≥ 30 min after the rollout and `/health` shows `disk` + `hydrate`.
+- [x] `reportLostFiles` never marks a row whose bytes are in the bucket, and never runs after a partial hydrate.
+- [x] A full disk produces 503 + Retry-After on writes, never a process exit.
+- [x] Phase 1: on a cell, the checkout holds no inert media written after boot. The cache stays ≤ budget. Eviction produces no journal rows.
+- [x] Every read path (canvas static, `/assets`, `/_project-file`, `/api/files`, `/_asset-probe`, canvas build CSS `url()`) works with media absent from disk.
+- [x] Bucket bytes reach a client only after sha256 verification against the journal row.
+- [x] Self-hosted hub / desktop behavior is unchanged (cell mode is off).
+- [x] DDR recorded and kg imported. Superseded decisions are linked.
+- [x] `/flow:validate` passes. Security review covers `/_materialize` (loopback + secret only) and cache-path containment.
 
 ## Execution Log
 
@@ -472,4 +472,38 @@ Not a UI feature. Coverage is the hub/studio test suites + the Task 15 e2e harne
   - `PPF-vystroj-U19` and `alligators-moodboard-v3` render with their photos and fonts;
   - one real export each on Alligators and design.studyfi.com (the render `/_health` version follows its env, not the image);
   - the desktop Alligators sync converges once the project is opened in desktop 1.6.x.
+
+**2026-10-02: follow-ups found by measuring the live cell, v1.6.3–v1.6.9.** Each fix has a test that fails without it.
+
+- **v1.6.3.** An ENOENT from Bun's recursive `fs.watch` crash-looped the studio child (9 restarts) and left the tree at 0/0. The watcher now restarts itself with backoff.
+- **v1.6.5.** The materializer broke an invariant in `sync/index.ts`: "on a cell every file-plane entry is hash-equal, so the pass skips itself". The paired child pulled ~4 600 media files through its own hub, 200 per pass, and stalled the event loop 4–9 s every 20 s.
+  - The file plane is now off whenever cell pairing is on (`fileSyncEnabled`).
+  - The tree lists media from the journal (`/_materialize?list=1` + `mergeMaterializable`), because the checkout no longer holds it.
+  - Same release: an opaque canvas loading screen held until `canvas-rendered`, preview retry, and the shell's webfont heal.
+- **v1.6.6.** The cloud.maude.sh zone turned `no-cache` on `client.bundle.js` into `max-age=14400`, so v1.6.5 reached nobody's browser. The bundle, styles and comment-mount now load with `?v=<size-mtime>`.
+- **v1.6.7.** A desktop-synced cell has no `config.json` (the file plane classifies it `never`), so it ran on defaults: no design systems and a wrong `tokensCssRel`, which meant fallback serif fonts.
+  - A new owner-only `PUT /api/project-config` takes a sanitized subset, and the owner's desktop sends it.
+  - A non-owner no longer tries to upload code modules. Before, the 403 ended the whole pass.
+- **v1.6.8.** The file tree has a loading state.
+- **v1.6.9.** Ledger rows for files that exist nowhere are forgotten instead of "waiting" forever.
+- **Measured on alligators after v1.6.6:**
+
+  | | before | after |
+  | --- | --- | --- |
+  | tree 0/0 | 9–18 s | 3–5 s |
+  | photos in the tree | 0–1 881 | 4 281 |
+  | canvas open → rendered | 7–20 s, two never | 1.6–2.0 s |
+  | photo preview | — | 0.25–0.6 s |
+
+  There are no periodic stalls. Fonts render once the owner config landed. design.studyfi.com is on v1.6.8 (checkpoint `/opt/maude-hub/pre-v1.6.8-20261002T125045Z`).
+- **Data incident, not a materializer defect.** `Combine-kampan` and `Combine-letak-registrace` carried `"syncable": false` since 15. 9., so the cloud held a 10. 9. leták and no kampaň. All versions are backed up in `~/Maude/alligators-recovery-2026-10-02`. Both are now in the project. Kampaň was first refused for a duplicate import binding. `colors-accent.tsx` was truncated at 8 192 B since 16. 9.; it was restored from `last-valid`.
+- **Still open:** one real export each on alligators and design.studyfi.com. The render `/_health` version tracks its env, not the running image.
+
+## Retro
+
+- **Measure the live system, not the tests.** Every defect after v1.6.1 was green in CI. Each one surfaced only from timing real requests in a signed-in browser against the cell: the 20 s stall, the empty tree, the stale bundle, the defaults config. Next time, budget a live-measurement pass into the plan's release task, not just `/health`.
+- **An invariant written as a comment is a bug waiting for the next feature.** "The pass skips itself because the checkout is shared" held until the disk became a cache. When a plan changes what the disk means, grep for code that assumes the old meaning (`hash-equal`, `shares the checkout`) and turn it into a gate with a test.
+- **Self-host vs fleet differ in what exists on disk.** No git seed means no `config.json`, and nothing warned. `/plan` should ask "what does a project that never came from git look like here?" for any cell-side change.
+- **Cache headers are part of the release.** A CDN default silently delayed a release for every user. Versioned asset URLs are now the rule; check the response headers through the real edge after a release.
+- **Cloning a synced project for a test linked to production.** Recorded as a memory: strip `linkedHub` / `_sync.json` / `_state` before booting a copy.
 

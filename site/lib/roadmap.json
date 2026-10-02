@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-29T00:00:00.000Z",
+  "generated": "2026-10-02T00:00:00.000Z",
   "currentPhase": null,
   "phases": [
     {
@@ -2236,6 +2236,17 @@
       "phaseKey": null
     },
     {
+      "id": "feature-cell-materializer",
+      "title": "Feature: Cell materializer — a cell's disk is a cache, not the project",
+      "status": "done",
+      "shipTarget": null,
+      "date": "2026-10-02",
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. Read the prior decisions listed below in full (kg search / the DDR files) before touch...",
+      "planPath": ".ai/plans/archive/feature-cell-materializer.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
       "id": "cloud-live-payments-rollout",
       "title": "Cloud live payments — rollout plan",
       "status": "planned",
@@ -2254,17 +2265,6 @@
       "date": null,
       "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. The line numbers below were taken on 2026-09-29 (HEAD 612ba084). Re-grep before you ed...",
       "planPath": ".ai/plans/feature-annotations-v2-element-model.md",
-      "archived": false,
-      "phaseKey": null
-    },
-    {
-      "id": "feature-cell-materializer",
-      "title": "Feature: Cell materializer — a cell's disk is a cache, not the project",
-      "status": "planned",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. Read the prior decisions listed below in full (kg search / the DDR files) before touch...",
-      "planPath": ".ai/plans/feature-cell-materializer.md",
       "archived": false,
       "phaseKey": null
     },

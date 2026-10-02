@@ -24,6 +24,18 @@ Phase A of the gate set found six silent bugs by pointing a typechecker at 52 fi
 **Active plan:** —
 **Active task:** —
 
+_2026-10-02:_ **done — feature-cell-materializer** | archived `.ai/plans/archive/feature-cell-materializer.md`.
+- **What closed.** All 16 tasks + 6b shipped in v1.6.0–v1.6.1 (DDR-243: on a cell the disk is a cache).
+- **Follow-ups v1.6.3–v1.6.9.** Each was found by measuring alligators live:
+  - the watcher crash loop (v1.6.3);
+  - the in-cell studio ran the file plane against its own hub, causing 4–9 s stalls every 20 s and an empty tree. The plane is now off in a paired cell, and the tree lists media from the journal (v1.6.5);
+  - versioned client asset URLs, because the CDN cached the bundle for 4 h (v1.6.6);
+  - the owner-only `PUT /api/project-config`, because a desktop-synced cell had no `config.json` and lost its fonts (v1.6.7);
+  - the tree loading state (v1.6.8);
+  - forgetting ledger rows for files that exist nowhere (v1.6.9).
+- **Measured after.** Tree 3–5 s with 4 281 photos; canvases 1.6–2 s; photos 0.25–0.6 s; no stalls. design.studyfi.com is on v1.6.8.
+- **Open.** One real export each on alligators and design.studyfi.com.
+
 _2026-10-01:_ **hotfix — v1.5.2** | `00f8cecb`. Cloud cells lost file-plane files (photos, fonts, DS `preview/_layout.css`) across restarts. The Alligators canvases showed `Could not resolve ../../../system/alligators/preview/_layout.css` (the project's `.design/` is gitignored, so it reaches the cell only through the file plane).
 - **Cause 1.** The write-behind (checkout → R2) and the journal tail kept the boot S3 config. Cell credentials expire after 12 h, so every later mirror failed silently and a restart wiped the bytes. Both now resolve credentials per pass/write.
 - **Cause 2.** The journal still listed lost files as live, so no desktop re-pushed them. After the bucket hydrate, `reportLostFiles` appends a live row with `sha256: null` (source `disk-lost`). Desktops classify it as `remote-regressed` and push with `expect: none`. It is never a tombstone, and there is no epoch rotation.
