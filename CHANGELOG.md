@@ -1,5 +1,11 @@
 # @1agh/maude
 
+## 1.6.3
+
+### Patch Changes
+
+- A file-watcher error (for example a folder deleted or renamed while the studio scans a large project) no longer crashes the studio — the watcher restarts itself with backoff. On a cloud workspace this crash looped the studio and left the file tree empty (0/0 canvases).
+
 ## 1.6.2
 
 ### Patch Changes
