@@ -57,3 +57,44 @@ test('without the cell secret the header is ignored — no awake/asleep oracle',
     'block-and-start'
   );
 });
+
+// Scanner paths on a cold cell (feature-cells-no-wake-for-scanners). The policy
+// may refuse a START, never change what a running cell answers.
+const scan = new URL('https://alligators.cloud.maude.sh/wp-login.php');
+const page = new URL('https://alligators.cloud.maude.sh/');
+
+test('a scanner path to a sleeping cell is refused without a start', () => {
+  assert.equal(wakePolicy({ headers: h(), running: false, url: scan }), 'refuse-cold');
+  assert.equal(wakePolicy({ headers: h(), running: undefined, url: scan }), 'refuse-cold');
+});
+
+test('a scanner path to a running cell is proxied as today', () => {
+  assert.equal(wakePolicy({ headers: h(), running: true, url: scan }), 'proxy');
+});
+
+test('a scanner path carrying an owner signal still wakes the cell', () => {
+  assert.equal(
+    wakePolicy({ headers: h({ authorization: 'Bearer t' }), running: false, url: scan }),
+    'block-and-start'
+  );
+  assert.equal(
+    wakePolicy({ headers: h({ cookie: 'maude_studio=s' }), running: false, url: scan }),
+    'block-and-start'
+  );
+});
+
+test('a legitimate path to a sleeping cell still wakes it', () => {
+  assert.equal(wakePolicy({ headers: h(), running: false, url: page }), 'block-and-start');
+});
+
+test('the no-wake probe is unchanged by the scanner rule', () => {
+  assert.equal(
+    wakePolicy({
+      headers: h({ [WAKE_HEADER]: 'never' }),
+      running: false,
+      authorized: true,
+      url: new URL('https://alligators.cloud.maude.sh/health'),
+    }),
+    'asleep-reply'
+  );
+});

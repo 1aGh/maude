@@ -352,17 +352,109 @@ export function needsStartupState(container) {
 export const WAKE_HEADER = 'x-maude-wake';
 
 /**
+ * Prefixes that hold TENANT CONTENT or Maude's own routes, where any filename
+ * is legitimate. Never a scanner probe, whatever the name looks like: a false
+ * positive here is a canvas that will not load on a cold cell. `/_` covers every
+ * hub and studio internal route (`/_project-file`, `/_canvas*`, `/_api`, `/_ws`,
+ * `/_asset-file`, `/_media`, …).
+ */
+const SCANNER_EXEMPT = /^\/(?:_|assets\/|\.design\/|api\/|health(?:\/|$))/;
+
+/** Paths no Maude route can ever serve. Matched against the lowercased path. */
+const SCANNER_PATTERNS = [
+  // PHP — Maude serves none, at any depth.
+  /\.php\d?(?:\/|$)/,
+  // WordPress at the root or one segment down (`/blog/wp-includes/…`).
+  /^\/(?:[^/]+\/)?wp-(?:admin|includes|content|login|json|config)/,
+  /^\/xmlrpc/,
+  // Credential and VCS stores, at any depth.
+  /(?:^|\/)\.env(?:[^/]*)(?:\/|$)/,
+  /(?:^|\/)\.git(?:\/|$|-credentials)/,
+  /(?:^|\/)\.(?:aws|config|ssh)(?:\/|$)/,
+  /(?:^|\/)\.ds_store$/,
+  // Appliance and framework probes.
+  /^\/cgi-bin(?:\/|$)/,
+  /^\/phpmyadmin/,
+  /\/vendor\/phpunit(?:\/|$)/,
+  /^\/actuator(?:\/|$)/,
+  /^\/server-status/,
+  /^\/boaform(?:\/|$)/,
+  /^\/hnap1(?:\/|$)/,
+];
+
+/**
+ * Is this request internet background noise that no member could ever send?
+ *
+ * Only consulted for a COLD cell (see `wakePolicy`): it saves a start, it is
+ * not a security control. A pattern that misses costs one wake; a pattern that
+ * matches tenant content costs a broken canvas, so exemptions are checked first.
+ */
+export function isScannerProbe(url) {
+  let path;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    return false;
+  }
+  try {
+    path = decodeURIComponent(path);
+  } catch {
+    // Malformed escapes: judge the raw path.
+  }
+  path = path.toLowerCase();
+  if (SCANNER_EXEMPT.test(path)) return false;
+  return SCANNER_PATTERNS.some((re) => re.test(path));
+}
+
+/**
+ * The hub's cookies that only a member's browser holds: the studio session
+ * (`BROWSER_SESSION_COOKIE`, apps/hub/src/browser-auth.mjs) and the canvas
+ * capability (`CANVAS_CAPABILITY_COOKIE`, apps/hub/src/studio-proxy.mjs).
+ * Mirrored, not imported — the Worker bundle cannot reach the hub; a test pins
+ * the names against the hub source.
+ */
+export const OWNER_COOKIES = Object.freeze(['maude_studio', 'maude_canvas']);
+
+/**
+ * Could this request be a member's? Presence only — the hub still verifies.
+ * Used to keep a member's odd-looking request able to wake the cell, never to
+ * authorize anything.
+ */
+export function hasOwnerSignal(headers) {
+  if (!headers?.get) return false;
+  if ((headers.get('authorization') ?? '').trim()) return true;
+  return (headers.get('cookie') ?? '').split(';').some((pair) => {
+    const eq = pair.indexOf('=');
+    if (eq < 0) return false;
+    return OWNER_COOKIES.includes(pair.slice(0, eq).trim()) && pair.slice(eq + 1).trim() !== '';
+  });
+}
+
+/**
  * What a cell does with one request, decided from nothing but the request and
  * the platform's own running flag.
  *
  *   `asleep-reply`     answer `{state:'asleep'}` — no config fetch, no
  *                      credential mint, no activity renewal, no start
+ *   `refuse-cold`      a scanner path to a cold cell: 404, nothing else runs
  *   `proxy`            the container is up; forward as today
  *   `block-and-start`  today's cold path: start, wait, forward
+ *
+ * Both non-start answers apply only to a cell that is NOT running, so the
+ * policy can suppress a start but never change what a running project answers.
+ * Scanners (`/wp-login.php`, `/.env`, …) kept Alligators awake most of the
+ * night of 2026-10-02/03: each probe paid a boot plus `sleepAfter`.
+ *
+ * ACCEPTED TRADE-OFF: `refuse-cold` answers differently from a running hub, so
+ * an outsider can poll a scanner path to learn whether a project is awake
+ * without waking it (a low-severity oracle, 2026-10-03 security review).
+ * Answering scanner paths identically on a running cell would close it, but
+ * would break the rule that this policy never changes a running cell.
  */
-export function wakePolicy({ headers, running, authorized = false }) {
+export function wakePolicy({ headers, running, authorized = false, url = null }) {
   if (running === true) return 'proxy';
   if (authorized && headers?.get?.(WAKE_HEADER) === 'never') return 'asleep-reply';
+  if (url && isScannerProbe(url) && !hasOwnerSignal(headers)) return 'refuse-cold';
   return 'block-and-start';
 }
 

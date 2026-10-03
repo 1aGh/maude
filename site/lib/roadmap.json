@@ -3,28 +3,6 @@
   "currentPhase": null,
   "phases": [
     {
-      "id": "feature-annotations-v2-element-model",
-      "title": "Feature: Annotations v2 — parametrized element model, per-element sync, rebuilt text + containment",
-      "status": "done",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. The line numbers below were taken on 2026-09-29 (HEAD 612ba084). Re-grep before you ed...",
-      "planPath": ".ai/plans/archive/feature-annotations-v2-element-model.md",
-      "archived": true,
-      "phaseKey": null
-    },
-    {
-      "id": "feature-cloud-cost-and-cold-start-ux",
-      "title": "Feature: Cloud cost cut + cold-start waiting room",
-      "status": "done",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. Read the comments in apps/cells/cell-do.mjs in full before touching the wake path. Alm...",
-      "planPath": ".ai/plans/archive/feature-cloud-cost-and-cold-start-ux.md",
-      "archived": true,
-      "phaseKey": null
-    },
-    {
       "id": "phase-1-contribute-infra-changesets",
       "title": "Phase 1: Contribute infrastructure + Changesets bootstrap",
       "status": "done",
@@ -2258,6 +2236,17 @@
       "phaseKey": null
     },
     {
+      "id": "feature-annotations-v2-element-model",
+      "title": "Feature: Annotations v2 — parametrized element model, per-element sync, rebuilt text + containment",
+      "status": "done",
+      "shipTarget": null,
+      "date": "2026-10-02",
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. The line numbers below were taken on 2026-09-29 (HEAD 612ba084). Re-grep before you ed...",
+      "planPath": ".ai/plans/archive/feature-annotations-v2-element-model.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
       "id": "feature-cell-materializer",
       "title": "Feature: Cell materializer — a cell's disk is a cache, not the project",
       "status": "done",
@@ -2269,6 +2258,17 @@
       "phaseKey": null
     },
     {
+      "id": "feature-cloud-cost-and-cold-start-ux",
+      "title": "Feature: Cloud cost cut + cold-start waiting room",
+      "status": "done",
+      "shipTarget": null,
+      "date": "2026-10-02",
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. Read the comments in apps/cells/cell-do.mjs in full before touching the wake path. Alm...",
+      "planPath": ".ai/plans/archive/feature-cloud-cost-and-cold-start-ux.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
       "id": "cloud-live-payments-rollout",
       "title": "Cloud live payments — rollout plan",
       "status": "planned",
@@ -2276,6 +2276,17 @@
       "date": null,
       "summary": "Drafted 2026-09-19, on the owner's request, while writing a post that promotes Maude Cloud publicly. The post had to be re-framed (\"free pilot, €19 later\") because the funnel cannot take money toda...",
       "planPath": ".ai/plans/cloud-live-payments-rollout.md",
+      "archived": false,
+      "phaseKey": null
+    },
+    {
+      "id": "feature-cells-no-wake-for-scanners",
+      "title": "Feature: A sleeping cell is not woken by crawler/scanner traffic",
+      "status": "planned",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. Read the comments in apps/cells/cell-do.mjs in full before touching the wake path. Alm...",
+      "planPath": ".ai/plans/feature-cells-no-wake-for-scanners.md",
       "archived": false,
       "phaseKey": null
     },

@@ -171,9 +171,23 @@ export class MaudeCell extends Container {
           (request.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim(),
           await deriveSecret(this.env.CELL_SECRET_MASTER, tenantId)
         ),
+      url: request.url,
     });
     if (policy === 'asleep-reply') {
       return Response.json({ state: 'asleep' }, { headers: { 'cache-control': 'no-store' } });
+    }
+    // INTERNET NOISE MUST NOT WAKE A PROJECT. `/wp-login.php`, `/.env` and
+    // friends kept Alligators awake most of 2026-10-02/03 — each probe paid a
+    // boot, a hydrate and `sleepAfter`, for a 404 the hub would give anyway.
+    // Same placement rule as the no-wake probe: before any start-path work.
+    // Plain text even for a navigation: `notFoundPage` says "no Maude project
+    // at this address", which is false for a real project that is asleep.
+    if (policy === 'refuse-cold') {
+      this.#noteScannerRefusal(tenantId);
+      return new Response('not found\n', {
+        status: 404,
+        headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
+      });
     }
     if (request.headers.has(WAKE_HEADER)) {
       // The hub never needs to see it.
@@ -256,6 +270,24 @@ export class MaudeCell extends Container {
   #startFailure = null;
   /** The control plane said this tenant does not exist — never start it. */
   #unknownTenant = false;
+  /** Scanner refusals since the last log line, and when that line was written. */
+  #scannerRefusals = 0;
+  #scannerLoggedAt = 0;
+
+  /**
+   * One Workers Logs line per object instance per hour, carrying the count it
+   * stands for. In memory, so an evicted idle object logs its next refusal
+   * again: count refusals by summing `n=`, not by counting lines.
+   */
+  #noteScannerRefusal(tenantId) {
+    this.#scannerRefusals += 1;
+    if (Date.now() - this.#scannerLoggedAt < 3_600_000) return;
+    console.log(
+      `[cell] ${tenantId} refused cold wake for scanner path (n=${this.#scannerRefusals})`
+    );
+    this.#scannerLoggedAt = Date.now();
+    this.#scannerRefusals = 0;
+  }
 
   /** A failed start, shown once — the person's "Try again" starts afresh. */
   #takeStartFailure() {
