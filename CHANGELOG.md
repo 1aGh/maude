@@ -1,5 +1,12 @@
 # @1agh/maude
 
+## 1.6.11
+
+### Patch Changes
+
+- e128fab: An idle cloud project is no longer woken by internet scanners. Requests for paths no Maude project serves (`/wp-login.php`, `/.env`, `/.git/…` and similar) now get a 404 from a sleeping cell instead of starting its container. A project that is already running answers exactly as before.
+- 2d3b5dc: Cloud video export no longer spends 90 seconds on a render path that never finishes on the cloud worker before falling back to frame capture: the worker's setting now actually reaches the export process.
+
 ## 1.6.10
 
 ### Patch Changes
