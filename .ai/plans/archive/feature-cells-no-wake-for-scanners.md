@@ -166,8 +166,8 @@ No UI change beyond reusing the existing `notFoundPage`. No new cross-platform s
 - [x] A cold cell answers known scanner paths with 404 and starts nothing (rig-verified, 0 containers).
 - [x] A running cell’s answers are byte-identical to today for every path (test plus rig).
 - [x] Tenant-content prefixes are never refused (pattern-table test).
-- [ ] Released, and one quiet night measured. Before/after recorded in STATE.md and L7c.
-- [ ] Approach 2 decided with numbers (Task 6).
+- [x] Released, and one quiet night measured. Before/after recorded in STATE.md and L7c.
+- [x] Approach 2 decided with numbers (Task 6).
 - [x] Decision recorded in kg.
 
 ---
@@ -181,9 +181,17 @@ No UI change beyond reusing the existing `notFoundPage`. No new cross-platform s
   - cold `GET /` gave 200 and started 1 container (config and credentials fetched);
   - on a running cell, `/wp-login.php` and `/.env.prod` were proxied, and the echo hub logged both.
   - Rig gotcha: on this Mac, Docker Desktop's `docker-credential-desktop get` hangs (keychain prompt), which also hangs `wrangler dev`'s build. Workaround: a temporary `DOCKER_CONFIG` with `{}` plus a symlinked `cli-plugins`, so pulls go anonymous.
-- ⏳ Task 4: release + overnight measure. Waiting on a release (coordinate the tag with other sessions).
+- ✅ Task 4: released in **v1.6.11** (2026-10-03). The cell rolled at 18:27Z. Night of 10-03/04 measured on 10-04:
+  - **Instance-hours, 20:00–07:00Z** (`containersUsageAdaptiveGroups`, app `a03fc173-…`, Σ`allocatedMemory` / (4 GiB × 3600)): **3.07 the night before → 1.41**, about −54 %. The comparison is between two nights with different bot traffic, so treat the size of the drop as indicative.
+  - **Wakes:** 6 hourly buckets with a running cell before, 4 after (21:28, 22:41, 02:28 and 07:15Z, each ~20 min, except 22:41 at ~49 min).
+  - **Refused:** one scanner request on a cold cell (`GET /.env`, 03:44Z): 404, nothing started. That is one ~20-minute wake saved.
+  - **Every remaining wake was anonymous `GET /`, and none was a member:**
+    - 21:28, 02:28, 07:15 (and 11:39 the next day): Tencent Cloud (ASN 132203, JP/DE), a fake "iPhone iOS 13.2.3" UA with a Chromium-only `Accept` (`signed-exchange`), no cookie, and the waiting room's refresh never followed. A bot, not a person.
+    - 22:41: a scanner sweep that opened with `GET /`, which woke the cell, then sent 100+ paths (`/.env*`, `/.git/*`, `/wp-*`, `/actuator/*`, GitLab API). All were proxied to the now-running hub (401), as designed.
+  - The only member wake in the measured day was 15:31Z (`Bun` desktop sync with a bearer).
+  - **The `n=` in the log line undercounts.** It logs at most once per DO per hour and reports the count accrued since the previous log line, which is lost when the DO is evicted. Count refusals from request logs (404 on the cell for a cold scanner path), not from that line.
 - ✅ Task 5: decision `maude/cells-refuse-cold-wake-for-scanner-paths` ingested (`d_0147e0e0ee7973220e7cad79`), linked EXTENDS `maude/telemetry-no-wake-and-render-own-idle-clock`. That parent node was not found by `kg search` in this store, so the edge creates or attaches to it by name.
-- ⏳ Task 6: blocked on the Task 4 numbers.
+- ✅ Task 6: **decided: build approach 2 (members-only wake) as a follow-up.** Every remaining overnight wake was an anonymous `GET /`, which the scanner list cannot cover without refusing the project's own front door. Design note below.
 - `/done` (2026-10-03), first pass, with the plan left **open** for Tasks 4 and 6:
   - **Gates:**
     - cells 86/86 green, biome clean, wrangler dry-run OK, studio `tsc` + coverage OK, parity and tarball OK.
@@ -192,3 +200,47 @@ No UI change beyond reusing the existing `notFoundPage`. No new cross-platform s
     - Fixed: `refuse-cold` returns a plain `not found` (not `notFoundPage`, whose "no project here" copy is false for a sleeping project) with `cache-control: no-store`. The log line now carries `n=`.
     - Accepted, documented on `wakePolicy`: a low-severity awake/asleep oracle that does not wake the cell. Revisit with Task 6.
     - Report: `.ai/logs/security-reviews/2026-10-03-feature-cells-no-wake-for-scanners.md`, recorded in kg.
+
+## Task 6 design note: members-only wake (2026-10-04)
+
+**Why.** After v1.6.11, 4 of 4 overnight wakes, plus one daytime wake, were anonymous navigations to `/`. At ~20 min each, that is the ~1.4 instance-hours/night left. One drive-by on `/` also lets a whole scanner sweep through while the cell is up.
+
+**What proves membership (read from the hub, not guessed):**
+- `maude_studio`, the browser session cookie (`browser-auth.mjs`, 12 h TTL, every door: sign-in, OIDC, cloud exchange, invite landing);
+- `maude_canvas`, the canvas capability cookie (`studio-proxy.mjs`), and a `?t=` capability on canvas-origin URLs;
+- `authorization: Bearer …` (desktop sync, the CLI, the operator sweep).
+
+`hasOwnerSignal` already reads the first two and the bearer. Approach 2 reuses it as-is.
+
+**Recommended shape: a click-through, not a worker sign-in.**
+- An anonymous **navigation** to a cold cell, with no owner signal and outside the exempt prefixes, gets a worker-rendered page: "This project is asleep. [Open project]". The button is a same-origin form `POST` (or a `GET` with a one-shot `?wake=<nonce>` the DO minted), and that is what starts the cell.
+- Bots that follow no forms or scripts never wake it.
+- A member whose session cookie expired pays one click, then signs in at the hub exactly as today. **The worker never authenticates anyone** and never parses session contents; it only checks whether a cookie or header is present.
+- **Exempt (always wake, as today):**
+  - `/join/*` (invite links);
+  - `/auth/*` (OIDC start and callback, sign-in);
+  - `/invites/*`;
+  - every `/_*` route;
+  - `/api/*`, `/health`;
+  - any request with an owner signal;
+  - any non-navigation request. Scripts, sockets and sync keep the blocking path byte-for-byte.
+- **A running cell is untouched.** This is the same invariant as `refuse-cold`: the policy can only suppress a start.
+
+**Rejected:**
+- A worker-rendered sign-in, which would duplicate the hub's cookie grammar, OIDC and invite logic in the Worker.
+- Redirecting to the control plane's login, which knows accounts but not project membership, and adds a cross-origin hop to every cold open.
+
+**Security review it needs (DDR-054 / DDR-193):**
+- **Cookie presence is not authentication.** A bot that sends `cookie: maude_studio=x` still wakes the cell. That is acceptable: this is a cost control, and a wake reveals nothing the hub's own 401 does not.
+- **Oracle.** The page tells an anonymous caller "a project exists here and is asleep". `refuse-cold` already accepted that low-severity awake/asleep oracle, so re-assess it here.
+- **CSRF on the wake button.** A cross-site `POST` can only start a container. That is cost, not data. Use a nonce anyway, so a third-party page cannot keep a project awake.
+- **The page's copy and caching.** `no-store`, no project name or tenant data on the page, and the branded `pages.mjs` style.
+
+**Next:** `/flow:plan feature-cells-members-only-wake` from this note.
+
+## Retro
+
+- **The measurement paid for itself on the first night.** The scanner list removed the class it targeted (1 refusal, −54 % instance-hours). The same logs showed that the bigger remaining class, bots on `/`, was invisible from the 10-02/03 night's sample, because there the `.php`/`.env` paths dominated.
+- **Log-line counters that reset on eviction are not metrics.** `n=` looked like a count and is not one. For anything we will measure, prefer counting from request logs, or emit one line per event and let Workers Logs aggregate.
+- **Two sessions on one plan.** The first session shipped Tasks 1–3 and 5 plus a release. The second started re-implementing Task 1 from a stale untracked copy of the plan before checking `git log origin/main -- <files>`. CLAUDE.md already warns that "a plan's task list can lag reality". `/flow:execute` should run that check before the first edit, not only when resuming.
+- **The self-host upgrade was blocked only on a missing local AWS profile.** Once it existed, the recorded SSM script (checkpoint, pull, stop, tarballs, up, health) ran unchanged for v1.6.11, with ~2 min of downtime.

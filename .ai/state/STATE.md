@@ -24,6 +24,11 @@ Phase A of the gate set found six silent bugs by pointing a typechecker at 52 fi
 **Active plan:** —
 **Active task:** —
 
+_2026-10-04:_ **done — feature-cells-no-wake-for-scanners** | archived `.ai/plans/archive/feature-cells-no-wake-for-scanners.md`. Shipped in v1.6.11 (`e128fab9`): a sleeping cell answers known scanner paths (`*.php`, `/wp-*`, `/.env*`, `/.git*`, …) without an owner signal with 404 and starts nothing; a running cell is untouched.
+- **Measured, night 10-03/04, Alligators 20–07Z:** 3.07 → **1.41 instance-hours** (−54 %). One cold scanner request was refused. All 4 remaining wakes were anonymous bot `GET /` (Tencent Cloud, fake iPhone UA; one scanner sweep that opened on `/`). No member woke the cell overnight.
+- **Task 6 decided:** build members-only wake as a click-through page for anonymous navigations to a cold cell (design note in the archived plan). L7c stays open until a night measures ~0.
+- **design.studyfi.com → v1.6.11** over SSM on `i-0e484a007adbf57a5` (profile `studyfi-shared`, same script as v1.5.2). Checkpoint `/opt/maude-hub/pre-v1.6.11-20261004T191348Z` (env.bak, compose, previous-images, `hub-data` 16 MB, `hub-repo` 156 MB). After: health 1.6.11, `transactions`/`durable`, studio ready, 8 peers reconnected, 131 canvases in the index, no errors in the hub log. Rollback: `env.bak` (tag `v1.6.10`) + `docker compose up -d hub render`.
+
 _2026-10-02:_ **done — feature-cell-materializer** | archived `.ai/plans/archive/feature-cell-materializer.md`.
 - **What closed.** All 16 tasks + 6b shipped in v1.6.0–v1.6.1 (DDR-243: on a cell the disk is a cache).
 - **Follow-ups v1.6.3–v1.6.9.** Each was found by measuring alligators live:

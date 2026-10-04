@@ -111,6 +111,14 @@ stranger's card can be charged. L5–L7 are the proof that it worked.
   ~0 instance-hours (GraphQL `containersUsageAdaptiveGroups`). If it does not,
   fix idle detection before charging, or route always-on use to Dedicated
   (€99). Note the 14-day trial is pure cost — same rule applies.
+  **2026-10-04 measurement (v1.6.11, scanner paths refused on a cold cell,
+  `archive/feature-cells-no-wake-for-scanners.md`):** Alligators overnight
+  (20–07Z) went from 3.07 to **1.41 instance-hours** (≈ $0.06/night). Not yet
+  ~0: all 4 remaining wakes were anonymous bot `GET /` (Tencent Cloud, fake
+  iPhone UA, plus one scanner sweep that opened on `/`), ~20 min each. No
+  member woke it overnight, so idle detection itself works and the residue
+  is a wake-policy problem. Next: members-only wake (design note in that plan).
+  The gate stays open until a night measures ~0.
 
 - [ ] **L8 — retract the pilot callouts.** Once L4–L7c are green, remove the
   "not yet taking live payments" callout from `pricing.mdx`, `terms.mdx`,
