@@ -76,14 +76,15 @@ function inertLockup() {
     .replace(/<\/a>\s*$/, '</span>');
 }
 
-function page(title, body, { canvas = false, refreshUrl = null } = {}) {
+function page(title, body, { canvas = false, refreshUrl = null, noindex = false } = {}) {
   const refresh = refreshUrl
     ? `<meta http-equiv="refresh" content="${REFRESH_SECONDS};url=${esc(refreshUrl)}">`
     : '';
+  const robots = noindex ? '<meta name="robots" content="noindex, nofollow">' : '';
   const mark = canvas
     ? inertLockup()
     : lockup({ words: 'Maude Cloud', href: 'https://cloud.maude.sh/' });
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${refresh}<title>${esc(title)} — Maude</title><style>${CSS}</style></head><body><main>${mark}${body}</main></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${refresh}${robots}<title>${esc(title)} — Maude</title><style>${CSS}</style></head><body><main>${mark}${body}</main></body></html>`;
 }
 
 /**
@@ -168,6 +169,39 @@ export function couldNotStartPage({ url, reason = null, canvas = false }) {
   );
 }
 
+/**
+ * The CSP for `asleepPage`: the shared one, except that its one form may post
+ * back to this origin. Never framed — the button is a top-level action.
+ */
+export const ASLEEP_PAGE_CSP = PAGE_CSP.replace("form-action 'none'", "form-action 'self'").replace(
+  'frame-ancestors *',
+  "frame-ancestors 'none'"
+);
+
+/**
+ * "This project is asleep." Shown to an ANONYMOUS browser on a sleeping cell
+ * (no session cookie, no deep link) instead of starting it — bots on `/` were
+ * every overnight wake after v1.6.11. One click starts it; a person then signs
+ * in at the project exactly as before. A form POST, not a link: crawlers follow
+ * links, they do not submit forms. Names no project — the visitor is anonymous.
+ */
+export function asleepPage({ url, wakePath }) {
+  const to = `${stripWait(url).pathname}${stripWait(url).search}`;
+  return page(
+    'This project is asleep',
+    `<h1>This project is asleep<span class="zzz" aria-hidden="true">z<sup>z</sup></span></h1>
+     <p>Nobody’s used it for a while, so its server is napping to save energy. Open it and it’ll be up in a minute or two — then sign in as usual.</p>
+     <form method="post" action="${esc(wakePath)}" class="reassure">
+       <input type="hidden" name="to" value="${esc(to)}">
+       <button class="btn" type="submit">Open project</button>
+     </form>
+     <p class="quiet">Your work is safe. Signed in already? Then this page won’t show up.</p>`,
+    // Crawlers are exactly who gets this page; it must not become the
+    // project's search result (2026-10-04 attacker review, F5).
+    { noindex: true }
+  );
+}
+
 /** Nothing lives at this address. */
 export function notFoundPage({ canvas = false } = {}) {
   return page(
@@ -183,14 +217,19 @@ export function notFoundPage({ canvas = false } = {}) {
 }
 
 /** Serve one of the above. */
-export function htmlResponse(html, status, { retryAfter = null } = {}) {
+export function htmlResponse(
+  html,
+  status,
+  { retryAfter = null, csp = PAGE_CSP, noindex = false } = {}
+) {
   const headers = {
     'content-type': 'text/html; charset=utf-8',
     'cache-control': 'no-store',
-    'content-security-policy': PAGE_CSP,
+    'content-security-policy': csp,
     'x-content-type-options': 'nosniff',
     'referrer-policy': 'no-referrer',
   };
   if (retryAfter != null) headers['retry-after'] = String(retryAfter);
+  if (noindex) headers['x-robots-tag'] = 'noindex, nofollow';
   return new Response(html, { status, headers });
 }

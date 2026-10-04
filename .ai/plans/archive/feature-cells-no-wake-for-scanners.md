@@ -236,7 +236,7 @@ No UI change beyond reusing the existing `notFoundPage`. No new cross-platform s
 - **CSRF on the wake button.** A cross-site `POST` can only start a container. That is cost, not data. Use a nonce anyway, so a third-party page cannot keep a project awake.
 - **The page's copy and caching.** `no-store`, no project name or tenant data on the page, and the branded `pages.mjs` style.
 
-**Next:** `/flow:plan feature-cells-members-only-wake` from this note.
+**Built 2026-10-04** without a separate plan (owner's call), with two additions from review: `?open=`/`?t=` deep links and websocket upgrades wake without the click, and a cross-site POST to `/_cell/wake` starts nothing. See STATE.md.
 
 ## Retro
 

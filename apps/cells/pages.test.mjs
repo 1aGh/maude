@@ -6,6 +6,8 @@ import { test } from 'node:test';
 
 import { isNavigation } from './cell-config.mjs';
 import {
+  ASLEEP_PAGE_CSP,
+  asleepPage,
   couldNotStartPage,
   htmlResponse,
   nextWaitUrl,
@@ -82,6 +84,7 @@ test('no page carries script', () => {
     couldNotStartPage({ url: studio, canvas: true }),
     notFoundPage(),
     notFoundPage({ canvas: true }),
+    asleepPage({ url: studio, wakePath: '/_cell/wake' }),
   ]) {
     assert.doesNotMatch(html, /<script/i);
     assert.doesNotMatch(html, /\son[a-z]+=/i);
@@ -144,4 +147,44 @@ test('scripts, sockets, writes and probes are not', () => {
 
 test('without Fetch Metadata, a GET that prefers HTML counts', () => {
   assert.equal(isNavigation(req({ accept: 'text/html,application/xhtml+xml' })), true);
+});
+
+// Members-only wake (2026-10-04): the page an anonymous browser gets instead
+// of a start.
+test('the asleep page is one form that posts back here with where you were going', () => {
+  const url = new URL(`https://alligators.cloud.maude.sh/?open=ui/test.tsx&${WAIT_PARAM}=2.${NOW}`);
+  const html = asleepPage({ url, wakePath: '/_cell/wake' });
+  assert.match(html, /<form method="post" action="\/_cell\/wake"/);
+  assert.match(html, /name="to" value="\/\?open=ui%2Ftest.tsx"/);
+  assert.doesNotMatch(html, new RegExp(WAIT_PARAM));
+  assert.match(html, /<button[^>]*type="submit">Open project<\/button>/);
+  // Anonymous visitor: the project is not named.
+  assert.doesNotMatch(html, /alligators/i);
+});
+
+test('the asleep page escapes the path it carries', () => {
+  const html = asleepPage({
+    url: new URL('https://x.test/a"><img src=x>'),
+    wakePath: '/_cell/wake',
+  });
+  assert.doesNotMatch(html, /<img src=x>/);
+});
+
+test('the asleep page CSP allows its own form and nothing else new', () => {
+  assert.match(ASLEEP_PAGE_CSP, /form-action 'self'/);
+  assert.match(ASLEEP_PAGE_CSP, /frame-ancestors 'none'/);
+  assert.match(ASLEEP_PAGE_CSP, /default-src 'none'/);
+  assert.doesNotMatch(ASLEEP_PAGE_CSP, /script-src/);
+  const res = htmlResponse('<p>x</p>', 200, { csp: ASLEEP_PAGE_CSP });
+  assert.equal(res.headers.get('content-security-policy'), ASLEEP_PAGE_CSP);
+});
+
+test('the asleep page tells crawlers not to index it', () => {
+  assert.match(
+    asleepPage({ url: studio, wakePath: '/_cell/wake' }),
+    /name="robots" content="noindex/
+  );
+  const res = htmlResponse('<p>x</p>', 200, { noindex: true });
+  assert.equal(res.headers.get('x-robots-tag'), 'noindex, nofollow');
+  assert.equal(htmlResponse('<p>x</p>', 200).headers.get('x-robots-tag'), null);
 });

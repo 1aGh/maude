@@ -24,6 +24,23 @@ Phase A of the gate set found six silent bugs by pointing a typechecker at 52 fi
 **Active plan:** —
 **Active task:** —
 
+_2026-10-04:_ **built — members-only wake (unreleased)** | the Task 6 decision from `archive/feature-cells-no-wake-for-scanners.md`, built directly at the owner's request without a separate plan.
+- **Behavior on a sleeping cell:**
+  - an anonymous browser gets "This project is asleep" with an **Open project** button (form `POST /_cell/wake` → start → 303 back);
+  - a non-browser gets a plain 503;
+  - these still wake straight away: the session or canvas cookie, a bearer, websocket upgrades, `?open=`/`?t=` deep links, `/auth`, `/studio/signin`, `/oidc`, `/join`, `/invites` and every `/_*` route.
+  - A running cell is untouched.
+- **Tests:** cells 100/100. The new cases fail without the change.
+- **Rig** (`wrangler dev` + Docker echo container, stub control plane):
+  - an anonymous navigation gets 200 with the page and 0 containers; curl gets 503 with 0;
+  - a deep link and a cookie each start the cell;
+  - the click gives 303, then the waiting room, then the proxied page;
+  - an evil `to` gives `Location: /`.
+- **Security:**
+  - defender NEEDS FIXES → fixed in-diff: an open redirect via `/.//evil.com`, an unbounded form body, and failed starts that kept waking;
+  - attacker PASS WITH SUGGESTIONS: F4 (the desktop sync socket must wake) and F5 (noindex) fixed. F1–F3 are low cost bypasses, spun off.
+- **Next:** release, then measure one quiet night against L7c.
+
 _2026-10-04:_ **done — feature-cells-no-wake-for-scanners** | archived `.ai/plans/archive/feature-cells-no-wake-for-scanners.md`. Shipped in v1.6.11 (`e128fab9`): a sleeping cell answers known scanner paths (`*.php`, `/wp-*`, `/.env*`, `/.git*`, …) without an owner signal with 404 and starts nothing; a running cell is untouched.
 - **Measured, night 10-03/04, Alligators 20–07Z:** 3.07 → **1.41 instance-hours** (−54 %). One cold scanner request was refused. All 4 remaining wakes were anonymous bot `GET /` (Tencent Cloud, fake iPhone UA; one scanner sweep that opened on `/`). No member woke the cell overnight.
 - **Task 6 decided:** build members-only wake as a click-through page for anonymous navigations to a cold cell (design note in the archived plan). L7c stays open until a night measures ~0.

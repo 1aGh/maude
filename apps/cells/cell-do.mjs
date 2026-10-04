@@ -27,13 +27,17 @@ import {
   isValidTenantId,
   needsStartupState,
   RESTART_PATH,
+  safeReturnPath,
   secretsMatch,
   TENANT_HEADER,
   WAKE_HEADER,
+  WAKE_PATH,
   wakePolicy,
 } from './cell-config.mjs';
 import { createCredentialResolver } from './cell-credentials.mjs';
 import {
+  ASLEEP_PAGE_CSP,
+  asleepPage,
   couldNotStartPage,
   htmlResponse,
   notFoundPage,
@@ -155,6 +159,33 @@ export class MaudeCell extends Container {
     this.tenantId = tenantId;
 
     const hostname = new URL(request.url).hostname;
+    const canvas = request.headers.get(CANVAS_ORIGIN_HEADER) === '1';
+
+    // "OPEN PROJECT" FROM THE ASLEEP PAGE — the one anonymous request that may
+    // start a cell (members-only wake, 2026-10-04). Answered here, never
+    // proxied: start in the background, send the browser back where it was
+    // going, and let the waiting room below take it from there (`starting`
+    // keeps the asleep page from showing again while the start runs).
+    // No nonce, on purpose: a deep link (`?open=`) already wakes a cell by
+    // design, so a third-party page could wake one either way — a wake is a
+    // cost, never access. Still, a browser that declares a cross-site POST
+    // starts nothing, and the redirect target is this origin only.
+    if (request.method === 'POST' && !canvas && new URL(request.url).pathname === WAKE_PATH) {
+      const url = new URL(request.url);
+      const to = safeReturnPath((await readWakeForm(request))?.get('to') ?? '/', url.origin);
+      // Our own page posts same-origin. A browser that says otherwise is
+      // another site's form: send it home, start nothing.
+      const site = request.headers.get('sec-fetch-site');
+      const sameSite = !site || site === 'same-origin';
+      if (sameSite && this.ctx.container?.running !== true && !this.#unknownTenant) {
+        console.log(`[cell] ${tenantId} woken from the asleep page`);
+        this.ctx.waitUntil?.(this.#ensureStarted(tenantId, hostname));
+      }
+      return new Response(null, {
+        status: 303,
+        headers: { location: to, 'cache-control': 'no-store' },
+      });
+    }
 
     // A PROBE THAT MUST NOT WAKE (WAKE_HEADER). Decided before ANY of the
     // start-path work below — config fetch, credential mint, activity renewal
@@ -172,6 +203,11 @@ export class MaudeCell extends Container {
           await deriveSecret(this.env.CELL_SECRET_MASTER, tenantId)
         ),
       url: request.url,
+      navigation: isNavigation(request),
+      canvas,
+      // A person clicked "Open project" (or a member request already started
+      // it): the waiting room's refreshes must not fall back to the asleep page.
+      starting: Boolean(this.#starting),
     });
     if (policy === 'asleep-reply') {
       return Response.json({ state: 'asleep' }, { headers: { 'cache-control': 'no-store' } });
@@ -189,6 +225,25 @@ export class MaudeCell extends Container {
         headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
       });
     }
+    // NOBODY WHO COULD BE A MEMBER ASKED (members-only wake). An anonymous
+    // browser gets a page with one button; anything else gets a sentence. Both
+    // before any start-path work, like the two answers above. One log line per
+    // answer, so Workers Logs counts what was saved (the scanner line's `n=`
+    // could not be summed reliably).
+    if (policy === 'wake-page' || policy === 'asleep-text') {
+      console.log(`[cell] ${tenantId} held asleep (${policy})`);
+      if (policy === 'wake-page') {
+        if (this.#unknownTenant) return htmlResponse(notFoundPage(), 404);
+        return htmlResponse(asleepPage({ url: new URL(request.url), wakePath: WAKE_PATH }), 200, {
+          csp: ASLEEP_PAGE_CSP,
+          noindex: true,
+        });
+      }
+      return new Response('This project is asleep. Open it in a browser to wake it.\n', {
+        status: 503,
+        headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
+      });
+    }
     if (request.headers.has(WAKE_HEADER)) {
       // The hub never needs to see it.
       request = new Request(request);
@@ -202,7 +257,6 @@ export class MaudeCell extends Container {
     // the cell anyway, so it reveals nothing a request could not already learn.
     if (isNavigation(request)) {
       const url = new URL(request.url);
-      const canvas = request.headers.get(CANVAS_ORIGIN_HEADER) === '1';
       if (!(await this.#readyForNavigation(tenantId))) {
         if (this.#unknownTenant) return htmlResponse(notFoundPage({ canvas }), 404);
         const failed = this.#takeStartFailure();
@@ -568,6 +622,42 @@ export class MaudeCell extends Container {
   onError(error) {
     console.error(`[cell] ${this.tenantId ?? '?'} error: ${error}`);
   }
+}
+
+/** The asleep page's form is one short field; nothing bigger is read. */
+const MAX_WAKE_FORM_BYTES = 4096;
+
+/**
+ * Read the wake form without buffering an arbitrary body into the object
+ * (an unauthenticated POST, 2026-10-04 defender review): urlencoded only,
+ * and at most `MAX_WAKE_FORM_BYTES`, or nothing.
+ */
+async function readWakeForm(request) {
+  const type = (request.headers.get('content-type') ?? '').toLowerCase();
+  if (!type.startsWith('application/x-www-form-urlencoded')) return null;
+  const declared = Number(request.headers.get('content-length') ?? 0);
+  if (declared > MAX_WAKE_FORM_BYTES) return null;
+  const reader = request.body?.getReader?.();
+  if (!reader) return null;
+  const chunks = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_WAKE_FORM_BYTES) {
+      void reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let at = 0;
+  for (const c of chunks) {
+    bytes.set(c, at);
+    at += c.byteLength;
+  }
+  return new URLSearchParams(new TextDecoder().decode(bytes));
 }
 
 /** Route one request to its tenant's cell. */

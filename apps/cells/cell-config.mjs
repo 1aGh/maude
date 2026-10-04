@@ -437,10 +437,13 @@ export function hasOwnerSignal(headers) {
  *   `asleep-reply`     answer `{state:'asleep'}` — no config fetch, no
  *                      credential mint, no activity renewal, no start
  *   `refuse-cold`      a scanner path to a cold cell: 404, nothing else runs
+ *   `wake-page`        an anonymous person's browser on a cold cell: a page
+ *                      whose "Open project" button starts it (`WAKE_PATH`)
+ *   `asleep-text`      the same visit from a non-browser: a plain 503
  *   `proxy`            the container is up; forward as today
  *   `block-and-start`  today's cold path: start, wait, forward
  *
- * Both non-start answers apply only to a cell that is NOT running, so the
+ * Every non-start answer applies only to a cell that is NOT running, so the
  * policy can suppress a start but never change what a running project answers.
  * Scanners (`/wp-login.php`, `/.env`, …) kept Alligators awake most of the
  * night of 2026-10-02/03: each probe paid a boot plus `sleepAfter`.
@@ -451,11 +454,106 @@ export function hasOwnerSignal(headers) {
  * Answering scanner paths identically on a running cell would close it, but
  * would break the rule that this policy never changes a running cell.
  */
-export function wakePolicy({ headers, running, authorized = false, url = null }) {
+export function wakePolicy({
+  headers,
+  running,
+  authorized = false,
+  url = null,
+  navigation = false,
+  canvas = false,
+  starting = false,
+}) {
   if (running === true) return 'proxy';
   if (authorized && headers?.get?.(WAKE_HEADER) === 'never') return 'asleep-reply';
-  if (url && isScannerProbe(url) && !hasOwnerSignal(headers)) return 'refuse-cold';
-  return 'block-and-start';
+  if (!url || hasOwnerSignal(headers)) return 'block-and-start';
+  if (isScannerProbe(url)) return 'refuse-cold';
+  // MEMBERS-ONLY WAKE (2026-10-04). After v1.6.11 every overnight wake of
+  // Alligators was an anonymous `GET /` from a bot (Tencent Cloud with a fake
+  // iPhone UA, and a scanner sweep that opened on `/`), ~20 min each. Nothing
+  // below runs for a request that could plausibly be a member's: an owner
+  // signal (above), a start already in flight (a person who clicked), the
+  // canvas origin, or a path/query only Maude's own clients produce.
+  if (starting || canvas || isSocketUpgrade(headers) || wakesWithoutAsking(url)) {
+    return 'block-and-start';
+  }
+  return navigation ? 'wake-page' : 'asleep-text';
+}
+
+/**
+ * The form `wakePage` posts to. Handled by the cell itself, never proxied: a
+ * click on "Open project" is the one anonymous thing that may start a cell.
+ */
+export const WAKE_PATH = '/_cell/wake';
+
+/**
+ * Paths an anonymous visitor may open on a sleeping cell WITHOUT the click.
+ *
+ * Every `/_*` route (studio, canvas runtime, sockets, project files); the
+ * hub's own sign-in, OIDC and invite doors (`/auth`, `/studio/signin`,
+ * `/oidc`, `/join`, `/invites` — a member arriving through one of these is
+ * already on their way in, and an extra page would break the OIDC round
+ * trip); and the API, assets and health routes the scanner list also exempts.
+ */
+const WAKE_EXEMPT =
+  /^\/(?:_|assets\/|\.design\/|api\/|health(?:\/|$)|auth\/|studio\/signin|oidc\/|join(?:\/|$)|invites(?:\/|$)|\.well-known\/)/;
+
+/**
+ * Query parameters only a Maude link carries. A deep link to a canvas
+ * (`?open=ui/test.tsx`) or a canvas capability (`?t=`) is someone who was
+ * sent there; bots on `/` never carry them. If one ever learns to, that is one
+ * wake — a cost, not access: the hub still decides who gets in.
+ */
+const WAKE_PARAMS = ['open', 't'];
+
+/**
+ * A WebSocket upgrade always wakes. The desktop's sync socket dials the
+ * project root with its token INSIDE the socket protocol — no header, no
+ * cookie — so without this a cold cell would answer it 503 and only an
+ * unrelated bearer request would ever wake it (2026-10-04 attacker review,
+ * F4). Drive-by bots on `/` do not open sockets.
+ */
+function isSocketUpgrade(headers) {
+  return (headers?.get?.('upgrade') ?? '').toLowerCase() === 'websocket';
+}
+
+/** Does this URL wake a sleeping cell straight away, without the click? */
+export function wakesWithoutAsking(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return true;
+  }
+  if (WAKE_PARAMS.some((p) => parsed.searchParams.get(p))) return true;
+  let path = parsed.pathname;
+  try {
+    path = decodeURIComponent(path);
+  } catch {
+    // Malformed escapes: judge the raw path.
+  }
+  return WAKE_EXEMPT.test(path.toLowerCase());
+}
+
+/**
+ * Where "Open project" lands: the path the visitor asked for, on THIS origin.
+ * Anything else (another origin, `//host`, a backslash trick, garbage)
+ * becomes `/` — the form field is attacker-controlled, so it must never be an
+ * open redirect.
+ */
+export function safeReturnPath(raw, origin) {
+  if (typeof raw !== 'string' || raw.length > 2048 || !/^\/(?![/\\])/.test(raw)) return '/';
+  try {
+    const target = new URL(raw, origin);
+    if (target.origin !== new URL(origin).origin) return '/';
+    // CHECK THE RESULT, NOT ONLY THE INPUT: dot-segments collapse during
+    // parsing, so `/.//evil.com` and `/a/..//evil.com` come out as
+    // `//evil.com` — a protocol-relative Location off this origin
+    // (2026-10-04 defender review).
+    if (/^\/[/\\]/.test(target.pathname)) return '/';
+    return `${target.pathname}${target.search}`;
+  } catch {
+    return '/';
+  }
 }
 
 export async function fetchTenantS3Credentials({ tenantId, env, fetchImpl = fetch }) {
