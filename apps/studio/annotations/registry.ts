@@ -20,6 +20,7 @@ import { shape } from './elements/shape.model.ts';
 import { sticky } from './elements/sticky.model.ts';
 import { textEl } from './elements/text.model.ts';
 import {
+  bool,
   DANGEROUS_KEYS,
   type FieldSpecMap,
   INDEX_RE,
@@ -81,6 +82,8 @@ export const TAIL_FIELDS: FieldSpecMap = {
     name: str({ max: 64, plain: true }),
     id: str({ max: 64, plain: true }),
   }),
+  /** Protected against accidental edits in the UI (a UX guard, not a permission). */
+  locked: bool(),
 };
 
 const specCache = new Map<string, FieldSpecMap>();

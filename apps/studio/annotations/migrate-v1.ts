@@ -220,6 +220,7 @@ export function v1ToV2(strokes: readonly Stroke[], opts: V1ToV2Opts = {}): Migra
         index: indexOf.get(s.id),
         groups: s.groupIds,
         author: author(s),
+        locked: s.locked === true ? true : undefined,
       } as Record<string, unknown>,
     };
   };

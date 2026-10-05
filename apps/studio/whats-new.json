@@ -2,6 +2,15 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "annotation-lock",
+      "version": null,
+      "date": null,
+      "kind": "feature",
+      "title": "Lock whiteboard items in place",
+      "summary": "Select a sticky, shape, image or section and press ⌘⇧L (or use the lock button) to pin it. A locked item can't be dragged, resized, erased or deleted by accident, and marquee selection skips it. Unlock it the same way.",
+      "surface": "design-ui"
+    },
+    {
       "id": "idle-desktop-lets-cloud-sleep",
       "version": "1.6.13",
       "date": "2026-10-05",

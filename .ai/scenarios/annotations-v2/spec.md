@@ -60,6 +60,7 @@ Every studio server these harnesses start runs with `NO_OPEN=1 MAUDE_NO_AUTOBUIL
 | V14 AI round trip | `annotate update` while a peer has the sticky selected: same id, no flicker | rig `L09.v2.ai-update-while-selected`, `annotate-write.test.ts` |
 | V15 live previews | Peer B sees A's drag ghost before release, and it clears on release | browser R10 + rig `L09.v2.live-drag-preview` |
 | V16 offline / outbox | Edits made offline are accepted after reconnecting | the existing offline row on the rig. Queued SVG proposals are upconverted by `checkLane`. |
+| V17 lock (#137) | Select a sticky, press ⌘⇧L: lock badge, no handles, the toolbar shows only Unlock. Drag, arrow nudge, Delete and double-click do nothing. Marquee skips it and Duplicate makes an unlocked copy. Unlock: it moves. A peer sees lock and unlock live. A locked section can't move, but its unlocked child can. | unit `annotations-lock.test.ts` (guard, adapter, AI refusal, both-direction replica), browser `node --test apps/studio/test/e2e/annotations-lock.e2e.mjs` (17 scenarios: pin, delete/nudge/edit, marquee, duplicate, ⌘⇧L + undo, locked section, peer lock/unlock, UX-guard-not-permission). The two-client rig row is not run. |
 
 **Acceptance:**
 

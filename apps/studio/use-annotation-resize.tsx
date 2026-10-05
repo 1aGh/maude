@@ -18,6 +18,7 @@
  */
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
+import { lockedStrokeIds } from './annotations/lock.ts';
 import { defOf } from './annotations/registry.ts';
 import { useAnnotationPipeline } from './annotations/ui/pipeline-context.ts';
 import { anchorPoint, BIND_THRESHOLD_PX, bindCandidate } from './annotations-bindings.ts';
@@ -598,7 +599,9 @@ export function AnnotationResizeOverlay({ store }: { store: StrokesStoreValue | 
   const selectedId = annotSel.selectedIds.length === 1 ? (annotSel.selectedIds[0] ?? null) : null;
   const selectedStroke: Stroke | null = useMemo(() => {
     if (!selectedId || !store) return null;
-    return store.strokes.find((s) => s.id === selectedId) ?? null;
+    const found = store.strokes.find((s) => s.id === selectedId) ?? null;
+    // #137 — a locked element shows no resize / rotate / endpoint handles.
+    return found && !lockedStrokeIds(store.strokes).has(found.id) ? found : null;
   }, [selectedId, store]);
 
   // Live for the same reason the rAF loop is: a trackpad pinch mid-drag moves

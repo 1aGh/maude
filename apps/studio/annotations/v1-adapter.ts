@@ -76,6 +76,7 @@ function shared(el: AnnotationElement): Partial<Stroke> {
     if (a.id) out.authorId = a.id;
   }
   if (num(el.rot) !== 0) out.rotation = num(el.rot);
+  if (el.locked === true) out.locked = true;
   return out as Partial<Stroke>;
 }
 

@@ -92,6 +92,13 @@ interface StrokeBase {
   authorName?: string;
   authorId?: string;
   /**
+   * Locked against accidental edits (#137): selectable, but not movable,
+   * resizable, deletable or text-editable from the UI. Absent = unlocked.
+   * A UX guard, not a permission — anyone can unlock. Serialized as
+   * `data-locked`.
+   */
+  locked?: true;
+  /**
    * FigJam v3 — rotation in degrees (clockwise) around the stroke's bbox
    * center. Absent / 0 = axis-aligned (back-compat). Honoured by the box-
    * shaped strokes + standalone text; pen ink and arrows ignore it (their
@@ -1027,6 +1034,7 @@ function rootExtraAttrs(s: Stroke): string {
     extra += ` data-group-ids="${esc(s.groupIds.join(' '))}"`;
   }
   if (s.author === 'ai') extra += ' data-author="ai"';
+  if (s.locked) extra += ' data-locked="1"';
   // Phase 3 (whiteboard-improvements) — human author identity, independent of
   // `data-author="ai"` (never both: a stroke is either agent- or human-drawn).
   // escAttr (not esc) — these are attribute values, not element content; see
@@ -1446,6 +1454,7 @@ function readSharedAttrs(el: SvgElLike, s: Stroke): void {
     if (ids.length) s.groupIds = ids;
   }
   if (el.getAttribute('data-author') === 'ai') s.author = 'ai';
+  if (el.getAttribute('data-locked') === '1') s.locked = true;
   const authorName = el.getAttribute('data-author-name');
   if (authorName) {
     const cleaned = sanitizeAuthorName(authorName);

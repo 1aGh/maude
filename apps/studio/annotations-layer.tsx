@@ -1,4 +1,5 @@
 import { MAX_BOARD_BYTES, MAX_ELEMENTS } from './annotations/constants.ts';
+import { guardLockedOps, isAllLocked, lockedStrokeIds } from './annotations/lock.ts';
 import { v1ToV2 } from './annotations/migrate-v1.ts';
 import { type Op as AnnotationOp, applyOps, diffToOps } from './annotations/ops.ts';
 import { defOf } from './annotations/registry.ts';
@@ -678,6 +679,20 @@ function ensureAnnotStyles(): void {
 // Strokes store — lifted out of the layer so the contextual toolbar (Phase 5.1
 // Task 8) can mutate strokes without prop-drilling.
 
+/** #137 — a copy of a locked element starts unlocked (duplicate / Alt+drag / paste). */
+function unlockCopies<T extends { strokes: Stroke[]; newIds: string[] }>(res: T): T {
+  const fresh = new Set(res.newIds);
+  if (!res.strokes.some((s) => s.locked && fresh.has(s.id))) return res;
+  return {
+    ...res,
+    strokes: res.strokes.map((s) => {
+      if (!s.locked || !fresh.has(s.id)) return s;
+      const { locked: _drop, ...rest } = s;
+      return rest as Stroke;
+    }),
+  };
+}
+
 export interface StrokesStoreValue {
   strokes: Stroke[];
   setStrokes: (next: Stroke[]) => void;
@@ -699,6 +714,8 @@ export interface StrokesStoreValue {
   groupSelection: (ids: readonly string[]) => string[] | null;
   /** Dissolve the outermost group of every selected stroke. */
   ungroupSelection: (ids: readonly string[]) => void;
+  /** #137 — lock / unlock the (group-expanded) selection, as ONE undo record. */
+  setLocked: (ids: readonly string[], locked: boolean) => void;
   /** Cmd+D / paste — clone with fresh ids; returns the clone ids to select. */
   duplicateSelection: (ids: readonly string[], dx: number, dy: number) => string[];
   /** Z-order — `]` `[` `Cmd+]` `Cmd+[`; group units move contiguously. */
@@ -1339,7 +1356,11 @@ export function AnnotationsLayer() {
       const committed = board.committed;
       const prevMap = strokesToElementMap(persist(prev), committed);
       const nextMap = strokesToElementMap(persist(next), committed);
-      const ops = diffToOps(prevMap, nextMap);
+      // #137 — the lock safety net: whatever tool produced this commit, a
+      // locked element (as of `prevMap`) is not moved, resized, re-texted or
+      // deleted. The board re-renders from the store, so a blocked change
+      // snaps back on its own.
+      const ops = guardLockedOps(prevMap, diffToOps(prevMap, nextMap)).ops;
       // A text edit session's commit (Task 19): the board merges against what
       // the session last SENT (its drafts), while undo goes back to the text
       // before the edit. Drafts never reach undo.
@@ -1349,7 +1370,7 @@ export function AnnotationsLayer() {
         sessionCommittedRef.current = true;
         applyOpsLocal(aimCommitOps(ops, session));
         const baseMap = strokesToElementMap(persist(withSlotText(prev, session)), committed);
-        const redo = diffToOps(baseMap, nextMap);
+        const redo = guardLockedOps(baseMap, diffToOps(baseMap, nextMap)).ops;
         if (!redo.length) return;
         // Undo MERGES back (not a strict inverse): a collaborator's typing
         // that landed in the same text survives the undo of ours.
@@ -1400,8 +1421,17 @@ export function AnnotationsLayer() {
       new Containment(strokesToElementMap(strokesRef.current, board.committed).values());
     const withSubtree = (ids: readonly string[]) =>
       expandForOp(ids, (x) => expandIdsToGroups(x, strokesRef.current), containmentNow());
+    // #137 — what a delete may take: never a locked element, nor a section
+    // holding one (its subtree would go with it).
+    const deletable = (ids: readonly string[]): string[] => {
+      const locked = lockedStrokeIds(strokesRef.current);
+      if (!locked.size) return [...ids];
+      return expandIdsToGroups(ids, strokesRef.current).filter(
+        (id) => !locked.has(id) && !withSubtree([id]).some((x) => locked.has(x))
+      );
+    };
     const deleteStrokes = (ids: string[]): void => {
-      const set = new Set(withSubtree(ids));
+      const set = new Set(withSubtree(deletable(ids)));
       const prev = strokesRef.current;
       const filtered = prev.filter(
         (s) => !set.has(s.id) && !(s.tool === 'text' && s.anchorId != null && set.has(s.anchorId))
@@ -1418,6 +1448,11 @@ export function AnnotationsLayer() {
       commitStrokes(prev, recomputeBoundArrows(normalizeGroups(filtered)));
     };
     const translateStrokes = (ids: string[], dx: number, dy: number): void => {
+      // #137 — a selection holding a locked element doesn't move (as one unit).
+      const locked = lockedStrokeIds(strokesRef.current);
+      if (locked.size && expandIdsToGroups(ids, strokesRef.current).some((id) => locked.has(id))) {
+        return;
+      }
       const set = new Set(withSubtree(ids));
       const prev = strokesRef.current;
       const next = recomputeBoundArrows(
@@ -1458,9 +1493,25 @@ export function AnnotationsLayer() {
       if (strokesShallowEqual(prev, next)) return;
       commitStrokes(prev, next, 'ungroup');
     };
+    const setLocked = (ids: readonly string[], locked: boolean): void => {
+      const prev = strokesRef.current;
+      const set = new Set(expandIdsToGroups(ids, prev));
+      let touched = 0;
+      const next = prev.map((s) => {
+        // An anchored label follows its host's lock (the adapter derives it).
+        if (!set.has(s.id) || (s.tool === 'text' && s.anchorId)) return s;
+        if (!!s.locked === locked) return s;
+        touched++;
+        if (locked) return { ...s, locked: true } as Stroke;
+        const { locked: _drop, ...rest } = s;
+        return rest as Stroke;
+      });
+      if (!touched) return;
+      commitStrokes(prev, next, locked ? 'lock' : 'unlock');
+    };
     const duplicateSelection = (ids: readonly string[], dx: number, dy: number): string[] => {
       const prev = strokesRef.current;
-      const res = duplicateStrokes(prev, withSubtree(ids), dx, dy);
+      const res = unlockCopies(duplicateStrokes(prev, withSubtree(ids), dx, dy));
       if (res.strokes.length === prev.length) return [];
       const added = res.strokes.length - prev.length;
       commitStrokes(prev, res.strokes, `duplicate ${added} stroke${added === 1 ? '' : 's'}`);
@@ -1528,6 +1579,7 @@ export function AnnotationsLayer() {
       applyToStrokes,
       groupSelection,
       ungroupSelection,
+      setLocked,
       duplicateSelection,
       reorderSelection,
       alignSelection,
@@ -1923,9 +1975,10 @@ export function AnnotationsLayer() {
       const zoom = vpRef.current?.zoom || 1;
       const tol = 8 / zoom;
       const prev = strokesRef.current;
+      const locked = lockedStrokeIds(prev); // #137 — the eraser passes over a locked element
       for (let i = prev.length - 1; i >= 0; i--) {
         const candidate = prev[i];
-        if (candidate && strokeHitTest(candidate, wx, wy, tol)) {
+        if (candidate && !locked.has(candidate.id) && strokeHitTest(candidate, wx, wy, tol)) {
           const removedId = candidate.id;
           const next = prev
             .slice(0, i)
@@ -2597,6 +2650,13 @@ export function AnnotationsLayer() {
         ) {
           canvasEl.focus({ preventScroll: true });
         }
+        // #137 — a selection holding a locked element is selected but never
+        // dragged (a group moves as one). Alt+drag still works: it drags
+        // unlocked COPIES and leaves the originals where they are.
+        if (!e.altKey) {
+          const locked = lockedStrokeIds(strokesRef.current);
+          if (locked.size && ids.some((id) => locked.has(id))) return { kind: 'locked' };
+        }
         // Capture a snapshot of all strokes at drag start. Every pointermove
         // re-translates FROM the snapshot using the cumulative cursor delta
         // (NOT a delta-from-last-frame mutation), so dragging back to origin
@@ -2617,7 +2677,7 @@ export function AnnotationsLayer() {
             (x) => expandIdsToGroups(x, undoBase),
             new Containment(strokesToElementMap(undoBase, board.committed).values())
           );
-          const res = duplicateStrokes(undoBase, subtree, 0, 0);
+          const res = unlockCopies(duplicateStrokes(undoBase, subtree, 0, 0));
           if (res.newIds.length) {
             altDup = true;
             dragSnapshot = res.strokes;
@@ -2788,8 +2848,11 @@ export function AnnotationsLayer() {
         // Anchored text rides its host (selected with it); a section is taken
         // only when the marquee encloses it (containment.ts marqueeHits).
         const items: MarqueeItem[] = [];
+        // #137 — a locked element (a big background, say) is never swept up.
+        const locked = lockedStrokeIds(strokesStoreRef.current.strokes);
         for (const s of strokesStoreRef.current.strokes) {
           if (s.tool === 'text' && s.anchorId != null && s.anchorId !== '') continue;
+          if (locked.has(s.id)) continue;
           const bb = strokeBBox(s);
           if (bb) items.push({ id: s.id, box: bb, container: s.tool === 'section' });
         }
@@ -2956,6 +3019,13 @@ export function AnnotationsLayer() {
       const id = node.getAttribute('data-id');
       const t = node.getAttribute('data-tool');
       if (!id) return;
+      if (lockedStrokeIds(strokesRef.current).has(id)) {
+        // #137 — no text edit while locked; still claimed so the canvas-shell
+        // dblclick→fit() handler doesn't jump the view.
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       // FigJam v3 — double-click DEEP-SELECTS a group member (a single click
       // selects the whole outermost group; Esc clears back out). The editor
       // still opens below for text-bearing types — FigJam's enter-group-then-
@@ -3333,6 +3403,7 @@ export function AnnotationsLayer() {
         const mine = validateElements(raw).elements.map((el) => {
           const out: Record<string, unknown> = { ...el };
           delete out.author;
+          delete out.locked; // #137 — a pasted copy starts unlocked
           if (author) out.author = author;
           if (el.type === 'link' && typeof el.url === 'string') out.domain = linkDomain(el.url);
           return out;
@@ -3474,6 +3545,14 @@ export function AnnotationsLayer() {
         }
         return;
       }
+      if (cmd && e.shiftKey && !e.altKey && k === 'l') {
+        // #137 — ⌘⇧L toggles the lock (Figma / FigJam / Miro binding).
+        if (sel.length === 0) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        store.setLocked(sel, !isAllLocked(sel, store.strokes));
+        return;
+      }
       if (cmd && !e.shiftKey && !e.altKey && k === 'd') {
         if (sel.length === 0) return; // browser bookmark stays available
         e.preventDefault();
@@ -3506,7 +3585,7 @@ export function AnnotationsLayer() {
       if (e.key === 'Enter' && !cmd && !e.shiftKey && !e.altKey) {
         if (sel.length !== 1) return;
         const only = strokesRef.current.find((x) => x.id === sel[0]);
-        if (!only) return;
+        if (!only || only.locked) return; // #137 — no text edit while locked
         if (
           only.tool === 'rect' ||
           only.tool === 'ellipse' ||
@@ -3835,6 +3914,8 @@ export function AnnotationsLayer() {
         if (members) annotSel.replace(members);
       } else if (action === 'ungroup') {
         store.ungroupSelection(sel);
+      } else if (action === 'lock' || action === 'unlock') {
+        store.setLocked(sel, action === 'lock');
       } else if (action === 'replace') {
         // Stage F3 — "Replace…" on an ImageStroke/MediaRefStroke. The canvas
         // REQUESTS (untrusted-origin postMessage, DDR-054); the main-origin shell
@@ -3923,6 +4004,12 @@ export function AnnotationsLayer() {
     }
     return out;
   }, [annotSel, strokesById]);
+  // #137 — any locked member pins the whole selection (it moves as one unit).
+  const selectionLocked = useMemo(() => {
+    if (!selectedStrokes.length) return false;
+    const locked = lockedStrokeIds(strokes);
+    return selectedStrokes.some((s) => locked.has(s.id));
+  }, [selectedStrokes, strokes]);
 
   return (
     <AnnotationPipelineContext.Provider value={pipeline}>
@@ -3943,6 +4030,7 @@ export function AnnotationsLayer() {
             anchorsById={anchorsById}
             selectMode={tool === 'move'}
             selectedStrokes={selectedStrokes}
+            selectionLocked={selectionLocked}
             marquee={marquee}
             snapGuides={snapGuides}
             bindHintId={bindHintId}
@@ -3982,6 +4070,7 @@ export function AnnotationsLayer() {
             pos={ctxMenu}
             selCount={annotSel.selectedIds.length}
             canUngroup={selectedStrokes.some((s) => (s.groupIds?.length ?? 0) > 0)}
+            allLocked={isAllLocked(annotSel.selectedIds, strokes)}
             canReplace={
               selectedStrokes.length === 1 &&
               (selectedStrokes[0]?.tool === 'image' || selectedStrokes[0]?.tool === 'mediaref')
@@ -4111,6 +4200,7 @@ function AnnotationsSvg({
   anchorsById,
   selectMode,
   selectedStrokes,
+  selectionLocked,
   marquee,
   snapGuides,
   bindHintId,
@@ -4144,6 +4234,8 @@ function AnnotationsSvg({
   anchorsById: Map<string, AnchorHost>;
   selectMode: boolean;
   selectedStrokes: readonly Stroke[];
+  /** #137 — a locked member pins the selection: no handles, a lock badge. */
+  selectionLocked: boolean;
   marquee: { ax: number; ay: number; bx: number; by: number } | null;
   /** FigJam v3 — smart-guide lines painted while a drag is snapping. */
   snapGuides: SnapGuide[] | null;
@@ -4290,7 +4382,14 @@ function AnnotationsSvg({
               multi={selectedStrokes.length > 1}
             />
           ))}
-          <AnnotGroupBbox selectedStrokes={selectedStrokes} anchorsById={anchorsById} />
+          <AnnotGroupBbox
+            selectedStrokes={selectedStrokes}
+            anchorsById={anchorsById}
+            locked={selectionLocked}
+          />
+          {selectionLocked ? (
+            <LockBadge selectedStrokes={selectedStrokes} anchorsById={anchorsById} />
+          ) : null}
           {marquee ? (
             <rect
               className="dc-annot-marquee"
@@ -4322,7 +4421,11 @@ function AnnotationsSvg({
           <BindHintHalo strokes={strokes} bindHintId={bindHintId} />
           {/* FigJam v3 — connection dots on a single selected bindable shape;
           dragging one draws a bound connector (rendered below as a draft). */}
-          {selectMode && !connDraft && selectedStrokes.length === 1 && selectedStrokes[0] ? (
+          {selectMode &&
+          !connDraft &&
+          !selectionLocked &&
+          selectedStrokes.length === 1 &&
+          selectedStrokes[0] ? (
             <ConnectorDots stroke={selectedStrokes[0]} />
           ) : null}
           {connDraft ? (
@@ -4591,6 +4694,7 @@ function AnnotationContextMenu({
   pos,
   selCount,
   canUngroup,
+  allLocked,
   canReplace,
   canEditPhoto,
   onAction,
@@ -4599,6 +4703,8 @@ function AnnotationContextMenu({
   pos: { x: number; y: number };
   selCount: number;
   canUngroup: boolean;
+  /** #137 — every selected element is locked: offer Unlock (a mixed selection offers Lock). */
+  allLocked: boolean;
   /** Stage F3 — exactly one ImageStroke/MediaRefStroke is selected. */
   canReplace: boolean;
   /** feature-photo-editor (Task 17) — exactly one content-addressed ImageStroke. */
@@ -4667,7 +4773,7 @@ function AnnotationContextMenu({
       style={{ left: at.x, top: at.y }}
     >
       {item('copy', 'Copy', '⌘C')}
-      {item('cut', 'Cut', '⌘X')}
+      {item('cut', 'Cut', '⌘X', { disabled: allLocked })}
       {item('paste', 'Paste', '⌘V')}
       {item('duplicate', 'Duplicate', '⌘D')}
       {canReplace ? item('replace', 'Replace…') : null}
@@ -4680,8 +4786,9 @@ function AnnotationContextMenu({
       <div className="dc-menu-sep" aria-hidden="true" />
       {item('group', 'Group selection', '⌘G', { disabled: selCount < 2 })}
       {canUngroup ? item('ungroup', 'Ungroup', '⌘⇧G') : null}
+      {allLocked ? item('unlock', 'Unlock', '⌘⇧L') : item('lock', 'Lock', '⌘⇧L')}
       <div className="dc-menu-sep" aria-hidden="true" />
-      {item('delete', 'Delete', '⌫', { destructive: true })}
+      {item('delete', 'Delete', '⌫', { destructive: true, disabled: allLocked })}
     </div>
   );
 }
@@ -4771,12 +4878,53 @@ function SelectionHalo({
 
 // T17 — group bbox dashed rect for multi-stroke annotation selection. Mirrors
 // the element-side GroupBbox idiom (1 px dashed accent + 6 × 6 corner handles).
-function AnnotGroupBbox({
+/**
+ * #137 — a lock glyph at the selection's top-right corner: says why the
+ * resize handles are missing. Counter-scaled to a constant screen size.
+ */
+function LockBadge({
   selectedStrokes,
   anchorsById,
 }: {
   selectedStrokes: readonly Stroke[];
   anchorsById: Map<string, AnchorHost>;
+}) {
+  const zoom = useLiveViewport().zoom || 1;
+  let xMax = Number.NEGATIVE_INFINITY;
+  let yMin = Number.POSITIVE_INFINITY;
+  for (const s of selectedStrokes) {
+    const b = strokeBBox(s, anchorsById);
+    if (!b) continue;
+    xMax = Math.max(xMax, b.x + b.w);
+    yMin = Math.min(yMin, b.y);
+  }
+  if (!Number.isFinite(xMax) || !Number.isFinite(yMin)) return null;
+  const size = 16 / zoom;
+  const pad = 4 / zoom;
+  return (
+    <g
+      pointerEvents="none"
+      data-testid="annot-lock-badge"
+      transform={`translate(${xMax + pad} ${yMin - size - pad}) scale(${size / 24})`}
+    >
+      <rect x={-2} y={-2} width={28} height={28} rx={6} fill="var(--maude-hud-accent, #d63b1f)" />
+      <g fill="none" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+        <rect x="5" y="11" width="14" height="9" rx="2" />
+        <path d="M8 11V8a4 4 0 018 0v3" />
+      </g>
+    </g>
+  );
+}
+
+function AnnotGroupBbox({
+  selectedStrokes,
+  anchorsById,
+  locked,
+}: {
+  selectedStrokes: readonly Stroke[];
+  anchorsById: Map<string, AnchorHost>;
+  /** #137 — a selection holding a locked element gets no resize corners. */
+  locked?: boolean;
 }) {
   // Counter-scaled chrome — must hold a constant screen size while the world
   // scales, so it needs the live zoom, not the settle-cadence published one.
@@ -4815,12 +4963,14 @@ function AnnotGroupBbox({
     ne: 'nesw-resize',
     sw: 'nesw-resize',
   };
-  const handles = [
-    { corner: 'nw', x: x - inset, y: y - inset },
-    { corner: 'ne', x: x + w - handle + inset, y: y - inset },
-    { corner: 'sw', x: x - inset, y: y + h - handle + inset },
-    { corner: 'se', x: x + w - handle + inset, y: y + h - handle + inset },
-  ];
+  const handles = locked
+    ? []
+    : [
+        { corner: 'nw', x: x - inset, y: y - inset },
+        { corner: 'ne', x: x + w - handle + inset, y: y - inset },
+        { corner: 'sw', x: x - inset, y: y + h - handle + inset },
+        { corner: 'se', x: x + w - handle + inset, y: y + h - handle + inset },
+      ];
   return (
     <g pointerEvents="none">
       <rect

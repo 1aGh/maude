@@ -21,6 +21,7 @@
  */
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { isAllLocked, lockedStrokeIds } from './annotations/lock.ts';
 import { type FormatKey, formatCommands, formatState } from './annotations/ui/editor-channel.ts';
 import type { AlignEdge } from './annotations-align.ts';
 import {
@@ -62,6 +63,8 @@ import {
   IconLink,
   IconListBullet,
   IconListOrdered,
+  IconLock,
+  IconLockOpen,
   IconObjAlignBottom,
   IconObjAlignHCenter,
   IconObjAlignLeft,
@@ -815,6 +818,40 @@ export function AnnotationContextToolbar({
 
   if (!annotSel || !store || selectedStrokes.length === 0) return null;
 
+  // #137 — lock. A selection holding a locked element collapses to the one
+  // control that matters (nothing else on it may change); a fully locked
+  // selection offers Unlock, a mixed one Lock (locks the rest too).
+  const lockedIds = lockedStrokeIds(store.strokes);
+  const anyLocked = selectedStrokes.some((s) => lockedIds.has(s.id));
+  const allLocked = isAllLocked(annotSel.selectedIds, store.strokes);
+  const lockBtn = (
+    <button
+      type="button"
+      className="dc-annot-ctx-ibtn"
+      data-testid={allLocked ? 'annot-ctx-unlock' : 'annot-ctx-lock'}
+      aria-label={allLocked ? 'Unlock selection' : 'Lock selection'}
+      aria-pressed={allLocked}
+      title={allLocked ? 'Unlock (⌘⇧L)' : 'Lock (⌘⇧L)'}
+      onClick={() => store.setLocked(annotSel.selectedIds, !allLocked)}
+    >
+      {allLocked ? <IconLockOpen /> : <IconLock />}
+    </button>
+  );
+  if (anyLocked) {
+    return (
+      <div
+        ref={ref}
+        className="dc-annot-ctx"
+        role="toolbar"
+        aria-label="Locked selection"
+        style={{ display: 'flex', top: -9999, left: -9999 }}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        {lockBtn}
+      </div>
+    );
+  }
+
   // ── Phase 23 — dedicated panel for a single image / link selection. ─────────
   // Image / link carry no color / fill / thickness, so the generic swatch bar is
   // meaningless for them; render a focused panel instead (image alt for a11y;
@@ -1372,6 +1409,8 @@ export function AnnotationContextToolbar({
           </button>
         </>
       ) : null}
+      <div className="dc-annot-ctx-sep" />
+      {lockBtn}
       {canGroup || canUngroup || canAlign ? (
         <>
           <div className="dc-annot-ctx-sep" />

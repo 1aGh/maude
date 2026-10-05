@@ -56,6 +56,7 @@ const STRUCTURAL = new Set([
   'end',
   'groups',
   'author',
+  'locked',
   'kind',
   'href',
   'alt',
@@ -163,6 +164,8 @@ function projectOne(scene: Scene, el: AnnotationElement, full: boolean): Project
   const author = el.author as { kind?: string; name?: string } | undefined;
   if (author?.kind === 'ai') out.author = 'ai';
   else if (author?.name) out.authorName = author.name;
+  // #137 — an agent must see the lock before it tries to move the element.
+  if (el.locked === true) out.locked = true;
   // Style of KNOWN types only: an unknown type's keys are arbitrary peer data.
   const known = defOf(el.type);
   if (full && known) {

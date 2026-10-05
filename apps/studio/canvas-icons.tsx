@@ -614,6 +614,24 @@ export function IconGroup(props: IconProps) {
     </Svg>
   );
 }
+/** Lucide `lock` — #137 annotation lock. */
+export function IconLock(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3" y="11" width="18" height="11" rx="2" />
+      <path d="M7 11V7a5 5 0 0110 0v4" />
+    </Svg>
+  );
+}
+/** Lucide `lock-open` — #137 annotation unlock. */
+export function IconLockOpen(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3" y="11" width="18" height="11" rx="2" />
+      <path d="M7 11V7a5 5 0 019.9-1" />
+    </Svg>
+  );
+}
 export function IconUngroup(props: IconProps) {
   return (
     <Svg {...props}>

@@ -20,6 +20,7 @@
 
 import { anchorPoint, facingAnchor } from './elements/arrow.model.ts';
 import { compareOrder, keyBetween } from './fractional-index.ts';
+import { guardLockedOps, isLocked } from './lock.ts';
 import { type ApplyResult, applyOps, type Op } from './ops.ts';
 import './ops-merge.ts';
 import { defOf, REGISTRY, specOf } from './registry.ts';
@@ -125,6 +126,18 @@ export class AiBatch {
 
   /** Apply ops to the local copy; any rejection fails the whole batch loudly. */
   private apply(ops: Op[], what: string): ApplyResult {
+    // #137 — a locked element is the user's "don't touch": the agent gets a
+    // clear refusal (and how to unlock), never a silent partial edit.
+    if (guardLockedOps(this.state, ops).blocked) {
+      const hit =
+        ops.find((o) => isLocked(this.state.get(o.op === 'put' ? o.el.id : o.id))) ??
+        ops.find((o) => o.op === 'delete');
+      const id = hit ? (hit.op === 'put' ? hit.el.id : hit.id) : '?';
+      throw new AiOpError(
+        `${what}: "${id}" is locked (or holds a locked element) — the user pinned it; ` +
+          `unlock it first with {"op":"update","id":"${id}","locked":false} only if the user asked`
+      );
+    }
     const r = applyOps(this.state, ops);
     if (r.rejected.length) {
       const x = r.rejected[0] as ApplyResult['rejected'][number];
@@ -223,7 +236,8 @@ export class AiBatch {
           `${what}: "${k}" can't be set here${k === 'parent' ? ' — use reparent' : ''}`
         );
       }
-      if (!Object.hasOwn(def.fields, k)) {
+      // `locked` is a tail field every type carries (#137).
+      if (!Object.hasOwn(def.fields, k) && k !== 'locked') {
         throw new AiOpError(
           `${what}: ${type} has no field "${k0}" (fields: ${Object.keys(def.fields).join(', ')})`
         );

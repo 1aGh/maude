@@ -42,8 +42,11 @@ describe('canvas-lib import graph', () => {
   });
 
   test('ops.ts alone (the browser) has no text merge; server entry points wire it', async () => {
-    // Order matters: the bare-module check must run before any server import.
-    expect(hasTextMerge()).toBe(false);
+    // A FRESH instance of ops.ts (query-busted, so not the cached one): any
+    // earlier test file importing a server entry point has already wired the
+    // shared instance, so checking that one made this test order-dependent.
+    const bare = await import(`../annotations/ops.ts?bare=${Date.now()}`);
+    expect(bare.hasTextMerge()).toBe(false);
     await import('../annotations/ops-merge.ts');
     expect(hasTextMerge()).toBe(true);
     // The wired merge keeps both people's words on a same-field race.
