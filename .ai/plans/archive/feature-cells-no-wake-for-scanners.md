@@ -244,3 +244,10 @@ No UI change beyond reusing the existing `notFoundPage`. No new cross-platform s
 - **Log-line counters that reset on eviction are not metrics.** `n=` looked like a count and is not one. For anything we will measure, prefer counting from request logs, or emit one line per event and let Workers Logs aggregate.
 - **Two sessions on one plan.** The first session shipped Tasks 1–3 and 5 plus a release. The second started re-implementing Task 1 from a stale untracked copy of the plan before checking `git log origin/main -- <files>`. CLAUDE.md already warns that "a plan's task list can lag reality". `/flow:execute` should run that check before the first edit, not only when resuming.
 - **The self-host upgrade was blocked only on a missing local AWS profile.** Once it existed, the recorded SSM script (checkpoint, pull, stop, tarballs, up, health) ran unchanged for v1.6.11, with ~2 min of downtime.
+
+## Close-out (2026-10-05)
+
+- **Approach 2 shipped** in v1.6.12 as members-only wake (`6532c53c`, security fixes in-diff); design.studyfi.com upgraded to v1.6.11, then v1.6.12.
+- **Night after v1.6.12: 10.55 instance-hours.** No bot kept the cell up. The owner's idle paired desktop did, by polling and holding sockets all night. That is a different cause with its own plan: `.ai/plans/feature-cells-idle-desktop-lets-cell-sleep.md` (in execution in another session).
+- **Still open from this line of work:** the F1–F3 cost bypasses plus the canvas-origin wake seen at 05:39Z (spun off as a separate task), and a browser-tab park (deferred in the new plan).
+- **L7c** stays open until a night with a desktop left open measures ~0.
