@@ -2291,6 +2291,17 @@
       "phaseKey": null
     },
     {
+      "id": "feature-cells-idle-desktop-lets-cell-sleep",
+      "title": "Feature: An idle desktop lets its cloud cell sleep",
+      "status": "planned",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils and imports. Read the comments in apps/studio/sync/index.ts around every timer you touch. Almost eve...",
+      "planPath": ".ai/plans/feature-cells-idle-desktop-lets-cell-sleep.md",
+      "archived": false,
+      "phaseKey": null
+    },
+    {
       "id": "feature-desktop-project-tabs-and-identity-profiles",
       "title": "Feature: Desktop project tabs + per-project identity profiles",
       "status": "planned",
