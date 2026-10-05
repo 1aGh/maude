@@ -3,8 +3,8 @@
   "entries": [
     {
       "id": "idle-desktop-lets-cloud-sleep",
-      "version": null,
-      "date": null,
+      "version": "1.6.13",
+      "date": "2026-10-05",
       "kind": "improvement",
       "title": "An idle desktop lets your cloud project sleep",
       "summary": "After 20 minutes with no edits or input, the desktop closes its cloud connection and the status bar reads “asleep”. Your next change or click reconnects, and anything teammates changed meanwhile arrives.",
