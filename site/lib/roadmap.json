@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-04T00:00:00.000Z",
+  "generated": "2026-10-05T00:00:00.000Z",
   "currentPhase": null,
   "phases": [
     {
@@ -2280,6 +2280,17 @@
       "phaseKey": null
     },
     {
+      "id": "followup-annotations-v2",
+      "title": "Follow-up: annotations v2 — what the v1.5.0 close left open",
+      "status": "done",
+      "shipTarget": null,
+      "date": "2026-10-05",
+      "summary": "Successor to archive/feature-annotations-v2-element-model.md. The v2 element model shipped in v1.5.0 (731c64ca #138, 2dd5fd83 #139, fix 87dac924), and DDR-242 is recorded. This file carries the res...",
+      "planPath": ".ai/plans/archive/followup-annotations-v2.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
       "id": "cloud-live-payments-rollout",
       "title": "Cloud live payments — rollout plan",
       "status": "planned",
@@ -2342,17 +2353,6 @@
       "date": null,
       "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
       "planPath": ".ai/plans/feature-video-tracking-and-stabilization.md",
-      "archived": false,
-      "phaseKey": null
-    },
-    {
-      "id": "followup-annotations-v2",
-      "title": "Follow-up: annotations v2 — what the v1.5.0 close left open",
-      "status": "planned",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Successor to archive/feature-annotations-v2-element-model.md. The v2 element model shipped in v1.5.0 (731c64ca #138, 2dd5fd83 #139, fix 87dac924), and DDR-242 is recorded. This file carries the res...",
-      "planPath": ".ai/plans/followup-annotations-v2.md",
       "archived": false,
       "phaseKey": null
     },

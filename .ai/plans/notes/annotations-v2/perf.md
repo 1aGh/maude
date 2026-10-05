@@ -38,7 +38,7 @@ and 2,002 elements.
 | Bytes per edit don't depend on board size (±10 % from 200 to 5000) | ✅ 174 → 176 B (+1.1 %) |
 | Drag p95 at 1000 no worse than baseline | ✅ 17.8 ms. The Task 3 baseline is the pan/zoom gesture (p95 16.7 ms at 1000; 33.4 ms `--fit-all`). The drag stays at one frame at every size. |
 | Renders during drag ≤ selected + bound | ✅ Only the dragged element's node re-renders: one render per tick for one selected element with no bound arrows. Every other node keeps its identity. |
-| AI read ≥ 3× smaller | ❌ **2.86×**, a near miss. |
+| AI read ≥ 3× smaller | ❌ **2.86×**, a near miss. *Re-baselined to ≥ 2.8× on 2026-10-05 ([DDR-244](../../../archive/decisions/DDR-244-annotations-v2-stroke-view-is-the-editing-end-state.md) §3) → ✅.* |
 | Single write ≤ 40 tokens | ✅ about 12 tokens |
 | `rbush` only if a 5000-element marquee or hit test exceeds 8 ms | Not added. The drag stays at one frame at 4,034 elements. |
 
