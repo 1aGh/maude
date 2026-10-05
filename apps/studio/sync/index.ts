@@ -78,6 +78,18 @@ import { isLoopbackHost } from './loopback.ts';
 import { migrateFlatFallback } from './migrate-flat-fallback.ts';
 import { migrateSeed } from './migrate-seed.ts';
 import { ORIGINS } from './origins.ts';
+import {
+  initialParkState,
+  isLocalWorkRel,
+  PARK_TIMINGS,
+  type ParkEffect,
+  type ParkEvent,
+  type ParkState,
+  type ParkTimings,
+  parkReducer,
+  parseCellState,
+} from './park.ts';
+import { hasSelfRetryingWork } from './presentation.ts';
 import { createProjectConfigPusher } from './project-config-push.ts';
 import { createDocProjection, type DocProjection } from './projection.ts';
 import {
@@ -678,6 +690,16 @@ export interface CreateSyncRuntimeOptions {
     minMs?: number;
     jitterMs?: number;
     now?: () => number;
+  };
+  /**
+   * The desktop park (`sync/park.ts`) — test injection. Production uses the
+   * module timings, the real clock and global `fetch`.
+   */
+  park?: {
+    timings?: Partial<ParkTimings>;
+    tickMs?: number;
+    now?: () => number;
+    fetch?: typeof fetch;
   };
   /**
    * Override the offline-mode connection monitor (Task 8 test injection —
@@ -1365,6 +1387,26 @@ export function createSyncRuntime(
    * there), and whenever `linkedHub.fileEvents` is false.
    */
   let fileEventsCtl: import('./ctl-provider.ts').CtlProvider | null = null;
+  /** Rebuilds the control channel with the options it was first built with —
+   *  the desktop park closes it and brings it back. */
+  let makeFileEventsCtl: (() => import('./ctl-provider.ts').CtlProvider) | null = null;
+  /**
+   * THE DESKTOP PARK (`sync/park.ts`). An idle desktop closes its sockets and
+   * its poll so the cloud cell sleeps through its own `sleepAfter`, and comes
+   * back on the next local change, click, or a change somebody else made.
+   * `parkedNow` is the one flag every lane checks; `parkDispatch` is armed by
+   * `start()` only where parking is possible.
+   */
+  let parkedNow = false;
+  let parkDispatch: ((event: ParkEvent) => void) | null = null;
+  let parkTimer: ReturnType<typeof setInterval> | null = null;
+  let parkProbe: AbortController | null = null;
+  let parkUiUnsub: (() => void) | null = null;
+  const parkClock = opts.park?.now ?? (() => Date.now());
+  /** A local edit, a doc update, a click: news for the park machine. */
+  const noteParkActivity = (type: 'localEdit' | 'uiActivity'): void => {
+    parkDispatch?.({ type, now: parkClock() });
+  };
   /**
    * Cancels the boot-time capability probe. A `stop()` that leaves a `/health`
    * fetch in flight is a timer keeping a dying process alive and a promise
@@ -1446,7 +1488,9 @@ export function createSyncRuntime(
     // Captured, not re-read: `stop()` clears `filePlane`, and a pass that has
     // already decided to run must not dereference the field it was cleared to.
     const lane = filePlane;
-    if (stopped || !lane) return;
+    // Parked: no journal reads. A local change unparks first (`fs:any`), and
+    // the unpark runs a full pass of its own.
+    if (stopped || !lane || parkedNow) return;
     // A pass already running IS this pass: it reads the same disk and the same
     // cursor, so the caller waits for its answer rather than racing it. The
     // poll's `await` therefore still means "a pass has happened".
@@ -1518,7 +1562,7 @@ export function createSyncRuntime(
    *                     recently); false only for boot.
    */
   function pollRemoteSoon(opts: { cooled?: boolean } = {}): void {
-    if (stopped || remotePollSoonTimer !== null) return;
+    if (stopped || parkedNow || remotePollSoonTimer !== null) return;
     // ACCEPTED REVISIONS: a poke means "a revision was accepted", and the
     // canvas it created, moved or deleted — or the folder — must reach this
     // peer now, not on the next 20 s tick. Still bounded (one pass per
@@ -2733,7 +2777,17 @@ export function createSyncRuntime(
       // first is the exact, cheap version of the mtime-granularity guard: the
       // watcher KNOWS this path moved, so the next scan must read it rather
       // than trust a timestamp that a same-length edit could have left alone.
-      if (fileLedger) {
+      //
+      // NOT FOR RUNTIME STATE. The plane's own ledger lives under
+      // `_state/file-ledger/`, so a pass that flushed it raised the event that
+      // scheduled the next pass — a journal read every ~2 s with nobody
+      // editing, and a cloud cell that never slept (2026-10-05). Runtime state
+      // is never plane work (`isRuntimeStateRel`), so it never triggers a
+      // pass. `fs-watch.ts` still reports `_state/` to every OTHER subscriber.
+      // Somebody's work, not the studio talking to itself: it keeps a desktop
+      // awake, and unparks a parked one BEFORE the pass below is asked for.
+      if (isLocalWorkRel(rel)) noteParkActivity('localEdit');
+      if (fileLedger && isLocalWorkRel(rel)) {
         fileLedger.noteChanged(rel.split('\\').join('/'));
         schedulePlanePass();
       }
@@ -3578,6 +3632,12 @@ export function createSyncRuntime(
         document,
       });
       providers.set(canvas.slug, provider);
+      // ANY change to a synced document is activity — a local edit unparks a
+      // parked desktop, and a peer's edit arriving keeps a live collaboration
+      // connected rather than parking under it.
+      const onDocUpdate = (): void => noteParkActivity('localEdit');
+      provider.document.on('update', onDocUpdate);
+      noteDetach(statusDetaches, canvas.slug, () => provider.document.off('update', onDocUpdate));
       // Fix 5 (sync RCA 2026-08-10): stamp the canvas path BEFORE the
       // handshake, not only after reconcile. The path derives from this peer's
       // real local file, so it is known NOW — and the hub's FIRST
@@ -4602,6 +4662,7 @@ export function createSyncRuntime(
     const discovery = documentDiscovery;
     documentDiscoveryUnsub = ctx.bus.on('sync:documents-changed', () => discovery.schedule());
     const pollRemote = (): void => {
+      if (parkedNow) return;
       void discovery
         .flush()
         .then(() => pullFilesOnce())
@@ -4664,7 +4725,9 @@ export function createSyncRuntime(
         ? (providerFactory as DisposableProviderFactory)
         : null);
     const stallCheck = (): void => {
-      if (stopped || !reconnectable) return;
+      // Parked is a deliberate silence, not a stall (issue #118's watchdog
+      // must never "recover" a link the desktop closed on purpose).
+      if (stopped || parkedNow || !reconnectable) return;
       const snap = mon.snapshot();
       const docs = snap.docs;
       if (snap.state !== 'online' || !docs) return;
@@ -4690,6 +4753,159 @@ export function createSyncRuntime(
     };
     stallTimer = setInterval(stallCheck, stallCheckMs);
     stallTimer.unref?.();
+
+    // ── The desktop park (2026-10-05) ─────────────────────────────────────
+    //
+    // A connected desktop is permanent activity to a cloud cell: every socket
+    // message and every 20 s poll renews its timer, and an open socket blocks
+    // expiry outright. So an idle desktop parks: it closes its sockets, its
+    // poll and its control channel, and the cell sleeps through its ordinary
+    // `sleepAfter`. The cell is never stopped under an open socket — the hub
+    // flushes before it closes sockets, and sleep has only ever been lossless
+    // because it happened with none attached.
+    //
+    // NEVER PARK BLIND: the first park needs a contract answer from the cell's
+    // own `/_cell/state` (`parseCellState`). A self-hosted hub or an old cell
+    // answers anything else, and this runtime then never parks — today's
+    // behaviour. Not in a cell (its studio IS the hub's neighbour), and only
+    // with a socket layer that can close and reopen.
+    const parkable =
+      !cellPairing &&
+      typeof (providerFactory as Partial<DisposableProviderFactory>).park === 'function' &&
+      typeof (providerFactory as Partial<DisposableProviderFactory>).unpark === 'function'
+        ? (providerFactory as DisposableProviderFactory)
+        : null;
+    if (parkable) {
+      const timings: ParkTimings = { ...PARK_TIMINGS, ...(opts.park?.timings ?? {}) };
+      const parkFetch = opts.park?.fetch ?? fetch;
+      let parkState: ParkState = initialParkState({ now: parkClock(), eligible: true });
+      /** Outbound work that must land before the sockets may close. */
+      const hasPendingWork = (): boolean => {
+        if (planePassInFlight || filePassTimer !== null || remotePollSoonTimer !== null) {
+          return true;
+        }
+        for (const p of providers.values()) {
+          if ((p as unknown as { hasUnsyncedChanges?: boolean }).hasUnsyncedChanges === true) {
+            return true;
+          }
+        }
+        // Saves, uploads and retries the other lanes report (attacker F1).
+        return hasSelfRetryingWork(store.get());
+      };
+      const doPark = (): void => {
+        parkedNow = true;
+        // Flush what we know; the pending-work check already proved nothing is
+        // in flight.
+        fileLedger?.flush();
+        if (remotePollTimer !== null) clearInterval(remotePollTimer);
+        remotePollTimer = null;
+        if (filePassTimer !== null) clearTimeout(filePassTimer);
+        filePassTimer = null;
+        if (remotePollSoonTimer !== null) clearTimeout(remotePollSoonTimer);
+        remotePollSoonTimer = null;
+        fileEventsCtl?.stop();
+        fileEventsCtl = null;
+        parkable.park?.();
+        store.updateParked({ since: Date.now() });
+        console.log(
+          `[sync] idle for ${Math.round(timings.afterMs / 60_000)} min — parked so the cloud project can sleep; the next change or click reconnects.`
+        );
+      };
+      const doUnpark = (): void => {
+        parkProbe?.abort();
+        parkProbe = null;
+        parkedNow = false;
+        store.updateParked(null);
+        // The watchdog measures from the last promotion; a park of hours must
+        // not read as hours of stall the moment the sockets reopen (#118).
+        lastPromotionAt = stallNow();
+        parkable.unpark?.();
+        if (remotePollTimer === null && !stopped) {
+          remotePollTimer = setInterval(pollRemote, REMOTE_POLL_MS);
+          remotePollTimer.unref?.();
+        }
+        if (!fileEventsCtl && makeFileEventsCtl) fileEventsCtl = makeFileEventsCtl();
+        // Each provider re-promotes itself on reconnect (`repromoteOnReconnect`
+        // via its status listener); this is the project half — discovery plus
+        // a full file-plane pass, which treats a moved journal epoch as a
+        // resync exactly as after any reconnect.
+        void remotePull?.().catch((err) => console.error('[sync] unpark resync failed:', err));
+        console.log('[sync] unparked — reconnecting to the cloud project.');
+      };
+      const doProbe = (): void => {
+        parkProbe?.abort();
+        const ac = new AbortController();
+        parkProbe = ac;
+        const timer = setTimeout(() => ac.abort(), 10_000);
+        timer.unref?.();
+        void (async () => {
+          let result: import('./park.ts').ProbeResult;
+          try {
+            const res = await parkFetch(`${linkedHub.url.replace(/\/+$/, '')}/_cell/state`, {
+              headers: { authorization: `Bearer ${token}`, 'x-maude-sync-park': '1' },
+              // The contract is a 200 JSON answer; a redirect is `unsupported`
+              // anyway, and the bearer must never follow one anywhere.
+              redirect: 'manual',
+              signal: ac.signal,
+            });
+            result = parseCellState(
+              res.status,
+              res.headers.get('content-type'),
+              (await res.text()).slice(0, 4_096)
+            );
+          } catch {
+            result = { kind: 'network-error' };
+          } finally {
+            clearTimeout(timer);
+          }
+          if (stopped || parkProbe !== ac) return;
+          parkProbe = null;
+          if (result.kind === 'unsupported' && parkState.phase === 'active') {
+            console.log(
+              '[sync] this hub cannot report whether it is asleep — staying connected (no park this session).'
+            );
+          }
+          dispatch({ type: 'probeResult', result, now: parkClock() });
+        })();
+      };
+      const run = (effects: ParkEffect[]): void => {
+        for (const effect of effects) {
+          if (stopped) return;
+          if (effect === 'park') {
+            // RE-CHECK AT THE MOMENT OF CLOSING. Pending work was sampled on
+            // the tick that sent the probe, up to 10 s ago; a poke or an edit
+            // in between must not have its timer cleared under it (F3).
+            if (hasPendingWork()) {
+              parkState = {
+                ...parkState,
+                phase: 'active',
+                pending: true,
+                parkedAt: null,
+                parkMark: null,
+                nextProbeAt: null,
+              };
+              continue;
+            }
+            doPark();
+          } else if (effect === 'unpark') doUnpark();
+          else doProbe();
+        }
+      };
+      const dispatch = (event: ParkEvent): void => {
+        if (stopped) return;
+        const step = parkReducer(parkState, event, timings);
+        parkState = step.state;
+        run(step.effects);
+      };
+      parkDispatch = dispatch;
+      parkUiUnsub = ctx.bus.on('ui:active', () => noteParkActivity('uiActivity'));
+      parkTimer = setInterval(() => {
+        const now = parkClock();
+        dispatch({ type: 'pendingChanged', pending: hasPendingWork(), now });
+        dispatch({ type: 'tick', now });
+      }, opts.park?.tickMs ?? 15_000);
+      parkTimer.unref?.();
+    }
 
     // ── Sync v2 Increment 2 — the poke, desktop side (DDR-226 §4) ──────────
     //
@@ -4788,25 +5004,29 @@ export function createSyncRuntime(
           // A ledger hub with the plane ON owns pushes; with the file-plane
           // flag OFF the legacy client still carries the DDR-217 assets lane.
           decidePushLane(filePlane === null);
-          fileEventsCtl = createCtlProvider({
-            url: linkedHub.url,
-            token,
-            onDocuments: () => documentDiscovery?.schedule(),
-            onPoke: () => {
-              // Reuses `pollRemoteSoon` rather than calling the file lanes
-              // directly, for two reasons: it already coalesces a burst into
-              // one pass (a fresh link appends hundreds of rows), and it is
-              // the exact path a reconnect takes — one behaviour to reason
-              // about instead of two that can drift.
-              //
-              // The PULL itself is unchanged: missing-only, idempotent, and
-              // re-validating everything it accepts. So a poke can at worst
-              // cost one early pass, and the scheduled poll remains the
-              // reconciler underneath it.
-              pokesSeen += 1;
-              pollRemoteSoon({ cooled: true });
-            },
-          });
+          makeFileEventsCtl = () =>
+            createCtlProvider({
+              url: linkedHub.url,
+              token,
+              onDocuments: () => documentDiscovery?.schedule(),
+              onPoke: () => {
+                // Reuses `pollRemoteSoon` rather than calling the file lanes
+                // directly, for two reasons: it already coalesces a burst into
+                // one pass (a fresh link appends hundreds of rows), and it is
+                // the exact path a reconnect takes — one behaviour to reason
+                // about instead of two that can drift.
+                //
+                // The PULL itself is unchanged: missing-only, idempotent, and
+                // re-validating everything it accepts. So a poke can at worst
+                // cost one early pass, and the scheduled poll remains the
+                // reconciler underneath it.
+                pokesSeen += 1;
+                pollRemoteSoon({ cooled: true });
+              },
+            });
+          // A desktop that parked before the capability probe answered keeps
+          // the channel closed; the unpark builds it.
+          if (!parkedNow) fileEventsCtl = makeFileEventsCtl();
           console.log(
             '[sync/ctl] file-event channel attached — cloud changes now arrive in seconds instead of on the 20 s tick.'
           );
@@ -4874,6 +5094,13 @@ export function createSyncRuntime(
     remotePollTimer = null;
     if (stallTimer !== null) clearInterval(stallTimer);
     stallTimer = null;
+    if (parkTimer !== null) clearInterval(parkTimer);
+    parkTimer = null;
+    parkProbe?.abort();
+    parkProbe = null;
+    parkDispatch = null;
+    parkUiUnsub?.();
+    parkUiUnsub = null;
     if (remotePollSoonTimer !== null) clearTimeout(remotePollSoonTimer);
     remotePollSoonTimer = null;
     documentDiscoveryUnsub?.();
@@ -5729,6 +5956,16 @@ export interface DisposableProviderFactory extends ProviderFactory {
    * handshake and never a re-attach.
    */
   reconnect(): void;
+  /**
+   * Close every shared socket and keep it closed — the desktop park
+   * (`sync/park.ts`). Providers stay attached and learn of the close through
+   * the socket's own `close` event, exactly as after a drop; nothing is
+   * destroyed, so `unpark()` costs a handshake and never a re-attach.
+   * Optional: a factory without it never parks.
+   */
+  park?(): void;
+  /** Bring parked sockets back through the ordinary reconnect path. */
+  unpark?(): void;
 }
 
 /**
@@ -6077,6 +6314,37 @@ export function createDefaultProviderFactory(
           socket.emit('close', { event: { code: 4408, reason: 'forced' } });
         } catch (err) {
           console.warn(`[sync] socket reconnect failed: ${(err as Error).message}`);
+        }
+      }
+    },
+    park(): void {
+      for (const socket of allSockets()) {
+        try {
+          // `disconnect()` IS right here, where it is wrong in `reconnect()`:
+          // it sets `shouldConnect = false` so the close does NOT re-arm, which
+          // is the whole point of parking. The raw close still emits `close`,
+          // so every provider resets `isAuthenticated`/`synced` as after any
+          // drop.
+          socket.disconnect();
+        } catch (err) {
+          console.warn(`[sync] socket park failed: ${(err as Error).message}`);
+        }
+      }
+    },
+    unpark(): void {
+      for (const socket of allSockets()) {
+        try {
+          // THE WEDGE (see `reconnect()`): `connect()` returns early while the
+          // status still reads `connected`, ABOVE the line that restores
+          // `shouldConnect`. A park's close normally landed long ago; if it has
+          // not, restore the flag and let that close re-arm the socket itself.
+          if (socket.status === 'connected') {
+            socket.shouldConnect = true;
+            continue;
+          }
+          void Promise.resolve(socket.connect()).catch(() => {});
+        } catch (err) {
+          console.warn(`[sync] socket unpark failed: ${(err as Error).message}`);
         }
       }
     },

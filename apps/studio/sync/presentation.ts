@@ -26,6 +26,8 @@ export type SyncPhase =
   | 'refused'
   | 'offline'
   | 'nothing-syncable'
+  /** The desktop closed its link on purpose so the cloud project can sleep. */
+  | 'parked'
   /** The link works, but part of the project did not get through. */
   | 'attention';
 
@@ -85,6 +87,8 @@ export interface SyncStatusLike extends Partial<SyncStatusSnapshot> {
   accepted?: unknown;
   /** An AI action open or held (plan T16) — validated below. */
   aiAction?: unknown;
+  /** The desktop park (`sync/park.ts`) — validated below. */
+  parked?: unknown;
 }
 
 /** Hub-supplied text that reaches a UI. Bounded, never markup. */
@@ -456,6 +460,29 @@ export function syncPresentation(
     if (sourceAttention) return sourceAttention;
   }
 
+  // PARKED IS A CHOICE, NOT AN OUTAGE. The desktop closed its own link so the
+  // cloud project can sleep (`sync/park.ts`); calling that "offline" or
+  // "stalled" would be the exact lie DDR-214 exists to end. It ranks below
+  // refusals and source conflicts (sticky, they need a person) and above the
+  // connection states it deliberately produced.
+  const parkedSince = (status.parked as { since?: unknown } | undefined)?.since;
+  if (typeof parkedSince === 'number' && Number.isFinite(parkedSince) && parkedSince > 0) {
+    // Something waiting on a person (a held change, a blocked file) is still
+    // the headline while parked — "Nothing to do" over it would be a lie
+    // (attacker review F1). Work that retries on its own never parks at all
+    // (`hasSelfRetryingWork`).
+    const waiting = attention(false);
+    if (waiting) return waiting;
+    return {
+      phase: 'parked',
+      online: false,
+      label: 'asleep',
+      title: 'Cloud project asleep. Wakes on your next change.',
+      next: 'Nothing to do — edit or click anywhere and it reconnects.',
+      names: [],
+    };
+  }
+
   // Otherwise an unreachable hub outranks every count. Whatever the documents
   // last said, nothing is moving — and "72 synced" over a dead socket is the
   // exact shape of lie this module exists to stop.
@@ -671,4 +698,22 @@ function readAiAction(raw: unknown): { state: 'open' | 'held'; canvases: number 
   if (r.state !== 'open' && r.state !== 'held') return null;
   const canvases = Array.isArray(r.canvases) ? Math.min(r.canvases.length, 10_000) : 0;
   return { state: r.state, canvases };
+}
+
+/**
+ * Work that finishes on its own if the link stays up — files or media still
+ * moving or failed-and-retrying, a save waiting for the project's answer, an
+ * AI edit in progress. The desktop park waits for it (`sync/park.ts`): closing
+ * the link over it would stop the retry and leave teammates without the work.
+ * Held/blocked items wait on a PERSON, not on time, so they do not block a
+ * park (they would keep a cell awake forever); `syncPresentation` still shows
+ * them over the parked headline.
+ */
+export function hasSelfRetryingWork(status: SyncStatusLike | null | undefined): boolean {
+  if (!status) return false;
+  const lanes = readLanes(status);
+  if (lanes.moving || lanes.failedFiles > 0 || lanes.failedMedia > 0) return true;
+  if (readAcceptedPending(status.accepted)) return true;
+  const ai = status.aiAction as { state?: unknown } | undefined;
+  return ai?.state === 'open';
 }

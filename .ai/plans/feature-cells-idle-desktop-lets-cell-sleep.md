@@ -238,3 +238,17 @@ UI change: one status string in the Sync panel. Add a desktop E2E scenario `sync
 - [ ] Old desktop × new cell and new desktop × old cell / self-host behave as today.
 - [ ] Released. One night with a desktop left open measures ≈ 0 instance-hours beyond genuine wakes. Recorded in STATE.md and L7c.
 - [ ] Decisions recorded in kg.
+
+---
+
+## Execution Progress (2026-10-05)
+
+- ✅ Task 1: Bug A — ledger writes only on change; plane trigger ignores runtime state (`isLocalWorkRel`). Tests red against HEAD, green now.
+- ✅ Task 2: Bug B — hub `createCtlKeepalive` (15 s `{"t":"ka"}`); client ignores it. Real server + provider test: idle socket recycles without it, stays up with it.
+- ✅ Task 3: hub `cell-change-signal.mjs` → `POST project-store.internal/cell/changed` → DO `noteChange()`.
+- ✅ Task 4: DO answers `GET /_cell/state` before `wakePolicy` (`isCellStateProbe`, `cellStateAnswer`). Rig check still open (see Task 7).
+- ✅ Task 5: `sync/park.ts` reducer + table tests.
+- ✅ Task 6: runtime wiring (factory `park()`/`unpark()`, parked-aware poll/plane/watchdog, `ui:active` presence from the studio client, status `parked` + `statusbar-sync` testid). Integration test covers the full park → remote change → unpark → park → local edit → unpark cycle.
+- ✅ Close-out security review: defender PASS WITH SUGGESTIONS (LOW-2/3 fixed), attacker NEEDS FIXES → F1/F2/F3/F6 fixed with fail-first tests; F4 (HMAC probe) and F5 (stat sweep while parked) are follow-ups; verdicts in kg.
+- ⏳ Task 7: release in progress (2026-10-05); rig + overnight measurement still open. Check during the measurement: hub `afterLoadDocument` writes / boot `walkImport` appends must not raise `noteChange` on a plain wake (attacker creativity finding).
+- ✅ Task 8: kg `maude/cells-idle-desktop-parks-not-cell-forced`, `maude/cells-change-signal-and-cell-state-probe` (both EXTEND `cells-members-only-wake-as-built`).

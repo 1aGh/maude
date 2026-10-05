@@ -486,6 +486,58 @@ export function wakePolicy({
 export const WAKE_PATH = '/_cell/wake';
 
 /**
+ * THE PARK PROBE (2026-10-05, "an idle desktop lets its cloud cell sleep").
+ *
+ * A desktop that parked itself — sockets and poll closed so the cell can sleep
+ * through its ordinary `sleepAfter` — asks here, every minute, whether it
+ * should come back. The DO answers by itself: never `containerFetch`, never
+ * `renewActivityTimeout`, never a start. So asking costs a Worker invocation
+ * and no container time, and a probe can neither wake nor warm the cell.
+ *
+ * Handled before `wakePolicy`, like `WAKE_PATH`: every `/_*` path wakes a
+ * sleeping cell, and this one exists precisely not to.
+ *
+ * GATED on what only the sync client sends — its bearer (which the DO cannot
+ * verify; the hub holds the tokens) and `x-maude-sync-park: 1`. Anything else
+ * falls through to today's behaviour unchanged. What it reveals is small on
+ * purpose: awake/asleep is already public under members-only wake, and the
+ * last-change time is floored to the minute.
+ */
+export const CELL_STATE_PATH = '/_cell/state';
+export const SYNC_PARK_HEADER = 'x-maude-sync-park';
+
+/** Is this request the park probe the DO answers itself? */
+export function isCellStateProbe({ method, url, headers, canvas = false }) {
+  if (method !== 'GET' || canvas) return false;
+  let path;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    return false;
+  }
+  if (path !== CELL_STATE_PATH) return false;
+  if (headers?.get?.(SYNC_PARK_HEADER) !== '1') return false;
+  return /^Bearer\s+\S+/i.test((headers?.get?.('authorization') ?? '').trim());
+}
+
+export function floorToMinute(ms) {
+  return Number.isFinite(ms) && ms > 0 ? Math.floor(ms / 60_000) * 60_000 : null;
+}
+
+/**
+ * The probe's answer. `at` is the DO's own clock, floored the same way, so a
+ * desktop compares `changedAt` against a mark on the SAME clock rather than
+ * its own (a skewed laptop clock must not hide a change).
+ */
+export function cellStateAnswer({ running, changedAt, now }) {
+  return {
+    state: running === true ? 'running' : 'asleep',
+    changedAt: floorToMinute(changedAt),
+    at: floorToMinute(now),
+  };
+}
+
+/**
  * Paths an anonymous visitor may open on a sleeping cell WITHOUT the click.
  *
  * Every `/_*` route (studio, canvas runtime, sockets, project files); the

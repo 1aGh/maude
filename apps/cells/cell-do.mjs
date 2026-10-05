@@ -21,8 +21,10 @@ import {
   CANVAS_ORIGIN_HEADER,
   CELL_PORT,
   cellEnv,
+  cellStateAnswer,
   deriveSecret,
   fetchTenantConfig,
+  isCellStateProbe,
   isNavigation,
   isValidTenantId,
   needsStartupState,
@@ -52,6 +54,11 @@ import {
  * below (30 min — "how big may a project be", see the comment there).
  */
 const START_DEADLINE_MS = 1_800_000;
+
+/** DO storage key: the last content change the hub reported (`noteChange`). */
+const CHANGED_AT_KEY = 'changedAt';
+/** At most one `changedAt` write per this window, whoever calls. */
+const CHANGE_WRITE_FLOOR_MS = 10_000;
 
 export {
   CELL_PORT,
@@ -124,6 +131,24 @@ export class MaudeCell extends Container {
     return store.projectStore(method, args);
   }
 
+  /**
+   * RPC from this cell's own outbound route: the hub says a content change
+   * landed. Kept as the latest time seen, on the DO's own clock, for the park
+   * probe (`/_cell/state`). Never touches the container or its timer.
+   */
+  async noteChange() {
+    const now = Date.now();
+    const prev = (await this.ctx.storage.get(CHANGED_AT_KEY)) ?? 0;
+    // Capped here as well as in the hub: anything in the container can call
+    // this, and each write is storage the tenant pays for. A parked desktop
+    // parked ≥ 20 min after the last change, so the first change after a park
+    // always lands; a skipped one is inside the same burst.
+    if (now > prev && now - prev >= CHANGE_WRITE_FLOOR_MS) {
+      await this.ctx.storage.put(CHANGED_AT_KEY, now);
+    }
+    return { ok: true };
+  }
+
   async restart() {
     // DROP THE CACHED CREDENTIAL TOO, not just the container.
     //
@@ -160,6 +185,28 @@ export class MaudeCell extends Container {
 
     const hostname = new URL(request.url).hostname;
     const canvas = request.headers.get(CANVAS_ORIGIN_HEADER) === '1';
+
+    // THE PARK PROBE — answered here, by the DO alone. No `containerFetch`, no
+    // `renewActivityTimeout`, no start: asking must never wake or warm the
+    // cell, or a parked desktop would keep it up exactly as an open one did.
+    // See `isCellStateProbe` in cell-config.mjs.
+    if (
+      isCellStateProbe({
+        method: request.method,
+        url: request.url,
+        headers: request.headers,
+        canvas,
+      })
+    ) {
+      return Response.json(
+        cellStateAnswer({
+          running: this.ctx.container?.running,
+          changedAt: await this.ctx.storage.get(CHANGED_AT_KEY),
+          now: Date.now(),
+        }),
+        { headers: { 'cache-control': 'no-store' } }
+      );
+    }
 
     // "OPEN PROJECT" FROM THE ASLEEP PAGE — the one anonymous request that may
     // start a cell (members-only wake, 2026-10-04). Answered here, never

@@ -27,7 +27,7 @@ import {
   resolveCellCtl,
   toWsUrl,
 } from '../sync/ctl-provider.ts';
-import { parsePoke } from '../sync/poke.ts';
+import { CTL_KEEPALIVE_FRAME, isKeepalive, parsePoke } from '../sync/poke.ts';
 
 const CELL_ENV = {
   MAUDE_WORKSPACE_MODE: '1',
@@ -182,6 +182,42 @@ describe('createCtlProvider', () => {
     expect(ctl.malformed()).toBe(2);
     ctl.stop();
     expect(f.destroyed()).toBe(true);
+  });
+
+  test('the hub keep-alive is neither a poke nor malformed — it is ignored', async () => {
+    // Bug B (2026-10-05): the hub now speaks on an idle control socket every
+    // 15 s so the provider's silence check stops recycling it. The receiver
+    // must not act on that frame, and must not count it as a lying hub.
+    const f = fakeProvider();
+    const heads: number[] = [];
+    let documents = 0;
+    const ctl = createCtlProvider({
+      url: 'http://127.0.0.1:1',
+      token: 't',
+      onPoke: (h) => heads.push(h),
+      onDocuments: () => {
+        documents += 1;
+      },
+      log: { log() {}, warn() {}, error() {} },
+      connect: () => f.provider,
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    for (let i = 0; i < 5; i += 1) f.emit('stateless', { payload: CTL_KEEPALIVE_FRAME });
+    expect(heads).toEqual([]);
+    expect(documents).toBe(0);
+    expect(ctl.received()).toBe(0);
+    expect(ctl.malformed()).toBe(0);
+    ctl.stop();
+  });
+
+  test('the keep-alive frame is a twin of the hub constant, and never a poke', () => {
+    expect(CTL_KEEPALIVE_FRAME).toBe(hub.CTL_KEEPALIVE_FRAME);
+    expect(isKeepalive(hub.CTL_KEEPALIVE_FRAME)).toBe(true);
+    // A v1.6.12 desktop's parser refuses it (one log line) instead of running
+    // a pass — the reason it is not dressed as `{t:'files'}`.
+    expect(parsePoke(CTL_KEEPALIVE_FRAME)).toBeNull();
+    expect(isKeepalive('{"t":"ka","x":1}')).toBe(false);
   });
 
   test('a handler that throws never escapes the channel', async () => {

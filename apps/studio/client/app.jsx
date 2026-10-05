@@ -5269,6 +5269,7 @@ function StatusBar({
     const detail = p.names.length ? ` (${p.names.join(', ')})` : '';
     return {
       online: p.online,
+      phase: p.phase,
       label: p.label,
       title: `${p.title}${detail}${p.next ? ` — ${p.next}` : ''}`,
     };
@@ -5281,7 +5282,12 @@ function StatusBar({
         aria-hidden="true"
       />
       <span className="lbl">hub sync</span>
-      <span className="val" title={syncSlot.title}>
+      <span
+        className="val"
+        title={syncSlot.title}
+        data-testid="statusbar-sync"
+        data-phase={syncSlot.phase}
+      >
         {syncSlot.label}
       </span>
     </>
@@ -12265,6 +12271,26 @@ function App() {
       if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj));
     } catch {}
   }
+
+  // A PERSON IS HERE — the desktop park's presence signal (sync/park.ts). A
+  // parked desktop has closed its cloud link so the project can sleep; real
+  // input brings it back, and keeps an attended desktop from parking. Real
+  // input only (not focus): a window left focused overnight is not a person.
+  // At most one frame per 30 s, so the socket hears a heartbeat, not a stream.
+  useEffect(() => {
+    let last = 0;
+    const onInput = () => {
+      const now = Date.now();
+      if (now - last < 30_000) return;
+      last = now;
+      wsSend({ type: 'presence' });
+    };
+    const events = ['pointerdown', 'keydown', 'wheel'];
+    for (const e of events) window.addEventListener(e, onInput, { capture: true, passive: true });
+    return () => {
+      for (const e of events) window.removeEventListener(e, onInput, { capture: true });
+    };
+  }, []);
 
   // ----- Phase 27 (E2) — git actions -----
   // All write actions POST same-origin (the dev-server's sameOriginWrite + the

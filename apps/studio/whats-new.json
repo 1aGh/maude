@@ -2,6 +2,15 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "idle-desktop-lets-cloud-sleep",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "An idle desktop lets your cloud project sleep",
+      "summary": "After 20 minutes with no edits or input, the desktop closes its cloud connection and the status bar reads “asleep”. Your next change or click reconnects, and anything teammates changed meanwhile arrives.",
+      "surface": "design-ui"
+    },
+    {
       "id": "cloud-loading-states-and-faster-tree",
       "version": "1.6.5",
       "date": "2026-10-02",

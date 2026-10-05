@@ -90,6 +90,7 @@ import {
   identityForHealth,
   readStudioReleaseVersion,
 } from './bundle-identity.mjs';
+import { createCellChangeSignal } from './cell-change-signal.mjs';
 import {
   answerRevocationNudge,
   handleExportRoute,
@@ -122,6 +123,7 @@ import {
   PROJECT_FILE_PREFIX,
 } from './file-manifest.mjs';
 import {
+  createCtlKeepalive,
   createFilesPoke,
   dropCtlAwareness,
   isFilesCtlDoc,
@@ -1894,6 +1896,13 @@ export function createHub(config = {}) {
       dropCtlAwareness({ document, states });
     },
 
+    // A content change tells the cell's DO, so a parked desktop's
+    // `/_cell/state` probe can see it without waking anything. Throttled and
+    // fire-and-forget; a no-op on a self-hosted hub. See cell-change-signal.mjs.
+    async onChange({ documentName }) {
+      if (!isFilesCtlDoc(documentName)) cellChange.note();
+    },
+
     // DDR-241 §7 / T7 — a permission cached on a connection is not a boundary.
     // Re-assert read-only on EVERY message in accepted-revisions mode, so an
     // already-open socket (or one whose flag was loosened) cannot write either.
@@ -1939,6 +1948,14 @@ export function createHub(config = {}) {
   const filesPoke = createFilesPoke({ instance: server });
   const documentsPoke = createFilesPoke({ instance: server, documentsOnly: true, coalesceMs: 50 });
   const documentEvents = createDocumentEvents({ poke: documentsPoke });
+  // Keeps an idle control socket from recycling every ~33 s (and re-running
+  // discovery each time). See `createCtlKeepalive`.
+  const ctlKeepalive = createCtlKeepalive({ instance: server });
+  ctlKeepalive.start();
+  const cellChange = createCellChangeSignal({
+    url: process.env.MAUDE_PROJECT_STORE_URL || null,
+    token: process.env.MAUDE_PROJECT_STORE_TOKEN || null,
+  });
 
   // ---- accepted revisions (DDR-241) ---------------------------------------
   // The store's durable home (DDR-241 §2): a cell's Durable Object through
@@ -2317,6 +2334,7 @@ export function createHub(config = {}) {
         // container watcher gap — structurally, and for the WHOLE fleet rather
         // than for the one pilot tenant.
         filesPoke.schedule(journal.head());
+        cellChange.note();
       });
 
       // The reconciler is the TRUTH and the hooks are the optimization: a
@@ -2346,6 +2364,8 @@ export function createHub(config = {}) {
       }
       filesPoke.stop();
       documentsPoke.stop();
+      ctlKeepalive.stop();
+      cellChange.stop();
       await journalTail?.stop();
       journalTail = null;
     },

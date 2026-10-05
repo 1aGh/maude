@@ -196,6 +196,63 @@ export function createFilesPoke({
 }
 
 /**
+ * THE KEEP-ALIVE. An idle `maude.files` socket hears nothing — presence is
+ * dropped on this document (`dropCtlAwareness`) and the Hocuspocus 4.3 server
+ * never pings — so the provider's 30 s silence check closed and reopened it
+ * every ~33 s, and every reopen re-ran document discovery: two extra pulls per
+ * cycle against a cell that therefore never slept (2026-10-05).
+ *
+ * A tiny stateless frame every 15 s keeps the silence check quiet on a healthy
+ * socket while leaving it ON for a dead one (issue #118). The frame carries
+ * nothing; a current client ignores it by shape (`isKeepalive`), and a v1.6.12
+ * client's `parsePoke` refuses it as malformed — one log line, no action —
+ * which is why it is NOT dressed as a poke: any `{t:'files'}` frame would make
+ * an old peer run a pass every 15 s.
+ */
+export const CTL_KEEPALIVE_FRAME = '{"t":"ka"}';
+export const CTL_KEEPALIVE_MS = 15_000;
+
+/**
+ * One interval per hub, addressing the ONE control document when a peer has
+ * it open. Never throws; nothing open is the ordinary idle state.
+ */
+export function createCtlKeepalive({
+  instance,
+  intervalMs = CTL_KEEPALIVE_MS,
+  log = console,
+  setIntervalImpl = setInterval,
+  clearIntervalImpl = clearInterval,
+}) {
+  let timer = null;
+  let sent = 0;
+  const tick = () => {
+    const doc = documentMap(instance)?.get(FILES_CTL_DOC);
+    if (!doc) return;
+    try {
+      doc.broadcastStateless(CTL_KEEPALIVE_FRAME);
+      sent += 1;
+    } catch (err) {
+      log.error?.(`[files-ctl] keep-alive broadcast failed: ${err.message}`);
+    }
+  };
+  return {
+    start() {
+      if (timer !== null) return;
+      timer = setIntervalImpl(tick, intervalMs);
+      timer?.unref?.();
+    },
+    stop() {
+      if (timer === null) return;
+      clearIntervalImpl(timer);
+      timer = null;
+    },
+    /** Tests: one tick now. */
+    tick,
+    sent: () => sent,
+  };
+}
+
+/**
  * Parse a poke frame from the wire.
  *
  * The payload comes off a socket, so it is UNTRUSTED input like everything
