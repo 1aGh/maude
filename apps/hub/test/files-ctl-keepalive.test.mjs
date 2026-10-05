@@ -16,7 +16,7 @@
 //     pass every 15 s).
 
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { after, describe, it } from 'node:test';
 
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider';
 import { Server } from '@hocuspocus/server';
@@ -129,6 +129,13 @@ async function connectsOver({ keepaliveMs, silenceMs, windowMs }) {
   provider.awareness?.setLocalState(null);
   await new Promise((r) => setTimeout(r, windowMs));
   ka?.stop();
+  // TEARDOWN MUST NOT LEAVE A RETRY BEHIND. A close landed shortly before
+  // `destroy()` leaves `onClose`'s `setTimeout(connect, delay)` pending, and
+  // `connect()` sets `shouldConnect` back to true — so the socket retries a
+  // destroyed server forever and this file's process never exits (it held CI's
+  // Test step to its 30-minute limit on the v1.6.13 release commit).
+  socket.connect = async () => {};
+  socket.cancelWebsocketRetry?.();
   provider.destroy();
   socket.destroy();
   await server.destroy();
@@ -145,4 +152,14 @@ describe('against a real server and provider', () => {
     const opens = await connectsOver({ keepaliveMs: 0, silenceMs: 1_200, windowMs: 4_000 });
     assert.ok(opens >= 2, `expected the idle socket to be recycled, saw ${opens} open(s)`);
   });
+});
+
+// BELT AND BRACES. Every assertion above is about a real `@hocuspocus/provider`
+// socket, whose retry machinery is not ours to stop completely: on CI's Linux
+// runner this file's tests all reported `ok` and its process then stayed alive
+// until the 30-minute job limit (v1.6.13 release commit). Once every test here
+// has finished (the early-exit guard has already recorded that), nothing in
+// this file may keep the process up. Unref'd: a clean file exits on its own.
+after(() => {
+  setTimeout(() => process.exit(process.exitCode ?? 0), 500).unref();
 });
