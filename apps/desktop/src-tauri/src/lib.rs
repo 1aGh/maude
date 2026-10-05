@@ -28,6 +28,9 @@ mod project_resolve;
 mod server_json;
 mod sidecar;
 mod updater;
+// WKWebView-only: recover from a crashed web content process instead of a white window.
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+mod web_process;
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64};
@@ -684,6 +687,12 @@ pub fn run() {
     // unaffected. See the `desktop-e2e` skill + the harness in apps/desktop/e2e/.
     #[cfg(debug_assertions)]
     let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
+
+    // WebKit kills the page's web content process under memory pressure (a heavy
+    // canvas) and WKWebView then sits on a white window. Reload it — rate-limited,
+    // see web_process.rs.
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    let builder = builder.on_web_content_process_terminate(web_process::on_terminate);
 
     // Multiplayer E2E must keep the normal cross-origin canvas containment ON:
     // disabling it also disables TSX sync. Opt-in DOM observation in test builds
