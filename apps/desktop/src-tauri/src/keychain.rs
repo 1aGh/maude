@@ -170,8 +170,13 @@ fn respond(req: tiny_http::Request, status: u16, body: String) {
 
 /// Whether a GitHub token is currently stored. Drives the IdentityBar's signed-in
 /// state on launch. Returns only a boolean — never the token.
+///
+/// `async` on purpose: Tauri runs a sync command on the MAIN thread, and a
+/// keychain read can park on a macOS access prompt — which froze the whole
+/// window (and every main-thread callback, e.g. web_process.rs crash recovery)
+/// until the user answered it. Async commands run on the async runtime instead.
 #[tauri::command]
-pub fn github_is_signed_in() -> bool {
+pub async fn github_is_signed_in() -> bool {
     // E2E (debug builds only): reading the keychain here makes macOS raise a
     // "Maude wants to use your confidential information" prompt, and because a
     // debug build is re-signed on every `tauri build --debug`, "Always Allow"
@@ -189,6 +194,6 @@ pub fn github_is_signed_in() -> bool {
 
 /// Sign out — delete the keychain token. Idempotent.
 #[tauri::command]
-pub fn github_sign_out() -> Result<(), String> {
+pub async fn github_sign_out() -> Result<(), String> {
     delete_token()
 }
