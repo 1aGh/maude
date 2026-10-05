@@ -1,11 +1,11 @@
 {
   "generated": "2026-10-05T00:00:00.000Z",
-  "version": "1.6.13",
+  "version": "1.7.0",
   "entries": [
     {
       "id": "annotation-lock",
-      "version": null,
-      "date": null,
+      "version": "1.7.0",
+      "date": "2026-10-05",
       "kind": "feature",
       "title": "Lock whiteboard items in place",
       "summary": "Select a sticky, shape, image or section and press ⌘⇧L (or use the lock button) to pin it. A locked item can't be dragged, resized, erased or deleted by accident, and marquee selection skips it. Unlock it the same way.",

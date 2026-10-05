@@ -332,13 +332,6 @@ importers:
 
 packages:
 
-
-
-
-
-
-
-
   '@agentclientprotocol/claude-agent-acp@0.57.0':
     resolution: {integrity: sha512-CvfPwCFmMeOw3elh1UWKL09sU0z8z+qsmmiFND33jHvMo9hSI5gKC4tlXkp9oU+o6ZIMABXmRjHFicVYOu2RkQ==}
     engines: {node: '>=22'}
@@ -6440,13 +6433,6 @@ packages:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
 snapshots:
-
-
-
-
-
-
-
 
   '@agentclientprotocol/claude-agent-acp@0.57.0(@anthropic-ai/sdk@0.105.0(zod@4.4.3))(@modelcontextprotocol/sdk@1.26.0(zod@4.4.3))':
     dependencies:
