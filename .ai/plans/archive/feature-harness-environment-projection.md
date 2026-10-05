@@ -1,6 +1,6 @@
 ---
 name: feature-harness-environment-projection
-status: partial — implementation released; active-machine cutover and retirement pending
+status: closed — T0–T9 released; T10–T13 abandoned (DDR-245)
 created: 2026-08-31
 decisions:
   - Claude Code and the Maude Claude plugin corpus remain the canonical authoring source; Codex and OpenCode receive generated target-native projections.
@@ -534,3 +534,10 @@ Run these commands to confirm zero regressions:
 - Which Maude plugin assets must be added to the npm surface versus resolved from the installed Claude marketplace cache?
 
 These are implementation-spike questions, not permission to weaken the safety contract. A negative answer changes a mapping to `degraded` or `unsupported`; it does not justify emulation or overwrite.
+
+## Closed 2026-10-05
+
+T0–T9 shipped in v1.2.0. T10–T13 are not pursued: OpenCode and Codex were an experiment the owner has ended, so there
+is nothing to cut over or soak ([DDR-245](../../archive/decisions/DDR-245-harness-projection-cutover-abandoned.md)).
+The redundant `studyfi-design/plugins/opencode-claude-parity/` was removed (studyfi-design `522ba70`). `maude harness`
+stays in the product; the Dotfiles bridge is left to the owner.

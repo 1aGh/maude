@@ -2280,6 +2280,17 @@
       "phaseKey": null
     },
     {
+      "id": "feature-harness-environment-projection",
+      "title": "Feature: Harness environment projection",
+      "status": "done",
+      "shipTarget": null,
+      "date": "2026-10-05",
+      "summary": "Validate current Claude Code, OpenCode, and Codex schemas before implementing. Never infer target behavior from the existing best-effort adapter when the current target documentation or executable...",
+      "planPath": ".ai/plans/archive/feature-harness-environment-projection.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
       "id": "followup-annotations-v2",
       "title": "Follow-up: annotations v2 — what the v1.5.0 close left open",
       "status": "done",
@@ -2320,17 +2331,6 @@
       "date": null,
       "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. The Rust shell is the centre of gravity here — read apps/desktop/src-tauri/src/sidecar...",
       "planPath": ".ai/plans/feature-desktop-project-tabs-and-identity-profiles.md",
-      "archived": false,
-      "phaseKey": null
-    },
-    {
-      "id": "feature-harness-environment-projection",
-      "title": "Feature: Harness environment projection",
-      "status": "planned",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Validate current Claude Code, OpenCode, and Codex schemas before implementing. Never infer target behavior from the existing best-effort adapter when the current target documentation or executable...",
-      "planPath": ".ai/plans/feature-harness-environment-projection.md",
       "archived": false,
       "phaseKey": null
     },

@@ -11,14 +11,14 @@ historical context and is not an active task list.
 | [`cloud-live-payments-rollout.md`](./cloud-live-payments-rollout.md) | Open; L1–L8 remain gated on legal/accounting, Stripe live-mode setup, and live proofs. |
 | [`feature-cells-idle-desktop-lets-cell-sleep.md`](./feature-cells-idle-desktop-lets-cell-sleep.md) | Released in v1.6.13; one measured night with an open desktop and the kg decisions remain. |
 | [`feature-desktop-project-tabs-and-identity-profiles.md`](./feature-desktop-project-tabs-and-identity-profiles.md) | Planned; implementation not started. |
-| [`feature-harness-environment-projection.md`](./feature-harness-environment-projection.md) | Partial; T0–T9 released, T10–T13 cutover/soak/retirement remain. |
 | [`feature-local-media-generation.md`](./feature-local-media-generation.md) | Planned; native keychain, local adapters, and desktop E2E not started. |
 | [`feature-post-1.0-hardening-backlog.md`](./feature-post-1.0-hardening-backlog.md) | Open backlog; resolved entries stay as evidence, remaining program is not empty. |
 | [`feature-video-tracking-and-stabilization.md`](./feature-video-tracking-and-stabilization.md) | Planned; even the `s3Assets` JSON-sidecar prerequisite remains open. |
 
 Rejected or completed plans live under [`archive/`](./archive/), including the
 unimplemented, stale `/goal` integration proposal rejected on 2026-09-22, and
-`followup-annotations-v2.md`, closed by decision on 2026-10-05 (DDR-244).
+`followup-annotations-v2.md`, closed by decision on 2026-10-05 (DDR-244), and
+`feature-harness-environment-projection.md`, cutover abandoned on 2026-10-05 (DDR-245).
 
 ## Reliable project multiplayer — planned 2026-09-13
 
