@@ -144,6 +144,19 @@ export const config: WebdriverIO.Config = {
     const { Agent, setGlobalDispatcher } = driverRequire('undici');
     setGlobalDispatcher(new Agent());
   },
+  // @wdio/tauri-service runs `ensureActiveWindowFocus` before every find/click.
+  // It asks the app for window states through `window.__wdio_original_core__`,
+  // which only the `tauri-plugin-wdio` bridge installs — this app ships the
+  // embedded-WebDriver plugin alone, so every command first waited 5 s for a
+  // bridge that never comes. That silently ate the whole budget of any
+  // `waitForDisplayed({ timeout: 5_000 })` (report-bug-dialog failed on a menu
+  // item that was on screen). An explicit switchWindow marks the session as
+  // user-switched, and the service then skips the focus check for good.
+  // beforeSuite, not before: the service attaches `browser.tauri` in its own
+  // `before`, which runs after a config-level one.
+  async beforeSuite() {
+    await browser.tauri.switchWindow('main');
+  },
   tsConfigPath: join(HERE, 'tsconfig.json'),
 
   specs: DEFAULT_SPECS,
