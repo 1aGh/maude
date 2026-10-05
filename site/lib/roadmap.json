@@ -3,17 +3,6 @@
   "currentPhase": null,
   "phases": [
     {
-      "id": "feature-annotation-lock",
-      "title": "Feature: Lock / unlock annotation elements",
-      "status": "done",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
-      "planPath": ".ai/plans/archive/feature-annotation-lock.md",
-      "archived": true,
-      "phaseKey": null
-    },
-    {
       "id": "phase-1-contribute-infra-changesets",
       "title": "Phase 1: Contribute infrastructure + Changesets bootstrap",
       "status": "done",
@@ -2287,6 +2276,17 @@
       "date": "2026-10-04",
       "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. Read the comments in apps/cells/cell-do.mjs in full before touching the wake path. Alm...",
       "planPath": ".ai/plans/archive/feature-cells-no-wake-for-scanners.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
+      "id": "feature-annotation-lock",
+      "title": "Feature: Lock / unlock annotation elements",
+      "status": "done",
+      "shipTarget": null,
+      "date": "2026-10-05",
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
+      "planPath": ".ai/plans/archive/feature-annotation-lock.md",
       "archived": true,
       "phaseKey": null
     },
