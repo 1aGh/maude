@@ -24,6 +24,18 @@ Phase A of the gate set found six silent bugs by pointing a typechecker at 52 fi
 **Active plan:** —
 **Active task:** —
 
+_2026-10-05:_ **measured — night after v1.6.12 (Alligators, 20–07Z): 10.55 instance-hours, awake all night. The cause was a member's desktop, not bots.**
+- **Timeline:**
+  - the release rolled the cell at 20:05;
+  - from then until 05:07 a paired desktop (Bun/1.3.3 with a bearer, Internet4you.cz from Tvrdonice, the owner's machine) polled without pause: `GET /api/journal` every ~2 s, `/v1/bootstrap` and `/api/documents` every ~12.5 s, and a sync-socket reconnect (`GET /` upgrade) about every 33 s, so ~42 requests/min;
+  - polling stopped at 05:07:45 (the Mac slept), and the cell slept at 05:27:49, exactly `sleepAfter` later. Idle sleep works.
+- **Wakes after that:**
+  - 05:39 a scanner sweep (TC Datacenter, Amsterdam) on `canvas-alligators.cloud.maude.sh`. The canvas origin always wakes, a gap not covered by v1.6.12; added to the F1–F3 follow-up;
+  - 06:34 a member's sync socket (O2 Czech), legitimate.
+- **Members-only wake** had nothing to hold overnight on the main origin.
+- **L7c answer:** a cell does NOT sleep while a paired desktop sits open and idle. Its background sync renews the activity timer forever. Next: idle-aware desktop sync, or sync traffic that does not renew `sleepAfter`.
+- The ~33 s socket reconnect cadence is itself suspicious (a socket that keeps dropping?).
+
 _2026-10-04:_ **released — v1.6.12, members-only wake** | all 6 tag pipelines green; the fleet rolled (Alligators `releaseVersion 1.6.12`; render `v1.6.12`). design.studyfi.com → v1.6.12 over SSM (checkpoint `/opt/maude-hub/pre-v1.6.12-20261004T200826Z`; health OK, studio ready, 8 peers, 131 canvases). The release commit missed the `site/lib/whats-new.json` regen (Quality drift gate red), fixed in `08c856a0`. Background: the Task 6 decision from `archive/feature-cells-no-wake-for-scanners.md`, built directly at the owner's request without a separate plan.
 - **Behavior on a sleeping cell:**
   - an anonymous browser gets "This project is asleep" with an **Open project** button (form `POST /_cell/wake` → start → 303 back);

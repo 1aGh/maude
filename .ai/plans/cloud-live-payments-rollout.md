@@ -119,6 +119,13 @@ stranger's card can be charged. L5–L7 are the proof that it worked.
   member woke it overnight, so idle detection itself works and the residue
   is a wake-policy problem. Next: members-only wake (design note in that plan).
   The gate stays open until a night measures ~0.
+  **2026-10-05 (v1.6.12, members-only wake):** 10.55 instance-hours, awake
+  all night, because the owner's paired desktop sat open, polling
+  `/api/journal` every ~2 s plus a socket reconnect every ~33 s until the Mac
+  slept at 05:07. The cell then slept exactly 20 min later. **This answers the
+  open question above: an open, idle desktop keeps a cell awake
+  indefinitely.** Fix before charging: idle-aware desktop sync (back off or
+  park when nobody is editing), or sync polls that do not renew `sleepAfter`.
 
 - [ ] **L8 — retract the pilot callouts.** Once L4–L7c are green, remove the
   "not yet taking live payments" callout from `pricing.mdx`, `terms.mdx`,
