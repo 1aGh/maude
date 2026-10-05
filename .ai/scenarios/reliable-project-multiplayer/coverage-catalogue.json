@@ -22,7 +22,7 @@
     },
     {
       "path": "apps/studio/annotations-context-toolbar.tsx",
-      "sha256": "8d4c8cebf77eb8eaaeaaabc28762919ff3088b737e88ee97483a7de71bf78249"
+      "sha256": "53417a17e31731e5f70765563426bca660633356e0a688ba8005359b06ff086a"
     },
     {
       "path": "apps/studio/client/photo-knobs.jsx",
@@ -1310,6 +1310,19 @@
       "source": "apps/studio/annotations-context-toolbar.tsx",
       "repairTask": "T26",
       "label": "Text formatting",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.locked-selection",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Locked selection",
       "directions": [
         "hub-to-peers",
         "native-to-peers",
