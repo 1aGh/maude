@@ -375,6 +375,22 @@
       if (params.get('hide-chrome') === '1') {
         const styleEl = document.getElementById('canvas-hide-chrome');
         if (styleEl) styleEl.media = 'all';
+        // Issue #125 — an export that opted into annotations paints the
+        // annotation scene back in (more specific + !important beats the
+        // block above). Comment pins + selection chrome stay hidden.
+        if (params.get('annotations') === '1') {
+          const show = document.createElement('style');
+          show.id = 'canvas-export-annotations';
+          // `.dc-annot-svg` also owns the <defs> the scene references (the
+          // sticky drop-shadow filter) — a filter inside a display:none SVG
+          // makes Chromium skip the filtered element entirely, so keep the
+          // SVG laid out and hide only its selection chrome.
+          show.textContent =
+            '.dc-world [data-mdcc-annotations] { display: block !important; }' +
+            'html .dc-annot-svg { display: block !important; }' +
+            'html .dc-annot-svg > :not(defs) { display: none !important; }';
+          document.head.appendChild(show);
+        }
       }
       // Shell-owned comment layer toggle. Gallery thumbnails pass `?comments=0`
       // so the comment chrome is suppressed in previews; opened tabs omit it

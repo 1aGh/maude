@@ -25,6 +25,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { assertRenderOutputSizeOk, launchChromium, safeArtboardFilename } from './_pw-launch.mjs';
+import { layoutRegion, parseRegionArg } from './_region.mjs';
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, cur, i, all) => {
@@ -40,6 +41,7 @@ const {
   'out-dir': outDir,
   'widen-to-artboard': widenFlag,
   multi: multiFlag,
+  region: regionArg,
   timeout = '12',
   scale = '1',
 } = args;
@@ -51,6 +53,7 @@ if (!url) {
 
 const widen = widenFlag !== undefined;
 const multi = multiFlag !== undefined;
+const region = parseRegionArg(regionArg);
 const timeoutMs = Number(timeout) * 1000;
 // Same ceiling as _png-playwright.mjs's raised T4 ceiling (600dpi = 6.25×).
 // The PDF *page* stays vector-sized regardless of this factor (only raster
@@ -104,7 +107,25 @@ try {
     }
   });
 
-  for (let i = 0; i < screens.length; i += 1) {
+  if (region) {
+    // Issue #125 — one page covering a whole region of the world plane (the
+    // whole canvas, or the selection's bounding box), layout + annotations
+    // intact. Page size = region size, same crop trick as the loop below.
+    const box = await layoutRegion(page, region);
+    assertRenderOutputSizeOk(box.width, box.height, deviceScaleFactor, '_pdf-playwright');
+    await page.setViewportSize({ width: Math.max(1, box.width), height: Math.max(1, box.height) });
+    const pdf = await page.pdf({
+      width: `${box.width}px`,
+      height: `${box.height}px`,
+      printBackground: true,
+      preferCSSPageSize: false,
+      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+    });
+    writeFileSync(out, pdf);
+    written.push(out);
+  }
+
+  for (let i = 0; i < (region ? 0 : screens.length); i += 1) {
     // Widen a descendant selector to its enclosing artboard when requested
     // (artboard-via-descendant fallback); selection / artboard-by-id targets
     // pass through unchanged.

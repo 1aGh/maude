@@ -2,6 +2,15 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "export-whole-canvas",
+      "version": null,
+      "date": null,
+      "kind": "feature",
+      "title": "Export the whole canvas as one image",
+      "summary": "PNG and PDF exports can now capture the whole canvas, or the area around your selection, as a single image or page with the layout intact. Tick Include annotations to bring your stickies, shapes and arrows along. Comment pins are left out.",
+      "surface": "design-ui"
+    },
+    {
       "id": "annotation-lock",
       "version": "1.7.0",
       "date": "2026-10-05",

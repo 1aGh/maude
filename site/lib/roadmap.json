@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-05T00:00:00.000Z",
+  "generated": "2026-10-06T00:00:00.000Z",
   "currentPhase": null,
   "phases": [
     {
@@ -2309,6 +2309,17 @@
       "date": "2026-10-05",
       "summary": "Successor to archive/feature-annotations-v2-element-model.md. The v2 element model shipped in v1.5.0 (731c64ca #138, 2dd5fd83 #139, fix 87dac924), and DDR-242 is recorded. This file carries the res...",
       "planPath": ".ai/plans/archive/followup-annotations-v2.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
+      "id": "feature-canvas-whole-export-with-annotations",
+      "title": "Feature: export the whole canvas (with annotations) to PNG / PDF",
+      "status": "done",
+      "shipTarget": null,
+      "date": "2026-10-06",
+      "summary": "Users can export individual artboards, or every artboard as a separate file (canvas-as-separate). They cannot export the canvas as one image or one document, with the annotations and surrounding la...",
+      "planPath": ".ai/plans/archive/feature-canvas-whole-export-with-annotations.md",
       "archived": true,
       "phaseKey": null
     },

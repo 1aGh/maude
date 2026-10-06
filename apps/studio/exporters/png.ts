@@ -92,7 +92,7 @@ async function captureElement(
   const args = [
     PNG_PLAYWRIGHT,
     '--url',
-    canvasShellUrl(ctx, target.file),
+    canvasShellUrl(ctx, target.file, { annotations: target.annotations }),
     '--selector',
     target.cssPath,
     '--scale',
@@ -100,7 +100,15 @@ async function captureElement(
     '--timeout',
     String(options.timeoutSec ?? 12),
   ];
-  if (target.multi) {
+  if (target.region) {
+    // Issue #125 — one image of a world-plane region (whole canvas / selection box).
+    args.push(
+      '--region',
+      target.region === 'canvas' ? 'canvas' : JSON.stringify(target.region),
+      '--out',
+      path.join(outDir, `${target.canvasSlug}.png`)
+    );
+  } else if (target.multi) {
     args.push('--multi', '1', '--out-dir', outDir);
   } else {
     // Only widen to the enclosing artboard when scope.ts asked for it

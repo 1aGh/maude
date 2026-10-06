@@ -13,8 +13,21 @@ import type { Dirent } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 
-/** The four user-facing scope choices from the export dialog. */
-export type Scope = 'selection' | 'artboard' | 'canvas-as-separate' | 'project-raw';
+/** The user-facing scope choices from the export dialog. */
+export type Scope =
+  | 'selection'
+  | 'artboard'
+  | 'canvas-as-separate'
+  | 'canvas-whole'
+  | 'selection-bounds'
+  | 'project-raw';
+
+/**
+ * A world-plane region captured as ONE image / page (issue #125): the whole
+ * canvas (every artboard + annotation element) or the union bounding box of a
+ * list of selected elements. Layout between artboards is kept as-is.
+ */
+export type CaptureRegion = 'canvas' | { selectors: string[] };
 
 /**
  * What an adapter receives for each render unit. `element` targets carry a
@@ -44,6 +57,17 @@ export type Target =
        * directly and leave this `false`.
        */
       widen?: boolean;
+      /**
+       * Capture this region of the world plane as one unit instead of the
+       * element at `cssPath` (which then only gates "the canvas has mounted").
+       */
+      region?: CaptureRegion;
+      /**
+       * Render the annotation layer (the FigJam-style draw elements) into the
+       * capture. Comment pins stay hidden either way. Off unless the export
+       * options opt in with `includeAnnotations: true`.
+       */
+      annotations?: boolean;
     }
   | {
       kind: 'file-tree';
@@ -82,6 +106,8 @@ export interface ExportScopeHints {
    * the worker). The live dialog knows which file it is looking at; trust it.
    */
   canvasFile?: string | null;
+  /** Every selector of a multi-selection, for `selection-bounds`. */
+  selectionAll?: string[];
 }
 
 export interface ResolveScopeArgs {
@@ -119,8 +145,21 @@ function readHints(options: Record<string, unknown> | undefined): ExportScopeHin
     typeof options.artboardId === 'string' && options.artboardId ? options.artboardId : null;
   const canvasFile =
     typeof options.canvasFile === 'string' && options.canvasFile ? options.canvasFile : null;
-  return { selection, artboardId, canvasFile };
+  // Bounded: every selector is evaluated in the capture page, and a job body
+  // is member-supplied — thousands of `:has()` selectors would pin a slot.
+  const selectionAll = Array.isArray(options.selectionAll)
+    ? (options.selectionAll as unknown[])
+        .filter(
+          (x): x is string => typeof x === 'string' && x.length > 0 && x.length <= MAX_SELECTOR_LEN
+        )
+        .slice(0, MAX_SELECTION_ALL)
+    : undefined;
+  return { selection, artboardId, canvasFile, selectionAll };
 }
+
+/** Caps on `options.selectionAll` (security review, issue #125). */
+export const MAX_SELECTION_ALL = 256;
+const MAX_SELECTOR_LEN = 1024;
 
 const RAW_EXCLUDES = new Set([
   '_server.json',
@@ -223,6 +262,38 @@ export async function resolveScope(args: ResolveScopeArgs): Promise<Target[]> {
   if (!activeFile) return [];
   const slug = slugify(activeFile, designRel);
   const sel = firstSelection(activeJson.selected);
+
+  if (scope === 'canvas-whole' || scope === 'selection-bounds') {
+    const annotations = args.options?.includeAnnotations === true;
+    const selectors = hints.selectionAll?.length
+      ? hints.selectionAll
+      : [hints.selection?.selector ?? sel?.selector ?? sel?.cssPath].filter(
+          (x): x is string => !!x
+        );
+    // No selection → the bounding box of "everything" is the whole canvas.
+    if (scope === 'canvas-whole' || !selectors.length) {
+      return [
+        {
+          kind: 'element',
+          cssPath: '[data-dc-screen]',
+          canvasSlug: slug,
+          file: activeFile,
+          region: 'canvas',
+          annotations,
+        },
+      ];
+    }
+    return [
+      {
+        kind: 'element',
+        cssPath: selectors[0],
+        canvasSlug: slug,
+        file: activeFile,
+        region: { selectors },
+        annotations,
+      },
+    ];
+  }
 
   if (scope === 'selection') {
     // Prefer the live submit-time snapshot over the persisted `_active.json`

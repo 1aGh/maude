@@ -7,7 +7,7 @@ description: "Export a canvas to images, documents, slides, video or a handoff b
 | -------- | ----- |
 | **Command** | `/design:export` |
 | **Category** | `daily` (daily) |
-| **Argument hint** | `<png\|pdf\|svg\|html\|pptx\|mp4\|gif\|webm\|canva\|zip> [--scope selection\|artboard\|canvas-as-separate\|project-raw] [--out <path>] [--option key=value]` |
+| **Argument hint** | `<png\|pdf\|svg\|html\|pptx\|mp4\|gif\|webm\|canva\|zip> [--scope selection\|artboard\|canvas-as-separate\|canvas-whole\|selection-bounds\|project-raw] [--out <path>] [--option key=value]` |
 | **Source** | [`plugins/design/commands/export.md`](https://github.com/1aGh/maude/blob/main/plugins/design/commands/export.md) |
 
 ## Description
@@ -19,13 +19,13 @@ Export a canvas to images, documents, slides, video or a handoff bundle.
 **Claude Code**
 
 ```text
-/design:export <png|pdf|svg|html|pptx|mp4|gif|webm|canva|zip> [--scope selection|artboard|canvas-as-separate|project-raw] [--out <path>] [--option key=value]
+/design:export <png|pdf|svg|html|pptx|mp4|gif|webm|canva|zip> [--scope selection|artboard|canvas-as-separate|canvas-whole|selection-bounds|project-raw] [--out <path>] [--option key=value]
 ```
 
 **Codex**
 
 ```text
-$design:source-command-export <png|pdf|svg|html|pptx|mp4|gif|webm|canva|zip> [--scope selection|artboard|canvas-as-separate|project-raw] [--out <path>] [--option key=value]
+$design:source-command-export <png|pdf|svg|html|pptx|mp4|gif|webm|canva|zip> [--scope selection|artboard|canvas-as-separate|canvas-whole|selection-bounds|project-raw] [--out <path>] [--option key=value]
 ```
 
 Use the same arguments and flags. See [native Codex setup](/docs/codex) for

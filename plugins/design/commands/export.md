@@ -2,7 +2,7 @@
 name: export
 category: daily
 description: "Export a canvas to images, documents, slides, video or a handoff bundle."
-argument-hint: "<png|pdf|svg|html|pptx|mp4|gif|webm|canva|zip> [--scope selection|artboard|canvas-as-separate|project-raw] [--out <path>] [--option key=value]"
+argument-hint: "<png|pdf|svg|html|pptx|mp4|gif|webm|canva|zip> [--scope selection|artboard|canvas-as-separate|canvas-whole|selection-bounds|project-raw] [--out <path>] [--option key=value]"
 ---
 
 # /design:export — export active canvas
@@ -18,9 +18,9 @@ Sends a request to the running dev-server (`POST /_api/export`) with the same pa
 | Flag | Meaning |
 |---|---|
 | `<format>` (required) | `png` / `pdf` / `svg` / `html` / `pptx` / `mp4` / `gif` / `webm` / `canva` / `zip` |
-| `--scope <s>` | `selection` / `artboard` / `canvas-as-separate` / `project-raw`. Default = `canvas-as-separate` for element-shape formats, `artboard` for the temporal formats (`mp4`/`gif`/`webm`), `project-raw` for `zip`. |
+| `--scope <s>` | `selection` / `artboard` / `canvas-as-separate` / `canvas-whole` / `selection-bounds` / `project-raw`. `canvas-whole` (PNG/PDF) = the whole canvas as ONE image/page, layout between artboards kept; `selection-bounds` (PNG/PDF) = one image of the bounding box around everything selected (no selection → whole canvas). Default = `canvas-as-separate` for element-shape formats, `artboard` for the temporal formats (`mp4`/`gif`/`webm`), `project-raw` for `zip`. |
 | `--out <path>` | Where to write. Default = cwd + the filename the server returns in `Content-Disposition`. |
-| `--option key=value` | Per-format option. Can be repeated. Examples: `--option pageFit=a4` (PDF), `--option mode=raster` (Canva → legacy raster bundle), `--option include=system` (ZIP filter), `--option fps=30` / `--option durationMs=4000` / `--option gifColors=128` (MP4/GIF/WebM), `--option dpi=300` (PNG — feature-2-print-artboards T4), `--option marks=crop,registration` / `--option includeBleed=true` (PDF — T5), `--option text=outline` (PDF — issue #116). |
+| `--option key=value` | Per-format option. Can be repeated. Examples: `--option pageFit=a4` (PDF), `--option mode=raster` (Canva → legacy raster bundle), `--option include=system` (ZIP filter), `--option fps=30` / `--option durationMs=4000` / `--option gifColors=128` (MP4/GIF/WebM), `--option dpi=300` (PNG — feature-2-print-artboards T4), `--option marks=crop,registration` / `--option includeBleed=true` (PDF — T5), `--option text=outline` (PDF — issue #116), `--option includeAnnotations=true` (`canvas-whole` / `selection-bounds` — paint the annotation layer in; comment pins never export — issue #125). |
 
 **Print options (feature-2-print-artboards).**
 
@@ -51,6 +51,9 @@ Sends a request to the running dev-server (`POST /_api/export`) with the same pa
 ```
 # Active canvas → multi-page PDF, one artboard per page
 /design:export pdf --scope canvas-as-separate
+
+# Whole canvas incl. annotations → one PNG
+/design:export png --scope canvas-whole --option includeAnnotations=true
 
 # Selected element → PNG to ~/Downloads/hero.png
 /design:export png --scope selection --out ~/Downloads/hero.png

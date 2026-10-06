@@ -73,6 +73,21 @@ describe('format × scope coherence', () => {
  * behind in either client is how the three copies drifted in the first place —
  * `export-dialog.tsx`'s copy was missing mp4/webm/gif entirely.
  */
+describe('region scopes (issue #125)', () => {
+  test('canvas-whole + selection-bounds are png/pdf only', () => {
+    for (const scope of ['canvas-whole', 'selection-bounds']) {
+      for (const format of FORMATS) {
+        expect(isScopeValidForFormat(format, scope)).toBe(format === 'png' || format === 'pdf');
+      }
+    }
+  });
+
+  test('adding them did not change any default', () => {
+    expect(defaultScopeForFormat('png')).toBe('selection');
+    expect(defaultScopeForFormat('pdf')).toBe('selection');
+  });
+});
+
 describe('no client keeps its own copy of the scope table', () => {
   const read = (...p: string[]) => readFileSync(join(DEV_SERVER_ROOT, ...p), 'utf8');
 
