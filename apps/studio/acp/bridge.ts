@@ -1092,6 +1092,7 @@ export class AcpBridge {
     if (runtime.bunBeBun) env.BUN_BE_BUN = '1';
     const proc = Bun.spawn([runtime.bin, adapterEntry], {
       cwd: this.opts.repoRoot,
+      windowsHide: true, // #141 — never a console window for the adapter on Windows
       env,
       stdin: 'pipe',
       stdout: 'pipe',

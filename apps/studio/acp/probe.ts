@@ -481,6 +481,7 @@ export async function getClaudeAuthStatus(): Promise<ClaudeAuthStatus | null> {
 async function readAuthStatusStdout(bin: string): Promise<string> {
   const proc = Bun.spawn([bin, 'auth', 'status', '--json'], {
     env: scrubAgentEnv(),
+    windowsHide: true, // #141
     // A wrapper that prompts would otherwise block forever on a tty-less read.
     stdin: 'ignore',
     stdout: 'pipe',

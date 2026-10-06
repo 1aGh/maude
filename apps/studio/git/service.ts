@@ -353,6 +353,7 @@ function runGit(
   return new Promise((resolveRun) => {
     const child = spawn('git', args, {
       cwd: dir,
+      windowsHide: true, // #141 — no console window per git call on Windows
       env: { ...process.env, GIT_TERMINAL_PROMPT: '0', ...env },
       stdio: ['ignore', 'pipe', 'pipe'],
     });

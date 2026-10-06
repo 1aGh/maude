@@ -28,6 +28,7 @@ mod project_resolve;
 mod server_json;
 mod sidecar;
 mod updater;
+mod win_process;
 // WKWebView-only: recover from a crashed web content process instead of a white window.
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 mod web_process;

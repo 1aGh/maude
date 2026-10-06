@@ -47,6 +47,7 @@ export function startSignin(): { ok: boolean; reason?: string } {
   if (!bin) return { ok: false, reason: 'Claude Code is not installed.' };
   const child = Bun.spawn([bin, 'auth', 'login', '--claudeai'], {
     env: scrubAgentEnv(),
+    windowsHide: true, // #141
     stdout: 'ignore',
     stderr: 'ignore',
   });

@@ -339,7 +339,7 @@ async fn poll_one(app: &AppHandle, project_root: &str) {
         return;
     }
     let url = format!("{}/_api/acp/activity", parsed.origin().ascii_serialization());
-    let out = std::process::Command::new("curl")
+    let out = crate::win_process::hidden_command("curl")
         .args([
             "-s",
             "--max-time",

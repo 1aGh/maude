@@ -33,7 +33,7 @@ export function cachedProbe(key: string, compute: () => boolean): boolean {
 export function hasCommandCached(cmd: string): boolean {
   return cachedProbe(`has:${cmd}`, () => {
     const finder = process.platform === 'win32' ? 'where' : 'which';
-    return spawnSync(finder, [cmd], { stdio: 'ignore' }).status === 0;
+    return spawnSync(finder, [cmd], { stdio: 'ignore', windowsHide: true }).status === 0;
   });
 }
 

@@ -171,6 +171,7 @@ fn resolve_login_path() -> Option<String> {
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
+        // no-console-window: #[cfg(unix)] — there is no console to open.
         let out = Command::new(&shell)
             .args([
                 "-ilc",
@@ -440,6 +441,10 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
             resource_dir.join("studio"),
         ];
         if let Some(studio) = candidates.into_iter().find(|p| p.join("dist").exists()) {
+            // #141 — resource_dir is a verbatim `\\?\C:\…` path on Windows, and
+            // `node \\?\C:\…\index.js` (the ACP adapter) dies on it. Export
+            // the ordinary form; the walk-up probes above don't care.
+            let studio = crate::win_process::strip_verbatim(&studio);
             command = command.env(
                 "MAUDE_DEV_SERVER_ROOT",
                 studio.to_string_lossy().to_string(),
@@ -908,7 +913,7 @@ fn has_running_chat(design_root: &std::path::Path) -> bool {
     // `curl` rather than a new HTTP crate: this is one loopback GET on a rare
     // path, and it mirrors resolve_login_path's existing shell-out-to-a-system-
     // binary pattern rather than adding a dependency for it.
-    let out = std::process::Command::new("curl")
+    let out = crate::win_process::hidden_command("curl")
         .args([
             "-s",
             "--max-time",
@@ -1027,6 +1032,7 @@ fn terminate(child: CommandChild) {
     let pid = child.pid();
     #[cfg(unix)]
     {
+        // no-console-window: #[cfg(unix)] — there is no console to open.
         let _ = std::process::Command::new("kill")
             .args(["-TERM", &pid.to_string()])
             .status();
@@ -1193,6 +1199,7 @@ mod tests {
     /// Re-exec this test binary with a stderr nobody is reading.
     fn broken_stderr_probe(mode: &str) -> Option<i32> {
         let exe = std::env::current_exe().expect("test binary path");
+        // no-console-window: test-only re-exec.
         let mut child = std::process::Command::new(exe)
             .args([
                 "--exact",
