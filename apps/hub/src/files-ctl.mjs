@@ -213,10 +213,23 @@ export const CTL_KEEPALIVE_FRAME = '{"t":"ka"}';
 export const CTL_KEEPALIVE_MS = 15_000;
 
 /**
- * One interval per hub, addressing the ONE control document when a peer has
- * it open. Never throws; nothing open is the ordinary idle state.
+ * One interval per hub, ONE frame per open SOCKET.
+ *
+ * It began as a control-document keep-alive, and the night after v1.6.13 showed
+ * that was half the problem: a desktop's CANVAS sockets are just as silent while
+ * nobody edits (presence is not echoed back to its sender), so the 30 s silence
+ * check recycled each of them every ~33 s too — 214 socket upgrades an hour on
+ * Alligators, and every reconnect re-ran discovery (`bootstrap` + `documents`)
+ * and a journal pass: the cell never slept (11.24 instance-hours).
+ *
+ * So every socket attached to any document gets one frame per tick, sent on
+ * the first document found for it (the control document first, where it is
+ * open). Deduplicated by the websocket itself, so a socket carrying 64
+ * canvases hears one frame, not 64. A canvas document's stateless handler acts
+ * only on `{type:'maude.mode'}`, so the frame is inert there for every client
+ * version. Never throws; nothing open is the ordinary idle state.
  */
-export function createCtlKeepalive({
+export function createSocketKeepalive({
   instance,
   intervalMs = CTL_KEEPALIVE_MS,
   log = console,
@@ -225,14 +238,36 @@ export function createCtlKeepalive({
 }) {
   let timer = null;
   let sent = 0;
+  let warned = false;
   const tick = () => {
-    const doc = documentMap(instance)?.get(FILES_CTL_DOC);
-    if (!doc) return;
-    try {
-      doc.broadcastStateless(CTL_KEEPALIVE_FRAME);
-      sent += 1;
-    } catch (err) {
-      log.error?.(`[files-ctl] keep-alive broadcast failed: ${err.message}`);
+    const documents = documentMap(instance);
+    if (!documents) return;
+    const ordered = [];
+    const ctl = documents.get(FILES_CTL_DOC);
+    if (ctl) ordered.push(ctl);
+    for (const doc of documents.values()) if (doc !== ctl) ordered.push(doc);
+    const seen = new Set();
+    for (const doc of ordered) {
+      let connections = [];
+      try {
+        connections = doc.getConnections?.() ?? [];
+      } catch {
+        continue;
+      }
+      for (const connection of connections) {
+        const socket = connection?.webSocket ?? connection;
+        if (seen.has(socket)) continue;
+        seen.add(socket);
+        try {
+          connection.sendStateless(CTL_KEEPALIVE_FRAME);
+          sent += 1;
+        } catch (err) {
+          if (!warned) {
+            warned = true;
+            log.error?.(`[files-ctl] keep-alive send failed: ${err.message}`);
+          }
+        }
+      }
     }
   };
   return {
@@ -248,6 +283,7 @@ export function createCtlKeepalive({
     },
     /** Tests: one tick now. */
     tick,
+    /** Frames sent so far (one per socket per tick). */
     sent: () => sent,
   };
 }

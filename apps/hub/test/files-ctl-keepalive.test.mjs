@@ -1,5 +1,5 @@
-// The control-channel keep-alive (2026-10-05, "an idle desktop lets its cloud
-// cell sleep", Bug B).
+// The socket keep-alive (2026-10-05, "an idle desktop lets its cloud cell
+// sleep", Bug B; widened to canvas sockets after the v1.6.13 night).
 //
 // An idle `maude.files` socket heard nothing: presence is dropped on the
 // control document and the Hocuspocus server never pings, so the provider's
@@ -7,8 +7,8 @@
 // re-ran document discovery against a cell that therefore never slept.
 //
 // Pinned here:
-//   - the keep-alive addresses the control document and nothing else, and
-//     stops when stopped;
+//   - one frame per socket per tick, control document first, every canvas
+//     socket included, and it stops when stopped;
 //   - against a REAL server and a REAL provider with a shortened silence
 //     check, the socket stays up with the keep-alive and is recycled without
 //     it — so the check still catches a dead socket (issue #118);
@@ -25,25 +25,46 @@ import * as Y from 'yjs';
 import {
   CTL_KEEPALIVE_FRAME,
   CTL_KEEPALIVE_MS,
-  createCtlKeepalive,
+  createSocketKeepalive,
   FILES_CTL_DOC,
   parsePoke,
 } from '../src/files-ctl.mjs';
 
-function fakeInstance(names) {
-  const sent = new Map(names.map((n) => [n, []]));
+/** Documents → connections; a connection is `{ webSocket, sendStateless }`. */
+function fakeInstance(layout) {
+  const frames = [];
+  const sockets = new Map();
+  const socket = (id) => {
+    if (!sockets.has(id)) sockets.set(id, { id });
+    return sockets.get(id);
+  };
   const documents = new Map(
-    names.map((n) => [n, { broadcastStateless: (p) => sent.get(n).push(p) }])
+    Object.entries(layout).map(([name, socketIds]) => [
+      name,
+      {
+        getConnections: () =>
+          socketIds.map((id) => ({
+            webSocket: socket(id),
+            sendStateless: (p) => frames.push({ doc: name, socket: id, p }),
+          })),
+      },
+    ])
   );
-  return { instance: { hocuspocus: { documents } }, sent };
+  return { instance: { hocuspocus: { documents } }, frames };
 }
 
-describe('createCtlKeepalive', () => {
-  it('broadcasts on the control document only, every interval, and stops', () => {
-    const { instance, sent } = fakeInstance([FILES_CTL_DOC, 'ui-screen']);
+describe('createSocketKeepalive', () => {
+  it('one frame per SOCKET per tick — control doc first, canvases too', () => {
+    // Socket A carries the control doc and two canvases; socket B only canvases;
+    // socket C only one canvas (a second desktop, say).
+    const { instance, frames } = fakeInstance({
+      [FILES_CTL_DOC]: ['A'],
+      'ui-one': ['A', 'B'],
+      'ui-two': ['A', 'B', 'C'],
+    });
     let armed = null;
     let cleared = false;
-    const ka = createCtlKeepalive({
+    const ka = createSocketKeepalive({
       instance,
       setIntervalImpl: (fn, ms) => {
         armed = { fn, ms };
@@ -57,42 +78,55 @@ describe('createCtlKeepalive', () => {
     assert.equal(armed.ms, CTL_KEEPALIVE_MS);
     assert.equal(CTL_KEEPALIVE_MS, 15_000);
     armed.fn();
+    assert.deepEqual(frames, [
+      { doc: FILES_CTL_DOC, socket: 'A', p: CTL_KEEPALIVE_FRAME },
+      { doc: 'ui-one', socket: 'B', p: CTL_KEEPALIVE_FRAME },
+      { doc: 'ui-two', socket: 'C', p: CTL_KEEPALIVE_FRAME },
+    ]);
     armed.fn();
-    assert.deepEqual(sent.get(FILES_CTL_DOC), [CTL_KEEPALIVE_FRAME, CTL_KEEPALIVE_FRAME]);
-    assert.deepEqual(sent.get('ui-screen'), []);
-    assert.equal(ka.sent(), 2);
+    assert.equal(ka.sent(), 6);
     ka.stop();
     assert.equal(cleared, true);
   });
 
   it('nobody attached is the ordinary idle state — nothing sent, nothing thrown', () => {
-    const { instance } = fakeInstance(['ui-screen']);
-    const ka = createCtlKeepalive({ instance });
+    const { instance } = fakeInstance({ 'ui-screen': [] });
+    const ka = createSocketKeepalive({ instance });
     ka.tick();
     assert.equal(ka.sent(), 0);
   });
 
-  it('a broadcast that throws is logged, never raised', () => {
+  it('a send that throws is logged once, never raised, and the others still go', () => {
     const errors = [];
+    const sentTo = [];
     const instance = {
       documents: new Map([
         [
-          FILES_CTL_DOC,
+          'ui-a',
           {
-            broadcastStateless() {
-              throw new Error('socket gone');
-            },
+            getConnections: () => [
+              {
+                webSocket: 1,
+                sendStateless() {
+                  throw new Error('socket gone');
+                },
+              },
+              { webSocket: 2, sendStateless: () => sentTo.push(2) },
+            ],
           },
         ],
       ]),
     };
-    const ka = createCtlKeepalive({ instance, log: { error: (m) => errors.push(m) } });
+    const ka = createSocketKeepalive({ instance, log: { error: (m) => errors.push(m) } });
+    ka.tick();
     ka.tick();
     assert.equal(errors.length, 1);
+    assert.deepEqual(sentTo, [2, 2]);
   });
 
-  it('the frame is never a poke', () => {
+  it('the frame is never a poke, and never a save-mode notice', () => {
     assert.equal(parsePoke(CTL_KEEPALIVE_FRAME), null);
+    assert.notEqual(JSON.parse(CTL_KEEPALIVE_FRAME).type, 'maude.mode');
   });
 });
 
@@ -100,11 +134,13 @@ describe('createCtlKeepalive', () => {
  * Attach a real provider to the control document with a shortened silence
  * check, and count how many times its socket (re)connects in `windowMs`.
  */
-async function connectsOver({ keepaliveMs, silenceMs, windowMs }) {
+async function connectsOver({ keepaliveMs, silenceMs, windowMs, name = FILES_CTL_DOC }) {
   const server = new Server({ port: 0, quiet: true });
   await server.listen();
   const port = server.address.port;
-  const ka = keepaliveMs ? createCtlKeepalive({ instance: server, intervalMs: keepaliveMs }) : null;
+  const ka = keepaliveMs
+    ? createSocketKeepalive({ instance: server, intervalMs: keepaliveMs })
+    : null;
   ka?.start();
   let opens = 0;
   const socket = new HocuspocusProviderWebsocket({
@@ -119,7 +155,7 @@ async function connectsOver({ keepaliveMs, silenceMs, windowMs }) {
   });
   const provider = new HocuspocusProvider({
     websocketProvider: socket,
-    name: FILES_CTL_DOC,
+    name,
     document: new Y.Doc(),
     token: 't',
   });
@@ -145,6 +181,16 @@ async function connectsOver({ keepaliveMs, silenceMs, windowMs }) {
 describe('against a real server and provider', () => {
   it('with the keep-alive, an idle control socket stays up', async () => {
     const opens = await connectsOver({ keepaliveMs: 300, silenceMs: 1_200, windowMs: 4_000 });
+    assert.equal(opens, 1);
+  });
+
+  it('a CANVAS socket stays up too (v1.6.13 night: 214 upgrades/h from canvas shards)', async () => {
+    const opens = await connectsOver({
+      keepaliveMs: 300,
+      silenceMs: 1_200,
+      windowMs: 4_000,
+      name: 'ui-screen',
+    });
     assert.equal(opens, 1);
   });
 

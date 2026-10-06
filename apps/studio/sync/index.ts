@@ -79,6 +79,7 @@ import { migrateFlatFallback } from './migrate-flat-fallback.ts';
 import { migrateSeed } from './migrate-seed.ts';
 import { ORIGINS } from './origins.ts';
 import {
+  fileLaneBusy,
   initialParkState,
   isLocalWorkRel,
   PARK_TIMINGS,
@@ -1398,14 +1399,19 @@ export function createSyncRuntime(
    * `start()` only where parking is possible.
    */
   let parkedNow = false;
+  /** When the file plane last delivered something — `fileLaneBusy`'s clock. */
+  let lastFileProgressAt = 0;
   let parkDispatch: ((event: ParkEvent) => void) | null = null;
   let parkTimer: ReturnType<typeof setInterval> | null = null;
   let parkProbe: AbortController | null = null;
   let parkUiUnsub: (() => void) | null = null;
   const parkClock = opts.park?.now ?? (() => Date.now());
   /** A local edit, a doc update, a click: news for the park machine. */
-  const noteParkActivity = (type: 'localEdit' | 'uiActivity'): void => {
-    parkDispatch?.({ type, now: parkClock() });
+  let lastActivitySource = 'start';
+  const noteParkActivity = (type: 'localEdit' | 'uiActivity', source: string): void => {
+    if (!parkDispatch) return;
+    lastActivitySource = source;
+    parkDispatch({ type, now: parkClock() });
   };
   /**
    * Cancels the boot-time capability probe. A `stop()` that leaves a `/health`
@@ -2786,7 +2792,7 @@ export function createSyncRuntime(
       // pass. `fs-watch.ts` still reports `_state/` to every OTHER subscriber.
       // Somebody's work, not the studio talking to itself: it keeps a desktop
       // awake, and unparks a parked one BEFORE the pass below is asked for.
-      if (isLocalWorkRel(rel)) noteParkActivity('localEdit');
+      if (isLocalWorkRel(rel)) noteParkActivity('localEdit', `file ${rel.split('\\').join('/')}`);
       if (fileLedger && isLocalWorkRel(rel)) {
         fileLedger.noteChanged(rel.split('\\').join('/'));
         schedulePlanePass();
@@ -3635,7 +3641,7 @@ export function createSyncRuntime(
       // ANY change to a synced document is activity — a local edit unparks a
       // parked desktop, and a peer's edit arriving keeps a live collaboration
       // connected rather than parking under it.
-      const onDocUpdate = (): void => noteParkActivity('localEdit');
+      const onDocUpdate = (): void => noteParkActivity('localEdit', `canvas ${canvas.slug}`);
       provider.document.on('update', onDocUpdate);
       noteDetach(statusDetaches, canvas.slug, () => provider.document.off('update', onDocUpdate));
       // Fix 5 (sync RCA 2026-08-10): stamp the canvas path BEFORE the
@@ -4780,18 +4786,47 @@ export function createSyncRuntime(
       const parkFetch = opts.park?.fetch ?? fetch;
       let parkState: ParkState = initialParkState({ now: parkClock(), eligible: true });
       /** Outbound work that must land before the sockets may close. */
-      const hasPendingWork = (): boolean => {
-        if (planePassInFlight || filePassTimer !== null || remotePollSoonTimer !== null) {
-          return true;
-        }
-        for (const p of providers.values()) {
+      /**
+       * Why the link must stay up right now, or null. A reason, not a flag, so
+       * an idle desktop that cannot park SAYS why (the v1.6.13 night was
+       * diagnosable only from the cloud's request log).
+       *
+       * Every lane is judged by whether it is MOVING, not by whether something
+       * is unfinished: a document whose change the hub never acknowledges, or
+       * a file that never lands, would otherwise hold a cell awake forever. A
+       * stalled lane resumes on the next edit, click, change signal or the 6 h
+       * backstop.
+       */
+      const unsyncedSince = new Map<string, number>();
+      const pendingReason = (): string | null => {
+        if (planePassInFlight || filePassTimer !== null) return 'a file pass is running';
+        if (remotePollSoonTimer !== null) return 'a catch-up poll is due';
+        const now = Date.now();
+        for (const [slug, p] of providers) {
           if ((p as unknown as { hasUnsyncedChanges?: boolean }).hasUnsyncedChanges === true) {
-            return true;
+            const since = unsyncedSince.get(slug) ?? now;
+            unsyncedSince.set(slug, since);
+            if (now - since < timings.afterMs) return `canvas ${slug} has unsent changes`;
+          } else {
+            unsyncedSince.delete(slug);
           }
         }
+        if (
+          fileLedger &&
+          fileLaneBusy(fileLedger.rows(), {
+            now,
+            lastProgressAt: lastFileProgressAt,
+            windowMs: timings.afterMs,
+          })
+        ) {
+          return 'files are still being delivered';
+        }
         // Saves, uploads and retries the other lanes report (attacker F1).
-        return hasSelfRetryingWork(store.get());
+        return hasSelfRetryingWork(store.get()) ? 'a save or upload is still in flight' : null;
       };
+      const hasPendingWork = (): boolean => pendingReason() !== null;
+      let lastHeldReason: string | null = null;
+      let lastActivityReportAt = parkClock();
       const doPark = (): void => {
         parkedNow = true;
         // Flush what we know; the pending-work check already proved nothing is
@@ -4898,10 +4933,35 @@ export function createSyncRuntime(
         run(step.effects);
       };
       parkDispatch = dispatch;
-      parkUiUnsub = ctx.bus.on('ui:active', () => noteParkActivity('uiActivity'));
+      parkUiUnsub = ctx.bus.on('ui:active', () => noteParkActivity('uiActivity', 'studio input'));
       parkTimer = setInterval(() => {
         const now = parkClock();
-        dispatch({ type: 'pendingChanged', pending: hasPendingWork(), now });
+        const reason = pendingReason();
+        // Idle long enough to park, but something holds the link: say what,
+        // once per reason, so the next "why did it stay awake" has an answer
+        // on this machine.
+        if (
+          reason &&
+          parkState.phase === 'active' &&
+          now - parkState.lastActivityAt >= timings.afterMs &&
+          reason !== lastHeldReason
+        ) {
+          console.log(`[sync] idle, but staying connected: ${reason}.`);
+        }
+        lastHeldReason = reason;
+        // A desktop that never even gets idle says what keeps waking it — at
+        // most every 30 min, so a working session costs two log lines an hour.
+        if (
+          parkState.phase === 'active' &&
+          now - parkState.lastActivityAt < timings.afterMs &&
+          now - lastActivityReportAt >= 30 * 60_000
+        ) {
+          lastActivityReportAt = now;
+          console.log(
+            `[sync] park: active — last activity ${lastActivitySource}, ${Math.round((now - parkState.lastActivityAt) / 1000)} s ago.`
+          );
+        }
+        dispatch({ type: 'pendingChanged', pending: reason !== null, now });
         dispatch({ type: 'tick', now });
       }, opts.park?.tickMs ?? 15_000);
       parkTimer.unref?.();
@@ -4971,6 +5031,7 @@ export function createSyncRuntime(
               // working.
               onProgress: () => {
                 renewalsSinceProgress = 0;
+                lastFileProgressAt = Date.now();
               },
               ledger: fileLedger,
               canvasGroups: ctx.cfg.canvasGroups,

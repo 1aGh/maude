@@ -16,6 +16,7 @@ import { createBus } from '../context.ts';
 import { createSyncRuntime, type SyncProvider } from '../sync/index.ts';
 
 import {
+  fileLaneBusy,
   initialParkState,
   isLocalWorkRel,
   PARK_AFTER_MS,
@@ -287,9 +288,19 @@ describe('attacker review fixes (2026-10-05)', () => {
     expect(
       hasSelfRetryingWork({ accepted: { pending: 2, oldestPendingAt: 1, ackMs: {}, rejected: 0 } })
     ).toBe(true);
-    expect(hasSelfRetryingWork({ files: { synced: 3, pulled: 0, conflicts: 0, failed: 1 } })).toBe(
-      true
-    );
+    // The file plane is judged from its ledger (`fileLaneBusy`), never from
+    // its seeding phase: stuck rows kept that "seeding" all night (v1.6.13).
+    expect(
+      hasSelfRetryingWork({
+        files: {
+          synced: 3,
+          pulled: 0,
+          conflicts: 0,
+          progress: { phase: 'seeding', tracked: 8, delivered: 3, blocked: [] },
+        },
+      })
+    ).toBe(false);
+    expect(hasSelfRetryingWork({ assets: { finished: false, done: 1, total: 4 } })).toBe(true);
     expect(hasSelfRetryingWork({ aiAction: { state: 'open' } })).toBe(true);
     expect(hasSelfRetryingWork({ files: { synced: 3, pulled: 0, conflicts: 0 } })).toBe(false);
     expect(hasSelfRetryingWork(null)).toBe(false);
@@ -308,6 +319,40 @@ describe('attacker review fixes (2026-10-05)', () => {
       files: { synced: 1, pulled: 0, conflicts: 0, held: [{ count: 1 }] },
     });
     expect(held?.phase).toBe('attention');
+  });
+});
+
+describe('fileLaneBusy — moving, not merely unfinished (the v1.6.13 night)', () => {
+  const now = 10_000_000;
+  const opts = { now, lastProgressAt: now - 60_000, windowMs: PARK_AFTER_MS };
+  test('Alligators: five stuck rows among thousands delivered do not hold the link', () => {
+    const rows: Record<string, { state?: string; nextAttemptAt?: number }> = {};
+    for (let i = 0; i < 4861; i += 1) rows[`a/${i}.png`] = { state: 'on-hub' };
+    for (const r of ['ui-welcome.tsx', 'ui-how_to_use_maude.tsx', 'x.ts', 'y.tsx', 'z.tsx']) {
+      rows[r] = { state: 'stuck' };
+    }
+    expect(fileLaneBusy(rows, opts)).toBe(false);
+  });
+  test('a row being pushed always holds it', () => {
+    expect(fileLaneBusy({ a: { state: 'pushing' } }, { ...opts, lastProgressAt: 0 })).toBe(true);
+  });
+  test('unsent rows hold it only while the lane is making progress', () => {
+    const rows = { a: { state: 'local-only' }, b: {} };
+    expect(fileLaneBusy(rows, opts)).toBe(true);
+    expect(fileLaneBusy(rows, { ...opts, lastProgressAt: now - PARK_AFTER_MS - 1 })).toBe(false);
+  });
+  test('rows in backoff, conflicts and refusals do not', () => {
+    expect(
+      fileLaneBusy(
+        {
+          a: { state: 'local-only', nextAttemptAt: now + 60_000 },
+          b: { state: 'conflict' },
+          c: { state: 'refused' },
+          d: { state: 'referenced-but-unoffered' },
+        },
+        opts
+      )
+    ).toBe(false);
   });
 });
 
@@ -361,6 +406,11 @@ describe('parseCellState — anything outside the contract is an old cell', () =
 
 describe('wiring pins', () => {
   const index = readFileSync(join(HERE, '../sync/index.ts'), 'utf8');
+  test('the park judges the file plane from its ledger and says why it holds', () => {
+    expect(index).toMatch(/fileLaneBusy\(fileLedger\.rows\(\)/);
+    expect(index).toMatch(/idle, but staying connected: \$\{reason\}/);
+  });
+
   test('the plane trigger ignores runtime state (the ledger loop, Bug A)', () => {
     expect(index).toMatch(/if \(fileLedger && isLocalWorkRel\(rel\)\)/);
   });

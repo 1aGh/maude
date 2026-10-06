@@ -124,8 +124,8 @@ import {
   PROJECT_FILE_PREFIX,
 } from './file-manifest.mjs';
 import {
-  createCtlKeepalive,
   createFilesPoke,
+  createSocketKeepalive,
   dropCtlAwareness,
   isFilesCtlDoc,
   withoutCtlPersistence,
@@ -1966,9 +1966,9 @@ export function createHub(config = {}) {
   const filesPoke = createFilesPoke({ instance: server });
   const documentsPoke = createFilesPoke({ instance: server, documentsOnly: true, coalesceMs: 50 });
   const documentEvents = createDocumentEvents({ poke: documentsPoke });
-  // Keeps an idle control socket from recycling every ~33 s (and re-running
-  // discovery each time). See `createCtlKeepalive`.
-  const ctlKeepalive = createCtlKeepalive({ instance: server });
+  // Keeps an idle peer's sockets — control AND canvas — from recycling every
+  // ~33 s (and re-running discovery each time). See `createSocketKeepalive`.
+  const ctlKeepalive = createSocketKeepalive({ instance: server });
   ctlKeepalive.start();
   const cellChange = createCellChangeSignal({
     url: process.env.MAUDE_PROJECT_STORE_URL || null,

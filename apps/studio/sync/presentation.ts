@@ -701,8 +701,8 @@ function readAiAction(raw: unknown): { state: 'open' | 'held'; canvases: number 
 }
 
 /**
- * Work that finishes on its own if the link stays up — files or media still
- * moving or failed-and-retrying, a save waiting for the project's answer, an
+ * Work that finishes on its own if the link stays up — media still moving or
+ * failed-and-retrying, a save waiting for the project's answer, an
  * AI edit in progress. The desktop park waits for it (`sync/park.ts`): closing
  * the link over it would stop the retry and leave teammates without the work.
  * Held/blocked items wait on a PERSON, not on time, so they do not block a
@@ -712,7 +712,13 @@ function readAiAction(raw: unknown): { state: 'open' | 'held'; canvases: number 
 export function hasSelfRetryingWork(status: SyncStatusLike | null | undefined): boolean {
   if (!status) return false;
   const lanes = readLanes(status);
-  if (lanes.moving || lanes.failedFiles > 0 || lanes.failedMedia > 0) return true;
+  // THE FILE PLANE IS JUDGED FROM ITS LEDGER, not from here (`fileLaneBusy` in
+  // sync/park.ts). Its `seeding` phase counts a `stuck` row as remaining, so a
+  // project with five rows that never land is "seeding" forever — and reading
+  // that as work in flight kept Alligators awake all night after v1.6.13.
+  // Only the legacy media lane's own progress is read here.
+  const mediaMoving = lanes.moving !== null && 'media' in lanes.moving;
+  if (mediaMoving || lanes.failedMedia > 0) return true;
   if (readAcceptedPending(status.accepted)) return true;
   const ai = status.aiAction as { state?: unknown } | undefined;
   return ai?.state === 'open';

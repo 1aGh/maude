@@ -286,3 +286,42 @@ export function parseCellState(
     typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null;
   return { kind: 'state', state: p.state, changedAt: num(p.changedAt), at: num(p.at) };
 }
+
+/** Rows already delivered, or parked on something only a person can change. */
+const SETTLED_STATES = new Set([
+  'on-hub',
+  'durable',
+  'at-peer',
+  'ui-healed',
+  'everywhere',
+  'refused',
+  'referenced-but-unoffered',
+  'conflict',
+  'stuck',
+]);
+
+/**
+ * Is the file plane still delivering something a park would cut off?
+ *
+ * - A row being pushed right now always is.
+ * - Other outstanding rows (not yet sent, not backed off) are only while the
+ *   plane is actually making progress: something landed within `windowMs`. A
+ *   lane that has delivered nothing for that long is stalled, not moving, and
+ *   holding a cell awake for it buys nothing — it resumes on the next edit,
+ *   click, change signal or the backstop. (The night after v1.6.13: five
+ *   `stuck` rows kept Alligators "seeding", and awake, until morning.)
+ */
+export function fileLaneBusy(
+  rows: Record<string, { state?: string; nextAttemptAt?: number }>,
+  opts: { now: number; lastProgressAt: number; windowMs: number }
+): boolean {
+  let outstanding = false;
+  for (const row of Object.values(rows)) {
+    const state = row.state;
+    if (state === 'pushing') return true;
+    if (state && SETTLED_STATES.has(state)) continue;
+    if (Number.isFinite(row.nextAttemptAt) && (row.nextAttemptAt as number) > opts.now) continue;
+    outstanding = true;
+  }
+  return outstanding && opts.now - opts.lastProgressAt < opts.windowMs;
+}
