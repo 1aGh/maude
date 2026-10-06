@@ -126,6 +126,10 @@ stranger's card can be charged. L5–L7 are the proof that it worked.
   open question above: an open, idle desktop keeps a cell awake
   indefinitely.** Fix before charging: idle-aware desktop sync (back off or
   park when nobody is editing), or sync polls that do not renew `sleepAfter`.
+  **2026-10-06 (v1.6.13, desktop park):** FAIL — 11.24 instance-hours, awake
+  all night. The owner's desktop never parked (zero `GET /_cell/state`) and kept
+  polling `bootstrap` + `documents` ~every 6 s and `journal` every 10 s; the Mac
+  never slept. The gate stays open.
 
 - [ ] **L8 — retract the pilot callouts.** Once L4–L7c are green, remove the
   "not yet taking live payments" callout from `pricing.mdx`, `terms.mdx`,
