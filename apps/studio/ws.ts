@@ -449,6 +449,10 @@ export function createWs(
         else if (msg.type === 'tabs' && Array.isArray(msg.tabs)) inspect.setOpenTabs(msg.tabs);
         else if (msg.type === 'select' && msg.selection) inspect.setSelected(msg.selection);
         else if (msg.type === 'clear-select') inspect.setSelected(null);
+        // A person is at the studio (pointer/keyboard, throttled client-side).
+        // Feeds the desktop park (`sync/park.ts`): presence keeps the cloud
+        // link up and wakes a parked one. Carries nothing; acts on nothing.
+        else if (msg.type === 'presence') ctx.bus.emit('ui:active');
         else if (msg.type === 'comments-add' && msg.payload) {
           // In a cell the author is the vouched member, never a claim in the
           // frame and never the cell's own git identity (the machine).

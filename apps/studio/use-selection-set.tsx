@@ -67,6 +67,10 @@ export interface Selection {
   worldW?: number;
   worldH?: number;
   html?: string;
+  /** Comment drops only — the annotation the click landed on, and the click's
+   *  world point (comment-anchor.ts). */
+  annotationId?: string;
+  world?: { x: number; y: number };
   /** Phase 12.2 — authored inline-style values (knob pre-fill) + resolved computed (placeholder hint). */
   authored?: Record<string, string>;
   computed?: Record<string, string>;

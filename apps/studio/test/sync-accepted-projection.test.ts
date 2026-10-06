@@ -29,6 +29,7 @@ import {
   type LaneProposal,
   type ProposalOutcome,
 } from '../sync/projection.ts';
+import { readRecoveryBody } from '../sync/source-recovery.ts';
 import { laneHash } from '../sync/transaction-client.ts';
 
 const REMOTE = { remote: true };
@@ -49,7 +50,7 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-function rig(initial = src('A')) {
+function rig(initial = src('A'), { seeded = true } = {}) {
   const paths = {
     html: join(dir, 'ui', 'home.tsx'),
     comments: join(dir, '_comments', 'ui-home.json'),
@@ -60,7 +61,7 @@ function rig(initial = src('A')) {
   writeFileSync(paths.html, initial);
   const doc = new Y.Doc();
   // The accepted state arrives from the hub.
-  doc.transact(() => applyHtmlToDoc(doc, initial, REMOTE), REMOTE);
+  if (seeded) doc.transact(() => applyHtmlToDoc(doc, initial, REMOTE), REMOTE);
   const sent: Sent[] = [];
   let on = true;
   let n = 0;
@@ -150,6 +151,25 @@ describe('projection in accepted-revisions mode', () => {
     expect(r.localWrites()).toBe(0);
   });
 
+  // F3 S15 on the cloud cell (2026-09-24): the cell's own studio proposed v13
+  // over an accepted v14 (reverting a teammate) — a watcher event read the file
+  // while the projection still held v13 and was delivered after v14 landed.
+  test('a stale file event (disk has moved on) proposes nothing', async () => {
+    const r = rig(src('A'));
+    r.publish(src('B'));
+    await r.settle();
+    r.publish(src('C'));
+    await r.settle();
+    expect(r.disk()).toBe(src('C'));
+    r.projection.applyFromFs({
+      path: r.paths.html,
+      bytes: enc(src('B')),
+      hash: hashBytes(src('B')),
+    });
+    expect(r.sent).toHaveLength(0);
+    expect(r.conflicts).toHaveLength(0);
+  });
+
   test('an edit on top of an unanswered one is based on it AND depends on it (U1 → U2)', async () => {
     const r = rig(src('A'));
     r.edit(src('B'));
@@ -157,6 +177,90 @@ describe('projection in accepted-revisions mode', () => {
     expect(r.sent).toHaveLength(2);
     expect(r.sent[1]?.p.baseContent).toBe(src('B'));
     expect(r.sent[1]?.p.dependsOn).toEqual([r.sent[0]?.p.transactionId as string]);
+  });
+
+  // F3 S14 (2026-09-23): a second save right after the first was accepted —
+  // before the hub's publication of it reached this replica — was reported as
+  // "a local edit overlaps an incoming change" (the incoming change being our
+  // own accepted edit) and proposed on the value BEFORE the first save, so the
+  // hub refused it as a base conflict.
+  test('a save made after our accepted edit, before its echo, is not a conflict (echo last)', async () => {
+    const r = rig(src('A'));
+    r.edit(src('B'));
+    r.sent[0]?.answer({ status: 'accepted' });
+    await r.settle();
+    writeFileSync(r.paths.html, src('C')); // the next save lands on disk
+    r.publish(src('B')); // …and only then our own accepted B arrives
+    await r.settle();
+    expect(r.conflicts).toHaveLength(0);
+    expect(r.disk()).toBe(src('C'));
+    r.projection.applyFromFs({
+      path: r.paths.html,
+      bytes: enc(src('C')),
+      hash: hashBytes(src('C')),
+    });
+    expect(r.sent).toHaveLength(2);
+    expect(r.sent[1]?.p).toMatchObject({ content: src('C'), baseContent: src('B') });
+  });
+
+  test('a save made after our accepted edit, before its echo, is based on that edit (event first)', async () => {
+    const r = rig(src('A'));
+    r.edit(src('B'));
+    r.sent[0]?.answer({ status: 'accepted' });
+    await r.settle();
+    r.edit(src('C')); // the watcher reports the next save before the echo
+    expect(r.sent[1]?.p).toMatchObject({ content: src('C'), baseContent: src('B') });
+    r.publish(src('B'));
+    await r.settle();
+    expect(r.conflicts).toHaveLength(0);
+    expect(r.disk()).toBe(src('C'));
+  });
+
+  // F3 S14 on the cloud cell (2026-09-24): a canvas this disk had just added
+  // to the project (doc.create accepted, its body adopted as the base) was
+  // flushed while the replica was still empty — the empty value replaced the
+  // base, so the next save was proposed on '' and conflicted with the canvas's
+  // own creation, then held.
+  test('a canvas this disk just added keeps its body as the base while the replica is still empty', async () => {
+    const r = rig(src('A'), { seeded: false });
+    r.projection.adoptBase(src('A')); // the doc.create was accepted
+    // Something else about the document arrives first (its path stamp).
+    r.doc.transact(() => r.doc.getMap('syncMeta').set('path', 'ui/home.tsx'), REMOTE);
+    await r.settle();
+    r.edit(src('B')); // the next save, before the creation's publication
+    expect(r.sent[0]?.p).toMatchObject({ content: src('B'), baseContent: src('A') });
+    r.publish(src('A'));
+    r.sent[0]?.answer({ status: 'accepted' });
+    await r.settle();
+    expect(r.conflicts).toHaveLength(0);
+    expect(r.disk()).toBe(src('B'));
+  });
+
+  test('an accepted edit becomes the persisted base a cold start judges the disk by', async () => {
+    const r = rig(src('A'));
+    r.edit(src('B'));
+    r.publish(src('B')); // the publication first, then the answer
+    r.sent[0]?.answer({ status: 'accepted' });
+    await r.settle();
+    expect(readRecoveryBody(join(dir, '_history', 'ui-home'), r.paths.html, 'base')).toBe(src('B'));
+  });
+
+  test('a save made after our accepted edit is not a conflict when the echo beat the answer', async () => {
+    const r = rig(src('A'));
+    r.edit(src('B'));
+    r.publish(src('B')); // the publication arrives first…
+    await r.settle();
+    writeFileSync(r.paths.html, src('C')); // …the next save lands…
+    r.sent[0]?.answer({ status: 'accepted' }); // …and only then the answer
+    await r.settle();
+    expect(r.conflicts).toHaveLength(0);
+    expect(r.disk()).toBe(src('C'));
+    r.projection.applyFromFs({
+      path: r.paths.html,
+      bytes: enc(src('C')),
+      hash: hashBytes(src('C')),
+    });
+    expect(r.sent[1]?.p).toMatchObject({ content: src('C'), baseContent: src('B') });
   });
 
   test('while a proposal is in flight the projection does not write the old accepted value over the candidate', async () => {

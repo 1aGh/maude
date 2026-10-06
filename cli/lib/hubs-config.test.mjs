@@ -13,6 +13,7 @@ import {
   removeHub,
   saveHubsConfig,
   setHubCodeModules,
+  setHubUnlimitedDeletes,
 } from './hubs-config.mjs';
 
 function withTmpConfig(fn) {
@@ -220,4 +221,17 @@ test('addHub on a fresh record is unchanged — no expiry invented', () => {
   } finally {
     delete process.env.HUBS_CONFIG_PATH;
   }
+});
+
+test('the bulk-deletes consent records, and survives a token re-save', () => {
+  withTmpConfig(() => {
+    addHub('https://hub.example.com', 'tok-1');
+    assert.equal(getHub('https://hub.example.com').unlimitedDeletes, undefined);
+    assert.equal(setHubUnlimitedDeletes('https://hub.example.com', true), true);
+    addHub('https://hub.example.com', 'tok-2');
+    assert.equal(getHub('https://hub.example.com').unlimitedDeletes, true);
+    setHubUnlimitedDeletes('https://hub.example.com', 'yes');
+    assert.equal(getHub('https://hub.example.com').unlimitedDeletes, false);
+    assert.equal(setHubUnlimitedDeletes('https://nope.example.com', true), false);
+  });
 });

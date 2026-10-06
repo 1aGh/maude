@@ -18,19 +18,23 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import * as Y from 'yjs';
-
+import { replicaBoardText, writeReplica } from '../annotations/replica.ts';
+import { parseBoard } from '../annotations/schema.ts';
 import type { Api } from '../api.ts';
 import { createCollab } from '../collab/index.ts';
 import { Y_TYPES } from '../collab/persistence.ts';
 import type { RoomConn } from '../collab/room.ts';
 import { type Context, createBus } from '../context.ts';
+import { board, sticky } from './fixtures/annotations-v2/boards.ts';
 
 const SLUG = 'ui-boards-team';
 const FILE = 'ui/boards/Team.tsx';
-const OLD_SVG =
-  '<svg xmlns="http://www.w3.org/2000/svg" data-mdcc-annotations="1"><g data-id="old"/></svg>';
-const NEW_SVG =
-  '<svg xmlns="http://www.w3.org/2000/svg" data-mdcc-annotations="1"><g data-id="old"/><g data-id="new"/></svg>';
+// DDR-242 — canonical v2 boards (the sidecar is `<slug>.annotations.json`).
+const OLD_SVG = board(sticky('old', 'first open'));
+const NEW_SVG = board(
+  sticky('old', 'first open'),
+  sticky('new', 'projected', { x: 300, index: 'a1' })
+);
 
 let root: string;
 
@@ -41,7 +45,7 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-const annPath = () => path.join(root, `${SLUG}.annotations.svg`);
+const annPath = () => path.join(root, `${SLUG}.annotations.json`);
 const commentsPath = () => path.join(root, '_comments', `${SLUG}.json`);
 const binPath = () => path.join(root, '_state', `${SLUG}.ydoc.bin`);
 
@@ -69,12 +73,12 @@ function harness() {
 }
 
 const conn = (): RoomConn => ({ id: 'peer', send() {} }) as unknown as RoomConn;
-const svgOf = (doc: Y.Doc) => doc.getMap<string>(Y_TYPES.annotations).get('svg');
+const svgOf = (doc: Y.Doc) => replicaBoardText(doc);
 
-/** Write a `.ydoc.bin` holding `svg`, stamped `ageMs` in the past. */
-function writeCache(svg: string, ageMs: number) {
+/** Write a `.ydoc.bin` whose replica holds `text`, stamped `ageMs` in the past. */
+function writeCache(text: string, ageMs: number) {
   const doc = new Y.Doc();
-  doc.getMap<string>(Y_TYPES.annotations).set('svg', svg);
+  writeReplica(doc, parseBoard(text).elements, 'test');
   writeFileSync(binPath(), Y.encodeStateAsUpdate(doc));
   const t = (Date.now() - ageMs) / 1000;
   utimesSync(binPath(), t, t);
@@ -89,9 +93,45 @@ describe('live disk → room re-seed follows the pin, not ctx.sharedDoc', () => 
     expect(svgOf(room.doc)).toBe(OLD_SVG);
 
     writeFileSync(annPath(), NEW_SVG);
-    ctx.bus.emit('fs:any', `${SLUG}.annotations.svg`);
+    ctx.bus.emit('fs:any', `${SLUG}.annotations.json`);
     await Bun.sleep(20);
     expect(svgOf(room.doc)).toBe(NEW_SVG);
+    collab.dispose();
+  });
+
+  test('an external write is merged as a change: a room edit not yet on disk survives it', async () => {
+    // The multiplayer rig's L09 deletes: a peer's sync wrote a board that did
+    // not know the room had just deleted an element; the full re-seed brought
+    // it back. The external write's CHANGE (a new element) lands; the room's
+    // own delete stays.
+    const { ctx, collab } = harness();
+    writeFileSync(annPath(), OLD_SVG);
+    const room = collab.registry.get(SLUG);
+    await room.connect(conn());
+    collab.registry.applyOpsToRoom(SLUG, [{ op: 'delete', id: 'old' }]);
+    expect(parseBoard(svgOf(room.doc) ?? '').elements.map((e) => e.id)).toEqual([]);
+
+    writeFileSync(annPath(), NEW_SVG); // still has `old`, adds `new`
+    ctx.bus.emit('fs:any', `${SLUG}.annotations.json`);
+    await Bun.sleep(20);
+    expect(parseBoard(svgOf(room.doc) ?? '').elements.map((e) => e.id)).toEqual(['new']);
+    collab.dispose();
+  });
+
+  test('a legacy .annotations.svg reappearing on disk is NOT a board write', async () => {
+    // DDR-242 AD6 — only the boot migration may import a v1 sidecar (and one
+    // that reappears next to a .json is quarantined), never the live reseed.
+    const { ctx, collab } = harness();
+    writeFileSync(annPath(), OLD_SVG);
+    const room = collab.registry.get(SLUG);
+    await room.connect(conn());
+    writeFileSync(
+      path.join(root, `${SLUG}.annotations.svg`),
+      '<svg xmlns="http://www.w3.org/2000/svg"></svg>'
+    );
+    ctx.bus.emit('fs:any', `${SLUG}.annotations.svg`);
+    await Bun.sleep(20);
+    expect(svgOf(room.doc)).toBe(OLD_SVG);
     collab.dispose();
   });
 
@@ -114,7 +154,7 @@ describe('live disk → room re-seed follows the pin, not ctx.sharedDoc', () => 
     collab.registry.pin(SLUG);
 
     writeFileSync(annPath(), NEW_SVG);
-    ctx.bus.emit('fs:any', `${SLUG}.annotations.svg`);
+    ctx.bus.emit('fs:any', `${SLUG}.annotations.json`);
     writeFileSync(commentsPath(), JSON.stringify([{ id: 'c1', text: 'x' }]));
     ctx.bus.emit('fs:any', `_comments/${SLUG}.json`);
     await Bun.sleep(20);
@@ -142,8 +182,8 @@ describe('cache restore does not outrank a newer sidecar', () => {
   test('the forward step is causal — a client holding the cached state converges on disk', async () => {
     // A browser tab that loaded the stale room keeps its doc across the room
     // rebuild and re-syncs it. The reconcile must be an update ON TOP of the
-    // cached items, or the two concurrent `svg` sets would be decided by
-    // clientID and the stale board could win back.
+    // cached items, or concurrent sets of the same replica key would be
+    // decided by clientID and the stale board could win back.
     writeCache(OLD_SVG, 60_000);
     const tab = new Y.Doc();
     Y.applyUpdate(tab, new Uint8Array(await Bun.file(binPath()).arrayBuffer()));

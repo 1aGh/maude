@@ -237,6 +237,13 @@ export const REQUIREMENT_COVERAGE = {
     'edit owned comment': ['L11.comment.edit'],
     'resolve/reopen': ['L11.comment.resolve', 'L11.comment.reopen'],
     'delete where supported': ['L11.comment.delete'],
+    // #134/#136 — a comment not on an element: on an annotation (anchors to its
+    // id) and on empty canvas (a world point); both must outlive the old
+    // orphan-delete window on every receiver.
+    'comment on an annotation / empty canvas': [
+      'L11.comment.on-sticky',
+      'L11.comment.on-empty-canvas',
+    ],
   },
   L12: {
     'upload/drop new image': ['L12.upload-png.create', 'L12.seeded-photo.arrival-and-decode'],

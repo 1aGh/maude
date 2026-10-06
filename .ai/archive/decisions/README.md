@@ -9,6 +9,7 @@ Permanent log of architectural and product decisions for md-claude. Each DDR is 
 <!-- DDRs go here, format:
 - [DDR-NNN: Title](DDR-NNN-title.md) — YYYY-MM-DD, tags
 -->
+- [DDR-243: A cell's disk is a cache, not the project](DDR-243-cell-disk-is-a-cache.md) — 2026-10-01, cloud/cells/materializer/cache/r2/journal/durability/supersedes-ddr-226-s6/amends-ddr-224
 - [DDR-221: The `.fig` decoder is ours, dependency-free, and refuses rather than approximates](DDR-221-fig-container-decoder-fails-loud-and-adds-no-dependency.md) — 2026-08-12, figma/import/binary-parser/kiwi/zip/untrusted-input/fail-loud/extends-ddr-216
 - [DDR-213: A cell syncs to itself, or to nothing](DDR-213-cell-pairs-with-itself-loopback-shared-doc.md) — 2026-08-06, cloud/cell/collab/crdt/yjs/shared-doc/autocommit/extends-ddr-064/extends-ddr-209
 - [DDR-212: Eliminating the agent from the image, and the session from the singleton](DDR-212-eliminating-the-agent-from-the-image-and-the-session-from-the-singleton.md) — 2026-08-04, cloud/cell/build/session/runtime-state/assets/e2e/amends-ddr-209

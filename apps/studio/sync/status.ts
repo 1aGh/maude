@@ -96,6 +96,12 @@ export interface SyncStatusPayload extends SyncStatusSnapshot {
   appliedRevision?: number;
   /** Plan T16 — an AI action open or held (unfinished). Absent when none. */
   aiAction?: { state: 'open' | 'held'; label: string; canvases: string[]; since: number };
+  /**
+   * The desktop parked itself so its cloud cell can sleep (`sync/park.ts`).
+   * Deliberate, not a fault: sockets are closed on purpose and the next local
+   * change or click brings them back. Absent when not parked.
+   */
+  parked?: { since: number };
 }
 
 export interface AcceptedSaveStatus {
@@ -254,6 +260,8 @@ export interface SyncStatusStore {
   noteAppliedRevision(revision: number): void;
   /** Plan T16 — the AI action stage (null clears it). */
   updateAiAction(next: SyncStatusPayload['aiAction'] | null): void;
+  /** The desktop park (null clears it). */
+  updateParked(next: SyncStatusPayload['parked'] | null): void;
   /** Record a consent-class notice (A7) + persist + broadcast. Idempotent by
    *  `id` — the notice sites fire once per boot, and a repeat is a no-op
    *  rather than a duplicate row. */
@@ -295,6 +303,7 @@ export function createSyncStatusStore(opts: SyncStatusStoreOptions): SyncStatusS
   let files: FilePlaneStatus | undefined;
   let accepted: AcceptedSaveStatus | undefined;
   let aiAction: SyncStatusPayload['aiAction'] | undefined;
+  let parked: SyncStatusPayload['parked'] | undefined;
   const bootAt = now();
   const coldOpen: { canvasesMs?: number; filesMs?: number } = {};
   let appliedRevision: number | undefined;
@@ -323,6 +332,7 @@ export function createSyncStatusStore(opts: SyncStatusStoreOptions): SyncStatusS
       ...(files ? { files } : {}),
       ...(accepted ? { accepted } : {}),
       ...(aiAction ? { aiAction } : {}),
+      ...(parked ? { parked } : {}),
       ...(coldOpen.canvasesMs !== undefined || coldOpen.filesMs !== undefined
         ? { coldOpen: { ...coldOpen } }
         : {}),
@@ -418,6 +428,10 @@ export function createSyncStatusStore(opts: SyncStatusStoreOptions): SyncStatusS
     },
     updateAiAction(next) {
       aiAction = next ?? undefined;
+      flush(true);
+    },
+    updateParked(next) {
+      parked = next ?? undefined;
       flush(true);
     },
     updateAccepted(next) {

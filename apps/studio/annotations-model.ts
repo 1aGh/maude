@@ -25,6 +25,8 @@
  *   - sticky / polygon / image / link — see the per-tool serializers below.
  */
 
+import { defOf } from './annotations/registry.ts';
+import type { AnnotationElement, GeomCtx } from './annotations/types.ts';
 import {
   ARROW_HEADS,
   type ArrowHead,
@@ -89,6 +91,13 @@ interface StrokeBase {
   author?: 'ai';
   authorName?: string;
   authorId?: string;
+  /**
+   * Locked against accidental edits (#137): selectable, but not movable,
+   * resizable, deletable or text-editable from the UI. Absent = unlocked.
+   * A UX guard, not a permission — anyone can unlock. Serialized as
+   * `data-locked`.
+   */
+  locked?: true;
   /**
    * FigJam v3 — rotation in degrees (clockwise) around the stroke's bbox
    * center. Absent / 0 = axis-aligned (back-compat). Honoured by the box-
@@ -318,7 +327,21 @@ export interface SectionStroke extends StrokeBase {
   color: string;
 }
 
+/**
+ * DDR-242 (Task 25) — an element of a registered type with no stroke form of
+ * its own. Its world-space record rides along and every geometry question is
+ * answered by its registry definition, so a new element type is one model file:
+ * the whiteboard draws, selects, moves, syncs and hands it to the AI verbs
+ * without another `tool ===` branch.
+ */
+export interface ElementStroke extends StrokeBase {
+  tool: 'element';
+  /** The element in WORLD coordinates, without `parent`. */
+  el: AnnotationElement;
+}
+
 export type Stroke =
+  | ElementStroke
   | PenStroke
   | RectStroke
   | EllipseStroke
@@ -654,6 +677,37 @@ export function rid(): string {
   return `s_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/**
+ * The id of an annotation element that was written WITHOUT a `data-id` (a
+ * hand-edited or externally generated SVG). It used to be `rid()` — a new
+ * random id on every parse — so the same element had a different id in every
+ * tab, on every peer and after every reload, and nothing could point at it: a
+ * comment anchored to it (#134/#136), a peer's selection halo, an agent's
+ * `annotate update`. Now it is derived from the element's own markup, plus its
+ * occurrence among identical elements, so every parse of the same SVG gives
+ * every element the same id everywhere. The first edit writes it back as a real
+ * `data-id` (strokesToSvg always emits one), after which it never changes.
+ *
+ * Contract for the annotations-v2 element model
+ * (.ai/plans/feature-annotations-v2-element-model.md): an annotation's id is
+ * stable for the life of the element — across edits, moves, undo/redo, sync
+ * and reload — and is what external references (comments' `annotationId`)
+ * hold. A migration must carry ids over unchanged.
+ */
+export function stableAnnotationId(el: SvgElLike, seen: Map<string, number>): string {
+  const content = el.outerHTML;
+  const n = seen.get(content) ?? 0;
+  seen.set(content, n + 1);
+  // FNV-1a, 32-bit — deterministic, dependency-free, plenty for a per-board id.
+  let h = 0x811c9dc5;
+  const key = `${content}#${n}`;
+  for (let i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return `s_h${h.toString(36)}`;
+}
+
 /** FigJam v3 — group ids mirror the stroke id scheme (`g_` prefix). */
 export function gid(): string {
   return `g_${Math.random().toString(36).slice(2, 10)}`;
@@ -980,6 +1034,7 @@ function rootExtraAttrs(s: Stroke): string {
     extra += ` data-group-ids="${esc(s.groupIds.join(' '))}"`;
   }
   if (s.author === 'ai') extra += ' data-author="ai"';
+  if (s.locked) extra += ' data-locked="1"';
   // Phase 3 (whiteboard-improvements) — human author identity, independent of
   // `data-author="ai"` (never both: a stroke is either agent- or human-drawn).
   // escAttr (not esc) — these are attribute values, not element content; see
@@ -1016,6 +1071,8 @@ export function strokeToSvgEl(s: Stroke): string {
 }
 
 function strokeToSvgElBase(s: Stroke): string {
+  // No legacy SVG form: such an element only ever lives in a v2 board.
+  if (s.tool === 'element') return '';
   if (s.tool === 'text') {
     // Phase 21 — anchored text keeps the byte-identical Phase 5.1 form;
     // standalone text (no anchorId) writes its own world x/y and omits
@@ -1317,7 +1374,7 @@ function parseFill(raw: string | null): string | null {
  * between them, so first-pair = start, last-pair = end recovers the ends
  * exactly → idempotent re-serialize).
  */
-function arrowEndpoints(el: Element): { x1: number; y1: number; x2: number; y2: number } | null {
+function arrowEndpoints(el: SvgElLike): { x1: number; y1: number; x2: number; y2: number } | null {
   const line = el.querySelector('line');
   if (line) {
     return {
@@ -1390,13 +1447,14 @@ function sanitizeAuthorName(raw: string): string {
 }
 
 /** FigJam v3 — read the cross-tool root attrs back onto a parsed stroke. */
-function readSharedAttrs(el: Element, s: Stroke): void {
+function readSharedAttrs(el: SvgElLike, s: Stroke): void {
   const g = el.getAttribute('data-group-ids');
   if (g) {
     const ids = g.split(/\s+/).filter(Boolean);
     if (ids.length) s.groupIds = ids;
   }
   if (el.getAttribute('data-author') === 'ai') s.author = 'ai';
+  if (el.getAttribute('data-locked') === '1') s.locked = true;
   const authorName = el.getAttribute('data-author-name');
   if (authorName) {
     const cleaned = sanitizeAuthorName(authorName);
@@ -1416,17 +1474,45 @@ function readSharedAttrs(el: Element, s: Stroke): void {
   }
 }
 
+/**
+ * The slice of the DOM `Element` API the parser reads. A browser `Element`
+ * satisfies it; so does the DOM-free tree in `annotations/legacy/mini-dom.ts`,
+ * which lets the hub (Node, no DOMParser) upconvert legacy SVG history for the
+ * annotations-v2 migration (DDR-242 §6).
+ */
+export interface SvgElLike {
+  getAttribute(name: string): string | null;
+  querySelector(selector: string): SvgElLike | null;
+  querySelectorAll(selector: string): ArrayLike<SvgElLike>;
+  readonly textContent: string | null;
+  readonly outerHTML: string;
+}
+
+export interface SvgDocLike {
+  querySelector(selector: string): SvgElLike | null;
+  querySelectorAll(selector: string): ArrayLike<SvgElLike>;
+}
+
 export function svgToStrokes(svgText: string): Stroke[] {
   const text = (svgText ?? '').trim();
   if (!text) return [];
   if (typeof DOMParser === 'undefined') return [];
   try {
-    const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+    return strokesFromDocument(new DOMParser().parseFromString(text, 'image/svg+xml'));
+  } catch {
+    return [];
+  }
+}
+
+/** The parser proper, over any document exposing `SvgDocLike`. Never throws. */
+export function strokesFromDocument(doc: SvgDocLike): Stroke[] {
+  try {
     if (doc.querySelector('parsererror')) return [];
     const out: Stroke[] = [];
+    const seenContent = new Map<string, number>();
     for (const el of Array.from(doc.querySelectorAll('[data-tool]'))) {
       const tool = el.getAttribute('data-tool');
-      const id = el.getAttribute('data-id') || rid();
+      const id = el.getAttribute('data-id') || stableAnnotationId(el, seenContent);
       const color = el.getAttribute('stroke') || el.getAttribute('fill') || DEFAULT_COLOR;
       const width = Number.parseFloat(el.getAttribute('stroke-width') || '2') || 2;
       // FigJam v3 — every branch funnels through push() so the shared attrs
@@ -1741,6 +1827,7 @@ function pointSegmentDist(
 
 /** FigJam v3 — strokes whose `rotation` is honoured (see StrokeBase doc). */
 export function canRotate(s: Stroke): boolean {
+  if (s.tool === 'element') return false;
   if (s.tool === 'pen' || s.tool === 'arrow' || s.tool === 'section') return false;
   if (s.tool === 'text') return s.anchorId == null || s.anchorId === '';
   return true;
@@ -1807,6 +1894,9 @@ export function strokeHitTest(s: Stroke, wx: number, wy: number, tol: number): b
     return (
       wx >= bb.x - tol && wx <= bb.x + bb.w + tol && wy >= bb.y - tol && wy <= bb.y + bb.h + tol
     );
+  }
+  if (s.tool === 'element') {
+    return defOf(s.el.type)?.hitTest(s.el, wx, wy, tol, WORLD_CTX) ?? false;
   }
   if (s.tool === 'section') {
     // FigJam — a section is grabbed by its BORDER or its label chip; the
@@ -2013,6 +2103,7 @@ export function normalizeSticky(s: StickyStroke): StickyStroke {
 }
 
 export function isStrokeMeaningful(s: Stroke): boolean {
+  if (s.tool === 'element') return defOf(s.el.type)?.meaningful(s.el) ?? false;
   if (s.tool === 'pen') return s.points.length >= 2;
   if (s.tool === 'rect') return Math.abs(s.w) >= 4 && Math.abs(s.h) >= 4;
   if (s.tool === 'polygon') return Math.abs(s.w) >= 4 && Math.abs(s.h) >= 4;
@@ -2031,10 +2122,17 @@ export function isStrokeMeaningful(s: Stroke): boolean {
   return Math.hypot(s.x2 - s.x1, s.y2 - s.y1) >= 4;
 }
 
+const WORLD_CTX: GeomCtx = { origin: { x: 0, y: 0 }, resolve: () => null };
+
+function elementBox(s: ElementStroke): { x: number; y: number; w: number; h: number } | null {
+  return defOf(s.el.type)?.bounds(s.el, WORLD_CTX) ?? null;
+}
+
 export function strokeBBox(
   s: Stroke,
   anchors?: Map<string, AnchorHost>
 ): { x: number; y: number; w: number; h: number } | null {
+  if (s.tool === 'element') return elementBox(s);
   if (s.tool === 'pen') {
     if (!s.points.length) return null;
     let xMin = Number.POSITIVE_INFINITY;
@@ -2109,6 +2207,10 @@ export function strokeBBox(
 }
 
 export function translateOne(s: Stroke, dx: number, dy: number): Stroke {
+  if (s.tool === 'element') {
+    const def = defOf(s.el.type);
+    return def ? { ...s, el: { ...s.el, ...def.translate(s.el, dx, dy) } } : s;
+  }
   if (s.tool === 'pen') {
     return { ...s, points: s.points.map(([x, y]) => [x + dx, y + dy] as WorldPoint) };
   }

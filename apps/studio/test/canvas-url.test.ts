@@ -11,6 +11,7 @@ import {
   canvasUrl,
   setLiveCanvasToken,
   urlOf,
+  withCanvasToken,
 } from '../client/canvas-url.js';
 
 // Mirrors this repo's real multi-DS config: `project` is the default (ds0),
@@ -222,4 +223,14 @@ describe('a re-minted canvas capability', () => {
     expect(canvasTokenRefreshDelay('not-a-token', now)).toBe(10 * 60_000);
     expect(canvasTokenRefreshDelay(tok(now + 48 * 3600_000), now)).toBe(10 * 60_000);
   });
+});
+
+test('withCanvasToken swaps only the capability, so an expired frame comes back where it was', () => {
+  const src =
+    'https://canvas-alligators.cloud.maude.sh/_canvas-shell.html?c=ui%2FHome.tsx&t=old&v=3';
+  const out = new URL(withCanvasToken(src, 'fresh'));
+  expect(out.searchParams.get('t')).toBe('fresh');
+  expect(out.searchParams.get('c')).toBe('ui/Home.tsx');
+  expect(out.searchParams.get('v')).toBe('3');
+  expect(withCanvasToken('not a url', 'x')).toBe('not a url');
 });

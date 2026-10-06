@@ -5,6 +5,7 @@ import { $, $$, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
+import { canvasRow } from '../helpers/tree';
 
 /**
  * Plan T21/T22 — a designer who was added to a project opens the desktop app,
@@ -139,9 +140,9 @@ describe('team-project (native-desktop)', () => {
     // The shell switches the sidecar and the webview reloads onto the project.
     await browser.pause(6_000);
     await waitForSidecar();
-    const welcome = await $(tid('canvas-row-ui-welcome'));
+    const welcome = await canvasRow('canvas-row-ui-welcome');
     await welcome.waitForDisplayed({ timeout: 120_000 });
-    await (await $(tid('canvas-row-screens-home'))).waitForDisplayed({ timeout: 60_000 });
+    await (await canvasRow('canvas-row-screens-home')).waitForDisplayed({ timeout: 60_000 });
     await capture('04-project-open-with-canvases');
 
     // The copy lives where the app keeps team projects — nobody chose a folder.

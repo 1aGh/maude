@@ -33,7 +33,12 @@ import { sizingModeOf, sizingModePatch } from '../sizing-mode.ts';
 // same "pull only pure logic into the client bundle" shape as the imports
 // above (a type-only SyncStatusSnapshot import that Bun erases).
 import { syncPresentation } from '../sync/presentation.ts';
-import { canvasTokenRefreshDelay, canvasUrl, setLiveCanvasToken } from './canvas-url.js';
+import {
+  canvasTokenRefreshDelay,
+  canvasUrl,
+  setLiveCanvasToken,
+  withCanvasToken,
+} from './canvas-url.js';
 import { applyEditRequest } from './apply-edit-request.ts';
 import { createIndexLoader } from './index-loader.ts';
 import {
@@ -64,7 +69,7 @@ import { ReadinessDialog } from './panels/ReadinessList.jsx';
 import IntroVideoDialog from './panels/IntroVideoDialog.jsx';
 import BrandUploadPanel from './panels/BrandUploadPanel.jsx';
 import FigmaImportPanel from './panels/FigmaImportPanel.jsx';
-import { FilePreview, sanitizeDisplayText } from './panels/file-preview.jsx';
+import { FilePreview, prefetchPreviewImage, sanitizeDisplayText } from './panels/file-preview.jsx';
 import SetupChecklistDialog, { useSetupReadiness } from './panels/SetupChecklist.jsx';
 import TimelinePanel from './panels/TimelinePanel.jsx';
 import { parseCompTimeline } from './panels/timeline-parse.js';
@@ -132,6 +137,16 @@ import { acceptCanvasNotice } from '../canvas-notice-message.ts';
 import { ExportBadge, ExportPanel, ExportToast, useExportCenter } from './export-center.jsx';
 import { ReportBugDialog } from './report-bug.jsx';
 import { useWhatsNew, WhatsNewPanel, WhatsNewToast } from './whats-new.jsx';
+import {
+  collectDirPaths,
+  isDirOpen,
+  pruneDirs,
+  remapDirPrefix,
+  revealPath,
+  setDirOpen,
+  toggleSection as toggleSectionState,
+  useTreeExpansion,
+} from './tree-expansion.js';
 
 const USAGE_TOUR_STORE = 'mdcc-usage-tour-seen';
 // Phase 29 (E4) — the collab "rychlý kurz" is offered once after onboarding.
@@ -140,7 +155,6 @@ const COLLAB_TOUR_STORE = 'mdcc-collab-tour-seen';
 const SYSTEM_TAB = '__system__';
 const THEME_STORE = 'mdcc-theme';
 const SHOW_HIDDEN_STORE = 'mdcc-show-hidden';
-const SECTIONS_STORE = 'mdcc-sections-expanded';
 // DDR-171 — CSS panel vocabulary mode ('advanced' | 'designer'), read inside
 // CssKnobs.
 const CP_MODE_STORE = 'maude-cp-mode';
@@ -227,6 +241,9 @@ function DockSlot({ side, width, open, ids, activeId, onPick, children, labels =
   );
 }
 const CANVAS_EXT_RE = /\.(tsx|html?)$/i;
+// A canvas the shell builds as a module and that reports `canvas-rendered`
+// itself, as opposed to a legacy .html canvas that is drawn on `load`.
+const isModuleCanvasPath = (p) => /\.(tsx|jsx)$/i.test(String(p || ''));
 // feature-studio-file-preview — classifies a non-canvas tree row so FileRow
 // can open an inline preview instead of the old inert no-op. Kept in sync
 // with apps/studio/api.ts's PREVIEW_ASSET_EXTS (server won't list anything
@@ -332,14 +349,14 @@ function readJsonStore(key, fallback) {
   }
 }
 
-// Section default-open: working sections (project + non-DS canvas groups)
-// open; meta sections (DS + runtime) collapsed. Users can override per-section
-// via the chevron; overrides persist in localStorage.
-function sectionDefaultOpen(g) {
-  if (g.kind === 'runtime') return false;
-  if (g.label === 'Design system') return false;
-  return true;
+// Section default-open: EVERY section starts collapsed (issue #124 — "default
+// should be collapsed"). The user's per-section choice is remembered per
+// project by useTreeExpansion (tree-expansion.js), next to the folder state.
+function sectionDefaultOpen() {
+  return false;
 }
+// Stable empty list for the Sidebar while the tree state hydrates.
+const EMPTY_GROUPS = [];
 
 // ---------- Utility ----------
 
@@ -2157,8 +2174,17 @@ function ExportDialog({
 const TREE_INDENT_BASE = 12;
 const TREE_INDENT_STEP = 16;
 
-function DirRow({ name, depth, defaultOpen, children, dirPath, drag, menu }) {
-  const [open, setOpen] = useState(defaultOpen);
+// Issue #124 — disclosure is CONTROLLED: `expansion` is App's tree state (see
+// tree-expansion.js), so a collapse outlives this row's unmount (dock-tab
+// switch, section toggle, reload). `forceOpen` = an active search; it shows
+// the hits without recording anything.
+function DirRow({ name, depth, children, dirPath, drag, menu, expansion, forceOpen }) {
+  const open = !!forceOpen || !!expansion?.isOpen(dirPath);
+  const setOpen = (v) => {
+    if (forceOpen) return; // search is showing hits — don't record a choice
+    const next = typeof v === 'function' ? v(open) : v;
+    if (next !== open) expansion?.setOpen(dirPath, next);
+  };
   // feature-file-tree-drag-drop-folders (Task 8) — a folder row IS the drop
   // target. `drag` is undefined for groups that can't accept a move (the
   // design-system group) — no handlers attach there, so the browser's default
@@ -2225,8 +2251,13 @@ function DirRow({ name, depth, defaultOpen, children, dirPath, drag, menu }) {
 // Split target: chevron toggles disclosure of the folder's contents; clicking
 // the folder name opens the SystemView focused on that DS (single SystemView
 // for now; the dsName is plumbed through so a future per-DS view can use it).
-function DsFolderRow({ name, dsName, depth, defaultOpen, active, onOpenSystem, children }) {
-  const [open, setOpen] = useState(defaultOpen);
+function DsFolderRow({ name, dsName, dirPath, depth, active, onOpenSystem, children, expansion, forceOpen }) {
+  const open = !!forceOpen || !!expansion?.isOpen(dirPath);
+  const setOpen = (v) => {
+    if (forceOpen) return; // search is showing hits — don't record a choice
+    const next = typeof v === 'function' ? v(open) : v;
+    if (next !== open) expansion?.setOpen(dirPath, next);
+  };
   return (
     <FileTreeItem label={name} expanded={open} selected={active}
       onToggle={() => setOpen(v => !v)} row={
@@ -2346,6 +2377,8 @@ function FileRow({
         if (isCanvas) onOpen(file.path);
         else if (pKind) onPreview?.(file.path);
       }}
+      onPointerEnter={pKind === 'image' ? () => prefetchPreviewImage(file.path) : undefined}
+      onFocus={pKind === 'image' ? () => prefetchPreviewImage(file.path) : undefined}
       onContextMenu={
         canShare
           ? (e) =>
@@ -2615,6 +2648,8 @@ function Tree({
   // feature-file-tree-drag-drop-folders (Task 9) — the shared row-menu
   // instance (useRowMenu()), undefined for groups that can't participate.
   menu,
+  // Issue #124 — App-level folder disclosure `{ isOpen, setOpen }`.
+  expansion,
 }) {
   const dirs = Object.keys(node)
     .filter((k) => k !== '_files')
@@ -2730,6 +2765,7 @@ function Tree({
             dirPath={childPath}
             drag={drag}
             menu={menu}
+            expansion={expansion}
           />
         );
         if (dsMatch && onOpenSystem) {
@@ -2738,8 +2774,10 @@ function Tree({
               key={d}
               name={d}
               dsName={dsMatch.name}
+              dirPath={childPath}
               depth={depth}
-              defaultOpen={true}
+              expansion={expansion}
+              forceOpen={hasSearch}
               active={activePath === SYSTEM_TAB && dsMatch.name === activeDsName}
               onOpenSystem={onOpenSystem}
             >
@@ -2752,8 +2790,9 @@ function Tree({
             key={d}
             name={d}
             depth={depth}
-            defaultOpen={true}
             dirPath={childPath}
+            expansion={expansion}
+            forceOpen={hasSearch}
             drag={drag}
             menu={drag ? menu : undefined}
           >
@@ -2786,6 +2825,42 @@ function sectionMetaFor(g) {
   return { title: g.label.toUpperCase(), pillFromCount: true };
 }
 
+// The file tree before its first index arrives. A large project — above all a
+// cloud one on a cold workspace — can take several seconds to list, and a blank
+// panel reading "0 / 0" looks like an empty or broken project. Skeleton rows
+// say "coming"; after a few seconds a line says why, and a failed attempt says
+// it is being retried (the index loader retries on its own).
+function TreeLoading({ failures, cloud }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 3000);
+    return () => clearTimeout(t);
+  }, []);
+  const hint =
+    failures > 0
+      ? 'The project is taking a while to answer — trying again…'
+      : cloud
+        ? 'Still loading — a large cloud project can take a few seconds to list.'
+        : 'Still loading — a large project can take a few seconds to list.';
+  return (
+    <div className="st-tree-loading" role="status" aria-live="polite" data-testid="tree-loading">
+      <div className="st-tree-loading-head">
+        <span className="st-canvas-loading-spinner" aria-hidden="true" />
+        <span>Loading files…</span>
+      </div>
+      {[64, 48, 72, 40, 56, 68, 44].map((w, i) => (
+        <span
+          key={i}
+          className="skel st-tree-loading-row"
+          style={{ width: `${w}%`, marginLeft: i % 3 ? 22 : 8 }}
+          aria-hidden="true"
+        />
+      ))}
+      {(slow || failures > 0) && <div className="st-tree-loading-hint">{hint}</div>}
+    </div>
+  );
+}
+
 function Sidebar({
   // Cloud Phase 25 C2 — viewer role: create / delete / move / rename
   // affordances are absent (buttons, composer, row menus, drag & drop).
@@ -2811,6 +2886,8 @@ function Sidebar({
   showHidden,
   sectionsExpanded,
   onToggleSection,
+  // Issue #124 — App-level folder disclosure `{ isOpen, setOpen }`.
+  treeExpansion,
   onNewBoard,
   onDeleteBoard,
   onRefresh,
@@ -2841,6 +2918,7 @@ function Sidebar({
   onLocalProject,
   onOpenLinkedFile,
   filesReady,
+  treeLoadFailures = 0,
   onShare,
   // feature-cloud-managed-git-posture — the widened DDR-218 gate, resolved once
   // in App and handed down. Withdraws the drafts switcher: a local branch
@@ -3194,6 +3272,7 @@ function Sidebar({
         </div>
       </div>
 
+      {!filesReady && <TreeLoading failures={treeLoadFailures} cloud={cloud} />}
       <FileTree aria-label="Project file tree" data-testid="canvas-list">
         {filteredGroups.map((g) => {
           // Hide gitignored runtime / orphan-only project sections by default.
@@ -3266,6 +3345,7 @@ function Sidebar({
                     dirPath={g.fullPath}
                     drag={!isDs && g.kind === 'canvas' && !readOnly ? treeDrag : undefined}
                     menu={rowMenu}
+                    expansion={treeExpansion}
                   />
                 ) : (
                   <div className="st-tree-empty">{search ? 'No matches.' : 'Empty.'}</div>
@@ -4807,14 +4887,7 @@ function Viewport({
         // DS skeletons recipe — calm .skel pulse while the canvas-shell compiles
         // the TSX. Cleared by the iframe's dgn:'loaded' message (or the onLoad
         // fallback timer for legacy .html canvases that never post it).
-        <div className="st-canvas-loading" aria-hidden="true">
-          <div className="st-skel-card">
-            <div className="st-skel-cap st-mono">compiling canvas…</div>
-            <span className="skel st-skel-thumb" />
-            <span className="skel st-skel-line" style={{ width: '72%' }} />
-            <span className="skel st-skel-line" style={{ width: '46%' }} />
-          </div>
-        </div>
+        <CanvasLoading key={loadingPath} path={loadingPath} cloud={!!cfg?.cloud} />
       )}
       {canvasError && canvasError.path === activePath && (
         // issue #115 — what the blank pane used to be. Names which of the two
@@ -4855,6 +4928,39 @@ function Viewport({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// The canvas loading screen. OPAQUE on purpose: until the canvas reports
+// `canvas-rendered` the frame underneath is the bare shell — a white page,
+// and on a canvas with comments, pins floating over nothing — which reads as
+// "something broke". The card fades in after a beat so a warm canvas that
+// renders in a few hundred ms never flashes it; the hint after a few seconds
+// says why a cold canvas is slow instead of leaving the user to wonder.
+function CanvasLoading({ path, cloud }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 4000);
+    return () => clearTimeout(t);
+  }, []);
+  const name = sanitizeDisplayText(basename(path || '').replace(/\.(tsx|jsx|html?)$/i, ''));
+  return (
+    <div className="st-canvas-loading" role="status" aria-live="polite" data-testid="canvas-loading">
+      <div className="st-skel-card">
+        <div className="st-canvas-loading-head">
+          <span className="st-canvas-loading-spinner" aria-hidden="true" />
+          <span className="st-canvas-loading-title">Opening {name}…</span>
+        </div>
+        <span className="skel st-skel-thumb" aria-hidden="true" />
+        <span className="skel st-skel-line" style={{ width: '72%' }} aria-hidden="true" />
+        <span className="skel st-skel-line" style={{ width: '46%' }} aria-hidden="true" />
+        <div className={'st-canvas-loading-hint' + (slow ? ' is-shown' : '')}>
+          {cloud
+            ? 'Still working — the first open of a canvas fetches its images and fonts from cloud storage. It is quicker next time.'
+            : 'Still working — large canvases take a moment to build.'}
+        </div>
+      </div>
     </div>
   );
 }
@@ -5165,6 +5271,7 @@ function StatusBar({
     const detail = p.names.length ? ` (${p.names.join(', ')})` : '';
     return {
       online: p.online,
+      phase: p.phase,
       label: p.label,
       title: `${p.title}${detail}${p.next ? ` — ${p.next}` : ''}`,
     };
@@ -5177,7 +5284,12 @@ function StatusBar({
         aria-hidden="true"
       />
       <span className="lbl">hub sync</span>
-      <span className="val" title={syncSlot.title}>
+      <span
+        className="val"
+        title={syncSlot.title}
+        data-testid="statusbar-sync"
+        data-phase={syncSlot.phase}
+      >
         {syncSlot.label}
       </span>
     </>
@@ -9881,6 +9993,9 @@ function InspectorPanel({
 function App() {
   const [groups, setGroups] = useState([]);
   const [treeLoaded, setTreeLoaded] = useState(false);
+  // Failed /_index-data attempts since the last success — the tree's loading
+  // state says "still trying" instead of sitting blank (the loader retries).
+  const [treeLoadFailures, setTreeLoadFailures] = useState(0);
   const addressMode = useRef('push');
   const previousAddressPath = useRef(null);
   const [project, setProject] = useState('Design');
@@ -10190,6 +10305,10 @@ function App() {
   // the iframe load event arms a short fallback for legacy .html canvases that
   // never post it; a hard cap guards against a canvas that dies mid-compile.
   const onIframeLoad = useCallback((path) => {
+    // A module canvas reports its own render; the iframe `load` event fires
+    // long before it has drawn anything, so a timer here would only bring
+    // back the white pane.
+    if (isModuleCanvasPath(path)) return;
     clearTimeout(loadFallbackTimer.current);
     loadFallbackTimer.current = setTimeout(() => {
       setLoadingPath((p) => (p === path ? null : p));
@@ -10231,6 +10350,11 @@ function App() {
   // was written for. It reached the branch because the PR carried a merge
   // conflict, which stops GitHub from building a merge ref, which means the
   // client-boot gate never ran on it (issue #112 close-out).
+  // Once the shell has said `loaded` the origin is demonstrably up and the
+  // wait is the canvas building — on a cold cloud canvas that can outlast 15 s
+  // without anything being wrong, so the cap stretches instead of calling it a
+  // failure. The shell reports a real build error itself (`canvas-failed`).
+  const shellAlive = !!loadingPath && loadedPath === loadingPath;
   useEffect(() => {
     if (!loadingPath) return;
     const path = loadingPath;
@@ -10246,9 +10370,9 @@ function App() {
       }
       setCanvasError({ path, kind });
       setLoadingPath((p) => (p === path ? null : p));
-    }, 15000);
+    }, shellAlive ? 60000 : 15000);
     return () => clearTimeout(cap);
-  }, [loadingPath, cfg?.canvasOrigin]);
+  }, [loadingPath, shellAlive, cfg?.canvasOrigin]);
   // WHO IS SAVING THIS PROJECT — one expression, read by every surface that
   // would otherwise offer to save it, poll for it, or badge it (DDR-218, widened
   // by feature-cloud-managed-git-posture).
@@ -10341,7 +10465,7 @@ function App() {
           // dialogs gate on it. Absent on older servers → undefined, treated
           // as `local` (the pre-lane behavior) everywhere it is read.
           exportLane: data.exportLane,
-          // DDR-242 — the apps allowed to frame this studio. Read by the
+          // DDR-247 — the apps allowed to frame this studio. Read by the
           // `?embed=1` root (embed-view.jsx), which never mounts <App>; named
           // here so the projection stays total (config-projection.test.ts).
           embedOrigins: data.embedOrigins,
@@ -10418,7 +10542,11 @@ function App() {
   const [openMenu, setOpenMenu] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(() => readBoolStore(SIDEBAR_STORE, true));
   const [showHidden, setShowHidden] = useState(() => readBoolStore(SHOW_HIDDEN_STORE, false));
-  const [sectionsExpanded, setSectionsExpanded] = useState(() => readJsonStore(SECTIONS_STORE, {}));
+  // Issue #124 — folder + section disclosure of the Files panel, remembered
+  // per project on disk (tree-expansion.js). Absent ⇒ closed.
+  const treeExp = useTreeExpansion();
+  const updateTreeExp = treeExp.update;
+  const sectionsExpanded = treeExp.state.sections;
   const [helpOpen, setHelpOpen] = useState(false);
   const [reportBugOpen, setReportBugOpen] = useState(false);
 
@@ -10887,10 +11015,7 @@ function App() {
       setLiveCanvasToken(token);
       // To the canvas origin only, never '*': a frame the canvas content
       // navigated elsewhere must not be handed the capability.
-      let target = null;
-      try {
-        target = new URL(cfg.canvasOrigin, location.href).origin;
-      } catch {}
+      const target = canvasTarget();
       if (target) {
         for (const el of iframesRef.current.values()) {
           try {
@@ -10899,7 +11024,36 @@ function App() {
         }
       }
       schedule(token);
+      return token;
     }
+    function canvasTarget() {
+      try {
+        return new URL(cfg.canvasOrigin, location.href).origin;
+      } catch {
+        return null;
+      }
+    }
+    // A FRAME WHOSE OWN DOCUMENT WAS REFUSED AS EXPIRED. The re-mint above
+    // reaches a running canvas's fetches, but not a frame that re-navigates
+    // itself (a hard reload, a laptop that slept past the cadence): that load
+    // carries the URL it was built with, and the canvas origin answers with a
+    // small page that asks us for a fresh capability (hub studio-proxy). Mint
+    // one and point just that frame at it — no "reload the project".
+    let reviving = false;
+    async function onExpired(e) {
+      if (e.data?.dgn !== 'canvas-expired' || e.origin !== canvasTarget() || reviving) return;
+      reviving = true;
+      try {
+        const token = await refresh();
+        if (!token) return;
+        for (const el of iframesRef.current.values()) {
+          if (el.contentWindow === e.source) el.src = withCanvasToken(el.src, token);
+        }
+      } finally {
+        reviving = false;
+      }
+    }
+    window.addEventListener('message', onExpired);
     schedule(cfg.canvasToken);
     // A background tab's timers are throttled; one woken past its due time
     // re-mints at once rather than on the throttled tick.
@@ -10911,6 +11065,7 @@ function App() {
       stopped = true;
       clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('message', onExpired);
     };
   }, [cfg?.canvasToken, cfg?.canvasOrigin]);
 
@@ -11756,11 +11911,6 @@ function App() {
   }, [showHidden]);
   useEffect(() => {
     try {
-      localStorage.setItem(SECTIONS_STORE, JSON.stringify(sectionsExpanded));
-    } catch {}
-  }, [sectionsExpanded]);
-  useEffect(() => {
-    try {
       localStorage.setItem(MINIMAP_STORE, minimapVisible ? '1' : '0');
     } catch {}
   }, [minimapVisible]);
@@ -11841,13 +11991,28 @@ function App() {
     } catch {}
   }, [layersMode]);
 
-  const toggleSection = useCallback((label, defaultOpen) => {
-    setSectionsExpanded((prev) => {
-      const cur = prev[label];
-      const isOpen = cur === undefined ? defaultOpen : cur;
-      return { ...prev, [label]: !isOpen };
-    });
-  }, []);
+  // #124 — forget folders that no longer exist (deleted, or moved outside
+  // Maude). ONCE per session, on the first loaded tree: pruning on every tree
+  // change would race a move's remap against the reload that follows it.
+  const treePruned = useRef(false);
+  useEffect(() => {
+    if (treePruned.current || !treeExp.ready || !treeLoaded || !groups.length) return;
+    treePruned.current = true;
+    const known = collectDirPaths(groups);
+    updateTreeExp((st) => pruneDirs(st, known));
+  }, [treeExp.ready, treeLoaded, groups, updateTreeExp]);
+
+  const toggleSection = useCallback(
+    (label) => updateTreeExp((st) => toggleSectionState(st, label)),
+    [updateTreeExp]
+  );
+  const treeExpansion = useMemo(
+    () => ({
+      isOpen: (dirPath) => isDirOpen(treeExp.state, dirPath),
+      setOpen: (dirPath, open) => updateTreeExp((st) => setDirOpen(st, dirPath, open)),
+    }),
+    [treeExp.state, updateTreeExp]
+  );
 
   const toggleTheme = useCallback(() => {
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
@@ -11872,6 +12037,7 @@ function App() {
         setProject(data.project || 'Design');
         setGroups(built);
         setTreeLoaded(true);
+        setTreeLoadFailures(0);
         // DDR-093 — fold the server-resolved per-canvas DS map into cfg so
         // canvasUrl() injects each UI canvas's OWN design-system tokens instead of
         // always designSystems[0]. Functional merge to coexist with the /_config
@@ -11887,7 +12053,10 @@ function App() {
           canvasKinds: data.canvasKinds ?? {},
         }));
       },
-      onError: (error) => console.error('failed to load tree', error),
+      onError: (error) => {
+        console.error('failed to load tree', error);
+        setTreeLoadFailures((n) => n + 1);
+      },
     });
     treeLoaderRef.current = loader;
     loadTree();
@@ -12108,6 +12277,26 @@ function App() {
       if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj));
     } catch {}
   }
+
+  // A PERSON IS HERE — the desktop park's presence signal (sync/park.ts). A
+  // parked desktop has closed its cloud link so the project can sleep; real
+  // input brings it back, and keeps an attended desktop from parking. Real
+  // input only (not focus): a window left focused overnight is not a person.
+  // At most one frame per 30 s, so the socket hears a heartbeat, not a stream.
+  useEffect(() => {
+    let last = 0;
+    const onInput = () => {
+      const now = Date.now();
+      if (now - last < 30_000) return;
+      last = now;
+      wsSend({ type: 'presence' });
+    };
+    const events = ['pointerdown', 'keydown', 'wheel'];
+    for (const e of events) window.addEventListener(e, onInput, { capture: true, passive: true });
+    return () => {
+      for (const e of events) window.removeEventListener(e, onInput, { capture: true });
+    };
+  }, []);
 
   // ----- Phase 27 (E2) — git actions -----
   // All write actions POST same-origin (the dev-server's sameOriginWrite + the
@@ -12360,7 +12549,12 @@ function App() {
   // The `tabs` state stays as a 0-or-1 array so the rest of the plumbing
   // (iframesRef, comments push, WS `tabs` message) doesn't need refactoring.
   // ARTBOARDS slot in the menubar reads `tabs.length` and reports 0 or 1.
-  const openTab = useCallback((path) => {
+  // `reveal: false` for opens the USER didn't just ask for (URL restore on
+  // boot, the cloud first-canvas auto-open): nothing expands itself on launch
+  // (#124). Every other open reveals the canvas's row in the Files tree.
+  const openTab = useCallback((path, { reveal = true } = {}) => {
+    if (reveal && path && path !== SYSTEM_TAB)
+      updateTreeExp((st) => revealPath(st, groups, path));
     addressMode.current = 'push';
     setFocusedCommentId(null);
     setPreviewPath(null);
@@ -12378,12 +12572,12 @@ function App() {
     // Canvas-compile skeleton — cleared by the iframe's dgn:'loaded' message,
     // the onLoad fallback timer (legacy .html), or a hard 15s cap.
     if (path !== SYSTEM_TAB) setLoadingPath(path);
-  }, [activePath]);
+  }, [activePath, groups, updateTreeExp]);
 
   // Resolve URL identities against the loaded tree, including non-canvas previews.
   const openLinkedFile = useCallback((rel, mode = 'push') => {
     const path = groups.flatMap((g) => g.paths || []).find((p) => normalizeOpenPath(p, cfg.designRel) === rel);
-    if (path && CANVAS_EXT_RE.test(path)) openTab(path);
+    if (path && CANVAS_EXT_RE.test(path)) openTab(path, { reveal: false });
     else if (path && previewKind(basename(path))) onPreview(path);
     else {
       setTabs([]);
@@ -12488,7 +12682,7 @@ function App() {
     }
     if (!first) return;
     autoOpened.current = true;
-    openTab(first);
+    openTab(first, { reveal: false });
   }, [cfg.cloud, groups, tabs.length, openTab]);
 
   const openSystem = useCallback(
@@ -12855,6 +13049,9 @@ function App() {
         );
         const fromFile = `${designRel}/${j.fromRel}`;
         const toFile = `${designRel}/${j.toRel}`;
+        // #124 — a moved folder keeps its (and its subfolders') open state, and
+        // the destination opens so the moved row is visible.
+        updateTreeExp((st) => revealPath(remapDirPrefix(st, fromFile, toFile), groups, toFile));
         await loadTree();
         setTabs((prev) => prev.map((t) => (t.path === fromFile ? { path: toFile } : t)));
         setActivePath((prev) => (prev === fromFile ? toFile : prev));
@@ -12871,7 +13068,7 @@ function App() {
         return { ok: false, error: 'network error' };
       }
     },
-    [loadTree, cfg]
+    [loadTree, cfg, groups, updateTreeExp]
   );
 
   // feature-file-tree-drag-drop-folders (Task 4/9/12) — create a folder under
@@ -12893,6 +13090,8 @@ function App() {
           shellToast(`Could not create folder: ${error}`);
           return { ok: false, error };
         }
+        // #124 — open the parent so the new folder is visible (it starts closed).
+        updateTreeExp((st) => revealPath(st, groups, parentDir, { includeSelf: true }));
         await loadTree();
         return { ok: true, dir: j.dir };
       } catch (e) {
@@ -12901,7 +13100,7 @@ function App() {
         return { ok: false, error };
       }
     },
-    [loadTree]
+    [loadTree, groups, updateTreeExp]
   );
 
   // feature-file-tree-drag-drop-folders (dogfood follow-up) — delete a
@@ -12949,12 +13148,16 @@ function App() {
           shellToast(`Could not rename folder: ${j.error || `error ${r.status}`}`);
           return;
         }
+        // #124 — the renamed folder keeps its open state (and its subfolders').
+        const designRel = (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '');
+        const toDir = typeof j.toRel === 'string' ? `${designRel}/${j.toRel}` : `${parent}/${name}`;
+        updateTreeExp((st) => remapDirPrefix(st, dirPath, toDir));
         await loadTree();
       } catch (e) {
         shellToast(`Rename failed: ${e instanceof Error ? e.message : 'network error'}`);
       }
     },
-    [loadTree]
+    [loadTree, cfg, updateTreeExp]
   );
 
   // Plan T25/L04 — rename a canvas in place (its sidecars follow; an open tab
@@ -13717,6 +13920,9 @@ function App() {
               classes: p.classes,
               bounds: p.bounds,
               html_excerpt: p.html_excerpt,
+              // #134/#136 anchors — shape-checked server-side (api.ts commentsAdd).
+              annotationId: p.annotationId,
+              world: p.world,
               text: txt,
             },
           });
@@ -13875,10 +14081,21 @@ function App() {
           if (typeof m.artboardId === 'string') setCanvasActiveArtboard(m.artboardId.slice(0, 120));
           setTimelineOpen(true);
         }
+      } else if ((m.dgn === 'canvas-rendered' || m.dgn === 'canvas-failed') && m.file) {
+        // The canvas drew (or its shell is now showing its own build error) —
+        // only now drop the loading screen. See `loaded` below for why that
+        // one is not enough. Only from the frame IN VIEW, like every branch
+        // that changes what the user sees (review F5).
+        const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
+        if (e.source === activeWin) setLoadingPath((p) => (p === m.file ? null : p));
       } else if (m.dgn === 'loaded' && m.file) {
-        // iframe finished loading — drop the compile skeleton, push current
-        // comments + carry over focused pin if any
-        setLoadingPath((p) => (p === m.file ? null : p));
+        // The shell document ran — push current comments + carry over the
+        // focused pin. For a TSX/JSX canvas this is NOT "drawn": the module
+        // still has to build and render, which on a cold cloud canvas takes
+        // seconds, and dropping the loading screen here showed a white pane
+        // with bare comment pins. Those canvases clear it on `canvas-rendered`
+        // / `canvas-failed`; a legacy .html canvas has nothing to wait for.
+        if (!isModuleCanvasPath(m.file)) setLoadingPath((p) => (p === m.file ? null : p));
         setLoadedPath(m.file);
         // …and retire any #115 error panel for this canvas: it just proved it
         // can load (a late load, or a successful Retry).
@@ -15677,7 +15894,9 @@ function App() {
         <Sidebar
           cloud={cfg.cloud}
           readOnly={viewerMode}
-          groups={groups}
+          // Held back until the remembered disclosure is read, so the first
+          // paint is the user's tree rather than an all-closed flash (#124).
+          groups={treeExp.ready ? groups : EMPTY_GROUPS}
           activePath={activePath}
           previewPath={previewPath}
           activeDsName={activePath === SYSTEM_TAB ? (systemData?.ds?.name ?? null) : null}
@@ -15685,6 +15904,7 @@ function App() {
           onPreview={onPreview}
           onOpenLinkedFile={openLinkedFile}
           filesReady={treeLoaded}
+          treeLoadFailures={treeLoadFailures}
           onShare={showShare}
           onOpenSystem={openSystem}
           wsConnected={wsConnected}
@@ -15694,6 +15914,7 @@ function App() {
           showHidden={showHidden}
           sectionsExpanded={sectionsExpanded}
           onToggleSection={toggleSection}
+          treeExpansion={treeExpansion}
           onNewBoard={createBoard}
           onDeleteBoard={deleteBoard}
           onMoveCanvas={moveCanvasReq}
@@ -17139,6 +17360,6 @@ function App() {
   );
 }
 
-// DDR-242 — `?embed=1` is a different root, not a mode of <App>: nothing the
+// DDR-247 — `?embed=1` is a different root, not a mode of <App>: nothing the
 // shell does (prefs, address bar, panels) runs inside another app's frame.
 createRoot(document.getElementById('root')).render(isEmbedLocation(location) ? <EmbedView /> : <App />);

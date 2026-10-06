@@ -222,7 +222,7 @@
         const abs = u.startsWith('/') ? base + u : u;
         return cap ? abs + (abs.includes('?') ? '&' : '?') + 't=' + encodeURIComponent(cap) : abs;
       };
-      // DDR-242 — THE AMBIENT COOKIE READS, IT NEVER WRITES. The hub's canvas
+      // DDR-247 — THE AMBIENT COOKIE READS, IT NEVER WRITES. The hub's canvas
       // door authorises a write (POST/PUT/PATCH/DELETE) or a live socket only
       // from an EXPLICIT `?t=`, because the `maude_canvas` cookie is one per
       // canvas origin: inside an embed another tab's full capability would ride
@@ -385,6 +385,12 @@
         const el = document.getElementById('canvas-mount-error');
         if (el) el.textContent = msg;
         console.error('[canvas-shell]', msg);
+        // The studio keeps its loading screen up until the canvas reports
+        // rendered OR failed — tell it, so it drops the screen and this error
+        // is what the user reads instead of a spinner that never ends.
+        try {
+          window.parent.postMessage({ dgn: 'canvas-failed', file: designRel + '/' + (canvasRel || '') }, '*');
+        } catch (e) { /* parent gone */ }
       }
 
       // Spike finding M8 — a failed dynamic import throws a bare
@@ -712,6 +718,93 @@
       }
       connectHmr();
 
+      // HEAL WEBFONTS THAT FAILED ON A COLD CLOUD CACHE.
+      //
+      // On a cell the disk is a cache: the first request for a font the cell
+      // has not fetched yet makes the hub pull it from storage, and while that
+      // runs the static route answers 503 (retry shortly). An <img> is
+      // re-pointed when its bytes arrive (the asset-arrived handler above), but
+      // a CSS `@font-face` that failed stays failed for the life of the
+      // document — the canvas renders in a fallback serif until a reload, and
+      // which fonts lose the race differs every time ("the fonts are flaky").
+      //
+      // There is no way to re-run a CSS-connected FontFace, so a failed one is
+      // REPLACED: the same descriptors, read back from the stylesheet's own
+      // `@font-face` rule, with a cache-busting query on each url so the browser
+      // asks again. A face added through `document.fonts` is matched after the
+      // stylesheet's, so once it loads the text re-renders in it.
+      const fontHeal = { attempts: new Map(), timer: 0 };
+      const FONT_RETRY_DELAYS_MS = [1500, 3000, 5000, 8000, 12000, 20000];
+      const unquote = (s) => String(s || '').trim().replace(/^(['"])(.*)\1$/, '$2');
+      function* fontFaceRules(rules) {
+        for (const rule of rules || []) {
+          if (typeof CSSFontFaceRule !== 'undefined' && rule instanceof CSSFontFaceRule) yield rule;
+          else if (rule.cssRules) yield* fontFaceRules(rule.cssRules);
+        }
+      }
+      function faceKey(family, weight, style, range) {
+        return [unquote(family), weight || '', style || '', range || ''].join('|');
+      }
+      function healFailedFonts() {
+        fontHeal.timer = 0;
+        if (!document.fonts) return;
+        const failed = new Set();
+        for (const f of document.fonts) {
+          if (f.status === 'error') failed.add(faceKey(f.family, f.weight, f.style, f.unicodeRange));
+        }
+        if (!failed.size) return;
+        for (const sheet of Array.from(document.styleSheets)) {
+          let rules;
+          try { rules = sheet.cssRules; } catch (e) { continue; }
+          for (const rule of fontFaceRules(rules)) {
+            const st = rule.style;
+            const family = st.getPropertyValue('font-family');
+            const src = st.getPropertyValue('src');
+            if (!family || !src) continue;
+            const descriptors = {
+              weight: st.getPropertyValue('font-weight') || undefined,
+              style: st.getPropertyValue('font-style') || undefined,
+              stretch: st.getPropertyValue('font-stretch') || undefined,
+              unicodeRange: st.getPropertyValue('unicode-range') || undefined,
+              display: st.getPropertyValue('font-display') || undefined,
+            };
+            for (const k of Object.keys(descriptors)) if (!descriptors[k]) delete descriptors[k];
+            let probe;
+            try { probe = new FontFace(unquote(family), 'local("maude-probe")', descriptors); } catch (e) { continue; }
+            const key = faceKey(probe.family, probe.weight, probe.style, probe.unicodeRange);
+            if (!failed.has(key)) continue;
+            const n = (fontHeal.attempts.get(key) || 0) + 1;
+            if (n > FONT_RETRY_DELAYS_MS.length) continue;
+            fontHeal.attempts.set(key, n);
+            const base = sheet.href || document.baseURI;
+            const busted = src.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g, (whole, q, raw) => {
+              if (/^data:/i.test(raw)) return whole;
+              try {
+                const u = new URL(raw, base);
+                u.searchParams.set('font-retry', String(n));
+                return 'url("' + u.href.replace(/"/g, '%22') + '")';
+              } catch (e) { return whole; }
+            });
+            let face;
+            try { face = new FontFace(unquote(family), busted, descriptors); } catch (e) { continue; }
+            face.load().then(
+              () => {
+                document.fonts.add(face);
+                failed.delete(key);
+              },
+              () => scheduleFontHeal(FONT_RETRY_DELAYS_MS[n] || 0)
+            );
+          }
+        }
+      }
+      function scheduleFontHeal(delay) {
+        if (!delay || fontHeal.timer) return;
+        fontHeal.timer = setTimeout(healFailedFonts, delay);
+      }
+      if (document.fonts && document.fonts.addEventListener) {
+        document.fonts.addEventListener('loadingerror', () => scheduleFontHeal(FONT_RETRY_DELAYS_MS[0]));
+      }
+
       // NO TOP-LEVEL AWAIT IN THIS MODULE.
       //
       // The boot below used to `await` at the top level, which made this the
@@ -785,6 +878,45 @@
             file: designRel + '/' + canvasRel,
             commentsEnabled,
           });
+          // The studio's loading screen stays up until this arrives — `loaded`
+          // (inspect.ts) only proves the shell document ran, which on a cold
+          // cloud canvas is seconds before anything is drawn, so dropping the
+          // screen there showed a white pane with bare comment pins. Wait for
+          // React to commit the canvas and for its fonts, so it does not appear
+          // in a fallback face and then jump. Capped: a font that never
+          // arrives must not hold the screen forever.
+          //
+          // NOT requestAnimationFrame: while the studio's opaque loading screen
+          // covers this cross-origin frame, Chrome throttles its frames, so a
+          // rAF-gated signal only ever arrived via the cap — the cover was
+          // waiting on itself. Timers and a forced layout run regardless.
+          let renderedSent = false;
+          const announceRendered = () => {
+            if (renderedSent) return;
+            renderedSent = true;
+            try {
+              window.parent.postMessage({ dgn: 'canvas-rendered', file: designRel + '/' + canvasRel }, '*');
+            } catch (e) { /* parent gone */ }
+          };
+          setTimeout(announceRendered, 8000);
+          const committed = new Promise((resolve) => {
+            const started = Date.now();
+            const tick = () => {
+              if ((rootEl && rootEl.children.length > 0) || Date.now() - started > 4000) resolve();
+              else setTimeout(tick, 40);
+            };
+            tick();
+          });
+          committed
+            .then(() => {
+              // Lay the canvas out now so the browser knows which fonts it
+              // uses and starts them — `fonts.ready` only waits on loads that
+              // have begun.
+              try { if (rootEl) rootEl.getBoundingClientRect(); void document.body.offsetHeight; } catch (e) {}
+              const fontsReady = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+              return Promise.race([fontsReady, new Promise((r) => setTimeout(r, 3000))]);
+            })
+            .then(announceRendered, announceRendered);
           // T2 (9.1-A) diagnostic — tell the parent the canvas mounted + how many
           // root children it rendered. Lets the shell (and tooling) confirm a
           // cross-origin canvas actually rendered, which a parent-page screenshot

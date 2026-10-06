@@ -67,7 +67,7 @@ The HTTP dispatch is [http.ts](../../apps/studio/http.ts). The in-process API is
 | S20 | POST `/_api/canvas` → `createCanvas` writes TSX + meta; DELETE route → `deleteCanvas`, folder inputs → `deleteFolder` | `manifest.create` / `manifest.delete`; document ID/generation, atomic sidecars | T17/T25; A,S,M,F |
 | S21 | POST `/_api/fs-move` → `moveCanvas`, directory inputs → `moveFolder`; `rewriteCanvasImports` rewrites relative imports | `manifest.move` plus source import edits in the same action | T17/T25; A,S,M,F |
 | S22 | POST `/_api/fs-mkdir` → `createFolder` creates directory + `.gitkeep` | `manifest.create` directory. `.gitkeep` is excluded by the current classifier, so it cannot stand in for this entry | T17; A,M,F |
-| S23 | PUT/POST `/_api/annotations` → `saveAnnotations` → sanitized SVG disk write + `onAnnotationsChanged`; `annotations-layer.tsx` PUT chain includes optional `writeId` | `annotation.create/update/delete` by stable stroke ID, grouped gesture | T17/T26; A,P,F; concurrent disjoint strokes |
+| S23 | POST `/_api/annotations/ops` → `applyAnnotationOps` (the canvas's path: one gesture = one `{file, actionId, ops}` batch of `put`/`patch`/`delete`) and PUT/POST `/_api/annotations` → `saveAnnotations` (whole-board import/restore; a legacy SVG body is migrated) → registry-validated `<slug>.annotations.json` write + `onAnnotationsChanged` (DDR-242) | `annotation.put/patch/delete` by stable element id, one action per gesture; accepted mode replays the batch onto the head through the same `applyOps` merge rule | T17/T26; A,P,F; concurrent disjoint elements and fields |
 | S24 | `/_ws` messages `comments-add`, `comments-patch`, `comments-delete` → `commentsAdd`, `commentsPatch`, `commentsDelete`; POST `/_api/comments/:id/reply` → `commentsAddReply` | `comment.create/update/delete/reply`; authenticated actor and per-operation rights | T17/T26; A,P,F; reader cannot edit another author's comment |
 | S25 | PUT/POST `/_api/photo-edit?asset=` → `photoStore.savePhotoEdit`; `client/photo-knobs.jsx` edits/reset/undo; `canvas-lib.tsx` background removal uploads mask then PUTs edit | `photo.assign` with asset identity and grouped reset/mask operation | T17/T26; A,P,B,F |
 | S26 | PUT/POST `/_api/footage?asset=` → `footageStore.saveAnalysis`; `?slug=` → `saveEdl` | `footage.assign` / `edl.edit` schema gaps, source/media dependencies | T16/T17/T26; A,S,B,P,F |
@@ -120,7 +120,7 @@ ACP advertises `fs.readTextFile:false` / `fs.writeTextFile:false` in [acp/bridge
 |---|---|---|
 | I01 | ACP `requestPermission` + external Write/Edit/MultiEdit/NotebookEdit/shell tools; agent sessions launched through `newSessionParams` | Explicit begin/propose/commit candidate action, instrumented base receipt, dependency set and isolated candidate workspace; T16; A,S,M,F. Missing/unproven base retains candidate. |
 | I02 | `/_api/ai/start`, `/_api/ai/heartbeat`, `/_api/ai/end` → activity signal | Ephemeral activity only; never infer an accepted edit or atomic action from an idle/end signal; T16/T29; E |
-| I03 | [bin/annotate.mjs](../../apps/studio/bin/annotate.mjs): `main`/`applyOps`, `applyMove`, `applySetText`, `applySetColor`; PUT `/_api/annotations`, then direct `writeFileSync(svgPath, merged)` fallback on server failure | Same annotation proposal; fallback must retain a candidate rather than bypass acceptance; T16/T26; A,P,F |
+| I03 | [bin/annotate.mjs](../../apps/studio/bin/annotate.mjs): `main` → `AiBatch` ([annotations/ai-write.ts](../../apps/studio/annotations/ai-write.ts)) builds `put`/`patch`/`delete` ops; `postOps` POSTs them to a loopback `/_api/annotations/ops`, else `writeBoardFileAtomic` writes the resulting board when no server answers | Same annotation proposal as the canvas (element ops, `author.kind = 'ai'`); fallback must retain a candidate rather than bypass acceptance; T16/T26; A,P,F |
 | I04 | [bin/_import-figma.mjs](../../apps/studio/bin/_import-figma.mjs): `importBoard`, `importPages`, `importFrames`, `explodeArtboard`, `importTokens`, `resolveArchiveAssets`; staged TSX/meta/SVG/assets/annotations moved into project | One import/explode action with explicit file set, blob staging and source validation; T16/T18/T25; A,S,M,B,F |
 | I05 | [figma/endpoints.ts](../../apps/studio/figma/endpoints.ts): `createFigmaEndpoints`, HTTP `/_api/figma/import`, `/_api/figma/explode` | Invokes I04; identical transaction semantics for UI and CLI; T16; A,S,M,B,F |
 | I06 | [bin/_import-tokens.mjs](../../apps/studio/bin/_import-tokens.mjs): `importTokens`, `atomicWrite`; writes token CSS, design-system scaffold and config | `manifest.create` / replacement + `config.assign`; one token import action; T16/T20; A,S,M,F |
@@ -227,11 +227,11 @@ categories still lack adapter-grade schemas", which is no longer what is true).
    the file, which is a trust anchor); footage analysis and EDLs are derived
    sidecars on the file plane (S26), not canvas actions.
 3. ~~Artboard guide/print payloads, every clip verb, photo reset/mask,
-   annotation stroke operations and comment author permissions need complete
+   annotation element operations and comment author permissions need complete
    protocol schemas.~~ **Answered by the accepted design, which does not need
    them.** DDR-241 carries a whole LANE, not a per-operation payload: every one
    of those writers is a `lane.replace` against an announced base (guides/print
-   S17, clip verbs V07–V10, annotation strokes S23, comments S24) or a file-plane
+   S17, clip verbs V07–V10, annotation ops S23, comments S24) or a file-plane
    object (photo S25), each with its `via` and a proving test in the registry
    module. Identity is the document `entry` plus element print addressing
    (`docs/architecture/source-vocabulary.md`), not a per-operation id; the

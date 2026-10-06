@@ -39,7 +39,7 @@ import { rememberReturnTo } from './return-to.mjs';
 //   - All log lines that interpolate user data go through sanitizeForLog.
 
 import { Buffer } from 'node:buffer';
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
@@ -55,7 +55,15 @@ import {
   verifyAdminAuth,
   writeAdminSecret,
 } from './admin-auth.mjs';
-import { createWriteBehind, hydrateAssets, hydrateFiles } from './asset-lane.mjs';
+import { assetPrefixFromEnv } from './asset-key.mjs';
+import {
+  createHydrateBudget,
+  createWriteBehind,
+  hydrateAssets,
+  hydrateFiles,
+  transientFailures,
+  writeBehindKey,
+} from './asset-lane.mjs';
 import {
   handleAssetProbeRoute,
   handleAssetRoute,
@@ -82,11 +90,19 @@ import {
   identityForHealth,
   readStudioReleaseVersion,
 } from './bundle-identity.mjs';
-import { handleExportRoute, scheduleMirror, scheduleRevocationSweep } from './cell-ops.mjs';
+import { createCellChangeSignal } from './cell-change-signal.mjs';
+import {
+  answerRevocationNudge,
+  handleExportRoute,
+  scheduleMirror,
+  scheduleRevocationSweep,
+} from './cell-ops.mjs';
 import { clientIpFor, parseTrustedProxies } from './client-ip.mjs';
 import { projectTokenKey, verifyAccessToken } from './cloud-identity.mjs';
 import { designRootFor } from './design-root.mjs';
+import { diskReportSync, installCrashHandlers } from './disk.mjs';
 import { groupCanvases } from './doc-namespace.mjs';
+import { createDocsTail } from './docs-tail.mjs';
 import { createDocumentEvents } from './document-events.mjs';
 import {
   DOCUMENT_PATH_PREFIX,
@@ -108,6 +124,7 @@ import {
   PROJECT_FILE_PREFIX,
 } from './file-manifest.mjs';
 import {
+  createCtlKeepalive,
   createFilesPoke,
   dropCtlAwareness,
   isFilesCtlDoc,
@@ -121,12 +138,22 @@ import {
   handleJournalRoutes,
   JOURNAL_PATH,
   JOURNAL_REPORT_PATH,
+  OWNER_DELETE_SOURCE,
   openJournal,
+  quarantineStaleInert,
+  reportLostFiles,
   walkImport,
   walkIntervalFromEnv,
 } from './journal.mjs';
 import { LOOPBACK_HOSTS, sanitizeForLog } from './log-safety.mjs';
+import {
+  cacheBudgetFor,
+  createMaterializer,
+  handleMaterializeRoute,
+  MATERIALIZE_PATH,
+} from './materializer.mjs';
 import { assertStrictIsSurvivable, oidcConfig } from './oidc-routes.mjs';
+import { handleProjectConfigDoor, PROJECT_CONFIG_PATH } from './project-config-door.mjs';
 import { createAcceptedRevisions } from './project-transactions/hub-integration.mjs';
 import { openRemoteProjectStore } from './project-transactions/store-remote.mjs';
 import { openSqliteProjectStore } from './project-transactions/store-sqlite.mjs';
@@ -159,10 +186,11 @@ import {
   rotateToken,
   verifyToken,
 } from './tokens.mjs';
-import { clearTombstone, listTombstones, recordTombstone } from './tombstones.mjs';
+import { clearTombstone, isTombstoned, listTombstones, recordTombstone } from './tombstones.mjs';
 import { handleUploadSessions, UPLOADS_PREFIX } from './upload-sessions.mjs';
 import { countLinkedOidc } from './users.mjs';
 import { createWorkspaceAgent } from './workspace-agent.mjs';
+import { ensureWorkspaceId } from './workspace-identity.mjs';
 
 const HUB_VERSION = readOwnVersion();
 
@@ -178,7 +206,16 @@ const HUB_VERSION = readOwnVersion();
  * never a path. Safe on the unauthenticated /health, which is the point — when
  * you need this, authentication is usually the thing that is broken.
  */
-const bootReport = { seed: null, history: null, assets: null, assetsRestored: null };
+const bootReport = {
+  seed: null,
+  history: null,
+  assets: null,
+  assetsRestored: null,
+  // Phase 0 (cell materializer) — the boot hydrate's progress, and whether a
+  // disk error escaped somewhere and the hub chose to stay up rather than exit.
+  hydrate: null,
+  degraded: null,
+};
 const DOCUMENT_NAME_REGEX = /^[A-Za-z0-9._/-]{1,256}$/;
 const PUBLIC_URL_REGEX = /^https?:\/\/[^\s;'"<>`]+$/;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -382,6 +419,21 @@ export function createHub(config = {}) {
   // valid initial config at boot (static keys, or the fresh mint the DO
   // injected), so this is safe to resolve once.
   const bootTarget = targetFromEnv();
+  // G3b — legacy documents survive a HARD kill: every stored document is also
+  // written behind to object storage, and a wake replays it over the restored
+  // generation (docs-tail.mjs). Nothing is written in accepted mode, where the
+  // project store is durable before it acknowledges.
+  const docsTail = createDocsTail({
+    // Resolved per write against the credentials valid NOW (a cell's are
+    // temporary), exactly like the backup schedule's target.
+    target: bootTarget ? async () => targetFromConfig(process.env, await s3Source.config()) : null,
+    // Whose entries these are at a shared bucket root (review A4); under a
+    // dedicated prefix the keyspace is ours by construction.
+    workspaceId: () => ensureWorkspaceId(dataDir),
+    shared: !process.env.MAUDE_BACKUP_PREFIX,
+    writing: () => !accepted?.acceptedMode?.(),
+    isGone: (name) => isTombstoned(dataDir, name),
+  });
   const backupTarget = bootTarget
     ? async () => targetFromConfig(process.env, await s3Source.config())
     : null;
@@ -426,8 +478,10 @@ export function createHub(config = {}) {
     // can start again from here (DDR-226 §3). Guarded on both sides: replay
     // skips rows at or below the restored head, so a missed rotation is a
     // longer tail, never a wrong journal.
-    onGeneration: async () => {
+    beforeGeneration: () => docsTail.beginGeneration(),
+    onGeneration: async (_generation, covered) => {
       if (journal && journalTail) await journalTail.rotate(journal.head());
+      await docsTail.endGeneration(covered);
     },
   });
   if (backupTarget) {
@@ -497,6 +551,33 @@ export function createHub(config = {}) {
   // durability half has to have soaked before anything depends on the seqs.
   const journalDesignRoot = workspaceMode && repoDir ? designRootFor() : null;
   const journal = journalDesignRoot ? openJournal(dataDir) : null;
+  // CELL MATERIALIZER (Phase 1). On a cell with object storage the disk is a
+  // cache: the journal says what exists, the bucket holds the bytes, and inert
+  // media is materialized into `<designRoot>/_cache/` on demand. Off — exactly
+  // DDR-226 §6 — on a desktop or a self-hosted hub with a persistent disk.
+  const materializer =
+    process.env.MAUDE_CELL_MATERIALIZE === '1' && journal && s3Source.configured
+      ? createMaterializer({
+          designRoot: journalDesignRoot,
+          // HUB-OWNED, outside the tenant's git clone: a committed symlink at
+          // `.design/_cache` must not be able to aim the cache's create /
+          // delete / rename anywhere (Phase 1 security review H1).
+          cacheDir: join(dataDir, 'cache'),
+          indexPath: join(dataDir, 'materializer.json'),
+          journal,
+          s3: () => s3Source.config(),
+          // Asked per fill: free space plus what the cache already holds, less
+          // two floors — a full cache must never shut the write doors.
+          budgetBytes: () =>
+            cacheBudgetFor({ dir: journalDesignRoot, cacheBytes: materializer?.bytes() ?? 0 }),
+        })
+      : null;
+  // The studio child's credential for the loopback hop — random per boot,
+  // handed to that one process, accepted by `/_materialize` and nothing else.
+  const materializeToken = materializer ? randomBytes(32).toString('hex') : null;
+  // …and the journal stops reading the checkout's media as evidence: absent is
+  // not deleted, present is not written (Task 13 — the tombstone guard).
+  if (materializer) journal.setInertCached(true);
   /** @type {ReturnType<typeof createJournalTail>|null} */
   let journalTail = null;
   /** @type {ReturnType<typeof setInterval>|null} */
@@ -529,6 +610,29 @@ export function createHub(config = {}) {
   };
 
   /**
+   * A write door PINNED an upload into the cell blob cache (cell materializer
+   * Task 12) — inert media whose checkout path stays empty by design. There is
+   * no disk file for `recordWrite` to read, so the row carries the digest the
+   * DOOR computed of the bytes it received (`recordVerifiedWrite`). The
+   * write-behind subscribes to the append, as for every other write.
+   */
+  const notePinnedWrite = (info) => {
+    const rel = typeof info?.path === 'string' ? info.path : null;
+    if (!journal || !journalDesignRoot || !rel) return;
+    try {
+      journal.recordVerifiedWrite({
+        designRoot: journalDesignRoot,
+        path: rel,
+        sha256: info.sha256,
+        size: info.bytes,
+        source: 'peer-put',
+      });
+    } catch (err) {
+      console.error(`[journal] pinned append failed for ${sanitizeForLog(rel)}: ${err.message}`);
+    }
+  };
+
+  /**
    * A peer deleted a file — Increment 6. The mirror image of the write hook.
    *
    * The tombstone is a journal ROW, so peers receive "deleted at seq N" in the
@@ -549,7 +653,7 @@ export function createHub(config = {}) {
         journal.recordWrite({
           designRoot: journalDesignRoot,
           path: rel,
-          source: 'peer-put',
+          source: info?.owner === true ? OWNER_DELETE_SOURCE : 'peer-put',
           deleted: true,
         }) ?? null
       );
@@ -571,13 +675,26 @@ export function createHub(config = {}) {
   // `createStudioChild` falls through to its own `env = process.env` default —
   // the LIVE object, not a snapshot copy — exactly as it did before pairing
   // existed. Only pairing's own two variables justify a copy at all.
-  const studioEnv = studioPairingToken
-    ? {
-        ...process.env,
-        MAUDE_LOOPBACK_SYNC_URL: `http://127.0.0.1:${port}`,
-        MAUDE_LOOPBACK_SYNC_TOKEN: studioPairingToken,
-      }
-    : undefined;
+  const studioEnvExtra = {
+    ...(studioPairingToken
+      ? {
+          MAUDE_LOOPBACK_SYNC_URL: `http://127.0.0.1:${port}`,
+          MAUDE_LOOPBACK_SYNC_TOKEN: studioPairingToken,
+        }
+      : {}),
+    ...(materializeToken
+      ? {
+          MAUDE_CELL_MATERIALIZE: '1',
+          MAUDE_MATERIALIZE_URL: `http://127.0.0.1:${port}`,
+          MAUDE_MATERIALIZE_TOKEN: materializeToken,
+          // Where a materialized path must resolve — the child checks the
+          // hub's answer against this, not against anything in the checkout.
+          MAUDE_MATERIALIZE_CACHE_DIR: materializer.cacheDir,
+        }
+      : {}),
+  };
+  const studioEnv =
+    Object.keys(studioEnvExtra).length > 0 ? { ...process.env, ...studioEnvExtra } : undefined;
   const studio = studioEnabled ? createStudioChild(studioEnv ? { env: studioEnv } : {}) : null;
   const studioProxy = studioEnabled
     ? createStudioProxy({
@@ -618,7 +735,7 @@ export function createHub(config = {}) {
               // origin's collab socket opens at it (annotations need an editor).
               // The HTTP canvas lane keeps the viewer floor regardless — see
               // render-token.mjs for why this widens nothing over HTTP.
-              // DDR-242 — the `?embed=1` view gets a read-only capability at
+              // DDR-247 — the `?embed=1` view gets a read-only capability at
               // the viewer floor instead, enforced by the canvas door.
               role: readOnly ? 'viewer' : session.role,
               readOnly,
@@ -690,7 +807,15 @@ export function createHub(config = {}) {
     // reach the document store — an empty row there would show up in listings,
     // in the restore drill's document count, and in the operator's canvas
     // count. See files-ctl.mjs.
-    extensions: [withoutCtlPersistence(new SQLite({ database: sqlitePath }))],
+    extensions: [
+      withoutCtlPersistence(new SQLite({ database: sqlitePath })),
+      // After the SQLite extension: what is written behind is what hub.db holds.
+      {
+        async onStoreDocument({ documentName, document }) {
+          docsTail.store(documentName, document);
+        },
+      },
+    ],
 
     async onAuthenticate({ token, documentName, request, connectionConfig }) {
       // DDR-053 §5: defend against log forging + future XSS regression by
@@ -875,14 +1000,30 @@ export function createHub(config = {}) {
           // matrix is BINDING). A client never attaches the control channel or
           // relaxes its polling against a hub that does not say `ledger` here.
           // A protocol marker, not customer data, so it rides the public half.
-          capabilities: journal ? ['ledger'] : [],
+          // `annotations-v2`: boards are the DDR-242 element model (kernel lane,
+          // replica, checkout `.annotations.json`).
+          capabilities: journal ? ['ledger', 'annotations-v2'] : ['annotations-v2'],
           // T19/T29 — the project coordinator (accepted revisions) apart from
           // the renderer: posture publicly, counters to the cell secret only.
           coordinator: accepted?.health?.({ privileged }) ?? null,
+          privileged,
         });
         // 503, not 200-with-ok-false. A router reads the STATUS; a payload it
         // has to parse to learn the truth is a payload it will not parse.
         respondJson(response, health.ok ? 200 : 503, health);
+        bailFromOnRequest();
+      }
+      // IMMEDIATE REVOCATION. The control plane asks right after it records a
+      // removal, so a removed member's open sessions end now rather than at
+      // the next sweep (up to MAUDE_REVOCATION_INTERVAL_MS). Only the tenant's
+      // own derived secret may ask; the sweep then reads the list itself, so
+      // the request carries no names and grants nothing but "look now".
+      if (method === 'POST' && url === '/internal/revocation-sweep') {
+        const answer = await answerRevocationNudge({
+          authorized: presentsCellSecret(request, secret),
+          sweep: revocationSweep,
+        });
+        respondJson(response, answer.status, answer.body);
         bailFromOnRequest();
       }
       if (!studioProxy && method === 'GET' && (url === '/' || url === '' || url.startsWith('/?'))) {
@@ -1061,7 +1202,9 @@ export function createHub(config = {}) {
             designRoot: journalDesignRoot,
             journal,
             onWritten: noteCheckoutWrite,
+            onPinned: notePinnedWrite,
             onDeleted: noteCheckoutDelete,
+            materializer,
             checkRateLimit: rateLimit
               ? (req) => checkRateLimit(rateBuckets, req, { store: rateStore, ip: clientIp(req) })
               : undefined,
@@ -1081,6 +1224,9 @@ export function createHub(config = {}) {
           dataDir,
           secret,
           s3: await s3Source.config(),
+          // Cell materializer — null off-cell, where the bucket fallback below
+          // keeps its DDR-226 §6 shape.
+          materializer,
           // DDR-217 — where a pushed asset lands (the checkout the studio
           // child serves). Null on a hub with no checkout → PUT keeps its 405.
           designRoot:
@@ -1150,6 +1296,9 @@ export function createHub(config = {}) {
           dataDir,
           secret,
           s3: await s3Source.config(),
+          // Cell materializer — presence is the journal's, not the cache's.
+          materializer,
+          journal,
           designRoot:
             workspaceMode && repoDir
               ? join(repoDir, process.env.MAUDE_DESIGN_ROOT ?? '.design')
@@ -1203,7 +1352,7 @@ export function createHub(config = {}) {
           verify: (token) => verifyToken(dataDir, token, secret),
           matchesScope,
           deleteDocument: (name) => {
-            deleteDocument({ name, server, sqlitePath, dataDir });
+            deleteDocument({ name, server, sqlitePath, dataDir, docsTail });
             documentEvents.changed();
           },
           reviveDocument: (name) => {
@@ -1235,6 +1384,8 @@ export function createHub(config = {}) {
               ? join(repoDir, process.env.MAUDE_DESIGN_ROOT ?? '.design')
               : null,
           respondJson: (status, payload) => respondAdminJson(response, status, payload),
+          // Cell materializer — inert media is the journal's word, not the cache's.
+          inertFromJournal: materializer ? journal : null,
         });
         if (handled) bailFromOnRequest();
       }
@@ -1250,6 +1401,25 @@ export function createHub(config = {}) {
       // ceiling guesses wrong: the push side used the 512 MB PULL cap while
       // this door refuses anything over 95 MB, so oversized files retried
       // forever against a wall neither side named (2026-09-03).
+      // Cell materializer — the studio child's loopback hop. Hub-internal: in
+      // NEITHER canvas allowlist, never proxied, a bare 404 to anyone without
+      // the per-boot child token (see handleMaterializeRoute).
+      if (authPath === MATERIALIZE_PATH && !(studioProxy && isCanvasHost(request))) {
+        try {
+          await handleMaterializeRoute({
+            request,
+            response,
+            method,
+            materializer,
+            token: materializeToken,
+            designRoot: journalDesignRoot,
+          });
+        } catch (err) {
+          console.error(`[materializer] route failed: ${err.message}`);
+          if (!response.headersSent) response.writeHead(500).end();
+        }
+        bailFromOnRequest();
+      }
       if (authPath === FILE_LIMITS_PATH && !(studioProxy && isCanvasHost(request))) {
         if (
           handleFileLimits({
@@ -1274,6 +1444,30 @@ export function createHub(config = {}) {
           return;
         }
       }
+      // The owner's project config (name, groups, design systems) for a cell
+      // whose checkout has none — see project-config-door.mjs.
+      if (authPath === PROJECT_CONFIG_PATH && !(studioProxy && isCanvasHost(request))) {
+        const handled = await handleProjectConfigDoor({
+          request,
+          response,
+          pathname: authPath,
+          method,
+          dataDir,
+          secret,
+          designRoot: journalDesignRoot,
+          onChanged: () => {
+            projectConfigCache = { at: 0, value: null };
+            canvasGroupsCache = { at: 0, groups: null };
+          },
+          checkRateLimit: rateLimit
+            ? (req) => checkRateLimit(rateBuckets, req, { store: rateStore, ip: clientIp(req) })
+            : undefined,
+          checkWriteRateLimit: rateLimit
+            ? (label) => checkConnRateLimit(assetWriteBuckets, label, assetWriteRateLimitMax)
+            : undefined,
+        });
+        if (handled) bailFromOnRequest();
+      }
       if (authPath.startsWith(FILE_DOOR_PREFIX) && !(studioProxy && isCanvasHost(request))) {
         const handled = await handleFileDoor({
           request,
@@ -1285,7 +1479,9 @@ export function createHub(config = {}) {
           designRoot: journalDesignRoot,
           journal,
           onWritten: noteCheckoutWrite,
+          onPinned: notePinnedWrite,
           onDeleted: noteCheckoutDelete,
+          materializer,
           checkRateLimit: rateLimit
             ? (req) => checkRateLimit(rateBuckets, req, { store: rateStore, ip: clientIp(req) })
             : undefined,
@@ -1304,9 +1500,14 @@ export function createHub(config = {}) {
           method,
           dataDir,
           secret,
+          // Sessions survive a fresh disk through the project's object store
+          // (a cloud cell's container disk goes with every restart).
+          s3: s3Source.configured ? await s3Source.config() : null,
           designRoot: journalDesignRoot,
           journal,
           onWritten: noteCheckoutWrite,
+          onPinned: notePinnedWrite,
+          materializer,
           checkWriteRateLimit: rateLimit
             ? (label) => checkConnRateLimit(assetWriteBuckets, label, assetWriteRateLimitMax)
             : undefined,
@@ -1460,6 +1661,8 @@ export function createHub(config = {}) {
             workspaceMode && repoDir
               ? join(repoDir, process.env.MAUDE_DESIGN_ROOT ?? '.design')
               : null,
+          // Cell materializer — a disk miss on a cell is a cache miss.
+          materializer,
           checkRateLimit: rateLimit
             ? (req) => checkRateLimit(rateBuckets, req, { store: rateStore, ip: clientIp(req) })
             : undefined,
@@ -1601,7 +1804,7 @@ export function createHub(config = {}) {
           bailFromOnRequest();
         }
         if (verdict?.kind === 'sign-in') {
-          // DDR-242 — an EMBEDDED studio (`/?open=…&embed=1`, framed by an app
+          // DDR-247 — an EMBEDDED studio (`/?open=…&embed=1`, framed by an app
           // on MAUDE_EMBED_ORIGINS) cannot follow that redirect: the sign-in
           // page refuses to be framed. It gets a frameable page that says so,
           // links to the normal sign-in in a new tab, and tells the embedder
@@ -1711,6 +1914,13 @@ export function createHub(config = {}) {
       dropCtlAwareness({ document, states });
     },
 
+    // A content change tells the cell's DO, so a parked desktop's
+    // `/_cell/state` probe can see it without waking anything. Throttled and
+    // fire-and-forget; a no-op on a self-hosted hub. See cell-change-signal.mjs.
+    async onChange({ documentName }) {
+      if (!isFilesCtlDoc(documentName)) cellChange.note();
+    },
+
     // DDR-241 §7 / T7 — a permission cached on a connection is not a boundary.
     // Re-assert read-only on EVERY message in accepted-revisions mode, so an
     // already-open socket (or one whose flag was loosened) cannot write either.
@@ -1756,6 +1966,14 @@ export function createHub(config = {}) {
   const filesPoke = createFilesPoke({ instance: server });
   const documentsPoke = createFilesPoke({ instance: server, documentsOnly: true, coalesceMs: 50 });
   const documentEvents = createDocumentEvents({ poke: documentsPoke });
+  // Keeps an idle control socket from recycling every ~33 s (and re-running
+  // discovery each time). See `createCtlKeepalive`.
+  const ctlKeepalive = createCtlKeepalive({ instance: server });
+  ctlKeepalive.start();
+  const cellChange = createCellChangeSignal({
+    url: process.env.MAUDE_PROJECT_STORE_URL || null,
+    token: process.env.MAUDE_PROJECT_STORE_TOKEN || null,
+  });
 
   // ---- accepted revisions (DDR-241) ---------------------------------------
   // The store's durable home (DDR-241 §2): a cell's Durable Object through
@@ -1887,7 +2105,7 @@ export function createHub(config = {}) {
     projectConfig: acceptedProjectConfig,
     designRel: '.design',
     deleteDocument: (name) => {
-      deleteDocument({ name, server, sqlitePath, dataDir });
+      deleteDocument({ name, server, sqlitePath, dataDir, docsTail });
     },
     reviveDocument: (name) => {
       try {
@@ -1913,6 +2131,8 @@ export function createHub(config = {}) {
     },
     checkoutDirs: () => checkoutFolders(),
     storeDurable,
+    browserUnpaired: studioEnabled && !studioPairingToken,
+    checkoutHasCanvases: () => checkoutCanvasPaths().size > 0,
   });
   // The persistent mode decides the fence, and the reconcile then makes every
   // accepted document match its store head.
@@ -1928,6 +2148,8 @@ export function createHub(config = {}) {
     .refresh()
     // A switch that died mid-import is finished before anything reconciles.
     .then(() => accepted.resumeImport())
+    // A brand-new project may start in accepted revisions (G3a).
+    .then(() => accepted.adoptNewProjectMode(process.env.MAUDE_NEW_PROJECT_MODE))
     .then(() => accepted.reconcile())
     .catch((err) => console.error(`[transactions] startup reconcile failed: ${err.message}`));
 
@@ -1948,6 +2170,8 @@ export function createHub(config = {}) {
     repoDir,
     /** The supervised studio child. Null outside workspace mode. */
     studio,
+    /** The cell blob cache (MAUDE_CELL_MATERIALIZE). Null everywhere else. */
+    materializer,
     /** The live agent, once started. Null outside workspace mode. */
     get workspace() {
       return workspace;
@@ -2128,6 +2352,7 @@ export function createHub(config = {}) {
         // container watcher gap — structurally, and for the WHOLE fleet rather
         // than for the one pilot tenant.
         filesPoke.schedule(journal.head());
+        cellChange.note();
       });
 
       // The reconciler is the TRUTH and the hooks are the optimization: a
@@ -2157,6 +2382,8 @@ export function createHub(config = {}) {
       }
       filesPoke.stop();
       documentsPoke.stop();
+      ctlKeepalive.stop();
+      cellChange.stop();
       await journalTail?.stop();
       journalTail = null;
     },
@@ -2176,6 +2403,35 @@ export function createHub(config = {}) {
       else if (outcome && !outcome.ok) {
         console.error(`[workspace] shutdown flush did NOT commit: ${outcome.reason}`);
       }
+    },
+    /**
+     * The graceful-shutdown generation: every document the store still has
+     * pending is written to `hub.db` first, then one last backup is taken.
+     * Without it a cell that is stopped (platform migration, sleep after
+     * inactivity) comes back from the previous generation and loses whatever
+     * was written in between (F3 S17 on the cloud cell, 2026-09-24).
+     */
+    async finalBackup() {
+      try {
+        server.hocuspocus?.flushPendingStores?.();
+        const debouncer = server.hocuspocus?.debouncer;
+        const end = Date.now() + 5000;
+        while (
+          debouncer &&
+          Date.now() < end &&
+          [...(server.hocuspocus?.documents?.keys?.() ?? [])].some((n) =>
+            debouncer.isCurrentlyExecuting?.(`onStoreDocument-${n}`)
+          )
+        ) {
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        await docsTail.flush({ timeoutMs: 10_000 });
+      } catch (err) {
+        console.error(`[hub] document flush before the final backup failed: ${err.message}`);
+      }
+      const r = await stopBackups.final();
+      if (r) console.log(`[hub] final backup ${r.prefix} on shutdown`);
+      return r;
     },
     /** Stop the backup schedule + close the rate store. Tests call this; the
      *  process exiting does the same thing in production. */
@@ -2277,6 +2533,7 @@ async function handleAdminApi(ctx) {
         port: ctx.port,
         startedAt: ctx.startedAt,
         peersCount: peers.size,
+        privileged: true,
         coordinator: ctx.accepted?.health?.({ privileged: true }) ?? null,
       }),
       // Phase 0 F5. The console's Overview reads this: an identity conflict
@@ -2628,7 +2885,13 @@ export function gitLockState(repoDir, { now = Date.now, stat = statSync } = {}) 
   }
 }
 
-function workspaceStatus() {
+/** The full value for a privileged caller; `pick(value)` for the public one. */
+function publicOr(privileged, value, pick) {
+  if (value == null) return value ?? null;
+  return privileged ? value : pick(value);
+}
+
+function workspaceStatus({ privileged = false } = {}) {
   const repoDir = process.env.MAUDE_REPO_DIR;
   if (!repoDir) return null;
   const designRoot = join(repoDir, process.env.MAUDE_DESIGN_ROOT ?? '.design');
@@ -2661,6 +2924,20 @@ function workspaceStatus() {
     // is for whoever is looking, and for the alert that should page rather than
     // reroute.
     gitLock: gitLockState(repoDir),
+    // Cell materializer Phase 0 — ALWAYS present, not only on non-zero counts:
+    // the 2026-10-01 restart loop was invisible until the disk was already
+    // full. `disk` is read now (cached ≤ 2 s); `hydrate` is the boot restore's
+    // progress (`running` → `done` | `budget` | `failed`), null on a hub with
+    // no object storage. `degraded` appears once a disk error was survived.
+    //
+    // The public probe gets the STATE — `pressure` and the hydrate `state` are
+    // what a monitor and the Task 6 watch need. Exact bytes and counts stay
+    // behind the cell secret with `stats`: free space vs. floor, polled from
+    // the internet, is a dial for how much more to push to shut the doors
+    // (Phase 0 attacker review, finding 5).
+    disk: publicOr(privileged, diskReportSync(designRoot), (d) => ({ pressure: d.pressure })),
+    hydrate: publicOr(privileged, bootReport.hydrate, (h) => ({ state: h.state })),
+    ...(bootReport.degraded ? { degraded: bootReport.degraded } : {}),
   };
   try {
     const walk = (dir, depth = 0) => {
@@ -2716,6 +2993,11 @@ export function mintLoopbackSyncToken(dataDir, env = process.env) {
     const record = addToken(dataDir, {
       label: LOOPBACK_SYNC_TOKEN_LABEL,
       scope: '*',
+      // A MEMBER, not the unroled machine token that reads as admin: the child
+      // edits documents and proposes, it never switches the save mode or
+      // deletes as the owner (security review A8 — pairing is on by default
+      // for self-host now).
+      role: 'member',
       // No `owner`. An owner address is what `afterStoreDocument` attributes a
       // commit to, and inventing one here would sign the tenant's git history
       // with a machine identity dressed up as a person.
@@ -2763,9 +3045,10 @@ function buildStatusPayload({
   render = null,
   capabilities = null,
   coordinator = null,
+  privileged = false,
 }) {
   const { tokens } = readTokens(dataDir);
-  const workspace = workspaceStatus();
+  const workspace = workspaceStatus({ privileged });
   // Cloud Phase 27 A1/D5 — A CONTAINER THAT ANSWERS 200 WHILE HALF-DEAD IS
   // WORSE THAN ONE THAT IS DOWN. The hub process being fine says nothing about
   // the studio the customer actually opens, so `ok` is the AND of both. The
@@ -3081,12 +3364,14 @@ function listCanvases(sqlitePath, peers) {
  * "the tombstone is recorded", which is what actually stops the resurrection.
  * A locked SQLite file costs a stale row, not a failed delete.
  */
-function deleteDocument({ name, server, sqlitePath, dataDir }) {
+function deleteDocument({ name, server, sqlitePath, dataDir, docsTail = null }) {
   try {
     recordTombstone(dataDir, name);
   } catch {
     /* a store we cannot write is reported by the absent tombstone, not a 500 */
   }
+  // …and a wake after a hard kill must not bring it back (docs-tail.mjs).
+  docsTail?.remove(name);
   try {
     server?.closeConnections?.(name);
   } catch {
@@ -3309,6 +3594,14 @@ function bailFromOnRequest() {
 
 /** Run the hub as a CLI process. */
 async function runAsMain() {
+  // Before anything can reject: a disk error escaping a fire-and-forget promise
+  // used to exit the process, which on a cell is a cold start into the same
+  // full disk (the 2026-10-01 Alligators restart loop). See disk.mjs.
+  installCrashHandlers({
+    onDiskError: (err) => {
+      bootReport.degraded = { disk: { code: err.code, at: new Date().toISOString() } };
+    },
+  });
   const port = Number.parseInt(process.env.PORT ?? '1234', 10);
   const dataDir = process.env.DATA_DIR ?? resolve(process.cwd(), 'data');
   const secret = process.env.HUB_SECRET ?? '';
@@ -3391,7 +3684,13 @@ async function runAsMain() {
   // load-bearing). Fire-and-forget: a hub whose journal cannot arm still
   // serves, and says so.
   built
-    .startJournalReconciler({ target: targetFromEnv() })
+    .startJournalReconciler({
+      // A resolver, not a boot snapshot: a cell's credentials are temporary
+      // (s3-creds.mjs), same as the docs tail and the backup schedule.
+      target: targetFromEnv()
+        ? async () => targetFromConfig(process.env, await s3Source.config())
+        : null,
+    })
     .catch((err) => console.error(`[journal] could not arm: ${err.message}`));
 
   // Cloud Phase 16 — server-owned history + the server-side asset lane.
@@ -3427,38 +3726,89 @@ async function runAsMain() {
           // Hydrating first also makes the sweep that follows cheap and correct:
           // the gaps are filled, so it HEADs them, finds them present, and skips
           // — instead of racing a restore it cannot see.
+          //
+          // Phase 0 (cell materializer): ONE budget across the restore, in
+          // BUILD order — so a project bigger than the disk boots with every
+          // canvas buildable and the rest waiting in the bucket, instead of
+          // filling the disk and dying (2026-10-01):
+          //
+          //   1. `files/` code modules + companion text — what Bun.build needs;
+          //   2. `assets/` — the content-addressed media canvases REFERENCE;
+          //   3. `files/` inert media — on Alligators, 6.9 GB of mostly
+          //      unreferenced raw photo libraries. Restoring these before (2)
+          //      spent the budget on photos no canvas shows and left the 0.9 GB
+          //      every canvas does show in the bucket (attacker review, #2).
+          bootReport.hydrate = { state: 'running', restored: 0, skipped: 0, failed: 0 };
+          // CELL MODE (Task 13): a git-bundle restore can put back media the
+          // journal has since replaced — and the static route serves the
+          // checkout first. Move those aside before anything is served from it.
+          if (built.materializer && built.journal) {
+            quarantineStaleInert({ journal: built.journal, designRoot });
+          }
+          const budget = await createHydrateBudget({ designRoot });
+          const recordHydrated = (rel) => {
+            // `built.journal`, not a bare `journal`: the latter is a const
+            // inside `createHub` and this callback runs in `runAsMain`, so
+            // every call threw a ReferenceError. The hydrators catch per file,
+            // so the only symptom was a log line each — and a woken cell that
+            // refilled dozens of files and told no peer about any of them
+            // until the next walk-import, the exact gap this lane closes.
+            //
+            // `hydrate` rather than `peer-put`: the row's source is forensics,
+            // and "this came back from the bucket after a wake" is a different
+            // fact from "a desktop pushed it". A bucket→checkout refill IS an
+            // arrival, and peers have to be able to see it.
+            if (built.journal) {
+              built.journal.recordWrite({ designRoot, path: rel, source: 'hydrate' });
+            }
+          };
+          // `files/` is the same restore for every file-plane class beyond
+          // `assets/` — the prefix the write-behind fills. Durability without a
+          // way back is a receipt, not a backup (F-6/B2).
+          const buildFiles = await hydrateFiles({
+            designRoot,
+            s3,
+            budget,
+            classes: ['code-module', 'companion-text'],
+            onWritten: ({ path: rel }) => recordHydrated(rel),
+          });
           const restored = await hydrateAssets({
             designRoot,
             s3,
-            // Sync v2 — a bucket→checkout refill IS an arrival, and peers have
-            // to be able to see it. `hydrate` rather than `peer-put`: the row's
-            // source is forensics, and "this came back from the bucket after a
-            // wake" is a different fact from "a desktop pushed it".
-            onWritten: ({ path: rel }) => {
-              // `built.journal`, not a bare `journal`: the latter is a const
-              // inside `createHub` and this callback runs in `runAsMain`, so
-              // every call threw a ReferenceError. `hydrateAssets` catches per
-              // asset, so the only symptom was a log line each — and a hydrate
-              // source that appended nothing. A woken cell refilled dozens of
-              // assets and told no peer about any of them until the next
-              // walk-import, which is the exact gap this lane was added to close.
-              if (built.journal) {
-                built.journal.recordWrite({ designRoot, path: rel, source: 'hydrate' });
-              }
-            },
+            budget,
+            onWritten: ({ path: rel }) => recordHydrated(rel),
           });
-          // The same restore for every OTHER file-plane class — the `files/`
-          // prefix the write-behind fills. Durability without a way back is a
-          // receipt, not a backup (F-6/B2).
-          const restoredFiles = await hydrateFiles({
-            designRoot,
-            s3,
-            onWritten: ({ path: rel }) => {
-              if (built.journal) {
-                built.journal.recordWrite({ designRoot, path: rel, source: 'hydrate' });
-              }
-            },
-          });
+          // On a cell, files/ media is never restored to its checkout path —
+          // the materializer serves it from the bucket on demand (Task 13).
+          // `assets/` above stays the warm second tier while it fits.
+          const mediaFiles = built.materializer
+            ? { restored: [], present: 0, failed: [], listed: 0, skippedForBudget: 0 }
+            : await hydrateFiles({
+                designRoot,
+                s3,
+                budget,
+                classes: ['inert-media'],
+                onWritten: ({ path: rel }) => recordHydrated(rel),
+              });
+          const lanes = [buildFiles, restored, mediaFiles];
+          const sum = (f) => lanes.reduce((n, r) => n + f(r), 0);
+          const restoredFiles = {
+            restored: [...buildFiles.restored, ...mediaFiles.restored],
+            present: buildFiles.present + mediaFiles.present,
+            failed: [...buildFiles.failed, ...mediaFiles.failed],
+          };
+          const totals = {
+            restored: sum((r) => r.restored.length),
+            skipped: sum((r) => r.skippedForBudget),
+            // Only failures a later boot could avoid count as "partial": a key
+            // refused on every boot would otherwise switch the lost-file pass
+            // off for good (defender W4). Permanent ones stay in `failed` below.
+            failed: sum(transientFailures),
+          };
+          bootReport.hydrate = {
+            state: totals.failed ? 'failed' : totals.skipped ? 'budget' : 'done',
+            ...totals,
+          };
           if (
             restored.restored.length ||
             restored.failed.length ||
@@ -3471,12 +3821,36 @@ async function runAsMain() {
               failed: restored.failed.length + restoredFiles.failed.length,
             });
           }
+          // What the bucket could not give back is LOST, not deleted: say so
+          // in the journal so every peer that still holds it pushes it back.
+          //
+          // Asked of the BUCKET, and never after a partial hydrate: v1.5.2
+          // marked every row missing from a half-filled disk, and every desktop
+          // re-pushed gigabytes the bucket already held (2026-10-01).
+          if (built.journal) {
+            await reportLostFiles({
+              journal: built.journal,
+              designRoot,
+              hydrate: { failed: totals.failed, skippedForBudget: totals.skipped },
+              s3: () => s3Source.config(),
+              keyFor: (rel) => writeBehindKey(rel, assetPrefixFromEnv()),
+              isPinned: built.materializer ? (sha) => built.materializer.isPinned(sha) : null,
+            });
+          }
           // The journal-driven write-behind (Sync v2 Increment 5). Every
           // accepted file-plane write already lands a journal row — through
           // the door, the studio child's report, walk-import or a hydrate —
           // so subscribing to the append IS subscribing to every write
           // surface at once, with no per-door hook to forget.
-          const wb = createWriteBehind({ designRoot, s3, journal: built.journal });
+          // `s3Source.config` — not the boot `s3` above — so the mirror keeps
+          // working past the cell credentials' 12 h expiry.
+          const wb = createWriteBehind({
+            designRoot,
+            s3: () => s3Source.config(),
+            journal: built.journal,
+            // Cell materializer — pinned uploads are mirrored from the cache.
+            materializer: built.materializer,
+          });
           built.setWriteBehind(wb);
           built.journal?.onAppend(() => wb.note());
           return wb.flush();
@@ -3488,6 +3862,9 @@ async function runAsMain() {
           });
         })
         .catch((err) => {
+          if (bootReport.hydrate?.state === 'running') {
+            bootReport.hydrate = { ...bootReport.hydrate, state: 'failed' };
+          }
           built.recordAssetSweep({ error: err.message.slice(0, 120) });
           console.error(`[hub] asset write-behind failed: ${err.message}`);
         });
@@ -3536,6 +3913,10 @@ async function runAsMain() {
       // debounce window is exactly the rewind the tail exists to prevent.
       .then(() => built.stopJournal())
       .catch((err) => console.error('[hub] journal tail flush error:', err))
+      // After the commit and the tail: the last generation carries both, and
+      // every document still pending in the store (a cell's disk goes with it).
+      .then(() => built.finalBackup())
+      .catch((err) => console.error('[hub] final backup error:', err))
       // The studio owns `_server.json` and a couple of pending writes; stopping
       // it politely is what keeps the next boot from reading stale state as a
       // live instance.

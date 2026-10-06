@@ -50,3 +50,15 @@ export function parsePoke(payload: unknown): Poke | null {
   if (typeof head !== 'number' || !Number.isInteger(head) || head < 0) return null;
   return frame.documents === true ? { head, documents: true } : { head };
 }
+
+/**
+ * The hub's keep-alive frame (`files-ctl.mjs` `CTL_KEEPALIVE_FRAME`). It exists
+ * only so an idle socket is not silent; the receiver ignores it — it is neither
+ * a poke nor a malformed frame. Exact match: anything longer or different is
+ * still judged by `parsePoke`.
+ */
+export const CTL_KEEPALIVE_FRAME = '{"t":"ka"}';
+
+export function isKeepalive(payload: unknown): boolean {
+  return payload === CTL_KEEPALIVE_FRAME;
+}

@@ -20,8 +20,14 @@
 import type { JSX } from 'react';
 import { memo, useEffect, useState } from 'react';
 
+import { REPLICA_TYPE } from './annotations/replica.ts';
 import { useLiveViewport } from './canvas-lib.tsx';
-import { type ForeignAwareness, useCollab, useForeignAwareness } from './use-collab.tsx';
+import {
+  type AnnotationGesture,
+  type ForeignAwareness,
+  useCollab,
+  useForeignAwareness,
+} from './use-collab.tsx';
 
 const CURSOR_CSS = `
 .dc-cursor-overlay {
@@ -77,6 +83,23 @@ const CURSOR_CSS = `
   box-sizing: border-box;
   will-change: transform, width, height;
 }
+.dc-peer-gesture {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  border: 1.5px dashed;
+  border-radius: 3px;
+  box-sizing: border-box;
+}
+.dc-peer-gesture-ink {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
 .dc-peer-selection__label {
   position: absolute;
   top: -18px;
@@ -111,6 +134,9 @@ function ensureCursorStyles(): void {
   document.head.appendChild(s);
 }
 
+/** How often a peer halo re-measures when nothing it can observe changed. */
+const HALO_REFRESH_MS = 500;
+
 interface ViewportSnapshot {
   x: number;
   y: number;
@@ -122,39 +148,75 @@ interface CursorProps {
   viewport: ViewportSnapshot;
 }
 
-const Cursor = memo(function Cursor({ peer, viewport }: CursorProps): JSX.Element | null {
-  if (!peer.cursor) return null;
-  // world → screen: screen = world * zoom + viewport.{x,y}
-  const screenX = peer.cursor.x * viewport.zoom + viewport.x;
-  const screenY = peer.cursor.y * viewport.zoom + viewport.y;
-  const editing = !!peer.editing;
+// Issue #131 — awareness hands out a FRESH peer object on every change (every
+// 30 Hz cursor publish of every peer), so the default shallow `memo` never
+// held: each cursor move re-rendered every halo, and the halos measure the DOM
+// in render. Each component compares only what it draws.
+const sameViewport = (a: ViewportSnapshot, b: ViewportSnapshot): boolean =>
+  a === b || (a.x === b.x && a.y === b.y && a.zoom === b.zoom);
+const sameLabel = (a: ForeignAwareness, b: ForeignAwareness): boolean =>
+  a.clientID === b.clientID && a.name === b.name && a.color === b.color;
+function sameSelection(a: ForeignAwareness['selection'], b: ForeignAwareness['selection']) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const ab = a.bounds;
+  const bb = b.bounds;
   return (
-    <div
-      className={`dc-cursor${editing ? ' dc-cursor--editing' : ''}`}
-      style={{ transform: `translate(${screenX}px, ${screenY}px)` }}
-    >
-      {/* DS colors-presence Pointer — one plain triangle glyph, tinted by its
-          owner (the specimen's exact 24-grid path, no tail/notch). */}
-      <svg
-        className="dc-cursor-arrow"
-        width="15"
-        height="15"
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-      >
-        <path d="M4 3 L20 11.5 L12.5 13 L10 21 Z" fill={peer.color} />
-      </svg>
-      <div className="dc-cursor-label" style={{ background: peer.color }}>
-        {peer.name}
-        {editing && (
-          <span className="dc-cursor-edit-mark" aria-hidden="true">
-            ✎
-          </span>
-        )}
-      </div>
-    </div>
+    a.cssPath === b.cssPath &&
+    (ab === bb ||
+      (!!ab && !!bb && ab.x === bb.x && ab.y === bb.y && ab.w === bb.w && ab.h === bb.h))
   );
-});
+}
+function sameIds(a: readonly string[] | undefined, b: readonly string[] | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((id, i) => id === b[i]);
+}
+
+const Cursor = memo(
+  function Cursor({ peer, viewport }: CursorProps): JSX.Element | null {
+    if (!peer.cursor) return null;
+    // world → screen: screen = world * zoom + viewport.{x,y}
+    const screenX = peer.cursor.x * viewport.zoom + viewport.x;
+    const screenY = peer.cursor.y * viewport.zoom + viewport.y;
+    const editing = !!peer.editing;
+    return (
+      <div
+        className={`dc-cursor${editing ? ' dc-cursor--editing' : ''}`}
+        style={{ transform: `translate(${screenX}px, ${screenY}px)` }}
+      >
+        {/* DS colors-presence Pointer — one plain triangle glyph, tinted by its
+          owner (the specimen's exact 24-grid path, no tail/notch). */}
+        <svg
+          className="dc-cursor-arrow"
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path d="M4 3 L20 11.5 L12.5 13 L10 21 Z" fill={peer.color} />
+        </svg>
+        <div className="dc-cursor-label" style={{ background: peer.color }}>
+          {peer.name}
+          {editing && (
+            <span className="dc-cursor-edit-mark" aria-hidden="true">
+              ✎
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  },
+  (a, b) =>
+    sameViewport(a.viewport, b.viewport) &&
+    sameLabel(a.peer, b.peer) &&
+    !!a.peer.editing === !!b.peer.editing &&
+    (a.peer.cursor === b.peer.cursor ||
+      (!!a.peer.cursor &&
+        !!b.peer.cursor &&
+        a.peer.cursor.x === b.peer.cursor.x &&
+        a.peer.cursor.y === b.peer.cursor.y))
+);
 
 /**
  * Foreign-selection halos for stamped annotation strokes. Each peer publishes
@@ -173,50 +235,188 @@ interface PeerAnnotationSelectionProps {
    * screen space while the stroke it outlines moves away underneath it.
    */
   viewport: ViewportSnapshot;
+  /**
+   * Bumps when what the halo outlines may have moved WITHOUT the camera or the
+   * peer's selection changing — an annotation edit, a canvas re-render. It used
+   * to be implicit: the halo re-measured on every awareness change (30 Hz per
+   * moving peer), which was the #131 cost. Now it is this, and nothing else.
+   */
+  tick?: number;
 }
 
-export const PeerAnnotationSelection = memo(function PeerAnnotationSelection({
-  peer,
-}: PeerAnnotationSelectionProps): JSX.Element | null {
-  if (!peer.annotationSelection || peer.annotationSelection.length === 0) return null;
-  if (typeof document === 'undefined') return null;
-  const rects: { id: string; x: number; y: number; w: number; h: number }[] = [];
-  for (const id of peer.annotationSelection) {
-    try {
-      const el = document.querySelector(`[data-id="${CSS.escape(id)}"]`);
-      if (!el) continue;
-      const r = (el as Element).getBoundingClientRect();
-      if (r.width <= 0 || r.height <= 0) continue;
-      // Pad by 3px so the halo sits OUTSIDE the stroke instead of clipping it.
-      rects.push({ id, x: r.left - 3, y: r.top - 3, w: r.width + 6, h: r.height + 6 });
-    } catch {
-      /* invalid id token — skip */
+export const PeerAnnotationSelection = memo(
+  function PeerAnnotationSelection({ peer }: PeerAnnotationSelectionProps): JSX.Element | null {
+    if (!peer.annotationSelection || peer.annotationSelection.length === 0) return null;
+    if (typeof document === 'undefined') return null;
+    const rects: { id: string; x: number; y: number; w: number; h: number }[] = [];
+    for (const id of peer.annotationSelection) {
+      try {
+        const el = document.querySelector(`[data-id="${CSS.escape(id)}"]`);
+        if (!el) continue;
+        const r = (el as Element).getBoundingClientRect();
+        if (r.width <= 0 || r.height <= 0) continue;
+        // Pad by 3px so the halo sits OUTSIDE the stroke instead of clipping it.
+        rects.push({ id, x: r.left - 3, y: r.top - 3, w: r.width + 6, h: r.height + 6 });
+      } catch {
+        /* invalid id token — skip */
+      }
     }
-  }
-  if (rects.length === 0) return null;
+    if (rects.length === 0) return null;
+    return (
+      <>
+        {rects.map((r, i) => (
+          <div
+            key={r.id}
+            className="dc-peer-selection"
+            style={{
+              transform: `translate(${r.x}px, ${r.y}px)`,
+              width: r.w,
+              height: r.h,
+              borderColor: peer.color,
+            }}
+          >
+            {i === 0 && (
+              <div className="dc-peer-selection__label" style={{ background: peer.color }}>
+                {peer.name}
+              </div>
+            )}
+          </div>
+        ))}
+      </>
+    );
+  },
+  (a, b) =>
+    sameViewport(a.viewport, b.viewport) &&
+    a.tick === b.tick &&
+    sameLabel(a.peer, b.peer) &&
+    sameIds(a.peer.annotationSelection, b.peer.annotationSelection)
+);
+
+/**
+ * Task 22 (DDR-242 AD5) — a peer's annotation gesture while it is in flight:
+ * the elements they drag, the box they resize or draw, the ink of a pen stroke
+ * — so peers watch it move instead of seeing it jump at the commit. Awareness
+ * only (sanitized in use-collab); nothing here reads or writes the board. A
+ * gesture that stops updating (a peer who vanished mid-drag) fades after
+ * GESTURE_STALE_MS even before awareness garbage-collects the peer.
+ */
+const GESTURE_STALE_MS = 3000;
+const MAX_GHOSTS = 64;
+
+function sameGesture(
+  a: AnnotationGesture | null | undefined,
+  b: AnnotationGesture | null | undefined
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
   return (
-    <>
-      {rects.map((r, i) => (
-        <div
-          key={r.id}
-          className="dc-peer-selection"
-          style={{
-            transform: `translate(${r.x}px, ${r.y}px)`,
-            width: r.w,
-            height: r.h,
-            borderColor: peer.color,
-          }}
-        >
-          {i === 0 && (
-            <div className="dc-peer-selection__label" style={{ background: peer.color }}>
-              {peer.name}
-            </div>
-          )}
-        </div>
-      ))}
-    </>
+    a.kind === b.kind &&
+    a.dx === b.dx &&
+    a.dy === b.dy &&
+    sameIds(a.ids, b.ids) &&
+    a.box?.x === b.box?.x &&
+    a.box?.y === b.box?.y &&
+    a.box?.w === b.box?.w &&
+    a.box?.h === b.box?.h &&
+    (a.points?.length ?? 0) === (b.points?.length ?? 0) &&
+    a.points?.[a.points.length - 1] === b.points?.[b.points.length - 1]
   );
-});
+}
+
+interface PeerAnnotationGestureProps {
+  peer: ForeignAwareness;
+  viewport: ViewportSnapshot;
+}
+
+export const PeerAnnotationGesture = memo(
+  function PeerAnnotationGesture({
+    peer,
+    viewport,
+  }: PeerAnnotationGestureProps): JSX.Element | null {
+    const g = peer.annotationGesture;
+    const [stale, setStale] = useState(false);
+    useEffect(() => {
+      setStale(false);
+      if (!g) return;
+      const t = setTimeout(() => setStale(true), GESTURE_STALE_MS);
+      return () => clearTimeout(t);
+    }, [g]);
+    if (!g || stale || typeof document === 'undefined') return null;
+    const z = viewport.zoom || 1;
+    const toScreen = (x: number, y: number) => [x * z + viewport.x, y * z + viewport.y] as const;
+    const boxes: Array<{ key: string; x: number; y: number; w: number; h: number }> = [];
+    if (g.kind === 'move' && g.dx !== undefined && g.dy !== undefined) {
+      for (const id of g.ids.slice(0, MAX_GHOSTS)) {
+        try {
+          const el = document.querySelector(`.dc-annot-scene [data-id="${CSS.escape(id)}"]`);
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          if (r.width <= 0 && r.height <= 0) continue;
+          boxes.push({
+            key: id,
+            x: r.left + g.dx * z,
+            y: r.top + g.dy * z,
+            w: r.width,
+            h: r.height,
+          });
+        } catch {
+          /* invalid id token — skip */
+        }
+      }
+    } else if (g.box) {
+      const [x, y] = toScreen(g.box.x, g.box.y);
+      boxes.push({ key: 'box', x, y, w: g.box.w * z, h: g.box.h * z });
+    }
+    let ink: string | null = null;
+    if (g.kind === 'draw' && g.points && g.points.length >= 4) {
+      const pts: string[] = [];
+      for (let i = 0; i + 1 < g.points.length; i += 2) {
+        const [sx, sy] = toScreen(g.points[i] as number, g.points[i + 1] as number);
+        pts.push(`${sx},${sy}`);
+      }
+      ink = pts.join(' ');
+    }
+    if (!boxes.length && !ink) return null;
+    return (
+      <>
+        {boxes.map((b, i) => (
+          <div
+            key={`g-${b.key}`}
+            className="dc-peer-gesture"
+            data-peer-gesture={g.kind}
+            style={{
+              transform: `translate(${b.x}px, ${b.y}px)`,
+              width: b.w,
+              height: b.h,
+              borderColor: peer.color,
+            }}
+          >
+            {i === 0 && (
+              <div className="dc-peer-selection__label" style={{ background: peer.color }}>
+                {peer.name}
+              </div>
+            )}
+          </div>
+        ))}
+        {ink ? (
+          <svg className="dc-peer-gesture-ink" data-peer-gesture="draw" aria-hidden="true">
+            <polyline
+              points={ink}
+              fill="none"
+              stroke={peer.color}
+              strokeWidth={2}
+              strokeOpacity={0.7}
+            />
+          </svg>
+        ) : null}
+      </>
+    );
+  },
+  (a, b) =>
+    sameViewport(a.viewport, b.viewport) &&
+    sameLabel(a.peer, b.peer) &&
+    sameGesture(a.peer.annotationGesture, b.peer.annotationGesture)
+);
 
 /**
  * Foreign-selection halo for canvas-shell elements (cdId-based selSet).
@@ -229,46 +429,53 @@ interface PeerSelectionProps {
   peer: ForeignAwareness;
   /** See PeerAnnotationSelectionProps.viewport — the memo-invalidation tick. */
   viewport: ViewportSnapshot;
+  /** See PeerAnnotationSelectionProps.tick. */
+  tick?: number;
 }
 
-export const PeerSelection = memo(function PeerSelection({
-  peer,
-}: PeerSelectionProps): JSX.Element | null {
-  if (!peer.selection) return null;
-  const { cssPath, bounds } = peer.selection;
+export const PeerSelection = memo(
+  function PeerSelection({ peer }: PeerSelectionProps): JSX.Element | null {
+    if (!peer.selection) return null;
+    const { cssPath, bounds } = peer.selection;
 
-  let rect: { x: number; y: number; w: number; h: number } | null = bounds ?? null;
-  if (cssPath && typeof document !== 'undefined') {
-    try {
-      const el = document.querySelector(cssPath);
-      if (el && el instanceof Element) {
-        const r = el.getBoundingClientRect();
-        if (r.width > 0 && r.height > 0) {
-          rect = { x: r.left, y: r.top, w: r.width, h: r.height };
+    let rect: { x: number; y: number; w: number; h: number } | null = bounds ?? null;
+    if (cssPath && typeof document !== 'undefined') {
+      try {
+        const el = document.querySelector(cssPath);
+        if (el && el instanceof Element) {
+          const r = el.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) {
+            rect = { x: r.left, y: r.top, w: r.width, h: r.height };
+          }
         }
+      } catch {
+        /* invalid selector — fall through to published bounds */
       }
-    } catch {
-      /* invalid selector — fall through to published bounds */
     }
-  }
-  if (!rect) return null;
+    if (!rect) return null;
 
-  return (
-    <div
-      className="dc-peer-selection"
-      style={{
-        transform: `translate(${rect.x}px, ${rect.y}px)`,
-        width: rect.w,
-        height: rect.h,
-        borderColor: peer.color,
-      }}
-    >
-      <div className="dc-peer-selection__label" style={{ background: peer.color }}>
-        {peer.name}
+    return (
+      <div
+        className="dc-peer-selection"
+        style={{
+          transform: `translate(${rect.x}px, ${rect.y}px)`,
+          width: rect.w,
+          height: rect.h,
+          borderColor: peer.color,
+        }}
+      >
+        <div className="dc-peer-selection__label" style={{ background: peer.color }}>
+          {peer.name}
+        </div>
       </div>
-    </div>
-  );
-});
+    );
+  },
+  (a, b) =>
+    sameViewport(a.viewport, b.viewport) &&
+    a.tick === b.tick &&
+    sameLabel(a.peer, b.peer) &&
+    sameSelection(a.peer.selection, b.peer.selection)
+);
 
 /**
  * Subscribes to foreign awareness + the local viewport. Renders one Cursor per
@@ -294,27 +501,48 @@ export function CursorsOverlay(): JSX.Element {
   // sibling CursorsOverlay wouldn't re-render, so the annotation halo would
   // sit on the OLD bounds until awareness independently changed.
   const collab = useCollab();
-  const [, bumpAnnotTick] = useState(0);
+  const [tick, bumpTick] = useState(0);
   useEffect(() => {
     if (!collab) return;
-    const map = collab.doc.getMap('annotations');
-    const onChange = () => bumpAnnotTick((n) => n + 1);
-    map.observe(onChange);
+    // The v2 replica (DDR-242): element records are nested maps, so a field
+    // edit only reaches a deep observer.
+    const map = collab.doc.getMap(REPLICA_TYPE);
+    const onChange = () => bumpTick((n) => n + 1);
+    map.observeDeep(onChange);
     return () => {
       try {
-        map.unobserve(onChange);
+        map.unobserveDeep(onChange);
       } catch {
         /* doc destroyed */
       }
     };
   }, [collab]);
+  // A peer's selected element can change size or move with no camera or
+  // selection change (they edit its text; the canvas re-renders). The halos
+  // used to catch that for free by re-measuring on every awareness change —
+  // up to 30× a second per moving peer (#131). A slow refresh while somebody
+  // has something selected keeps the halo honest for a tiny fraction of that.
+  const anySelection = peers.some((p) => !!p.selection || (p.annotationSelection?.length ?? 0) > 0);
+  useEffect(() => {
+    if (!anySelection) return;
+    const id = setInterval(() => bumpTick((n) => n + 1), HALO_REFRESH_MS);
+    return () => clearInterval(id);
+  }, [anySelection]);
   return (
     <div className="dc-cursor-overlay" aria-hidden="true">
       {peers.map((peer) => (
-        <PeerSelection key={`sel-${peer.clientID}`} peer={peer} viewport={vp} />
+        <PeerSelection key={`sel-${peer.clientID}`} peer={peer} viewport={vp} tick={tick} />
       ))}
       {peers.map((peer) => (
-        <PeerAnnotationSelection key={`asel-${peer.clientID}`} peer={peer} viewport={vp} />
+        <PeerAnnotationSelection
+          key={`asel-${peer.clientID}`}
+          peer={peer}
+          viewport={vp}
+          tick={tick}
+        />
+      ))}
+      {peers.map((peer) => (
+        <PeerAnnotationGesture key={`gest-${peer.clientID}`} peer={peer} viewport={vp} />
       ))}
       {peers.map((peer) => (
         <Cursor key={peer.clientID} peer={peer} viewport={vp} />

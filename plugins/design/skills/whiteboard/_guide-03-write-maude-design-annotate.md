@@ -6,43 +6,67 @@ maude design annotate "<rel-path>" [--ops <file|-> | --flow <file|-> | --board <
                        [--no-pointer] [--canvas-state <path>] [--rects <path>] [--dry-run]
 ```
 
-Everything renders through the canonical serializer + allowlist sanitizer — the verb can never emit a shape the canvas wouldn't. Every created stroke is stamped `data-author="ai"`; the verb prints `{ ok, via, file, refs }` (`via:"server"` = a live dev-server applied it and open canvases update in real time; `"file"` = direct write). The write is **last-write-wins over the whole SVG** — read before you write, and don't interleave with a user who is actively drawing.
+Every request becomes the same **element ops** the canvas itself sends (`put | patch | delete`, DDR-242), built from the element registry — so the verb can never write an element the canvas wouldn't accept, and a new element type needs no change here. Every created element is stamped `author: {kind: "ai"}`. The verb prints `{ ok, via, file, created, updated, deleted, refs }`:
+
+- `via: "server"` — a live dev-server applied the ops (`POST /_api/annotations/ops`) and every open canvas updated in real time. Only a loopback server is ever contacted.
+- `via: "file"` — no server: the resulting board was written directly (canonical, atomic).
+
+**Writes merge; they don't replace the board.** An `update` is a field patch that carries the value you read, so a concurrent human edit to a *different* field or element is kept, and a concurrent edit of the same text merges. Still read before you write — the ids you target come from `read-annotations`.
+
+A board file that exists but isn't a readable board is **never written over** (exit 2). Any invalid request — unknown id/ref, unknown field, a value the type can't hold, a non-section parent — fails loud (exit 2) and writes nothing. `--dry-run` prints `{ dryRun: true, ops }` without writing.
 
 ### Effortless placement — never hand-compute a coordinate
 
-- `--near <artboardId>` — place beside the artboard (outside it, to the right). Pre-existing.
+- `--near <artboardId>` — place beside the artboard (outside it, to the right).
 - `--in <artboardId>` — place INSIDE the artboard (top-left + a 40px inset). Needs `--canvas-state` or `--rects`; an unknown artboard id is a hard error (never a silent mis-place).
-- `--pin <cdId|selector>` — place beside a specific ELEMENT resolved from a `--rects` manifest ("drop a note next to the CTA button"). Unknown target = hard error. A created sticky/text also gets a **pointer arrow** to the element's edge by default (suppress with `--no-pointer` or a per-op `"pointer": false`) — a visual snapshot, not a magnetic bind (a DOM element isn't an annotation stroke, so it can't be a bind host).
-- Any `create` op may carry its own `"in"`/`"near"`/`"pin"` field (+ `"pointer": false`) to override placement for just that op — the same resolution rules, scoped to one card in a batch.
+- `--pin <cdId|selector>` — place beside a specific ELEMENT resolved from a `--rects` manifest ("drop a note next to the CTA button"). Unknown target = hard error. A created sticky/text also gets a **pointer arrow** (suppress with `--no-pointer` or a per-op `"pointer": false`): its start is bound to the note (it follows the note), its end is a fixed point on the DOM element's edge — a DOM element isn't a board element, so it can't be a bind host.
+- Any `create` op may carry its own `"in"`/`"near"`/`"pin"` to override placement for just that op. Without x/y and without any of these, creates line up right of the existing board.
 
 ```jsonc
-// Pin a labelled callout on a real button, with a pointer arrow:
-{ "ops": [
-  { "op": "create", "type": "sticky", "text": "make this the primary action", "color": "#fce8a6" }
-] }
+// Pin a callout on a real button, with a pointer arrow:
+{ "ops": [ { "op": "create", "type": "sticky", "text": "make this the primary action" } ] }
 ```
 ```bash
 maude design annotate "ui/Checkout.tsx" --rects /tmp/rects.json --pin a1b2c3d4 --ops -
 ```
 
-### Raw ops vocabulary (typed, never raw SVG)
+### Ops vocabulary (typed, never raw file content)
+
+Coordinates are **world** coordinates — the ones `read-annotations` prints. Targets are ids, or `@refs` minted earlier in the same batch.
 
 ```jsonc
 { "ops": [
-  { "op": "create", "type": "sticky", "ref": "@a", "text": "…", "color"?, "x"?, "y"?, "w"?, "h"?, "in"?, "near"?, "pin"?, "pointer"? },
-  { "op": "create", "type": "shape", "shape": "rounded|rect|ellipse|diamond|triangle|triangle-down", "ref"?, "label"?, "x"?, "y"?, "color"?, "fill"? },
-  { "op": "create", "type": "text", "text": "…", "x"?, "y"?, "fontSize"? },
-  { "op": "create", "type": "section", "label": "…", "x"?, "y"?, "w"?, "h"?, "color"? },  // organizing container
-  { "op": "connect", "from": "<id|@ref>", "to": "<id|@ref>", "label"? },  // BOUND arrow — follows its hosts
+  { "op": "create", "type": "sticky", "ref": "@a", "text": "…", "color"?, "x"?, "y"?, "w"?, "h"?,
+    "parent"?: "<section|@ref|null>", "in"?, "near"?, "pin"?, "pointer"? },
+  { "op": "create", "type": "shape", "shape"?: "rounded|rect|ellipse|diamond|triangle|triangle-down", "text"?: "label", "fill"?, "color"? },
+  { "op": "create", "type": "text", "text": "…", "fontSize"? },
+  { "op": "create", "type": "section", "text": "title", "w"?, "h"?, "color"? },
+  { "op": "create", "type": "arrow", "from": "<id>", "to": "<id>" }       // or x1/y1/x2/y2 for free ends
+  { "op": "connect", "from": "<id|@ref>", "to": "<id|@ref>", "label"? },  // bound arrow; label = text at its midpoint
+  { "op": "update", "id": "<id|@ref>", "text"?: "…", "color"?: "#…", "bold"?: true, "x"?, "y"?, "w"?, "h"?, "<field>": null },
+  { "op": "move", "id": "<id|@ref>", "x": N, "y": N },        // or "dx"/"dy"
+  { "op": "reparent", "id": "<id|@ref>", "parent": "<section id|null>" },
+  { "op": "reorder", "id": "<id|@ref>", "to": "front|back|forward|backward" },  // or "before"/"after": "<sibling id>"
   { "op": "group", "ids": ["@a", "s_…"] },
   { "op": "delete", "id": "s_…" },
-  { "op": "move", "id": "<id|@ref>", "x": N, "y": N },
-  { "op": "set-text", "id": "<id|@ref>", "text": "…" },       // patches a section's "label" instead, when that's the tool
-  { "op": "set-color", "id": "<id|@ref>", "color": "#…" }
+  { "op": "set-text", "id": "…", "text": "…" }, { "op": "set-color", "id": "…", "color": "#…" }   // = update
 ] }
 ```
 
-`move`/`set-text`/`set-color` are **id-preserving** — the target is read through the canonical parser, patched, and re-serialized, so every OTHER attribute (custom fontSize, bold/italic/dashed, rotation, groupIds, cornerRadius, …) survives untouched. DDR-100 deliberately omitted a general `update` for LWW honesty; these three stay narrow and still whole-file LWW like every other op. Not every tool supports every op — arrows/pen have no single position, anchored text has no independent position, image/link/mediaref have no single color/text field. Unsupported combinations fail loud (exit 2); the fallback for anything these three don't cover is `delete` + `create`.
+- **Fields come from the registry** (`maude design annotate --help` lists every type and its fields). `text` always means the type's own text — a sticky/text body, a shape's label, a section's title. `color` on a sticky is its paper (`fill`). `null` resets a field to its default. An unknown field or an invalid value is an error, never silently dropped.
+- **`create`** without `"parent"` joins the section its centre lands in — where a person dropping it would put it; `"parent": null` keeps it at top level.
+- **`update`** patches only the fields you name — every other field (fontSize, bold, rotation, groups, label style…) is untouched. Structure has its own verbs: `parent` → `reparent`, paint order → `reorder`.
+- **Locked elements are refused.** An element read back with `locked: true` was pinned by a person: `move`, `update`, `reparent` and `delete` on it — or a `delete` of a section holding one — fail the whole request with a `… is locked` error. Unlock with `{ "op": "update", "id": "…", "locked": false }` **only when the user asked for that element to change**; `"locked": true` pins one. Paint order (`reorder`) and `group` still work on a locked element.
+- **`move`** puts the element's world box at `x`/`y` (or shifts it by `dx`/`dy`), then it belongs to the section it landed in (`"keepParent": true` to stay). Moving a section carries its members. An arrow moves only its free ends — one bound at both ends follows its hosts and refuses to move.
+- **`reparent`** moves an element into a section (or to top level with `null`) keeping its world position; it refuses a non-section or the element's own subtree.
+- **`reorder`** changes one element's order among its siblings; no neighbour is renumbered.
+- **`delete`** of a section keeps its members (they move up a level, in place); an arrow bound to a deleted element keeps its end where it was.
+
+A single-element update is a few dozen bytes whatever the board size:
+
+```jsonc
+{ "ops": [{ "op": "update", "id": "s_b2", "text": "shipped" }] }
+```
 
 ### `--flow` — auto-laid-out node/edge diagrams
 
@@ -63,7 +87,7 @@ Layered left→right auto-layout, connected with BOUND arrows. `--near`/`--in` p
 }
 ```
 
-- **`layout: "columns"`** (default) — one titled section per `groups[].title`, its cards stacked inside as stickies. An empty `cards: []` still gets a clean, evenly-spaced blank section — a board the team fills in live (a real retro). Card refs are `@sec<i>card<j>`, section refs are `@sec<i>` (0-indexed by group order) — use them in `connections[]`.
+- **`layout: "columns"`** (default) — one titled section per `groups[].title`, its cards stacked inside as stickies — the section's children, so they read back as its `members` and move with it. An empty `cards: []` still gets a clean, evenly-spaced blank section — a board the team fills in live (a real retro). Card refs are `@sec<i>card<j>`, section refs are `@sec<i>` (0-indexed by group order) — use them in `connections[]`.
 - **`layout: "radial"`** — a central shape (labelled by `title`) with every group's cards ringed around it. Refs: `@center`, `@idea<i>`.
 - **`layout: "flow"`** — needs `nodes[]`/`edges[]` instead of `groups[]`; delegates straight to the SAME auto-layout as plain `--flow`, so a user-flow diagram is not a separate implementation.
 - `--near`/`--in`/`--pin` position the WHOLE board as a unit, exactly like a single create op.

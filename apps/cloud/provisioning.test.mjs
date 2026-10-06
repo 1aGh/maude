@@ -185,6 +185,35 @@ describe('probeCellBody treats the cell as the untrusted peer it is', () => {
     assert.equal(without.headers, undefined);
   });
 
+  it('asks a cell not to wake only when told to (the hourly telemetry read)', async () => {
+    let quiet = null;
+    let waking = null;
+    await probeCellBody(env, 'x', {
+      wake: false,
+      fetchImpl: async (_u, o) => {
+        quiet = o;
+        return answer({ state: 'asleep' });
+      },
+    });
+    await probeCellBody(env, 'x', {
+      fetchImpl: async (_u, o) => {
+        waking = o;
+        return answer({ ok: true });
+      },
+    });
+    assert.equal(quiet.headers['x-maude-wake'], 'never');
+    assert.equal(waking.headers?.['x-maude-wake'], undefined);
+  });
+
+  it('reads a sleeping cell as unknown, not as healthy', async () => {
+    const res = await probeCellBody(env, 'x', {
+      wake: false,
+      fetchImpl: async () => answer({ state: 'asleep' }),
+    });
+    assert.equal(res.state, 'pending');
+    assert.deepEqual(res.body, { state: 'asleep' });
+  });
+
   it('refuses an oversized body rather than buffering it', async () => {
     // A health probe answerable with a gigabyte is a health probe that can
     // take the hourly sweep down.

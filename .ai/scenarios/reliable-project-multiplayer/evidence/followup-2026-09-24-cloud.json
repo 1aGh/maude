@@ -1,0 +1,2293 @@
+{
+  "date": "2026-09-24",
+  "backend": "cloud",
+  "scope": "F3 S01-S19 on the isolated Cloudflare test cell, current build",
+  "cell": {
+    "origin": "https://f3-cloud.multiplayer-test-20260922.maude.sh",
+    "worker": "maude-multiplayer-cell-test-20260922",
+    "containerApplication": "a03073b4-13ac-42ee-8b75-b58b598e3240",
+    "image": "registry.cloudflare.com/<account>/maude-followup-cell:test-20260924-r6",
+    "built_from": "main @ a433fb49 (+ runner-only commits)",
+    "store": "ProjectStore Durable Object (CELL_PROJECT_STORE=f3-cloud)",
+    "pairing": "CELL_LIVE_PAIRING=f3-cloud",
+    "controlPlane": "maude-multiplayer-control-test-20260922 + D1 maude-multiplayer-test-20260922"
+  },
+  "fixture": "Owner, designer A, designer B and viewer accounts created through the real signup/invite forms on 2026-09-22 (.invalid addresses). On 2026-09-24 their passwords were reset in the isolated test D1 only (the earlier session had not kept them) and the owner/designer-B browser sessions signed in through the real /login form.",
+  "rollouts": [
+    {
+      "image": "test-20260924-r5",
+      "content": "main with the self-host F3 fixes",
+      "verified": "stale expectEpoch -> 409 epoch-stale, state unchanged"
+    },
+    {
+      "image": "test-20260924-r6",
+      "content": "+ a433fb49 stale file event guard",
+      "reason": "S15 on r5 found the cell studio proposing v13 over an accepted v14"
+    },
+    {
+      "image": "test-20260924-r7",
+      "content": "+ b96754d8 (CSS only)",
+      "reason": "S19 contrast"
+    },
+    {
+      "image": "test-20260924-r8",
+      "content": "+ 489854f4 durable upload sessions",
+      "reason": "S12 cloud"
+    },
+    {
+      "image": "test-20260924-r9",
+      "content": "+ b18b22fd + 58b27496 cold-start fixes",
+      "reason": "S14/S16 cloud",
+      "applicationVersion": 9
+    },
+    {
+      "image": "test-20260924-r10",
+      "content": "+ 0e881a3c + 36e48e90",
+      "applicationVersion": 10
+    },
+    {
+      "image": "test-20260924-r10b",
+      "content": "same digest as r10; rolled to verify the SIGTERM path",
+      "applicationVersion": 11
+    }
+  ],
+  "results": {
+    "S03": {
+      "id": "S03",
+      "backend": "cloud",
+      "status": "pass",
+      "ms": 2540,
+      "doc": "ui-f3mergea1d42ad3",
+      "outcome": "merged",
+      "aAction": "a_b2b0f9f4-085c-4a47-a5be-b4875566d5d3",
+      "bAction": "a_1263f21c-1a94-4c88-86c1-2c0d6ff555cf",
+      "finalHash": "953fbad297ddb1fbc6a0d4459262c5a3e069b9d5265f8470a8bc35733a9159ec",
+      "image": "r6"
+    },
+    "S05": {
+      "id": "S05",
+      "backend": "cloud",
+      "status": "pass",
+      "ms": 6388,
+      "doc": "ui-f3fencea1d42ad3",
+      "revision": 230,
+      "epoch": 1,
+      "oldEpoch": "epoch-stale",
+      "image": "r6"
+    },
+    "S08": {
+      "id": "S08",
+      "backend": "cloud",
+      "status": "pass",
+      "ms": 8858,
+      "doc": "ui-f3opsa1d42ad3",
+      "movedTo": "ui-f3moveda1d42ad3",
+      "staleWrites": [
+        {
+          "target": "old-name",
+          "status": 409,
+          "code": "dependency-missing"
+        },
+        {
+          "target": "moved-name",
+          "status": 409,
+          "code": "dependency-missing"
+        }
+      ],
+      "image": "r6"
+    },
+    "S10": {
+      "id": "S10",
+      "backend": "cloud",
+      "status": "pass",
+      "ms": 7693,
+      "doc": "ui-f3undoa1d42ad3",
+      "aba": "undo-conflict",
+      "deletedTarget": {
+        "status": 409,
+        "code": "undo-conflict"
+      },
+      "image": "r6"
+    },
+    "S15": {
+      "status": "pass",
+      "image": "r6",
+      "kill": "the cell restart route (container.destroy()) authorized by the tenant-derived secret; platform instance delete is NOT_ENABLED on this account",
+      "ackMs": {
+        "p50": 338,
+        "p95": 475.9,
+        "p99": 575.1,
+        "n": 160
+      },
+      "rounds": [
+        {
+          "round": 0,
+          "restartMs": 18855,
+          "inflightAnsweredBeforeKill": false,
+          "retryStatus": "accepted",
+          "acknowledgedLost": 0,
+          "duplicateRevisions": 0,
+          "duplicateTransactions": 0,
+          "headIsLastAcknowledged": true
+        },
+        {
+          "round": 1,
+          "restartMs": 13520,
+          "inflightAnsweredBeforeKill": false,
+          "retryStatus": "accepted",
+          "acknowledgedLost": 0,
+          "duplicateRevisions": 0,
+          "duplicateTransactions": 0,
+          "headIsLastAcknowledged": true
+        },
+        {
+          "round": 2,
+          "restartMs": 11598,
+          "inflightAnsweredBeforeKill": false,
+          "retryStatus": "accepted",
+          "acknowledgedLost": 0,
+          "duplicateRevisions": 0,
+          "duplicateTransactions": 0,
+          "headIsLastAcknowledged": true
+        },
+        {
+          "round": 3,
+          "restartMs": 14244,
+          "inflightAnsweredBeforeKill": false,
+          "retryStatus": "accepted",
+          "acknowledgedLost": 0,
+          "duplicateRevisions": 0,
+          "duplicateTransactions": 0,
+          "headIsLastAcknowledged": true
+        }
+      ],
+      "note": "every kill landed with the in-flight proposal unanswered \u2014 a kill inside the commit, then retry-after-unknown; all 164 revisions of the doc by designer A (no loopback re-proposal)"
+    },
+    "S04": {
+      "doc": "ui-f3repair03dc0b",
+      "tag": "03dc0b",
+      "u1Held": {
+        "reason": "invalid-source"
+      },
+      "after": {
+        "acceptedHasRepairAndTeammate": true,
+        "acceptedHash": "0ac89270c211b31fce8ed1bf14fc8fe65c46ca7abf91cb76ca5eceb7a7efea46",
+        "revisionsChecked": 3,
+        "u1InAnyRevision": [],
+        "originalU1Recoverable": true,
+        "startingVersionRecoverable": true,
+        "candidateMarkedResolved": true,
+        "conflictClearedAfterRepair": true
+      },
+      "status": "pass",
+      "image": "r6"
+    },
+    "S06": {
+      "tag": "a83aeb",
+      "rounds": {
+        "offlineRestart": {
+          "localEditsKeptWhileOffline": true,
+          "bothChangesInX": true,
+          "offlineYAccepted": true,
+          "desktopConverged": true,
+          "offlineActionsBy": [
+            "designer-a@maude-f3.invalid"
+          ]
+        },
+        "rejectedFirst": {
+          "acceptedXUnchanged": true,
+          "invalidDraftKeptLocally": true,
+          "independentZAccepted": true,
+          "desktopToldAboutX": true
+        }
+      },
+      "status": "pass",
+      "image": "r6"
+    },
+    "S07": {
+      "tag": "4159f4",
+      "checks": {
+        "nothingPublishedMidway": true,
+        "failedEndHeld": true,
+        "heldStatusShown": true,
+        "coldStartDidNotPublish": true,
+        "candidateKeptOnDisk": true,
+        "publishOk": true,
+        "oneAction": true,
+        "oneRevision": true,
+        "bothEffectsInThatAction": true,
+        "actor": "designer-a@maude-f3.invalid",
+        "secondPublishAddsNothing": true
+      },
+      "detail": {
+        "headBefore": 259,
+        "midHead": 259,
+        "afterRestart": {
+          "head": 259,
+          "pUnchanged": true,
+          "qUnchanged": true,
+          "candidateKeptOnDisk": true,
+          "stageHeld": true
+        },
+        "headPublished": 260,
+        "publish": {
+          "ok": true,
+          "status": "accepted"
+        },
+        "again": 409
+      },
+      "status": "pass",
+      "image": "r6"
+    },
+    "S18": {
+      "doc": "ui-f3statuseaade1",
+      "states": {
+        "synced": {
+          "label": "synced",
+          "title": "Synced with desktop-status \u2014 all 21 canvases. 21 came down from the project on this connect. (ui-browser_ownership_probe, ui-cloud_acceptance, ui-f3aipage4159f4) \u2014 They are new to this machine \u2014 look them over before editing."
+        },
+        "offline-queued": {
+          "label": "offline",
+          "title": "Not reachable: desktop-status. Your edits are safe on this machine and queued. \u2014 Nothing to do \u2014 syncing resumes by itself when the hub is back."
+        },
+        "back-online": {
+          "label": "synced",
+          "title": "Synced with desktop-status \u2014 all 21 canvases. 21 came down from the project on this connect. (ui-browser_ownership_probe, ui-cloud_acceptance, ui-f3aipage4159f4) \u2014 They are new to this machine \u2014 look them over before editing."
+        },
+        "refused-draft": {
+          "label": "1 to review",
+          "title": "A change needs your attention in desktop-status: 1 source change was not applied. (ui-f3statuseaade1) \u2014 Open the Sync panel to see what is waiting and why."
+        },
+        "draft-resolved": {
+          "label": "synced",
+          "title": "Synced with desktop-status \u2014 all 21 canvases. 21 came down from the project on this connect. (ui-browser_ownership_probe, ui-cloud_acceptance, ui-f3aipage4159f4) \u2014 They are new to this machine \u2014 look them over before editing."
+        },
+        "media-too-large": {
+          "label": "1 to review",
+          "title": "A change needs your attention in desktop-status: 1 file is too large to sync. \u2014 Open the Sync panel to see what is waiting and why."
+        },
+        "media-removed": {
+          "label": "synced",
+          "title": "Synced with desktop-status \u2014 all 21 canvases. 21 came down from the project on this connect. (ui-browser_ownership_probe, ui-cloud_acceptance, ui-f3aipage4159f4) \u2014 They are new to this machine \u2014 look them over before editing."
+        },
+        "hub-cannot-persist": {
+          "label": null,
+          "title": null
+        }
+      },
+      "checks": {
+        "onlySettledSaysSynced": true,
+        "failingStatesExplain": true,
+        "recoveredEveryTime": true,
+        "persistFailureHeld": "not-injectable"
+      },
+      "status": "pass",
+      "raw": {
+        "synced": {
+          "label": "synced",
+          "title": "Synced with desktop-status \u2014 all 21 canvases. 21 came down from the project on this connect. (ui-browser_ownership_probe, ui-cloud_acceptance, ui-f3aipage4159f4) \u2014 They are new to this machine \u2014 look them over before editing.",
+          "raw": {
+            "state": "online",
+            "queuedOps": 0,
+            "lastSyncAt": 1790245605582,
+            "offlineSince": null,
+            "flash": null,
+            "updatedAt": 1790245606149,
+            "startedAt": 1790245605143,
+            "docs": {
+              "synced": 21,
+              "pending": 0,
+              "rejected": 0
+            },
+            "rejectedSlugs": [],
+            "items": [
+              {
+                "slug": "ui-browser_ownership_probe",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-cloud_acceptance",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3aipage4159f4",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3aipanel4159f4",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3concurrency",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3crash061648fc",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3crashdfb1e1fd",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3fence16db4618",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3fencea1d42ad3",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3mediahistory",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3merge16db4618",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3mergea1d42ad3",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3offlinexa83aeb",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3offlineya83aeb",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3offlineza83aeb",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3repair",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3repair03dc0b",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3repairfixed",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3statuseaade1",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-native_cloud_acceptance",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-native_cloud_uncrl8",
+                "state": "connected"
+              }
+            ],
+            "pulled": {
+              "names": [
+                "ui-browser_ownership_probe",
+                "ui-cloud_acceptance",
+                "ui-f3aipage4159f4",
+                "ui-f3aipanel4159f4",
+                "ui-f3concurrency",
+                "ui-f3crash061648fc",
+                "ui-f3crashdfb1e1fd",
+                "ui-f3fence16db4618",
+                "ui-f3fencea1d42ad3",
+                "ui-f3mediahistory",
+                "ui-f3merge16db4618",
+                "ui-f3mergea1d42ad3",
+                "ui-f3offlinexa83aeb",
+                "ui-f3offlineya83aeb",
+                "ui-f3offlineza83aeb",
+                "ui-f3repair",
+                "ui-f3repair03dc0b",
+                "ui-f3repairfixed",
+                "ui-f3statuseaade1",
+                "ui-native_cloud_acceptance"
+              ],
+              "count": 21
+            },
+            "connectionUpdatedAt": 1790245605582,
+            "url": "http://127.0.0.1:1890",
+            "canvases": 21,
+            "conflicts": [],
+            "sharedDoc": true,
+            "files": {
+              "synced": 2,
+              "pulled": 2,
+              "conflicts": 0,
+              "pushed": 0,
+              "progress": {
+                "phase": "converged",
+                "tracked": 2,
+                "delivered": 2,
+                "remaining": 0,
+                "bytesRemaining": 0,
+                "blocked": [],
+                "etaMs": null,
+                "startedAt": null
+              },
+              "delivery": {
+                "assets/60230674.png": "on-hub",
+                "assets/1c9da7a5.png": "on-hub"
+              }
+            },
+            "coldOpen": {
+              "canvasesMs": 440,
+              "filesMs": 1007
+            },
+            "notices": [
+              {
+                "id": "shared-doc",
+                "severity": "warn",
+                "text": "shared-doc is ON for http://127.0.0.1:1890 \u2014 your live editing buffer for each canvas is now the same object that syncs to the hub, not a copy reconciled through disk (DDR-064). Link only hubs you operate or trust.",
+                "at": 1790245605142
+              }
+            ]
+          }
+        },
+        "offline-queued": {
+          "label": "offline",
+          "title": "Not reachable: desktop-status. Your edits are safe on this machine and queued. \u2014 Nothing to do \u2014 syncing resumes by itself when the hub is back.",
+          "raw": {
+            "state": "offline",
+            "queuedOps": 0,
+            "lastSyncAt": 1790245605582,
+            "offlineSince": 1790245636554,
+            "flash": null,
+            "updatedAt": 1790245636555,
+            "startedAt": 1790245605143,
+            "docs": {
+              "synced": 0,
+              "pending": 21,
+              "rejected": 0
+            },
+            "rejectedSlugs": [],
+            "items": [
+              {
+                "slug": "ui-browser_ownership_probe",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-cloud_acceptance",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-f3aipage4159f4",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-f3aipanel4159f4",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-f3concurrency",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-f3crash061648fc",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-f3crashdfb1e1fd",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-f3fence16db4618",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-f3fencea1d42ad3",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-f3mediahistory",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-f3merge16db4618",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-f3mergea1d42ad3",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-f3offlinexa83aeb",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-f3offlineya83aeb",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-f3offlineza83aeb",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-f3repair",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-f3repair03dc0b",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-f3repairfixed",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-f3statuseaade1",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-native_cloud_acceptance",
+                "state": "pending"
+              },
+              {
+                "slug": "ui-native_cloud_uncrl8",
+                "state": "pending"
+              }
+            ],
+            "pulled": {
+              "names": [
+                "ui-browser_ownership_probe",
+                "ui-cloud_acceptance",
+                "ui-f3aipage4159f4",
+                "ui-f3aipanel4159f4",
+                "ui-f3concurrency",
+                "ui-f3crash061648fc",
+                "ui-f3crashdfb1e1fd",
+                "ui-f3fence16db4618",
+                "ui-f3fencea1d42ad3",
+                "ui-f3mediahistory",
+                "ui-f3merge16db4618",
+                "ui-f3mergea1d42ad3",
+                "ui-f3offlinexa83aeb",
+                "ui-f3offlineya83aeb",
+                "ui-f3offlineza83aeb",
+                "ui-f3repair",
+                "ui-f3repair03dc0b",
+                "ui-f3repairfixed",
+                "ui-f3statuseaade1",
+                "ui-native_cloud_acceptance"
+              ],
+              "count": 21
+            },
+            "connectionUpdatedAt": 1790245636555,
+            "url": "http://127.0.0.1:1890",
+            "canvases": 21,
+            "conflicts": [],
+            "sharedDoc": true,
+            "files": {
+              "synced": 0,
+              "pulled": 2,
+              "conflicts": 0,
+              "pushed": 0,
+              "progress": {
+                "phase": "converged",
+                "tracked": 2,
+                "delivered": 2,
+                "remaining": 0,
+                "bytesRemaining": 0,
+                "blocked": [],
+                "etaMs": null,
+                "startedAt": null
+              },
+              "delivery": {
+                "assets/60230674.png": "on-hub",
+                "assets/1c9da7a5.png": "on-hub"
+              }
+            },
+            "accepted": {
+              "pending": 1,
+              "oldestPendingAt": 1790245606805,
+              "ackMs": {
+                "last": null,
+                "p95": null,
+                "n": 0
+              },
+              "rejected": 0,
+              "credentialRefused": false
+            },
+            "coldOpen": {
+              "canvasesMs": 440,
+              "filesMs": 1007
+            },
+            "notices": [
+              {
+                "id": "shared-doc",
+                "severity": "warn",
+                "text": "shared-doc is ON for http://127.0.0.1:1890 \u2014 your live editing buffer for each canvas is now the same object that syncs to the hub, not a copy reconciled through disk (DDR-064). Link only hubs you operate or trust.",
+                "at": 1790245605142
+              }
+            ]
+          }
+        },
+        "back-online": {
+          "label": "synced",
+          "title": "Synced with desktop-status \u2014 all 21 canvases. 21 came down from the project on this connect. (ui-browser_ownership_probe, ui-cloud_acceptance, ui-f3aipage4159f4) \u2014 They are new to this machine \u2014 look them over before editing.",
+          "raw": {
+            "state": "online",
+            "queuedOps": 0,
+            "lastSyncAt": 1790245657883,
+            "offlineSince": null,
+            "flash": "synced",
+            "updatedAt": 1790245657982,
+            "startedAt": 1790245605143,
+            "docs": {
+              "synced": 21,
+              "pending": 0,
+              "rejected": 0
+            },
+            "rejectedSlugs": [],
+            "items": [
+              {
+                "slug": "ui-browser_ownership_probe",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-cloud_acceptance",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3aipage4159f4",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3aipanel4159f4",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3concurrency",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3crash061648fc",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3crashdfb1e1fd",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3fence16db4618",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3fencea1d42ad3",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3mediahistory",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3merge16db4618",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3mergea1d42ad3",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3offlinexa83aeb",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3offlineya83aeb",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3offlineza83aeb",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3repair",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3repair03dc0b",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3repairfixed",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3statuseaade1",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-native_cloud_acceptance",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-native_cloud_uncrl8",
+                "state": "connected"
+              }
+            ],
+            "pulled": {
+              "names": [
+                "ui-browser_ownership_probe",
+                "ui-cloud_acceptance",
+                "ui-f3aipage4159f4",
+                "ui-f3aipanel4159f4",
+                "ui-f3concurrency",
+                "ui-f3crash061648fc",
+                "ui-f3crashdfb1e1fd",
+                "ui-f3fence16db4618",
+                "ui-f3fencea1d42ad3",
+                "ui-f3mediahistory",
+                "ui-f3merge16db4618",
+                "ui-f3mergea1d42ad3",
+                "ui-f3offlinexa83aeb",
+                "ui-f3offlineya83aeb",
+                "ui-f3offlineza83aeb",
+                "ui-f3repair",
+                "ui-f3repair03dc0b",
+                "ui-f3repairfixed",
+                "ui-f3statuseaade1",
+                "ui-native_cloud_acceptance"
+              ],
+              "count": 21
+            },
+            "connectionUpdatedAt": 1790245657883,
+            "url": "http://127.0.0.1:1890",
+            "canvases": 21,
+            "conflicts": [],
+            "sharedDoc": true,
+            "files": {
+              "synced": 2,
+              "pulled": 2,
+              "conflicts": 0,
+              "pushed": 0,
+              "progress": {
+                "phase": "converged",
+                "tracked": 2,
+                "delivered": 2,
+                "remaining": 0,
+                "bytesRemaining": 0,
+                "blocked": [],
+                "etaMs": null,
+                "startedAt": null
+              },
+              "delivery": {
+                "assets/60230674.png": "on-hub",
+                "assets/1c9da7a5.png": "on-hub"
+              }
+            },
+            "accepted": {
+              "pending": 0,
+              "oldestPendingAt": null,
+              "ackMs": {
+                "last": 47050,
+                "p95": 47050,
+                "n": 1
+              },
+              "rejected": 0,
+              "credentialRefused": false
+            },
+            "coldOpen": {
+              "canvasesMs": 440,
+              "filesMs": 1007
+            },
+            "appliedRevision": 262,
+            "notices": [
+              {
+                "id": "shared-doc",
+                "severity": "warn",
+                "text": "shared-doc is ON for http://127.0.0.1:1890 \u2014 your live editing buffer for each canvas is now the same object that syncs to the hub, not a copy reconciled through disk (DDR-064). Link only hubs you operate or trust.",
+                "at": 1790245605142
+              }
+            ]
+          }
+        },
+        "refused-draft": {
+          "label": "1 to review",
+          "title": "A change needs your attention in desktop-status: 1 source change was not applied. (ui-f3statuseaade1) \u2014 Open the Sync panel to see what is waiting and why.",
+          "raw": {
+            "state": "online",
+            "queuedOps": 0,
+            "lastSyncAt": 1790245657883,
+            "offlineSince": null,
+            "flash": "synced",
+            "updatedAt": 1790245658463,
+            "startedAt": 1790245605143,
+            "docs": {
+              "synced": 21,
+              "pending": 0,
+              "rejected": 0
+            },
+            "rejectedSlugs": [],
+            "items": [
+              {
+                "slug": "ui-browser_ownership_probe",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-cloud_acceptance",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3aipage4159f4",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3aipanel4159f4",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3concurrency",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3crash061648fc",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3crashdfb1e1fd",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3fence16db4618",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3fencea1d42ad3",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3mediahistory",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3merge16db4618",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3mergea1d42ad3",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3offlinexa83aeb",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3offlineya83aeb",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3offlineza83aeb",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3repair",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3repair03dc0b",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3repairfixed",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3statuseaade1",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-native_cloud_acceptance",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-native_cloud_uncrl8",
+                "state": "connected"
+              }
+            ],
+            "pulled": {
+              "names": [
+                "ui-browser_ownership_probe",
+                "ui-cloud_acceptance",
+                "ui-f3aipage4159f4",
+                "ui-f3aipanel4159f4",
+                "ui-f3concurrency",
+                "ui-f3crash061648fc",
+                "ui-f3crashdfb1e1fd",
+                "ui-f3fence16db4618",
+                "ui-f3fencea1d42ad3",
+                "ui-f3mediahistory",
+                "ui-f3merge16db4618",
+                "ui-f3mergea1d42ad3",
+                "ui-f3offlinexa83aeb",
+                "ui-f3offlineya83aeb",
+                "ui-f3offlineza83aeb",
+                "ui-f3repair",
+                "ui-f3repair03dc0b",
+                "ui-f3repairfixed",
+                "ui-f3statuseaade1",
+                "ui-native_cloud_acceptance"
+              ],
+              "count": 21
+            },
+            "connectionUpdatedAt": 1790245657883,
+            "url": "http://127.0.0.1:1890",
+            "canvases": 21,
+            "conflicts": [
+              {
+                "slug": "ui-f3statuseaade1",
+                "kind": "body-rejected",
+                "reason": "invalid-source",
+                "snapshotFailed": false,
+                "at": 1790245658462
+              }
+            ],
+            "sharedDoc": true,
+            "files": {
+              "synced": 2,
+              "pulled": 2,
+              "conflicts": 0,
+              "pushed": 0,
+              "progress": {
+                "phase": "converged",
+                "tracked": 2,
+                "delivered": 2,
+                "remaining": 0,
+                "bytesRemaining": 0,
+                "blocked": [],
+                "etaMs": null,
+                "startedAt": null
+              },
+              "delivery": {
+                "assets/60230674.png": "on-hub",
+                "assets/1c9da7a5.png": "on-hub"
+              }
+            },
+            "accepted": {
+              "pending": 0,
+              "oldestPendingAt": null,
+              "ackMs": {
+                "last": 47050,
+                "p95": 47050,
+                "n": 1
+              },
+              "rejected": 0,
+              "credentialRefused": false
+            },
+            "coldOpen": {
+              "canvasesMs": 440,
+              "filesMs": 1007
+            },
+            "appliedRevision": 262,
+            "notices": [
+              {
+                "id": "shared-doc",
+                "severity": "warn",
+                "text": "shared-doc is ON for http://127.0.0.1:1890 \u2014 your live editing buffer for each canvas is now the same object that syncs to the hub, not a copy reconciled through disk (DDR-064). Link only hubs you operate or trust.",
+                "at": 1790245605142
+              },
+              {
+                "id": "source-conflict-ui-f3statuseaade1",
+                "severity": "warn",
+                "text": "Source sync blocked for ui-f3statuseaade1. The local file was kept because the source has syntax errors or duplicate declarations. Recovery copies are in _history/ui-f3statuseaade1/sync-recovery/.",
+                "at": 1790245658463
+              }
+            ]
+          }
+        },
+        "draft-resolved": {
+          "label": "synced",
+          "title": "Synced with desktop-status \u2014 all 21 canvases. 21 came down from the project on this connect. (ui-browser_ownership_probe, ui-cloud_acceptance, ui-f3aipage4159f4) \u2014 They are new to this machine \u2014 look them over before editing.",
+          "raw": {
+            "state": "online",
+            "queuedOps": 0,
+            "lastSyncAt": 1790245657883,
+            "offlineSince": null,
+            "flash": "synced",
+            "updatedAt": 1790245659536,
+            "startedAt": 1790245605143,
+            "docs": {
+              "synced": 21,
+              "pending": 0,
+              "rejected": 0
+            },
+            "rejectedSlugs": [],
+            "items": [
+              {
+                "slug": "ui-browser_ownership_probe",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-cloud_acceptance",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3aipage4159f4",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3aipanel4159f4",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3concurrency",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3crash061648fc",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3crashdfb1e1fd",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3fence16db4618",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3fencea1d42ad3",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3mediahistory",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3merge16db4618",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3mergea1d42ad3",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3offlinexa83aeb",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3offlineya83aeb",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3offlineza83aeb",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3repair",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3repair03dc0b",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3repairfixed",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3statuseaade1",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-native_cloud_acceptance",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-native_cloud_uncrl8",
+                "state": "connected"
+              }
+            ],
+            "pulled": {
+              "names": [
+                "ui-browser_ownership_probe",
+                "ui-cloud_acceptance",
+                "ui-f3aipage4159f4",
+                "ui-f3aipanel4159f4",
+                "ui-f3concurrency",
+                "ui-f3crash061648fc",
+                "ui-f3crashdfb1e1fd",
+                "ui-f3fence16db4618",
+                "ui-f3fencea1d42ad3",
+                "ui-f3mediahistory",
+                "ui-f3merge16db4618",
+                "ui-f3mergea1d42ad3",
+                "ui-f3offlinexa83aeb",
+                "ui-f3offlineya83aeb",
+                "ui-f3offlineza83aeb",
+                "ui-f3repair",
+                "ui-f3repair03dc0b",
+                "ui-f3repairfixed",
+                "ui-f3statuseaade1",
+                "ui-native_cloud_acceptance"
+              ],
+              "count": 21
+            },
+            "connectionUpdatedAt": 1790245657883,
+            "url": "http://127.0.0.1:1890",
+            "canvases": 21,
+            "conflicts": [],
+            "sharedDoc": true,
+            "files": {
+              "synced": 2,
+              "pulled": 2,
+              "conflicts": 0,
+              "pushed": 0,
+              "progress": {
+                "phase": "converged",
+                "tracked": 2,
+                "delivered": 2,
+                "remaining": 0,
+                "bytesRemaining": 0,
+                "blocked": [],
+                "etaMs": null,
+                "startedAt": null
+              },
+              "delivery": {
+                "assets/60230674.png": "on-hub",
+                "assets/1c9da7a5.png": "on-hub"
+              }
+            },
+            "accepted": {
+              "pending": 0,
+              "oldestPendingAt": null,
+              "ackMs": {
+                "last": 47050,
+                "p95": 47050,
+                "n": 1
+              },
+              "rejected": 0,
+              "credentialRefused": false
+            },
+            "coldOpen": {
+              "canvasesMs": 440,
+              "filesMs": 1007
+            },
+            "appliedRevision": 262,
+            "notices": [
+              {
+                "id": "shared-doc",
+                "severity": "warn",
+                "text": "shared-doc is ON for http://127.0.0.1:1890 \u2014 your live editing buffer for each canvas is now the same object that syncs to the hub, not a copy reconciled through disk (DDR-064). Link only hubs you operate or trust.",
+                "at": 1790245605142
+              }
+            ]
+          }
+        },
+        "media-too-large": {
+          "label": "1 to review",
+          "title": "A change needs your attention in desktop-status: 1 file is too large to sync. \u2014 Open the Sync panel to see what is waiting and why.",
+          "raw": {
+            "state": "online",
+            "queuedOps": 0,
+            "lastSyncAt": 1790245657883,
+            "offlineSince": null,
+            "flash": "synced",
+            "updatedAt": 1790245660115,
+            "startedAt": 1790245605143,
+            "docs": {
+              "synced": 21,
+              "pending": 0,
+              "rejected": 0
+            },
+            "rejectedSlugs": [],
+            "items": [
+              {
+                "slug": "ui-browser_ownership_probe",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-cloud_acceptance",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3aipage4159f4",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3aipanel4159f4",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3concurrency",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3crash061648fc",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3crashdfb1e1fd",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3fence16db4618",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3fencea1d42ad3",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3mediahistory",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3merge16db4618",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3mergea1d42ad3",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3offlinexa83aeb",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3offlineya83aeb",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3offlineza83aeb",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3repair",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3repair03dc0b",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3repairfixed",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3statuseaade1",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-native_cloud_acceptance",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-native_cloud_uncrl8",
+                "state": "connected"
+              }
+            ],
+            "pulled": {
+              "names": [
+                "ui-browser_ownership_probe",
+                "ui-cloud_acceptance",
+                "ui-f3aipage4159f4",
+                "ui-f3aipanel4159f4",
+                "ui-f3concurrency",
+                "ui-f3crash061648fc",
+                "ui-f3crashdfb1e1fd",
+                "ui-f3fence16db4618",
+                "ui-f3fencea1d42ad3",
+                "ui-f3mediahistory",
+                "ui-f3merge16db4618",
+                "ui-f3mergea1d42ad3",
+                "ui-f3offlinexa83aeb",
+                "ui-f3offlineya83aeb",
+                "ui-f3offlineza83aeb",
+                "ui-f3repair",
+                "ui-f3repair03dc0b",
+                "ui-f3repairfixed",
+                "ui-f3statuseaade1",
+                "ui-native_cloud_acceptance"
+              ],
+              "count": 21
+            },
+            "connectionUpdatedAt": 1790245657883,
+            "url": "http://127.0.0.1:1890",
+            "canvases": 21,
+            "conflicts": [],
+            "sharedDoc": true,
+            "files": {
+              "synced": 2,
+              "pulled": 2,
+              "conflicts": 0,
+              "pushed": 0,
+              "progress": {
+                "phase": "blocked",
+                "tracked": 3,
+                "delivered": 2,
+                "remaining": 0,
+                "bytesRemaining": 0,
+                "blocked": [
+                  {
+                    "class": "too-large",
+                    "count": 1
+                  }
+                ],
+                "etaMs": null,
+                "startedAt": null
+              },
+              "delivery": {
+                "ui/F3TooLargeeaade1.mp4": "refused",
+                "assets/60230674.png": "on-hub",
+                "assets/1c9da7a5.png": "on-hub"
+              },
+              "blocked": {
+                "files": 1,
+                "bytes": 0,
+                "unmeasured": 1,
+                "byClass": {
+                  "too-large": {
+                    "files": 1,
+                    "bytes": 0
+                  }
+                }
+              }
+            },
+            "accepted": {
+              "pending": 0,
+              "oldestPendingAt": null,
+              "ackMs": {
+                "last": 47050,
+                "p95": 47050,
+                "n": 1
+              },
+              "rejected": 0,
+              "credentialRefused": false
+            },
+            "coldOpen": {
+              "canvasesMs": 440,
+              "filesMs": 1007
+            },
+            "appliedRevision": 262,
+            "notices": [
+              {
+                "id": "shared-doc",
+                "severity": "warn",
+                "text": "shared-doc is ON for http://127.0.0.1:1890 \u2014 your live editing buffer for each canvas is now the same object that syncs to the hub, not a copy reconciled through disk (DDR-064). Link only hubs you operate or trust.",
+                "at": 1790245605142
+              }
+            ]
+          }
+        },
+        "media-removed": {
+          "label": "synced",
+          "title": "Synced with desktop-status \u2014 all 21 canvases. 21 came down from the project on this connect. (ui-browser_ownership_probe, ui-cloud_acceptance, ui-f3aipage4159f4) \u2014 They are new to this machine \u2014 look them over before editing.",
+          "raw": {
+            "state": "online",
+            "queuedOps": 0,
+            "lastSyncAt": 1790245657883,
+            "offlineSince": null,
+            "flash": null,
+            "updatedAt": 1790245662120,
+            "startedAt": 1790245605143,
+            "docs": {
+              "synced": 21,
+              "pending": 0,
+              "rejected": 0
+            },
+            "rejectedSlugs": [],
+            "items": [
+              {
+                "slug": "ui-browser_ownership_probe",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-cloud_acceptance",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3aipage4159f4",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3aipanel4159f4",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3concurrency",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3crash061648fc",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3crashdfb1e1fd",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3fence16db4618",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3fencea1d42ad3",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3mediahistory",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3merge16db4618",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3mergea1d42ad3",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3offlinexa83aeb",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3offlineya83aeb",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3offlineza83aeb",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3repair",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3repair03dc0b",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3repairfixed",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-f3statuseaade1",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-native_cloud_acceptance",
+                "state": "connected"
+              },
+              {
+                "slug": "ui-native_cloud_uncrl8",
+                "state": "connected"
+              }
+            ],
+            "pulled": {
+              "names": [
+                "ui-browser_ownership_probe",
+                "ui-cloud_acceptance",
+                "ui-f3aipage4159f4",
+                "ui-f3aipanel4159f4",
+                "ui-f3concurrency",
+                "ui-f3crash061648fc",
+                "ui-f3crashdfb1e1fd",
+                "ui-f3fence16db4618",
+                "ui-f3fencea1d42ad3",
+                "ui-f3mediahistory",
+                "ui-f3merge16db4618",
+                "ui-f3mergea1d42ad3",
+                "ui-f3offlinexa83aeb",
+                "ui-f3offlineya83aeb",
+                "ui-f3offlineza83aeb",
+                "ui-f3repair",
+                "ui-f3repair03dc0b",
+                "ui-f3repairfixed",
+                "ui-f3statuseaade1",
+                "ui-native_cloud_acceptance"
+              ],
+              "count": 21
+            },
+            "connectionUpdatedAt": 1790245660782,
+            "url": "http://127.0.0.1:1890",
+            "canvases": 21,
+            "conflicts": [],
+            "sharedDoc": true,
+            "files": {
+              "synced": 2,
+              "pulled": 2,
+              "conflicts": 0,
+              "pushed": 0,
+              "progress": {
+                "phase": "converged",
+                "tracked": 2,
+                "delivered": 2,
+                "remaining": 0,
+                "bytesRemaining": 0,
+                "blocked": [],
+                "etaMs": null,
+                "startedAt": null
+              },
+              "delivery": {
+                "assets/60230674.png": "on-hub",
+                "assets/1c9da7a5.png": "on-hub"
+              }
+            },
+            "accepted": {
+              "pending": 0,
+              "oldestPendingAt": null,
+              "ackMs": {
+                "last": 47050,
+                "p95": 47050,
+                "n": 1
+              },
+              "rejected": 0,
+              "credentialRefused": false
+            },
+            "coldOpen": {
+              "canvasesMs": 440,
+              "filesMs": 1007
+            },
+            "appliedRevision": 262,
+            "notices": [
+              {
+                "id": "shared-doc",
+                "severity": "warn",
+                "text": "shared-doc is ON for http://127.0.0.1:1890 \u2014 your live editing buffer for each canvas is now the same object that syncs to the hub, not a copy reconciled through disk (DDR-064). Link only hubs you operate or trust.",
+                "at": 1790245605142
+              }
+            ]
+          }
+        },
+        "hub-cannot-persist": {
+          "label": null,
+          "title": null,
+          "notInjectable": true
+        }
+      },
+      "image": "r6",
+      "note": "the hub-cannot-persist state is not injectable on the cloud cell (platform disk; the ProjectStore DO / R2 cannot be made to fail for one test) \u2014 recorded, not counted as passed"
+    },
+    "S12": {
+      "path": "assets/f3-large-5f5f68.mp4",
+      "size": 125829120,
+      "sha256": "91696346741a0de745033f6ed596ee760dab0bd16017fc024f6acfd257775503",
+      "resume": {
+        "status": 200,
+        "receivedAfterRestart": 7,
+        "verifiedBeforeKill": 7
+      },
+      "corruptPart": {
+        "part": 7,
+        "status": 400,
+        "keptAfter": false
+      },
+      "complete": {
+        "first": 200,
+        "second": 200,
+        "sameReceipt": true
+      },
+      "readBack": {
+        "status": 200,
+        "sha256Matches": true
+      },
+      "checkout": {
+        "notOnThisMachine": true
+      },
+      "objectStorage": {
+        "objects": [
+          {
+            "key": "tenants/f3-cloud/assets/f3-large-5f5f68.mp4",
+            "size": 125829120
+          }
+        ],
+        "sizeMatches": true,
+        "wrongHashObjectAbsent": true
+      },
+      "wrongWholeHash": {
+        "status": 422,
+        "landed": null
+      },
+      "overCeiling": {
+        "status": 413,
+        "error": "over the 2147483648-byte project file ceiling"
+      },
+      "status": "pass",
+      "image": "r8",
+      "previousRun": {
+        "image": "r6",
+        "status": "fail",
+        "finding": {
+          "id": "F3-cloud-S12-upload-session-not-durable",
+          "summary": "A resumable upload session lives on the cell container disk: a cell restart (rollout, crash, sleep) answers 404 no such upload, so the upload restarts from part 0. No data is lost or wrongly accepted \u2014 the desktop re-creates the session (creation is idempotent) and sends every part again \u2014 but S12 resume-verified-bytes does not hold on cloud.",
+          "needsDecision": "persist parts beyond the container (R2 multipart / DO storage) or accept restart-from-zero on cloud"
+        }
+      },
+      "r2AfterComplete": "only the receipt session.json under tenants/f3-cloud/upload-sessions/ (swept after an hour); no parts"
+    },
+    "S09": {
+      "doc": "ui-f3effects2fa734",
+      "steps": {
+        "cameraAndPresence": {
+          "newRevisions": 0
+        }
+      },
+      "revisions": 4,
+      "everyRevisionHasTransaction": true,
+      "everyActionHasId": true,
+      "lanes": [
+        "meta",
+        "annotations",
+        "comments",
+        "html",
+        "@manifest"
+      ],
+      "metaHasNoCamera": true,
+      "status": "pass",
+      "image": "r6",
+      "entry": "dashboard session -> Open in the browser (cell handoff cookies)"
+    },
+    "S11": {
+      "doc": "ui-f3mediahistory55e5b6",
+      "revisions": {
+        "created": 283,
+        "replaced": 284,
+        "peer": 285
+      },
+      "preview": {
+        "oldImageDecoded": true,
+        "currentImageDecoded": true
+      },
+      "teammateRendersRestored": true,
+      "after": {
+        "currentIsOldSource": true,
+        "head": 286,
+        "newest": {
+          "revision": 286,
+          "kind": "history.restore",
+          "actor": "cell-loopback-sync"
+        },
+        "peerRevisionKeptInHistory": true,
+        "historicalLanesReadable": {
+          "283": true,
+          "284": true
+        },
+        "assetsReadable": {
+          "60230674.png": true,
+          "1c9da7a5.png": true
+        }
+      },
+      "afterRestart": {
+        "currentIsOldSource": true,
+        "head": 286,
+        "newest": {
+          "revision": 286,
+          "kind": "history.restore",
+          "actor": "cell-loopback-sync"
+        },
+        "peerRevisionKeptInHistory": true,
+        "historicalLanesReadable": {
+          "283": true,
+          "284": true
+        },
+        "assetsReadable": {
+          "60230674.png": true,
+          "1c9da7a5.png": true
+        }
+      },
+      "attribution": "cell loopback credential (known limitation: workspace-browser actions are not attributed to the person)",
+      "status": "pass",
+      "image": "r6",
+      "restart": "cell restart route between after and afterRestart"
+    },
+    "S19": {
+      "status": "pass",
+      "violations": 0,
+      "keyboard": {
+        "light": {
+          "focusMovedIn": true,
+          "tabStayedIn": true,
+          "shiftTabStayedIn": true,
+          "escapeClosed": true,
+          "focusReturnedToOpener": true,
+          "controlsObscured": []
+        },
+        "dark": {
+          "focusMovedIn": true,
+          "tabStayedIn": true,
+          "shiftTabStayedIn": true,
+          "escapeClosed": true,
+          "focusReturnedToOpener": true,
+          "controlsObscured": []
+        }
+      },
+      "live": {
+        "statusRegions": 3,
+        "lang": "en",
+        "canvasFrameTitle": "Canvas: .design/ui/Cloud acceptance.tsx"
+      },
+      "image": "r7",
+      "canvas": "ui/Cloud acceptance.tsx",
+      "axe": "4.13.0",
+      "firstRun": {
+        "image": "r6",
+        "status": "fail",
+        "finding": "color-contrast (serious) on the tree section count pill, both themes: #5f6469 on #12161b = 3.03:1 at 10px",
+        "fix": "b96754d8"
+      }
+    },
+    "S01": {
+      "status": "pass",
+      "image": "r7",
+      "native": {
+        "status": "native-ui-complete",
+        "signedInEmail": "designer-a@maude-f3.invalid",
+        "createdCanvas": "ui/Native cloud ZysfYA.tsx",
+        "editedTitle": "Native cloud ZysfYA edited by designer",
+        "surface": "Linux WebKitGTK debug app, fresh XDG profile, real device-code login approved on the real /activate page by the invited designer",
+        "run": ".ai/device/scenario-runs/reliable-project-multiplayer/cloud-entry-2026-09-24T11-09-12.983Z"
+      },
+      "peer": {
+        "ownerBrowserRendered": "Native cloud ZysfYA edited by designer",
+        "acceptedSourceHasEdit": true,
+        "acceptedHashVerified": true,
+        "designerActions": [
+          {
+            "revision": 288,
+            "label": "Edit canvas"
+          },
+          {
+            "revision": 287,
+            "label": "Create canvas"
+          }
+        ],
+        "entry": "owner dashboard session -> Open in the browser"
+      }
+    },
+    "S02": {
+      "tag": "25e747",
+      "invite": {
+        "role": "member",
+        "linkShownOnPage": true
+      },
+      "joined": {
+        "membership": "member",
+        "dashboardTitle": "Your projects \u2014 Maude"
+      },
+      "cEdit": {
+        "role": "member",
+        "status": 200,
+        "revision": 291,
+        "actor": "designer-c-25e747@maude-f3.invalid"
+      },
+      "viewer": {
+        "role": "viewer",
+        "read": 200,
+        "write": 403,
+        "code": "You can look at this project, comment and download it, but not change it."
+      },
+      "removal": {
+        "clicked": [
+          "\"confirm-page\"",
+          "\"removed\""
+        ],
+        "membershipsLeft": 0,
+        "writeRightAfter": 200,
+        "readRightAfter": 200,
+        "liveSessionRevokedAfterMs": 121424,
+        "writeAfterRevocation": 401,
+        "reopen": {
+          "open": 404
+        },
+        "workKept": true
+      },
+      "status": "pass",
+      "image": "r7",
+      "note": "Control-plane invite rows (expired, revoked, viewer forged invite) were verified on 2026-09-22 against the same, unchanged control worker (followup-2026-09-22-cloud-auth.json). A removed designer's already-open cell session keeps working until the cell's revocation sweep \u2014 the product states this on the removal page (\"stops working within the hour\"); measured 121 s; writes in that window are allowed by design. Same-named projects on different servers: covered by self-host S02."
+    },
+    "S16": {
+      "tag": "b45338",
+      "backend": "cloud",
+      "B": {
+        "notInjectable": true
+      },
+      "C": {
+        "notInjectable": true
+      },
+      "A": {
+        "races": {
+          "rounds": 20,
+          "outcomes": {
+            "200": 39,
+            "409 base-conflict": 1
+          },
+          "bothWon": 19,
+          "noopAcks": 6,
+          "everyHeadAsExpected": true,
+          "notAsExpected": []
+        },
+        "restart": {
+          "killed": 200,
+          "uptimeMs": 4802
+        },
+        "burst": {
+          "sent": 40,
+          "ackedBeforeCut": 2,
+          "retries": [
+            {
+              "i": 2,
+              "first": 0,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 3,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 4,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 5,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 6,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 7,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 8,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 9,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 10,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 11,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 12,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 13,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 14,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 15,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 16,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 17,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 18,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 19,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 20,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 21,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 22,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 23,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 24,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 25,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 26,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 27,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 28,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 29,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 30,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 31,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 32,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 33,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 34,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 35,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 36,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 37,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 38,
+              "retry": 200,
+              "code": null
+            },
+            {
+              "i": 39,
+              "retry": 200,
+              "code": null
+            }
+          ]
+        },
+        "replayOfAcked": {
+          "status": 200,
+          "code": null,
+          "revision": 970
+        },
+        "chain": {
+          "revisions": 1009,
+          "contiguous": true,
+          "duplicateTransactions": 0
+        },
+        "ackedNotAtItsRevision": [],
+        "everyAckInStoreOnce": true,
+        "noopAcksLeaveNoRow": true,
+        "headIsLastBurstStep": true,
+        "status": "pass"
+      },
+      "D": {
+        "restart": {
+          "killed": 200,
+          "uptimeMs": 3368
+        },
+        "deletedCanvasRevisions": [
+          1010,
+          1011,
+          1012,
+          1013
+        ],
+        "historyBeforeRestart": true,
+        "afterFreshDisk": {
+          "sameHead": true,
+          "sameChain": true,
+          "sameLiveDocs": true,
+          "deletedStaysDeleted": true,
+          "deletedHistoryReadable": true,
+          "parity": true,
+          "parityChecked": 118,
+          "mismatches": []
+        },
+        "status": "pass"
+      },
+      "status": "pass",
+      "image": "r9",
+      "runner": "runners/f3/s16-cloud.mjs",
+      "notInjectable": {
+        "A-two-coordinators": "one ProjectStore Durable Object per project; the platform runs one instance per id and serializes it \u2014 the cloud form is two people racing through the one cell plus the cell killed mid-burst (measured above)",
+        "B-missing-payload": "payloads live in the DO storage; a test cannot delete one without corrupting the platform object",
+        "C-full-store": "the DO storage cannot be filled for one test without breaking the cell"
+      },
+      "previousRuns": [
+        {
+          "image": "r8",
+          "status": "fail",
+          "finding": "D: parity mismatch ui-t32-probe (checkout) that survived two cell restarts \u2014 the cell studio held the canvas as body-rejected/local-edit on every wake: the checkout restored from the newest backup held an OLDER accepted version with no recorded base. Fixed 58b27496 (r9); after the r9 wake parity 115/115 with no cell-studio conflict, before any test write."
+        },
+        {
+          "image": "r8",
+          "status": "harness",
+          "finding": "A oracle wrong: one coordinator merges a same-base race character-wise (19/20 rounds both win, 6 noop acks) \u2014 verified against the hub mergeLane; oracle now checks every head against an independent merge and excludes noop acks from the row check. The first burst finished before the kill; now 40 steps, kill at 700 ms (step 2 in flight)."
+        }
+      ]
+    },
+    "S13/S14": {
+      "status": "pass",
+      "project": "f3-scale (clean tenant on the same test worker: own ProjectStore DO, own R2 prefix tenants/f3-scale; empty at start)",
+      "image": "test-20260924-r10b; clients from source at 36e48e90",
+      "report": "evidence/followup-2026-09-24-cloud-scale.json",
+      "seed": {
+        "kills": [
+          {
+            "label": "mid small-file seed",
+            "restartedFirstPass": {
+              "down": 0,
+              "up": 200,
+              "conflicts": 0,
+              "alreadyInStep": 84
+            },
+            "restartedFromZero": false
+          },
+          {
+            "label": "mid large-object upload",
+            "restartedFirstPass": {
+              "down": 0,
+              "up": 1,
+              "conflicts": 0,
+              "alreadyInStep": 310
+            },
+            "restartedFromZero": false
+          }
+        ],
+        "largeObjectSession": {
+          "sameSessionResumed": true,
+          "preKillPartsRewritten": [],
+          "landedInJournal": true,
+          "partsReceivedBeforeKill": 19,
+          "partsTotal": 65
+        }
+      },
+      "cleanClients": "B complete 293 s, C complete 298 s",
+      "oracle": {
+        "unexplained": 0,
+        "preexistingOnHub": {
+          "paths": 0,
+          "extraOnB": 0,
+          "extraOnC": 0
+        }
+      },
+      "edits": {
+        "count": 386,
+        "timedOut": 0,
+        "interruptedByKill": 2,
+        "latencyMs": {
+          "hub": {
+            "n": 384,
+            "p50": 1139,
+            "p95": 1679,
+            "max": 44314
+          },
+          "peersWhileMediaMoving": {
+            "n": 398,
+            "p50": 1103,
+            "p95": 1629,
+            "max": 3601
+          }
+        }
+      },
+      "slowestEdit": "n=1 at 20.7 s, 44.3 s: the first edit on a brand-new project queued behind A adding its 77 canvases (doc.create, one serialized transaction queue, cloud round trips); self-host reached the same point after its creates (380 ms). Under the 60 s bound; no edit waited on media.",
+      "sharedProjectRuns": {
+        "status": "fail",
+        "image": "r9 cell (clients from source incl. 0e881a3c)",
+        "runner": "scripts/dev/t32-scale.mjs --scale full --cloud <fixture>",
+        "final": {
+          "seed": {
+            "kills": [
+              {
+                "label": "mid small-file seed",
+                "restartedFirstPass": {
+                  "down": 142,
+                  "up": 42,
+                  "conflicts": 0,
+                  "alreadyInStep": 203
+                },
+                "restartedFromZero": false
+              },
+              {
+                "label": "mid large-object upload",
+                "restartedFirstPass": {
+                  "down": 1,
+                  "up": 1,
+                  "conflicts": 0,
+                  "alreadyInStep": 919
+                },
+                "restartedFromZero": false
+              }
+            ],
+            "largeObjectSession": {
+              "sameSessionResumed": true,
+              "preKillPartsRewritten": [],
+              "landedInJournal": true,
+              "partsReceivedBeforeKill": 19,
+              "partsTotal": 65
+            },
+            "restartedFromZero": false
+          },
+          "oracle": {
+            "unexplained": 0
+          },
+          "edits": {
+            "count": 762,
+            "timedOut": 3,
+            "latencyMs": {
+              "hub": {
+                "n": 759,
+                "p50": 1210,
+                "p95": 2211,
+                "max": 47887
+              },
+              "peersWhileMediaMoving": {
+                "n": 888,
+                "p50": 1196,
+                "p95": 2211,
+                "max": 13291
+              }
+            }
+          },
+          "starvedEdits": [
+            {
+              "n": 51,
+              "n2": 58,
+              "cause": "A's proposal POST timed out at 20 s and was retried ('not acknowledged yet (The operation timed out.)'): the standard-1 cell (1/2 vCPU) was moving ~10 GB at once \u2014 A pulling the 2.6 GB this shared test project accumulated over earlier runs and uploading 0.64 GB, B and C each pulling ~3.2 GB"
+            },
+            {
+              "n": 692,
+              "cause": "oracle artefact: B and C received the edit in 11 s through the hub; only the hub-head poll missed it"
+            }
+          ],
+          "note": "The load is ~3x the scenario design because the delete breaker (25/h) leaves earlier runs' files on the shared project; a fair re-measure needs a fresh test project."
+        },
+        "runs": [
+          {
+            "run": 1,
+            "finding": "1/502 edits starved: a save made on top of one still in the outbox conflicted with itself after a restart -> b18b22fd; harness counted pre-existing hub files -> fixed"
+          },
+          {
+            "run": 2,
+            "finding": "invalid: synthetic paths deterministic, nothing left to move on the shared project -> per-run RUN_TAG"
+          },
+          {
+            "run": 3,
+            "finding": "invalid: probe canvas path shared with run 1 -> per-run probe"
+          },
+          {
+            "run": 4,
+            "finding": "1 edit starved: an empty replica replaced the adopted base of a canvas just created -> 0e881a3c"
+          },
+          {
+            "run": 5,
+            "finding": "seed clean, oracle clean; 3/762 edits >60 s under a ~10 GB concurrent transfer on a 1/2-vCPU cell (see final)"
+          }
+        ]
+      }
+    },
+    "S17": {
+      "status": "accepted-with-residual",
+      "image": "r9",
+      "runner": "runners/f3/s17-migration.mjs (cloud: relink after the cell restart, hub copy read through a socket)",
+      "checks": {
+        "dryRunPersistsNothing": false,
+        "interruptedSwitchConsistent": true,
+        "doubleSubmitRefused": true,
+        "parityAfterSwitch": true,
+        "bytesConserved": false,
+        "staleSocketFenced": true,
+        "pendingWorkConserved": false,
+        "rollbackKeepsAcceptedWrite": true,
+        "noAcceptedWriterWhileLegacy": true,
+        "forwardCarriesLegacyWrite": false,
+        "historyConserved": true,
+        "rollbackBeforeWriteIsNoop": true,
+        "epochsMonotonic": true,
+        "desktopConverged": true
+      },
+      "passed": 10,
+      "of": 14,
+      "failingCause": "The switch is interrupted by a HARD kill of the cell (destroy = SIGKILL). In legacy mode a cell's documents are only as durable as the last backup generation, so the legacy writes of the last minutes were gone after the restart (measured directly: documents written 5 s and 70 s before a hard kill, both lost). The desktop re-supplied them as new actions (desktopConverged true), so dryRun/bytesConserved/pendingWork fail on attribution, not on lost bytes on the desktop. forwardAgain answered 503 (platform request limit) while the switch completed.",
+      "ownerDecision": "2026-09-24: narrow the window now (final backup on SIGTERM) and document the hard-kill residual -> 36e48e90",
+      "gracefulStopVerified": {
+        "image": "r10 -> r10b rollout (platform SIGTERM)",
+        "legacyDocWritten5sBefore": "survived with its edit",
+        "switchBackToTransactions": {
+          "status": 200,
+          "ms": 55525
+        }
+      },
+      "importHangObserved": "once: after a 503 on the switch, importPending stayed true >5 min with the revision not moving; a cell restart resumed and finished it at once. Cause not found (no container log access); runbook documents the recovery.",
+      "regressionTests": "9a11e85a (rollback after an accepted-mode create; offline start with an unproposed save)",
+      "ownerAcceptance": "2026-09-24: owner accepted S17 on the cloud with the documented hard-kill legacy residual (runbook) after 36e48e90 closed the graceful-stop window"
+    }
+  },
+  "productFixes": [
+    "a433fb49 the cell studio (loopback participant) proposed a stale file-event body over a teammate accepted edit (v13 over v14, rev 61) \u2014 found by S15 on r5",
+    "b96754d8 tree section count pill contrast 3.03:1 -> --fg-2 (found by S19 on r6)",
+    "489854f4 resumable upload sessions durable in object storage (session + parts under <tenant>/upload-sessions/, owner-bound), found by S12 on r6",
+    "b18b22fd cold start waits for the outbox drain and bases the disk on its own drained accepted save (found by S14 on the cloud: 1/502 edits starved after a SIGKILL)",
+    "58b27496 cold start materializes a disk that holds a value the store accepted (a checkout restored from backup on every cell wake), found by S16 on r8",
+    "0e881a3c an empty replica no longer replaces the adopted base of a canvas just created (found by S14 cloud run 4)",
+    "36e48e90 a graceful hub stop flushes pending documents and takes a final backup generation (found by S17 cloud; owner decision)"
+  ],
+  "remaining": []
+}

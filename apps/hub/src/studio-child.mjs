@@ -203,7 +203,7 @@ export function childEnv(env = process.env, { port }) {
     ...(env.MAUDE_EXTRA_SHELL_ORIGINS
       ? { MAUDE_EXTRA_SHELL_ORIGINS: env.MAUDE_EXTRA_SHELL_ORIGINS }
       : {}),
-    // DDR-242 — apps that may FRAME the studio (read-only `?embed=1`). Framing
+    // DDR-247 — apps that may FRAME the studio (read-only `?embed=1`). Framing
     // only: the canvas door's write allowlist never reads this variable.
     ...(env.MAUDE_EMBED_ORIGINS ? { MAUDE_EMBED_ORIGINS: env.MAUDE_EMBED_ORIGINS } : {}),
     ...(env.HUB_PUBLIC_URL ? { HUB_PUBLIC_URL: env.HUB_PUBLIC_URL } : {}),
@@ -225,6 +225,20 @@ export function childEnv(env = process.env, { port }) {
     ...(env.MAUDE_RENDER_SECRET ? { MAUDE_RENDER_SECRET: env.MAUDE_RENDER_SECRET } : {}),
     ...(env.MAUDE_RENDER_CANVAS_BASE
       ? { MAUDE_RENDER_CANVAS_BASE: env.MAUDE_RENDER_CANVAS_BASE }
+      : {}),
+    // Cell materializer (Task 10) — the loopback hop the static route takes on
+    // a disk miss for inert media. All four or none: the token is random per
+    // boot, minted by the hub for this child and accepted by nothing else.
+    ...(env.MAUDE_CELL_MATERIALIZE === '1' &&
+    env.MAUDE_MATERIALIZE_URL &&
+    env.MAUDE_MATERIALIZE_TOKEN &&
+    env.MAUDE_MATERIALIZE_CACHE_DIR
+      ? {
+          MAUDE_CELL_MATERIALIZE: '1',
+          MAUDE_MATERIALIZE_URL: env.MAUDE_MATERIALIZE_URL,
+          MAUDE_MATERIALIZE_TOKEN: env.MAUDE_MATERIALIZE_TOKEN,
+          MAUDE_MATERIALIZE_CACHE_DIR: env.MAUDE_MATERIALIZE_CACHE_DIR,
+        }
       : {}),
     ...(env.MAUDE_PROJECT_NAME ? { MAUDE_PROJECT_NAME: env.MAUDE_PROJECT_NAME } : {}),
     ...(env.MAUDE_TENANT_ID ? { MAUDE_TENANT_ID: env.MAUDE_TENANT_ID } : {}),

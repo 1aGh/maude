@@ -18,6 +18,8 @@
 import { createStoreCore, StoreConflict } from '../hub/src/project-transactions/store-core.mjs';
 
 export const PROJECT_STORE_HOST = 'project-store.internal';
+/** Twin of the hub's `CHANGE_SIGNAL_PATH` (pinned in project-store.test.mjs). */
+export const CHANGE_SIGNAL_PATH = '/cell/changed';
 
 /** Store methods the container may call — the whole async store API, nothing else. */
 export const STORE_METHODS = Object.freeze([
@@ -98,6 +100,16 @@ export function createProjectStoreHost(storage, { now } = {}) {
 export async function projectStoreOutbound(request, env, ctx) {
   if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
   const url = new URL(request.url);
+  // THE CHANGE SIGNAL (hub `cell-change-signal.mjs`): not a store method — the
+  // cell keeps it for the park probe. Same tenant rule: the cell is the one
+  // the runtime names, never one the container chose.
+  if (url.pathname === CHANGE_SIGNAL_PATH) {
+    if (!ctx?.containerId || !env?.MAUDE_CELL) {
+      return new Response('store unavailable', { status: 503 });
+    }
+    const cell = env.MAUDE_CELL.get(env.MAUDE_CELL.idFromString(ctx.containerId));
+    return Response.json(await cell.noteChange());
+  }
   const m = /^\/v1\/([A-Za-z]+)$/.exec(url.pathname);
   if (!m || !ALLOWED.has(m[1])) return new Response('not found', { status: 404 });
   if (!ctx?.containerId || !env?.MAUDE_CELL) {

@@ -457,7 +457,9 @@ export function createTransactionClient(opts: TransactionClientOptions) {
    * Resend what a previous process left in the outbox — in creation order, the
    * same bytes, each resolved first in case its answer was simply lost.
    */
-  function drainOutbox(): Promise<ProposalResult[]> {
+  function drainOutbox(
+    onEach?: (result: ProposalResult, operations: Operation[]) => void
+  ): Promise<ProposalResult[]> {
     return enqueue(async () => {
       const entries = readOutbox().filter(({ file }) => !owned.has(file));
       const results: ProposalResult[] = [];
@@ -465,7 +467,9 @@ export function createTransactionClient(opts: TransactionClientOptions) {
         waiting.set(entry.transactionId, entry.createdAt);
         setPending(1);
         try {
-          results.push(await settle(file, entry));
+          const result = await settle(file, entry);
+          results.push(result);
+          onEach?.(result, entry.action?.operations ?? []);
         } finally {
           waiting.delete(entry.transactionId);
           setPending(-1);
@@ -473,6 +477,22 @@ export function createTransactionClient(opts: TransactionClientOptions) {
       }
       return results;
     });
+  }
+
+  /**
+   * Is `content` a value the project store holds — i.e. one it accepted at
+   * some revision? `null` when it cannot tell (unreachable, older hub).
+   */
+  async function holdsValue(content: string): Promise<boolean | null> {
+    try {
+      if (projectId === null) await bootstrap();
+      const hash = createHash('sha256').update(content, 'utf8').digest('hex');
+      const { status, json } = await request('GET', `blobs/${hash}`);
+      if (status === 200) return (json as { body?: unknown } | null)?.body === content;
+      return status === 404 ? false : null;
+    } catch {
+      return null;
+    }
   }
 
   /** A read route (`history`, `lane`, `revisions`) — no retry, bounded. */
@@ -492,6 +512,7 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     read,
     newTransactionId,
     drainOutbox,
+    holdsValue,
     /** The epoch proposals are currently made under. */
     get epoch() {
       return epoch;

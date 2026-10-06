@@ -18,17 +18,47 @@
 import { Container } from '@cloudflare/containers';
 
 import {
+  CANVAS_ORIGIN_HEADER,
   CELL_PORT,
   cellEnv,
+  cellStateAnswer,
   deriveSecret,
   fetchTenantConfig,
+  isCellStateProbe,
+  isNavigation,
   isValidTenantId,
   needsStartupState,
   RESTART_PATH,
+  safeReturnPath,
   secretsMatch,
   TENANT_HEADER,
+  WAKE_HEADER,
+  WAKE_PATH,
+  wakePolicy,
 } from './cell-config.mjs';
 import { createCredentialResolver } from './cell-credentials.mjs';
+import {
+  ASLEEP_PAGE_CSP,
+  asleepPage,
+  couldNotStartPage,
+  htmlResponse,
+  notFoundPage,
+  REFRESH_SECONDS,
+  startingPage,
+  stripWait,
+  WAIT_PARAM,
+} from './pages.mjs';
+
+/**
+ * How long a start may take before a person is told it failed: the port wait
+ * below (30 min — "how big may a project be", see the comment there).
+ */
+const START_DEADLINE_MS = 1_800_000;
+
+/** DO storage key: the last content change the hub reported (`noteChange`). */
+const CHANGED_AT_KEY = 'changedAt';
+/** At most one `changedAt` write per this window, whoever calls. */
+const CHANGE_WRITE_FLOOR_MS = 10_000;
 
 export {
   CELL_PORT,
@@ -101,6 +131,24 @@ export class MaudeCell extends Container {
     return store.projectStore(method, args);
   }
 
+  /**
+   * RPC from this cell's own outbound route: the hub says a content change
+   * landed. Kept as the latest time seen, on the DO's own clock, for the park
+   * probe (`/_cell/state`). Never touches the container or its timer.
+   */
+  async noteChange() {
+    const now = Date.now();
+    const prev = (await this.ctx.storage.get(CHANGED_AT_KEY)) ?? 0;
+    // Capped here as well as in the hub: anything in the container can call
+    // this, and each write is storage the tenant pays for. A parked desktop
+    // parked ≥ 20 min after the last change, so the first change after a park
+    // always lands; a skipped one is inside the same burst.
+    if (now > prev && now - prev >= CHANGE_WRITE_FLOOR_MS) {
+      await this.ctx.storage.put(CHANGED_AT_KEY, now);
+    }
+    return { ok: true };
+  }
+
   async restart() {
     // DROP THE CACHED CREDENTIAL TOO, not just the container.
     //
@@ -125,6 +173,9 @@ export class MaudeCell extends Container {
     // still knows who it is.
     const tenantId = fromHeader ?? (await this.ctx.storage.get('tenantId'));
     if (!isValidTenantId(tenantId)) {
+      if (isNavigation(request)) {
+        return htmlResponse(couldNotStartPage({ url: new URL(request.url) }), 500);
+      }
       return new Response('this cell has no tenant', { status: 500 });
     }
     if (fromHeader && fromHeader !== (await this.ctx.storage.get('tenantId'))) {
@@ -133,6 +184,140 @@ export class MaudeCell extends Container {
     this.tenantId = tenantId;
 
     const hostname = new URL(request.url).hostname;
+    const canvas = request.headers.get(CANVAS_ORIGIN_HEADER) === '1';
+
+    // THE PARK PROBE — answered here, by the DO alone. No `containerFetch`, no
+    // `renewActivityTimeout`, no start: asking must never wake or warm the
+    // cell, or a parked desktop would keep it up exactly as an open one did.
+    // See `isCellStateProbe` in cell-config.mjs.
+    if (
+      isCellStateProbe({
+        method: request.method,
+        url: request.url,
+        headers: request.headers,
+        canvas,
+      })
+    ) {
+      return Response.json(
+        cellStateAnswer({
+          running: this.ctx.container?.running,
+          changedAt: await this.ctx.storage.get(CHANGED_AT_KEY),
+          now: Date.now(),
+        }),
+        { headers: { 'cache-control': 'no-store' } }
+      );
+    }
+
+    // "OPEN PROJECT" FROM THE ASLEEP PAGE — the one anonymous request that may
+    // start a cell (members-only wake, 2026-10-04). Answered here, never
+    // proxied: start in the background, send the browser back where it was
+    // going, and let the waiting room below take it from there (`starting`
+    // keeps the asleep page from showing again while the start runs).
+    // No nonce, on purpose: a deep link (`?open=`) already wakes a cell by
+    // design, so a third-party page could wake one either way — a wake is a
+    // cost, never access. Still, a browser that declares a cross-site POST
+    // starts nothing, and the redirect target is this origin only.
+    if (request.method === 'POST' && !canvas && new URL(request.url).pathname === WAKE_PATH) {
+      const url = new URL(request.url);
+      const to = safeReturnPath((await readWakeForm(request))?.get('to') ?? '/', url.origin);
+      // Our own page posts same-origin. A browser that says otherwise is
+      // another site's form: send it home, start nothing.
+      const site = request.headers.get('sec-fetch-site');
+      const sameSite = !site || site === 'same-origin';
+      if (sameSite && this.ctx.container?.running !== true && !this.#unknownTenant) {
+        console.log(`[cell] ${tenantId} woken from the asleep page`);
+        this.ctx.waitUntil?.(this.#ensureStarted(tenantId, hostname));
+      }
+      return new Response(null, {
+        status: 303,
+        headers: { location: to, 'cache-control': 'no-store' },
+      });
+    }
+
+    // A PROBE THAT MUST NOT WAKE (WAKE_HEADER). Decided before ANY of the
+    // start-path work below — config fetch, credential mint, activity renewal
+    // — because each of those is a cost or a timer the probe exists to avoid.
+    const running = this.ctx.container?.running;
+    const policy = wakePolicy({
+      headers: request.headers,
+      running,
+      // Only worked out when it could matter: a no-wake ask to a cold cell.
+      authorized:
+        running !== true &&
+        request.headers.get(WAKE_HEADER) === 'never' &&
+        secretsMatch(
+          (request.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim(),
+          await deriveSecret(this.env.CELL_SECRET_MASTER, tenantId)
+        ),
+      url: request.url,
+      navigation: isNavigation(request),
+      canvas,
+      // A person clicked "Open project" (or a member request already started
+      // it): the waiting room's refreshes must not fall back to the asleep page.
+      starting: Boolean(this.#starting),
+    });
+    if (policy === 'asleep-reply') {
+      return Response.json({ state: 'asleep' }, { headers: { 'cache-control': 'no-store' } });
+    }
+    // INTERNET NOISE MUST NOT WAKE A PROJECT. `/wp-login.php`, `/.env` and
+    // friends kept Alligators awake most of 2026-10-02/03 — each probe paid a
+    // boot, a hydrate and `sleepAfter`, for a 404 the hub would give anyway.
+    // Same placement rule as the no-wake probe: before any start-path work.
+    // Plain text even for a navigation: `notFoundPage` says "no Maude project
+    // at this address", which is false for a real project that is asleep.
+    if (policy === 'refuse-cold') {
+      this.#noteScannerRefusal(tenantId);
+      return new Response('not found\n', {
+        status: 404,
+        headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
+      });
+    }
+    // NOBODY WHO COULD BE A MEMBER ASKED (members-only wake). An anonymous
+    // browser gets a page with one button; anything else gets a sentence. Both
+    // before any start-path work, like the two answers above. One log line per
+    // answer, so Workers Logs counts what was saved (the scanner line's `n=`
+    // could not be summed reliably).
+    if (policy === 'wake-page' || policy === 'asleep-text') {
+      console.log(`[cell] ${tenantId} held asleep (${policy})`);
+      if (policy === 'wake-page') {
+        if (this.#unknownTenant) return htmlResponse(notFoundPage(), 404);
+        return htmlResponse(asleepPage({ url: new URL(request.url), wakePath: WAKE_PATH }), 200, {
+          csp: ASLEEP_PAGE_CSP,
+          noindex: true,
+        });
+      }
+      return new Response('This project is asleep. Open it in a browser to wake it.\n', {
+        status: 503,
+        headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
+      });
+    }
+    if (request.headers.has(WAKE_HEADER)) {
+      // The hub never needs to see it.
+      request = new Request(request);
+      request.headers.delete(WAKE_HEADER);
+    }
+
+    // A PERSON'S BROWSER GETS A PAGE, NOT A HANG (feature-cloud-cost-and-
+    // cold-start-ux B2). Everything else — scripts, sockets, desktop sync,
+    // probes — falls through to the blocking path below, byte-for-byte as
+    // before. The page is shown only where this request would have started
+    // the cell anyway, so it reveals nothing a request could not already learn.
+    if (isNavigation(request)) {
+      const url = new URL(request.url);
+      if (!(await this.#readyForNavigation(tenantId))) {
+        if (this.#unknownTenant) return htmlResponse(notFoundPage({ canvas }), 404);
+        const failed = this.#takeStartFailure();
+        if (failed) {
+          return htmlResponse(couldNotStartPage({ url, reason: failed, canvas }), 503);
+        }
+        const starting = this.#ensureStarted(tenantId, hostname);
+        // The refreshes keep this object busy, but the start must not depend on
+        // a person keeping the tab open.
+        this.ctx.waitUntil?.(starting);
+        return htmlResponse(startingPage({ url, canvas }), 503, { retryAfter: REFRESH_SECONDS });
+      }
+      if (url.searchParams.has(WAIT_PARAM)) request = new Request(stripWait(url), request);
+    }
 
     // A RUNNING CONTAINER NEEDS NEITHER ITS CONFIG NOR FRESH CREDENTIALS.
     //
@@ -165,6 +350,116 @@ export class MaudeCell extends Container {
       }
     }
 
+    // THE BLOCKING PATH — every non-navigation caller, unchanged in behaviour.
+    // It goes through the SAME single-flight start a navigation kicks, so a
+    // page refresh and a desktop PUT arriving together cause one start, one
+    // config fetch and one credential resolve (the 2026-09-03 storm guard).
+    const started = await this.#ensureStarted(tenantId, hostname);
+    if (started.refuse) return started.refuse;
+    if (this.#tunnelMode(tenantId)) {
+      this.renewActivityTimeout?.();
+      return await this.#proxyThroughTunnel(request);
+    }
+    return this.containerFetch(request);
+  }
+
+  /** The start in flight, if any — ONE per object, shared by every caller. */
+  #starting = null;
+  /** When the current (or last) start began — the navigation deadline's clock. */
+  #startedAt = null;
+  /** Why the last start failed, for the next navigation to show once. */
+  #startFailure = null;
+  /** The control plane said this tenant does not exist — never start it. */
+  #unknownTenant = false;
+  /** Scanner refusals since the last log line, and when that line was written. */
+  #scannerRefusals = 0;
+  #scannerLoggedAt = 0;
+
+  /**
+   * One Workers Logs line per object instance per hour, carrying the count it
+   * stands for. In memory, so an evicted idle object logs its next refusal
+   * again: count refusals by summing `n=`, not by counting lines.
+   */
+  #noteScannerRefusal(tenantId) {
+    this.#scannerRefusals += 1;
+    if (Date.now() - this.#scannerLoggedAt < 3_600_000) return;
+    console.log(
+      `[cell] ${tenantId} refused cold wake for scanner path (n=${this.#scannerRefusals})`
+    );
+    this.#scannerLoggedAt = Date.now();
+    this.#scannerRefusals = 0;
+  }
+
+  /** A failed start, shown once — the person's "Try again" starts afresh. */
+  #takeStartFailure() {
+    if (this.#starting || !this.#startFailure) return null;
+    const reason = this.#startFailure;
+    this.#startFailure = null;
+    return reason;
+  }
+
+  /**
+   * Is the project ready to be shown to a person? Never starts anything.
+   *
+   * Non-tunnel: the platform says the container runs AND the library marked
+   * its port healthy. Tunnel: one quick look through the tunnel — the same
+   * readiness test `#proxyThroughTunnel` polls, asked once per page refresh
+   * instead of in a two-minute blocking loop.
+   */
+  async #readyForNavigation(tenantId) {
+    if (this.ctx.container?.running !== true) return false;
+    if (!this.#tunnelMode(tenantId)) {
+      const state = await this.getState?.();
+      return state?.status === 'healthy';
+    }
+    if (this.#starting) return false;
+    const probe = await fetch(`https://${this.env.MAUDE_TUNNEL_HOST}/health`, {
+      cf: { cacheTtl: 0 },
+      signal: AbortSignal.timeout(2_000),
+    }).catch(() => null);
+    const up = Boolean(probe && ![530, 502, 523, 521].includes(probe.status));
+    if (!up && this.#startedAt && Date.now() - this.#startedAt > START_DEADLINE_MS) {
+      this.#startFailure ??= 'The project’s server didn’t come up in time.';
+    }
+    return up;
+  }
+
+  /**
+   * Start this cell, once, however many callers ask. Resolves `{}` when the
+   * container is up (tunnel: started; otherwise: port healthy), or
+   * `{ refuse }` with the response today's blocking callers return.
+   */
+  #ensureStarted(tenantId, hostname) {
+    if (this.#starting) return this.#starting;
+    this.#startedAt = Date.now();
+    this.#startFailure = null;
+    this.#starting = this.#start(tenantId, hostname)
+      .catch((err) => {
+        console.error(`[cell] ${tenantId} start failed: ${err?.message ?? err}`);
+        this.#startFailure = 'The project’s server didn’t manage to start this time.';
+        return {
+          refuse: new Response(
+            'This project could not be started. The operator has been given the reason.\n',
+            { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8' } }
+          ),
+        };
+      })
+      .finally(() => {
+        this.#starting = null;
+      });
+    return this.#starting;
+  }
+
+  async #start(tenantId, hostname) {
+    // ALREADY RUNNING (a navigation found it up but not yet healthy): nothing
+    // to configure — env applies only at START — so just wait for the port.
+    if (this.ctx.container?.running === true && !this.#tunnelMode(tenantId)) {
+      await this.startAndWaitForPorts({
+        cancellationOptions: { portReadyTimeoutMS: START_DEADLINE_MS },
+      });
+      return {};
+    }
+
     // Who this tenant is, asked of the control plane rather than read from a
     // fleet-wide variable (B1). Resolved per start; the DO's own storage is
     // the offline fallback, never another tenant's value.
@@ -187,7 +482,7 @@ export class MaudeCell extends Container {
       // `config` is the one resolved above — this branch used to re-fetch it,
       // doubling a control-plane call on every tunnel-mode cold start.
       const storage = await this.#resolveStorageCredentials(tenantId);
-      if (storage.refuse) return storage.refuse;
+      if (storage.refuse) return this.#refused(storage);
       try {
         // Idempotent when already running; never waits for the port.
         await this.start({
@@ -202,8 +497,7 @@ export class MaudeCell extends Container {
       } catch (err) {
         console.error(`[cell] ${tenantId} tunnel-mode start: ${err?.message ?? err}`);
       }
-      this.renewActivityTimeout?.();
-      return await this.#proxyThroughTunnel(request);
+      return {};
     }
 
     // This tenant's OWN storage credentials (Phase 25 A-1) — minted fresh on
@@ -213,7 +507,7 @@ export class MaudeCell extends Container {
     // start without storage rehydrates nothing and comes up as an empty
     // project — indistinguishable from a deleted one.
     const storage = await this.#resolveStorageCredentials(tenantId);
-    if (storage.refuse) return storage.refuse;
+    if (storage.refuse) return this.#refused(storage);
     const s3Creds = storage.s3Creds;
     await this.startAndWaitForPorts({
       startOptions: {
@@ -238,9 +532,25 @@ export class MaudeCell extends Container {
       // THE REAL FIX IS TO BIND FIRST AND RESTORE BEHIND a "restoring" page,
       // so availability stops being a function of project size. Until that
       // exists this number must stay ahead of the largest tenant.
-      cancellationOptions: { portReadyTimeoutMS: 1_800_000 },
+      cancellationOptions: { portReadyTimeoutMS: START_DEADLINE_MS },
     });
-    return this.containerFetch(request);
+    return {};
+  }
+
+  /** A credential refusal: today's response for API callers, a sentence for people. */
+  #refused(storage) {
+    if (storage.unknown) {
+      this.#startFailure = null;
+      this.#unknownTenant = true;
+      return { refuse: storage.refuse };
+    }
+    // A retryable wall (cooldown, rate limit) is "still starting" to a person;
+    // only the fail-closed refusal is a failure worth a page of its own.
+    if (storage.refuse.status === 503 && !storage.refuse.headers.has('retry-after')) {
+      this.#startFailure =
+        'We couldn’t reach your project’s storage, so we didn’t start it — starting empty could look like lost work.';
+    }
+    return { refuse: storage.refuse };
   }
 
   /** Is this tenant reached through the outbound Cloudflare Tunnel? */
@@ -272,8 +582,23 @@ export class MaudeCell extends Container {
     }
     const resolved = await this.#credentials.resolve(tenantId);
     if (resolved.ok) return { s3Creds: resolved.credentials };
-    // The legacy fleet-wide key is still the migration-window fallback.
-    if (this.env.MAUDE_R2_ACCESS_KEY_ID) return { s3Creds: null };
+    // NOT A PROJECT. The control plane has no such tenant (or it was purged).
+    // Scanners walking `canvas.<zone>/<anything>` used to land here — `feed`,
+    // `blog`, `web` — and the legacy fallback below then started a real
+    // container for them, carrying the BUCKET-WIDE key. An unknown tenant is
+    // never started, whatever fallback exists (2026-10-02).
+    if (resolved.status === 404) {
+      return {
+        refuse: new Response('this is not a Maude project\n', {
+          status: 404,
+          headers: { 'content-type': 'text/plain; charset=utf-8' },
+        }),
+        unknown: true,
+      };
+    }
+    // NO FALLBACK KEY. A fleet-wide MAUDE_R2_* Worker secret used to stand in
+    // here; it is never put into a container again (2026-10-02), whether or
+    // not the secret still exists on the Worker.
     if (resolved.retryable) {
       const secs = Math.max(1, Math.ceil((resolved.retryAfterMs ?? 60_000) / 1000));
       return {
@@ -344,6 +669,42 @@ export class MaudeCell extends Container {
   onError(error) {
     console.error(`[cell] ${this.tenantId ?? '?'} error: ${error}`);
   }
+}
+
+/** The asleep page's form is one short field; nothing bigger is read. */
+const MAX_WAKE_FORM_BYTES = 4096;
+
+/**
+ * Read the wake form without buffering an arbitrary body into the object
+ * (an unauthenticated POST, 2026-10-04 defender review): urlencoded only,
+ * and at most `MAX_WAKE_FORM_BYTES`, or nothing.
+ */
+async function readWakeForm(request) {
+  const type = (request.headers.get('content-type') ?? '').toLowerCase();
+  if (!type.startsWith('application/x-www-form-urlencoded')) return null;
+  const declared = Number(request.headers.get('content-length') ?? 0);
+  if (declared > MAX_WAKE_FORM_BYTES) return null;
+  const reader = request.body?.getReader?.();
+  if (!reader) return null;
+  const chunks = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_WAKE_FORM_BYTES) {
+      void reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let at = 0;
+  for (const c of chunks) {
+    bytes.set(c, at);
+    at += c.byteLength;
+  }
+  return new URLSearchParams(new TextDecoder().decode(bytes));
 }
 
 /** Route one request to its tenant's cell. */

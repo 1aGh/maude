@@ -347,6 +347,8 @@ export function createFileLedger(opts: FileLedgerOptions): FileLedger {
   const data: LedgerFileShape = load();
   let timer: ReturnType<typeof setTimeout> | null = null;
   const outbox = new Set<string>();
+  /** The last state written, `updatedAt` excluded — see `persist`. */
+  let lastPersisted: string | null = null;
 
   function load(): LedgerFileShape {
     const fresh: LedgerFileShape = {
@@ -438,9 +440,20 @@ export function createFileLedger(opts: FileLedgerOptions): FileLedger {
 
   function persist(): void {
     try {
+      // A WRITE THAT CHANGES NOTHING IS NOT FREE. Every plane pass ends in
+      // `setPosition` + `flush`, and this file lives under the design root the
+      // watcher reports on — so restamping `updatedAt` on an unchanged ledger
+      // raised an `fs:any` that scheduled the next pass, which flushed again:
+      // a self-fed journal read every ~2 s on a project nobody was touching,
+      // and a cloud cell that never slept (2026-10-05, 10.55 instance-hours
+      // overnight). Compare the state WITHOUT the stamp; write only news.
+      const { updatedAt: _stamp, ...state } = data;
+      const body = JSON.stringify(state);
+      if (body === lastPersisted && existsSync(file)) return;
       mkdirSync(dir, { recursive: true });
       data.updatedAt = now();
       atomicWrite(file, `${JSON.stringify(data, null, 2)}\n`);
+      lastPersisted = body;
     } catch (err) {
       // Never throws into the sync hot path. A ledger we cannot persist costs
       // a re-anchor next boot, which is noise rather than loss.

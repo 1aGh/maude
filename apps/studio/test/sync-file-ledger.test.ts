@@ -332,3 +332,40 @@ describe('B13 (post-1.0 burn-down) — the park memo dies with the conflict it m
     expect(row?.parkedRemote).toBeUndefined();
   });
 });
+
+describe('a flush that changes nothing writes nothing (2026-10-05)', () => {
+  // Every plane pass ends `setPosition` + `flush`, and the ledger sits under
+  // the design root the watcher reports on. Restamping `updatedAt` on an
+  // unchanged ledger raised the `fs:any` that scheduled the next pass — a
+  // journal read every ~2 s on an idle project, and a cell that never slept.
+  test('an idle pass leaves the file byte-identical', () => {
+    let clock = 1_000;
+    const l = make({ now: () => clock });
+    l.setPosition('ep-1', 5);
+    l.flush();
+    const first = readFileSync(l.file(), 'utf8');
+    for (let i = 0; i < 5; i += 1) {
+      clock += 2_000;
+      l.setPosition('ep-1', 5);
+      l.flush();
+    }
+    expect(readFileSync(l.file(), 'utf8')).toBe(first);
+  });
+
+  test('real news still persists, and a deleted file is rewritten', () => {
+    let clock = 1_000;
+    const l = make({ now: () => clock });
+    l.setPosition('ep-1', 5);
+    l.flush();
+    clock += 1_000;
+    l.setPosition('ep-1', 6);
+    l.flush();
+    expect(JSON.parse(readFileSync(l.file(), 'utf8')).cursor).toBe(6);
+    l.noteRemote('a/x.png', A, 6);
+    l.flush();
+    expect(JSON.parse(readFileSync(l.file(), 'utf8')).rows['a/x.png'].remoteHash).toBe(A);
+    rmSync(l.file());
+    l.flush();
+    expect(existsSync(l.file())).toBe(true);
+  });
+});

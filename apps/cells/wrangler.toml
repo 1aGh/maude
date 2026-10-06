@@ -43,7 +43,7 @@ class_name = "MaudeCellB"
 # container configuration byte-identical, so the deploy prints
 # `no changes maude-cells-maudecell` and every instance keeps running the old
 # digest. It looks like a successful deploy. It is not one. Bump the tag.
-image = "registry.cloudflare.com/b5b596efe65abb732777c7171dc18145/maude-cell:v1.4.4"
+image = "registry.cloudflare.com/b5b596efe65abb732777c7171dc18145/maude-cell:v1.7.1"
 # THE FLEET CEILING — Cloud Phase 24 B2.
 #
 # It was 1: "the tenant-of-one pilot". That is not a scaling nicety, it is a
@@ -63,8 +63,8 @@ image = "registry.cloudflare.com/b5b596efe65abb732777c7171dc18145/maude-cell:v1.
 #                                          ≈ $0.074 /hour  ≈ $53 /month at 24×7
 #
 # A club volunteer designing ~2 h a day wakes a cell for roughly 75 h a month:
-# ~$5.50 against a €29 plan. A cell pinned awake all month is ~$53, which a
-# €29 plan does NOT cover — that is the number to watch, and the reason
+# ~$5.50 against the €19 plan (pricing.json). A cell pinned awake all month is ~$53, which a
+# €19 plan does NOT cover — that is the number to watch, and the reason
 # `sleepAfter` is load-bearing rather than tidy.
 #
 # WHY 5 AND NOT 25. This is a ceiling, but the platform has been observed
@@ -142,14 +142,29 @@ MAUDE_TUNNEL_HOST = "t-alligators.cloud.maude.sh"
 # NB: env applies at CONTAINER START. Changing this value does not reach a
 # running instance — the cell has to stop and be woken again (idle timeout, or
 # an explicit /_cell/restart). A byte-identical config is a no-op roll.
-CELL_LIVE_PAIRING = "alligators"
+#
+# Widened to the fleet 2026-09-25 (followup-multiplayer-hardening G3a): a new
+# cloud project starts in accepted revisions, which needs BOTH this and
+# CELL_PROJECT_STORE — an unpaired studio's browser edits never become accepted
+# actions (G7). The pilot (alligators) has run on both since 2026-09-16, and it
+# was the only active tenant at the time of widening.
+CELL_LIVE_PAIRING = "*"
 # ACCEPTED REVISIONS (DDR-241) — which tenants' cells get their durable
 # ProjectStore (the Durable Object bound above). Same shape as live pairing: a
 # tenant allowlist, `do` or `*` for the fleet. A listed cell can switch its
 # project to accepted revisions; the switch itself is still the project
 # owner's step (docs/operations/project-multiplayer-rollout.md). Env applies
-# at container start.
-CELL_PROJECT_STORE = "alligators"
+# at container start. Fleet-wide since 2026-09-25 (see CELL_LIVE_PAIRING): an
+# existing project keeps its mode until its owner switches; only a brand-new
+# one starts in accepted revisions (MAUDE_NEW_PROJECT_MODE, cell-config).
+CELL_PROJECT_STORE = "*"
+# CELL MATERIALIZER (plan feature-cell-materializer, Phase 1) — which tenants'
+# cells treat their disk as a bounded cache of the bucket: inert media is
+# fetched on demand, verified against the journal, and evicted, instead of
+# restored onto a disk that may be smaller than the project. Tenant allowlist,
+# `*` for the fleet. Pilot: alligators (~7.8 GB synced on an 8 GB disk — the
+# 2026-10-01 restart loop). Env applies at container start.
+CELL_MATERIALIZE = "alligators"
 # feature-cloud-export-render-workers (DDR-230) — where a cell dispatches
 # browser-format export jobs. Reaches the studio child via cellEnv →
 # childEnv. Remove (or leave unset) to put the fleet's export lane back to

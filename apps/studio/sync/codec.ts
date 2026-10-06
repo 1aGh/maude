@@ -1,4 +1,3 @@
-import { ANNOTATION_WRITE_ID } from '../annotations-sync.ts';
 // Y.Doc ↔ disk codecs for the bidirectional file sync agent (Phase 9 Task 4).
 //
 // The agent shuttles three classes of files between disk and the Y.Doc the
@@ -6,7 +5,8 @@ import { ANNOTATION_WRITE_ID } from '../annotations-sync.ts';
 //
 //   `.design/<canvas>.html`             -> Y.Text     (Y_SYNC_TYPES.html)
 //   `.design/_comments/<slug>.json`     -> Y.Array    (Y_TYPES.comments  — Phase 6)
-//   `.design/<slug>.annotations.svg`    -> Y.Map.svg  (Y_TYPES.annotations — Phase 5)
+//   `.design/<slug>.annotations.json`   -> Y.Map      ('annotations2' — DDR-242; per-element replica,
+//                                                   see annotations/replica.ts)
 //
 // v1.1 design decision (plan §"Key insight"): HTML body is treated as opaque
 // Y.Text rather than structured Y.XmlFragment. Round-trip drift would
@@ -26,6 +26,18 @@ import { hostname } from 'node:os';
 import { diffChars } from 'diff';
 import type * as Y from 'yjs';
 
+import { annotationsLaneValue, canonicalAnnotations } from '../annotations/board-text.ts';
+import { applyOps, diffToOps } from '../annotations/ops.ts';
+import '../annotations/ops-merge.ts';
+import {
+  annotationsOnDiskOf,
+  isEmptyBoardText,
+  noteAnnotationsOnDisk,
+  readReplica,
+  replicaBoardText,
+  writeReplica,
+} from '../annotations/replica.ts';
+import { parseBoard, serializeBoard } from '../annotations/schema.ts';
 import { Y_TYPES } from '../collab/persistence.ts';
 import { commentKey, dedupeCommentsById } from './comment-identity.ts';
 import {
@@ -293,30 +305,84 @@ export function applyCommentsToDoc(doc: Y.Doc, next: CommentsSnapshot, origin?: 
 
 /* ---------------------------------------------------------------- annotations */
 
-/** Returns the annotations SVG string, or null if unset. */
+export { canonicalAnnotations };
+
+/**
+ * The local board (canonical text) at `jsonPath`, falling back to a not-yet-
+ * migrated legacy `.annotations.svg` sibling — so a cold start that races the
+ * boot migration still sees the local strokes instead of "no local" (which lets
+ * the hub win by default: the DDR-223 eraser shape). null = neither exists.
+ */
+export function readLocalAnnotations(
+  jsonPath: string,
+  read: (abs: string) => string | null
+): string | null {
+  const local = read(jsonPath);
+  if (local !== null) return canonicalAnnotations(local) ?? local;
+  const legacy = read(jsonPath.replace(/\.json$/, '.svg'));
+  return legacy === null ? null : canonicalAnnotations(legacy);
+}
+
+/** The board held by the doc as canonical text, or null if never populated. */
 export function annotationsFromDoc(doc: Y.Doc): string | null {
-  const map = doc.getMap<unknown>(Y_TYPES.annotations);
-  const svg = map.get('svg');
-  return typeof svg === 'string' ? svg : null;
+  return replicaBoardText(doc);
 }
 
 /**
- * True when an annotations value carries ZERO strokes: null, `''`, or the bare
- * serialized wrapper `<svg …></svg>` with no child elements (what
- * `strokesToSvg([])` emits — 72 bytes, constant across peers).
+ * True when an annotations value carries ZERO elements: null, `''`, an empty
+ * board, or the bare legacy wrapper `<svg …></svg>`.
  *
- * This distinction is load-bearing for cold start (the 2026-08-14 annotations
- * eraser): the wrapper is a non-empty STRING, so every `!== ''` emptiness
- * guard let a stale hub wrapper overwrite a peer's real strokes — and with the
- * strokes went the `assets/<sha8>` references the asset lane pulled by, so
- * freshly dropped images never crossed machines. Live delete-all still materializes
- * the wrapper through `writeAnnotationsIfChanged` (deletes must propagate);
- * only COLD-START decisions treat it as emptiness.
+ * Load-bearing for cold start (the 2026-08-14 annotations eraser, DDR-223): the
+ * legacy wrapper was a non-empty STRING, so every `!== ''` guard let a stale hub
+ * wrapper overwrite a peer's real strokes. Emptiness is "zero elements", never a
+ * byte heuristic. Live delete-all still materializes; only COLD-START decisions
+ * treat this as emptiness.
  */
-export function isEmptyAnnotationsSvg(svg: string | null): boolean {
-  if (svg === null) return true;
-  if (svg.trim() === '') return true;
-  return /^\s*<svg\b[^>]*>\s*<\/svg>\s*$/i.test(svg);
+export function isEmptyAnnotationsSvg(text: string | null): boolean {
+  return isEmptyBoardText(text);
+}
+
+/**
+ * Make the doc's replica hold `next` (board text or legacy SVG), writing only
+ * the elements / fields that differ. `null` / `''` → an empty board. A
+ * filesystem import is a new operation, never the previous UI author's echo:
+ * `writeReplica` clears '~action' on any change made without an action id.
+ */
+/**
+ * A disk change to the board, imported into the doc as the CHANGE it made —
+ * the ops from what disk last held to what it holds now — never as a
+ * replacement. A projection written a moment before a newer edit, whose file
+ * event arrives after it, would otherwise put the older values back (the
+ * multiplayer rig's lost toolbar edits and deletes). Without a known base
+ * (first sight of the file) it is a full apply. Returns whether the doc changed.
+ */
+export { noteAnnotationsOnDisk };
+
+export function importAnnotationsFromDisk(
+  doc: Y.Doc,
+  next: string | null,
+  origin?: unknown,
+  fallbackBase?: string | null
+): boolean {
+  const text = next === null ? serializeBoard([]) : canonicalAnnotations(next);
+  if (text === null || byteLengthUtf8(text) > MAX_ANNOTATIONS_BYTES) {
+    return applyAnnotationsToDoc(doc, next, origin);
+  }
+  const known = annotationsOnDiskOf(doc);
+  const base =
+    (known !== undefined ? canonicalAnnotations(known) : null) ??
+    (fallbackBase ? canonicalAnnotations(fallbackBase) : null);
+  const cur = readReplica(doc);
+  noteAnnotationsOnDisk(doc, text);
+  if (base === null || cur === null) {
+    return applyAnnotationsToDoc(doc, text, origin);
+  }
+  const toMap = (t: string) => new Map(parseBoard(t).elements.map((e) => [e.id, e]));
+  const ops = diffToOps(toMap(base), toMap(text));
+  if (!ops.length) return false;
+  const r = applyOps(new Map(cur.elements.map((e) => [e.id, e])), ops);
+  if (!r.touched.size) return false;
+  return writeReplica(doc, [...r.state.values()], origin);
 }
 
 export function applyAnnotationsToDoc(doc: Y.Doc, next: string | null, origin?: unknown): boolean {
@@ -326,21 +392,13 @@ export function applyAnnotationsToDoc(doc: Y.Doc, next: string | null, origin?: 
     );
     return false;
   }
-  const map = doc.getMap<unknown>(Y_TYPES.annotations);
-  const current = map.get('svg');
-  const currentStr = typeof current === 'string' ? current : null;
-  if (currentStr === next) return false;
-
-  doc.transact(() => {
-    // A filesystem import is a new operation, never the previous UI author's echo.
-    map.delete(ANNOTATION_WRITE_ID);
-    if (next === null || next === '') {
-      map.delete('svg');
-    } else {
-      map.set('svg', next);
-    }
-  }, origin);
-  return true;
+  const text = next === null ? serializeBoard([]) : canonicalAnnotations(next);
+  if (text === null) {
+    console.warn('[sync/codec] refusing annotations apply: not a board document');
+    return false;
+  }
+  if (readReplica(doc) !== null && replicaBoardText(doc) === text) return false;
+  return writeReplica(doc, parseBoard(text).elements, origin);
 }
 
 /* ---------------------------------------------------------------- meta */
@@ -426,7 +484,8 @@ export function laneValueFromFile(
   lane: 'html' | 'css' | 'meta' | 'annotations' | 'comments',
   text: string
 ): string | null {
-  if (lane === 'html' || lane === 'css' || lane === 'annotations') return text;
+  if (lane === 'html' || lane === 'css') return text;
+  if (lane === 'annotations') return annotationsLaneValue(text);
   let parsed: unknown;
   try {
     parsed = parseJsonSafe(text);
@@ -448,10 +507,7 @@ export function readLaneFromDoc(
   lane: 'html' | 'css' | 'meta' | 'annotations' | 'comments'
 ): string {
   if (lane === 'html' || lane === 'css' || lane === 'meta') return doc.getText(lane).toString();
-  if (lane === 'annotations') {
-    const svg = doc.getMap<unknown>(Y_TYPES.annotations).get('svg');
-    return typeof svg === 'string' ? svg : '';
-  }
+  if (lane === 'annotations') return annotationsLaneValue(replicaBoardText(doc) ?? '') ?? '';
   const list = doc.getArray<unknown>(Y_TYPES.comments).toArray();
   return list.length ? JSON.stringify(list) : '';
 }

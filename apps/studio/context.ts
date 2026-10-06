@@ -227,7 +227,7 @@ export interface Context {
    */
   mainOrigin?: string;
   /**
-   * DDR-242 — third-party apps allowed to FRAME the studio page (and so the
+   * DDR-247 — third-party apps allowed to FRAME the studio page (and so the
    * canvas shell inside it) for the read-only `?embed=1` view, parsed from
    * `MAUDE_EMBED_ORIGINS` by server.ts. Framing only: never a writer, never a
    * shell. Undefined / empty = nobody but the shell origins.
@@ -281,6 +281,7 @@ export interface Context {
           | { op: 'dir.move'; from: string; to: string }
       ): Promise<{ status: 'accepted' | 'rejected'; code?: string; queued?: boolean }> | null;
       acceptedMode?(): boolean;
+      commentsConfirmedOnHub?(slug: string): boolean;
       acceptedHistory?(q: {
         limit?: number;
         before?: number | null;

@@ -215,10 +215,17 @@ async function callRead({
   checkRateLimit,
   checkReadRateLimit,
   rawPath,
+  materializer,
+  range,
 } = {}) {
   const { response, captured } = makeResponse();
   const handled = await handleProjectFileRoute({
-    request: { headers: token ? { authorization: `Bearer ${token}` } : {} },
+    request: {
+      headers: {
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...(range ? { range } : {}),
+      },
+    },
     response,
     pathname: rawPath ?? `/_project-file/${rel.split('/').map(encodeURIComponent).join('/')}`,
     method,
@@ -228,6 +235,7 @@ async function callRead({
     matchesScope,
     checkRateLimit,
     checkReadRateLimit,
+    materializer,
   });
   return { handled, ...captured };
 }
@@ -385,5 +393,96 @@ describe('resolveProjectFileTarget / parseProjectFilePath', () => {
     assert.equal(parseProjectFilePath('/_project-file/'), null);
     assert.equal(parseProjectFilePath('/_project-file/%zz'), null);
     assert.equal(parseProjectFilePath('/api/files'), null);
+  });
+});
+
+// Cell materializer Task 11 — on a cell the disk is a cache.
+describe('CELL MODE: the read paths answer from the journal and the bucket', () => {
+  let token;
+  beforeEach(() => {
+    token = addToken(dataDir, { label: 'peer', scope: '*' }).value;
+  });
+
+  it('/_project-file: a disk miss for inert media streams the materialized blob, with Range', async () => {
+    const blob = join(outside, 'f'.repeat(64));
+    writeFileSync(blob, '0123456789');
+    const asked = [];
+    const materializer = {
+      materialize: async (rel) => {
+        asked.push(rel);
+        return { path: blob, sha: 'f'.repeat(64), size: 10 };
+      },
+    };
+    const whole = await callRead({ rel: 'system/ds/assets/photo.jpg', token, materializer });
+    assert.equal(whole.status, 200);
+    assert.equal(whole.body().toString(), '0123456789');
+    const part = await callRead({
+      rel: 'system/ds/assets/photo.jpg',
+      token,
+      materializer,
+      range: 'bytes=2-4',
+    });
+    assert.equal(part.status, 206);
+    assert.equal(part.body().toString(), '234');
+    assert.deepEqual(asked, ['system/ds/assets/photo.jpg', 'system/ds/assets/photo.jpg']);
+  });
+
+  it('/_project-file: a file ON disk never asks; code and css never take the hop', async () => {
+    const materializer = {
+      materialize: async () => assert.fail('the materializer must not be asked'),
+    };
+    const onDisk = await callRead({ rel: 'system/ds/brand.css', token, materializer });
+    assert.equal(onDisk.status, 200);
+    const missingCss = await callRead({ rel: 'system/ds/gone.css', token, materializer });
+    assert.equal(missingCss.status, 404);
+  });
+
+  it('/_project-file: a fill in progress is a HOLD (503), not "the hub lost it" (404)', async () => {
+    const r = await callRead({
+      rel: 'system/ds/assets/photo.jpg',
+      token,
+      materializer: { materialize: async () => ({ miss: 'timeout' }) },
+    });
+    assert.equal(r.status, 503);
+    assert.equal(r.headers['Retry-After'], '5');
+  });
+
+  it('/api/files: inert media is listed from the JOURNAL, never hashed off the cache', () => {
+    const journal = {
+      compaction: () => [
+        // On disk in the fixture, but the journal is the word on a cell.
+        {
+          path: 'assets/c0fa9c7f.png',
+          sha256: 'a'.repeat(64),
+          size: 4,
+          class: 'inert-media',
+          deleted: false,
+        },
+        // Not on disk at all — budget-skipped, in the bucket.
+        {
+          path: 'system/ds/assets/big.jpg',
+          sha256: 'b'.repeat(64),
+          size: 9e8,
+          class: 'inert-media',
+          deleted: false,
+        },
+        {
+          path: 'system/ds/assets/gone.jpg',
+          sha256: null,
+          size: null,
+          class: 'inert-media',
+          deleted: true,
+        },
+      ],
+    };
+    const { sent } = callManifest({ inertFromJournal: journal });
+    const byPath = new Map(sent[0].payload.files.map((f) => [f.path, f]));
+    assert.equal(byPath.get('assets/c0fa9c7f.png').sha256, 'a'.repeat(64));
+    assert.equal(byPath.get('system/ds/assets/big.jpg').size, 9e8);
+    assert.equal(byPath.has('system/ds/assets/gone.jpg'), false);
+    // Non-media classes still come off the disk.
+    assert.ok(byPath.has('system/ds/brand.css'));
+    // A disk-only inert file the journal does not list is the cache's, not the project's.
+    assert.equal(byPath.has('system/ds/assets/logos/logo.svg'), false);
   });
 });

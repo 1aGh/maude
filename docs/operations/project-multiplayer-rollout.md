@@ -25,6 +25,50 @@ either direction: entering imports the documents' final state; leaving keeps
 the accepted state in the documents; re-entering carries forward anything
 written while the project was back in legacy mode.
 
+### Legacy mode on a cloud cell: what a restart keeps
+
+A cell's disk goes with its container, and every wake restores the newest
+backup generation (`MAUDE_BACKUP_INTERVAL_MS`, 10 minutes in a cell). In
+`legacy` mode the shared documents live only in that working set, so:
+
+- **A graceful stop** — a platform migration or rollout, a sleep after
+  inactivity (SIGTERM) — loses nothing: the hub writes every pending document
+  and takes a final generation before it exits.
+- **A hard kill** — the container dies without SIGTERM (a crash, an operator
+  `POST /_cell/restart`, which destroys it) — comes back from the previous
+  generation, and the wake then replays the documents' write-behind over it:
+  every document the hub stored in legacy mode is also written to object
+  storage (`<prefix>/docs/<workspace id>/`), so what was written since the
+  generation comes back too — also on a tenant's first boots, before any
+  generation exists. What can still be lost is only what had not been stored
+  yet — the store's ~2 s debounce and the upload behind it — plus anything
+  while object storage was failing (the hub logs `[docs-tail] write-behind
+  FAILED`). At a bucket root shared by several hubs each replays only its own
+  entries; a hub that lost its disk there cannot tell which are its own, so
+  give every hub a `MAUDE_BACKUP_PREFIX`.
+
+`transactions` mode has no such window: every accepted revision is durable in
+the tenant's `ProjectStore` before it is acknowledged. A **brand-new** project
+on a tenant with the durable store and the paired browser studio therefore
+starts in `transactions` (`MAUDE_NEW_PROJECT_MODE`, set by cell-config): the
+hub switches it at first boot only while it has no canvas at all; any project
+with content keeps its mode until the owner switches it.
+
+### The browser studio must be a participant
+
+A hub in workspace mode serves a browser studio. With `MAUDE_CELL_PAIRING=1`
+that studio is a project participant; without it, on a project in
+`transactions` mode, **browser edits never become accepted actions** (F3 S09,
+2026-09-25). The hub therefore refuses the switch while it is unpaired (`409
+browser-not-paired`, listed under `blockers` in the preview), reports
+`browserPaired` in its privileged `/health`, and logs a loud line at boot when a
+project already in `transactions` mode runs unpaired. `maude hub workspace-up`
+writes `MAUDE_CELL_PAIRING=1`; a deployment created before that (check
+`docker compose exec hub env | grep MAUDE_CELL_PAIRING`) needs it added and the
+hub restarted. Cloud cells get it per tenant (`CELL_LIVE_PAIRING`). The
+studio's loopback credential is a project **member**: it edits and proposes,
+it cannot switch the save mode or run a parity check.
+
 ## Preflight (read-only)
 
 All commands use the project owner's token (`$OWNER`, a hub admin/owner token
@@ -69,6 +113,10 @@ or, in a cell, the operator's cell secret). `$HUB` is the hub/cell origin.
    password: create member accounts (`POST /admin/api/users` with the hub
    secret) or send invites (`/join/<token>`). Token-only access keeps working
    as the legacy path.
+7. **The browser studio is a participant** (workspace mode). The dry run
+   above answers `blockers: ["browser-not-paired"]` when it is not — set
+   `MAUDE_CELL_PAIRING=1` and restart the hub first (see *The browser studio
+   must be a participant*).
 
 ## Switch
 
@@ -92,6 +140,21 @@ import noted as unfinished (`importPending` in the store). The next start
 finishes it before anything reconciles — the import only creates what the
 store lacks — and logs `resumed import: …`. Nothing to do by hand; run the
 parity check below once it is up. A finished import is never re-run.
+
+**If the import is interrupted without the hub dying.** A store call that
+fails mid-import (a transport blip between a cell and its store) no longer
+leaves the switch half done until the next start: the answer says
+`importPending: true, importResuming: true` with the reason, and the hub resumes
+the import itself (2 s → 60 s backoff) until it lands; proposals wait for it as
+they wait for any switch. A chunk the kernel refused for good is not retried —
+it is logged, and the next start resumes it as above.
+
+**If the request itself times out (cloud).** A cell's edge cuts a request that
+runs longer than the platform allows. The import now fetches only what differs
+and in parallel (76 canvases at 40 ms a store call: 84 store calls, answered in
+~15 s), but a very large project can still outlast the edge. A `503` or a
+client timeout is not an answer — poll `GET …/mode` until `importPending` is
+`false`, then verify as below.
 
 **Git in an accepted project.** The checkout is the shared history's
 projection. The studio refuses the Git operations that rewrite its files

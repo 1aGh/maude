@@ -111,7 +111,13 @@ export const RESIDUAL_VARIANTS = [
   },
   { family: 'layout.assign', missing: ['guides/print/hug/kind/style and all current controls'] },
   { family: 'photo.assign', missing: ['complete current adjustments and range parity'] },
-  { family: 'annotation.update', missing: ['full stroke vocabulary and effect granularity'] },
+  {
+    family: 'annotation.patch',
+    missing: [
+      'per-type field allowlists and value clamps (enforced by the registry validator, not the wire)',
+      'server-built inverse batches as retained effects',
+    ],
+  },
   {
     family: 'history.undo',
     missing: ['server-derived inverses with per-effect authorship and retained read conditions'],

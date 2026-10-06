@@ -734,7 +734,7 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
       );
       if (
         action.kind === 'tool' ||
-        // DDR-242 — in an embed, the router's catch-all Escape (drop the
+        // DDR-247 — in an embed, the router's catch-all Escape (drop the
         // selection) does not CONSUME the key: left unprevented, it reaches
         // the embed's relay and closes the app's dialog around it. Anything
         // that genuinely owns Escape (a menu, an inline edit) still prevents it.

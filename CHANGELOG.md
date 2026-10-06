@@ -1,5 +1,196 @@
 # @1agh/maude
 
+## 1.7.1
+
+### Patch Changes
+
+- The desktop app builds for Windows again — v1.7.0's Windows installer and the matching npm release were held back by a test-only dependency that no longer compiled there. The desktop window also recovers on its own if its page process crashes (most often a very heavy canvas): it reloads up to three times a minute, then asks before trying again.
+
+## 1.7.0
+
+### Minor Changes
+
+- cf6e70c: Whiteboard items can now be locked in place. Select a sticky, shape, text, image, arrow or section and press **⌘⇧L** (or use the lock button in the toolbar or the right-click menu): a locked item can still be selected, but it can't be dragged, resized, rotated, nudged, erased, cut, deleted or text-edited by accident, and a marquee skips it. Unlock it the same way. Copies of a locked item start unlocked, and a locked section holding items can't be deleted. Collaborators see the lock live, and `maude design annotate` refuses to change a locked item unless the request unlocks it. The lock is a guard against accidents, not a permission: anyone can unlock, and a collaborator on an older version of Maude can still move a locked item — and its next edit clears every lock on that board.
+
+## 1.6.13
+
+### Patch Changes
+
+- ddb8b2d: An idle desktop now lets its cloud project sleep. After 20 minutes with no edits and no keyboard or mouse input, the desktop closes its cloud connection and the status bar reads **asleep**; the next change or click reconnects, and anything teammates changed meanwhile arrives (a parked desktop checks every minute without waking the project). Two background loops that kept an idle desktop talking to its project are also fixed: the file sync no longer re-reads the project every two seconds after writing its own bookkeeping, and the file-event channel no longer reconnects every half minute. Self-hosted hubs and older cloud projects behave exactly as before.
+
+## 1.6.12
+
+### Patch Changes
+
+- 6532c53: A sleeping cloud project is now woken only by its people, not by bots. An anonymous browser opening it sees a short "This project is asleep" page with an **Open project** button, and one click starts it. A signed-in browser, the desktop app, canvas links (`?open=…`) and sign-in, invite and OIDC links still start it straight away, as before. A project that is already running answers exactly as before.
+
+## 1.6.11
+
+### Patch Changes
+
+- e128fab: An idle cloud project is no longer woken by internet scanners. Requests for paths no Maude project serves (`/wp-login.php`, `/.env`, `/.git/…` and similar) now get a 404 from a sleeping cell instead of starting its container. A project that is already running answers exactly as before.
+- 2d3b5dc: Cloud video export no longer spends 90 seconds on a render path that never finishes on the cloud worker before falling back to frame capture: the worker's setting now actually reaches the export process.
+
+## 1.6.10
+
+### Patch Changes
+
+- e8e48a3: Security: the owner's project-config door no longer follows a symlink committed into the project checkout (which could have overwritten hub files outside it), fills in rather than overrides a tenant's own config, never changes canvas groups once set, and accepts only group paths the hub's own classifier accepts.
+
+## 1.6.9
+
+### Patch Changes
+
+- baf8a83: The sync panel forgets files that exist nowhere any more — a file removed locally before it ever uploaded, or a workspace file this machine refused that the workspace has since deleted — instead of listing them as "only on this machine" or "stuck" forever.
+
+## 1.6.8
+
+### Patch Changes
+
+- The file tree shows a loading state (skeleton rows, a reason after a few seconds, "trying again" after a failed attempt) instead of a blank "0 / 0" while a large project is still being listed.
+
+## 1.6.7
+
+### Patch Changes
+
+- d74adfc: A cloud workspace synced from a desktop gets its project config from the owner: the owner's desktop sends the project name, canvas groups, design systems and tokens path (a sanitized subset — never the linked hub) through a new owner-only `PUT /api/project-config`, so canvases in the cloud load their design system's tokens and brand fonts. A code module (`.ts`) the hub would refuse from a non-owner is no longer uploaded and no longer stops every other upload in the pass.
+
+## 1.6.6
+
+### Patch Changes
+
+- 7d368db: The studio page and the canvas shell request the client bundle, stylesheet and comment layer by a versioned URL, so a release reaches cloud users at once instead of after the four-hour browser cache Cloudflare applies to a fixed `.js` URL.
+
+## 1.6.5
+
+### Patch Changes
+
+- ee05b95: Cloud workspaces: the studio inside a cell no longer runs the file plane against its own hub (it pulled thousands of media files onto the disk the materializer keeps as a cache and stalled the studio for seconds every 20 s); the file tree lists media from the hub journal; canvases show an opaque loading screen until they report rendered; the image preview retries while the cloud fetches the photo; webfonts that failed on a cold cache heal themselves.
+
+## 1.6.4
+
+### Patch Changes
+
+- 4ef61e7: Cloud workspaces now only ever receive storage credentials that are scoped to their own project and expire automatically. The old shared storage key is no longer passed to any workspace.
+
+## 1.6.3
+
+### Patch Changes
+
+- A file-watcher error (for example a folder deleted or renamed while the studio scans a large project) no longer crashes the studio — the watcher restarts itself with backoff. On a cloud workspace this crash looped the studio and left the file tree empty (0/0 canvases).
+
+## 1.6.2
+
+### Patch Changes
+
+- fa43d9a: A canvas that reloads after its access link has gone stale, for example after your laptop slept, now refreshes itself instead of showing a raw error message.
+- 810b2f3: The cloud no longer starts a workspace for a project that doesn't exist. Automated scanners probing random addresses were spinning up empty workspaces. They now get a "nothing here" page, and nothing is started.
+
+## 1.6.1
+
+### Patch Changes
+
+- The cloud export service now deploys with this release. v1.6.0's export-service rollout stopped on a CI ordering bug, so it kept running the previous version, and with it the never-sleeping container that this cycle's cost fix removes.
+
+## 1.6.0
+
+### Minor Changes
+
+- b4415ea: A cloud workspace can now hold a project larger than its disk. The workspace keeps the project's photos and videos in cloud storage and downloads each one when a canvas needs it. Each file is checked against the project's record before it is shown. Files not used for a while are dropped from the workspace's disk and downloaded again on the next request. Every canvas renders with all of its media, including background images and fonts referenced from stylesheets. Large stylesheet images and fonts used to be silently missing everywhere; they now load. Deleting a file the workspace only holds in storage keeps a recoverable copy first.
+
+### Patch Changes
+
+- 88d1145: Idle cloud workspaces and the cloud export service now actually go to sleep. The hourly health check no longer wakes a sleeping project just to read its stats, so a project nobody is using no longer re-downloads its whole design library from storage every hour. The export service now shuts down after ten idle minutes. Before, it ignored the stop signal and ran around the clock.
+- f6052c5: Opening a cloud project that has been asleep now shows a friendly "Waking up…" page instead of a blank, spinning tab. The page explains that the server took a nap, that the wait is a one-off, and that your work is safe. It then opens the project by itself as soon as the project is ready. Canvases waking up inside the studio get the same treatment. When a project can't start, you get a clear page with a Try again button instead of raw error text.
+- b4415ea: Desktop file sync no longer reports a stream of false conflicts on large projects. It used to read only the first 2,000 entries of the workspace's change log, then forget what the workspace held beyond them and push those files again, getting "changed while uploading" every time. It now reads the whole log and remembers where it stopped, even when some files fail. A file the workspace already holds with identical bytes is recognised as in sync.
+
+## 1.5.3
+
+### Patch Changes
+
+- f93e8c3: A cloud workspace whose project is larger than its disk no longer restarts in a loop. The workspace now notices when its disk is nearly full. Uploads get a "try again in two minutes" answer, which the desktop treats as a pause rather than a conflict, instead of the workspace crashing on a full disk. On start-up, it restores canvas code and styles first and leaves the remaining photos in storage once its disk budget is spent. It also stops asking desktops to re-upload files that storage already holds. `/health` now reports disk use and start-up restore progress.
+
+## 1.5.2
+
+### Patch Changes
+
+- Fix: cloud cells no longer lose photos, fonts and design-system files across restarts. Files already lost are pushed back automatically by any desktop that still has them.
+
+## 1.5.1
+
+### Patch Changes
+
+- Fix: every canvas failed to open on cloud cells, self-hosted hubs and the desktop app with `Could not resolve: "diff"` (v1.5.0 regression). The annotations text merge no longer enters the canvas bundle.
+
+## 1.5.0
+
+### Minor Changes
+
+- The whiteboard now edits its elements directly, and working together on it is smoother.
+
+  - **Typing is never lost.** Sticky notes, shape labels and text use one editor that wraps exactly as the result will look. It works with any input method, including accents and Japanese. Your text reaches teammates within about a second. If someone deletes the note you are typing in, Enter puts it back with your text.
+  - **Sections carry their contents.** Moving, copying (⌘D, Alt-drag) or deleting a section includes everything in it, nested sections too. A section drawn inside another one nests inside it.
+  - **Teammates see you working.** A drag, resize or drawing shows live on everyone's screen before you let go.
+  - **Undo only takes back your own changes.** A teammate's later edit to the same board survives your undo.
+  - **Multi-person sync is more reliable.** Edits that returned a value to an earlier state (thin after thick, removing a fill) and deletes no longer reappear when several people and the desktop app edit the same board.
+  - **`maude design annotate` fixes.** It now accepts a path written with the `.design/` prefix. It never writes the board file behind a running studio's back.
+  - **Security fixes.** A board element with a crafted type can no longer blank a collaborator's canvas. Pasted board content is re-attributed to you, and a link card's domain now matches its address.
+
+- 731c64c: Whiteboard annotations are now saved as a board of individual elements. Edits sync per element, and several long-standing editing bugs are fixed.
+
+  - **Your existing boards convert themselves.** On the next start, each `<canvas>.annotations.svg` becomes `<canvas>.annotations.json`. The original stays in `.design/_history/` and `.design/_trash/`. Nothing changes in how the board looks or works.
+  - **Edits no longer overwrite each other.** A move, a recolour or a text edit now sends only what changed. Two people editing different stickies, or different properties of the same sticky, both keep their change. Two people typing in the same sticky keep both edits.
+  - **Large boards stay light.** Saving one change costs the same whether the board has 20 elements or 2,000.
+  - **The caret stays on the new line.** Before, it jumped back to the start after Shift+Enter in a sticky, shape label or text.
+  - **Double-clicking a word while editing selects the word.** Before, it threw the view to the top-left.
+  - **Double-clicking a standalone text opens it for editing.** Before, the editor closed right away.
+  - **A marquee over a section's contents selects just those contents.** The section is selected only when the marquee encloses all of it.
+  - **Shift-click on a selected element removes it from the selection.**
+
+### Patch Changes
+
+- a25a75d: A canvas re-created in an accepted-revisions project under the name of a canvas deleted before the switch now reaches every desktop. The old deletion record used to make desktops skip it, so it showed on the web and never on the desktop, while the log claimed it was being pulled on every start. The accepted project is now the authority on which canvases are live, and the start-up log names only canvases that are actually pulled.
+- ff2534a: The Files panel starts collapsed and remembers which folders and sections you opened (#124). The choice used to live in each folder row, so every folder opened again after switching to the Layers tab, collapsing a section, reloading, or restarting the app. It is now kept per project on disk (per member in a cloud workspace), so it survives restarts in the desktop app too. Search opens the folders that hold results without changing what is remembered, and opening a canvas unfolds the folders above it.
+
+## 1.4.6
+
+### Patch Changes
+
+- fb1969c: The Sync panel no longer reports project files as "waiting" when nothing is left to deliver, and Resync now actually rechecks a stuck file.
+
+  - **Files that became part of a canvas stop showing as stuck.** A stylesheet created before its canvas becomes that canvas's own file and travels with the canvas. Its old entry used to stay in the panel as "stuck" or "conflict" for good. It is now dropped.
+  - **A file the project changed during an upload arrives.** If the project changed a file while this machine was uploading it, and nobody touched it afterwards, the newer copy never came down. The next sync — or a Resync — now reads the project's full file list once and brings it down.
+  - **Identical code files are in step.** A `.ts` or `.js` file that is byte-for-byte the same here and on a self-hosted project no longer shows as refused.
+
+- fa3290b: Comments now stay where you put them and reach every peer, and large boards pan smoothly with something selected or a teammate on the canvas (#134, #136, #133, #131).
+
+  - **Comments on stickies and empty canvas stay.** A comment placed on a sticky, a drawing or empty canvas was saved and then deleted for everyone about three seconds later. Software no longer deletes comments. A comment on a sticky now follows the sticky. A comment on empty canvas keeps its place through pan and zoom. A comment whose target is gone is shown as detached, with a dashed pin, until a person removes it.
+  - **Web comments reach the desktop app.** A desktop app that was closed while a comment was deleted on the web stopped receiving comments after it reopened. In legacy projects, the deleted comment also came back for everyone. Both are fixed. A comment written before sync had started is now sent to the project when the app starts, instead of staying only on that machine.
+  - **Large boards pan smoothly.** With an element selected, a theme check ran again on every frame of a pan and recalculated the styles of the whole page. On a board with many artboards in the desktop app, this could drop panning to about one frame a second. It now runs once.
+  - The server log now says when comments on this machine have not reached the shared project yet.
+
+## 1.4.5
+
+### Patch Changes
+
+- a0282e2: Shared projects hold up better when things go wrong: a browser edit on a self-hosted workspace reaches the project, a switch to accepted revisions finishes on its own, removed teammates lose access at once, and cloud work survives a crash.
+
+  - **Self-hosted workspaces pair the browser studio by default.** A workspace set up with `maude hub workspace-up` now turns on `MAUDE_CELL_PAIRING`, so the studio people open in the browser takes part in the project. Before, on a project saving through accepted revisions, a comment or edit made in the browser never became part of the project. The browser studio takes part as a member and cannot change how the project saves. A hub whose browser studio is not paired now refuses that switch and says why, and an existing deployment that is already switched logs a warning at start. Existing self-hosted workspaces need `MAUDE_CELL_PAIRING=1` added to their environment.
+  - **Large canvases save on cloud projects in accepted revisions.** A canvas over 2 MB was refused by the cloud project store, and a switch whose import met one never finished — every edit in the project waited behind it. The store now keeps such a canvas in parts, and an import that still cannot finish stops holding the project after about ten minutes; the owner can always switch back.
+  - **Switching a project to accepted revisions finishes by itself.** If the connection to the project store drops for a moment during the switch, the owner gets an honest answer straight away and the import carries on until it completes. Before, it stayed half done until the server restarted. The switch also makes about half as many calls to the store, so large projects answer much sooner.
+  - **Removing someone from a cloud project ends their open sessions right away**, instead of at the next check up to ten minutes later.
+  - **Cloud projects keep work written just before a crash.** A new cloud project now starts with accepted revisions from its first save. Older projects that still save the legacy way now also copy each saved canvas to storage, so a server that crashes brings back what was written since its last backup — and a canvas deleted just before the crash stays deleted.
+  - **A first link no longer holds up your first edit.** Linking a folder full of canvases to a new project adds them in one step, not one by one, so the first change you make appears in about a second.
+
+- Shared projects that save through accepted revisions lose less and conflict less, found by running every multiplayer scenario on a real self-hosted hub and a real cloud cell.
+
+  - **A graceful stop keeps everything.** A hub that is stopped — a rollout, a platform move, a sleep after inactivity — now takes one last backup before it exits, so a cloud project no longer returns to a backup up to ten minutes old.
+  - **Large uploads survive a lost disk.** A resumable upload that was in progress when a server lost its disk carries on instead of starting over.
+  - **Fewer false conflicts.** A save made right after your own accepted edit, a save made while the outbox was draining, and a save held by a connection that died during a mode switch are all proposed normally, not reported as conflicts. A late file event from the disk never overwrites a newer accepted version.
+  - **Switching back and forth is safe.** Returning a project to the older saving mode tells every open connection it may write again, switching back to accepted revisions never re-imports a stale copy, and a checkout restored to an older accepted version is no longer held.
+  - **File sync paths with spaces** are recorded in the same shape everywhere, and a large download is checked without freezing the app.
+  - The file tree's section counts meet WCAG AA contrast.
+
 ## 1.4.4
 
 ### Patch Changes

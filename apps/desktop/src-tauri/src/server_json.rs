@@ -17,6 +17,7 @@ use serde::Deserialize;
 struct ServerInfo {
     url: Option<String>,
     port: Option<u16>,
+    pid: Option<u32>,
 }
 
 /// Poll `<design_root>/_server.json` every 200 ms until a URL is resolvable or the
@@ -112,6 +113,20 @@ pub fn read_server_url(design_root: &std::path::Path) -> Option<String> {
     info.port.map(|p| format!("http://localhost:{p}"))
 }
 
+/// `read_server_url` plus the `pid` the server wrote — for callers that must
+/// confirm the url belongs to a process THEY spawned, not merely to whatever
+/// last wrote the file or now listens on the port (web_process.rs crash recovery).
+pub fn read_server_pid_url(design_root: &std::path::Path) -> Option<(u32, String)> {
+    let bytes = std::fs::read(design_root.join("_server.json")).ok()?;
+    let info: ServerInfo = serde_json::from_slice(&bytes).ok()?;
+    let pid = info.pid?;
+    let url = match info.url.filter(|u| !u.is_empty()) {
+        Some(u) => u,
+        None => format!("http://localhost:{}", info.port?),
+    };
+    Some((pid, url))
+}
+
 /// Enforce the DDR-109 §1 loopback-only invariant IN CODE at the navigate sites:
 /// only ever navigate the webview to `http://localhost:*` / `http://127.0.0.1:*`.
 /// Defense-in-depth — `_server.json` is cleared before spawn, but its `url` still
@@ -163,7 +178,9 @@ mod tests {
         std::fs::create_dir_all(&dir).expect("temp dir");
         let _ = std::fs::remove_file(dir.join("_server.json"));
 
-        let err = wait_for_server(dir, 200).await.expect_err("should time out");
+        let err = wait_for_server(dir, 200)
+            .await
+            .expect_err("should time out");
         assert!(err.contains("timed out"), "unexpected error: {err}");
     }
 
@@ -185,7 +202,9 @@ mod tests {
         // `port` only when `url` is absent — the DDR-106 verbatim-url rule.
         std::fs::write(dir.join("_server.json"), br#"{"port":4399}"#).expect("write _server.json");
         assert_eq!(
-            wait_for_server(dir.clone(), 1_000).await.expect("port fallback"),
+            wait_for_server(dir.clone(), 1_000)
+                .await
+                .expect("port fallback"),
             "http://localhost:4399"
         );
 

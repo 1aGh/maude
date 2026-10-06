@@ -308,8 +308,10 @@
    accent language as .st-row.is-drop-target. */
 .st-tree-sec-hd.is-drop-target { background: var(--accent-tint); color: var(--fg-0); box-shadow: inset 2px 0 0 var(--accent); }
 .st-tree-sec-hd .st-sec-name { font-family: var(--font-mono); font-size: var(--type-xs); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+/* --fg-2, not --fg-3: a 10px count is text, and --fg-3 is 3.0:1 on the
+   sidebar — below WCAG AA (axe on the cloud cell, F3 S19, 2026-09-24). */
 .st-tree-sec-hd .st-pill {
-  margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--fg-3);
+  margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--fg-2);
   padding: 0 6px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
 }
 .st-tree-empty { padding: var(--space-2) var(--space-5); color: var(--fg-3); font-size: var(--type-xs); font-style: italic; }
@@ -467,7 +469,28 @@
   background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
 }
-.st-file-preview-image { max-width: 100%; max-height: 70vh; object-fit: contain; }
+.st-file-preview-image-wrap { position: relative; }
+.st-file-preview-image-wrap.is-loading { min-height: 50vh; }
+.st-file-preview-image {
+  max-width: 100%; max-height: 70vh; object-fit: contain;
+  transition: opacity var(--dur-soft) var(--ease-out);
+}
+/* Until it has fully arrived the photo stays hidden behind the status line —
+ * a half-painted or failed <img> reads as broken. */
+.st-file-preview-image-wrap.is-loading .st-file-preview-image { opacity: 0; }
+.st-file-preview-loading {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--space-3);
+  font-size: var(--type-sm); color: var(--fg-2);
+}
+.st-file-preview-image-wrap.is-error .st-file-preview-loading { position: static; padding: var(--space-6); }
+.st-file-preview-spinner {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid var(--bg-3); border-top-color: var(--accent);
+  animation: st-spin 0.8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .st-file-preview-spinner { animation-duration: 2.4s; } }
 .st-file-preview-media { max-width: 100%; max-height: 70vh; display: block; }
 .st-file-preview-audio { width: 100%; }
 .st-file-preview-font { display: flex; flex-direction: column; gap: var(--space-4); }
@@ -1546,17 +1569,64 @@ body.st-scrubbing, body.st-scrubbing * { cursor: ew-resize !important; user-sele
 .st-body.is-resizing iframe { pointer-events: none; }
 .st-sidebar.is-resizing, .st-rpanel.is-resizing { transition: none; }
 
+/* ─── File tree before its first index (TreeLoading) ───────────────────────── */
+.st-tree-loading {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) var(--space-4);
+}
+.st-tree-loading-head {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--type-sm); color: var(--fg-2);
+  margin-bottom: var(--space-1);
+}
+.st-tree-loading-row { height: 10px; }
+.st-tree-loading-hint {
+  margin-top: var(--space-2);
+  font-size: var(--type-xs); line-height: 1.45; color: var(--fg-2);
+}
+
 /* ─── Canvas-compile skeleton — DS skeletons recipe (.skel pulse) ──────────── */
 .st-canvas-loading {
   position: absolute; inset: 0;
   display: grid; place-items: center;
   pointer-events: none;
   z-index: 5;
-  /* 180ms appearance delay — warm canvases mount in <150ms and never flash it */
+  /* OPAQUE from the first frame — the frame underneath is the bare shell (a
+   * white page, comment pins over nothing) until the canvas reports rendered. */
+  background: var(--canvas-bg);
+}
+/* 180ms appearance delay on the CARD — warm canvases mount in <150ms and never
+ * flash it; the backdrop above is immediate so nothing white shows through. */
+.st-canvas-loading > .st-skel-card {
   opacity: 0;
   animation: st-loading-in var(--dur-soft) var(--ease-out) 180ms forwards;
 }
 @keyframes st-loading-in { to { opacity: 1; } }
+.st-canvas-loading-head {
+  display: flex; align-items: center; gap: var(--space-2);
+  min-width: 0;
+}
+.st-canvas-loading-title {
+  font-size: var(--type-sm); color: var(--fg-1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.st-canvas-loading-spinner {
+  flex: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-3);
+  border-top-color: var(--accent);
+  animation: st-spin 0.8s linear infinite;
+}
+@keyframes st-spin { to { transform: rotate(360deg); } }
+.st-canvas-loading-hint {
+  font-size: var(--type-xs); line-height: 1.45; color: var(--fg-2);
+  opacity: 0; transition: opacity var(--dur-soft) var(--ease-out);
+}
+.st-canvas-loading-hint.is-shown { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .st-canvas-loading-spinner { animation-duration: 2.4s; }
+}
 .st-skel-card {
   width: 300px;
   display: flex; flex-direction: column; gap: var(--space-3);

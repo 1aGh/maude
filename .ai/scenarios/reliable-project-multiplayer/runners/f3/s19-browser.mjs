@@ -6,6 +6,7 @@
 // closes and returns focus to its opener) and the shell's live status regions.
 //
 //   node s19-browser.mjs --work <selfhost dir> --canvas "ui/Name.tsx" --axe <axe.min.js> --out <dir>
+import { openStudio } from './browser-entry.mjs';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
@@ -53,12 +54,9 @@ async function scan(target, scope) {
 const browser = await chromium.launch();
 const report = { backend: fx.backend, url: fx.browserUrl, canvas: rel, scans: [], keyboard: {}, live: {} };
 try {
-  const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
-  await page.goto(`${fx.browserUrl}/studio/signin`);
-  report.scans.push(await scan(page, 'sign-in page'));
-  await page.locator('input[name=email]').fill(fx.users.owner.email);
-  await page.locator('input[name=password]').fill(fx.users.owner.password);
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  const page = await openStudio(browser, fx, 'owner', {
+    onSignInPage: async (p) => report.scans.push(await scan(p, 'sign-in page')),
+  });
   const slug = rel.replace(/^ui\//, '').replace(/\.tsx$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
   await page.locator(`[data-testid="canvas-row-ui-${slug}"]`).click({ timeout: 60000 });
   await page.frameLocator('[data-testid="canvas-frame"]').locator('[data-dc-screen]').first().waitFor({ timeout: 60000 });

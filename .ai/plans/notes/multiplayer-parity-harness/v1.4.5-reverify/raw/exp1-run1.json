@@ -1,0 +1,780 @@
+{
+  "results": [
+    {
+      "name": "a-element",
+      "composerOpened": true,
+      "selectorChip": "cd:fd185ad8",
+      "id": "c_d87181f70771",
+      "before": 0,
+      "persistedAtMs": 502,
+      "deletedAtMs": null,
+      "finalOnDisk": true,
+      "deleteMsgs": [],
+      "samples": [
+        {
+          "dt": 0,
+          "onDisk": false,
+          "diskCount": 0,
+          "pins": {
+            "total": 0,
+            "visible": 0
+          }
+        },
+        {
+          "dt": 502,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 1005,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 1507,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 2011,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 2516,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 3020,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 3522,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 4029,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 4535,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 5039,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 5543,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 6047,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 6551,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 7054,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 7557,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 8062,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 8567,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 9070,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 9573,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 10077,
+          "onDisk": true,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "b-sticky",
+      "composerOpened": true,
+      "selectorChip": "canvas",
+      "id": "c_422a938e82d4",
+      "before": 1,
+      "persistedAtMs": 503,
+      "deletedAtMs": 3528,
+      "finalOnDisk": false,
+      "deleteMsgs": [
+        {
+          "t": 17938,
+          "url": "ws://localhost:4761/_ws",
+          "payload": "{\"type\":\"comments-delete\",\"id\":\"c_422a938e82d4\"}"
+        }
+      ],
+      "samples": [
+        {
+          "dt": 0,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 503,
+          "onDisk": true,
+          "diskCount": 2,
+          "pins": {
+            "total": 2,
+            "visible": 2
+          }
+        },
+        {
+          "dt": 1007,
+          "onDisk": true,
+          "diskCount": 2,
+          "pins": {
+            "total": 2,
+            "visible": 2
+          }
+        },
+        {
+          "dt": 1511,
+          "onDisk": true,
+          "diskCount": 2,
+          "pins": {
+            "total": 2,
+            "visible": 2
+          }
+        },
+        {
+          "dt": 2015,
+          "onDisk": true,
+          "diskCount": 2,
+          "pins": {
+            "total": 2,
+            "visible": 2
+          }
+        },
+        {
+          "dt": 2520,
+          "onDisk": true,
+          "diskCount": 2,
+          "pins": {
+            "total": 2,
+            "visible": 2
+          }
+        },
+        {
+          "dt": 3023,
+          "onDisk": true,
+          "diskCount": 2,
+          "pins": {
+            "total": 2,
+            "visible": 2
+          }
+        },
+        {
+          "dt": 3528,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 4031,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 4535,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 5039,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 5544,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 6048,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 6551,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 7055,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 7558,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 8061,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 8565,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 9068,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 9574,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 10077,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "c-empty",
+      "composerOpened": true,
+      "selectorChip": "canvas",
+      "id": "c_28c329c723cc",
+      "before": 1,
+      "persistedAtMs": 504,
+      "deletedAtMs": 3527,
+      "finalOnDisk": false,
+      "deleteMsgs": [
+        {
+          "t": 28921,
+          "url": "ws://localhost:4761/_ws",
+          "payload": "{\"type\":\"comments-delete\",\"id\":\"c_28c329c723cc\"}"
+        }
+      ],
+      "samples": [
+        {
+          "dt": 0,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 504,
+          "onDisk": true,
+          "diskCount": 2,
+          "pins": {
+            "total": 2,
+            "visible": 2
+          }
+        },
+        {
+          "dt": 1008,
+          "onDisk": true,
+          "diskCount": 2,
+          "pins": {
+            "total": 2,
+            "visible": 2
+          }
+        },
+        {
+          "dt": 1511,
+          "onDisk": true,
+          "diskCount": 2,
+          "pins": {
+            "total": 2,
+            "visible": 2
+          }
+        },
+        {
+          "dt": 2015,
+          "onDisk": true,
+          "diskCount": 2,
+          "pins": {
+            "total": 2,
+            "visible": 2
+          }
+        },
+        {
+          "dt": 2519,
+          "onDisk": true,
+          "diskCount": 2,
+          "pins": {
+            "total": 2,
+            "visible": 2
+          }
+        },
+        {
+          "dt": 3023,
+          "onDisk": true,
+          "diskCount": 2,
+          "pins": {
+            "total": 2,
+            "visible": 2
+          }
+        },
+        {
+          "dt": 3527,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 4030,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 4534,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 5036,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 5539,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 6043,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 6547,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 7051,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 7555,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 8059,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 8563,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 9067,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 9570,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        },
+        {
+          "dt": 10078,
+          "onDisk": false,
+          "diskCount": 1,
+          "pins": {
+            "total": 1,
+            "visible": 1
+          }
+        }
+      ]
+    }
+  ],
+  "wsSent": [
+    {
+      "t": 3923,
+      "url": "ws://localhost:4761/_ws",
+      "payload": "{\"type\":\"comments-add\",\"payload\":{\"file\":\".design/ui/board.tsx\",\"selector\":\"[data-dc-screen=\\\"a1\\\"] [data-cd-id=\\\"fd185ad8\\\"]\",\"index\":0,\"dom_path\":[\"div#canvas-root\",\"div\",\"div.dc-canvas\",\"div.dc-world\",\"article[data-dc-screen=\\\"a1\\\"]\",\"div.dc-artboard-body\",\"div\",\"h2#alpha-title\"],\"tag\":\"h2\",\"classes\":\"\",\"bounds\":{\"x\":57,\"y\":322,\"w\":536,\"h\":37},\"html_excerpt\":\"<h2 data-cd-id=\\\"fd185ad8\\\" data-cd"
+    },
+    {
+      "t": 14905,
+      "url": "ws://localhost:4761/_ws",
+      "payload": "{\"type\":\"comments-add\",\"payload\":{\"file\":\".design/ui/board.tsx\",\"selector\":\"\",\"dom_path\":[],\"tag\":\"\",\"classes\":\"\",\"bounds\":{\"x\":131.90625,\"y\":852.6875,\"w\":24,\"h\":24},\"html_excerpt\":\"\",\"text\":\"comment b-sticky 1790684880604\"}}"
+    },
+    {
+      "t": 17938,
+      "url": "ws://localhost:4761/_ws",
+      "payload": "{\"type\":\"comments-delete\",\"id\":\"c_422a938e82d4\"}"
+    },
+    {
+      "t": 25887,
+      "url": "ws://localhost:4761/_ws",
+      "payload": "{\"type\":\"comments-add\",\"payload\":{\"file\":\".design/ui/board.tsx\",\"selector\":\"\",\"dom_path\":[],\"tag\":\"\",\"classes\":\"\",\"bounds\":{\"x\":1012.21875,\"y\":854.84375,\"w\":24,\"h\":24},\"html_excerpt\":\"\",\"text\":\"comment c-empty 1790684891586\"}}"
+    },
+    {
+      "t": 28921,
+      "url": "ws://localhost:4761/_ws",
+      "payload": "{\"type\":\"comments-delete\",\"id\":\"c_28c329c723cc\"}"
+    }
+  ],
+  "log": [
+    {
+      "t": 1865,
+      "msg": "console.error",
+      "text": "Unrecognized Content-Security-Policy directive 'webrtc'."
+    },
+    {
+      "t": 1900,
+      "msg": "console.error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "t": 1917,
+      "msg": "frame",
+      "url": "http://localhost:54317/_canvas-shell.html?canvas=ui%2Fboard.tsx&designRel=.design&tokens=system%2Fcolors_and_type.css"
+    },
+    {
+      "t": 3505,
+      "msg": "boxes",
+      "titleBox": {
+        "x": 309.96875,
+        "y": 362.09375,
+        "width": 535.59375,
+        "height": 37
+      },
+      "stickyBox": {
+        "x": 275,
+        "y": 782.78125,
+        "width": 243.8125,
+        "height": 243.8125
+      },
+      "a2Box": {
+        "x": 976.453125,
+        "y": 305.15625,
+        "width": 601.53125,
+        "height": 401.6875
+      }
+    },
+    {
+      "t": 3506,
+      "msg": "CASE a-element start",
+      "x": 329.96875,
+      "y": 380.59375
+    },
+    {
+      "t": 3923,
+      "msg": "WS SENT",
+      "url": "ws://localhost:4761/_ws",
+      "payload": "{\"type\":\"comments-add\",\"payload\":{\"file\":\".design/ui/board.tsx\",\"selector\":\"[data-dc-screen=\\\"a1\\\"] [data-cd-id=\\\"fd185ad8\\\"]\",\"index\":0,\"dom_path\":[\"div#canvas-root\",\"div\",\"div.dc-canvas\",\"div.dc-wor"
+    },
+    {
+      "t": 3924,
+      "msg": "CASE a-element submitted",
+      "selectorChip": "cd:fd185ad8"
+    },
+    {
+      "t": 14503,
+      "msg": "CASE a-element result",
+      "persistedAt": 502,
+      "deletedAt": null,
+      "final": true
+    },
+    {
+      "t": 14510,
+      "msg": "CASE b-sticky start",
+      "x": 396.90625,
+      "y": 904.6875
+    },
+    {
+      "t": 14892,
+      "msg": "CASE b-sticky submitted",
+      "selectorChip": "canvas"
+    },
+    {
+      "t": 14905,
+      "msg": "WS SENT",
+      "url": "ws://localhost:4761/_ws",
+      "payload": "{\"type\":\"comments-add\",\"payload\":{\"file\":\".design/ui/board.tsx\",\"selector\":\"\",\"dom_path\":[],\"tag\":\"\",\"classes\":\"\",\"bounds\":{\"x\":131.90625,\"y\":852.6875,\"w\":24,\"h\":24},\"html_excerpt\":\"\",\"text\":\"comment "
+    },
+    {
+      "t": 17938,
+      "msg": "WS SENT",
+      "url": "ws://localhost:4761/_ws",
+      "payload": "{\"type\":\"comments-delete\",\"id\":\"c_422a938e82d4\"}"
+    },
+    {
+      "t": 25471,
+      "msg": "CASE b-sticky result",
+      "persistedAt": 503,
+      "deletedAt": 3528,
+      "final": false
+    },
+    {
+      "t": 25481,
+      "msg": "CASE c-empty start",
+      "x": 1277.21875,
+      "y": 906.84375
+    },
+    {
+      "t": 25877,
+      "msg": "CASE c-empty submitted",
+      "selectorChip": "canvas"
+    },
+    {
+      "t": 25887,
+      "msg": "WS SENT",
+      "url": "ws://localhost:4761/_ws",
+      "payload": "{\"type\":\"comments-add\",\"payload\":{\"file\":\".design/ui/board.tsx\",\"selector\":\"\",\"dom_path\":[],\"tag\":\"\",\"classes\":\"\",\"bounds\":{\"x\":1012.21875,\"y\":854.84375,\"w\":24,\"h\":24},\"html_excerpt\":\"\",\"text\":\"commen"
+    },
+    {
+      "t": 28921,
+      "msg": "WS SENT",
+      "url": "ws://localhost:4761/_ws",
+      "payload": "{\"type\":\"comments-delete\",\"id\":\"c_28c329c723cc\"}"
+    },
+    {
+      "t": 36457,
+      "msg": "CASE c-empty result",
+      "persistedAt": 504,
+      "deletedAt": 3527,
+      "final": false
+    }
+  ],
+  "finalComments": [
+    {
+      "id": "c_d87181f70771",
+      "text": "comment a-element 1790684869612",
+      "selector": "[data-dc-screen=\"a1\"] [data-cd-id=\"fd185ad8\"]",
+      "status": "open"
+    }
+  ]
+}

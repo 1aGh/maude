@@ -1,26 +1,24 @@
-// annotate-write — FigJam v3 AI write verb (`maude design annotate`).
-// Drives bin/annotate.mjs as a subprocess against a temp design root and
-// asserts the output through the CANONICAL parser: everything the verb writes
-// must be sanitize-stable, byte-identical under parse → re-serialize, and
-// readable back as a graph by read-annotations --graph.
+// annotate-write — the AI whiteboard WRITE verb (`maude design annotate`,
+// DDR-242 AD9). Drives bin/annotate.mjs as a subprocess against a temp design
+// root and asserts the v2 board it leaves behind: canonical bytes, registry-
+// valid elements, `author: {kind:'ai'}` on everything it created, and the
+// element ops it sends to a live server.
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { GlobalRegistrator } from '@happy-dom/global-registrator';
-
-import {
-  type ArrowStroke,
-  type EllipseStroke,
-  type SectionStroke,
-  type StickyStroke,
-  type Stroke,
-  sanitizeAnnotationSvg,
-  strokesToSvg,
-  svgToStrokes,
-  type TextStroke,
-} from '../annotations-model.ts';
+import { Scene } from '../annotations/scene.ts';
+import { canonical, parseBoard, serializeBoard } from '../annotations/schema.ts';
+import type { AnnotationElement } from '../annotations/types.ts';
 
 const BIN = new URL('../bin/annotate.mjs', import.meta.url).pathname;
 const READER = new URL('../bin/read-annotations.mjs', import.meta.url).pathname;
@@ -28,439 +26,754 @@ const READER = new URL('../bin/read-annotations.mjs', import.meta.url).pathname;
 let root: string;
 
 beforeAll(() => {
-  GlobalRegistrator.register();
   root = mkdtempSync(join(tmpdir(), 'annotate-test-'));
-  // A design root with no config — resolveDesignRoot defaults to .design.
-  writeFileSync(
-    join(root, 'flow.json'),
-    JSON.stringify({
-      nodes: [
-        { id: 'a', label: 'Start' },
-        { id: 'b', label: 'Middle' },
-        { id: 'c', label: 'End', shape: 'ellipse' },
-      ],
-      edges: [
-        { from: 'a', to: 'b' },
-        { from: 'b', to: 'c', label: 'ships' },
-      ],
-    })
-  );
-  Bun.spawnSync(['mkdir', '-p', join(root, '.design')]);
+  mkdirSync(join(root, '.design'), { recursive: true });
 });
 
-afterAll(async () => {
-  await GlobalRegistrator.unregister();
+afterAll(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
-function runAnnotate(args: string[], stdin?: string): { code: number; out: string; err: string } {
-  const proc = Bun.spawnSync(['bun', BIN, ...args], {
-    stdin: stdin ? new TextEncoder().encode(stdin) : undefined,
+interface Run {
+  code: number;
+  out: string;
+  err: string;
+}
+
+function annotate(args: string[], stdin?: unknown): Run {
+  const proc = Bun.spawnSync(['bun', BIN, ...args, '--root', root], {
+    stdin:
+      stdin === undefined
+        ? undefined
+        : new TextEncoder().encode(typeof stdin === 'string' ? stdin : JSON.stringify(stdin)),
   });
   return {
-    code: proc.exitCode,
+    code: proc.exitCode ?? 1,
     out: new TextDecoder().decode(proc.stdout),
     err: new TextDecoder().decode(proc.stderr),
   };
 }
 
-function readSvg(): string {
-  return readFileSync(join(root, '.design', 'ui-flow.annotations.svg'), 'utf8');
+/** Async variant — the in-process stub server must keep serving while it runs. */
+async function annotateAsync(
+  args: string[],
+  stdin: unknown,
+  env: Record<string, string> = {}
+): Promise<Run> {
+  const proc = Bun.spawn(['bun', BIN, ...args, '--root', root], {
+    env: { ...process.env, ...env },
+    stdin: new TextEncoder().encode(JSON.stringify(stdin)),
+    stdout: 'pipe',
+    stderr: 'pipe',
+  });
+  const [out, err, code] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  return { code, out, err };
+}
+
+const pathOf = (slug: string) => join(root, '.design', `${slug}.annotations.json`);
+
+function boardText(slug: string): string {
+  const p = pathOf(slug);
+  return existsSync(p) ? readFileSync(p, 'utf8') : '';
+}
+
+function board(slug: string): AnnotationElement[] {
+  const text = boardText(slug);
+  return text ? parseBoard(text).elements : [];
+}
+
+function seed(slug: string, elements: Record<string, unknown>[]): void {
+  writeFileSync(pathOf(slug), serializeBoard(elements.map((e) => canonical(e as never))));
+}
+
+function byId(slug: string): Record<string, AnnotationElement> {
+  return Object.fromEntries(board(slug).map((e) => [e.id, e]));
+}
+
+function worldBox(slug: string, id: string) {
+  return new Scene(board(slug)).worldBox(id);
+}
+
+/** Every write leaves canonical bytes that the registry accepts element-for-element. */
+function expectCanonical(slug: string): void {
+  const text = boardText(slug);
+  const parsed = parseBoard(text);
+  expect(parsed.dropped).toEqual([]);
+  expect(serializeBoard(parsed.elements)).toBe(text);
+}
+
+function readGraph(rel: string) {
+  const proc = Bun.spawnSync(['bun', READER, rel, '--root', root, '--graph']);
+  return JSON.parse(new TextDecoder().decode(proc.stdout)) as {
+    graph: { nodes: Array<{ text?: string }>; edges: unknown[] };
+  };
 }
 
 describe('annotate --flow', () => {
-  test('writes an auto-laid-out diagram of bound connectors', () => {
-    const res = runAnnotate(['ui/Flow.tsx', '--flow', join(root, 'flow.json'), '--root', root]);
+  test('writes an auto-laid-out diagram of BOUND connectors, stamped ai', () => {
+    writeFileSync(
+      join(root, 'flow.json'),
+      JSON.stringify({
+        nodes: [
+          { id: 'a', label: 'Start' },
+          { id: 'b', label: 'Middle' },
+          { id: 'c', label: 'End', shape: 'ellipse' },
+        ],
+        edges: [
+          { from: 'a', to: 'b' },
+          { from: 'b', to: 'c', label: 'ships' },
+        ],
+      })
+    );
+    const res = annotate(['ui/Flow.tsx', '--flow', join(root, 'flow.json')]);
     expect(res.code).toBe(0);
-    const result = JSON.parse(res.out) as { ok: boolean; refs: Record<string, string> };
+    const result = JSON.parse(res.out);
     expect(result.ok).toBe(true);
+    expect(result.via).toBe('file');
     expect(Object.keys(result.refs)).toEqual(['@a', '@b', '@c']);
-
-    const svg = readSvg();
-    // Canonical-parser compatible, sanitize-stable, byte-identical round-trip.
-    expect(sanitizeAnnotationSvg(svg)).toBe(svg);
-    const strokes = svgToStrokes(svg);
-    expect(strokesToSvg(strokes)).toBe(svg);
-    // 3 shapes + 3 labels (2 anchored + 1 ellipse-anchored) + 2 arrows + 1 edge label.
-    const arrows = strokes.filter((s): s is ArrowStroke => s.tool === 'arrow');
+    expectCanonical('ui-flow');
+    const els = board('ui-flow');
+    for (const e of els) expect(e.author).toEqual({ kind: 'ai' });
+    const shapes = els.filter((e) => e.type === 'shape');
+    expect(shapes.map((s) => (s.label as { text: string }).text).sort()).toEqual([
+      'End',
+      'Middle',
+      'Start',
+    ]);
+    const c = byId('ui-flow')[result.refs['@c']];
+    expect(c?.kind).toBe('ellipse');
+    const arrows = els.filter((e) => e.type === 'arrow');
     expect(arrows).toHaveLength(2);
     for (const a of arrows) {
-      expect(a.startBind?.hostId).toBeDefined();
-      expect(a.endBind?.hostId).toBeDefined();
-      expect(a.author).toBe('ai');
+      expect(a.start).toHaveProperty('el');
+      expect(a.end).toHaveProperty('el');
     }
-    // Layered layout: 'b' sits one column right of 'a'.
-    const aShape = strokes.find((s) => s.id === result.refs['@a']) as Stroke & { x: number };
-    const bShape = strokes.find((s) => s.id === result.refs['@b']) as Stroke & { x: number };
-    expect(bShape.x).toBeGreaterThan(aShape.x);
+    // The edge label is a text element; layered layout puts b right of a.
+    expect(els.some((e) => e.type === 'text' && e.text === 'ships')).toBe(true);
+    const ax = worldBox('ui-flow', result.refs['@a'])?.x ?? 0;
+    const bx = worldBox('ui-flow', result.refs['@b'])?.x ?? 0;
+    expect(bx).toBeGreaterThan(ax);
   });
 
   test('read-annotations --graph reads the diagram back as the same graph', () => {
-    const proc = Bun.spawnSync(['node', READER, 'ui/Flow.tsx', '--root', root, '--graph']);
-    const parsed = JSON.parse(new TextDecoder().decode(proc.stdout)) as {
-      graph: { nodes: Array<{ label: string | null }>; edges: unknown[] };
-    };
+    const parsed = readGraph('ui/Flow.tsx');
     expect(parsed.graph.edges).toHaveLength(2);
-    expect(parsed.graph.nodes.map((n) => n.label).sort()).toEqual(['End', 'Middle', 'Start']);
+    expect(parsed.graph.nodes.map((n) => n.text).sort()).toEqual(['End', 'Middle', 'Start']);
   });
 });
 
-describe('annotate --ops', () => {
-  test('create sticky + group + connect-to-existing + delete, via stdin', () => {
-    // Connect to a node minted by the previous --flow run.
-    const flowSvg = readSvg();
-    const existingId = (svgToStrokes(flowSvg).find((s) => s.tool === 'rect') as Stroke).id;
-    const ops = {
+describe('annotate --ops: create / connect / group / delete', () => {
+  test('create stickies + group + connect to an existing node + delete, via stdin', () => {
+    const existingId = board('ui-flow').find((e) => e.type === 'shape')?.id as string;
+    const res = annotate(['ui/Flow.tsx'], {
       ops: [
         { op: 'create', type: 'sticky', ref: '@n1', text: 'pain point', x: 100, y: 600 },
         { op: 'create', type: 'sticky', ref: '@n2', text: 'idea', x: 340, y: 600 },
         { op: 'group', ids: ['@n1', '@n2'] },
         { op: 'connect', from: '@n1', to: existingId },
       ],
-    };
-    const res = runAnnotate(['ui/Flow.tsx', '--root', root], JSON.stringify(ops));
+    });
     expect(res.code).toBe(0);
-    const svg = readSvg();
-    expect(sanitizeAnnotationSvg(svg)).toBe(svg);
-    const strokes = svgToStrokes(svg);
-    expect(strokesToSvg(svg && strokes ? strokes : [])).toBe(svg);
-    const stickies = strokes.filter((s): s is StickyStroke => s.tool === 'sticky');
-    expect(stickies).toHaveLength(2);
-    expect(stickies[0]?.groupIds).toEqual(stickies[1]?.groupIds);
-    expect(stickies[0]?.groupIds?.length).toBe(1);
-    const bound = strokes.filter(
-      (s): s is ArrowStroke => s.tool === 'arrow' && s.endBind?.hostId === existingId
+    const { refs, created, updated } = JSON.parse(res.out);
+    expect(created).toBe(3);
+    expect(updated).toBe(2);
+    expectCanonical('ui-flow');
+    const els = byId('ui-flow');
+    const n1 = els[refs['@n1']];
+    const n2 = els[refs['@n2']];
+    expect(n1?.groups).toHaveLength(1);
+    expect(n1?.groups).toEqual(n2?.groups);
+    expect(n1?.author).toEqual({ kind: 'ai' });
+    const bound = board('ui-flow').filter(
+      (e) => e.type === 'arrow' && (e.end as { el?: string }).el === existingId
     );
     expect(bound).toHaveLength(1);
+    expect(bound[0]?.start).toEqual({ el: refs['@n1'] });
 
-    // Delete one sticky — the element disappears and the file stays canonical.
-    const del = runAnnotate(
-      ['ui/Flow.tsx', '--root', root],
-      JSON.stringify({ ops: [{ op: 'delete', id: stickies[1]?.id }] })
-    );
+    const del = annotate(['ui/Flow.tsx'], { ops: [{ op: 'delete', id: refs['@n2'] }] });
     expect(del.code).toBe(0);
-    const after = svgToStrokes(readSvg());
-    expect(after.filter((s) => s.tool === 'sticky')).toHaveLength(1);
-    expect(strokesToSvg(after)).toBe(readSvg());
+    expect(JSON.parse(del.out).deleted).toBe(1);
+    expect(byId('ui-flow')[refs['@n2']]).toBeUndefined();
+    expectCanonical('ui-flow');
   });
 
-  test('unknown connect target fails loud, writes nothing', () => {
-    const before = readSvg();
-    const res = runAnnotate(
-      ['ui/Flow.tsx', '--root', root],
-      JSON.stringify({ ops: [{ op: 'connect', from: '@ghost', to: 'nope' }] })
-    );
-    expect(res.code).toBe(2);
-    expect(readSvg()).toBe(before);
-  });
-
-  test('--dry-run prints the merged SVG without writing', () => {
-    const before = readSvg();
-    const res = runAnnotate(
-      ['ui/Flow.tsx', '--root', root, '--dry-run'],
-      JSON.stringify({ ops: [{ op: 'create', type: 'text', text: 'ghost', x: 0, y: 0 }] })
-    );
+  test('deleting a connected host freezes the arrow end where it was (never a dangling bind)', () => {
+    seed('ui-freeze', [
+      { id: 'a', type: 'sticky', index: 'a0', x: 0, y: 0, w: 100, h: 100 },
+      { id: 'b', type: 'sticky', index: 'a1', x: 300, y: 0, w: 100, h: 100 },
+      { id: 'ar', type: 'arrow', index: 'a2', start: { el: 'a' }, end: { el: 'b' } },
+    ]);
+    const res = annotate(['ui/Freeze.tsx'], { ops: [{ op: 'delete', id: 'b' }] });
     expect(res.code).toBe(0);
-    expect(res.out).toContain('ghost');
-    expect(readSvg()).toBe(before);
+    expect(byId('ui-freeze').ar?.end).toEqual({ x: 300, y: 50 });
   });
 
-  test('--in places inside the artboard bounds (top-left + inset)', () => {
-    const manifest = JSON.stringify({
+  test('an unknown connect target fails loud and writes nothing', () => {
+    const before = boardText('ui-flow');
+    const res = annotate(['ui/Flow.tsx'], { ops: [{ op: 'connect', from: '@ghost', to: 'nope' }] });
+    expect(res.code).toBe(2);
+    expect(res.err).toContain('unknown ref "@ghost"');
+    expect(boardText('ui-flow')).toBe(before);
+  });
+
+  test('a connect to an element that takes no arrow ends fails loud', () => {
+    seed('ui-nobind', [
+      { id: 'a', type: 'sticky', index: 'a0', x: 0, y: 0, w: 100, h: 100 },
+      { id: 'p', type: 'pen', index: 'a1', points: [0, 300, 100, 320] },
+    ]);
+    const res = annotate(['ui/NoBind.tsx'], { ops: [{ op: 'connect', from: 'a', to: 'p' }] });
+    expect(res.code).toBe(2);
+    expect(res.err).toContain("can't take an arrow end");
+  });
+
+  test('an unknown type / field / value fails loud, naming what is allowed', () => {
+    const t = annotate(['ui/Bad.tsx'], { ops: [{ op: 'create', type: 'blob', x: 0, y: 0 }] });
+    expect(t.code).toBe(2);
+    expect(t.err).toContain('types: sticky');
+    const f = annotate(['ui/Bad.tsx'], {
+      ops: [{ op: 'create', type: 'sticky', text: 'x', glitter: true, x: 0, y: 0 }],
+    });
+    expect(f.code).toBe(2);
+    expect(f.err).toContain('sticky has no field "glitter"');
+    const v = annotate(['ui/Bad.tsx'], {
+      ops: [{ op: 'create', type: 'sticky', text: 'x', fill: 'red', x: 0, y: 0 }],
+    });
+    expect(v.code).toBe(2);
+    expect(v.err).toContain('invalid value for sticky.fill');
+    expect(existsSync(pathOf('ui-bad'))).toBe(false);
+  });
+
+  test('--dry-run prints the element ops and writes nothing', () => {
+    const before = boardText('ui-flow');
+    const res = annotate(['ui/Flow.tsx', '--dry-run'], {
+      ops: [{ op: 'create', type: 'text', text: 'ghost', x: 0, y: 0 }],
+    });
+    expect(res.code).toBe(0);
+    const out = JSON.parse(res.out);
+    expect(out.dryRun).toBe(true);
+    expect(out.ops).toHaveLength(1);
+    expect(out.ops[0].op).toBe('put');
+    expect(out.ops[0].el).toMatchObject({ type: 'text', text: 'ghost', author: { kind: 'ai' } });
+    expect(boardText('ui-flow')).toBe(before);
+  });
+
+  test('a created element joins the section its centre lands in (parent-relative coords)', () => {
+    seed('ui-drop', [
+      { id: 'sec', type: 'section', index: 'a0', x: 1000, y: 1000, w: 400, h: 400 },
+    ]);
+    const res = annotate(['ui/Drop.tsx'], {
+      ops: [
+        { op: 'create', type: 'sticky', ref: '@in', text: 'inside', x: 1050, y: 1050 },
+        { op: 'create', type: 'sticky', ref: '@out', text: 'outside', x: 0, y: 0 },
+        {
+          op: 'create',
+          type: 'sticky',
+          ref: '@top',
+          text: 'forced',
+          x: 1100,
+          y: 1100,
+          parent: null,
+        },
+      ],
+    });
+    expect(res.code).toBe(0);
+    const { refs } = JSON.parse(res.out);
+    const els = byId('ui-drop');
+    expect(els[refs['@in']]).toMatchObject({ parent: 'sec', x: 50, y: 50 });
+    expect(els[refs['@out']]?.parent).toBeUndefined();
+    expect(els[refs['@top']]?.parent).toBeUndefined();
+    expect(worldBox('ui-drop', refs['@in'])).toMatchObject({ x: 1050, y: 1050 });
+  });
+});
+
+describe('annotate update / move / reparent / reorder', () => {
+  const seedAll = (slug: string) =>
+    seed(slug, [
+      { id: 'sec', type: 'section', index: 'a0', x: 1000, y: 0, w: 600, h: 600, label: 'Now' },
+      {
+        id: 'st',
+        type: 'sticky',
+        index: 'a1',
+        x: 0,
+        y: 0,
+        w: 200,
+        h: 200,
+        text: 'old',
+        fontSize: 20,
+        bold: true,
+        rot: 5,
+        groups: ['g1'],
+      },
+      {
+        id: 'sh',
+        type: 'shape',
+        index: 'a2',
+        x: 0,
+        y: 400,
+        w: 100,
+        h: 50,
+        label: { text: 'L', fontSize: 18 },
+      },
+      { id: 'kid', type: 'sticky', parent: 'sec', index: 'a0', x: 10, y: 10, w: 100, h: 100 },
+      { id: 'kid2', type: 'sticky', parent: 'sec', index: 'a1', x: 300, y: 10, w: 100, h: 100 },
+      { id: 'img', type: 'image', index: 'a3', x: 0, y: 700, w: 100, h: 100, href: 'assets/a.png' },
+    ]);
+
+  test("update patches only the named fields; text goes to the type's text slot", () => {
+    seedAll('ui-upd');
+    const res = annotate(['ui/Upd.tsx'], {
+      ops: [
+        { op: 'update', id: 'st', text: 'new', color: '#bfe3c0' },
+        { op: 'update', id: 'sh', text: 'Label!' },
+        { op: 'update', id: 'sec', text: 'Later' },
+      ],
+    });
+    expect(res.code).toBe(0);
+    expectCanonical('ui-upd');
+    const els = byId('ui-upd');
+    // Every other field survives — id, fontSize, bold, rotation, groups.
+    expect(els.st).toMatchObject({
+      text: 'new',
+      fill: '#bfe3c0',
+      fontSize: 20,
+      bold: true,
+      rot: 5,
+      groups: ['g1'],
+    });
+    expect(els.sh?.label).toEqual({ text: 'Label!', fontSize: 18 });
+    expect(els.sec?.label).toBe('Later');
+  });
+
+  test('update: null resets a field to its default; world x/y become parent-relative', () => {
+    seedAll('ui-upd2');
+    const res = annotate(['ui/Upd2.tsx'], {
+      ops: [
+        { op: 'update', id: 'st', bold: null },
+        { op: 'update', id: 'kid', x: 1200, y: 50 },
+      ],
+    });
+    expect(res.code).toBe(0);
+    const els = byId('ui-upd2');
+    expect(els.st?.bold).toBeUndefined();
+    expect(els.kid).toMatchObject({ parent: 'sec', x: 200, y: 50 });
+  });
+
+  test('update refuses ids / structure fields / fields the type lacks', () => {
+    seedAll('ui-upd3');
+    const before = boardText('ui-upd3');
+    const p = annotate(['ui/Upd3.tsx'], { ops: [{ op: 'update', id: 'st', parent: 'sec' }] });
+    expect(p.code).toBe(2);
+    expect(p.err).toContain('use reparent');
+    const c = annotate(['ui/Upd3.tsx'], {
+      ops: [{ op: 'set-color', id: 'img', color: '#000000' }],
+    });
+    expect(c.code).toBe(2);
+    expect(c.err).toContain('image has no field "color"');
+    const g = annotate(['ui/Upd3.tsx'], { ops: [{ op: 'update', id: 'ghost', text: 'x' }] });
+    expect(g.code).toBe(2);
+    expect(g.err).toContain('unknown id "ghost"');
+    expect(boardText('ui-upd3')).toBe(before);
+  });
+
+  test("set-text / set-color are update aliases (a sticky's colour is its paper)", () => {
+    seedAll('ui-alias');
+    const res = annotate(['ui/Alias.tsx'], {
+      ops: [
+        { op: 'set-text', id: 'st', text: 'aliased' },
+        { op: 'set-color', id: 'st', color: '#a9dbdb' },
+        { op: 'set-color', id: 'sh', color: '#e93d82' },
+      ],
+    });
+    expect(res.code).toBe(0);
+    const els = byId('ui-alias');
+    expect(els.st).toMatchObject({ text: 'aliased', fill: '#a9dbdb' });
+    expect(els.sh?.color).toBe('#e93d82');
+  });
+
+  test('ops chain inside one batch — on @refs and on existing ids', () => {
+    seedAll('ui-chain');
+    const res = annotate(['ui/Chain.tsx'], {
+      ops: [
+        { op: 'create', type: 'sticky', ref: '@s', text: 'a', x: 0, y: 1000 },
+        { op: 'move', id: '@s', dx: 10, dy: 0 },
+        { op: 'set-text', id: '@s', text: 'b' },
+        { op: 'move', id: 'st', dx: 5, dy: 5 },
+        { op: 'set-text', id: 'st', text: 'c' },
+      ],
+    });
+    expect(res.code).toBe(0);
+    const { refs } = JSON.parse(res.out);
+    const els = byId('ui-chain');
+    expect(els[refs['@s']]).toMatchObject({ x: 10, y: 1000, text: 'b' });
+    expect(els.st).toMatchObject({ x: 5, y: 5, text: 'c', fontSize: 20 });
+  });
+
+  test('move to world x/y joins the section it lands in; out again goes top level', () => {
+    seedAll('ui-move');
+    const into = annotate(['ui/Move.tsx'], { ops: [{ op: 'move', id: 'st', x: 1100, y: 300 }] });
+    expect(into.code).toBe(0);
+    expect(byId('ui-move').st).toMatchObject({ parent: 'sec', x: 100, y: 300 });
+    expect(worldBox('ui-move', 'st')).toMatchObject({ x: 1100, y: 300 });
+    const out = annotate(['ui/Move.tsx'], { ops: [{ op: 'move', id: 'st', x: 0, y: 0 }] });
+    expect(out.code).toBe(0);
+    expect(byId('ui-move').st?.parent).toBeUndefined();
+    expect(worldBox('ui-move', 'st')).toMatchObject({ x: 0, y: 0 });
+  });
+
+  test('moving a section carries its children (their records do not change)', () => {
+    seedAll('ui-movesec');
+    const kidBefore = byId('ui-movesec').kid;
+    const res = annotate(['ui/MoveSec.tsx'], {
+      ops: [{ op: 'move', id: 'sec', dx: 100, dy: 100 }],
+    });
+    expect(res.code).toBe(0);
+    expect(byId('ui-movesec').kid).toEqual(kidBefore as AnnotationElement);
+    expect(worldBox('ui-movesec', 'kid')).toMatchObject({ x: 1110, y: 110 });
+  });
+
+  test('move: a free arrow end moves; an arrow bound at both ends fails loud', () => {
+    seed('ui-movearrow', [
+      { id: 'a', type: 'sticky', index: 'a0', x: 0, y: 0, w: 100, h: 100 },
+      { id: 'b', type: 'sticky', index: 'a1', x: 300, y: 0, w: 100, h: 100 },
+      { id: 'bound', type: 'arrow', index: 'a2', start: { el: 'a' }, end: { el: 'b' } },
+      { id: 'half', type: 'arrow', index: 'a3', start: { el: 'a' }, end: { x: 50, y: 400 } },
+    ]);
+    const bad = annotate(['ui/MoveArrow.tsx'], {
+      ops: [{ op: 'move', id: 'bound', dx: 5, dy: 5 }],
+    });
+    expect(bad.code).toBe(2);
+    expect(bad.err).toContain('bound at both ends');
+    const ok = annotate(['ui/MoveArrow.tsx'], {
+      ops: [{ op: 'move', id: 'half', dx: 10, dy: 20 }],
+    });
+    expect(ok.code).toBe(0);
+    expect(byId('ui-movearrow').half).toMatchObject({ start: { el: 'a' }, end: { x: 60, y: 420 } });
+  });
+
+  test('reparent keeps the world position; it refuses a non-section and its own subtree', () => {
+    seedAll('ui-rep');
+    const res = annotate(['ui/Rep.tsx'], {
+      ops: [
+        { op: 'reparent', id: 'st', parent: 'sec' },
+        { op: 'reparent', id: 'kid', parent: null },
+      ],
+    });
+    expect(res.code).toBe(0);
+    const els = byId('ui-rep');
+    expect(els.st).toMatchObject({ parent: 'sec', x: -1000, y: 0 });
+    expect(worldBox('ui-rep', 'st')).toMatchObject({ x: 0, y: 0 });
+    expect(els.kid?.parent).toBeUndefined();
+    expect(worldBox('ui-rep', 'kid')).toMatchObject({ x: 1010, y: 10 });
+    const notSec = annotate(['ui/Rep.tsx'], { ops: [{ op: 'reparent', id: 'kid', parent: 'sh' }] });
+    expect(notSec.code).toBe(2);
+    expect(notSec.err).toContain('is not a section');
+    const self = annotate(['ui/Rep.tsx'], { ops: [{ op: 'reparent', id: 'sec', parent: 'sec' }] });
+    expect(self.code).toBe(2);
+    expect(self.err).toContain("can't go inside itself");
+  });
+
+  test('reorder changes ONE key: front / back / before / after', () => {
+    seedAll('ui-order');
+    const top = () => new Scene(board('ui-order')).childrenOf(null).map((e) => e.id);
+    expect(top()).toEqual(['sec', 'st', 'sh', 'img']);
+    const r1 = annotate(['ui/Order.tsx'], { ops: [{ op: 'reorder', id: 'sec', to: 'front' }] });
+    expect(r1.code).toBe(0);
+    expect(top()).toEqual(['st', 'sh', 'img', 'sec']);
+    annotate(['ui/Order.tsx'], { ops: [{ op: 'reorder', id: 'img', to: 'back' }] });
+    expect(top()).toEqual(['img', 'st', 'sh', 'sec']);
+    annotate(['ui/Order.tsx'], { ops: [{ op: 'reorder', id: 'sec', before: 'st' }] });
+    expect(top()).toEqual(['img', 'sec', 'st', 'sh']);
+    const before = board('ui-order');
+    annotate(['ui/Order.tsx'], { ops: [{ op: 'reorder', id: 'img', after: 'sh' }] });
+    expect(top()).toEqual(['sec', 'st', 'sh', 'img']);
+    // Only the moved element's record changed.
+    const after = byId('ui-order');
+    for (const e of before) if (e.id !== 'img') expect(after[e.id]).toEqual(e);
+    const notSib = annotate(['ui/Order.tsx'], {
+      ops: [{ op: 'reorder', id: 'st', before: 'kid' }],
+    });
+    expect(notSib.code).toBe(2);
+    expect(notSib.err).toContain('not a sibling');
+  });
+
+  test('a single-element update stays tiny whatever the board size (token gate)', () => {
+    const many = Array.from({ length: 200 }, (_, i) => ({
+      id: `n${i}`,
+      type: 'sticky',
+      index: `a${i.toString(36)}`,
+      x: (i % 20) * 220,
+      y: Math.floor(i / 20) * 220,
+      w: 200,
+      h: 200,
+      text: `note ${i}`,
+    }));
+    seed('ui-big', many);
+    const input = { ops: [{ op: 'update', id: 'n42', text: 'shipped' }] };
+    // What the agent writes: well under 40 tokens (~4 bytes/token).
+    expect(JSON.stringify(input).length).toBeLessThanOrEqual(160);
+    const dry = annotate(['ui/Big.tsx', '--dry-run'], input);
+    expect(dry.code).toBe(0);
+    const ops = JSON.parse(dry.out).ops;
+    expect(ops).toEqual([
+      { op: 'patch', id: 'n42', set: { text: 'shipped' }, expect: { text: 'note 42' } },
+    ]);
+  });
+});
+
+describe('annotate — the board file is guarded', () => {
+  test('an existing board that is not a board is refused, and left untouched', () => {
+    writeFileSync(pathOf('ui-corrupt'), '{"format":"something-else"}');
+    const res = annotate(['ui/Corrupt.tsx'], {
+      ops: [{ op: 'create', type: 'sticky', text: 'x', x: 0, y: 0 }],
+    });
+    expect(res.code).toBe(2);
+    expect(res.err).toContain('not a valid board — refusing to write over it');
+    expect(boardText('ui-corrupt')).toBe('{"format":"something-else"}');
+  });
+
+  test('a symlinked board is never read through nor written through (W1)', () => {
+    const outside = mkdtempSync(join(tmpdir(), 'annotate-outside-'));
+    const victim = join(outside, 'victim.json');
+    writeFileSync(victim, 'keep me');
+    symlinkSync(victim, pathOf('ui-link'));
+    const res = annotate(['ui/Link.tsx'], {
+      ops: [{ op: 'create', type: 'sticky', text: 'x', x: 0, y: 0 }],
+    });
+    expect(res.code).not.toBe(0);
+    expect(readFileSync(victim, 'utf8')).toBe('keep me');
+    rmSync(outside, { recursive: true, force: true });
+  });
+
+  test('a symlinked _state/ scratch dir is refused — no temp file lands outside (W1)', () => {
+    const outside = mkdtempSync(join(tmpdir(), 'annotate-state-'));
+    const state = join(root, '.design', '_state');
+    const had = existsSync(state);
+    if (had) rmSync(state, { recursive: true, force: true });
+    symlinkSync(outside, state);
+    try {
+      const res = annotate(['ui/Scratch.tsx'], {
+        ops: [{ op: 'create', type: 'sticky', text: 'x', x: 0, y: 0 }],
+      });
+      expect(res.code).not.toBe(0);
+      expect(existsSync(pathOf('ui-scratch'))).toBe(false);
+    } finally {
+      rmSync(state, { force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  test('an oversized board is refused before it is read', () => {
+    writeFileSync(pathOf('ui-huge'), 'x'.repeat(4 * 1024 * 1024 + 10));
+    const res = annotate(['ui/Huge.tsx'], {
+      ops: [{ op: 'create', type: 'sticky', text: 'x', x: 0, y: 0 }],
+    });
+    expect(res.code).toBe(2);
+    expect(res.err).toContain('refusing to read');
+  });
+
+  test('a legacy .annotations.svg is migrated on read and written back as .json', () => {
+    writeFileSync(
+      join(root, '.design', 'ui-legacy.annotations.svg'),
+      '<svg xmlns="http://www.w3.org/2000/svg" data-mdcc-annotations="1"><g data-id="s1" data-tool="sticky" fill="#fce8a6"><rect x="0" y="0" width="200" height="200" rx="8" ry="8"/><text data-sticky-body="1" x="12" y="12" font-size="14" fill="#1a1a1a" dominant-baseline="hanging">legacy</text></g></svg>'
+    );
+    const res = annotate(['ui/Legacy.tsx'], {
+      ops: [{ op: 'set-text', id: 's1', text: 'migrated' }],
+    });
+    expect(res.code).toBe(0);
+    expect(byId('ui-legacy').s1?.text).toBe('migrated');
+  });
+});
+
+describe('annotate placement: --in / --pin / --near', () => {
+  const rects = (name: string, body: unknown) => {
+    const p = join(root, name);
+    writeFileSync(p, JSON.stringify(body));
+    return p;
+  };
+
+  test('--in places inside the artboard (top-left + inset)', () => {
+    const p = rects('rects-in.json', {
       artboards: [{ id: 'hero', x: 1000, y: 2000, w: 400, h: 300 }],
       elements: [],
-      elementsTruncated: false,
     });
-    writeFileSync(join(root, 'rects.json'), manifest);
-    const res = runAnnotate(
-      ['ui/Pin.tsx', '--root', root, '--rects', join(root, 'rects.json'), '--in', 'hero'],
-      JSON.stringify({ ops: [{ op: 'create', type: 'sticky', text: 'inside hero' }] })
-    );
+    const res = annotate(['ui/In.tsx', '--rects', p, '--in', 'hero'], {
+      ops: [{ op: 'create', type: 'sticky', text: 'inside hero' }],
+    });
     expect(res.code).toBe(0);
-    const svg = readFileSync(join(root, '.design', 'ui-pin.annotations.svg'), 'utf8');
-    const [sticky] = svgToStrokes(svg).filter((s): s is StickyStroke => s.tool === 'sticky');
-    expect(sticky?.x).toBe(1040); // hero.x + 40 inset
-    expect(sticky?.y).toBe(2040); // hero.y + 40 inset
+    const [s] = board('ui-in');
+    expect(s).toMatchObject({ x: 1040, y: 2040 });
   });
 
   test('--in with an unknown artboard fails loud, writes nothing', () => {
-    const manifest = JSON.stringify({
-      artboards: [{ id: 'hero', x: 0, y: 0, w: 400, h: 300 }],
-      elements: [],
-      elementsTruncated: false,
+    const p = rects('rects-in2.json', { artboards: [{ id: 'hero', x: 0, y: 0, w: 1, h: 1 }] });
+    const res = annotate(['ui/InMissing.tsx', '--rects', p, '--in', 'ghost'], {
+      ops: [{ op: 'create', type: 'sticky', text: 'x' }],
     });
-    writeFileSync(join(root, 'rects2.json'), manifest);
-    const res = runAnnotate(
-      ['ui/PinMissing.tsx', '--root', root, '--rects', join(root, 'rects2.json'), '--in', 'ghost'],
-      JSON.stringify({ ops: [{ op: 'create', type: 'sticky', text: 'x' }] })
-    );
     expect(res.code).toBe(2);
     expect(res.err).toMatch(/unknown artboard "ghost"/);
+    expect(existsSync(pathOf('ui-inmissing'))).toBe(false);
   });
 
-  test('--pin places beside the element and draws a pointer arrow to it', () => {
-    const manifest = JSON.stringify({
-      artboards: [{ id: 'hero', x: 0, y: 0, w: 1000, h: 800 }],
-      elements: [
-        {
-          cdId: 'cta1',
-          selector: '[data-dc-screen="hero"] [data-cd-id="cta1"]',
-          index: 0,
-          artboard: 'hero',
-          x: 500,
-          y: 500,
-          w: 120,
-          h: 40,
-          tag: 'button',
-          text: 'Continue',
-        },
-      ],
-      elementsTruncated: false,
+  const cta = {
+    cdId: 'cta1',
+    selector: '[data-cd-id="cta1"]',
+    x: 500,
+    y: 500,
+    w: 120,
+    h: 40,
+    tag: 'button',
+    text: 'Continue',
+  };
+
+  test('--pin places beside the element with a pointer arrow bound to the note', () => {
+    const p = rects('rects-pin.json', { artboards: [], elements: [cta] });
+    const res = annotate(['ui/Pin.tsx', '--rects', p, '--pin', 'cta1'], {
+      ops: [{ op: 'create', type: 'sticky', text: 'make this bigger' }],
     });
-    writeFileSync(join(root, 'rects3.json'), manifest);
-    const res = runAnnotate(
-      ['ui/Callout.tsx', '--root', root, '--rects', join(root, 'rects3.json'), '--pin', 'cta1'],
-      JSON.stringify({ ops: [{ op: 'create', type: 'sticky', text: 'make this bigger' }] })
-    );
     expect(res.code).toBe(0);
-    const svg = readFileSync(join(root, '.design', 'ui-callout.annotations.svg'), 'utf8');
-    expect(sanitizeAnnotationSvg(svg)).toBe(svg);
-    const strokes = svgToStrokes(svg);
-    expect(strokesToSvg(strokes)).toBe(svg);
-    const [sticky] = strokes.filter((s): s is StickyStroke => s.tool === 'sticky');
-    expect(sticky?.x).toBe(660); // element.x (500) + element.w (120) + 40 gap
-    expect(sticky?.y).toBe(500); // element.y
-    const arrows = strokes.filter((s): s is ArrowStroke => s.tool === 'arrow');
+    expectCanonical('ui-pin');
+    const sticky = board('ui-pin').find((e) => e.type === 'sticky');
+    expect(sticky).toMatchObject({ x: 660, y: 500 }); // cta.x + cta.w + 40
+    const arrows = board('ui-pin').filter((e) => e.type === 'arrow');
     expect(arrows).toHaveLength(1);
-    expect(arrows[0]?.author).toBe('ai');
-    // The pointer arrow is a snapshot, NOT a magnetic bind (no DOM host in this SVG).
-    expect(arrows[0]?.startBind).toBeUndefined();
-    expect(arrows[0]?.endBind).toBeUndefined();
+    // Start follows the note; the end is a free point on the DOM element's edge.
+    expect(arrows[0]?.start).toEqual({ el: sticky?.id });
+    // The element side facing the note centre (760, 600): its bottom middle.
+    expect(arrows[0]?.end).toEqual({ x: 560, y: 540 });
+    expect(arrows[0]?.author).toEqual({ kind: 'ai' });
   });
 
-  test('--pin to an unknown element fails loud, writes nothing', () => {
-    const manifest = JSON.stringify({ artboards: [], elements: [], elementsTruncated: false });
-    writeFileSync(join(root, 'rects4.json'), manifest);
-    const res = runAnnotate(
-      ['ui/PinGhost.tsx', '--root', root, '--rects', join(root, 'rects4.json'), '--pin', 'ghost'],
-      JSON.stringify({ ops: [{ op: 'create', type: 'sticky', text: 'x' }] })
-    );
+  test('--pin to an unknown element fails loud', () => {
+    const p = rects('rects-pin2.json', { artboards: [], elements: [] });
+    const res = annotate(['ui/PinGhost.tsx', '--rects', p, '--pin', 'ghost'], {
+      ops: [{ op: 'create', type: 'sticky', text: 'x' }],
+    });
     expect(res.code).toBe(2);
     expect(res.err).toMatch(/element "ghost" not found/);
   });
 
-  test('--no-pointer suppresses the arrow but keeps the placement', () => {
-    const manifest = JSON.stringify({
+  test('--no-pointer keeps the placement and skips the arrow; a per-op pin overrides', () => {
+    const p = rects('rects-pin3.json', {
       artboards: [],
-      elements: [
-        {
-          cdId: 'cta2',
-          selector: '[data-cd-id="cta2"]',
-          index: 0,
-          artboard: null,
-          x: 0,
-          y: 0,
-          w: 100,
-          h: 40,
-          tag: 'button',
-          text: 'Go',
-        },
-      ],
-      elementsTruncated: false,
+      elements: [cta, { ...cta, cdId: 'target', x: 900, y: 900, w: 50, h: 50 }],
     });
-    writeFileSync(join(root, 'rects5.json'), manifest);
-    const res = runAnnotate(
-      [
-        'ui/NoPointer.tsx',
-        '--root',
-        root,
-        '--rects',
-        join(root, 'rects5.json'),
-        '--pin',
-        'cta2',
-        '--no-pointer',
+    const res = annotate(['ui/NoPointer.tsx', '--rects', p, '--pin', 'cta1', '--no-pointer'], {
+      ops: [
+        { op: 'create', type: 'sticky', ref: '@a', text: 'quiet' },
+        { op: 'create', type: 'sticky', ref: '@b', text: 'pinned', pin: 'target' },
       ],
-      JSON.stringify({ ops: [{ op: 'create', type: 'sticky', text: 'quiet note' }] })
-    );
+    });
     expect(res.code).toBe(0);
-    const strokes = svgToStrokes(
-      readFileSync(join(root, '.design', 'ui-nopointer.annotations.svg'), 'utf8')
-    );
-    expect(strokes.filter((s) => s.tool === 'sticky')).toHaveLength(1);
-    expect(strokes.filter((s) => s.tool === 'arrow')).toHaveLength(0);
+    const { refs } = JSON.parse(res.out);
+    const els = byId('ui-nopointer');
+    expect(board('ui-nopointer').filter((e) => e.type === 'arrow')).toHaveLength(0);
+    expect(els[refs['@a']]).toMatchObject({ x: 660, y: 500 });
+    expect(els[refs['@b']]).toMatchObject({ x: 990, y: 900 });
   });
 
-  test('per-op "pin" overrides the batch default for just that op', () => {
-    const manifest = JSON.stringify({
-      artboards: [],
-      elements: [
-        {
-          cdId: 'target',
-          selector: '[data-cd-id="target"]',
-          index: 0,
-          artboard: null,
-          x: 900,
-          y: 900,
-          w: 50,
-          h: 50,
-          tag: 'span',
-          text: 'here',
-        },
-      ],
-      elementsTruncated: false,
+  test('--near places a whole board beside an artboard', () => {
+    const p = rects('rects-near.json', {
+      artboards: [{ id: 'hero', x: 2000, y: 3000, w: 400, h: 300 }],
     });
-    writeFileSync(join(root, 'rects6.json'), manifest);
-    const res = runAnnotate(
-      ['ui/OpPin.tsx', '--root', root, '--rects', join(root, 'rects6.json')],
-      JSON.stringify({
-        ops: [
-          { op: 'create', type: 'sticky', ref: '@a', text: 'default placement', x: 5, y: 5 },
-          { op: 'create', type: 'sticky', ref: '@b', text: 'pinned', pin: 'target' },
-        ],
-      })
+    writeFileSync(
+      join(root, 'near-board.json'),
+      JSON.stringify({ groups: [{ title: 'Notes', cards: ['x'] }] })
     );
+    const res = annotate([
+      'ui/NearBoard.tsx',
+      '--rects',
+      p,
+      '--near',
+      'hero',
+      '--board',
+      join(root, 'near-board.json'),
+    ]);
     expect(res.code).toBe(0);
-    const strokes = svgToStrokes(
-      readFileSync(join(root, '.design', 'ui-oppin.annotations.svg'), 'utf8')
-    );
-    const pinned = strokes.find(
-      (s) => s.tool === 'sticky' && (s as StickyStroke).text === 'pinned'
-    );
-    expect((pinned as StickyStroke)?.x).toBe(990); // target.x (900) + target.w (50) + 40 gap
-    expect((pinned as StickyStroke)?.y).toBe(900);
-  });
-
-  test('non-loopback _server.json.url is refused — writes to file, never PUTs off-box (F2)', () => {
-    // A poisoned/foreign _server.json points the egress at an external host.
-    // The verb must NOT PUT there (SSRF/exfil); it falls back to the file write.
-    const serverJson = join(root, '.design', '_server.json');
-    writeFileSync(serverJson, JSON.stringify({ url: 'http://attacker.example.com:4399' }));
-    try {
-      const res = runAnnotate(
-        ['ui/F2.tsx', '--root', root],
-        JSON.stringify({ ops: [{ op: 'create', type: 'text', text: 'secret', x: 0, y: 0 }] })
-      );
-      expect(res.code).toBe(0);
-      // via:"file" proves the off-box PUT was skipped (a successful PUT → "server").
-      expect(JSON.parse(res.out).via).toBe('file');
-      const svg = readFileSync(join(root, '.design', 'ui-f2.annotations.svg'), 'utf8');
-      expect(svg).toContain('secret');
-    } finally {
-      rmSync(serverJson, { force: true });
-    }
+    const sec = board('ui-nearboard').find((e) => e.type === 'section');
+    expect(sec).toMatchObject({ x: 2480, y: 3000 }); // hero.x + hero.w + 80
   });
 });
 
-// feature-whiteboard-ai-toolkit — the generic --board template engine. Named
-// presets (retro / kanban / social-calendar / roadmap / brainstorm /
-// checklist / user-flow) aren't hardcoded in annotate.mjs — these specs are
-// exactly the shape the `whiteboard` skill documents as fixtures.
-describe('annotate --board', () => {
-  function sections(strokes: Stroke[]) {
-    return strokes
-      .filter((s): s is Stroke & { x: number; w: number; label: string } => s.tool === 'section')
-      .sort((a, b) => a.x - b.x);
-  }
-
-  function noOverlap(rects: Array<{ x: number; w: number }>) {
-    for (let i = 1; i < rects.length; i += 1) {
-      const prev = rects[i - 1] as { x: number; w: number };
-      const cur = rects[i] as { x: number; w: number };
-      expect(cur.x).toBeGreaterThanOrEqual(prev.x + prev.w);
+describe('annotate --board templates', () => {
+  const spec = (name: string, body: unknown) => {
+    const p = join(root, name);
+    writeFileSync(p, JSON.stringify(body));
+    return p;
+  };
+  const sections = (slug: string) =>
+    board(slug)
+      .filter((e) => e.type === 'section')
+      .sort((a, b) => (a.x as number) - (b.x as number));
+  const noOverlap = (rs: AnnotationElement[]) => {
+    for (let i = 1; i < rs.length; i += 1) {
+      const prev = rs[i - 1] as AnnotationElement;
+      expect(rs[i]?.x as number).toBeGreaterThanOrEqual((prev.x as number) + (prev.w as number));
     }
-  }
+  };
 
-  test('retro (columns, empty) — 3 evenly-spaced, non-overlapping blank sections', () => {
-    const spec = {
-      title: 'Sprint 42 retro',
+  test('retro (columns, empty) — evenly-spaced blank sections', () => {
+    const p = spec('retro-empty.json', {
       groups: [
         { title: 'What went well', cards: [] },
         { title: 'What to improve', cards: [] },
         { title: 'Action items', cards: [] },
       ],
-    };
-    writeFileSync(join(root, 'retro-empty.json'), JSON.stringify(spec));
-    const res = runAnnotate([
-      'ui/RetroEmpty.tsx',
-      '--root',
-      root,
-      '--board',
-      join(root, 'retro-empty.json'),
-    ]);
+    });
+    const res = annotate(['ui/RetroEmpty.tsx', '--board', p]);
     expect(res.code).toBe(0);
-    const svg = readFileSync(join(root, '.design', 'ui-retroempty.annotations.svg'), 'utf8');
-    expect(sanitizeAnnotationSvg(svg)).toBe(svg);
-    const strokes = svgToStrokes(svg);
-    expect(strokesToSvg(strokes)).toBe(svg);
-    const secs = sections(strokes);
-    expect(secs).toHaveLength(3);
+    expectCanonical('ui-retroempty');
+    const secs = sections('ui-retroempty');
     expect(secs.map((s) => s.label)).toEqual(['What went well', 'What to improve', 'Action items']);
-    // Every empty section gets the SAME clean default height.
     expect(new Set(secs.map((s) => s.h)).size).toBe(1);
     noOverlap(secs);
-    expect(strokes.filter((s) => s.tool === 'sticky')).toHaveLength(0);
   });
 
-  test('retro (columns, seeded) — cards stack inside their section without overlap', () => {
-    const spec = {
+  test("retro (columns, seeded) — cards are the section's CHILDREN, stacked without overlap", () => {
+    const p = spec('retro-seeded.json', {
       groups: [
-        { title: 'Went well', cards: ['shipped on time', 'good pairing'] },
+        {
+          title: 'Went well',
+          color: '#bbf7d0',
+          cards: ['shipped on time', { text: 'good pairing', color: '#a9dbdb' }],
+        },
         { title: 'To improve', cards: ['too many meetings'] },
       ],
-    };
-    writeFileSync(join(root, 'retro-seeded.json'), JSON.stringify(spec));
-    const res = runAnnotate([
-      'ui/RetroSeeded.tsx',
-      '--root',
-      root,
-      '--board',
-      join(root, 'retro-seeded.json'),
-    ]);
+    });
+    const res = annotate(['ui/RetroSeeded.tsx', '--board', p]);
     expect(res.code).toBe(0);
-    const strokes = svgToStrokes(
-      readFileSync(join(root, '.design', 'ui-retroseeded.annotations.svg'), 'utf8')
+    const [well, improve] = sections('ui-retroseeded');
+    expect(well?.color).toBe('#bbf7d0');
+    noOverlap([well, improve] as AnnotationElement[]);
+    const kids = board('ui-retroseeded')
+      .filter((e) => e.parent === well?.id)
+      .sort((a, b) => (a.y as number) - (b.y as number));
+    expect(kids.map((k) => k.text)).toEqual(['shipped on time', 'good pairing']);
+    expect(kids[1]?.fill).toBe('#a9dbdb');
+    expect(kids[1]?.y as number).toBeGreaterThanOrEqual(
+      (kids[0]?.y as number) + (kids[0]?.h as number)
     );
-    const secs = sections(strokes);
-    expect(secs).toHaveLength(2);
-    noOverlap(secs);
-    const stickies = strokes.filter((s): s is StickyStroke => s.tool === 'sticky');
-    expect(stickies.map((s) => s.text).sort()).toEqual(
-      ['good pairing', 'shipped on time', 'too many meetings'].sort()
-    );
-    // The 2 cards in the first section stack vertically, not overlapping.
-    const wellCards = stickies.filter((s) => s.x === stickies[0]?.x);
-    const byY = [...wellCards].sort((a, b) => a.y - b.y);
-    for (let i = 1; i < byY.length; i += 1) {
-      const prev = byY[i - 1] as StickyStroke;
-      const cur = byY[i] as StickyStroke;
-      expect(cur.y).toBeGreaterThanOrEqual(prev.y + prev.h);
-    }
+    expect(board('ui-retroseeded').filter((e) => e.parent === improve?.id)).toHaveLength(1);
   });
 
-  test('social-calendar shape (7 columns) — 7 sections + 7 stickies, no overlap', () => {
+  test('social calendar (7 columns) — 7 sections + 7 stickies, no overlap', () => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const spec = { groups: days.map((d) => ({ title: d, cards: [`${d} post idea`] })) };
-    writeFileSync(join(root, 'calendar.json'), JSON.stringify(spec));
-    const res = runAnnotate([
-      'ui/Calendar.tsx',
-      '--root',
-      root,
-      '--board',
-      join(root, 'calendar.json'),
-    ]);
+    const p = spec('calendar.json', {
+      groups: days.map((d) => ({ title: d, cards: [`${d} post`] })),
+    });
+    const res = annotate(['ui/Calendar.tsx', '--board', p]);
     expect(res.code).toBe(0);
-    const strokes = svgToStrokes(
-      readFileSync(join(root, '.design', 'ui-calendar.annotations.svg'), 'utf8')
-    );
-    const secs = sections(strokes);
-    expect(secs).toHaveLength(7);
+    const secs = sections('ui-calendar');
     expect(secs.map((s) => s.label)).toEqual(days);
     noOverlap(secs);
-    expect(strokes.filter((s) => s.tool === 'sticky')).toHaveLength(7);
+    expect(board('ui-calendar').filter((e) => e.type === 'sticky')).toHaveLength(7);
   });
 
-  test('user-flow (layout: "flow") delegates to the SAME auto-layout as --flow, reads back as a graph', () => {
-    const spec = {
+  test('user flow (layout "flow") shares --flow\'s layout and reads back as a graph', () => {
+    const p = spec('userflow.json', {
       layout: 'flow',
       nodes: [
         { id: 'start', label: 'Landing' },
@@ -471,604 +784,295 @@ describe('annotate --board', () => {
         { from: 'start', to: 'signup' },
         { from: 'signup', to: 'done', label: 'verified' },
       ],
-    };
-    writeFileSync(join(root, 'userflow.json'), JSON.stringify(spec));
-    const res = runAnnotate([
-      'ui/UserFlow.tsx',
-      '--root',
-      root,
-      '--board',
-      join(root, 'userflow.json'),
-    ]);
+    });
+    const res = annotate(['ui/UserFlow.tsx', '--board', p]);
     expect(res.code).toBe(0);
-    const svg = readFileSync(join(root, '.design', 'ui-userflow.annotations.svg'), 'utf8');
-    expect(sanitizeAnnotationSvg(svg)).toBe(svg);
-    const strokes = svgToStrokes(svg);
-    expect(strokesToSvg(strokes)).toBe(svg);
-    const arrows = strokes.filter((s): s is ArrowStroke => s.tool === 'arrow');
-    expect(arrows).toHaveLength(2);
-    for (const a of arrows) {
-      expect(a.startBind?.hostId).toBeDefined();
-      expect(a.endBind?.hostId).toBeDefined();
-    }
-    const proc = Bun.spawnSync(['node', READER, 'ui/UserFlow.tsx', '--root', root, '--graph']);
-    const parsed = JSON.parse(new TextDecoder().decode(proc.stdout)) as {
-      graph: { nodes: Array<{ label: string | null }>; edges: unknown[] };
-    };
+    const parsed = readGraph('ui/UserFlow.tsx');
     expect(parsed.graph.edges).toHaveLength(2);
-    expect(parsed.graph.nodes.map((n) => n.label).sort()).toEqual([
+    expect(parsed.graph.nodes.map((n) => n.text).sort()).toEqual([
       'Landing',
       'Onboarded',
       'Sign up',
     ]);
   });
 
-  test('brainstorm (layout: "radial") — a center topic + cards ringed around it', () => {
-    const spec = {
+  test('brainstorm (radial) — a centre topic ellipse + ideas around it', () => {
+    const p = spec('brainstorm.json', {
       title: 'How do we grow retention?',
       layout: 'radial',
-      groups: [{ title: 'ideas', cards: ['onboarding email', 'in-app tips', 'referral bonus'] }],
-    };
-    writeFileSync(join(root, 'brainstorm.json'), JSON.stringify(spec));
-    const res = runAnnotate([
-      'ui/Brainstorm.tsx',
-      '--root',
-      root,
-      '--board',
-      join(root, 'brainstorm.json'),
-    ]);
+      groups: [{ cards: ['onboarding email', 'in-app tips', 'referral bonus'] }],
+    });
+    const res = annotate(['ui/Brainstorm.tsx', '--board', p]);
     expect(res.code).toBe(0);
-    const strokes = svgToStrokes(
-      readFileSync(join(root, '.design', 'ui-brainstorm.annotations.svg'), 'utf8')
-    );
-    const center = strokes.find((s) => s.tool === 'ellipse');
-    expect(center).toBeDefined();
-    const centerLabel = strokes.find(
-      (s) => s.tool === 'text' && (s as Stroke & { anchorId?: string }).anchorId === center?.id
-    );
-    expect((centerLabel as Stroke & { text: string })?.text).toBe('How do we grow retention?');
-    const ideas = strokes.filter((s): s is StickyStroke => s.tool === 'sticky');
-    expect(ideas).toHaveLength(3);
-    expect(ideas.map((s) => s.text).sort()).toEqual(
-      ['in-app tips', 'onboarding email', 'referral bonus'].sort()
-    );
+    const center = board('ui-brainstorm').find((e) => e.type === 'shape');
+    expect(center?.kind).toBe('ellipse');
+    expect((center?.label as { text: string } | undefined)?.text).toBe('How do we grow retention?');
+    expect(board('ui-brainstorm').filter((e) => e.type === 'sticky')).toHaveLength(3);
   });
 
-  test('connections[] draws bound arrows between minted section refs', () => {
-    const spec = {
+  test('connections[] draws bound arrows between minted refs', () => {
+    const p = spec('connected.json', {
       groups: [
         { title: 'Backlog', cards: ['idea A'] },
         { title: 'Done', cards: ['shipped B'] },
       ],
       connections: [{ from: '@sec0', to: '@sec1', label: 'promoted' }],
-    };
-    writeFileSync(join(root, 'connected.json'), JSON.stringify(spec));
-    const res = runAnnotate([
-      'ui/Connected.tsx',
-      '--root',
-      root,
-      '--board',
-      join(root, 'connected.json'),
-    ]);
+    });
+    const res = annotate(['ui/Connected.tsx', '--board', p]);
     expect(res.code).toBe(0);
-    const strokes = svgToStrokes(
-      readFileSync(join(root, '.design', 'ui-connected.annotations.svg'), 'utf8')
-    );
-    const arrows = strokes.filter((s): s is ArrowStroke => s.tool === 'arrow');
+    const arrows = board('ui-connected').filter((e) => e.type === 'arrow');
     expect(arrows).toHaveLength(1);
-    expect(arrows[0]?.startBind?.hostId).toBeDefined();
-    expect(arrows[0]?.endBind?.hostId).toBeDefined();
+    expect(arrows[0]?.start).toHaveProperty('el');
+    expect(arrows[0]?.end).toHaveProperty('el');
+    expect(board('ui-connected').some((e) => e.type === 'text' && e.text === 'promoted')).toBe(
+      true
+    );
   });
 
-  test('--board and --ops together are rejected as mutually exclusive', () => {
-    writeFileSync(join(root, 'excl.json'), JSON.stringify({ groups: [{ cards: [] }] }));
-    const res = runAnnotate([
-      'ui/Excl.tsx',
-      '--root',
-      root,
-      '--board',
-      join(root, 'excl.json'),
-      '--ops',
-      join(root, 'excl.json'),
-    ]);
+  test('--board and --ops together are rejected', () => {
+    const p = spec('excl.json', { groups: [{ cards: [] }] });
+    const res = annotate(['ui/Excl.tsx', '--board', p, '--ops', p]);
     expect(res.code).toBe(2);
     expect(res.err).toMatch(/mutually exclusive/);
   });
 
-  test('--near places the whole board beside an artboard', () => {
-    const manifest = JSON.stringify({
-      artboards: [{ id: 'hero', x: 2000, y: 3000, w: 400, h: 300 }],
-      elements: [],
-      elementsTruncated: false,
-    });
-    writeFileSync(join(root, 'rects-board.json'), manifest);
-    const spec = { groups: [{ title: 'Notes', cards: ['x'] }] };
-    writeFileSync(join(root, 'near-board.json'), JSON.stringify(spec));
-    const res = runAnnotate([
-      'ui/NearBoard.tsx',
-      '--root',
-      root,
-      '--rects',
-      join(root, 'rects-board.json'),
-      '--near',
-      'hero',
-      '--board',
-      join(root, 'near-board.json'),
-    ]);
-    expect(res.code).toBe(0);
-    const strokes = svgToStrokes(
-      readFileSync(join(root, '.design', 'ui-nearboard.annotations.svg'), 'utf8')
-    );
-    const [sec] = sections(strokes);
-    expect(sec?.x).toBe(2000 + 400 + 80); // hero.x + hero.w + 80 gap (existing --near math)
-    expect(sec?.y).toBe(3000);
-  });
-
-  // Security regression (feature-whiteboard-ai-toolkit review, F-board-dos):
-  // groups[]/cards[] had no size cap before expansion — MAX_ANNOTATIONS_BYTES
-  // only rejected AFTER full expansion + serialization, so a pathological
-  // spec could burn CPU/memory before hitting it. These fail loud up front.
-  test('--board rejects a groups[] array over the cap', () => {
-    const spec = { groups: Array.from({ length: 25 }, (_, i) => ({ title: `g${i}`, cards: [] })) };
-    writeFileSync(join(root, 'board-toomanygroups.json'), JSON.stringify(spec));
-    const res = runAnnotate([
-      'ui/BoardTooManyGroups.tsx',
-      '--root',
-      root,
-      '--board',
-      join(root, 'board-toomanygroups.json'),
-    ]);
+  // Security regressions (feature-whiteboard-ai-toolkit review): every array a
+  // spec can use to manufacture ops is capped BEFORE expansion.
+  test.each([
+    [
+      { groups: Array.from({ length: 25 }, (_, i) => ({ title: `g${i}`, cards: [] })) },
+      /groups\[\] has 25, max 20/,
+    ],
+    [
+      { groups: [{ title: 'g', cards: Array.from({ length: 60 }, (_, i) => `c${i}`) }] },
+      /has 60 cards, max 50/,
+    ],
+    [
+      {
+        groups: Array.from({ length: 20 }, (_, i) => ({
+          title: `g${i}`,
+          cards: Array.from({ length: 16 }, () => 'c'),
+        })),
+      },
+      /320 total cards across groups, max 300/,
+    ],
+    [
+      { layout: 'flow', nodes: Array.from({ length: 201 }, (_, i) => ({ id: `n${i}` })) },
+      /nodes\[\] has 201, max 200/,
+    ],
+    [
+      {
+        groups: [{ title: 'g', cards: ['a'] }],
+        connections: Array.from({ length: 401 }, () => ({ from: '@sec0', to: '@sec0card0' })),
+      },
+      /connections\[\] has 401, max 400/,
+    ],
+  ])('--board caps: %#', (body, msg) => {
+    const p = spec('capped.json', body);
+    const res = annotate(['ui/Capped.tsx', '--board', p]);
     expect(res.code).toBe(2);
-    expect(res.err).toMatch(/groups\[\] has 25, max 20/);
+    expect(res.err).toMatch(msg);
   });
 
-  test('--board rejects a single group with too many cards', () => {
-    const spec = { groups: [{ title: 'g', cards: Array.from({ length: 60 }, (_, i) => `c${i}`) }] };
-    writeFileSync(join(root, 'board-toomanycards.json'), JSON.stringify(spec));
-    const res = runAnnotate([
-      'ui/BoardTooManyCards.tsx',
-      '--root',
-      root,
-      '--board',
-      join(root, 'board-toomanycards.json'),
-    ]);
-    expect(res.code).toBe(2);
-    expect(res.err).toMatch(/has 60 cards, max 50/);
-  });
-
-  test('--board rejects total cards over the cap even when spread across groups', () => {
-    const spec = {
-      groups: Array.from({ length: 20 }, (_, i) => ({
-        title: `g${i}`,
-        cards: Array.from({ length: 16 }, (_, j) => `c${i}-${j}`), // 20*16 = 320 > 300
-      })),
-    };
-    writeFileSync(join(root, 'board-toomanytotal.json'), JSON.stringify(spec));
-    const res = runAnnotate([
-      'ui/BoardTooManyTotal.tsx',
-      '--root',
-      root,
-      '--board',
-      join(root, 'board-toomanytotal.json'),
-    ]);
-    expect(res.code).toBe(2);
-    expect(res.err).toMatch(/320 total cards across groups, max 300/);
-  });
-
-  test('--board layout "flow" rejects a nodes[] array over the cap', () => {
-    const spec = {
-      layout: 'flow',
-      nodes: Array.from({ length: 201 }, (_, i) => ({ id: `n${i}`, label: `n${i}` })),
-    };
-    writeFileSync(join(root, 'board-toomanynodes.json'), JSON.stringify(spec));
-    const res = runAnnotate([
-      'ui/BoardTooManyNodes.tsx',
-      '--root',
-      root,
-      '--board',
-      join(root, 'board-toomanynodes.json'),
-    ]);
-    expect(res.code).toBe(2);
-    expect(res.err).toMatch(/nodes\[\] has 201, max 200/);
-  });
-
-  // Security regression (feature-whiteboard-ai-toolkit review, F-connections-dos):
-  // groups[]/cards[]/nodes[] were capped but connections[]/edges[] were not —
-  // createConnect mints a fresh arrow (+ optional label) stroke per entry
-  // regardless of how few distinct nodes are involved, so a tiny board spec
-  // with a huge connections[]/edges[] array bypassed every existing cap.
-  test('--board rejects a connections[] array over the cap (columns layout)', () => {
-    const spec = {
-      groups: [{ title: 'g', cards: ['a', 'b'] }],
-      connections: Array.from({ length: 401 }, () => ({ from: '@sec0', to: '@sec0card0' })),
-    };
-    writeFileSync(join(root, 'board-toomanyconns.json'), JSON.stringify(spec));
-    const res = runAnnotate([
-      'ui/BoardTooManyConns.tsx',
-      '--root',
-      root,
-      '--board',
-      join(root, 'board-toomanyconns.json'),
-    ]);
-    expect(res.code).toBe(2);
-    expect(res.err).toMatch(/connections\[\] has 401, max 400/);
-  });
-
-  test('--flow (top-level) rejects an edges[] array over the cap', () => {
-    const spec = {
-      nodes: [
-        { id: 'a', label: 'A' },
-        { id: 'b', label: 'B' },
-      ],
+  test('--flow caps edges[] too', () => {
+    const p = spec('flow-edges.json', {
+      nodes: [{ id: 'a' }, { id: 'b' }],
       edges: Array.from({ length: 401 }, () => ({ from: 'a', to: 'b' })),
-    };
-    writeFileSync(join(root, 'flow-toomanyedges.json'), JSON.stringify(spec));
-    const res = runAnnotate([
-      'ui/FlowTooManyEdges.tsx',
-      '--root',
-      root,
-      '--flow',
-      join(root, 'flow-toomanyedges.json'),
-    ]);
+    });
+    const res = annotate(['ui/FlowEdges.tsx', '--flow', p]);
     expect(res.code).toBe(2);
     expect(res.err).toMatch(/edges\[\] has 401, max 400/);
   });
+});
 
-  test('--flow (top-level) rejects a nodes[] array over the cap', () => {
-    const spec = {
-      nodes: Array.from({ length: 201 }, (_, i) => ({ id: `n${i}`, label: `n${i}` })),
-    };
-    writeFileSync(join(root, 'flow-toomanynodes.json'), JSON.stringify(spec));
-    const res = runAnnotate([
-      'ui/FlowTooManyNodes.tsx',
-      '--root',
-      root,
-      '--flow',
-      join(root, 'flow-toomanynodes.json'),
-    ]);
-    expect(res.code).toBe(2);
-    expect(res.err).toMatch(/nodes\[\] has 201, max 200/);
+describe('annotate — the live-server path', () => {
+  test('ops go to POST /_api/annotations/ops on a loopback server; the file is not written', async () => {
+    const got: Array<{
+      file: string;
+      actionId: string;
+      ops: Array<{ op: string; el?: Record<string, unknown> }>;
+    }> = [];
+    const server = Bun.serve({
+      port: 0,
+      hostname: '127.0.0.1',
+      async fetch(req) {
+        if (new URL(req.url).pathname !== '/_api/annotations/ops')
+          return new Response('nf', { status: 404 });
+        got.push(await req.json());
+        return Response.json({ ok: true, changed: true, rejected: [] });
+      },
+    });
+    const serverJson = join(root, '.design', '_server.json');
+    writeFileSync(serverJson, JSON.stringify({ url: `http://127.0.0.1:${server.port}` }));
+    try {
+      const res = await annotateAsync(['ui/Live.tsx'], {
+        ops: [{ op: 'create', type: 'sticky', text: 'live', x: 0, y: 0 }],
+      });
+      expect(res.code).toBe(0);
+      expect(JSON.parse(res.out).via).toBe('server');
+      expect(got).toHaveLength(1);
+      expect(got[0]?.file).toBe('.design/ui/Live.tsx');
+      expect(got[0]?.actionId).toMatch(/^ai-annotate-[a-z0-9]+$/);
+      expect(got[0]?.ops[0]?.op).toBe('put');
+      expect(got[0]?.ops[0]?.el).toMatchObject({
+        type: 'sticky',
+        text: 'live',
+        author: { kind: 'ai' },
+      });
+      expect(existsSync(pathOf('ui-live'))).toBe(false);
+    } finally {
+      rmSync(serverJson, { force: true });
+      server.stop(true);
+    }
+  });
+
+  test('a path written with the design-root prefix reaches the SAME board on the server', async () => {
+    const got: Array<{ file: string }> = [];
+    const server = Bun.serve({
+      port: 0,
+      hostname: '127.0.0.1',
+      async fetch(req) {
+        got.push(await req.json());
+        return Response.json({ ok: true, changed: true, rejected: [] });
+      },
+    });
+    const serverJson = join(root, '.design', '_server.json');
+    writeFileSync(serverJson, JSON.stringify({ url: `http://127.0.0.1:${server.port}` }));
+    try {
+      const res = await annotateAsync(['.design/ui/Prefixed.tsx'], {
+        ops: [{ op: 'create', type: 'sticky', text: 'x', x: 0, y: 0 }],
+      });
+      expect(res.code).toBe(0);
+      expect(got[0]?.file).toBe('.design/ui/Prefixed.tsx');
+    } finally {
+      rmSync(serverJson, { force: true });
+      server.stop(true);
+    }
+  });
+
+  test('inside a cloud workspace a read-only refusal from its own studio writes the file', async () => {
+    const server = Bun.serve({
+      port: 0,
+      hostname: '127.0.0.1',
+      fetch: () => Response.json({ error: 'read-only' }, { status: 403 }),
+    });
+    const serverJson = join(root, '.design', '_server.json');
+    writeFileSync(serverJson, JSON.stringify({ url: `http://127.0.0.1:${server.port}` }));
+    try {
+      const res = await annotateAsync(
+        ['ui/Cell.tsx'],
+        { ops: [{ op: 'create', type: 'sticky', text: 'x', x: 0, y: 0 }] },
+        { MAUDE_WORKSPACE_MODE: '1' }
+      );
+      expect(res.code).toBe(0);
+      expect(JSON.parse(res.out).via).toBe('file');
+      expect(existsSync(pathOf('ui-cell'))).toBe(true);
+    } finally {
+      rmSync(serverJson, { force: true });
+      server.stop(true);
+    }
+  });
+
+  test('a server that refuses the batch (409) fails the verb — no silent file write', async () => {
+    const server = Bun.serve({
+      port: 0,
+      hostname: '127.0.0.1',
+      fetch: () =>
+        Response.json({ ok: false, error: 'board file is not a valid board' }, { status: 409 }),
+    });
+    const serverJson = join(root, '.design', '_server.json');
+    writeFileSync(serverJson, JSON.stringify({ url: `http://127.0.0.1:${server.port}` }));
+    try {
+      const res = await annotateAsync(['ui/Refused.tsx'], {
+        ops: [{ op: 'create', type: 'sticky', text: 'x', x: 0, y: 0 }],
+      });
+      expect(res.code).toBe(1);
+      expect(res.err).toContain('refused the batch');
+      expect(existsSync(pathOf('ui-refused'))).toBe(false);
+    } finally {
+      rmSync(serverJson, { force: true });
+      server.stop(true);
+    }
+  });
+
+  test.each([
+    400, 403, 500,
+  ])('a live server answering %i fails the verb — no file write behind its back (A2)', async (status) => {
+    const server = Bun.serve({
+      port: 0,
+      hostname: '127.0.0.1',
+      fetch: () => new Response('nope', { status }),
+    });
+    const serverJson = join(root, '.design', '_server.json');
+    writeFileSync(serverJson, JSON.stringify({ url: `http://127.0.0.1:${server.port}` }));
+    try {
+      const res = await annotateAsync([`ui/Status${status}.tsx`], {
+        ops: [{ op: 'create', type: 'sticky', text: 'x', x: 0, y: 0 }],
+      });
+      expect(res.code).toBe(1);
+      expect(res.err).toContain('refused the batch');
+      expect(existsSync(pathOf(`ui-status${status}`))).toBe(false);
+    } finally {
+      rmSync(serverJson, { force: true });
+      server.stop(true);
+    }
+  });
+
+  test('a server without the op route (404) — the verb writes the file', async () => {
+    const server = Bun.serve({
+      port: 0,
+      hostname: '127.0.0.1',
+      fetch: () => new Response('not found', { status: 404 }),
+    });
+    const serverJson = join(root, '.design', '_server.json');
+    writeFileSync(serverJson, JSON.stringify({ url: `http://127.0.0.1:${server.port}` }));
+    try {
+      const res = await annotateAsync(['ui/Old.tsx'], {
+        ops: [{ op: 'create', type: 'sticky', text: 'x', x: 0, y: 0 }],
+      });
+      expect(res.code).toBe(0);
+      expect(JSON.parse(res.out).via).toBe('file');
+    } finally {
+      rmSync(serverJson, { force: true });
+      server.stop(true);
+    }
+  });
+
+  test('a non-loopback _server.json url is never contacted — the verb writes the file (F2)', () => {
+    const serverJson = join(root, '.design', '_server.json');
+    writeFileSync(serverJson, JSON.stringify({ url: 'http://attacker.example.com:4399' }));
+    try {
+      const res = annotate(['ui/F2.tsx'], {
+        ops: [{ op: 'create', type: 'text', text: 'secret', x: 0, y: 0 }],
+      });
+      expect(res.code).toBe(0);
+      expect(JSON.parse(res.out).via).toBe('file');
+      expect(board('ui-f2')[0]?.text).toBe('secret');
+    } finally {
+      rmSync(serverJson, { force: true });
+    }
   });
 });
 
-// feature-whiteboard-ai-toolkit — id-preserving move/set-text/set-color.
-// DDR-100 omitted "update"; these stay LWW-honest (whole-file write) but
-// preserve the target's id AND every other attribute via the CANONICAL
-// parser (svgToStrokes) + CANONICAL serializer round-trip.
-describe('annotate move / set-text / set-color', () => {
-  // Mirrors api.ts fileSlug: "ui/Foo.tsx" -> "ui-foo" (the "/" replacement
-  // ALREADY produces the "ui-" prefix — no extra prefix on the filename).
-  function annotationsPath(canvasRel: string): string {
-    const slug = canvasRel
-      .replace(/\//g, '-')
-      .replace(/\.tsx$/, '')
-      .toLowerCase();
-    return join(root, '.design', `${slug}.annotations.svg`);
-  }
-
-  function seedCanvas(canvasRel: string, strokes: Stroke[]): void {
-    writeFileSync(annotationsPath(canvasRel), strokesToSvg(strokes));
-  }
-
-  function readStrokes(canvasRel: string): Stroke[] {
-    return svgToStrokes(readFileSync(annotationsPath(canvasRel), 'utf8'));
-  }
-
-  test('move preserves id + every other attribute (custom fontSize, bold, groupIds)', () => {
-    const sticky: StickyStroke = {
-      id: 'mv1',
-      tool: 'sticky',
-      color: '#fce8a6',
-      x: 10,
-      y: 10,
-      w: 200,
-      h: 100,
-      text: 'don’t drop my formatting',
-      fontSize: 22, // NON-default — the point of the DOM-parser approach
-      cornerRadius: 8,
-      bold: true,
-      groupIds: ['g1'],
-    };
-    seedCanvas('ui/Move.tsx', [sticky]);
-    const res = runAnnotate(
-      ['ui/Move.tsx', '--root', root],
-      JSON.stringify({ ops: [{ op: 'move', id: 'mv1', x: 900, y: 900 }] })
-    );
-    expect(res.code).toBe(0);
-    const svg = readFileSync(join(root, '.design', 'ui-move.annotations.svg'), 'utf8');
-    expect(sanitizeAnnotationSvg(svg)).toBe(svg);
-    const [after] = readStrokes('ui/Move.tsx') as [StickyStroke];
-    expect(after.id).toBe('mv1');
-    expect(after.x).toBe(900);
-    expect(after.y).toBe(900);
-    // Everything else survived byte-for-byte — the whole point of parsing
-    // through the canonical model instead of reconstructing from defaults.
-    expect(after.fontSize).toBe(22);
-    expect(after.bold).toBe(true);
-    expect(after.cornerRadius).toBe(8);
-    expect(after.groupIds).toEqual(['g1']);
-    expect(after.text).toBe('don’t drop my formatting');
-    expect(after.color).toBe('#fce8a6');
-  });
-
-  test('move on an ellipse converts x/y (top-left) to cx/cy, keeping rx/ry', () => {
-    const ell: EllipseStroke = {
-      id: 'mv2',
-      tool: 'ellipse',
-      color: '#30a46c',
-      width: 3,
-      cx: 100,
-      cy: 100,
-      rx: 40,
-      ry: 20,
-      fill: null,
-    };
-    seedCanvas('ui/MoveEllipse.tsx', [ell]);
-    // Target x/y is top-left (cx-rx, cy-ry) — the convention read-annotations uses.
-    const res = runAnnotate(
-      ['ui/MoveEllipse.tsx', '--root', root],
-      JSON.stringify({ ops: [{ op: 'move', id: 'mv2', x: 500, y: 500 }] })
-    );
-    expect(res.code).toBe(0);
-    const [after] = readStrokes('ui/MoveEllipse.tsx') as [EllipseStroke];
-    expect(after.cx).toBe(540); // 500 + rx(40)
-    expect(after.cy).toBe(520); // 500 + ry(20)
-    expect(after.rx).toBe(40);
-    expect(after.ry).toBe(20);
-  });
-
-  test('set-text on a sticky patches "text", set-text on a section patches "label"', () => {
-    const sticky: StickyStroke = {
-      id: 'st-text',
-      tool: 'sticky',
-      color: '#fce8a6',
-      x: 0,
-      y: 0,
-      w: 200,
-      h: 100,
-      text: 'old text',
-      fontSize: 14,
-      cornerRadius: 8,
-    };
-    const section: SectionStroke = {
-      id: 'sec-text',
-      tool: 'section',
-      x: 300,
-      y: 0,
-      w: 280,
-      h: 200,
-      label: 'Old label',
-      color: '#8b8b94',
-    };
-    seedCanvas('ui/SetText.tsx', [sticky, section]);
-    const res = runAnnotate(
-      ['ui/SetText.tsx', '--root', root],
-      JSON.stringify({
-        ops: [
-          { op: 'set-text', id: 'st-text', text: 'new text' },
-          { op: 'set-text', id: 'sec-text', text: 'New label' },
-        ],
-      })
-    );
-    expect(res.code).toBe(0);
-    const strokes = readStrokes('ui/SetText.tsx');
-    const after = strokes.find((s) => s.id === 'st-text') as StickyStroke;
-    const afterSec = strokes.find((s) => s.id === 'sec-text') as SectionStroke;
-    expect(after.text).toBe('new text');
-    expect(after.x).toBe(0); // unchanged
-    expect(afterSec.label).toBe('New label');
-    expect(afterSec.color).toBe('#8b8b94'); // unchanged
-  });
-
-  test('set-color patches only the color, keeping text/position', () => {
-    const t: TextStroke = {
-      id: 'col1',
-      tool: 'text',
-      color: '#1a1a1a',
-      fontSize: 14,
-      text: 'recolor me',
-      x: 50,
-      y: 50,
-    };
-    seedCanvas('ui/SetColor.tsx', [t]);
-    const res = runAnnotate(
-      ['ui/SetColor.tsx', '--root', root],
-      JSON.stringify({ ops: [{ op: 'set-color', id: 'col1', color: '#e5484d' }] })
-    );
-    expect(res.code).toBe(0);
-    const [after] = readStrokes('ui/SetColor.tsx') as [TextStroke];
-    expect(after.color).toBe('#e5484d');
-    expect(after.text).toBe('recolor me');
-    expect(after.x).toBe(50);
-    expect(after.y).toBe(50);
-  });
-
-  test('move/set-text/set-color work on a stroke created earlier in the SAME batch (@ref)', () => {
-    const res = runAnnotate(
-      ['ui/SameBatch.tsx', '--root', root],
-      JSON.stringify({
-        ops: [
-          { op: 'create', type: 'sticky', ref: '@a', text: 'v1', x: 5, y: 5 },
-          { op: 'move', id: '@a', x: 700, y: 700 },
-          { op: 'set-text', id: '@a', text: 'v2' },
-          { op: 'set-color', id: '@a', color: '#111111' },
-        ],
-      })
-    );
-    expect(res.code).toBe(0);
-    const [after] = readStrokes('ui/SameBatch.tsx') as [StickyStroke];
-    expect(after.x).toBe(700);
-    expect(after.y).toBe(700);
-    expect(after.text).toBe('v2');
-    expect(after.color).toBe('#111111');
-  });
-
-  test('chained move + set-text on a PRE-EXISTING (seeded, not @ref) id accumulate — not clobber', () => {
-    // Regression: resolveMutable must check ctx.replaces before the cached
-    // "original" — otherwise a second op on the same existing id reads the
-    // stale pre-batch stroke and its patch overwrites the first op's change.
-    const sticky: StickyStroke = {
-      id: 'chain1',
-      tool: 'sticky',
-      color: '#fce8a6',
-      x: 10,
-      y: 10,
-      w: 200,
-      h: 100,
-      text: 'v1',
-      fontSize: 14,
-      cornerRadius: 8,
-    };
-    seedCanvas('ui/Chain.tsx', [sticky]);
-    const res = runAnnotate(
-      ['ui/Chain.tsx', '--root', root],
-      JSON.stringify({
-        ops: [
-          { op: 'move', id: 'chain1', x: 500, y: 500 },
-          { op: 'set-text', id: 'chain1', text: 'v2' },
-          { op: 'set-color', id: 'chain1', color: '#111111' },
-        ],
-      })
-    );
-    expect(res.code).toBe(0);
-    const [after] = readStrokes('ui/Chain.tsx') as [StickyStroke];
-    expect(after.id).toBe('chain1');
-    expect(after.x).toBe(500);
-    expect(after.y).toBe(500);
-    expect(after.text).toBe('v2');
-    expect(after.color).toBe('#111111');
-  });
-
-  test('move on an unknown id fails loud, writes nothing', () => {
-    seedCanvas('ui/MoveGhost.tsx', []);
-    const before = readFileSync(join(root, '.design', 'ui-moveghost.annotations.svg'), 'utf8');
-    const res = runAnnotate(
-      ['ui/MoveGhost.tsx', '--root', root],
-      JSON.stringify({ ops: [{ op: 'move', id: 'ghost', x: 1, y: 1 }] })
-    );
-    expect(res.code).toBe(2);
-    expect(res.err).toMatch(/unknown id "ghost"/);
-    expect(readFileSync(join(root, '.design', 'ui-moveghost.annotations.svg'), 'utf8')).toBe(
-      before
-    );
-  });
-
-  test('move on an arrow fails loud (no single position)', () => {
-    const arrow: ArrowStroke = {
-      id: 'arr1',
-      tool: 'arrow',
-      color: '#000',
-      width: 2,
-      x1: 0,
-      y1: 0,
-      x2: 10,
-      y2: 10,
-    };
-    seedCanvas('ui/MoveArrow.tsx', [arrow]);
-    const res = runAnnotate(
-      ['ui/MoveArrow.tsx', '--root', root],
-      JSON.stringify({ ops: [{ op: 'move', id: 'arr1', x: 5, y: 5 }] })
-    );
-    expect(res.code).toBe(2);
-    expect(res.err).toMatch(/no single position/);
-  });
-
-  test('move on anchored text fails loud (position derives from its host)', () => {
-    const anchored: TextStroke = {
-      id: 'anc1',
-      tool: 'text',
-      color: '#000',
-      fontSize: 14,
-      text: 'label',
-      anchorId: 'some-host',
-    };
-    seedCanvas('ui/MoveAnchored.tsx', [anchored]);
-    const res = runAnnotate(
-      ['ui/MoveAnchored.tsx', '--root', root],
-      JSON.stringify({ ops: [{ op: 'move', id: 'anc1', x: 5, y: 5 }] })
-    );
-    expect(res.code).toBe(2);
-    expect(res.err).toMatch(/anchored text derives its position from its host/);
-  });
-
-  test('set-color / set-text on an image (no color/text field) fail loud', () => {
-    const img = {
-      id: 'img1',
-      tool: 'image',
-      x: 0,
-      y: 0,
-      w: 100,
-      h: 100,
-      href: 'assets/deadbeef.png',
-    } as unknown as Stroke;
-    seedCanvas('ui/SetColorImage.tsx', [img]);
-    const colorRes = runAnnotate(
-      ['ui/SetColorImage.tsx', '--root', root],
-      JSON.stringify({ ops: [{ op: 'set-color', id: 'img1', color: '#fff' }] })
-    );
-    expect(colorRes.code).toBe(2);
-    expect(colorRes.err).toMatch(/has no single color field/);
-
-    const textRes = runAnnotate(
-      ['ui/SetColorImage.tsx', '--root', root],
-      JSON.stringify({ ops: [{ op: 'set-text', id: 'img1', text: 'x' }] })
-    );
-    expect(textRes.code).toBe(2);
-    expect(textRes.err).toMatch(/has no text\/label field/);
-  });
-
-  // Security regression (feature-whiteboard-ai-toolkit review, F-happydom-fetch):
-  // ensureFullStrokes() in bin/annotate.mjs uses GlobalRegistrator.register()
-  // (happy-dom's internals need the full scaffolding — a bare DOMParser patch
-  // leaves querySelector's own error path broken, since it reaches through
-  // `this.window`) then calls the documented `unregister()` inverse right
-  // after the parse, so the later loopback-gated PUT never runs over
-  // happy-dom's own fetch/URL polyfill. Run in a FRESH subprocess (not this
-  // file's own process, which already has GlobalRegistrator registered for
-  // the whole suite via beforeAll) to pin the contract cleanly: unregister()
-  // restores the exact pre-register fetch reference, not just "a" fetch.
-  test('GlobalRegistrator.register/unregister contract: fetch is restored to the exact pre-register reference', () => {
-    const proc = Bun.spawnSync([
-      'bun',
-      '-e',
-      `
-      const { GlobalRegistrator } = await import('@happy-dom/global-registrator');
-      const nativeFetch = globalThis.fetch;
-      GlobalRegistrator.register();
-      if (globalThis.fetch === nativeFetch) { console.log('FAIL: fetch unchanged after register'); process.exit(1); }
-      await GlobalRegistrator.unregister();
-      if (globalThis.fetch !== nativeFetch) { console.log('FAIL: fetch not restored after unregister'); process.exit(1); }
-      console.log('OK');
-      `,
-    ]);
-    expect(new TextDecoder().decode(proc.stdout).trim()).toBe('OK');
-    expect(proc.exitCode).toBe(0);
-  });
-
-  // Security regression (feature-whiteboard-ai-toolkit review, F-readtime-cap):
-  // MAX_ANNOTATIONS_BYTES (1 MB) was only ever checked on the MERGED OUTPUT —
-  // a file already at/near the cap on disk (peer-written per DDR-054, or
-  // git-committed by anyone) would still be read in full and DOM-parsed on
-  // every move/set-text/set-color. Now rejected at read time, before parse.
-  test('a pre-existing annotations file over the byte cap is rejected before it reaches the DOM parser', () => {
-    // One oversized sticky's text is enough to push the file over 1 MB without
-    // needing thousands of strokes.
-    const big: StickyStroke = {
-      id: 'huge1',
-      tool: 'sticky',
-      color: '#fce8a6',
-      x: 10,
-      y: 10,
-      w: 200,
-      h: 100,
-      text: 'x'.repeat(1024 * 1024 + 1),
-    };
-    seedCanvas('ui/HugeFile.tsx', [big]);
-    const res = runAnnotate(
-      ['ui/HugeFile.tsx', '--root', root],
-      JSON.stringify({ ops: [{ op: 'move', id: 'huge1', x: 20, y: 20 }] })
-    );
-    expect(res.code).toBe(2);
-    expect(res.err).toMatch(/exceeds 1048576 bytes on disk/);
+describe('annotate --help comes from the registry', () => {
+  test('every registry type is listed with its fields', () => {
+    const proc = Bun.spawnSync(['bun', BIN, '--help']);
+    const help = new TextDecoder().decode(proc.stdout);
+    for (const t of [
+      'sticky',
+      'text',
+      'shape',
+      'arrow',
+      'pen',
+      'image',
+      'link',
+      'mediaref',
+      'section',
+    ]) {
+      expect(help).toMatch(new RegExp(`^  ${t}\\s`, 'm'));
+    }
+    expect(help).toContain('update');
+    expect(help).toContain('reparent');
+    expect(help).toContain('reorder');
   });
 });

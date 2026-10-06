@@ -1,5 +1,5 @@
 /**
- * @file       embed-origins.ts — who may FRAME the studio (DDR-242)
+ * @file       embed-origins.ts — who may FRAME the studio (DDR-247)
  * @scope      apps/studio/embed-origins.ts
  * @purpose    Parse `MAUDE_EMBED_ORIGINS` and build the `frame-ancestors`
  *             source list shared by the studio page and the canvas shell.

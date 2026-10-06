@@ -74,6 +74,8 @@ function fakeHub(initial: Record<string, string> = {}) {
   let forceReanchor = false;
   let reanchorBudget = 0;
   let epochValue = 'epoch-1';
+  /** Entries per journal page — the real hub caps at 2000 (MAX_JOURNAL_PAGE). */
+  let pageSize = Number.POSITIVE_INFINITY;
   const add = (rel: string, body: string) => {
     seq += 1;
     rows.set(rel, { seq, sha256: sha(body), size: body.length, body });
@@ -118,8 +120,14 @@ function fakeHub(initial: Record<string, string> = {}) {
           deleted: r.deleted === true,
         }))
         .sort((a, b) => a.seq - b.seq);
+      const page = entries.slice(0, pageSize);
       return new Response(
-        JSON.stringify({ epoch: epochValue, head: seq, entries, truncated: false }),
+        JSON.stringify({
+          epoch: epochValue,
+          head: seq,
+          entries: page,
+          truncated: entries.length > page.length,
+        }),
         {
           status: 200,
         }
@@ -206,6 +214,15 @@ function fakeHub(initial: Record<string, string> = {}) {
     /** Answer `reanchor` for the next `n` requests only. */
     reanchorFor: (n: number) => {
       reanchorBudget = n;
+    },
+    /** Cap journal pages at `n` entries, as the real hub caps at 2000. */
+    pageAt: (n: number) => {
+      pageSize = n;
+    },
+    /** A live row with no hash — the hub's `disk-lost` marker (v1.5.2). */
+    lose: (rel: string) => {
+      seq += 1;
+      rows.set(rel, { seq, sha256: null, size: 0, body: '' });
     },
     /** A LEGITIMATE epoch rotation (a restore, DDR-226 §3). */
     rotateEpoch: () => {
@@ -303,6 +320,23 @@ describe('down — the hub has something we do not', () => {
     expect(read('system/ds/brand.css')).toBe(':root{--a:1}');
     expect(ledger.ancestorOf('system/ds/brand.css')).toBe(sha(':root{--a:1}'));
     expect(ledger.cursor()).toBe(hub.head());
+  });
+
+  // F3 S14 (2026-09-23): the journal reader's own path regex refused a space,
+  // so `ui/Studio Docs.registry.json` — accepted from its author and
+  // journalled — was dropped by every other peer with no row and no refusal.
+  test('a journalled file whose name has a space lands like any other', async () => {
+    const hub = fakeHub({
+      'assets/Hero Shot.png': 'png-bytes',
+      'system/ds/Brand Guide.registry.json': '{"a":1}',
+    });
+    const res = await plane(hub).reconcile();
+    expect([...res.pulled].sort()).toEqual([
+      'assets/Hero Shot.png',
+      'system/ds/Brand Guide.registry.json',
+    ]);
+    expect(read('assets/Hero Shot.png')).toBe('png-bytes');
+    expect(ledger.row('system/ds/Brand Guide.registry.json')?.state).toBe('on-hub');
   });
 
   test('a hub that serves the WRONG bytes lands nothing', async () => {
@@ -969,6 +1003,36 @@ describe('the deletion breakers — the only protection now that this ships ON',
     throw new Error('the budget did not survive being reconstructed');
   });
 
+  test('bulk-deletes consent lets a deliberate cleanup through in one pass', async () => {
+    // `maude design bulk-deletes on` — the owner's own consent, recorded
+    // locally. The hub still decides who may delete past ITS budget.
+    const seeded: Record<string, string> = {};
+    for (let i = 0; i < 40; i++) seeded[`system/ds/f${i}.css`] = `.a${i}{}`;
+    const hub = fakeHub(seeded);
+    const p = plane(hub, { propagateDeletes: true, unlimitedOutboundDeletes: true });
+    await p.reconcile();
+
+    for (let i = 0; i < 40; i++) rmSync(join(root, `system/ds/f${i}.css`));
+
+    const res = await p.reconcile();
+    expect(res.deleteHeld).toBeUndefined();
+    expect(hub.deletes.length).toBe(40);
+  });
+
+  test('bulk-deletes consent leaves the INBOUND breaker alone', async () => {
+    const seeded: Record<string, string> = {};
+    for (let i = 0; i < 20; i++) seeded[`system/ds/f${i}.css`] = `.a${i}{}`;
+    const hub = fakeHub(seeded);
+    const p = plane(hub, { propagateDeletes: true, unlimitedOutboundDeletes: true });
+    await p.reconcile();
+
+    for (let i = 0; i < 20; i++) hub.tombstone(`system/ds/f${i}.css`);
+
+    const res = await p.reconcile();
+    expect(res.deleteHeld?.direction).toBe('in');
+    expect(existsSync(join(root, 'system/ds/f0.css'))).toBe(true);
+  });
+
   test('an ordinary single delete is not a storm', async () => {
     const seeded: Record<string, string> = {};
     for (let i = 0; i < 20; i++) seeded[`system/ds/f${i}.css`] = `.a${i}{}`;
@@ -1194,6 +1258,36 @@ describe('rate limits', () => {
     expect(result.requestsExhausted).toBeUndefined();
     // Still nothing lost — the waiting count is what the panel renders.
     expect(result.rateLimited?.waiting).toBeGreaterThan(0);
+  });
+
+  test('a cell out of disk (503 disk-pressure) holds the PUSH — never a conflict', async () => {
+    // Cell materializer Phase 0: below the free-space floor every hub write
+    // door answers `503 Retry-After: 120 {error:'disk-pressure'}`. On the
+    // 2026-10-01 Alligators loop the desktop kept pushing into a full disk;
+    // the refusal has to read as "hold", and must not be mistaken for a CAS
+    // 409 that parks conflict copies of every file it touched.
+    const hub = fakeHub();
+    for (let i = 0; i < 5; i += 1) write(`assets/p${i}.png`, `PNG${i}`);
+    const puts: string[] = [];
+    const full = (async (url: string, init?: RequestInit) => {
+      const u = new URL(String(url));
+      if (u.pathname.startsWith('/api/file/') && init?.method === 'PUT') {
+        puts.push(u.pathname);
+        return new Response(
+          JSON.stringify({ error: 'disk-pressure', freeBytes: 1, floorBytes: 2 }),
+          { status: 503, headers: { 'content-type': 'application/json', 'retry-after': '120' } }
+        );
+      }
+      return hub.fetchImpl(url as never, init as never);
+    }) as unknown as typeof fetch;
+
+    const result = await plane(hub, { fetchImpl: full }).reconcile();
+
+    expect(puts).toHaveLength(1);
+    expect(result.rateLimited).toBeTruthy();
+    expect(result.conflicts).toEqual([]);
+    expect(result.pushed).toEqual([]);
+    expect(readdirSync(join(root, 'assets')).some((n) => n.includes('maude-conflict'))).toBe(false);
   });
 
   test('a BARE 5xx is an ordinary refusal, not a wall', async () => {
@@ -1643,5 +1737,275 @@ describe('pull order', () => {
     }) as unknown as typeof fetch;
     await plane(hub, { fetchImpl: watching }).reconcile();
     expect(order).toEqual(['assets/a.png', 'assets/b.png', 'assets/master.mp4']);
+  });
+});
+
+// rca issue-file-ledger-orphaned-rows — rows the plane could never decide again
+// sat in `stuck` / `conflict` for good, the panel counted them as "waiting",
+// and Resync (a restart over the persisted ledger) read the same silence.
+describe('orphaned ledger rows', () => {
+  test('a .css that became a canvas sidecar is forgotten, not re-refused forever', async () => {
+    const hub = fakeHub({ 'ui/orbit/Board.css': '.a{}' });
+    expect((await plane(hub).reconcile()).pulled).toEqual(['ui/orbit/Board.css']);
+    // The canvas arrives afterwards — the `.css`-before-`.tsx` authoring order.
+    write('ui/orbit/Board.tsx', 'export default () => null');
+    write('ui/orbit/Board.css', '.a{color:red}');
+
+    const p = plane(hub);
+    const res = await p.reconcile();
+    expect(res.dropped.filter((d) => d.rel === 'ui/orbit/Board.css')).toEqual([]);
+    expect(p.doruceka()['ui/orbit/Board.css']).toBeUndefined();
+    expect(hub.puts).toEqual([]);
+    expect(read('ui/orbit/Board.css')).toBe('.a{color:red}');
+  });
+
+  test('a conflict row for a canvas-owned path with no remote is forgotten', async () => {
+    const hub = fakeHub();
+    write('ui/orbit/Cmd K.tsx', 'export default () => null');
+    write('ui/orbit/Cmd K.css', '.k{}');
+    ledger.setState('ui/orbit/Cmd K.css', 'conflict', {
+      reason: 'the hub changed this file while the upload was in flight',
+    });
+
+    const p = plane(hub);
+    await p.reconcile();
+    expect(p.doruceka()['ui/orbit/Cmd K.css']).toBeUndefined();
+    expect(hub.puts).toEqual([]);
+  });
+
+  test('a conflict whose hub body the cursor never mentions again is pulled after a restart', async () => {
+    const hub = fakeHub({ 'ui/orbit/Notes.md': 'v1' });
+    await plane(hub).reconcile();
+    // The hub moves on, and this peer's cursor is already past that move while
+    // its remembered remote is gone — the state a push race + a later full
+    // read left behind. A cursor read from here is silent about the path.
+    hub.add('ui/orbit/Notes.md', 'v2');
+    ledger.pruneRemotes(new Set());
+    ledger.setState('ui/orbit/Notes.md', 'conflict', {
+      reason: 'the hub changed this file while the upload was in flight',
+    });
+    ledger.setPosition(hub.epoch(), hub.head());
+
+    // A restart — what Resync does.
+    const p = plane(hub);
+    const res = await p.reconcile();
+    expect(res.pulled).toEqual(['ui/orbit/Notes.md']);
+    expect(read('ui/orbit/Notes.md')).toBe('v2');
+    expect(p.doruceka()['ui/orbit/Notes.md']).toBe('on-hub');
+  });
+
+  test('the owed full read is paid once per window, not on every pass', async () => {
+    const hub = fakeHub({ 'ui/orbit/Notes.md': 'v1' });
+    await plane(hub).reconcile();
+    const sinces: string[] = [];
+    const watched = (async (url: string, init?: RequestInit) => {
+      const u = new URL(String(url));
+      if (u.pathname === '/api/journal') sinces.push(u.searchParams.get('since') ?? '');
+      return hub.fetchImpl(url, init);
+    }) as unknown as typeof fetch;
+    // A conflict that stays a conflict: both sides differ from the ancestor.
+    hub.add('ui/orbit/Notes.md', 'hub side');
+    write('ui/orbit/Notes.md', 'local side');
+    ledger.setState('ui/orbit/Notes.md', 'conflict', { reason: 'x' });
+    ledger.setPosition(hub.epoch(), hub.head());
+
+    const p = plane(hub, { fetchImpl: watched });
+    await p.reconcile();
+    ledger.setState('ui/orbit/Notes.md', 'conflict', { reason: 'x' });
+    await p.reconcile();
+    await p.reconcile();
+    expect(sinces.filter((s) => s === '0').length).toBe(1);
+  });
+
+  test('a code module identical on both sides is in step, not refused', async () => {
+    const hub = fakeHub({ 'system/ds/preview/_x.ts': 'export const a = 1' });
+    write('system/ds/preview/_x.ts', 'export const a = 1');
+    const p = plane(hub);
+    const res = await p.reconcile();
+    expect(res.dropped).toEqual([]);
+    expect(p.doruceka()['system/ds/preview/_x.ts']).toBe('on-hub');
+  });
+
+  test('an agreed code module is still refused once the hub moves it', async () => {
+    const hub = fakeHub({ 'system/ds/preview/_x.ts': 'export const a = 1' });
+    write('system/ds/preview/_x.ts', 'export const a = 1');
+    await plane(hub).reconcile();
+    // Agreement made the ancestor; a hub-side change now reads as a pull to
+    // the decision table — the gate in front of it must still say no.
+    hub.add('system/ds/preview/_x.ts', 'export const a = 666');
+    const res = await plane(hub).reconcile();
+    expect(res.pulled).toEqual([]);
+    expect(res.dropped[0]?.reason).toContain('owner-vouched');
+    expect(read('system/ds/preview/_x.ts')).toBe('export const a = 1');
+  });
+
+  test('an unvouched hub cannot quarantine an agreed code module with a tombstone', async () => {
+    const hub = fakeHub({ 'system/ds/preview/_x.ts': 'export const a = 1' });
+    write('system/ds/preview/_x.ts', 'export const a = 1');
+    await plane(hub).reconcile();
+    hub.tombstone('system/ds/preview/_x.ts');
+    const res = await plane(hub).reconcile();
+    expect(res.deleted).toEqual([]);
+    expect(res.dropped.some((d) => d.reason.includes('owner-vouched'))).toBe(true);
+    expect(read('system/ds/preview/_x.ts')).toBe('export const a = 1');
+  });
+
+  test('…but differing code-module bytes are still refused from an unvouched hub', async () => {
+    const hub = fakeHub({ 'system/ds/preview/_x.ts': 'export const a = 1' });
+    write('system/ds/preview/_x.ts', 'export const a = 2');
+    const res = await plane(hub).reconcile();
+    expect(res.dropped[0]?.reason).toContain('owner-vouched');
+    expect(read('system/ds/preview/_x.ts')).toBe('export const a = 2');
+  });
+});
+
+// Cell materializer Phase 0.5 (Task 6b). Brno Alligators, 2026-10-01: the
+// desktop's conflicts grew 43 → 135 in ten minutes (1602 by the afternoon),
+// every push answered 409, and the ledger cursor sat at 294 against a hub
+// head of ~4875. Three defects, one test each.
+describe('a journal longer than one page', () => {
+  const files = (n: number) => {
+    const out: Record<string, string> = {};
+    for (let i = 0; i < n; i += 1) out[`system/ds/f${i}.css`] = `.f${i}{}`;
+    return out;
+  };
+
+  test('is read to its END — the cursor reaches the head in one pass', async () => {
+    // One page per pass and a cursor that never moved on `truncated`: every
+    // pass re-read the same first page, and nothing past it ever arrived.
+    const hub = fakeHub(files(7));
+    hub.pageAt(3);
+    const res = await plane(hub).reconcile();
+    expect(res.pulled.length).toBe(7);
+    expect(ledger.cursor()).toBe(hub.head());
+  });
+
+  test('a TRUNCATED full read never retracts what the hub holds', async () => {
+    // The amplifier: a one-page full read ran `pruneRemotes` over every path
+    // past that page, the plane concluded the hub had lost them, pushed each as
+    // "the hub must hold nothing", and met a 409 for every one.
+    const hub = fakeHub(files(7));
+    await plane(hub).reconcile(); // converged, whole log read
+    hub.pageAt(3);
+    hub.reanchorFor(1); // the next read is a full one (since=0)
+    const res = await plane(hub).reconcile();
+    expect(res.conflicts).toEqual([]);
+    expect(hub.puts).toEqual([]);
+    expect(Object.values(ledger.rows()).filter((r) => r.state === 'conflict')).toHaveLength(0);
+  });
+
+  test('the cursor advances past a pass that had failures', async () => {
+    // Remotes are remembered in the ledger before any decision, and every
+    // tracked path is re-decided each pass — so a failure does not need its
+    // row re-read. Holding the cursor on any failure pinned it forever on a
+    // project that always has one (515 unreachable rows on Alligators).
+    const hub = fakeHub(files(4));
+    const broken = (async (url: string, init?: RequestInit) => {
+      if (String(url).includes('/_project-file/system/ds/f0.css')) {
+        return new Response('nope', { status: 500 });
+      }
+      return hub.fetchImpl(url as never, init as never);
+    }) as unknown as typeof fetch;
+    const res = await plane(hub, { fetchImpl: broken }).reconcile();
+    expect(res.failed.length).toBeGreaterThan(0);
+    expect(ledger.cursor()).toBe(hub.head());
+    // …and the failed file still arrives once the hub answers again (an hour
+    // on, past any per-path backoff), from the ledger's memory alone.
+    const again = await plane(hub, { now: () => 1_700_000_000_000 + 3_600_000 }).reconcile();
+    expect(again.pulled).toContain('system/ds/f0.css');
+  });
+});
+
+describe('a 409 that names OUR bytes', () => {
+  test('is agreement — adopted, never a conflict', async () => {
+    // The hub marked the file lost (v1.5.2 `disk-lost`), so this machine
+    // pushed it back with "the hub must hold nothing" — but the hub had
+    // refilled the same bytes from the bucket meanwhile. The 409's `current`
+    // is our own hash: nothing differs, nothing should be parked or retried.
+    const hub = fakeHub({ 'system/ds/brand.css': 'v1' });
+    await plane(hub).reconcile();
+    hub.lose('system/ds/brand.css');
+    const refilled = (async (url: string, init?: RequestInit) => {
+      const u = new URL(String(url));
+      if (u.pathname.startsWith('/api/file/') && init?.method === 'PUT') {
+        hub.add('system/ds/brand.css', 'v1'); // the bucket refill, mid-flight
+        return new Response(JSON.stringify({ error: 'moved', current: sha('v1') }), {
+          status: 409,
+        });
+      }
+      return hub.fetchImpl(url as never, init as never);
+    }) as unknown as typeof fetch;
+    const res = await plane(hub, { fetchImpl: refilled }).reconcile();
+    expect(res.conflicts).toEqual([]);
+    expect(ledger.row('system/ds/brand.css')?.state).toBe('on-hub');
+    expect(readdirSync(join(root, 'system/ds')).some((n) => n.includes('maude-conflict'))).toBe(
+      false
+    );
+  });
+});
+
+// 2026-10-02 (alligators): a member's desktop pushed five `ui/club-web/_*.ts`
+// helpers, the hub's door answered 403 (owner-only), the plane read that as a
+// dead credential, asked for a new one and ENDED THE PASS — 264 times, with
+// 2 500+ other paths still waiting behind them.
+describe('a code module this peer may not upload', () => {
+  test('is reported and kept, never sent — and the rest of the pass still runs', async () => {
+    const hub = fakeHub();
+    write('ui/club-web/_boards.ts', 'export const boards = [];');
+    write('system/ds/brand.css', 'mine');
+    const res = await plane(hub).reconcile();
+    expect(hub.puts.map((p) => p.rel)).toEqual(['system/ds/brand.css']);
+    expect(res.pushed).toEqual(['system/ds/brand.css']);
+    expect(res.dropped.map((d) => d.rel)).toContain('ui/club-web/_boards.ts');
+    expect(read('ui/club-web/_boards.ts')).toBe('export const boards = [];');
+  });
+
+  test('an owner still uploads it — even without consenting to RECEIVE code', async () => {
+    for (const over of [{ canUploadCodeModules: true }, { allowCodeModules: true }]) {
+      rmSync(root, { recursive: true, force: true });
+      const hub = fakeHub();
+      write('ui/club-web/_boards.ts', 'export const boards = [];');
+      const res = await plane(hub, over).reconcile();
+      expect(res.pushed).toEqual(['ui/club-web/_boards.ts']);
+    }
+  });
+});
+
+// 2026-10-02 (alligators): six `assets/*.mp4` moved into `_trash`, an svg
+// deleted locally before it ever uploaded, and four hub files the hub then
+// deleted — none of them existed ANYWHERE any more, and the panel said
+// "11 waiting" ("only on this machine" / "stuck") for good.
+describe('a row for a file that exists nowhere', () => {
+  test('a local-only file that vanished before it uploaded is forgotten', async () => {
+    const hub = fakeHub();
+    ledger.setState('assets/f03bbad0.mp4', 'local-only');
+    ledger.setState('assets/letak-qr.svg', 'stuck', {
+      reason: 'Was there a typo in the url or port?',
+    });
+    const p = plane(hub);
+    await p.reconcile();
+    expect(p.doruceka()['assets/f03bbad0.mp4']).toBeUndefined();
+    expect(p.doruceka()['assets/letak-qr.svg']).toBeUndefined();
+    expect(hub.puts).toEqual([]);
+  });
+
+  test('a hub file refused here and then deleted on the hub is forgotten', async () => {
+    const hub = fakeHub({ 'ui-welcome.tsx': 'export default () => null' });
+    const p = plane(hub);
+    await p.reconcile(); // refused: a code module from a hub this peer did not vouch for
+    expect(p.doruceka()['ui-welcome.tsx']).toBe('stuck');
+    hub.tombstone('ui-welcome.tsx');
+    await p.reconcile();
+    expect(p.doruceka()['ui-welcome.tsx']).toBeUndefined();
+  });
+
+  test('a file that is still here, or still on the hub, is not forgotten', async () => {
+    const hub = fakeHub({ 'assets/b.png': 'B' });
+    write('assets/a.png', 'A');
+    ledger.setState('assets/a.png', 'local-only');
+    const p = plane(hub);
+    await p.reconcile();
+    expect(p.doruceka()['assets/a.png']).toBeDefined();
+    expect(p.doruceka()['assets/b.png']).toBe('on-hub');
   });
 });

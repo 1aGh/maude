@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, test } from 'node:test';
@@ -32,9 +32,11 @@ afterEach(() => {
 test('Linux resolves a staged native debug app, explicitly distinct from a macOS bundle', () => {
   const f = fixture('linux');
   const found = resolveSurfaceNative({ root: f.root, platform: 'linux' });
-  assert.equal(found.app, f.app);
+  // The resolver answers with real paths; on macOS tmpdir() is /var/… while
+  // its real path is /private/var/….
+  assert.equal(found.app, realpathSync(f.app));
   assert.equal(found.kind, 'linux-staged-debug');
-  assert.equal(found.resources, f.resources);
+  assert.equal(realpathSync(found.resources), realpathSync(f.resources));
 });
 test('macOS still requires the packaged executable and resources', () => {
   const f = fixture('darwin');

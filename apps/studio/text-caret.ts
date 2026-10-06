@@ -146,7 +146,7 @@ interface CaretRect {
  * should hide (no collapsed selection inside the editable / editable not
  * focused / a range selection is active, where the native highlight is the
  * affordance). */
-function caretRectFor(editable: HTMLElement, win: Window): CaretRect | null {
+function caretRectFor(editable: HTMLElement, win: Window): CaretRect | 'native' | null {
   const doc = editable.ownerDocument;
   const active = doc.activeElement;
   if (active !== editable && !editable.contains(active)) return null;
@@ -165,6 +165,13 @@ function caretRectFor(editable: HTMLElement, win: Window): CaretRect | null {
     if (br && br.height > 0) r = br;
   }
   if (r && r.height > 0) return { x: r.left, y: r.top, h: r.height };
+  // A caret on a line with no text box yet — Shift+Enter's "\n" puts it at
+  // the start of an empty last line — has no client rect in Chromium or
+  // WebKit. Guessing a position from the editable's box painted it back at
+  // the top-left of line ONE (the "Shift+Enter throws the cursor somewhere
+  // weird" report). Only the engine knows where that caret is, so hand the
+  // caret back to it: the native caret shows until a rect exists again.
+  if ((editable.textContent ?? '').replace(/\u200b/g, '') !== '') return 'native';
   // Empty editable — no rect exists anywhere. Derive a caret box from the
   // editable's padding box + line metrics. (The annotation editors avoid this
   // path by mounting with a zero-width-space JUMP_SENTINEL, but the artboard
@@ -221,7 +228,9 @@ export function mountCaret(editable: HTMLElement, win: Window): () => void {
 
   const position = (): void => {
     const rc = caretRectFor(editable, win);
-    if (!rc) {
+    // The engine's own caret, while ours can't be placed (see caretRectFor).
+    editable.style.caretColor = rc === 'native' ? prevCaretColor || 'auto' : 'transparent';
+    if (!rc || rc === 'native') {
       if (shown) {
         caret.style.display = 'none';
         shown = false;

@@ -21,6 +21,8 @@
  */
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { isAllLocked, lockedStrokeIds } from './annotations/lock.ts';
+import { type FormatKey, formatCommands, formatState } from './annotations/ui/editor-channel.ts';
 import type { AlignEdge } from './annotations-align.ts';
 import {
   type ArrowHead,
@@ -61,6 +63,8 @@ import {
   IconLink,
   IconListBullet,
   IconListOrdered,
+  IconLock,
+  IconLockOpen,
   IconObjAlignBottom,
   IconObjAlignHCenter,
   IconObjAlignLeft,
@@ -439,9 +443,9 @@ export function AnnotationContextToolbar({
   /**
    * FigJam v3 — while an inline text editor is open, the toolbar flips into
    * TEXT mode: size / B / I / S / U / align controls that drive the EDITOR
-   * through `maude:editor-format` events (mutating the stroke mid-edit would
-   * re-render the contentEditable and clobber typed text). The editor echoes
-   * its live state back via `maude:editor-format-state`.
+   * through editor-channel.ts (mutating the stroke mid-edit would re-render
+   * the editor and clobber typed text). The editor echoes its live state back
+   * on the same channel.
    */
   editingId?: string | null;
 } = {}) {
@@ -461,14 +465,9 @@ export function AnnotationContextToolbar({
     align?: string;
   }>({});
   useEffect(() => {
-    if (!editingId || typeof document === 'undefined') return;
-    const onState = (e: Event) => {
-      setEditorFmt((e as CustomEvent<Record<string, unknown>>).detail ?? {});
-    };
-    document.addEventListener('maude:editor-format-state', onState);
-    // Ask the already-mounted editor for its current state (mount-order race).
-    document.dispatchEvent(new CustomEvent('maude:editor-format-request'));
-    return () => document.removeEventListener('maude:editor-format-state', onState);
+    if (!editingId) return;
+    // Called at once with the editor's current state (it may have mounted first).
+    return formatState.listen((s) => setEditorFmt(s ?? {}));
   }, [editingId]);
   // T30 / G_S1 — collapsed Stroke|Fill toggle state. Defaults to 'stroke';
   // auto-reverts to 'stroke' whenever caps.fill is false so the toggle
@@ -766,8 +765,8 @@ export function AnnotationContextToolbar({
   // FigJam v3 — TEXT mode while an inline editor is open: a focused strip of
   // text controls dispatching to the editor (Image-6 FigJam parity).
   if (editingId) {
-    const dispatchFmt = (key: string, value?: unknown) => {
-      document.dispatchEvent(new CustomEvent('maude:editor-format', { detail: { key, value } }));
+    const dispatchFmt = (key: FormatKey, value?: unknown) => {
+      formatCommands.send({ key, value });
     };
     const fmtBtn = (
       key: 'bold' | 'italic' | 'strike' | 'underline',
@@ -818,6 +817,40 @@ export function AnnotationContextToolbar({
   }
 
   if (!annotSel || !store || selectedStrokes.length === 0) return null;
+
+  // #137 — lock. A selection holding a locked element collapses to the one
+  // control that matters (nothing else on it may change); a fully locked
+  // selection offers Unlock, a mixed one Lock (locks the rest too).
+  const lockedIds = lockedStrokeIds(store.strokes);
+  const anyLocked = selectedStrokes.some((s) => lockedIds.has(s.id));
+  const allLocked = isAllLocked(annotSel.selectedIds, store.strokes);
+  const lockBtn = (
+    <button
+      type="button"
+      className="dc-annot-ctx-ibtn"
+      data-testid={allLocked ? 'annot-ctx-unlock' : 'annot-ctx-lock'}
+      aria-label={allLocked ? 'Unlock selection' : 'Lock selection'}
+      aria-pressed={allLocked}
+      title={allLocked ? 'Unlock (⌘⇧L)' : 'Lock (⌘⇧L)'}
+      onClick={() => store.setLocked(annotSel.selectedIds, !allLocked)}
+    >
+      {allLocked ? <IconLockOpen /> : <IconLock />}
+    </button>
+  );
+  if (anyLocked) {
+    return (
+      <div
+        ref={ref}
+        className="dc-annot-ctx"
+        role="toolbar"
+        aria-label="Locked selection"
+        style={{ display: 'flex', top: -9999, left: -9999 }}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        {lockBtn}
+      </div>
+    );
+  }
 
   // ── Phase 23 — dedicated panel for a single image / link selection. ─────────
   // Image / link carry no color / fill / thickness, so the generic swatch bar is
@@ -1376,6 +1409,8 @@ export function AnnotationContextToolbar({
           </button>
         </>
       ) : null}
+      <div className="dc-annot-ctx-sep" />
+      {lockBtn}
       {canGroup || canUngroup || canAlign ? (
         <>
           <div className="dc-annot-ctx-sep" />

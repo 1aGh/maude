@@ -33,7 +33,7 @@ export function isReadOnlyCanvas(): boolean {
 let embedCached: boolean | null = null;
 
 /**
- * DDR-242 — is this canvas the chromeless view another app frames
+ * DDR-247 — is this canvas the chromeless view another app frames
  * (`client/embed-view.jsx` appends `?embed=1`)? Boot-static for the same reason
  * as `isReadOnlyCanvas`. An embed pans and zooms, but never persists its
  * camera: the designer's own view of the canvas is not the embed's to move.
@@ -51,7 +51,7 @@ export function isEmbedCanvas(): boolean {
 }
 
 /**
- * DDR-242 — Escape inside an embedded canvas belongs to the app around it.
+ * DDR-247 — Escape inside an embedded canvas belongs to the app around it.
  * Keys pressed in this frame never reach the embedding page, so an embed shown
  * in a dialog would trap a keyboard user: the dialog's own Escape stops
  * working. When nothing in the canvas consumed the key (`defaultPrevented`,

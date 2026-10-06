@@ -1,4 +1,4 @@
-// DDR-242 — the chromeless `?embed=1` view another app frames, and the ONE-WAY
+// DDR-247 — the chromeless `?embed=1` view another app frames, and the ONE-WAY
 // message contract it speaks to that app. Pure (URLSearchParams + URL only) so
 // `test/embed.test.ts` exercises it without React or a DOM.
 //

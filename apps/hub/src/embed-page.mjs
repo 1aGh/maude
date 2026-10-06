@@ -1,4 +1,4 @@
-// The signed-out answer to an EMBEDDED studio request — DDR-242.
+// The signed-out answer to an EMBEDDED studio request — DDR-247.
 //
 // Another app (orbit) frames `/?open=<rel>&embed=1`. Signed in, the studio
 // renders a read-only canvas. Signed OUT, the ordinary answer is a redirect to

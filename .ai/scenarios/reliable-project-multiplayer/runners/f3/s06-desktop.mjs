@@ -35,7 +35,7 @@ const Y = await mk('F3OfflineY');
 const Z = await mk('F3OfflineZ');
 const accepted = async (c) => (await B.doc(c.doc, 'owner')).source;
 const port = fx.port;
-const proxy = await startProxy({ listen: port + 50, target: port, control: port + 51 });
+const proxy = await startProxy({ listen: port + 50, target: fx.backend === "cloud" ? fx.url : port, control: port + 51 });
 const A = await startDesktop({
   root: join(scratch, `desktop-a-${tag}`),
   port: port + 60,

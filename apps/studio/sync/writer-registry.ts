@@ -79,6 +79,15 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
     via: 'onAnnotationsChanged hook → annotations lane.replace with the base the layer sent',
     test: 'test/sync-accepted-projection.test.ts',
   },
+  // DDR-242 §4 — the canvas's op batches. Same lane, same hook: the api applies
+  // the ops to the board, then fires onAnnotationsChanged with the pre-batch
+  // board as base (the kernel's `annotations.apply` replaces this in Task 12).
+  '/_api/annotations/ops': {
+    class: 'lane',
+    rows: 'S23',
+    via: 'onAnnotationsChanged hook → annotations lane.replace with the pre-batch board as base',
+    test: 'test/sync-accepted-projection.test.ts',
+  },
   // --- accepted history (T27/T28)
   '/_api/project/history': { class: 'read' },
   '/_api/project/restore': {
@@ -230,6 +239,7 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/sync/settings': { class: 'local' },
   '/_api/sync/trash': { class: 'local', rows: 'X15 (restore re-enters through cold start)' },
   '/_api/timeline-media': { class: 'local' },
+  '/_api/tree-state': { class: 'local' },
   '/_api/ui-prefs': { class: 'local' },
   '/_api/workspace/disclosure': { class: 'local' },
   '/_api/workspace/sign-in': { class: 'local' },

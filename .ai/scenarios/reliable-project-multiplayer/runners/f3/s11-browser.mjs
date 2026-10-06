@@ -11,6 +11,7 @@
 // readable — also after the backend restarts.
 //
 //   node s11-browser.mjs --work <selfhost dir> --out <dir> [--restart "<cmd>"]
+import { openStudio } from './browser-entry.mjs';
 import assert from 'node:assert/strict';
 import { execSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
@@ -71,12 +72,8 @@ const replaced = await accept('a', [{ op: 'lane.replace', doc, lane: 'html', bas
 
 const { chromium } = createRequire(join(REPO, 'package.json'))('@playwright/test');
 const browser = await chromium.launch();
-const signIn = async (user) => {
-  const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
-  await page.goto(`${fx.browserUrl}/studio/signin`);
-  await page.locator('input[name=email]').fill(user.email);
-  await page.locator('input[name=password]').fill(user.password);
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+const signIn = async (who) => {
+  const page = await openStudio(browser, fx, who);
   await page.locator(`[data-testid="canvas-row-ui-${name.toLowerCase()}"]`).click({ timeout: 60000 });
   return page;
 };
@@ -84,8 +81,8 @@ const decoded = (frameLoc, alt) =>
   frameLoc.locator(`img[alt="${alt}"]`).evaluate((img) => img.complete && img.naturalWidth > 0);
 const result = { doc, revisions: { created: created.revision, replaced: replaced.revision } };
 try {
-  const owner = await signIn(fx.users.owner);
-  const teammate = await signIn(fx.users.a);
+  const owner = await signIn('owner');
+  const teammate = await signIn('a');
   const live = (p) => p.frameLocator('[data-testid="canvas-frame"]');
   await live(teammate).locator('img[alt="New media"]').waitFor({ timeout: 60000 });
   if ((await owner.locator('[data-testid="open-changes"][aria-pressed="true"]').count()) === 0)
@@ -146,7 +143,8 @@ const check = async () => {
 result.after = await check();
 if (arg('restart')) {
   execSync(arg('restart'), { stdio: 'ignore' });
-  B = await loadBackend('selfhost', { work });
+  // A cloud cell's sessions do not outlive it; sign in again as a desktop does.
+  B = fx.backend === 'cloud' ? await loadBackend('cloud', { cache: null }) : await loadBackend('selfhost', { work });
   result.afterRestart = await check();
 }
 const ok = (c) =>

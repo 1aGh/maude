@@ -166,6 +166,9 @@ test('the service page carries no inline style — the CSP would drop it silentl
   assert.ok(html.includes('<link rel="stylesheet" href="/admin/style.css">'));
   // And it escapes.
   assert.ok(servicePage('<script>', 'x').includes('&lt;script&gt;'));
+  // The refresh is opt-in: every existing caller renders exactly as before.
+  assert.ok(!servicePage('Paused', 'x').includes('http-equiv'));
+  assert.ok(servicePage('Starting', 'x', { refreshSeconds: 3 }).includes('content="3"'));
 });
 
 // ---------------------------------------------------------------------------

@@ -63,6 +63,25 @@ export function livePairingEnabled(env, tenantId) {
 }
 
 /**
+ * Does this tenant's cell run the MATERIALIZER — its disk a bounded cache of
+ * the bucket rather than a full copy of the project (cell materializer, Phase
+ * 1)? `CELL_MATERIALIZE` is a tenant allowlist like `CELL_LIVE_PAIRING`, `*`
+ * for the fleet: it changes what a cell's checkout means, so it rolls to the
+ * project that needed it (alligators, ~7.8 GB on an 8 GB disk) and is widened
+ * once that has been watched.
+ */
+export function materializeEnabled(env, tenantId) {
+  const raw = (env.CELL_MATERIALIZE ?? '').trim();
+  if (!raw) return false;
+  if (raw === '*') return true;
+  return raw
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(String(tenantId).toLowerCase());
+}
+
+/**
  * Does this tenant's cell get a durable project store (accepted revisions,
  * DDR-241)? `CELL_PROJECT_STORE` is a tenant allowlist like
  * `CELL_LIVE_PAIRING` — accepted revisions roll one project at a time — with
@@ -212,6 +231,9 @@ export function canvasOriginTenant(url, zone) {
   if (host !== `${CANVAS_LABEL}.${z}`) return null;
   const [, first, ...rest] = url.pathname.split('/');
   if (!first) return { tenant: null, rest: '/' };
+  // A segment that cannot be a project id is not one — scanners walking this
+  // host (`/.env.prod`, `/database.sql`) were naming a Durable Object each.
+  if (!isValidTenantId(first)) return { tenant: null, rest: `/${rest.join('/')}` };
   return { tenant: first, rest: `/${rest.join('/')}` };
 }
 
@@ -310,6 +332,280 @@ export async function fetchTenantConfig({ tenantId, env, storage = null, fetchIm
  */
 export function needsStartupState(container) {
   return container?.running !== true;
+}
+
+/**
+ * Ask a cell about itself WITHOUT waking it.
+ *
+ * The control plane's hourly sweep reads each live cell's `/health` for the
+ * operator board. Before this header existed that read started every sleeping
+ * container, and a start re-hydrates the whole project from R2 — Alligators
+ * (7.5 GB) spent September awake on the hour, every hour, for a stats line
+ * nobody needed fresh (~4,800 GETs / ~7 GB per overnight hour).
+ *
+ * The header can only SUPPRESS a start, never cause one. It is still honoured
+ * only alongside this cell's own derived secret (the bearer the sweep already
+ * sends): from anyone else an "asleep" answer would be a free oracle for
+ * whether a project is in use right now. Without the secret the header is
+ * simply ignored and the request takes the ordinary path.
+ */
+export const WAKE_HEADER = 'x-maude-wake';
+
+/**
+ * Prefixes that hold TENANT CONTENT or Maude's own routes, where any filename
+ * is legitimate. Never a scanner probe, whatever the name looks like: a false
+ * positive here is a canvas that will not load on a cold cell. `/_` covers every
+ * hub and studio internal route (`/_project-file`, `/_canvas*`, `/_api`, `/_ws`,
+ * `/_asset-file`, `/_media`, …).
+ */
+const SCANNER_EXEMPT = /^\/(?:_|assets\/|\.design\/|api\/|health(?:\/|$))/;
+
+/** Paths no Maude route can ever serve. Matched against the lowercased path. */
+const SCANNER_PATTERNS = [
+  // PHP — Maude serves none, at any depth.
+  /\.php\d?(?:\/|$)/,
+  // WordPress at the root or one segment down (`/blog/wp-includes/…`).
+  /^\/(?:[^/]+\/)?wp-(?:admin|includes|content|login|json|config)/,
+  /^\/xmlrpc/,
+  // Credential and VCS stores, at any depth.
+  /(?:^|\/)\.env(?:[^/]*)(?:\/|$)/,
+  /(?:^|\/)\.git(?:\/|$|-credentials)/,
+  /(?:^|\/)\.(?:aws|config|ssh)(?:\/|$)/,
+  /(?:^|\/)\.ds_store$/,
+  // Appliance and framework probes.
+  /^\/cgi-bin(?:\/|$)/,
+  /^\/phpmyadmin/,
+  /\/vendor\/phpunit(?:\/|$)/,
+  /^\/actuator(?:\/|$)/,
+  /^\/server-status/,
+  /^\/boaform(?:\/|$)/,
+  /^\/hnap1(?:\/|$)/,
+];
+
+/**
+ * Is this request internet background noise that no member could ever send?
+ *
+ * Only consulted for a COLD cell (see `wakePolicy`): it saves a start, it is
+ * not a security control. A pattern that misses costs one wake; a pattern that
+ * matches tenant content costs a broken canvas, so exemptions are checked first.
+ */
+export function isScannerProbe(url) {
+  let path;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    return false;
+  }
+  try {
+    path = decodeURIComponent(path);
+  } catch {
+    // Malformed escapes: judge the raw path.
+  }
+  path = path.toLowerCase();
+  if (SCANNER_EXEMPT.test(path)) return false;
+  return SCANNER_PATTERNS.some((re) => re.test(path));
+}
+
+/**
+ * The hub's cookies that only a member's browser holds: the studio session
+ * (`BROWSER_SESSION_COOKIE`, apps/hub/src/browser-auth.mjs) and the canvas
+ * capability (`CANVAS_CAPABILITY_COOKIE`, apps/hub/src/studio-proxy.mjs).
+ * Mirrored, not imported — the Worker bundle cannot reach the hub; a test pins
+ * the names against the hub source.
+ */
+export const OWNER_COOKIES = Object.freeze(['maude_studio', 'maude_canvas']);
+
+/**
+ * Could this request be a member's? Presence only — the hub still verifies.
+ * Used to keep a member's odd-looking request able to wake the cell, never to
+ * authorize anything.
+ */
+export function hasOwnerSignal(headers) {
+  if (!headers?.get) return false;
+  if ((headers.get('authorization') ?? '').trim()) return true;
+  return (headers.get('cookie') ?? '').split(';').some((pair) => {
+    const eq = pair.indexOf('=');
+    if (eq < 0) return false;
+    return OWNER_COOKIES.includes(pair.slice(0, eq).trim()) && pair.slice(eq + 1).trim() !== '';
+  });
+}
+
+/**
+ * What a cell does with one request, decided from nothing but the request and
+ * the platform's own running flag.
+ *
+ *   `asleep-reply`     answer `{state:'asleep'}` — no config fetch, no
+ *                      credential mint, no activity renewal, no start
+ *   `refuse-cold`      a scanner path to a cold cell: 404, nothing else runs
+ *   `wake-page`        an anonymous person's browser on a cold cell: a page
+ *                      whose "Open project" button starts it (`WAKE_PATH`)
+ *   `asleep-text`      the same visit from a non-browser: a plain 503
+ *   `proxy`            the container is up; forward as today
+ *   `block-and-start`  today's cold path: start, wait, forward
+ *
+ * Every non-start answer applies only to a cell that is NOT running, so the
+ * policy can suppress a start but never change what a running project answers.
+ * Scanners (`/wp-login.php`, `/.env`, …) kept Alligators awake most of the
+ * night of 2026-10-02/03: each probe paid a boot plus `sleepAfter`.
+ *
+ * ACCEPTED TRADE-OFF: `refuse-cold` answers differently from a running hub, so
+ * an outsider can poll a scanner path to learn whether a project is awake
+ * without waking it (a low-severity oracle, 2026-10-03 security review).
+ * Answering scanner paths identically on a running cell would close it, but
+ * would break the rule that this policy never changes a running cell.
+ */
+export function wakePolicy({
+  headers,
+  running,
+  authorized = false,
+  url = null,
+  navigation = false,
+  canvas = false,
+  starting = false,
+}) {
+  if (running === true) return 'proxy';
+  if (authorized && headers?.get?.(WAKE_HEADER) === 'never') return 'asleep-reply';
+  if (!url || hasOwnerSignal(headers)) return 'block-and-start';
+  if (isScannerProbe(url)) return 'refuse-cold';
+  // MEMBERS-ONLY WAKE (2026-10-04). After v1.6.11 every overnight wake of
+  // Alligators was an anonymous `GET /` from a bot (Tencent Cloud with a fake
+  // iPhone UA, and a scanner sweep that opened on `/`), ~20 min each. Nothing
+  // below runs for a request that could plausibly be a member's: an owner
+  // signal (above), a start already in flight (a person who clicked), the
+  // canvas origin, or a path/query only Maude's own clients produce.
+  if (starting || canvas || isSocketUpgrade(headers) || wakesWithoutAsking(url)) {
+    return 'block-and-start';
+  }
+  return navigation ? 'wake-page' : 'asleep-text';
+}
+
+/**
+ * The form `wakePage` posts to. Handled by the cell itself, never proxied: a
+ * click on "Open project" is the one anonymous thing that may start a cell.
+ */
+export const WAKE_PATH = '/_cell/wake';
+
+/**
+ * THE PARK PROBE (2026-10-05, "an idle desktop lets its cloud cell sleep").
+ *
+ * A desktop that parked itself — sockets and poll closed so the cell can sleep
+ * through its ordinary `sleepAfter` — asks here, every minute, whether it
+ * should come back. The DO answers by itself: never `containerFetch`, never
+ * `renewActivityTimeout`, never a start. So asking costs a Worker invocation
+ * and no container time, and a probe can neither wake nor warm the cell.
+ *
+ * Handled before `wakePolicy`, like `WAKE_PATH`: every `/_*` path wakes a
+ * sleeping cell, and this one exists precisely not to.
+ *
+ * GATED on what only the sync client sends — its bearer (which the DO cannot
+ * verify; the hub holds the tokens) and `x-maude-sync-park: 1`. Anything else
+ * falls through to today's behaviour unchanged. What it reveals is small on
+ * purpose: awake/asleep is already public under members-only wake, and the
+ * last-change time is floored to the minute.
+ */
+export const CELL_STATE_PATH = '/_cell/state';
+export const SYNC_PARK_HEADER = 'x-maude-sync-park';
+
+/** Is this request the park probe the DO answers itself? */
+export function isCellStateProbe({ method, url, headers, canvas = false }) {
+  if (method !== 'GET' || canvas) return false;
+  let path;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    return false;
+  }
+  if (path !== CELL_STATE_PATH) return false;
+  if (headers?.get?.(SYNC_PARK_HEADER) !== '1') return false;
+  return /^Bearer\s+\S+/i.test((headers?.get?.('authorization') ?? '').trim());
+}
+
+export function floorToMinute(ms) {
+  return Number.isFinite(ms) && ms > 0 ? Math.floor(ms / 60_000) * 60_000 : null;
+}
+
+/**
+ * The probe's answer. `at` is the DO's own clock, floored the same way, so a
+ * desktop compares `changedAt` against a mark on the SAME clock rather than
+ * its own (a skewed laptop clock must not hide a change).
+ */
+export function cellStateAnswer({ running, changedAt, now }) {
+  return {
+    state: running === true ? 'running' : 'asleep',
+    changedAt: floorToMinute(changedAt),
+    at: floorToMinute(now),
+  };
+}
+
+/**
+ * Paths an anonymous visitor may open on a sleeping cell WITHOUT the click.
+ *
+ * Every `/_*` route (studio, canvas runtime, sockets, project files); the
+ * hub's own sign-in, OIDC and invite doors (`/auth`, `/studio/signin`,
+ * `/oidc`, `/join`, `/invites` — a member arriving through one of these is
+ * already on their way in, and an extra page would break the OIDC round
+ * trip); and the API, assets and health routes the scanner list also exempts.
+ */
+const WAKE_EXEMPT =
+  /^\/(?:_|assets\/|\.design\/|api\/|health(?:\/|$)|auth\/|studio\/signin|oidc\/|join(?:\/|$)|invites(?:\/|$)|\.well-known\/)/;
+
+/**
+ * Query parameters only a Maude link carries. A deep link to a canvas
+ * (`?open=ui/test.tsx`) or a canvas capability (`?t=`) is someone who was
+ * sent there; bots on `/` never carry them. If one ever learns to, that is one
+ * wake — a cost, not access: the hub still decides who gets in.
+ */
+const WAKE_PARAMS = ['open', 't'];
+
+/**
+ * A WebSocket upgrade always wakes. The desktop's sync socket dials the
+ * project root with its token INSIDE the socket protocol — no header, no
+ * cookie — so without this a cold cell would answer it 503 and only an
+ * unrelated bearer request would ever wake it (2026-10-04 attacker review,
+ * F4). Drive-by bots on `/` do not open sockets.
+ */
+function isSocketUpgrade(headers) {
+  return (headers?.get?.('upgrade') ?? '').toLowerCase() === 'websocket';
+}
+
+/** Does this URL wake a sleeping cell straight away, without the click? */
+export function wakesWithoutAsking(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return true;
+  }
+  if (WAKE_PARAMS.some((p) => parsed.searchParams.get(p))) return true;
+  let path = parsed.pathname;
+  try {
+    path = decodeURIComponent(path);
+  } catch {
+    // Malformed escapes: judge the raw path.
+  }
+  return WAKE_EXEMPT.test(path.toLowerCase());
+}
+
+/**
+ * Where "Open project" lands: the path the visitor asked for, on THIS origin.
+ * Anything else (another origin, `//host`, a backslash trick, garbage)
+ * becomes `/` — the form field is attacker-controlled, so it must never be an
+ * open redirect.
+ */
+export function safeReturnPath(raw, origin) {
+  if (typeof raw !== 'string' || raw.length > 2048 || !/^\/(?![/\\])/.test(raw)) return '/';
+  try {
+    const target = new URL(raw, origin);
+    if (target.origin !== new URL(origin).origin) return '/';
+    // CHECK THE RESULT, NOT ONLY THE INPUT: dot-segments collapse during
+    // parsing, so `/.//evil.com` and `/a/..//evil.com` come out as
+    // `//evil.com` — a protocol-relative Location off this origin
+    // (2026-10-04 defender review).
+    if (/^\/[/\\]/.test(target.pathname)) return '/';
+    return `${target.pathname}${target.search}`;
+  } catch {
+    return '/';
+  }
 }
 
 export async function fetchTenantS3Credentials({ tenantId, env, fetchImpl = fetch }) {
@@ -535,16 +831,17 @@ export async function cellEnv({ tenantId, env, hostname, config = NO_CONFIG, s3C
     // operator placeholder a customer should never meet, and (since B1) never
     // to another tenant's name.
     ...(config.projectName ? { MAUDE_PROJECT_NAME: config.projectName } : {}),
-    // Object storage — PER-TENANT credentials (Cloud Phase 25 A-1).
+    // Object storage — PER-TENANT credentials ONLY (Cloud Phase 25 A-1).
     //
     // `s3Creds` are temporary credentials the control plane minted for THIS
-    // tenant, scoped to `tenants/<id>/` and TTL-bounded. The legacy branch —
-    // the fleet-wide MAUDE_R2_* Worker secrets — exists only for the
-    // migration window and logs its own retirement; once the secrets are
-    // deleted from the Worker it is dead code. The entrypoint still derives
-    // the per-tenant key prefix from MAUDE_TENANT_ID either way (belt AND
-    // braces: scoped credentials fail hard on a prefix bug that the
-    // app-level prefix would have papered over).
+    // tenant, scoped to `tenants/<id>/` and TTL-bounded. There is no other
+    // branch any more: the fleet-wide MAUDE_R2_* key used to ride in here as a
+    // "migration window" fallback, and on 2026-10-02 scanner-started cells for
+    // tenants that do not exist were found carrying it. A cell with no minted
+    // credentials gets no storage at all — and `MaudeCell` refuses to start
+    // one rather than start it empty. The entrypoint still derives the
+    // per-tenant key prefix from MAUDE_TENANT_ID (belt AND braces: scoped
+    // credentials fail hard on a prefix bug the app-level prefix would hide).
     ...(s3Creds
       ? {
           MAUDE_S3_ENDPOINT: s3Creds.endpoint ?? env.MAUDE_R2_ENDPOINT ?? '',
@@ -558,12 +855,7 @@ export async function cellEnv({ tenantId, env, hostname, config = NO_CONFIG, s3C
           // /internal/cell-r2-credentials — it is the same derivation).
           MAUDE_S3_CREDS_URL: `${env.CONTROL_PLANE_URL ?? 'https://cloud.maude.sh'}/internal/cell-r2-credentials?tenant=${encodeURIComponent(tenantId)}`,
         }
-      : {
-          MAUDE_S3_ENDPOINT: env.MAUDE_R2_ENDPOINT ?? '',
-          MAUDE_S3_BUCKET: env.MAUDE_R2_BUCKET ?? 'maude-cloud-assets',
-          MAUDE_S3_ACCESS_KEY_ID: env.MAUDE_R2_ACCESS_KEY_ID ?? '',
-          MAUDE_S3_SECRET_ACCESS_KEY: env.MAUDE_R2_SECRET_ACCESS_KEY ?? '',
-        }),
+      : {}),
     // Outbound-ingress tunnel (Phase 25): with this set, the entrypoint runs
     // cloudflared alongside the hub and the cell dials OUT to the edge. Only
     // ever set for the tenant it belongs to — a token is one tunnel, and one
@@ -585,6 +877,26 @@ export async function cellEnv({ tenantId, env, hostname, config = NO_CONFIG, s3C
     // is the same reason the seed repo and the admin email stopped being
     // Worker globals in B1.
     ...(livePairingEnabled(env, tenantId) ? { MAUDE_CELL_PAIRING: '1' } : {}),
+    // CELL MATERIALIZER — the disk is a cache: inert media is served from the
+    // bucket on demand, verified against the journal, instead of restored onto
+    // a disk that may be smaller than the project. An optional byte cap on the
+    // cache rides along; without it the hub sizes the cache from free space.
+    ...(materializeEnabled(env, tenantId)
+      ? {
+          MAUDE_CELL_MATERIALIZE: '1',
+          ...(env.CELL_CACHE_BUDGET_BYTES
+            ? { MAUDE_CACHE_BUDGET_BYTES: String(env.CELL_CACHE_BUDGET_BYTES) }
+            : {}),
+        }
+      : {}),
+    // A BRAND-NEW project on a tenant that has both a durable store and a
+    // paired browser studio starts in accepted revisions: legacy on a cell is
+    // only as durable as its last backup generation. The hub applies it only
+    // to a project with no canvases yet (hub-integration adoptNewProjectMode);
+    // an existing project keeps its mode until the owner switches it.
+    ...(projectStoreEnabled(env, tenantId) && livePairingEnabled(env, tenantId)
+      ? { MAUDE_NEW_PROJECT_MODE: 'transactions' }
+      : {}),
     MAUDE_S3_REGION: 'auto',
     // Checkpoint cadence. A cell's disk is ephemeral and the platform migrates
     // instances freely, so the gap between checkpoints IS the window of
@@ -657,4 +969,27 @@ export function stripCanvasOriginMarker(request) {
   const inbound = new Request(request);
   inbound.headers.delete(CANVAS_ORIGIN_HEADER);
   return inbound;
+}
+
+/**
+ * Is this a PERSON's browser loading a page (top-level or an iframe), as
+ * opposed to a script, a socket, a desktop sync call or a probe?
+ *
+ * Only these get the waiting room and the friendly error pages; everything
+ * else keeps today's exact behaviour (feature-cloud-cost-and-cold-start-ux B2).
+ * Fetch Metadata first — every current engine sends it. Its absence falls back
+ * to the oldest honest signal: a GET that prefers HTML. A socket upgrade is
+ * never a navigation, whatever else it says.
+ */
+export function isNavigation(request) {
+  if (request.method !== 'GET') return false;
+  const h = request.headers;
+  if ((h.get('upgrade') ?? '').toLowerCase() === 'websocket') return false;
+  const mode = h.get('sec-fetch-mode');
+  if (mode) {
+    if (mode !== 'navigate') return false;
+    const dest = h.get('sec-fetch-dest');
+    return !dest || dest === 'document' || dest === 'iframe';
+  }
+  return /\btext\/html\b/.test(h.get('accept') ?? '');
 }

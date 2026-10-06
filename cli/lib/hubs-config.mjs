@@ -111,6 +111,7 @@ export function addHub(url, token, extra = {}) {
   // said about you at sign-in; `codeModulesAllowed` is what YOU said about the
   // hub, and a login response must not be able to change it.
   const priorConsent = prior?.codeModulesAllowed;
+  const priorDeletes = prior?.unlimitedDeletes;
   // THE EXPIRY BELONGS TO THE TOKEN, so it survives exactly when the token does.
   //
   // `expiresAt` is written only by the sign-in and renew paths in
@@ -133,6 +134,7 @@ export function addHub(url, token, extra = {}) {
     ...(priorRole ? { role: priorRole } : {}),
     ...(typeof priorExpiry === 'number' ? { expiresAt: priorExpiry } : {}),
     ...(typeof priorConsent === 'boolean' ? { codeModulesAllowed: priorConsent } : {}),
+    ...(typeof priorDeletes === 'boolean' ? { unlimitedDeletes: priorDeletes } : {}),
     ...extra,
   };
   saveHubsConfig(cfg);
@@ -151,6 +153,22 @@ export function setHubCodeModules(url, allowed) {
   const cfg = loadHubsConfig();
   if (!cfg.hubs[norm]) return false;
   cfg.hubs[norm].codeModulesAllowed = allowed === true;
+  saveHubsConfig(cfg);
+  return true;
+}
+
+/**
+ * Record whether this machine's outbound delete breaker is off for `url`.
+ *
+ * The one writer for `unlimitedDeletes` (see the studio `HubRecord`). The hub
+ * still decides: it admits an unbounded stream of deletes only from an
+ * owner-role token.
+ */
+export function setHubUnlimitedDeletes(url, on) {
+  const norm = normalizeUrl(url);
+  const cfg = loadHubsConfig();
+  if (!cfg.hubs[norm]) return false;
+  cfg.hubs[norm].unlimitedDeletes = on === true;
   saveHubsConfig(cfg);
   return true;
 }

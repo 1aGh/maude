@@ -2,6 +2,7 @@
 // through the hub's real /studio/signin form in Chromium, opens a canvas and
 // reads what it renders; the accepted API is asked who made which action.
 //   node peer-render.mjs --work <selfhost dir> --canvas ui/Name.tsx --expect "text" --out <dir>
+import { openStudio } from './browser-entry.mjs';
 import { fileURLToPath } from 'node:url';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -30,11 +31,7 @@ const { chromium } = require('@playwright/test');
 const browser = await chromium.launch();
 const result = { canvas: rel, revision: boot.revision, epoch: boot.epoch };
 try {
-  const page = await (await browser.newContext({ viewport: { width: 1400, height: 900 } })).newPage();
-  await page.goto(`${fx.browserUrl ?? fx.url}/studio/signin`);
-  await page.locator('input[name=email]').fill(fx.users.owner.email);
-  await page.locator('input[name=password]').fill(fx.users.owner.password);
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  const page = await openStudio(browser, fx, 'owner', { viewport: { width: 1400, height: 900 } });
   const slug = rel.replace(/^ui\//, '').replace(/\.tsx$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
   const row = page.locator(`[data-testid="canvas-row-ui-${slug}"]`);
   await row.waitFor({ timeout: 60000 });

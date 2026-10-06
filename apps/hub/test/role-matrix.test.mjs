@@ -59,7 +59,7 @@ test('a viewer may look, comment and download — and nothing else', () => {
 
 test('an annotation is an EDIT, not a comment — it is versioned with the design', () => {
   // The distinction that is easy to get wrong: comments live in their own
-  // store; annotations are a committed `*.annotations.svg` beside the canvas.
+  // store; annotations are a committed `*.annotations.json` beside the canvas (DDR-242).
   assert.equal(can('viewer', 'comment'), true);
   assert.equal(can('viewer', 'annotate'), false);
 });

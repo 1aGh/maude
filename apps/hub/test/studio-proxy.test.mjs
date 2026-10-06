@@ -13,6 +13,7 @@ import {
 import {
   createStudioProxy,
   INJECTED_HEADER_PREFIX,
+  isNavigationRequest,
   sessionKeyFor,
   upstreamHeaders,
 } from '../src/studio-proxy.mjs';
@@ -153,6 +154,111 @@ test('a dead upstream is 503 with a retry, never a 500', async () => {
   assert.equal(response.statusCode, 503);
   assert.equal(response.headers['retry-after'], '2');
   assert.match(JSON.parse(response.body).error, /Your work is safe/);
+});
+
+const NAV = { 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document', accept: 'text/html' };
+
+test('a page load during a restart gets a page that refreshes itself, not JSON', async () => {
+  // feature-cloud-cost-and-cold-start-ux B4: a person opening the project
+  // while the studio child restarts used to read `{"error": …}` in the tab.
+  const { proxy } = makeProxy({ ok: false });
+  const response = fakeResponse();
+  await proxy.handle({
+    request: { method: 'GET', headers: NAV, url: '/' },
+    response,
+    pathname: '/',
+    method: 'GET',
+    session: { email: 'o@b.c', role: 'owner' },
+  });
+  assert.equal(response.statusCode, 503);
+  assert.match(response.headers['content-type'], /text\/html/);
+  assert.match(response.body, /http-equiv="refresh" content="3"/);
+  assert.match(response.body, /Your work is safe/);
+});
+
+test('the canvas iframe gets a page that names nothing, links nowhere, loads nothing', async () => {
+  const { proxy } = makeProxy({ ok: false });
+  const response = fakeResponse();
+  await proxy.handleCanvas({
+    request: {
+      method: 'GET',
+      headers: { ...NAV, 'sec-fetch-dest': 'iframe' },
+      url: '/_canvas-shell.html?t=x',
+    },
+    response,
+    pathname: '/_canvas-shell.html',
+    method: 'GET',
+    verifyToken: () => ({ ok: true }),
+  });
+  assert.equal(response.statusCode, 503);
+  assert.match(response.headers['content-security-policy'], /default-src 'none'/);
+  assert.doesNotMatch(response.body, /<script|href=|<link|alligators/i);
+});
+
+test('an expired capability on a frame load asks the shell for a fresh one', async () => {
+  // Before: the iframe showed `{"error":"this canvas link has expired…"}`.
+  const { proxy } = makeProxy();
+  const response = fakeResponse();
+  await proxy.handleCanvas({
+    request: {
+      method: 'GET',
+      headers: { ...NAV, 'sec-fetch-dest': 'iframe' },
+      url: '/_canvas-shell.html?t=stale',
+    },
+    response,
+    pathname: '/_canvas-shell.html',
+    method: 'GET',
+    verifyToken: () => ({ ok: false }),
+  });
+  assert.equal(response.statusCode, 401);
+  assert.match(response.headers['content-type'], /text\/html/);
+  // To the project's own shell, never '*'.
+  assert.match(
+    response.body,
+    /postMessage\(\{dgn:'canvas-expired'\},"https:\/\/alligators\.cloud\.maude\.sh"\)/
+  );
+  // The only script is the one the CSP pins.
+  const script = /<script>([^<]*)<\/script>/.exec(response.body)[1];
+  const hash = createHash('sha256').update(script).digest('base64');
+  assert.match(
+    response.headers['content-security-policy'],
+    new RegExp(`script-src 'sha256-${hash.replace(/[+/=]/g, (c) => `\\${c}`)}'`)
+  );
+  assert.match(response.headers['content-security-policy'], /default-src 'none'/);
+});
+
+test('a non-navigation with an expired capability keeps its JSON', async () => {
+  const { proxy } = makeProxy();
+  const response = fakeResponse();
+  await proxy.handleCanvas({
+    request: { method: 'GET', headers: { accept: '*/*' }, url: '/_canvas/module?t=stale' },
+    response,
+    pathname: '/_canvas/module',
+    method: 'GET',
+    verifyToken: () => ({ ok: false }),
+  });
+  assert.equal(response.statusCode, 401);
+  assert.match(JSON.parse(response.body).error, /expired/);
+});
+
+test('API callers keep the exact JSON answer', () => {
+  assert.equal(
+    isNavigationRequest({ method: 'GET', headers: { accept: 'application/json' } }),
+    false
+  );
+  assert.equal(
+    isNavigationRequest({
+      method: 'GET',
+      headers: { 'sec-fetch-mode': 'cors', accept: 'text/html' },
+    }),
+    false
+  );
+  assert.equal(isNavigationRequest({ method: 'POST', headers: NAV }), false);
+  assert.equal(
+    isNavigationRequest({ method: 'GET', headers: { ...NAV, upgrade: 'websocket' } }),
+    false
+  );
+  assert.equal(isNavigationRequest({ method: 'GET', headers: NAV }), true);
 });
 
 // ------------------------------------------------------- A3: the role travels
@@ -363,7 +469,7 @@ test('an owner capability writes the canvas-authored lanes at its own role', asy
     await proxy.handleCanvas({
       request: {
         headers: { origin: CANVAS_ORIGIN, cookie: 'maude_canvas=own' },
-        // DDR-242 — the shell appends the frame's capability to every write.
+        // DDR-247 — the shell appends the frame's capability to every write.
         url: `${path}?t=own`,
       },
       response: r,
@@ -450,7 +556,7 @@ test('the project shell is the other legitimate writer', async () => {
   assert.equal(forwarded.at(-1).headers[`${INJECTED_HEADER_PREFIX}readonly`], '0');
 });
 
-test('an embed origin may frame the studio but never writes through the canvas door (DDR-242)', async () => {
+test('an embed origin may frame the studio but never writes through the canvas door (DDR-247)', async () => {
   // MAUDE_EMBED_ORIGINS is a FRAMING list. If it ever leaked into the write
   // allowlist beside MAUDE_EXTRA_SHELL_ORIGINS, the app embedding a read-only
   // view would hold the member's write capability — the whole reason the two
@@ -477,7 +583,7 @@ test('an embed origin may frame the studio but never writes through the canvas d
   assert.equal(forwarded.length, 0);
 });
 
-// ---------------------------------------------- DDR-242: the embed is read-only
+// ---------------------------------------------- DDR-247: the embed is read-only
 
 test('the embed view is handed a READ-ONLY capability; the studio keeps its own', async () => {
   const minted = [];
@@ -527,7 +633,7 @@ test('a read-only capability writes NOTHING at the canvas door — not even a co
   }
 });
 
-test('a write or socket never rides the ambient cookie — even a FULL one (DDR-242)', async () => {
+test('a write or socket never rides the ambient cookie — even a FULL one (DDR-247)', async () => {
   // The chain the re-review found: the designer's own studio tab plants a
   // full capability as `maude_canvas`; the embed's canvas is same-site with
   // orbit, so that cookie reaches the embedded frame too. Canvas code there
@@ -580,7 +686,7 @@ test('a write or socket never rides the ambient cookie — even a FULL one (DDR-
   assert.equal(ro.forwarded.length, 0);
 });
 
-test('an embed never overwrites the full cookie; its own one still loads assets (DDR-242)', async () => {
+test('an embed never overwrites the full cookie; its own one still loads assets (DDR-247)', async () => {
   const verifyToken = (t) =>
     t === 'ro'
       ? { ok: true, role: 'viewer', readOnly: true }
@@ -1120,7 +1226,7 @@ test('a capability in the URL opens the collab socket at the token role, canvas 
   assert.equal(f.headers[`${INJECTED_HEADER_PREFIX}collab-realm`], 'canvas');
 });
 
-test('the capability cookie alone opens NO socket — the shell appends ?t= (DDR-242)', () => {
+test('the capability cookie alone opens NO socket — the shell appends ?t= (DDR-247)', () => {
   // use-collab.tsx builds `wss://<canvas-origin>/_ws/collab/<slug>` with no
   // query string, and the shell document (templates/_shell.html) appends this
   // frame's capability to every socket it opens. The cookie is one per canvas
@@ -1269,7 +1375,7 @@ test('the render token carries the role; an older token verifies to role null', 
   assert.equal(old.role, null);
 });
 
-test('the read-only claim is signed: minted, verified, and never forged off (DDR-242)', () => {
+test('the read-only claim is signed: minted, verified, and never forged off (DDR-247)', () => {
   const secret = 'test-secret';
   const ro = mintRenderToken({
     secret,

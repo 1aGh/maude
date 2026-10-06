@@ -1,4 +1,4 @@
-// DDR-242 — embedding the studio in another app. The framing allowlist, the
+// DDR-247 — embedding the studio in another app. The framing allowlist, the
 // canvas URL an embed builds, the one-way message contract, and — booted for
 // real — the headers the studio page and the canvas shell actually send.
 

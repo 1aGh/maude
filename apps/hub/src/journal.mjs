@@ -39,12 +39,13 @@
 // path", and the hub looks. It cannot say what it found.
 
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, renameSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
-import { listProjectFiles, readCanvasGroups } from './file-manifest.mjs';
+import { listProjectFiles, readCanvasGroups, resolveProjectFileTarget } from './file-manifest.mjs';
 import { classifyProjectFile, isFilePlaneClass, isProjectFileShape } from './file-membership.mjs';
+import { headObject } from './s3.mjs';
 
 const require = createRequire(import.meta.url);
 // better-sqlite3 is a runtime-external native binding (see build.ts). Loading
@@ -54,11 +55,13 @@ const Database = require('better-sqlite3');
 /** Where a write came from. Recorded for forensics; never an authority. */
 export const JOURNAL_SOURCES = Object.freeze([
   'peer-put', // a desktop PUT through a hub write door
+  'owner-delete', // a DELETE through the write door by an owner-role token — outside the delete budget
   'studio-report', // the studio child nudged us about its own write
   'walk-import', // the reconciler found drift the hooks missed
   'boot-scan', // first walk of a checkout with no journal
   'hydrate', // bucket→checkout asset refill at boot
   'tail-replay', // reconstructed from the R2 tail after a rehydrate
+  'disk-lost', // a live row whose bytes neither the checkout nor the bucket has
 ]);
 
 /** Refuse an implausible file rather than hash it — the file-manifest figure. */
@@ -90,6 +93,25 @@ export const MAX_JOURNAL_PAGE = 2000;
  */
 export const DELETE_BUDGET_WINDOW_MS = 60 * 60 * 1000;
 export const DELETE_BUDGET_PER_WINDOW = 25;
+
+/**
+ * OWNERS ARE OUTSIDE THE DOOR BUDGET.
+ *
+ * The budget exists for the accident shapes — a branch switch, a `git clean`,
+ * a botched restore on ONE machine — and for a leaked low-value token. An
+ * owner reorganising their own project is neither, and a 25-per-hour ceiling
+ * turned an 80-file cleanup into an afternoon of babysitting. So the door lets
+ * an owner-role token delete without a ceiling (`file-door.mjs`) and records
+ * the tombstone as `owner-delete`, which the window count below leaves out, so
+ * an owner's purge does not spend the budget everyone else's accidents need.
+ *
+ * What stays: every deleted file is still quarantined before its tombstone is
+ * written, so an owner delete is as recoverable as any other. And the R2 TAIL
+ * REPLAY still counts every tombstone, `owner-delete` included — `source` in
+ * the tail is data, not authority, and exempting a label is exactly how an
+ * injected purge would dress itself.
+ */
+export const OWNER_DELETE_SOURCE = 'owner-delete';
 
 /** One open handle per dataDir. Native init is expensive; cache it. */
 const handleCache = new Map();
@@ -183,7 +205,11 @@ function makeHandle({ db, getMeta, setMeta, now }) {
     ),
     since: db.prepare('SELECT * FROM file_journal WHERE seq > ? ORDER BY seq ASC LIMIT ?'),
     byId: db.prepare('SELECT * FROM file_journal WHERE seq = ?'),
+    // Owner deletes are outside the door budget (see OWNER_DELETE_SOURCE).
     deletionsSince: db.prepare(
+      "SELECT COUNT(*) AS n FROM file_journal WHERE deleted = 1 AND at_ms >= ? AND source != 'owner-delete'"
+    ),
+    allDeletionsSince: db.prepare(
       'SELECT COUNT(*) AS n FROM file_journal WHERE deleted = 1 AND at_ms >= ?'
     ),
     compaction: db.prepare(
@@ -193,6 +219,9 @@ function makeHandle({ db, getMeta, setMeta, now }) {
         ORDER BY j.path ASC`
     ),
     markMirrored: db.prepare('UPDATE file_journal SET mirrored_at_ms = ? WHERE seq = ?'),
+    unmirroredSha: db.prepare(
+      'SELECT 1 AS hit FROM file_journal WHERE sha256 = ? AND mirrored_at_ms IS NULL LIMIT 1'
+    ),
     getCursor: db.prepare('SELECT * FROM peer_cursors WHERE label = ?'),
     upsertCursor: db.prepare(
       `INSERT INTO peer_cursors (label, epoch, seq, healed_seq, refused, last_seen)
@@ -224,8 +253,25 @@ function makeHandle({ db, getMeta, setMeta, now }) {
     }
   };
 
+  /** Cell materializer: inert media lives in the bucket + blob cache, and the
+   *  checkout's copy (or its absence) says nothing about it. */
+  let inertCached = false;
+
   const handle = {
     db,
+
+    /**
+     * Cell mode (cell materializer Task 13). Once on, absence of an inert-media
+     * file from the checkout is never a deletion and its presence never a
+     * write — the journal and the bucket are the truth for that class, and the
+     * disk is a disposable cache. This is the guard against the plan's top
+     * risk: an evicted or never-hydrated photo must not tombstone itself on
+     * every desktop.
+     */
+    setInertCached(on) {
+      inertCached = Boolean(on);
+    },
+    inertCached: () => inertCached,
 
     epoch: () => getMeta.get('epoch').v,
     head: () => stmts.head.get().head,
@@ -297,8 +343,47 @@ function makeHandle({ db, getMeta, setMeta, now }) {
       if (!designRoot || typeof rel !== 'string' || rel.length === 0) return null;
       const prev = stmts.latestForPath.get(rel);
       if (!prev || prev.deleted === 1) return null;
+      // On a cell an inert-media file is ABSENT from the checkout by design.
+      // A real delete of one comes through the write door, never from here.
+      if (inertCached && prev.class === 'inert-media') return null;
       if (existsSync(join(designRoot, rel))) return null;
       return handle.recordWrite({ designRoot, path: rel, source, deleted: true });
+    },
+
+    /**
+     * The hub LOST a file it still lists as live — not a delete.
+     *
+     * A cell's checkout is ephemeral and the boot hydrate refills it from the
+     * bucket, so a file that never reached the bucket (the v1.5.x expired
+     * write-behind credentials) is simply gone after a restart, while its
+     * journal row still says "the hub holds sha X". Every peer agreed with that
+     * row, so nobody ever pushed the file again: the canvas that imports it
+     * stays a 422 forever.
+     *
+     * The repair row is LIVE with no hash. A peer reads it as "the hub holds
+     * nothing" without a tombstone — `remote-regressed` in `decide-file.ts`,
+     * which pushes its copy back (absence is not authority, DDR-076). It is
+     * never a tombstone: a tombstone would delete the file on every desktop.
+     * No epoch rotation either — the row travels on the ordinary cursor.
+     */
+    recordLost({ designRoot, path: rel }) {
+      if (!designRoot || typeof rel !== 'string' || rel.length === 0) return null;
+      const prev = stmts.latestForPath.get(rel);
+      if (!prev || prev.deleted === 1 || prev.sha256 == null) return null;
+      if (existsSync(join(designRoot, rel))) return null;
+      const info = stmts.insert.run({
+        path: rel,
+        sha256: null,
+        size: null,
+        mtime_ms: null,
+        class: prev.class,
+        deleted: 0,
+        source: 'disk-lost',
+        at_ms: now(),
+      });
+      const row = stmts.byId.get(info.lastInsertRowid);
+      emit(row);
+      return { seq: row.seq };
     },
 
     /**
@@ -374,6 +459,52 @@ function makeHandle({ db, getMeta, setMeta, now }) {
     },
 
     /**
+     * Append a row for bytes the hub holds in its CELL BLOB CACHE, not at the
+     * checkout path (cell materializer Task 12).
+     *
+     * `recordWrite`'s invariant is "the hub reads its own disk": the caller
+     * says WHERE, never WHAT. On a cell an inert-media upload lands pinned in
+     * `_cache/blobs/<sha>` and the checkout path stays empty by design, so
+     * that read has nothing to read. This sibling keeps the invariant's point
+     * — content is never caller-supplied over HTTP — by accepting only the
+     * digest the WRITE DOOR computed from the bytes it streamed, and only for
+     * inert media (code and companion text always land in the checkout).
+     *
+     * @param {{ designRoot: string, path: string, sha256: string, size: number, source: string }} w
+     */
+    recordVerifiedWrite({ designRoot, path: rel, sha256, size, source }) {
+      if (!designRoot || typeof rel !== 'string' || rel.length === 0) return null;
+      if (!JOURNAL_SOURCES.includes(source)) {
+        console.error(`[journal] refusing an append with unknown source '${source}'`);
+        return null;
+      }
+      if (typeof sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(sha256)) return null;
+      if (!Number.isInteger(size) || size < 0 || size > MAX_FILE_BYTES) return null;
+      const cls = classifyProjectFile(rel, {
+        canvasGroups: readCanvasGroups(designRoot),
+        hasFile: (r) => existsSync(join(designRoot, r)),
+      });
+      if (cls !== 'inert-media') return null;
+      const prev = stmts.latestForPath.get(rel);
+      if (prev && prev.deleted === 0 && prev.sha256 === sha256) {
+        return { seq: prev.seq, sha256, noop: true, deleted: false };
+      }
+      const info = stmts.insert.run({
+        path: rel,
+        sha256,
+        size,
+        mtime_ms: now(),
+        class: cls,
+        deleted: 0,
+        source,
+        at_ms: now(),
+      });
+      const row = stmts.byId.get(info.lastInsertRowid);
+      emit(row);
+      return { seq: row.seq, sha256, noop: false, deleted: false };
+    },
+
+    /**
      * Tombstone rows appended at or after `sinceMs` — the delete breaker's
      * numerator. See `DELETE_BUDGET_PER_WINDOW`.
      *
@@ -382,6 +513,18 @@ function makeHandle({ db, getMeta, setMeta, now }) {
      */
     deletionsSince(sinceMs) {
       const row = stmts.deletionsSince.get(Number.isFinite(sinceMs) ? sinceMs : 0);
+      return row?.n ?? 0;
+    },
+
+    /**
+     * Every tombstone in the window, `owner-delete` included — what the R2 tail
+     * replay counts against, because a label read back from the tail is data.
+     *
+     * @param {number} sinceMs
+     * @returns {number}
+     */
+    allDeletionsSince(sinceMs) {
+      const row = stmts.allDeletionsSince.get(Number.isFinite(sinceMs) ? sinceMs : 0);
       return row?.n ?? 0;
     },
 
@@ -425,6 +568,11 @@ function makeHandle({ db, getMeta, setMeta, now }) {
     latestFor(rel) {
       const row = stmts.latestForPath.get(rel);
       return row ? toWire(row) : null;
+    },
+
+    /** Does any row naming this sha still wait for its mirror? (cell pins) */
+    hasUnmirroredSha(sha) {
+      return Boolean(stmts.unmirroredSha.get(sha));
     },
 
     markMirrored(seq, atMs = now()) {
@@ -529,7 +677,7 @@ function makeHandle({ db, getMeta, setMeta, now }) {
       // top the budget back up by being a separate operation.
       let tombstoneBudget = Math.max(
         0,
-        DELETE_BUDGET_PER_WINDOW - handle.deletionsSince(now() - DELETE_BUDGET_WINDOW_MS)
+        DELETE_BUDGET_PER_WINDOW - handle.allDeletionsSince(now() - DELETE_BUDGET_WINDOW_MS)
       );
       const lines = String(text ?? '')
         .split('\n')
@@ -638,10 +786,6 @@ export const JOURNAL_PATH = '/api/journal';
 
 /** `POST /api/journal/report` — the loopback NUDGE (never data). */
 export const JOURNAL_REPORT_PATH = '/api/journal/report';
-
-/** A path a nudge is allowed to name. Shape only — the classifier still judges
- *  membership, and the disk still decides what is actually there. */
-const NUDGE_PATH_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$/;
 
 /** How many paths one nudge may name. A nudge is a hint, not a work queue. */
 const MAX_NUDGE_PATHS = 64;
@@ -755,7 +899,10 @@ export function handleJournalRoutes({
     const paths = Array.isArray(body?.paths) ? body.paths : [];
     let noted = 0;
     for (const raw of paths.slice(0, MAX_NUDGE_PATHS)) {
-      if (typeof raw !== 'string' || !NUDGE_PATH_RE.test(raw) || raw.split('/').includes('..')) {
+      // Shape only — the project-file shape the file door admits (a narrower
+      // regex here left every path with a space unjournalled). The classifier
+      // still judges membership, and the disk decides what is actually there.
+      if (typeof raw !== 'string' || !isProjectFileShape(raw)) {
         continue;
       }
       noted += 1;
@@ -841,7 +988,10 @@ export function createJournalTail({
     let lastErr = null;
     for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
       try {
-        await target.put(JOURNAL_TAIL_KEY, Buffer.from(body, 'utf8'));
+        // Resolved per attempt: a cell's credentials expire mid-process.
+        const t = typeof target === 'function' ? await target() : target;
+        if (!t) throw new Error('no object storage target');
+        await t.put(JOURNAL_TAIL_KEY, Buffer.from(body, 'utf8'));
         if (failures > 0) {
           log.log?.(`[journal] tail write-behind recovered after ${failures} failure(s).`);
         }
@@ -992,6 +1142,199 @@ export function walkIntervalFromEnv(env = process.env) {
   return Math.min(WALK_MAX_MS, Math.max(WALK_MIN_MS, Math.trunc(raw)));
 }
 
+/** Bucket HEADs in flight at once during the lost-file pass. A large project
+ *  has thousands of candidate rows after a budgeted hydrate; unbounded, that
+ *  is a self-inflicted rate limit on the account. */
+const LOST_HEAD_CONCURRENCY = 8;
+
+/** One HEAD may take this long. The write-behind starts only after this pass,
+ *  and a bucket that hangs must not hold the mirror back for undici's 300 s
+ *  default per request (Phase 0 defender W5) — a timeout is a bucket error,
+ *  which skips the pass. */
+const LOST_HEAD_TIMEOUT_MS = 15_000;
+
+function withTimeout(promise, ms) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`no answer within ${ms} ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * Mark live rows whose bytes are GONE as `disk-lost`, so peers that still hold
+ * them push them back (v1.5.2).
+ *
+ * THE BUCKET IS ASKED FIRST (cell materializer Phase 0). The v1.5.2 pass
+ * marked every live row missing from the checkout — without asking the
+ * bucket, and after a hydrate that may have died half-way. On the 2026-10-01
+ * Alligators loop that told every desktop to re-push gigabytes the bucket
+ * already held, into a disk that was already full. So a row is lost only when:
+ *
+ *   • the boot hydrate completed (no failures, nothing skipped for budget) —
+ *     after a partial hydrate, "absent from disk" means nothing; and
+ *   • it is absent from the checkout; and
+ *   • its bytes were never mirrored (`mirroredAtMs` null), OR the bucket
+ *     answers 404 for its key.
+ *
+ * Any bucket error skips the whole pass rather than guessing: a false "lost"
+ * costs a full re-upload from every peer, a missed one costs a minute until
+ * the next boot. `MAUDE_REPORT_LOST=0` turns the pass off entirely.
+ *
+ * @param {object} o
+ * @param {{failed: number, skippedForBudget: number}|null} [o.hydrate] the boot
+ *   hydrate's totals; null when no hydrate ran (a hub without storage).
+ * @param {object|(() => Promise<object>)|null} [o.s3] config or resolver.
+ * @param {(rel: string) => string} [o.keyFor] the write-behind's bucket key.
+ * @returns {Promise<{ lost: number, skipped?: string }>}
+ */
+export async function reportLostFiles({
+  journal,
+  designRoot,
+  hydrate = null,
+  s3 = null,
+  keyFor = null,
+  deps = {},
+  env = process.env,
+  log = console,
+  /** Cell mode: is this sha pinned in the blob cache (bytes held, unmirrored)? */
+  isPinned = null,
+}) {
+  if (String(env.MAUDE_REPORT_LOST ?? '').trim() === '0') return { lost: 0, skipped: 'disabled' };
+  if (!journal || !designRoot || !existsSync(designRoot)) return { lost: 0 };
+  if (hydrate && (hydrate.failed > 0 || hydrate.skippedForBudget > 0)) {
+    log.warn?.(
+      `[journal] lost-file pass skipped: the boot hydrate was partial (${hydrate.failed} failed, ` +
+        `${hydrate.skippedForBudget} left in the bucket) — absence from disk proves nothing.`
+    );
+    return { lost: 0, skipped: 'hydrate-incomplete' };
+  }
+
+  let lost = 0;
+  try {
+    const cell = journal.inertCached?.() === true;
+    const absent = journal.compaction().filter((r) => {
+      if (r.deleted || !r.sha256) return false;
+      // On a cell, inert media is SUPPOSED to be absent from the checkout. It
+      // is lost only when its bytes are nowhere: never mirrored, not pinned.
+      if (cell && r.class === 'inert-media') {
+        return r.mirroredAtMs == null && !(isPinned?.(r.sha256) ?? false);
+      }
+      return !existsSync(join(designRoot, r.path));
+    });
+    if (absent.length === 0) return { lost: 0 };
+
+    const confirmed = absent.filter((r) => r.mirroredAtMs == null);
+    const mirrored = absent.filter((r) => r.mirroredAtMs != null);
+    if (mirrored.length > 0) {
+      const head = deps.headObject ?? headObject;
+      let cfg = null;
+      try {
+        cfg = typeof s3 === 'function' ? await s3() : s3;
+      } catch (err) {
+        log.warn?.(`[journal] lost-file pass skipped: no bucket credentials (${err.message}).`);
+        return { lost: 0, skipped: 'bucket-unreachable' };
+      }
+      // Mirrored bytes the hub cannot ask about are NOT lost — they are
+      // unverified, and an unverified "lost" is the expensive mistake.
+      if (cfg && keyFor) {
+        let failure = null;
+        let next = 0;
+        const worker = async () => {
+          while (failure === null && next < mirrored.length) {
+            const row = mirrored[next++];
+            try {
+              const res = await withTimeout(head(cfg, keyFor(row.path)), LOST_HEAD_TIMEOUT_MS);
+              if (res === null) confirmed.push(row);
+            } catch (err) {
+              failure = err;
+            }
+          }
+        };
+        await Promise.all(
+          Array.from({ length: Math.min(LOST_HEAD_CONCURRENCY, mirrored.length) }, worker)
+        );
+        if (failure) {
+          log.warn?.(
+            `[journal] lost-file pass skipped: the bucket did not answer (${failure.message}).`
+          );
+          return { lost: 0, skipped: 'bucket-unreachable' };
+        }
+      }
+    }
+    for (const row of confirmed) {
+      if (journal.recordLost({ designRoot, path: row.path })) lost += 1;
+    }
+  } catch (err) {
+    log.error?.(`[journal] lost-file pass failed: ${err.message}`);
+  }
+  if (lost > 0) {
+    log.warn?.(
+      `[journal] ${lost} file(s) are listed as live but missing from the checkout, and the ` +
+        'bucket does not hold their bytes either (never mirrored, or 404) — marked lost so peers ' +
+        'that still hold them push them back.'
+    );
+  }
+  return { lost };
+}
+
+/**
+ * Clear stale inert-media copies out of a cell's checkout (cell materializer
+ * Task 13).
+ *
+ * On a cell the static route serves the checkout FIRST, and a restart restores
+ * the checkout from the newest git-bundle generation — so a photo that was
+ * replaced since (the new bytes live pinned or in the bucket) comes back at its
+ * old path and would be served in place of the journal's row. A copy whose
+ * hash is not the live row's, or whose row is a tombstone, is moved to
+ * `_trash/stale-inert/<stamp>/` (quarantined, never unlinked). The studio's
+ * resulting report cannot tombstone anything: `recordGone` ignores inert media
+ * in cell mode. A copy with NO row is left alone — it is nobody's claim.
+ *
+ * @returns {{ moved: number, scanned: number }}
+ */
+export function quarantineStaleInert({ journal, designRoot, log = console }) {
+  if (!journal || !designRoot || !existsSync(designRoot)) return { moved: 0, scanned: 0 };
+  let files;
+  try {
+    files = listProjectFiles(designRoot).files.filter((f) => f.class === 'inert-media');
+  } catch (err) {
+    log.error?.(`[journal] stale-inert pass could not read ${designRoot}: ${err.message}`);
+    return { moved: 0, scanned: 0 };
+  }
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  let moved = 0;
+  for (const f of files) {
+    const row = journal.latestFor(f.path);
+    if (!row) continue;
+    if (!row.deleted && row.sha256 === f.sha256) continue;
+    // The destination gets the write door's two-guard treatment: a committed
+    // `_trash` symlink must not carry the checkout outside the design root
+    // (Phase 1 security review L1, the same guard file-door's delete uses).
+    const dest = resolveProjectFileTarget(designRoot, `_trash/stale-inert/${stamp}/${f.path}`);
+    if (!dest.ok) {
+      log.warn?.(
+        `[journal] _trash does not resolve inside the design root — ${f.path} left in place.`
+      );
+      continue;
+    }
+    try {
+      mkdirSync(dirname(dest.abs), { recursive: true });
+      renameSync(join(designRoot, f.path), dest.abs);
+      moved += 1;
+    } catch (err) {
+      log.warn?.(`[journal] could not move stale ${f.path} aside: ${err.message}`);
+    }
+  }
+  if (moved > 0) {
+    log.warn?.(
+      `[journal] moved ${moved} stale media file(s) out of the checkout to _trash/stale-inert/${stamp} — ` +
+        'the journal names newer bytes, which are served from the cache.'
+    );
+  }
+  return { moved, scanned: files.length };
+}
+
 /**
  * The permanent walk-import reconciler (DDR-226 §2).
  *
@@ -1018,9 +1361,14 @@ export function walkImport({ journal, designRoot, source = 'walk-import', log = 
   }
 
   const known = new Map(journal.compaction().map((r) => [r.path, r]));
+  // On a cell the checkout's media is a CACHE (or a stale git-bundle restore):
+  // journaling what happens to be on disk could put an older photo back over
+  // a newer row. The doors and the studio report journal real writes.
+  const skipInert = journal.inertCached?.() === true;
   let appended = 0;
   let unchanged = 0;
   for (const f of files) {
+    if (skipInert && f.class === 'inert-media') continue;
     const prev = known.get(f.path);
     if (prev && !prev.deleted && prev.sha256 === f.sha256) {
       unchanged += 1;

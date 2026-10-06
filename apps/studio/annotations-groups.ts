@@ -144,6 +144,8 @@ export interface DuplicateResult {
   /** Ids of the selectable clones (anchored-text clones excluded — they're
    *  selected through their host, FigJam semantics). */
   newIds: string[];
+  /** Original id → its clone's id. */
+  idMap: Map<string, string>;
 }
 
 /**
@@ -208,6 +210,7 @@ export function duplicateStrokes(
   return {
     strokes: [...strokes, ...clones],
     newIds: clones.filter((c) => !(c.tool === 'text' && c.anchorId)).map((c) => c.id),
+    idMap,
   };
 }
 

@@ -74,6 +74,19 @@ function unitsOf(strokes: readonly Stroke[], ids: readonly string[]): AlignUnit[
   return units;
 }
 
+/** A unit moves with everything inside it (its contents follow its delta). */
+function setUnitDelta(
+  deltas: Map<string, readonly [number, number]>,
+  u: AlignUnit,
+  d: readonly [number, number],
+  contents?: (id: string) => readonly string[]
+): void {
+  for (const id of u.ids) {
+    deltas.set(id, d);
+    if (contents) for (const c of contents(id)) if (!deltas.has(c)) deltas.set(c, d);
+  }
+}
+
 function applyDeltas(
   strokes: readonly Stroke[],
   deltas: Map<string, readonly [number, number]>
@@ -89,7 +102,9 @@ function applyDeltas(
 export function alignStrokes(
   strokes: readonly Stroke[],
   ids: readonly string[],
-  edge: AlignEdge
+  edge: AlignEdge,
+  /** A unit's contents (a section's subtree) — moved by the unit's delta. */
+  contents?: (id: string) => readonly string[]
 ): Stroke[] {
   const units = unitsOf(strokes, ids);
   if (units.length < 2) return strokes as Stroke[];
@@ -109,9 +124,7 @@ export function alignStrokes(
     else if (edge === 'top') dy = sel.y - u.bbox.y;
     else if (edge === 'v-center') dy = sel.y + sel.h / 2 - (u.bbox.y + u.bbox.h / 2);
     else dy = sel.y + sel.h - (u.bbox.y + u.bbox.h);
-    if (dx !== 0 || dy !== 0) {
-      for (const id of u.ids) deltas.set(id, [dx, dy] as const);
-    }
+    if (dx !== 0 || dy !== 0) setUnitDelta(deltas, u, [dx, dy], contents);
   }
   return applyDeltas(strokes, deltas);
 }
@@ -123,7 +136,9 @@ export function alignStrokes(
 export function distributeStrokes(
   strokes: readonly Stroke[],
   ids: readonly string[],
-  axis: DistributeAxis
+  axis: DistributeAxis,
+  /** A unit's contents (a section's subtree) — moved by the unit's delta. */
+  contents?: (id: string) => readonly string[]
 ): Stroke[] {
   const units = unitsOf(strokes, ids);
   if (units.length < 3) return strokes as Stroke[];
@@ -141,7 +156,7 @@ export function distributeStrokes(
   for (const u of sorted) {
     const d = cursor - lead(u);
     if (d !== 0) {
-      for (const id of u.ids) deltas.set(id, axis === 'h' ? ([d, 0] as const) : ([0, d] as const));
+      setUnitDelta(deltas, u, axis === 'h' ? ([d, 0] as const) : ([0, d] as const), contents);
     }
     cursor += size(u) + gap;
   }

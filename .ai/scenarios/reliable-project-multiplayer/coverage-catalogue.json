@@ -22,7 +22,7 @@
     },
     {
       "path": "apps/studio/annotations-context-toolbar.tsx",
-      "sha256": "b5a4861b1a5c27e1f011addc375f8fec518ee500f713f438190872597e900911"
+      "sha256": "53417a17e31731e5f70765563426bca660633356e0a688ba8005359b06ff086a"
     },
     {
       "path": "apps/studio/client/photo-knobs.jsx",
@@ -30,7 +30,7 @@
     },
     {
       "path": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
-      "sha256": "eceab5f5a2b6eb17a0bc7bb975c17a10855118868a2de0208bb84fcef5dc9f70"
+      "sha256": "b1aec2f0caa1411e577e24f27bef9c2a26b2c8960ae43b7dcdf1181093288ec0"
     },
     {
       "path": "apps/studio/use-canvas-media-drop.tsx",
@@ -205,6 +205,105 @@
         "native-to-peers",
         "peer-to-peers"
       ]
+    },
+    {
+      "id": "L09.v2.seed",
+      "source": "apps/studio/annotations/ops.ts",
+      "repairTask": "T29",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "plan": "setup"
+    },
+    {
+      "id": "L09.v2.concurrent-different-elements",
+      "source": "apps/studio/annotations/ops.ts",
+      "repairTask": "T29",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "plan": "V2"
+    },
+    {
+      "id": "L09.v2.same-element-different-fields",
+      "source": "apps/studio/annotations/ops.ts",
+      "repairTask": "T29",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "plan": "V3"
+    },
+    {
+      "id": "L09.v2.delete-while-editing",
+      "source": "apps/studio/annotations/ops.ts",
+      "repairTask": "T29",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "plan": "V5"
+    },
+    {
+      "id": "L09.v2.section-move-while-child-edited",
+      "source": "apps/studio/annotations/ops.ts",
+      "repairTask": "T29",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "plan": "V6"
+    },
+    {
+      "id": "L09.v2.nested-section-create",
+      "source": "apps/studio/annotations/ops.ts",
+      "repairTask": "T29",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "plan": "V8"
+    },
+    {
+      "id": "L09.v2.nested-sections-move-together",
+      "source": "apps/studio/annotations/ops.ts",
+      "repairTask": "T29",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "plan": "V8"
+    },
+    {
+      "id": "L09.v2.ai-update-while-selected",
+      "source": "apps/studio/annotations/ops.ts",
+      "repairTask": "T29",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "plan": "V14"
+    },
+    {
+      "id": "L09.v2.live-drag-preview",
+      "source": "apps/studio/annotations/ops.ts",
+      "repairTask": "T29",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "plan": "V15"
     },
     {
       "id": "L09.pen.create",
@@ -1211,6 +1310,19 @@
       "source": "apps/studio/annotations-context-toolbar.tsx",
       "repairTask": "T26",
       "label": "Text formatting",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": true,
+      "note": "Rendered control/group label; map each applicable stroke and actual mutation handler before claiming coverage."
+    },
+    {
+      "id": "L09.context-control.locked-selection",
+      "source": "apps/studio/annotations-context-toolbar.tsx",
+      "repairTask": "T26",
+      "label": "Locked selection",
       "directions": [
         "hub-to-peers",
         "native-to-peers",
@@ -2869,6 +2981,22 @@
       "requiresTargetExpansion": false,
       "covers": [
         "L11.comment.delete"
+      ]
+    },
+    {
+      "id": "L11.requirement.comment-on-an-annotation-empty-canvas",
+      "source": ".ai/scenarios/reliable-project-multiplayer/local-e2e.md",
+      "repairTask": "T31",
+      "action": "comment on an annotation / empty canvas",
+      "directions": [
+        "hub-to-peers",
+        "native-to-peers",
+        "peer-to-peers"
+      ],
+      "requiresTargetExpansion": false,
+      "covers": [
+        "L11.comment.on-sticky",
+        "L11.comment.on-empty-canvas"
       ]
     },
     {

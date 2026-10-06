@@ -2,6 +2,7 @@ import { $, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { killSidecar, waitForRespawn, waitForSidecar } from '../helpers/sidecar';
+import { canvasRow } from '../helpers/tree';
 
 /**
  * REGRESSION — issue #115: "switching between canvases, the canvas doesn't load
@@ -55,7 +56,7 @@ describe('sidecar-respawn-canvas-switch (native-desktop, issue #115)', () => {
     // 1 — open a canvas and let it fully mount, so we have the "already open"
     //     state the bug preserves (and would otherwise let us mistake a
     //     never-switched canvas for a working one).
-    await (await $('[data-testid="canvas-row-ui-smoke"]')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
     const viewport = await $('[data-tour="viewport"]');
     await browser.waitUntil(
       async () => (await viewport.getAttribute('data-canvas-state')) === 'ready',
@@ -104,7 +105,7 @@ describe('sidecar-respawn-canvas-switch (native-desktop, issue #115)', () => {
 
     // 5 — THE BUG: switch to a DIFFERENT canvas. Pre-fix this mounted a fresh
     //     iframe at the dead ephemeral port and sat there white forever.
-    await (await $('[data-testid="canvas-row-ui-export"]')).click();
+    await (await canvasRow('canvas-row-ui-export')).click();
     const viewportAfter = await $('[data-tour="viewport"]');
     await browser.waitUntil(
       async () => (await viewportAfter.getAttribute('data-canvas-state')) === 'ready',
@@ -122,7 +123,7 @@ describe('sidecar-respawn-canvas-switch (native-desktop, issue #115)', () => {
 
     // 7 — switch BACK, since the bug affected every subsequent switch, not just
     //     the first one after the crash.
-    await (await $('[data-testid="canvas-row-ui-smoke"]')).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
     await browser.waitUntil(
       async () => (await viewportAfter.getAttribute('data-canvas-state')) === 'ready',
       { timeout: 60_000, timeoutMsg: 'switching back after the respawn did not load either' }

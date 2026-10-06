@@ -1082,3 +1082,88 @@ test('the UNAUTHENTICATED path keeps the tight per-IP bucket (and says Retry-Aft
     rmSync(designRoot, { recursive: true, force: true });
   }
 });
+
+/* ------------- cell materializer Task 11 — on a cell the disk is a cache */
+
+async function callCell({ pathname, method = 'GET', token, materializer, designRoot = null }) {
+  const { Writable } = await import('node:stream');
+  const chunks = [];
+  let status = 0;
+  let headers = {};
+  const response = new Writable({
+    write(c, _e, cb) {
+      chunks.push(Buffer.from(c));
+      cb();
+    },
+  });
+  response.writeHead = (s, h = {}) => {
+    status = s;
+    headers = h;
+    return response;
+  };
+  const finished = new Promise((r) => response.on('finish', r));
+  await handleAssetRoute({
+    request: { headers: { authorization: `Bearer ${token}` } },
+    response,
+    pathname,
+    method,
+    dataDir,
+    secret: '',
+    s3: { bucket: 'b' },
+    designRoot,
+    materializer,
+  });
+  await finished;
+  return { status, headers, body: Buffer.concat(chunks) };
+}
+
+test('CELL: a checkout miss is materialized, verified bytes STREAMED — not the bucket buffer', async () => {
+  const minted = addToken(dataDir, { label: 'peer-a', scope: '*' });
+  const blobDir = mkdtempSync(join(tmpdir(), 'maude-hub-blob-'));
+  try {
+    const blob = join(blobDir, 'a'.repeat(64));
+    writeFileSync(blob, 'verified bytes');
+    const asked = [];
+    const materializer = {
+      materialize: async (rel) => {
+        asked.push(rel);
+        return { path: blob, sha: 'a'.repeat(64), size: 14 };
+      },
+    };
+    // Something IS in the bucket under this key — and must not be what is
+    // served: bucket bytes reach a client only through the verifying cache.
+    store.set('assets/deadbeef.png', Buffer.from('UNVERIFIED BUCKET BYTES'));
+    const res = await callCell({
+      pathname: '/assets/deadbeef.png',
+      token: minted.value,
+      materializer,
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.toString(), 'verified bytes');
+    assert.equal(res.headers['Content-Type'], 'image/png');
+    assert.match(res.headers['Cache-Control'], /immutable/);
+    assert.deepEqual(asked, ['assets/deadbeef.png']);
+  } finally {
+    rmSync(blobDir, { recursive: true, force: true });
+  }
+});
+
+test('CELL: a mismatch or an unknown asset is 404, a fill in progress is 503 + Retry-After', async () => {
+  const minted = addToken(dataDir, { label: 'peer-a', scope: '*' });
+  store.set('assets/deadbeef.png', Buffer.from('bucket has something'));
+  for (const miss of ['mismatch', 'absent', 'unmirrored']) {
+    const res = await callCell({
+      pathname: '/assets/deadbeef.png',
+      token: minted.value,
+      materializer: { materialize: async () => ({ miss }) },
+    });
+    assert.equal(res.status, 404, miss); // DDR-224 amended: no unverified fallback on a cell
+  }
+  const res = await callCell({
+    pathname: '/assets/deadbeef.png',
+    token: minted.value,
+    materializer: { materialize: async () => ({ miss: 'timeout' }) },
+  });
+  assert.equal(res.status, 503);
+  assert.equal(res.headers['Retry-After'], '5');
+});

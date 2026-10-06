@@ -1,0 +1,194 @@
+[
+  {
+    "run": 1,
+    "cond": "C0",
+    "fit": true,
+    "load": "{ 2.99 3.50 3.59 }",
+    "pre": {
+      "own": 0,
+      "peerSel": 0,
+      "cursors": 0
+    },
+    "warm": null,
+    "canvas": {
+      "gaps": [
+        {
+          "at": 413,
+          "dt": 389,
+          "events": {
+            "attr:dc-world:style": 2,
+            "mut:attributes:dc-world:wc=transform": 2,
+            "attr:dc-elem-ctx-tb:data-on": 2,
+            "mut:attributes:dc-elem-ctx-tb": 2,
+            "attr:dc-artboard dc-positioned:aria-current": 2,
+            "mut:attributes:dc-artboard dc-positioned": 2
+          }
+        },
+        {
+          "at": 907,
+          "dt": 411,
+          "events": {
+            "attr:dc-world:style": 2,
+            "mut:attributes:dc-world:wc=transform": 2,
+            "msg:request-layers": 1,
+            "attr:dc-artboard dc-positioned:aria-current": 2,
+            "mut:attributes:dc-artboard dc-positioned": 2,
+            "attr:dc-elem-ctx-tb:data-on": 1,
+            "mut:attributes:dc-elem-ctx-tb": 1
+          }
+        },
+        {
+          "at": 1307,
+          "dt": 367,
+          "events": {
+            "attr:dc-world:style": 2,
+            "mut:attributes:dc-world:wc=transform": 2,
+            "msg:request-layers": 1,
+            "attr:dc-artboard dc-positioned:aria-current": 2,
+            "mut:attributes:dc-artboard dc-positioned": 2,
+            "attr:dc-elem-ctx-tb:data-on": 1,
+            "mut:attributes:dc-elem-ctx-tb": 1
+          }
+        },
+        {
+          "at": 2235,
+          "dt": 364,
+          "events": {
+            "attr:dc-world:style": 2,
+            "mut:attributes:dc-world:wc=transform": 2,
+            "attr:dc-artboard dc-positioned:aria-current": 2,
+            "mut:attributes:dc-artboard dc-positioned": 2,
+            "attr:dc-elem-ctx-tb:data-on": 1,
+            "mut:attributes:dc-elem-ctx-tb": 1
+          }
+        },
+        {
+          "at": 2740,
+          "dt": 64,
+          "events": {
+            "attr:dc-world:style": 2,
+            "mut:attributes:dc-world:wc=transform": 2
+          }
+        },
+        {
+          "at": 2842,
+          "dt": 68,
+          "events": {
+            "attr:dc-world:style": 2,
+            "mut:attributes:dc-world:wc=transform": 2
+          }
+        },
+        {
+          "at": 3895,
+          "dt": 94,
+          "events": {
+            "attr:dc-world:style": 2,
+            "mut:attributes:dc-world:wc=transform": 2
+          }
+        },
+        {
+          "at": 4448,
+          "dt": 59,
+          "events": {
+            "attr:dc-world:style": 1,
+            "mut:attributes:dc-world:wc=transform": 1
+          }
+        },
+        {
+          "at": 4601,
+          "dt": 98,
+          "events": {
+            "attr:dc-world:style": 2,
+            "mut:attributes:dc-world:wc=transform": 2
+          }
+        },
+        {
+          "at": 8646,
+          "dt": 67,
+          "events": {
+            "attr:dc-world:style": 2,
+            "mut:attributes:dc-world:wc=transform": 2
+          }
+        },
+        {
+          "at": 8709,
+          "dt": 63,
+          "events": {
+            "attr:dc-world:style": 1,
+            "mut:attributes:dc-world:wc=transform": 1
+          }
+        },
+        {
+          "at": 8835,
+          "dt": 75,
+          "events": {
+            "attr:dc-world:style": 2,
+            "mut:attributes:dc-world:wc=transform": 2
+          }
+        },
+        {
+          "at": 9201,
+          "dt": 289,
+          "events": {
+            "attr:dc-world:style": 2,
+            "mut:attributes:dc-world:wc=transform": 2,
+            "attr:dc-elem-ctx-tb:data-on": 1,
+            "mut:attributes:dc-elem-ctx-tb": 1
+          }
+        },
+        {
+          "at": 9549,
+          "dt": 289,
+          "events": {
+            "attr:dc-world:style": 2,
+            "mut:attributes:dc-world:wc=transform": 2,
+            "attr:dc-elem-ctx-tb:data-on": 1,
+            "mut:attributes:dc-elem-ctx-tb": 1
+          }
+        },
+        {
+          "at": 9844,
+          "dt": 279,
+          "events": {
+            "attr:dc-world:style": 3,
+            "mut:attributes:dc-world:wc=transform": 3,
+            "attr:dc-elem-ctx-tb:data-on": 2,
+            "mut:attributes:dc-elem-ctx-tb": 2
+          }
+        },
+        {
+          "at": 10132,
+          "dt": 234,
+          "events": {
+            "attr:dc-world:style": 2,
+            "mut:attributes:dc-world:wc=transform": 2,
+            "attr:dc-elem-ctx-tb:data-on": 1,
+            "mut:attributes:dc-elem-ctx-tb": 1
+          }
+        }
+      ],
+      "aggAll": {
+        "attr:dc-world:style": 517,
+        "mut:attributes:dc-world:wc=transform": 517,
+        "attr:dc-elem-ctx-tb:data-on": 16,
+        "mut:attributes:dc-elem-ctx-tb": 16,
+        "attr:dc-artboard dc-positioned:aria-current": 8,
+        "mut:attributes:dc-artboard dc-positioned": 8,
+        "msg:request-layers": 4
+      },
+      "frames": 517,
+      "p50": 14,
+      "p95": 25,
+      "p99": 289,
+      "max": 411,
+      "over33": 21,
+      "over50": 16,
+      "longtasks": 0,
+      "gbcr": 518,
+      "foreignCursors": 0,
+      "peerSel": 0,
+      "ownHalos": 0,
+      "panApplied": true
+    }
+  }
+]

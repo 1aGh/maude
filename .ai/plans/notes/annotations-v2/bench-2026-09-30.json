@@ -1,0 +1,53 @@
+{
+  "date": "2026-09-30T13:26:09.086Z",
+  "results": [
+    {
+      "size": 200,
+      "elements": 161,
+      "v2ReadBytes": 13995,
+      "v1ReadBytes": 40085,
+      "readRatio": 2.86,
+      "writeOpBytes": 47,
+      "writeOpTokens": 12,
+      "nodes": 161,
+      "loadMs": 109,
+      "dragP95FrameMs": 17.9,
+      "dragLayerRenders": 31,
+      "dragNodeRenders": 30,
+      "bytesPerEdit": 174,
+      "editsSent": 1
+    },
+    {
+      "size": 1000,
+      "elements": 808,
+      "v2ReadBytes": 71066,
+      "v1ReadBytes": 203872,
+      "readRatio": 2.87,
+      "writeOpBytes": 47,
+      "writeOpTokens": 12,
+      "nodes": 808,
+      "loadMs": 114,
+      "dragP95FrameMs": 17.8,
+      "dragLayerRenders": 32,
+      "dragNodeRenders": 30,
+      "bytesPerEdit": 174,
+      "editsSent": 1
+    },
+    {
+      "size": 5000,
+      "elements": 4034,
+      "v2ReadBytes": 364828,
+      "v1ReadBytes": 1040558,
+      "readRatio": 2.85,
+      "writeOpBytes": 47,
+      "writeOpTokens": 12,
+      "nodes": 4034,
+      "loadMs": 334,
+      "dragP95FrameMs": 18,
+      "dragLayerRenders": 32,
+      "dragNodeRenders": 30,
+      "bytesPerEdit": 176,
+      "editsSent": 1
+    }
+  ]
+}

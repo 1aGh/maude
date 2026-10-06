@@ -22,8 +22,10 @@
 import { describe, expect, test } from 'bun:test';
 import * as Y from 'yjs';
 
+import { applyOpsToReplica } from '../annotations/replica.ts';
 import { Y_TYPES } from '../collab/persistence.ts';
 import {
+  applyAnnotationsToDoc,
   applyCommentsToDoc,
   applyCssToDoc,
   applyHtmlToDoc,
@@ -33,6 +35,9 @@ import {
 import { createEchoGuard, hashBytes } from '../sync/echo-guard.ts';
 import { materialize, materializeCanonical } from '../sync/materialize.ts';
 import { createDocProjection } from '../sync/projection.ts';
+import { board, boardIds, elements, sticky } from './fixtures/annotations-v2/boards.ts';
+
+const ANN_B = board(sticky('b1', 'from B'));
 
 const enc = (s: string) => new TextEncoder().encode(s);
 
@@ -90,14 +95,15 @@ function makeRelay(docs: Y.Doc[], rnd: () => number) {
 
 describe('convergence laws on the composed shared doc', () => {
   test('commutativity — concurrent edits merge identically regardless of order', () => {
-    // Peer A adds a comment; peer B sets an annotation; peer C edits the body.
+    // Peer A adds a comment; peer B puts an annotation element; peer C edits
+    // the body.
     const a = new Y.Doc();
     const b = new Y.Doc();
     const c = new Y.Doc();
     const relay = makeRelay([a, b, c], mulberry32(1));
 
     a.getArray(Y_TYPES.comments).push([{ id: 'c1', text: 'from A' }]);
-    b.getMap(Y_TYPES.annotations).set('svg', '<svg><rect/></svg>');
+    applyAnnotationsToDoc(b, ANN_B);
     c.getText(Y_SYNC_TYPES.html).insert(0, '<main>from C</main>');
     relay.flush();
 
@@ -107,8 +113,39 @@ describe('convergence laws on the composed shared doc', () => {
     // …and all three edits survived (no clobber).
     const m = materialize(a);
     expect(m.comments).toEqual([{ id: 'c1', text: 'from A' }]);
-    expect(m.annotations).toBe('<svg><rect/></svg>');
+    expect(m.annotations).toBe(ANN_B);
     expect(m.html).toBe('<main>from C</main>');
+  });
+
+  test('commutativity — concurrent annotation ops on different elements and fields all survive', () => {
+    // DDR-242 §4: different elements never conflict; different fields of one
+    // element never conflict. (v1 was one LWW `svg` string — one side lost.)
+    const a = new Y.Doc();
+    const b = new Y.Doc();
+    const relay = makeRelay([a, b], mulberry32(5));
+    applyAnnotationsToDoc(a, board(sticky('shared', 'base')));
+    relay.flush();
+    const [pa, pb] = elements(
+      sticky('from-a', 'A', { x: 300, index: 'a1' }),
+      sticky('from-b', 'B', { x: 600, index: 'a2' })
+    );
+    applyOpsToReplica(a, [
+      { op: 'put', el: pa },
+      { op: 'patch', id: 'shared', set: { text: 'edited by A' } },
+    ]);
+    applyOpsToReplica(b, [
+      { op: 'put', el: pb },
+      { op: 'patch', id: 'shared', set: { x: 42 } },
+    ]);
+    relay.flush();
+    expect(materializeCanonical(a)).toBe(materializeCanonical(b));
+    expect(materialize(a).annotations).toBe(
+      board(
+        sticky('shared', 'edited by A', { x: 42 }),
+        sticky('from-a', 'A', { x: 300, index: 'a1' }),
+        sticky('from-b', 'B', { x: 600, index: 'a2' })
+      )
+    );
   });
 
   test('idempotency — re-delivering updates does not duplicate or diverge', () => {
@@ -134,7 +171,7 @@ describe('round-trip laws', () => {
     applyCssToDoc(src, '.a{color:red}', 'x');
     applyMetaToDoc(src, JSON.stringify({ title: 'T', viewport: { x: 1 } }), 'x');
     applyCommentsToDoc(src, [{ id: 'c1', text: 'hi' }], 'x');
-    src.getMap(Y_TYPES.annotations).set('svg', '<svg/>');
+    applyAnnotationsToDoc(src, ANN_B, 'x');
 
     const m = materialize(src);
     const dst = new Y.Doc();
@@ -144,7 +181,7 @@ describe('round-trip laws', () => {
     // re-importing it is a no-op-equivalent round-trip.
     dst.getText(Y_SYNC_TYPES.meta).insert(0, m.meta);
     applyCommentsToDoc(dst, m.comments, 'y');
-    dst.getMap(Y_TYPES.annotations).set('svg', m.annotations);
+    applyAnnotationsToDoc(dst, m.annotations, 'y');
 
     expect(materializeCanonical(dst)).toBe(materializeCanonical(src));
     // meta lost its per-user viewport on the way into the doc (shared subset).
@@ -158,7 +195,7 @@ describe('round-trip laws', () => {
     const paths = {
       html: '/d/x.html',
       comments: '/d/x.comments.json',
-      annotations: '/d/x.svg',
+      annotations: '/d/x.annotations.json',
       meta: '/d/x.meta.json',
       css: '/d/x.css',
     };
@@ -209,7 +246,7 @@ describe('N-peer stress (randomized delivery + file-importer, seeded)', () => {
           paths: {
             html: `/d/p${i}.html`,
             comments: `/d/p${i}.json`,
-            annotations: `/d/p${i}.svg`,
+            annotations: `/d/p${i}.annotations.json`,
           },
           echoGuard: createEchoGuard(),
           flushMs: 0,
@@ -219,6 +256,10 @@ describe('N-peer stress (randomized delivery + file-importer, seeded)', () => {
         })
       );
       for (const p of projections) p.start();
+      // One shared annotation every peer knows before the concurrent phase.
+      applyAnnotationsToDoc(docs[0], board(sticky('shared', 'base')));
+      relay.flush();
+      const putIds = new Set<string>();
 
       const OPS = 60;
       for (let k = 0; k < OPS; k++) {
@@ -229,8 +270,16 @@ describe('N-peer stress (randomized delivery + file-importer, seeded)', () => {
           // browser: append a comment (unique id → all survive the merge)
           doc.getArray(Y_TYPES.comments).push([{ id: `c-${peer}-${k}`, text: `op${k}` }]);
         } else if (r < 0.6) {
-          // browser: set the annotation key (LWW — converges to one value)
-          doc.getMap(Y_TYPES.annotations).set('svg', `<svg data-k="${k}"/>`);
+          // browser: an annotation op (DDR-242) — either put a new element
+          // (unique id → must survive the merge) or edit the shared element's
+          // text (same field → converges to one value).
+          if (rnd() < 0.5) {
+            const [el] = elements(sticky(`a-${peer}-${k}`, `op${k}`, { x: k * 10 }));
+            applyOpsToReplica(doc, [{ op: 'put', el }]);
+            putIds.add(`a-${peer}-${k}`);
+          } else {
+            applyOpsToReplica(doc, [{ op: 'patch', id: 'shared', set: { text: `op${k}` } }]);
+          }
         } else if (r < 0.8) {
           // browser: insert into the body text CRDT
           const t = doc.getText(Y_SYNC_TYPES.html);
@@ -260,6 +309,10 @@ describe('N-peer stress (randomized delivery + file-importer, seeded)', () => {
       );
       // At least one comment landed; ids are unique by construction.
       expect(commentIds.size).toBe(materialize(docs[0]).comments.length);
+      // Every annotation element any peer put survived (per-element merge).
+      const annIds = new Set(boardIds(materialize(docs[0]).annotations));
+      for (const id of putIds) expect(annIds.has(id)).toBe(true);
+      expect(annIds.has('shared')).toBe(true);
     });
   }
 });

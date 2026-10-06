@@ -1,4 +1,4 @@
-// DDR-242 — the chromeless, read-only `?embed=1&open=<rel>[&artboard=<id>]`
+// DDR-247 — the chromeless, read-only `?embed=1&open=<rel>[&artboard=<id>]`
 // view another app frames (orbit showing a design next to a task).
 //
 // A SEPARATE ROOT, not a mode of <App>. The studio shell persists view prefs,
@@ -17,7 +17,7 @@ import { postToEmbedder, readEmbedParams } from './embed.js';
 import { normalizeOpenPath } from './share-link.js';
 
 const CANVAS_EXT_RE = /\.(tsx|html?)$/i;
-// DDR-242 — every config read this view makes says it is the embed, so a hub
+// DDR-247 — every config read this view makes says it is the embed, so a hub
 // mints it a read-only canvas capability (the canvas door then refuses writes).
 const EMBED_CONFIG_URL = '/_config?embed=1';
 // Same order of magnitude as the studio's own compile cap (issue #115): past
@@ -94,7 +94,7 @@ export default function EmbedView() {
     (async () => {
       let data;
       try {
-        // `embed=1` asks the hub for a READ-ONLY canvas capability (DDR-242).
+        // `embed=1` asks the hub for a READ-ONLY canvas capability (DDR-247).
         data = await readJson(EMBED_CONFIG_URL);
       } catch (err) {
         if (cancelled) return;

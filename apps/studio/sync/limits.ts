@@ -15,8 +15,13 @@
 export const MAX_HTML_BYTES = 4 * 1024 * 1024;
 /** `_comments/<slug>.json`, serialized. */
 export const MAX_COMMENTS_BYTES = 1 * 1024 * 1024;
-/** `<slug>.annotations.svg`. */
-export const MAX_ANNOTATIONS_BYTES = 1 * 1024 * 1024;
+/**
+ * `<slug>.annotations.json` (DDR-242). Must equal `MAX_BOARD_BYTES` in
+ * annotations/constants.ts — annotations-v2-replica.test.ts pins the pair.
+ * Raised from v1's 1 MB: the v1 cap bit at ~3.7k elements, and the v2 board is
+ * ~3× more compact, so 4 MB is ≈ 20k typical elements (the element-count cap).
+ */
+export const MAX_ANNOTATIONS_BYTES = 4 * 1024 * 1024;
 /** The shared subset of a canvas `.meta.json`. */
 export const MAX_META_BYTES = 1 * 1024 * 1024;
 /** The canvas's sibling stylesheet. */

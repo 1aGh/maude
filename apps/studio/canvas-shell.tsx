@@ -829,6 +829,12 @@ function CanvasCore({
         return;
       }
       if (t.closest('[data-dc-screen]')) return; // any part of an artboard
+      // Inside anything editable a double-click selects a WORD — the text
+      // editors of stickies / shape labels / texts sit over the world, not over
+      // an artboard, so this used to fit() and throw the view to the top-left
+      // mid-edit (user report 2026-09-30).
+      if (t.closest('[data-annot-editor], input, textarea, select')) return;
+      if ((t as HTMLElement).isContentEditable) return;
       e.preventDefault();
       controller.fit();
     };
@@ -1130,9 +1136,52 @@ interface DsThemeSupport {
 }
 
 let _dsThemeSupport: DsThemeSupport | null = null;
+// A NEGATIVE answer is cached too (#131). The probe below appends DOM to
+// <body> and reads getComputedStyle for every candidate, which forces a style
+// recalc of the whole document. Only a positive answer was cached, so on a
+// canvas whose DS has a single theme it re-ran on EVERY call — and the element
+// toolbar's menu asks on every render, i.e. every frame of a pan with something
+// selected. On a 160-board canvas in Safari that alone held pan at ~1.3 fps
+// (hundreds of ms per probe, two per frame). The reason a negative answer was
+// not cached — a DS stylesheet that parses after first paint — is honoured
+// precisely instead: the negative answer holds until a stylesheet is added to
+// or finishes loading in the document, then the next call probes again.
+let _dsThemeUnsupported = false;
+let _dsThemeWatch = false;
+const _unsupported: DsThemeSupport = { supported: false, wrapperClass: '' };
 
-function detectDsThemeSupport(): DsThemeSupport {
+function watchStylesheetsOnce(): void {
+  if (_dsThemeWatch || typeof document === 'undefined') return;
+  _dsThemeWatch = true;
+  const invalidate = (): void => {
+    _dsThemeUnsupported = false;
+  };
+  try {
+    new MutationObserver((records) => {
+      for (const r of records) {
+        for (const n of Array.from(r.addedNodes)) {
+          const tag = (n as Element).tagName;
+          if (tag === 'STYLE' || tag === 'LINK') return invalidate();
+        }
+      }
+    }).observe(document.head ?? document.documentElement, { childList: true, subtree: true });
+    // A <link> that was already in the DOM finishing its load (capture: load
+    // does not bubble).
+    document.addEventListener(
+      'load',
+      (e) => {
+        if ((e.target as Element | null)?.tagName === 'LINK') invalidate();
+      },
+      true
+    );
+  } catch {
+    _dsThemeWatch = false;
+  }
+}
+
+export function detectDsThemeSupport(): DsThemeSupport {
   if (_dsThemeSupport) return _dsThemeSupport;
+  if (_dsThemeUnsupported) return _unsupported;
   const fallback: DsThemeSupport = { supported: false, wrapperClass: '' };
   if (typeof document === 'undefined' || !document.body) return fallback;
   try {
@@ -1181,6 +1230,10 @@ function detectDsThemeSupport(): DsThemeSupport {
     // unsupported. Caching that would permanently disable theming; instead
     // re-probe until support is confirmed (or the DS genuinely has one theme).
     if (found.supported) _dsThemeSupport = found;
+    else {
+      _dsThemeUnsupported = true;
+      watchStylesheetsOnce();
+    }
     return found;
   } catch {
     return fallback;
@@ -2965,7 +3018,7 @@ function CanvasRouter({
         else if (op === 'fit') zoomController.fit();
         else if (op === 'actual') zoomController.reset();
         else if (op === 'artboard') {
-          // DDR-242 — the embed view's `&artboard=<id>`: frame one artboard,
+          // DDR-247 — the embed view's `&artboard=<id>`: frame one artboard,
           // found by its `data-dc-screen` id through the same world-coordinate
           // manifest the whiteboard toolkit reads. Unknown id ⇒ nothing moves.
           const id = (m as { id?: unknown }).id;
@@ -3439,7 +3492,7 @@ function CanvasRouter({
       <SnapGuideOverlay />
       <PhotoPreviewBridge />
       <UndoHud />
-      {/* DDR-242 — an embed inside another app shows the design, not who
+      {/* DDR-247 — an embed inside another app shows the design, not who
           else is in the room: collaborator cursors, the AI banner and the
           avatar stack are studio chrome. */}
       {!isEmbedCanvas() && <CursorsOverlay />}
@@ -4580,5 +4633,5 @@ function classifyContextKind(target: HoverTarget | null): ContextTargetKind {
   return 'world';
 }
 
-// DDR-242 — an embedded canvas hands an unconsumed Escape to the app around it.
+// DDR-247 — an embedded canvas hands an unconsumed Escape to the app around it.
 if (typeof window !== 'undefined') installEmbedEscapeRelay();

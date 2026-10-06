@@ -3,11 +3,24 @@
 // each backend's REAL sign-in path and held in memory only.
 import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 export const sha = (s) => createHash('sha256').update(s).digest('hex');
 
-async function request(url, { method, headers = {}, body, timeout = 20000 } = {}) {
+// The cloud platform answers a request it could not hand to the container
+// ("Container suddenly disconnected, try again") with a 500 of its own — a
+// transport blip, not the backend's answer. A client retries it; so does this
+// (safe: reads are idempotent, a proposal carries its own transaction id).
+export const platformRetries = [];
+async function request(url, opts = {}) {
+  for (let attempt = 0; ; attempt++) {
+    const r = await requestOnce(url, opts);
+    if (!(r.status >= 500 && /Container suddenly disconnected/.test(r.body?.raw ?? '')) || attempt >= 4) return r;
+    platformRetries.push({ url: url.replace(/\?.*/, ''), at: Date.now() });
+    await new Promise((res) => setTimeout(res, 2000 * (attempt + 1)));
+  }
+}
+async function requestOnce(url, { method, headers = {}, body, timeout = 20000 } = {}) {
   const r = await fetch(url, {
     method: method ?? (body !== undefined ? 'POST' : 'GET'),
     headers: { ...headers, ...(body !== undefined ? { 'content-type': 'application/json' } : {}) },
@@ -26,9 +39,11 @@ async function request(url, { method, headers = {}, body, timeout = 20000 } = {}
 }
 
 const CLOUD = {
-  origin: 'https://f3-cloud.multiplayer-test-20260922.maude.sh',
+  // One isolated test tenant per scenario family: `f3-cloud` by default,
+  // `F3_CLOUD_PROJECT` for another (a clean project for the scale run).
+  origin: `https://${process.env.F3_CLOUD_PROJECT ?? 'f3-cloud'}.multiplayer-test-20260922.maude.sh`,
   control: 'https://maude-multiplayer-control-test-20260922.maude1agh.workers.dev',
-  project: 'f3-cloud',
+  project: process.env.F3_CLOUD_PROJECT ?? 'f3-cloud',
   personalA: '/tmp/maude-cloud-entry-UncRL8/cloud.json',
   sessions: { owner: 'maude-f3-owner', b: 'maude-f3-designer-b' },
 };
@@ -45,25 +60,67 @@ function browserCookie(session, host) {
     .join('; ');
 }
 
+// A dashboard session of this adapter's OWN, through the real sign-in form —
+// never the browser profile's cookie: the control plane rotates a session when
+// it is used, so sharing one signed the browser out (and vice versa).
+async function formSession(email, password) {
+  const r = await fetch(`${CLOUD.control}/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ email, password }),
+    redirect: 'manual',
+    signal: AbortSignal.timeout(20000),
+  });
+  const cookie = (r.headers.getSetCookie?.() ?? [])
+    .map((c) => c.split(';')[0])
+    .find((c) => c.startsWith('maude_session='));
+  if (!cookie) throw new Error(`cloud sign-in ${email}: ${r.status}`);
+  return cookie;
+}
+
 async function cloudHubToken(who) {
+  const creds = process.env.F3_CLOUD_CREDS ? JSON.parse(readFileSync(process.env.F3_CLOUD_CREDS, 'utf8')) : null;
+  const person = { owner: 'owner', b: 'designer-b' }[who];
   const headers =
     who === 'a'
       ? { authorization: `Bearer ${JSON.parse(readFileSync(CLOUD.personalA, 'utf8')).token}` }
-      : { cookie: browserCookie(CLOUD.sessions[who], new URL(CLOUD.control).hostname) };
+      : creds?.[person]
+        ? { cookie: await formSession(creds[person].email, creds[person].password) }
+        : { cookie: browserCookie(CLOUD.sessions[who], new URL(CLOUD.control).hostname) };
   const opened = await request(`${CLOUD.control}/projects/open`, {
     headers,
     body: { project: CLOUD.project },
   });
   if (opened.status !== 200) throw new Error(`cloud open ${who}: ${opened.status}`);
-  const login = await request(`${CLOUD.origin}/auth/login`, { body: { token: opened.body.token } });
+  // The cell rate-limits sign-in per client (a real control, kept): wait it out.
+  let login;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    login = await request(`${CLOUD.origin}/auth/login`, { body: { token: opened.body.token } });
+    if (login.status !== 429) break;
+    await new Promise((r) => setTimeout(r, 15000));
+  }
   if (login.status !== 200) throw new Error(`cloud login ${who}: ${login.status}`);
   return { token: login.body.token, role: login.body.user?.role ?? opened.body.role, projectToken: opened.body.token };
 }
 
 export async function loadBackend(name, opts = {}) {
   if (name === 'cloud') {
-    const tokens = {};
-    for (const who of ['owner', 'a', 'b']) tokens[who] = await cloudHubToken(who);
+    // Cached per run directory (0600) so a series of runners does not sign in
+    // again each time; a cached token the cell refuses is minted afresh.
+    const cache = opts.cache ?? process.env.F3_CLOUD_SESSIONS ?? null;
+    let tokens = null;
+    if (cache && existsSync(cache)) {
+      tokens = JSON.parse(readFileSync(cache, 'utf8'));
+      const probe = await request(`${CLOUD.origin}/api/projects/current/v1/bootstrap`, {
+        headers: { authorization: `Bearer ${tokens.owner?.token}` },
+      }).catch(() => ({ status: 0 }));
+      if (probe.status !== 200) tokens = null;
+    }
+    if (!tokens) {
+      tokens = {};
+      for (const who of ['owner', 'a', 'b']) tokens[who] = await cloudHubToken(who);
+      if (cache) writeFileSync(cache, JSON.stringify(tokens), { mode: 0o600 });
+    }
     return makeBackend({ name, origin: CLOUD.origin, projectId: CLOUD.project, tokens, cloud: CLOUD });
   }
   if (name === 'selfhost') {

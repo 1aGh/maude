@@ -1,0 +1,1738 @@
+{
+  "task": "T32",
+  "scenarios": [
+    "S13",
+    "S14"
+  ],
+  "plan": ".ai/plans/archive/feature-reliable-project-multiplayer.md#T32",
+  "date": "2026-09-23T19:28:44.839Z",
+  "scale": "full",
+  "script": "scripts/dev/t32-scale.mjs",
+  "command": "node scripts/dev/t32-scale.mjs --scale full --base-port 5110 --work <path> --selfhost <path> --out <path> --timeout-min 45",
+  "environment": {
+    "commit": "a6f65176278b40e7b95aacc4d8ee9a50fce79101",
+    "dirtyTrackedFiles": 13,
+    "node": "v26.8.1",
+    "bun": "1.4.0",
+    "platform": "linux 7.2.4-arch1-Watanare-T2-3-t2 x64",
+    "cpus": 16,
+    "cpuModel": "Intel(R) Core(TM) i9-9880H CPU @ 2.30GHz",
+    "memoryBytes": 33532514304
+  },
+  "topology": {
+    "hub": "production hub image maude-f3-selfhost:local (sha256:c07d6090a68202ea4287d829b206053aafaebda2066aff52f3a14d6c3b797121) in workspace mode, SQLite accepted store on its /data volume, R2 object storage (runners/f3/selfhost.mjs); clients use real account sessions",
+    "clients": "bun apps/studio/server.ts --root <dir> (MAUDE_NO_AUTOBUILD=1, isolated HOME/XDG/HUBS_CONFIG_PATH/MAUDE_CLOUD_CONFIG), linkedHub.syncFiles=true, owner-role hub record",
+    "ports": {
+      "hub": 5110,
+      "a": 5111,
+      "b": 5112,
+      "c": 5113
+    },
+    "limitations": [
+      "Single machine, loopback: no WAN latency, no real object storage; the self-host SQLite accepted store is the only durable store here.",
+      "Canvas \"open\" is measured through the studio index API and disk materialisation, not a rendered browser/WKWebView frame.",
+      "Edits are written to the canvas file on disk (agent/editor path), not through inspector UI gestures."
+    ]
+  },
+  "failures": [],
+  "inventory": {
+    "source": "this repository's own .design/ (complete copy) plus synthetic media",
+    "copyMs": 718,
+    "asCopied": {
+      "raw": {
+        "files": 578,
+        "bytes": 457712417
+      },
+      "eligible": {
+        "files": 283,
+        "bytes": 426085074,
+        "byClass": {
+          "companion-text": {
+            "files": 47,
+            "bytes": 597565
+          },
+          "inert-media": {
+            "files": 62,
+            "bytes": 423688101
+          },
+          "canvas-owned": {
+            "files": 174,
+            "bytes": 1799408
+          }
+        },
+        "byPlane": {
+          "B": {
+            "files": 109,
+            "bytes": 424285666
+          },
+          "A": {
+            "files": 174,
+            "bytes": 1799408
+          }
+        }
+      },
+      "excluded": {
+        "files": 295,
+        "bytes": 31627343,
+        "byReason": {
+          "shape: dotfile / dot segment": {
+            "files": 1,
+            "bytes": 0,
+            "examples": [
+              ".keep"
+            ]
+          },
+          "runtime state (DDR-115 isRuntimeStateRel)": {
+            "files": 292,
+            "bytes": 31624547,
+            "examples": [
+              "_draw/dmg-arrow-badge.proof.tsx",
+              "_draw/hawaiian_shirt_bucket_hat_smoker_character-c1.build.ts",
+              "_draw/hawaiian_shirt_bucket_hat_smoker_character-c1.proof.tsx",
+              "_draw/hawaiian_shirt_bucket_hat_smoker_character-c1.svg"
+            ]
+          },
+          "extension not enumerated (default-closed): .json": {
+            "files": 1,
+            "bytes": 1115,
+            "examples": [
+              "assets/caaftv-local.json"
+            ]
+          },
+          "config.json — the trust anchor, never synced": {
+            "files": 1,
+            "bytes": 1681,
+            "examples": [
+              "config.json"
+            ]
+          }
+        }
+      },
+      "largestEligible": [
+        {
+          "rel": "assets/2e81036d.mp4",
+          "bytes": 40088684,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/a1e04fbd.mov",
+          "bytes": 33902693,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/df1fd2f2.mov",
+          "bytes": 27737040,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/3e564439.mov",
+          "bytes": 22140059,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/5edfccf7.mov",
+          "bytes": 21228645,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/c5edb01a.png",
+          "bytes": 19384020,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/314d43a3.mp4",
+          "bytes": 19356778,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/c34ec202.mov",
+          "bytes": 19258903,
+          "cls": "inert-media"
+        }
+      ]
+    },
+    "resetLinkState": {
+      "files": 90,
+      "bytes": 98720,
+      "paths": [
+        "_state/**"
+      ]
+    },
+    "synthetic": {
+      "large": [
+        {
+          "rel": "assets/t32-synthetic/master-096m.mp4",
+          "bytes": 100663296,
+          "sha256": "7bf5d2c09c8882b3b26c4d970d8a0df9f1474ccdc182270ad428a82ceee76411"
+        },
+        {
+          "rel": "assets/t32-synthetic/master-513m.mp4",
+          "bytes": 537919488,
+          "sha256": "82f3bdd5aae09a7f3a39b77d7e09c5aa252c89be68fd5eaa44d418d8298f818d"
+        }
+      ],
+      "small": {
+        "files": 200,
+        "bytes": 5795021,
+        "pattern": "assets/t32-small/still-NNN.png"
+      },
+      "generator": "AES-256-CTR keystream keyed by sha256(\"t32-scale:\"+rel), after an ISO-BMFF ftyp box; streamed in 8 MiB chunks",
+      "generateMs": 2803
+    },
+    "atStart": {
+      "raw": {
+        "files": 692,
+        "bytes": 1101991804
+      },
+      "eligible": {
+        "files": 487,
+        "bytes": 1070463158,
+        "byClass": {
+          "companion-text": {
+            "files": 47,
+            "bytes": 597565
+          },
+          "inert-media": {
+            "files": 264,
+            "bytes": 1068065906
+          },
+          "canvas-owned": {
+            "files": 176,
+            "bytes": 1799687
+          }
+        },
+        "byPlane": {
+          "B": {
+            "files": 311,
+            "bytes": 1068663471
+          },
+          "A": {
+            "files": 176,
+            "bytes": 1799687
+          }
+        }
+      },
+      "excluded": {
+        "files": 205,
+        "bytes": 31528646,
+        "byReason": {
+          "shape: dotfile / dot segment": {
+            "files": 1,
+            "bytes": 0,
+            "examples": [
+              ".keep"
+            ]
+          },
+          "runtime state (DDR-115 isRuntimeStateRel)": {
+            "files": 202,
+            "bytes": 31525827,
+            "examples": [
+              "_draw/dmg-arrow-badge.proof.tsx",
+              "_draw/hawaiian_shirt_bucket_hat_smoker_character-c1.build.ts",
+              "_draw/hawaiian_shirt_bucket_hat_smoker_character-c1.proof.tsx",
+              "_draw/hawaiian_shirt_bucket_hat_smoker_character-c1.svg"
+            ]
+          },
+          "extension not enumerated (default-closed): .json": {
+            "files": 1,
+            "bytes": 1115,
+            "examples": [
+              "assets/caaftv-local.json"
+            ]
+          },
+          "config.json — the trust anchor, never synced": {
+            "files": 1,
+            "bytes": 1704,
+            "examples": [
+              "config.json"
+            ]
+          }
+        }
+      },
+      "largestEligible": [
+        {
+          "rel": "assets/t32-synthetic/master-513m.mp4",
+          "bytes": 537919488,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/t32-synthetic/master-096m.mp4",
+          "bytes": 100663296,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/2e81036d.mp4",
+          "bytes": 40088684,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/a1e04fbd.mov",
+          "bytes": 33902693,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/df1fd2f2.mov",
+          "bytes": 27737040,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/3e564439.mov",
+          "bytes": 22140059,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/5edfccf7.mov",
+          "bytes": 21228645,
+          "cls": "inert-media"
+        },
+        {
+          "rel": "assets/c5edb01a.png",
+          "bytes": 19384020,
+          "cls": "inert-media"
+        }
+      ]
+    },
+    "excludedButGitTracked": {
+      "files": 1,
+      "bytes": 1115,
+      "byExtension": {
+        ".json": {
+          "files": 1,
+          "bytes": 1115,
+          "examples": [
+            "assets/caaftv-local.json"
+          ]
+        }
+      }
+    }
+  },
+  "aIndexedCanvases": 75,
+  "probeOnHubAt": 27080,
+  "seed": {
+    "aStartedAt": 7778,
+    "aHealthyAt": 8955,
+    "hubFirstPlaneBFileAt": 14796,
+    "kills": [
+      {
+        "label": "mid small-file seed",
+        "trigger": "small-files-mid-seed",
+        "killedAt": 30521,
+        "killedIncarnation": "client-a-1",
+        "restartedAs": "client-a-2",
+        "restartMs": 1831,
+        "hubAtKill": {
+          "files": 83,
+          "of": 311,
+          "bytes": 238415753,
+          "journalRows": 83
+        },
+        "aProgressLastReportedBeforeKill": null,
+        "aProgressFirstReportedAfterRestart": {
+          "at": 34509,
+          "processStartedAt": 1790191757201,
+          "incarnation": 2,
+          "phase": "seeding",
+          "tracked": 311,
+          "delivered": 284,
+          "remaining": 27,
+          "bytesRemaining": 823844610
+        },
+        "largeSessionAtKill": null,
+        "rowsLandedByRestartedIncarnation": 226,
+        "pathsTheHubAlreadyHeldWrittenAgain": [],
+        "restartedFirstPass": {
+          "down": 0,
+          "up": 200,
+          "conflicts": 0,
+          "alreadyInStep": 84
+        },
+        "restartedFirstPassNote": null,
+        "logsBeforeKill": {
+          "up": 0,
+          "down": 0,
+          "passes": [],
+          "coldStartHolds": []
+        },
+        "restartedFromZero": false
+      },
+      {
+        "label": "mid large-object upload",
+        "trigger": "large-upload-mid-session",
+        "killedAt": 43311,
+        "killedIncarnation": "client-a-2",
+        "restartedAs": "client-a-3",
+        "restartMs": 2052,
+        "hubAtKill": {
+          "files": 310,
+          "of": 311,
+          "bytes": 530743983,
+          "journalRows": 310
+        },
+        "aProgressLastReportedBeforeKill": {
+          "at": 43011,
+          "processStartedAt": 1790191757201,
+          "incarnation": 2,
+          "phase": "seeding",
+          "tracked": 311,
+          "delivered": 284,
+          "remaining": 27,
+          "bytesRemaining": 823844610
+        },
+        "aProgressFirstReportedAfterRestart": {
+          "at": 67030,
+          "processStartedAt": 1790191769878,
+          "incarnation": 3,
+          "phase": "converged",
+          "tracked": 311,
+          "delivered": 311,
+          "remaining": 0,
+          "bytesRemaining": 0
+        },
+        "largeSessionAtKill": {
+          "id": "up_f5790d86c7ae648aa78ecca49662f500",
+          "path": "assets/t32-synthetic/master-513m.mp4",
+          "parts": 65,
+          "partsReceived": 19
+        },
+        "rowsLandedByRestartedIncarnation": 1,
+        "pathsTheHubAlreadyHeldWrittenAgain": [],
+        "restartedFirstPass": {
+          "down": 0,
+          "up": 1,
+          "conflicts": 0,
+          "alreadyInStep": 310
+        },
+        "restartedFirstPassNote": null,
+        "logsBeforeKill": {
+          "up": 200,
+          "down": 0,
+          "passes": [
+            {
+              "down": 0,
+              "up": 200,
+              "conflicts": 0,
+              "alreadyInStep": 84
+            }
+          ],
+          "coldStartHolds": []
+        },
+        "restartedFromZero": false
+      }
+    ],
+    "incarnations": [
+      {
+        "incarnation": 1,
+        "name": "client-a-1",
+        "from": 7778,
+        "to": 30521,
+        "journalRowsLanded": 83,
+        "bytesLanded": 238415753,
+        "log": {
+          "up": 0,
+          "down": 0,
+          "passes": [],
+          "coldStartHolds": []
+        }
+      },
+      {
+        "incarnation": 2,
+        "name": "client-a-2",
+        "from": 31543,
+        "to": 43311,
+        "journalRowsLanded": 226,
+        "bytesLanded": 292319952,
+        "log": {
+          "up": 200,
+          "down": 0,
+          "passes": [
+            {
+              "down": 0,
+              "up": 200,
+              "conflicts": 0,
+              "alreadyInStep": 84
+            }
+          ],
+          "coldStartHolds": []
+        }
+      },
+      {
+        "incarnation": 3,
+        "name": "client-a-3",
+        "from": 44340,
+        "to": null,
+        "journalRowsLanded": 1,
+        "bytesLanded": 537919488,
+        "log": {
+          "up": 1,
+          "down": 0,
+          "passes": [
+            {
+              "down": 0,
+              "up": 1,
+              "conflicts": 0,
+              "alreadyInStep": 310
+            }
+          ],
+          "coldStartHolds": []
+        }
+      }
+    ],
+    "largeObjectSession": {
+      "path": "assets/t32-synthetic/master-513m.mp4",
+      "sessionId": "up_f5790d86c7ae648aa78ecca49662f500",
+      "partsTotal": 65,
+      "partsReceivedBeforeKill": 19,
+      "sessionsCreatedForPath": 1,
+      "sameSessionResumed": true,
+      "partsRewrittenAfterRestart": 0,
+      "preKillPartsRewritten": [],
+      "partsFirstSeenAfterRestart": 46,
+      "completedAt": 66999,
+      "landedInJournal": true
+    },
+    "otherSessions": [
+      {
+        "id": "up_df7da2a7f51814847d8af56c3c34df73",
+        "path": "assets/t32-synthetic/master-096m.mp4",
+        "parts": 12,
+        "firstAt": 38037,
+        "completedAt": 41245,
+        "maxHave": 12
+      },
+      {
+        "id": "up_f5790d86c7ae648aa78ecca49662f500",
+        "path": "assets/t32-synthetic/master-513m.mp4",
+        "parts": 65,
+        "firstAt": 41245,
+        "completedAt": 66999,
+        "maxHave": 65
+      }
+    ],
+    "hubCompleteAt": 67844,
+    "hubDelivered": {
+      "files": 311,
+      "bytes": 1068663471,
+      "of": 311
+    },
+    "journal": {
+      "rows": 311,
+      "distinctPaths": 311,
+      "duplicateWrites": []
+    },
+    "deliveryOrderSample": {
+      "first10": [
+        {
+          "rel": "assets/caaftv-local.vtt",
+          "size": 221,
+          "at": 14796
+        },
+        {
+          "rel": "photo-editor-trailer.edl.json",
+          "size": 3509,
+          "at": 15808
+        },
+        {
+          "rel": "assets/a44d3d60.png",
+          "size": 121657,
+          "at": 15808
+        },
+        {
+          "rel": "assets/music.mp3",
+          "size": 205470,
+          "at": 16808
+        },
+        {
+          "rel": "assets/5087c59a.mp3",
+          "size": 352802,
+          "at": 18808
+        },
+        {
+          "rel": "assets/c39386eb.png",
+          "size": 933068,
+          "at": 20808
+        },
+        {
+          "rel": "assets/f366481a.jpg",
+          "size": 984488,
+          "at": 22808
+        },
+        {
+          "rel": "assets/reel-c.mp4",
+          "size": 991017,
+          "at": 25809
+        },
+        {
+          "rel": "assets/reel-b.mp4",
+          "size": 1047059,
+          "at": 26809
+        },
+        {
+          "rel": "assets/caaftv-local.mp4",
+          "size": 1167996,
+          "at": 26809
+        }
+      ],
+      "last5": [
+        {
+          "rel": "assets/5edfccf7.mov",
+          "size": 21228645,
+          "at": 37815
+        },
+        {
+          "rel": "assets/3e564439.mov",
+          "size": 22140059,
+          "at": 37815
+        },
+        {
+          "rel": "assets/a1e04fbd.mov",
+          "size": 33902693,
+          "at": 38817
+        },
+        {
+          "rel": "assets/t32-synthetic/master-096m.mp4",
+          "size": 100663296,
+          "at": 41816
+        },
+        {
+          "rel": "assets/t32-synthetic/master-513m.mp4",
+          "size": 537919488,
+          "at": 67844
+        }
+      ],
+      "largeObjectsLast": true
+    },
+    "aProgressTrail": [
+      {
+        "at": 34509,
+        "processStartedAt": 1790191757201,
+        "incarnation": 2,
+        "phase": "seeding",
+        "tracked": 311,
+        "delivered": 284,
+        "remaining": 27,
+        "bytesRemaining": 823844610
+      },
+      {
+        "at": 36509,
+        "processStartedAt": 1790191757201,
+        "incarnation": 2,
+        "phase": "seeding",
+        "tracked": 311,
+        "delivered": 284,
+        "remaining": 27,
+        "bytesRemaining": 823844610
+      },
+      {
+        "at": 38510,
+        "processStartedAt": 1790191757201,
+        "incarnation": 2,
+        "phase": "seeding",
+        "tracked": 311,
+        "delivered": 284,
+        "remaining": 27,
+        "bytesRemaining": 823844610
+      },
+      {
+        "at": 40510,
+        "processStartedAt": 1790191757201,
+        "incarnation": 2,
+        "phase": "seeding",
+        "tracked": 311,
+        "delivered": 284,
+        "remaining": 27,
+        "bytesRemaining": 823844610
+      },
+      {
+        "at": 42510,
+        "processStartedAt": 1790191757201,
+        "incarnation": 2,
+        "phase": "seeding",
+        "tracked": 311,
+        "delivered": 284,
+        "remaining": 27,
+        "bytesRemaining": 823844610
+      },
+      {
+        "at": 44510,
+        "processStartedAt": 1790191757201,
+        "incarnation": 3,
+        "phase": "seeding",
+        "tracked": 311,
+        "delivered": 284,
+        "remaining": 27,
+        "bytesRemaining": 823844610
+      },
+      {
+        "at": 68031,
+        "processStartedAt": 1790191769878,
+        "incarnation": 3,
+        "phase": "converged",
+        "tracked": 311,
+        "delivered": 311,
+        "remaining": 0,
+        "bytesRemaining": 0
+      },
+      {
+        "at": 70031,
+        "processStartedAt": 1790191769878,
+        "incarnation": 3,
+        "phase": "converged",
+        "tracked": 311,
+        "delivered": 311,
+        "remaining": 0,
+        "bytesRemaining": 0
+      },
+      {
+        "at": 72030,
+        "processStartedAt": 1790191769878,
+        "incarnation": 3,
+        "phase": "converged",
+        "tracked": 311,
+        "delivered": 311,
+        "remaining": 0,
+        "bytesRemaining": 0
+      },
+      {
+        "at": 74031,
+        "processStartedAt": 1790191769878,
+        "incarnation": 3,
+        "phase": "converged",
+        "tracked": 311,
+        "delivered": 311,
+        "remaining": 0,
+        "bytesRemaining": 0
+      },
+      {
+        "at": 76031,
+        "processStartedAt": 1790191769878,
+        "incarnation": 3,
+        "phase": "converged",
+        "tracked": 311,
+        "delivered": 311,
+        "remaining": 0,
+        "bytesRemaining": 0
+      }
+    ]
+  },
+  "edits": {
+    "method": "rewrite ui/t32-probe.tsx on A's disk; poll the hub accepted head (bootstrap + blob) every 100 ms (latency resolution ≈ poll interval + one bootstrap round trip) and B/C disk every 50 ms; next edit 300 ms after the previous one settled or 60 s timeout",
+    "count": 50,
+    "whileMediaMoving": 50,
+    "timedOut": 0,
+    "interruptedByKill": 1,
+    "latencyMs": {
+      "hub": {
+        "n": 49,
+        "p50": 435,
+        "p95": 996,
+        "max": 1628
+      },
+      "hubWhileMediaMoving": {
+        "n": 49,
+        "p50": 435,
+        "p95": 996,
+        "max": 1628
+      },
+      "b": {
+        "n": 28,
+        "p50": 472,
+        "p95": 1628,
+        "max": 2895
+      },
+      "c": {
+        "n": 28,
+        "p50": 478,
+        "p95": 1628,
+        "max": 2895
+      },
+      "peersWhileMediaMoving": {
+        "n": 56,
+        "p50": 472,
+        "p95": 1628,
+        "max": 2895
+      }
+    },
+    "samples": [
+      {
+        "n": 1,
+        "at": 27080,
+        "aIncarnation": 1,
+        "hubMs": 380,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 1059003858,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 2,
+        "at": 27761,
+        "aIncarnation": 1,
+        "hubMs": 505,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 1059003858,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 3,
+        "at": 28567,
+        "aIncarnation": 1,
+        "hubMs": 432,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 995970977,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 4,
+        "at": 29300,
+        "aIncarnation": 1,
+        "hubMs": 434,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 936895957,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 5,
+        "at": 30035,
+        "aIncarnation": 1,
+        "hubMs": 403,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 870543236,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 6,
+        "at": 32541,
+        "aIncarnation": 2,
+        "hubMs": 469,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 830239440,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 7,
+        "at": 33310,
+        "aIncarnation": 2,
+        "hubMs": 635,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 830239440,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 8,
+        "at": 34246,
+        "aIncarnation": 2,
+        "hubMs": 372,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 828273622,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 9,
+        "at": 34919,
+        "aIncarnation": 2,
+        "hubMs": 374,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 823844610,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 10,
+        "at": 35594,
+        "aIncarnation": 2,
+        "hubMs": 384,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 823844610,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 11,
+        "at": 36278,
+        "aIncarnation": 2,
+        "hubMs": 396,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 772877305,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 12,
+        "at": 36974,
+        "aIncarnation": 2,
+        "hubMs": 600,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 715854181,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 13,
+        "at": 37874,
+        "aIncarnation": 2,
+        "hubMs": 435,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 672485477,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 14,
+        "at": 38609,
+        "aIncarnation": 2,
+        "hubMs": 470,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 672485477,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 15,
+        "at": 39379,
+        "aIncarnation": 2,
+        "hubMs": 618,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 638582784,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 16,
+        "at": 40298,
+        "aIncarnation": 2,
+        "hubMs": 393,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 638582784,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 17,
+        "at": 40991,
+        "aIncarnation": 2,
+        "hubMs": 377,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 638582784,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 18,
+        "at": 41668,
+        "aIncarnation": 2,
+        "hubMs": 405,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 638582784,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 19,
+        "at": 42374,
+        "aIncarnation": 2,
+        "hubMs": 394,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 20,
+        "at": 43067,
+        "aIncarnation": 2,
+        "hubMs": null,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null,
+        "interruptedByKill": true
+      },
+      {
+        "n": 21,
+        "at": 45434,
+        "aIncarnation": 3,
+        "hubMs": 720,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 22,
+        "at": 46455,
+        "aIncarnation": 3,
+        "hubMs": 996,
+        "bMs": null,
+        "cMs": null,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": null,
+        "cRemainingBytes": null
+      },
+      {
+        "n": 23,
+        "at": 47751,
+        "aIncarnation": 3,
+        "hubMs": 491,
+        "bMs": 492,
+        "cMs": 492,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 1068663471,
+        "cRemainingBytes": 1068663471
+      },
+      {
+        "n": 24,
+        "at": 48544,
+        "aIncarnation": 3,
+        "hubMs": 439,
+        "bMs": 439,
+        "cMs": 439,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 1068663471,
+        "cRemainingBytes": 1063727401
+      },
+      {
+        "n": 25,
+        "at": 49285,
+        "aIncarnation": 3,
+        "hubMs": 472,
+        "bMs": 472,
+        "cMs": 472,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 1051273943,
+        "cRemainingBytes": 1024723864
+      },
+      {
+        "n": 26,
+        "at": 50057,
+        "aIncarnation": 3,
+        "hubMs": 397,
+        "bMs": 397,
+        "cMs": 397,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 1005215454,
+        "cRemainingBytes": 957251473
+      },
+      {
+        "n": 27,
+        "at": 50754,
+        "aIncarnation": 3,
+        "hubMs": 616,
+        "bMs": 616,
+        "cMs": 616,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 976067099,
+        "cRemainingBytes": 957251473
+      },
+      {
+        "n": 28,
+        "at": 51671,
+        "aIncarnation": 3,
+        "hubMs": 439,
+        "bMs": 439,
+        "cMs": 439,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 976067099,
+        "cRemainingBytes": 922360597
+      },
+      {
+        "n": 29,
+        "at": 52412,
+        "aIncarnation": 3,
+        "hubMs": 478,
+        "bMs": 478,
+        "cMs": 478,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 974477821,
+        "cRemainingBytes": 835178095
+      },
+      {
+        "n": 30,
+        "at": 53191,
+        "aIncarnation": 3,
+        "hubMs": 627,
+        "bMs": 627,
+        "cMs": 1128,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 943204199,
+        "cRemainingBytes": 832589799
+      },
+      {
+        "n": 31,
+        "at": 54620,
+        "aIncarnation": 3,
+        "hubMs": 1628,
+        "bMs": 1628,
+        "cMs": 1628,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 886899421,
+        "cRemainingBytes": 832589799
+      },
+      {
+        "n": 32,
+        "at": 56548,
+        "aIncarnation": 3,
+        "hubMs": 409,
+        "bMs": 409,
+        "cMs": 409,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 867542643,
+        "cRemainingBytes": 832589799
+      },
+      {
+        "n": 33,
+        "at": 57259,
+        "aIncarnation": 3,
+        "hubMs": 443,
+        "bMs": 443,
+        "cMs": 443,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 867542643,
+        "cRemainingBytes": 810828400
+      },
+      {
+        "n": 34,
+        "at": 58002,
+        "aIncarnation": 3,
+        "hubMs": 617,
+        "bMs": 617,
+        "cMs": 617,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 795167780,
+        "cRemainingBytes": 810828400
+      },
+      {
+        "n": 35,
+        "at": 58920,
+        "aIncarnation": 3,
+        "hubMs": 417,
+        "bMs": 417,
+        "cMs": 417,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 748612288,
+        "cRemainingBytes": 748612288
+      },
+      {
+        "n": 36,
+        "at": 59637,
+        "aIncarnation": 3,
+        "hubMs": 575,
+        "bMs": 575,
+        "cMs": 575,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 748612288,
+        "cRemainingBytes": 694625536
+      },
+      {
+        "n": 37,
+        "at": 60513,
+        "aIncarnation": 3,
+        "hubMs": 395,
+        "bMs": 395,
+        "cMs": 395,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 672485477,
+        "cRemainingBytes": 638582784
+      },
+      {
+        "n": 38,
+        "at": 61209,
+        "aIncarnation": 3,
+        "hubMs": 779,
+        "bMs": 780,
+        "cMs": 779,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 638582784,
+        "cRemainingBytes": 638582784
+      },
+      {
+        "n": 39,
+        "at": 62288,
+        "aIncarnation": 3,
+        "hubMs": 431,
+        "bMs": 431,
+        "cMs": 1483,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 638582784,
+        "cRemainingBytes": 537919488
+      },
+      {
+        "n": 40,
+        "at": 64073,
+        "aIncarnation": 3,
+        "hubMs": 624,
+        "bMs": 1381,
+        "cMs": 675,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 537919488,
+        "cRemainingBytes": 537919488
+      },
+      {
+        "n": 41,
+        "at": 65754,
+        "aIncarnation": 3,
+        "hubMs": 1442,
+        "bMs": 1442,
+        "cMs": 1442,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 537919488,
+        "cRemainingBytes": 537919488
+      },
+      {
+        "n": 42,
+        "at": 67497,
+        "aIncarnation": 3,
+        "hubMs": 384,
+        "bMs": 384,
+        "cMs": 384,
+        "aSeedRemainingBytes": 537919488,
+        "bRemainingBytes": 537919488,
+        "cRemainingBytes": 537919488
+      },
+      {
+        "n": 43,
+        "at": 68181,
+        "aIncarnation": 3,
+        "hubMs": 387,
+        "bMs": 388,
+        "cMs": 388,
+        "aSeedRemainingBytes": 0,
+        "bRemainingBytes": 537919488,
+        "cRemainingBytes": 537919488
+      },
+      {
+        "n": 44,
+        "at": 68869,
+        "aIncarnation": 3,
+        "hubMs": 390,
+        "bMs": 390,
+        "cMs": 390,
+        "aSeedRemainingBytes": 0,
+        "bRemainingBytes": 537919488,
+        "cRemainingBytes": 537919488
+      },
+      {
+        "n": 45,
+        "at": 69560,
+        "aIncarnation": 3,
+        "hubMs": 390,
+        "bMs": 390,
+        "cMs": 390,
+        "aSeedRemainingBytes": 0,
+        "bRemainingBytes": 537919488,
+        "cRemainingBytes": 537919488
+      },
+      {
+        "n": 46,
+        "at": 70251,
+        "aIncarnation": 3,
+        "hubMs": 544,
+        "bMs": 544,
+        "cMs": 544,
+        "aSeedRemainingBytes": 0,
+        "bRemainingBytes": 537919488,
+        "cRemainingBytes": 537919488
+      },
+      {
+        "n": 47,
+        "at": 71096,
+        "aIncarnation": 3,
+        "hubMs": 370,
+        "bMs": 370,
+        "cMs": 370,
+        "aSeedRemainingBytes": 0,
+        "bRemainingBytes": 537919488,
+        "cRemainingBytes": 537919488
+      },
+      {
+        "n": 48,
+        "at": 71766,
+        "aIncarnation": 3,
+        "hubMs": 375,
+        "bMs": 375,
+        "cMs": 375,
+        "aSeedRemainingBytes": 0,
+        "bRemainingBytes": 537919488,
+        "cRemainingBytes": 537919488
+      },
+      {
+        "n": 49,
+        "at": 72442,
+        "aIncarnation": 3,
+        "hubMs": 678,
+        "bMs": 678,
+        "cMs": 678,
+        "aSeedRemainingBytes": 0,
+        "bRemainingBytes": 537919488,
+        "cRemainingBytes": 537919488
+      },
+      {
+        "n": 50,
+        "at": 73421,
+        "aIncarnation": 3,
+        "hubMs": 381,
+        "bMs": 2895,
+        "cMs": 2895,
+        "aSeedRemainingBytes": 0,
+        "bRemainingBytes": 537919488,
+        "cRemainingBytes": 0
+      }
+    ]
+  },
+  "cleanClients": {
+    "b": {
+      "spawnedAt": 45364,
+      "msFromSpawn": {
+        "health": 1273,
+        "indexFirstCanvas": 3306,
+        "indexProbeCanvas": 3306,
+        "indexAllCanvases": 3306,
+        "diskFirstCanvas": 3307,
+        "diskProbeCanvas": 3320,
+        "diskAllCanvases": 3320,
+        "firstPlaneBFile": 3333,
+        "largeObjects": {
+          "assets/t32-synthetic/master-096m.mp4": 17432,
+          "assets/t32-synthetic/master-513m.mp4": 28478
+        },
+        "planeBComplete": 28478,
+        "complete": 28478
+      },
+      "downloadStagingPeakBytes": 537919488,
+      "indexListedCanvases": 75,
+      "canvasesListedByA": 75,
+      "canvasBodiesExpectedOnDisk": 77,
+      "firstCanvasBeforeFullMedia": true,
+      "mediaBytesOutstandingAtFirstCanvas": 1051273943,
+      "progressSamples": [
+        {
+          "at": 51738,
+          "phase": "seeding",
+          "tracked": 310,
+          "delivered": 200,
+          "remaining": 110,
+          "bytesRemaining": 0,
+          "blocked": [],
+          "presentB": 200
+        },
+        {
+          "at": 66815,
+          "phase": "converged",
+          "tracked": 310,
+          "delivered": 310,
+          "remaining": 0,
+          "bytesRemaining": 0,
+          "blocked": [],
+          "presentB": 310
+        }
+      ],
+      "finalSyncState": {
+        "state": "online",
+        "docs": {
+          "synced": 77,
+          "pending": 0,
+          "rejected": 0
+        },
+        "files": {
+          "synced": 311,
+          "pulled": 311,
+          "conflicts": 0,
+          "pushed": 0,
+          "progress": {
+            "phase": "converged",
+            "tracked": 311,
+            "delivered": 311,
+            "remaining": 0,
+            "bytesRemaining": 0,
+            "blocked": [],
+            "etaMs": null,
+            "startedAt": null
+          },
+          "deliveryTruncated": 11
+        }
+      }
+    },
+    "c": {
+      "spawnedAt": 45368,
+      "msFromSpawn": {
+        "health": 1268,
+        "indexFirstCanvas": 2562,
+        "indexProbeCanvas": 2562,
+        "indexAllCanvases": 2562,
+        "diskFirstCanvas": 2563,
+        "diskProbeCanvas": 2577,
+        "diskAllCanvases": 2577,
+        "firstPlaneBFile": 2598,
+        "largeObjects": {
+          "assets/t32-synthetic/master-096m.mp4": 16708,
+          "assets/t32-synthetic/master-513m.mp4": 27750
+        },
+        "planeBComplete": 27751,
+        "complete": 27751
+      },
+      "downloadStagingPeakBytes": 537919488,
+      "indexListedCanvases": 75,
+      "canvasesListedByA": 75,
+      "canvasBodiesExpectedOnDisk": 77,
+      "firstCanvasBeforeFullMedia": true,
+      "mediaBytesOutstandingAtFirstCanvas": 1063727401,
+      "progressSamples": [
+        {
+          "at": 57055,
+          "phase": "seeding",
+          "tracked": 310,
+          "delivered": 200,
+          "remaining": 110,
+          "bytesRemaining": 0,
+          "blocked": [],
+          "presentB": 297
+        },
+        {
+          "at": 72112,
+          "phase": "converged",
+          "tracked": 310,
+          "delivered": 310,
+          "remaining": 0,
+          "bytesRemaining": 0,
+          "blocked": [],
+          "presentB": 310
+        }
+      ],
+      "finalSyncState": {
+        "state": "online",
+        "docs": {
+          "synced": 77,
+          "pending": 0,
+          "rejected": 0
+        },
+        "files": {
+          "synced": 311,
+          "pulled": 311,
+          "conflicts": 0,
+          "pushed": 0,
+          "progress": {
+            "phase": "converged",
+            "tracked": 311,
+            "delivered": 311,
+            "remaining": 0,
+            "bytesRemaining": 0,
+            "blocked": [],
+            "etaMs": null,
+            "startedAt": null
+          },
+          "deliveryTruncated": 11
+        }
+      }
+    }
+  },
+  "oracle": {
+    "method": "SHA-256 of every eligible file (classifier: apps/hub/src/file-membership.mjs, the pinned mirror of apps/studio/sync/file-membership.ts) on A, B, C; Plane B also against the hub checkout",
+    "a": {
+      "eligibleFiles": 487,
+      "eligibleBytes": 1070464154
+    },
+    "b": {
+      "eligibleFiles": 484,
+      "eligibleBytes": 1070463552,
+      "matching": 479,
+      "missing": [
+        {
+          "rel": "ui/Horizon Landing.meta.json",
+          "cls": "canvas-owned",
+          "bytes": 3,
+          "explained": "meta holds no shared keys (empty or per-machine only) — nothing for the meta lane to materialise",
+          "receiverState": null,
+          "senderState": null
+        },
+        {
+          "rel": "ui-canvas_viewport.annotations.svg",
+          "cls": "canvas-owned",
+          "bytes": 72,
+          "explained": "orphan annotation layer — no canvas on the sender owns it (and it is an empty wrapper)",
+          "receiverState": null,
+          "senderState": null
+        },
+        {
+          "rel": "ui-sync_hub_admin.annotations.svg",
+          "cls": "canvas-owned",
+          "bytes": 72,
+          "explained": "orphan annotation layer — no canvas on the sender owns it (and it is an empty wrapper)",
+          "receiverState": null,
+          "senderState": null
+        }
+      ],
+      "mismatched": [
+        {
+          "rel": "ui/ChatPanel.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 2959,
+          "bytes": 2801,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable — codec META_LOCAL_KEYS)"
+        },
+        {
+          "rel": "ui/Maude Showcase.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 255,
+          "bytes": 208,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable — codec META_LOCAL_KEYS)"
+        },
+        {
+          "rel": "ui/Photo Editor Trailer.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 518,
+          "bytes": 471,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable — codec META_LOCAL_KEYS)"
+        },
+        {
+          "rel": "ui/RepoBranchSwitcher.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 5160,
+          "bytes": 5004,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable — codec META_LOCAL_KEYS)"
+        },
+        {
+          "rel": "ui/Smoke TSX.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 996,
+          "bytes": 949,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable — codec META_LOCAL_KEYS)"
+        }
+      ],
+      "extra": []
+    },
+    "c": {
+      "eligibleFiles": 484,
+      "eligibleBytes": 1070463552,
+      "matching": 479,
+      "missing": [
+        {
+          "rel": "ui/Horizon Landing.meta.json",
+          "cls": "canvas-owned",
+          "bytes": 3,
+          "explained": "meta holds no shared keys (empty or per-machine only) — nothing for the meta lane to materialise",
+          "receiverState": null,
+          "senderState": null
+        },
+        {
+          "rel": "ui-canvas_viewport.annotations.svg",
+          "cls": "canvas-owned",
+          "bytes": 72,
+          "explained": "orphan annotation layer — no canvas on the sender owns it (and it is an empty wrapper)",
+          "receiverState": null,
+          "senderState": null
+        },
+        {
+          "rel": "ui-sync_hub_admin.annotations.svg",
+          "cls": "canvas-owned",
+          "bytes": 72,
+          "explained": "orphan annotation layer — no canvas on the sender owns it (and it is an empty wrapper)",
+          "receiverState": null,
+          "senderState": null
+        }
+      ],
+      "mismatched": [
+        {
+          "rel": "ui/ChatPanel.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 2959,
+          "bytes": 2801,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable — codec META_LOCAL_KEYS)"
+        },
+        {
+          "rel": "ui/Maude Showcase.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 255,
+          "bytes": 208,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable — codec META_LOCAL_KEYS)"
+        },
+        {
+          "rel": "ui/Photo Editor Trailer.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 518,
+          "bytes": 471,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable — codec META_LOCAL_KEYS)"
+        },
+        {
+          "rel": "ui/RepoBranchSwitcher.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 5160,
+          "bytes": 5004,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable — codec META_LOCAL_KEYS)"
+        },
+        {
+          "rel": "ui/Smoke TSX.meta.json",
+          "cls": "canvas-owned",
+          "aBytes": 996,
+          "bytes": 949,
+          "semantic": "json differs",
+          "explained": "meta differs only in per-machine keys (viewport/last_modified/syncable — codec META_LOCAL_KEYS)"
+        }
+      ],
+      "extra": []
+    },
+    "hubCheckout": {
+      "planeBFiles": 311,
+      "hubFiles": 311,
+      "missing": [],
+      "mismatched": [],
+      "extra": []
+    },
+    "bcIdentical": true,
+    "explainedDifferences": 16,
+    "unexplainedDifferences": 0,
+    "unexplainedList": [],
+    "planeBByteIdentical": true
+  },
+  "resources": {
+    "disk": {
+      "peakTotalBytes": 4343914496,
+      "peakAt": 73775,
+      "peakBreakdownBytes": {
+        "hubData": 12754944,
+        "hubRepo": 1069412352,
+        "a": 1110282240,
+        "b": 1075732480,
+        "c": 1075732480
+      },
+      "final": {
+        "at": 97598,
+        "kib": {
+          "hubData": 12444,
+          "hubRepo": 1044348,
+          "a": 1084260,
+          "b": 1050520,
+          "c": 1050520
+        },
+        "totalKiB": 4242092
+      },
+      "samples": 37,
+      "note": "du -sk of each scratch root (hub data incl. upload parts, hub checkout, A, B, C); sampled, so a sub-interval transient can be missed"
+    },
+    "transient": {
+      "hubUploadPartsPeakBytes": 537919488,
+      "cleanClientDownloadStagingPeakBytes": {
+        "b": 537919488,
+        "c": 537919488
+      },
+      "note": "hub parts sampled every 50 ms from <hub-data>/uploads; client staging (_state/downloads/*.part) every 1 s"
+    },
+    "processes": {
+      "client-a-1": {
+        "samples": 22,
+        "cpuMax": 201,
+        "rssMaxMiB": 286,
+        "cpuMean": 84.8
+      },
+      "client-a-2": {
+        "samples": 12,
+        "cpuMax": 157,
+        "rssMaxMiB": 290,
+        "cpuMean": 70.7
+      },
+      "client-a-3": {
+        "samples": 37,
+        "cpuMax": 145,
+        "rssMaxMiB": 305,
+        "cpuMean": 45.5
+      },
+      "client-b-1": {
+        "samples": 36,
+        "cpuMax": 253,
+        "rssMaxMiB": 307,
+        "cpuMean": 88.8
+      },
+      "client-c-1": {
+        "samples": 36,
+        "cpuMax": 253,
+        "rssMaxMiB": 352,
+        "cpuMean": 93
+      }
+    },
+    "processNote": "ps pcpu (macOS decaying average, can exceed 100 on multi-core) and RSS summed over each process tree; sampled every 1 s"
+  },
+  "durationMs": 97630,
+  "hygiene": {
+    "distStatusBefore": "",
+    "distStatusAfter": ""
+  },
+  "processes": {
+    "client-a-1": {
+      "startedAt": 7778,
+      "exited": {
+        "code": null,
+        "sig": "SIGKILL",
+        "at": 30541
+      }
+    },
+    "client-a-2": {
+      "startedAt": 31543,
+      "exited": {
+        "code": null,
+        "sig": "SIGKILL",
+        "at": 43340
+      }
+    },
+    "client-a-3": {
+      "startedAt": 44340,
+      "exited": {
+        "code": 0,
+        "sig": null,
+        "at": 97701
+      }
+    },
+    "client-b-1": {
+      "startedAt": 45368,
+      "exited": {
+        "code": 0,
+        "sig": null,
+        "at": 97700
+      }
+    },
+    "client-c-1": {
+      "startedAt": 45371,
+      "exited": {
+        "code": 0,
+        "sig": null,
+        "at": 97688
+      }
+    }
+  },
+  "ok": true,
+  "cleanup": "client, hub and synthetic data removed; logs kept under the work dir"
+}

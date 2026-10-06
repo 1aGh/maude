@@ -177,7 +177,7 @@ export function validateWorkspaceConfig(raw = {}) {
     cfg.canvasDomain = null;
   }
 
-  // DDR-242 — apps allowed to FRAME the studio for its read-only `?embed=1`
+  // DDR-247 — apps allowed to FRAME the studio for its read-only `?embed=1`
   // view (orbit showing a design next to a task). A FRAMING list, never a
   // writing one: the hub keeps it out of the canvas door's write allowlist,
   // which is why it is not more MAUDE_EXTRA_SHELL_ORIGINS. Each entry is
@@ -400,6 +400,15 @@ export function envEntries(cfg, { hubSecret, adminPassword, renderSecret }) {
       comment: 'containment invariant enforced (DDR-193 §2)',
     },
     {
+      // The browser studio joins the project as a participant (loopback
+      // pairing, DDR-209). Without it a browser edit on a project that saves
+      // through accepted revisions never becomes an accepted action (F3 S09,
+      // 2026-09-25) — and the hub refuses that switch.
+      key: 'MAUDE_CELL_PAIRING',
+      value: '1',
+      comment: 'the browser studio is a project participant (required for accepted revisions)',
+    },
+    {
       key: 'MAUDE_ADMIN_EMAIL',
       value: cfg.adminEmail,
       comment: 'first user, created on first boot',
@@ -551,6 +560,7 @@ export function renderCompose(cfg) {
     'HUB_WORKSPACE_MODE',
     ...(cfg.local ? ['HUB_INSECURE_HTTP'] : []),
     'MAUDE_WORKSPACE_MODE',
+    'MAUDE_CELL_PAIRING',
     'MAUDE_ADMIN_EMAIL',
     // The password has to cross into the container too, or the hub knows WHO
     // the first user is and has no way to create them — which is precisely the

@@ -2,6 +2,123 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "annotation-lock",
+      "version": "1.7.0",
+      "date": "2026-10-05",
+      "kind": "feature",
+      "title": "Lock whiteboard items in place",
+      "summary": "Select a sticky, shape, image or section and press ⌘⇧L (or use the lock button) to pin it. A locked item can't be dragged, resized, erased or deleted by accident, and marquee selection skips it. Unlock it the same way.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "idle-desktop-lets-cloud-sleep",
+      "version": "1.6.13",
+      "date": "2026-10-05",
+      "kind": "improvement",
+      "title": "An idle desktop lets your cloud project sleep",
+      "summary": "After 20 minutes with no edits or input, the desktop closes its cloud connection and the status bar reads “asleep”. Your next change or click reconnects, and anything teammates changed meanwhile arrives.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "cloud-loading-states-and-faster-tree",
+      "version": "1.6.5",
+      "date": "2026-10-02",
+      "kind": "improvement",
+      "title": "Clear loading states in cloud projects",
+      "summary": "Opening a canvas now shows a loading screen until it is fully drawn, instead of a white page with stray comment pins. Photos in the file tree show a spinner and fetch themselves when the cloud is still bringing them in, fonts that loaded late repair themselves without a reload, and the file tree of a large cloud project lists every photo and no longer stalls.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "cloud-projects-bigger-than-the-disk",
+      "version": "1.6.0",
+      "date": "2026-10-01",
+      "kind": "improvement",
+      "title": "Big cloud projects open with every photo",
+      "summary": "A cloud workspace can now hold a project bigger than its own disk. Photos and videos stay in storage and are fetched, checked, when a canvas needs them, so every canvas renders with all its media. Large background images and fonts referenced from stylesheets now load too; they used to be silently missing.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "desktop-sync-no-false-conflicts",
+      "version": "1.6.0",
+      "date": "2026-10-01",
+      "kind": "fix",
+      "title": "No more false sync conflicts on big projects",
+      "summary": "File sync on large projects no longer fills up with conflicts that were not real. It reads the whole change history and recognises files the cloud already has, so uploads finish instead of retrying forever.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "whiteboard-text-sections-live-previews",
+      "version": "1.5.0",
+      "date": "2026-09-30",
+      "kind": "improvement",
+      "title": "Smoother whiteboard editing, live together",
+      "summary": "Typing in stickies and shapes now wraps exactly as it will look, works with any input method (accents, Japanese), and is never lost — it reaches teammates within a second, and if someone deletes the note you are typing in, Enter puts it back with your text. Sections move, copy and delete together with everything in them, teammates see your drag or resize live before you let go, and undo only takes back your own changes.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "whiteboard-edits-sync-per-element",
+      "version": "1.5.0",
+      "date": "2026-09-30",
+      "kind": "improvement",
+      "title": "Whiteboard edits no longer overwrite each other",
+      "summary": "Each sticky, shape and arrow now saves on its own, so two people editing the same board keep both changes, and even text typed into the same sticky at once is merged. Existing boards convert automatically on start, and editing text is steadier: the cursor stays on a new line after Shift+Enter, double-clicking a word selects it, and Shift+click removes an item from a selection.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "file-tree-remembers-folders",
+      "version": "1.5.0",
+      "date": "2026-09-30",
+      "kind": "improvement",
+      "title": "The file tree remembers your folders",
+      "summary": "The Files panel now starts collapsed and keeps the folders you open, even after you switch panels, reload or restart the app. Opening a canvas unfolds the way to it.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "comments-stay-where-you-put-them",
+      "version": "1.4.6",
+      "date": "2026-09-30",
+      "kind": "fix",
+      "title": "Comments stay where you put them",
+      "summary": "A comment on a sticky, a drawing or empty canvas no longer disappears a few seconds after you save it. A comment on a sticky moves with it, and if the thing it points at is deleted the comment stays, marked as detached, until you remove it.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "comments-reach-every-peer",
+      "version": "1.4.6",
+      "date": "2026-09-30",
+      "kind": "fix",
+      "title": "Web comments reach the desktop app",
+      "summary": "Comments added on the web while your desktop app was closed now show up when you reopen it, and a comment deleted elsewhere no longer comes back.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "large-boards-pan-smoothly",
+      "version": "1.4.6",
+      "date": "2026-09-30",
+      "kind": "improvement",
+      "title": "Large boards pan smoothly again",
+      "summary": "Panning a board with many artboards stays smooth while something is selected or a teammate is on the canvas — on the desktop app it could drop to a frame a second.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "sync-no-phantom-waiting-files",
+      "version": "1.4.6",
+      "date": "2026-09-30",
+      "kind": "fix",
+      "title": "Sync stops counting files that are done",
+      "summary": "The Sync panel no longer shows files as waiting or stuck when there is nothing left to deliver, and Resync now brings down a file the project changed while you were uploading it.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "team-projects-hold-up",
+      "version": "1.4.5",
+      "date": "2026-09-25",
+      "kind": "fix",
+      "title": "Team projects that hold up under failure",
+      "summary": "Edits made in the browser on a self-hosted workspace now reach the project, switching a project to saved revisions finishes on its own even if the connection drops for a moment, and removing a teammate ends their access at once. Cloud projects also keep work written just before a server crash.",
+      "surface": "design-ui"
+    },
+    {
       "id": "steadier-team-projects",
       "version": "1.4.2",
       "date": "2026-09-16",

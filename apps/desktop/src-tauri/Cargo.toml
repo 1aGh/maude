@@ -1,6 +1,6 @@
 [package]
 name = "maude-desktop"
-version = "1.4.4"
+version = "1.7.1"
 description = "Maude native desktop shell — Tauri v2 sidecar over the compiled dev-server binary (DDR-106)"
 authors = ["Maude"]
 edition = "2021"
@@ -53,17 +53,22 @@ tiny_http = "0.12"
 open = "5"
 # Random shared-secret key for the loopback token bridge (already in the tree via rustls).
 getrandom = "0.2"
-# Desktop E2E (DOM-driven, @wdio/tauri-service): embedded W3C WebDriver server for
-# driving the real WKWebView in scenario tests. Registered ONLY under
-# `#[cfg(debug_assertions)]` in lib.rs, so the shipped release `.app` never runs it
-# (the crate is a compile-time dep so its `wdio-webdriver:default` permission still
-# resolves for capability validation in both profiles, but `init()` is never called
-# in release). See .ai/plans/feature-desktop-e2e-scenario-harness.md + the
-# `desktop-e2e` skill.
-tauri-plugin-wdio-webdriver = "1.2.0"
 # feature-acp-turn-notifications — a REAL OS notification, regardless of which
 # project's page is loaded or whether any page is loaded at all. The Web
 # `Notification` API inside the webview (app.jsx) can only ever cover the
 # project currently on screen; this is what closes the cross-project +
 # detached-chat gap (see notify.rs).
 tauri-plugin-notification = "2"
+
+# Desktop E2E (DOM-driven, @wdio/tauri-service): embedded W3C WebDriver server for
+# driving the real WKWebView in scenario tests. Registered ONLY under
+# `#[cfg(debug_assertions)]` in lib.rs, so the shipped release `.app` never runs it
+# (the crate is a compile-time dep so its `wdio-webdriver:default` permission — in
+# capabilities/e2e-webdriver.json — still resolves in both profiles, but `init()` is never called
+# in release). See .ai/plans/feature-desktop-e2e-scenario-harness.md + the
+# `desktop-e2e` skill.
+# NOT on Windows: <=1.4.0 pins webview2-com 0.38 /
+# windows 0.61 and fails to compile against Tauri 2.12 (webview2-com 0.39) —
+# the v1.7.0 Windows .msi build. Desktop E2E runs on macOS only (WKWebView).
+[target.'cfg(not(target_os = "windows"))'.dependencies]
+tauri-plugin-wdio-webdriver = "1.2.0"

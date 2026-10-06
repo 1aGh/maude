@@ -42,8 +42,16 @@ import {
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { serializeBoard } from '../annotations/schema.ts';
 
-import { sanitizeAnnotationSvg, strokesToSvg } from '../annotations-model.ts';
+/**
+ * Translated strokes → canonical v2 board text (DDR-242): straight to
+ * registry-validated elements (`toBoardElements`), never through SVG.
+ */
+function boardText(strokes) {
+  return serializeBoard(toBoardElements(strokes).elements);
+}
+
 import {
   applyRewrites,
   FIGMA_ASSET_HOSTS,
@@ -68,7 +76,7 @@ import { readFigZip } from '../figma/fig-zip.ts';
 import { attrValue, ImportReport } from '../figma/sanitize.ts';
 import { JsxTooLargeError, toArtboard, toCanvas } from '../figma/to-artboard.ts';
 import { toRenderCanvas } from '../figma/to-render.ts';
-import { BoardTooLargeError, toStrokes } from '../figma/to-strokes.ts';
+import { BoardTooLargeError, toBoardElements, toStrokes } from '../figma/to-strokes.ts';
 import { stylesToTokens, variablesToTokens } from '../figma/to-tokens.ts';
 import { FigmaCapError, normalizeDocument, walkNodes } from '../figma/types.ts';
 import { FigmaUrlError, parseFigmaTarget } from '../figma/url.ts';
@@ -258,9 +266,9 @@ export function formatSummary(report, extra = {}) {
 /**
  * Phase 2 — import a FigJam board into the whiteboard annotation layer.
  *
- * Writes `<designRoot>/<slug>.annotations.svg` through the CANONICAL serializer
- * plus `sanitizeAnnotationSvg`, so this verb can never persist a shape the
- * canvas would reject (D6's annotation row).
+ * Writes `<designRoot>/<slug>.annotations.json` as registry-validated v2
+ * elements (DDR-242), so this verb can never persist an element the canvas
+ * would reject (D6's annotation row).
  */
 /**
  * Read and decode a local `.fig` / `.jam` (DDR-221). Offline end to end: no
@@ -553,7 +561,9 @@ export async function importBoard({
     const usable = strokes.filter((s) => s.tool !== 'image' || Boolean(s.href));
     // Paper, then region, then content — in paint order. Either one emitted
     // after the board would veil it.
-    const svgFinal = sanitizeAnnotationSvg(strokesToSvg([paper, backing, ...usable]));
+    // DDR-242 — the board is written as the v2 element model (`.annotations.json`):
+    // the translator's strokes become registry-validated elements directly.
+    const boardFinal = boardText([paper, backing, ...usable]);
 
     // The board needs a canvas to live on — see `boardHostCanvas`. The
     // annotation layer is named after THAT canvas's slug, not after a slug of
@@ -562,10 +572,10 @@ export async function importBoard({
     const canvasRel = `ui/${title}.tsx`;
     const annSlug = canvasSlug(canvasRel);
 
-    const stagedSvg = join(staging, 'board.annotations.svg');
+    const stagedSvg = join(staging, 'board.annotations.json');
     const stagedTsx = join(staging, 'board.tsx');
     const stagedMeta = join(staging, 'board.meta.json');
-    writeFileSync(stagedSvg, svgFinal, 'utf8');
+    writeFileSync(stagedSvg, boardFinal, 'utf8');
     writeFileSync(stagedTsx, boardHostCanvas(title), 'utf8');
     writeFileSync(
       stagedMeta,
@@ -583,7 +593,7 @@ export async function importBoard({
     const finalPath = assertContained(
       root,
       designRootRel,
-      join(root, designRootRel, `${annSlug}.annotations.svg`)
+      join(root, designRootRel, `${annSlug}.annotations.json`)
     );
     const finalTsx = assertContained(root, designRootRel, join(root, designRootRel, canvasRel));
     const finalMeta = assertContained(
@@ -1099,12 +1109,12 @@ export async function importPages({
 
         if (annStrokes.length > 0) {
           const annSlug = canvasSlug(`${relDir}/${title}.tsx`);
-          const stagedAnn = join(staging, 'page.annotations.svg');
-          writeFileSync(stagedAnn, sanitizeAnnotationSvg(strokesToSvg(annStrokes)), 'utf8');
+          const stagedAnn = join(staging, 'page.annotations.json');
+          writeFileSync(stagedAnn, boardText(annStrokes), 'utf8');
           const finalAnn = assertContained(
             root,
             designRootRel,
-            join(root, designRootRel, `${annSlug}.annotations.svg`)
+            join(root, designRootRel, `${annSlug}.annotations.json`)
           );
           promoteFile(stagedAnn, finalAnn);
         }

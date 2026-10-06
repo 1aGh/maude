@@ -241,6 +241,8 @@ test('storage is scoped to the tenant and the checkpoint cadence is explicit', a
     tenantId: 'alligators',
     env: { ...baseEnv, MAUDE_R2_BUCKET: 'maude-cloud-assets' },
     hostname: 'alligators.cloud.maude.sh',
+    // Storage exists only with minted credentials (2026-10-02).
+    s3Creds: { accessKeyId: 'tmp', secretAccessKey: 's' },
   });
   assert.equal(vars.MAUDE_TENANT_ID, 'alligators');
   assert.equal(vars.MAUDE_S3_BUCKET, 'maude-cloud-assets');
@@ -281,7 +283,9 @@ test('minted credentials replace the fleet-wide key, session token included', as
   );
 });
 
-test('without minted credentials the legacy branch still works (migration window)', async () => {
+test('without minted credentials a cell gets NO storage — never the fleet-wide key', async () => {
+  // The legacy MAUDE_R2_* Worker secret used to ride in here. On 2026-10-02
+  // scanner-started cells for tenants that do not exist were found carrying it.
   const vars = await cellEnv({
     tenantId: 'alligators',
     env: {
@@ -292,9 +296,10 @@ test('without minted credentials the legacy branch still works (migration window
     },
     hostname: 'alligators.cloud.maude.sh',
   });
-  assert.equal(vars.MAUDE_S3_ACCESS_KEY_ID, 'shared-id');
-  assert.equal(vars.MAUDE_S3_SESSION_TOKEN, undefined);
-  assert.equal(vars.MAUDE_S3_CREDS_URL, undefined);
+  assert.equal(vars.MAUDE_S3_ACCESS_KEY_ID, undefined);
+  assert.equal(vars.MAUDE_S3_SECRET_ACCESS_KEY, undefined);
+  assert.ok(!Object.values(vars).includes('shared-id'));
+  assert.ok(!Object.values(vars).includes('shared-secret'));
 });
 
 test('fetchTenantS3Credentials asks with the tenant-derived secret and fails closed', async () => {
@@ -444,6 +449,36 @@ test('cellEnv carries the pairing switch only for an allowlisted tenant', async 
   assert.equal(other.MAUDE_CELL_PAIRING, undefined);
 });
 
+test('a brand-new project starts in accepted revisions only where the store AND the pairing are on (G3a)', async () => {
+  const both = {
+    ...baseEnv,
+    CELL_ZONE: 'cloud.maude.sh',
+    CELL_LIVE_PAIRING: 'alligators',
+    CELL_PROJECT_STORE: 'alligators',
+  };
+  const on = await cellEnv({
+    tenantId: 'alligators',
+    env: both,
+    hostname: 'alligators.cloud.maude.sh',
+  });
+  assert.equal(on.MAUDE_NEW_PROJECT_MODE, 'transactions');
+  for (const env of [
+    { ...baseEnv, CELL_ZONE: 'cloud.maude.sh', CELL_PROJECT_STORE: 'alligators' },
+    { ...baseEnv, CELL_ZONE: 'cloud.maude.sh', CELL_LIVE_PAIRING: 'alligators' },
+  ]) {
+    const off = await cellEnv({
+      tenantId: 'alligators',
+      env,
+      hostname: 'alligators.cloud.maude.sh',
+    });
+    assert.equal(
+      off.MAUDE_NEW_PROJECT_MODE,
+      undefined,
+      'no store or no paired browser studio → legacy until the owner switches'
+    );
+  }
+});
+
 test('a cell declares its disk disposable, and gets the durable project store only when the fleet has the route', async () => {
   const off = await cellEnv({
     tenantId: 'alligators',
@@ -471,4 +506,34 @@ test('a cell declares its disk disposable, and gets the durable project store on
     hostname: 'someone-else.cloud.maude.sh',
   });
   assert.equal(other.MAUDE_PROJECT_STORE_URL, undefined);
+});
+
+// Cell materializer — the disk-is-a-cache switch, per tenant like pairing.
+test('cellEnv turns the materializer on only for an allowlisted tenant', async () => {
+  const env = {
+    ...baseEnv,
+    CELL_ZONE: 'cloud.maude.sh',
+    CELL_MATERIALIZE: 'alligators',
+    CELL_CACHE_BUDGET_BYTES: '3000000000',
+  };
+  const pilot = await cellEnv({
+    tenantId: 'alligators',
+    env,
+    hostname: 'alligators.cloud.maude.sh',
+  });
+  assert.equal(pilot.MAUDE_CELL_MATERIALIZE, '1');
+  assert.equal(pilot.MAUDE_CACHE_BUDGET_BYTES, '3000000000');
+  const other = await cellEnv({
+    tenantId: 'someone-else',
+    env,
+    hostname: 'someone-else.cloud.maude.sh',
+  });
+  assert.equal(other.MAUDE_CELL_MATERIALIZE, undefined);
+  assert.equal(other.MAUDE_CACHE_BUDGET_BYTES, undefined);
+  const fleet = await cellEnv({
+    tenantId: 'anyone',
+    env: { ...env, CELL_MATERIALIZE: '*' },
+    hostname: 'anyone.cloud.maude.sh',
+  });
+  assert.equal(fleet.MAUDE_CELL_MATERIALIZE, '1');
 });

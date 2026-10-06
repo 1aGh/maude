@@ -34,7 +34,7 @@ const mk = async (base) => {
 const P = await mk('F3AiPage');
 const Q = await mk('F3AiPanel');
 const port = fx.port;
-const proxy = await startProxy({ listen: port + 110, target: port, control: port + 111 });
+const proxy = await startProxy({ listen: port + 110, target: fx.backend === "cloud" ? fx.url : port, control: port + 111 });
 const A = await startDesktop({
   root: join(scratch, `desktop-ai-${tag}`),
   port: port + 120,

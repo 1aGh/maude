@@ -20,8 +20,9 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, describe, it } from 'node:test';
-
 import * as Y from 'yjs';
+import { writeReplica } from '../../studio/annotations/replica.ts';
+import { serializeBoard, validateElements } from '../../studio/annotations/schema.ts';
 
 import { createWriteBehind, writeBehindKey } from '../src/asset-lane.mjs';
 import { createGitRunner } from '../src/git-runner.mjs';
@@ -147,7 +148,7 @@ describe('workspace-files (pure)', () => {
       css: 'ui/Card.css',
       // NOT a sibling — the studio keys annotations by the flat slug at the
       // design root, and the hub must write the file the studio actually reads.
-      annotations: 'ui-card.annotations.svg',
+      annotations: 'ui-card.annotations.json',
     });
   });
 
@@ -217,12 +218,16 @@ describe('workspace-files (pure)', () => {
   it('reads the synced lanes off a real Y.Doc', () => {
     const doc = new Y.Doc();
     doc.getText('html').insert(0, '<main/>');
-    doc.getMap('annotations').set('svg', '<svg/>');
+    // DDR-242 — the v2 replica, read validated and canonical.
+    const board = validateElements([
+      { id: 's1', type: 'sticky', index: 'a0', x: 0, y: 0, w: 100, h: 100, text: 'hi' },
+    ]).elements;
+    writeReplica(doc, board);
     assert.deepEqual(readDocContent(doc), {
       body: '<main/>',
       css: null,
       meta: null,
-      annotations: '<svg/>',
+      annotations: serializeBoard(board),
       // The sync-internal path lane. Absent here — an older peer omits it, and
       // that is the normal case, not a degraded one.
       path: null,
@@ -371,6 +376,42 @@ describe('write-behind (Sync v2 Increment 5)', () => {
       assert.deepEqual(journal.unmirrored(), []);
       await wb.flush();
       assert.equal(put.length, 3);
+      wb.stop();
+    } finally {
+      closeJournal(dataDir);
+    }
+  });
+
+  it('resolves credentials per pass, so an expired boot snapshot never strands uploads', async () => {
+    // A cell's object-storage credentials are temporary. The write-behind used
+    // to keep the boot config for the process lifetime: past expiry every
+    // mirror failed, the bytes stayed checkout-only, and a rollout wiped them
+    // (v1.5.x — Alligators lost `_layout.css` and photos).
+    const { dataDir, designRoot, journal, record } = scene();
+    try {
+      let creds = { bucket: 'x', token: 'boot' };
+      const used = [];
+      const wb = createWriteBehind({
+        designRoot,
+        s3: async () => creds,
+        journal,
+        prefix: '',
+        log: silent(),
+        deps: {
+          putObject: async (c, key) => {
+            if (c.token !== 'fresh') throw new Error('403 expired token');
+            used.push(key);
+          },
+        },
+      });
+      record('system/ds/_layout.css', '.l{}');
+      await wb.flush();
+      assert.deepEqual(used, []);
+      assert.equal(journal.unmirrored().length, 1); // still queued, not dropped
+      creds = { bucket: 'x', token: 'fresh' }; // s3-creds.mjs refreshed
+      await wb.flush();
+      assert.deepEqual(used, ['files/system/ds/_layout.css']);
+      assert.deepEqual(journal.unmirrored(), []);
       wb.stop();
     } finally {
       closeJournal(dataDir);

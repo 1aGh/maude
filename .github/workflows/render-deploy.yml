@@ -58,7 +58,16 @@ jobs:
         # this catches a syntax/import break before the expensive image build.
         run: bun build apps/render/server.ts --target=bun --no-bundle > /dev/null
 
-      - name: Token-proxy contract tests
+      - name: Install the Worker's own deps (the idle-policy seam test reads them)
+        # apps/render/test/idle-policy.test.ts pins the @cloudflare/containers
+        # methods worker.mjs overrides — a library bump that renames them would
+        # silently stop the render container from ever sleeping again (the
+        # ~$23/month September bug). Without this install the guard cannot see
+        # the library and the job fails; v1.6.0 shipped exactly that.
+        working-directory: apps/render
+        run: npm install --no-audit --no-fund
+
+      - name: Render service tests (token proxy + idle policy)
         # Pins the header-normalization contract (hybrid-export T1): the proxy
         # must never replay Bun-fetch's decompressed-body-with-stale-headers
         # Response — the bug that made every v1.0.x export die as goto:Timeout.

@@ -34,6 +34,11 @@ const DDL = [
   `CREATE TABLE IF NOT EXISTS store_meta (k TEXT PRIMARY KEY, v TEXT NOT NULL)`,
   // Content-addressed lane payloads. `body` is the exact lane text.
   `CREATE TABLE IF NOT EXISTS blobs (hash TEXT PRIMARY KEY, body TEXT NOT NULL, size INTEGER NOT NULL)`,
+  // A body larger than one row may hold is kept here in parts, its `blobs` row
+  // carrying an empty body: a Durable Object's SQLite refuses any value or row
+  // over 2 MB, and a lane may be 4 MB (security review A1 — the refused commit
+  // was an import that could never finish).
+  `CREATE TABLE IF NOT EXISTS blob_parts (hash TEXT NOT NULL, n INTEGER NOT NULL, body TEXT NOT NULL, PRIMARY KEY (hash, n))`,
   // Manifest entries. `entry` is the stable identity a rename/move keeps; `doc`
   // is the transport document name (path-derived) and may change with a move.
   `CREATE TABLE IF NOT EXISTS docs (
@@ -66,6 +71,25 @@ const DDL = [
 
 function one(rows) {
   return rows.length ? rows[0] : null;
+}
+
+/**
+ * UTF-16 units per part. SQLite stores text as UTF-8, at most 3 bytes a unit
+ * (a surrogate pair is 4 bytes for 2 units), so a part stays under 1.5 MB.
+ */
+export const BLOB_PART_UNITS = 512 * 1024;
+
+/** Split a body at part boundaries that never cut a surrogate pair. */
+export function blobParts(body, units = BLOB_PART_UNITS) {
+  const parts = [];
+  for (let i = 0; i < body.length; ) {
+    let end = Math.min(i + units, body.length);
+    const last = body.charCodeAt(end - 1);
+    if (end < body.length && last >= 0xd800 && last <= 0xdbff) end -= 1;
+    parts.push(body.slice(i, end));
+    i = end;
+  }
+  return parts;
 }
 
 export function createStoreCore(sql, { now = () => Date.now() } = {}) {
@@ -162,8 +186,13 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
   }
 
   function blob(hash) {
-    const row = one(sql.exec(`SELECT body FROM blobs WHERE hash = ?`, hash));
-    return row ? row.body : null;
+    const row = one(sql.exec(`SELECT body, size FROM blobs WHERE hash = ?`, hash));
+    if (!row) return null;
+    if (row.body !== '' || !row.size) return row.body;
+    return sql
+      .exec(`SELECT body FROM blob_parts WHERE hash = ? ORDER BY n`, hash)
+      .map((r) => r.body)
+      .join('');
   }
 
   function result(actor, tx) {
@@ -232,11 +261,16 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
       const rev = cur.revision + 1;
       const at = input.committedAt ?? now();
       for (const b of input.blobs ?? []) {
-        sql.exec(
-          `INSERT INTO blobs (hash, body, size) VALUES (?, ?, ?) ON CONFLICT(hash) DO NOTHING`,
-          b.hash,
-          b.body,
-          b.size ?? b.body.length
+        if (one(sql.exec(`SELECT 1 AS x FROM blobs WHERE hash = ?`, b.hash))) continue;
+        const size = b.size ?? b.body.length;
+        if (b.body.length <= BLOB_PART_UNITS) {
+          sql.exec(`INSERT INTO blobs (hash, body, size) VALUES (?, ?, ?)`, b.hash, b.body, size);
+          continue;
+        }
+        // Parted: an empty body with a non-zero size (a real empty body has size 0).
+        sql.exec(`INSERT INTO blobs (hash, body, size) VALUES (?, '', ?)`, b.hash, size || 1);
+        blobParts(b.body).forEach((part, n) =>
+          sql.exec(`INSERT INTO blob_parts (hash, n, body) VALUES (?, ?, ?)`, b.hash, n, part)
         );
       }
       for (const d of input.docs ?? []) {

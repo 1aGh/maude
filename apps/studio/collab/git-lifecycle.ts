@@ -89,6 +89,12 @@ export function createGitLifecycle(ctx: Context, registry: Registry): GitLifecyc
     // filesystems / git implementations fire spurious events on packfile
     // operations too — the readHead diff above filters noise.
     watcher = watch(headPath, { persistent: false }, () => schedule());
+    // An 'error' with no listener is thrown and exits the studio (the
+    // 2026-10-02 cell crash loop came from a sibling watcher). Log and stop.
+    watcher.on('error', (err) => {
+      console.warn('[git-lifecycle] .git/HEAD watcher error — stopped:', err.message);
+      watcher?.close();
+    });
   } catch (err) {
     console.warn(
       '[git-lifecycle] failed to watch .git/HEAD:',

@@ -65,6 +65,16 @@
   opacity: 0.6;
 }
 
+/* Detached — the comment's element or annotation is gone from this canvas. The
+   comment is kept at its last known place (never deleted by software, #134/#136).
+   A hollow, dashed pin: the state reads from the shape, not from colour alone,
+   and the number keeps full contrast. The aria-label says "detached" too. */
+.cm-pin[data-detached='true'] {
+  background: var(--maude-chrome-bg-1, #faf6ef);
+  color: var(--maude-chrome-fg-0, #2a2520);
+  border: 1.5px dashed var(--maude-hud-accent, #6f63ef);
+}
+
 .cm-pin[data-focused='true'] {
   /* Subtle ring — DS hard-edges discipline: no glow, just a hairline outline. */
   outline: 1px solid var(--maude-chrome-fg-0, #2a2520);

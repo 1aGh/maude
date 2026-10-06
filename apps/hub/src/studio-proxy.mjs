@@ -23,11 +23,13 @@
 //    is correct for a local tool and is the whole ballgame on the internet; this
 //    proxy inverts that default and a test asserts it.
 
+import { createHash } from 'node:crypto';
 import { request as httpRequest } from 'node:http';
 import { connect as netConnect } from 'node:net';
 
 import { RENDER_TOKEN_TTL_MS } from './render-token.mjs';
 import { isReadOnlyRole } from './role-matrix.mjs';
+import { servicePage } from './studio-door.mjs';
 import { decide } from './studio-manifest.mjs';
 
 /** Headers a client must never be able to speak. See property 2 above. */
@@ -96,7 +98,7 @@ export const INJECTED_HEADER_PREFIX = 'x-maude-';
 export const CANVAS_CAPABILITY_COOKIE = 'maude_canvas';
 
 /**
- * DDR-242 — the `?embed=1` view's read-only capability, as a cookie of its own.
+ * DDR-247 — the `?embed=1` view's read-only capability, as a cookie of its own.
  * Same attributes, same host scope; it authorises asset GETs and nothing else
  * (so does `maude_canvas` now — writes and sockets need `?t=`), and it exists
  * so an embed never overwrites the designer's full cookie on the same origin.
@@ -151,7 +153,7 @@ function cookieFrom(request, name) {
   return null;
 }
 
-/** DDR-242 — a shell request made by the `?embed=1` view. */
+/** DDR-247 — a shell request made by the `?embed=1` view. */
 function isEmbedRequest(request) {
   try {
     return new URL(request?.url ?? '/', 'http://cell.invalid').searchParams.get('embed') === '1';
@@ -269,6 +271,79 @@ export function sessionKeyFor(project, email, hash) {
   return hash(`${project}\0${email}`).slice(0, 16);
 }
 
+/**
+ * A PERSON's browser loading a page (top level or an iframe) — not a script, a
+ * socket, a desktop sync call or a probe. Only these get an HTML answer when
+ * the studio is not up yet; every API caller keeps its exact JSON
+ * (feature-cloud-cost-and-cold-start-ux B4). Mirrors `isNavigation` in
+ * apps/cells/cell-config.mjs, over Node's header shape.
+ */
+export function isNavigationRequest(request) {
+  if ((request.method ?? 'GET') !== 'GET') return false;
+  const h = request.headers ?? {};
+  if (String(h.upgrade ?? '').toLowerCase() === 'websocket') return false;
+  const mode = h['sec-fetch-mode'];
+  if (mode) {
+    if (mode !== 'navigate') return false;
+    const dest = h['sec-fetch-dest'];
+    return !dest || dest === 'document' || dest === 'iframe';
+  }
+  return /\btext\/html\b/.test(String(h.accept ?? ''));
+}
+
+const STARTING_TITLE = 'Almost there…';
+const STARTING_TEXT =
+  "Your project's server is finishing waking up. Your work is safe — this page refreshes by itself.";
+
+/**
+ * The "still starting" answer for a navigation. The shell gets the hub's own
+ * service page; the CANVAS origin (untrusted, cookieless — DDR-054) gets a
+ * self-contained page that names nothing, links nowhere and loads nothing.
+ */
+function respondStartingPage(response, { canvas = false } = {}) {
+  const html = canvas
+    ? `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="refresh" content="3"><title>${STARTING_TITLE}</title><style>body{margin:0;display:grid;place-items:center;min-height:100vh;font:15px/1.5 system-ui,sans-serif;background:#1b1d22;color:#c9ccd3}main{max-width:26rem;padding:24px;text-align:center}</style></head><body><main><p><strong>${STARTING_TITLE}</strong></p><p>${STARTING_TEXT}</p></main></body></html>`
+    : servicePage(STARTING_TITLE, STARTING_TEXT, { refreshSeconds: 3 });
+  response.writeHead(503, {
+    'content-type': 'text/html; charset=utf-8',
+    'cache-control': 'no-store',
+    'retry-after': '3',
+    'x-content-type-options': 'nosniff',
+    ...(canvas
+      ? {
+          'content-security-policy':
+            "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'",
+        }
+      : {}),
+  });
+  response.end(html);
+}
+
+/**
+ * A canvas frame whose OWN document arrived with an expired capability.
+ *
+ * Before: the iframe showed `{"error":"this canvas link has expired — reload
+ * the project"}`. Now it shows a short line and asks the shell, by message, for
+ * a fresh capability; the shell (app.jsx `onExpired`) re-mints and points just
+ * this frame at it, so the canvas comes back by itself.
+ *
+ * The one script is ours, pinned by hash in a CSP that allows nothing else,
+ * and the message goes to the project's own shell origin — never `*`.
+ */
+function respondCanvasExpiredPage(response, shellOrigin) {
+  const target = JSON.stringify(shellOrigin ?? '');
+  const script = `parent.postMessage({dgn:'canvas-expired'},${target});`;
+  const hash = createHash('sha256').update(script).digest('base64');
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Refreshing this canvas…</title><style>body{margin:0;display:grid;place-items:center;min-height:100vh;font:15px/1.5 system-ui,sans-serif;background:#1b1d22;color:#c9ccd3}main{max-width:26rem;padding:24px;text-align:center}</style></head><body><main><p><strong>Refreshing this canvas…</strong></p><p>Its access link went stale while it was open. It should be back in a second — if not, reload the project.</p></main><script>${script}</script></body></html>`;
+  response.writeHead(401, {
+    'content-type': 'text/html; charset=utf-8',
+    'cache-control': 'no-store',
+    'x-content-type-options': 'nosniff',
+    'content-security-policy': `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-${hash}'; base-uri 'none'; form-action 'none'`,
+  });
+  response.end(html);
+}
+
 function refuse(response, status, body) {
   const payload = JSON.stringify(body);
   response.writeHead(status, {
@@ -359,6 +434,10 @@ export function createStudioProxy({
     }
 
     const up = upstream();
+    if (!up?.ok && isNavigationRequest(request)) {
+      respondStartingPage(response);
+      return true;
+    }
     if (!up?.ok) {
       // 503 + Retry-After, because this is genuinely transient: the supervisor
       // is restarting the child and will succeed. Saying 500 here would make an
@@ -386,7 +465,7 @@ export function createStudioProxy({
         user: session.email,
         sessionKey: session.sessionKey,
         publicUrl,
-        // DDR-242 — the `?embed=1` view asks with `embed=1` (its `/_config`
+        // DDR-247 — the `?embed=1` view asks with `embed=1` (its `/_config`
         // and every re-mint) and is handed a READ-ONLY capability, so the
         // canvas it frames can never write, whatever the member's role.
         canvasToken:
@@ -517,7 +596,7 @@ export function createStudioProxy({
           return true;
         }
       }
-      // DDR-242 — A WRITE NEEDS THE EXPLICIT CAPABILITY, from every client.
+      // DDR-247 — A WRITE NEEDS THE EXPLICIT CAPABILITY, from every client.
       // The cookie is one per canvas origin, so inside an embed (a frame on
       // another app, same site) it can hold ANOTHER tab's full capability —
       // canvas code there would write with it by simply omitting `?t=`. The
@@ -539,6 +618,10 @@ export function createStudioProxy({
             .find((v) => v?.ok) ?? null)
         : null;
     if (!verdict?.ok && !cookieVerdict?.ok) {
+      if (isNavigationRequest(request) && publicUrl) {
+        respondCanvasExpiredPage(response, originOf(publicUrl));
+        return true;
+      }
       refuse(response, 401, { error: 'this canvas link has expired — reload the project' });
       return true;
     }
@@ -546,7 +629,7 @@ export function createStudioProxy({
     // vouches. Older tokens carry no claim — the floor is `viewer`.
     const auth = verdict?.ok ? verdict : cookieVerdict;
     const role = auth?.role ?? 'viewer';
-    // DDR-242 — an embed's capability reads and nothing else. Checked before
+    // DDR-247 — an embed's capability reads and nothing else. Checked before
     // the role table on purpose: a viewer may still comment, an embed may not.
     if (unsafeMethod && auth?.readOnly) {
       refuse(response, 403, {
@@ -588,7 +671,7 @@ export function createStudioProxy({
     // Set-Cookie on any of them would be noise — and the narrower the surface
     // that mints an ambient credential, the easier it is to reason about.
     if (!isVendorRuntime && verdict?.ok && urlToken && isCanvasShellPath(rest)) {
-      // DDR-242 — an embed's read-only capability goes into a cookie of its
+      // DDR-247 — an embed's read-only capability goes into a cookie of its
       // own: planting it as `maude_canvas` would downgrade the designer's open
       // studio tab on the same canvas origin.
       response.setHeader('set-cookie', [
@@ -601,6 +684,10 @@ export function createStudioProxy({
     }
     const up = canvasUpstream?.();
     if (!up?.ok || !up.port) {
+      if (isNavigationRequest(request)) {
+        respondStartingPage(response, { canvas: true });
+        return true;
+      }
       response.writeHead(503, { 'cache-control': 'no-store', 'retry-after': '2' });
       response.end();
       return true;
@@ -720,7 +807,7 @@ export function createStudioProxy({
       socket.destroy();
       return true;
     }
-    // DDR-242 — sockets carry writes (the collab lanes), so like an HTTP write
+    // DDR-247 — sockets carry writes (the collab lanes), so like an HTTP write
     // they open only on the explicit capability, never on the ambient cookie:
     // inside an embed the cookie may be another tab's full one. The shell
     // document appends this frame's capability to every socket it opens.
@@ -735,7 +822,7 @@ export function createStudioProxy({
       socket.destroy();
       return true;
     }
-    // DDR-242 — the collab socket carries WRITES (a viewer's comments among
+    // DDR-247 — the collab socket carries WRITES (a viewer's comments among
     // them); an embed's read-only capability gets none. The HMR socket
     // (`/_ws`) ignores inbound frames and stays open, so the embed still
     // follows edits to the source.

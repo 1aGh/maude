@@ -2,16 +2,23 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import type * as Y from 'yjs';
+
+import { replicaActionId, replicaBoardText } from '../annotations/replica.ts';
 import { createApi } from '../api.ts';
 import { createPersistence } from '../collab/persistence.ts';
 import { createRegistry } from '../collab/registry.ts';
 import { type Context, createBus } from '../context.ts';
 import { makeSandbox } from './_helpers.ts';
+import { board, sticky } from './fixtures/annotations-v2/boards.ts';
 
 const FILE = '.design/ui/Foo.tsx';
 const SLUG = 'ui-foo';
-const oldSvg = '<svg><rect x="1"/></svg>';
-const newSvg = '<svg><rect x="2"/></svg>';
+// DDR-242 — canonical boards. The projection writes exactly these bytes, so
+// `holdOldWrite` can recognise the old board's write by content.
+const oldSvg = board(sticky('s1', 'old', { x: 1 }));
+const newSvg = board(sticky('s1', 'new', { x: 2 }));
+const annotationsOf = (doc: Y.Doc) => replicaBoardText(doc);
 
 function rig() {
   const { root, designRoot } = makeSandbox();
@@ -49,7 +56,7 @@ function rig() {
     },
   });
   const persistence = createPersistence({ ctx, api, fileForSlug: async () => FILE });
-  const disk = () => readFileSync(join(designRoot, `${SLUG}.annotations.svg`), 'utf8');
+  const disk = () => readFileSync(join(designRoot, `${SLUG}.annotations.json`), 'utf8');
   return { api, registry, room, persistence, published, disk };
 }
 
@@ -93,7 +100,7 @@ describe('annotation projection cannot become a new edit', () => {
         release();
         await flush;
       });
-      expect(r.room.doc.getMap('annotations').get('svg')).toBe(newSvg);
+      expect(annotationsOf(r.room.doc)).toBe(newSvg);
       expect(r.disk()).toBe(newSvg);
       expect(r.published).toEqual([oldSvg, newSvg]);
     } finally {
@@ -112,7 +119,7 @@ describe('annotation projection cannot become a new edit', () => {
         release();
         await flush;
       });
-      expect(r.room.doc.getMap('annotations').get('svg')).toBe(newSvg);
+      expect(annotationsOf(r.room.doc)).toBe(newSvg);
       await r.persistence.persistJson(SLUG, r.room.doc);
       expect(r.disk()).toBe(newSvg);
       expect(r.published).toEqual([oldSvg]);
@@ -128,7 +135,8 @@ describe('annotation projection cannot become a new edit', () => {
       await r.persistence.persistJson(SLUG, r.room.doc);
       expect(r.disk()).toBe(newSvg);
       expect(r.published).toEqual([]);
-      expect(r.room.doc.getMap('annotations').get('writeId')).toBe('remote-ui');
+      // The authoring action survives projection (the replica's '~action').
+      expect(replicaActionId(r.room.doc)).toBe('remote-ui');
     } finally {
       await r.registry.destroyAll();
     }

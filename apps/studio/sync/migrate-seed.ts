@@ -34,10 +34,12 @@ import path from 'node:path';
 
 import type * as Y from 'yjs';
 
+import { readReplica } from '../annotations/replica.ts';
 import { Y_TYPES } from '../collab/persistence.ts';
 import { atomicWrite } from './atomic-write.ts';
 import {
   annotationsEditAtFromDoc,
+  annotationsFromDoc,
   applyAnnotationsToDoc,
   applyCommentsToDoc,
   applyCssToDoc,
@@ -45,6 +47,7 @@ import {
   applyMetaToDoc,
   bodyEditAtFromDoc,
   isEmptyAnnotationsSvg,
+  readLocalAnnotations,
   stampAnnotationsEdit,
   stampBodyEdit,
   Y_SYNC_TYPES,
@@ -58,6 +61,7 @@ import {
   unionCommentsById,
 } from './cold-start.ts';
 import { applyColdStart, type ColdStartSnapshotReason } from './cold-start-apply.ts';
+import { type CommentLedger, withoutRemotelyDeleted } from './comment-ledger.ts';
 import { hashBytes } from './echo-guard.ts';
 import type { SyncJournal } from './journal.ts';
 import { ORIGINS } from './origins.ts';
@@ -85,6 +89,8 @@ export interface MigrateSeedOptions {
   historyDir?: string;
   /** DDR-102 — per-machine journal; gates fast-forward vs conflict. */
   journal?: SyncJournal;
+  /** Issue #133 — comment ids synced from here before (sync/comment-ledger.ts). */
+  commentLedger?: CommentLedger;
   /** DDR-102 — body snapshot writer (history.ts), same contract as the agent's. */
   snapshot?: (content: string, reason: ColdStartSnapshotReason) => Promise<string | null>;
   /**
@@ -152,8 +158,9 @@ export function docIsEmpty(doc: Y.Doc): boolean {
   if (doc.getText(Y_SYNC_TYPES.css).length > 0) return false;
   if (doc.getText(Y_SYNC_TYPES.meta).length > 0) return false;
   if (doc.getArray(Y_TYPES.comments).length > 0) return false;
-  const svg = doc.getMap<unknown>(Y_TYPES.annotations).get('svg');
-  if (typeof svg === 'string' && svg.length > 0) return false;
+  // DDR-242 — the annotations replica (or a legacy v1 value read through the
+  // migration): content means at least one element.
+  if ((readReplica(doc)?.elements.length ?? 0) > 0) return false;
   return true;
 }
 
@@ -171,7 +178,7 @@ export async function migrateSeed(opts: MigrateSeedOptions): Promise<MigrateSeed
   const localHtml =
     diskHtml !== null && sourceError(paths.html, diskHtml) === null ? diskHtml : null;
   const localComments = readLocal(paths.comments);
-  const localAnnotations = readLocal(paths.annotations);
+  const localAnnotations = readLocalAnnotations(paths.annotations, readLocal);
   const localMeta = paths.meta ? readLocal(paths.meta) : null;
   const readCss = paths.css ? readLocal(paths.css) : null;
   const localCss = readCss === null ? null : (collapseRepeatedText(readCss)?.unit ?? readCss);
@@ -352,8 +359,7 @@ export async function migrateSeed(opts: MigrateSeedOptions): Promise<MigrateSeed
   // right after this seed ran. Resolve the lane here, before the room
   // materializes: unstamped emptiness never beats content.
   {
-    const docSvg = doc.getMap<unknown>(Y_TYPES.annotations).get('svg');
-    const docAnnotations = typeof docSvg === 'string' ? docSvg : '';
+    const docAnnotations = annotationsFromDoc(doc) ?? '';
     const annDecision = decideAnnotationsColdStart({
       local: localAnnotations,
       doc: docAnnotations,
@@ -414,9 +420,13 @@ export async function migrateSeed(opts: MigrateSeedOptions): Promise<MigrateSeed
   // delete-then-insert codec — same-id entries keep the doc's version, so the
   // duplication trap stays closed; local-only comments survive.
   if (localComments) {
-    const parsed = tryParseJsonArray(localComments);
+    const docList = doc.getArray(Y_TYPES.comments).toArray();
+    const read = tryParseJsonArray(localComments);
+    // Issue #133 — never union back a comment a peer deleted while we were away.
+    const parsed = read
+      ? withoutRemotelyDeleted(read, docList, opts.commentLedger?.get(slug))
+      : null;
     if (parsed && parsed.length > 0) {
-      const docList = doc.getArray(Y_TYPES.comments).toArray();
       const merged = unionCommentsById(docList, parsed);
       if (merged.length !== docList.length) {
         doc.transact(() => {

@@ -153,6 +153,7 @@ describe('file-membership — never means never', () => {
     '_trash/old-deleted-123/old.tsx',
     '_canvas-state/ui-card.view.json',
     '_export-history.json',
+    '_cache/blobs/9f2c1d0e5b7a4e3f8c6d2b1a0e9f8d7c6b5a4e3f2d1c0b9a8f7e6d5c4b3a2f10.jpg',
     'system/ds/_history/x.png', // nested runtime state
     '.kgai/store/log/a.ndjson',
     '.DS_Store', // dotfile
@@ -231,6 +232,11 @@ describe('file-membership — the DDR-115 replica tripwire (4th copy)', () => {
     '_comments/ui-card.json',
     '_untrusted/INDEX.json',
     '_export-jobs/j.json',
+    // Cell materializer: the blob cache is content-addressed and disposable —
+    // if it ever entered the file plane, every evicted photo would look
+    // like a deletion to every peer.
+    '_cache/blobs/9f2c1d0e5b7a4e3f8c6d2b1a0e9f8d7c6b5a4e3f2d1c0b9a8f7e6d5c4b3a2f10',
+    '_cache/tmp/fill-1a2b',
     '.kgai/store/log/a.ndjson',
     'nested/_history/x.png',
     'nested/.kgai/y',

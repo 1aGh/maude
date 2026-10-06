@@ -333,7 +333,13 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
         'the receiver to materialize the accepted canvas'
       );
       expect(bob.read(rel)).toBe(body);
-      expect(bob.read('ui/earlymixedcase.tsx')).toBeNull();
+      // Exactly ONE file, at the accepted (mixed-case) path — no slug-derived
+      // `earlymixedcase.tsx` sibling. Asserted on the directory listing, not by
+      // reading the lowercase path: on a case-insensitive filesystem (macOS
+      // APFS default) that read resolves to the correct file and is non-null.
+      expect(readdirSync(bob.file('ui')).filter((f) => /earlymixedcase/i.test(f))).toEqual([
+        'EarlyMixedCase.tsx',
+      ]);
     } finally {
       provider.destroy();
       doc.destroy();
@@ -753,6 +759,109 @@ describe.skipIf(!HUB_READY)('accepted revisions — studio runtimes on a real hu
     );
   }, 90_000);
 
+  // F3 S14 on the cloud cell (2026-09-24): a save left unanswered in the
+  // outbox by a killed studio, and a later save on top of it. On restart the
+  // drain had the first accepted — and the cold start then proposed the second
+  // on the base BEFORE it, so the second conflicted with the first, its own
+  // predecessor, and stayed held until the person saved yet again.
+  test('a save made on top of one the outbox still holds is not a conflict after a restart', async () => {
+    alice.write('ui/stacked.tsx', src('before'));
+    await alice.runtime.rescanNow();
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return bob.read('ui/stacked.tsx') === src('before');
+    }, 'the canvas on bob');
+
+    const dataDir = join(root, 'hub');
+    const port = hub.port;
+    await stopHub(hub);
+    const outbox = join(bob.ctx.paths.designRoot, '_state', 'outbox');
+    bob.write('ui/stacked.tsx', src('first save'));
+    await waitFor(
+      () => existsSync(outbox) && readdirSync(outbox).some((n) => n.endsWith('.json')),
+      'the first save in the durable outbox'
+    );
+    await bob.runtime.stop();
+    // The second save, on top of the first, while the studio is down.
+    writeFileSync(bob.file('ui/stacked.tsx'), src('second save'));
+    hub = await startHub(dataDir, port);
+    bob = await startPeer('bob', join(root, 'bob'), `http://localhost:${hub.port}`);
+    await waitFor(
+      () => alice.read('ui/stacked.tsx') === src('second save'),
+      'the second save on alice',
+      45_000
+    );
+    expect(bob.runtime.conflictVersions?.('design/ui/stacked.tsx')).toBeNull();
+    expect(bob.read('ui/stacked.tsx')).toBe(src('second save'));
+  }, 90_000);
+
+  test('a restart whose outbox holds the disk’s own save never writes the older version over it', async () => {
+    const dataDir = join(root, 'hub');
+    const port = hub.port;
+    await stopHub(hub);
+    const outbox = join(bob.ctx.paths.designRoot, '_state', 'outbox');
+    bob.write('ui/stacked.tsx', src('third save'));
+    await waitFor(
+      () => existsSync(outbox) && readdirSync(outbox).some((n) => n.endsWith('.json')),
+      'the save in the durable outbox'
+    );
+    await bob.runtime.stop();
+    hub = await startHub(dataDir, port);
+    bob = await startPeer('bob', join(root, 'bob'), `http://localhost:${hub.port}`);
+    const seen = new Set<string | null>();
+    const end = Date.now() + 4000;
+    while (Date.now() < end) {
+      seen.add(bob.read('ui/stacked.tsx'));
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    expect([...seen]).toEqual([src('third save')]);
+    await waitFor(() => alice.read('ui/stacked.tsx') === src('third save'), 'the save on alice');
+    expect(bob.runtime.conflictVersions?.('design/ui/stacked.tsx')).toBeNull();
+  }, 90_000);
+
+  // F3 S16 on the cloud cell (2026-09-24): every cell wake restores its
+  // checkout from the newest backup, with no per-machine sync state. A canvas
+  // edited after that backup came back as an OLDER accepted version with no
+  // recorded base, was held as a conflict forever, and the cell rendered the
+  // stale canvas to everyone.
+  const restoreFromBackup = async (content: string) => {
+    await bob.runtime.stop();
+    for (const d of ['_history', '_state', '_canvas-state'])
+      rmSync(join(bob.ctx.paths.designRoot, d), { recursive: true, force: true });
+    writeFileSync(bob.file('ui/restored.tsx'), content);
+    bob = await startPeer('bob', join(root, 'bob'), `http://localhost:${hub.port}`);
+  };
+  test('a disk restored to an older accepted version is brought to the head, not held', async () => {
+    alice.write('ui/restored.tsx', src('v1'));
+    await alice.runtime.rescanNow();
+    await waitFor(async () => {
+      await bob.runtime.pullRemoteNow();
+      return bob.read('ui/restored.tsx') === src('v1');
+    }, 'v1 on bob');
+    alice.write('ui/restored.tsx', src('v2'));
+    await waitFor(() => bob.read('ui/restored.tsx') === src('v2'), 'v2 on bob');
+    await restoreFromBackup(src('v1'));
+    await waitFor(() => bob.read('ui/restored.tsx') === src('v2'), 'the head back on bob', 30_000);
+    expect(bob.runtime.conflictVersions?.('design/ui/restored.tsx')).toBeNull();
+  }, 90_000);
+
+  test('a disk with no base and a version the project never accepted is still held', async () => {
+    await restoreFromBackup(src('never proposed'));
+    await waitFor(
+      () => bob.runtime.conflictVersions?.('design/ui/restored.tsx'),
+      'the conflict to be held',
+      30_000
+    );
+    expect(bob.read('ui/restored.tsx')).toBe(src('never proposed'));
+    expect(alice.read('ui/restored.tsx')).toBe(src('v2'));
+    // Leave bob agreeing with the project for the tests after this one.
+    await restoreFromBackup(src('v2'));
+    await waitFor(
+      () => bob.runtime.conflictVersions?.('design/ui/restored.tsx') === null,
+      'bob agreed again'
+    );
+  }, 90_000);
+
   test('a multi-canvas action shows whole on the peer: never the edit without the canvas it created (T14)', async () => {
     alice.write('ui/pair-a.tsx', src('Pair v1'));
     await alice.runtime.rescanNow();
@@ -1097,6 +1206,156 @@ describe.skipIf(!HUB_READY)('accepted revisions — switching a live project', (
     );
     expect(bob.runtime.acceptedWriteViolations?.()).toBe(0);
   }, 60_000);
+
+  // F3 S17 (2026-09-23): a studio that (re)connected while the project took
+  // proposals was admitted read-only; after a rollback the hub let it write
+  // again, but nothing told the studio, and its legacy saves were held
+  // silently until it happened to reconnect.
+  test('after a rollback, a studio admitted during accepted mode writes again without reconnecting', async () => {
+    // Bob restarted in the previous test, so his sockets were admitted
+    // read-only in transactions mode.
+    await waitFor(() => bob.runtime.acceptedMode?.(), 'bob in accepted mode');
+    const back = await api(hub, 'mode', {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'legacy' }),
+    });
+    expect(back.status).toBe(200);
+    await waitFor(() => !bob.runtime.acceptedMode?.(), 'bob to learn legacy');
+    bob.write('ui/board.tsx', src('written by bob after the rollback'));
+    await waitFor(
+      () => alice.read('ui/board.tsx') === src('written by bob after the rollback'),
+      "bob's legacy save to reach alice",
+      30_000
+    );
+  }, 60_000);
+
+  // F3 S17 on the cloud cell (2026-09-24): a desktop that came back while the
+  // project took proposals added its canvas with doc.create; after the
+  // rollback, its legacy save of that canvas never reached the hub.
+  test('after a rollback, a canvas the studio added in accepted mode takes its legacy saves', async () => {
+    await bob.runtime.stop();
+    const on = await api(hub, 'mode', {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'transactions' }),
+    });
+    expect(on.status).toBe(200);
+    writeFileSync(bob.file('ui/added-accepted.tsx'), src('added while accepted'));
+    bob = await startPeer('bob', join(root, 'bob'), `http://localhost:${hub.port}`);
+    await waitFor(
+      () => alice.read('ui/added-accepted.tsx') === src('added while accepted'),
+      'the added canvas on alice',
+      30_000
+    );
+    const back = await api(hub, 'mode', {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'legacy' }),
+    });
+    expect(back.status).toBe(200);
+    await waitFor(() => !bob.runtime.acceptedMode?.(), 'bob to learn legacy');
+    bob.write('ui/added-accepted.tsx', src('saved after the rollback'));
+    await waitFor(
+      () => alice.read('ui/added-accepted.tsx') === src('saved after the rollback'),
+      "bob's legacy save of the added canvas to reach alice",
+      30_000
+    );
+  }, 90_000);
+
+  // F3 S17 on the cloud cell (2026-09-24): a desktop that started while the
+  // project was unreachable, with a save on disk nobody had proposed, only
+  // delivered it after another restart.
+  test('a studio started offline proposes its unproposed save once the project is reachable', async () => {
+    const on = await api(hub, 'mode', {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'transactions' }),
+    });
+    expect(on.status).toBe(200);
+    await waitFor(() => bob.runtime.acceptedMode?.(), 'bob in accepted mode');
+    await bob.runtime.stop();
+    writeFileSync(bob.file('ui/added-accepted.tsx'), src('saved while away and offline'));
+    const dataDir = join(root, 'hub');
+    const port = hub.port;
+    await stopHub(hub);
+    bob = await startPeer('bob', join(root, 'bob'), `http://localhost:${port}`);
+    await new Promise((r) => setTimeout(r, 1500));
+    hub = await startHub(dataDir, port);
+    await waitFor(
+      () => alice.read('ui/added-accepted.tsx') === src('saved while away and offline'),
+      "bob's offline-start save to reach alice",
+      45_000
+    );
+    const back = await api(hub, 'mode', {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'legacy' }),
+    });
+    expect(back.status).toBe(200);
+    await waitFor(() => !bob.runtime.acceptedMode?.(), 'bob to learn legacy');
+  }, 120_000);
+
+  // F3 S17 (2026-09-23): a save applied to the replica while the project was
+  // legacy, just as the socket died, reached the hub only after the switch's
+  // fence and was dropped; the studio reported "synced" and held the change on
+  // disk until a restart.
+  test('a legacy save caught by the switch on a dead socket is proposed without a restart', async () => {
+    const PROXY = join(
+      import.meta.dir,
+      '..',
+      '..',
+      '..',
+      'scripts',
+      'dev',
+      'sync-e2e',
+      'toggle-proxy.mjs'
+    );
+    const listen = 20000 + Math.floor(Math.random() * 20000);
+    const control = listen + 1;
+    const proxy = spawn('node', [PROXY, String(listen), String(hub.port), String(control)], {
+      stdio: 'ignore',
+    });
+    const flip = (to: string) => fetch(`http://127.0.0.1:${control}/${to}`, { method: 'POST' });
+    const carolUrl = `http://127.0.0.1:${listen}`;
+    let carol: Peer | null = null;
+    try {
+      await waitFor(async () => {
+        try {
+          return (await fetch(`http://127.0.0.1:${control}/state`)).ok;
+        } catch {
+          return false;
+        }
+      }, 'the proxy');
+      const hubsFile = process.env.HUBS_CONFIG_PATH as string;
+      const hubs = JSON.parse(readFileSync(hubsFile, 'utf8'));
+      hubs.hubs[carolUrl] = { token: hub.tokens.alice };
+      writeFileSync(hubsFile, JSON.stringify(hubs), { mode: 0o600 });
+      await waitFor(() => !alice.runtime.acceptedMode?.(), 'the project in legacy');
+      carol = await startPeer('carol', join(root, 'carol'), carolUrl);
+      const before = alice.read('ui/board.tsx') as string;
+      await waitFor(() => carol?.read('ui/board.tsx') === before, 'carol to pull the canvas');
+      await flip('offline');
+      carol.write('ui/board.tsx', src('carol saved as the cable went'));
+      await new Promise((r) => setTimeout(r, 1500));
+      const mode = await api(hub, 'mode');
+      const on = await api(hub, 'mode', {
+        method: 'POST',
+        body: JSON.stringify({ mode: 'transactions', expectEpoch: mode.body.epoch }),
+      });
+      expect(on.status).toBe(200);
+      await flip('online');
+      await waitFor(
+        () => alice.read('ui/board.tsx') === src('carol saved as the cable went'),
+        "carol's save to reach alice without a restart",
+        40_000
+      );
+      // Delivered once, not doubled on carol's own replica or disk.
+      await waitFor(
+        () => carol?.read('ui/board.tsx') === src('carol saved as the cable went'),
+        'carol converged'
+      );
+      expect(carol.runtime.acceptedWriteViolations?.()).toBe(0);
+    } finally {
+      await carol?.runtime.stop();
+      proxy.kill();
+    }
+  }, 90_000);
 });
 
 // Plan T20 — rights are rechecked on every accepted mutation, and a person

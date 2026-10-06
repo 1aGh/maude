@@ -113,6 +113,15 @@ export function canvasArtifacts(input: { rel: string; paths: Paths }): CanvasArt
   });
   out.push({
     // Versioned — a real git rename on move, which is correct and expected.
+    // DDR-242: the annotations board.
+    abs: path.join(paths.designRoot, `${slug}.annotations.json`),
+    kind: 'slug-keyed',
+    rekey: true,
+    versioned: true,
+  });
+  out.push({
+    // A not-yet-migrated v1 sidecar travels with its canvas until the boot
+    // migration converts it (annotations/migrate-boot.ts).
     abs: path.join(paths.designRoot, `${slug}.annotations.svg`),
     kind: 'slug-keyed',
     rekey: true,

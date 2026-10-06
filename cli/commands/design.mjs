@@ -13,7 +13,14 @@ import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { parseArgs } from '../lib/argv.mjs';
-import { runAdopt, runDetach, runLink, runStatus, runUnlink } from '../lib/design-link.mjs';
+import {
+  runAdopt,
+  runBulkDeletes,
+  runDetach,
+  runLink,
+  runStatus,
+  runUnlink,
+} from '../lib/design-link.mjs';
 import { writeGitignoreBlock } from '../lib/gitignore-block.mjs';
 import { isCompiledBinary } from '../lib/pkg-root.mjs';
 
@@ -26,6 +33,7 @@ const SUBCOMMANDS = new Set([
   'detach',
   'status',
   'adopt',
+  'bulk-deletes',
   'help',
 ]);
 
@@ -175,6 +183,7 @@ export async function run({ args, pkgRoot }) {
   if (sub === 'detach') return runDetach({ args });
   if (sub === 'status') return runStatus({ args });
   if (sub === 'adopt') return runAdopt({ args });
+  if (sub === 'bulk-deletes') return runBulkDeletes({ args });
 }
 
 // Run a whitelisted dev-server bash helper, resolving it from maude's OWN
@@ -325,7 +334,7 @@ function usage() {
   return `maude design <verb> [options]
 
 Lifecycle:
-  serve · init · export · link · adopt · detach · unlink · status
+  serve · init · export · link · adopt · detach · unlink · status · bulk-deletes
 
 Dev-tooling (dispatch to the dev-server bash helpers — DDR-062):
   screenshot · server-up · prep · slug · bootstrap-check · runtime-health

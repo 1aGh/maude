@@ -39,7 +39,7 @@ stranger's card can be charged. L5–L7 are the proof that it worked.
 - [ ] **L1 — accountant: the *identifikovaná osoba* question.** The open item
   named in `STATE.md` (2026-08-01). Stripe is merchant of record and remits VAT,
   but the CZ-side registration status decides what we invoice and report.
-  `pricing.mdx` already publishes the net-vs-gross claim (€19 → €22,99 for a
+  `pricing.mdx` already publishes the net-vs-gross claim (€19 → €22.99 for a
   Czech customer) — confirm that claim is the accountant's, not ours.
   Output: a written note in `../docs/` recording the position and the date.
 
@@ -68,21 +68,66 @@ stranger's card can be charged. L5–L7 are the proof that it worked.
   unattended.* Use a throwaway live price, a real card, and watch it provision
   end to end without a hand on it. Refund afterwards. Then delete that price.
 
-- [ ] **L6 — dunning on live mode (D3-live).** The ladder is already proven
+- [ ] **L6 — dunning on live mode (D3-live).** **Precondition found 2026-10-02:
+  `STRIPE_WEBHOOK_SECRET` is not set on the `maude-cloud` Worker** (only
+  `STRIPE_SECRET_KEY` is). `worker.mjs` therefore rejects every Stripe webhook
+  with a bare 400 today. The hourly reconcile sweep hides it ("a missed webhook
+  costs at most an hour"), but on live mode payment events then arrive up to an
+  hour late. Register the live endpoint, `wrangler secret put
+  STRIPE_WEBHOOK_SECRET` with ITS signing secret, and see one event return 200
+  before anything else in this task.
+  Original scope: The ladder is already proven
   against a real Stripe **test clock** (trial → past_due → grace → suspend →
   export → warn → purge, with `do.send-export → ok` before any teardown). Live
   mode has no test clock, so this is a narrower check: confirm the live webhook
   endpoint is registered, signed, and that a real `invoice.payment_failed`
   reaches the reconciler. Do not re-prove the ladder; prove the wiring.
 
-- [ ] **L7 — lift the pilot gate.** `CELL_LIVE_PAIRING` is a per-tenant
-  allowlist, `alligators` only. Its unchecked acceptance criterion is the live
-  cross-surface run (real cell, real desktop, real browser, one committer in
-  `git log`). Green it, then widen. Also owner-gated and still open: **C3/C4**,
+- [ ] **L7 — lift the pilot gate.** ~~`CELL_LIVE_PAIRING` is a per-tenant
+  allowlist, `alligators` only.~~ **Already widened:** `apps/cells/wrangler.toml`
+  has `CELL_LIVE_PAIRING = "*"` and `CELL_PROJECT_STORE = "*"` since 2026-09-25
+  (followup-multiplayer-hardening G3a). The gate is therefore no longer "widen
+  the allowlist" but **confirm the live cross-surface run is recorded green**
+  (real cell, real desktop, real browser, one committer in `git log`) — STATE.md
+  still lists it as unchecked; either link the evidence or run it. Also owner-gated and still open: **C3/C4**,
   the timed cold start measured by a non-technical human with a stopwatch, and
   the Windows certificate.
 
-- [ ] **L8 — retract the pilot callouts.** Once L4–L7 are green, remove the
+- [ ] **L7b — fleet ceiling.** `apps/cells/wrangler.toml` `max_instances = 5`.
+  Customer #6 cannot get a container: their waiting room times out and
+  provision-first ordering voids the sale (correct behaviour, no revenue).
+  Before the first paid customer, decide the ceiling for the first wave and raise
+  it — it is a billing decision as much as a capacity one (idle instances cost
+  nothing only if cells sleep, see L7c).
+
+- [ ] **L7c — unit economics: prove an idle cell sleeps.** Measured 2026-10-01/02
+  (`archive/feature-cloud-cost-and-cold-start-ux.md`): a running `standard-1` cell costs
+  ≈ $0.044/h (memory $0.036, CPU ~$0.006 after v1.6.5, disk $0.002). On the €19
+  plan (~$20 net of Stripe) that is ~85 % margin at ~2 h/day, ~55 % for a busy
+  team — and a **~$12/month loss** for a cell awake 24/7 (~$32). The hourly
+  telemetry wake and the never-sleeping render are fixed (v1.6.1–v1.6.4);
+  still unproven is that a cell sleeps while a paired desktop sits open and
+  idle. Gate: one quiet night with no releases shows the Alligators cell at
+  ~0 instance-hours (GraphQL `containersUsageAdaptiveGroups`). If it does not,
+  fix idle detection before charging, or route always-on use to Dedicated
+  (€99). Note the 14-day trial is pure cost — same rule applies.
+  **2026-10-04 measurement (v1.6.11, scanner paths refused on a cold cell,
+  `archive/feature-cells-no-wake-for-scanners.md`):** Alligators overnight
+  (20–07Z) went from 3.07 to **1.41 instance-hours** (≈ $0.06/night). Not yet
+  ~0: all 4 remaining wakes were anonymous bot `GET /` (Tencent Cloud, fake
+  iPhone UA, plus one scanner sweep that opened on `/`), ~20 min each. No
+  member woke it overnight, so idle detection itself works and the residue
+  is a wake-policy problem. Next: members-only wake (design note in that plan).
+  The gate stays open until a night measures ~0.
+  **2026-10-05 (v1.6.12, members-only wake):** 10.55 instance-hours, awake
+  all night, because the owner's paired desktop sat open, polling
+  `/api/journal` every ~2 s plus a socket reconnect every ~33 s until the Mac
+  slept at 05:07. The cell then slept exactly 20 min later. **This answers the
+  open question above: an open, idle desktop keeps a cell awake
+  indefinitely.** Fix before charging: idle-aware desktop sync (back off or
+  park when nobody is editing), or sync polls that do not renew `sleepAfter`.
+
+- [ ] **L8 — retract the pilot callouts.** Once L4–L7c are green, remove the
   "not yet taking live payments" callout from `pricing.mdx`, `terms.mdx`,
   `privacy.mdx` and `dpa.mdx` in the same change that makes them false — not
   later. A stale callout on a live funnel is worse than no callout.

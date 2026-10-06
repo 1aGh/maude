@@ -636,6 +636,12 @@ export function scheduleBackups({
    */
   onGeneration = null,
   /**
+   * Called right before a generation snapshots; its result is handed to
+   * `onGeneration`. The documents' write-behind (docs-tail.mjs) starts a new
+   * sequence here, so it knows which of its writes the generation covers.
+   */
+  beforeGeneration = null,
+  /**
    * Fired after EVERY tick with the durability state — Phase 0 F5.
    *
    * This exists because the refusal above trades one silent failure for
@@ -653,8 +659,13 @@ export function scheduleBackups({
    */
   onStatus = null,
 }) {
-  if (!target || !intervalMs || intervalMs <= 0) return () => {};
-  const timer = setInterval(async () => {
+  if (!target || !intervalMs || intervalMs <= 0) {
+    const none = () => {};
+    none.final = async () => null;
+    return none;
+  }
+  let inflight = null;
+  const tick = async () => {
     // A-1: `target` may be an async FACTORY — in a platform cell the storage
     // credentials are temporary, so each tick resolves the target against the
     // credentials that are valid NOW rather than the ones from boot.
@@ -665,18 +676,25 @@ export function scheduleBackups({
       log.error?.(`[hub] backup target unavailable: ${err.message}`);
       return;
     }
-    if (!resolved) return;
-    runBackup({ dataDir, target: resolved, keep, repoDir, run })
+    if (!resolved) return null;
+    let covered = null;
+    try {
+      covered = await beforeGeneration?.();
+    } catch (err) {
+      log.error?.(`[hub] pre-generation hook failed: ${err.message}`);
+    }
+    return runBackup({ dataDir, target: resolved, keep, repoDir, run })
       .then(async (r) => {
         log.log?.(
           `[hub] backup ${r.prefix} (${r.files.length} file(s)${r.repo ? ' + checkout' : ''})`
         );
         onStatus?.({ state: 'ok', generation: r.prefix, at: Date.now() });
         try {
-          await onGeneration?.(r);
+          await onGeneration?.(r, covered);
         } catch (err) {
           log.error?.(`[hub] post-generation hook failed: ${err.message}`);
         }
+        return r;
       })
       .catch((err) => {
         log.error?.(`[hub] backup FAILED: ${err.message}`);
@@ -686,8 +704,31 @@ export function scheduleBackups({
           message: err.message,
           at: Date.now(),
         });
+        return null;
       });
-  }, intervalMs);
+  };
+  // One generation at a time: a tick that finds the last one still running
+  // skips (the next tick covers it), and the final one waits for it.
+  const guarded = () => {
+    if (inflight) return inflight;
+    inflight = tick().finally(() => {
+      inflight = null;
+    });
+    return inflight;
+  };
+  const timer = setInterval(() => void guarded(), intervalMs);
   timer.unref?.();
-  return () => clearInterval(timer);
+  const stop = () => clearInterval(timer);
+  /**
+   * The last generation, on a graceful shutdown. A cell's disk goes with the
+   * container, and everything written since the previous tick — up to a whole
+   * interval of legacy-mode documents — would go with it (F3 S17 on the cloud
+   * cell, 2026-09-24). Resolves with the generation, or null when it failed.
+   */
+  stop.final = async () => {
+    clearInterval(timer);
+    if (inflight) await inflight;
+    return guarded();
+  };
+  return stop;
 }

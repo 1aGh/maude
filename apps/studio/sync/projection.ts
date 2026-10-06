@@ -37,10 +37,12 @@ import {
   applyMetaToDoc,
   cssFromDoc,
   htmlFromDoc,
+  importAnnotationsFromDisk,
   laneValueFromFile,
   mergeSharedMetaIntoLocal,
   metaFromDoc,
   movedToFromDoc,
+  noteAnnotationsOnDisk,
   readLaneFromDoc,
   stampAnnotationsEdit,
   stampBodyEdit,
@@ -84,7 +86,7 @@ export interface ProjectionPaths {
   html: string;
   /** Absolute path to `_comments/<slug>.json`. */
   comments: string;
-  /** Absolute path to `<slug>.annotations.svg`. */
+  /** Absolute path to `<slug>.annotations.json` (DDR-242). */
   annotations: string;
   /** Absolute path to the canvas `.meta.json` sibling (optional). */
   meta?: string;
@@ -227,6 +229,13 @@ export interface DocProjection {
    * write stays blocked with a visible conflict and a later save can merge.
    */
   adoptBase(body: string): void;
+  /**
+   * Accepted mode, cold start: `value` is this disk's own html proposal that a
+   * previous run left in the outbox and the drain just had accepted. It is
+   * what the disk was saved as — the base of whatever it holds next — even
+   * while this replica still shows the value before it.
+   */
+  adoptOwnAccepted(value: string): void;
   /**
    * Accepted-revisions mode: propose one lane value that did not come through
    * the watcher (a comment/annotation API write). Resolves with the outcome;
@@ -442,6 +451,9 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
    * fire must never cost the write that already succeeded.
    */
   function writeAndAnnounce(path: string, value: string): void {
+    // The board disk holds from here on — the base a later file event is
+    // imported against (codec importAnnotationsFromDisk).
+    if (path === paths.annotations) noteAnnotationsOnDisk(doc, value);
     if (readLocal(path) === value) return;
     writer(path, value);
     try {
@@ -490,11 +502,29 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
         next = repeated.unit;
       }
     }
+    if (acceptedOwn !== null && next !== lastHtml) {
+      // The replica moved. When it moved to exactly our accepted value and the
+      // disk already holds a newer save, that save is ours on top of it: agree
+      // on the accepted value and leave the file for the watcher to propose.
+      const own = next === acceptedOwn;
+      acceptedOwn = null;
+      if (own) {
+        const local = readLocal(paths.html);
+        if (local !== null && local !== next && local !== observedBody) {
+          lastHtml = next;
+          rememberBase(next);
+          return true;
+        }
+      }
+    }
     if (next === lastHtml) return true;
     // Don't clobber a non-empty local body with an empty doc (cold-start before
     // the doc is seeded — the safe-reconcile invariant; full adopt is Phase E).
     if (next === '') {
-      lastHtml = next;
+      // Accepted mode: an empty replica is one the project's publication has
+      // not reached yet, never a value this disk agreed on — a base already
+      // known (a canvas this disk just added, adopted on acceptance) stays.
+      if (lastHtml === null || !acceptedOn()) lastHtml = next;
       return true;
     }
     if (!withinCap(paths.html, next, MAX_HTML_BYTES)) return false;
@@ -704,9 +734,19 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     return lane === 'comments' ? paths.comments : paths.annotations;
   }
 
+  /**
+   * Our own html proposal the hub accepted, whose publication has not reached
+   * this replica yet. Until it does, it — not the older replica value — is
+   * what the next save on this disk was made on top of (F3 S14, 2026-09-23:
+   * a save in that window was proposed on the value before the first save and
+   * refused as a base conflict, and the echo itself read as "a local edit
+   * overlaps an incoming change").
+   */
+  let acceptedOwn: string | null = null;
+
   /** The value disk and the accepted replica last agreed on for `lane`. */
   function agreedValue(lane: ProposalLane): string {
-    if (lane === 'html') return lastHtml ?? htmlFromDoc(doc);
+    if (lane === 'html') return acceptedOwn ?? lastHtml ?? htmlFromDoc(doc);
     if (lane === 'css') return lastCss ?? cssFromDoc(doc) ?? '';
     return readLaneFromDoc(doc, lane);
   }
@@ -807,6 +847,15 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       }
       if (outcome.status === 'accepted') {
         if (!pending.has(lane)) held.delete(lane);
+        if (lane === 'html' && !pending.has(lane)) {
+          // Our accepted value is the base of whatever this disk holds next —
+          // whichever arrives first, the answer or the publication.
+          // Persisted too: a cold start judges the disk against this base.
+          if (readLaneFromDoc(doc, 'html') === value) {
+            lastHtml = value;
+            rememberBase(value);
+          } else acceptedOwn = value;
+        }
         if (lane === 'html') recovered();
         if (outcome.actionId) {
           try {
@@ -899,6 +948,14 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     // 2026-09-15, L09 delete). Every edit to these lanes arrives through the
     // API with the base it was made from (`proposeLane`).
     if (lane === 'comments' || lane === 'annotations') return false;
+    // A STALE EVENT PROPOSES NOTHING. The reader took these bytes before a
+    // later write reached the file — typically this projection materializing a
+    // newer accepted value — and delivered them after. Proposing them would
+    // put an older body back over a teammate's accepted edit (F3 S15, cloud
+    // cell, 2026-09-24: v13 over v14). What the disk holds now arrives with its
+    // own event.
+    const onDisk = readLocal(evt.path);
+    if (onDisk !== null && onDisk !== str) return false;
     if (lane === 'html') {
       if (str === lastHtml && !held.has('html')) return false; // a redelivered projection
       if (!withinCap(paths.html, str, MAX_HTML_BYTES)) return false;
@@ -1107,7 +1164,7 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
       // survives cold start on other peers (the 2026-08-14 eraser fix).
       let changed = false;
       doc.transact(() => {
-        changed = applyAnnotationsToDoc(doc, str, importOrigin);
+        changed = importAnnotationsFromDisk(doc, str, importOrigin);
         if (changed) stampAnnotationsEdit(doc, importOrigin);
       }, importOrigin);
       return changed;
@@ -1161,6 +1218,17 @@ export function createDocProjection(opts: DocProjectionOptions): DocProjection {
     adoptBase(body: string) {
       lastHtml = body;
       observedBody = body;
+    },
+    adoptOwnAccepted(value: string) {
+      // Exactly what an answer in this process does (see `submit`): the
+      // replica either holds it already, or its publication is still coming.
+      const replica = htmlFromDoc(doc);
+      if (replica === value) lastHtml = value;
+      else {
+        lastHtml = replica;
+        acceptedOwn = value;
+      }
+      rememberBase(value);
     },
     hold(lane, base, local) {
       held.add(lane);

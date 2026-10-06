@@ -63,7 +63,7 @@ export function mintRenderToken({
   project,
   subject,
   role = null,
-  /** DDR-242 — a capability for the `?embed=1` view: reads only. The canvas
+  /** DDR-247 — a capability for the `?embed=1` view: reads only. The canvas
    *  door refuses EVERY unsafe method and every collab socket carrying it,
    *  whatever `role` says — the comment lane a viewer keeps included. */
   readOnly = false,
@@ -119,7 +119,7 @@ export function verifyRenderToken({ secret, token, project, now = Date.now() }) 
     subject: claims.s,
     // Fail toward the floor: a token without a role claim is a viewer's.
     role: typeof claims.r === 'string' ? claims.r : null,
-    // DDR-242 — signed, so a holder cannot strip it to regain the role's writes.
+    // DDR-247 — signed, so a holder cannot strip it to regain the role's writes.
     readOnly: claims.ro === 1,
   };
 }

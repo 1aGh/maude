@@ -1,0 +1,29 @@
+[
+  {
+    "run": 1,
+    "cond": "C0",
+    "fit": false,
+    "load": "{ 3.10 4.23 7.65 }",
+    "pre": {
+      "own": 0,
+      "peerSel": 0,
+      "cursors": 0
+    },
+    "warm": null,
+    "canvas": {
+      "frames": 292,
+      "p50": 33,
+      "p95": 34,
+      "p99": 35,
+      "max": 48,
+      "over33": 120,
+      "over50": 0,
+      "longtasks": 0,
+      "gbcr": 0,
+      "foreignCursors": 0,
+      "peerSel": 0,
+      "ownHalos": 0,
+      "panApplied": false
+    }
+  }
+]

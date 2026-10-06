@@ -1,0 +1,198 @@
+[
+  {
+    "run": 1,
+    "cond": "C0",
+    "fit": true,
+    "load": "{ 2.95 3.59 3.62 }",
+    "pre": {
+      "own": 0,
+      "peerSel": 0,
+      "cursors": 0
+    },
+    "warm": null,
+    "canvas": {
+      "gaps": [
+        {
+          "at": 60,
+          "dt": 60,
+          "events": {
+            "mut:attributes:dc-world:wc=transform": 1,
+            "mut:childList:BODY": 2,
+            "mut:childList:DIV": 12
+          }
+        },
+        {
+          "at": 401,
+          "dt": 341,
+          "events": {
+            "mut:childList:BODY": 4,
+            "mut:childList:DIV": 24,
+            "mut:attributes:dc-world:wc=transform": 1,
+            "mut:attributes:dc-elem-ctx-tb": 2,
+            "mut:attributes:dc-artboard dc-positioned": 2
+          }
+        },
+        {
+          "at": 737,
+          "dt": 336,
+          "events": {
+            "mut:attributes:dc-world:wc=transform": 1,
+            "mut:childList:BODY": 4,
+            "mut:childList:DIV": 24,
+            "mut:attributes:dc-elem-ctx-tb": 2,
+            "msg:request-layers": 1,
+            "mut:attributes:dc-artboard dc-positioned": 2
+          }
+        },
+        {
+          "at": 1067,
+          "dt": 330,
+          "events": {
+            "mut:attributes:dc-world:wc=transform": 1,
+            "mut:childList:BODY": 4,
+            "mut:childList:DIV": 24,
+            "mut:attributes:dc-elem-ctx-tb": 2,
+            "msg:request-layers": 1
+          }
+        },
+        {
+          "at": 1787,
+          "dt": 720,
+          "events": {
+            "mut:attributes:dc-world:wc=transform": 1,
+            "mut:childList:BODY": 4,
+            "mut:childList:DIV": 24,
+            "mut:attributes:dc-elem-ctx-tb": 2,
+            "mut:attributes:dc-artboard dc-positioned": 2,
+            "msg:request-layers": 1
+          }
+        },
+        {
+          "at": 2574,
+          "dt": 787,
+          "events": {
+            "mut:attributes:dc-world:wc=transform": 1,
+            "mut:childList:BODY": 4,
+            "mut:childList:DIV": 24,
+            "mut:attributes:dc-elem-ctx-tb": 2
+          }
+        },
+        {
+          "at": 3272,
+          "dt": 698,
+          "events": {
+            "mut:attributes:dc-world:wc=transform": 1,
+            "mut:childList:BODY": 4,
+            "mut:childList:DIV": 24,
+            "mut:attributes:dc-elem-ctx-tb": 2
+          }
+        },
+        {
+          "at": 3981,
+          "dt": 709,
+          "events": {
+            "mut:attributes:dc-world:wc=transform": 1,
+            "mut:childList:BODY": 4,
+            "mut:childList:DIV": 24,
+            "mut:attributes:dc-elem-ctx-tb": 2
+          }
+        },
+        {
+          "at": 4746,
+          "dt": 765,
+          "events": {
+            "mut:attributes:dc-world:wc=transform": 1,
+            "mut:childList:BODY": 4,
+            "mut:childList:DIV": 24,
+            "mut:attributes:dc-elem-ctx-tb": 2,
+            "mut:attributes:dc-artboard dc-positioned": 2,
+            "msg:request-layers": 1
+          }
+        },
+        {
+          "at": 5444,
+          "dt": 698,
+          "events": {
+            "mut:attributes:dc-world:wc=transform": 1,
+            "mut:childList:BODY": 4,
+            "mut:childList:DIV": 24,
+            "mut:attributes:dc-elem-ctx-tb": 2
+          }
+        },
+        {
+          "at": 6138,
+          "dt": 694,
+          "events": {
+            "mut:attributes:dc-world:wc=transform": 1,
+            "mut:childList:BODY": 4,
+            "mut:childList:DIV": 24,
+            "mut:attributes:dc-elem-ctx-tb": 2
+          }
+        },
+        {
+          "at": 7161,
+          "dt": 1023,
+          "events": {
+            "mut:attributes:dc-world:wc=transform": 1,
+            "mut:childList:BODY": 4,
+            "mut:childList:DIV": 24,
+            "mut:attributes:dc-elem-ctx-tb": 2
+          }
+        },
+        {
+          "at": 8282,
+          "dt": 1121,
+          "events": {
+            "mut:attributes:dc-world:wc=transform": 1,
+            "mut:childList:BODY": 4,
+            "mut:childList:DIV": 24,
+            "mut:attributes:dc-elem-ctx-tb": 2,
+            "mut:attributes:dc-artboard dc-positioned": 2,
+            "msg:request-layers": 1
+          }
+        },
+        {
+          "at": 9327,
+          "dt": 1045,
+          "events": {
+            "mut:attributes:dc-world:wc=transform": 1,
+            "mut:childList:BODY": 4,
+            "mut:childList:DIV": 24,
+            "mut:attributes:dc-elem-ctx-tb": 2
+          }
+        },
+        {
+          "at": 10360,
+          "dt": 1033,
+          "events": {
+            "mut:attributes:dc-world:wc=transform": 1,
+            "mut:childList:BODY": 4,
+            "mut:childList:DIV": 24,
+            "mut:attributes:dc-elem-ctx-tb": 2
+          }
+        }
+      ],
+      "aggAll": {
+        "mut:attributes:dc-world:wc=transform": 15,
+        "mut:childList:BODY": 56,
+        "mut:childList:DIV": 336,
+        "mut:attributes:dc-elem-ctx-tb": 28,
+        "mut:attributes:dc-artboard dc-positioned": 10,
+        "msg:request-layers": 5
+      },
+      "frames": 15,
+      "p50": 709,
+      "p95": 1121,
+      "p99": 1121,
+      "max": 1121,
+      "over33": 15,
+      "over50": 15,
+      "longtasks": 0,
+      "gbcr": 16,
+      "foreignCursors": 0,
+      "peerSel": 0,
+      "ownHalos": 0,
+      "panApplied": true
+    }
+  }
+]

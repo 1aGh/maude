@@ -11,6 +11,8 @@
 // master secret and the GitHub App key — the control plane is already the
 // blast radius (DDR-193); a cell never sees it.
 
+import { deriveCellSecret } from './cell-token.mjs';
+
 /** The ONE shared hostname the segregated canvas origin lives on (Phase 25 A4). */
 export const CANVAS_HOST_LABEL = 'canvas';
 
@@ -200,7 +202,7 @@ export async function probeCell(env, projectId, { fetchImpl = fetch, timeoutMs =
 export async function probeCellBody(
   env,
   projectId,
-  { fetchImpl = fetch, timeoutMs = 8000, secret = null, maxBytes = 64 * 1024 } = {}
+  { fetchImpl = fetch, timeoutMs = 8000, secret = null, maxBytes = 64 * 1024, wake = true } = {}
 ) {
   const hostname = `${projectId}.${env.CELL_ZONE ?? 'cloud.maude.sh'}`;
   try {
@@ -217,7 +219,13 @@ export async function probeCellBody(
       // the tenant's own derived secret goes with the ask. Without it the cell
       // answers the public posture and the sweep records nothing — the same
       // "unknown" an older image produces.
-      ...(secret ? { headers: { authorization: `Bearer ${secret}` } } : {}),
+      //
+      // `wake: false` (the hourly telemetry read) asks the cell NOT to start
+      // for this. A sleeping cell answers `{state:'asleep'}` — no stats, which
+      // the board renders as unknown — instead of re-hydrating a whole project
+      // from R2 so we can count it. Waking callers (checkout, cold-start
+      // measurement) leave it at the default.
+      ...probeHeaders({ secret, wake }),
     });
     if (!res.ok) return { state: 'pending', body: null };
     // BOUNDED. `res.json()` will happily buffer whatever a cell sends, and a
@@ -238,10 +246,53 @@ export async function probeCellBody(
   }
 }
 
+/** `{headers}` only when there is something to send — a bare probe stays bare. */
+function probeHeaders({ secret, wake }) {
+  const headers = {
+    ...(secret ? { authorization: `Bearer ${secret}` } : {}),
+    ...(wake ? {} : { 'x-maude-wake': 'never' }),
+  };
+  return Object.keys(headers).length ? { headers } : {};
+}
+
 /** Read at most `maxBytes` of a response, or null when it exceeds that. */
 async function readBounded(res, maxBytes) {
   const declared = Number(res.headers?.get?.('content-length') ?? Number.NaN);
   if (Number.isFinite(declared) && declared > maxBytes) return null;
   const text = await res.text();
   return text.length > maxBytes ? null : text;
+}
+
+/**
+ * Ask a cell to run its revocation sweep NOW (followup-multiplayer-hardening G5).
+ *
+ * The sweep reads `member_revocations` on a clock (10 min), so a removed
+ * member's already-open session lived until the next tick (F3 S02 on the test
+ * cell: 121 s). Right after the row is written the control plane knocks with
+ * the tenant's derived secret; the cell then reads the list itself, so the
+ * request names nobody. Best-effort: a sleeping or unreachable cell is ended
+ * by its own sweep as before, and nothing here fails the removal.
+ */
+export async function nudgeCellRevocations(
+  env,
+  projectId,
+  { fetchImpl = fetch, timeoutMs = 10_000 } = {}
+) {
+  if (!env.CELL_SECRET_MASTER) return { ok: false, reason: 'no cell secret' };
+  try {
+    const secret = await deriveCellSecret(env.CELL_SECRET_MASTER, projectId);
+    const res = await fetchImpl(
+      `https://${projectId}.${env.CELL_ZONE ?? 'cloud.maude.sh'}/internal/revocation-sweep`,
+      {
+        method: 'POST',
+        headers: { authorization: `Bearer ${secret}` },
+        // The cell is untrusted to its peers (DDR-054): never follow it elsewhere.
+        redirect: 'manual',
+        signal: AbortSignal.timeout(timeoutMs),
+      }
+    );
+    return { ok: res.ok, status: res.status };
+  } catch (err) {
+    return { ok: false, reason: String(err?.message ?? err) };
+  }
 }

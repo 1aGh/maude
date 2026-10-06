@@ -217,6 +217,29 @@ describe('POST /api/journal/report — a nudge, never data', () => {
     assert.equal(row.size, 1); // 'A' — read from disk, not from the report
   });
 
+  // F3 S14 (2026-09-23): the nudge's own path regex refused a space, so a file
+  // the hub's studio wrote as `ui/Studio Docs.registry.json` was never
+  // journalled. The shape rule is the file door's, spaces included.
+  it('journals a project file whose name has a space; still refuses traversal', () => {
+    writeFileSync(join(designRoot, 'assets/Hero Shot.png'), 'AB');
+    const journal = openJournal(dataDir);
+    const { ctx, out } = baseCtx({
+      path: JOURNAL_REPORT_PATH,
+      method: 'POST',
+      journal,
+      isLoopback: true,
+      body: { paths: ['assets/Hero Shot.png', 'assets/../config.json', '/etc/passwd'] },
+    });
+    handleJournalRoutes(ctx);
+    assert.equal(out.status, 200);
+    assert.equal(out.payload.noted, 1);
+    const rows = journal.entriesSince(0).entries;
+    assert.deepEqual(
+      rows.map((r) => [r.path, r.size]),
+      [['assets/Hero Shot.png', 2]]
+    );
+  });
+
   it('a report about a file that is NOT there appends nothing', () => {
     const journal = openJournal(dataDir);
     const { ctx, out } = baseCtx({
@@ -305,12 +328,25 @@ describe('POST /api/journal/report — a nudge, never data', () => {
           '',
           42,
           null,
-          `assets/${'x'.repeat(400)}.png`,
+          `assets/${'x'.repeat(600)}.png`,
         ],
       },
     });
     handleJournalRoutes(ctx);
     assert.equal(out.payload.noted, 0);
+    assert.equal(journal.head(), 0);
+  });
+
+  it('a well-shaped path to nothing on disk (a 400-character name) appends nothing', () => {
+    const journal = openJournal(dataDir);
+    const { ctx } = baseCtx({
+      path: JOURNAL_REPORT_PATH,
+      method: 'POST',
+      journal,
+      isLoopback: true,
+      body: { paths: [`assets/${'x'.repeat(400)}.png`] },
+    });
+    handleJournalRoutes(ctx);
     assert.equal(journal.head(), 0);
   });
 

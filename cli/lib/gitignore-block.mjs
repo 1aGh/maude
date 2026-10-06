@@ -25,7 +25,7 @@ export function buildBlock(designRel = '.design', { s3Assets = false } = {}) {
   // The canonical IGNORED set is the DDR-115 runtime-state taxonomy — kept in
   // lockstep with `apps/studio/git/service.ts` (isMaudeRuntimeState backstop)
   // and the repo's own `.gitignore`. VERSIONED content (canvases, `.meta.json`,
-  // `*.annotations.svg`, `system/**`, `config.json`) is deliberately absent.
+  // `*.annotations.json` (v1 `.svg`), `system/**`, `config.json`) is deliberately absent.
   const lines = [
     BEGIN_MARKER,
     '# Maude design plugin runtime — gitignored even in linked mode (DDR-056/DDR-115).',
@@ -54,6 +54,7 @@ export function buildBlock(designRel = '.design', { s3Assets = false } = {}) {
     `${root}/_canvas-state/`, // per-machine canvas scratch + camera (`*.view.json`, DDR-115)
     `${root}/_chat/`, // ACP transcripts (per-machine)
     `${root}/_untrusted/`, // hub-synced untrusted file mirror (DDR-054)
+    `${root}/_cache/`, // cell blob cache — content-addressed, disposable, re-fetched from the bucket (cell materializer)
     `${root}/_comments/`, // hub-sync-only collab comments (DDR-102/DDR-115 — never git)
     // Cloud Phase 3 Task 2 — when an S3/R2 asset lane is configured, binary
     // media lives in the bucket and must STOP entering git: a 60 MB clip is

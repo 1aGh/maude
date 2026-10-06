@@ -20,6 +20,8 @@
 
 import { Container } from '@cloudflare/containers';
 
+import { renderIdleExpired } from './idle-policy.mjs';
+
 const RENDER_PORT = 8790;
 
 export class MaudeRender extends Container {
@@ -58,8 +60,78 @@ export class MaudeRender extends Container {
     };
   }
 
+  /** Last request start or finish — the clock `isActivityExpired` reads. */
+  #lastActivityAt = Date.now();
+  /** Requests this DO is serving right now: id → start time. */
+  #open = new Map();
+  #nextId = 0;
+
   async fetch(request) {
-    return this.containerFetch(request);
+    const id = this.#nextId++;
+    const started = Date.now();
+    this.#open.set(id, started);
+    this.#lastActivityAt = started;
+    this.#ignoredStops = 0; // traffic cancels a pending stop
+    try {
+      return await this.containerFetch(request);
+    } finally {
+      this.#open.delete(id);
+      this.#lastActivityAt = Date.now();
+    }
+  }
+
+  /** Stop asks the container has ignored since it last served a request. */
+  #ignoredStops = 0;
+
+  /**
+   * Stop on idle — and MAKE it stop.
+   *
+   * The library's stop is a SIGTERM, which a PID-1 process without a handler
+   * ignores; that is how this instance stayed up for weeks while the log said
+   * "Activity expired" every few minutes. server.ts now handles SIGTERM, but
+   * the container holds no state worth a graceful exit (DDR-230 §1), so if it
+   * is still running at the NEXT expiry (one `sleepAfter` later) it is killed.
+   *
+   * Counted, not timed: `Date.now()` inside a Durable Object only advances
+   * across I/O, so a wall-clock grace measured in this loop never elapses.
+   */
+  async onActivityExpired() {
+    if (!this.ctx.container?.running) {
+      this.#ignoredStops = 0;
+      return;
+    }
+    if (this.#ignoredStops >= 1) {
+      console.log('[maude-render DO] still running after SIGTERM — destroying');
+      this.#ignoredStops = 0;
+      await this.destroy();
+      return;
+    }
+    this.#ignoredStops++;
+    await this.stop();
+  }
+
+  /**
+   * OUR idle rule, not the library's (see idle-policy.mjs for the leak it
+   * routes around). The library's alarm loop calls this; overriding it is the
+   * one seam that does not fight that loop — never override `alarm()`.
+   */
+  isActivityExpired() {
+    // The library's own timer still paces the loop: it is pushed out by every
+    // real request AND after every expiry (renewActivityTimeout), so honouring
+    // it spaces our stop/destroy asks one `sleepAfter` apart instead of
+    // spinning the alarm. Only the leak-prone inflight half is replaced.
+    if (this.sleepAfterMs > Date.now()) return false;
+    const expired = renderIdleExpired({
+      now: Date.now(),
+      lastActivityAt: this.#lastActivityAt,
+      openSince: this.#open.values(),
+    });
+    if (expired && this.inflightRequests > 0) {
+      console.log(
+        `[maude-render DO] idle with ${this.inflightRequests} library-inflight request(s) — treating as leaked, sleeping`
+      );
+    }
+    return expired;
   }
 }
 

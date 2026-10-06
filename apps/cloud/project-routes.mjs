@@ -11,6 +11,7 @@ import { emailConfigured, inviteEmail, sendEmail } from './email.mjs';
 import { decideMembershipChange } from './membership.mjs';
 import { peoplePage, removeConfirmPage } from './people-page.mjs';
 import { ACCESS_MESSAGES, can, decideAccess } from './project-access.mjs';
+import { nudgeCellRevocations } from './provision.mjs';
 
 /** Must match the cell's ACCESS_TOKEN_TTL_MS — the page quotes it in hours. */
 const ACCESS_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
@@ -239,6 +240,10 @@ export async function handleProjectRoutes(request, env, { account, ctx = null } 
         )
           .bind(projectId, who.email, Date.now())
           .run();
+        // …and the cell hears about it now, not at its next sweep (G5).
+        const nudge = nudgeCellRevocations(env, projectId);
+        if (ctx?.waitUntil) ctx.waitUntil(nudge);
+        else await nudge;
       }
     } catch {
       /* bounded by the token TTL either way */

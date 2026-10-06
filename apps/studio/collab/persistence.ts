@@ -1,16 +1,19 @@
 // DDR-051 persistence wiring — bridges Room callbacks to the existing JSON
-// snapshots (Phase 6 _comments/<slug>.json) + Phase 5 annotations.svg + the
+// snapshots (Phase 6 _comments/<slug>.json) + the annotations board (DDR-242) + the
 // new `.ydoc.bin` cache under _state/<slug>.ydoc.bin.
 
 import path from 'node:path';
 
 import * as Y from 'yjs';
 
+import { noteAnnotationsOnDisk, replicaBoardText, writeReplica } from '../annotations/replica.ts';
+import { parseBoard } from '../annotations/schema.ts';
 import type { Api } from '../api.ts';
 import type { Context } from '../context.ts';
 // From the LEAF, never from `sync/codec.ts` — codec imports `Y_TYPES` from this
 // file, so reaching for it here would close a cycle (see sync/limits.ts).
 import { commentKey } from '../sync/comment-identity.ts';
+import { type CommentLedger, commentLedgerFor } from '../sync/comment-ledger.ts';
 import { MAX_ANNOTATIONS_BYTES, MAX_COMMENTS_BYTES, withinByteCap } from '../sync/limits.ts';
 import { ensureStateDir, type RoomCallbacks } from './room.ts';
 
@@ -22,6 +25,8 @@ import { ensureStateDir, type RoomCallbacks } from './room.ts';
  */
 export const Y_TYPES = {
   comments: 'comments',
+  /** v1 annotations map (`svg` key) — read only for lazy migration; the v2
+   *  replica lives in 'annotations2' (annotations/replica.ts, DDR-242). */
   annotations: 'annotations',
   presentation: 'presentation',
 } as const;
@@ -60,6 +65,29 @@ export interface PersistenceDeps {
    * seed). Absent → cache-only restore, the previous behavior.
    */
   reconcileAfterCache?: (slug: string, doc: Y.Doc, cachedAtMs: number) => Promise<void>;
+  /**
+   * Called with the board text a flush just projected to
+   * `<slug>.annotations.json`. The disk→room re-seed uses it to recognise the
+   * room's OWN write coming back through the file watcher: by then the room
+   * may be ahead (a later op), and re-seeding it from that echo reverted the
+   * later edit.
+   */
+  onAnnotationsProjected?: (slug: string, board: string) => void;
+  /** The board a room was seeded from — the disk state it starts out agreeing with. */
+  onAnnotationsSeeded?: (slug: string, board: string) => void;
+  /**
+   * Issue #133 — which comment ids this machine synced before (see
+   * sync/comment-ledger.ts). Defaults to the process-wide ledger for the design
+   * root; tests inject a fresh one per simulated launch.
+   */
+  commentLedger?: CommentLedger;
+  /**
+   * May the ledger record `slug`'s projected comments as synced? Only when the
+   * hub is known to hold them (see `commentsConfirmedOnHub`, sync/index.ts). A
+   * projection of a comment added offline would otherwise read as "synced" and
+   * the next cold start would drop it. Absent → always (tests, local projects).
+   */
+  commentsConfirmed?: (slug: string) => boolean;
 }
 
 /**
@@ -93,6 +121,7 @@ function withinCap(slug: string, lane: string, value: string, max: number): bool
 export function createPersistence(deps: PersistenceDeps): RoomCallbacks {
   const { ctx, api, fileForSlug } = deps;
   const stateDir = ensureStateDir(ctx.paths.designRoot);
+  const ledger = deps.commentLedger ?? commentLedgerFor(ctx.paths.designRoot);
 
   // Per-slug: every comment identity this doc has EVER carried (issue #111).
   //
@@ -180,6 +209,27 @@ export function createPersistence(deps: PersistenceDeps): RoomCallbacks {
     return ids;
   }
 
+  // Issue #133 (plan Task 8) — a comment that stays on this disk and out of the
+  // shared document is invisible to every other peer, and nothing said so: the
+  // report behind #133 had to be reconstructed from code. Say it once per
+  // change of the count, in the server log (which the in-app bug report
+  // attaches), and say when it clears.
+  const localOnlyBySlug = new Map<string, number>();
+  function reportLocalOnly(slug: string, n: number): void {
+    const prev = localOnlyBySlug.get(slug) ?? 0;
+    if (n === prev) return;
+    localOnlyBySlug.set(slug, n);
+    if (n > 0) {
+      console.warn(
+        `[collab/${slug}] comments: ${n} on this disk ${n === 1 ? 'is' : 'are'} not in the shared document yet — kept, not overwritten; other peers do not see ${n === 1 ? 'it' : 'them'} until ${n === 1 ? 'it arrives' : 'they arrive'}.`
+      );
+    } else {
+      console.log(
+        `[collab/${slug}] comments: every comment on this disk is in the shared document again.`
+      );
+    }
+  }
+
   function ydocBinPath(slug: string): string {
     return path.join(stateDir, `${slug}.ydoc.bin`);
   }
@@ -250,10 +300,12 @@ export function createPersistence(deps: PersistenceDeps): RoomCallbacks {
         if (missing.length > 0) arr.push(missing);
       }
       if (svg && typeof svg === 'string') {
-        const map = doc.getMap<string>(Y_TYPES.annotations);
-        map.set('svg', svg);
+        // DDR-242 — `loadAnnotations` returns canonical board text (a legacy
+        // sidecar arrives already migrated); the replica takes it per element.
+        writeReplica(doc, parseBoard(svg).elements, 'seed');
       }
     }, 'seed');
+    if (svg && typeof svg === 'string') deps.onAnnotationsSeeded?.(slug, svg);
   }
 
   async function persistJson(slug: string, doc: Y.Doc): Promise<void> {
@@ -284,23 +336,40 @@ export function createPersistence(deps: PersistenceDeps): RoomCallbacks {
       // brings that id into the doc is itself a doc update, which re-arms the
       // flush, and the next pass writes the merged state. A delete still
       // materializes — its id IS in `everSeen`, so the write proceeds.
+      //
+      // Issue #133 — `everSeen` starts empty on every launch, so an id deleted
+      // by a peer while this machine was closed also reads as "never carried"
+      // and froze the file for good. The ledger knows it was synced from here
+      // before: an id in the ledger and absent from the doc is a delete.
       const onDisk = await api.loadCommentsForFile(file);
-      const behind = onDisk.some((c) => !everSeen.has(commentKey(c)));
+      const synced = ledger.get(slug);
+      const localOnly = onDisk.filter((c) => {
+        const k = commentKey(c);
+        return !everSeen.has(k) && !synced.has(k);
+      }).length;
+      const behind = localOnly > 0;
+      reportLocalOnly(slug, localOnly);
       if (!behind && withinCap(slug, 'comments', JSON.stringify(list), MAX_COMMENTS_BYTES)) {
         await api.saveCommentsForFile(file, list);
+        if (deps.commentsConfirmed?.(slug) ?? true) ledger.record(slug, list.map(commentKey));
       }
     }
 
-    // Annotations — Y.Map.svg → annotations.svg file. Task 5.
-    const map = doc.getMap<unknown>(Y_TYPES.annotations);
-    const svg = map.get('svg');
-    if (typeof svg === 'string' && svg) {
-      if (withinCap(slug, 'annotations', svg, MAX_ANNOTATIONS_BYTES)) {
+    // Annotations — the replica → `<slug>.annotations.json` (DDR-242). A doc
+    // that was never populated (null) writes nothing, so a cold room can't
+    // clobber the file with emptiness (DDR-223).
+    const board = replicaBoardText(doc);
+    if (board !== null) {
+      if (withinCap(slug, 'annotations', board, MAX_ANNOTATIONS_BYTES)) {
         // Projection must never re-enter onAnnotationsChanged: an old flush
-        // finishing after a new edit otherwise republishes the old SVG and
+        // finishing after a new edit otherwise republishes the old board and
         // rolls back every peer. The API checks freshness after async IO and
         // before its atomic rename; a later doc update schedules a new flush.
-        await api.projectAnnotations(file, svg, () => map.get('svg') === svg);
+        // Recorded BEFORE the write: the watcher event may be delivered before
+        // this await resumes.
+        deps.onAnnotationsProjected?.(slug, board);
+        noteAnnotationsOnDisk(doc, board);
+        await api.projectAnnotations(file, board, () => replicaBoardText(doc) === board);
       }
     }
   }

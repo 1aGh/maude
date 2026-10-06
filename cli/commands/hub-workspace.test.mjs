@@ -163,7 +163,7 @@ test('--canvas-domain silences the warning and renders the full chain', () => {
   });
 });
 
-test('--embed-origin is repeatable and comma-splittable (DDR-242)', () => {
+test('--embed-origin is repeatable and comma-splittable (DDR-247)', () => {
   assert.deepEqual(
     repeatedFlag(
       [

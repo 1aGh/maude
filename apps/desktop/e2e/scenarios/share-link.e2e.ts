@@ -3,6 +3,7 @@ import { $, browser, expect } from '@wdio/globals';
 import type {} from '@wdio/tauri-service';
 import { capture, startReport } from '../helpers/evidence';
 import { waitForSidecar } from '../helpers/sidecar';
+import { canvasRow } from '../helpers/tree';
 
 const tid = (id: string) => `[data-testid="${id}"]`;
 async function arrive(url: string) {
@@ -30,7 +31,7 @@ describe('share-link — addresses, row sharing, same-project open and foreign-p
     // the service's per-command auto-focus probe, whose mock bridge disappears
     // when the shell navigates from the bundled page to the loopback studio.
     await browser.tauri.switchWindow('main');
-    await (await $(tid('canvas-row-ui-smoke'))).waitForDisplayed({ timeout: 30_000 });
+    await (await canvasRow('canvas-row-ui-smoke')).waitForDisplayed({ timeout: 30_000 });
   });
 
   afterEach(async () => {
@@ -40,7 +41,7 @@ describe('share-link — addresses, row sharing, same-project open and foreign-p
   });
 
   it('copies an app link from the topbar and shares a different row without opening it', async () => {
-    await (await $(tid('canvas-row-ui-smoke'))).click();
+    await (await canvasRow('canvas-row-ui-smoke')).click();
     await active('.design/ui/Smoke.tsx');
     await (await $(tid('share-btn'))).click();
     await (await $(tid('share-dialog'))).waitForDisplayed();

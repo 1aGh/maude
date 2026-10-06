@@ -234,6 +234,10 @@ function shaOf(abs, size, mtimeMs) {
  * @param {(scope: string|undefined, name: string) => boolean} args.matchesScope
  * @param {string|null} args.designRoot workspace checkout design root, or null
  * @param {(status: number, payload: unknown) => void} args.respondJson
+ * @param {{ compaction(): Array<object> }|null} [args.inertFromJournal] CELL
+ *   MODE (cell materializer Task 11): inert media is listed from the JOURNAL,
+ *   never hashed off a disk that is only a cache — a partial checkout would
+ *   otherwise read to peers as a project that lost its photos.
  */
 export function handleFilesRoute({
   path,
@@ -243,6 +247,7 @@ export function handleFilesRoute({
   matchesScope,
   designRoot,
   respondJson,
+  inertFromJournal = null,
 }) {
   if (path !== FILES_PATH) return false;
   if (method !== 'GET') {
@@ -265,7 +270,24 @@ export function handleFilesRoute({
     return true;
   }
 
-  const { files, truncated } = listProjectFiles(designRoot);
+  const listed = listProjectFiles(designRoot);
+  const { truncated } = listed;
+  let files = listed.files;
+  if (inertFromJournal) {
+    const fromJournal = inertFromJournal
+      .compaction()
+      .filter((r) => !r.deleted && r.sha256 && r.class === 'inert-media')
+      .map((r) => ({
+        path: r.path,
+        sha256: r.sha256,
+        size: r.size,
+        mtimeMs: r.mtimeMs ?? 0,
+        class: 'inert-media',
+      }));
+    files = [...files.filter((f) => f.class !== 'inert-media'), ...fromJournal].sort((a, b) =>
+      a.path < b.path ? -1 : a.path > b.path ? 1 : 0
+    );
+  }
   const visible = files.filter((f) => matchesScope(match.scope, f.path));
   respondJson(200, {
     files: visible,
@@ -457,10 +479,45 @@ export async function handleProjectFileRoute(ctx) {
   // walk already refuses symlinks (`entry.isFile()`), so a real plane-B file is
   // never a link and refusing one here costs nothing legitimate. (Security
   // review 2026-08-14, both seats — the one confirmed read-route blocker.)
+  // What is actually read. The checkout file — or, on a cell where the disk
+  // is a cache (cell materializer Task 11), the verified blob the
+  // materializer fills from the bucket for an inert-media row.
+  let servePath = target.abs;
   let st;
   try {
     st = lstatSync(target.abs);
   } catch {
+    st = null;
+  }
+  if (
+    st === null &&
+    ctx.materializer &&
+    checkoutFileClass(target.realRel, designRoot) === 'inert-media'
+  ) {
+    const got = await ctx.materializer.materialize(target.realRel);
+    if (got.path) {
+      servePath = got.path;
+      try {
+        st = lstatSync(got.path);
+      } catch {
+        st = null;
+      }
+    } else if (['timeout', 'full', 'unavailable'].includes(got.miss)) {
+      // A HOLD, which the desktop reads as backpressure — not a 404 it would
+      // record as "the hub lost this file".
+      const body = JSON.stringify({ error: 'fetching from storage', miss: got.miss });
+      response
+        .writeHead(503, {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+          'Content-Length': Buffer.byteLength(body),
+          'Retry-After': '5',
+        })
+        .end(body);
+      return true;
+    }
+  }
+  if (st === null) {
     respond(response, 404, 'not found');
     return true;
   }
@@ -501,7 +558,7 @@ export async function handleProjectFileRoute(ctx) {
   response.writeHead(range ? 206 : 200, headers);
   await new Promise((resolveDone) => {
     const stream = createReadStream(
-      target.abs,
+      servePath,
       range ? { start: range.start, end: range.end } : undefined
     );
     stream.on('error', () => {

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { chromium } from '@playwright/test';
 
@@ -8,7 +8,11 @@ const source = readFileSync(
   'utf8'
 );
 
-test('serialized tree gesture carries the dragstart handler payload through drop', async () => {
+// Quality CI installs no Playwright browser; without one this is a skip, not a failure.
+const noBrowser = !existsSync(chromium.executablePath()) && 'no Playwright chromium installed';
+test('serialized tree gesture carries the dragstart handler payload through drop', {
+  skip: noBrowser,
+}, async () => {
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage();

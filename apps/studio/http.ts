@@ -1,4 +1,8 @@
+import { MAX_ELEMENTS } from './annotations/constants.ts';
+import { parseOps as parseAnnotationOps } from './annotations/ops.ts';
+import { serializeBoard } from './annotations/schema.ts';
 import { validAnnotationWriteId } from './annotations-sync.ts';
+import { MAX_ANNOTATIONS_BYTES } from './sync/limits.ts';
 // HTTP layer for Bun.serve.
 //
 // Designed for extension — Phase 3.6 adds /ui/:slug + /_bun_hmr by appending to
@@ -107,6 +111,7 @@ import { createGitHubEndpoints } from './github/endpoints.ts';
 import type { InspectRegistry } from './inspect.ts';
 import { canvasSlug, writeLocator } from './locator.ts';
 import { prepareManagedProject } from './managed-projects.ts';
+import { materializeMissing } from './materialize-client.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
 import { createPhotoStore, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
@@ -118,6 +123,7 @@ import { isHubReadOnly } from './sync/hubs-config.ts';
 import { isFirstAnchorMode, readSyncSettings, writeSyncSettings } from './sync/settings.ts';
 import { listTrash, pruneTrash, restoreFromTrash } from './sync/trash.ts';
 import { signInToWorkspace, workspaceDisclosure } from './sync/workspace-signin.ts';
+import { normalizeTreeState } from './tree-state.ts';
 import { readUiPrefs, type UiPrefs, writeUiPrefs } from './ui-prefs.ts';
 import { loadWhatsNew, resolveMaudeVersion } from './whats-new.ts';
 import { isWorkspaceMode, resolveRenderLane } from './workspace-mode.ts';
@@ -228,7 +234,7 @@ export function rootIdentity(root: string): string {
 }
 
 /**
- * DDR-242 — the studio page's CSP. Always `frame-ancestors`; in the `?embed=1`
+ * DDR-247 — the studio page's CSP. Always `frame-ancestors`; in the `?embed=1`
  * view also `frame-src 'self' <canvas origin>`: the embed frames exactly one
  * canvas, and a hostile canvas must not be able to navigate its own frame to a
  * foreign origin (a look-alike sign-in page) inside someone else's app.
@@ -285,7 +291,7 @@ export function cspForCanvasShell(
     "form-action 'none'",
     "webrtc 'block'",
   ];
-  // DDR-242 — an embedder of the studio page is an ANCESTOR of this frame too,
+  // DDR-247 — an embedder of the studio page is an ANCESTOR of this frame too,
   // and frame-ancestors checks every ancestor, so it is listed here as well.
   if (mainOrigin) directives.push(`frame-ancestors ${frameAncestors(mainOrigin, embedOrigins)}`);
   return directives.join('; ');
@@ -431,6 +437,7 @@ export const READ_ONLY_ALLOWED_WRITES = new Set([
   '/_canvas-state', // per-user camera / view state (DDR-115: never versioned)
   '/_api/canvas-meta', // viewport lane only — the layout lane is refused in-handler
   '/_api/ui-prefs', // per-user UI preferences
+  '/_api/tree-state', // per-user Files-panel disclosure (issue #124)
   '/_api/timeline-media', // per-user runtime media cache (scrub read path)
   '/_api/export', // "look, comment and download" — the cell allows /api/export too
   '/_api/export-jobs',
@@ -503,6 +510,16 @@ export function readOnlyRefusalResponse(): Response {
     },
     { status: 403, headers: { 'Cache-Control': 'no-store' } }
   );
+}
+
+/**
+ * The URL the design root is served under by the static fall-through below —
+ * `/<designRoot relative to repoRoot>` (`/.design` by default). Canvas builds
+ * rewrite CSS `url()` onto it (canvas-build.ts `assetUrlBase`).
+ */
+function designRootUrlBase(paths: { repoRoot: string; designRoot: string }): string {
+  const rel = relative(paths.repoRoot, paths.designRoot).split(sep).join('/');
+  return rel ? `/${rel.split('/').map(encodeURIComponent).join('/')}` : '';
 }
 
 function safePathUnderRoot(reqUrl: string, repoRoot: string): string | null {
@@ -700,6 +717,7 @@ export async function serveCanvasTsx(
       const built = await buildCanvasSandboxed({
         designRoot: ctx.paths.designRoot,
         canvasAbs: absPath,
+        assetUrlBase: designRootUrlBase(ctx.paths),
       });
       if (!built.ok) {
         return new Response(`Canvas build error: ${built.error}`, {
@@ -732,6 +750,7 @@ export async function serveCanvasTsx(
         // a synced module cannot make the build read the wider filesystem.
         // The cell worker has always armed this (canvas-build-worker.ts).
         restrictImportsTo: ctx.paths.designRoot,
+        assetUrlBase: designRootUrlBase(ctx.paths),
       });
     } catch (err) {
       if (err instanceof TranspileError) {
@@ -951,6 +970,7 @@ async function serveHistoricalCanvas(
         // Same unconditional allowlist as the live build above — a HISTORICAL
         // source is still tenant/peer-authored content.
         restrictImportsTo: ctx.paths.designRoot,
+        assetUrlBase: designRootUrlBase(ctx.paths),
       });
       cached = {
         js: result.js,
@@ -1014,6 +1034,38 @@ export function cacheControlFor(absPath: string): { cacheControl: string; addEta
   return { cacheControl: 'no-cache', addEtag: true };
 }
 
+/**
+ * The studio page, with its bundle and stylesheet URLs VERSIONED.
+ *
+ * `/_client/client.bundle.js` used to be a fixed URL answered `no-cache`. Behind
+ * Cloudflare that header does not survive: the zone's default Browser Cache
+ * TTL turns a `.js` into `max-age=14400`, so after a release a cloud user ran
+ * the previous client for up to four hours, against a server that had moved on
+ * (measured on alligators after v1.6.5: new server, old bundle, none of the
+ * release's UI). A query that changes whenever the built file does makes every
+ * cache, ours or anyone's in front of us, fetch it again. `serveFile` ignores
+ * the query, so the old URL keeps working for anything that still asks for it.
+ */
+export async function serveIndexHtml(extraHeaders: Record<string, string> = {}): Promise<Response> {
+  const index = Bun.file(join(CLIENT_DIR, 'index.html'));
+  if (!(await index.exists())) return new Response('Not found', { status: 404 });
+  let html = await index.text();
+  for (const name of ['client.bundle.js', 'styles.css']) {
+    const built = Bun.file(join(DIST_DIR, name));
+    if (!(await built.exists())) continue;
+    const v = `${built.size.toString(16)}-${Math.trunc(built.lastModified).toString(16)}`;
+    html = html.replaceAll(`"/_client/${name}"`, `"/_client/${name}?v=${v}"`);
+  }
+  return new Response(html, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache',
+      'X-Content-Type-Options': 'nosniff',
+      ...extraHeaders,
+    },
+  });
+}
+
 /** A weak validator from the file's own metadata — no read, no hash. */
 function etagFor(file: { size: number; lastModified: number }): string {
   return `W/"${file.size.toString(16)}-${Math.trunc(file.lastModified).toString(16)}"`;
@@ -1066,6 +1118,49 @@ const RANGE_MEDIA_EXTS = new Set(['.mp4', '.m4v', '.mov', '.webm', '.mp3', '.wav
  * (`bytes=a-b`, suffix `bytes=-n`, open `bytes=a-`); malformed ranges fall back
  * to a full 200; an unsatisfiable one gets an honest 416.
  */
+/**
+ * Serve a cell-materialized blob (`_cache/blobs/<sha>`) with the headers its
+ * LOGICAL name would get on the static route — type, caching, nosniff and the
+ * inert-SVG CSP are all judged on the path the canvas asked for, never on the
+ * extension-less cache file (cell materializer Task 10).
+ */
+async function serveMaterialized(
+  cacheAbs: string,
+  logicalAbs: string,
+  req: Request
+): Promise<Response> {
+  const e = ext(logicalAbs);
+  const policy = cacheControlFor(logicalAbs);
+  const headers: Record<string, string> = {
+    'Content-Type': MIME[e] || 'application/octet-stream',
+    'Cache-Control': policy.cacheControl,
+    'X-Content-Type-Options': 'nosniff',
+    // The blob's name IS its sha256 — a stronger validator than size+mtime.
+    ...(policy.addEtag ? { ETag: `"${basename(cacheAbs)}"` } : {}),
+    ...(e === '.svg' ? { 'Content-Security-Policy': INERT_DOCUMENT_CSP } : {}),
+  };
+  if (RANGE_MEDIA_EXTS.has(e)) return serveMediaFile(cacheAbs, req, headers);
+  return new Response(Bun.file(cacheAbs), { headers });
+}
+
+/**
+ * A static-route miss: on a cell, ask the hub to materialize the file; else
+ * (or when the hub has nothing) the 404 it always was. A transient miss —
+ * the fill is still running, the cache is momentarily full — is a 503 with
+ * Retry-After, not a 404 a browser would cache as "gone".
+ */
+async function materializedOr404(designRoot: string, logicalAbs: string, req: Request) {
+  const m = await materializeMissing(designRoot, logicalAbs);
+  if (m && 'path' in m) return serveMaterialized(m.path, logicalAbs, req);
+  if (m && 'unavailable' in m) {
+    return new Response('Fetching this file from storage — retry shortly', {
+      status: 503,
+      headers: { 'Retry-After': String(m.retryAfterS), 'Cache-Control': 'no-store' },
+    });
+  }
+  return new Response('Not found', { status: 404 });
+}
+
 async function serveMediaFile(
   absPath: string,
   req: Request,
@@ -1193,6 +1288,13 @@ export function createHttp(
       err instanceof Error ? err.message : err
     );
   }
+  // An fs.watch 'error' with no listener is THROWN and exits the process
+  // (Bun's Linux recursive watcher emits ENOENT — the 2026-10-02 cell studio
+  // crash loop). These two only bust the canvas cache; losing one is harmless.
+  libWatcher?.on('error', (err) => {
+    console.warn('[canvas-lib] watcher error — stopped:', err instanceof Error ? err.message : err);
+    libWatcher?.close();
+  });
   void libWatcher;
 
   // G7v2 — canvas-lib.tsx transitively imports many dev-server siblings
@@ -1226,6 +1328,13 @@ export function createHttp(
       err instanceof Error ? err.message : err
     );
   }
+  devSrcWatcher?.on('error', (err) => {
+    console.warn(
+      '[dev-server-src] watcher error — stopped:',
+      err instanceof Error ? err.message : err
+    );
+    devSrcWatcher?.close();
+  });
   void devSrcWatcher;
 
   async function readJson<T = unknown>(req: Request, max = 256 * 1024): Promise<T | null> {
@@ -1827,7 +1936,7 @@ export function createHttp(
         ...ctx.cfg,
         canvasOrigin: ctx.canvasOrigin,
         readOnly: projectReadOnly(req),
-        // DDR-242 — the apps allowed to frame this studio for `?embed=1`. The
+        // DDR-247 — the apps allowed to frame this studio for `?embed=1`. The
         // embed view posts its status ONLY to a parent on this list, never to
         // '*'. Public already: the same origins ride in the page's CSP header.
         ...(ctx.embedOrigins?.length ? { embedOrigins: ctx.embedOrigins } : {}),
@@ -2435,36 +2544,42 @@ export function createHttp(
     },
 
     '/_api/annotations': async (req: Request) => {
-      // Phase 5 — `<designRoot>/<slug>.annotations.svg` read / overwrite.
-      // GET ?file=<repo-relative-canvas-path>           → SVG text (empty if absent)
-      // PUT body { file, svg }                          → 204 on write, 4xx otherwise
+      // DDR-242 — `<designRoot>/<slug>.annotations.json` read / whole-board write.
+      // GET ?file=<repo-relative-canvas-path>     → canonical board JSON (empty board if absent)
+      // PUT body { file, board | svg, writeId?, base? } → 204 on write, 4xx otherwise
+      //   `board` is board JSON; `svg` (a v1 tab still open across an upgrade)
+      //   is converted through the v1→v2 migration. The canvas's own edits go
+      //   through /_api/annotations/ops, never a whole-board write.
       const url = new URL(req.url);
       if (req.method === 'GET') {
         const file = url.searchParams.get('file');
         if (!file) return new Response('file query param required', { status: 400 });
-        const svg = await api.loadAnnotations(file);
-        return new Response(svg ?? '', {
+        const read = await api.readBoard(file);
+        // An existing-but-unreadable board is NOT served as empty (review H2).
+        if (!read.ok) return new Response(read.error, { status: 409 });
+        const board = read.text ?? serializeBoard([]);
+        return new Response(board, {
           status: 200,
           headers: {
-            'Content-Type': 'image/svg+xml; charset=utf-8',
+            'Content-Type': 'application/json; charset=utf-8',
             'Cache-Control': 'no-store',
           },
         });
       }
       if (req.method === 'PUT' || req.method === 'POST') {
-        // `base` (optional) is the SVG this edit was derived from — the hub
-        // merges a concurrent peer's strokes from it (accepted revisions).
         const body = await readJson<{
           file?: string;
-          svg?: string;
+          board?: unknown;
+          svg?: unknown;
           writeId?: unknown;
           base?: unknown;
-        }>(req, 2 * 1024 * 1024 + 2048);
+        }>(req, MAX_ANNOTATIONS_BYTES * 2 + 2048);
         if (!body || typeof body.file !== 'string' || !body.file) {
-          return new Response('body must include { file, svg }', { status: 400 });
+          return new Response('body must include { file, board }', { status: 400 });
         }
-        if (typeof body.svg !== 'string') {
-          return new Response('body.svg must be a string', { status: 400 });
+        const text = typeof body.board === 'string' ? body.board : body.svg;
+        if (typeof text !== 'string') {
+          return new Response('body.board must be a string', { status: 400 });
         }
         if (body.writeId !== undefined && !validAnnotationWriteId(body.writeId)) {
           return new Response('invalid annotation writeId', { status: 400 });
@@ -2474,7 +2589,7 @@ export function createHttp(
         }
         const ok = await api.saveAnnotations(
           body.file,
-          body.svg,
+          text,
           body.writeId as string | undefined,
           body.base as string | undefined
         );
@@ -2482,6 +2597,38 @@ export function createHttp(
         return new Response(null, { status: 204 });
       }
       return new Response('Method not allowed', { status: 405 });
+    },
+
+    '/_api/annotations/ops': async (req: Request) => {
+      // DDR-242 §4 — the canvas write path: an op batch applied under the one
+      // merge rule. Canvas-origin reachable (inert collab data, DDR-054) — every
+      // op is validated element-by-element and the board stays capped.
+      // POST body { file, actionId, ops: Op[] } → 200 { ok, changed, rejected[] }
+      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+      const body = await readJson<{ file?: unknown; actionId?: unknown; ops?: unknown }>(
+        req,
+        MAX_ANNOTATIONS_BYTES + 2048
+      );
+      if (!body || typeof body.file !== 'string' || !body.file) {
+        return new Response('body must include { file, actionId, ops }', { status: 400 });
+      }
+      if (body.actionId !== undefined && !validAnnotationWriteId(body.actionId)) {
+        return new Response('invalid actionId', { status: 400 });
+      }
+      if (!Array.isArray(body.ops))
+        return new Response('body.ops must be an array', { status: 400 });
+      // Bounded to what a whole board can need (select-all + delete on a full
+      // board) and REFUSED past it — never truncated, which would half-apply a
+      // gesture. Batch cost is linear in the ops (ops.ts indexes).
+      if (body.ops.length > MAX_ELEMENTS) {
+        return new Response('too many ops in one batch', { status: 413 });
+      }
+      const { ops } = parseAnnotationOps(body.ops, MAX_ELEMENTS);
+      const r = await api.applyAnnotationOps(body.file, ops, body.actionId as string | undefined);
+      return Response.json(r, {
+        status: r.ok ? 200 : r.unreadable ? 409 : 413,
+        headers: { 'Cache-Control': 'no-store' },
+      });
     },
 
     '/_api/canvas': async (req: Request) => {
@@ -5232,6 +5379,36 @@ export function createHttp(
       }
     },
 
+    // Issue #124 — the Files panel's remembered folder/section disclosure, per
+    // project (and per member in a cell, via api.ts's sessionDir). GET returns
+    // the stored state (empty ⇒ everything closed); POST replaces it. MAIN-ORIGIN
+    // ONLY, same gates as /_api/ui-prefs — never reachable from a canvas.
+    '/_api/tree-state': async (req: Request) => {
+      if (!isTrustedRequestHost(req))
+        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+      if (req.method === 'GET') {
+        return Response.json(await api.loadTreeState(), {
+          headers: { 'Cache-Control': 'no-store' },
+        });
+      }
+      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+      if (!sameOriginWrite(req))
+        return new Response('cross-origin write rejected', { status: 403 });
+      const body = await readJson<Record<string, unknown>>(req, 256 * 1024);
+      if (!body || typeof body !== 'object' || Array.isArray(body))
+        return new Response('body must be a JSON object', { status: 400 });
+      try {
+        return Response.json(await api.saveTreeState(normalizeTreeState(body)), {
+          headers: { 'Cache-Control': 'no-store' },
+        });
+      } catch (err) {
+        // Log the cause here; the body stays generic — an fs error message
+        // carries the server's absolute path, and in a cell a viewer reads it.
+        console.error('[tree-state] write failed:', err instanceof Error ? err.message : err);
+        return new Response('tree-state write failed', { status: 500 });
+      }
+    },
+
     // feature-ai-media-generation (Task 2.5, DDR-164) — reuse-before-you-pay for
     // AUDIO. GET searches the project's OWN generated audio (intent sidecars) and,
     // when ElevenLabs is configured, the user's re-downloadable History (free —
@@ -5561,7 +5738,7 @@ export function createHttp(
       return new Response(null, { status: 204 });
     },
 
-    // DDR-242 — the studio page names who may frame it. It used to say
+    // DDR-247 — the studio page names who may frame it. It used to say
     // nothing, so any site could frame a signed-in studio (clickjacking).
     // Nothing legitimate frames it cross-origin: the desktop navigates its
     // webview to it top-level and every studio iframe is a canvas shell. The
@@ -5688,6 +5865,10 @@ export function createHttp(
         const isLogoSubdir = /^logos\/[a-z0-9]{8}\.(svg|png)$/.test(name);
         if (isFlat || isLogoSubdir) {
           const abs = join(ctx.paths.designRoot, 'assets', name);
+          // A cell's disk is a cache — absent here may still be servable.
+          if (!(await Bun.file(abs).exists())) {
+            return materializedOr404(ctx.paths.designRoot, abs, req);
+          }
           // Range-aware for video/audio (scrubbing + WKWebView compat).
           if (RANGE_MEDIA_EXTS.has(ext(name))) {
             return serveMediaFile(abs, req, { 'X-Content-Type-Options': 'nosniff' });
@@ -5783,7 +5964,15 @@ export function createHttp(
 
       const file = Bun.file(fp);
       const exists = await file.exists();
-      if (!exists) return new Response('Not found', { status: 404 });
+      if (!exists) {
+        // A cell's disk is a cache: the bytes may be in the bucket and not
+        // here. Only under the design root — the repo's other files are not
+        // the file plane's.
+        if (`${fp}/`.startsWith(`${ctx.paths.designRoot}/`)) {
+          return materializedOr404(ctx.paths.designRoot, fp, req);
+        }
+        return new Response('Not found', { status: 404 });
+      }
 
       const e = ext(fp);
       const underDesignRoot = `${fp}/`.startsWith(`${ctx.paths.designRoot}/`);
@@ -5844,7 +6033,7 @@ export function createHttp(
     } catch {
       /* no usable URL — the ordinary page */
     }
-    return serveFile(join(CLIENT_DIR, 'index.html'), {
+    return serveIndexHtml({
       'Content-Security-Policy': studioPageCsp(
         ctx.mainOrigin,
         embed ? (ctx.embedOrigins ?? []) : [],
@@ -5857,7 +6046,18 @@ export function createHttp(
   }
 
   async function serveCanvasShell(applyCsp: boolean, capture = false): Promise<Response> {
-    const shellHtml = await Bun.file(join(TEMPLATES_DIR, '_shell.html')).text();
+    // `comment-mount.js` is versioned for the same reason as the studio page's
+    // bundle (see `serveIndexHtml`): a fixed URL outlives a release in any
+    // cache in front of the canvas origin. Replaced BEFORE the CSP hashes are
+    // taken over the inline scripts, so the policy matches what is served.
+    const mount = Bun.file(join(DIST_DIR, 'comment-mount.js'));
+    const mountV = (await mount.exists())
+      ? `?v=${mount.size.toString(16)}-${Math.trunc(mount.lastModified).toString(16)}`
+      : '';
+    const shellHtml = (await Bun.file(join(TEMPLATES_DIR, '_shell.html')).text()).replace(
+      "'/_client/comment-mount.js'",
+      `'/_client/comment-mount.js${mountV}'`
+    );
     // Inject inspector overlay — Cmd+Click selection + add-comment flow.
     const injected = inspect().injectInspector(shellHtml);
     const headers: Record<string, string> = {
@@ -5913,7 +6113,8 @@ export function createHttp(
   const CANVAS_SAFE_API = new Set([
     '/_api/git-user', // presence display name
     '/_api/canvas-meta', // layout/viewport sidecar (GET + PATCH)
-    '/_api/annotations', // annotation SVG (GET + PUT) — drives the collab bridge
+    '/_api/annotations', // annotation board (GET + whole-board PUT) — drives the collab bridge
+    '/_api/annotations/ops', // DDR-242 annotation op batches (POST). MIRROR in server.ts routes.
     '/_api/asset', // Phase 23 — capped binary image upload (sniff+category cap+sha8 name+no-SVG)
     '/_api/photo-edit', // feature-photo-editor — PhotoEdit sidecar GET/PUT (cap-stack gated). MIRROR in server.ts routes.
     '/_api/git-committers', // @mention autocomplete

@@ -24,6 +24,8 @@ export interface AnnotationSelectionValue {
   selectedIds: string[];
   replace: (id: string | string[]) => void;
   add: (id: string | string[]) => void;
+  /** Drop ids from the selection (shift-click on a selected element). */
+  remove: (id: string | string[]) => void;
   toggle: (id: string) => void;
   clear: () => void;
   contains: (id: string) => boolean;
@@ -55,6 +57,11 @@ export function AnnotationSelectionProvider({ children }: { children: ReactNode 
     setSelectedIds((prev) => dedupe([...prev, ...incoming]));
   }, []);
 
+  const remove = useCallback((id: string | string[]) => {
+    const drop = new Set(Array.isArray(id) ? id : [id]);
+    setSelectedIds((prev) => prev.filter((x) => !drop.has(x)));
+  }, []);
+
   const toggle = useCallback((id: string) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }, []);
@@ -76,8 +83,8 @@ export function AnnotationSelectionProvider({ children }: { children: ReactNode 
   const contains = useCallback((id: string) => containsRef.current.includes(id), []);
 
   const value = useMemo<AnnotationSelectionValue>(
-    () => ({ selectedIds, replace, add, toggle, clear, contains }),
-    [selectedIds, replace, add, toggle, clear, contains]
+    () => ({ selectedIds, replace, add, remove, toggle, clear, contains }),
+    [selectedIds, replace, add, remove, toggle, clear, contains]
   );
 
   return (

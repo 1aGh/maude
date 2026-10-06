@@ -5,6 +5,7 @@
 // presence never do.
 //
 //   node s09-browser.mjs --work <selfhost dir> --out <dir>
+import { openStudio } from './browser-entry.mjs';
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -59,11 +60,7 @@ const { chromium } = createRequire(join(REPO, 'package.json'))('@playwright/test
 const browser = await chromium.launch();
 const result = { doc, steps: {} };
 try {
-  const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
-  await page.goto(`${fx.browserUrl}/studio/signin`);
-  await page.locator('input[name=email]').fill(fx.users.owner.email);
-  await page.locator('input[name=password]').fill(fx.users.owner.password);
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  const page = await openStudio(browser, fx, 'owner');
   await page.locator(`[data-testid="canvas-row-ui-${name.toLowerCase()}"]`).click({ timeout: 60000 });
   const frame = page.frameLocator('[data-testid="canvas-frame"]');
   await frame.locator('h1').waitFor({ timeout: 60000 });

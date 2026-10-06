@@ -1,7 +1,7 @@
 {
-  "version": "v1.4.4",
+  "version": "v1.7.1",
   "nodeRange": ">=20",
-  "publishedDate": "2026-09-21",
+  "publishedDate": "2026-10-06",
   "contributors": 1,
   "plugins": {
     "design": {
@@ -95,7 +95,7 @@
     "hub/embedding.mdx": "2026-09-24",
     "hub/identity.mdx": "2026-08-18",
     "hub/index.mdx": "2026-08-16",
-    "hub/linking.mdx": "2026-08-18",
+    "hub/linking.mdx": "2026-09-30",
     "hub/people.mdx": "2026-08-18",
     "hub/pricing.mdx": "2026-05-28",
     "hub/self-host.mdx": "2026-08-23",

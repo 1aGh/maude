@@ -17,6 +17,9 @@ const ROUTE =
   /^\/api\/projects\/([A-Za-z0-9._-]{1,128})\/v1\/([a-z-]+)(?:\/([A-Za-z0-9_-]{1,128}))?$/;
 export const MAX_BODY_BYTES = 17 * 1024 * 1024;
 
+/** More than this many proposals waiting on a switch are told to retry. */
+const MAX_WAITING_PROPOSALS = 64;
+
 export function createAcceptedRevisions({
   server,
   store,
@@ -41,6 +44,19 @@ export function createAcceptedRevisions({
   switchGraceMs = 1500,
   /** False when the store sits on a disposable disk — see setMode. */
   storeDurable = true,
+  /**
+   * The hub supervises a browser studio that is NOT a paired participant
+   * (workspace mode without MAUDE_CELL_PAIRING). Its edits never become
+   * accepted actions, so this hub must not take proposals: the switch is
+   * refused, and an accepted project that boots this way says so loudly.
+   */
+  browserUnpaired = false,
+  /** Does the checkout hold any canvas? (A brand-new project holds none.) */
+  checkoutHasCanvases = () => false,
+  /** Waits between attempts to resume an unfinished import (tests shorten them). */
+  resumeBackoffMs = [2_000, 5_000, 15_000, 30_000, 60_000],
+  /** …and how many (≈ 10 minutes with the default waits). */
+  resumeAttempts = 13,
   log = console,
 }) {
   let state = { mode: 'legacy', epoch: 0, revision: 0 };
@@ -148,12 +164,22 @@ export function createAcceptedRevisions({
     if (state.mode !== 'transactions') return { reconciled: 0 };
     const manifest = await store.manifest();
     let reconciled = 0;
-    for (const d of manifest.docs) {
-      if (d.retired) continue;
+    // A cell's store is a round trip away, so the old loop — every lane of
+    // every document fetched one after the other, even where the document
+    // already held the head — was most of a switch's time (G2: ~130 canvases,
+    // 55 s through the Durable Object). Now a lane is fetched only when the
+    // document differs from its head, and documents go eight at a time.
+    const one = async (d) => {
+      const held = {};
+      await withDoc(d.doc, { accepted: { reconcile: true } }, (doc) => {
+        for (const lane of LANE_NAMES) held[lane] = readLane(doc, lane);
+      });
       const lanes = {};
       for (const lane of LANE_NAMES) {
         const hash = d.lanes[lane]?.hash;
-        lanes[lane] = hash ? ((await store.blob(hash)) ?? '') : '';
+        if (!hash) lanes[lane] = '';
+        else if (held[lane] && laneHash(held[lane]) === hash) lanes[lane] = held[lane];
+        else lanes[lane] = (await store.blob(hash)) ?? '';
       }
       await withDoc(d.doc, { accepted: { reconcile: true } }, (doc) => {
         const meta = doc.getMap('syncMeta');
@@ -168,15 +194,29 @@ export function createAcceptedRevisions({
         }
       });
       reconciled++;
-    }
+    };
+    const live = manifest.docs.filter((d) => !d.retired);
+    let next = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(8, live.length) }, async () => {
+        while (next < live.length) await one(live[next++]);
+      })
+    );
     return { reconciled };
   }
 
+  let warnedUnpaired = false;
   async function refresh() {
     try {
       state = await store.state();
       ready = true;
       storeError = null;
+      if (browserUnpaired && state.mode === 'transactions' && !warnedUnpaired) {
+        warnedUnpaired = true;
+        log.error?.(
+          '[transactions] this project saves through accepted revisions, but the browser studio is NOT a participant (MAUDE_CELL_PAIRING is off): browser edits will not reach the project. Set MAUDE_CELL_PAIRING=1 and restart the hub.'
+        );
+      }
     } catch (err) {
       storeError = err.message;
       throw err;
@@ -201,6 +241,7 @@ export function createAcceptedRevisions({
       ...base,
       epoch: state.epoch,
       revision: state.revision,
+      browserPaired: !browserUnpaired,
       // Bounded: three numbers and a timestamp, no per-document cardinality.
       render: {
         revision: renderedRevision,
@@ -242,6 +283,8 @@ export function createAcceptedRevisions({
 
   /** A mode switch in progress — proposals wait for it (see `setMode`). */
   let switching = Promise.resolve();
+  /** Proposals held behind a switch — bounded, each one an open request. */
+  let waitingProposals = 0;
 
   /**
    * Switch the project's save mode. THE ORDER IS THE SAFETY ARGUMENT:
@@ -261,6 +304,18 @@ export function createAcceptedRevisions({
    * not hold the imported documents yet.
    */
   function setMode({ mode, expectEpoch }) {
+    // A new decision by the owner outranks a resume still in progress.
+    cancelResume?.();
+    if (mode === 'transactions' && browserUnpaired) {
+      return Promise.reject(
+        Object.assign(
+          new Error(
+            'the browser studio on this hub is not a project participant (MAUDE_CELL_PAIRING is off), so its edits would never become accepted actions — set MAUDE_CELL_PAIRING=1 and restart the hub first'
+          ),
+          { status: 409, code: 'browser-not-paired' }
+        )
+      );
+    }
     if (mode === 'transactions' && !storeDurable) {
       return Promise.reject(
         Object.assign(
@@ -273,13 +328,32 @@ export function createAcceptedRevisions({
     }
     const run = async () => {
       const next = await store.setMode({ mode, expectEpoch });
-      const notice = JSON.stringify({ type: 'maude.mode', mode: next.mode, epoch: next.epoch });
-      try {
-        for (const document of server.hocuspocus?.documents?.values?.() ?? []) {
-          document.broadcastStateless(notice);
+      // Per connection, with that connection's write right after the switch:
+      // the fence re-decides per message, but a peer admitted read-only while
+      // the project took proposals learns it may write again only from this
+      // (F3 S17, 2026-09-23 — its legacy saves after a rollback were held
+      // silently until it happened to reconnect).
+      const notice = (writable) =>
+        JSON.stringify({ type: 'maude.mode', mode: next.mode, epoch: next.epoch, writable });
+      let undelivered = 0;
+      let lastError = null;
+      for (const document of server.hocuspocus?.documents?.values?.() ?? []) {
+        for (const connection of document.getConnections?.() ?? []) {
+          try {
+            const writable =
+              next.mode !== 'transactions' && connection.context?.user?.readOnly !== true;
+            connection.sendStateless(notice(writable));
+          } catch (err) {
+            // One gone peer must not keep the notice from the rest.
+            undelivered += 1;
+            lastError = err;
+          }
         }
-      } catch (err) {
-        log.warn?.(`[transactions] mode notice not delivered everywhere: ${err.message}`);
+      }
+      if (undelivered > 0) {
+        log.warn?.(
+          `[transactions] mode notice not delivered to ${undelivered} connection(s): ${lastError?.message}`
+        );
       }
       if (switchGraceMs > 0) await new Promise((r) => setTimeout(r, switchGraceMs));
       state = { ...state, ...next };
@@ -287,17 +361,111 @@ export function createAcceptedRevisions({
       // authoritative one there is. Without this the fence would stay closed
       // after a switch on a coordinator whose first refresh had not run.
       ready = true;
-      if (mode !== 'transactions') return next;
+      if (mode !== 'transactions') {
+        answer(next);
+        return;
+      }
       // IMPORT BEFORE RECONCILE — reconciling first would roll back any
       // document the store already knew with content from a legacy interval.
-      const imported = await runBaselineImport();
-      await reconcile();
-      // The state AFTER the import — `next` still carries step 1's note.
-      return { ...next, importPending: !!state.importPending, imported };
+      try {
+        const imported = await importAndReconcile();
+        // The state AFTER the import — `next` still carries step 1's note.
+        answer({ ...next, importPending: !!state.importPending, imported });
+      } catch (err) {
+        // A store call that failed mid-import (a transport blip on a cell) left
+        // the switch half done, and nothing retried it until the next start
+        // (F3 on the cloud cell, reproduced on the cloud-shaped fixture as
+        // "mode failed: fetch failed"). The owner is told the truth now; the
+        // import keeps resuming, and proposals keep waiting for it, until it
+        // lands.
+        log.warn?.(
+          `[transactions] the switch's import did not finish (${err.message}) — resuming it until it does`
+        );
+        answer({ ...next, importPending: true, importResuming: true, reason: err.message });
+        await resumeUntilImported();
+      }
     };
+    let answer;
+    const answered = new Promise((resolve) => {
+      answer = resolve;
+    });
     const p = switching.then(run, run);
     switching = p.catch(() => {});
-    return p;
+    // `p` rejecting before an answer (the store refused the mode itself)
+    // rejects the caller; an answer given first stands.
+    return Promise.race([answered, p.then(() => answered)]);
+  }
+
+  /**
+   * The import, then the reconcile. A TRANSIENT failure (a store call that
+   * threw, or a chunk refused as `retryable`) is thrown for the caller to
+   * resume; a chunk the kernel refused for good is returned as it was before —
+   * resuming it forever would hold every proposal behind it.
+   */
+  async function importAndReconcile() {
+    const imported = await runBaselineImport();
+    if (imported.failed && imported.failed.code === 'retryable') {
+      throw Object.assign(
+        new Error(`import incomplete at chunk ${imported.failed.chunk} (${imported.failed.code})`),
+        { imported }
+      );
+    }
+    await reconcile();
+    return imported;
+  }
+
+  /**
+   * Resume an unfinished import until it lands (the import creates only what
+   * the store lacks, so every attempt is safe). Backoff 2 s → 60 s; stops when
+   * the project is no longer in accepted mode or the import is noted done.
+   */
+  // BOUNDED, AND NEVER IN THE OWNER'S WAY (security review M1). The kernel
+  // reports every failed store commit as `retryable`, including ones that will
+  // never succeed (a value over the store's size limit), so an unbounded loop
+  // held every proposal — and the owner's own switch back to legacy, queued
+  // behind it — forever. Now it gives up after `resumeAttempts` (proposals are
+  // released; the import stays noted pending for the next start, bounded the
+  // same way), and any new setMode cancels it at once.
+  let cancelResume = null;
+  async function resumeUntilImported() {
+    let cancelled = false;
+    let wake = null;
+    cancelResume = () => {
+      cancelled = true;
+      wake?.();
+    };
+    try {
+      for (let attempt = 0; attempt < resumeAttempts; attempt++) {
+        await new Promise((r) => {
+          wake = r;
+          const t = setTimeout(r, resumeBackoffMs[Math.min(attempt, resumeBackoffMs.length - 1)]);
+          t.unref?.();
+        });
+        if (cancelled) return null;
+        try {
+          const s = await store.state();
+          state = { ...state, ...s };
+          if (s.mode !== 'transactions') return null;
+          if (!s.importPending) {
+            await reconcile();
+            return null;
+          }
+          const imported = await importAndReconcile();
+          log.log?.(
+            `[transactions] resumed import: ${imported.created} created, ${imported.updated} updated, ${imported.dirs} folders`
+          );
+          return imported;
+        } catch (err) {
+          log.warn?.(`[transactions] import still unfinished (${err.message}) — retrying`);
+        }
+      }
+      log.error?.(
+        `[transactions] the import did not finish after ${resumeAttempts} attempts — proposals are no longer held for it; the next start resumes it. Check the store (a value over its size limit, credentials).`
+      );
+      return null;
+    } finally {
+      cancelResume = null;
+    }
   }
 
   /**
@@ -343,11 +511,52 @@ export function createAcceptedRevisions({
     state = { ...state, ...s };
     if (s.mode !== 'transactions' || !s.importPending) return null;
     log.warn?.('[transactions] the last switch did not finish importing — resuming it now');
-    const imported = await runBaselineImport();
-    log.log?.(
-      `[transactions] resumed import: ${imported.created} created, ${imported.updated} updated, ${imported.dirs} folders${imported.failed ? ' — still incomplete' : ''}`
-    );
-    return imported;
+    try {
+      const imported = await importAndReconcile();
+      log.log?.(
+        `[transactions] resumed import: ${imported.created} created, ${imported.updated} updated, ${imported.dirs} folders`
+      );
+      return imported;
+    } catch (err) {
+      // Not "until the next start" again: keep resuming in this process, and
+      // hold proposals behind it exactly as a switch does.
+      log.warn?.(`[transactions] resumed import did not finish (${err.message}) — retrying`);
+      const done = resumeUntilImported();
+      switching = switching.then(() => done).catch(() => {});
+      return { resuming: true, reason: err.message };
+    }
+  }
+
+  /**
+   * A BRAND-NEW project starts in accepted revisions (MAUDE_NEW_PROJECT_MODE,
+   * followup-multiplayer-hardening G3a): legacy is only as durable as the last
+   * backup generation on a cloud cell, and a project that never had legacy
+   * content has nothing to migrate. Brand new means the store never switched
+   * (epoch 0, revision 0) and neither the hub's documents nor the checkout hold
+   * a canvas — anything else waits for the owner's switch. The switch is the
+   * owner's path, with its every guard (durable store, paired browser studio).
+   */
+  async function adoptNewProjectMode(initialMode) {
+    if (initialMode !== 'transactions') return null;
+    const s = await store.state();
+    if (s.mode !== 'legacy' || s.epoch !== 0 || s.revision !== 0) return null;
+    const docs = listDocuments().filter(({ name }) => name !== 'maude.files');
+    if (docs.length || checkoutHasCanvases()) {
+      log.log?.(
+        '[transactions] new-project mode skipped — the project already has canvases; the owner switches it'
+      );
+      return { skipped: 'has-canvases' };
+    }
+    try {
+      const next = await setMode({ mode: 'transactions', expectEpoch: 0 });
+      log.log?.(
+        `[transactions] a new project — it saves through accepted revisions from the start (epoch ${next.epoch})`
+      );
+      return next;
+    } catch (err) {
+      log.error?.(`[transactions] new-project mode not applied: ${err.message}`);
+      return { skipped: err.code ?? 'refused' };
+    }
   }
 
   /** T30 — what switching to accepted revisions WOULD import (no write). */
@@ -447,6 +656,8 @@ export function createAcceptedRevisions({
           ...manifest,
           capabilities: {
             lanes: LANE_NAMES,
+            // DDR-242 — the annotations lane is the v2 board (JSON, '' = empty).
+            annotationsFormat: 2,
             operations: [
               'lane.replace',
               'doc.create',
@@ -466,8 +677,30 @@ export function createAcceptedRevisions({
         return true;
       }
       if (route === 'proposals' && method === 'POST') {
+        // Refuse, and wait, BEFORE the body is read (security review, chain
+        // 2): a switch or a resume holds proposals, and each waiting request
+        // would otherwise pin a body of up to 17 MB in memory — a viewer could
+        // run the hub out of memory while it waited.
+        if (who.readOnly) {
+          respondJson(403, {
+            protocol: 1,
+            status: 'rejected',
+            code: 'forbidden',
+            reason: 'this account can view but not edit',
+          });
+          return true;
+        }
+        if (waitingProposals >= MAX_WAITING_PROPOSALS) {
+          respondJson(503, { protocol: 1, status: 'rejected', code: 'retryable' });
+          return true;
+        }
+        waitingProposals += 1;
+        try {
+          await switching;
+        } finally {
+          waitingProposals -= 1;
+        }
         const bytes = await readBody(request);
-        await switching;
         const t0 = performance.now();
         const { status, body } = await kernel.submit(bytes, {
           actor: who.actor,
@@ -561,6 +794,7 @@ export function createAcceptedRevisions({
             mode: state.mode,
             epoch: state.epoch,
             imported: await previewSwitch(),
+            ...(browserUnpaired ? { blockers: ['browser-not-paired'] } : {}),
           });
           return true;
         }
@@ -576,7 +810,9 @@ export function createAcceptedRevisions({
           .slice(1, 4)
           .join('\n')}`
       );
-      respondJson(err.status ?? 503, {
+      // A stale epoch is the caller's view, not the hub's health: retrying the
+      // same request can never succeed, so it is a conflict, not a 503.
+      respondJson(err.status ?? (err.code === 'epoch-stale' ? 409 : 503), {
         code: err.code ?? 'retryable',
         ...(err.status && err.status < 500 ? { error: err.message } : {}),
       });
@@ -588,6 +824,7 @@ export function createAcceptedRevisions({
     kernel,
     reconcile,
     resumeImport,
+    adoptNewProjectMode,
     refresh,
     acceptedMode,
     fence,

@@ -130,16 +130,50 @@ test('every mapped row id was actually emitted by a real run', () => {
   // The run this repository keeps as its certification evidence. A typo here
   // is a map that points at nothing, which is the failure this whole file
   // exists to prevent.
-  const run = join(
-    ROOT,
-    '.ai/device/scenario-runs/reliable-project-multiplayer/2026-09-16T20-10-34.675Z/surface-results.json'
-  );
-  let rows;
+  //
+  // A row added after that certification is proven by a SUPPLEMENTARY real run
+  // of exactly its surface (`surface-run.mjs --only <prefix>`), listed here
+  // with what it added. Still "emitted by a real run" — never by a map alone.
+  const runs = [
+    '2026-09-16T20-10-34.675Z', // full certification
+    '2026-09-29T18-14-02.653Z', // --only L11: L11.comment.on-sticky / on-empty-canvas (#134/#136)
+  ];
+  let certification;
   try {
-    rows = JSON.parse(readFileSync(run, 'utf8')).rows;
+    certification = JSON.parse(
+      readFileSync(
+        join(
+          ROOT,
+          '.ai/device/scenario-runs/reliable-project-multiplayer',
+          runs[0],
+          'surface-results.json'
+        ),
+        'utf8'
+      )
+    ).rows;
   } catch {
     // Evidence directories are not committed; skip rather than fail on a clone.
     return;
+  }
+  const rows = [...certification];
+  for (const r of runs.slice(1)) {
+    try {
+      rows.push(
+        ...JSON.parse(
+          readFileSync(
+            join(
+              ROOT,
+              '.ai/device/scenario-runs/reliable-project-multiplayer',
+              r,
+              'surface-results.json'
+            ),
+            'utf8'
+          )
+        ).rows.filter((row) => row.status === 'pass')
+      );
+    } catch {
+      /* a supplement absent on this machine proves nothing — its ids stay dangling */
+    }
   }
   const emitted = new Set(rows.map((r) => r.id));
   const dangling = [...mappedRowIds()].filter((id) => !emitted.has(id)).sort();

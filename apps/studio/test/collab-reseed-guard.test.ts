@@ -13,6 +13,7 @@ import { describe, expect, test } from 'bun:test';
 import { Y_TYPES } from '../collab/persistence.ts';
 import { createRegistry } from '../collab/registry.ts';
 import type { RoomCallbacks } from '../collab/room.ts';
+import { board, sticky, v1, v1Sticky } from './fixtures/annotations-v2/boards.ts';
 
 function noopCallbacks(): RoomCallbacks {
   return {
@@ -59,20 +60,38 @@ describe('Gap 1 — syncRoomFromComments no-op guard', () => {
 });
 
 describe('Gap 1 — syncRoomFromAnnotations no-op guard', () => {
-  test('re-seeding the identical svg emits NO doc update', () => {
+  test('re-seeding the identical board emits NO doc update', () => {
     const r = createRegistry(noopCallbacks());
     const room = r.get('s');
-    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><g/></svg>';
-    r.syncRoomFromAnnotations('s', svg);
+    const b = board(sticky('s1', 'hi'));
+    r.syncRoomFromAnnotations('s', b);
 
     let updates = 0;
     room.doc.on('update', () => {
       updates++;
     });
-    r.syncRoomFromAnnotations('s', svg); // identical → no-op
+    r.syncRoomFromAnnotations('s', b); // identical → no-op
+    // Same board under a new action id is still no change (ops are diffs).
+    r.syncRoomFromAnnotations('s', b, 'another-action');
     expect(updates).toBe(0);
 
-    r.syncRoomFromAnnotations('s', '<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>');
+    r.syncRoomFromAnnotations(
+      's',
+      board(sticky('s1', 'hi'), sticky('s2', 'yo', { x: 300, index: 'a1' }))
+    );
     expect(updates).toBe(1);
+  });
+
+  test('a board re-seeded from its legacy SVG form emits NO doc update', () => {
+    const r = createRegistry(noopCallbacks());
+    const room = r.get('s');
+    const legacy = v1([v1Sticky('a', 'x')]);
+    r.syncRoomFromAnnotations('s', legacy.board);
+    let updates = 0;
+    room.doc.on('update', () => {
+      updates++;
+    });
+    r.syncRoomFromAnnotations('s', legacy.svg);
+    expect(updates).toBe(0);
   });
 });

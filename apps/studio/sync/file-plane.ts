@@ -61,6 +61,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
+import { open as openAsync } from 'node:fs/promises';
 import path from 'node:path';
 
 import { conflictCopyName, decideFile, type FileState } from './decide-file.ts';
@@ -71,7 +72,7 @@ import {
   type FileClass,
   isFilePlaneClass,
 } from './file-membership.ts';
-import { fetchJournal, type JournalEntry } from './journal-client.ts';
+import { fetchJournal, type JournalEntry, type JournalPage } from './journal-client.ts';
 import { createPullBudget } from './pull-budget.ts';
 import { failureReason, isBackpressure, retryAfterMs } from './retry-after.ts';
 import { classifyTransportError } from './transport-error.ts';
@@ -108,6 +109,28 @@ export function sha256File(abs: string): string {
     }
   } finally {
     closeSync(fd);
+  }
+  return hash.digest('hex');
+}
+
+/**
+ * The same digest, yielding to the event loop between chunks. A received video
+ * is verified on the path every canvas sync shares: hashing 513 MiB in one
+ * synchronous run held a teammate's edit back ~5 s on a receiving peer
+ * (F3 S14, 2026-09-23).
+ */
+export async function sha256FileAsync(abs: string): Promise<string> {
+  const hash = createHash('sha256');
+  const buf = Buffer.allocUnsafe(1024 * 1024);
+  const fh = await openAsync(abs, 'r');
+  try {
+    for (;;) {
+      const { bytesRead } = await fh.read(buf, 0, buf.length, null);
+      if (bytesRead <= 0) break;
+      hash.update(bytesRead === buf.length ? buf : buf.subarray(0, bytesRead));
+    }
+  } finally {
+    await fh.close();
   }
   return hash.digest('hex');
 }
@@ -189,6 +212,23 @@ export const REANCHOR_STORM_LIMIT = 5;
  * a real rotation recovers on the first quiet retry.
  */
 export const REANCHOR_HOLD_RECOVERY_MS = 15 * 20_000; // 15 poll ticks (index.ts REMOTE_POLL_MS)
+
+/**
+ * Journal pages one pass may read — `MAX_JOURNAL_PAGE` (2000) entries each.
+ *
+ * A pass used to read ONE page. On a log longer than that (Brno Alligators,
+ * 2026-10-01: cursor 294, hub head ~4875) the page came back `truncated`, the
+ * cursor never moved, and every pass re-read the same 2000 rows — the hub's
+ * newer rows never arrived at all. Worse, an owed full read (`since=0`) of one
+ * page then ran `pruneRemotes` over everything past it, so this machine
+ * "forgot" the hub held thousands of files, pushed them as "the hub must hold
+ * nothing", met 409 for each, and owed another full read for every conflict:
+ * 43 → 135 conflicts in ten minutes, 1602 by the afternoon.
+ *
+ * Bounded so a hostile or enormous log still costs a known amount per pass;
+ * whatever is left is read from the advanced cursor on the next one.
+ */
+export const MAX_JOURNAL_PAGES_PER_PASS = 20;
 
 /**
  * How many FIRST-ANCHOR conflicts one pass will resolve before it stops and asks.
@@ -383,10 +423,28 @@ export interface FilePlaneOptions {
    * half a gate, so both ask.
    */
   allowCodeModules: boolean;
+  /**
+   * Whether this peer may SEND a `code-module` the hub does not hold yet. The
+   * hub's file door takes one only from an owner-role token (403 otherwise);
+   * asking first keeps that refusal from reading as a dead credential and
+   * ending the pass. This is the hub's own word about our role, and that is
+   * fine here: it only decides whether to TRY — the door decides the rest.
+   * Absent ⇒ `allowCodeModules` (the receive consent), the pre-existing reading.
+   */
+  canUploadCodeModules?: boolean;
   /** Names conflict copies. Same exposure class as `syncMeta.by` (hostname). */
   label: string;
   /** Increment 6. Off means a local absence is HELD, never propagated. */
   propagateDeletes?: boolean;
+  /**
+   * The outbound delete breaker is OFF: a deliberate bulk delete on this
+   * machine propagates in one pass. Computed by the caller from LOCAL consent
+   * (`hubs.json` `unlimitedDeletes`) — never from the hub. The hub still gates
+   * it: only an owner-role token deletes past its budget, anyone else gets the
+   * 429 that holds this plane. The INBOUND breaker is untouched — what the hub
+   * asks this machine to remove is still held past the limits.
+   */
+  unlimitedOutboundDeletes?: boolean;
   /**
    * The user's bulk answer to a first-anchor storm — `'keep-local'` pushes
    * ours over theirs, `'keep-cloud'` takes theirs and parks ours. Absent means
@@ -616,6 +674,21 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
    *  a brick. */
   let reanchorsInARow = 0;
   let reanchorHeldSince = 0;
+
+  /**
+   * A conflict row is waiting on a remote only a FULL read can tell it.
+   *
+   * A push answered `conflict` defers to "the next pass, against what the hub
+   * holds now" — but for a path the hub then leaves alone, a cursor read says
+   * nothing, the remembered remote stays unknown, and the row sat in
+   * `conflict` for good: Resync restarted the plane and read the same silence
+   * (rca issue-file-ledger-orphaned-rows). So a conflict owes one full read.
+   * Seeded from the ledger, which is what makes Resync (a restart) pay it.
+   * Capped at one per `REANCHOR_HOLD_RECOVERY_MS`, like the re-anchor storm,
+   * so a hub answering `conflict` to every push cannot farm full reads.
+   */
+  let fullReadOwed = Object.values(ledger.rows()).some((r) => r.state === 'conflict');
+  let lastOwedFullReadAt = Number.NEGATIVE_INFINITY;
 
   /**
    * When the plane may talk to the hub again. Issue #109.
@@ -901,7 +974,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       }
       let got: string;
       try {
-        got = sha256File(staged);
+        got = await sha256FileAsync(staged);
       } catch {
         return { ok: false, reason: 'could not read the downloaded file back' };
       }
@@ -1473,8 +1546,41 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     await ensureHubLimits();
     requestsThisPass = 0;
 
+    /**
+     * Follow `truncated` to the end of the log (bounded). Stops — leaving the
+     * merged page `truncated` — on any refusal, a re-anchor or an epoch change
+     * mid-read: what was read is still true, it is just not everything.
+     */
+    const readRemainingPages = async (first: JournalPage): Promise<JournalPage> => {
+      let merged = first;
+      for (let n = 1; merged.truncated && n < MAX_JOURNAL_PAGES_PER_PASS; n += 1) {
+        const last = merged.entries.at(-1)?.seq;
+        if (last === undefined) break;
+        const next = await fetchJournal({
+          hubUrl: opts.hubUrl,
+          token: opts.token(),
+          since: last,
+          epoch: merged.epoch,
+          fetchImpl,
+          onRefused: async (res) => {
+            await refusal(res);
+          },
+        });
+        if (next === null || next.reanchor || next.epoch !== merged.epoch) break;
+        merged = { ...next, entries: [...merged.entries, ...next.entries] };
+      }
+      return merged;
+    };
+
     // ── 1. The hub's side ────────────────────────────────────────────────
-    const startedFrom = ledger.cursor();
+    const payOwedRead = fullReadOwed && now() - lastOwedFullReadAt >= REANCHOR_HOLD_RECOVERY_MS;
+    if (payOwedRead) {
+      fullReadOwed = false;
+      lastOwedFullReadAt = now();
+    }
+    // An owed read is a compaction read in the SAME epoch: the ancestors still
+    // describe this log, so nothing is degraded — it only refreshes remotes.
+    const startedFrom = payOwedRead ? 0 : ledger.cursor();
     let fullRead = startedFrom === 0;
     let page = await fetchJournal({
       hubUrl: opts.hubUrl,
@@ -1553,6 +1659,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       reanchorsInARow = 0;
       reanchorHeldSince = 0;
     }
+    page = await readRemainingPages(page);
 
     // THE HUB'S SIDE IS THE LEDGER'S REPLICA, UPDATED BY THIS PAGE — not the
     // page itself. A delta says "these changed"; it says nothing at all about
@@ -1580,7 +1687,11 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       }
       ledger.noteRemote(rel, row.deleted ? null : row.sha256, row.seq);
     }
-    if (fullRead) ledger.pruneRemotes(new Set(delta.keys()));
+    // Only a COMPLETE full read may say "the hub does not have this". A
+    // truncated one is silent about every path past its last page, and
+    // pruning on it retracted the hub's copy of thousands of files at once
+    // (see MAX_JOURNAL_PAGES_PER_PASS).
+    if (fullRead && !page.truncated) ledger.pruneRemotes(new Set(delta.keys()));
 
     // ── 2. Ours ──────────────────────────────────────────────────────────
     const local = scanLocalFiles(designRoot, ledger, opts.canvasGroups);
@@ -1625,6 +1736,63 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
         ledger.forget(rel);
         continue;
       }
+      // NOWHERE ANY MORE — not on this machine, not live on the hub, and not
+      // something we last agreed on (that is a deletion, which has its own
+      // lane). A file moved into `_trash` before it ever uploaded, or a hub
+      // file this peer refused and the hub has since deleted, left its row
+      // behind as "only on this machine" / "stuck" forever — the panel counted
+      // 11 of them as waiting on alligators (2026-10-02). There is nothing to
+      // move in either direction, so there is nothing to track.
+      if (
+        !here &&
+        kept &&
+        !kept.syncedHash &&
+        (kept.state === 'local-only' || kept.state === 'stuck') &&
+        !(row && !row.deleted) &&
+        !ledger.remoteOf(rel)
+      ) {
+        ledger.forget(rel);
+        continue;
+      }
+      // NOT OURS ON EITHER SIDE ANY MORE — forget it, do not keep refusing it.
+      //
+      // A path can leave the file plane while the ledger still tracks it: a
+      // `.css` written before its `.tsx` becomes the canvas's sidecar, or the
+      // canvas groups change. The local scan stops offering it, the hub stops
+      // listing it, and the row stayed behind forever — re-stamped `stuck` by
+      // the admission drop against a remembered remote, or frozen in
+      // `conflict` with nothing left to decide — counted as "waiting" in the
+      // panel (rca issue-file-ledger-orphaned-rows). Only when this page did
+      // not offer it: a path the hub is actively naming still goes through
+      // admission, which reports the refusal.
+      if (!here && !row && kept) {
+        const cls = classifyProjectFile(rel, {
+          canvasGroups: opts.canvasGroups,
+          hasFile: (r) => local.has(r) || existsSync(path.join(designRoot, r)),
+        });
+        if (!isFilePlaneClass(cls)) {
+          ledger.forget(rel);
+          continue;
+        }
+      }
+      // A DELETE IS A TRANSFER TOO. The code-module gate below only sees a
+      // non-null remote, so a tombstone walked past it: an ancestor this peer
+      // recorded (by push, or by agreement) was all `tombstone-agreed` needed
+      // to quarantine a code module on the word of a hub that may not move
+      // one. Refuse it here, reported, with the file and its row untouched.
+      if (row?.deleted && here && !opts.allowCodeModules) {
+        const cls = classifyProjectFile(rel, {
+          canvasGroups: opts.canvasGroups,
+          hasFile: (r) => local.has(r) || existsSync(path.join(designRoot, r)),
+        });
+        if (cls === 'code-module') {
+          out.dropped.push({
+            rel,
+            reason: 'code modules are removed only by an owner-vouched or loopback hub',
+          });
+          continue;
+        }
+      }
       // What the hub holds: this page when it spoke about the path, otherwise
       // what we last learned. `undefined` (never learned) reads as null only
       // after a full read has had the chance to say so.
@@ -1650,12 +1818,48 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           continue;
         }
         if (cls === 'code-module' && !opts.allowCodeModules) {
+          // AGREEMENT IS NOT A TRANSFER. The gate refuses to move a code
+          // module from an unvouched hub (DDR-054); identical bytes on both
+          // sides move nothing, and reporting them as refused left a
+          // converged file permanently "stuck".
+          if (here && here.hash === remoteHash) {
+            void ledger.adoptAfter(rel, here.hash, () => {}, {
+              ...(row ? { remoteSeq: row.seq } : {}),
+              size: here.size,
+              mtimeMs: here.mtimeMs,
+              state: 'on-hub',
+            });
+            out.synced += 1;
+            continue;
+          }
           drop(
             out,
             rel,
             'code modules replicate only from an owner-vouched or loopback hub',
             ledger
           );
+          continue;
+        }
+      }
+
+      // THE UPWARD HALF OF THE SAME GATE. The hub refuses a code module from
+      // anyone but an owner (file-door: 403), and that 403 used to come back
+      // here as "the workspace did not accept this connection" — a credential
+      // failure, which asked for a new token and ENDED THE PASS. One `.ts`
+      // helper written by a member therefore stalled every other upload behind
+      // it (2026-10-02, alligators: five `ui/club-web/_*.ts`, 264 refusals,
+      // passes stopped with 2 500+ paths still to do). Never ask: report it,
+      // keep the file, and let the rest of the pass run.
+      if (remoteHash === null && here && !(opts.canUploadCodeModules ?? opts.allowCodeModules)) {
+        const cls = classifyProjectFile(rel, {
+          canvasGroups: opts.canvasGroups,
+          hasFile: (r) => local.has(r) || existsSync(path.join(designRoot, r)),
+        });
+        if (cls === 'code-module') {
+          out.dropped.push({
+            rel,
+            reason: 'only the project owner can upload code modules (.ts/.js) to this workspace',
+          });
           continue;
         }
       }
@@ -1711,6 +1915,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
      *                drain the first two are blind to, and survives a restart.
      */
     const overBreaker = (direction: 'out' | 'in', n: number): boolean => {
+      if (direction === 'out' && opts.unlimitedOutboundDeletes === true) return false;
       const already = ledger.deletesInWindow(direction, DELETE_BUDGET_WINDOW_MS);
       if (n > DELETE_BREAKER_MAX) return true;
       if (
@@ -1885,14 +2090,15 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
 
     // ── 5. Position ──────────────────────────────────────────────────────
     //
-    // Only advance the cursor when the pass actually consumed the page. A
-    // partial pass re-reads the same range next time, which is free (the
-    // decisions for already-converged paths are `noop`).
-    if (!page.truncated && out.failed.length === 0) {
-      ledger.setPosition(page.epoch, page.head);
-    } else {
-      ledger.setPosition(page.epoch, ledger.cursor());
-    }
+    // Advance to what this pass READ — the head when it read to the end,
+    // else the last entry it got. Every remote it learned is already in the
+    // ledger (`noteRemote`, step 1), and every path the ledger tracks is
+    // re-decided each pass, so a file that failed is retried from that
+    // memory, not by re-reading its row. Holding the cursor on any failure
+    // pinned it forever on a project that always has one (515 unreachable
+    // rows on Alligators), which is half of what kept it at 294.
+    const readTo = page.truncated ? (page.entries.at(-1)?.seq ?? 0) : page.head;
+    ledger.setPosition(page.epoch, Math.max(ledger.cursor(), readTo));
     ledger.flush();
 
     if (out.pulled.length || out.pushed.length || out.conflicts.length) {
@@ -2052,6 +2258,22 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           out.pushed.push(rel);
           return true;
         }
+        if (res.conflict && res.current !== null && res.current === here.hash) {
+          // THE HUB ALREADY HOLDS EXACTLY THESE BYTES. A 409 whose `current`
+          // is our own hash is agreement, not a conflict: the hub got the same
+          // file another way (a bucket refill after a restart, another peer's
+          // identical push) while we decided from an older view. Recording it
+          // as a conflict owed a full read per file and parked nothing anyone
+          // needed — the 2026-10-01 Alligators storm was mostly this.
+          await ledger.adoptAfter(rel, here.hash, () => {}, {
+            size: here.size,
+            mtimeMs: here.mtimeMs,
+            state: 'on-hub',
+          });
+          ledger.noteRemote(rel, here.hash);
+          out.synced += 1;
+          return true;
+        }
         if (res.conflict) {
           // The hub moved under us. Do NOT retry blindly — re-decide next
           // pass against what it actually holds now, which is exactly what a
@@ -2059,6 +2281,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
           ledger.setState(rel, 'conflict', {
             reason: 'the hub changed this file while the upload was in flight',
           });
+          fullReadOwed = true;
           out.conflicts.push({ rel, copy: null });
           return true;
         }
@@ -2298,7 +2521,7 @@ function holdOversized(out: FilePlaneResult, ledger: FileLedger, file: Oversized
 function referencedAssetNames(designRoot: string): Set<string> {
   const out = new Set<string>();
   const RE = /assets\/([A-Za-z0-9._-]+\.[A-Za-z0-9]+)/g;
-  const SCANNED = /\.(?:annotations\.svg|tsx|jsx|css|meta\.json)$/i;
+  const SCANNED = /\.(?:annotations\.(?:svg|json)|tsx|jsx|css|meta\.json)$/i;
   const walk = (dir: string, depth: number): void => {
     if (depth > MAX_WALK_DEPTH) return;
     let entries: Dirent[];

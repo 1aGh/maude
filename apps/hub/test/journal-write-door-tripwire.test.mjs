@@ -45,6 +45,14 @@ const NOT_A_FILE_PLANE_WRITE = new Map([
   // disjoint at classification, so a row here could not exist even if this
   // module asked for one).
   ['workspace-agent.mjs', 'projects plane-A canvas lanes, which the classifier excludes'],
+  // Cell materializer: `<designRoot>/_cache/blobs/<sha>` is runtime state
+  // (DDR-115) — content-addressed, disposable, outside the file plane. Its
+  // rows are the journal's already; a blob arriving or leaving says nothing.
+  ['materializer.mjs', 'content-addressed cache, outside the file plane, never journaled'],
+  // The design root's own `config.json` classifies `never` (file-membership):
+  // the file plane refuses to carry it in either direction, so a journal row
+  // for it could not exist. The owner sets it through its own door instead.
+  ['project-config-door.mjs', "writes config.json, which the file plane classifies 'never'"],
 ]);
 
 /** Every hub source file, flat (the tree has no nested source dirs today). */

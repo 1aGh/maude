@@ -2,6 +2,7 @@ import { $, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
+import { canvasRow } from '../helpers/tree';
 
 /**
  * Export, from the bundled Maude `.app` (DDR-231 Phase 2 T8).
@@ -58,7 +59,7 @@ const FORMATS: Array<{
 
 /** Open a fixture canvas from the tree and wait for its frame. */
 async function openCanvas(slug: 'export' | 'video'): Promise<void> {
-  const row = await $(`[data-testid="canvas-row-ui-${slug}"]`);
+  const row = await canvasRow(`canvas-row-ui-${slug}`);
   await row.waitForExist({ timeout: 30_000 });
   await row.click();
   const frame = await $('[data-testid="canvas-frame"]');

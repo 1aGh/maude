@@ -32,6 +32,7 @@ import {
   closeJournal,
   DELETE_BUDGET_PER_WINDOW,
   DELETE_BUDGET_WINDOW_MS,
+  OWNER_DELETE_SOURCE,
   openJournal,
 } from '../src/journal.mjs';
 import { addToken } from '../src/tokens.mjs';
@@ -66,7 +67,7 @@ function seedFile(journal, rel, body = 'BYTES') {
   return rel;
 }
 
-async function doorDelete(rel, bearer = ownerToken, body = 'BYTES') {
+async function doorDelete(rel, bearer = peerToken, body = 'BYTES') {
   const journal = openJournal(dataDir);
   const request = {
     headers: {
@@ -99,8 +100,14 @@ async function doorDelete(rel, bearer = ownerToken, body = 'BYTES') {
     designRoot,
     journal,
     onWritten: ({ path }) => journal.recordWrite({ designRoot, path, source: 'peer-put' }),
-    onDeleted: ({ path }) =>
-      journal.recordWrite({ designRoot, path, source: 'peer-put', deleted: true }),
+    // The same mapping server.mjs `noteCheckoutDelete` makes.
+    onDeleted: ({ path, owner }) =>
+      journal.recordWrite({
+        designRoot,
+        path,
+        source: owner === true ? OWNER_DELETE_SOURCE : 'peer-put',
+        deleted: true,
+      }),
   });
   return { status, json: payload ? JSON.parse(payload) : null };
 }
@@ -142,7 +149,7 @@ describe('the delete breaker at the HTTP door', () => {
       await doorDelete(rel);
     }
     seedFile(journal, 'assets/survivor.png', 'STILL HERE');
-    const res = await doorDelete('assets/survivor.png', ownerToken, 'STILL HERE');
+    const res = await doorDelete('assets/survivor.png', peerToken, 'STILL HERE');
     assert.equal(res.status, 429);
     // The point of checking BEFORE the quarantine: a refused delete must not
     // have already moved the file into _trash/.
@@ -161,6 +168,56 @@ describe('the delete breaker at the HTTP door', () => {
     seedFile(journal, 'system/ds/tokens.ts', 'export const x = 1;');
     const res = await doorDelete('system/ds/tokens.ts', peerToken);
     assert.equal(res.status, 403);
+  });
+});
+
+describe('an owner-role token is outside the door budget', () => {
+  it('deletes far past the ceiling, and each tombstone is recorded as owner-delete', async () => {
+    const journal = openJournal(dataDir);
+    const total = DELETE_BUDGET_PER_WINDOW * 3;
+    for (let i = 0; i < total; i += 1) {
+      const rel = `assets/owner-${i}.png`;
+      seedFile(journal, rel);
+      const res = await doorDelete(rel, ownerToken);
+      assert.equal(res.status, 200, `owner deletion ${i} must not hit the breaker`);
+    }
+    // Recorded as owner-delete: outside the door count, inside the replay count.
+    assert.equal(journal.deletionsSince(0), 0);
+    assert.equal(journal.allDeletionsSince(0), total);
+  });
+
+  it('does not spend the budget everyone else is held to', async () => {
+    const journal = openJournal(dataDir);
+    for (let i = 0; i < DELETE_BUDGET_PER_WINDOW * 2; i += 1) {
+      const rel = `assets/owner-${i}.png`;
+      seedFile(journal, rel);
+      await doorDelete(rel, ownerToken);
+    }
+    seedFile(journal, 'assets/peer.png');
+    const res = await doorDelete('assets/peer.png', peerToken);
+    assert.equal(res.status, 200, 'an owner purge must leave the peer budget untouched');
+  });
+
+  it('still quarantines what it deletes — an owner delete is as recoverable as any', async () => {
+    const journal = openJournal(dataDir);
+    seedFile(journal, 'assets/kept.png');
+    const res = await doorDelete('assets/kept.png', ownerToken);
+    assert.equal(res.status, 200);
+    assert.equal(readIfPresent(join(designRoot, 'assets/kept.png')), null);
+    assert.ok(res.json.parked ?? res.json.deleted, 'the door reports the deletion');
+  });
+
+  it('a peer token is still held to the budget after an owner purge', async () => {
+    const journal = openJournal(dataDir);
+    for (let i = 0; i < DELETE_BUDGET_PER_WINDOW; i += 1) {
+      const rel = `assets/peer-${i}.png`;
+      seedFile(journal, rel);
+      assert.equal((await doorDelete(rel, peerToken)).status, 200);
+    }
+    seedFile(journal, 'assets/over.png');
+    assert.equal((await doorDelete('assets/over.png', peerToken)).status, 429);
+    seedFile(journal, 'assets/owner-over.png');
+    assert.equal((await doorDelete('assets/owner-over.png', ownerToken)).status, 200);
   });
 });
 
@@ -193,6 +250,28 @@ describe('the delete breaker on the R2 tail replay', () => {
       'a tail may not apply more tombstones than the window allows'
     );
     assert.equal(res.malformed, 5, 'the overflow counts as malformed — the drill’s own counter');
+  });
+
+  it('counts owner deletes too — a label read back from the tail is not authority', () => {
+    const journal = openJournal(dataDir);
+    // An owner purge spends nothing at the door, but the replay must not hand
+    // an injected tail a fresh budget because the window is full of owner rows.
+    for (let i = 0; i < DELETE_BUDGET_PER_WINDOW; i += 1) {
+      const rel = `assets/owner-pre-${i}.png`;
+      seedFile(journal, rel);
+      journal.recordWrite({ designRoot, path: rel, source: OWNER_DELETE_SOURCE, deleted: true });
+    }
+    const line = JSON.stringify({
+      seq: 9000,
+      path: 'assets/tail-owner.png',
+      class: 'inert-media',
+      deleted: true,
+      source: OWNER_DELETE_SOURCE,
+      atMs: Date.now(),
+    });
+    const res = journal.replayTail(line, { designRoot });
+    assert.equal(res.applied, 0);
+    assert.equal(res.malformed, 1, 'an owner-delete label in the tail buys no exemption');
   });
 
   it('the budget is CUMULATIVE — a replay cannot top it back up', () => {

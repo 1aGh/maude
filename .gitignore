@@ -32,6 +32,7 @@ dev-server/.cache/
 .design/_canvas-state/
 .design/_chat/
 .design/_untrusted/
+.design/_cache/
 # kgai knowledge-graph store. The split is LOG (durable truth) vs CACHE/IDENTITY
 # (per-machine) — kgai's own store-level .gitignore draws the same line:
 #   • log/*.ndjson  → VERSIONED. The append-only decision log IS the knowledge.
@@ -121,7 +122,7 @@ apps/studio/dist/*
 # Stub .keep written by dev-server before the inspect.ts fix landed (Phase 3.4)
 .design/.keep
 
-# DDR-115 — `*.annotations.svg` is VERSIONED (durable visual markup, no other
+# DDR-115 — `*.annotations.json` (DDR-242; v1: `*.annotations.svg`) is VERSIONED (durable visual markup, no other
 # transport). It is deliberately NOT ignored; it travels via git + shows in the
 # Changes panel. (Was ignored pre-DDR-115; flipped to versioned per user decision.)
 

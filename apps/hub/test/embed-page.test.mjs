@@ -1,4 +1,4 @@
-// DDR-242 — the frameable signed-out answer to an embedded studio request.
+// DDR-247 — the frameable signed-out answer to an embedded studio request.
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';

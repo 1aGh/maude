@@ -38,7 +38,7 @@
 // retry-until-delivered machinery and no ordering guarantees: it is a doorbell,
 // not a delivery.
 
-import { parsePoke } from './poke.ts';
+import { isKeepalive, parsePoke } from './poke.ts';
 
 /** The reserved control document. Must match the hub's `files-ctl.mjs`. */
 export const FILES_CTL_DOC = 'maude.files';
@@ -170,6 +170,10 @@ export function createCtlProvider(opts: CtlProviderOptions): CtlProvider {
     });
     p.on('stateless', (data: { payload: string }) => {
       if (stopped) return;
+      // The hub's keep-alive: its whole job was arriving (it keeps the
+      // provider's silence check quiet on a healthy socket). Not a poke, and
+      // not malformed either.
+      if (isKeepalive(data?.payload)) return;
       const poke = parsePoke(data?.payload);
       if (poke === null) {
         malformed += 1;

@@ -5,6 +5,7 @@ import { $, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
+import { canvasRow } from '../helpers/tree';
 
 /**
  * In-canvas TEXT EDITING in the real WKWebView — the verification backbone for
@@ -40,7 +41,7 @@ const SECTION = '[data-id="s_e2esection1"]';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE_FILES = [
   join(HERE, '../fixtures/project/.design/ui/Smoke.tsx'),
-  join(HERE, '../fixtures/project/.design/ui-smoke.annotations.svg'),
+  join(HERE, '../fixtures/project/.design/ui-smoke.annotations.json'),
 ];
 const fixtures = createFixtureGuard('canvas-text-editing', FIXTURE_FILES);
 
@@ -72,17 +73,20 @@ function probe(sel: string): Promise<Probe> {
     const sc = win.getSelection?.();
     const a = doc.activeElement as HTMLElement | null;
     const customCaret = doc.querySelector('[data-maude-caret]') as HTMLElement | null;
+    // Annotation editors are <textarea>s (annotations v2): their selection
+    // lives on the element, not in the document Selection.
+    const ta = el instanceof win.HTMLTextAreaElement ? el : null;
     return {
       frame: true,
       exists: !!el,
-      text: el?.textContent ?? null,
+      text: ta ? ta.value : (el?.textContent ?? null),
       ce: el?.getAttribute('contenteditable') ?? null,
       editingClass: el?.classList.contains('dc-text-editing') ?? false,
       caretColor: el ? win.getComputedStyle(el).caretColor : null,
       activeTag: a?.tagName ?? null,
-      selCollapsed: sc ? sc.isCollapsed : null,
-      selAnchorOffset: sc ? sc.anchorOffset : null,
-      selText: sc ? sc.toString() : null,
+      selCollapsed: ta ? ta.selectionStart === ta.selectionEnd : sc ? sc.isCollapsed : null,
+      selAnchorOffset: ta ? ta.selectionStart : sc ? sc.anchorOffset : null,
+      selText: ta ? ta.value.slice(ta.selectionStart, ta.selectionEnd) : sc ? sc.toString() : null,
       customCaret: !!customCaret,
       customCaretAnim: customCaret ? win.getComputedStyle(customCaret).animationName : null,
     } as Probe;
@@ -109,6 +113,29 @@ function frameLocalBox(sel: string) {
     width: number;
     height: number;
   } | null>;
+}
+
+/** Iframe-local point at the middle of character `i` of an element's text. */
+function charPoint(sel: string, i: number) {
+  return browser.execute(
+    (q, idx) => {
+      const iframe = document.querySelector(
+        '[data-testid="canvas-frame"]'
+      ) as HTMLIFrameElement | null;
+      const doc = iframe?.contentDocument;
+      const el = doc?.querySelector(q);
+      const walker = doc?.createTreeWalker(el as Node, 4 /* NodeFilter.SHOW_TEXT */);
+      const node = walker?.nextNode();
+      if (!doc || !node || (node.textContent ?? '').length <= idx) return null;
+      const r = doc.createRange();
+      r.setStart(node, idx);
+      r.setEnd(node, idx + 1);
+      const b = r.getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    },
+    sel,
+    i
+  ) as Promise<{ x: number; y: number } | null>;
 }
 
 /** Dispatch a real-shaped double-click (down/up/click ×2 + dblclick) on the
@@ -201,10 +228,10 @@ function annotEditorProbe() {
       tag: ed?.tagName ?? null,
       inForeignObject: !!ed?.closest('foreignObject'),
       inWorld: !!ed?.closest('.dc-world'),
-      // Ghost check: read-only sticky bodies still painted for a stroke that
-      // is being edited (suppression must remove them).
-      stickyReadBodies: doc.querySelectorAll('[data-id="s_e2esticky1"] .dc-sticky-body').length,
-      text: ed?.textContent ?? null,
+      // Ghost check: the read-only text block of the element being edited is
+      // replaced by the editor (annotations v2: the textarea takes its place).
+      stickyReadBodies: doc.querySelectorAll('[data-id="s_e2esticky1"] div.dc-annot-text').length,
+      text: ed instanceof HTMLTextAreaElement ? ed.value : (ed?.textContent ?? null),
     };
   }) as Promise<{
     frame: boolean;
@@ -271,7 +298,7 @@ function countStrokes(): Promise<number> {
       '[data-testid="canvas-frame"]'
     ) as HTMLIFrameElement | null;
     const doc = iframe?.contentDocument;
-    return doc ? doc.querySelectorAll('.dc-annot-svg [data-id][data-tool]').length : -1;
+    return doc ? doc.querySelectorAll('.dc-annot-scene [data-id][data-tool]').length : -1;
   }) as Promise<number>;
 }
 
@@ -289,6 +316,10 @@ function typeAtEnd(text: string) {
     const win = iframe?.contentWindow as (Window & typeof globalThis) | null;
     const el = doc?.activeElement as HTMLElement | null;
     if (!doc || !win || !el) return false;
+    if (el instanceof win.HTMLTextAreaElement) {
+      el.setSelectionRange(el.value.length, el.value.length);
+      return doc.execCommand('insertText', false, t);
+    }
     const sel = win.getSelection();
     if (sel) {
       const r = doc.createRange();
@@ -370,7 +401,7 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     await waitForSidecar();
     const list = await $('[data-testid="canvas-list"]');
     await list.waitForDisplayed({ timeout: 60_000 });
-    const row = await $('[data-testid="canvas-row-ui-smoke"]');
+    const row = await canvasRow('canvas-row-ui-smoke');
     await row.waitForExist({ timeout: 30_000 });
     await row.click();
     const frame = await $('[data-testid="canvas-frame"]');
@@ -609,14 +640,13 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
       if (!edBox) throw new Error(`no editor box (${level})`);
       expect(Math.abs(edBox.left - trect.left)).toBeLessThanOrEqual(12);
       expect(Math.abs(edBox.top - trect.top)).toBeLessThanOrEqual(12);
-      // No ghost: the read-only <text> node is gone from the DOM while its
-      // editor is up.
-      expect((await probe(TEXT_STROKE)).exists).toBe(false);
+      // No ghost: the read-only text block is replaced by the editor.
+      expect((await probe(`${TEXT_STROKE} div.dc-annot-text`)).exists).toBe(false);
       await capture(`text-editor-html-${level}`);
       await synthKey('Escape');
       await browser.pause(200);
       expect((await annotEditorProbe()).exists).toBe(false);
-      expect((await probe(TEXT_STROKE)).exists).toBe(true);
+      expect((await probe(`${TEXT_STROKE} div.dc-annot-text`)).exists).toBe(true);
     }
     // Restore the viewport for the phases below.
     await postToCanvas({ dgn: 'zoom', op: 'fit' });
@@ -624,97 +654,36 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
   });
 
   // ── Phase 3 — caret-at-click for annotation editors ───────────────────────
-  it('sticky: dblclick at a char offset collapses the caret there; a second click moves it; custom caret mounted', async () => {
-    // Aim inside the READ body's first text line: mono 14px ≈ 8.4px/char,
-    // body padding 14px top / 16px left — all WORLD units, so scale them by
-    // the live zoom (body.width / sticky world width 170) into viewport px.
-    // ~5 chars in ("Stick|y seed text").
-    const body = await frameLocalBox(`${STICKY} .dc-sticky-body`);
-    if (!body) throw new Error('no sticky read body');
-    const zf = body.width / 170;
-    const nearStart = { x: body.left + (16 + 42) * zf, y: body.top + (14 + 9) * zf };
-    await synthDblclick(STICKY, nearStart.x, nearStart.y);
+  it('sticky: dblclick at a char offset collapses the caret there (native textarea caret)', async () => {
+    // Aim at the 5th character of the READ text block ("Stick|y seed text") —
+    // measured with a Range, so font metrics and zoom don't matter.
+    const at = await charPoint(`${STICKY} div.dc-annot-text`, 5);
+    if (!at) throw new Error('no sticky read text');
+    await synthDblclick(STICKY, at.x, at.y);
     await browser.pause(300);
     const p = await probe('.dc-annot-editor');
-    const diag = await browser.execute(
-      (x, y) => {
-        const iframe = document.querySelector(
-          '[data-testid="canvas-frame"]'
-        ) as HTMLIFrameElement | null;
-        const doc = iframe?.contentDocument;
-        const win = iframe?.contentWindow as (Window & typeof globalThis) | null;
-        if (!doc || !win) return null;
-        const hit = doc.elementFromPoint(x, y);
-        const ed = doc.querySelector('.dc-annot-editor') as HTMLElement | null;
-        const sel = win.getSelection();
-        return {
-          hitAtPoint: hit ? `${hit.tagName}.${(hit as HTMLElement).className}`.slice(0, 60) : null,
-          hitInEditor: !!(ed && hit && ed.contains(hit)),
-          editorRect: ed ? JSON.stringify(ed.getBoundingClientRect().toJSON()) : null,
-          activeTag: doc.activeElement?.tagName ?? null,
-          activeIsEditor: doc.activeElement === ed,
-          anchorInEditor: !!(ed && sel?.anchorNode && ed.contains(sel.anchorNode)),
-          carets: doc.querySelectorAll('[data-maude-caret]').length,
-        };
-      },
-      Math.round(nearStart.x),
-      Math.round(nearStart.y)
-    );
-    console.log('[P3 diag]', JSON.stringify(diag), 'point:', JSON.stringify(nearStart));
     expect(p.exists).toBe(true);
-    // NOT select-all: collapsed caret, empty selection string, offset at the
-    // clicked character (±3 chars tolerance for font metric drift).
+    // NOT select-all: a collapsed caret at the clicked character (±3 chars).
     expect(p.selCollapsed).toBe(true);
     expect(p.selText).toBe('');
     expect(p.selAnchorOffset).toBeGreaterThanOrEqual(2);
     expect(p.selAnchorOffset).toBeLessThanOrEqual(8);
-    // The shared custom blinking caret is mounted on annotation editors too.
-    expect(p.customCaret).toBe(true);
-    expect(p.customCaretAnim ?? '').toContain('maude-caret-blink');
+    // The textarea shows the platform caret (annotations v2 dropped the
+    // custom caret: WKWebView paints a native one in a textarea).
+    expect(p.caretColor).not.toBe('transparent');
     await capture('sticky-caret-at-click');
-    // A second plain click at a farther offset MOVES the caret there (the
-    // explicit pointerup re-placement — native placement never runs for
-    // synthetic events, so this asserts the app's own path).
-    const first = p.selAnchorOffset ?? 0;
-    const farther = { x: body.left + (16 + 100) * zf, y: body.top + (14 + 9) * zf };
-    await browser.execute(
-      (x, y) => {
-        const iframe = document.querySelector(
-          '[data-testid="canvas-frame"]'
-        ) as HTMLIFrameElement | null;
-        const doc = iframe?.contentDocument;
-        const win = iframe?.contentWindow as (Window & typeof globalThis) | null;
-        const el = doc?.querySelector('.dc-annot-editor') as HTMLElement | null;
-        if (!el || !win) return false;
-        const opts = { bubbles: true, cancelable: true, view: win, clientX: x, clientY: y };
-        el.dispatchEvent(new win.PointerEvent('pointerdown', { ...opts, pointerId: 1 }));
-        el.dispatchEvent(new win.MouseEvent('mousedown', { ...opts, detail: 1 }));
-        el.dispatchEvent(new win.PointerEvent('pointerup', { ...opts, pointerId: 1 }));
-        el.dispatchEvent(new win.MouseEvent('mouseup', { ...opts, detail: 1 }));
-        el.dispatchEvent(new win.MouseEvent('click', { ...opts, detail: 1 }));
-        return true;
-      },
-      Math.round(farther.x),
-      Math.round(farther.y)
-    );
-    await browser.pause(200);
-    const p2 = await probe('.dc-annot-editor');
-    expect(p2.selCollapsed).toBe(true);
-    expect(p2.selAnchorOffset).toBeGreaterThan(first);
-    await capture('sticky-caret-moved-by-click');
     await synthKey('Escape');
     await browser.pause(200);
 
     // Standalone text gets the same treatment (lighter assertion set).
-    const trect = await frameLocalBox(TEXT_STROKE);
-    if (!trect) throw new Error('no text-stroke rect');
-    await synthDblclick(TEXT_STROKE, trect.left + 30, trect.cy);
+    const tat = await charPoint(`${TEXT_STROKE} div.dc-annot-text`, 4);
+    if (!tat) throw new Error('no text read block');
+    await synthDblclick(TEXT_STROKE, tat.x, tat.y);
     await browser.pause(300);
     const tp = await probe('.dc-annot-editor');
     expect(tp.exists).toBe(true);
     expect(tp.selCollapsed).toBe(true);
     expect(tp.selText).toBe('');
-    expect(tp.customCaret).toBe(true);
     await capture('text-caret-at-click');
     await synthKey('Escape');
     await browser.pause(200);
@@ -785,7 +754,7 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     await browser.pause(400);
     expect((await annotEditorProbe()).exists).toBe(false);
     await browser.waitUntil(
-      async () => ((await probe(`${STICKY} .dc-sticky-body`)).text ?? '').includes('plus'),
+      async () => ((await probe(`${STICKY} div.dc-annot-text`)).text ?? '').includes('plus'),
       { timeout: 8_000, interval: 400, timeoutMsg: 'sticky text never committed' }
     );
     await capture('sticky-keyboard-committed');
@@ -803,24 +772,28 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     await synthKey('Enter');
     await browser.pause(400);
     expect((await annotEditorProbe()).exists).toBe(false);
-    await browser.waitUntil(async () => ((await probe(TEXT_STROKE)).text ?? '').includes('tail'), {
-      timeout: 8_000,
-      interval: 400,
-      timeoutMsg: 'standalone text never committed',
-    });
+    await browser.waitUntil(
+      async () => ((await probe(`${TEXT_STROKE} div.dc-annot-text`)).text ?? '').includes('tail'),
+      {
+        timeout: 8_000,
+        interval: 400,
+        timeoutMsg: 'standalone text never committed',
+      }
+    );
     await capture('text-keyboard-committed');
 
     // ---- Section title (singleLine: Shift+Enter commits too, no newline) ----
-    const chip = await frameLocalBox(`${SECTION} text`);
+    const CHIP = `${SECTION} [data-section-chip]`;
+    const chip = await frameLocalBox(CHIP);
     if (!chip) throw new Error('no section chip');
-    await synthDblclick(`${SECTION} text`, chip.cx, chip.cy);
+    await synthDblclick(CHIP, chip.cx, chip.cy);
     await browser.pause(300);
     expect((await annotEditorProbe()).exists).toBe(true);
     await typeAtEnd(' X');
     await synthKey('Enter', { shift: true });
     await browser.pause(400);
     expect((await annotEditorProbe()).exists).toBe(false); // committed
-    const label = (await probe(`${SECTION} text`)).text ?? '';
+    const label = (await probe(CHIP)).text ?? '';
     expect(label).toContain('X');
     expect(label).not.toContain('\n');
     await capture('section-title-committed');

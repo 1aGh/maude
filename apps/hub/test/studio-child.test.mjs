@@ -159,7 +159,7 @@ test('the bug-report endpoint override actually reaches the studio', () => {
   assert.equal(on.MAUDE_REPORT_URL, 'https://reports.internal.example/report');
 });
 
-test('the embed allowlist reaches the studio, which frames with it (DDR-242)', () => {
+test('the embed allowlist reaches the studio, which frames with it (DDR-247)', () => {
   const off = childEnv({ PATH: '/bin' }, { port: 4399 });
   assert.equal(off.MAUDE_EMBED_ORIGINS, undefined);
   const on = childEnv(

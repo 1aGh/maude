@@ -260,7 +260,7 @@ function underPrefix(filepath: string, prefix: string): boolean {
  *
  *  DDR-115 divergence — the rule used to claim BOTH comments and annotations
  *  were versionable. It now splits:
- *    - `*.annotations.svg` → VERSIONED (durable visual markup, no other
+ *    - `*.annotations.json` (v1: `.svg`) → VERSIONED (durable visual markup, no other
  *      transport) → NOT hidden here.
  *    - `_comments/`        → hub-sync-only (DDR-102 CRDT) → HIDDEN, so it never
  *      double-transports through git. */
@@ -277,7 +277,7 @@ export function isMaudeRuntimeState(p: string): boolean {
       p
     ) ||
     /(^|\/)_server\.(?:lock|log)$/.test(p) ||
-    /(^|\/)_(?:history|trash|draw|photo|smoke|reports|canvas-state|state|chat|comments|untrusted|export-jobs)(?:\/|$)/.test(
+    /(^|\/)_(?:history|trash|draw|photo|smoke|reports|canvas-state|state|chat|comments|untrusted|export-jobs|cache)(?:\/|$)/.test(
       p
     ) ||
     // kgai per-machine graph projection (feature-kgai-ecosystem-integration,

@@ -24,11 +24,12 @@ async function ready(url, ms = 60000) {
 }
 
 export async function startProxy({ listen, target, control }) {
-  const proc = spawn(
-    'node',
-    [join(REPO, 'scripts/dev/sync-e2e/toggle-proxy.mjs'), String(listen), String(target), String(control)],
-    { stdio: 'ignore' }
-  );
+  // `target` is a local port (self-host), or an https origin (the cloud cell).
+  const remote = typeof target === 'string' && target.startsWith('https://');
+  const script = remote
+    ? fileURLToPath(new URL('./tls-toggle-proxy.mjs', import.meta.url))
+    : join(REPO, 'scripts/dev/sync-e2e/toggle-proxy.mjs');
+  const proc = spawn('node', [script, String(listen), String(target), String(control)], { stdio: 'ignore' });
   await ready(`http://127.0.0.1:${control}/state`);
   const flip = (to) => fetch(`http://127.0.0.1:${control}/${to}`, { method: 'POST' });
   return { proc, offline: () => flip('offline'), online: () => flip('online'), stop: () => proc.kill() };
@@ -119,6 +120,15 @@ export async function startDesktop({ root, port, hubUrl, hubPublicUrl, token, ro
     kill,
     restart: async () => {
       await kill();
+      await start();
+    },
+    // Signed in again (a cloud cell's sessions do not outlive it): the linked
+    // hub's credential is replaced the way the sign-in flow writes it.
+    relink: async (newToken) => {
+      await kill();
+      writeFileSync(hubs, JSON.stringify({ hubs: { [hubUrl]: { token: newToken, role, linkedAt: Date.now() } } }), {
+        mode: 0o600,
+      });
       await start();
     },
     stop: () => kill('SIGTERM'),

@@ -149,3 +149,52 @@ test('the schedule keeps running after a refusal rather than wedging', async () 
   );
   assert.deepEqual(seen, ['identity-conflict', 'identity-conflict']);
 });
+
+// F3 S17 on the cloud cell (2026-09-24): a cell's disk goes with the container,
+// and a graceful stop (platform migration, sleep after inactivity) came back
+// from the previous generation — everything written since was gone.
+test('the final generation on shutdown carries what was written after the last tick', async () => {
+  const bucket = freshDir();
+  const target = fileTarget(`file://${bucket}`);
+  const dataDir = seedDataDir(freshDir());
+  // A schedule whose interval never fires within the test.
+  const stop = scheduleBackups({
+    dataDir,
+    target,
+    intervalMs: 3_600_000,
+    log: { log() {}, error() {} },
+  });
+  const db = new Database(join(dataDir, 'hub.db'));
+  db.prepare('INSERT OR REPLACE INTO documents VALUES (?, ?)').run(
+    'late',
+    Buffer.from('written late')
+  );
+  db.close();
+  const r = await stop.final();
+  assert.ok(r, 'a final generation was written');
+  const { restoreLatest } = await import('../src/backup.mjs');
+  const dest = freshDir();
+  await restoreLatest({ target, destDir: dest });
+  const restored = new Database(join(dest, 'hub.db'), { readonly: true });
+  const row = restored.prepare('SELECT data FROM documents WHERE name = ?').get('late');
+  restored.close();
+  assert.equal(row?.data?.toString(), 'written late');
+});
+
+test('the final generation waits for a tick already running, and a schedule without a target has none', async () => {
+  const target = fileTarget(`file://${freshDir()}`);
+  const statuses = [];
+  const stop = scheduleBackups({
+    dataDir: seedDataDir(freshDir()),
+    target,
+    intervalMs: 5,
+    log: { log() {}, error() {} },
+    onStatus: (s) => statuses.push(s),
+  });
+  await new Promise((r) => setTimeout(r, 30));
+  const r = await stop.final();
+  assert.ok(r?.prefix, 'the final generation ran after the one in flight');
+  assert.ok(statuses.every((s) => s.state === 'ok'));
+  const none = scheduleBackups({ dataDir: freshDir(), target: null, intervalMs: 0 });
+  assert.equal(await none.final(), null);
+});

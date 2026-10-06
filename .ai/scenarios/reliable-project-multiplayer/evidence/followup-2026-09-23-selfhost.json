@@ -491,6 +491,430 @@
       "run": ".ai/device/scenario-runs/reliable-project-multiplayer/f3-selfhost-s12-2026-09-23",
       "note": "120 MiB through /api/file-uploads; the hub container is SIGKILLed with a part in flight and restarted; resume keeps the verified parts, a corrupted copy of a missing part is refused (400) and not kept, completion sent twice returns the same receipt, read back through the hub byte-identical, one object in R2 of the full size; a wrong whole hash (422) and a size over the ceiling (413) land nothing in checkout or storage",
       "limitation": "self-hosted hub keys objects unscoped (assets/<name>); the tenant-prefix assertion belongs to the cloud run"
+    },
+    "S13/S14": {
+      "status": "pass",
+      "report": ".ai/scenarios/reliable-project-multiplayer/evidence/followup-2026-09-23-selfhost-scale.json",
+      "runner": "scripts/dev/t32-scale.mjs --scale full --selfhost <dir> (production hub image, accepted mode, real account sessions, R2 prefix per fixture)",
+      "inventory": {
+        "raw": {
+          "files": 692,
+          "bytes": 1101991804
+        },
+        "eligible": {
+          "files": 487,
+          "bytes": 1070463158
+        },
+        "excluded": 205,
+        "largeObjects": [
+          "96 MiB",
+          "513 MiB"
+        ]
+      },
+      "resume": [
+        {
+          "label": "mid small-file seed",
+          "restartedFromZero": false,
+          "restartedFirstPass": {
+            "down": 0,
+            "up": 200,
+            "conflicts": 0,
+            "alreadyInStep": 84
+          },
+          "heldPathsWrittenAgain": 0
+        },
+        {
+          "label": "mid large-object upload",
+          "restartedFromZero": false,
+          "restartedFirstPass": {
+            "down": 0,
+            "up": 1,
+            "conflicts": 0,
+            "alreadyInStep": 310
+          },
+          "heldPathsWrittenAgain": 0
+        }
+      ],
+      "cleanClients": {
+        "b": {
+          "indexFirstCanvas": 3306,
+          "diskAllCanvases": 3320,
+          "planeBComplete": 28478,
+          "firstCanvasBeforeFullMedia": true
+        },
+        "c": {
+          "indexFirstCanvas": 2562,
+          "diskAllCanvases": 2577,
+          "planeBComplete": 27751,
+          "firstCanvasBeforeFullMedia": true
+        }
+      },
+      "parity": {
+        "bcIdentical": true,
+        "planeBByteIdentical": true,
+        "explainedDifferences": 16,
+        "unexplainedDifferences": 0,
+        "hubCheckout": {
+          "planeBFiles": 311,
+          "hubFiles": 311,
+          "missing": [],
+          "mismatched": [],
+          "extra": []
+        }
+      },
+      "editLatencyMs": {
+        "hub": {
+          "n": 49,
+          "p50": 435,
+          "p95": 996,
+          "max": 1628
+        },
+        "hubWhileMediaMoving": {
+          "n": 49,
+          "p50": 435,
+          "p95": 996,
+          "max": 1628
+        },
+        "b": {
+          "n": 28,
+          "p50": 472,
+          "p95": 1628,
+          "max": 2895
+        },
+        "c": {
+          "n": 28,
+          "p50": 478,
+          "p95": 1628,
+          "max": 2895
+        },
+        "peersWhileMediaMoving": {
+          "n": 56,
+          "p50": 472,
+          "p95": 1628,
+          "max": 2895
+        }
+      },
+      "edits": {
+        "count": 50,
+        "timedOut": 0
+      },
+      "diskPeakBytes": 4343914496,
+      "note": "Explained differences are per-machine meta keys, an empty meta and two orphan empty annotation layers (the classifier/codec rules). Peer latency while three 513 MiB transfers share one laptop disk: p95 1.6 s, max 2.9 s; no edit timed out.",
+      "productFixes": [
+        "aec0a2b6 journal path shape: files with a space in the name were journalled but silently dropped by every other peer (runs 1-2 never completed)",
+        "19d846d2 a save right after our own accepted edit read as a conflict and was proposed on a stale base (reproduced after a desktop restart)",
+        "b2692e20 token last-use stamp: 64 fsync writes per socket blocked the hub ~7 s per project open (edit ack p95 8.7 s -> 1.0 s, clean-client first canvas 16-24 s -> 2.6-3.3 s)",
+        "579e9736 streamed-download hash no longer blocks the receiving event loop (peer max 5.2 s -> 2.9 s)"
+      ],
+      "fixtureCorrection": "self-host hubs key media unscoped; fixtures sharing one bucket restored each other's assets (a false extra + false restart-from-zero). selfhost.mjs now sets MAUDE_TENANT_PREFIX per fixture.",
+      "superseded": [
+        "run 2026-09-23T17:?? legacy mode (aborted)",
+        "two runs before aec0a2b6 (never completed)",
+        "run 18:31Z (contaminated bucket)",
+        "run 18:42Z pass with edit ack p95 8.7 s (before b2692e20)",
+        "run 19:1?Z pass before 579e9736"
+      ]
+    },
+    "S17": {
+      "tag": "bc1c7f",
+      "start": {
+        "schema": 1,
+        "mode": "legacy",
+        "epoch": 0,
+        "revision": 0,
+        "importPending": false
+      },
+      "dryRun": {
+        "status": 200,
+        "created": 2,
+        "skipped": [],
+        "modeAfter": "legacy",
+        "epochAfter": 0,
+        "revisionAfter": 0
+      },
+      "interruptedSwitch": {
+        "answered": 0,
+        "modeAfterRestart": "transactions",
+        "epochAfterRestart": 1,
+        "importPending": false
+      },
+      "switch": {
+        "status": "completed-by-restart",
+        "mode": "transactions",
+        "epoch": 1,
+        "importPending": false,
+        "doubleSubmit": {
+          "status": 409,
+          "code": "epoch-stale"
+        },
+        "epochAfterDouble": 1
+      },
+      "afterSwitch": {
+        "parity": {
+          "ok": true,
+          "checked": 2,
+          "mismatches": []
+        },
+        "qBytesConserved": true,
+        "pImportedAsLegacy": true
+      },
+      "staleSocket": {
+        "stillOpen": true,
+        "headUnchanged": true,
+        "acceptedUnchanged": true,
+        "checkoutUnchanged": true,
+        "freshReplicaUnchanged": true
+      },
+      "pendingWork": {
+        "landed": true,
+        "landedAfterRestart": null,
+        "statusWhileUndelivered": null,
+        "onDiskStill": true,
+        "actor": "designer-a@f3-selfhost.invalid",
+        "migrationActions": 1
+      },
+      "rollbackAfterWrite": {
+        "status": 200,
+        "mode": "legacy",
+        "epoch": 2,
+        "acceptedWriteKept": true,
+        "storeHeadKept": true,
+        "historyReadable": true,
+        "proposalRefused": {
+          "status": 409,
+          "code": "mode-off"
+        }
+      },
+      "forwardAgain": {
+        "status": 200,
+        "epoch": 3,
+        "carriedLegacyWrite": true,
+        "revisionAdvanced": true,
+        "oldRevisionReadable": true,
+        "parity": {
+          "ok": true,
+          "checked": 2,
+          "mismatches": []
+        }
+      },
+      "rollbackBeforeWrite": {
+        "status": 200,
+        "identicalInLegacy": true,
+        "forwardStatus": 200,
+        "headUnchangedByRoundTrip": true,
+        "bytesUnchanged": true,
+        "epochs": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "desktopConverged": true,
+      "checks": {
+        "dryRunPersistsNothing": true,
+        "interruptedSwitchConsistent": true,
+        "doubleSubmitRefused": true,
+        "parityAfterSwitch": true,
+        "bytesConserved": true,
+        "staleSocketFenced": true,
+        "pendingWorkConserved": true,
+        "rollbackKeepsAcceptedWrite": true,
+        "noAcceptedWriterWhileLegacy": true,
+        "forwardCarriesLegacyWrite": true,
+        "historyConserved": true,
+        "rollbackBeforeWriteIsNoop": true,
+        "epochsMonotonic": true,
+        "desktopConverged": true
+      },
+      "status": "pass",
+      "runner": "runners/f3/s17-migration.mjs (fresh legacy project, runbook commands, desktop sidecar through the toggle proxy, raw stale socket)",
+      "date": "2026-09-24",
+      "productFixes": [
+        "dad3760e rollback to legacy: studio admitted read-only during accepted mode held its legacy saves until reconnect; mode notice now carries per-connection writable",
+        "dad3760e double-submitted switch answered 503; now 409 epoch-stale",
+        "27306d83 a save held by a dead socket across the switch is proposed once the peer learns the mode (was: delivered only after a restart, status said synced)"
+      ],
+      "previousRun": {
+        "date": "2026-09-23",
+        "status": "fail",
+        "finding": {
+          "id": "F3-S17-offline-across-switch",
+          "summary": "A save written while the desktop socket was silently dead, just before the switch, is applied to the local replica, reaches the hub only after the fence and is dropped. The desktop reports synced (0 pending, 0 conflicts) and the change stays on disk; a restart cold start proposes it (landedAfterRestart true, no loss). Fixing it live needs a replica reset under shared-doc (the collab room owns the Y.Doc) \u2014 design work, not done here.",
+          "severity": "blocks S17 pass",
+          "workaround": "runbook step 5 (let apps finish saving before the switch) or restart the app"
+        }
+      }
+    },
+    "S16": {
+      "status": "pass",
+      "runner": "runners/f3/s16-store.mjs",
+      "A_twoCoordinators": {
+        "secondHubUp": true,
+        "rounds": 20,
+        "outcomes": {
+          "200": 20,
+          "503 retryable": 20
+        },
+        "ackedPerRound": {
+          "max": 1,
+          "rounds": 20
+        },
+        "acks": 20,
+        "everyAckStoredAtItsRevision": true,
+        "chain": {
+          "revisions": 22,
+          "contiguous": true,
+          "duplicateTransactions": 0
+        },
+        "epochs": {
+          "before": 1,
+          "legacy": 2,
+          "after": 3,
+          "toLegacy": 200,
+          "back": 200
+        },
+        "staleCoordinator": {
+          "whileLegacy": {
+            "status": 409,
+            "code": "mode-off"
+          },
+          "oldEpoch": {
+            "status": 409,
+            "code": "epoch-stale"
+          },
+          "currentEpoch": {
+            "status": 200,
+            "code": null
+          }
+        },
+        "finalHeadIsLastAck": true,
+        "parity": {
+          "mode": "transactions",
+          "revision": 22,
+          "checked": 1,
+          "mismatches": [],
+          "ok": true
+        },
+        "parityViaSecond": {
+          "mode": "transactions",
+          "revision": 22,
+          "checked": 1,
+          "mismatches": [],
+          "ok": true
+        },
+        "status": "pass",
+        "parityAfterStaleProcessStopped": {
+          "mode": "transactions",
+          "revision": 22,
+          "checked": 1,
+          "mismatches": [],
+          "ok": true
+        }
+      },
+      "B_missingPayload": {
+        "bootedWithMissingPayload": true,
+        "refused": {
+          "status": 409,
+          "code": "base-conflict",
+          "ms": 90
+        },
+        "noAckWhileMissing": true,
+        "neighbourUnaffected": true,
+        "blobReadWhileMissing": 404,
+        "historyReadable": true,
+        "sameTxReplayed": {
+          "status": 409,
+          "code": "base-conflict"
+        },
+        "retried": {
+          "status": 200,
+          "revision": 46
+        },
+        "retriedTwiceSameResult": true,
+        "txStoredOnce": 1,
+        "refusedTxNotStored": true,
+        "chain": {
+          "revisions": 46,
+          "contiguous": true,
+          "duplicateTransactions": 0
+        },
+        "mergedKeepsBoth": true,
+        "status": "pass"
+      },
+      "C_fullStore": {
+        "diskMiB": 25,
+        "hubUpOnSmallDisk": true,
+        "df": "tmpfs              25600 25600         0 100% /data",
+        "headBefore": 27,
+        "whileFull": {
+          "refused": {
+            "status": 503,
+            "code": "retryable",
+            "ms": 64
+          },
+          "small": {
+            "status": 503,
+            "code": "retryable"
+          },
+          "bootstrap": 200,
+          "headAfter": 27,
+          "hubAlive": true
+        },
+        "falseAcks": 0,
+        "retried": {
+          "status": 200,
+          "code": null,
+          "revision": 28
+        },
+        "txStoredOnce": 1,
+        "chain": {
+          "revisions": 28,
+          "contiguous": true,
+          "duplicateTransactions": 0
+        },
+        "storeGrewByOnlyAcked": true,
+        "status": "pass"
+      },
+      "D_retentionAndDisks": {
+        "backupGenerations": 14,
+        "retentionHeld": true,
+        "deletedCanvasRevisions": [
+          28,
+          29,
+          30,
+          31
+        ],
+        "before": {
+          "revision": 33,
+          "deletedLive": false
+        },
+        "historyBeforeWipe": true,
+        "afterBothDisks": {
+          "sameHead": true,
+          "sameChain": true,
+          "sameLiveDocs": true,
+          "deletedStaysDeleted": true,
+          "deletedHistoryReadable": true,
+          "parity": true
+        },
+        "afterCheckoutDisk": {
+          "hubStarted": false,
+          "refusal": "[rehydrate] refusing to start \u2014 the documents are present but the checkout is gone \u2026 Restore deliberately, or set MAUDE_ALLOW_EMPTY_START=1",
+          "recoveredBy": "selfhost wipe-disk (restore the whole latest generation into empty disks, the runbook DR path) \u2014 hub healthy, S16-B then ran on it"
+        },
+        "status": "pass",
+        "note": "A replaced checkout disk alone is refused loudly by design (pairing a restored checkout with newer documents, or discarding them, are both wrong); the documented DR path is the whole-generation restore verified in afterBothDisks."
+      },
+      "productFixes": [
+        "6aa142ca switching forward through a stale second hub process imported its old replica as a legacy change and rolled 8 accepted revisions back (store fencing itself held: one ack per round, contiguous chain, stale epoch refused)"
+      ],
+      "notes": [
+        "B: a merge whose base payload is missing is refused 409 base-conflict (candidate kept by the client, no ack); the same transaction replays that answer; a new proposal merges once the payload is back",
+        "A: while both processes ran, the stale one served stale replicas and both wrote the shared checkout (parity mismatch); parity converged once it stopped. Two hub processes on one volume is an operator error the store survives, not a supported topology."
+      ]
     }
   },
   "productFix": {
@@ -499,20 +923,91 @@
     "fix": "createInvite refuses roles other than admin|member (400); regression in apps/hub/test/invites.test.mjs fails without it"
   },
   "fixtureCorrection": "a first fixture without a canvas hostname rendered blank canvas frames (ERR_CONNECTION_REFUSED to a container-internal port) \u2014 the documented M7 requirement, not a product defect; the fixture now follows workspace-plan",
-  "remaining": [
-    "S13",
-    "S14",
-    "S16",
-    "S17"
-  ],
+  "remaining": [],
   "cleanup": {
-    "complete": false,
-    "reason": "fixture retained for the remaining self-host scenarios; containers maude-f3-selfhost-*, R2 prefixes f3-selfhost-2026-09-23t16-29-34-067z and the second hub tenant to delete at the end"
+    "complete": true,
+    "at": "2026-09-23",
+    "containers": "every maude-f3-selfhost-* container removed (docker ps -a shows none)",
+    "objectStorage": "1,608 objects deleted from maude-multiplayer-test-20260922 (root assets/ and files/ written by unscoped fixtures, and every f3-selfhost-* prefix); ListMultipartUploads empty; only tenants/f3-cloud remains (the cloud cell, untouched \u2014 no authorization)",
+    "local": "fixture work dirs (holding test passwords/sessions) deleted",
+    "image": "maude-f3-selfhost:local image kept locally (no data)"
   },
   "findings": [
     {
       "finding": "MAUDE_CELL_PAIRING is not emitted by the self-host provisioning path (cli/lib/workspace-plan.mjs); without it the browser studio on a self-host workspace is not a doc-lane participant (browser-created canvases never become Y.Docs; History shows git, not accepted revisions). The fleet gates it per tenant (CELL_LIVE_PAIRING pilot). The F3 fixture sets it, like scripts/dev/local-cell.mjs.",
       "decision": "owner decision pending: make it the self-host default or keep it opt-in"
     }
-  ]
+  ],
+  "statusSummary": {
+    "S01": "pass",
+    "S02": "pass",
+    "S03": "pass",
+    "S05": "pass",
+    "S08": "pass",
+    "S10": "pass",
+    "S15": "pass",
+    "S19": "pass",
+    "S11": "pass",
+    "S09": "pass",
+    "S06": "pass",
+    "S04": "pass",
+    "S18": "pass",
+    "S07": "pass",
+    "S12": "pass",
+    "S13/S14": "pass",
+    "S17": "pass",
+    "S16": "pass"
+  },
+  "rerun20260924": {
+    "why": "re-verify the store and migration scenarios on the build carrying the cloud fixes (b18b22fd, 58b27496, 0e881a3c studio; 36e48e90 hub final backup on SIGTERM)",
+    "image": "maude-f3-selfhost:local rebuilt from 36e48e90",
+    "S16": {
+      "A": "pass",
+      "B": "pass",
+      "C": "pass",
+      "D": "pass",
+      "D_detail": {
+        "checkoutOnlyDisk": {
+          "hubStarted": false,
+          "refusal": "[rehydrate] refusing to start \u2014 the documents are present but the checkout is gone. Restoring the checkout alone would pair it with newer documents, and restoring the whole generation would discard them. Restore deliberately, or set MAUDE_ALLOW_EMPTY_START=1 to start without the history."
+        },
+        "afterRecovery": {
+          "sameHead": true,
+          "sameChain": true,
+          "deletedHistoryReadable": true,
+          "parity": true,
+          "currentCanvasOnDisk": true
+        },
+        "afterBothDisks": {
+          "sameHead": true,
+          "sameChain": true,
+          "sameLiveDocs": true,
+          "deletedStaysDeleted": true,
+          "deletedHistoryReadable": true,
+          "parity": true
+        },
+        "backupGenerations": 14
+      },
+      "runnerCorrection": "D now encodes the designed outcome of a checkout-only disk replacement (the 2026-09-23 run recorded it by hand): rehydrate refuses to start, and the runbook DR path (whole latest generation, wipe-disk) recovers head, chain, deleted history, parity and the canvas on disk"
+    },
+    "S17": {
+      "status": "pass",
+      "checks": {
+        "dryRunPersistsNothing": true,
+        "interruptedSwitchConsistent": true,
+        "doubleSubmitRefused": true,
+        "parityAfterSwitch": true,
+        "bytesConserved": true,
+        "staleSocketFenced": true,
+        "pendingWorkConserved": true,
+        "rollbackKeepsAcceptedWrite": true,
+        "noAcceptedWriterWhileLegacy": true,
+        "forwardCarriesLegacyWrite": true,
+        "historyConserved": true,
+        "rollbackBeforeWriteIsNoop": true,
+        "epochsMonotonic": true,
+        "desktopConverged": true
+      }
+    }
+  }
 }

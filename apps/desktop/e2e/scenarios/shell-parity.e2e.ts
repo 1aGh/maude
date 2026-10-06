@@ -2,6 +2,7 @@ import { $, browser, expect } from '@wdio/globals';
 import { Key } from 'webdriverio';
 import { capture, startReport } from '../helpers/evidence';
 import { canEnterCanvasFrame, isNativeShell, openApp, target } from '../helpers/target';
+import { canvasRow } from '../helpers/tree';
 
 /**
  * One studio, three shells — Cloud Phase 27 E4.
@@ -46,7 +47,7 @@ describe(`shell parity (${target()})`, () => {
 
   it('opens a canvas and renders THAT canvas', async () => {
     await openApp();
-    const row = await $('[data-testid="canvas-row-ui-smoke"]');
+    const row = await canvasRow('canvas-row-ui-smoke');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
 
@@ -68,7 +69,7 @@ describe(`shell parity (${target()})`, () => {
     // panel refused to mount at all — so the View menu offered a panel that
     // could never appear. Both are fixed; this is what keeps them fixed.
     await openApp();
-    const row = await $('[data-testid="canvas-row-ui-smoke"]');
+    const row = await canvasRow('canvas-row-ui-smoke');
     await row.waitForExist({ timeout: 60_000 });
     await row.click();
     await (await $('[data-testid="canvas-frame"]')).waitForExist({ timeout: 30_000 });

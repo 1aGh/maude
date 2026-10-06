@@ -21,6 +21,7 @@ import {
   JOURNAL_TAIL_KEY,
   openJournal,
   replayTailFromTarget,
+  reportLostFiles,
   walkImport,
   walkIntervalFromEnv,
 } from '../src/journal.mjs';
@@ -67,6 +68,178 @@ afterEach(() => {
   closeJournal(dataDir);
   rmSync(dataDir, { recursive: true, force: true });
   rmSync(designRoot, { recursive: true, force: true });
+});
+
+describe('reportLostFiles — a live row whose bytes the hub lost', () => {
+  // v1.5.x: a cell restart wiped checkout files the write-behind had never
+  // mirrored (expired credentials). Their rows still said "the hub holds sha
+  // X", every desktop agreed, and nobody pushed them back — `_layout.css` and
+  // photos stayed missing on Brno Alligators.
+  it('marks it live-with-no-hash (never a tombstone), once', async () => {
+    const j = openJournal(dataDir);
+    walkImport({ journal: j, designRoot, log: { log() {} } });
+    const before = j.latestFor('system/ds/brand.css');
+    assert.match(before.sha256, /^[0-9a-f]{64}$/);
+    rmSync(join(designRoot, 'system/ds/brand.css'));
+
+    const warn = [];
+    const first = await reportLostFiles({
+      journal: j,
+      designRoot,
+      log: { warn: (m) => warn.push(m) },
+    });
+    assert.equal(first.lost, 1);
+    assert.equal(warn.length, 1);
+    const lost = j.latestFor('system/ds/brand.css');
+    assert.equal(lost.deleted, false); // a tombstone would delete it on every desktop
+    assert.equal(lost.sha256, null);
+    assert.equal(lost.seq > before.seq, true); // travels on the ordinary cursor
+    // Present files are untouched; a second pass is a no-op.
+    assert.match(j.latestFor('assets/a1b2c3d4.png').sha256, /^[0-9a-f]{64}$/);
+    assert.equal((await reportLostFiles({ journal: j, designRoot, log: {} })).lost, 0);
+  });
+
+  it('a peer push of the file lands a normal row again', async () => {
+    const j = openJournal(dataDir);
+    walkImport({ journal: j, designRoot, log: { log() {} } });
+    rmSync(join(designRoot, 'system/ds/brand.css'));
+    await reportLostFiles({ journal: j, designRoot, log: {} });
+    writeFileSync(join(designRoot, 'system/ds/brand.css'), ':root{}');
+    const res = j.recordWrite({ designRoot, path: 'system/ds/brand.css', source: 'peer-put' });
+    assert.equal(res.noop, false);
+    assert.match(j.latestFor('system/ds/brand.css').sha256, /^[0-9a-f]{64}$/);
+  });
+});
+
+// Cell materializer Phase 0 (Task 4). On the 2026-10-01 Alligators restart
+// loop the v1.5.2 pass marked every live row missing from a HALF-hydrated
+// checkout as lost — without asking the bucket — and every desktop re-pushed
+// gigabytes the bucket already held, into a disk that was already full.
+describe('reportLostFiles — asks the bucket, never after a partial hydrate', () => {
+  const BRAND = 'system/ds/brand.css';
+  /** walk-import, then mirror every row, then lose the file from disk. */
+  function mirroredThenLost(j) {
+    walkImport({ journal: j, designRoot, log: { log() {} } });
+    for (const r of j.compaction()) j.markMirrored(r.seq);
+    rmSync(join(designRoot, BRAND));
+  }
+  const bucketWith = (present) => {
+    const asked = [];
+    return {
+      asked,
+      headObject: async (_cfg, key) => {
+        asked.push(key);
+        return present.has(key) ? { size: 1 } : null;
+      },
+    };
+  };
+  const quiet = { warn() {}, error() {} };
+
+  it('a partial hydrate marks NOTHING', async () => {
+    const j = openJournal(dataDir);
+    walkImport({ journal: j, designRoot, log: { log() {} } });
+    rmSync(join(designRoot, BRAND)); // unmirrored, so it WOULD be lost…
+    for (const hydrate of [
+      { failed: 1, skippedForBudget: 0 },
+      { failed: 0, skippedForBudget: 40 },
+    ]) {
+      const r = await reportLostFiles({ journal: j, designRoot, hydrate, log: quiet });
+      assert.deepEqual(r, { lost: 0, skipped: 'hydrate-incomplete' });
+    }
+    assert.match(j.latestFor(BRAND).sha256, /^[0-9a-f]{64}$/); // …but nothing was marked
+  });
+
+  it('mirrored + the bucket holds it → NOT lost', async () => {
+    const j = openJournal(dataDir);
+    mirroredThenLost(j);
+    const b = bucketWith(new Set([`files/${BRAND}`]));
+    const r = await reportLostFiles({
+      journal: j,
+      designRoot,
+      hydrate: { failed: 0, skippedForBudget: 0 },
+      s3: async () => ({ bucket: 'x' }),
+      keyFor: (rel) => `files/${rel}`,
+      deps: { headObject: b.headObject },
+      log: quiet,
+    });
+    assert.equal(r.lost, 0);
+    assert.deepEqual(b.asked, [`files/${BRAND}`]);
+    assert.match(j.latestFor(BRAND).sha256, /^[0-9a-f]{64}$/);
+  });
+
+  it('mirrored + the bucket says 404 → lost', async () => {
+    const j = openJournal(dataDir);
+    mirroredThenLost(j);
+    const r = await reportLostFiles({
+      journal: j,
+      designRoot,
+      hydrate: { failed: 0, skippedForBudget: 0 },
+      s3: { bucket: 'x' },
+      keyFor: (rel) => `files/${rel}`,
+      deps: { headObject: bucketWith(new Set()).headObject },
+      log: quiet,
+    });
+    assert.equal(r.lost, 1);
+    assert.equal(j.latestFor(BRAND).sha256, null);
+  });
+
+  it('never mirrored → lost without asking the bucket', async () => {
+    const j = openJournal(dataDir);
+    walkImport({ journal: j, designRoot, log: { log() {} } });
+    rmSync(join(designRoot, BRAND));
+    const b = bucketWith(new Set());
+    const r = await reportLostFiles({
+      journal: j,
+      designRoot,
+      hydrate: { failed: 0, skippedForBudget: 0 },
+      s3: { bucket: 'x' },
+      keyFor: (rel) => `files/${rel}`,
+      deps: { headObject: b.headObject },
+      log: quiet,
+    });
+    assert.equal(r.lost, 1);
+    assert.deepEqual(b.asked, []);
+  });
+
+  it('a bucket error skips the whole pass — unverified is not lost', async () => {
+    const j = openJournal(dataDir);
+    mirroredThenLost(j);
+    const r = await reportLostFiles({
+      journal: j,
+      designRoot,
+      hydrate: { failed: 0, skippedForBudget: 0 },
+      s3: { bucket: 'x' },
+      keyFor: (rel) => `files/${rel}`,
+      deps: {
+        headObject: async () => {
+          throw new Error('S3 HEAD failed: 403');
+        },
+      },
+      log: quiet,
+    });
+    assert.deepEqual(r, { lost: 0, skipped: 'bucket-unreachable' });
+    assert.match(j.latestFor(BRAND).sha256, /^[0-9a-f]{64}$/);
+  });
+
+  it('mirrored rows with no way to ask the bucket are left alone', async () => {
+    const j = openJournal(dataDir);
+    mirroredThenLost(j);
+    const r = await reportLostFiles({ journal: j, designRoot, log: quiet });
+    assert.equal(r.lost, 0);
+  });
+
+  it('MAUDE_REPORT_LOST=0 turns the pass off', async () => {
+    const j = openJournal(dataDir);
+    walkImport({ journal: j, designRoot, log: { log() {} } });
+    rmSync(join(designRoot, BRAND));
+    const r = await reportLostFiles({
+      journal: j,
+      designRoot,
+      env: { MAUDE_REPORT_LOST: '0' },
+      log: quiet,
+    });
+    assert.deepEqual(r, { lost: 0, skipped: 'disabled' });
+  });
 });
 
 describe('recordWrite — the hub reads its own disk', () => {

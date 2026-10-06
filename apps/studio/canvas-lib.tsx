@@ -265,6 +265,8 @@ const IS_WEBKIT =
 type DcPerfCounters = {
   artboardRenders: number;
   annotationRenders: number;
+  /** Annotation element nodes (re-)rendered — a drag should touch only what moves. */
+  annotationNodeRenders?: number;
   instrumented?: boolean;
 };
 
@@ -826,7 +828,7 @@ function patchCanvasMeta(patch: {
   layout?: { artboards: ArtboardRect[] };
 }): void {
   if (typeof window === 'undefined' || typeof fetch === 'undefined') return;
-  // DDR-242 — an embedded view persists nothing, camera included: its fit is
+  // DDR-247 — an embedded view persists nothing, camera included: its fit is
   // not the designer's view, and the next time they open the canvas in the
   // studio it must be where they left it.
   if (isEmbedCanvas()) return;
@@ -1431,12 +1433,22 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     // iframe's contentWindow so the window-scoped keydown listener below
     // receives events natively.
     const onPointerEnter = () => {
-      // DDR-242 — an embed never takes focus on its own: a pointer merely
+      // DDR-247 — an embed never takes focus on its own: a pointer merely
       // passing over it inside another app's dialog would pull keyboard focus
       // out of that app and strand its Escape. A click still focuses it.
       if (isEmbedCanvas()) return;
       try {
-        if (typeof window !== 'undefined' && document.activeElement !== host) {
+        const active = document.activeElement as HTMLElement | null;
+        // Never steal focus from something being TYPED into. An editor that
+        // mounts under a stationary pointer (double-click on a standalone
+        // text) makes the engine fire pointerenter on the host; focusing the
+        // host then blurred the editor, and blur commits — so the editor
+        // closed ~5 ms after it opened and a double-click never entered edit.
+        const typing =
+          !!active &&
+          active !== host &&
+          (active.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName));
+        if (typeof window !== 'undefined' && active !== host && !typing) {
           host.focus({ preventScroll: true });
         }
       } catch {
@@ -2877,11 +2889,16 @@ function buildCanvasRectsManifest(): CanvasRectsManifest {
 declare global {
   interface Window {
     __maudeCanvasRects?: () => CanvasRectsManifest;
+    /** The live camera, for layers built in another bundle (the comment
+     *  overlay mounts from canvas-comment-mount, which gets its own copy of
+     *  this module's state) — see comment-anchor.ts. */
+    __maudeViewport?: () => ViewportState | null;
   }
 }
 
 if (typeof window !== 'undefined') {
   window.__maudeCanvasRects = buildCanvasRectsManifest;
+  window.__maudeViewport = getLiveViewport;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

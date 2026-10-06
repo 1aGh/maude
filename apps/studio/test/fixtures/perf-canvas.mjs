@@ -17,8 +17,13 @@
 // produce byte-identical files, so a re-measured baseline compares like with
 // like.
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+
+// The mixed-board generator imports the canonical serializer from
+// annotations-model.ts, so it is loaded lazily: the sticky-only path (and any
+// plain-node importer of this module) never has to resolve a .ts file.
+const MIXED_MODULE = './perf-annotations-mixed.mjs';
 
 /** Grid geometry — mirrors DesignCanvas's own default grid vocabulary. */
 const BOARD_W = 1280;
@@ -166,19 +171,44 @@ export function renderAnnotations(strokes) {
 }
 
 /**
+ * The annotations file name the dev-server actually reads for `ui/<slug>.tsx`.
+ * Mirrors `canvasSlugFromRel` (canvas-slug.ts): `/`→`-`, whitespace→`_`,
+ * lowercase — hyphens are KEPT. (This used to rewrite `-`→`_`, writing
+ * `ui-perf_fixture.annotations.svg` while the server read
+ * `ui-perf-fixture.annotations.svg`, so every "with annotations" run actually
+ * measured an empty annotation layer.)
+ */
+export function annotationsFileName(slug) {
+  // DDR-242 — the v2 board.
+  return `ui-${slug.replace(/\s+/g, '_').toLowerCase()}.annotations.json`;
+}
+
+/** World origin of the mixed annotation field: just right of the artboard grid. */
+export function mixedOrigin(boards) {
+  const cols = Math.min(COLS, Math.max(1, boards));
+  return { originX: cols * (BOARD_W + GUTTER) + 200, originY: 0 };
+}
+
+/**
  * Write the fixture into a design root.
  *
  * @param {object} opts
  * @param {string} opts.designRoot  Absolute path to a `.design/` directory.
  * @param {number} [opts.boards]    Artboard count (default 128 — the SPKIE repro).
  * @param {number} [opts.strokes]   Sticky count (default 150 — the Team Retro repro).
+ *                                  With `mix`, the TOTAL mixed element count.
+ * @param {boolean} [opts.mix]      Mixed board (all kinds, bound arrows, nested
+ *                                  sections, groups — perf-annotations-mixed.mjs)
+ *                                  placed in view beside the artboards, instead
+ *                                  of the sticky-only field.
  * @param {string} [opts.slug]      Canvas basename (default `perf-fixture`).
- * @returns {{canvasPath: string, metaPath: string, annotationsPath: string|null, canvasRel: string}}
+ * @returns {Promise<{canvasPath: string, metaPath: string, annotationsPath: string|null, annotationsBytes: number, canvasRel: string}>}
  */
-export function writePerfCanvas({
+export async function writePerfCanvas({
   designRoot,
   boards = 128,
   strokes = 150,
+  mix = false,
   slug = 'perf-fixture',
 }) {
   const canvasPath = join(designRoot, 'ui', `${slug}.tsx`);
@@ -191,11 +221,29 @@ export function writePerfCanvas({
   // Annotations live at the design root under the flattened `<dir>-<slug>`
   // naming the annotations API uses, NOT beside the canvas.
   let annotationsPath = null;
-  const svg = renderAnnotations(strokes);
+  let annotationsBytes = 0;
+  const svg = mix
+    ? (await import(MIXED_MODULE)).renderMixedAnnotations(strokes, mixedOrigin(boards))
+    : renderAnnotations(strokes);
+  const annAbs = join(designRoot, annotationsFileName(slug));
+  // A v1 board a previous run left would be quarantined next to the v2 one.
+  rmSync(annAbs.replace(/\.json$/, '.svg'), { force: true });
   if (svg) {
-    annotationsPath = join(designRoot, `ui-${slug.replace(/-/g, '_')}.annotations.svg`);
-    writeFileSync(annotationsPath, svg, 'utf8');
+    // The generators build v1 strokes; the board on disk is the v2 element
+    // model, produced by the same migration a real legacy file goes through.
+    const [{ migrateSvg }, { serializeBoard }] = await Promise.all([
+      import('../../annotations/migrate-v1.ts'),
+      import('../../annotations/schema.ts'),
+    ]);
+    const board = serializeBoard(migrateSvg(svg).elements);
+    annotationsPath = annAbs;
+    writeFileSync(annotationsPath, board, 'utf8');
+    annotationsBytes = Buffer.byteLength(board, 'utf8');
+  } else {
+    // `--strokes 0` must measure an EMPTY layer, not whatever board a previous
+    // run left behind under the same name.
+    rmSync(annAbs, { force: true });
   }
 
-  return { canvasPath, metaPath, annotationsPath, canvasRel: `ui/${slug}.tsx` };
+  return { canvasPath, metaPath, annotationsPath, annotationsBytes, canvasRel: `ui/${slug}.tsx` };
 }

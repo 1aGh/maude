@@ -521,6 +521,39 @@ function cellHealth(body) {
 // "a total loss of this database costs a customer nothing" by holding no
 // design content, and a counts table would be the first crack in that.
 
+test('the hourly sweep never wakes a sleeping cell to read its stats', async () => {
+  // Every sweep used to START each sleeping container just to count it, and a
+  // start re-hydrates the whole project from R2 (Alligators: ~7 GB an hour,
+  // all of September). The probe asks not to wake; a sleeping cell says so.
+  const written = [];
+  const { env, sqlite } = freshEnv();
+  env.EVENTS = { writeDataPoint: (dp) => written.push(dp) };
+  seedProject(sqlite, { id: 'alligators', subscription: 'sub_1' });
+
+  const healthAsks = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes('/health')) {
+      healthAsks.push(init?.headers ?? {});
+      return cellHealth({ state: 'asleep' });
+    }
+    return stubStripe({ sub_1: { status: 'active' } })(url);
+  };
+  try {
+    await reconcileSweep(env, { now: NOW });
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+
+  assert.ok(healthAsks.length > 0, 'the sweep still asks');
+  for (const h of healthAsks) assert.equal(h['x-maude-wake'], 'never');
+  // Asleep is unknown, and unknown is never a zero on the board.
+  assert.equal(
+    written.find((dp) => dp.indexes[0] === 'tenant_stats'),
+    undefined
+  );
+});
+
 test('the sweep carries a cell’s own counts to analytics, and never to D1', async () => {
   const written = [];
   const { env, sqlite } = freshEnv();

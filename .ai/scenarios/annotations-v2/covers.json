@@ -1,0 +1,24 @@
+{
+  "web": [
+    "apps/studio/annotations-layer.tsx",
+    "apps/studio/annotations/**",
+    "apps/studio/annotations-model.ts",
+    "apps/studio/annotations-bindings.ts",
+    "apps/studio/annotations-context-toolbar.tsx",
+    "apps/studio/use-annotation-resize.tsx",
+    "apps/studio/cursors-overlay.tsx",
+    "apps/studio/commands/annotation-ops-command.ts",
+    "apps/studio/bin/annotate.mjs",
+    "apps/studio/bin/read-annotations.mjs"
+  ],
+  "native": [
+    "apps/desktop/e2e/multiplayer/surface.e2e.ts",
+    "apps/desktop/e2e/scenarios/canvas-text-editing.e2e.ts"
+  ],
+  "shared": [
+    "apps/studio/api.ts",
+    "apps/studio/collab/**",
+    "apps/hub/src/lanes.mjs",
+    "scripts/dev/sync-e2e/surface-catalogue.mjs"
+  ]
+}

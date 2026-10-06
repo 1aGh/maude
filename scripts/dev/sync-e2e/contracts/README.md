@@ -34,7 +34,7 @@ The repository root is supplied only to the test harness to resolve existing `aj
 
 ## What is schema-conformant
 
-There are **25 named operation families** with **69 representative operation/proposal fixtures**. Passing these means a wire value conforms to this draft's restricted shape; it does not mean the operation has an implementation, authorization, source fidelity, effect algebra or E2E coverage.
+There are **25 named operation families** with **72 representative operation/proposal fixtures**. Passing these means a wire value conforms to this draft's restricted shape; it does not mean the operation has an implementation, authorization, source fidelity, effect algebra or E2E coverage.
 
 | Families | Explicit represented variants | Not yet covered by these schemas/fixtures |
 |---|---|---|
@@ -47,7 +47,7 @@ There are **25 named operation families** with **69 representative operation/pro
 | `footage.assign` | Strict full analysis assignment with version 1, asset identity/path, exact prior hash or explicit absent base, shots/tags/speech/provenance | Authoritative source hash/duration lookup, granular shot effects and inverse implementation |
 | `edl.edit` | Strict full EDL replacement with beats/music/audioTracks/captions and identity bindings for every referenced media path | Stable beat/track identity migration, granular edits, media-duration validation, codegen/source dependency atomicity |
 | `layout.assign` | x, y, width, height, rotation, title; viewport rejected | Guides/print/hug/kind/style schemas and exact source-vs-layout ownership |
-| `annotation.create/update/delete` | Stable stroke identity; typed path/rectangle/ellipse/line/text/image shapes; image asset required | Current complete stroke vocabulary, per-field updates/inverses, concurrent stroke merge and sanitization |
+| `annotation.put/patch/delete` | The annotations-v2 element ops (DDR-242, `apps/studio/annotations/ops.ts`): `put` a flat element record `{id, type, parent?, index, …fields}`; `patch` one element's fields (`set`/`unset`, `expect` as the merge base, `strict` for undo) — `id`/`type` never patchable, at least one of `set`/`unset`; `delete` by id | Per-type field allowlists, clamps and `assets/` href rules (the registry validator's job — unknown types must round-trip, so the wire cannot enumerate them), server-built inverse batches as retained effects |
 | `comment.create/reply/update/delete` | Stable thread/comment/parent, bounded body, anchor, body update or resolved state | Author/role checks, mentions, full anchor vocabulary, deleting another author's records |
 | `photo.assign` | Adjustment object, mask, crop, explicit reset | Complete photo-store property vocabulary/ranges, grouped slider semantics and original asset relationship |
 | `timeline.edit` | 21 variants: retime, remove, insert, reorder, toggle-hide, replace-src plus **all 15 current clip-edit verbs** | Full parameter domain parity, textual/generated placeholders, transition/grade vocabulary parity, timebase constraints and source operation implementation |

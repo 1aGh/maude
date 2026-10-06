@@ -273,4 +273,141 @@ describe('upload sessions', () => {
     assert.equal(done.status, 409);
     assert.equal(readFileSync(join(designRoot, 'assets/h.mp4'), 'utf8'), 'older');
   });
+
+  // F3 S12 on the cloud cell (2026-09-24): a session lived only on the
+  // container's disk, so a cell restart answered 404 "no such upload" and a
+  // large file started over from part 0. With a durable store beside the
+  // disk, a fresh process — and the same person on a fresh sign-in — resumes.
+  it('a restarted hub on a fresh disk resumes from the durable store', async () => {
+    const store = memoryUploadStore();
+    const first = addToken(dataDir, { label: 'desktop-1', scope: '*', owner: 'd@x.test' }).value;
+    const again = addToken(dataDir, { label: 'desktop-2', scope: '*', owner: 'd@x.test' }).value;
+    const bytes = video(PART * 4 + 10);
+    const body = { path: 'assets/durable.mp4', size: bytes.length, sha256: sha(bytes) };
+    const created = await call({
+      method: 'POST',
+      body,
+      bearer: first,
+      over: { uploadStore: store },
+    });
+    assert.equal(created.status, 201);
+    const { id } = created.json;
+    const put = (n, bearer) => {
+      const part = bytes.subarray(n * PART, Math.min(bytes.length, (n + 1) * PART));
+      return call({
+        path: `/${id}/${n}`,
+        method: 'PUT',
+        body: part,
+        headers: { 'x-maude-part-sha256': sha(part) },
+        bearer,
+        over: { uploadStore: store },
+      });
+    };
+    assert.equal((await put(0, first)).status, 200);
+    assert.equal((await put(1, first)).status, 200);
+    // The container goes, and with it the disk; the person signs in again.
+    rmSync(join(dataDir, 'uploads'), { recursive: true, force: true });
+    const status = await call({ path: `/${id}`, bearer: again, over: { uploadStore: store } });
+    assert.equal(status.status, 200, JSON.stringify(status.json));
+    assert.deepEqual(status.json.received, [0, 1]);
+    // Asking again (what the desktop does each pass) finds the same session.
+    const resumed = await call({
+      method: 'POST',
+      body,
+      bearer: again,
+      over: { uploadStore: store },
+    });
+    assert.equal(resumed.status, 200);
+    assert.equal(resumed.json.id, id);
+    assert.deepEqual(resumed.json.received, [0, 1]);
+    for (const n of [2, 3, 4]) assert.equal((await put(n, again)).status, 200);
+    const done = await call({
+      path: `/${id}/complete`,
+      method: 'POST',
+      bearer: again,
+      over: { uploadStore: store },
+    });
+    assert.equal(done.status, 200, JSON.stringify(done.json));
+    assert.deepEqual(readFileSync(join(designRoot, 'assets/durable.mp4')), bytes);
+    // The parts are gone from the store; the receipt is kept for a lost answer.
+    assert.deepEqual(store.partsOf(id), []);
+    rmSync(join(dataDir, 'uploads'), { recursive: true, force: true });
+    const replay = await call({
+      path: `/${id}/complete`,
+      method: 'POST',
+      bearer: again,
+      over: { uploadStore: store },
+    });
+    assert.deepEqual(replay.json, done.json);
+    // …and it is still nobody else's.
+    const theirs = await call({ path: `/${id}`, bearer: other, over: { uploadStore: store } });
+    assert.equal(theirs.status, 404);
+  });
+
+  it('an aborted durable session leaves nothing in the store', async () => {
+    const store = memoryUploadStore();
+    const bytes = video(PART * 2);
+    const created = await call({
+      method: 'POST',
+      body: { path: 'assets/gone.mp4', size: bytes.length, sha256: sha(bytes) },
+      over: { uploadStore: store },
+    });
+    const part = bytes.subarray(0, PART);
+    await call({
+      path: `/${created.json.id}/0`,
+      method: 'PUT',
+      body: part,
+      headers: { 'x-maude-part-sha256': sha(part) },
+      over: { uploadStore: store },
+    });
+    assert.equal(store.size(), 2);
+    const aborted = await call({
+      path: `/${created.json.id}`,
+      method: 'DELETE',
+      over: { uploadStore: store },
+    });
+    assert.equal(aborted.status, 200);
+    assert.equal(store.size(), 0);
+  });
 });
+
+/** An in-memory durable store with the shape the hub's S3 store has. */
+function memoryUploadStore() {
+  const sessions = new Map();
+  const parts = new Map();
+  return {
+    async putSession(s) {
+      sessions.set(s.id, JSON.stringify(s));
+    },
+    async getSession(id) {
+      return sessions.has(id) ? JSON.parse(sessions.get(id)) : null;
+    },
+    async listSessions() {
+      return [...sessions.values()].map((v) => JSON.parse(v));
+    },
+    async putPart(id, n, abs) {
+      parts.set(`${id}/${n}`, readFileSync(abs));
+    },
+    async listParts(id) {
+      return [...parts.keys()]
+        .filter((k) => k.startsWith(`${id}/`))
+        .map((k) => Number(k.split('/')[1]))
+        .sort((a, b) => a - b);
+    },
+    async partToFile(id, n, abs) {
+      const b = parts.get(`${id}/${n}`);
+      if (!b) return false;
+      writeFileSync(abs, b);
+      return true;
+    },
+    async removeParts(id) {
+      for (const k of [...parts.keys()]) if (k.startsWith(`${id}/`)) parts.delete(k);
+    },
+    async remove(id) {
+      sessions.delete(id);
+      for (const k of [...parts.keys()]) if (k.startsWith(`${id}/`)) parts.delete(k);
+    },
+    partsOf: (id) => [...parts.keys()].filter((k) => k.startsWith(`${id}/`)),
+    size: () => sessions.size + parts.size,
+  };
+}

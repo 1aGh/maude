@@ -43,7 +43,7 @@ This DDR pins the trust model so each subsequent Phase 9 task inherits a clear c
 | Hub can read Y.Doc state for documents the token authorizes | YES — by design (this IS the sync) |
 | Hub can broadcast Y.Doc updates that the agent commits to disk verbatim | YES — by design (this IS the sync, in reverse) |
 | Hub-pushed content is treated as untrusted input to the local filesystem | YES — same posture as `git pull` from a remote branch |
-| Hub controls what file types it can mutate | **Limited to `.html`, `_comments/<slug>.json`, `<slug>.annotations.svg`** (this DDR closes `.tsx`) |
+| Hub controls what file types it can mutate | **Limited to `.html`, `_comments/<slug>.json`, `<slug>.annotations.svg`** (this DDR closes `.tsx`). *Amended by [DDR-242](./DDR-242-annotations-v2-element-model.md): the annotations file is now `<slug>.annotations.json`; a stale `.svg` is migrated to `_trash/annotations-v1/`.* |
 | Hub-pushed file content is rendered as HTML/JS in the iframe origin | **Deferred to Task 8 (CSP + iframe sandbox)** — DOCUMENTED RISK until then |
 | Hub-pushed content lands in files Claude Code reads as context | **Deferred to Task 6 (`.claudeignore` strategy + linked-mode README banner)** — DOCUMENTED RISK until then |
 | Token (`~/.config/maude/hubs.json`) is per-machine, 0600, never committed | YES — invariant (CLI writes 0600; this DDR adds read-time mode-check warn) |

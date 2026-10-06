@@ -81,6 +81,8 @@ async function probe({ paths, token, method = 'POST', withS3 = true, root = desi
     designRoot: root,
     checkRateLimit: rest.checkRateLimit,
     checkWriteRateLimit: rest.checkWriteRateLimit,
+    materializer: rest.materializer,
+    journal: rest.journal,
   });
   return { handled, ...captured, json: captured.body ? JSON.parse(captured.body) : null };
 }
@@ -126,6 +128,32 @@ test('a bucket-only asset is ABSENT — the canvas can reference the checkout fo
   // …and the checkout does NOT (a cell restart drops the container's disk).
   const res = await probe({ token: minted.value, paths: ['assets/deadbeef.png'] });
   assert.deepEqual(res.json.present, [], 'skipping this leaves a permanent grey box');
+});
+
+// Cell materializer Task 11 — the assertion above holds OFF a cell. ON one
+// (MAUDE_CELL_MATERIALIZE) the disk is a cache: a bucket-held asset IS
+// servable (the static route materializes it), so "present" is the journal's
+// word — a live row whose bytes are mirrored, or pinned here until they are.
+test('CELL: presence is journal-live and (mirrored or pinned) — the disk is only a cache', async () => {
+  const minted = addToken(dataDir, { label: 'peer-a', scope: '*' });
+  const rows = {
+    'assets/deadbeef.png': { sha256: 'a'.repeat(64), mirroredAtMs: 1 }, // bucket only
+    'assets/11111111.png': { sha256: 'b'.repeat(64), mirroredAtMs: null }, // pinned upload
+    'assets/22222222.png': { sha256: 'c'.repeat(64), mirroredAtMs: null }, // lost
+    'assets/33333333.png': { sha256: null, mirroredAtMs: null, deleted: true },
+  };
+  const journal = {
+    latestFor: (rel) =>
+      rows[rel] ? { path: rel, class: 'inert-media', deleted: false, ...rows[rel] } : null,
+  };
+  const materializer = { isPinned: (sha) => sha === 'b'.repeat(64) };
+  const res = await probe({
+    token: minted.value,
+    paths: [...Object.keys(rows), 'assets/44444444.png'],
+    journal,
+    materializer,
+  });
+  assert.deepEqual(res.json.present, ['assets/deadbeef.png', 'assets/11111111.png']);
 });
 
 test('a checkout-held asset is present whether or not the bucket also holds it', async () => {
