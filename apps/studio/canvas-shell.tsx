@@ -1179,6 +1179,13 @@ function watchStylesheetsOnce(): void {
   }
 }
 
+/** Test seam: forget the cached answer — the module outlives a test file. */
+export function __resetDsThemeProbeForTests(): void {
+  _dsThemeSupport = null;
+  _dsThemeUnsupported = false;
+  _dsThemeWatch = false; // its observer watched the previous file's document
+}
+
 export function detectDsThemeSupport(): DsThemeSupport {
   if (_dsThemeSupport) return _dsThemeSupport;
   if (_dsThemeUnsupported) return _unsupported;

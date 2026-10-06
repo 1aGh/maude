@@ -24,7 +24,12 @@ afterAll(async () => {
 
 describe('DS theme support probe', () => {
   test('a single-theme DS is probed once, not on every call', async () => {
-    const { detectDsThemeSupport } = await import('../canvas-shell.tsx');
+    const { detectDsThemeSupport, __resetDsThemeProbeForTests } = await import(
+      '../canvas-shell.tsx'
+    );
+    // An earlier file in the same `bun test` process may have imported the
+    // shell and already cached an answer.
+    __resetDsThemeProbeForTests();
     let reads = 0;
     const real = window.getComputedStyle.bind(window);
     window.getComputedStyle = ((el: Element, p?: string | null) => {

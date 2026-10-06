@@ -14,7 +14,7 @@
 # Build from the REPO ROOT (the render service imports ../studio):
 #   docker build -f apps/render/Dockerfile -t maude-render .
 
-FROM oven/bun:1.3.3 AS deps
+FROM oven/bun:1.4.2 AS deps
 WORKDIR /app/apps/studio
 COPY apps/studio/package.json apps/studio/bun.lock ./
 # Patches must be reachable if apps/studio declares patchedDependencies
@@ -24,14 +24,14 @@ RUN bun install --frozen-lockfile
 
 # Playwright's Chromium — the pinned version the lockfile's playwright wants.
 # Installed in its own layer so a source-only change doesn't re-download it.
-FROM oven/bun:1.3.3 AS browser
+FROM oven/bun:1.4.2 AS browser
 WORKDIR /app/apps/studio
 COPY --from=deps /app/apps/studio/node_modules ./node_modules
 COPY apps/studio/package.json ./
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
 RUN bunx playwright install --with-deps chromium
 
-FROM oven/bun:1.3.3 AS runtime
+FROM oven/bun:1.4.2 AS runtime
 # Chromium's shared-library closure — same list `playwright install-deps`
 # resolves; installed explicitly so the runtime stage stays slim and explicit.
 #
