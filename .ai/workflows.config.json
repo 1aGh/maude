@@ -113,7 +113,7 @@
     "lint": "pnpm lint",
     "format": "pnpm format",
     "typecheck": "cd apps/studio && bunx tsc --noEmit && cd ../.. && bash scripts/check-tsc-coverage.sh",
-    "tests": "pnpm test && cd apps/studio && bun test test/sync-*.test.ts --timeout 20000",
+    "tests": "pnpm test && cd apps/studio && bun test --isolate test/sync-*.test.ts --timeout 20000",
     "build": "pnpm --filter @maude/site build",
     "parity": "bash scripts/check-version-parity.sh",
     "tarball": "bash scripts/check-tarball-shape.sh",

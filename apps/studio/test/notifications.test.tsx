@@ -10,7 +10,14 @@ beforeAll(() => {
   GlobalRegistrator.register();
   (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 });
-afterAll(() => GlobalRegistrator.unregister());
+// Sonner's deleteToast schedules `removeToast` 200 ms out on a REAL timer. One
+// still pending when the DOM is unregistered fires into the NEXT test file and
+// throws `window is not defined` from React's scheduler — blamed on whatever
+// test happens to be running (sync-autocommit, on Linux CI). Drain it first.
+afterAll(async () => {
+  await new Promise((resolve) => realTimeout(resolve, 500));
+  GlobalRegistrator.unregister();
+});
 let root: Root;
 let host: HTMLDivElement;
 let now = 0;

@@ -139,7 +139,7 @@ import {
 // (photo/pipeline.ts, which imports pixi.js) is loaded via a DYNAMIC import
 // inside <PhotoLayer> only when an edited photo actually mounts — see there.
 import { isDefaultEdit, type PhotoEdit } from './photo/schema.ts';
-import { isReadOnlyCanvas } from './read-only-mode.ts';
+import { isEmbedCanvas, isReadOnlyCanvas } from './read-only-mode.ts';
 import { AgentPresenceProvider, useAgentPresence } from './use-agent-presence.tsx';
 import { type DragState, useArtboardDrag } from './use-artboard-drag.tsx';
 import {
@@ -828,6 +828,10 @@ function patchCanvasMeta(patch: {
   layout?: { artboards: ArtboardRect[] };
 }): void {
   if (typeof window === 'undefined' || typeof fetch === 'undefined') return;
+  // DDR-247 — an embedded view persists nothing, camera included: its fit is
+  // not the designer's view, and the next time they open the canvas in the
+  // studio it must be where they left it.
+  if (isEmbedCanvas()) return;
   // Cloud Phase 25 C2 — a read-only session persists its CAMERA (per-user
   // `_canvas-state/` view, DDR-115) but never the LAYOUT lane (versioned
   // `.meta.json`). The dev-server refuses the layout lane too (http.ts);
@@ -1429,6 +1433,10 @@ export function useViewportController(opts: ViewportControllerOptions): Viewport
     // iframe's contentWindow so the window-scoped keydown listener below
     // receives events natively.
     const onPointerEnter = () => {
+      // DDR-247 — an embed never takes focus on its own: a pointer merely
+      // passing over it inside another app's dialog would pull keyboard focus
+      // out of that app and strand its Escape. A click still focuses it.
+      if (isEmbedCanvas()) return;
       try {
         const active = document.activeElement as HTMLElement | null;
         // Never steal focus from something being TYPED into. An editor that

@@ -70,6 +70,10 @@ describe('multi-tab stress (Phase 8 Task 8)', () => {
       awA.setLocalState({ name: 'Alice', color: '#f00', cursor: { x: 0, y: 0 }, __connId: A.id });
       awB.setLocalState({ name: 'Bob', color: '#0f0', cursor: { x: 0, y: 0 }, __connId: B.id });
 
+      // Collect first: in a full run the process still holds garbage from the
+      // files before this one, and a GC landing mid-measurement swung the delta
+      // by tens of MB in either direction.
+      Bun.gc(true);
       const rssBefore = process.memoryUsage().rss;
       const docSizeBefore = Y.encodeStateAsUpdate(room.doc).byteLength;
 
@@ -97,6 +101,7 @@ describe('multi-tab stress (Phase 8 Task 8)', () => {
         await Bun.sleep(tickInterval);
       }
 
+      Bun.gc(true);
       const rssAfter = process.memoryUsage().rss;
       const docSizeAfter = Y.encodeStateAsUpdate(room.doc).byteLength;
 

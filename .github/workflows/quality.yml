@@ -119,7 +119,7 @@ jobs:
         run: |
           git diff --quiet -- apps/studio/dist/ \
             || { echo "::error::apps/studio/dist/ was already dirty before the tests ran"; exit 1; }
-          (cd apps/studio && bun test test/sync-*.test.ts --timeout 20000)
+          (cd apps/studio && bun test --isolate test/sync-*.test.ts --timeout 20000)
           git diff --quiet -- apps/studio/dist/ || {
             echo "::error::apps/studio/dist/ was modified by the test run — the committed release bundles were clobbered."
             git --no-pager diff --stat -- apps/studio/dist/
@@ -226,7 +226,7 @@ jobs:
         run: |
           git diff --quiet -- apps/studio/dist/ \
             || { echo "::error::apps/studio/dist/ was already dirty before the tests ran"; exit 1; }
-          cd apps/studio && bun test \
+          cd apps/studio && bun test --isolate \
             test/export-e2e-lanes.test.ts \
             test/export-capture-hygiene.test.ts \
             test/export-capture-fidelity.test.ts \
@@ -263,7 +263,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: '24'  # the shell TLA probe needs SourceTextModule#hasTopLevelAwait (Node 24)
           cache: pnpm
 
       - name: Install
@@ -285,6 +285,15 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
+      # SVG import's execution canary (DDR-167) renders every imported file in
+      # a network-denied agent-browser session — a security control, so it
+      # fails closed without the binary and the import routes 500. Use the
+      # pinned devDep of @maude/desktop (DDR-144) and fetch its Chrome.
+      - name: Install agent-browser
+        run: |
+          echo "$GITHUB_WORKSPACE/apps/desktop/node_modules/.bin" >> "$GITHUB_PATH"
+          apps/desktop/node_modules/.bin/agent-browser install --with-deps
+
       - name: Full studio suite
         env:
           MAUDE_SYNC_IN_CI: '1' # see the required sync-lane step in the job above
@@ -293,7 +302,7 @@ jobs:
         run: |
           git diff --quiet -- apps/studio/dist/ \
             || { echo "::error::apps/studio/dist/ was already dirty before the tests ran"; exit 1; }
-          (cd apps/studio && bun test --timeout 20000)
+          (cd apps/studio && bun test --isolate --timeout 20000)
           git diff --quiet -- apps/studio/dist/ || {
             echo "::error::apps/studio/dist/ was modified by the test run — the committed release bundles were clobbered."
             git --no-pager diff --stat -- apps/studio/dist/

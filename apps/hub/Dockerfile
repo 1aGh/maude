@@ -28,7 +28,7 @@
 # install guarantee holds: versions stay exactly what bun.lock pinned).
 
 # ---- Stage 1: bundle src/server.mjs → dist/hub.bundle.mjs with Bun ----
-FROM oven/bun:1.3.3 AS bundler
+FROM oven/bun:1.4.2 AS bundler
 WORKDIR /build
 # Frozen install against the COMMITTED bun.lock — the release image must NOT
 # re-resolve dependencies at build time (caret ranges + fresh resolution on
@@ -145,7 +145,7 @@ RUN npm rebuild better-sqlite3 --build-from-source
 # It also REPLACES the standalone Bun this image used to carry for the build
 # sandbox: a compiled Bun binary re-entered with `BUN_BE_BUN=1` IS a JS runtime
 # (DDR-177), so one artifact serves both jobs instead of two serving one each.
-FROM oven/bun:1.3.3 AS studio-build
+FROM oven/bun:1.4.2 AS studio-build
 WORKDIR /build/apps/studio
 COPY apps/studio/package.json apps/studio/bun.lock ./
 # DDR-176 — `apps/studio` registers its OWN `patchedDependencies` (the
@@ -225,7 +225,7 @@ writeFileSync('/build/bundle-manifest.json',JSON.stringify({artifacts:a},null,2)
 # the engine's source, the two npm packages it parses with, and a Bun to run
 # them. Nothing from this stage is on the server's own module path — the
 # sandbox is a separate process with an empty environment.
-FROM oven/bun:1.3.3 AS canvas-deps
+FROM oven/bun:1.4.2 AS canvas-deps
 WORKDIR /canvas
 # oxc-parser + magic-string are the identity pass (data-cd-id injection); the
 # rest of the engine's imports are the studio's own files, copied below.
