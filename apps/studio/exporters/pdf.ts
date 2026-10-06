@@ -140,7 +140,7 @@ async function capturePdf(
   const args = [
     PDF_PLAYWRIGHT,
     '--url',
-    canvasShellUrl(ctx, target.file),
+    canvasShellUrl(ctx, target.file, { annotations: target.annotations }),
     '--selector',
     target.cssPath,
     '--timeout',
@@ -148,7 +148,15 @@ async function capturePdf(
     '--scale',
     String(deviceScale),
   ];
-  if (target.multi) args.push('--multi', '1', '--out-dir', outDir);
+  if (target.region) {
+    // Issue #125 — one page covering a world-plane region (whole canvas / selection box).
+    args.push(
+      '--region',
+      target.region === 'canvas' ? 'canvas' : JSON.stringify(target.region),
+      '--out',
+      path.join(outDir, `${target.canvasSlug}.pdf`)
+    );
+  } else if (target.multi) args.push('--multi', '1', '--out-dir', outDir);
   else {
     // Widen to the enclosing artboard only when scope.ts requested it
     // (artboard-via-descendant fallback). selection / artboard-by-id targets

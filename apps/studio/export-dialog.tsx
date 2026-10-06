@@ -101,7 +101,17 @@ function bridgeRequest<T>(
 }
 
 export type Format = 'png' | 'pdf' | 'svg' | 'html' | 'pptx' | 'canva' | 'zip';
-export type Scope = 'selection' | 'artboard' | 'canvas-as-separate' | 'project-raw';
+export type Scope =
+  | 'selection'
+  | 'artboard'
+  | 'canvas-as-separate'
+  | 'canvas-whole'
+  | 'selection-bounds'
+  | 'project-raw';
+
+/** Scopes that capture a world-plane region as one unit — the only ones that
+ *  can carry the annotation layer (issue #125). */
+const REGION_SCOPES: ReadonlySet<Scope> = new Set(['canvas-whole', 'selection-bounds']);
 
 // ─── PNG size presets (item 1) ───────────────────────────────────────────────
 // Resolution multiplier applied as Chromium `deviceScaleFactor`. The native
@@ -211,12 +221,23 @@ function captureScopeHints(
   selSet: {
     selected: Array<{ selector?: string; file?: string; artboardId?: string | null }>;
   } | null
-): { selection?: { selector: string; file?: string }; artboardId?: string } {
-  const out: { selection?: { selector: string; file?: string }; artboardId?: string } = {};
+): {
+  selection?: { selector: string; file?: string };
+  selectionAll?: string[];
+  artboardId?: string;
+} {
+  const out: {
+    selection?: { selector: string; file?: string };
+    selectionAll?: string[];
+    artboardId?: string;
+  } = {};
   const sel = selSet?.selected?.[0];
   if (sel?.selector) {
     out.selection = { selector: sel.selector, ...(sel.file ? { file: sel.file } : {}) };
   }
+  // Every selected item — `selection-bounds` exports their union box.
+  const all = (selSet?.selected ?? []).map((s) => s.selector).filter((x): x is string => !!x);
+  if (all.length) out.selectionAll = all;
   const artboardId = (sel?.artboardId ?? undefined) || activeArtboardId();
   if (artboardId) out.artboardId = artboardId;
   return out;
@@ -258,6 +279,14 @@ const SCOPE_META: Record<Scope, { label: string; description: string }> = {
   'canvas-as-separate': {
     label: 'Canvas → separate',
     description: 'Every artboard on the active canvas as N files.',
+  },
+  'canvas-whole': {
+    label: 'Whole canvas',
+    description: 'The whole canvas as one image, layout between artboards kept.',
+  },
+  'selection-bounds': {
+    label: 'Selection area',
+    description: 'One image of the bounding box around everything selected.',
   },
   'project-raw': {
     label: 'Project (raw)',
@@ -518,6 +547,8 @@ const DialogShell = (() => {
     // on every PDF export; the server no-ops them for a non-print artboard
     // (mirrors app.jsx's own ExportDialog — see that file's T6 comment).
     const [pdfIncludeBleed, setPdfIncludeBleed] = useState(true);
+    // Issue #125 — opt-in, region scopes only. Comment pins never export.
+    const [includeAnnotations, setIncludeAnnotations] = useState(false);
     const [pdfMarksOpen, setPdfMarksOpen] = useState(false);
     const [pdfMarksCrop, setPdfMarksCrop] = useState(false);
     const [pdfMarksRegistration, setPdfMarksRegistration] = useState(false);
@@ -534,6 +565,8 @@ const DialogShell = (() => {
       const hints = captureScopeHints(selSet);
       if (hints.selection) options.selection = hints.selection;
       if (hints.artboardId) options.artboardId = hints.artboardId;
+      if (hints.selectionAll) options.selectionAll = hints.selectionAll;
+      if (REGION_SCOPES.has(scope) && includeAnnotations) options.includeAnnotations = true;
       if (format === 'png') {
         const res = PNG_RESOLUTIONS.find((r) => r.id === pngResId) ?? PNG_RESOLUTIONS[1];
         if (res.kind === 'dpi') options.dpi = res.value;
@@ -562,6 +595,7 @@ const DialogShell = (() => {
       pdfMarksRegistration,
       pdfDpiId,
       pdfTextId,
+      includeAnnotations,
       onSubmit,
     ]);
 
@@ -625,6 +659,17 @@ const DialogShell = (() => {
               ))}
             </select>
             <p className="dc-ed-desc">{SCOPE_META[scope].description}</p>
+            {REGION_SCOPES.has(scope) && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  data-testid="export-include-annotations"
+                  checked={includeAnnotations}
+                  onChange={(e) => setIncludeAnnotations(e.target.checked)}
+                />
+                Include annotations
+              </label>
+            )}
           </div>
           {format === 'png' && (
             <div>

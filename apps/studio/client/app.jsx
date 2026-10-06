@@ -1137,8 +1137,13 @@ const EXPORT_SCOPE_LABELS = {
   selection: 'Current selection',
   artboard: 'Active artboard',
   'canvas-as-separate': 'Canvas · artboards separate',
+  'canvas-whole': 'Whole canvas · one image',
+  'selection-bounds': 'Selection area · one image',
   'project-raw': 'Whole project (raw)',
 };
+// Issue #125 — scopes that capture a world-plane region as one unit; the only
+// ones that can carry the annotation layer.
+const EXPORT_REGION_SCOPES = new Set(['canvas-whole', 'selection-bounds']);
 const PNG_SCALES = [
   { value: 1, label: '1× (native)' },
   { value: 2, label: '2× (retina)' },
@@ -1592,6 +1597,8 @@ function ExportDialog({
   const [pdfMarksRegistration, setPdfMarksRegistration] = useState(false);
   const [pdfDpiId, setPdfDpiId] = useState(PDF_DPI_DEFAULT);
   const [pdfTextId, setPdfTextId] = useState(PDF_TEXT_DEFAULT);
+  // Issue #125 — opt-in, region scopes only. Comment pins never export.
+  const [includeAnnotations, setIncludeAnnotations] = useState(false);
   // DDR-148 addendum — mp4/webm of a registered video-comp render through
   // renderMediaOnWeb, which produces real audio (Remotion owns the
   // TransitionSeries/volume-closure timeline). gif has no audio track at all
@@ -1715,6 +1722,7 @@ function ExportDialog({
     // the in-canvas dialog's captureScopeHints.
     if (activeArtboardId) options.artboardId = activeArtboardId;
     if (selection?.selector) options.selection = selection;
+    if (EXPORT_REGION_SCOPES.has(scope) && includeAnnotations) options.includeAnnotations = true;
     // Which canvas FILE this dialog is exporting — the server's `_active.json`
     // lags a tab switch, and a job resolved against the stale file renders the
     // wrong canvas (with this dialog's artboardId, which then never matches).
@@ -1924,6 +1932,23 @@ function ExportDialog({
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+          {!card.handoff && EXPORT_REGION_SCOPES.has(scope) && (
+            <div className="st-dialog-row">
+              <label className="st-dialog-lbl" htmlFor="st-export-annotations">
+                Annotations
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <input
+                  id="st-export-annotations"
+                  type="checkbox"
+                  data-testid="export-include-annotations"
+                  checked={includeAnnotations}
+                  onChange={(e) => setIncludeAnnotations(e.target.checked)}
+                />
+                Include annotations
+              </label>
             </div>
           )}
           {!card.handoff && card.format === 'png' && (

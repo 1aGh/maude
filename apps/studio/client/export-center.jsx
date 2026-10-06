@@ -31,6 +31,8 @@ const SCOPE_LABELS = {
   selection: 'Selection',
   artboard: 'Artboard',
   'canvas-as-separate': 'Canvas → separate',
+  'canvas-whole': 'Whole canvas',
+  'selection-bounds': 'Selection area',
   'project-raw': 'Project (raw)',
 };
 

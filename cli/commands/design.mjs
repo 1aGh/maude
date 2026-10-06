@@ -371,7 +371,7 @@ Dev-tooling (dispatch to the dev-server bash helpers — DDR-062):
         scaffolds Core + the derived specimens deterministically (this is the
         path skill 'design-system' uses when shelling out from Claude Code).
 
-  export <format> [--scope selection|artboard|canvas-as-separate|project-raw]
+  export <format> [--scope selection|artboard|canvas-as-separate|canvas-whole|selection-bounds|project-raw]
          [--port N] [--out <path>] [--option key=value ...]
         Drive the same POST /_api/export endpoint the UI uses. Auto-detects
         port from .design/_server.json; requires a running dev server. The
@@ -698,7 +698,14 @@ async function runExport({ args }) {
   // scope.ts resolves the artboard under the active canvas); other formats keep
   // the canvas-as-separate default.
   const scope = flags.scope ?? (VIDEO_FORMATS.has(format) ? 'artboard' : 'canvas-as-separate');
-  const VALID_SCOPES = new Set(['selection', 'artboard', 'canvas-as-separate', 'project-raw']);
+  const VALID_SCOPES = new Set([
+    'selection',
+    'artboard',
+    'canvas-as-separate',
+    'canvas-whole',
+    'selection-bounds',
+    'project-raw',
+  ]);
   if (!VALID_SCOPES.has(scope)) {
     process.stderr.write(`maude design export: unknown --scope "${scope}"\n`);
     process.exit(2);

@@ -24,6 +24,8 @@ Phase A of the gate set found six silent bugs by pointing a typechecker at 52 fi
 **Active plan:** —
 **Active task:** —
 
+_2026-10-06:_ **done** | issue #125 — export the whole canvas with annotations (`feature-canvas-whole-export-with-annotations`) | New PNG/PDF scopes `canvas-whole` + `selection-bounds` (one image/page, layout kept) and an opt-in *Include annotations* (comment pins never export). Annotations ride a separate `annotations=1` shell param because `hide-chrome=1` also selects the capture CSP; the sticky `<defs>` filter in `.dc-annot-svg` must stay laid out or Chromium drops the sticky. Verified by real exports from the shell dialog. Not covered: in-canvas dialog in a browser, cloud render lane, desktop E2E. Plan archived.
+
 _2026-10-05:_ **closed — `feature-harness-environment-projection`, cutover abandoned** | [DDR-245](../archive/decisions/DDR-245-harness-projection-cutover-abandoned.md): OpenCode/Codex were an experiment, now ended; T10–T13 not pursued; `maude harness` stays; dead `studyfi-design/plugins/opencode-claude-parity/` removed (studyfi-design `522ba70`). Plan archived.
 
 _2026-10-05:_ **closed — `followup-annotations-v2`, by decision** | [DDR-244](../archive/decisions/DDR-244-annotations-v2-stroke-view-is-the-editing-end-state.md): the Stroke view is the editing end state (F1); the rest of Tasks 23/24 rejected (F2); AI-read gate re-baselined 3× → 2.8× (F3); F4/F5 not pursued, no backlog; DDR-100 §3 + DDR-054 table amended to point at DDR-242 (F6). Plan archived.

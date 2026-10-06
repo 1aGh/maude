@@ -8,6 +8,7 @@
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { launchChromium, safeArtboardFilename } from './_pw-launch.mjs';
+import { layoutRegion, parseRegionArg } from './_region.mjs';
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, cur, i, all) => {
@@ -23,6 +24,7 @@ const {
   'out-dir': outDir,
   'widen-to-artboard': widenFlag,
   multi: multiFlag,
+  region: regionArg,
   timeout = '12',
   scale = '1',
 } = args;
@@ -33,6 +35,7 @@ if (!url) {
 }
 
 const widen = widenFlag !== undefined;
+const region = parseRegionArg(regionArg);
 const multi = multiFlag !== undefined;
 const timeoutMs = Number(timeout) * 1000;
 // feature-2-print-artboards T4 — ceiling raised 4→8 so a 300dpi export
@@ -202,7 +205,23 @@ try {
     }, savedPos);
   };
 
-  if (multi) {
+  if (region) {
+    // Issue #125 — one image of a whole region of the world plane (the whole
+    // canvas, or the selection's bounding box), layout + annotations intact.
+    if (!out) {
+      console.error('_png-playwright: --out required with --region');
+      process.exit(2);
+    }
+    mkdirSync(dirname(out), { recursive: true });
+    const box = await layoutRegion(page, region);
+    assertOutputSizeOk(box.width, box.height);
+    await page.setViewportSize({ width: Math.max(1, box.width), height: Math.max(1, box.height) });
+    await page.screenshot({
+      path: out,
+      clip: { x: 0, y: 0, width: box.width, height: box.height },
+    });
+    written.push(out);
+  } else if (multi) {
     if (!outDir) {
       console.error('_png-playwright: --multi requires --out-dir');
       process.exit(2);

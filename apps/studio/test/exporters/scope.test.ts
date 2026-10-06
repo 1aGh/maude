@@ -290,3 +290,90 @@ describe('canvasFile hint precedence', () => {
     expect(targets.length).toBe(1);
   });
 });
+
+// Issue #125 — the whole canvas / the selection's bounding box as ONE capture,
+// annotations opt-in.
+describe('resolveScope — region scopes (issue #125)', () => {
+  test('canvas-whole → one region target over the whole canvas, annotations off by default', async () => {
+    const targets = await resolveScope({
+      scope: 'canvas-whole',
+      activeJson: activeOn('.design/ui/Home.tsx'),
+      designRoot: '/abs/.design',
+    });
+    expect(targets).toEqual([
+      {
+        kind: 'element',
+        cssPath: '[data-dc-screen]',
+        canvasSlug: 'ui-home',
+        file: '.design/ui/Home.tsx',
+        region: 'canvas',
+        annotations: false,
+      },
+    ]);
+  });
+
+  test('includeAnnotations: true opts the annotation layer in', async () => {
+    const [t] = await resolveScope({
+      scope: 'canvas-whole',
+      activeJson: activeOn('.design/ui/Home.tsx'),
+      designRoot: '/abs/.design',
+      options: { includeAnnotations: true },
+    });
+    expect(t.kind === 'element' && t.annotations).toBe(true);
+  });
+
+  test('only a literal true opts in', async () => {
+    const [t] = await resolveScope({
+      scope: 'canvas-whole',
+      activeJson: activeOn('.design/ui/Home.tsx'),
+      designRoot: '/abs/.design',
+      options: { includeAnnotations: 'yes' },
+    });
+    expect(t.kind === 'element' && t.annotations).toBe(false);
+  });
+
+  test('selection-bounds → the union box of every selected selector', async () => {
+    const [t] = await resolveScope({
+      scope: 'selection-bounds',
+      activeJson: activeOn('.design/ui/Home.tsx'),
+      designRoot: '/abs/.design',
+      options: { selectionAll: ['#a', '[data-dc-screen="b"]', 7] },
+    });
+    expect(t.kind).toBe('element');
+    if (t.kind === 'element') {
+      expect(t.region).toEqual({ selectors: ['#a', '[data-dc-screen="b"]'] });
+      expect(t.cssPath).toBe('#a');
+    }
+  });
+
+  test('selection-bounds falls back to the single selection', async () => {
+    const [t] = await resolveScope({
+      scope: 'selection-bounds',
+      activeJson: activeWithSelection('.design/ui/Home.tsx', '#hero'),
+      designRoot: '/abs/.design',
+    });
+    expect(t.kind === 'element' && t.region).toEqual({ selectors: ['#hero'] });
+  });
+
+  test('selection-bounds with nothing selected → the whole canvas', async () => {
+    const [t] = await resolveScope({
+      scope: 'selection-bounds',
+      activeJson: activeOn('.design/ui/Home.tsx'),
+      designRoot: '/abs/.design',
+    });
+    expect(t.kind === 'element' && t.region).toBe('canvas');
+  });
+});
+
+test('selection-bounds caps selectionAll (count + selector length)', async () => {
+  const many = Array.from({ length: 1000 }, (_, i) => `#e${i}`);
+  const [t] = await resolveScope({
+    scope: 'selection-bounds',
+    activeJson: { active: '.design/ui/Home.tsx', selected: null },
+    designRoot: '/abs/.design',
+    options: { selectionAll: ['x'.repeat(2000), ...many] },
+  });
+  const r = t.kind === 'element' ? t.region : null;
+  expect(r && r !== 'canvas' ? r.selectors.length : 0).toBe(256);
+  expect(r && r !== 'canvas' ? r.selectors[0] : '').toBe('#e0');
+});

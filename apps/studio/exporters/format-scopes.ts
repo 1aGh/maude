@@ -36,7 +36,13 @@ export type ExportFormatName =
   | 'gif';
 
 /** Mirrors `scope.ts`'s `Scope`. */
-export type ExportScopeName = 'selection' | 'artboard' | 'canvas-as-separate' | 'project-raw';
+export type ExportScopeName =
+  | 'selection'
+  | 'artboard'
+  | 'canvas-as-separate'
+  | 'canvas-whole'
+  | 'selection-bounds'
+  | 'project-raw';
 
 /**
  * Scopes each format accepts, in the order a picker should offer them — the
@@ -47,13 +53,15 @@ export type ExportScopeName = 'selection' | 'artboard' | 'canvas-as-separate' | 
  *     consumes; every rendering format must therefore exclude it.
  *   - `pptx` is a deck: one slide per artboard, so canvas-wide only.
  *   - video renders one temporal artboard, so `artboard` only.
+ *   - `canvas-whole` / `selection-bounds` capture a world-plane REGION as one
+ *     image or page (issue #125) — raster/page formats only.
  *   - `html` has no meaningful "selection" unit (it emits a page per artboard).
  */
 export const VALID_SCOPES_BY_FORMAT: Readonly<
   Record<ExportFormatName, readonly ExportScopeName[]>
 > = Object.freeze({
-  png: ['selection', 'artboard', 'canvas-as-separate'],
-  pdf: ['selection', 'artboard', 'canvas-as-separate'],
+  png: ['selection', 'artboard', 'canvas-as-separate', 'canvas-whole', 'selection-bounds'],
+  pdf: ['selection', 'artboard', 'canvas-as-separate', 'canvas-whole', 'selection-bounds'],
   svg: ['selection', 'artboard', 'canvas-as-separate'],
   html: ['artboard', 'canvas-as-separate'],
   pptx: ['canvas-as-separate'],

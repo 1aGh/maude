@@ -116,7 +116,14 @@ export function isFormat(s: unknown): s is Format {
 }
 
 export function isScope(s: unknown): s is Scope {
-  return s === 'selection' || s === 'artboard' || s === 'canvas-as-separate' || s === 'project-raw';
+  return (
+    s === 'selection' ||
+    s === 'artboard' ||
+    s === 'canvas-as-separate' ||
+    s === 'canvas-whole' ||
+    s === 'selection-bounds' ||
+    s === 'project-raw'
+  );
 }
 
 /**
@@ -164,7 +171,11 @@ export { resolveScope };
  * is the single normalization point. `ctx.tokensCssRel` is supplied by the
  * HTTP handler from `cfg.tokensCssRel`.
  */
-export function canvasShellUrl(ctx: ExportContext, file: string): string {
+export function canvasShellUrl(
+  ctx: ExportContext,
+  file: string,
+  opts: { annotations?: boolean } = {}
+): string {
   const designRel = path.basename(ctx.designRoot);
   const stripPrefix = `${designRel}/`;
   const rel = file.startsWith(stripPrefix) ? file.slice(stripPrefix.length) : file;
@@ -177,5 +188,9 @@ export function canvasShellUrl(ctx: ExportContext, file: string): string {
   // content. The shell's tiny <style id="canvas-hide-chrome"> rule flips
   // active when this is set.
   params.set('hide-chrome', '1');
+  // Issue #125 — opt-in: paint the annotation elements back in. Only the
+  // `[data-mdcc-annotations]` scene; comment pins and selection chrome stay
+  // hidden, and `hide-chrome` (which also selects the capture CSP) stays on.
+  if (opts.annotations) params.set('annotations', '1');
   return `${ctx.serverOrigin}/_canvas-shell.html?${params.toString()}`;
 }
