@@ -342,10 +342,14 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
 
   // Orphaned `_export-jobs/*` dirs from a process that died mid-export — job
   // state is in-memory only and doesn't survive a restart, so anything on
-  // disk from a prior run is stale. Best-effort, never blocks boot.
-  void rm(jobsDir, { recursive: true, force: true })
+  // disk from a prior run is stale. Best-effort, never blocks boot — but a
+  // job's byte write waits for it: a zip finishes in milliseconds, and an
+  // unawaited sweep landing after that write deleted the fresh job's bytes
+  // (a 404 on download, seen on Linux CI).
+  const staleSwept: Promise<void> = rm(jobsDir, { recursive: true, force: true })
     .catch(() => {})
-    .then(() => mkdir(jobsDir, { recursive: true }).catch(() => {}));
+    .then(() => mkdir(jobsDir, { recursive: true }).catch(() => {}))
+    .then(() => {});
 
   function emit(job: ExportJob): void {
     bus.emit('export:job', { ...job });
@@ -540,6 +544,15 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
               },
             });
 
+        // Bytes land on disk BEFORE the job reads `done`. The other way round,
+        // a poller saw `done` while the write was still in flight and its
+        // download 404'd (Linux CI, exporters/jobs.test.ts).
+        if (res.body.byteLength) {
+          const dir = path.join(jobsDir, id);
+          await staleSwept;
+          await mkdir(dir, { recursive: true });
+          await Bun.write(path.join(dir, res.filename), res.body);
+        }
         job.status = 'done';
         job.finishedAt = new Date().toISOString();
         job.filename = res.filename;
@@ -550,11 +563,6 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
         // the desktop app's stderr — see RCA
         // issue-mp4-audio-export-html5audio-silent-degrade.
         if (res.degraded) job.degraded = res.degraded;
-        if (res.body.byteLength) {
-          const dir = path.join(jobsDir, id);
-          await mkdir(dir, { recursive: true });
-          await Bun.write(path.join(dir, res.filename), res.body);
-        }
         emit(job);
         await persistAndEvict();
         return res;

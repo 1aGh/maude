@@ -1,0 +1,82 @@
+---
+title: Embedding the hub
+description: Show a live, read-only design inside another app — a task tracker, a wiki, a dashboard — without handing that app any power over the project.
+---
+
+A workspace hub can be framed by another app, so a design can sit next to the task it belongs to. The embedded view is one canvas, chromeless and read-only: no file tree, no toolbars, no comments, no editing. It pans and zooms, and it always shows the current state of the file.
+
+## The URL
+
+```
+https://design.acme.com/?open=ui/checkout.tsx&embed=1
+https://design.acme.com/?open=ui/checkout.tsx&embed=1&artboard=mobile
+```
+
+- `open` is the path under `.design/`, the same value the studio's **Share** link carries. A leading `.design/` is accepted and ignored.
+- `embed=1` turns on the embedded view. Anything else (`embed=true`, a missing value) opens the full studio.
+- `artboard` (optional) frames that one artboard — the id you gave the `DCArtboard`. An unknown id leaves the whole canvas fitted.
+
+The embed never writes to your preferences and never saves its camera, so framing a canvas does not move the view a designer left it at.
+
+## Allow the app to frame it
+
+Nothing may frame the studio until you name it:
+
+```
+MAUDE_EMBED_ORIGINS=https://orbit.acme.com
+```
+
+Space- or comma-separated origins — scheme, host and port, no path. A wildcard, a typo or a non-http(s) value is dropped rather than widened, so a mistake means the embed does not render, never that anybody can frame your studio. With `workspace-up`:
+
+```sh
+maude hub workspace-up --domain design.acme.com --embed-origin https://orbit.acme.com
+```
+
+The flag is repeatable (or takes a comma list), and like every other flag it has to be passed again on a re-run.
+
+Without the variable the studio page still answers `frame-ancestors 'self'` plus its own shell origins, so it cannot be framed by an arbitrary site.
+
+## Same site, or not at all
+
+The viewer is signed in to the hub by a cookie on the hub's own hostname. Browsers send that cookie to a framed page only when the embedding app is on the **same site** — the same registrable domain, like `orbit.acme.com` and `design.acme.com` under `acme.com`. An app on another domain would need third-party cookies, which current browsers block, and the embed would ask the viewer to sign in forever. Put the hub and the app under one domain.
+
+## What the app hears
+
+The embedded page posts to its parent — by the parent's exact origin, and only when that origin is on `MAUDE_EMBED_ORIGINS`. It never posts to `'*'`, and it does not listen to the parent at all.
+
+```ts
+type MaudeHubMessage = {
+  source: 'maude-hub';
+  v: 1;
+  type: 'ready' | 'auth-required' | 'not-found' | 'escape';
+  open: string;   // the file the embed was asked for
+  title?: string; // the canvas title, when it has one (ready only)
+};
+```
+
+| `type` | When | What the app should do |
+| --- | --- | --- |
+| `ready` | the canvas has rendered | stop showing its own loading state |
+| `not-found` | the file is not in the project, is not a canvas, or did not load within 20 s | say so; the frame shows a short notice too |
+| `auth-required` | the viewer is not signed in to the hub | offer a way to sign in, then reload the frame |
+| `escape` | Escape was pressed inside the embed and nothing there used it | do what Escape does in your app — close the dialog the embed sits in |
+
+Keys pressed inside a frame never reach the page around it, which is why `escape` exists: without it, an embed shown in a dialog would swallow the dialog's Escape. For the same reason the embed never takes keyboard focus on its own — not on load, not when the pointer passes over it; only a click moves focus in.
+
+Check `event.origin` against your hub's origin and `event.data.source === 'maude-hub'` before trusting a message.
+
+## Signing in
+
+A signed-out viewer cannot sign in inside the frame: the sign-in page refuses to be framed, because it collects a password. Instead the embed shows a short page with a **Sign in to the design hub** link that opens the normal sign-in in a new tab, returning to the same file in the full studio, and posts `auth-required`. Once the viewer has signed in, reload the frame — for example when your app's window regains focus.
+
+## What an embedding app cannot do
+
+An embed origin is a **framing** permission and nothing else:
+
+- it is not a shell origin — `MAUDE_EXTRA_SHELL_ORIGINS` is a different list, and the canvas origin accepts cross-origin writes only from shells;
+- the embed is read-only **on the server**: the hub hands it a read-only canvas capability, and the canvas origin refuses every write and every live-collaboration socket that carries it — whatever the viewer's role, comments included. (So an embedded canvas follows edits to its source, but new sticky notes and comments appear on the next load.);
+- the full studio stays unframeable by the app: the embed origins are only allowed to frame a `?embed=1` page, and that page may only frame its own canvas;
+- nothing ambient authorises a write: the canvas origin accepts a write or a live socket only with the capability the frame itself was given, never from a cookie — so a designer's own studio tab open beside the embed lends it nothing;
+- the app's page never talks to the hub directly — the frame does, with the viewer's own session, and the app only receives the three messages above.
+
+Embedding does not change who can see the project: a viewer who has no account on the hub gets `auth-required`, never the design.

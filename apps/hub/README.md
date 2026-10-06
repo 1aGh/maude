@@ -70,7 +70,18 @@ the raw token value is never written to disk).
 | `HUB_OIDC_ISSUER` / `HUB_OIDC_CLIENT_ID` / `HUB_OIDC_CLIENT_SECRET` | — | Required once a mode is set. |
 | `HUB_OIDC_ALLOWED_DOMAINS` | — | Required once a mode is set. A filter, never a grant: a permitted domain with no account still waits for an admin. |
 | `HUB_OIDC_LABEL` | issuer hostname | What the sign-in button says.
+| `MAUDE_EMBED_ORIGINS` | _(unset)_ | Apps allowed to **frame** the studio read-only (`/?open=<file>&embed=1`), space- or comma-separated origins (`https://orbit.acme.com`). Invalid entries and wildcards are dropped. Framing only — an embed origin is **never** a cross-origin writer, unlike `MAUDE_EXTRA_SHELL_ORIGINS`. See [Embedding the hub](https://maude.sh/docs/hub/embedding). |
 
+## Embedding the hub
+
+Another app can show a design next to its own content by framing
+`https://<hub>/?open=<path under .design>&embed=1` (optionally `&artboard=<id>`).
+The studio renders that one canvas chromeless and read-only, and tells the
+parent `ready` / `not-found` / `auth-required` by `postMessage` — to the
+parent's exact origin, and only if it is on `MAUDE_EMBED_ORIGINS`. A signed-out
+viewer gets a frameable page with a link to sign in in a new tab instead of the
+(unframeable) sign-in redirect. `maude hub workspace-up --embed-origin <origin>`
+writes the variable for you. Full contract: [Embedding the hub](https://maude.sh/docs/hub/embedding).
 
 ## Transport hardening (Task 6)
 
