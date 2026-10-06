@@ -1,5 +1,11 @@
 # @1agh/maude
 
+## 1.7.1
+
+### Patch Changes
+
+- The desktop app builds for Windows again — v1.7.0's Windows installer and the matching npm release were held back by a test-only dependency that no longer compiled there. The desktop window also recovers on its own if its page process crashes (most often a very heavy canvas): it reloads up to three times a minute, then asks before trying again.
+
 ## 1.7.0
 
 ### Minor Changes
