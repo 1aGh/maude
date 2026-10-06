@@ -1945,9 +1945,48 @@ function useExportCaptureBridge() {
   }, []);
 }
 
+// Issue #125 — the shell's "Selection area" export needs EVERYTHING selected:
+// canvas elements (the selection set — the shell only tracks one) AND
+// annotation elements (a separate selection, never reported to the shell).
+// The shell asks right before submitting; we answer with one selector per item.
+function useExportSelectionBridge() {
+  const selSet = useSelectionSetOptional();
+  const selRef = useRef(selSet);
+  selRef.current = selSet;
+  useEffect(() => {
+    if (typeof window === 'undefined' || window.parent === window) return;
+    const onMsg = (e: MessageEvent) => {
+      if (e.source !== window.parent) return;
+      const m = e.data as { dgn?: string; id?: unknown } | null;
+      if (m?.dgn !== 'export-selection-query' || typeof m.id !== 'string') return;
+      const selectors: string[] = [];
+      for (const it of selRef.current?.selected ?? []) {
+        if (it?.selector) selectors.push(it.selector);
+      }
+      const annotIds = (
+        document.querySelector('.dc-annot-svg')?.getAttribute('data-selection') ?? ''
+      )
+        .split(/\s+/)
+        .filter(Boolean);
+      for (const id of annotIds) {
+        selectors.push(`[data-mdcc-annotations] [data-id="${id.replace(/["\\]/g, '\\$&')}"]`);
+      }
+      const replyOrigin = e.origin && e.origin !== 'null' ? e.origin : '*';
+      try {
+        window.parent.postMessage({ dgn: 'export-selection', id: m.id, selectors }, replyOrigin);
+      } catch {
+        /* parent gone */
+      }
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+}
+
 function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
   ensureEngineStyles();
   useExportCaptureBridge();
+  useExportSelectionBridge();
 
   const hostRef = useRef<HTMLDivElement | null>(null);
   const worldRef = useRef<HTMLDivElement | null>(null);

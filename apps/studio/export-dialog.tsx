@@ -237,6 +237,13 @@ function captureScopeHints(
   }
   // Every selected item — `selection-bounds` exports their union box.
   const all = (selSet?.selected ?? []).map((s) => s.selector).filter((x): x is string => !!x);
+  // Annotation elements have their own selection (never in the selection set).
+  const annotIds = (document.querySelector('.dc-annot-svg')?.getAttribute('data-selection') ?? '')
+    .split(/\s+/)
+    .filter(Boolean);
+  for (const id of annotIds) {
+    all.push(`[data-mdcc-annotations] [data-id="${id.replace(/["\\]/g, '\\$&')}"]`);
+  }
   if (all.length) out.selectionAll = all;
   const artboardId = (sel?.artboardId ?? undefined) || activeArtboardId();
   if (artboardId) out.artboardId = artboardId;

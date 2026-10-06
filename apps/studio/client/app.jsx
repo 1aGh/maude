@@ -1551,6 +1551,7 @@ function ExportDialog({
   selection = null,
   exportLane = 'local',
   onBrowserCapture = null,
+  onQuerySelection = null,
   onClose,
 }) {
   // feature-cloud-export-render-workers — on a cell with no render service
@@ -1723,6 +1724,10 @@ function ExportDialog({
     if (activeArtboardId) options.artboardId = activeArtboardId;
     if (selection?.selector) options.selection = selection;
     if (EXPORT_REGION_SCOPES.has(scope) && includeAnnotations) options.includeAnnotations = true;
+    if (scope === 'selection-bounds' && typeof onQuerySelection === 'function') {
+      const all = await onQuerySelection();
+      if (all?.length) options.selectionAll = all;
+    }
     // Which canvas FILE this dialog is exporting — the server's `_active.json`
     // lags a tab switch, and a job resolved against the stale file renders the
     // wrong canvas (with this dialog's artboardId, which then never matches).
@@ -11155,6 +11160,41 @@ function App() {
     [activePath]
   );
 
+  // Issue #125 — "Selection area" needs every selected item, canvas elements
+  // AND annotations; the shell tracks only one, so ask the canvas. Resolves
+  // null (→ the single tracked selection) when the canvas doesn't answer.
+  const querySelectionFromCanvas = useCallback(
+    () =>
+      new Promise((resolve) => {
+        const el = activePath ? iframesRef.current.get(activePath) : null;
+        if (!el || !el.contentWindow) {
+          resolve(null);
+          return;
+        }
+        const cw = el.contentWindow;
+        const id = `sel-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+        const onMsg = (e) => {
+          if (e.source !== cw) return;
+          const m = e.data;
+          if (!m || m.dgn !== 'export-selection' || m.id !== id) return;
+          done(Array.isArray(m.selectors) ? m.selectors.filter((x) => typeof x === 'string') : null);
+        };
+        const timer = setTimeout(() => done(null), 1500);
+        function done(v) {
+          clearTimeout(timer);
+          window.removeEventListener('message', onMsg);
+          resolve(v);
+        }
+        window.addEventListener('message', onMsg);
+        try {
+          cw.postMessage({ dgn: 'export-selection-query', id }, '*');
+        } catch {
+          done(null);
+        }
+      }),
+    [activePath]
+  );
+
   // ── feature-photo-editor — the Photo tab's three channels ─────────────────
   // (1) live preview: broadcast the edit DOWN to the active canvas iframe, whose
   //     canvas-lib `PhotoPreviewBridge` bakes the composite and swaps it directly
@@ -17204,6 +17244,7 @@ function App() {
           selection={selected?.selector ? { selector: selected.selector, file: selected.file } : null}
           exportLane={cfg.exportLane || 'local'}
           onBrowserCapture={captureFromCanvas}
+          onQuerySelection={querySelectionFromCanvas}
           onClose={() => setExportDialog(null)}
         />
       )}
