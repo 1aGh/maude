@@ -685,7 +685,8 @@ pub fn run() {
     // for the shipped release, so the production `.app` never starts a WebDriver
     // server. Registered after single-instance so DDR-106's focus behavior is
     // unaffected. See the `desktop-e2e` skill + the harness in apps/desktop/e2e/.
-    #[cfg(debug_assertions)]
+    // Not on Windows: the plugin does not build there against Tauri 2.12 (Cargo.toml).
+    #[cfg(all(debug_assertions, not(target_os = "windows")))]
     let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
 
     // WebKit kills the page's web content process under memory pressure (a heavy

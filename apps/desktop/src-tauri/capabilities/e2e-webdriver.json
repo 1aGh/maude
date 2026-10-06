@@ -1,0 +1,21 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "e2e-webdriver",
+  "description": "Desktop E2E only (debug builds register the plugin; see lib.rs). Split out of `default` and limited to macOS + Linux because tauri-plugin-wdio-webdriver (<=1.4.0) pins webview2-com 0.38 / windows 0.61 and does not compile against Tauri 2.12's webview2-com 0.39 on Windows (v1.7.0 desktop release failure). tauri-build skips validating a capability whose `platforms` excludes the target, so the Windows build no longer needs the plugin's permission to exist.",
+  "windows": [
+    "main"
+  ],
+  "platforms": [
+    "macOS",
+    "linux"
+  ],
+  "remote": {
+    "urls": [
+      "http://localhost:*",
+      "http://127.0.0.1:*"
+    ]
+  },
+  "permissions": [
+    "wdio-webdriver:default"
+  ]
+}
