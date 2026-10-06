@@ -112,6 +112,7 @@ import type { InspectRegistry } from './inspect.ts';
 import { canvasSlug, writeLocator } from './locator.ts';
 import { prepareManagedProject } from './managed-projects.ts';
 import { materializeMissing } from './materialize-client.ts';
+import { isUnderOrEqual, resolveUrlPathUnder } from './path-containment.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
 import { createPhotoStore, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
@@ -522,6 +523,8 @@ function designRootUrlBase(paths: { repoRoot: string; designRoot: string }): str
   return rel ? `/${rel.split('/').map(encodeURIComponent).join('/')}` : '';
 }
 
+// Native separators throughout (#145): a `posix.join` here produced
+// `C:\proj/.design/a.tsx` on Windows, which no later containment check matched.
 function safePathUnderRoot(reqUrl: string, repoRoot: string): string | null {
   let pathname: string;
   try {
@@ -529,10 +532,7 @@ function safePathUnderRoot(reqUrl: string, repoRoot: string): string | null {
   } catch {
     return null;
   }
-  const sep = '/';
-  const normalized = posix.normalize(posix.join(repoRoot, pathname));
-  if (normalized !== repoRoot && !normalized.startsWith(repoRoot + sep)) return null;
-  return normalized;
+  return resolveUrlPathUnder(pathname, repoRoot);
 }
 
 // `dist/` lives next to server.ts when running source-mode (bun run server.ts)
@@ -5968,14 +5968,14 @@ export function createHttp(
         // A cell's disk is a cache: the bytes may be in the bucket and not
         // here. Only under the design root — the repo's other files are not
         // the file plane's.
-        if (`${fp}/`.startsWith(`${ctx.paths.designRoot}/`)) {
+        if (isUnderOrEqual(fp, ctx.paths.designRoot)) {
           return materializedOr404(ctx.paths.designRoot, fp, req);
         }
         return new Response('Not found', { status: 404 });
       }
 
       const e = ext(fp);
-      const underDesignRoot = `${fp}/`.startsWith(`${ctx.paths.designRoot}/`);
+      const underDesignRoot = isUnderOrEqual(fp, ctx.paths.designRoot);
       // .tsx under designRoot is a canvas — transpile + emit locator, return JS.
       if (e === '.tsx' && underDesignRoot) {
         return serveCanvasTsx(fp, req, ctx, join(ctx.paths.designRoot, '_locator.json'));

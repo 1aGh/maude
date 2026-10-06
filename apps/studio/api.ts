@@ -125,6 +125,7 @@ import {
 import { createHistory } from './history.ts';
 import { clearLocatorSlug, readLocator, writeLocator } from './locator.ts';
 import { listMaterializable } from './materialize-client.ts';
+import { isUnderOrEqual } from './path-containment.ts';
 import { STICKERS_DIR } from './paths.ts';
 import { getPaperPreset, MAX_PRINT_MM } from './print/units.ts';
 import { sessionDir } from './session-scope.ts';
@@ -1800,7 +1801,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
     if (p.includes('..')) return null;
     const abs = path.join(paths.repoRoot, p);
-    if (!abs.startsWith(`${paths.repoRoot}/`)) return null;
+    if (abs === paths.repoRoot || !isUnderOrEqual(abs, paths.repoRoot)) return null; // #145: native separators
     const ext = path.extname(abs).toLowerCase();
     if (ext !== '.tsx' && ext !== '.html') return null;
     return abs;
