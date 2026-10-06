@@ -63,10 +63,20 @@ describe('fs-watch.ts', () => {
       watch.start();
       await Bun.sleep(80);
 
-      writeFileSync(join(root, '.design', '_chat', 'c-1.jsonl'), '{"ts":1}\n');
-      writeFileSync(join(root, '.design', '_trash', 'gone.tsx'), 'x');
-      writeFileSync(join(root, '.design', '_comments', 'ui-Pricing.json'), '[]');
-      writeFileSync(join(root, '.design', 'ui', 'Real.tsx'), 'x');
+      // Spaced, not back-to-back: Bun 1.3.x's recursive watcher on Linux
+      // delivers only the first of several inotify events read in one batch
+      // (fixed in 1.4), so a burst of four writes reached the callback as one
+      // and this test measured Bun's batching instead of the skip list.
+      const writes: [string[], string][] = [
+        [['_chat', 'c-1.jsonl'], '{"ts":1}\n'],
+        [['_trash', 'gone.tsx'], 'x'],
+        [['_comments', 'ui-Pricing.json'], '[]'],
+        [['ui', 'Real.tsx'], 'x'],
+      ];
+      for (const [parts, body] of writes) {
+        writeFileSync(join(root, '.design', ...parts), body);
+        await Bun.sleep(40);
+      }
 
       // Wait for the events that MUST arrive rather than for a fixed delay —
       // a machine under parallel test load misses a flat 300 ms and turns this

@@ -263,7 +263,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: '24'  # the shell TLA probe needs SourceTextModule#hasTopLevelAwait (Node 24)
           cache: pnpm
 
       - name: Install
@@ -284,6 +284,15 @@ jobs:
       # reason to exist; a missing browser measures nothing.
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+
+      # SVG import's execution canary (DDR-167) renders every imported file in
+      # a network-denied agent-browser session — a security control, so it
+      # fails closed without the binary and the import routes 500. Use the
+      # pinned devDep of @maude/desktop (DDR-144) and fetch its Chrome.
+      - name: Install agent-browser
+        run: |
+          echo "$GITHUB_WORKSPACE/apps/desktop/node_modules/.bin" >> "$GITHUB_PATH"
+          apps/desktop/node_modules/.bin/agent-browser install --with-deps
 
       - name: Full studio suite
         env:
