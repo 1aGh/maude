@@ -4,6 +4,10 @@
 // studio server and the hub kernel apply them.
 
 import { describe, expect, test } from 'bun:test';
+// The 3-way text merge is injected by this side-effect import, as on every
+// server entry point. Without it the merge silently degrades to "ours wins";
+// the file only passed in a full run because an earlier file had imported it.
+import '../annotations/ops-merge.ts';
 import { applyOps, diffToOps, type Op } from '../annotations/ops.ts';
 import { validateElements } from '../annotations/schema.ts';
 import type { AnnotationElement } from '../annotations/types.ts';

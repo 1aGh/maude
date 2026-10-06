@@ -9,7 +9,7 @@
     "start": "bun run server.ts",
     "build": "bun run build.ts",
     "build:watch": "bun --watch run build.ts",
-    "test": "bun test",
+    "test": "bun test --isolate",
     "typecheck": "bun tsc --noEmit"
   },
   "devDependencies": {
