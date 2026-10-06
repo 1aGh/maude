@@ -28,6 +28,8 @@ import path from 'node:path';
 import { canvasLibPath, canvasLibResolver } from './canvas-lib-resolver.ts';
 import { transpileCanvasSource } from './canvas-pipeline.ts';
 import type { LocatorMap } from './locator.ts';
+import { isUnderOrEqual } from './path-containment.ts';
+import { DEV_SERVER_ROOT } from './paths.ts';
 import { RUNTIME_PACKAGES } from './runtime-bundle.ts';
 
 // Sanity-check the dev-server-bundled canvas-lib once per process boot. If the
@@ -379,7 +381,47 @@ function importAllowlist(
   // value was not assignable at the one place it is used.
 ): import('bun').BunPlugin {
   const root = path.resolve(designRoot);
-  const inRoot = (p: string) => p === root || p.startsWith(root + path.sep);
+  // Both spellings of every root: the bundler reports importers (and so every
+  // relative target) by REAL path, while callers pass the logical one. Comparing
+  // only the logical root made every canvas file behind a symlink — macOS
+  // `/var`, a symlinked `~/git`, a Windows `subst` drive or junction — look like
+  // one of OUR modules, exempt from the allowlist, so it could import any file
+  // on disk (security review of #145, attacker F1).
+  const bothForms = (p: string) => {
+    const abs = path.resolve(p);
+    try {
+      const real = realpathSync(abs);
+      return real === abs ? [abs] : [abs, real];
+    } catch {
+      return [abs];
+    }
+  };
+  const roots = bothForms(root);
+  // OUR code: canvas-lib and its siblings, plus the dependencies they import
+  // (`apps/studio/node_modules`, or hoisted one level up in the npm layout).
+  // Named explicitly — an importer that is neither ours nor the tenant's is
+  // refused, never presumed safe.
+  const ours = [
+    ...bothForms(DEV_SERVER_ROOT),
+    ...bothForms(path.join(DEV_SERVER_ROOT, '..', '..', 'node_modules')),
+  ];
+  const inRoot = (p: string) => roots.some((r) => isUnderOrEqual(p, r));
+  const realTarget = (p: string): string => {
+    let dir = p;
+    let rest = '';
+    for (;;) {
+      try {
+        const real = realpathSync(dir);
+        return rest ? path.join(real, rest) : real;
+      } catch {
+        const parent = path.dirname(dir);
+        if (parent === dir) return p;
+        rest = rest ? path.join(path.basename(dir), rest) : path.basename(dir);
+        dir = parent;
+      }
+    }
+  };
+  const isOurs = (p: string) => ours.some((r) => isUnderOrEqual(p, r));
   const deny = (specifier: string, reason: string): never => {
     denials.push({ specifier, reason });
     throw new Error(reason);
@@ -399,8 +441,17 @@ function importAllowlist(
         // schemes that go to the NETWORK; these never do.
         if (/^(data|blob):/i.test(args.path)) return { path: args.path, external: true };
         const importer = args.importer ? path.resolve(args.importer) : '';
-        // Our own modules (canvas-lib and its graph) resolve normally.
-        if (importer && !inRoot(importer)) return null;
+        // Our own modules (canvas-lib and its graph) resolve normally. The
+        // design root is checked FIRST: it may itself sit inside our tree (this
+        // repo's own `.design/`), and then the tenant's rules must still apply.
+        if (importer && !inRoot(importer)) {
+          if (isOurs(importer)) return null;
+          deny(
+            args.path,
+            `"${args.path}" is imported from ${importer}, which is outside the project. ` +
+              `A canvas may only import files inside its own design.`
+          );
+        }
         if (!args.path.startsWith('.') && !path.isAbsolute(args.path)) {
           deny(
             args.path,
@@ -411,7 +462,11 @@ function importAllowlist(
           );
         }
         const resolved = path.resolve(path.dirname(importer || root), args.path);
-        if (!inRoot(resolved)) {
+        // Where the bytes really are: a symlink INSIDE the design root (file or
+        // directory) still points wherever it points. The nearest existing
+        // ancestor is resolved, so `./dirlink/secret` and an extensionless
+        // specifier through a linked folder are both judged by their real home.
+        if (!inRoot(resolved) || !inRoot(realTarget(resolved))) {
           deny(
             args.path,
             `This canvas imports "${args.path}", which is outside the project (${path.relative(root, resolved)}). ` +

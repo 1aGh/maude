@@ -3,6 +3,15 @@
   "version": "1.7.1",
   "entries": [
     {
+      "id": "windows-canvases-and-assistant",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Maude works properly on Windows",
+      "summary": "Canvases render on Windows again instead of failing to load, the app no longer flashes a console window every few seconds, and the Assistant starts on machines with Node.js installed. This release also closes a Windows file-access hole, so please update.",
+      "surface": "design-ui"
+    },
+    {
       "id": "export-whole-canvas",
       "version": null,
       "date": null,

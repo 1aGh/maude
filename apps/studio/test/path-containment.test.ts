@@ -38,6 +38,25 @@ describe('win32 — the #145 reproduction', () => {
     expect(resolveUrlPathUnder('/.design/a.tsx::$DATA', WIN_REPO, W)).toBeNull();
   });
 
+  test('trailing dot/space segments and DOS device names are refused (security review)', () => {
+    expect(resolveUrlPathUnder('/.design/a.tsx.', WIN_REPO, W)).toBeNull();
+    expect(resolveUrlPathUnder('/.design/ui /a.tsx', WIN_REPO, W)).toBeNull();
+    expect(resolveUrlPathUnder('/.design/con.css', WIN_REPO, W)).toBeNull();
+    expect(resolveUrlPathUnder('/.design/COM1.tsx', WIN_REPO, W)).toBeNull();
+    expect(resolveUrlPathUnder('/.design/NUL', WIN_REPO, W)).toBeNull();
+    expect(resolveUrlPathUnder('/.design/con .css', WIN_REPO, W)).toBeNull();
+    // …but an ordinary name that merely starts like one is fine.
+    expect(resolveUrlPathUnder('/.design/console.tsx', WIN_REPO, W)).toBe(
+      'C:\\Users\\eva\\proj\\.design\\console.tsx'
+    );
+  });
+
+  test('an encoded-slash `..` cannot reach a case-variant sibling (security review W1)', () => {
+    // `/.design/..%2f..%2fPROJ%2fx` after decoding: case folding would
+    // call `C:\Users\eva\PROJ\x` "inside" `C:\Users\eva\proj`.
+    expect(resolveUrlPathUnder('/.design/../../PROJ/x', WIN_REPO, W)).toBeNull();
+  });
+
   test('another drive and a sibling-prefix directory are outside', () => {
     expect(isUnderOrEqual('D:\\Users\\eva\\proj\\.design\\a.tsx', WIN_DESIGN, W)).toBe(false);
     expect(isUnderOrEqual('C:\\Users\\eva\\proj\\.design-evil\\a.tsx', WIN_DESIGN, W)).toBe(false);
@@ -57,6 +76,10 @@ describe('posix — unchanged behaviour', () => {
   test('the root itself counts as inside; a sibling prefix does not', () => {
     expect(resolveUrlPathUnder('/', REPO, P)).toBe(REPO);
     expect(isUnderOrEqual('/home/eva/proj-evil/a.tsx', REPO, P)).toBe(false);
+  });
+
+  test('a `..` segment is refused even when it stays inside the root', () => {
+    expect(resolveUrlPathUnder('/.design/ui/../a.tsx', REPO, P)).toBeNull();
   });
 
   test('traversal and NUL are refused', () => {

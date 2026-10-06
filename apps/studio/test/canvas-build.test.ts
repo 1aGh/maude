@@ -188,6 +188,65 @@ describe('inlined stylesheets name their sources and refresh on re-import', () =
   });
 });
 
+// Security review of #145 (attacker F1). The allowlist waved through any
+// importer outside the design root as "our own module". The bundler reports
+// importers by REAL path, so behind a symlinked root (macOS `/var`, a symlinked
+// `~/git`, and on Windows a `subst` drive, junction or drive-letter case
+// mismatch) every canvas file looked foreign and could import anything on disk.
+describe('canvas-build / import allowlist through a symlinked design root', () => {
+  const REAL = realpathSync(tmpdir());
+  async function linkedRoot() {
+    const id = Math.random().toString(36).slice(2, 8);
+    const base = `${REAL}/canvas-build-allow-${id}`;
+    const real = `${base}/real/.design`;
+    const link = `${base}/link`;
+    await Bun.write(`${base}/real/secret.txt`, 'TOP-SECRET-145\n');
+    await Bun.write(`${real}/ui/keep.txt`, 'inside\n');
+    symlinkSync(real, link);
+    return { real, link };
+  }
+
+  test('a relative import out of the root is denied', async () => {
+    const { real, link } = await linkedRoot();
+    const src = `import s from "../../secret.txt" with { type: "text" };\nexport default function X() { return <pre>{s}</pre>; }\n`;
+    await Bun.write(`${real}/ui/x.tsx`, src);
+    await expect(
+      buildCanvasModule(`${link}/ui/x.tsx`, src, { designRoot: link, restrictImportsTo: link })
+    ).rejects.toThrow(/outside the project/);
+  });
+
+  test('an absolute import out of the root is denied', async () => {
+    const { real, link } = await linkedRoot();
+    const secret = `${real}/../secret.txt`;
+    const src = `import s from ${JSON.stringify(secret)} with { type: "text" };\nexport default function X() { return <pre>{s}</pre>; }\n`;
+    await Bun.write(`${real}/ui/x.tsx`, src);
+    await expect(
+      buildCanvasModule(`${link}/ui/x.tsx`, src, { designRoot: link, restrictImportsTo: link })
+    ).rejects.toThrow(/outside the project/);
+  });
+
+  test('a symlink inside the root that points out is judged by where it points (attacker N1)', async () => {
+    const { real, link } = await linkedRoot();
+    symlinkSync(`${real}/..`, `${real}/ui/dirlink`);
+    const src = `import s from "./dirlink/secret.txt" with { type: "text" };\nexport default function X() { return <pre>{s}</pre>; }\n`;
+    await Bun.write(`${real}/ui/x.tsx`, src);
+    await expect(
+      buildCanvasModule(`${link}/ui/x.tsx`, src, { designRoot: link, restrictImportsTo: link })
+    ).rejects.toThrow(/outside the project/);
+  });
+
+  test('an import inside the root still builds', async () => {
+    const { real, link } = await linkedRoot();
+    const src = `import s from "./keep.txt" with { type: "text" };\nexport default function X() { return <pre>{s}</pre>; }\n`;
+    await Bun.write(`${real}/ui/x.tsx`, src);
+    const r = await buildCanvasModule(`${link}/ui/x.tsx`, src, {
+      designRoot: link,
+      restrictImportsTo: link,
+    });
+    expect(r.js).toContain('inside');
+  });
+});
+
 // Cell materializer Task 9. On a cell the disk is a cache — a photo a
 // stylesheet references may be in the bucket and not on disk — and a bundler
 // read of it made ONE missing file fail the whole canvas ("Could not
