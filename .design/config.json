@@ -17,8 +17,9 @@
   "completenessProfile": "standard",
   "activeFamilies": [
     "accent",
-    "status",
-    "mono"
+    "mono",
+    "presence",
+    "status"
   ],
   "designSystems": [
     {
@@ -34,6 +35,20 @@
       ],
       "newCanvasDir": "ui",
       "newComponentDir": "system/maude/preview"
+    },
+    {
+      "name": "maude-v2",
+      "path": "system/maude-v2",
+      "description": "Light glass with a spark — the Maude v2.0.0 redesign DS. Designer-first, light-default (dark equal-status): the canvas is the whole window and all chrome floats over it as frosted ~88%-opaque islands with soft concentric radii that fold into a single icon. Azure (oklch 0.53 0.175 238 — darkened from the moodboard 0.60 for AA) is functional only — action, selection, focus; a vermilion spark (oklch 0.66 0.20 36) is reserved for the AI; colour lives on the canvas (object palette for stickies/shapes). Native SF Pro type with SF Pro Rounded for playful surfaces; mono only in Advanced. Gentle motion with a drop of spring for playful moments. Nothing is deleted — developer detail hides in the icon menu, ⌘K or a panel's Advanced section.",
+      "tokensCssRel": "system/maude-v2/colors_and_type.css",
+      "rootClass": "maude-v2",
+      "themeDefault": "light",
+      "themes": [
+        "light",
+        "dark"
+      ],
+      "newCanvasDir": "ui",
+      "newComponentDir": "system/maude-v2/preview"
     }
   ],
   "defaultDesignSystem": "maude",
@@ -52,5 +67,6 @@
     "transcription": {
       "provider": "elevenlabs"
     }
-  }
+  },
+  "aestheticAmbition": "confident"
 }

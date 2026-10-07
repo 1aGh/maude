@@ -1,0 +1,50 @@
+/* textures — organic layer showcase. */
+
+/* Weights stop at semibold: <strong> would otherwise render at the UA's 700. */
+.specimen strong, .specimen b { font-weight: var(--w-semibold); }
+
+.tx-bgs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); margin: 0 0 var(--space-4); }
+.tx-bg { margin: 0; }
+.tx-bg figcaption { margin-top: var(--space-2); font-size: var(--type-xs); color: var(--fg-2); max-width: 60ch; }
+.tx-bg-frame {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md), inset 0 0 0 0.5px var(--border-default);
+  background: var(--bg-0);
+}
+.tx-bg-frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.tx-dark { display: none; }
+.maude-v2[data-theme="dark"] .tx-light { display: none; }
+.maude-v2[data-theme="dark"] .tx-dark { display: block; }
+.tx-bg-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  text-align: center;
+  padding: var(--space-5);
+}
+/* The Home question keeps its CONTRACT §5 role: 3xl · Rounded · semibold · tracking 0. */
+.tx-bg-content strong { font-family: var(--font-rounded); font-size: var(--type-3xl); line-height: var(--lh-3xl); font-weight: var(--w-semibold); letter-spacing: 0; color: var(--fg-0); }
+.tx-bg-content span { font-size: var(--type-sm); color: var(--fg-1); max-width: 34ch; }
+
+.tx-patterns {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.tx-patterns img { display: block; width: 100%; height: auto; }
+
+.tx-spots { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); margin: 0 0 var(--space-6); }
+.tx-spot { margin: 0; padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
+.tx-spot img { width: 100%; height: auto; aspect-ratio: 3 / 2; }
+.tx-spot figcaption { display: flex; flex-direction: column; gap: var(--space-1); }
+.tx-spot strong { font-family: var(--font-rounded); font-size: var(--type-md); }
+.tx-spot span { font-size: var(--type-sm); color: var(--fg-1); line-height: var(--lh-sm); max-width: 60ch; }

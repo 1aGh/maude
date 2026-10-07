@@ -1,0 +1,205 @@
+/* grid — demonstration-specific styles (anatomy lives in _components.css). */
+
+/* `.specimen p` (in _layout.css) outranks `.island-title`; restore the island anatomy here. */
+.specimen .island-title { margin: 0 0 var(--space-2); color: var(--fg-2); }
+
+.gr-hero-hd { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
+.gr-controls { display: inline-flex; align-items: center; gap: var(--space-4); }
+.gr-switch-label { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--type-sm); color: var(--fg-1); cursor: pointer; }
+
+/* ─── The window ─────────────────────────────────────────────────────────── */
+.gr-stagewrap { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-3); }
+.gr-win-label { align-self: stretch; font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); text-align: center; }
+.gr-window {
+  position: relative;
+  width: 100%;
+  height: 540px;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+  background-position: calc(var(--canvas-grid) / -2) calc(var(--canvas-grid) / -2);
+  box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--border-strong);
+}
+/* Width snaps between states on purpose — animating width is layout work, not compositor work. */
+.gr-window--narrow { width: 560px; max-width: 100%; }
+
+.gr-artboard {
+  position: absolute; left: 36%; top: 100px; width: 280px; z-index: 1;
+  background: var(--bg-2); border-radius: var(--radius-sm); box-shadow: var(--shadow-md);
+}
+.gr-ab-label { position: absolute; left: 0; top: calc(-1 * var(--space-5)); font-size: var(--type-xs); color: var(--fg-2); }
+.gr-ab-img {
+  height: 140px; border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  background: var(--object-sky);
+  background-image: radial-gradient(circle at 28% 40%, var(--object-yellow) 0 18%, transparent 19%);
+}
+.gr-ab-lines { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4); }
+.gr-ab-lines span { height: 8px; border-radius: var(--radius-xs); background: var(--bg-3); }
+.gr-ab-lines span:first-child { height: 14px; width: 70%; background: var(--bg-4); }
+.gr-ab-lines span:last-child { width: 45%; }
+.gr-st1 { position: absolute; left: calc(36% + 304px); top: 104px; rotate: 2.8deg; z-index: 1; }
+.gr-st2 { position: absolute; left: calc(36% + 318px); top: 236px; rotate: -2deg; z-index: 1; }
+
+.gr-pill {
+  position: absolute; left: var(--space-4); top: var(--space-4); z-index: 4;
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+  font-size: var(--type-sm); font-weight: var(--w-semibold);
+}
+.gr-caret { width: 14px; height: 14px; color: var(--fg-2); }
+.gr-list { position: absolute; left: var(--space-4); top: 68px; width: 196px; z-index: 4; }
+.gr-folded { padding: var(--space-1); z-index: 4; }
+.gr-list-icon { position: absolute; left: var(--space-4); top: 68px; }
+.gr-ai-icon { position: absolute; right: var(--space-4); bottom: var(--space-4); }
+.gr-tr { position: absolute; right: var(--space-4); top: var(--space-4); display: flex; gap: var(--space-1); padding: var(--space-1); z-index: 4; }
+.gr-ai { position: absolute; right: var(--space-4); bottom: 92px; width: 260px; z-index: 4; }
+.gr-ai-hd { display: flex; align-items: center; gap: var(--space-1); font-family: var(--font-rounded); font-weight: var(--w-semibold); font-size: var(--type-sm); margin-bottom: var(--space-2); }
+.gr-dock { position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); z-index: 4; }
+.gr-dock-sticky { display: block; width: 20px; height: 20px; border-radius: var(--radius-xs); box-shadow: var(--shadow-sm); }
+.gr-ds-yellow { background: var(--object-yellow); }
+.gr-ds-green { background: var(--object-green); }
+.gr-ds-lilac { background: var(--object-lilac); }
+
+.gr-th-coral { background: var(--object-coral); }
+.gr-th-yellow { background: var(--object-yellow); }
+.gr-th-green { background: var(--object-green); }
+.gr-th-lilac { background: var(--object-lilac); }
+
+/* ─── Guides (no z-index on the wrapper, so anchors can rise above islands) ─ */
+.gr-guides { position: absolute; inset: 0; pointer-events: none; }
+.gr-inset { position: absolute; inset: var(--space-4); z-index: 2; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); }
+.gr-dockline { position: absolute; left: 50%; right: var(--space-4); bottom: 92px; z-index: 2; border-top: 1px dashed var(--border-strong); }
+.gr-tag {
+  position: absolute; z-index: 3; white-space: nowrap;
+  padding: 2px var(--space-2); border-radius: var(--radius-pill);
+  background: var(--fg-0); color: var(--bg-1);
+  font-style: normal; font-size: var(--type-xs); line-height: var(--lh-xs); font-weight: var(--w-semibold);
+  font-variant-numeric: tabular-nums; box-shadow: var(--shadow-sm);
+}
+.gr-tag--t { left: 50%; top: var(--space-2); transform: translate(-50%, -50%); }
+.gr-tag--b { left: 28%; bottom: var(--space-2); transform: translate(-50%, 50%); }
+.gr-tag--l { left: var(--space-2); top: 56%; transform: translate(-50%, -50%); }
+.gr-tag--r { right: var(--space-2); top: 40%; transform: translate(50%, -50%); }
+.gr-anchor {
+  position: absolute; z-index: 7; width: 10px; height: 10px; border-radius: var(--radius-pill);
+  background: var(--bg-2); box-shadow: 0 0 0 2px var(--fg-0);
+  transform: translate(-50%, -50%);
+}
+.gr-a-tl { left: var(--space-4); top: var(--space-4); }
+.gr-a-tr { left: calc(100% - var(--space-4)); top: var(--space-4); }
+.gr-a-bc { left: 50%; top: calc(100% - var(--space-4)); }
+.gr-a-br { left: calc(100% - var(--space-4)); top: calc(100% - 92px); }
+.gr-a-br-low { left: calc(100% - var(--space-4)); top: calc(100% - var(--space-4)); }
+
+.gr-caption { font-size: var(--type-sm); line-height: var(--lh-sm); margin: 0 0 var(--space-6); }
+.specimen .gr-caption { color: var(--fg-2); }
+
+/* ─── Dot grid at three zooms ────────────────────────────────────────────── */
+.gr-zooms { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); margin: 0 0 var(--space-3); }
+.gr-zoom { margin: 0; }
+.gr-zoom figcaption { font-size: var(--type-sm); color: var(--fg-1); margin-top: var(--space-2); }
+.gr-zoom figcaption strong { color: var(--fg-0); }
+.gr-z50 { --z: 0.5; }
+.gr-z100 { --z: 1; }
+.gr-z200 { --z: 2; }
+.gr-dots {
+  --p: calc(var(--canvas-grid) * var(--z));
+  position: relative; height: 260px; overflow: hidden;
+  border-radius: var(--radius-lg);
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--p) var(--p);
+  background-position: calc(var(--p) / -2) calc(var(--p) / -2);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.gr-snap {
+  position: absolute; left: var(--p); top: var(--p);
+  width: 120px; height: 100px; padding: var(--space-3);
+  transform: scale(var(--z)); transform-origin: 0 0;
+  border-radius: var(--radius-xs); background: var(--object-green); color: var(--object-ink);
+  font-family: var(--font-rounded); font-size: var(--type-base); line-height: var(--lh-sm); font-weight: var(--w-semibold);
+  box-shadow: 0 0 0 1.5px var(--accent), var(--shadow-sm);
+}
+.gr-measure {
+  position: absolute; left: calc(var(--p) * 9); top: calc(var(--p) * 10);
+  width: var(--p); height: 0; border-top: 1.5px solid var(--fg-0);
+}
+.gr-measure::before, .gr-measure::after {
+  content: ""; position: absolute; top: -5px; width: 1.5px; height: 9px; background: var(--fg-0);
+}
+.gr-measure::before { left: 0; }
+.gr-measure::after { right: 0; }
+.gr-tag--m { left: 50%; bottom: var(--space-2); transform: translateX(-50%); }
+
+/* ─── Anchor table ───────────────────────────────────────────────────────── */
+.gr-table {
+  margin: 0 0 var(--space-6); padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-lg); background: var(--bg-1);
+  box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-subtle);
+}
+.gr-tr-row { display: grid; grid-template-columns: 48px 1fr 1.2fr 0.8fr 1.7fr; gap: var(--space-4); align-items: center; padding: var(--space-3) 0; font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.gr-tr-row + .gr-tr-row { box-shadow: 0 -0.5px 0 var(--border-subtle); }
+.gr-th { font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2); padding: var(--space-2) 0; }
+.gr-t-island { color: var(--fg-0); font-weight: var(--w-semibold); }
+.gr-t-num { font-variant-numeric: tabular-nums; }
+.gr-t-folds { color: var(--fg-1); }
+
+.gr-glyph {
+  position: relative; display: block; width: 36px; height: 24px;
+  border-radius: var(--radius-xs); background: var(--canvas-bg);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.gr-glyph i { position: absolute; display: block; width: 9px; height: 5px; border-radius: var(--radius-xs); background: var(--fg-1); }
+.gr-g-tl i { left: var(--space-1); top: var(--space-1); }
+.gr-g-tl2 i { left: var(--space-1); top: 10px; height: 9px; width: 8px; }
+.gr-g-tr i { right: var(--space-1); top: var(--space-1); }
+.gr-g-bc i { left: 50%; bottom: var(--space-1); width: 14px; transform: translateX(-50%); }
+.gr-g-br i { right: var(--space-1); bottom: 10px; width: 10px; height: 7px; }
+
+/* ─── Home ───────────────────────────────────────────────────────────────── */
+.gr-home {
+  position: relative; display: flex; flex-direction: column;
+  padding: var(--space-8) var(--space-6) var(--space-6);
+  border-radius: var(--radius-lg); background: var(--bg-0);
+  box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default);
+  margin: 0 0 var(--space-3);
+}
+.gr-home-pill {
+  position: absolute; left: var(--space-4); top: var(--space-4);
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+  font-size: var(--type-sm); font-weight: var(--w-semibold);
+}
+.gr-home-h {
+  font-family: var(--font-display); font-size: var(--type-xl); line-height: var(--lh-xl);
+  font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); color: var(--fg-0); margin-bottom: var(--space-5);
+}
+.gr-home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(188px, 1fr)); gap: var(--layout-gutter); }
+.gr-proj {
+  display: flex; flex-direction: column; gap: var(--space-1);
+  padding: var(--space-2) var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg); background: var(--bg-1);
+  box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-subtle);
+  font-size: var(--type-xs); color: var(--fg-2);
+}
+.gr-proj strong { font-size: var(--type-base); font-weight: var(--w-semibold); color: var(--fg-0); padding: 0 var(--space-1); }
+.gr-proj span { padding: 0 var(--space-1); }
+.gr-proj-img { height: 96px; border-radius: var(--radius-md); margin-bottom: var(--space-2); }
+.gr-proj--new {
+  appearance: none; border: 0; font: inherit; cursor: pointer;
+  align-items: center; justify-content: center; min-height: 160px;
+  background: transparent; color: var(--fg-1); font-size: var(--type-sm); font-weight: var(--w-semibold);
+  box-shadow: inset 0 0 0 1px var(--border-default);
+  transition: background var(--dur-flip) var(--ease-out);
+}
+.gr-proj--new svg { width: 18px; height: 18px; }
+.gr-proj--new:hover { background: var(--bg-3); }
+.gr-proj--new:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* The tool you're holding is muted azure — Share stays the one solid azure surface (colors-accent). */
+.dock .icon-btn[aria-pressed="true"] { background: var(--accent-muted); color: var(--accent-text); }
+
+/* Captions and running notes hold a 60ch measure (CONTRACT §5). */
+.specimen p, .specimen figcaption { max-width: 60ch; }

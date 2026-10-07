@@ -1,0 +1,166 @@
+/* colors-themes-side-by-side — demonstration-specific styles (anatomy lives in _components.css). */
+
+/* Every theme scope restates ink, face and canvas on itself: inherited values were
+   computed in the parent's theme, so they would leak across the seam otherwise. */
+.th-scope, .th-pane, .th-cell {
+  color: var(--fg-0);
+  font-family: var(--font-body);
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+}
+
+/* ─── Hero: the wipe ───────────────────────────────────────────────────── */
+.th-wipe {
+  --split: 50%;
+  position: relative; height: 460px; overflow: hidden;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default);
+  margin: 0 0 var(--space-3);
+}
+/* Each copy is its own stacking context, or the light copy's z-indexed islands would paint over the dark one. */
+.th-scope { position: absolute; inset: 0; z-index: 0; isolation: isolate; }
+.th-scope--top { z-index: 1; clip-path: inset(0 0 0 var(--split)); }
+.th-seam {
+  position: absolute; top: 0; bottom: 0; left: var(--split); z-index: 10;
+  width: 2px; translate: -1px 0;
+  background: var(--bg-2); box-shadow: 0 0 0 0.5px var(--border-strong), var(--shadow-md);
+  pointer-events: none;
+}
+.th-seam-knob {
+  position: absolute; top: 50%; left: 50%; translate: -50% -50%;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--bg-2); box-shadow: var(--shadow-md), inset 0 0 0 0.5px var(--border-default);
+}
+.th-seam-knob::before, .th-seam-knob::after {
+  content: ""; position: absolute; top: 9px; width: 2px; height: 10px; border-radius: var(--radius-pill); background: var(--fg-2);
+}
+.th-seam-knob::before { left: 10px; }
+.th-seam-knob::after { right: 10px; }
+.th-wipe-tag {
+  position: absolute; bottom: var(--space-4); z-index: 11;
+  padding: 2px var(--space-2); border-radius: var(--radius-pill);
+  background: var(--bg-2); color: var(--fg-1); box-shadow: var(--shadow-sm);
+  font-size: var(--type-xs); font-weight: var(--w-semibold);
+}
+.th-wipe-tag--l { left: var(--space-4); }
+.th-wipe-tag--r { right: var(--space-4); }
+
+.th-range { display: flex; align-items: center; gap: var(--space-3); max-width: 420px; margin: 0 auto var(--space-6); font-size: var(--type-xs); color: var(--fg-2); }
+.th-range input { flex: 1; accent-color: var(--accent); }
+.th-range input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; border-radius: var(--radius-pill); }
+
+/* The slice itself */
+.th-artboard {
+  position: absolute; left: 34%; top: 56px; width: 280px;
+  background: var(--bg-2); border-radius: var(--radius-sm); box-shadow: var(--shadow-md);
+}
+.th-ab-img {
+  height: 150px; border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  background: var(--object-coral);
+  background-image: radial-gradient(circle at 70% 30%, var(--object-yellow) 0 22%, transparent 23%), linear-gradient(160deg, var(--object-coral), var(--object-lilac));
+}
+.th-ab-body { display: flex; flex-direction: column; gap: 2px; padding: var(--space-3) var(--space-4) var(--space-4); }
+.th-ab-body strong { font-family: var(--font-display); font-size: var(--type-lg); letter-spacing: var(--tracking-tight); }
+.th-ab-body span { font-size: var(--type-xs); color: var(--fg-2); }
+.th-sel { position: absolute; inset: -3px; border: 2px solid var(--accent); border-radius: calc(var(--radius-sm) + 2px); pointer-events: none; }
+
+.th-st1 { position: absolute; left: calc(34% + 304px); top: 60px; rotate: 3deg; }
+.th-st2 { position: absolute; left: calc(34% + 300px); top: 182px; rotate: -2deg; }
+
+.th-cursor { position: absolute; left: calc(34% + 246px); top: 236px; display: flex; align-items: flex-start; gap: 2px; z-index: 3; }
+.th-cursor span {
+  display: inline-flex; align-items: center; gap: var(--space-1); margin-top: 12px;
+  padding: 2px var(--space-2); border-radius: var(--radius-pill);
+  background: var(--presence-agent); color: var(--spark-fg);
+  font-family: var(--font-rounded); font-size: var(--type-xs); font-weight: var(--w-semibold); white-space: nowrap;
+}
+
+.th-pill { position: absolute; left: var(--space-4); top: var(--space-4); z-index: 4; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2); font-size: var(--type-sm); font-weight: var(--w-semibold); }
+.th-list { position: absolute; left: var(--space-4); top: 64px; width: 196px; z-index: 4; }
+.th-tr { position: absolute; right: var(--space-4); top: var(--space-4); padding: var(--space-1); z-index: 4; }
+.th-ai { position: absolute; right: var(--space-4); bottom: 80px; width: 248px; z-index: 4; }
+.th-ai-hd { display: flex; align-items: center; gap: var(--space-1); margin-bottom: var(--space-2); font-family: var(--font-rounded); font-size: var(--type-sm); font-weight: var(--w-semibold); }
+.th-ai-msg { margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--bg-3); font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-0); max-width: none; }
+.th-dock { position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); z-index: 4; }
+.th-dock-st { display: block; width: 20px; height: 20px; border-radius: var(--radius-xs); box-shadow: var(--shadow-sm); }
+.th-ds-yellow { background: var(--object-yellow); rotate: -6deg; }
+.th-ds-green { background: var(--object-green); rotate: 4deg; }
+.th-ds-lilac { background: var(--object-lilac); rotate: -3deg; }
+.th-ds-coral { background: var(--object-coral); rotate: 7deg; }
+.th-th-coral { background: var(--object-coral); }
+.th-th-yellow { background: var(--object-yellow); }
+.th-th-green { background: var(--object-green); }
+
+/* ─── Two-up ───────────────────────────────────────────────────────────── */
+.th-two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin: 0 0 var(--space-6); }
+.th-pane {
+  position: relative; padding: var(--space-7) var(--space-6) var(--space-6);
+  border-radius: var(--radius-lg); box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.th-pane-tag {
+  position: absolute; left: var(--space-4); top: var(--space-4);
+  padding: 2px var(--space-2); border-radius: var(--radius-pill);
+  background: var(--bg-2); color: var(--fg-1); box-shadow: var(--shadow-sm);
+  font-size: var(--type-xs); font-weight: var(--w-semibold);
+}
+.th-panel { display: flex; flex-direction: column; gap: var(--space-3); }
+.th-panel .island-title { margin: 0; }
+.th-btns, .th-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.th-saved { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--type-xs); color: var(--fg-1); }
+.th-saved i { width: 6px; height: 6px; border-radius: 50%; background: var(--status-success); }
+.th-text { display: flex; flex-direction: column; gap: 2px; padding-top: var(--space-3); box-shadow: inset 0 0.5px 0 var(--border-subtle); }
+.th-text strong { font-family: var(--font-display); font-size: var(--type-md); }
+.th-text span { font-size: var(--type-xs); color: var(--fg-2); }
+
+/* ─── Token table ──────────────────────────────────────────────────────── */
+.th-table {
+  display: grid; margin: 0 0 var(--space-6); overflow: hidden;
+  border-radius: var(--radius-lg); background: var(--bg-1);
+  box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default);
+}
+.th-tr-row { display: grid; grid-template-columns: minmax(180px, 1.1fr) 132px 132px minmax(0, 2fr); gap: var(--space-4); align-items: center; padding: var(--space-2) var(--space-4); }
+.th-tr-row + .th-tr-row { box-shadow: inset 0 0.5px 0 var(--border-subtle); }
+.th-tr-hd { font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2); background: var(--bg-3); padding-top: var(--space-2); padding-bottom: var(--space-2); }
+.th-tok { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.th-tok code { font-size: var(--type-xs); color: var(--fg-0); }
+.th-note { font-size: var(--type-sm); color: var(--fg-1); line-height: var(--lh-sm); }
+.th-cell { display: grid; place-items: center; height: 52px; border-radius: var(--radius-md); box-shadow: inset 0 0 0 0.5px var(--border-default); background-size: var(--space-2) var(--space-2); }
+.th-sw { display: block; width: 72px; height: 28px; border-radius: var(--radius-sm); }
+.th-sw--fill { box-shadow: inset 0 0 0 0.5px var(--border-default); }
+.th-sw--edge, .th-sw--lift { background: var(--bg-1); }
+.th-sw--lift { height: 24px; width: 60px; }
+.th-ink { font-family: var(--font-display); font-size: var(--type-md); font-weight: var(--w-semibold); }
+.th-onspark {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  height: 26px; padding: 0 var(--space-2); border-radius: var(--radius-sm);
+  background: var(--spark); color: var(--spark-fg); font-size: var(--type-xs); font-weight: var(--w-semibold);
+}
+
+/* ─── What stays ───────────────────────────────────────────────────────── */
+.th-stays { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); margin: 0 0 var(--space-4); }
+.th-stay {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--space-4); border-radius: var(--radius-lg);
+  background: var(--bg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default);
+  font-size: var(--type-xs); color: var(--fg-2);
+}
+.th-stay b { margin-top: var(--space-3); font-size: var(--type-sm); color: var(--fg-0); }
+.th-stay-radius { width: 56px; height: 40px; border-radius: var(--radius-lg); box-shadow: inset 0 0 0 1.5px var(--fg-2); }
+.th-stay-space { display: flex; align-items: flex-end; gap: var(--space-1); height: 40px; }
+.th-stay-space i { display: block; width: 8px; border-radius: var(--radius-xs); background: var(--fg-3); }
+.th-stay-space i:nth-child(1) { height: var(--space-1); }
+.th-stay-space i:nth-child(2) { height: var(--space-2); }
+.th-stay-space i:nth-child(3) { height: var(--space-4); }
+.th-stay-space i:nth-child(4) { height: var(--space-6); }
+.th-stay-type { height: 40px; font-family: var(--font-display); font-size: var(--type-2xl); line-height: 40px; font-weight: var(--w-semibold); color: var(--fg-0); letter-spacing: var(--tracking-tight); }
+.th-stay-motion { position: relative; height: 40px; }
+.th-stay-motion::before { content: ""; position: absolute; left: 0; right: var(--space-4); top: 50%; height: 2px; border-radius: var(--radius-pill); background: var(--bg-4); }
+.th-stay-motion i { position: absolute; left: 55%; top: 50%; width: 14px; height: 14px; translate: 0 -50%; border-radius: 50%; background: var(--fg-2); }
+.th-foot-note { font-size: var(--type-sm); color: var(--fg-2); }
+
+/* The tool you're holding is muted azure — Share stays the one solid azure surface (colors-accent). */
+.dock .icon-btn[aria-pressed="true"] { background: var(--accent-muted); color: var(--accent-text); }
+
+/* Captions and running notes hold a 60ch measure (CONTRACT §5). */
+.specimen p, .specimen figcaption { max-width: 60ch; }

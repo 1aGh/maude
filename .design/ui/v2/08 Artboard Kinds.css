@@ -1,0 +1,457 @@
+/* 08 Artboard Kinds — canvas-local pieces only (prefix ak-). Chrome lives in _kit.css.
+   Tokens only; type sizes clamp to the DS ladder; container units scale the user's designs. */
+
+/* ─── Close-up artboards ─────────────────────────────────────────────────── */
+.ak-closeup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+}
+.ak-closeup-h { font-family: var(--font-display); font-size: var(--type-xl); line-height: var(--lh-xl); font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); }
+.ak-closeup-note { margin-top: auto; }
+
+/* ─── The size picker (F over empty canvas) — tiles grouped by what you're making ─ */
+.k-menu.ak-sp { width: 456px; gap: 0; padding: var(--space-2); }
+.k-menu.ak-sp--static { position: relative; }
+.ak-sp-find { margin-bottom: var(--space-2); }
+.ak-sp-recent { display: flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-1) var(--space-2); box-shadow: inset 0 -0.5px 0 var(--border-subtle); }
+.ak-sp-rl { margin-right: var(--space-1); font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2); }
+.ak-rc { display: inline-flex; align-items: center; gap: var(--space-1); height: 22px; padding: 0 var(--space-2); border-radius: var(--radius-pill); background: var(--bg-3); font-size: var(--type-xs); font-weight: var(--w-medium); color: var(--fg-1); white-space: nowrap; }
+.ak-rc .k-ic { color: var(--fg-2); }
+.ak-sp-g { display: flex; flex-direction: column; gap: var(--space-1); padding-top: var(--space-2); }
+.ak-sp-h { display: flex; align-items: center; gap: var(--space-2); min-height: 24px; padding: 0 var(--space-1); }
+.ak-sp-ic { display: grid; color: var(--fg-1); }
+.ak-sp-t { font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ak-sp-all { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; font-size: var(--type-xs); font-weight: var(--w-medium); color: var(--accent-text); white-space: nowrap; }
+/* The kind badge: fixed vs grows readable at a glance, not a grey hint. */
+.ak-badge { display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 var(--space-2); border-radius: var(--radius-pill); font-size: var(--type-xs); font-weight: var(--w-medium); white-space: nowrap; background: var(--bg-3); color: var(--fg-1); box-shadow: inset 0 0 0 1px var(--border-default); }
+.ak-badge[data-tone="fixed"] { background: var(--bg-4); color: var(--fg-0); box-shadow: none; }
+.ak-badge[data-tone="grow"] { background: var(--accent-muted); color: var(--accent-text); box-shadow: none; }
+.ak-sp-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-1); }
+.ak-tile { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: var(--space-1) var(--space-1) var(--space-2); border-radius: var(--radius-md); background: var(--bg-3); text-align: center; }
+.ak-tile[data-hl] { background: var(--accent-muted); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.ak-tile-pic { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 44px; }
+.ak-tile-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--type-sm); font-weight: var(--w-medium); color: var(--fg-0); }
+.ak-tile-size { font-size: var(--type-xs); color: var(--fg-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ak-tile[data-hl] .ak-tile-size { color: var(--accent-text); }
+/* The size as a picture — fixed: closed box · web: open, fading box + chevron · print: inner trim line · video: play mark. */
+.ak-shape { position: relative; display: grid; place-items: center; border-radius: var(--radius-xs); background: var(--bg-2); box-shadow: inset 0 0 0 1.5px var(--fg-2); color: var(--fg-2); }
+.ak-shape[data-k="web"] { border-radius: var(--radius-xs) var(--radius-xs) 0 0; box-shadow: inset 1.5px 0 0 var(--fg-2), inset -1.5px 0 0 var(--fg-2), inset 0 1.5px 0 var(--fg-2); mask-image: linear-gradient(to bottom, var(--fg-0) 40%, transparent); }
+.ak-shape-more { display: grid; margin-top: -2px; color: var(--accent-text); }
+.ak-shape[data-k="print"]::after { content: ""; position: absolute; inset: 3px; border: 1px dashed var(--fg-3); border-radius: 0; }
+.ak-shape[data-k="video"] .k-ic { color: var(--fg-1); }
+.ak-shape--custom { width: 28px; height: 34px; background: transparent; box-shadow: none; border: 1.5px dashed var(--fg-3); color: var(--fg-1); }
+.ak-tile[data-hl] .ak-shape { box-shadow: inset 0 0 0 1.5px var(--accent); background: var(--bg-2); color: var(--accent-text); }
+.ak-tile[data-hl] .ak-shape[data-k="print"]::after { border-color: var(--accent); }
+.ak-tile--custom[data-hl] .ak-shape--custom { border-color: var(--accent); box-shadow: none; }
+.ak-sp-foot { margin-top: var(--space-2); padding: var(--space-2) var(--space-1) var(--space-1); box-shadow: inset 0 0.5px 0 var(--border-subtle); font-size: var(--type-xs); color: var(--fg-2); }
+
+/* Where a picked preset will land. */
+.ak-ghost { position: absolute; z-index: 2; border: 1.5px dashed var(--accent); border-radius: var(--radius-xs); background: var(--accent-tint); }
+.ak-ghost-name {
+  position: absolute;
+  left: -2px;
+  bottom: calc(100% + var(--space-1));
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-xs);
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: var(--type-xs);
+  font-weight: var(--w-semibold);
+  white-space: nowrap;
+}
+.ak-ghost-size { font-weight: var(--w-regular); font-variant-numeric: tabular-nums; opacity: 0.86; }
+
+/* Full list close-up + custom print size + legend. */
+.ak-pf { display: flex; align-items: flex-start; gap: var(--space-6); }
+.ak-pf-side { display: flex; flex-direction: column; gap: var(--space-6); width: 520px; }
+.ak-custom { position: relative; display: flex; flex-direction: column; gap: var(--space-2); width: 340px; background: var(--island-bg-strong); }
+.ak-custom-t { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1); font-size: var(--type-sm); font-weight: var(--w-semibold); }
+.ak-custom-r { display: flex; align-items: center; justify-content: space-between; min-height: 30px; font-size: var(--type-sm); color: var(--fg-1); }
+.input.ak-mm { display: inline-flex; align-items: center; justify-content: space-between; width: 120px; height: 28px; padding: 0 var(--space-2); color: var(--fg-0); font-variant-numeric: tabular-nums; }
+.ak-mm em { font-style: normal; color: var(--fg-2); }
+.ak-custom-n { max-width: 60ch; font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+.ak-custom-a { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-1); }
+.ak-legend { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default); }
+.ak-legend-h { font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ak-legend-sub { max-width: 60ch; margin-top: calc(var(--space-2) * -1); font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.ak-legend-sub strong { font-weight: var(--w-semibold); color: var(--fg-0); }
+.ak-leg-k { display: flex; align-items: center; gap: var(--space-2); }
+.ak-leg-kw { min-width: 76px; font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ak-leg { display: flex; flex-direction: column; gap: var(--space-1); }
+.ak-leg-lab {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-xs);
+  background: var(--bg-2);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--type-xs);
+  font-weight: var(--w-medium);
+  color: var(--fg-1);
+}
+.ak-leg-d { max-width: 60ch; padding-left: calc(76px + var(--space-2)); font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+
+/* ─── Inspector bits ─────────────────────────────────────────────────────── */
+.ak-in-note { flex: 1; max-width: 170px; margin-left: auto; font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); text-align: left; white-space: normal; }
+.ak-open .select { background: var(--bg-2); box-shadow: 0 0 0 3px var(--accent-tint), inset 0 0 0 1px var(--accent); }
+.ak-kinds { display: inline-flex; flex-direction: column; gap: 2px; width: 140px; font-size: var(--type-xs); color: var(--fg-1); }
+.ak-kinds > span { display: inline-flex; align-items: center; gap: var(--space-1); }
+.ak-kinds .k-kind { color: var(--fg-1); }
+.ak-pair2 { display: inline-flex; gap: var(--space-1); }
+.ak-pair2 .k-num--one .input { width: 76px; padding-left: var(--space-2); }
+
+/* Poster frame row (video). */
+
+/* Advanced inspector (print). */
+.k-insp.ak-advinsp { width: 300px; }
+.ak-adv { display: flex; flex-direction: column; gap: 2px; padding: 0 var(--space-1) var(--space-1); }
+.ak-adv-h { display: flex; align-items: center; justify-content: space-between; margin-top: var(--space-2); margin-bottom: 2px; font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-1); }
+.ak-adv-add { height: 22px; padding: 0 var(--space-1); }
+.ak-adv-p { font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-1); }
+.ak-code {
+  margin: 0;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-3);
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  line-height: var(--lh-xs);
+  color: var(--fg-0);
+  white-space: pre;
+}
+
+/* ─── Warnings — one home: a row at the top of the artboard's inspector + a mark on its label ─── */
+.k-insp-row:has(> .ak-iw) { padding: 0; margin-bottom: var(--space-1); }
+.k-insp-row:has(> .ak-iw) > span:first-child { display: none; }
+.ak-iw {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--status-warn) 14%, var(--bg-2));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--status-warn) 40%, transparent);
+  font-size: var(--type-sm);
+  line-height: var(--lh-sm);
+  color: var(--fg-0);
+}
+.ak-iw-ic { display: grid; flex: none; margin-top: 1px; color: var(--status-warn-text); }
+.ak-iw-t { flex: 1 1 calc(100% - 14px - var(--space-2)); min-width: 0; }
+.ak-iw-a { margin-left: calc(14px + var(--space-2)); height: 24px; padding: 0 var(--space-2); color: var(--accent-text); }
+/* The mark beside a label: same glyph, warn colour, no words (the inspector has them). */
+.ak-lw { position: absolute; z-index: 9; display: grid; place-items: center; width: 16px; height: 16px; border-radius: var(--radius-pill); background: var(--status-warn); color: var(--object-ink); }
+.ak-check { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-1) var(--space-2); font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-0); }
+
+/* Content outside the safe margin — a dashed warn outline + a tag. */
+.ak-out { position: absolute; z-index: 5; border: 1.5px dashed var(--status-warn); border-radius: 0; }
+.ak-out span {
+  position: absolute;
+  right: -1.5px;
+  bottom: calc(100% + var(--space-1));
+  padding: 1px var(--space-1);
+  border-radius: var(--radius-xs);
+  background: var(--status-warn);
+  color: var(--object-ink);
+  font-size: var(--type-xs);
+  font-weight: var(--w-semibold);
+  white-space: nowrap;
+}
+
+/* Warnings close-up: three cards. */
+.ak-wrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5); }
+.ak-wc { display: flex; flex-direction: column; gap: var(--space-3); }
+.ak-wc .k-insp { z-index: 1; }
+.ak-wc-t { display: flex; align-items: center; gap: var(--space-2); font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ak-wc-t .k-ic { color: var(--fg-2); }
+.ak-wc-scene { position: relative; height: 470px; border-radius: var(--radius-lg); background: var(--canvas-bg); box-shadow: inset 0 0 0 0.5px var(--border-default); }
+
+/* ─── Web page grows ─────────────────────────────────────────────────────── */
+.ak-grow { position: absolute; z-index: 6; width: 10px; border: 1.5px solid var(--accent); border-left: 0; border-radius: 0 var(--radius-xs) var(--radius-xs) 0; }
+.ak-grow span {
+  position: absolute;
+  left: calc(100% + var(--space-2));
+  top: 50%;
+  translate: 0 -50%;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-xs);
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: var(--type-xs);
+  font-weight: var(--w-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Section title on the mock canvas. */
+.ak-sec { position: absolute; z-index: 2; font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-1); white-space: nowrap; }
+.ak-pair { position: absolute; z-index: 2; display: inline-flex; align-items: center; gap: var(--space-1); max-width: 230px; font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+
+/* ─── Kind filter (Layers / Canvases) ────────────────────────────────────── */
+.ak-fp .k-cp-hd { margin-bottom: var(--space-1); }
+.ak-chips { display: flex; gap: var(--space-1); margin-bottom: var(--space-1); }
+.chip.ak-chip { flex: 1; justify-content: center; gap: var(--space-1); padding: 0 var(--space-1); color: var(--fg-1); font-variant-numeric: tabular-nums; }
+.chip.ak-chip[data-on] { background: var(--accent-muted); color: var(--accent-text); box-shadow: inset 0 0 0 1px var(--accent); }
+.ak-chip-w { font-weight: var(--w-medium); white-space: nowrap; }
+.chip.ak-chip[data-zero] { color: var(--fg-3); }
+.chip.ak-chip[data-on] { flex: 2; }
+.ak-chip-n { font-size: var(--type-xs); }
+.ak-lrow { gap: var(--space-2); }
+.ak-lrow--dim { color: var(--fg-3); }
+.ak-fp-foot { margin-top: var(--space-2); padding: var(--space-2) var(--space-1) 0; box-shadow: inset 0 0.5px 0 var(--border-subtle); font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+.ak-link { color: var(--accent-text); font-weight: var(--w-medium); }
+.ak-hit { min-height: 44px; }
+.ak-hit-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ak-hit-path { font-size: var(--type-xs); color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ─── Convert dialog ─────────────────────────────────────────────────────── */
+.ak-dl-p { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.ak-dl-h { margin-top: var(--space-2); margin-bottom: var(--space-1); font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2); }
+.k-dialog-b { display: flex; flex-direction: column; gap: var(--space-1); }
+.k-dialog-b .ak-check { border-radius: var(--radius-md); background: color-mix(in oklab, var(--status-warn) 12%, var(--bg-3)); }
+.ak-check .ak-iw-ic { margin-top: 1px; }
+.ak-dl-i { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.ak-dl-i .k-ic { color: var(--status-success-text); }
+.ak-dl-sw { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-3); font-size: var(--type-sm); color: var(--fg-0); }
+
+/* ─── Print guides (bleed tint · trim solid · safe margin dashed) ────────── */
+.ak-pg { position: absolute; inset: 0; z-index: 3; overflow: hidden; pointer-events: none;
+  /* Guide colours (kit/DS candidate: --guide-bleed, --guide-margin). Inside the pinned page, so theme-stable. */
+  --ak-guide-bleed: color-mix(in oklab, var(--object-coral) 30%, transparent);
+  --ak-guide-margin: var(--object-lilac); }
+.ak-pg-trim { position: absolute; border: 1px solid var(--object-ink); box-shadow: 0 0 0 999px var(--ak-guide-bleed); }
+.ak-pg-margin { position: absolute; border: 1px dashed var(--ak-guide-margin); }
+.ak-pg-cols { position: absolute; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.ak-pg-cols i { background: color-mix(in oklab, var(--object-sky) 12%, transparent); box-shadow: inset 1px 0 0 color-mix(in oklab, var(--object-sky) 50%, transparent), inset -1px 0 0 color-mix(in oklab, var(--object-sky) 50%, transparent); }
+
+/* ─── Safe zones (story / Reels) ─────────────────────────────────────────── */
+.ak-sz { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.ak-sz-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--accent) 30%, transparent) 0 6px, color-mix(in oklab, var(--accent) 14%, transparent) 6px 12px);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.ak-sz-band--top { top: 0; }
+.ak-sz-band--bottom { bottom: 0; }
+.ak-sz-band--right { left: auto; right: 0; }
+.ak-sz-band span {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-xs);
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: var(--type-xs);
+  font-weight: var(--w-semibold);
+  white-space: nowrap;
+}
+.ak-sz-band--right span { writing-mode: vertical-rl; padding: var(--space-2) 1px; }
+
+/* Safe-zones close-up. */
+.ak-sz-row { display: flex; align-items: flex-start; gap: var(--space-6); }
+.ak-szf { display: flex; flex-direction: column; gap: var(--space-3); width: 300px; }
+.ak-szf-pic { position: relative; width: 300px; height: 533px; overflow: hidden; border-radius: var(--radius-sm); box-shadow: var(--shadow-md); container-type: size; }
+.ak-szf-pic--sq { height: 300px; margin-top: 117px; }
+.ak-szf-c { max-width: 60ch; font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.ak-szf-c strong { display: block; color: var(--fg-0); font-weight: var(--w-semibold); }
+.ak-under {
+  position: absolute;
+  z-index: 4;
+  left: 58%;
+  top: 75%;
+  padding: 1px var(--space-1);
+  border-radius: var(--radius-xs);
+  background: var(--status-warn);
+  color: var(--object-ink);
+  font-size: var(--type-xs);
+  font-weight: var(--w-semibold);
+}
+.ak-crop { position: absolute; inset: 0; z-index: 3; box-shadow: inset 37.5px 0 0 color-mix(in oklab, var(--bg-2) 72%, transparent), inset -37.5px 0 0 color-mix(in oklab, var(--bg-2) 72%, transparent); }
+.ak-crop::after { content: ""; position: absolute; top: 0; bottom: 0; left: 37.5px; right: 37.5px; border: 1.5px dashed var(--accent); }
+.k-menu.ak-szmenu { position: relative; width: 240px; }
+.ak-szmenu-n { padding: var(--space-1) var(--space-2); font-size: var(--type-xs); color: var(--fg-2); }
+
+/* ─── Video timeline hint ────────────────────────────────────────────────── */
+
+/* ═══ The user's designs (Alligators) — object colours, scaled by their own box ═══════════ */
+
+/* QR code */
+.ak-qr { position: relative; display: block; flex: none; aspect-ratio: 1; border-radius: 4%; background: repeating-conic-gradient(var(--object-ink) 0 25%, var(--object-grey) 0 50%) 0 0 / 22% 22%, var(--object-grey); box-shadow: 0 0 0 max(2px, 1.4cqw) var(--object-grey); }
+.ak-qr i { position: absolute; width: 30%; aspect-ratio: 1; border: max(1.5px, 1.2cqw) solid var(--object-ink); border-radius: 12%; background: radial-gradient(var(--object-ink) 34%, var(--object-grey) 36%); }
+.ak-qr i:nth-child(1) { left: 0; top: 0; }
+.ak-qr i:nth-child(2) { right: 0; top: 0; }
+.ak-qr i:nth-child(3) { left: 0; bottom: 0; }
+.ak-qr b { position: absolute; right: 12%; bottom: 12%; width: 16%; aspect-ratio: 1; border-radius: 2px; background: var(--object-ink); }
+
+/* A6 flyer */
+.ak-fly { position: absolute; inset: 0; overflow: hidden; container-type: size; font-family: var(--font-display); }
+.ak-fly--a { background: var(--object-ink); color: var(--object-grey); }
+.ak-fly--b { display: flex; flex-direction: column; gap: 4cqh; padding: 12cqh 10cqw 9cqh; background: var(--object-grey); color: var(--object-ink); }
+.ak-fly-band { position: absolute; inset: 0; clip-path: polygon(100% 12%, 100% 100%, 74% 100%); background: var(--object-green); }
+.ak-fly-mark { display: inline-block; flex: none; width: 1.6em; aspect-ratio: 1; border-radius: 30% 50% 30% 50%; background: var(--object-green); }
+.ak-fly-top {
+  position: absolute;
+  left: 11cqw;
+  top: 10cqh;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  font-size: clamp(5px, 3.4cqw, var(--type-sm));
+  font-weight: var(--w-semibold);
+  letter-spacing: var(--tracking-wide);
+}
+.ak-fly-top .ak-fly-mark { box-shadow: 0 0 0 0.18em var(--object-ink); }
+.ak-fly-h {
+  position: absolute;
+  left: 11cqw;
+  right: 11cqw;
+  top: 33cqh;
+  font-size: clamp(var(--type-xs), 12cqw, var(--type-3xl));
+  line-height: 0.95;
+  font-weight: var(--w-semibold);
+  letter-spacing: var(--tracking-tight);
+  color: var(--object-grey);
+}
+.ak-fly-h--sm { position: static; font-size: clamp(var(--type-xs), 9cqw, var(--type-2xl)); line-height: 1; color: var(--object-ink); }
+.ak-fly-sub { position: absolute; left: 11cqw; right: 22cqw; top: 66cqh; font-family: var(--font-body); font-size: clamp(5px, 3.6cqw, var(--type-sm)); line-height: 1.35; color: var(--object-green); }
+.ak-fly-qr { position: absolute; left: 11cqw; right: 11cqw; bottom: 9cqh; display: flex; align-items: center; gap: 4cqw; font-family: var(--font-body); font-size: clamp(5px, 3.2cqw, var(--type-xs)); line-height: 1.35; color: var(--object-grey); }
+.ak-fly-qr .ak-qr { width: 19cqw; }
+.ak-fly-qr--out { left: auto; right: 1cqw; bottom: 1.6cqh; flex-direction: row-reverse; }
+.ak-fly-qr--out .ak-qr { width: 21cqw; }
+.ak-fly--b .ak-fly-mark { width: 9cqw; }
+.ak-fly-rows { display: flex; flex-direction: column; gap: 1.8cqh; font-family: var(--font-body); font-size: clamp(5px, 3.6cqw, var(--type-sm)); }
+.ak-fly-rows span { display: flex; align-items: baseline; gap: 3cqw; padding-bottom: 1.6cqh; box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--object-ink) 18%, transparent); }
+.ak-fly-rows b { width: 11cqw; font-family: var(--font-display); font-weight: var(--w-semibold); color: var(--object-ink); }
+.ak-fly-foot { margin-top: auto; font-family: var(--font-body); font-size: clamp(5px, 3.2cqw, var(--type-xs)); font-weight: var(--w-semibold); }
+
+/* Matchday post / story — absolute-first */
+.ak-gd { position: absolute; inset: 0; overflow: hidden; container-type: size; background: var(--object-ink); color: var(--object-grey); font-family: var(--font-display); }
+.ak-gd-field { position: absolute; left: -10%; right: -10%; bottom: -12%; height: 46%; rotate: -6deg; background: var(--object-green); }
+.ak-gd-player { position: absolute; right: 5%; top: 14%; width: 30%; height: 52%; border-radius: 50% 50% 18% 18%; background: var(--object-coral); opacity: 0.9; }
+.ak-gd-tag { position: absolute; left: 8cqw; top: 8cqh; padding: 0.3em 0.7em; border-radius: 4px; background: var(--object-yellow); color: var(--object-ink); font-size: clamp(5px, 3.6cqw, var(--type-sm)); font-weight: var(--w-semibold); letter-spacing: var(--tracking-wide); }
+.ak-gd-h { position: absolute; left: 8cqw; top: 46cqh; z-index: 1; font-size: clamp(var(--type-xs), 8.4cqw, var(--type-2xl)); line-height: 1; font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); color: var(--object-grey); }
+.ak-gd-date { position: absolute; left: 8cqw; top: 80cqh; font-family: var(--font-body); font-size: clamp(5px, 4cqw, var(--type-sm)); font-weight: var(--w-semibold); color: var(--object-ink); }
+.ak-gd-cta { position: absolute; left: 8cqw; top: 86cqh; padding: 0.4em 0.9em; border-radius: var(--radius-pill); background: var(--object-ink); color: var(--object-grey); font-family: var(--font-body); font-size: clamp(5px, 3.8cqw, var(--type-sm)); font-weight: var(--w-semibold); }
+.ak-gd--story .ak-gd-tag { top: 16cqh; }
+.ak-gd--story .ak-gd-h { top: 52cqh; font-size: clamp(var(--type-xs), 10.4cqw, var(--type-2xl)); }
+.ak-gd--story .ak-gd-player { top: 22%; width: 40%; height: 28%; }
+.ak-gd--story .ak-gd-field { height: 34%; }
+.ak-gd--story .ak-gd-date { top: 70cqh; color: var(--object-yellow); }
+.ak-gd--story .ak-gd-cta { top: 76cqh; }
+
+/* Club web page — flow layout, reflows by its own width (container query) */
+.ak-web { position: absolute; inset: 0; overflow: hidden; container: akweb / inline-size; background: var(--bg-2); color: var(--fg-0); font-family: var(--font-body); }
+.ak-web-in { display: flex; flex-direction: column; min-height: 100%; }
+.ak-web-nav { display: flex; align-items: center; gap: 3cqw; padding: 2.4cqw 5cqw; background: var(--object-ink); color: var(--object-grey); font-size: clamp(4px, 2.6cqw, var(--type-sm)); }
+.ak-web-nav .ak-fly-mark { width: 1.8em; }
+.ak-web-nav b { font-family: var(--font-display); font-weight: var(--w-semibold); letter-spacing: var(--tracking-wide); white-space: nowrap; }
+.ak-web-nav i { width: 7cqw; height: 0.5em; border-radius: 2px; background: var(--object-grey); opacity: 0.45; }
+.ak-web-nav i:first-of-type { margin-left: auto; }
+.ak-web-nav em { padding: 0.35em 0.8em; border-radius: var(--radius-pill); background: var(--object-green); color: var(--object-ink); font-style: normal; font-weight: var(--w-semibold); white-space: nowrap; }
+.ak-web-hero { display: flex; flex-direction: column; gap: 4cqw; padding: 6cqw 5cqw; background: var(--object-ink); color: var(--object-grey); }
+.ak-web-copy { display: flex; flex-direction: column; align-items: flex-start; gap: 2cqw; }
+.ak-web-copy strong { font-family: var(--font-display); font-size: clamp(var(--type-xs), 6.4cqw, var(--type-3xl)); line-height: 1.02; font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); }
+.ak-web-copy span { font-size: clamp(4px, 3cqw, var(--type-base)); opacity: 0.86; }
+.ak-web-copy em { margin-top: 1.4cqw; padding: 0.5em 1em; border-radius: var(--radius-pill); background: var(--object-green); color: var(--object-ink); font-style: normal; font-size: clamp(4px, 2.8cqw, var(--type-sm)); font-weight: var(--w-semibold); }
+.ak-web-pic { display: block; aspect-ratio: 2 / 1; border-radius: 1.6cqw; background: linear-gradient(var(--object-green), var(--object-green)) bottom / 100% 34% no-repeat, var(--object-sky); }
+.ak-web--wide .ak-web-hero { flex-direction: row; align-items: center; }
+.ak-web--wide .ak-web-copy { flex: 1; }
+.ak-web--wide .ak-web-copy strong { font-size: clamp(var(--type-xs), 4.4cqw, var(--type-3xl)); }
+.ak-web--wide .ak-web-copy span { font-size: clamp(4px, 1.7cqw, var(--type-base)); }
+.ak-web--wide .ak-web-copy em { font-size: clamp(4px, 1.6cqw, var(--type-sm)); }
+.ak-web--wide .ak-web-nav { padding: 1.4cqw 5cqw; font-size: clamp(4px, 1.4cqw, var(--type-sm)); }
+.ak-web--wide .ak-web-pic { width: 42%; }
+.ak-web-next { display: flex; flex-direction: column; gap: 0.6cqw; padding: 3.6cqw 5cqw; background: var(--object-green); color: var(--object-ink); font-size: clamp(4px, 2.6cqw, var(--type-sm)); }
+.ak-web-next strong { font-family: var(--font-display); font-size: clamp(var(--type-xs), 4cqw, var(--type-xl)); font-weight: var(--w-semibold); }
+.ak-web--wide .ak-web-next { flex-direction: row; align-items: baseline; gap: 3cqw; padding: 2.4cqw 5cqw; font-size: clamp(4px, 1.5cqw, var(--type-sm)); }
+.ak-web--wide .ak-web-next strong { font-size: clamp(var(--type-xs), 2.4cqw, var(--type-xl)); }
+.ak-web-sched { display: flex; flex-direction: column; gap: 1.6cqw; padding: 5cqw; background: var(--bg-2); }
+.ak-web-sched[data-new] { background: var(--accent-tint); }
+.ak-web-st { font-family: var(--font-display); font-size: clamp(var(--type-xs), 4.4cqw, var(--type-xl)); font-weight: var(--w-semibold); }
+.ak-web-row { display: flex; align-items: center; justify-content: space-between; padding: 1.6cqw 2.4cqw; border-radius: 1cqw; background: var(--bg-3); font-size: clamp(4px, 2.8cqw, var(--type-sm)); }
+.ak-web-row i { width: 12cqw; height: 0.7em; border-radius: var(--radius-pill); background: var(--object-green); }
+.ak-web--wide .ak-web-sched { gap: 1cqw; padding: 3.4cqw 5cqw; }
+.ak-web--wide .ak-web-st { font-size: clamp(var(--type-xs), 2.6cqw, var(--type-xl)); }
+.ak-web--wide .ak-web-row { padding: 1cqw 1.6cqw; font-size: clamp(4px, 1.5cqw, var(--type-sm)); }
+.ak-web--wide .ak-web-row i { width: 8cqw; }
+.ak-web-cards { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 30cqw; gap: 3cqw; padding: 5cqw; }
+.ak-web-cards i { border-radius: 1.6cqw; background: var(--bg-3); }
+.ak-web-cards i:first-child { grid-column: 1 / -1; background: var(--object-coral); }
+.ak-web--wide .ak-web-cards { grid-template-columns: repeat(3, 1fr); grid-auto-rows: 16cqw; gap: 2cqw; padding: 3.4cqw 5cqw; }
+.ak-web--wide .ak-web-cards i:first-child { grid-column: auto; }
+.ak-web-partners { display: flex; flex-direction: column; gap: 2cqw; padding: 4cqw 5cqw; font-size: clamp(4px, 2.6cqw, var(--type-sm)); color: var(--fg-1); }
+.ak-web-logos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2cqw; }
+.ak-web-logos i { height: 7cqw; border-radius: 1cqw; background: var(--bg-4); }
+.ak-web--wide .ak-web-partners { flex-direction: row; align-items: center; gap: 4cqw; padding: 2.4cqw 5cqw; font-size: clamp(4px, 1.5cqw, var(--type-sm)); }
+.ak-web--wide .ak-web-logos { flex: 1; grid-template-columns: repeat(6, 1fr); }
+.ak-web--wide .ak-web-logos i { height: 3.4cqw; }
+.ak-web-foot { height: 10cqw; background: var(--object-ink); }
+.ak-web--wide .ak-web-foot { height: 5cqw; }
+/* Mobile width — the nav keeps the logo and the button; the cards stack. */
+@container akweb (max-width: 160px) {
+  .ak-web-nav b, .ak-web-nav i { display: none; }
+  .ak-web-nav em { margin-left: auto; }
+  .ak-web-copy strong { font-size: clamp(5px, 9cqw, var(--type-3xl)); }
+  .ak-web-cards { grid-template-columns: 1fr; grid-auto-rows: 100cqw; }
+  .ak-web-logos { grid-template-columns: repeat(2, 1fr); }
+}
+/* "Partneři" fixed at 960 px — wider than Mobile. */
+.ak-web-partners--warn .ak-web-logos { width: 246%; grid-template-columns: repeat(6, 1fr); outline: 1.5px dashed var(--status-warn); outline-offset: 1px; }
+
+/* Výsledková karta (A4 landscape, folded) */
+.ak-karta { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; background: var(--object-grey); }
+.ak-karta-half { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 8%; padding: 10%; container-type: size; }
+.ak-karta-half + .ak-karta-half { box-shadow: inset 1px 0 0 color-mix(in oklab, var(--object-ink) 20%, transparent); }
+.ak-karta-half--ink { align-items: center; background: var(--object-ink); }
+.ak-karta-half--ink .ak-fly-mark { width: 30%; }
+.ak-karta-half i { height: 6%; border-radius: 2px; background: color-mix(in oklab, var(--object-ink) 22%, transparent); }
+.ak-karta-grid i { height: 14%; background: transparent; box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--object-ink) 30%, transparent); }
+
+/* Release plan */
+.ak-plan { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 4%; padding: 10%; background: var(--object-grey); color: var(--object-ink); container-type: size; }
+.ak-plan strong { font-family: var(--font-display); font-size: clamp(5px, 9cqw, var(--type-lg)); font-weight: var(--w-semibold); }
+.ak-plan i { height: 6%; border-radius: 2px; background: color-mix(in oklab, var(--object-ink) 14%, transparent); }
+.ak-plan i:nth-of-type(3n + 1) { width: 70%; background: var(--object-green); }
+
+/* ─── Real artboards (section 7) ─────────────────────────────────────────── */
+.ak-real { position: relative; width: 100%; height: 100%; }
+.ak-real.ak-real--web { height: auto; min-height: 100%; overflow: visible; }
+.ak-real--web .ak-web { position: relative; inset: auto; }
+.ak-about { gap: var(--space-3); }
+.ak-about .ak-closeup-h { font-size: var(--type-lg); line-height: var(--lh-lg); }
+.ak-about-p { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.ak-about-p strong { color: var(--fg-0); font-weight: var(--w-semibold); }
+.ak-about-p code { font-size: var(--type-xs); color: var(--fg-0); }
+
+/* Selected labels on a dense canvas stay inside their artboard (kit candidate). */
+.ak-tight .k-ab[data-selected] .k-ab-name { max-width: calc(100% + 4px); }
+.ak-custom::before { content: ""; position: absolute; left: calc(var(--space-6) * -1); bottom: 44px; width: var(--space-6); height: 1.5px; background: var(--accent); }
+
+/* ─── After the conversion (ak-convert-after) ───────────────────────────── */
+.ak-a6 { position: absolute; inset: 0; background: var(--object-ink); }
+/* The 4:5 design at the A6 trim width; top at the trim line, the rest is Ink fill. */
+.ak-a6-art { position: absolute; left: 2.63%; right: 2.63%; top: 1.89%; height: 85.4%; container-type: size; }
+.ak-a6-seam { position: absolute; left: 0; right: 0; top: 87.3%; border-top: 1.5px dashed var(--object-yellow); }
+.ak-grow--fill { border-color: var(--fg-0); }
+.ak-grow--fill span { background: var(--fg-0); color: var(--bg-2); }
+.ak-arrow { position: absolute; z-index: 2; display: grid; place-items: center; width: 40px; height: 28px; border-radius: var(--radius-pill); background: var(--bg-2); box-shadow: var(--shadow-sm); color: var(--fg-1); }
+.ak-pair--under { color: var(--status-success-text); font-weight: var(--w-medium); }
+.ak-bleedtag { position: absolute; z-index: 2; font-size: var(--type-xs); color: var(--fg-2); white-space: nowrap; }
+.ak-adv-row { min-height: 28px; padding: 0; }
+
+/* Combine-kampan bodies at 7 %: drawn at 4×, scaled to 25 % — the mock's type stays in proportion, nothing spills */
+.ak-tiny { position: absolute; left: 0; top: 0; width: 400%; height: 400%; transform: scale(0.25); transform-origin: 0 0; container-type: size; overflow: hidden; }

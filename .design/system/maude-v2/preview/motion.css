@@ -1,0 +1,298 @@
+/* motion — demonstration-specific styles for the maude-v2 motion specimen.
+ *
+ * This file frames the motion; it never defines it. Role behaviour comes from
+ * canvas-lib's <MotionDemo> and the `motion` export (durations and eases read live
+ * from the tokens). No keyframe rules live here, by design (DDR-049).
+ *
+ * Bounded geometry (ANIMATION SAFETY): every surface that hosts an animated child
+ * sets overflow: hidden explicitly — the hero stage, the role-tile stages, the
+ * spring moments and the menu cases. A scaled or tilted child can never spill into
+ * the next row.
+ *
+ * Reduced-motion exception: the block at the end is the ONE place in maude-v2 where
+ * !important reduced-motion overrides are allowed. It answers the specimen's
+ * <ReducedMotionToggle> (data-reduced-motion on <html>) so reviewers can see the
+ * reduced branch without touching macOS settings. Everywhere else, the token collapse
+ * in colors_and_type.css is the whole contract.
+ */
+
+/* ─── Controls row ───────────────────────────────────────────────────────── */
+.mo-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-5);
+}
+.mo-meta { margin: 0; }
+.mo-rm {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  font-size: var(--type-sm);
+  color: var(--fg-1);
+}
+
+/* ─── Hero — the fold ────────────────────────────────────────────────────── */
+.mo-hero { height: 460px; overflow: hidden; /* bounded: the folding panel never leaves the stage */ }
+
+.mo-board {
+  position: absolute; left: 22%; top: 64px; width: 280px; height: 236px;
+  background: var(--bg-2); border-radius: var(--radius-sm); box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+.mo-board-img { height: 128px; background: var(--object-sky); background-image: radial-gradient(circle at 72% 34%, var(--object-yellow) 0 20%, transparent 21%); }
+.mo-board-body { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); }
+.mo-board-body strong { font-family: var(--font-display); font-size: var(--type-lg); letter-spacing: var(--tracking-tight); }
+.mo-board-body span { color: var(--fg-2); font-size: var(--type-sm); }
+.mo-hst1 { position: absolute; left: calc(22% + 300px); top: 84px; rotate: 3deg; }
+.mo-hst2 { position: absolute; left: calc(22% + 318px); top: 210px; rotate: -2.2deg; }
+
+.mo-pill {
+  position: absolute; left: var(--space-4); top: var(--space-4); z-index: 4;
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+  font-size: var(--type-sm); font-weight: var(--w-semibold);
+}
+.mo-tr {
+  position: absolute; right: var(--space-4); top: var(--space-4); z-index: 5;
+  display: flex; gap: var(--space-1); padding: var(--space-1);
+}
+.mo-panel { position: absolute; right: var(--space-4); top: 64px; width: 212px; z-index: 4; }
+.mo-th-0 { background: var(--object-sky); }
+.mo-th-1 { background: var(--object-yellow); }
+.mo-th-2 { background: var(--object-coral); }
+.mo-th-3 { background: var(--object-green); }
+
+.mo-note {
+  position: absolute; left: 50%; bottom: 88px; translate: -50% 0; z-index: 4;
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--type-sm); color: var(--fg-0); white-space: nowrap;
+}
+.mo-dock { position: absolute; left: 50%; bottom: var(--space-4); translate: -50% 0; z-index: 4; }
+/* The tool you're holding is muted azure — Share stays the one solid azure surface. */
+.mo-toolbar .icon-btn[aria-pressed="true"],
+.mo-tr .icon-btn[aria-pressed="true"] { background: var(--accent-muted); color: var(--accent-text); }
+
+/* The step strip under the hero — the active steps follow the loop. */
+.mo-steps {
+  list-style: none; margin: 0 0 var(--space-6); padding: 0;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3);
+}
+.mo-steps li {
+  display: flex; flex-direction: column; gap: var(--space-1);
+  padding: var(--space-3); border-radius: var(--radius-md);
+  background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default);
+  transition: background var(--dur-soft) var(--ease-out), box-shadow var(--dur-soft) var(--ease-out);
+}
+.mo-steps li strong { font-size: var(--type-sm); color: var(--fg-1); font-weight: var(--w-semibold); transition: color var(--dur-soft) var(--ease-out); }
+.mo-steps li span { font-size: var(--type-xs); color: var(--fg-2); }
+.mo-steps li[data-active="true"] { background: var(--accent-muted); box-shadow: inset 0 0 0 0.5px var(--accent-tint); }
+.mo-steps li[data-active="true"] strong { color: var(--fg-0); }
+
+/* ─── Role bench ─────────────────────────────────────────────────────────── */
+.mo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  gap: var(--space-4);
+  margin: 0 0 var(--space-6);
+}
+.mo-tile {
+  display: flex; flex-direction: column;
+  border-radius: var(--radius-lg);
+  background: var(--bg-1);
+  box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default);
+  overflow: hidden; /* bounded: a tilted or scaled payload stays inside the tile */
+}
+.mo-tile-hd {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-2);
+}
+.mo-tile-hd strong { font-family: var(--font-display); font-size: var(--type-base); font-weight: var(--w-semibold); }
+.mo-tile-hd code { font-size: var(--type-xs); color: var(--accent-text); }
+.mo-tile-stage {
+  position: relative; height: 104px; margin: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+  box-shadow: inset 0 0 0 0.5px var(--border-subtle);
+  overflow: hidden; /* bounded: second clip on top of MotionDemo's own */
+}
+.mo-tile-stage .motion-demo { width: 100%; height: 100%; display: grid; place-items: center; }
+.mo-tile-stage .motion-demo__target { display: grid; place-items: center; }
+/* Less-motion preview: the same payload, rendered at rest (no transform, full opacity). */
+.mo-static { overflow: hidden; position: relative; }
+.mo-static[data-small="true"] .motion-demo__target { width: 32px; height: 32px; }
+.mo-tile-use { margin: var(--space-3) var(--space-4) var(--space-1); font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); max-width: 60ch; }
+.mo-tile-tok { display: block; margin: 0 var(--space-4) var(--space-4); font-size: var(--type-xs); color: var(--fg-2); }
+.mo-tile[data-playful="true"] .mo-tile-stage { box-shadow: inset 0 0 0 1px var(--spark-muted); }
+
+/* Payloads — each role moves a real piece of the app, not a generic chip. */
+.mo-pl-icon {
+  display: grid; place-items: center; width: 40px; height: 40px;
+  border-radius: var(--radius-md); background: var(--accent-muted); color: var(--accent-text);
+}
+.mo-pl-icon svg { width: 18px; height: 18px; }
+.mo-pl-tip {
+  display: inline-block; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm);
+  background: var(--fg-0); color: var(--bg-1); font-size: var(--type-xs); font-weight: var(--w-medium); white-space: nowrap;
+}
+.mo-pl-island { display: flex; flex-direction: column; gap: var(--space-1); width: 96px; padding: var(--space-2); }
+.mo-pl-line { display: block; height: 8px; border-radius: var(--radius-pill); background: var(--bg-4); }
+.mo-pl-line--short { width: 60%; }
+.mo-pl-board {
+  display: block; width: 76px; height: 56px; padding: var(--space-1);
+  border-radius: var(--radius-xs); background: var(--bg-2); box-shadow: var(--shadow-md);
+}
+.mo-pl-board span { display: block; height: 26px; border-radius: var(--radius-xs); background: var(--object-sky); }
+.mo-pl-agent {
+  display: grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-pill);
+  background: var(--presence-agent); box-shadow: 0 0 0 4px var(--spark-muted);
+}
+.mo-pl-sticky {
+  display: grid; place-items: center; width: 56px; height: 52px;
+  border-radius: var(--radius-xs); background: var(--object-yellow); color: var(--object-ink);
+  font-family: var(--font-rounded); font-size: var(--type-sm); font-weight: var(--w-semibold);
+  box-shadow: var(--shadow-md);
+}
+.mo-pl-sticky--lilac { background: var(--object-lilac); }
+.mo-pl-frame { display: block; width: 88px; height: 52px; border-radius: var(--radius-xs); box-shadow: inset 0 0 0 1.5px var(--border-strong); }
+
+/* ─── Duration ladder ────────────────────────────────────────────────────── */
+.mo-ladder {
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+  margin: 0 0 var(--space-3);
+}
+.mo-rung {
+  display: grid;
+  grid-template-columns: 116px 64px minmax(120px, 1fr) 200px;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+}
+.mo-rung + .mo-rung { box-shadow: inset 0 0.5px 0 var(--border-subtle); }
+.mo-rung-tok { font-size: var(--type-xs); color: var(--fg-1); }
+.mo-rung-ms { font-size: var(--type-sm); font-weight: var(--w-semibold); font-variant-numeric: tabular-nums; color: var(--fg-0); }
+.mo-rung-track { height: 8px; border-radius: var(--radius-pill); background: var(--bg-3); overflow: hidden; }
+.mo-rung-bar { display: block; height: 100%; border-radius: var(--radius-pill); background: var(--accent); }
+.mo-rung[data-playful="true"] .mo-rung-bar { background: var(--spark); }
+.mo-rung-use { font-size: var(--type-sm); color: var(--fg-2); }
+.mo-ladder-foot { margin: var(--space-3) 0 0; font-size: var(--type-sm); color: var(--fg-1); }
+
+/* Advanced: the only place token playback (and its mono chips) appears. */
+.mo-adv {
+  margin: 0 0 var(--space-6);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.mo-adv summary { cursor: pointer; font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-1); padding: var(--space-1) 0; }
+.mo-adv summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-xs); }
+.mo-adv[open] summary { margin-bottom: var(--space-2); }
+.mo-adv p { font-size: var(--type-sm); }
+.mo-adv .motion-track { flex-wrap: wrap; margin: 0 0 var(--space-3); }
+.mo-adv-note { color: var(--fg-2); }
+
+/* ─── A drop of spring ───────────────────────────────────────────────────── */
+.mo-moments { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); margin: 0 0 var(--space-5); }
+.mo-moment { margin: 0; }
+.mo-moment figcaption, .mo-case figcaption { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.mo-moment figcaption strong { color: var(--fg-0); }
+.mo-mstage { height: 260px; min-height: 260px; margin-bottom: var(--space-3); overflow: hidden; /* bounded: overshoot stays in frame */ }
+
+.mo-variant {
+  position: absolute; top: var(--space-5); width: 30%;
+  display: flex; flex-direction: column; gap: var(--space-1);
+  padding: var(--space-1); border-radius: var(--radius-sm);
+  background: var(--bg-2); box-shadow: var(--shadow-md);
+}
+.mo-variant:nth-child(1) { left: 4%; }
+.mo-variant:nth-child(2) { left: 35%; }
+.mo-variant:nth-child(3) { left: 66%; }
+.mo-variant-img { display: block; height: 70px; border-radius: var(--radius-xs); }
+.mo-v-coral .mo-variant-img { background: var(--object-coral); }
+.mo-v-sky .mo-variant-img { background: var(--object-sky); }
+.mo-v-yellow .mo-variant-img { background: var(--object-yellow); }
+.mo-variant-cap { font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-1); padding: 0 var(--space-1) var(--space-1); }
+
+.mo-ai {
+  position: absolute; left: var(--space-4); right: var(--space-4); bottom: var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-1);
+  font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-0);
+}
+.mo-ai-hd { display: inline-flex; align-items: center; gap: var(--space-1); font-family: var(--font-rounded); font-weight: var(--w-semibold); }
+
+.mo-drop { position: absolute; left: calc(50% - 60px); top: var(--space-6); }
+.mo-mdock { position: absolute; left: 50%; bottom: var(--space-4); translate: -50% 0; }
+
+.mo-compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); margin: 0 0 var(--space-6); }
+.mo-case { margin: 0; }
+.mo-cstage { height: 196px; min-height: 196px; margin-bottom: var(--space-3); overflow: hidden; }
+.mo-ctrigger {
+  position: absolute; left: var(--space-4); top: var(--space-4);
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+  font-size: var(--type-sm); font-weight: var(--w-semibold);
+}
+.mo-menu {
+  position: absolute; left: var(--space-4); top: 60px; width: 180px;
+  padding: var(--space-1);
+  background: var(--bg-2);
+  box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge);
+}
+.mo-ok { color: var(--status-success-text); }
+.mo-bad { color: var(--status-error-text); }
+
+/* ─── Curves ─────────────────────────────────────────────────────────────── */
+.mo-curves { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5); margin: 0 0 var(--space-6); }
+.mo-curve { margin: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.mo-curve svg { width: 100%; max-width: 220px; height: auto; display: block; overflow: visible; }
+.mo-curve-bg { fill: var(--bg-1); stroke: var(--border-subtle); stroke-width: 0.5; }
+.mo-curve-one { stroke: var(--border-strong); stroke-width: 0.6; stroke-dasharray: 2 3; fill: none; }
+.mo-curve-diag { stroke: var(--border-default); stroke-width: 0.6; fill: none; }
+.mo-curve-path { stroke: var(--accent); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.mo-curve-path--spring { stroke: var(--spark); }
+.mo-curve figcaption { display: flex; flex-direction: column; gap: 2px; font-size: var(--type-xs); color: var(--fg-2); }
+.mo-curve figcaption code { font-size: var(--type-sm); color: var(--fg-0); }
+
+/* ─── Less motion ────────────────────────────────────────────────────────── */
+.mo-rm-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); margin: 0 0 var(--space-3); }
+.mo-rm-card {
+  display: flex; flex-direction: column; gap: var(--space-1);
+  padding: var(--space-4); border-radius: var(--radius-lg);
+  background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default);
+  font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1);
+}
+.mo-rm-card strong { font-family: var(--font-display); font-size: var(--type-base); color: var(--fg-0); }
+.mo-rm-foot { font-size: var(--type-sm); color: var(--fg-2); }
+
+/* Captions and running notes hold a 60ch measure (CONTRACT §5). */
+.specimen p, .mo-moment figcaption, .mo-case figcaption { max-width: 60ch; }
+.mo-rung-ms, .mo-meta dd { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 860px) {
+  .mo-steps, .mo-rm-grid, .mo-curves { grid-template-columns: 1fr 1fr; }
+  .mo-moments, .mo-compare { grid-template-columns: 1fr; }
+  .mo-rung { grid-template-columns: 104px 56px 1fr; }
+  .mo-rung-use { grid-column: 1 / -1; }
+}
+
+/* ─── Reduced-motion preview — the ONE allowed !important override (DDR-049) ─
+   Answers the specimen's <ReducedMotionToggle>. Collapses every duration token, so
+   CSS transitions and the token-reading JS demos (MotionDemo, the fold, the spring
+   moments) all run their 1 ms branch. */
+:root[data-reduced-motion="true"] {
+  --dur-flip: 1ms !important;
+  --dur-soft: 1ms !important;
+  --dur-panel: 1ms !important;
+  --dur-route: 1ms !important;
+  --dur-spring: 1ms !important;
+}

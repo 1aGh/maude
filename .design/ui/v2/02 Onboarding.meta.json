@@ -1,0 +1,41 @@
+{
+  "title": "02 Onboarding",
+  "subtitle": "First launch is Home: sign in to cloud.maude.sh once, and your first sentence becomes your first project — a local project and everything else one step aside",
+  "brief": "nejaky onboarding ale ne tak slozity jako ted, vse smerujeme predevsim na to aby uzivatele pouzivali cloud.maude.sh vse ostatni je advanced ale rozkresli to a nebo chci jen vytvorit lokalni projekt · musime proste vychazet z predpokladu ze vsichni chteji jen to nejjednodussi reseni a to je nainstalovat desktop a zatim neco tvorit.",
+  "platform": "desktop",
+  "designSystem": "maude-v2",
+  "opt_out_scope": "palette",
+  "sections": [
+    { "id": "cloud-first", "title": "Cloud first — a brand-new account", "subtitle": "First launch is Home: sign in once in the browser, then your first sentence becomes your first cloud project — no wizard, no card, no tour" },
+    { "id": "invite", "title": "Joining a team", "subtitle": "Tereza's link, opened before Maude is installed — install, sign in, and you land on her comment, not on a menu" },
+    { "id": "local", "title": "“Just a local project”", "subtitle": "No account: name it, make something, and move it to the cloud only when you want to share" },
+    { "id": "advanced", "title": "Advanced — one disclosure away, nothing removed", "subtitle": "Self-hosted hub, a folder or GitHub project, AI connected up front, the maude command and plugin, Figma — and where every old door went" },
+    { "id": "edges", "title": "When the first run isn't simple", "subtitle": "Offline, a sign-in that never finished, a second Mac, a work invite in a personal app, no AI yet, after an update — words, not errors" }
+  ],
+  "artboards": [
+    { "id": "ob-first-launch", "label": "1 · First launch is Home", "note": "Home is the welcome: the question, the prompt, and one card — Sign in to cloud.maude.sh or Just a local project; Advanced options is a quiet link." },
+    { "id": "ob-signin-browser", "label": "2 · Sign in in the browser", "note": "cloud.maude.sh in the browser (Google or email; same buttons sign up); the app waits in words with Cancel; the browser asks once to open Maude." },
+    { "id": "ob-home-new", "label": "3 · Back on Home — signed in, nothing made yet", "note": "Proposed: the 14-day trial starts silently, no card, no waiting room; the chip says the sentence starts a new project." },
+    { "id": "ob-ai-connect", "label": "4 · First send — connect Claude, just in time", "note": "Proposed: AI is the person's own Claude account — one sheet at the first send, then the sentence runs; not an onboarding step." },
+    { "id": "ob-first-draw", "label": "5 · AI draws the first canvas", "note": "The poster builds piece by piece; no tip card while AI works; the project is named from the sentence, Rename is the toast's one action." },
+    { "id": "ob-sig-draw", "label": "6 · How a first draft arrives", "note": "Signature moment: colour, picture, words, details — four frames on a time rail; one contextual hint at the first selection." },
+    { "id": "ob-invite-page", "label": "7 · The invite, in the browser", "note": "Who invited you, to what, her comment, one download; Open in Maude if installed; view-only browser link kept." },
+    { "id": "ob-invite-landed", "label": "8 · Landed on her comment", "note": "Hero: the camera stops at Tereza's comment on the poster, reply field ready, her live cursor beside it." },
+    { "id": "ob-home-team", "label": "9 · Next time — Home shows the team's work", "note": "Home shows Alligators brand with 93 canvases, Tereza and Jonas; the prompt chip says the new canvas lands there." },
+    { "id": "ob-local-name", "label": "10 · Name it — that's all", "note": "One field; stored in your Maude folder on this Mac, said in words; the path appears only under Advanced." },
+    { "id": "ob-local-first", "label": "11 · The first local canvas", "note": "An empty canvas with the CONTRACT line; AI connects the same way at the first Ask AI; status says Local project." },
+    { "id": "ob-local-share", "label": "12 · Local — Share offers the cloud", "note": "Laptop on the tab and the Local project status word; pressing Share offers Move to cloud — never a nag elsewhere." },
+    { "id": "ob-local-moved", "label": "13 · Moved — now Share invites", "note": "After the move canvases sync in the background; Share opens on Invite; invite by GitHub username waits under Advanced." },
+    { "id": "ob-adv-open", "label": "14 · Advanced options, opened", "note": "A flyout beside the sign-in card lists hub, folder/GitHub, AI, maude command + plugin, Figma — one sheet each." },
+    { "id": "ob-adv-sheets", "label": "15 · The Advanced sheets", "note": "Hub address + email/password, folder or GitHub project, Claude vs API key, CLI + plugin, Figma import (frames arrive as exact pictures; Make editable per artboard needs Figma Dev Mode), Share › Advanced GitHub invite." },
+    { "id": "ob-settings", "label": "16 · Settings and where every old door went", "note": "General › Account opens cloud.maude.sh (people, billing, Macs, download, delete); Connections holds hub, AI, Figma, GitHub; the old-door map." },
+    { "id": "ob-edge-offline", "label": "17 · Offline at first launch", "note": "Local project becomes the main button; cloud sign-in rests and wakes up by itself; Ask AI stays enabled and says when AI is back (CONTRACT §7)." },
+    { "id": "ob-edge-timeout", "label": "18 · Sign-in never finished", "note": "Cancel (app or web page) or a 10-minute timeout brings the card back with one line: nothing changed." },
+    { "id": "ob-edge-other-mac", "label": "19 · Already signed in on another Mac", "note": "Cloud projects and recents arrive by themselves; a local project stays on the Mac that made it until Move to cloud." },
+    { "id": "ob-edge-accounts", "label": "20 · A work invite in a personal app", "note": "The invite is for you@work-studio.cz; Open puts it in its own tab signed in as work; person circles vs project squares." },
+    { "id": "ob-edge-ai-missing", "label": "21 · No AI connected yet — on a team project", "note": "Ask AI looks the same (CONTRACT §7); ⌘/ on Tereza's poster opens the one Connect sheet; each person brings their own Claude account." },
+    { "id": "ob-edge-whats-new", "label": "22 · After an update — findable, never in the way", "note": "Land where you left off (1.x too); Home shows one What's new line once; Menu › Help keeps the dot." }
+  ],
+  "created": "2026-10-06T00:00:00Z",
+  "last_modified": "2026-10-06T18:00:00Z"
+}

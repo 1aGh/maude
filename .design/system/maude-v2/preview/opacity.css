@@ -1,0 +1,170 @@
+/* opacity — demonstration-specific styles (anatomy lives in _components.css).
+ *
+ * The scrubbed island mixes --bg-1 with transparent at --op-fill (set inline from
+ * the slider), so it follows the theme; at 88 % it matches --island-bg. The only
+ * literal opacity values below are the deliberately wrong "faded" demos.
+ */
+
+/* ─── A busy artboard: the thing that must not read through a panel ─────── */
+.op-busy {
+  position: absolute; left: 18%; top: var(--space-5); right: var(--space-5); bottom: var(--space-5);
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  grid-template-rows: auto 1fr;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+.op-busy-hero { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 2px; padding: var(--space-2) var(--space-1); }
+.op-busy-hero strong { font-family: var(--font-display); font-size: var(--type-xl); line-height: var(--lh-xl); letter-spacing: var(--tracking-tight); color: var(--fg-0); }
+.op-busy-hero span { font-size: var(--type-sm); color: var(--fg-1); }
+.op-busy-a, .op-busy-b, .op-busy-c { border-radius: var(--radius-xs); }
+.op-busy-a { background: var(--object-coral); background-image: radial-gradient(circle at 30% 40%, var(--object-yellow) 0 20%, transparent 21%); }
+.op-busy-b { background: var(--object-sky); }
+.op-busy-c { background: var(--object-green); background-image: linear-gradient(var(--object-lilac) 0 30%, transparent 30%); }
+
+.op-th-coral { background: var(--object-coral); }
+.op-th-yellow { background: var(--object-yellow); }
+.op-th-sky { background: var(--object-sky); }
+.op-th-green { background: var(--object-green); }
+
+/* ─── Hero: fill scrubber ────────────────────────────────────────────────── */
+.op-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 272px;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-4);
+}
+.op-stage { height: 400px; margin: 0; }
+.op-scrub-island {
+  position: absolute; left: var(--space-5); top: 64px; width: 224px; z-index: 3;
+  background: color-mix(in oklch, var(--bg-1) var(--op-fill, 88%), transparent);
+}
+.op-panel {
+  display: flex; flex-direction: column; gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.op-readout { font-family: var(--font-display); font-size: var(--type-lg); color: var(--fg-1); margin-top: calc(var(--space-2) * -1); }
+.op-readout span { font-size: var(--type-3xl); line-height: var(--lh-3xl); font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); color: var(--fg-0); font-variant-numeric: tabular-nums; }
+.op-range { width: 100%; accent-color: var(--accent); margin: 0; }
+.op-range:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; border-radius: var(--radius-xs); }
+.op-scale { position: relative; display: flex; justify-content: space-between; font-size: var(--type-xs); color: var(--fg-2); height: 34px; }
+.op-mark {
+  position: absolute; top: 0; translate: -50% 0;
+  padding: 2px var(--space-2); border-radius: var(--radius-pill);
+  background: var(--accent-muted); color: var(--accent-text); font-weight: var(--w-semibold); white-space: nowrap;
+}
+.op-mark::before {
+  content: ""; position: absolute; left: 50%; top: -6px; width: 1px; height: 6px; background: var(--accent);
+}
+.op-scale > span:first-child, .op-scale > span:last-child { align-self: flex-end; }
+.op-verdict {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-3);
+  font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1);
+  box-shadow: inset 3px 0 0 var(--fg-3);
+}
+.op-verdict strong { color: var(--fg-0); }
+.op-verdict--ok { box-shadow: inset 3px 0 0 var(--status-success); }
+.op-verdict--warn { box-shadow: inset 3px 0 0 var(--status-warn); }
+.op-verdict--bad { box-shadow: inset 3px 0 0 var(--status-error); }
+.op-panel .btn { align-self: flex-start; }
+
+/* ─── Alpha tiles — fills drawn over the dot grid so translucency shows ──── */
+.op-alphas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); margin: 0 0 var(--space-6); }
+.op-a {
+  position: relative;
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--space-2) var(--space-2);
+}
+.op-a span { position: absolute; inset: var(--space-3) var(--space-4); border-radius: var(--radius-md); }
+.op-a--content span { background: var(--object-coral); border-radius: var(--radius-xs); }
+.op-a--island span { background: var(--island-bg); box-shadow: var(--island-shadow), inset 0 0 0 0.5px var(--island-edge); }
+.op-a--tint span { background: var(--accent-tint); }
+.op-a--muted span { background: var(--accent-muted); }
+.op-a--spark span { background: var(--spark-muted); }
+.op-a--border span { box-shadow: inset 0 0 0 4px var(--border-default); }
+.op-a-v { display: block; font-variant-numeric: tabular-nums; color: var(--fg-2); margin-bottom: 2px; }
+
+/* ─── Disabled ───────────────────────────────────────────────────────────── */
+.op-compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); margin: 0 0 var(--space-6); }
+.op-case { margin: 0; }
+.op-case figcaption { font-size: var(--type-sm); color: var(--fg-1); line-height: var(--lh-sm); }
+.op-case figcaption strong { margin-right: var(--space-1); }
+.op-ok { color: var(--status-success-text); }
+.op-bad { color: var(--status-error-text); }
+.op-mini { height: 240px; min-height: 240px; margin-bottom: var(--space-3); }
+.op-dis { position: absolute; left: var(--space-4); top: var(--space-5); width: 220px; z-index: 3; }
+.op-row-off { color: var(--fg-3); }
+.op-dis-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }
+/* A disabled primary gives up its azure: azure means "you can do this". */
+.op-dis .btn--primary[disabled] { background: var(--bg-3); color: var(--fg-3); }
+/* WRONG on purpose: the whole island faded. */
+.op-dis--faded { opacity: 0.45; }
+
+/* ─── Quiet, not faded ───────────────────────────────────────────────────── */
+.op-quiet {
+  display: grid;
+  grid-template-columns: 220px 220px minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+  padding: var(--space-5);
+  margin: 0 0 var(--space-6);
+  border-radius: var(--radius-lg);
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.op-quiet-col { display: flex; flex-direction: column; gap: var(--space-2); }
+.op-q { display: flex; justify-content: space-between; gap: var(--space-2); font-size: var(--type-sm); }
+.op-q em { font-style: normal; font-size: var(--type-xs); color: var(--fg-2); opacity: 1; }
+.op-q--0 { color: var(--fg-0); }
+.op-q--1 { color: var(--fg-1); }
+.op-q--2 { color: var(--fg-2); }
+.op-q--3 { color: var(--fg-3); }
+.op-fade-1 { opacity: 0.7; }
+.op-fade-2 { opacity: 0.5; }
+.op-fade-3 { opacity: 0.3; }
+.op-quiet-col--bad .island-title { color: var(--status-error-text); }
+.op-quiet-note { margin: 0; font-size: var(--type-sm); color: var(--fg-1); line-height: var(--lh-sm); align-self: center; }
+
+/* ─── Veil ───────────────────────────────────────────────────────────────── */
+.op-veil-stage { height: 340px; }
+.op-veil { position: absolute; inset: 0; z-index: 4; background: color-mix(in oklch, var(--bg-0) 55%, transparent); }
+.op-sheet {
+  position: absolute; left: 50%; top: 50%; translate: -50% -50%; z-index: 5;
+  width: 340px;
+  display: flex; flex-direction: column; gap: var(--space-1);
+  padding: var(--space-4);
+  background: var(--bg-2);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge);
+}
+.op-sheet-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2); }
+.op-sheet-hd strong { font-family: var(--font-display); font-size: var(--type-md); }
+.op-avatar {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: var(--radius-pill);
+  background: var(--bg-4); color: var(--fg-0); font-size: var(--type-xs); font-weight: var(--w-semibold); flex: none;
+}
+.op-role { margin-left: auto; font-size: var(--type-xs); color: var(--fg-2); }
+.op-sheet-ai { display: flex; align-items: center; gap: var(--space-1); margin: var(--space-2) 0; font-size: var(--type-xs); color: var(--fg-2); }
+.op-sheet-ft { display: flex; justify-content: flex-end; gap: var(--space-2); }
+
+@media (max-width: 900px) {
+  .op-hero, .op-compare { grid-template-columns: 1fr; }
+  .op-quiet { grid-template-columns: 1fr 1fr; }
+  .op-quiet-note { grid-column: 1 / -1; }
+}
+
+/* Captions and running notes hold a 60ch measure (CONTRACT §5). */
+.specimen p, .specimen figcaption { max-width: 60ch; }

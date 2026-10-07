@@ -1,0 +1,134 @@
+{
+  "title": "05 Empty States",
+  "subtitle": "Every place that starts with nothing — Home, project, canvas, artboard, panels, search, and the edge cases",
+  "brief": "empty states — an empty state says what's missing, why it's fine, and ONE next step (often an AI chip + one action); spot art + SF Rounded for playful moments; no \"Oops\", no exclamation marks; \"nothing is deleted\" means Trash and Version history always exist. Drawn inside the real window on Studio site and Alligators brand.",
+  "platform": "desktop",
+  "designSystem": "maude-v2",
+  "opt_out_scope": "palette",
+  "sections": [
+    {
+      "id": "first",
+      "title": "First moments",
+      "subtitle": "A brand-new Home, project, canvas and artboard — the prompt comes first, and an empty canvas is always one key away"
+    },
+    {
+      "id": "panels",
+      "title": "Panels with nothing in them yet",
+      "subtitle": "Each panel at its real size — same three parts, sat in the upper third; no button when there's nothing to do"
+    },
+    {
+      "id": "search",
+      "title": "Search that finds nothing",
+      "subtitle": "A typo in ⌘K, Search with nothing recent, 247 assets with no match, a word the big project doesn't use, a filter that hides every artboard"
+    },
+    {
+      "id": "edges",
+      "title": "When it's not really empty",
+      "subtitle": "View-only, still arriving, offline and never downloaded, everything in the trash, a chat search, a team of one"
+    }
+  ],
+  "artboards": [
+    {
+      "id": "es-home-cloud",
+      "label": "1 · Home — signed in, no projects yet",
+      "note": "The prompt does the work; “Start with an empty canvas ⌘N” is the way in without AI; ghost cards show the empty shelf."
+    },
+    {
+      "id": "es-home-local",
+      "label": "2 · Home — a local project, not signed in",
+      "note": "Same prompt and ⌘N; the chip says it stays on this Mac; the shelf offers Open project… ⌘O; Sign in waits top right."
+    },
+    {
+      "id": "es-home-shared",
+      "label": "3 · Home — nothing shared with you yet",
+      "note": "Your project on its shelf; “Shared with you” keeps its place in ghost cards and names who fills it; no button."
+    },
+    {
+      "id": "es-project-new",
+      "label": "4 · A new project with no canvases",
+      "note": "Panel says no canvases yet; the canvas offers the prompt and Start with an empty canvas ⌘N; no toolbar."
+    },
+    {
+      "id": "es-canvas-ai",
+      "label": "5 · A new canvas — online, AI ready",
+      "note": "Spot art + the CONTRACT empty-canvas line; the stickies land once on the DS spring; Ask AI is the one spark button."
+    },
+    {
+      "id": "es-landing",
+      "label": "6 · How the empty canvas arrives — one drop of spring",
+      "note": "Static filmstrip of --dur-spring · --ease-spring: only the stickies move; the words and Ask AI are there from frame 1."
+    },
+    {
+      "id": "es-canvas-three",
+      "label": "7 · New canvas — AI ready · offline · AI not connected yet",
+      "note": "Line and Ask AI never change; offline queues the prompt; not connected opens the one Connect sheet at the first send."
+    },
+    {
+      "id": "es-artboard-new",
+      "label": "8 · Empty artboard after “New artboard”",
+      "note": "A hint floats on the fresh artboard with one AI chip; Layers says what will appear there."
+    },
+    {
+      "id": "es-panels-canvas",
+      "label": "9 · Canvases folder · Comments · all resolved · Version history",
+      "note": "Empty folder offers New canvas in 2027; Comments teaches C; “All done.” celebrates with confetti; history has no button."
+    },
+    {
+      "id": "es-panels-make",
+      "label": "10 · AI chat · Assets · Exports · Trash",
+      "note": "AI chips fit Pricing; Assets — the left panel's third tab — is a drop zone + Generate an image; Exports offers Export…; Trash keeps things until you clear them out."
+    },
+    {
+      "id": "es-timeline",
+      "label": "11 · Timeline on a video artboard with no clips",
+      "note": "Selecting the video artboard summons the timeline; the track is the drop zone; one AI chip cuts from 38 clips."
+    },
+    {
+      "id": "es-search-k",
+      "label": "12 · ⌘K — nothing called “pricng”",
+      "note": "The CONTRACT no-results line with spot art, then Did you mean Pricing, then Ask AI."
+    },
+    {
+      "id": "es-search-more",
+      "label": "13 · ⌘K with nothing recent · Assets search with no hits",
+      "note": "Search on day one says “Nothing opened yet.” and lists where to start; the Assets tab searches names and tags, and offers once to let AI describe the pictures (your Claude account)."
+    },
+    {
+      "id": "es-search-panel",
+      "label": "14 · Panel search — 93 canvases, none match",
+      "note": "“sponzoři 2024” matches no name; the one next step is AI, which looks inside canvases; the foot says what was searched."
+    },
+    {
+      "id": "es-filter",
+      "label": "15 · A filter that hides every artboard",
+      "note": "Print filter carried over from Combine-kampan; “No print artboards in Combine-invite” + Clear filter; artboards stay, dimmed."
+    },
+    {
+      "id": "es-viewer",
+      "label": "16 · A shared canvas you can comment on, not edit",
+      "note": "Can comment: the same Select · Hand · Comment toolbar as 04 · md-comment-only, no AI chat panel; the Share cluster says Can comment, the switch reads Viewing, Ask to edit goes to the owner. Uniformy-2027's real 16:9 digital boards."
+    },
+    {
+      "id": "es-arriving",
+      "label": "17 · The cloud copy hasn't arrived yet",
+      "note": "Every canvas listed by name, dimmed with a pulsing thumb; skeleton artboards keep their names and sizes — never an empty project."
+    },
+    {
+      "id": "es-offline-uncached",
+      "label": "18 · Offline, and this canvas was never downloaded",
+      "note": "Plain words, the cloud copy is safe; canvases on this Mac stay bright; one button filters to them."
+    },
+    {
+      "id": "es-all-trashed",
+      "label": "19 · Every artboard moved to the trash",
+      "note": "Dashed outlines keep their places; a bracket ties them to Restore 4 artboards; who and when; Version history too."
+    },
+    {
+      "id": "es-edge-panels",
+      "label": "20 · Chat search with no hits · a team of one",
+      "note": "Chat search says what it searched + Start a chat about it; the Share sheet's empty people list is the reason to Invite."
+    }
+  ],
+  "created": "2026-10-06T00:00:00Z",
+  "last_modified": "2026-10-06"
+}

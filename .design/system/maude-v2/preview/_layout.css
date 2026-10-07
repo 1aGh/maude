@@ -1,0 +1,267 @@
+/*
+ * maude-v2 — specimen chrome · "Light glass with a spark"
+ *
+ * Single CSS entry point for every preview/<slug>.tsx specimen (DDR-068): it pulls the
+ * tokens and the shared component anatomy, then bakes the signature treatment into
+ * the page itself — the specimen IS a canvas (full-bleed dot grid) and its header is
+ * a frosted floating island, not a docked bar. Chrome floats over the work; it never
+ * frames it.
+ *
+ *   ┌───────────────────────────────────────────────────────────────┐
+ *   │  ╭─ .specimen-hd (island) ─ mark · crumbs ······· theme ─╮      │
+ *   │  ╰─────────────────────────────────────────────────────╯      │
+ *   │   .specimen-title — h1 + lede                                 │
+ *   │   .specimen       — h2 sections, demonstration content         │
+ *   │   .specimen-ft    — colophon                                   │
+ *   └───────────────────────────────────────────────────────────────┘
+ */
+
+@import url("../colors_and_type.css");
+@import url("./_components.css");
+
+* { box-sizing: border-box; }
+*::selection { background: var(--accent-tint); color: var(--fg-0); }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-body);
+  font-size: var(--type-base);
+  line-height: var(--lh-base);
+  color: var(--fg-0);
+  background-color: var(--canvas-bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Signature backdrop: the page is the canvas — the same dot grid the app draws. */
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+  background-position: calc(var(--canvas-grid) / -2) calc(var(--canvas-grid) / -2);
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ─── Specimen head — a floating island, inset from the edges ────────────── */
+.specimen-hd {
+  position: sticky;
+  top: var(--space-3);
+  z-index: 20;
+  margin: var(--space-3) var(--space-4) 0;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  background: var(--island-bg);
+  backdrop-filter: blur(var(--island-blur)) saturate(1.4);
+  -webkit-backdrop-filter: blur(var(--island-blur)) saturate(1.4);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--island-shadow), inset 0 0 0 0.5px var(--island-edge);
+}
+.specimen-hd .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--w-semibold);
+  font-size: var(--type-sm);
+  color: var(--fg-0);
+}
+.specimen-hd .brand svg { width: 22px; height: 22px; display: block; }
+.specimen-hd .crumbs {
+  display: flex;
+  gap: var(--space-2);
+  font-size: var(--type-sm);
+  color: var(--fg-2);
+  justify-self: start;
+}
+.specimen-hd .crumbs span:not(:last-child)::after {
+  content: "›";
+  margin-left: var(--space-2);
+  color: var(--fg-3);
+}
+.specimen-hd .crumbs span:last-child { color: var(--fg-0); font-weight: var(--w-medium); }
+
+/* ─── Theme toggle — a segmented control in the island ───────────────────── */
+.theme-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-md);
+  background: var(--bg-3);
+}
+.theme-toggle button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--fg-1);
+  font: inherit;
+  font-size: var(--type-sm);
+  padding: var(--space-1) var(--space-3);
+  border-radius: calc(var(--radius-md) - 2px);
+  cursor: pointer;
+  transition: background var(--dur-flip) var(--ease-out), color var(--dur-flip) var(--ease-out);
+}
+.theme-toggle button[aria-pressed="true"] {
+  background: var(--bg-2);
+  color: var(--fg-0);
+  box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--accent);
+}
+.theme-toggle button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* ─── Body region ────────────────────────────────────────────────────────── */
+.specimen {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-6) var(--space-8);
+  flex: 1;
+  counter-reset: spec;
+  /* The reading column sits on solid canvas so grid dots never land between words;
+     the dot grid stays in the margins and inside .stage demos. Feathered edge. */
+  background-color: var(--canvas-bg);
+  box-shadow: 0 0 48px 40px var(--canvas-bg);
+}
+.specimen h1, .specimen h2, .specimen h3, .specimen figcaption strong { text-wrap: balance; }
+.specimen p, .specimen figcaption, .specimen .lede { text-wrap: pretty; }
+
+.specimen-title h1 {
+  font-family: var(--font-display);
+  font-size: var(--type-3xl);
+  line-height: var(--lh-3xl);
+  letter-spacing: var(--tracking-tight);
+  font-weight: var(--w-semibold);
+  margin: 0 0 var(--space-3);
+}
+.specimen-title .lede {
+  color: var(--fg-1);
+  font-size: var(--type-md);
+  line-height: var(--lh-md);
+  max-width: 62ch;
+  margin: 0 0 var(--space-6);
+}
+
+.specimen-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin: 0 0 var(--space-7);
+}
+.specimen-meta div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.specimen-meta dt { font-size: var(--type-xs); color: var(--fg-2); }
+.specimen-meta dd { margin: 0; font-size: var(--type-sm); color: var(--fg-0); font-weight: var(--w-medium); }
+
+.specimen h2 {
+  font-family: var(--font-display);
+  font-size: var(--type-xl);
+  line-height: var(--lh-xl);
+  font-weight: var(--w-semibold);
+  letter-spacing: var(--tracking-tight);
+  margin: var(--space-7) 0 var(--space-4);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.specimen h2[data-no] { counter-increment: spec; }
+.specimen h2[data-no]::before {
+  content: counter(spec);
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-muted);
+  color: var(--accent-text);
+  font-family: var(--font-body);
+  font-size: var(--type-xs);
+  font-weight: var(--w-semibold);
+  transform: translateY(-3px);
+}
+.specimen h2 .h2-aside {
+  font-family: var(--font-body);
+  font-size: var(--type-sm);
+  font-weight: 400;
+  color: var(--fg-2);
+  letter-spacing: 0;
+}
+.specimen h3 {
+  font-family: var(--font-display);
+  font-size: var(--type-md);
+  line-height: var(--lh-md);
+  font-weight: var(--w-semibold);
+  margin: var(--space-5) 0 var(--space-3);
+}
+
+.specimen p { margin: 0 0 var(--space-4); max-width: 68ch; color: var(--fg-1); }
+.specimen code, .mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Helpers reused across specimens ────────────────────────────────────── */
+.grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(188px, 1fr));
+  margin: 0 0 var(--space-6);
+}
+.swatch {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-1);
+  box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default);
+}
+.swatch .fill { height: 76px; }
+.swatch .meta { padding: var(--space-3) var(--space-3) var(--space-3); font-size: var(--type-xs); color: var(--fg-1); }
+.swatch .meta strong { display: block; color: var(--fg-0); font-size: var(--type-sm); font-weight: var(--w-semibold); margin-bottom: 2px; }
+.swatch .meta .oklch { font-family: var(--font-mono); color: var(--fg-2); }
+
+.row { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; margin: 0 0 var(--space-6); }
+.divider { height: 1px; background: var(--border-subtle); margin: var(--space-6) 0; }
+
+/* A stage: a piece of canvas with islands floating over it (signature demo surface). */
+.stage {
+  position: relative;
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+  overflow: hidden;
+  min-height: 280px;
+  margin: 0 0 var(--space-6);
+}
+
+/* ─── Specimen footer ────────────────────────────────────────────────────── */
+.specimen-ft {
+  background-color: var(--canvas-bg);
+  padding: var(--space-5) var(--space-6) var(--space-6);
+  font-size: var(--type-xs);
+  color: var(--fg-2);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  max-width: 1120px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Island titles keep their component styling even when rendered as a <p> inside .specimen. */
+.specimen .island-title { margin: 0 0 var(--space-2); color: var(--fg-2); font-size: var(--type-xs); max-width: none; }
+
+/* Weights stop at semibold — browsers default <strong>/<b> to 700. */
+strong, b { font-weight: var(--w-semibold); }

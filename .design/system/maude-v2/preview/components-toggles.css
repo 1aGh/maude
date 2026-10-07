@@ -1,0 +1,187 @@
+/* Weights stop at semibold: <strong> would otherwise render at the UA's 700. */
+.specimen strong, .specimen b { font-weight: var(--w-semibold); }
+/* components-toggles — demonstration-specific styles (.switch / .seg anatomy lives in _components.css).
+ *
+ * Checkbox and radio are real <input>s with appearance: none, so the accessibility tree,
+ * keyboard and form behaviour stay native. The Advanced disclosure is the ONE place
+ * --font-mono and the 4px half-step appear; its body fades in on open (transform +
+ * opacity only — the height is not animated).
+ */
+
+.tg-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.switch.tg-on { background: var(--accent); }
+.switch.tg-on::after { transform: translateX(14px); }
+.switch:disabled { cursor: not-allowed; background: var(--bg-3); }
+.switch:disabled::after { background: var(--bg-1); box-shadow: none; }
+.tg-seg-sm button { font-size: var(--type-xs); padding: 2px var(--space-2); }
+
+/* ─── Hero ───────────────────────────────────────────────────────────────── */
+.tg-hero {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-5);
+  min-height: 480px; padding: var(--space-5);
+}
+.tg-frame-wrap { position: relative; justify-self: center; }
+.tg-frame-label {
+  position: absolute; left: -3px; top: -26px; padding: 2px var(--space-2); border-radius: var(--radius-xs);
+  background: var(--accent); color: var(--accent-fg); font-size: var(--type-xs); font-weight: var(--w-semibold); white-space: nowrap;
+}
+.tg-frame {
+  display: flex; align-items: flex-start; width: 320px; height: 180px; padding: var(--space-4) var(--space-5);
+  background: var(--bg-2); border-radius: var(--radius-xs); box-shadow: var(--shadow-md), 0 0 0 2px var(--accent);
+}
+.tg-blk { flex: none; display: block; border-radius: var(--radius-xs); }
+.tg-blk--title { width: 92px; height: 18px; background: var(--fg-1); }
+.tg-blk--text { width: 72px; height: 10px; background: var(--fg-2); }
+.tg-blk--photo {
+  width: 150px; height: 100px; border-radius: var(--radius-sm);
+  background: var(--object-coral); background-image: radial-gradient(circle at 70% 34%, var(--object-yellow) 0 18%, transparent 19%);
+  box-shadow: var(--shadow-sm);
+}
+
+.tg-pair { display: flex; gap: var(--space-4); align-items: flex-start; }
+.tg-col { width: 236px; }
+.specimen .tg-col-cap { margin: 0 0 var(--space-2); font-size: var(--type-xs); color: var(--fg-2); padding-left: var(--space-1); }
+.tg-col-cap strong { color: var(--fg-0); margin-right: var(--space-1); }
+
+.tg-insp { display: flex; flex-direction: column; gap: var(--space-2); }
+.tg-insp .island-title { margin-bottom: 0; }
+.tg-insp-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 28px; padding: 0 var(--space-1); font-size: var(--type-sm); }
+.tg-insp-row > span:first-child { color: var(--fg-1); }
+
+.tg-hero-notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); margin: 0 0 var(--space-6); }
+.specimen .tg-hero-notes p { margin: 0; font-size: var(--type-sm); line-height: var(--lh-sm); max-width: 60ch; }
+.tg-hero-notes strong { color: var(--fg-0); }
+
+/* ─── Advanced disclosure ────────────────────────────────────────────────── */
+.tg-adv { margin-top: var(--space-1); padding-top: var(--space-1); box-shadow: inset 0 0.5px 0 var(--border-default); }
+.tg-adv-btn {
+  appearance: none; border: 0; background: transparent; cursor: pointer; width: 100%;
+  display: flex; align-items: center; gap: var(--space-1); min-height: 28px; padding: 0 var(--space-1);
+  border-radius: var(--radius-sm); font: inherit; font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-1);
+  transition: background var(--dur-flip) var(--ease-out), color var(--dur-flip) var(--ease-out);
+}
+.tg-adv-btn:hover { background: var(--bg-3); color: var(--fg-0); }
+.tg-adv-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.tg-adv-btn--static { cursor: default; }
+.tg-adv-btn--static:hover { background: transparent; }
+.tg-adv-ch { display: inline-grid; color: var(--fg-2); transition: transform var(--dur-panel) var(--ease-out); }
+.tg-adv[data-open="true"] .tg-adv-ch { transform: rotate(90deg); }
+.tg-adv-count { margin-left: auto; font-size: var(--type-xs); font-weight: var(--w-regular); color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.tg-adv-body {
+  display: flex; flex-direction: column; gap: var(--space-1);
+  padding: var(--space-1) var(--space-1) var(--space-1);
+  animation: tg-open var(--dur-panel) var(--ease-out);
+}
+@keyframes tg-open { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+/* Raw CSS rows — dense, mono, 4px rhythm. Mono lives here and nowhere else. */
+.tg-css { display: grid; grid-template-columns: 104px minmax(0, 1fr); align-items: center; gap: var(--space-1); }
+.tg-css--stack { grid-template-columns: 1fr; }
+.tg-css-k { font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tg-css-v {
+  min-width: 0; height: 22px; padding: 0 var(--space-1); border: 0; border-radius: var(--radius-xs);
+  font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-0);
+  background: var(--bg-3); box-shadow: inset 0 0 0 0.5px var(--border-subtle); outline: none;
+}
+.tg-css-v:focus { background: var(--bg-2); box-shadow: 0 0 0 3px var(--accent-tint), inset 0 0 0 1px var(--focus-ring); }
+.tg-css-ta { height: auto; padding: var(--space-1); resize: none; line-height: var(--lh-xs); }
+.tg-css-add {
+  appearance: none; border: 0; background: transparent; cursor: pointer; align-self: flex-start;
+  padding: 2px var(--space-1); border-radius: var(--radius-xs);
+  font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-2);
+}
+.tg-css-add:hover { color: var(--fg-0); background: var(--bg-3); }
+.tg-css-add:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+.tg-everywhere { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); align-items: start; margin: 0 0 var(--space-3); }
+.tg-ew .island-title { display: flex; align-items: center; gap: var(--space-1); }
+.tg-mini-sel { font-size: var(--type-xs); padding: 2px var(--space-2); border-radius: var(--radius-xs); background: var(--bg-3); color: var(--fg-0); }
+.specimen .tg-ew-note { font-size: var(--type-sm); color: var(--fg-2); margin: 0 0 var(--space-6); max-width: 60ch; }
+
+/* ─── Switches ───────────────────────────────────────────────────────────── */
+.tg-switches { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: var(--space-6); align-items: center; margin: 0 0 var(--space-6); }
+.tg-sw-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) var(--space-1); }
+.tg-sw-row + .tg-sw-row { box-shadow: inset 0 0.5px 0 var(--border-subtle); }
+.tg-sw-row--dense { padding: var(--space-1); font-size: var(--type-xs); color: var(--fg-1); }
+.tg-sw-row--dense + .tg-sw-row--dense { box-shadow: none; }
+.tg-sw-txt { display: flex; flex-direction: column; gap: 2px; font-size: var(--type-sm); }
+.tg-opt-meta { font-size: var(--type-xs); color: var(--fg-2); line-height: var(--lh-xs); }
+.tg-sw-row--off .tg-sw-txt > span:first-child { color: var(--fg-3); }
+
+.specimen .tg-sw-anat p { font-size: var(--type-sm); line-height: var(--lh-sm); max-width: 60ch; }
+.tg-sw-anat strong { color: var(--fg-0); }
+.tg-sw-big { position: relative; width: 136px; height: 80px; margin: var(--space-5) 0 var(--space-6) var(--space-6); }
+.tg-sw-big-track { position: absolute; inset: 0; border-radius: var(--radius-pill); background: var(--accent); }
+.tg-sw-big-thumb { position: absolute; top: 8px; right: 8px; width: 64px; height: 64px; border-radius: var(--radius-pill); background: var(--bg-2); box-shadow: var(--shadow-md); }
+.tg-dim { position: absolute; font-size: var(--type-xs); color: var(--fg-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tg-dim--w { left: 0; right: 0; top: calc(100% + var(--space-2)); text-align: center; box-shadow: inset 0 1px 0 var(--border-strong); padding-top: var(--space-1); }
+.tg-dim--h { right: calc(100% + var(--space-3)); top: 50%; transform: translateY(-50%); }
+.tg-dim--t { left: calc(100% + var(--space-4)); top: 50%; transform: translateY(-50%); }
+
+/* ─── Segmented ──────────────────────────────────────────────────────────── */
+.tg-segs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); margin: 0 0 var(--space-6); }
+.tg-seg-cell {
+  margin: 0; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3);
+  padding: var(--space-4); border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.tg-seg-cell figcaption { display: flex; flex-direction: column; gap: 2px; }
+.tg-seg-cell figcaption strong { font-size: var(--type-sm); }
+.tg-seg-cell figcaption span { font-size: var(--type-xs); color: var(--fg-1); line-height: var(--lh-xs); }
+.tg-seg-icons button { display: grid; place-items: center; padding: var(--space-1) var(--space-2); }
+.specimen .tg-seg-note { grid-column: 1 / -1; margin: 0; font-size: var(--type-sm); max-width: 60ch; }
+
+/* ─── Checkbox + radio (real inputs) ─────────────────────────────────────── */
+.tg-forms { display: grid; grid-template-columns: repeat(2, minmax(0, 340px)); gap: var(--space-5); margin: 0 0 var(--space-6); align-items: start; }
+.tg-opt { display: flex; align-items: center; gap: var(--space-2); min-height: 28px; padding: 0 var(--space-1); border-radius: var(--radius-sm); font-size: var(--type-sm); cursor: pointer; }
+.tg-opt:hover { background: var(--bg-3); }
+.tg-opt--parent { font-weight: var(--w-semibold); }
+.tg-opt .tg-opt-meta { margin-left: auto; font-weight: var(--w-regular); font-variant-numeric: tabular-nums; }
+.tg-opt--off { color: var(--fg-3); cursor: not-allowed; }
+.tg-opt--off:hover { background: transparent; }
+.tg-children { padding-left: var(--space-5); }
+.tg-sep { height: 0.5px; background: var(--border-default); margin: var(--space-2) 0; }
+.tg-sheet-ft { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
+
+.tg-check, .tg-radio {
+  appearance: none; flex: none; margin: 0; width: 16px; height: 16px; display: inline-grid; place-items: center; cursor: pointer;
+  background: var(--bg-2); box-shadow: inset 0 0 0 1px var(--control-off);
+  transition: background var(--dur-flip) var(--ease-out), box-shadow var(--dur-flip) var(--ease-out);
+}
+.tg-check { border-radius: var(--radius-xs); }
+.tg-radio { border-radius: var(--radius-pill); }
+.tg-check::after {
+  content: ""; width: 8px; height: 4px; margin-top: -2px;
+  border-left: 2px solid var(--accent-fg); border-bottom: 2px solid var(--accent-fg);
+  transform: rotate(-45deg) scale(0.4); opacity: 0;
+  transition: transform var(--dur-flip) var(--ease-out), opacity var(--dur-flip) var(--ease-out);
+}
+.tg-check:checked, .tg-check:indeterminate { background: var(--accent); box-shadow: none; }
+.tg-check:checked::after { transform: rotate(-45deg) scale(1); opacity: 1; }
+.tg-check:indeterminate::after { width: 8px; height: 0; margin-top: 0; border-left: 0; border-bottom: 2px solid var(--accent-fg); transform: none; opacity: 1; }
+.tg-radio:checked { background: var(--accent-fg); box-shadow: inset 0 0 0 5px var(--accent); }
+.tg-check:focus-visible, .tg-radio:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.tg-check:disabled { background: var(--bg-3); box-shadow: inset 0 0 0 1px var(--border-default); cursor: not-allowed; }
+
+.tg-radios { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.tg-opt--radio { align-items: flex-start; padding: var(--space-2) var(--space-1); }
+.tg-opt--radio .tg-radio { margin-top: 2px; }
+.tg-radio-txt { display: flex; flex-direction: column; gap: 2px; }
+.tg-radio-txt .tg-opt-meta { margin-left: 0; }
+
+/* ─── Guide ──────────────────────────────────────────────────────────────── */
+.tg-guide { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-3); }
+.tg-guide-card {
+  display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3);
+  border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default);
+}
+.tg-guide-demo { display: grid; place-items: center; height: 56px; border-radius: var(--radius-md); background: var(--bg-3); pointer-events: none; }
+.tg-guide-q { font-size: var(--type-sm); color: var(--fg-1); line-height: var(--lh-sm); }
+.tg-guide-card strong { margin-top: auto; font-size: var(--type-base); }
+.tg-demo-radio, .tg-demo-check { display: block; width: 16px; height: 16px; }
+.tg-demo-radio { border-radius: var(--radius-pill); background: var(--accent-fg); box-shadow: inset 0 0 0 5px var(--accent); }
+.tg-demo-check { border-radius: var(--radius-xs); background: var(--accent); position: relative; }
+.tg-demo-check::after {
+  content: ""; position: absolute; left: 4px; top: 4px; width: 8px; height: 4px;
+  border-left: 2px solid var(--accent-fg); border-bottom: 2px solid var(--accent-fg); transform: rotate(-45deg);
+}
+.tg-demo-adv { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-1); }

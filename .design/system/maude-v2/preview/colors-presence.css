@@ -1,0 +1,167 @@
+/* colors-presence — demonstration-specific styles (anatomy lives in _components.css). */
+
+/* ─── Avatar + presence dot ────────────────────────────────────────────── */
+.pr-av {
+  position: relative; display: inline-grid; place-items: center; flex: none;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--bg-4); color: var(--fg-0);
+  font-size: var(--type-xs); font-weight: var(--w-semibold);
+  box-shadow: 0 0 0 2px var(--bg-1);
+}
+.pr-av--sm { width: 18px; height: 18px; }
+.pr-av--sm .pr-dot { width: 7px; height: 7px; right: -2px; bottom: -2px; }
+.pr-av--lg { width: 48px; height: 48px; font-size: var(--type-md); }
+.pr-av--lg .pr-dot { width: 13px; height: 13px; }
+.pr-av--agent { background: var(--spark-muted); }
+.pr-dot {
+  position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--bg-1);
+}
+.pr-dot--online { background: var(--presence-online); }
+.pr-dot--away { background: var(--presence-away); }
+.pr-dot--offline { background: var(--bg-1); box-shadow: 0 0 0 2px var(--bg-1), inset 0 0 0 2px var(--presence-offline); }
+.pr-dot--agent { background: var(--presence-agent); }
+
+/* ─── Cursors ──────────────────────────────────────────────────────────── */
+.pr-cur { position: absolute; display: flex; align-items: flex-start; gap: 2px; z-index: 5; pointer-events: none; }
+.pr-cur svg { flex: none; }
+.pr-tag {
+  display: inline-flex; align-items: center; gap: var(--space-1); margin-top: 12px;
+  padding: 2px var(--space-2); border-radius: var(--radius-pill);
+  font-family: var(--font-rounded); font-size: var(--type-xs); font-weight: var(--w-semibold); white-space: nowrap;
+  color: var(--object-ink); box-shadow: var(--shadow-sm);
+}
+.pr-tag--sky { background: var(--object-sky); }
+.pr-tag--green { background: var(--object-green); }
+.pr-tag--lilac { background: var(--object-lilac); }
+.pr-tag--coral { background: var(--object-coral); }
+.pr-tag--ai { background: var(--presence-agent); color: var(--spark-fg); }
+
+/* ─── Hero ─────────────────────────────────────────────────────────────── */
+.pr-hero { height: 420px; }
+
+.pr-ab-label { position: absolute; left: 248px; top: 44px; font-size: var(--type-xs); font-weight: var(--w-medium); color: var(--fg-1); }
+.pr-artboard {
+  position: absolute; left: 248px; top: 64px; width: 460px;
+  padding: var(--space-5) var(--space-4) var(--space-4); border-radius: var(--radius-sm);
+  background: var(--bg-2); box-shadow: var(--shadow-md);
+}
+.pr-plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); }
+.pr-plan {
+  position: relative; display: flex; flex-direction: column; gap: var(--space-1);
+  min-height: 120px; padding: var(--space-3); border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--border-default);
+}
+.pr-plan b { font-family: var(--font-display); font-size: var(--type-lg); }
+.pr-plan span { font-size: var(--type-xs); color: var(--fg-2); }
+.pr-plan .pr-tag { color: var(--object-ink); }
+.pr-plan .pr-tag--ai { color: var(--spark-fg); }
+/* Tereza's selection: solid, in her canvas colour. */
+.pr-plan--sel { box-shadow: none; outline: 2px solid var(--object-sky); outline-offset: 2px; }
+.pr-cur-tereza { right: var(--space-3); bottom: var(--space-1); }
+
+/* The AI's working area: dashed spark — not done yet. */
+.pr-footer {
+  position: relative; display: grid; gap: var(--space-2); margin-top: var(--space-4);
+  padding: var(--space-4); border-radius: var(--radius-md);
+  outline: 1.5px dashed var(--spark); outline-offset: 2px; background: var(--spark-muted);
+}
+.pr-skel { display: block; height: 8px; width: 70%; border-radius: var(--radius-pill); background: var(--bg-4); }
+.pr-skel--short { width: 40%; }
+.pr-cur-ai { left: 58%; top: var(--space-2); }
+
+.pr-sticky { position: absolute; left: 56px; top: 300px; rotate: -3deg; }
+.pr-caret { display: inline-block; width: 1.5px; height: 1em; margin-left: 1px; vertical-align: -2px; background: var(--object-ink); }
+.pr-cur-jonas { right: calc(var(--space-6) * -1); top: 52px; rotate: 3deg; }
+
+.pr-layers { position: absolute; left: var(--space-4); top: var(--space-4); width: 200px; z-index: 3; }
+.pr-li { width: 12px; height: 10px; border-radius: var(--radius-xs); box-shadow: inset 0 0 0 1.25px var(--fg-2); flex: none; }
+.pr-indent { padding-left: var(--space-5); }
+.pr-row-who { margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-1); }
+.pr-row-ai { font-family: var(--font-rounded); font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--spark-text); }
+
+.pr-share { position: absolute; right: var(--space-4); top: var(--space-4); z-index: 3; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3); }
+.pr-stack { display: inline-flex; }
+.pr-stack .pr-av + .pr-av { margin-left: calc(var(--space-2) * -1); }
+
+/* The people popover — opened from the share island. */
+.pr-people {
+  position: absolute; right: var(--space-4); top: 68px; width: 236px; z-index: 4;
+  padding: var(--space-2); border-radius: var(--radius-md);
+  background: var(--bg-2); box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--border-default);
+}
+.pr-people-hd { margin: 0 0 var(--space-1); padding: 0 var(--space-1); font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2); }
+.pr-person { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-1); border-radius: var(--radius-sm); }
+.pr-person .pr-av, .pr-person .pr-dot { box-shadow: 0 0 0 2px var(--bg-2); }
+.pr-person .pr-dot--offline { background: var(--bg-2); box-shadow: 0 0 0 2px var(--bg-2), inset 0 0 0 2px var(--presence-offline); }
+.pr-person-t { display: flex; flex-direction: column; line-height: var(--lh-xs); }
+.pr-person-t b { font-size: var(--type-sm); font-weight: var(--w-semibold); }
+.pr-person-t span { font-size: var(--type-xs); color: var(--fg-2); }
+
+/* ─── States ───────────────────────────────────────────────────────────── */
+.pr-states { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-4); margin: 0 0 var(--space-6); }
+.pr-state {
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1);
+  padding: var(--space-4); border-radius: var(--radius-lg);
+  background: var(--bg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default);
+}
+.pr-state .pr-av { margin-bottom: var(--space-2); }
+.pr-state strong { font-size: var(--type-base); }
+.pr-state code { font-size: var(--type-xs); color: var(--fg-2); }
+.pr-state > span:last-child { font-size: var(--type-sm); color: var(--fg-1); }
+
+/* ─── Cursor anatomy ───────────────────────────────────────────────────── */
+.pr-anatomy { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); margin: 0 0 var(--space-6); }
+.pr-anat {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-4); align-items: center;
+  padding: var(--space-4); border-radius: var(--radius-lg);
+  background: var(--bg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default);
+}
+.pr-anat-stage {
+  position: relative; height: 150px; border-radius: var(--radius-md); overflow: hidden;
+  background-color: var(--canvas-bg); background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px); background-size: var(--canvas-grid) var(--canvas-grid);
+}
+.pr-anat-box {
+  position: absolute; left: var(--space-4); top: var(--space-5); width: 120px; height: 72px;
+  display: grid; place-items: center; border-radius: var(--radius-sm);
+  background: var(--bg-2); box-shadow: var(--shadow-sm); font-size: var(--type-sm); font-weight: var(--w-semibold);
+}
+.pr-anat-box--person { outline: 2px solid var(--object-sky); outline-offset: 2px; }
+.pr-anat-box--agent { outline: 1.5px dashed var(--spark); outline-offset: 2px; background: var(--spark-muted); }
+.pr-anat-cur { left: 104px; top: 72px; }
+.pr-anat ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); font-size: var(--type-sm); color: var(--fg-1); }
+.pr-anat li b { color: var(--fg-0); font-weight: var(--w-semibold); }
+
+/* ─── People colours ───────────────────────────────────────────────────── */
+.pr-palette { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) repeat(2, minmax(0, 1.5fr)); gap: var(--space-3); margin: 0 0 var(--space-6); }
+.pr-pal { display: flex; flex-direction: column; gap: 2px; font-size: var(--type-xs); color: var(--fg-1); }
+.pr-pal strong { font-size: var(--type-sm); color: var(--fg-0); margin-top: var(--space-2); }
+.pr-pal code { color: var(--fg-2); }
+.pr-pal-fill {
+  position: relative; display: grid; place-items: center; height: 64px; border-radius: var(--radius-lg);
+  background-color: var(--canvas-bg); background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px); background-size: var(--space-3) var(--space-3);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.pr-pal-fill svg { width: 22px; height: 22px; }
+.pr-pal-coral { background: var(--object-coral); }
+.pr-pal-accent { background: var(--accent); }
+.pr-pal-fill .pr-no { width: 28px; height: 28px; }
+
+/* ─── Wrong turns ──────────────────────────────────────────────────────── */
+.pr-wrong { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
+.pr-case { margin: 0; }
+.pr-case figcaption { font-size: var(--type-sm); color: var(--fg-1); line-height: var(--lh-sm); }
+.pr-case figcaption strong { display: block; margin-bottom: 2px; }
+.pr-bad { color: var(--status-error-text); }
+.pr-mini { min-height: 160px; height: 160px; margin-bottom: var(--space-3); }
+.pr-mini-cur1 { left: 22%; top: 30px; }
+.pr-mini-cur2 { left: 58%; top: 84px; }
+.pr-mini-box {
+  position: absolute; left: var(--space-5); top: var(--space-5); width: 140px; height: 96px;
+  display: grid; place-items: center; border-radius: var(--radius-sm);
+  background: var(--bg-2); box-shadow: var(--shadow-sm); font-size: var(--type-sm); font-weight: var(--w-semibold);
+}
+.pr-mini-cur3 { left: 132px; top: 84px; }
+
+/* Captions and running notes hold a 60ch measure (CONTRACT §5). */
+.specimen p, .specimen figcaption { max-width: 60ch; }

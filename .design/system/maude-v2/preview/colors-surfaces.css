@@ -1,0 +1,162 @@
+/* colors-surfaces — demonstration-specific styles (anatomy lives in _components.css). */
+
+/* ─── Hero ─────────────────────────────────────────────────────────────── */
+.cs-hero { display: grid; grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr); gap: var(--space-4); margin: 0 0 var(--space-6); }
+.cs-stage { height: 480px; margin: 0; }
+
+.cs-artboard {
+  position: absolute; left: 30%; top: 72px; width: 236px;
+  background: var(--bg-2); border-radius: var(--radius-sm); box-shadow: var(--shadow-md); overflow: hidden;
+}
+.cs-ab-img { height: 118px; background: var(--object-green); background-image: radial-gradient(circle at 30% 60%, var(--object-yellow) 0 20%, transparent 21%), linear-gradient(170deg, var(--object-green), var(--object-sky)); }
+.cs-ab-body { display: flex; flex-direction: column; gap: 2px; padding: var(--space-3) var(--space-4) var(--space-4); }
+.cs-ab-body strong { font-family: var(--font-display); font-size: var(--type-lg); line-height: var(--lh-lg); letter-spacing: var(--tracking-tight); }
+.cs-ab-body span { font-size: var(--type-xs); color: var(--fg-2); }
+.cs-st1 { position: absolute; left: 30%; top: 286px; rotate: -2deg; }
+.cs-st2 { position: absolute; left: calc(30% + 136px); top: 278px; rotate: 3deg; }
+
+.cs-pill {
+  position: absolute; left: var(--space-4); top: var(--space-4); z-index: 3;
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+  font-size: var(--type-sm); font-weight: var(--w-semibold);
+}
+.cs-pill svg:last-child { color: var(--fg-2); }
+
+.cs-props { position: absolute; right: var(--space-4); top: var(--space-4); width: 196px; z-index: 3; }
+.cs-fill-row { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--bg-3); font-size: var(--type-sm); }
+.cs-fill-chip { width: 16px; height: 16px; border-radius: var(--radius-xs); background: var(--object-sky); box-shadow: inset 0 0 0 0.5px var(--border-default); }
+.cs-fill-pct { margin-left: auto; color: var(--fg-2); font-size: var(--type-xs); }
+
+/* The popover opens from the Fill island — one step higher: solid --bg-2, the largest shadow. */
+.cs-pop {
+  position: absolute; right: var(--space-6); top: 112px; width: 188px; z-index: 4;
+  padding: var(--space-1); border-radius: var(--radius-md);
+  background: var(--bg-2); box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--border-default);
+  font-size: var(--type-sm);
+}
+.cs-pop-search { position: relative; margin: 0 0 var(--space-1); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--bg-3); color: var(--fg-2); font-size: var(--type-xs); }
+.cs-pop-row { position: relative; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); min-height: 28px; border-radius: var(--radius-sm); }
+.cs-pressed { background: var(--bg-4); }
+.cs-sw { width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 0.5px var(--border-default); }
+.cs-sw-sky { background: var(--object-sky); }
+.cs-sw-green { background: var(--object-green); }
+.cs-sw-lilac { background: var(--object-lilac); }
+
+.cs-dock { position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); z-index: 3; }
+
+/* Surface tags — neutral ink, never azure (azure is selection, not annotation). */
+.cs-tag {
+  position: absolute; z-index: 6;
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: 1px var(--space-2) 1px 1px; border-radius: var(--radius-pill);
+  background: var(--fg-0); color: var(--bg-2);
+  font-size: var(--type-xs); font-weight: var(--w-semibold); line-height: var(--lh-xs); white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+}
+.cs-tag b { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--bg-2); color: var(--fg-0); }
+.cs-tag-canvas { left: var(--space-4); bottom: var(--space-4); }
+.cs-tag-island { left: calc(var(--space-2) * -1); top: calc(var(--space-2) * -1); }
+.cs-tag-pop { left: calc(var(--space-3) * -1); bottom: calc(var(--space-2) * -1); }
+.cs-tag-well { right: calc(var(--space-2) * -1); top: calc(var(--space-2) * -1); }
+.cs-tag-press { right: calc(var(--space-3) * -1); top: 50%; translate: 0 -50%; }
+
+/* Side view */
+.cs-side {
+  margin: 0; display: flex; flex-direction: column; gap: var(--space-3);
+  padding: var(--space-4); border-radius: var(--radius-lg);
+  background: var(--bg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default);
+}
+.cs-side figcaption { font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2); }
+.cs-side p { margin: 0; font-size: var(--type-xs); color: var(--fg-2); line-height: var(--lh-sm); }
+.cs-side-stack { flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-5); padding-top: var(--space-2); }
+.cs-lvl { position: relative; display: flex; flex-wrap: wrap; align-items: flex-end; column-gap: var(--space-2); row-gap: var(--space-2); }
+.cs-slab { display: block; height: 22px; border-radius: var(--radius-xs); flex: none; }
+.cs-slab-pop { width: 52%; margin-left: 30%; background: var(--bg-2); box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--border-default); }
+.cs-slab-isl { width: 70%; margin-left: 14%; background: var(--island-bg); box-shadow: var(--island-shadow), inset 0 0 0 0.5px var(--island-edge); }
+.cs-slab-paper { width: 50%; margin-left: 4%; height: 8px; background: var(--bg-2); box-shadow: var(--shadow-md); }
+.cs-slab-sticky { width: 18%; height: 8px; background: var(--object-sky); box-shadow: var(--shadow-sm); }
+.cs-lvl-t { flex-basis: 100%; display: flex; align-items: baseline; gap: var(--space-2); font-size: var(--type-xs); color: var(--fg-2); line-height: var(--lh-xs); }
+.cs-lvl-t b { color: var(--fg-0); font-size: var(--type-sm); font-weight: var(--w-semibold); }
+.cs-lvl-obj { gap: var(--space-2); }
+.cs-ground {
+  padding: var(--space-3) var(--space-3) var(--space-2); border-radius: var(--radius-sm);
+  background-color: var(--canvas-bg); background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px); background-size: var(--space-2) var(--space-2);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+
+/* ─── Ladder ───────────────────────────────────────────────────────────── */
+.cs-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.cs-b0 { background: var(--bg-0); }
+.cs-b1 { background: var(--bg-1); }
+.cs-b2 { background: var(--bg-2); }
+.cs-b3 { background: var(--bg-3); }
+.cs-b4 { background: var(--bg-4); }
+.cs-grid .fill { box-shadow: inset 0 -0.5px 0 var(--border-subtle); }
+.cs-fill-island {
+  position: relative; overflow: hidden;
+  background-color: var(--canvas-bg); background-image: radial-gradient(circle at 26% 50%, var(--object-coral) 0 18px, transparent 19px), radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: auto, var(--space-2) var(--space-2);
+}
+.cs-mini-island { position: absolute; left: 34%; top: var(--space-3); right: var(--space-3); bottom: var(--space-3); border-radius: var(--radius-md); }
+
+/* ─── Island anatomy ───────────────────────────────────────────────────── */
+.cs-anatomy { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--space-5); align-items: center; margin: 0 0 var(--space-5); }
+.cs-anat-stage { height: 300px; margin: 0; }
+.cs-anat-art { position: absolute; left: 40%; top: 46px; width: 220px; height: 180px; border-radius: var(--radius-sm); background: var(--object-lilac); background-image: radial-gradient(circle at 70% 30%, var(--object-yellow) 0 22%, transparent 23%), linear-gradient(150deg, var(--object-lilac), var(--object-coral)); box-shadow: var(--shadow-md); }
+.cs-anat-st { position: absolute; left: 22%; top: 170px; rotate: -3deg; }
+.cs-anat-island { position: absolute; left: var(--space-5); top: var(--space-6); width: 236px; z-index: 2; }
+.cs-th-coral { background: var(--object-coral); }
+.cs-th-yellow { background: var(--object-yellow); }
+.cs-th-green { background: var(--object-green); }
+
+.cs-parts { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); counter-reset: part; }
+.cs-parts li { counter-increment: part; display: grid; grid-template-columns: 24px auto 1fr; column-gap: var(--space-2); row-gap: 2px; align-items: baseline; }
+.cs-parts li::before { content: counter(part); grid-row: span 2; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--bg-3); color: var(--fg-1); font-size: var(--type-xs); font-weight: var(--w-semibold); }
+.cs-parts b { font-size: var(--type-sm); color: var(--fg-0); }
+.cs-parts code { color: var(--fg-2); font-size: var(--type-xs); }
+.cs-parts span { grid-column: 2 / -1; font-size: var(--type-sm); color: var(--fg-1); line-height: var(--lh-sm); }
+
+.cs-compare { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); margin: 0 0 var(--space-6); }
+.cs-case { margin: 0; }
+.cs-case figcaption { font-size: var(--type-sm); color: var(--fg-1); line-height: var(--lh-sm); }
+.cs-case figcaption strong { margin-right: var(--space-1); }
+.cs-ok { color: var(--status-success-text); }
+.cs-bad { color: var(--status-error-text); }
+.cs-mini { min-height: 180px; height: 180px; margin-bottom: var(--space-3); }
+.cs-mini-art { position: absolute; left: 36%; top: var(--space-5); width: 140px; height: 120px; border-radius: var(--radius-sm); background: var(--object-coral); background-image: linear-gradient(150deg, var(--object-yellow), var(--object-coral) 55%, var(--object-lilac)); box-shadow: var(--shadow-md); }
+.cs-mini-art--wide { left: var(--space-5); right: var(--space-5); width: auto; height: 140px; display: grid; place-items: center; }
+.cs-mini-isl { position: absolute; left: var(--space-4); top: var(--space-6); width: 150px; z-index: 2; }
+.cs-peek {
+  padding: var(--space-3); border-radius: var(--radius-lg);
+  background: color-mix(in oklch, var(--bg-1) 30%, transparent);
+  box-shadow: inset 0 0 0 0.5px var(--island-edge);
+}
+.cs-glass-card {
+  padding: var(--space-3) var(--space-4); border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--bg-2) 35%, transparent);
+  backdrop-filter: blur(var(--island-blur)); -webkit-backdrop-filter: blur(var(--island-blur));
+  box-shadow: inset 0 0 0 0.5px var(--island-edge);
+  font-family: var(--font-display); font-weight: var(--w-semibold); color: var(--object-ink);
+}
+
+/* ─── Border matrix ────────────────────────────────────────────────────── */
+.cs-matrix { display: grid; grid-template-columns: minmax(180px, 1.1fr) repeat(3, minmax(0, 1fr)); gap: var(--space-3); align-items: stretch; }
+.cs-mx-row { display: contents; }
+.cs-mx-hd { font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2); padding: 0 var(--space-1); }
+.cs-mx-label { display: flex; flex-direction: column; justify-content: center; font-size: var(--type-xs); color: var(--fg-2); }
+.cs-mx-label b { color: var(--fg-0); font-size: var(--type-sm); font-weight: var(--w-semibold); }
+.cs-mx-cell { display: grid; place-items: center; padding: var(--space-4); border-radius: var(--radius-lg); }
+.cs-on-canvas { background-color: var(--canvas-bg); background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px); background-size: var(--canvas-grid) var(--canvas-grid); box-shadow: inset 0 0 0 0.5px var(--border-subtle); }
+.cs-on-island { background: var(--island-bg); box-shadow: var(--island-shadow), inset 0 0 0 0.5px var(--island-edge); }
+.cs-on-popover { background: var(--bg-2); box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--border-default); }
+.cs-edge { padding: var(--space-2) var(--space-4); border-radius: var(--radius-md); font-size: var(--type-sm); color: var(--fg-1); }
+.cs-edge-subtle { box-shadow: inset 0 0 0 1px var(--border-subtle); }
+.cs-edge-default { box-shadow: inset 0 0 0 1px var(--border-default); }
+.cs-edge-strong { border: 1px dashed var(--border-strong); }
+
+/* The tool you're holding is muted azure — Share stays the one solid azure surface (colors-accent). */
+.dock .icon-btn[aria-pressed="true"] { background: var(--accent-muted); color: var(--accent-text); }
+
+/* Captions and running notes hold a 60ch measure (CONTRACT §5). */
+.specimen p, .specimen figcaption { max-width: 60ch; }

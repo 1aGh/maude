@@ -1,0 +1,233 @@
+/* empty-state — demonstration-specific styles (anatomy lives in _components.css).
+ *
+ * Empty states are a playful surface: the situation line uses --font-rounded.
+ * Motion: one entrance (es-land) on the hero only, --dur-spring + --ease-spring,
+ * transform + opacity. Every animated child sits inside a .stage, which clips
+ * (overflow: hidden), so the rise never spills into the next row.
+ */
+
+/* ─── Shared text roles ──────────────────────────────────────────────────── */
+.es-ico { display: block; flex: none; }
+.es-sit {
+  font-family: var(--font-rounded);
+  font-size: var(--type-lg);
+  line-height: var(--lh-lg);
+  font-weight: var(--w-semibold);
+  color: var(--fg-0);
+  letter-spacing: 0; /* Rounded stays at 0 — tightening closes its terminals */
+}
+.es-sit--sm { font-size: var(--type-md); line-height: var(--lh-md); }
+.es-next { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); max-width: 44ch; }
+.es-next .kbd { margin: 0 2px; }
+.es-glyph { display: grid; place-items: center; width: 36px; height: 36px; border-radius: var(--radius-md); background: var(--bg-3); color: var(--fg-2); }
+.es-acts { display: flex; gap: var(--space-2); justify-content: center; margin-top: var(--space-2); }
+
+/* Numbered note marker — a child of what it explains. */
+.es-pin {
+  display: inline-grid; place-items: center; flex: none;
+  min-width: 20px; height: 20px; padding: 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--fg-0); color: var(--bg-2);
+  font-family: var(--font-body); font-size: var(--type-xs); font-weight: var(--w-semibold); line-height: 1;
+  letter-spacing: 0;
+}
+
+/* ─── Hero — first-run Home ──────────────────────────────────────────────── */
+.es-hero-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
+  margin: 0 0 var(--space-3); font-size: var(--type-sm); color: var(--fg-2);
+}
+.es-hero { height: 620px; overflow: hidden; /* bounded: the spring entrance stays inside the stage */ }
+
+.es-pill {
+  position: absolute; left: var(--space-4); top: var(--space-4); z-index: 4;
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-2);
+  font-size: var(--type-sm); font-weight: var(--w-semibold);
+}
+.es-caret { color: var(--fg-2); display: inline-grid; }
+.es-tr {
+  position: absolute; right: var(--space-4); top: var(--space-4); z-index: 4;
+  display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1);
+}
+
+.es-home {
+  position: absolute; left: 50%; top: 72px; transform: translateX(-50%);
+  width: 620px; display: flex; flex-direction: column; align-items: center; text-align: center;
+}
+.es-home-spark { display: block; margin-bottom: var(--space-3); }
+.es-home-spark svg { display: block; }
+.specimen .es-home-title {
+  position: relative; margin: 0;
+  font-family: var(--font-rounded); font-size: var(--type-3xl); line-height: var(--lh-3xl);
+  font-weight: var(--w-semibold); letter-spacing: 0; color: var(--fg-0); /* CONTRACT §5 Home question */
+}
+.es-home-title .es-pin { position: absolute; right: calc(-1 * var(--space-6)); top: var(--space-2); }
+.specimen .es-home-sub { margin: var(--space-2) 0 var(--space-5); max-width: 46ch; color: var(--fg-1); font-size: var(--type-base); }
+
+.es-home-ask { position: relative; width: 100%; text-align: left; }
+.es-home-ask > .es-pin { position: absolute; left: calc(-1 * var(--space-6)); top: var(--space-4); }
+.es-ask-lg { padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4); }
+.es-ask-lg input { font-size: var(--type-base); }
+.es-ask-lg .send { width: 32px; height: 32px; }
+.es-ask-foot { display: flex; align-items: center; justify-content: space-between; margin-top: var(--space-2); padding: 0 var(--space-1); }
+.es-ask-foot .chip strong { color: var(--fg-0); font-weight: var(--w-semibold); }
+.es-ask-hint { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--type-xs); color: var(--fg-2); }
+
+.es-starters { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); width: 100%; margin-top: var(--space-4); }
+.es-starters > .es-pin { position: absolute; left: calc(-1 * var(--space-6)); top: var(--space-5); }
+.es-starter {
+  appearance: none; border: 0; cursor: pointer; font: inherit; text-align: left; color: var(--fg-0);
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-2); border-radius: var(--radius-lg);
+  background: var(--bg-2); box-shadow: var(--shadow-md), inset 0 0 0 0.5px var(--border-subtle);
+  transition: box-shadow var(--dur-flip) var(--ease-out);
+}
+.es-starter:hover { box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--border-default); }
+.es-starter:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.es-starter-txt { display: flex; flex-direction: column; gap: 2px; padding: 0 var(--space-1) var(--space-1); }
+.es-starter-txt strong { font-family: var(--font-rounded); font-size: var(--type-base); font-weight: var(--w-semibold); }
+.es-starter-txt span { font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+
+/* Starter thumbnails — tiny canvas compositions, so object colour is allowed. */
+.es-thumb { position: relative; display: block; height: 76px; border-radius: var(--radius-md); overflow: hidden; background: var(--bg-3); }
+.es-thumb i { position: absolute; display: block; border-radius: var(--radius-xs); }
+.es-th-page { background: var(--object-sky); }
+.es-th-page i:nth-child(1) { left: 12%; top: 18%; width: 46%; height: 12%; background: var(--object-ink); opacity: 0.75; }
+.es-th-page i:nth-child(2) { left: 12%; top: 40%; width: 30%; height: 8%; background: var(--bg-2); }
+.es-th-page i:nth-child(3) { right: 10%; top: 16%; width: 28%; height: 66%; background: var(--object-yellow); }
+.es-th-phones { background: var(--object-lilac); }
+.es-th-phones i { top: 14%; width: 22%; height: 86%; background: var(--bg-2); border-radius: var(--radius-sm); box-shadow: var(--shadow-sm); }
+.es-th-phones i:nth-child(1) { left: 10%; }
+.es-th-phones i:nth-child(2) { left: 39%; top: 8%; }
+.es-th-phones i:nth-child(3) { left: 68%; }
+.es-th-board { background: var(--object-grey); }
+.es-th-board i { width: 30%; height: 44%; box-shadow: var(--shadow-sm); }
+.es-th-board i:nth-child(1) { left: 10%; top: 14%; background: var(--object-coral); rotate: -5deg; }
+.es-th-board i:nth-child(2) { left: 38%; top: 36%; background: var(--object-yellow); rotate: 4deg; }
+.es-th-board i:nth-child(3) { left: 64%; top: 12%; background: var(--object-green); rotate: -2deg; }
+
+.es-home-alt { position: relative; display: flex; gap: var(--space-2); margin-top: var(--space-4); }
+.es-home-alt > .es-pin { position: absolute; left: calc(-1 * var(--space-6)); top: var(--space-2); }
+.es-home-alt .kbd { margin-left: var(--space-1); }
+
+/* The drop of spring — one entrance, staggered by a token-derived step. */
+@keyframes es-land {
+  from { transform: translateY(14px) scale(0.94); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+.es-land {
+  animation: es-land var(--dur-spring) var(--ease-spring) both;
+  animation-delay: calc(var(--i, 0) * var(--dur-flip) * 0.6 + var(--dur-flip));
+}
+:root[data-reduced-motion="true"] .es-land { animation: none; }
+
+.es-legend {
+  list-style: none; margin: 0 0 var(--space-6); padding: 0;
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3) var(--space-5);
+}
+.es-legend li { display: flex; gap: var(--space-3); align-items: flex-start; font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.es-legend strong { color: var(--fg-0); }
+
+/* ─── Variants ───────────────────────────────────────────────────────────── */
+.es-cases { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5) var(--space-4); margin: 0 0 var(--space-6); }
+.es-case { margin: 0; }
+.es-case-stage { height: 300px; min-height: 0; margin-bottom: var(--space-3); }
+.es-case figcaption { display: flex; flex-direction: column; gap: 2px; font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.es-case figcaption strong { color: var(--fg-0); font-weight: var(--w-semibold); }
+.es-where { color: var(--fg-2); font-size: var(--type-xs); }
+
+/* Empty canvas — the message sits on the canvas itself, no island. */
+.es-oncanvas {
+  position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%);
+  width: 86%; display: flex; flex-direction: column; align-items: center; gap: var(--space-1); text-align: center;
+}
+.es-mini-dock { position: absolute; left: 50%; bottom: var(--space-3); transform: translateX(-50%); padding: var(--space-1); }
+.es-mini-dock { gap: 2px; }
+.es-mini-dock .icon-btn { width: 30px; height: 30px; border-radius: calc(var(--radius-xl) - var(--space-3)); }
+.es-mini-dock .icon-btn svg { width: 16px; height: 16px; }
+
+/* Panels pinned to the right edge of the canvas, the way the app floats them. */
+.es-panel { position: absolute; width: 248px; display: flex; flex-direction: column; gap: var(--space-2); }
+.es-panel--right { right: var(--space-3); top: var(--space-3); bottom: var(--space-3); }
+.es-panel-hd { display: flex; align-items: center; gap: var(--space-1); font-size: var(--type-sm); font-weight: var(--w-semibold); }
+.es-panel-hd--split { justify-content: space-between; padding-left: var(--space-1); }
+.es-panel-hd--split .icon-btn { width: 26px; height: 26px; color: var(--fg-2); }
+.es-panel-hd--split .icon-btn svg { width: 14px; height: 14px; }
+.es-ai-name { font-family: var(--font-rounded); font-weight: var(--w-semibold); }
+.es-panel-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); text-align: center; padding: 0 var(--space-2); }
+.es-panel-empty .btn { margin-top: var(--space-1); }
+.es-panel-empty--left { align-items: flex-start; text-align: left; flex: none; padding: var(--space-4) var(--space-3) var(--space-2); }
+.es-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-1); margin-top: var(--space-1); }
+
+/* ⌘K palette — centred near the top, like the app. */
+.es-palette { position: absolute; left: 50%; top: var(--space-4); transform: translateX(-50%); width: 88%; overflow: hidden; }
+.es-palette-q { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3); color: var(--fg-2); box-shadow: inset 0 -0.5px 0 var(--border-default); }
+.es-q { flex: 1; color: var(--fg-0); font-size: var(--type-base); }
+.es-palette-list { padding: 0 var(--space-2) var(--space-2); }
+.es-palette-list .island-title { padding: 0 var(--space-1); }
+.es-row-meta { margin-left: auto; color: var(--fg-2); font-size: var(--type-xs); font-weight: var(--w-regular); }
+.es-palette-ft { display: flex; justify-content: flex-end; padding: var(--space-2) var(--space-3); box-shadow: inset 0 0.5px 0 var(--border-default); }
+.es-tn-green { background: var(--object-green); }
+
+/* Shared with you — a Home section with ghost cards hinting at the shape to come. */
+.es-shared { padding: var(--space-4); }
+.es-shared-hd { margin: 0 0 var(--space-3); font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.es-shared-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
+.es-ghost-card { height: 64px; border-radius: var(--radius-md); box-shadow: inset 0 0 0 1px var(--border-default); background: var(--bg-1); opacity: 0.6; }
+.es-shared-msg { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); margin-top: var(--space-4); }
+.es-shared-msg .btn { margin-top: var(--space-2); }
+
+/* ─── Anatomy ────────────────────────────────────────────────────────────── */
+.es-anatomy { display: grid; grid-template-columns: 1.05fr 1fr; gap: var(--space-6); align-items: center; margin: 0 0 var(--space-6); }
+.es-anatomy-stage { height: 340px; margin: 0; }
+.es-anatomy-panel { left: 50%; top: 50%; transform: translate(-50%, -50%); width: 300px; padding: var(--space-5) var(--space-4); }
+.es-a-anchor { position: relative; }
+.es-a-anchor > .es-pin { position: absolute; right: calc(-1 * var(--space-5)); top: 50%; transform: translateY(-50%); }
+.es-glyph.es-a-anchor > .es-pin { right: calc(-1 * var(--space-6)); }
+.es-a-btn { display: inline-flex; }
+.es-spec { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.es-spec li { display: flex; gap: var(--space-3); align-items: flex-start; }
+.es-spec li div { display: flex; flex-direction: column; gap: 2px; }
+.es-spec strong { font-size: var(--type-base); color: var(--fg-0); }
+.es-spec span:not(.es-pin) { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+
+/* ─── Voice — keep or kill ───────────────────────────────────────────────── */
+.es-voice { border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default); overflow: hidden; margin: 0 0 var(--space-4); }
+.es-voice-hd, .es-voice-row { display: grid; grid-template-columns: 1fr 1.25fr 0.6fr; gap: var(--space-5); padding: var(--space-3) var(--space-5); align-items: baseline; }
+.es-voice-hd { font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2); background: var(--bg-3); }
+.es-voice-row + .es-voice-row, .es-voice-hd + .es-voice-row { box-shadow: inset 0 0.5px 0 var(--border-subtle); }
+.es-kill-tag { color: var(--status-error-text); }
+.es-keep-tag { color: var(--status-success-text); }
+.es-kill { font-size: var(--type-sm); color: var(--fg-2); text-decoration-color: var(--status-error); text-decoration-thickness: 1.5px; }
+.es-keep { font-family: var(--font-rounded); font-size: var(--type-md); line-height: var(--lh-md); font-weight: var(--w-semibold); color: var(--fg-0); }
+.es-why { font-size: var(--type-xs); color: var(--fg-2); }
+
+.es-words { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin: 0 0 var(--space-6); }
+.es-words-col { padding: var(--space-4); border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default); }
+.specimen .es-words-hd { margin: 0 0 var(--space-3); font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.es-words-list { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.es-chip-no { color: var(--fg-2); text-decoration: line-through; text-decoration-color: var(--fg-3); }
+
+/* ─── Where play stops ───────────────────────────────────────────────────── */
+.es-compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+.es-cmp { margin: 0; }
+.es-cmp-stage { height: 190px; min-height: 0; margin-bottom: var(--space-3); }
+.es-cmp-card { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 86%; display: flex; align-items: flex-start; gap: var(--space-3); }
+.es-cmp-txt { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.es-cmp-txt strong { font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.es-cmp-txt span { font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-1); }
+.es-err-ico { color: var(--status-error-text); padding-top: 1px; }
+.es-wrong .es-cmp-txt strong { font-family: var(--font-rounded); font-size: var(--type-md); }
+.es-wrong-spark { padding-top: 2px; }
+.es-cmp figcaption { font-size: var(--type-sm); color: var(--fg-1); line-height: var(--lh-sm); }
+.es-cmp figcaption strong { margin-right: var(--space-1); }
+.es-ok { color: var(--status-success-text); }
+.es-bad { color: var(--status-error-text); }
+
+/* The Home pill is one button whose name ends "Project menu" (CONTRACT §1). */
+button.es-pill { appearance: none; border: 0; font: inherit; font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); cursor: pointer; }
+button.es-pill:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.es-vh { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+/* Captions stay at a readable measure (SF's ch runs wide). */
+.specimen .es-case figcaption, .specimen .es-cmp figcaption, .es-legend li > span:last-child, .es-spec li span { max-width: 60ch; }

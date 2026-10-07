@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" role="img" aria-label="AI">
+  <!-- The AI spark: the mark's four-point star scaled exactly 26/22 about the centre (waist ratio 0.2545, same as the mark). currentColor — set it to --spark. -->
+  <path d="M16 3L19.309 12.691L29 16L19.309 19.309L16 29L12.691 19.309L3 16L12.691 12.691Z" fill="currentColor"/>
+</svg>

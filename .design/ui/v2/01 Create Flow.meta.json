@@ -1,0 +1,134 @@
+{
+  "title": "01 Create Flow",
+  "subtitle": "Making a canvas and working on it — Studio site and Alligators brand",
+  "brief": "zakladni user flow tvorby a praci s canvasem — the basic flow of creating and working on a canvas, drawn as edge cases on real projects (Maude/alligators with its complicated structure and many artboard kinds).",
+  "platform": "desktop",
+  "designSystem": "maude-v2",
+  "opt_out_scope": "palette",
+  "sections": [
+    {
+      "id": "first-canvas",
+      "title": "First canvas in two minutes",
+      "subtitle": "Studio site — from one sentence on Home to a canvas you are editing"
+    },
+    {
+      "id": "working",
+      "title": "Working on a canvas",
+      "subtitle": "A blank canvas, a new artboard, another width of the same one, frames and text inside it"
+    },
+    {
+      "id": "finding",
+      "title": "Finding the right canvas in a big project",
+      "subtitle": "Alligators brand — 93 canvases in folders, test files at the root, long Czech names"
+    },
+    {
+      "id": "edges",
+      "title": "When it gets busy, slow or broken",
+      "subtitle": "Several people and AI at once, status in words, a canvas that won't draw, no internet"
+    }
+  ],
+  "artboards": [
+    {
+      "id": "cf-home-prompt",
+      "label": "1 · Home — one sentence",
+      "note": "Home asks one question; the chip says which project the new canvas lands in."
+    },
+    {
+      "id": "cf-ai-drafting",
+      "label": "2 · AI drafts on a new canvas",
+      "note": "Desktop is done; a dashed spark-coloured outline marks Tablet being drawn; a ghost shows where Mobile lands. Stop is one click."
+    },
+    {
+      "id": "cf-ai-done",
+      "label": "3 · Done — the result toast",
+      "note": "The artboards land with a quiet “Made by AI” mark; with the AI chat panel folded, the result is a one-action toast."
+    },
+    {
+      "id": "cf-select-tweak",
+      "label": "4 · Select — the inspector arrives",
+      "note": "Selecting summons the inspector; the Canvases panel folds and the view slides left. Width 1280 typed → preset Custom."
+    },
+    {
+      "id": "cf-sticky-comment",
+      "label": "5 · A sticky and a comment",
+      "note": "N drops a sticky for yourself; C pins a comment on the button that waits for an answer."
+    },
+    {
+      "id": "cf-undo-before",
+      "label": "6 · AI went too far",
+      "note": "AI's dark hero on Desktop — the before frame for the undo story."
+    },
+    {
+      "id": "cf-undo-ai",
+      "label": "7 · ⌘Z undoes AI too",
+      "note": "⌘Z takes AI's change back; AI's edits sit in the same undo stack and in Version history."
+    },
+    {
+      "id": "cf-blank",
+      "label": "8 · ⌘N — a blank canvas",
+      "note": "The online empty canvas from the DS empty-state specimen: Ask AI, or press F and draw."
+    },
+    {
+      "id": "cf-add-artboard",
+      "label": "9 · F — a new artboard, any kind",
+      "note": "F draws an artboard; the preset list groups web, social, print and video sizes."
+    },
+    {
+      "id": "cf-duplicate-width",
+      "label": "10 · Duplicate at another width",
+      "note": "Right-click → Duplicate at another width › Laptop."
+    },
+    {
+      "id": "cf-duplicate-done",
+      "label": "11 · The copy lands in line",
+      "note": "The Laptop copy lands under Desktop, left edges aligned, with the gap measured in the accent."
+    },
+    {
+      "id": "cf-frames-text",
+      "label": "12 · Frames and text in place",
+      "note": "Double-click text to type in place; Layers shows the frames nested inside the artboard."
+    },
+    {
+      "id": "cf-big-tree",
+      "label": "13 · 93 canvases in folders",
+      "note": "Folders whose counts add up to 93, recents, pictures, a truncated name with its tooltip, and the test files left as they are."
+    },
+    {
+      "id": "cf-panel-search",
+      "label": "14 · Search inside the panel",
+      "note": "Typing flattens the tree; the match is marked, accent-insensitive, with the folder or matching artboard under each name."
+    },
+    {
+      "id": "cf-search-k",
+      "label": "15 · ⌘K — canvases first, then tools",
+      "note": "Search lists canvases with pictures first, then tools that aren't on screen with where they live, then Ask AI."
+    },
+    {
+      "id": "cf-open-big",
+      "label": "16 · 21 artboards, fit to view",
+      "note": "⌘0 fits Combine-kampan's 21 artboards — 19 fixed-size social pieces and 2 print sheets — at 10 %; ⌘\\ hides the panels."
+    },
+    {
+      "id": "cf-busy",
+      "label": "17 · Tereza, Jonas, AI and you",
+      "note": "Each person on their own object in their own colour, AI's tag off the art, two AI chats open — with a legend."
+    },
+    {
+      "id": "cf-status-words",
+      "label": "18 · Save status, in words",
+      "note": "Saved · Syncing… · Offline — kept on this Mac · Local project — shown, never operated."
+    },
+    {
+      "id": "cf-render-error",
+      "label": "19 · A canvas that won't draw",
+      "note": "Plain-words error over the dimmed last good version; one verb, Go back to 14:05; AI's repair is a chip in its panel."
+    },
+    {
+      "id": "cf-offline-create",
+      "label": "20 · A new canvas with no internet",
+      "note": "⌘N works offline; Ask AI stays on, the prompt shows “Queued — sends when this Mac is online.” and the empty canvas adds “AI is back when this Mac is online.”"
+    }
+  ],
+  "created": "2026-10-06T00:00:00Z",
+  "last_modified": "2026-10-06T18:00:00Z"
+}

@@ -1,0 +1,218 @@
+/* selection — demonstration-specific styles (anatomy lives in _components.css).
+ *
+ * Selection is drawn with box-shadow rings, not outline, so keyboard focus (which
+ * owns `outline`, see focus.tsx) can sit on a selected object without the two
+ * fighting. The ring language:
+ *   hover    — 1px --accent
+ *   selected — 2px --accent + four round handles + a label pill (--accent / --accent-fg)
+ *   several  — 1px --accent on each, one group box with handles + "N selected"
+ *   marquee  — --accent-muted fill, 1px --accent edge
+ *   the AI   — 1.5px dashed --spark outline + "AI is editing" chip (never azure)
+ */
+
+/* ─── Shared: handles + label ────────────────────────────────────────────── */
+.se-h {
+  position: absolute; z-index: 3;
+  width: 9px; height: 9px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+  pointer-events: none;
+}
+.se-h--tl { left: -6px; top: -6px; }
+.se-h--tr { right: -6px; top: -6px; }
+.se-h--bl { left: -6px; bottom: -6px; }
+.se-h--br { right: -6px; bottom: -6px; }
+
+.se-label {
+  position: absolute; left: -2px; top: -26px; z-index: 3;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-xs);
+  background: var(--accent); color: var(--accent-fg);
+  font-family: var(--font-body); font-size: var(--type-xs); font-weight: var(--w-semibold); line-height: var(--lh-xs);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.se-tone-coral { background: var(--object-coral); }
+.se-tone-sky { background: var(--object-sky); }
+.se-tone-yellow { background: var(--object-yellow); }
+.se-tone-green { background: var(--object-green); }
+.se-tone-lilac { background: var(--object-lilac); }
+
+/* ─── Hero ───────────────────────────────────────────────────────────────── */
+.se-hero { height: 420px; }
+.se-world { position: absolute; left: 236px; top: 0; right: 0; bottom: 0; }
+
+.se-obj {
+  position: absolute;
+  appearance: none; border: 0; padding: 0; margin: 0; font: inherit; text-align: left;
+  cursor: default;
+  transition: box-shadow var(--dur-flip) var(--ease-out);
+}
+.se-obj:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 5px; }
+
+.se-obj--artboard {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: 0 0 var(--space-3);
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+.se-ab-img { display: block; height: 52%; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+.se-obj--artboard.se-tone-coral, .se-obj--artboard.se-tone-sky { background: var(--bg-2); }
+.se-tone-coral .se-ab-img { background: var(--object-coral); background-image: radial-gradient(circle at 70% 36%, var(--object-yellow) 0 18%, transparent 19%); }
+.se-tone-sky .se-ab-img { background: var(--object-sky); background-image: linear-gradient(transparent 62%, var(--object-lilac) 62%); }
+.se-ab-name { padding: 0 var(--space-3); font-family: var(--font-display); font-size: var(--type-md); font-weight: var(--w-semibold); color: var(--fg-0); letter-spacing: var(--tracking-tight); }
+.se-ab-line { display: block; height: 6px; margin: 0 var(--space-3); border-radius: var(--radius-pill); background: var(--bg-4); }
+.se-ab-line--short { width: 50%; }
+
+.se-obj--sticky {
+  padding: var(--space-3);
+  border-radius: var(--radius-xs);
+  color: var(--object-ink);
+  font-family: var(--font-rounded); font-weight: var(--w-semibold); font-size: var(--type-base); line-height: var(--lh-sm);
+  box-shadow: var(--shadow-md);
+}
+.se-obj--sticky:nth-of-type(3) { rotate: 2deg; }
+.se-obj--sticky:nth-of-type(4) { rotate: -1.6deg; }
+
+.se-obj:not([data-selected]):hover { box-shadow: 0 0 0 1px var(--accent), var(--shadow-md); }
+.se-obj[data-selected="single"] { box-shadow: 0 0 0 2px var(--accent), var(--shadow-md); }
+.se-obj[data-selected="multi"]  { box-shadow: 0 0 0 1px var(--accent), var(--shadow-md); }
+
+.se-group {
+  position: absolute; z-index: 2;
+  box-shadow: inset 0 0 0 1px var(--accent);
+  pointer-events: none;
+}
+
+.se-layers { position: absolute; left: var(--space-4); top: var(--space-4); width: 196px; z-index: 4; }
+.se-row {
+  appearance: none; border: 0; background: transparent; font: inherit; font-size: var(--type-sm);
+  width: 100%; text-align: left; color: var(--fg-0); cursor: pointer;
+}
+.se-row:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.se-row-icon { display: inline-grid; place-items: center; width: 22px; height: 16px; color: var(--fg-2); flex: none; }
+.se-row-icon svg { width: 14px; height: 14px; }
+.se-row-sticky { border-radius: var(--radius-xs); }
+
+.se-hint {
+  position: absolute; left: calc(50% + 118px); bottom: var(--space-4); translate: -50% 0; z-index: 4;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--type-sm); color: var(--fg-1); white-space: nowrap;
+}
+
+/* ─── Anatomy strip ──────────────────────────────────────────────────────── */
+.se-anat { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); margin: 0 0 var(--space-6); }
+.se-anat-cell { margin: 0; }
+.se-anat-cell figcaption { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); margin-top: var(--space-3); }
+.se-anat-cell figcaption strong { display: block; color: var(--fg-0); }
+.se-anat-stage {
+  position: relative; height: 168px;
+  border-radius: var(--radius-lg);
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+  overflow: hidden;
+}
+.se-mini { position: absolute; box-shadow: var(--shadow-sm); }
+.se-mini--a { left: 24px; top: 56px; width: 92px; height: 72px; border-radius: var(--radius-xs); background: var(--bg-2); background-image: linear-gradient(var(--object-sky) 0 50%, transparent 50%); }
+.se-mini--b { left: 136px; top: 72px; width: 60px; height: 56px; border-radius: var(--radius-xs); background: var(--object-yellow); rotate: 2deg; }
+.se-mini-box { position: absolute; z-index: 2; pointer-events: none; }
+.se-mini-label { position: absolute; z-index: 3; padding: 2px var(--space-2); border-radius: var(--radius-xs); background: var(--accent); color: var(--accent-fg); font-size: var(--type-xs); font-weight: var(--w-semibold); white-space: nowrap; }
+
+.se-anat--hover .se-mini--a { box-shadow: 0 0 0 1px var(--accent), var(--shadow-sm); }
+
+.se-anat--single .se-mini--a { box-shadow: 0 0 0 2px var(--accent), var(--shadow-sm); }
+.se-anat--single .se-mini-box { left: 22px; top: 54px; width: 96px; height: 76px; }
+.se-anat--single .se-mini-label { left: 22px; top: 30px; }
+
+.se-marquee {
+  position: absolute; left: 14px; top: 36px; width: 150px; height: 104px; z-index: 2;
+  background: var(--accent-muted);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.se-anat--group .se-mini--a, .se-anat--group .se-mini--b { box-shadow: 0 0 0 1px var(--accent), var(--shadow-sm); }
+.se-anat--group .se-mini-box { left: 18px; top: 50px; width: 186px; height: 86px; box-shadow: inset 0 0 0 1px var(--accent); }
+.se-anat--group .se-mini-label { left: 18px; top: 26px; }
+
+/* ─── Text ───────────────────────────────────────────────────────────────── */
+.se-text {
+  display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: var(--space-5);
+  align-items: start;
+  padding: var(--space-5);
+  margin: 0 0 var(--space-6);
+  border-radius: var(--radius-lg);
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.se-text-board {
+  position: relative;
+  padding: var(--space-5);
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+.se-text-cap { position: absolute; left: 0; top: -22px; font-size: var(--type-xs); color: var(--fg-2); }
+.se-text-h {
+  margin: 0 0 var(--space-2); max-width: none;
+  font-family: var(--font-display); font-size: var(--type-2xl); line-height: var(--lh-2xl); font-weight: var(--w-semibold);
+  letter-spacing: var(--tracking-tight); color: var(--fg-0);
+}
+.se-text-p { margin: 0; font-size: var(--type-base); color: var(--fg-1); }
+.se-mark { background: var(--accent-tint); color: inherit; border-radius: var(--radius-xs); padding: 0 1px; }
+.se-caret { display: inline-block; width: 2px; height: 1em; margin-left: 1px; vertical-align: -0.12em; background: var(--accent); }
+.se-text-ai { padding: var(--space-3); }
+.se-ai-hd { display: inline-flex; align-items: center; gap: var(--space-1); font-family: var(--font-rounded); font-weight: var(--w-semibold); font-size: var(--type-sm); margin-bottom: var(--space-2); }
+.se-ai-msg { margin: 0; font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-0); background: var(--bg-3); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); max-width: none; }
+.se-text-note { grid-column: 1 / -1; margin: 0; font-size: var(--type-sm); color: var(--fg-1); }
+
+/* ─── Layer rows ─────────────────────────────────────────────────────────── */
+.se-rows-wrap { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: var(--space-6); align-items: start; margin: 0 0 var(--space-6); }
+.se-rows .row-item { gap: var(--space-2); }
+.se-state { margin-left: auto; font-size: var(--type-xs); font-weight: var(--w-regular); color: var(--fg-2); }
+.se-row-hover { background: var(--bg-3); }
+.se-row-focus { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+/* Hidden and locked layers are still usable (unhide, unlock), so they stay at --fg-2; --fg-3 is for disabled only. */
+.se-row-off { color: var(--fg-2); }
+.se-row-off .se-row-icon { color: var(--fg-2); }
+.se-rows-notes { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-3); }
+.se-rows-notes li { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); padding-left: var(--space-3); box-shadow: inset 2px 0 0 var(--border-default); }
+.se-rows-notes strong { color: var(--fg-0); }
+
+/* ─── Yours vs the AI's ──────────────────────────────────────────────────── */
+.se-ai-stage { height: 300px; min-height: 300px; display: flex; align-items: center; justify-content: center; gap: var(--space-8); }
+.se-pair {
+  position: relative; width: 200px; height: 200px;
+  display: flex; flex-direction: column;
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+.se-pair-img { display: block; height: 128px; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+.se-pair-name { padding: var(--space-3); font-family: var(--font-display); font-size: var(--type-md); font-weight: var(--w-semibold); color: var(--fg-0); }
+.se-pair--you { box-shadow: 0 0 0 2px var(--accent), var(--shadow-md); }
+.se-pair-ring { position: absolute; inset: 0; pointer-events: none; }
+.se-pair-label { top: -28px; }
+.se-pair-dash { position: absolute; inset: -5px; border-radius: calc(var(--radius-sm) + 4px); outline: 1.5px dashed var(--spark); pointer-events: none; }
+.se-ai-chip {
+  position: absolute; left: -5px; top: -30px;
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--spark); color: var(--spark-fg);
+  font-family: var(--font-rounded); font-size: var(--type-xs); font-weight: var(--w-semibold); white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .se-anat { grid-template-columns: 1fr 1fr; }
+  .se-text, .se-rows-wrap { grid-template-columns: 1fr; }
+}
+
+/* Captions and running notes hold a 60ch measure (CONTRACT §5). */
+.specimen p, .specimen figcaption { max-width: 60ch; }

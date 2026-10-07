@@ -1,0 +1,222 @@
+/* elevation — demonstration-specific styles (anatomy lives in _components.css).
+ *
+ * Every shadow in this file is a token: --shadow-sm / --shadow-md / --shadow-lg /
+ * --island-shadow (+ the 0.5px --island-edge inset). No literal shadow values.
+ * The only fill below 100 % is the deliberate "wrong" glass panel, mixed from
+ * --bg-1 so it follows the theme.
+ */
+
+/* ─── Hero ───────────────────────────────────────────────────────────────── */
+.el-hero { height: 480px; }
+
+.el-board {
+  position: absolute; left: 36%; top: 72px; width: 290px; height: 276px;
+  background: var(--bg-2); border-radius: var(--radius-sm); box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+.el-board-img {
+  height: 150px;
+  background: var(--object-green);
+  background-image:
+    radial-gradient(circle at 24% 60%, var(--object-yellow) 0 16%, transparent 17%),
+    radial-gradient(circle at 76% 40%, var(--object-sky) 0 22%, transparent 23%);
+}
+.el-board-body { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); }
+.el-board-body strong { font-family: var(--font-display); font-size: var(--type-lg); letter-spacing: var(--tracking-tight); }
+.el-board-body span { color: var(--fg-2); font-size: var(--type-sm); }
+.el-sticky { position: absolute; left: calc(36% + 312px); top: 96px; rotate: 2.6deg; }
+
+.el-pill {
+  position: absolute; left: var(--space-4); top: var(--space-4); z-index: 4;
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+  font-size: var(--type-sm); font-weight: var(--w-semibold);
+}
+.el-caret { color: var(--fg-2); font-weight: var(--w-regular); }
+
+/* The popover — opaque (--bg-2), highest shadow, same hairline edge as islands. */
+.el-menu {
+  position: absolute; left: var(--space-4); top: 64px; width: 200px; z-index: 6;
+  padding: var(--space-1);
+  background: var(--bg-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge);
+}
+.el-menu .row-item { padding-left: var(--space-3); }
+.el-menu-sep { height: 1px; margin: var(--space-1) var(--space-2); background: var(--border-subtle); }
+.el-menu-adv { justify-content: space-between; color: var(--fg-1); }
+
+.el-layers { position: absolute; right: var(--space-4); top: var(--space-4); width: 196px; z-index: 4; }
+.el-ai {
+  position: absolute; right: var(--space-4); bottom: var(--space-4); z-index: 4;
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--type-sm); color: var(--fg-2);
+}
+
+.el-th-sky { background: var(--object-sky); }
+.el-th-yellow { background: var(--object-yellow); }
+.el-th-green { background: var(--object-green); }
+
+/* Plane tags — spec annotations, styled apart from the product (dashed, quiet). */
+.el-tag {
+  position: absolute; z-index: 7;
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: 2px var(--space-2) 2px 2px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  font-size: var(--type-xs); font-weight: var(--w-medium); color: var(--fg-1);
+  white-space: nowrap;
+}
+.el-tag-n {
+  display: inline-grid; place-items: center; width: 18px; height: 18px;
+  border-radius: var(--radius-pill);
+  background: var(--fg-0); color: var(--bg-1);
+  font-weight: var(--w-semibold);
+}
+.el-tag--canvas { left: var(--space-4); bottom: var(--space-4); }
+.el-tag--board  { left: 36%; top: 360px; }
+.el-tag--island { right: 224px; top: 28px; }
+.el-tag--menu   { left: 228px; top: 140px; }
+
+/* ─── Side view ──────────────────────────────────────────────────────────── */
+.el-side {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: center;
+  padding: var(--space-6);
+  margin: 0 0 var(--space-6);
+  border-radius: var(--radius-lg);
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.el-side-col {
+  position: relative;
+  display: flex; flex-direction: column; gap: var(--space-5);
+  padding-left: var(--space-5);
+}
+/* the height axis */
+.el-side-col::before {
+  content: "";
+  position: absolute; left: 0; top: var(--space-2); bottom: var(--space-2);
+  width: 1px; background: var(--border-strong);
+}
+.el-slab {
+  height: 44px;
+  display: flex; align-items: center;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--type-sm); color: var(--fg-1);
+}
+.el-slab--canvas {
+  margin-right: 0;
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.el-slab--board  { margin-right: 18%; background: var(--bg-2); box-shadow: var(--shadow-md); }
+.el-slab--island {
+  margin-right: 30%;
+  background: var(--island-bg);
+  backdrop-filter: blur(var(--island-blur)) saturate(1.4);
+  -webkit-backdrop-filter: blur(var(--island-blur)) saturate(1.4);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--island-shadow), inset 0 0 0 0.5px var(--island-edge);
+  color: var(--fg-0);
+}
+.el-slab--menu {
+  margin-right: 44%;
+  background: var(--bg-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge);
+  color: var(--fg-0);
+}
+.el-side-key { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.el-side-key li { display: grid; grid-template-columns: auto 1fr; gap: 2px var(--space-3); align-items: baseline; }
+.el-side-key strong { font-size: var(--type-sm); color: var(--fg-0); }
+.el-side-key code { font-size: var(--type-xs); color: var(--accent-text); justify-self: start; }
+.el-side-key span { grid-column: 1 / -1; font-size: var(--type-sm); color: var(--fg-2); line-height: var(--lh-sm); }
+
+/* ─── Ladder ─────────────────────────────────────────────────────────────── */
+.el-ladder {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-5) var(--space-5);
+  margin: 0 0 var(--space-6);
+  border-radius: var(--radius-lg);
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.el-step p { margin: var(--space-3) 0 0; font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-1); }
+.el-card {
+  height: 112px;
+  display: flex; flex-direction: column; justify-content: flex-end; gap: 2px;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-2);
+}
+.el-card strong { font-family: var(--font-display); font-size: var(--type-md); }
+.el-card code { font-size: var(--type-xs); color: var(--fg-2); }
+.el-card--flat { background: var(--bg-3); box-shadow: inset 0 0 0 0.5px var(--border-subtle); }
+.el-card--sm { box-shadow: var(--shadow-sm); }
+.el-card--md { border-radius: var(--radius-sm); box-shadow: var(--shadow-md); }
+.el-card--island {
+  background: var(--island-bg);
+  backdrop-filter: blur(var(--island-blur)) saturate(1.4);
+  -webkit-backdrop-filter: blur(var(--island-blur)) saturate(1.4);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--island-shadow), inset 0 0 0 0.5px var(--island-edge);
+}
+.el-card--lg { border-radius: var(--radius-lg); box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge); }
+
+/* ─── Frost vs peek-through ──────────────────────────────────────────────── */
+.el-compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); margin: 0 0 var(--space-6); }
+.el-case { margin: 0; }
+.el-case figcaption { font-size: var(--type-sm); color: var(--fg-1); line-height: var(--lh-sm); }
+.el-case figcaption strong { margin-right: var(--space-1); }
+.el-ok { color: var(--status-success-text); }
+.el-bad { color: var(--status-error-text); }
+.el-mini { height: 220px; min-height: 220px; margin-bottom: var(--space-3); }
+
+/* A busy artboard right under the panel — the thing that must not read through. */
+.el-busy {
+  position: absolute; left: var(--space-6); top: var(--space-5); right: var(--space-7); bottom: var(--space-5);
+  display: grid; grid-template-columns: 1.2fr 1fr; grid-template-rows: 1fr 1fr; gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--bg-2); border-radius: var(--radius-sm); box-shadow: var(--shadow-md);
+}
+.el-busy span:nth-child(1) { grid-row: 1 / 3; background: var(--object-coral); border-radius: var(--radius-xs); }
+.el-busy span:nth-child(2) { background: var(--object-yellow); border-radius: var(--radius-xs); }
+.el-busy span:nth-child(3) { background: var(--object-sky); border-radius: var(--radius-xs); }
+.el-over { position: absolute; left: var(--space-4); top: var(--space-4); width: 188px; z-index: 2; }
+.el-over--glass {
+  background: color-mix(in oklch, var(--bg-1) 40%, transparent);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* ─── Rules ──────────────────────────────────────────────────────────────── */
+.el-rules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.el-rule {
+  display: flex; flex-direction: column; gap: var(--space-1);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+  font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1);
+}
+.el-rule strong { font-family: var(--font-display); font-size: var(--type-base); color: var(--fg-0); }
+
+@media (max-width: 860px) {
+  .el-side, .el-compare, .el-rules { grid-template-columns: 1fr; }
+  .el-ladder { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Captions and running notes hold a 60ch measure (CONTRACT §5). */
+.specimen p, .specimen figcaption { max-width: 60ch; }

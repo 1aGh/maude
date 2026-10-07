@@ -1,0 +1,303 @@
+/* 02 Onboarding — canvas-local pieces only (prefix ob-). Chrome lives in _kit.css. */
+
+/* ─── Home: the account face (a person — round) ───────────────────────────────────────────── */
+.ob-acct { display: grid; margin-left: var(--space-1); }
+.ob-acct .k-av { box-shadow: 0 0 0 2px var(--bg-1); }
+.ob-off-hint { color: var(--status-warn-text); }
+.k-starter.ob-starter-brand { box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--border-strong); }
+
+/* ─── The sign-in card — the welcome, folded into Home ───────────────────────────────────── */
+.ob-door {
+  position: relative;
+  width: 600px;
+  margin-top: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border-radius: var(--radius-xl);
+  background: var(--bg-1);
+  box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default);
+  text-align: left;
+}
+.ob-door-hd { display: flex; align-items: flex-start; gap: var(--space-3); }
+.ob-door-ic { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: var(--radius-md); background: var(--accent-muted); color: var(--accent-text); }
+.ob-door-txt { display: flex; flex-direction: column; gap: 2px; }
+.ob-door-txt strong { font-family: var(--font-rounded); font-size: var(--type-md); line-height: var(--lh-md); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ob-door-txt span { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.ob-door-acts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.ob-door-btn { width: 100%; }
+/* Secondary = an equal choice, not a disabled one: island edge + resting fill. */
+.btn.ob-btn-2 { background: var(--bg-2); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.btn.ob-btn-off { background: var(--bg-3); color: var(--fg-3); box-shadow: none; cursor: not-allowed; }
+.ob-door-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding-top: var(--space-3); box-shadow: inset 0 0.5px 0 var(--border-subtle); }
+.ob-door-hint { font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+.ob-door-link { color: var(--accent-text); font-weight: var(--w-medium); }
+.ob-door-adv { flex: none; display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); font-size: var(--type-sm); color: var(--fg-1); }
+.ob-door-adv[data-open] { background: var(--bg-3); color: var(--fg-0); font-weight: var(--w-medium); }
+.ob-door-wait { display: flex; align-items: center; gap: var(--space-2); min-height: 40px; }
+.ob-door-wait .ob-door-link { margin-left: auto; font-size: var(--type-sm); }
+.ob-wait { display: flex; align-items: center; flex: 1; min-height: 32px; padding: 0 var(--space-3); border-radius: var(--radius-md); background: var(--bg-3); }
+.ob-wait .k-sw { font-size: var(--type-sm); }
+.k-v2 .ob-door-line { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--bg-2); box-shadow: inset 0 0 0 0.5px var(--border-subtle); font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.ob-door-line .k-sw { font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ob-door-line--warn .k-sw { color: var(--status-warn-text); }
+
+/* Advanced options — a flyout beside the card (rows → one sheet each). Popover plane. */
+.ob-fly {
+  position: absolute;
+  left: calc(100% + var(--space-3));
+  top: 0;
+  z-index: 8;
+  width: 392px;
+  padding: var(--space-1);
+  border-radius: var(--radius-lg);
+  background: var(--bg-2);
+  box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge);
+}
+.ob-advrow { gap: var(--space-3); padding: var(--space-2); }
+.ob-advrow-ic { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: var(--radius-md); background: var(--bg-3); color: var(--fg-1); }
+.ob-advrow-ic--spark { background: var(--spark-muted); color: var(--spark); }
+.ob-advrow-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ob-advrow-txt strong { font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ob-advrow-txt span { font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+.ob-advrow-ch { display: grid; color: var(--fg-2); }
+.k-v2 .ob-fly-foot { margin: var(--space-1) var(--space-2) var(--space-2); padding-top: var(--space-2); box-shadow: inset 0 0.5px 0 var(--border-default); font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+
+/* The quiet shelf under the prompt once signed in with nothing made (lifted from 05 · es-shelf). */
+.ob-shelf { width: 100%; margin-top: var(--space-6); text-align: left; }
+.ob-shelf-h { display: flex; align-items: center; justify-content: space-between; margin: 0 0 var(--space-2); font-size: var(--type-sm); font-weight: var(--w-semibold); }
+.ob-shelf-where { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--type-xs); font-weight: var(--w-regular); color: var(--fg-2); }
+.ob-shelf-row { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: var(--space-6); padding: var(--space-4); border-radius: var(--radius-xl); background: var(--bg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default); }
+.ob-ghosts { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
+.ob-ghosts i { display: block; height: 84px; border-radius: var(--radius-md); background: var(--bg-2); box-shadow: inset 0 0 0 1px var(--border-default); }
+.ob-ghosts i:nth-child(1) { rotate: -2deg; }
+.ob-ghosts i:nth-child(3) { rotate: 2deg; }
+.ob-shelf-txt { display: flex; flex-direction: column; gap: 2px; font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.ob-shelf-txt strong { font-family: var(--font-rounded); font-size: var(--type-base); font-weight: var(--w-semibold); color: var(--fg-0); }
+
+/* What's new — one quiet line on Home, once. */
+.ob-new { display: inline-flex; align-items: center; gap: var(--space-2); margin-top: var(--space-4); padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default); font-size: var(--type-xs); color: var(--fg-1); }
+.ob-menuinset { position: absolute; left: var(--space-5); top: 460px; z-index: 12; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.ob-menuinset .k-menu { box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge); }
+
+/* The browser's own "Open Maude?" prompt (not ours — drawn plain). */
+.ob-osprompt { position: absolute; z-index: 18; width: 320px; display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3) var(--space-4) var(--space-4); border-radius: var(--radius-md); background: var(--bg-2); box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--border-strong); font-size: var(--type-sm); color: var(--fg-1); }
+.ob-osprompt strong { font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ob-osprompt-tag { align-self: flex-start; margin-bottom: var(--space-1); }
+.ob-osprompt-chk { display: inline-flex; align-items: center; gap: var(--space-2); margin-top: var(--space-1); font-size: var(--type-xs); }
+.ob-osprompt-chk i { width: 14px; height: 14px; border-radius: var(--radius-xs); background: var(--accent); box-shadow: inset 0 0 0 3px var(--bg-2), inset 0 0 0 4px var(--accent); }
+.ob-osprompt-a { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }
+
+/* ─── Sheets ──────────────────────────────────────────────────────────────── */
+.ob-sheet-b { display: flex; flex-direction: column; gap: var(--space-3); }
+.ob-sheet--static { position: relative; left: auto; top: auto; z-index: auto; translate: none; box-shadow: var(--shadow-md), inset 0 0 0 0.5px var(--island-edge); }
+.ob-sheet .k-dialog-a { margin-top: auto; padding-top: var(--space-2); }
+.ob-adv { margin-top: 0; }
+.ob-adv-body { padding-top: var(--space-1); }
+.ob-rot { transform: rotate(90deg); }
+.input.ob-in-focus { display: flex; align-items: center; background: var(--bg-2); box-shadow: 0 0 0 3px var(--accent-tint), inset 0 0 0 1px var(--focus-ring); }
+.input.ob-ph { display: flex; align-items: center; color: var(--fg-2); }
+.input.ob-mono { display: flex; align-items: center; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--type-xs); }
+.ob-row2 { display: flex; align-items: center; gap: var(--space-2); }
+.ob-row2 .input { flex: 1; min-width: 0; }
+.ob-ok .k-sw { font-size: var(--type-sm); }
+.k-v2 .ob-fine { font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+.ob-fine--in { display: block; padding: var(--space-1) var(--space-1) 0; }
+
+/* The opened-Advanced inset beside the local-project sheet. */
+.ob-inset { position: absolute; z-index: 20; width: 380px; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4) var(--space-4); border-radius: var(--radius-xl); background: var(--bg-2); box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge); }
+.ob-inset-tag { align-self: flex-start; }
+.ob-inset .k-adv { box-shadow: none; padding-top: 0; }
+.ob-loc { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 28px; padding: 0 var(--space-1); font-size: var(--type-sm); }
+.ob-loc .k-mono { font-size: var(--type-xs); color: var(--fg-1); }
+.ob-loc-acts { display: flex; justify-content: flex-end; padding: var(--space-1) var(--space-1) 0; }
+
+/* Lists inside sheets (GitHub projects). */
+.ob-list { display: flex; flex-direction: column; gap: 2px; padding: var(--space-1); border-radius: var(--radius-md); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-subtle); }
+.ob-list .row-item { color: var(--fg-0); }
+.ob-list-n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ob-list .k-mono.ob-list-n { font-size: var(--type-xs); }
+.ob-list-m { font-size: var(--type-xs); color: var(--fg-2); }
+.ob-seg { align-self: flex-start; }
+.ob-newgh { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--type-sm); color: var(--accent-text); }
+
+/* AI choice — the chosen option carries the azure ring. */
+.ob-opt { display: flex; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-md); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default); }
+.ob-opt[data-on] { background: var(--bg-2); box-shadow: 0 0 0 3px var(--accent-tint), inset 0 0 0 1px var(--accent); }
+.ob-radio { flex: none; width: 16px; height: 16px; margin-top: 1px; border-radius: var(--radius-pill); box-shadow: inset 0 0 0 1.5px var(--border-strong); background: var(--bg-2); }
+.ob-opt[data-on] .ob-radio { box-shadow: inset 0 0 0 5px var(--accent); }
+.ob-opt-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ob-opt-txt strong { font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ob-opt-txt > span { font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+.ob-opt-txt .input { margin-top: var(--space-2); }
+
+/* Install rows + terminal commands. */
+.ob-inst { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-subtle); }
+.ob-inst-ic { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: var(--radius-sm); background: var(--bg-3); color: var(--fg-1); }
+.ob-inst-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ob-inst-t strong { font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ob-inst-t span { font-size: var(--type-xs); color: var(--fg-2); }
+.ob-cmds { display: flex; flex-direction: column; gap: var(--space-1); }
+.ob-cmds-h { font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-1); }
+.ob-cmd { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); height: 32px; padding: 0 var(--space-1) 0 var(--space-3); border-radius: var(--radius-sm); background: var(--bg-3); }
+.ob-cmd .k-mono { font-size: var(--type-xs); color: var(--fg-0); }
+
+/* ─── Share popovers — hang under the Share cluster, popover plane ───────── */
+.ob-pop {
+  position: absolute;
+  right: var(--space-4);
+  top: calc(var(--space-8) + var(--space-1));
+  z-index: 16;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-xl);
+  background: var(--bg-2);
+  box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge);
+}
+.ob-pop--static { position: relative; right: auto; top: auto; z-index: auto; align-self: start; box-shadow: var(--shadow-md), inset 0 0 0 0.5px var(--island-edge); }
+.ob-pop-t { font-size: var(--type-md); line-height: var(--lh-md); font-weight: var(--w-semibold); }
+.k-v2 .ob-pop-b { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.ob-pop-a { display: flex; justify-content: flex-end; gap: var(--space-2); }
+.k-v2 .ob-pop-foot { display: flex; align-items: center; gap: var(--space-1); padding-top: var(--space-2); box-shadow: inset 0 0.5px 0 var(--border-subtle); font-size: var(--type-xs); color: var(--fg-2); }
+.ob-pop .k-adv { padding-top: var(--space-2); }
+.ob-invite { display: flex; gap: var(--space-2); }
+.input.ob-invite-in { flex: 1; display: flex; align-items: center; background: var(--bg-2); box-shadow: 0 0 0 3px var(--accent-tint), inset 0 0 0 1px var(--focus-ring); }
+.input.ob-invite-flat { flex: 1; }
+.ob-person { display: flex; align-items: center; gap: var(--space-2); font-size: var(--type-sm); }
+.ob-person-n { flex: 1; }
+.ob-person-r { font-size: var(--type-xs); color: var(--fg-2); }
+.ob-linkrow { display: flex; align-items: center; gap: var(--space-2); padding-top: var(--space-3); box-shadow: inset 0 0.5px 0 var(--border-subtle); color: var(--fg-1); }
+.ob-linkrow-t { flex: 1; display: flex; flex-direction: column; font-size: var(--type-sm); color: var(--fg-0); }
+.ob-linkrow-t span { font-size: var(--type-xs); color: var(--fg-2); }
+
+/* ─── The first draft, piece by piece (user artwork, theme-fixed via .k-fixed) ─────────── */
+.ob-bp { padding: 10%; justify-content: flex-end; background: var(--bg-2); color: var(--object-ink); }
+.ob-bp[data-step] { background: var(--object-coral); }
+.ob-bp-sun { position: absolute; right: 12%; top: 9%; width: 42%; aspect-ratio: 1; border-radius: var(--radius-pill); background: var(--object-yellow); }
+.ob-bp-hill { position: absolute; left: -30%; right: 20%; top: 44%; height: 90%; border-radius: var(--radius-pill); background: var(--object-ink); opacity: 0.1; }
+.ob-bp-copy { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); }
+.ob-bp strong { display: inline-flex; align-items: center; font-family: var(--font-display); font-size: clamp(var(--type-md), 13cqmin, var(--type-2xl)); line-height: var(--lh-2xl); font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); }
+.ob-bp-caret { display: inline-block; width: 2px; height: 0.9em; margin-left: 2px; border-radius: var(--radius-pill); background: var(--spark); }
+.ob-bp-sub { font-size: var(--type-xs); font-weight: var(--w-medium); }
+.ob-bp em { margin-top: var(--space-1); padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--object-ink); color: var(--object-coral); font-style: normal; font-size: var(--type-xs); font-weight: var(--w-semibold); }
+/* Where AI is about to put things — dashed spark (the AI's own colour), never a grey placeholder. */
+.ob-bp-plan { display: block; border-radius: var(--radius-sm); border: 1.5px dashed var(--spark); background: var(--spark-muted); }
+.ob-bp-plan--pic { position: absolute; right: 12%; top: 9%; width: 42%; aspect-ratio: 1; border-radius: var(--radius-pill); }
+.ob-bp-plan--h { width: 76cqw; height: 15cqmin; }
+.ob-bp-plan--d { width: 48cqw; height: 9cqmin; }
+
+/* ─── Invite landing — the hero: the thread open, the reply ready ─────────── */
+.ob-focus { position: absolute; z-index: 6; width: 56px; height: 56px; border-radius: var(--radius-pill); background: var(--accent-tint); box-shadow: 0 0 0 10px var(--accent-muted); }
+.ob-thread { position: absolute; z-index: 9; width: 340px; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius-xl); background: var(--bg-2); box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge); }
+.ob-thread-hd { display: flex; align-items: center; gap: var(--space-2); }
+.ob-thread-hd > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; font-size: var(--type-xs); color: var(--fg-2); }
+.ob-thread-hd strong { font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.k-v2 .ob-thread-txt { font-size: var(--type-base); line-height: var(--lh-base); color: var(--fg-0); }
+.ob-thread-in .input { color: var(--fg-2); }
+.ob-thread-foot { display: flex; align-items: center; justify-content: space-between; font-size: var(--type-xs); color: var(--fg-2); }
+
+/* ─── Local: the empty first canvas — the same block as 05 Empty States (es-e--canvas): spot art, the
+       CONTRACT line in DS empty-state type (es-sit · es-next · es-acts), Ask AI ⌘/. Centred right of the panel. ─── */
+.ob-empty { position: absolute; left: calc(50% + 132px); top: 45%; translate: -50% -50%; width: 520px; display: flex; flex-direction: column; align-items: center; gap: var(--space-2); text-align: center; }
+.ob-empty .es-next { max-width: 46ch; text-wrap: pretty; }
+.ob-empty .es-acts { margin-top: var(--space-1); }
+.ob-spot { display: block; flex: none; margin-bottom: var(--space-1); }
+.ob-ask { gap: var(--space-1); }
+.ob-ask-k { margin-left: var(--space-1); font-size: var(--type-xs); font-variant-numeric: tabular-nums; opacity: 0.72; }
+
+/* ─── Two accounts — person circles; the work one carries a small team badge ─── */
+.ob-acc { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-md); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-subtle); }
+.ob-acc-row { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
+.ob-acc-t { min-width: 0; display: flex; flex-direction: column; }
+.ob-acc-t strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ob-acc-t span { font-size: var(--type-xs); color: var(--fg-2); }
+.ob-acc-arrow { display: grid; flex: none; color: var(--fg-2); }
+.ob-acc-work { position: relative; display: grid; flex: none; }
+.ob-acc-work i { position: absolute; right: -4px; bottom: -4px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: var(--radius-pill); background: var(--bg-2); box-shadow: 0 0 0 1px var(--border-default); color: var(--fg-1); }
+
+/* ─── Browser window (sign-in, invite) ───────────────────────────────────── */
+.ob-br { position: absolute; z-index: 30; display: flex; flex-direction: column; overflow: hidden; border-radius: var(--radius-lg); background: var(--bg-2); box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--border-strong); }
+.ob-br-bar { flex: none; display: flex; align-items: center; gap: var(--space-3); height: 44px; padding: 0 var(--space-4); background: var(--bg-3); box-shadow: inset 0 -0.5px 0 var(--border-default); }
+.ob-br-nav { display: grid; color: var(--fg-3); transform: scaleX(-1); }
+.ob-br-url { flex: 1; max-width: 460px; margin: 0 auto; display: flex; align-items: center; justify-content: center; gap: var(--space-1); height: 28px; border-radius: var(--radius-md); background: var(--bg-2); font-size: var(--type-sm); color: var(--fg-2); }
+.ob-br-url b { font-weight: var(--w-regular); color: var(--fg-0); }
+.ob-br-sp { width: var(--space-8); flex: none; }
+.ob-br-page { position: relative; flex: 1; min-height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--bg-2); }
+
+/* cloud.maude.sh sign-in page. */
+.ob-web { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); width: 340px; text-align: center; }
+.ob-web-t { margin-top: var(--space-3); font-family: var(--font-display); font-size: var(--type-xl); line-height: var(--lh-xl); font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); }
+.k-v2 .ob-web-s { margin-bottom: var(--space-4); font-size: var(--type-sm); color: var(--fg-1); }
+.ob-web-btn { width: 100%; }
+.ob-web-or { display: flex; align-items: center; gap: var(--space-3); width: 100%; margin: var(--space-1) 0; font-size: var(--type-xs); color: var(--fg-2); }
+.ob-web-or i { flex: 1; height: 1px; background: var(--border-subtle); }
+.input.ob-web-in { display: flex; align-items: center; width: 100%; height: 40px; color: var(--fg-2); }
+.k-v2 .ob-web-fine { margin-top: var(--space-2); font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+.ob-web-cancel { margin-top: var(--space-4); font-size: var(--type-sm); color: var(--accent-text); }
+
+/* cloud.maude.sh invite page. */
+.ob-inv { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); width: 560px; text-align: center; }
+.ob-inv-who { display: inline-flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+.ob-inv-who .k-av--lg { width: 40px; height: 40px; font-size: var(--type-base); box-shadow: 0 0 0 3px var(--bg-2); }
+.ob-inv-t { font-family: var(--font-display); font-size: var(--type-2xl); line-height: var(--lh-2xl); font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); }
+.k-v2 .ob-inv-s { font-size: var(--type-sm); color: var(--fg-2); }
+.ob-inv-card { display: flex; align-items: center; gap: var(--space-4); width: 100%; margin: var(--space-4) 0; padding: var(--space-3); border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default); text-align: left; }
+.k-thumb.ob-inv-thumb { border-radius: var(--radius-md); }
+.ob-inv-c { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.ob-inv-c strong { font-size: var(--type-md); font-weight: var(--w-semibold); }
+.ob-inv-cm { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--bg-2); font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-0); box-shadow: inset 0 0 0 0.5px var(--border-subtle); }
+.ob-inv-cm .k-av { margin-top: 1px; }
+.ob-inv-btn { width: 320px; }
+.ob-inv-open { color: var(--accent-text); }
+.ob-inv-steps { display: flex; gap: var(--space-4); margin-top: var(--space-5); font-size: var(--type-xs); color: var(--fg-1); }
+.ob-inv-steps span { display: inline-flex; align-items: center; gap: var(--space-1); }
+.ob-inv-steps b { display: grid; place-items: center; width: 18px; height: 18px; border-radius: var(--radius-pill); background: var(--bg-3); font-weight: var(--w-semibold); color: var(--fg-0); }
+.k-v2 .ob-inv-fine { margin-top: var(--space-2); font-size: var(--type-xs); color: var(--fg-2); }
+
+/* ─── Close-ups (signature storyboard, Advanced sheets, Settings) ────────── */
+.ob-closeup { display: flex; flex-direction: column; gap: var(--space-5); padding: var(--space-6) var(--space-5) var(--space-5); background-color: var(--canvas-bg); background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px); background-size: var(--canvas-grid) var(--canvas-grid); }
+.ob-closeup-top { display: flex; flex-direction: column; gap: var(--space-1); }
+.ob-closeup-h { font-family: var(--font-display); font-size: var(--type-xl); line-height: var(--lh-xl); font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); }
+.k-v2 .ob-closeup-s { max-width: 72ch; font-size: var(--type-base); line-height: var(--lh-base); color: var(--fg-1); }
+.ob-closeup-note { margin-top: auto; }
+.ob-grid { display: grid; grid-template-columns: repeat(3, 440px); gap: var(--space-5); align-items: start; }
+
+/* Storyboard: four frames of one artboard, then a time rail. */
+.ob-film { position: relative; width: 1340px; height: 440px; margin: var(--space-5) auto 0; }
+.ob-film-hint { gap: var(--space-1); }
+.ob-rail { display: grid; grid-template-columns: repeat(4, 260px); justify-content: space-between; width: 1340px; margin: 0 auto; padding-top: var(--space-3); box-shadow: inset 0 1px 0 var(--border-default); }
+.ob-rail-step { position: relative; display: flex; flex-direction: column; gap: 2px; font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.ob-rail-step::before { content: ""; position: absolute; left: 0; top: calc(var(--space-3) * -1 - 4px); width: 8px; height: 8px; border-radius: var(--radius-pill); background: var(--spark); box-shadow: 0 0 0 3px var(--canvas-bg); }
+.ob-rail-step strong { font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ob-rail-t { font-size: var(--type-xs); font-variant-numeric: tabular-nums; color: var(--spark-text); font-weight: var(--w-semibold); }
+
+/* Settings mock. */
+.ob-set { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4); border-radius: var(--radius-xl); background: var(--bg-2); box-shadow: var(--shadow-md), inset 0 0 0 0.5px var(--island-edge); }
+.ob-set-hd { display: flex; flex-direction: column; gap: var(--space-2); padding-bottom: var(--space-2); box-shadow: inset 0 -0.5px 0 var(--border-default); }
+.ob-set-hd strong { font-size: var(--type-md); font-weight: var(--w-semibold); }
+.k-v2 .ob-set-g { margin-top: var(--space-2); font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2); }
+.ob-set-me { display: flex; align-items: center; gap: var(--space-3); }
+.ob-set-me > span:last-child { display: flex; flex-direction: column; font-size: var(--type-xs); color: var(--fg-2); }
+.ob-set-me strong { font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ob-set-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 32px; font-size: var(--type-sm); color: var(--fg-1); }
+.ob-set-v { color: var(--fg-0); font-variant-numeric: tabular-nums; }
+.btn.ob-set-btn { align-self: flex-start; }
+.ob-set-links { display: flex; flex-direction: column; gap: 2px; padding: var(--space-1); border-radius: var(--radius-md); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-subtle); }
+.ob-set-links .row-item { justify-content: space-between; font-size: var(--type-sm); color: var(--fg-1); }
+.ob-set-links .k-ic { color: var(--fg-2); }
+.ob-conn { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-2) 0; box-shadow: inset 0 -0.5px 0 var(--border-subtle); }
+.ob-conn:last-child { box-shadow: none; }
+.ob-conn-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--type-xs); color: var(--fg-2); }
+.ob-conn-t strong { font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ob-conn-t .k-sw { margin-top: 2px; }
+
+/* Where every old door went. */
+.ob-where { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-5); border-radius: var(--radius-xl); background: var(--bg-1); box-shadow: inset 0 0 0 1px var(--border-default); }
+.ob-where-t { margin-bottom: var(--space-2); font-size: var(--type-md); font-weight: var(--w-semibold); }
+.ob-where-row { display: flex; flex-direction: column; gap: 1px; padding: var(--space-1) 0; box-shadow: inset 0 -0.5px 0 var(--border-subtle); }
+.ob-where-o { font-size: var(--type-xs); color: var(--fg-2); }
+.ob-where-n { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-0); }
+.ob-where-fine { margin-top: var(--space-2); }

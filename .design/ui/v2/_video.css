@@ -1,0 +1,272 @@
+/* _video.css — styles for ./_video.tsx (the video artboard's timeline, stills, inspector bits).
+   Shared by 07 Video Editing and 08 Artboard Kinds (ak-video). Prefix ve-. Tokens only; colour tints are
+   color-mix of tokens; weights stop at 600; mono only behind Advanced. Radii stay on the ladder
+   (--radius-xs and up) or 0 — no raw 1px/2px corners. */
+
+/* ─── Footage pictures (the user's photos; never re-colour with the app theme) ─── */
+.ve-pic { position: absolute; inset: 0; display: block; background-color: var(--object-ink); background-repeat: no-repeat; }
+.ve-pic--strip { box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--object-ink) 40%, transparent); }
+.ve-pic--logo { background: var(--object-green); }
+.ve-pic--logo > i { position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; translate: -50% -50%; border-radius: var(--radius-xs) var(--radius-pill) var(--radius-xs) var(--radius-pill); background: var(--object-ink); }
+
+/* ─── The timeline island ─── */
+.ve-tl {
+  position: absolute;
+  z-index: 11;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  background: var(--island-bg-strong);
+  font-size: var(--type-xs);
+}
+.ve-tl--full { left: var(--space-4); right: var(--space-4); }
+/* compact: rises out of the artboard's bottom edge — the notch points at the artboard it belongs to */
+.ve-tl-notch {
+  position: absolute;
+  top: -7px;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  translate: -50% 0;
+  rotate: 45deg;
+  border-radius: var(--radius-xs) 0 0 0;
+  background: var(--island-bg-strong);
+  box-shadow: inset 1px 1px 0 var(--border-strong), -2px -2px 6px color-mix(in oklab, var(--fg-0) 8%, transparent);
+  clip-path: polygon(-40% -40%, 140% -40%, -40% 140%);
+}
+/* full: a grip on the top edge makes it taller */
+.ve-tl-grip { position: absolute; left: 50%; top: 4px; width: 36px; height: 4px; translate: -50% 0; border-radius: var(--radius-pill); background: var(--border-strong); }
+.ve-tl--full { padding-top: var(--space-3); }
+
+.ve-tl-hd { display: flex; align-items: center; gap: var(--space-2); min-height: 28px; }
+.ve-tl-play { position: relative; }
+.ve-tl-time { font-size: var(--type-sm); font-weight: var(--w-semibold); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ve-tl-time span { font-weight: var(--w-regular); color: var(--fg-2); }
+.ve-tl-name { display: inline-flex; align-items: center; gap: var(--space-1); min-width: 0; margin-left: var(--space-1); color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ve-tl-sp { flex: 1; }
+.ve-tl-tools { display: inline-flex; align-items: center; gap: var(--space-1); }
+.ve-tl-tools .icon-btn { position: relative; }
+.ve-tl-div { width: 1px; height: 18px; margin: 0 var(--space-1); background: var(--border-default); }
+.ve-tl-size { gap: var(--space-1); }
+.ve-tl-status { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--fg-1); white-space: nowrap; }
+.ve-tl-status--warn { color: var(--status-warn-text); }
+
+/* zoom slider */
+.ve-zoom { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--fg-2); }
+.ve-zoom-bar { position: relative; width: 84px; height: 4px; border-radius: var(--radius-pill); background: var(--bg-4); }
+.ve-zoom-bar b { position: absolute; top: 50%; width: 12px; height: 12px; translate: -50% -50%; border-radius: var(--radius-pill); background: var(--bg-2); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-strong); }
+
+/* grid: labels column + lanes */
+.ve-tl-body { display: flex; gap: var(--space-2); }
+.ve-tl-labs { flex: none; display: flex; flex-direction: column; gap: 4px; width: 22px; }
+.ve-tl--full .ve-tl-labs { width: 132px; }
+.ve-tl-areawrap { position: relative; flex: 1; min-width: 0; }
+.ve-tl-area { position: relative; display: flex; flex-direction: column; gap: 4px; clip-path: inset(-40px -3px -14px -3px); }
+.ve-tl-float { position: absolute; inset: 0; z-index: 20; pointer-events: none; }
+.ve-tl-float > * { pointer-events: auto; }
+.ve-lab { display: flex; align-items: center; gap: var(--space-1); color: var(--fg-2); white-space: nowrap; }
+.ve-lab-ic { display: grid; place-items: center; width: 20px; height: 20px; border-radius: var(--radius-xs); }
+.ve-lab--text .ve-lab-ic { background: var(--ve-text-bg); color: var(--fg-0); }
+.ve-lab--gfx .ve-lab-ic { background: var(--ve-gfx-bg); color: var(--fg-0); }
+.ve-lab--music .ve-lab-ic { background: var(--ve-music-bg); color: var(--fg-0); }
+.ve-lab--video .ve-lab-ic { background: var(--bg-4); color: var(--fg-0); }
+.ve-lab-n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--fg-1); font-weight: var(--w-medium); }
+.ve-lab-b { display: grid; place-items: center; width: 20px; height: 20px; border-radius: var(--radius-xs); color: var(--fg-2); }
+.ve-lab-tw { display: grid; color: var(--fg-2); }
+
+/* track tints — designer-tool colour coding, built from the object palette over the surface */
+.ve-tl, .ve-tlx {
+  --ve-text-bg: color-mix(in oklab, var(--object-lilac) 42%, var(--bg-2));
+  --ve-text-edge: color-mix(in oklab, var(--object-lilac) 80%, var(--fg-2));
+  --ve-gfx-bg: color-mix(in oklab, var(--object-yellow) 40%, var(--bg-2));
+  --ve-gfx-edge: color-mix(in oklab, var(--object-yellow) 80%, var(--fg-2));
+  --ve-music-bg: color-mix(in oklab, var(--object-green) 30%, var(--bg-2));
+  --ve-music-wave: color-mix(in oklab, var(--object-green) 55%, var(--fg-2));
+}
+
+.ve-row { position: relative; flex: none; }
+.ve-row--ruler { height: 16px; }
+.ve-row--music { height: 30px; }
+.ve-row--fold { height: 10px; }
+.ve-row--empty { border-radius: var(--radius-sm); box-shadow: inset 0 0 0 1px var(--border-subtle); background: var(--bg-3); }
+.ve-row-hint { position: absolute; left: var(--space-2); top: 50%; translate: 0 -50%; display: inline-flex; align-items: center; gap: var(--space-1); color: var(--fg-2); white-space: nowrap; }
+.ve-row-hint .ve-link { margin-left: var(--space-1); }
+.ve-row-or { margin-left: var(--space-1); color: var(--fg-2); }
+.ve-link { color: var(--accent-text); font-weight: var(--w-medium); }
+.ve-fold-bar { position: absolute; inset: 2px 0; border-radius: var(--radius-pill); background: repeating-linear-gradient(90deg, var(--bg-4) 0 14px, transparent 14px 18px); }
+
+/* ruler */
+.ve-tick { position: absolute; top: 0; translate: -50% 0; color: var(--fg-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ve-tick--start { translate: 0 0; }
+.ve-tick--end { translate: -100% 0; }
+.ve-tick--mono { font-family: var(--font-mono); }
+.ve-loop { position: absolute; top: 0; height: 16px; border-radius: var(--radius-xs); background: var(--accent-tint); box-shadow: inset 2px 0 0 var(--accent), inset -2px 0 0 var(--accent); }
+.ve-loop-lane { position: absolute; top: 20px; bottom: 0; z-index: 0; background: color-mix(in oklab, var(--accent) 7%, transparent); pointer-events: none; }
+.ve-poster-flag, .ve-marker { position: absolute; top: 0; z-index: 2; display: inline-flex; align-items: center; gap: 2px; padding: 0 var(--space-1); border-radius: var(--radius-xs); background: var(--bg-2); box-shadow: inset 0 0 0 1px var(--border-strong); color: var(--fg-1); font-weight: var(--w-medium); white-space: nowrap; line-height: 14px; translate: 6px 0; }
+.ve-marker { translate: -3px 0; box-shadow: inset 2px 0 0 var(--fg-1), inset 0 0 0 1px var(--border-strong); }
+
+/* clips — the user's footage as a filmstrip */
+.ve-clip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--object-ink);
+  box-shadow: inset 0 0 0 0.5px var(--border-strong);
+}
+.ve-clip-lab {
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  z-index: 1;
+  max-width: calc(100% - 6px);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 var(--space-1);
+  overflow: hidden;
+  border-radius: var(--radius-xs);
+  background: color-mix(in oklab, var(--object-ink) 78%, transparent);
+  color: var(--object-grey);
+  font-weight: var(--w-medium);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 16px;
+}
+.ve-clip-lab > span { overflow: hidden; text-overflow: ellipsis; }
+.ve-clip-dur, .ve-clip-mute { position: absolute; right: 3px; bottom: 3px; z-index: 1; display: grid; place-items: center; padding: 0 3px; border-radius: var(--radius-xs); background: color-mix(in oklab, var(--object-ink) 78%, transparent); color: var(--object-grey); font-variant-numeric: tabular-nums; line-height: 14px; }
+.ve-clip-mute { width: 18px; height: 14px; padding: 0; }
+.ve-clip[data-sel] { box-shadow: 0 0 0 2px var(--accent); z-index: 2; }
+.ve-clip--dim { opacity: 0.42; }
+.ve-clip--lift { z-index: 4; translate: 0 -10px; rotate: -1.5deg; box-shadow: var(--shadow-lg), 0 0 0 2px var(--accent); }
+.ve-clip--ghost { background: transparent; box-shadow: none; outline: 1.5px dashed var(--accent); outline-offset: -1.5px; }
+.ve-clip--gap { background: var(--bg-3); box-shadow: inset 0 0 0 1px var(--border-subtle); }
+/* a shot AI is placing right now — a spark ring, then it settles like any clip */
+.ve-clip--land { z-index: 3; box-shadow: 0 0 0 2px var(--spark), 0 0 0 6px var(--spark-muted), var(--shadow-md); translate: 0 -6px; }
+/* offline footage — hatched + the words on a backing, never hue alone */
+/* Waiting for someone's Mac (CONTRACT §7): quiet, never an error colour — Missing (hatched warn) is only for a file no device has. */
+.ve-clip--off { background-color: var(--bg-3); background-image: repeating-linear-gradient(135deg, color-mix(in oklab, var(--fg-2) 16%, transparent) 0 2px, transparent 2px 7px); box-shadow: inset 0 0 0 1.5px var(--border-strong); }
+.ve-clip--off .ve-clip-lab { background: var(--bg-2); color: var(--fg-1); }
+/* footage still preparing */
+.ve-clip--prep { background-color: var(--bg-3); background-image: repeating-linear-gradient(135deg, var(--bg-4) 0 6px, transparent 6px 12px); box-shadow: inset 0 0 0 1px var(--border-default); }
+.ve-clip--prep .ve-clip-lab { background: var(--bg-2); color: var(--fg-1); }
+.ve-prog { position: absolute; left: 4px; right: 4px; bottom: 4px; height: 4px; border-radius: var(--radius-pill); background: var(--bg-4); overflow: hidden; }
+.ve-prog b { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; background: var(--accent); }
+/* trim handles */
+.ve-trim { position: absolute; top: 0; bottom: 0; z-index: 3; width: 8px; background: var(--accent); }
+.ve-trim::after { content: ""; position: absolute; left: 3px; top: 30%; bottom: 30%; width: 2px; border-radius: var(--radius-pill); background: var(--accent-fg); }
+.ve-trim--l { left: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.ve-trim--r { right: 0; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+/* the join between two clips — a transition */
+.ve-join { position: absolute; top: 50%; z-index: 3; display: grid; place-items: center; width: 22px; height: 22px; translate: -50% -50%; border-radius: var(--radius-pill); background: var(--bg-2); color: var(--fg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-strong); }
+.ve-join[data-sel] { background: var(--accent); color: var(--accent-fg); box-shadow: var(--shadow-sm), 0 0 0 3px var(--accent-tint); }
+/* insert marker for a drop or a move */
+.ve-insert { position: absolute; top: -4px; bottom: -4px; z-index: 5; width: 2px; translate: -50% 0; border-radius: var(--radius-pill); background: var(--accent); }
+.ve-insert::before, .ve-insert::after { content: ""; position: absolute; left: -3px; width: 8px; height: 2px; border-radius: var(--radius-pill); background: var(--accent); }
+.ve-insert::before { top: 0; }
+.ve-insert::after { bottom: 0; }
+.ve-cut { position: absolute; top: -3px; bottom: -3px; z-index: 5; width: 0; border-left: 1.5px dashed var(--accent); }
+
+/* text, graphics */
+.ve-item {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 var(--space-1);
+  overflow: hidden;
+  border-radius: var(--radius-xs);
+  background: var(--ve-text-bg);
+  color: var(--fg-0);
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 1px var(--ve-text-edge);
+}
+.ve-item > span { overflow: hidden; text-overflow: ellipsis; }
+.ve-item .k-ic { flex: none; color: var(--fg-1); }
+.ve-item--title { font-weight: var(--w-semibold); }
+.ve-item--gfx { background: var(--ve-gfx-bg); box-shadow: inset 0 0 0 1px var(--ve-gfx-edge); color: var(--fg-0); }
+.ve-item[data-sel] { box-shadow: 0 0 0 2px var(--accent); z-index: 2; }
+.ve-item--word { justify-content: center; padding: 0 2px; background: var(--bg-3); box-shadow: inset 0 0 0 1px var(--border-default); color: var(--fg-1); font-size: var(--type-xs); }
+.ve-item--word[data-hl] { background: var(--accent-muted); color: var(--accent-text); font-weight: var(--w-semibold); }
+.ve-item--word[data-edit] { background: var(--bg-2); color: var(--fg-0); box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px var(--accent-tint); z-index: 3; overflow: visible; }
+.ve-item--cut { background: transparent; box-shadow: inset 0 0 0 1.5px var(--status-error); color: var(--status-error-text); }
+.ve-item--cut > span { text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.ve-item--peer { box-shadow: 0 0 0 2px var(--object-sky); z-index: 2; }
+.ve-item--peer[data-edit] { box-shadow: 0 0 0 2px var(--object-sky), 0 0 0 5px color-mix(in oklab, var(--object-sky) 35%, transparent); }
+.ve-item--peer[data-edit] .ve-caret { box-shadow: 1.5px 0 0 var(--object-sky); }
+.ve-item--lock { opacity: 0.6; }
+.ve-caret { box-shadow: 1.5px 0 0 var(--accent); }
+
+/* music: waveform, beats, the volume line */
+.ve-music { position: absolute; top: 0; bottom: 0; overflow: hidden; border-radius: var(--radius-sm); background: var(--ve-music-bg); box-shadow: inset 0 0 0 0.5px var(--border-default); }
+.ve-music[data-sel] { box-shadow: 0 0 0 2px var(--accent); z-index: 2; }
+.ve-wave { position: absolute; left: 0; right: 0; top: 5px; bottom: 5px; display: flex; align-items: center; gap: 1px; padding: 0 var(--space-1); }
+.ve-wave i { flex: 1; min-width: 1px; border-radius: 0; background: var(--ve-music-wave); }
+.ve-music-lab { position: absolute; left: var(--space-1); bottom: 3px; z-index: 2; display: inline-flex; align-items: center; gap: 3px; padding: 0 var(--space-1); border-radius: var(--radius-xs); background: var(--bg-2); color: var(--fg-1); font-weight: var(--w-medium); white-space: nowrap; line-height: 14px; }
+.ve-beat { position: absolute; top: 0; z-index: 1; width: 1px; height: 5px; translate: -50% 0; background: var(--fg-2); }
+.ve-beat--strong { width: 2px; height: 10px; background: var(--fg-0); }
+.ve-vol { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.ve-vol path { fill: none; stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.ve-duck { position: absolute; bottom: 3px; z-index: 2; translate: -50% 0; padding: 0 var(--space-1); border-radius: var(--radius-xs); background: var(--bg-2); color: var(--accent-text); font-weight: var(--w-medium); white-space: nowrap; line-height: 14px; }
+
+/* playhead */
+.ve-head { position: absolute; top: 0; bottom: -4px; z-index: 6; width: 2px; translate: -50% 0; border-radius: 0; background: var(--accent); pointer-events: none; }
+.ve-head::before { content: ""; position: absolute; left: -4px; top: 0; width: 10px; height: 11px; border-radius: var(--radius-xs) var(--radius-xs) var(--radius-pill) var(--radius-pill); background: var(--accent); }
+.ve-head--ai { background: var(--spark); }
+.ve-head--ai::before { background: var(--spark); }
+.ve-head-tag { position: absolute; left: 8px; top: -2px; padding: 0 var(--space-1); border-radius: var(--radius-xs); background: var(--accent); color: var(--accent-fg); font-weight: var(--w-semibold); font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 15px; }
+.ve-head--ai .ve-head-tag { background: var(--spark); color: var(--spark-fg); }
+.ve-peer-head { position: absolute; top: 18px; bottom: -4px; z-index: 5; width: 2px; translate: -50% 0; background: var(--object-sky); }
+.ve-kf { position: absolute; top: 50%; z-index: 3; width: 9px; height: 9px; translate: -50% -50%; rotate: 45deg; border-radius: 0; background: var(--bg-2); box-shadow: inset 0 0 0 1.5px var(--fg-1); }
+.ve-kf[data-sel] { background: var(--accent); box-shadow: none; }
+
+/* foot of a full timeline: Advanced disclosure */
+.ve-tl-foot { display: flex; align-items: center; gap: var(--space-3); padding-top: var(--space-1); box-shadow: inset 0 0.5px 0 var(--border-default); }
+.ve-tl-foot .k-adv-btn { width: auto; height: 24px; font-size: var(--type-xs); }
+.ve-tl-foot-hint { color: var(--fg-2); }
+
+/* tooltip on a timeline thing (ink, like the kit's) */
+.ve-tip { position: absolute; z-index: 20; display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--fg-0); color: var(--bg-2); font-size: var(--type-xs); font-weight: var(--w-medium); white-space: nowrap; box-shadow: var(--shadow-md); font-variant-numeric: tabular-nums; pointer-events: none; }
+.ve-tip .kbd { background: transparent; color: var(--bg-2); box-shadow: inset 0 0 0 0.5px var(--bg-2); }
+.ve-tip--up { left: 0; bottom: calc(100% + var(--space-2)); }
+.ve-tip-dim { opacity: 0.72; }
+
+/* ─── On the artboard: the frame, titles, captions, safe zones, play overlay ─── */
+.ve-still { position: absolute; inset: 0; overflow: hidden; background: var(--object-ink); container-type: size; }
+.ve-still-photo { position: absolute; inset: 0; background-size: cover; background-repeat: no-repeat; }
+.ve-still--logo { background: var(--object-green); }
+.ve-still--empty { background: var(--bg-3); }
+.ve-still-logo { position: absolute; left: 50%; top: 44%; display: grid; place-items: center; width: 34%; aspect-ratio: 1; translate: -50% -50%; border-radius: var(--radius-md) var(--radius-pill) var(--radius-md) var(--radius-pill); background: var(--object-ink); }
+.ve-still-logo span { font-family: var(--font-display); font-weight: var(--w-semibold); font-size: clamp(6px, 4cqmin, var(--type-sm)); letter-spacing: var(--tracking-tight); color: var(--object-green); }
+.ve-title-on { position: absolute; left: 7%; right: 7%; z-index: 2; display: flex; flex-direction: column; gap: 2px; font-family: var(--font-display); font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); color: var(--object-green); line-height: 1.05; }
+.ve-title-on strong { align-self: flex-start; padding: 0 0.18em; border-radius: var(--radius-xs); background: var(--object-ink); font-size: clamp(var(--type-sm), 9cqmin, var(--type-2xl)); line-height: 1.05; }
+.ve-title-on small { align-self: flex-start; padding: 0 0.3em; border-radius: var(--radius-xs); background: var(--object-ink); font-family: var(--font-body); font-size: var(--type-xs); font-weight: var(--w-medium); letter-spacing: 0; color: var(--object-grey); }
+.ve-title-on--top { top: 9%; }
+.ve-title-on--bottom { bottom: 12%; }
+.ve-title-on--mid { top: 40%; }
+.ve-cap { position: absolute; left: 50%; z-index: 3; translate: -50% 0; display: inline-flex; gap: 0.32em; padding: 2px var(--space-2); border-radius: var(--radius-xs); background: var(--object-ink); color: var(--object-grey); font-family: var(--font-rounded); font-size: var(--type-sm); font-weight: var(--w-semibold); white-space: nowrap; }
+.ve-cap b { font-weight: var(--w-semibold); color: var(--object-green); }
+.ve-cap u { text-decoration: none; padding: 0 var(--space-1); border-radius: var(--radius-xs); background: var(--object-yellow); color: var(--object-ink); }
+.ve-safe-band { position: absolute; left: 0; right: 0; z-index: 3; display: flex; align-items: center; justify-content: center; background: color-mix(in oklab, var(--object-coral) 30%, transparent); color: var(--object-ink); font-size: var(--type-xs); font-weight: var(--w-semibold); pointer-events: none; }
+.ve-safe-band::after { content: ""; position: absolute; inset: 0; border: 1px dashed var(--object-coral); }
+.ve-safe-side { position: absolute; right: 0; z-index: 3; width: 16%; background: color-mix(in oklab, var(--object-coral) 30%, transparent); pointer-events: none; }
+.ve-playbtn { position: absolute; left: 50%; top: 42%; z-index: 4; display: grid; place-items: center; width: 40px; height: 40px; translate: -50% -50%; border-radius: var(--radius-pill); background: color-mix(in oklab, var(--object-ink) 70%, transparent); color: var(--object-grey); box-shadow: inset 0 0 0 1.5px var(--object-grey); }
+.ve-scrub { position: absolute; left: 4%; right: 4%; bottom: 3%; z-index: 4; display: flex; align-items: center; gap: var(--space-2); padding: 2px var(--space-2); border-radius: var(--radius-pill); background: color-mix(in oklab, var(--object-ink) 82%, transparent); color: var(--object-grey); font-size: var(--type-xs); font-variant-numeric: tabular-nums; }
+.ve-scrub i { position: relative; flex: 1; height: 3px; border-radius: var(--radius-pill); background: color-mix(in oklab, var(--object-grey) 40%, transparent); }
+.ve-scrub b { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; background: var(--object-grey); }
+.ve-still-off { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; background-color: var(--bg-3); background-image: repeating-linear-gradient(135deg, color-mix(in oklab, var(--fg-2) 14%, transparent) 0 2px, transparent 2px 8px); }
+.ve-still-off-w { display: inline-flex; align-items: center; gap: var(--space-1); max-width: 84%; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--bg-2); color: var(--fg-1); font-size: var(--type-xs); font-weight: var(--w-semibold); box-shadow: var(--shadow-sm); text-align: center; }
+.ve-still-off .k-ic { flex: none; }
+
+/* ─── Inspector bits ─── */
+.ve-in-note { font-size: var(--type-xs); color: var(--fg-2); text-align: right; }
+.ve-in-poster { display: inline-flex; align-items: center; gap: var(--space-2); font-variant-numeric: tabular-nums; }
+.ve-in-poster-pic { position: relative; width: 22px; height: 38px; overflow: hidden; border-radius: var(--radius-xs); }
+.ve-in-slider { display: inline-flex; align-items: center; gap: var(--space-2); width: 140px; font-variant-numeric: tabular-nums; color: var(--fg-1); }
+.ve-in-slider i { position: relative; flex: 1; height: 4px; border-radius: var(--radius-pill); background: var(--bg-4); }
+.ve-in-slider i b { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; background: var(--accent); }
+.ve-in-slider i em { position: absolute; top: 50%; width: 12px; height: 12px; translate: -50% -50%; border-radius: var(--radius-pill); background: var(--bg-2); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-strong); }

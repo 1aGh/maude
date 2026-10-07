@@ -1,0 +1,215 @@
+/* logo — demonstration-specific styles (anatomy lives in _components.css).
+ *
+ * The mark itself is never styled here beyond size and placement: <Mark /> carries
+ * its own paths and takes --accent / --accent-fg. Theme panes are scoped with
+ * .maude-v2[data-theme], so they re-declare every token for their subtree and need
+ * their own text colour.
+ */
+
+.lg-ico { display: block; flex: none; }
+.lg-caret { color: var(--fg-2); display: inline-grid; }
+.lg-dim { color: var(--fg-2); }
+.lg-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* ─── Lockup ─────────────────────────────────────────────────────────────── */
+.lg-lockup { display: inline-flex; align-items: center; color: var(--fg-0); }
+.lg-lockup svg { display: block; flex: none; }
+.lg-word {
+  font-family: var(--font-display);
+  font-weight: var(--w-semibold);
+  letter-spacing: var(--tracking-tight);
+  line-height: 1;
+  text-transform: lowercase;
+}
+
+/* ─── Hero — light and dark panes ────────────────────────────────────────── */
+.lg-hero { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin: 0 0 var(--space-6); }
+.lg-pane {
+  height: 440px; margin: 0; color: var(--fg-0);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-6);
+}
+.lg-pane-tag { position: absolute; left: var(--space-4); top: var(--space-4); }
+.lg-pane-isle { display: grid; place-items: center; width: 200px; height: 200px; border-radius: var(--radius-xl); }
+.lg-pane-isle svg { display: block; }
+.lg-pane-foot { display: flex; align-items: center; gap: var(--space-5); }
+.lg-pane-pill {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-2); font-size: var(--type-sm); font-weight: var(--w-semibold);
+}
+
+/* ─── In the app ─────────────────────────────────────────────────────────── */
+.lg-app { display: grid; grid-template-columns: 1.7fr 1fr; gap: var(--space-4); margin: 0 0 var(--space-6); }
+.lg-fig { margin: 0; }
+.lg-fig figcaption { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.lg-fig figcaption strong { color: var(--fg-0); margin-right: var(--space-1); }
+.lg-app-stage { height: 470px; margin-bottom: var(--space-3); }
+
+.lg-app-pill {
+  position: absolute; left: var(--space-4); top: var(--space-4); z-index: 4;
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-2); font-size: var(--type-sm); font-weight: var(--w-semibold);
+  box-shadow: var(--island-shadow), inset 0 0 0 0.5px var(--island-edge), 0 0 0 2px var(--accent-tint);
+}
+.lg-menu { position: absolute; left: var(--space-4); top: 64px; width: 236px; z-index: 4; padding: var(--space-2); }
+.lg-menu .row-item { gap: var(--space-2); }
+.lg-menu .row-item .lg-ico { color: var(--fg-1); }
+.specimen .lg-menu-title { margin: var(--space-2) 0 var(--space-1); padding: 0 var(--space-2); }
+.lg-menu-end { margin-left: auto; display: inline-flex; color: var(--fg-2); }
+.lg-menu-end .kbd { font-size: var(--type-xs); }
+.lg-menu-div { display: block; height: 1px; background: var(--border-subtle); margin: var(--space-1) var(--space-2); }
+.lg-menu-quiet { color: var(--fg-1); }
+.lg-menu-keys { font-size: var(--type-xs); letter-spacing: var(--tracking-wide); }
+.lg-th-sky { background: var(--object-sky); }
+.lg-th-yellow { background: var(--object-yellow); }
+
+.lg-board {
+  position: absolute; left: 280px; top: 72px; width: 220px; height: 240px; overflow: hidden;
+  background: var(--bg-2); border-radius: var(--radius-sm); box-shadow: var(--shadow-md);
+}
+.lg-board--wide { left: 50%; top: 92px; transform: translateX(-50%); width: 220px; height: 220px; }
+.lg-board-img { height: 132px; background: var(--object-sky); background-image: radial-gradient(circle at 72% 34%, var(--object-yellow) 0 20%, transparent 21%); }
+.lg-board--wide .lg-board-img { height: 112px; }
+.lg-board-body { padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); }
+.lg-board-body strong { font-family: var(--font-display); font-size: var(--type-lg); letter-spacing: var(--tracking-tight); }
+.lg-board-body span { color: var(--fg-2); font-size: var(--type-sm); }
+.lg-st { position: absolute; left: 516px; top: 96px; rotate: 3deg; }
+
+.lg-tucked { position: absolute; left: var(--space-4); top: var(--space-4); padding: var(--space-1); z-index: 4; }
+.lg-tucked-btn { width: 36px; height: 36px; }
+.lg-tucked-btn svg { width: 22px; height: 22px; }
+.lg-toast {
+  position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); z-index: 4;
+  width: max-content; max-width: 88%;
+  padding: var(--space-2) var(--space-3); font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-0);
+}
+
+/* ─── Mark vs spark ──────────────────────────────────────────────────────── */
+.lg-pair { display: grid; grid-template-columns: 1fr 1fr 0.9fr; gap: var(--space-4); margin: 0 0 var(--space-6); }
+.lg-pair-card {
+  display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5);
+  border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default);
+}
+.lg-pair-hero { height: 96px; display: flex; align-items: center; }
+.lg-pair-hero svg { display: block; }
+.lg-pair-txt { display: flex; flex-direction: column; gap: var(--space-1); }
+.lg-pair-txt strong { font-family: var(--font-display); font-size: var(--type-md); color: var(--fg-0); }
+.lg-pair-txt span { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.lg-pair-uses { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.lg-use-pill { display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); font-size: var(--type-sm); font-weight: var(--w-semibold); border-radius: var(--radius-md); }
+.lg-use-tab { display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); font-size: var(--type-sm); border-radius: var(--radius-sm) var(--radius-sm) 0 0; background: var(--bg-3); color: var(--fg-1); }
+.lg-use-ask { width: 152px; }
+.lg-use-ph { flex: 1; font-size: var(--type-sm); color: var(--fg-2); }
+.lg-use-cursor {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: 2px var(--space-2); border-radius: var(--radius-pill);
+  background: var(--presence-agent); color: var(--spark-fg);
+  font-family: var(--font-rounded); font-size: var(--type-xs); font-weight: var(--w-semibold);
+}
+
+.lg-cut {
+  margin: 0; padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-4);
+  border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.lg-cut-stack { position: relative; width: 176px; height: 176px; align-self: center; }
+.lg-cut-stack > span { position: absolute; inset: 0; }
+.lg-cut-stack svg { display: block; }
+.lg-cut figcaption { font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-1); }
+.lg-cut figcaption strong { color: var(--fg-0); }
+
+/* ─── Wordmark ───────────────────────────────────────────────────────────── */
+.lg-words {
+  padding: var(--space-5) var(--space-6); margin: 0 0 var(--space-6);
+  border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default);
+}
+.lg-word-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-4) 0; box-shadow: inset 0 -0.5px 0 var(--border-subtle); }
+.lg-word-meta { font-size: var(--type-xs); color: var(--fg-2); }
+.specimen .lg-word-note { margin: var(--space-4) 0 0; font-size: var(--type-sm); line-height: var(--lh-sm); }
+
+/* ─── Sizes ──────────────────────────────────────────────────────────────── */
+.lg-sizes { display: grid; grid-template-columns: 1fr 1fr 1fr 1.2fr 1.6fr; gap: var(--space-3); margin: 0 0 var(--space-4); align-items: end; }
+.lg-size { border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default); overflow: hidden; }
+.lg-size-box { display: grid; place-items: center; height: 176px; }
+.lg-size-box svg { display: block; }
+.lg-size-meta { display: flex; flex-direction: column; gap: 2px; padding: var(--space-3); font-size: var(--type-xs); color: var(--fg-1); box-shadow: inset 0 0.5px 0 var(--border-subtle); }
+.lg-size-meta strong { font-size: var(--type-sm); color: var(--fg-0); font-variant-numeric: tabular-nums; }
+
+.lg-contexts { display: grid; grid-template-columns: 1.3fr 1fr; gap: var(--space-4); margin: 0 0 var(--space-6); }
+.lg-browser {
+  display: flex; align-items: flex-end; gap: 2px; height: 140px; padding: 0 var(--space-4);
+  border-radius: var(--radius-lg); background: var(--bg-4); margin-bottom: var(--space-3);
+  box-shadow: inset 0 calc(-1 * var(--space-3)) 0 var(--bg-2);
+}
+.lg-tab {
+  display: flex; align-items: center; gap: var(--space-2); width: 200px; height: 34px; margin-bottom: var(--space-3);
+  padding: 0 var(--space-3); border-radius: var(--radius-md) var(--radius-md) 0 0;
+  font-size: var(--type-sm); color: var(--fg-2);
+}
+.lg-tab svg { flex: none; display: block; }
+.lg-tab--on { background: var(--bg-2); color: var(--fg-0); }
+.lg-tab-blank { width: 16px; height: 16px; border-radius: var(--radius-xs); background: var(--bg-3); box-shadow: inset 0 0 0 0.5px var(--border-default); }
+.lg-dock-stage { height: 140px; min-height: 0; margin-bottom: var(--space-3); }
+.lg-mac-dock { position: absolute; left: 50%; bottom: var(--space-3); transform: translateX(-50%); display: flex; align-items: flex-end; gap: var(--space-5); padding: var(--space-2) var(--space-5) var(--space-3); border-radius: var(--radius-xl); }
+/* The macOS 26 app-icon plate — the one approved plate, OS icon slot only. Squircle ≈ 22.5 % corner. */
+.lg-plate {
+  display: grid; place-items: center; width: 56px; height: 56px; border-radius: 12.6px;
+  background: var(--bg-2); box-shadow: var(--shadow-md), inset 0 0 0 0.5px var(--border-default);
+}
+.lg-plate svg { filter: none; }
+.lg-dock-app { position: relative; display: block; }
+.lg-dock-app svg { display: block; filter: drop-shadow(0 3px 6px oklch(0 0 0 / 0.18)); }
+.lg-dock-dot { position: absolute; left: 50%; bottom: calc(-1 * var(--space-2)); width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--fg-1); }
+
+/* ─── Construction + clear space ─────────────────────────────────────────── */
+.lg-build { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; gap: var(--space-4) var(--space-7); align-items: center; margin: 0 0 var(--space-6); }
+.lg-build-fig { grid-row: span 2; display: grid; place-items: center; padding: var(--space-6); border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default); }
+/* Clear space = one corner radius (7/32) of a 160 px mark = 35 px on every side. */
+.lg-clear { position: relative; padding: 35px; }
+.lg-clear-zone {
+  position: absolute; inset: 0; border-radius: var(--radius-xs);
+  background: var(--accent-muted);
+  outline: 1px dashed var(--accent); outline-offset: -1px;
+}
+.lg-build-mark { position: relative; display: block; width: 160px; height: 160px; }
+.lg-build-mark svg { display: block; }
+.lg-guides { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; fill: none; stroke: var(--fg-0); stroke-width: 0.06; opacity: 0.55; }
+.lg-g-key { stroke-width: 0.12; stroke-dasharray: 0.5 0.4; }
+.lg-g-tail { stroke-width: 0.3; stroke: var(--fg-0); opacity: 1; }
+.lg-g-pt { fill: var(--fg-0); stroke: none; }
+.lg-build-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); max-width: 56ch; }
+.lg-build-notes strong { color: var(--fg-0); margin-right: var(--space-1); }
+.lg-min { display: flex; gap: var(--space-3); align-self: start; }
+.lg-min-cell {
+  display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default);
+  font-size: var(--type-xs);
+}
+.lg-min-cell svg { display: block; }
+.lg-ok { color: var(--status-success-text); font-weight: var(--w-semibold); }
+.lg-bad { color: var(--status-error-text); font-weight: var(--w-semibold); text-decoration: line-through; }
+
+/* ─── Don'ts ─────────────────────────────────────────────────────────────── */
+.lg-donts { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5) var(--space-4); }
+.lg-dont { margin: 0; }
+.lg-dont-stage { height: 168px; min-height: 0; display: grid; place-items: center; margin-bottom: var(--space-3); }
+.lg-dont-stage svg { display: block; }
+.lg-dont figcaption { display: flex; flex-direction: column; gap: 2px; font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.lg-dont figcaption strong { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--fg-0); }
+.lg-x { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--status-error); color: var(--bg-2); }
+.lg-stretch { display: block; transform: scaleX(1.45); }
+.lg-rotate { display: block; transform: rotate(90deg); }
+.lg-glow { display: block; filter: drop-shadow(0 0 12px var(--spark)); }
+.lg-sku { display: inline-flex; align-items: center; gap: var(--space-3); }
+.lg-sku-txt { display: flex; flex-direction: column; gap: 2px; font-family: var(--font-mono); font-size: var(--type-xs); letter-spacing: var(--tracking-wide); color: var(--fg-2); }
+
+/* ─── v2 migration notes ─────────────────────────────────────────────────── */
+.lg-notes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-4); }
+.lg-notes li { display: flex; gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default); }
+.lg-notes-n {
+  display: inline-grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: var(--radius-pill);
+  background: var(--bg-3); color: var(--fg-0); font-size: var(--type-xs); font-weight: var(--w-semibold); font-variant-numeric: tabular-nums;
+}
+.lg-notes li > div { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); max-width: 60ch; }
+.lg-notes strong { color: var(--fg-0); }
+
+/* Captions stay at a readable measure (SF's ch runs wide). */
+.specimen .lg-fig figcaption, .specimen .lg-dont figcaption, .specimen .lg-cut figcaption, .specimen .lg-word-note { max-width: 60ch; }

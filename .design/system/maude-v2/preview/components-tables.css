@@ -1,0 +1,167 @@
+/* components-tables — demonstration-specific styles (anatomy lives in _components.css). */
+
+/* Weights stop at semibold: <strong> would otherwise render at the UA's 700. */
+.specimen strong, .specimen b { font-weight: var(--w-semibold); }
+
+.tb-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ─── Table anatomy ───────────────────────────────────────────────────── */
+.tb-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--type-sm); color: var(--fg-0); }
+.tb-table thead th {
+  position: sticky; top: 0; z-index: 1;
+  padding: var(--space-2) var(--space-3); text-align: left;
+  font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2);
+  background: var(--bg-3);
+}
+.tb-table thead th:first-child { border-radius: var(--radius-md) 0 0 var(--radius-md); }
+.tb-table thead th:last-child { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+.tb-table td { padding: var(--space-2) var(--space-3); vertical-align: middle; border-top: 1px solid var(--border-subtle); }
+.tb-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tb-table thead th.tb-num { text-align: right; }
+.tb-when { color: var(--fg-1); }
+
+.tb-group th {
+  padding: var(--space-4) var(--space-3) var(--space-1); text-align: left;
+  font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2);
+}
+
+/* Rows: hover is a quiet fill, the picked row is the selection tint. */
+.tb-row { cursor: default; transition: background var(--dur-flip) var(--ease-out); }
+.tb-row td:first-child { border-radius: var(--radius-md) 0 0 var(--radius-md); }
+.tb-row td:last-child { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+.tb-row:hover td { background: var(--bg-3); border-top-color: transparent; }
+.tb-row:hover + .tb-row td { border-top-color: transparent; }
+.tb-row.is-picked td { background: var(--accent-muted); border-top-color: transparent; }
+.tb-row.is-picked + .tb-row td { border-top-color: transparent; }
+.tb-row.is-picked .tb-name { font-weight: var(--w-semibold); }
+.tb-group + .tb-row td { border-top-color: transparent; }
+
+.tb-c-thumb { width: 52px; }
+.tb-c-act { width: 132px; text-align: right; }
+.tb-restore { white-space: nowrap; opacity: 0; transition: opacity var(--dur-flip) var(--ease-out); }
+.tb-row:hover .tb-restore, .tb-row:focus-within .tb-restore, .tb-row.is-picked .tb-restore, .tb-row--show .tb-restore { opacity: 1; }
+
+.tb-name { font-weight: var(--w-medium); }
+.tb-chip { margin-left: var(--space-2); height: 18px; }
+.tb-what { display: block; font-size: var(--type-xs); color: var(--fg-2); margin-top: 2px; }
+
+.tb-who { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+.tb-av {
+  display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: var(--radius-pill);
+  font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--object-ink);
+}
+.tb-av--you { background: var(--bg-4); color: var(--fg-0); }
+.tb-av--sky { background: var(--object-sky); }
+.tb-av--green { background: var(--object-green); }
+.tb-av--ai { background: var(--presence-agent); }
+
+/* Thumbnail: a tiny artboard — colour lives on the canvas, so it's allowed here. */
+.tb-thumb {
+  display: grid; grid-template-rows: 1.4fr 1fr; grid-template-columns: 1fr 1fr; gap: 2px;
+  width: 40px; height: 28px; padding: 3px; border-radius: var(--radius-xs);
+  background: var(--bg-2); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default);
+}
+.tb-thumb span { border-radius: 1.5px; }
+.tb-thumb span:first-child { grid-column: 1 / -1; }
+.tb-thumb--a span:nth-child(1) { background: var(--object-sky); } .tb-thumb--a span:nth-child(2) { background: var(--object-yellow); } .tb-thumb--a span:nth-child(3) { background: var(--object-grey); }
+.tb-thumb--b span:nth-child(1) { background: var(--object-coral); } .tb-thumb--b span:nth-child(2) { background: var(--object-grey); } .tb-thumb--b span:nth-child(3) { background: var(--object-yellow); }
+.tb-thumb--c span:nth-child(1) { background: var(--object-green); } .tb-thumb--c span:nth-child(2) { background: var(--object-lilac); } .tb-thumb--c span:nth-child(3) { background: var(--object-grey); }
+.tb-thumb--d span:nth-child(1) { background: var(--object-lilac); } .tb-thumb--d span:nth-child(2) { background: var(--object-grey); } .tb-thumb--d span:nth-child(3) { background: var(--object-sky); }
+
+/* ─── Hero ─────────────────────────────────────────────────────────────── */
+.tb-hero { height: 620px; margin-bottom: var(--space-4); }
+.tb-bg-board { position: absolute; left: var(--space-6); top: 84px; width: 240px; background: var(--bg-2); border-radius: var(--radius-sm); box-shadow: var(--shadow-md); overflow: hidden; }
+.tb-bg-img { height: 120px; background: var(--object-coral); background-image: linear-gradient(160deg, var(--object-coral), var(--object-yellow)); }
+.tb-bg-body { padding: var(--space-3); display: flex; flex-direction: column; gap: 2px; }
+.tb-bg-body strong { font-size: var(--type-md); }
+.tb-bg-body span { font-size: var(--type-xs); color: var(--fg-2); }
+.tb-pill { position: absolute; left: var(--space-4); top: var(--space-4); display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2); font-size: var(--type-sm); font-weight: var(--w-semibold); z-index: 4; }
+.tb-caret { color: var(--fg-2); display: block; }
+
+.tb-sheet {
+  position: absolute; right: var(--space-4); top: var(--space-4); bottom: var(--space-4); z-index: 5;
+  width: 640px; max-width: calc(100% - var(--space-6));
+  display: flex; flex-direction: column;
+  padding: var(--space-4);
+  background: var(--bg-2); border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge);
+  transition: width var(--dur-panel) var(--ease-out);
+}
+.tb-sheet--adv { width: 820px; }
+.tb-sheet-hd { display: flex; align-items: baseline; gap: var(--space-3); margin-bottom: var(--space-3); }
+.tb-sheet-hd h3 { margin: 0; font-family: var(--font-body); font-size: var(--type-md); font-weight: var(--w-semibold); }
+.tb-sheet-sub { font-size: var(--type-sm); color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.tb-adv-l { margin-left: auto; align-self: center; display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--type-sm); font-weight: var(--w-medium); color: var(--fg-1); }
+.tb-scroll { flex: 1; min-height: 0; overflow: auto; }
+
+/* Advanced: the half-step density + mono, and only here. */
+.tb-sheet--adv .tb-table td { padding: var(--space-1) var(--space-2); }
+.tb-sheet--adv .tb-table thead th { padding: var(--space-1) var(--space-2); }
+.tb-sheet--adv .tb-thumb { width: 32px; height: 22px; padding: 2px; }
+.tb-adv-col code { font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-1); white-space: nowrap; }
+.tb-table thead th.tb-adv-col { color: var(--fg-2); }
+.tb-adv-ft {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--border-subtle);
+}
+.tb-adv-ft code { font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-2); }
+.tb-adv-links { display: flex; gap: var(--space-1); }
+
+.tb-hero-notes { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); margin: 0 0 var(--space-6); }
+.specimen .tb-hero-notes p { margin: 0; font-size: var(--type-sm); line-height: var(--lh-sm); max-width: 60ch; }
+.tb-hero-notes strong { color: var(--fg-0); }
+
+/* ─── Exports ─────────────────────────────────────────────────────────── */
+.tb-exports {
+  padding: var(--space-4); margin: 0 0 var(--space-6); border-radius: var(--radius-xl);
+  background: var(--bg-2); box-shadow: var(--shadow-md), inset 0 0 0 0.5px var(--island-edge);
+}
+.tb-table--ex td { padding-top: var(--space-3); padding-bottom: var(--space-3); }
+.tb-status { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--fg-0); }
+.tb-glyph { flex: none; display: block; }
+.tb-glyph--ok { color: var(--status-success-text); }
+.tb-glyph--busy { color: var(--status-info-text); }
+.tb-glyph--err { color: var(--status-error-text); }
+.tb-pct { color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.tb-bar { display: block; width: 160px; height: 4px; margin: var(--space-1) 0 0 22px; border-radius: var(--radius-pill); background: var(--bg-4); overflow: hidden; }
+.tb-bar span { display: block; height: 100%; background: var(--accent); border-radius: inherit; transform-origin: left center; }
+.tb-ex-adv { margin-top: var(--space-3); padding-top: var(--space-2); border-top: 1px solid var(--border-subtle); }
+.tb-ex-adv summary { cursor: pointer; font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2); padding: var(--space-1) 0; }
+.tb-ex-adv summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; border-radius: var(--radius-xs); }
+.specimen .tb-ex-adv p { margin: var(--space-1) 0 0; font-size: var(--type-xs); color: var(--fg-2); max-width: none; }
+.tb-ex-adv code { font-family: var(--font-mono); color: var(--fg-1); }
+
+/* ─── States ──────────────────────────────────────────────────────────── */
+.tb-states { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); margin: 0 0 var(--space-6); }
+.tb-state { display: flex; flex-direction: column; min-height: 220px; padding: var(--space-3); border-radius: var(--radius-lg); background: var(--bg-2); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default); }
+.tb-state-head { display: flex; justify-content: space-between; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--bg-3); font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2); }
+.tb-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); text-align: center; padding: var(--space-4); font-size: var(--type-sm); color: var(--fg-1); }
+.tb-empty strong { font-family: var(--font-rounded); font-size: var(--type-base); color: var(--fg-0); }
+.tb-empty .tb-glyph { width: 20px; height: 20px; }
+.tb-empty .btn { margin-top: var(--space-2); }
+.tb-empty-art { display: flex; gap: var(--space-1); margin-bottom: var(--space-2); }
+.tb-empty-art span { width: 28px; height: 20px; border-radius: var(--radius-xs); background: var(--bg-3); box-shadow: inset 0 0 0 1px var(--border-default); }
+.tb-empty-art span:nth-child(2) { translate: 0 -4px; rotate: -4deg; }
+.tb-skel-row { display: grid; grid-template-columns: 40px 1fr 56px; gap: var(--space-3); align-items: center; padding: var(--space-3); border-bottom: 1px solid var(--border-subtle); }
+.tb-skel { display: block; height: 10px; border-radius: var(--radius-pill); background: var(--bg-4); animation: mv2-soft 900ms var(--ease-in-out) infinite alternate; }
+.tb-skel--thumb { height: 28px; border-radius: var(--radius-xs); }
+.tb-skel--when { width: 100%; }
+@media (prefers-reduced-motion: reduce) { .tb-skel { animation: none; } }
+[data-reduced-motion="true"] .tb-skel { animation: none; }
+
+/* ─── Words + rules ───────────────────────────────────────────────────── */
+.tb-words { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-3); margin: 0 0 var(--space-5); }
+.tb-word { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3); border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default); }
+.tb-keep { font-size: var(--type-base); font-weight: var(--w-semibold); color: var(--fg-0); }
+.tb-keep::before { content: "✓ "; color: var(--status-success-text); }
+.tb-kill { font-size: var(--type-xs); color: var(--fg-2); text-decoration: line-through; text-decoration-color: var(--status-error); }
+
+.tb-rules { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4); }
+.tb-rules div { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--type-sm); color: var(--fg-1); line-height: var(--lh-sm); }
+.tb-rules strong { color: var(--fg-0); }
+
+@media (max-width: 900px) {
+  .tb-states, .tb-hero-notes, .tb-rules { grid-template-columns: 1fr; }
+  .tb-words { grid-template-columns: 1fr 1fr; }
+  .tb-sheet, .tb-sheet--adv { left: var(--space-4); width: auto; }
+}

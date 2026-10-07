@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" role="img" aria-label="maude">
+  <!-- Favicon: the maude spark — white four-point star on the accent (azure) message-bubble
+       tile (bottom-right corner squared). maude-v2 copy — the v1 data-URI favicon in apps/studio/client/index.html is still indigo until the v2 migration. One bold shape, legible down to 16px. -->
+  <path d="M7 0H25A7 7 0 0 1 32 7V32H7A7 7 0 0 1 0 25V7A7 7 0 0 1 7 0Z" fill="#0074c3"/>
+  <path d="M16 5l2.8 8.2L27 16l-8.2 2.8L16 27l-2.8-8.2L5 16l8.2-2.8z" fill="#fff"/>
+</svg>

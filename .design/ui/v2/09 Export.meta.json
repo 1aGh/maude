@@ -1,0 +1,154 @@
+{
+  "title": "09 Export",
+  "subtitle": "One Export sheet that fits what's selected and always shows its Scope — live paper for print, a filmstrip for video, batch, progress, history, link vs file, handoff — Alligators brand, Studio site, Portfolio 2026",
+  "brief": "export — every export path that exists today stays reachable (PNG, PDF, SVG, HTML, PowerPoint, MP4, GIF, WebM, Canva, Project ZIP, AI handoff; print PDF with bleed and crop marks; cloud render; the Exports history; /design:handoff, /design:to-rn, /design:to-lottie), redrawn for designers: a sheet that adapts to a social post, a print artboard, a web page or a video, with a Scope row (Selection · This canvas · Folder · Whole project) on every sheet; ⇧⌘E with nothing selected exports this canvas; a live paper preview for print and a filmstrip for video; the inspector's export row; a whole folder grouped by kind; progress in words; one-action toasts (done = Show in Finder, partial = Retry the one that failed); a link instead of a file; handoff to production with a command that runs on any machine, plus its no-AI / offline / blockers cases; offline, the whole project on purpose, safe-margin and font warnings, a viewer exporting, AI still changing the artboard; Advanced with scale or dpi, colour profile, video settings, file-name tokens and the command.",
+  "platform": "desktop",
+  "designSystem": "maude-v2",
+  "opt_out_scope": "palette",
+  "sections": [
+    {
+      "id": "adapts",
+      "title": "One Export sheet that fits what's selected",
+      "subtitle": "⇧⌘E, Menu › Export…, or right-click an artboard › Export… — a social post, a print flyer, a web page, a video · Scope is always on top"
+    },
+    {
+      "id": "batch",
+      "title": "Many artboards at once — Scope decides",
+      "subtitle": "Nothing selected exports this canvas · five artboards of two kinds · a whole folder, Alligators social, 31 canvases"
+    },
+    {
+      "id": "progress",
+      "title": "Progress, done, partly done — and the Exports panel",
+      "subtitle": "Videos in the cloud while you keep working on the dresy · one action per toast · 114 of 115 made it; Recap waits for its music from Jonas's Mac"
+    },
+    {
+      "id": "link",
+      "title": "Send a link, or export a file",
+      "subtitle": "People who'll look and comment get a link that stays current; a print shop, Instagram or a client without an account gets a file"
+    },
+    {
+      "id": "handoff",
+      "title": "Handoff to production — for a developer",
+      "subtitle": "Menu › File › Handoff to production ⇧⌘H · needs Can edit · a command that runs on any developer's machine · AI not connected, offline, a review with blockers"
+    },
+    {
+      "id": "edges",
+      "title": "Edge cases",
+      "subtitle": "Offline · the whole project, on purpose · a QR code past the safe margin and a font that won't embed · a viewer exporting · AI still changing the artboard"
+    },
+    {
+      "id": "advanced",
+      "title": "Advanced, inside the sheet",
+      "subtitle": "Exact scale or dpi, colour profile, print and video settings, where it renders, file-name tokens, and the same export as a command"
+    }
+  ],
+  "artboards": [
+    {
+      "id": "ex-social",
+      "label": "1 · A social post → PNG or JPG",
+      "note": "A post exports at Instagram's own size — 1×, PNG; Scope on top shows every count, so widening is one click."
+    },
+    {
+      "id": "ex-print",
+      "label": "2 · A print artboard → Print PDF, on paper",
+      "note": "The preview is the PDF: crop marks draw in, the bleed is tinted, the back sits under the front as page 2."
+    },
+    {
+      "id": "ex-web",
+      "label": "3 · A web artboard → full page, or PDF",
+      "note": "Image takes the full page; Code isn't a format — a link at the foot opens Handoff to production."
+    },
+    {
+      "id": "ex-video",
+      "label": "4 · A video artboard → MP4, GIF or sound, with a filmstrip",
+      "note": "A filmstrip of the whole edit, both formats ticked, captions, and where it renders — 4K suggests the cloud."
+    },
+    {
+      "id": "ex-inspector",
+      "label": "5 · No sheet at all — the inspector's export row, Copy as PNG",
+      "note": "The artboard keeps its own export sizes in the inspector; ⇧⌘C copies it as a PNG."
+    },
+    {
+      "id": "ex-formats",
+      "label": "6 · Other… — every format, one list away",
+      "note": "Every format grouped by what you're making; the ones that don't fit say why. The ways in."
+    },
+    {
+      "id": "ex-canvas",
+      "label": "7 · ⇧⌘E with nothing selected → this canvas",
+      "note": "Nothing selected exports this canvas — Combine-kampan's 21 artboards by kind (19 fixed size, 2 print), never the whole project."
+    },
+    {
+      "id": "ex-batch-pick",
+      "label": "8 · Five artboards, two kinds",
+      "note": "Four fixed-size posts and a score-card print sheet on Combine-kampan — one sheet, a group per kind, one button."
+    },
+    {
+      "id": "ex-batch",
+      "label": "9 · Export a folder — grouped by kind",
+      "note": "Right-click social › Export folder… opens Scope on Folder; fixed size and video each get their own default."
+    },
+    {
+      "id": "ex-progress",
+      "label": "10 · Rendering in the cloud — keep working",
+      "note": "The Exports icon in the Share cluster carries a ring; each row says where it runs."
+    },
+    {
+      "id": "ex-states",
+      "label": "11 · Cloud or this Mac, done, partly done",
+      "note": "Done = Show in Finder; a partial export says 114 of 115 and retries only Recap."
+    },
+    {
+      "id": "ex-history",
+      "label": "12 · Exports panel — again, open folder, retry the one that failed",
+      "note": "The last 20 exports: social · 114 of 115 with Retry Recap, Show in Finder, Export again."
+    },
+    {
+      "id": "ex-share-vs",
+      "label": "13 · Share link vs Export",
+      "note": "Export offers a link once when the people are already in the project; Share is 10's sheet; Portfolio 2026 is local."
+    },
+    {
+      "id": "ex-handoff",
+      "label": "14 · ⇧⌘H — pick where the code goes",
+      "note": "Targets from the project settings (web registry, React Native, Lottie); the last review shown in words."
+    },
+    {
+      "id": "ex-handoff-ready",
+      "label": "15 · Ready — one thing to copy; Advanced shows the rest",
+      "note": "The web command fetches Pricing from Studio site's cloud address; the file:// form is under Advanced, This Mac only."
+    },
+    {
+      "id": "ex-handoff-edges",
+      "label": "16 · Handoff without AI, offline, or with review blockers",
+      "note": "Connect sheet on first use, queued offline, blockers travel with the code as notes."
+    },
+    {
+      "id": "ex-offline",
+      "label": "17 · Offline — this Mac renders, the cloud waits",
+      "note": "The same video rows as online; renders on this Mac now, or waits for the cloud."
+    },
+    {
+      "id": "ex-huge",
+      "label": "18 · Whole project, chosen in Scope — 93 canvases",
+      "note": "524 artboards by kind, each part saying where it runs and how long; Project ZIP is the alternative."
+    },
+    {
+      "id": "ex-print-warn",
+      "label": "19 · Past the safe margin; a font that won't embed",
+      "note": "The QR code 2 mm inside the cut is ringed on the paper; an .otf that can't embed becomes shapes. Export still exports."
+    },
+    {
+      "id": "ex-edges",
+      "label": "20 · A viewer exports; AI is still changing it",
+      "note": "Viewers may export (a copy changes nothing); handoff needs Can edit; mid-AI, choose 14:05 or wait for AI."
+    },
+    {
+      "id": "ex-advanced",
+      "label": "21 · Export › Advanced, per kind",
+      "note": "Scale or dpi (one wins), colour profile, PDF text and marks, frame rate and codec, where it renders, file-name tokens, the commands."
+    }
+  ],
+  "created": "2026-10-06T00:00:00Z",
+  "last_modified": "2026-10-06"
+}

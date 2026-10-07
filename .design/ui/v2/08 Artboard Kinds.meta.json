@@ -1,0 +1,144 @@
+{
+  "title": "08 Artboard Kinds",
+  "subtitle": "Fixed size (App, Social), web page, print and video artboards — Alligators brand",
+  "brief": "artboard kinds print/web/digital/video atd. — a visual size picker grouped by what you're making (App · Web page · Social · Print · Video) over four kinds (Fixed size · Web page · Print · Video), web pages that grow and duplicate at other widths, fixed-size social with safe zones, print in mm with bleed/trim/safe-margin guides, video with a timeline, and the edge cases of a real mixed canvas (Alligators Combine-kampan: 21 artboards, 19 fixed size + 2 print; LetakA6: 4 print artboards).",
+  "platform": "desktop",
+  "designSystem": "maude-v2",
+  "opt_out_scope": "palette",
+  "sections": [
+    {
+      "id": "new",
+      "title": "A new artboard — pick what you're making",
+      "subtitle": "F over empty canvas opens the size picker: App, Web page, Social, Print, Video. The tile you pick sets the kind."
+    },
+    {
+      "id": "web",
+      "title": "Web page — grows as you add",
+      "subtitle": "Flow layout, height that fits content, the same page at 1440, 834 and 390 side by side"
+    },
+    {
+      "id": "social",
+      "title": "Fixed size — exact px, placed freely",
+      "subtitle": "Alligators matchday post 1:1 and story 9:16 (still); Instagram's own UI shown as safe zones"
+    },
+    {
+      "id": "print",
+      "title": "Print — paper, millimetres, bleed",
+      "subtitle": "Alligators A6 flyer, front and back; guides from View; the flyer next to its web page"
+    },
+    {
+      "id": "video",
+      "title": "Video — select it, the timeline comes",
+      "subtitle": "Duration on the label, a poster frame, and a hint of the timeline (full editing: 07 Video Editing)"
+    },
+    {
+      "id": "mixed",
+      "title": "A canvas with mixed kinds",
+      "subtitle": "Combine-kampan as it is: 21 artboards, 19 fixed size + 2 print — fit, filter, select across kinds, change a kind, warnings"
+    },
+    {
+      "id": "advanced",
+      "title": "Advanced, and the real thing",
+      "subtitle": "Exact px and mm, resolution, colour, guide definitions, the kind in code — then real kind= artboards from canvas-lib"
+    }
+  ],
+  "artboards": [
+    {
+      "id": "ak-picker",
+      "label": "1 · F — pick what you're making",
+      "note": "F over empty canvas opens a tile picker above the toolbar; the tile sets the kind; a dashed outline shows where it lands. With an artboard selected F draws a frame; F + drag skips the picker."
+    },
+    {
+      "id": "ak-picker-full",
+      "label": "2 · All sizes, the four kinds, a custom print size",
+      "note": "Three common sizes per group, All N opens the rest; badges say Fixed size / grows / mm with bleed / timeline; the legend says once that App and Social are both Fixed size."
+    },
+    {
+      "id": "ak-web-hug",
+      "label": "3 · A web page grows with its content",
+      "note": "A web artboard stacks content and its height fits it — adding a section makes the page longer; Fixed height is one switch away."
+    },
+    {
+      "id": "ak-web-widths",
+      "label": "4 · Duplicate at another width",
+      "note": "Desktop, Tablet and Mobile side by side; Mobile reflows longest; the too-wide strip shows as a label mark + an inspector row."
+    },
+    {
+      "id": "ak-social",
+      "label": "5 · Matchday post and story",
+      "note": "Fixed-size artboards keep exact px with freely placed content; the story shows Instagram's safe zones."
+    },
+    {
+      "id": "ak-safe-zones",
+      "label": "6 · Safe zones, close up",
+      "note": "Story, Reels and profile-grid crops drawn on the artboard and never exported — replacing Alligators' hand-made check artboard."
+    },
+    {
+      "id": "ak-print-letak",
+      "label": "7 · A6 flyer — the inspector speaks mm",
+      "note": "Paper, mm size, orientation, bleed, safe margin, guides and a plain colour line (RGB — the print shop converts to CMYK)."
+    },
+    {
+      "id": "ak-print-view",
+      "label": "8 · Print guides from View, next to the web page",
+      "note": "Menu › View › Advanced › Print guides (ticked) shows bleed, trim and margin on all four flyers; the web version sits beside them."
+    },
+    {
+      "id": "ak-video",
+      "label": "9 · A video artboard summons the timeline",
+      "note": "Selecting a video artboard brings 07's compact timeline, sliding out of its bottom edge; the length is on the label; the inspector is the shared video row set."
+    },
+    {
+      "id": "ak-mixed-fit",
+      "label": "10 · ⌘0 fits all 21; Layers filters by kind",
+      "note": "The real Combine-kampan at fit: 19 fixed size + 2 print sheets; the Print chip in Layers dims everything else."
+    },
+    {
+      "id": "ak-mixed-filter",
+      "label": "11 · Canvases filtered by kind, across 93",
+      "note": "The same chips filter the Canvases panel; each hit shows its folder and how many artboards match."
+    },
+    {
+      "id": "ak-mixed-select",
+      "label": "12 · Two kinds selected",
+      "note": "With a fixed-size post and a print sheet selected, the inspector keeps only what they share."
+    },
+    {
+      "id": "ak-convert",
+      "label": "13 · Post 4:5 → A6 print",
+      "note": "Changing kind asks first: what converts, where the extra height goes, what to check; the A6 is made from a copy."
+    },
+    {
+      "id": "ak-convert-after",
+      "label": "14 · After — the post stays, the A6 copy sits beside it",
+      "note": "The signature moment, drawn to scale at 40 %: the untouched post beside its A6 copy (about 40 % of its width) with Ink fill, bleed and margin, and the two checks at the top of the inspector."
+    },
+    {
+      "id": "ak-warnings",
+      "label": "15 · Warnings — one place, one verb",
+      "note": "Crosses the cut, longer than one export (2 min / 3600 frames), 1 px off the paper size — each a label mark + an inspector row with one verb."
+    },
+    {
+      "id": "ak-advanced",
+      "label": "16 · Advanced — exact values and the code",
+      "note": "Exact px and mm, resolution (300 dpi print PDF is a v2 default), the colour note (RGB — the print shop converts to CMYK), column guides, Look and layout (as 06 · ad-inspector) and the artboard as code."
+    },
+    {
+      "id": "ak-real-about",
+      "label": "17 · About the next two",
+      "note": "Explains that the next two artboards are real canvas-lib artboards, not drawings."
+    },
+    {
+      "id": "ak-real-print",
+      "label": "18 · A · přední (FLAG) — real print artboard",
+      "note": "A real kind=\"print\" artboard with print={{ paper: \"a6\", bleedMm: 3 }} at the resolved 419 × 581 px."
+    },
+    {
+      "id": "ak-real-web",
+      "label": "19 · Nábor FLAG — real web artboard (hug)",
+      "note": "A real kind=\"web\" artboard at 834 px without fixed — its height grows with the page."
+    }
+  ],
+  "created": "2026-10-06T00:00:00Z",
+  "last_modified": "2026-10-06"
+}

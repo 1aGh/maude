@@ -1,0 +1,218 @@
+/* components-tooltips — demonstration-specific styles (anatomy lives in _components.css). */
+
+/* ─── The three kinds ─────────────────────────────────────────────────── */
+/* Ink tooltip: inverted, so it never reads as another island. */
+.tt-tip {
+  position: relative;
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  width: max-content; padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--fg-0); color: var(--bg-1);
+  font-size: var(--type-xs); font-weight: var(--w-medium); line-height: var(--lh-xs);
+  box-shadow: var(--shadow-md);
+}
+.tt-kbd { min-width: 18px; height: 18px; background: color-mix(in oklch, var(--bg-1) 16%, transparent); color: var(--bg-1); box-shadow: none; }
+
+/* Rich tooltip: the popover plane. */
+.tt-rich {
+  position: relative;
+  display: flex; flex-direction: column; gap: var(--space-1);
+  width: 232px; padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--bg-2); color: var(--fg-1);
+  box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge);
+  font-size: var(--type-sm); line-height: var(--lh-sm);
+}
+.tt-rich-hd { display: flex; align-items: center; justify-content: space-between; color: var(--fg-0); }
+.tt-rich-hd strong { font-size: var(--type-sm); }
+.tt-rich-swatches { display: flex; gap: var(--space-1); margin-top: var(--space-1); }
+.tt-sw { width: 18px; height: 18px; border-radius: var(--radius-xs); box-shadow: var(--shadow-sm); }
+.tt-sw--yellow { background: var(--object-yellow); } .tt-sw--green { background: var(--object-green); }
+.tt-sw--lilac { background: var(--object-lilac); } .tt-sw--coral { background: var(--object-coral); } .tt-sw--sky { background: var(--object-sky); }
+
+/* First-use hint: a small sheet with a pointer, at the control it's about. */
+.tt-hint {
+  position: relative;
+  display: flex; flex-direction: column; gap: var(--space-2);
+  width: 248px; padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--bg-2); color: var(--fg-1);
+  box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge);
+  font-size: var(--type-sm); line-height: var(--lh-sm);
+}
+.tt-hint strong { color: var(--fg-0); font-family: var(--font-rounded); font-size: var(--type-base); }
+.tt-hint .kbd { margin: 0 1px; }
+.tt-hint-ft { display: flex; align-items: center; justify-content: space-between; }
+.tt-hint-ft:only-child, .tt-hint-ft:last-child:not(:has(.tt-hint-step)) { justify-content: flex-end; }
+.tt-hint-step { font-size: var(--type-xs); color: var(--fg-2); }
+.tt-hint-arrow {
+  position: absolute; top: -5px; right: 54px; width: 10px; height: 10px; rotate: 45deg;
+  background: var(--bg-2); border-radius: 2px; box-shadow: -0.5px -0.5px 0 0 var(--island-edge);
+}
+
+/* The control a hint points at gets a soft azure ring (focus family), breathing slowly. */
+.tt-target { position: relative; }
+.tt-target::after {
+  content: ""; position: absolute; inset: -3px; border-radius: calc(var(--radius-md) + 3px);
+  box-shadow: 0 0 0 3px var(--accent-tint), inset 0 0 0 1px var(--focus-ring);
+  animation: mv2-soft 900ms var(--ease-in-out) infinite alternate;
+}
+@media (prefers-reduced-motion: reduce) { .tt-target::after { animation: none; } }
+
+/* Pointers. */
+.tt-arrow { position: absolute; width: 8px; height: 8px; rotate: 45deg; background: var(--fg-0); border-radius: 1px; }
+.tt-arrow--down { bottom: -3px; left: calc(50% - 4px); }
+.tt-arrow--left { left: -3px; top: calc(50% - 4px); }
+.tt-arrow--card { width: 10px; height: 10px; bottom: -5px; left: calc(50% - 5px); background: var(--bg-2); box-shadow: 0.5px 0.5px 0 0 var(--island-edge); }
+
+/* ─── Hero ─────────────────────────────────────────────────────────────── */
+.tt-hero { height: 540px; margin-bottom: var(--space-4); }
+.tt-board { position: absolute; left: 28%; top: 72px; width: 300px; background: var(--bg-2); border-radius: var(--radius-sm); box-shadow: var(--shadow-md); overflow: hidden; }
+.tt-board-img {
+  height: 150px; background: var(--object-green);
+  background-image: radial-gradient(circle at 30% 60%, var(--object-yellow) 0 18%, transparent 19%), linear-gradient(150deg, var(--object-green), var(--object-sky));
+}
+.tt-board-body { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); }
+.tt-board-body strong { font-family: var(--font-display); font-size: var(--type-lg); letter-spacing: var(--tracking-tight); }
+.tt-board-body span { font-size: var(--type-sm); color: var(--fg-2); }
+.tt-st1 { position: absolute; left: calc(28% + 324px); top: 96px; rotate: 2.4deg; }
+
+.tt-pill { position: absolute; left: var(--space-4); top: var(--space-4); display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2); font-size: var(--type-sm); font-weight: var(--w-semibold); z-index: 4; }
+.tt-caret { color: var(--fg-2); font-weight: var(--w-regular); }
+.tt-pill-sep { color: var(--fg-2); font-weight: var(--w-regular); }
+.tt-ai-fold { position: absolute; right: var(--space-4); bottom: var(--space-4); padding: var(--space-1); border-radius: var(--radius-lg); z-index: 4; }
+.tt-tip, .tt-zoom-v { font-variant-numeric: tabular-nums; }
+.tt-tr { position: absolute; right: var(--space-4); top: var(--space-4); display: flex; gap: var(--space-1); padding: var(--space-1); border-radius: var(--radius-lg); z-index: 4; }
+.tt-hint--hero { position: absolute; right: var(--space-4); top: 66px; z-index: 5; }
+.tt-hint--hero .tt-hint-arrow { right: 79px; }
+
+.tt-dock { position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); z-index: 4; }
+.tt-hover { background: var(--bg-3); }
+.tt-ai:hover { background: var(--spark-muted); }
+.tt-rich--hero { position: absolute; left: calc(50% + 88px); bottom: 84px; translate: -50% 0; z-index: 5; }
+
+.tt-zoom { position: absolute; left: var(--space-4); bottom: var(--space-4); display: flex; align-items: center; padding: var(--space-1); border-radius: var(--radius-lg); z-index: 4; }
+.tt-zoom-v {
+  appearance: none; border: 0; background: transparent; font: inherit; cursor: pointer;
+  width: 48px; height: 32px; border-radius: var(--radius-md);
+  font-size: var(--type-sm); font-variant-numeric: tabular-nums; color: var(--fg-0);
+}
+.tt-zoom-v.tt-hover { background: var(--bg-3); }
+.tt-tip--hero { position: absolute; left: 76px; bottom: 64px; translate: -50% 0; z-index: 5; }
+
+.tt-tag {
+  display: inline-grid; place-items: center; flex: none;
+  width: 20px; height: 20px; border-radius: var(--radius-pill);
+  background: var(--fg-0); color: var(--bg-1); font-size: var(--type-xs); font-weight: var(--w-semibold);
+}
+.tt-hero .tt-tag { position: absolute; z-index: 6; box-shadow: 0 0 0 3px var(--canvas-bg); }
+.tt-tag--1 { right: 276px; top: 74px; }
+.tt-tag--2 { left: calc(50% - 46px); bottom: 196px; }
+.tt-tag--3 { left: 22px; bottom: 98px; }
+
+.tt-hero-key { list-style: none; margin: 0 0 var(--space-6); padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
+.tt-hero-key li { display: flex; gap: var(--space-2); font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.tt-hero-key strong { color: var(--fg-0); }
+
+/* ─── Kinds ───────────────────────────────────────────────────────────── */
+.tt-kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); margin: 0 0 var(--space-6); }
+.tt-kind { border-radius: var(--radius-lg); overflow: hidden; background: var(--bg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default); }
+.tt-kind-demo {
+  display: grid; place-items: center; min-height: 168px; padding: var(--space-4);
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+}
+.tt-kind-meta { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3) var(--space-4) var(--space-4); font-size: var(--type-sm); color: var(--fg-1); }
+.tt-kind-meta strong { font-size: var(--type-base); color: var(--fg-0); }
+.tt-kind-meta dl { margin: var(--space-2) 0 0; display: grid; gap: 2px; }
+.tt-kind-meta dl div { display: grid; grid-template-columns: 48px 1fr; font-size: var(--type-xs); }
+.tt-kind-meta dt { color: var(--fg-2); }
+.tt-kind-meta dd { margin: 0; color: var(--fg-0); }
+
+/* ─── Timing ──────────────────────────────────────────────────────────── */
+.tt-time { padding: var(--space-5); margin: 0 0 var(--space-6); border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default); display: grid; gap: var(--space-3); }
+.tt-time-track { position: relative; height: 20px; margin-left: 136px; border-bottom: 1px solid var(--border-default); }
+.tt-time-tick { position: absolute; bottom: var(--space-1); translate: -50% 0; font-size: var(--type-xs); color: var(--fg-2); white-space: nowrap; }
+.tt-time-tick:first-child { translate: 0 0; }
+.tt-time-tick:last-child { translate: -100% 0; }
+.tt-lane { display: grid; grid-template-columns: 120px 1fr; gap: var(--space-4); align-items: center; }
+.tt-lane-l { font-size: var(--type-sm); color: var(--fg-1); font-weight: var(--w-medium); }
+.tt-lane-bar { position: relative; height: 28px; }
+.tt-seg {
+  position: absolute; top: 0; bottom: 0; display: flex; align-items: center; padding: 0 var(--space-2);
+  border-radius: var(--radius-sm); font-size: var(--type-xs); white-space: nowrap; overflow: hidden;
+}
+.tt-seg--wait { background: var(--bg-3); color: var(--fg-2); box-shadow: inset 0 0 0 1px var(--border-subtle); }
+.tt-seg--show { background: var(--fg-0); color: var(--bg-1); font-weight: var(--w-medium); }
+.tt-seg--rich { background: var(--bg-2); color: var(--fg-0); font-weight: var(--w-medium); box-shadow: var(--shadow-md), inset 0 0 0 0.5px var(--island-edge); }
+.tt-seg--gone { background: var(--bg-4); color: var(--fg-1); }
+.tt-lane-note { position: absolute; left: calc(13% + var(--space-3)); top: 50%; translate: 0 -50%; font-size: var(--type-xs); color: var(--fg-2); }
+
+/* ─── Live ────────────────────────────────────────────────────────────── */
+.tt-live { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(240px, 1fr); gap: var(--space-4); margin: 0 0 var(--space-6); }
+.tt-live-stage { height: 300px; margin: 0; }
+.tt-live-dock { position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); }
+.tt-live-side { position: absolute; left: var(--space-4); top: var(--space-4); display: flex; flex-direction: column; gap: 2px; padding: var(--space-1); border-radius: var(--radius-lg); }
+.tt-live-item { position: relative; display: inline-flex; }
+.tt-tip--live, .tt-tip--right {
+  position: absolute; z-index: 5; pointer-events: none;
+  opacity: 0; transition: opacity var(--dur-soft) var(--ease-out);
+}
+.tt-tip--live { bottom: calc(100% + var(--space-3)); left: 50%; translate: -50% 0; }
+.tt-tip--right { left: calc(100% + var(--space-3)); top: 50%; translate: 0 -50%; }
+/* Appear after a pause; disappear at once. */
+.tt-live-item:hover .tt-tip, .tt-live-item:focus-within .tt-tip { opacity: 1; transition-delay: 400ms; }
+
+.tt-place { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4); border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default); }
+.tt-place strong { font-size: var(--type-base); }
+.specimen .tt-place p { margin: 0; font-size: var(--type-sm); line-height: var(--lh-sm); }
+.tt-place-map { position: relative; flex: 1; min-height: 150px; border-radius: var(--radius-md); background: var(--bg-3); }
+.tt-pm { position: absolute; font-size: var(--type-xs); color: var(--fg-1); white-space: nowrap; padding: 2px var(--space-2); border-radius: var(--radius-sm); background: var(--bg-2); box-shadow: var(--shadow-sm); }
+.tt-pm--top { top: var(--space-2); left: 50%; translate: -50% 0; }
+.tt-pm--dock { bottom: var(--space-2); left: 50%; translate: -50% 0; }
+.tt-pm--left { left: var(--space-2); top: 50%; translate: 0 -50%; }
+.tt-pm--right { right: var(--space-2); top: 50%; translate: 0 -50%; }
+.tt-pm-canvas { position: absolute; left: 50%; top: 50%; translate: -50% -50%; font-family: var(--font-rounded); font-size: var(--type-sm); color: var(--fg-2); }
+
+/* ─── Hints vs tours ──────────────────────────────────────────────────── */
+.tt-compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); margin: 0 0 var(--space-4); }
+.tt-case { margin: 0; }
+.tt-case figcaption { font-size: var(--type-sm); color: var(--fg-1); line-height: var(--lh-sm); }
+.tt-case figcaption strong { margin-right: var(--space-1); }
+.tt-ok { color: var(--status-success-text); }
+.tt-bad { color: var(--status-error-text); }
+.tt-mini { height: 260px; margin: 0 0 var(--space-3); }
+.tt-mini-board { position: absolute; left: var(--space-5); top: var(--space-5); width: 180px; height: 150px; border-radius: var(--radius-sm); background: var(--bg-2); box-shadow: var(--shadow-md); }
+.tt-mini-tr { position: absolute; right: var(--space-4); top: var(--space-4); padding: var(--space-1); border-radius: var(--radius-lg); }
+.tt-hint--mini { position: absolute; right: var(--space-4); top: 64px; width: 230px; }
+.tt-hint--mini .tt-hint-arrow { right: 16px; }
+
+.tt-tour-veil { position: absolute; inset: 0; background: color-mix(in oklch, var(--fg-0) 40%, transparent); }
+.tt-tour {
+  position: absolute; left: 50%; top: 50%; translate: -50% -50%; width: 280px;
+  display: flex; flex-direction: column; gap: var(--space-1);
+  padding: var(--space-4); border-radius: var(--radius-md); background: var(--bg-2); box-shadow: var(--shadow-lg);
+  font-size: var(--type-sm); color: var(--fg-1);
+}
+.tt-tour strong { font-size: var(--type-md); color: var(--fg-0); }
+.tt-tour-step { font-size: var(--type-xs); color: var(--fg-2); }
+.tt-tour-ft { display: flex; gap: var(--space-3); justify-content: flex-end; align-items: center; margin-top: var(--space-2); font-weight: var(--w-semibold); }
+.tt-tour-next { padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); background: var(--accent); color: var(--accent-fg); }
+
+.tt-hint-rules { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4); margin: 0 0 var(--space-6); }
+.tt-hint-rules div { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--type-sm); color: var(--fg-1); line-height: var(--lh-sm); }
+.tt-hint-rules strong { color: var(--fg-0); }
+
+/* ─── Words ───────────────────────────────────────────────────────────── */
+.tt-words { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3) var(--space-5); }
+.tt-word { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default); }
+.tt-word-kill { font-size: var(--type-sm); color: var(--fg-2); text-decoration: line-through; text-decoration-color: var(--status-error); }
+
+@media (max-width: 900px) {
+  .tt-kinds, .tt-hero-key, .tt-live, .tt-compare, .tt-words { grid-template-columns: 1fr; }
+  .tt-hint-rules { grid-template-columns: 1fr 1fr; }
+}
+
+/* Captions stay at a readable measure (SF's ch runs wide). */
+.specimen .tt-case figcaption, .specimen .tt-place p, .tt-hero-key li > span:last-child, .tt-hint-rules span { max-width: 60ch; }

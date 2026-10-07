@@ -1,0 +1,21 @@
+# Maude v2 — canvases in practice · plan
+
+Folder `.design/ui/v2/` · DS maude-v2 · shared brief `v2-canvases-brief.md` · shared chrome `ui/v2/_kit.tsx`.
+
+| # | Canvas | Answers | Key edge cases |
+| --- | --- | --- | --- |
+| 01 | Create Flow | základní flow tvorby a práce s canvasem | first canvas in 2 min (Studio site) · add/duplicate artboards · finding a canvas among 93 (Alligators folders, junk files) · co-editing with Tereza + AI · render error · offline create |
+| 02 | Onboarding | onboarding, cloud.maude.sh first, local project, advanced | install → sign in to cloud.maude.sh → team projects (Alligators already there) · invite link opened first · "Just a local project" · move local → cloud later · Advanced: self-hosted hub URL, existing folder/repo, CLI + Claude Code plugin · offline at first launch · signed in to two accounts |
+| 03 | AI Chat | jak používat AI chat + víc sessions zároveň | simple mode prompt w/ selection chip · suggestions · result describes itself · undo AI change · 2–3 sessions running (different artboards / same artboard conflict / other project tab / other window) · queue + stop · AI asks permission · AI setup missing / signed out / quota · long run in background → toast · history of conversations · Advanced: model, tools, raw log |
+| 04 | Modes | edit / preview / present / comment … | Edit (default) · Preview (interact with a prototype, links between artboards) · Present (full-screen artboards in order, presenter notes, keyboard) · Comment mode (pins, threads, resolve) · Inspect/handoff (read-only specs for a developer) · Draw/annotate (whiteboard) · switching modes; what stays, what hides; mode on a print or video artboard |
+| 05 | Empty States | empty states | brand-new project · empty canvas · empty folder · no search results · no comments · no version history yet · AI not set up · no exports yet · empty timeline · offline with nothing cached · trash empty · a deleted canvas restored (nothing is deleted) |
+| 06 | Advanced | advanced mode | Advanced at the foot of each panel (inspector raw CSS, AI chat model/tools/log, Canvases: hidden files + file names, Share: hub address/roles) · Settings › Advanced · Menu › Diagnostics (+ Advanced) · Version history › branches · Code view of a canvas · CLI / Claude Code / self-hosting entry points · "Dock panels to the side" |
+| 07 | Video Editing | video editing | select video artboard → timeline appears · trim/split/reorder clips · captions · music bed + beat · AI "make a 30 s recap from these clips" (Alligators footage) · 9:16 + 16:9 variants of one video · render progress / failure · export MP4 |
+| 08 | Artboard Kinds | print/web/digital/video | New artboard picker (kinds + presets) · web (breakpoints, hug height, duplicate at width) · digital (social posts IG 4:5, story 9:16, OG) · print (A6 front/back, bleed/trim/margin guides, paper picker, CMYK note) · video · mixed-kind canvas (Combine-kampan 15 artboards) · converting a kind |
+| 09 | Export | export | Export sheet per kind (PNG/JPG/SVG/PDF; print PDF w/ bleed + crop marks; MP4/GIF; code/handoff) · batch export of a folder of artboards · export progress + history · export failure · Share link vs export |
+| 10 | Share & Collaboration | (extra) | Share sheet (invite people, link, roles) · presence (faces, cursors, AI cursor) · comments threads · follow someone · sync status words · conflict when both edit offline · local project shared → "move to cloud" |
+| 11 | Projects & Navigation | (extra) | project tabs (two projects + Home tab) · two accounts · switching · Home at scale (recent canvases, Alligators 93) · ⌘K across projects · folders · Version history (restore) · Trash |
+| 12 | Import & Assets | (extra) | drag photos in · asset library (247 assets, footage, music) · import from Figma · import a brand (logo → palette) · photo edit (background removal) · AI-generated image · broken/missing asset |
+| 13 | Errors & Recovery | (extra) | offline · sync conflict · AI failure mid-run · canvas render error · server down → Diagnostics · crash recovery · disk full · version restore |
+
+Waves (≤4 concurrent agents): W0 kit + 01 → W1 02, 03, 04, 08 → W2 05, 06, 07, 09 → W3 10, 11, 12, 13 → critic pass (signature + design per canvas) → index board.

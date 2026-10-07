@@ -1,0 +1,234 @@
+/* type-scale — demonstration-specific styles (anatomy lives in _components.css). */
+
+/* ─── Size pins ──────────────────────────────────────────────────────────── */
+.ts-sized { position: relative; display: inline-block; max-width: 100%; }
+.ts-tag {
+  position: absolute;
+  z-index: 6;
+  white-space: nowrap;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--fg-0);
+  color: var(--bg-1);
+  font-family: var(--font-body);
+  font-size: var(--type-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--w-semibold);
+  letter-spacing: 0;
+  pointer-events: none;
+  box-shadow: var(--shadow-sm);
+}
+.ts-tag--right { left: 100%; top: 50%; transform: translate(var(--space-2), -50%); }
+.ts-tag--top { left: 0; bottom: 100%; transform: translateY(calc(-1 * var(--space-1))); }
+.ts-tag--top-end { right: 0; bottom: 100%; transform: translateY(calc(-1 * var(--space-2))); }
+.ts-tag--bottom-end { right: calc(-1 * var(--space-3)); top: 100%; transform: translateY(var(--space-3)); }
+
+.ts-hero-hd { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); }
+.ts-switch-label { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--type-sm); color: var(--fg-1); cursor: pointer; }
+
+/* ─── Hero stage ─────────────────────────────────────────────────────────── */
+.ts-hero { height: 500px; margin-bottom: var(--space-3); }
+
+.ts-artboard {
+  position: absolute; left: 31%; top: 92px; width: 300px;
+  background: var(--bg-2); border-radius: var(--radius-sm); box-shadow: var(--shadow-md);
+}
+.ts-ab-label { position: absolute; left: 0; top: calc(-1 * var(--space-5)); font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+.ts-ab-img {
+  height: 150px; border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  background: var(--object-sky);
+  background-image: radial-gradient(circle at 72% 34%, var(--object-yellow) 0 20%, transparent 21%);
+}
+.ts-ab-body { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); }
+.ts-ab-h { font-family: var(--font-display); font-size: var(--type-lg); line-height: var(--lh-lg); font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); color: var(--fg-0); }
+.ts-ab-p { font-size: var(--type-sm); color: var(--fg-2); }
+
+.ts-sticky { position: absolute; left: calc(31% + 324px); top: 96px; rotate: 2.6deg; }
+
+.ts-comment {
+  position: absolute; left: calc(31% + 150px); top: 300px;
+  display: flex; align-items: flex-start; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-2);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-xs);
+}
+.ts-comment > div { display: flex; flex-direction: column; }
+.ts-avatar {
+  display: grid; place-items: center; width: 22px; height: 22px; flex: none;
+  border-radius: var(--radius-pill); background: var(--bg-4); color: var(--fg-0);
+  font-size: var(--type-xs); font-weight: var(--w-semibold);
+}
+.ts-comment-name { font-size: var(--type-xs); line-height: var(--lh-xs); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ts-comment-body { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+
+.ts-pill {
+  position: absolute; left: var(--space-4); top: var(--space-4); z-index: 4;
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+  font-size: var(--type-sm); font-weight: var(--w-semibold);
+}
+.ts-caret { width: 14px; height: 14px; color: var(--fg-2); }
+.ts-list { position: absolute; left: var(--space-4); top: 68px; width: 200px; z-index: 4; }
+.ts-tr { position: absolute; right: var(--space-4); top: var(--space-4); display: flex; gap: var(--space-1); padding: var(--space-1); z-index: 4; }
+
+/* The AI chat panel sits over a busy canvas, so it takes the stronger frost. */
+.ts-ai { position: absolute; right: var(--space-4); bottom: 92px; width: 280px; z-index: 4; background: var(--island-bg-strong); }
+.ts-ai-hd { display: flex; align-items: center; gap: var(--space-1); font-family: var(--font-rounded); font-weight: var(--w-semibold); font-size: var(--type-sm); margin-bottom: var(--space-2); }
+.ts-ai-msg {
+  margin: 0 0 var(--space-2); max-width: none;
+  font-size: var(--type-base); line-height: var(--lh-base); color: var(--fg-0);
+  background: var(--bg-3); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3);
+}
+.specimen .ts-ai-msg { color: var(--fg-0); }
+
+.ts-dock { position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); z-index: 4; }
+/* The tool you're holding is muted azure — Share stays the one solid azure surface. */
+.ts-dock .icon-btn[aria-pressed="true"] { background: var(--accent-muted); color: var(--accent-text); }
+.ts-dock-hot { background: var(--bg-3); }
+.ts-tool { position: relative; display: inline-grid; }
+.ts-tip {
+  position: absolute; left: 50%; bottom: calc(100% + var(--space-3)); z-index: 5; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm); background: var(--fg-0); color: var(--bg-1);
+  font-size: var(--type-xs); line-height: var(--lh-xs); font-weight: var(--w-medium);
+  transform: translateX(-50%);
+}
+.ts-tip .ts-tag { background: var(--bg-1); color: var(--fg-0); }
+
+.ts-th-coral { background: var(--object-coral); }
+.ts-th-sky { background: var(--object-sky); }
+.ts-th-yellow { background: var(--object-yellow); }
+.ts-th-green { background: var(--object-green); }
+.ts-th-lilac { background: var(--object-lilac); }
+
+.ts-caption { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-2); margin: 0 0 var(--space-6); max-width: 60ch; }
+.specimen .ts-caption { color: var(--fg-2); }
+
+/* ─── Big sizes: Home + empty canvas ─────────────────────────────────────── */
+.ts-big { display: grid; grid-template-columns: 1.35fr 1fr; gap: var(--space-4); margin: 0 0 var(--space-6); }
+.ts-home, .ts-empty {
+  border-radius: var(--radius-lg);
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+  padding: var(--space-6);
+}
+.ts-home { display: flex; flex-direction: column; }
+/* The Home question — CONTRACT §5: 3xl · Rounded · semibold · tracking 0 (Rounded is never tightened). */
+.ts-home-spark { display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--radius-lg); background: var(--spark-muted); margin-bottom: var(--space-3); }
+.ts-home-h {
+  font-family: var(--font-rounded); font-size: var(--type-3xl); line-height: var(--lh-3xl);
+  font-weight: var(--w-semibold); letter-spacing: 0; color: var(--fg-0);
+  margin-bottom: var(--space-6);
+}
+.ts-home-sub {
+  font-family: var(--font-display); font-size: var(--type-xl); line-height: var(--lh-xl);
+  font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); color: var(--fg-0); margin-bottom: var(--space-4);
+}
+.ts-cards { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.ts-card { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2); border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-subtle); }
+.ts-card-img { height: 72px; border-radius: var(--radius-md); margin-bottom: var(--space-2); }
+.ts-card-n { font-family: var(--font-display); font-size: var(--type-lg); line-height: var(--lh-lg); font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); padding: 0 var(--space-1); }
+.ts-card-m { font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); padding: 0 var(--space-1) var(--space-1); font-variant-numeric: tabular-nums; }
+
+.ts-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.ts-empty-spark { display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--radius-lg); background: var(--spark-muted); margin-bottom: var(--space-4); }
+.ts-empty-h { font-family: var(--font-rounded); font-size: var(--type-2xl); line-height: var(--lh-2xl); font-weight: var(--w-semibold); color: var(--fg-0); margin-bottom: var(--space-2); }
+.ts-empty-p { font-size: var(--type-md); line-height: var(--lh-md); color: var(--fg-1); max-width: 26ch; margin-bottom: var(--space-5); }
+.ts-empty-actions { display: flex; gap: var(--space-2); }
+
+/* ─── Ladder ─────────────────────────────────────────────────────────────── */
+.ts-ladder { display: flex; flex-direction: column; margin: 0 0 var(--space-3); }
+.ts-step {
+  display: grid; grid-template-columns: 96px 1fr 236px; gap: var(--space-5); align-items: center;
+  padding: var(--space-4) 0;
+}
+.ts-step + .ts-step { box-shadow: 0 -0.5px 0 var(--border-subtle); }
+.ts-step-id { display: flex; flex-direction: column; gap: 2px; }
+.ts-step-id strong { font-size: var(--type-base); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ts-step-id span { font-size: var(--type-xs); color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.ts-step-sample { color: var(--fg-0); min-width: 0; overflow-wrap: anywhere; }
+.ts-step-note { display: flex; flex-direction: column; gap: 2px; font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+.ts-step-role { font-size: var(--type-sm); color: var(--fg-1); font-weight: var(--w-medium); }
+.ts-step-math { font-variant-numeric: tabular-nums; }
+
+.ts-s-3xl { font-family: var(--font-rounded); font-size: var(--type-3xl); line-height: var(--lh-3xl); font-weight: var(--w-semibold); letter-spacing: 0; }
+.ts-s-2xl { font-family: var(--font-rounded); font-size: var(--type-2xl); line-height: var(--lh-2xl); font-weight: var(--w-semibold); letter-spacing: 0; }
+.ts-s-xl { font-family: var(--font-display); font-size: var(--type-xl); line-height: var(--lh-xl); font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); }
+.ts-s-lg { font-family: var(--font-display); font-size: var(--type-lg); line-height: var(--lh-lg); font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); }
+.ts-s-md { font-size: var(--type-md); line-height: var(--lh-md); }
+.ts-s-base { font-size: var(--type-base); line-height: var(--lh-base); max-width: 52ch; }
+.ts-s-sm { font-size: var(--type-sm); line-height: var(--lh-sm); white-space: pre; }
+.ts-s-xs { font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-1); font-variant-numeric: tabular-nums; }
+
+/* ─── Faces ──────────────────────────────────────────────────────────────── */
+.ts-faces { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); margin: 0 0 var(--space-6); }
+.ts-face {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-5); border-radius: var(--radius-lg);
+  background: var(--bg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-subtle);
+}
+.ts-face strong { font-size: var(--type-base); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ts-face p { font-size: var(--type-sm); line-height: var(--lh-sm); margin: 0 0 var(--space-2); }
+.ts-face-aa { font-size: var(--type-3xl); line-height: var(--lh-3xl); color: var(--fg-0); margin-bottom: var(--space-2); }
+.ts-f-display { font-family: var(--font-display); font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); }
+.ts-f-rounded { font-family: var(--font-rounded); font-weight: var(--w-semibold); }
+.ts-f-mono { font-family: var(--font-mono); font-weight: var(--w-regular); color: var(--fg-1); }
+.ts-face-ex { font-size: var(--type-lg); line-height: var(--lh-lg); color: var(--fg-0); }
+.ts-face-ex2 { font-size: var(--type-sm); color: var(--fg-2); }
+.specimen .ts-face-warn { font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); margin-top: calc(-1 * var(--space-1)); }
+.ts-face-play { display: flex; align-items: flex-start; gap: var(--space-3); flex-wrap: wrap; }
+.ts-face-sticky { width: 104px; min-height: 80px; rotate: -2deg; font-size: var(--type-sm); }
+.ts-agent-label {
+  display: inline-flex; align-items: center; gap: var(--space-1); margin-top: var(--space-4);
+  padding: 2px var(--space-2); border-radius: var(--radius-pill);
+  background: var(--presence-agent); color: var(--spark-fg);
+  font-family: var(--font-rounded); font-size: var(--type-xs); font-weight: var(--w-semibold); white-space: nowrap;
+}
+
+.ts-adv { border-radius: var(--radius-md); background: var(--bg-3); }
+.ts-adv summary {
+  display: flex; align-items: center; gap: var(--space-1);
+  padding: var(--space-2) var(--space-2); cursor: pointer; list-style: none;
+  font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-1);
+  border-radius: var(--radius-md);
+}
+.ts-adv summary::-webkit-details-marker { display: none; }
+.ts-adv summary svg { width: 14px; height: 14px; transition: transform var(--dur-flip) var(--ease-out); }
+.ts-adv[open] summary svg { transform: rotate(90deg); }
+.ts-adv summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.ts-adv-rows { margin: 0; padding: 0 var(--space-2) var(--space-2); display: flex; flex-direction: column; gap: var(--space-1); }
+.ts-adv-rows div { display: flex; justify-content: space-between; gap: var(--space-2); }
+.ts-adv-rows dt { font-size: var(--type-xs); color: var(--fg-2); }
+.ts-adv-rows dd { margin: 0; font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-0); font-variant-numeric: tabular-nums; }
+
+/* ─── Right / wrong ──────────────────────────────────────────────────────── */
+.ts-compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+.ts-case { margin: 0; }
+.ts-case figcaption { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); max-width: 60ch; }
+.ts-case figcaption strong { margin-right: var(--space-1); }
+.ts-ok { color: var(--status-success-text); }
+.ts-bad { color: var(--status-error-text); }
+.ts-case-box {
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2);
+  min-height: 220px; padding: var(--space-6); margin-bottom: var(--space-3);
+  border-radius: var(--radius-lg); background: var(--bg-1);
+  box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-subtle);
+}
+.ts-r-h { font-family: var(--font-rounded); font-size: var(--type-2xl); line-height: var(--lh-2xl); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ts-r-p { font-size: var(--type-base); line-height: var(--lh-base); color: var(--fg-1); max-width: 40ch; margin-bottom: var(--space-2); }
+
+/* The wrong case deliberately breaks the rules — every size one step apart, mono, a SKU eyebrow. */
+.ts-wrong { gap: var(--space-1); border-radius: 0; box-shadow: inset 0 0 0 1px var(--border-strong); }
+.ts-w-eyebrow { font-family: var(--font-mono); font-size: var(--type-xs); letter-spacing: var(--tracking-wide); color: var(--fg-2); }
+.ts-w-h { font-family: var(--font-mono); font-size: var(--type-lg); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ts-w-sub { font-family: var(--font-mono); font-size: var(--type-md); color: var(--fg-1); }
+.ts-w-p { font-family: var(--font-mono); font-size: var(--type-base); color: var(--fg-1); }
+.ts-w-meta { font-family: var(--font-mono); font-size: var(--type-sm); color: var(--fg-2); }
+
+/* `.specimen p` (in _layout.css) outranks `.island-title`; restore the island anatomy here. */
+.specimen .island-title { margin: 0 0 var(--space-2); color: var(--fg-2); }
+
+/* Running copy holds a 60ch measure (CONTRACT §5). */
+.specimen p { max-width: 60ch; }

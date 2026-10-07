@@ -1,0 +1,232 @@
+/*
+ * maude-v2 — shared component anatomy
+ *
+ * Pulled in by _layout.css, so every specimen (and every canvas that imports
+ * _layout.css) gets these classes. Specimens keep only demo-specific CSS inline.
+ *
+ * Material rule: chrome = .island (frosted, ~88% opaque, soft concentric radius,
+ * 0.5px inner edge). Controls inside an island are one radius step smaller
+ * (island 14 › control 10 › chip 6) so corners nest.
+ *
+ * Colour rule: --accent = action/selection/focus · --spark = AI only ·
+ * --object-* = things ON the canvas (stickies, shapes), never chrome fills.
+ */
+
+/* ─── Island — the floating-chrome material ──────────────────────────────── */
+.island {
+  background: var(--island-bg);
+  backdrop-filter: blur(var(--island-blur)) saturate(1.4);
+  -webkit-backdrop-filter: blur(var(--island-blur)) saturate(1.4);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--island-shadow), inset 0 0 0 0.5px var(--island-edge);
+  color: var(--fg-0);
+}
+.island--pad { padding: var(--space-3); }
+.island-title {
+  font-size: var(--type-xs);
+  font-weight: var(--w-semibold);
+  color: var(--fg-2);
+  margin: 0 0 var(--space-2);
+  padding: 0 var(--space-1);
+}
+
+/* The dock — rounder and a little chunkier than the other islands. */
+.dock {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-radius: var(--radius-xl);
+}
+.dock .divider-v { width: 1px; height: 24px; background: var(--border-default); margin: 0 var(--space-1); }
+
+/* ─── Buttons ────────────────────────────────────────────────────────────── */
+.btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: var(--type-sm);
+  font-weight: var(--w-semibold);
+  line-height: 1;
+  cursor: pointer;
+  background: var(--bg-3);
+  color: var(--fg-0);
+  transition: background var(--dur-flip) var(--ease-out), transform var(--dur-flip) var(--ease-out), box-shadow var(--dur-flip) var(--ease-out);
+}
+.btn:hover { background: var(--bg-4); }
+.btn:active { transform: scale(0.97); }
+.btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.btn[disabled] { color: var(--fg-3); cursor: not-allowed; transform: none; }
+
+.btn--primary { background: var(--accent); color: var(--accent-fg); }
+.btn--primary:hover { background: var(--accent-hover); }
+.btn--primary:active { background: var(--accent-active); }
+
+.btn--ghost { background: transparent; color: var(--fg-1); }
+.btn--ghost:hover { background: var(--bg-3); color: var(--fg-0); }
+
+.btn--spark { background: var(--spark); color: var(--spark-fg); }
+.btn--spark:hover { background: var(--spark-hover); }
+
+.btn--lg { height: 40px; padding: 0 var(--space-4); font-size: var(--type-base); border-radius: var(--radius-lg); }
+.btn--sm { height: 26px; padding: 0 var(--space-2); font-size: var(--type-xs); border-radius: var(--radius-sm); }
+
+/* Square icon button — the unit of every island and the dock. */
+.icon-btn {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--fg-0);
+  cursor: pointer;
+  transition: background var(--dur-flip) var(--ease-out);
+}
+.icon-btn:hover { background: var(--bg-3); }
+.icon-btn[aria-pressed="true"] { background: var(--accent-muted); color: var(--accent-text); }  /* the active tool is muted — Share stays the one solid azure */
+.icon-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.icon-btn svg { width: 16px; height: 16px; display: block; }
+.dock .icon-btn { width: 40px; height: 40px; border-radius: calc(var(--radius-xl) - var(--space-2)); }
+.dock .icon-btn svg { width: 18px; height: 18px; }
+
+/* ─── Inputs ─────────────────────────────────────────────────────────────── */
+.input, .select, .textarea {
+  appearance: none;
+  width: 100%;
+  font: inherit;
+  font-size: var(--type-sm);
+  color: var(--fg-0);
+  background: var(--bg-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  box-shadow: inset 0 0 0 0.5px var(--border-subtle);
+  transition: box-shadow var(--dur-flip) var(--ease-out), background var(--dur-flip) var(--ease-out);
+}
+.input { height: 32px; }
+.textarea { min-height: 72px; resize: vertical; line-height: var(--lh-sm); }
+.input::placeholder, .textarea::placeholder { color: var(--fg-2); }
+.input:focus, .select:focus, .textarea:focus {
+  outline: none;
+  background: var(--bg-2);
+  box-shadow: 0 0 0 3px var(--accent-tint), inset 0 0 0 1px var(--focus-ring);
+}
+.field { display: flex; flex-direction: column; gap: var(--space-1); }
+.field-label { font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-1); }
+.field-hint { font-size: var(--type-xs); color: var(--fg-2); }
+
+/* The AI prompt — the one input that carries the spark. */
+.ask {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.ask input { flex: 1; border: 0; background: transparent; font: inherit; font-size: var(--type-sm); color: var(--fg-0); outline: none; min-width: 0; }
+.ask input::placeholder { color: var(--fg-2); }
+.ask .send {
+  display: grid; place-items: center;
+  width: 28px; height: 28px;
+  border-radius: var(--radius-md);
+  background: var(--spark);
+  color: var(--spark-fg);
+}
+
+/* ─── Segmented control + switch ─────────────────────────────────────────── */
+.seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--radius-md); background: var(--bg-3); }
+.seg button {
+  appearance: none; border: 0; background: transparent; font: inherit; font-size: var(--type-sm);
+  color: var(--fg-1); padding: var(--space-1) var(--space-3); border-radius: calc(var(--radius-md) - 2px); cursor: pointer;
+  transition: background var(--dur-flip) var(--ease-out), color var(--dur-flip) var(--ease-out);
+}
+.seg button[aria-pressed="true"] { background: var(--bg-2); color: var(--fg-0); box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--accent); }
+
+.switch {
+  appearance: none; position: relative; width: 34px; height: 20px; border-radius: var(--radius-pill);
+  background: var(--control-off); border: 0; cursor: pointer; transition: background var(--dur-flip) var(--ease-out);
+}
+.switch::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--bg-2); box-shadow: var(--shadow-sm); transition: transform var(--dur-flip) var(--ease-out);
+}
+.switch[aria-checked="true"] { background: var(--accent); }
+.switch[aria-checked="true"]::after { transform: translateX(14px); }
+.switch:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* ─── Chips, badges, keys ────────────────────────────────────────────────── */
+.chip {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  height: 22px; padding: 0 var(--space-2); border-radius: var(--radius-sm);
+  font-size: var(--type-xs); font-weight: var(--w-medium); color: var(--fg-1); background: var(--bg-3);
+}
+.chip--accent { color: var(--accent-text); background: var(--accent-muted); }
+.chip--spark { color: var(--spark-text); background: var(--spark-muted); }
+.kbd {
+  display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 var(--space-1);
+  border-radius: var(--radius-xs); font-size: var(--type-xs); font-family: var(--font-body);
+  color: var(--fg-1); background: var(--bg-2); box-shadow: inset 0 -1px 0 var(--border-default), inset 0 0 0 0.5px var(--border-default);
+}
+
+/* ─── Rows (lists inside islands) ────────────────────────────────────────── */
+.row-item {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-2); min-height: 30px;
+  border-radius: var(--radius-sm); font-size: var(--type-sm); color: var(--fg-0);
+}
+.row-item:hover { background: var(--bg-3); }
+.row-item[aria-current="true"] { background: var(--accent-muted); font-weight: var(--w-semibold); }
+.row-item .thumb { width: 22px; height: 16px; border-radius: var(--radius-xs); box-shadow: inset 0 0 0 0.5px var(--border-default); flex: none; }
+
+/* ─── Canvas objects — colour lives here ─────────────────────────────────── */
+.sticky {
+  width: 120px; min-height: 104px; padding: var(--space-3);
+  border-radius: var(--radius-xs);
+  font-family: var(--font-rounded); font-weight: var(--w-semibold); font-size: var(--type-base); line-height: var(--lh-sm);
+  color: var(--object-ink);
+  box-shadow: 0 6px 12px oklch(0 0 0 / 0.12);
+}
+.sticky--yellow { background: var(--object-yellow); }
+.sticky--green  { background: var(--object-green); }
+.sticky--lilac  { background: var(--object-lilac); }
+.sticky--coral  { background: var(--object-coral); }
+.sticky--sky    { background: var(--object-sky); }
+
+/* ─── Collapse-to-icon (signature motion) ────────────────────────────────── */
+.collapsible {
+  transform-origin: top right;
+  transition: transform var(--dur-panel) var(--ease-out), opacity var(--dur-panel) var(--ease-out);
+}
+.collapsible[data-collapsed="true"] { transform: scale(0.18); opacity: 0; pointer-events: none; }
+
+/* ─── Motion role classes — zero-JS escape hatch (DDR-049) ───────────────── */
+/* Justified zero-JS case (bypass-log): an ambient "AI is here" breath on presence tags inside
+   static specimens/canvases. Slow (1.6 s a leg) with a 0.6 opacity floor — a cue, never a strobe. */
+/* The element itself stays at full strength (a pale tag reads as disabled); only a soft
+   spark halo breathes around it. */
+@keyframes mv2-soft { from { box-shadow: 0 0 0 0 var(--spark-muted); } to { box-shadow: 0 0 0 5px var(--spark-muted); } }
+.motion-soft { animation: mv2-soft 1.6s var(--ease-in-out) infinite alternate; }
+
+/* ─── Focus + disabled states shared by every island control ─────────────── */
+.seg button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.ask:focus-within { box-shadow: 0 0 0 3px var(--accent-tint), inset 0 0 0 1px var(--focus-ring); }
+.row-item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.btn--primary[disabled], .btn--spark[disabled] { background: var(--bg-3); color: var(--fg-3); }
+
+/* Loops stop entirely when the user asks for less motion (a 1ms infinite loop would strobe). */
+@media (prefers-reduced-motion: reduce) {
+  .motion-soft { animation: none; }
+}
+[data-reduced-motion="true"] .motion-soft { animation: none; }

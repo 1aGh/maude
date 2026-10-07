@@ -1,0 +1,184 @@
+{
+  "title": "07 Video Editing",
+  "subtitle": "The timeline that comes with a video artboard — Alligators brand",
+  "brief": "video editing — Michal's triage decision: \"Timeline only when a video artboard is selected\". Summoning the timeline (it slides out of the artboard, slides back in; ⇧⌘T keeps it open), basic edits (drop, trim, split, move, transitions, titles with motion, captions edited as text, a music bed with beats that steps aside for speech), an AI cut from 12 clips told as a before → after hero, one video in many formats, playback (tap space plays, hold space pans), export, and the edge cases of a busy club project (footage still on someone's Mac, 4K still preparing, co-editing, 40 clips, vertical footage, no sound) — then Advanced. Real Alligators photos are the footage.",
+  "platform": "desktop",
+  "designSystem": "maude-v2",
+  "opt_out_scope": "palette",
+  "sections": [
+    {
+      "id": "summon",
+      "title": "The timeline comes with a video artboard",
+      "subtitle": "Nothing selected — no timeline; select a video artboard — it slides out of it; select anything else — it slides back in"
+    },
+    {
+      "id": "edits",
+      "title": "Basic edits",
+      "subtitle": "Drop footage, trim, split, move, a transition, a title with motion, captions you edit as text, a music bed that steps aside for speech"
+    },
+    {
+      "id": "ai-cut",
+      "title": "Ask AI for a cut",
+      "subtitle": "“Make a 30 s recap from these 12 clips” — AI watches the footage, places shots while you scrub, and the cut lands on the artboard; change it by asking or by hand"
+    },
+    {
+      "id": "formats",
+      "title": "One video, many formats",
+      "subtitle": "Reels 9:16, 16:9 and 1:1 from one edit — linked, each with its own framing; safe zones on 9:16; an unlinked copy; re-framing a clip per format"
+    },
+    {
+      "id": "play",
+      "title": "Play it",
+      "subtitle": "Tap space to play in place with sound, scrub with audio, step frame by frame, loop a range — or watch it full screen"
+    },
+    {
+      "id": "export",
+      "title": "Export",
+      "subtitle": "MP4 in 1080p or 4K, GIF, sound only; render in the cloud or on this Mac; progress in Exports; done, or partly done with one Retry"
+    },
+    {
+      "id": "edges",
+      "title": "Edge cases",
+      "subtitle": "Footage still on someone's Mac or still preparing · Tereza on captions while you trim · a 40-clip match video · vertical footage on 16:9 · no sound at all"
+    },
+    {
+      "id": "advanced",
+      "title": "Advanced",
+      "subtitle": "Frame numbers, fps, codec, bitrate, keyframes with an easing curve, the EDL and the Remotion code — at the foot of the timeline, in mono"
+    }
+  ],
+  "artboards": [
+    {
+      "id": "ve-none",
+      "label": "1 · Nothing selected — no timeline",
+      "note": "A video artboard shows its length on the label and its poster frame; nothing hints at a missing timeline."
+    },
+    {
+      "id": "ve-select",
+      "label": "2 · Select it — the timeline slides out of it",
+      "note": "Selecting Hype trailer · Reels raises a compact timeline from its bottom edge, a notch pointing at it; Expand makes it full width."
+    },
+    {
+      "id": "ve-deselect",
+      "label": "3 · Switch, deselect, keep it open — the timeline's rules",
+      "note": "A four-step strip (select, switch video, deselect, ⇧⌘T keep open) and the rules once, with Menu › View › Advanced › Keep timeline open ⇧⌘T (CONTRACT §1)."
+    },
+    {
+      "id": "ve-drop",
+      "label": "4 · Drop footage — on the artboard or the timeline",
+      "note": "Three clips dragged in: a line on the timeline shows where they land and how much the video grows; the artboard takes them at the end."
+    },
+    {
+      "id": "ve-trim-split",
+      "label": "5 · Trim an edge; S splits at the playhead",
+      "note": "The video is as long as its clips: trimming Touchdown makes it 0:14; S split Oslava (⌘B still works)."
+    },
+    {
+      "id": "ve-move-transition",
+      "label": "6 · Drag a clip to move it",
+      "note": "A lifted clip and a line show where it lands; its old place closes up."
+    },
+    {
+      "id": "ve-transition",
+      "label": "7 · Click a join for a transition",
+      "note": "The picker opens at the join between Oslava and Logo: today's six transitions, previews play on hover, a length."
+    },
+    {
+      "id": "ve-text",
+      "label": "8 · A title with motion; captions from speech",
+      "note": "A title gets a motion preset in the inspector; captions from speech land word by word on the text track."
+    },
+    {
+      "id": "ve-captions",
+      "label": "9 · Edit the talk as text; style the captions",
+      "note": "Striking “Ehm…” in the transcript cuts it from the interview; the inspector styles captions (font, highlight, position, words at a time)."
+    },
+    {
+      "id": "ve-music",
+      "label": "10 · A music bed: beats, lower under speech, volume",
+      "note": "Beat marks with a tall one every bar, Snap to the beat, and the music line dipping by itself under the interview."
+    },
+    {
+      "id": "ve-ai-cut",
+      "label": "11 · 12 clips in, a 0:30 cut out — on the beat",
+      "note": "The signature picture: 12 source clips (3 left out, with reasons) flying into 14 beat-snapped shots on Hype instrumental."
+    },
+    {
+      "id": "ve-ai-watch",
+      "label": "12 · AI watches 12 clips",
+      "note": "Progress in words — “Watching 12 clips… 7 done” — and the shots AI liked so far; the timeline says shots land as AI places them."
+    },
+    {
+      "id": "ve-ai-scrub",
+      "label": "13 · Scrub while AI is still cutting",
+      "note": "Shot 7 lands on the beat with a spark ring; your playhead scrubs what's placed while AI's edge moves on."
+    },
+    {
+      "id": "ve-ai-proposal",
+      "label": "14 · Done — the cut is on the artboard",
+      "note": "Nothing to accept: Undo · Keep going, chips for a change, the three left-out clips named with Use them anyway."
+    },
+    {
+      "id": "ve-ai-adjust",
+      "label": "15 · Change a shot by hand — swap a take",
+      "note": "Touchdown 2 offers its other takes, AI's pick marked; a hand edit is just an edit."
+    },
+    {
+      "id": "ve-formats",
+      "label": "16 · Three formats, one edit",
+      "note": "Reels, 16:9 and 1:1 share one cut and keep their own framing; Make an unlinked copy gives one its own cut; safe zones on Reels."
+    },
+    {
+      "id": "ve-reframe",
+      "label": "17 · Re-frame a clip for 9:16 — follow the player",
+      "note": "The 9:16 window follows #1 across the wide shot; other formats keep their framing."
+    },
+    {
+      "id": "ve-play",
+      "label": "18 · Play in place, loop a range, step frames",
+      "note": "Tap space plays (hold space pans); I/O loop; arrows step frames, ⇧ steps seconds."
+    },
+    {
+      "id": "ve-fullscreen",
+      "label": "19 · Full-screen preview",
+      "note": "Present on a video artboard: only the video, a transport bar and a format switch; esc goes back."
+    },
+    {
+      "id": "ve-export",
+      "label": "20 · Export — every format at once",
+      "note": "One sheet, as 09: Scope (This canvas · 4 artboards), the formats to tick (the unlinked copy left out), Format MP4/GIF/Sound only, 1080p/4K, captions, cloud or this Mac, a size estimate."
+    },
+    {
+      "id": "ve-render",
+      "label": "21 · Rendering, done, partly done",
+      "note": "Progress as 09 draws it — a ring on the Exports icon in the Share cluster, the Exports panel under it top-right; one done toast (Show in Finder); a partial failure says “Exported 2 of 3” with one Retry."
+    },
+    {
+      "id": "ve-footage",
+      "label": "22 · Footage not here yet; 4K clips still preparing",
+      "note": "A clip on Jonas's Mac says “Waiting for Jonas's Mac”, quietly — Missing + Relink… only when no device has it; 4K .mov files show “3 clips still preparing”."
+    },
+    {
+      "id": "ve-together",
+      "label": "23 · Tereza fixes a caption while you trim",
+      "note": "Two playheads, Tereza's cursor on the caption she owns while editing; you trim Huddle meanwhile."
+    },
+    {
+      "id": "ve-long",
+      "label": "24 · 40 clips — zoom out, fold tracks, jump by marker",
+      "note": "A 4:12 match video zoomed out, names hidden, Text and Graphics folded, markers for the big moments."
+    },
+    {
+      "id": "ve-fit-fill",
+      "label": "25 · A vertical clip on 16:9; a video with no sound",
+      "note": "Fill, Fit or Blur behind for a phone clip, asked once at the clip; the empty music track offers music."
+    },
+    {
+      "id": "ve-advanced",
+      "label": "26 · Advanced — frames, curves, the cut as code",
+      "note": "Frame-number ruler, keyframes and an easing curve, render settings, the EDL / code — mono only here."
+    }
+  ],
+  "created": "2026-10-06T00:00:00Z",
+  "last_modified": "2026-10-06"
+}

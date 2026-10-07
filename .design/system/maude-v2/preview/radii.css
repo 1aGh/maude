@@ -1,0 +1,188 @@
+/* radii — demonstration-specific styles (anatomy lives in _components.css). */
+
+/* `.specimen p` (in _layout.css) outranks `.island-title`; restore the island anatomy here. */
+.specimen .island-title { margin: 0 0 var(--space-2); color: var(--fg-2); }
+
+.rd-hero-hd { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); }
+.rd-switch-label { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--type-sm); color: var(--fg-1); cursor: pointer; }
+
+/* ─── Corner circles ─────────────────────────────────────────────────────── */
+/* Each nested element declares its own corner radius as --rr; the circle reads the nearest one. */
+.rd-circ {
+  position: absolute; top: 0; z-index: 3; pointer-events: none;
+  width: calc(var(--rr) * 2); height: calc(var(--rr) * 2);
+  border-radius: 50%;
+  border: 1px dashed var(--fg-1);
+}
+.rd-circ--tl { left: 0; }
+.rd-circ--tr { right: 0; }
+.rd-circ--i { border-color: var(--fg-0); }
+.rd-circ--off { border-color: var(--status-error); }
+.rd-ctr {
+  position: absolute; left: 50%; top: 50%;
+  width: 3px; height: 3px; border-radius: var(--radius-pill);
+  background: var(--fg-0); transform: translate(-50%, -50%);
+}
+.rd-circ--off .rd-ctr { background: var(--status-error); }
+.rd-rel { position: relative; }
+
+/* ─── Hero ───────────────────────────────────────────────────────────────── */
+.rd-hero { height: 320px; margin-bottom: var(--space-3); display: flex; align-items: center; justify-content: space-evenly; flex-wrap: wrap; gap: var(--space-6); padding: var(--space-6); }
+.rd-nest { margin: 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-5); }
+.rd-nest figcaption { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); text-align: center; }
+.rd-eq { font-family: var(--font-display); font-size: var(--type-xl); line-height: var(--lh-xl); font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); color: var(--fg-0); font-variant-numeric: tabular-nums; }
+.rd-mag { zoom: 2; }
+
+.rd-share { --rr: var(--radius-lg); position: relative; display: flex; gap: var(--space-1); padding: var(--space-1); }
+.rd-share .rd-rel { --rr: var(--radius-md); }
+.rd-ask { --rr: var(--radius-lg); position: relative; width: 180px; }
+.rd-ask .rd-rel { --rr: var(--radius-md); }
+.rd-ask-ph { flex: 1; font-size: var(--type-sm); color: var(--fg-2); }
+.rd-dock { --rr: var(--radius-xl); position: relative; }
+.rd-dock .rd-rel { --rr: calc(var(--radius-xl) - var(--space-2)); }
+.rd-dock .rd-pressed { background: var(--accent); color: var(--accent-fg); }
+.rd-dock-sticky { display: block; width: 20px; height: 20px; border-radius: var(--radius-xs); background: var(--object-yellow); rotate: -6deg; box-shadow: var(--shadow-sm); }
+
+.rd-caption { font-size: var(--type-sm); line-height: var(--lh-sm); margin: 0 0 var(--space-6); }
+.specimen .rd-caption { color: var(--fg-2); }
+
+/* ─── Playground ─────────────────────────────────────────────────────────── */
+.rd-play {
+  display: grid; grid-template-columns: 300px 1fr; gap: var(--space-5);
+  margin: 0 0 var(--space-6); padding: var(--space-5);
+  border-radius: var(--radius-lg); background: var(--bg-1);
+  box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-subtle);
+}
+.rd-play-controls { display: flex; flex-direction: column; gap: var(--space-4); }
+.rd-play-controls .seg { align-self: flex-start; }
+.rd-readout { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-2); }
+.rd-readout-eq { font-family: var(--font-display); font-size: var(--type-2xl); line-height: var(--lh-2xl); font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); color: var(--fg-0); font-variant-numeric: tabular-nums; }
+.rd-readout-note { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.rd-play-area {
+  display: grid; place-items: center; min-height: 320px;
+  border-radius: var(--radius-md);
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+}
+.rd-play-mag { zoom: 3; }
+.rd-pbox {
+  --rr: var(--radius-lg);
+  position: relative; width: 132px; height: 84px;
+  border-radius: var(--radius-lg);
+  background: var(--island-bg);
+  box-shadow: var(--island-shadow), inset 0 0 0 0.5px var(--island-edge);
+}
+.rd-pad-1 { padding: var(--space-1); }
+.rd-pad-2 { padding: var(--space-2); }
+.rd-pad-3 { padding: var(--space-3); }
+.rd-pinner { position: relative; height: 100%; background: var(--bg-4); }
+.rd-pinner .rd-circ { left: 0; }
+
+/* ─── Ladder ─────────────────────────────────────────────────────────────── */
+.rd-ladder { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); margin: 0 0 var(--space-6); }
+.rd-tile {
+  display: flex; flex-direction: column; gap: var(--space-4);
+  padding: var(--space-4); border-radius: var(--radius-lg); background: var(--bg-1);
+  box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-subtle);
+}
+.rd-tile-top { display: flex; align-items: flex-end; gap: var(--space-4); min-height: 96px; }
+.rd-corner {
+  display: block; flex: none; width: 88px; height: 88px;
+  background: var(--bg-3);
+  border-top: 2px solid var(--fg-0); border-left: 2px solid var(--fg-0);
+  border-top-left-radius: calc(var(--r) * 4);
+}
+.rd-r-xs { --r: var(--radius-xs); }
+.rd-r-sm { --r: var(--radius-sm); }
+.rd-r-md { --r: var(--radius-md); }
+.rd-r-lg { --r: var(--radius-lg); }
+.rd-r-xl { --r: var(--radius-xl); }
+.rd-r-pill { --r: var(--radius-pill); }
+.rd-tile-demo { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-start; min-height: 56px; }
+.rd-tile-meta { display: flex; flex-direction: column; gap: 2px; font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.rd-tile-meta strong { color: var(--fg-0); font-weight: var(--w-semibold); }
+.rd-px { font-size: var(--type-xs); color: var(--fg-2); font-variant-numeric: tabular-nums; }
+
+.rd-demo-row { display: inline-flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.rd-mini-sticky { width: 28px; height: 28px; border-radius: var(--radius-xs); background: var(--object-yellow); rotate: 4deg; box-shadow: var(--shadow-sm); }
+.rd-demo-input { width: 88px; }
+.rd-demo-island { display: flex; flex-direction: column; width: 140px; padding: var(--space-2); }
+.rd-it { padding: 0 var(--space-1); }
+.rd-demo-dock { padding: var(--space-1); }
+.rd-demo-dock .icon-btn { width: 32px; height: 32px; border-radius: calc(var(--radius-xl) - var(--space-1)); }
+.rd-av {
+  display: grid; place-items: center; width: 24px; height: 24px; flex: none;
+  border-radius: var(--radius-pill); background: var(--bg-4); color: var(--fg-0);
+  font-size: var(--type-xs); font-weight: var(--w-semibold);
+}
+.rd-av--2 { margin-left: calc(-1 * var(--space-3)); box-shadow: 0 0 0 2px var(--bg-1); }
+.rd-agent {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: 2px var(--space-2); border-radius: var(--radius-pill);
+  background: var(--presence-agent); color: var(--spark-fg);
+  font-family: var(--font-rounded); font-size: var(--type-xs); font-weight: var(--w-semibold);
+}
+
+/* ─── On the canvas ──────────────────────────────────────────────────────── */
+.rd-canvas { height: 320px; }
+.rd-artboard {
+  position: absolute; left: var(--space-7); top: 64px; width: 280px;
+  background: var(--bg-2); border-radius: var(--radius-sm); box-shadow: var(--shadow-md);
+}
+.rd-ab-label { position: absolute; left: 0; top: calc(-1 * var(--space-5)); font-size: var(--type-xs); color: var(--fg-2); }
+.rd-ab-img {
+  height: 150px; border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  background: var(--object-green);
+  background-image: radial-gradient(circle at 30% 60%, var(--object-yellow) 0 16%, transparent 17%);
+}
+.rd-ab-lines { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4); }
+.rd-ab-lines span { height: 10px; border-radius: var(--radius-xs); background: var(--bg-3); }
+.rd-ab-lines span:first-child { height: 14px; width: 60%; background: var(--bg-4); }
+.rd-sel {
+  position: absolute; inset: calc(-1 * var(--space-1));
+  border: 2px solid var(--accent);
+  border-radius: calc(var(--radius-sm) + var(--space-1));
+  pointer-events: none;
+}
+.rd-comment {
+  position: absolute; left: 44%; top: 30%; transform: translateY(-100%); z-index: 2;
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-2);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-xs);
+  font-size: var(--type-sm); white-space: nowrap;
+}
+.rd-st { position: absolute; left: calc(var(--space-7) + 320px); top: 96px; rotate: -2.4deg; }
+.rd-canvas-notes {
+  position: absolute; right: var(--space-6); top: 50%; transform: translateY(-50%);
+  width: 300px; margin: 0; padding: 0; list-style: none;
+  display: flex; flex-direction: column; gap: var(--space-3);
+  font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1);
+}
+.rd-canvas-notes strong { display: block; color: var(--fg-0); font-weight: var(--w-semibold); }
+
+/* ─── Right / wrong ──────────────────────────────────────────────────────── */
+.rd-compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+.rd-case { margin: 0; }
+.rd-case figcaption { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.rd-case figcaption strong { margin-right: var(--space-1); }
+.rd-ok { color: var(--status-success-text); }
+.rd-bad { color: var(--status-error-text); }
+.rd-mini { min-height: 200px; height: 200px; margin-bottom: var(--space-3); }
+.rd-mini-island { position: absolute; right: var(--space-4); top: var(--space-4); display: flex; gap: var(--space-1); padding: var(--space-1); }
+
+/* The wrong case breaks the rules on purpose: square docked bar, copied radius. */
+.rd-wrong-bar {
+  position: absolute; left: 0; right: 0; top: 0; height: 48px;
+  display: flex; align-items: center; justify-content: flex-end; padding: 0 var(--space-3);
+  background: var(--bg-1); box-shadow: 0 1px 0 var(--border-strong);
+}
+.rd-wrong-btn { padding: var(--space-1) var(--space-3); background: var(--bg-4); font-size: var(--type-sm); font-weight: var(--w-semibold); }
+.rd-wrong-island { top: 72px; }
+.rd-wrong-island .icon-btn, .rd-wrong-island .btn { border-radius: var(--radius-lg); }
+
+/* The tool you're holding is muted azure — Share stays the one solid azure surface (colors-accent). */
+.dock .icon-btn[aria-pressed="true"] { background: var(--accent-muted); color: var(--accent-text); }
+
+/* Captions and running notes hold a 60ch measure (CONTRACT §5). */
+.specimen p, .specimen figcaption { max-width: 60ch; }

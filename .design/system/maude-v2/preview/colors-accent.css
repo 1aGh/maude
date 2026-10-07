@@ -1,0 +1,196 @@
+/* colors-accent — demonstration-specific styles (anatomy lives in _components.css).
+ *
+ * Hero composition (stage 560 tall, ~1056 wide at the specimen max):
+ *   left column   — project pill, Canvases panel, two stickies in the lower-left
+ *   centre        — the selected artboard (a calm landscape), toolbar at the bottom
+ *   right column  — Share, the "Mobile first" sticky, AI's cursor label, the AI chat panel
+ * AI's cursor label keeps at least --space-3 of clear canvas on every side.
+ */
+
+/* ─── Hero ───────────────────────────────────────────────────────────────── */
+.ca-hero {
+  --ab-x: calc(50% - 170px);
+  --ab-y: 64px;
+  height: 560px;
+  margin-bottom: var(--space-3);
+}
+
+.ca-artboard {
+  position: absolute; left: var(--ab-x); top: var(--ab-y); width: 300px; height: 300px;
+  background: var(--bg-2); border-radius: var(--radius-sm); box-shadow: var(--shadow-md);
+}
+.ca-artboard-img { height: 148px; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+.ca-artboard-body { padding: var(--space-3) var(--space-4) 0; display: flex; flex-direction: column; gap: 2px; }
+.ca-artboard-body strong { font-family: var(--font-display); font-size: var(--type-lg); line-height: var(--lh-lg); font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); color: var(--fg-0); }
+.ca-artboard-body span { color: var(--fg-2); font-size: var(--type-sm); }
+
+/* The region AI is drawing right now: dashed in the spark, placeholder lines inside. */
+.ca-draft {
+  position: absolute; left: var(--space-4); right: var(--space-4); bottom: var(--space-4); height: 52px;
+  display: flex; flex-direction: column; justify-content: center; gap: var(--space-1);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-xs);
+  border: 1.5px dashed var(--spark);
+  background: var(--spark-muted);
+}
+.ca-draft i { display: block; height: 6px; border-radius: var(--radius-pill); background: var(--border-strong); }
+.ca-draft i:nth-child(1) { width: 40%; }
+.ca-draft i:nth-child(2) { width: 72%; }
+.ca-draft i:nth-child(3) { width: 56%; }
+
+.ca-sel { position: absolute; inset: -3px; border: 2px solid var(--accent); border-radius: calc(var(--radius-sm) + 2px); pointer-events: none; }
+.ca-sel-label {
+  position: absolute; left: -3px; top: -26px; padding: 2px var(--space-2); border-radius: var(--radius-xs);
+  background: var(--accent); color: var(--accent-fg); font-size: var(--type-xs); font-weight: var(--w-semibold);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+/* AI's cursor sits just outside the right edge, level with the draft; its label is clear of everything. */
+.ca-cursor {
+  position: absolute; left: calc(var(--ab-x) + 304px); top: calc(var(--ab-y) + 230px);
+  display: flex; align-items: flex-start; gap: 2px; z-index: 3;
+}
+.ca-cursor span {
+  display: inline-flex; align-items: center; gap: var(--space-1); margin-top: 12px;
+  padding: 2px var(--space-2); border-radius: var(--radius-pill);
+  background: var(--presence-agent); color: var(--spark-fg);
+  font-family: var(--font-rounded); font-size: var(--type-xs); font-weight: var(--w-semibold); white-space: nowrap;
+}
+
+/* Stickies: one up by Share, two in the lower-left that used to sit empty. */
+.ca-st1 { position: absolute; left: calc(50% + 196px); top: 92px; rotate: 2.4deg; }
+.ca-st2 { position: absolute; left: var(--space-6); top: 300px; rotate: -2.6deg; }
+.ca-st3 { position: absolute; left: 176px; top: 332px; rotate: 1.8deg; }
+
+.ca-pill {
+  position: absolute; left: var(--space-4); top: var(--space-4); z-index: 4;
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+  font-size: var(--type-sm); font-weight: var(--w-semibold);
+}
+.ca-caret { width: 14px; height: 14px; color: var(--fg-2); }
+.ca-list { position: absolute; left: var(--space-4); top: 68px; width: 200px; z-index: 4; }
+.ca-tr { position: absolute; right: var(--space-4); top: var(--space-4); display: flex; gap: var(--space-1); padding: var(--space-1); border-radius: var(--radius-lg); z-index: 4; }
+
+/* The AI chat panel is large and sits over a busy canvas, so it takes the stronger frost. */
+.ca-ai {
+  position: absolute; right: var(--space-4); bottom: var(--space-4); width: 260px; z-index: 4;
+  background: var(--island-bg-strong);
+}
+.ca-ai-hd { display: flex; align-items: center; gap: var(--space-1); font-family: var(--font-rounded); font-weight: var(--w-semibold); font-size: var(--type-sm); margin-bottom: var(--space-2); }
+.specimen .ca-ai-msg {
+  margin: 0 0 var(--space-2); max-width: none;
+  font-size: var(--type-base); line-height: var(--lh-base); color: var(--fg-0);
+  background: var(--bg-3); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3);
+}
+
+.ca-dock { position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); z-index: 4; }
+/* The tool you're holding is muted azure — Share stays the only solid azure surface. */
+.ca-dock .icon-btn[aria-pressed="true"] { background: var(--accent-muted); color: var(--accent-text); }
+
+/* The user's design, in canvas object colours (same landscape as the showcase). */
+.ca-land { position: relative; display: block; overflow: hidden; background: var(--object-sky); }
+.ca-land-sun { position: absolute; right: 18%; top: 16%; width: 22%; aspect-ratio: 1; border-radius: var(--radius-pill); background: var(--object-yellow); }
+.ca-land-hill { position: absolute; left: -12%; right: 22%; bottom: -46%; height: 76%; border-radius: var(--radius-pill); background: var(--object-green); }
+
+.ca-th-sky { background: var(--object-sky); } .ca-th-yellow { background: var(--object-yellow); }
+.ca-th-green { background: var(--object-green); } .ca-th-lilac { background: var(--object-lilac); }
+
+/* Legend under the hero. */
+.ca-legend {
+  list-style: none; margin: 0 0 var(--space-6); padding: 0;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2) var(--space-5);
+  font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1);
+}
+.ca-legend li { display: flex; align-items: baseline; gap: var(--space-2); max-width: 60ch; }
+.ca-key { flex: none; width: 10px; height: 10px; border-radius: var(--radius-xs); transform: translateY(1px); }
+.ca-key--acc { background: var(--accent); }
+.ca-key--accm { background: var(--accent-muted); box-shadow: inset 0 0 0 1px var(--accent); }
+.ca-key--spk { background: var(--spark); }
+.ca-key--obj { background: var(--object-yellow); box-shadow: 4px 0 0 var(--object-sky); margin-right: 4px; }
+
+/* ─── Ladders — one 5-column rhythm for accent, spark and objects ────────── */
+.ca-row5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-4); margin: 0 0 var(--space-6); }
+.ca-fill { display: grid; place-items: center; }
+.ca-fill-word { font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--accent-fg); }
+.ca-fill-word--ink { color: var(--spark-fg); }
+.ca-fill-row { font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--accent-text); }
+.ca-fill-sel { font-size: var(--type-sm); color: var(--fg-0); }
+.ca-fill-made { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--type-xs); font-weight: var(--w-medium); color: var(--spark-text); }
+.swatch .meta .ca-oklch { display: block; font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--fg-1); margin-bottom: var(--space-1); }
+.ca-note { display: block; color: var(--fg-2); }
+
+/* Muted and tint are translucent — show them over the island body they really sit on. */
+.ca-acc { background: var(--accent); } .ca-acc-h { background: var(--accent-hover); } .ca-acc-a { background: var(--accent-active); }
+.ca-acc-m { background: linear-gradient(var(--accent-muted), var(--accent-muted)), var(--bg-1); }
+.ca-acc-t { background: linear-gradient(var(--accent-tint), var(--accent-tint)), var(--bg-1); }
+.ca-spk { background: var(--spark); } .ca-spk-h { background: var(--spark-hover); }
+.ca-spk-m { background: linear-gradient(var(--spark-muted), var(--spark-muted)), var(--bg-1); }
+
+.ca-uses {
+  grid-column: span 2;
+  display: grid; grid-template-columns: auto 1fr; align-content: center; gap: var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--space-5); border-radius: var(--radius-lg);
+  background: var(--bg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default);
+}
+.specimen .ca-uses-hd { grid-column: 1 / -1; margin: 0; font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2); }
+.ca-use { display: contents; }
+.ca-use > :first-child { justify-self: start; align-self: center; }
+.ca-use > span:last-child { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); align-self: center; }
+.ca-agent-tag {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: 2px var(--space-2); border-radius: var(--radius-pill);
+  background: var(--presence-agent); color: var(--spark-fg);
+  font-family: var(--font-rounded); font-size: var(--type-xs); font-weight: var(--w-semibold);
+}
+.ca-agent { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--type-sm); color: var(--fg-0); white-space: nowrap; }
+.ca-agent-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--presence-agent); box-shadow: 0 0 0 3px var(--spark-muted); }
+
+/* ─── Canvas objects — six across, filling the stage edge to edge ────────── */
+.ca-objects {
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-5);
+  padding: var(--space-5); margin: 0 0 var(--space-6); border-radius: var(--radius-lg);
+  background-color: var(--canvas-bg); background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px); background-size: var(--canvas-grid) var(--canvas-grid);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.ca-obj {
+  height: 120px; padding: var(--space-3); border-radius: var(--radius-xs);
+  color: var(--object-ink); box-shadow: 0 6px 12px oklch(0 0 0 / 0.12);
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.ca-obj strong { font-family: var(--font-rounded); font-size: var(--type-md); font-weight: var(--w-semibold); text-transform: capitalize; }
+.ca-obj-meta { display: flex; flex-direction: column; gap: 2px; }
+/* Full --object-ink, no fade: a 75 % caption on a dark sticky drops under AA. */
+.ca-obj code, .ca-obj-val { font-size: var(--type-xs); color: var(--object-ink); }
+.ca-obj-val { font-family: var(--font-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ca-ob-yellow { background: var(--object-yellow); } .ca-ob-green { background: var(--object-green); } .ca-ob-lilac { background: var(--object-lilac); }
+.ca-ob-coral { background: var(--object-coral); } .ca-ob-sky { background: var(--object-sky); } .ca-ob-grey { background: var(--object-grey); }
+
+/* ─── Good / wrong ───────────────────────────────────────────────────────── */
+.ca-compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+.ca-case { margin: 0; }
+.ca-case figcaption { font-size: var(--type-sm); color: var(--fg-1); line-height: var(--lh-sm); max-width: 60ch; }
+.ca-case figcaption strong { margin-right: var(--space-1); }
+.ca-ok { color: var(--status-success-text); }
+.ca-bad { color: var(--status-error-text); }
+.ca-mini { min-height: 152px; height: 152px; margin-bottom: var(--space-3); }
+.ca-mini-list { position: absolute; left: var(--space-4); top: var(--space-4); width: 168px; }
+.ca-mini-ab {
+  position: absolute; left: 212px; right: 96px; top: var(--space-4); bottom: var(--space-4);
+  padding: var(--space-1); border-radius: var(--radius-xs); background: var(--bg-2); box-shadow: var(--shadow-md);
+}
+.ca-mini-ab .ca-land { height: 100%; border-radius: 2px; }
+.ca-mini-tr { position: absolute; right: var(--space-4); top: var(--space-4); padding: var(--space-1); border-radius: var(--radius-lg); }
+.ca-wrong .ca-w-row { background: var(--accent); color: var(--accent-fg); margin-bottom: 2px; }
+.ca-wrong .ca-w-row2 { background: var(--object-coral); }
+.ca-wrong .ca-w-island { background: var(--object-yellow); }
+
+/* Captions and running notes hold a 60ch measure (CONTRACT §5). */
+.specimen p { max-width: 60ch; }
+
+@media (max-width: 860px) {
+  .ca-row5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ca-uses { grid-column: 1 / -1; }
+  .ca-objects { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ca-legend, .ca-compare { grid-template-columns: 1fr; }
+}

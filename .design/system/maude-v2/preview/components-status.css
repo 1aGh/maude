@@ -1,0 +1,174 @@
+/* components-status — demonstration-specific styles (anatomy lives in _components.css). */
+
+/* ─── The dot ─────────────────────────────────────────────────────────── */
+.ss-dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; }
+.ss-dot--ok { background: var(--status-success); }
+.ss-dot--off { background: transparent; box-shadow: inset 0 0 0 1.5px var(--presence-offline); }
+.ss-dot--warn { background: var(--status-warn); }
+/* Saving: the dot breathes for as long as the save takes. */
+.ss-dot--saving { background: var(--status-success); animation: mv2-soft 700ms var(--ease-in-out) infinite alternate; }
+
+/* The AI's spark while it works — small (≤ 16 px), compositor-only, looping. */
+@keyframes ss-spark { from { transform: scale(0.82) rotate(-8deg); opacity: 0.7; } to { transform: scale(1) rotate(0deg); opacity: 1; } }
+.ss-spark-live { display: inline-grid; place-items: center; animation: ss-spark var(--dur-spring) var(--ease-spring) infinite alternate; }
+@media (prefers-reduced-motion: reduce) {
+  .ss-dot--saving, .ss-spark-live { animation: none; }
+}
+
+.ss-saving { margin-left: var(--space-2); font-size: var(--type-xs); font-weight: var(--w-regular); color: var(--fg-2); }
+.ss-caret { color: var(--fg-2); font-weight: var(--w-regular); }
+
+/* ─── Scrubber + hero ─────────────────────────────────────────────────── */
+.ss-scrub { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); margin: 0 0 var(--space-3); }
+.ss-scrub-hover { font-size: var(--type-xs); color: var(--fg-2); }
+
+.ss-hero { height: 520px; margin-bottom: var(--space-3); }
+
+.ss-ab-label { position: absolute; left: 30%; top: 76px; display: flex; align-items: baseline; font-size: var(--type-xs); font-weight: var(--w-medium); color: var(--fg-1); }
+.ss-board {
+  position: absolute; left: 30%; right: 16%; top: 96px;
+  padding: var(--space-5) var(--space-4); border-radius: var(--radius-sm);
+  background: var(--bg-2); box-shadow: var(--shadow-md);
+}
+.ss-plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); }
+.ss-plan { display: flex; flex-direction: column; gap: var(--space-2); min-height: 150px; padding: var(--space-3); border-radius: var(--radius-md); box-shadow: inset 0 0 0 1px var(--border-default); }
+.ss-plan b { font-family: var(--font-display); font-size: var(--type-lg); }
+.ss-plan span { font-size: var(--type-xs); color: var(--fg-2); }
+.ss-plan--ai { box-shadow: none; outline: 1.5px dashed var(--spark); outline-offset: 2px; background: var(--spark-muted); }
+
+.ss-agent { position: absolute; left: 52%; top: 210px; display: flex; align-items: flex-start; gap: 2px; z-index: 3; }
+.ss-agent span {
+  display: inline-flex; align-items: center; gap: var(--space-1); margin-top: 12px;
+  padding: 2px var(--space-2); border-radius: var(--radius-pill);
+  background: var(--presence-agent); color: var(--spark-fg);
+  font-family: var(--font-rounded); font-size: var(--type-xs); font-weight: var(--w-semibold); white-space: nowrap;
+}
+.ss-st { position: absolute; left: calc(30% + 20px); top: 330px; rotate: -2deg; }
+
+.ss-pill { position: absolute; left: var(--space-4); top: var(--space-4); z-index: 4; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2); font-size: var(--type-sm); font-weight: var(--w-semibold); }
+.ss-lost {
+  position: absolute; left: var(--space-4); top: 64px; z-index: 4;
+  display: flex; align-items: center; gap: var(--space-2);
+  max-width: 340px; padding: var(--space-2) var(--space-3);
+  font-size: var(--type-sm); color: var(--fg-1);
+}
+.ss-lost b { color: var(--fg-0); font-weight: var(--w-semibold); }
+.ss-hovertip {
+  position: absolute; left: 104px; top: 64px; z-index: 5;
+  padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm);
+  background: var(--fg-0); color: var(--bg-1); font-size: var(--type-xs); font-weight: var(--w-medium); box-shadow: var(--shadow-md);
+}
+.ss-hovertip-arrow { position: absolute; left: 20px; top: -3px; width: 8px; height: 8px; rotate: 45deg; background: var(--fg-0); border-radius: 1px; }
+.ss-tr { position: absolute; right: var(--space-4); top: var(--space-4); z-index: 4; display: flex; gap: var(--space-1); padding: var(--space-1); border-radius: var(--radius-lg); }
+.ss-ai-fold { position: absolute; right: var(--space-4); bottom: var(--space-4); z-index: 4; padding: var(--space-1); border-radius: var(--radius-lg); }
+.ss-ai-fold .icon-btn { width: 40px; height: 40px; }
+.ss-ai-badge { position: absolute; right: 4px; top: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--presence-agent); box-shadow: 0 0 0 2px var(--bg-1); }
+.ss-dock { position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); z-index: 4; }
+
+.specimen .ss-hero-cap { margin: 0 0 var(--space-6); font-size: var(--type-sm); }
+
+/* ─── Signals ─────────────────────────────────────────────────────────── */
+.ss-sigs { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-3); margin: 0 0 var(--space-6); }
+.ss-sig { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3); border-radius: var(--radius-lg); background: var(--bg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default); font-size: var(--type-xs); color: var(--fg-1); line-height: var(--lh-xs); }
+.ss-sig strong { font-size: var(--type-sm); color: var(--fg-0); }
+.ss-sig-demo {
+  display: grid; place-items: center; min-height: 84px; margin-bottom: var(--space-2); border-radius: var(--radius-md);
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+}
+.ss-sig dl { margin: var(--space-2) 0 0; display: grid; gap: 2px; }
+.ss-sig dl div { display: grid; grid-template-columns: 38px 1fr; }
+.ss-sig dt { color: var(--fg-2); }
+.ss-sig dd { margin: 0; color: var(--fg-0); }
+
+.ss-sig-pill {
+  display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md); background: var(--island-bg); box-shadow: var(--island-shadow), inset 0 0 0 0.5px var(--island-edge);
+  font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-0);
+}
+.ss-sig-label { display: inline-flex; align-items: baseline; font-size: var(--type-xs); font-weight: var(--w-medium); color: var(--fg-1); }
+.ss-sig-ai { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--spark-muted); font-family: var(--font-rounded); font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ss-sig-sentence {
+  display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md); background: var(--island-bg); box-shadow: var(--island-shadow), inset 0 0 0 0.5px var(--island-edge);
+  font-size: var(--type-xs); color: var(--fg-0); white-space: nowrap;
+}
+.ss-sig-ask {
+  display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg); background: var(--bg-2); box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge);
+  font-size: var(--type-xs); color: var(--fg-0);
+}
+
+/* ─── Compare ─────────────────────────────────────────────────────────── */
+.ss-compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); margin: 0 0 var(--space-6); }
+.ss-case { margin: 0; }
+.ss-case figcaption { font-size: var(--type-sm); color: var(--fg-1); line-height: var(--lh-sm); }
+.ss-case figcaption strong { margin-right: var(--space-1); }
+.ss-ok { color: var(--status-success-text); }
+.ss-bad { color: var(--status-error-text); }
+.ss-mini { height: 220px; margin: 0 0 var(--space-3); }
+.ss-mini-board { position: absolute; left: 30%; top: 56px; width: 40%; height: 120px; border-radius: var(--radius-sm); background: var(--bg-2); box-shadow: var(--shadow-md); }
+.ss-mini-pill { position: absolute; left: var(--space-4); top: var(--space-4); display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2); font-size: var(--type-sm); font-weight: var(--w-semibold); }
+/* The wrong turn on purpose: a docked, framing bar of developer stamps. */
+.ss-oldbar {
+  position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1);
+  padding: var(--space-1) var(--space-2); background: var(--bg-1); box-shadow: 0 -1px 0 var(--border-default);
+  font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-1);
+}
+.ss-stamp { padding: 0 var(--space-1); border-radius: var(--radius-xs); box-shadow: inset 0 0 0 1px var(--border-strong); letter-spacing: var(--tracking-wide); }
+.ss-chip-old { padding: 0 var(--space-1); border-radius: var(--radius-xs); background: var(--bg-3); }
+
+/* ─── Ladder ──────────────────────────────────────────────────────────── */
+.ss-ladder { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); margin: 0 0 var(--space-6); }
+.ss-rung { position: relative; display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--type-sm); color: var(--fg-1); line-height: var(--lh-sm); }
+.ss-rung strong { font-size: var(--type-base); color: var(--fg-0); }
+.ss-rung-demo {
+  display: grid; place-items: center; height: 112px; margin-bottom: var(--space-2); border-radius: var(--radius-lg);
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.ss-rung-n {
+  position: absolute; left: var(--space-2); top: var(--space-2); z-index: 1;
+  display: grid; place-items: center; width: 20px; height: 20px; border-radius: var(--radius-pill);
+  background: var(--bg-4); color: var(--fg-1); font-size: var(--type-xs); font-weight: var(--w-semibold);
+}
+
+/* ─── Diagnostics pointer ─────────────────────────────────────────────── */
+.ss-diag { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(220px, 1fr); gap: var(--space-5); align-items: start; }
+.ss-diag-stage { height: 640px; margin: 0; }
+.ss-diag-pill { position: absolute; left: var(--space-4); top: var(--space-4); display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2); font-size: var(--type-sm); font-weight: var(--w-semibold); z-index: 4; }
+.ss-menu {
+  position: absolute; left: var(--space-4); top: 62px; width: 230px; z-index: 5;
+  padding: var(--space-1); border-radius: var(--radius-lg);
+  background: var(--bg-2); box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge);
+}
+.ss-menu-k { margin-left: auto; display: inline-flex; gap: 2px; color: var(--fg-2); }
+.ss-menu-sep { height: 1px; background: var(--border-subtle); margin: var(--space-1) var(--space-2); }
+.ss-pointer { position: absolute; left: 248px; top: 228px; display: flex; align-items: flex-start; z-index: 5; }
+.ss-pointer-line { width: 48px; height: 0; margin-top: 13px; border-top: 1.5px dashed var(--border-strong); }
+.ss-pointer-note { display: flex; flex-direction: column; gap: var(--space-1); max-width: 270px; padding: var(--space-3); border-radius: var(--radius-md); background: var(--bg-1); box-shadow: inset 0 0 0 1px var(--border-default); font-size: var(--type-xs); color: var(--fg-1); line-height: var(--lh-xs); }
+.ss-pointer-note strong { font-size: var(--type-sm); color: var(--fg-0); }
+.ss-diag-side { display: flex; flex-direction: column; gap: var(--space-3); }
+.specimen .ss-diag-side p { margin: 0; font-size: var(--type-sm); line-height: var(--lh-sm); }
+
+@media (max-width: 900px) {
+  .ss-sigs { grid-template-columns: 1fr 1fr; }
+  .ss-compare, .ss-ladder, .ss-diag { grid-template-columns: 1fr; }
+}
+
+/* The pill is one button: its name reads "Studio site, <state>, Project menu" (CONTRACT §1). */
+button.ss-pill { appearance: none; border: 0; font: inherit; font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); cursor: pointer; }
+button.ss-pill:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.ss-mark { display: inline-grid; }
+.ss-vh { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+/* The one menu + its Diagnostics submenu, side by side. */
+.ss-menus { position: absolute; left: var(--space-4); top: 64px; display: flex; align-items: flex-start; gap: var(--space-1); z-index: 4; }
+.ss-menus .ss-menu { position: static; }
+.ss-menu--sub { margin-top: 268px; width: 236px; }
+.ss-menu-word { align-items: center; gap: var(--space-1); font-size: var(--type-xs); }
+.ss-menu-word .ss-dot { width: 6px; height: 6px; }
+/* Captions stay at a readable measure (SF's ch runs wide). */
+.specimen .ss-case figcaption, .specimen .ss-hero-cap, .specimen .ss-diag-side p, .ss-rung > span:last-child { max-width: 60ch; }

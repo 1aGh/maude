@@ -1,0 +1,195 @@
+/* Weights stop at semibold: <strong> would otherwise render at the UA's 700. */
+.specimen strong, .specimen b { font-weight: var(--w-semibold); }
+.ls-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* components-list — demonstration-specific styles (.row-item, .island, .input live in _components.css). */
+
+.ls-ic { display: block; flex: none; }
+.ls-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Thumbnail — the canvas colour plus a sketch of its first artboard (object colours, never chrome). */
+.ls-thumb {
+  position: relative; flex: none;
+  width: 28px; height: 20px;
+  border-radius: var(--radius-xs);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+  overflow: hidden;
+}
+.ls-thumb span { position: absolute; left: 18%; right: 18%; border-radius: 1px; background: var(--bg-2); opacity: 0.85; }
+.ls-thumb span:first-child { top: 22%; height: 22%; right: 40%; }
+.ls-thumb span:last-child { top: 56%; height: 20%; }
+.ls-thumb--big { width: 100%; height: auto; aspect-ratio: 16 / 10; border-radius: var(--radius-sm); }
+.ls-th-coral { background: var(--object-coral); }
+.ls-th-yellow { background: var(--object-yellow); }
+.ls-th-green { background: var(--object-green); }
+.ls-th-lilac { background: var(--object-lilac); }
+.ls-th-sky { background: var(--object-sky); }
+
+/* People: object colours with ink initials. */
+.ls-av {
+  display: inline-grid; place-items: center; flex: none;
+  width: 18px; height: 18px; border-radius: 50%;
+  font-size: var(--type-xs); font-weight: var(--w-semibold); line-height: 1;
+  color: var(--object-ink);
+  box-shadow: 0 0 0 1.5px var(--bg-1);
+}
+.ls-av + .ls-av { margin-left: calc(var(--space-2) * -1); }
+.ls-av-sky { background: var(--object-sky); }
+.ls-av-green { background: var(--object-green); }
+.ls-av-lilac { background: var(--object-lilac); }
+
+.ls-count { display: inline-flex; align-items: center; gap: 2px; font-size: var(--type-xs); color: var(--fg-2); flex: none; font-variant-numeric: tabular-nums; }
+.ls-meta-ic { color: var(--fg-2); flex: none; }
+.ls-ai { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--spark-muted); flex: none; }
+.ls-ai-word { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--type-xs); color: var(--fg-2); flex: none; }
+
+.ls-crow { min-height: 36px; cursor: default; }
+.ls-more {
+  appearance: none; border: 0; background: transparent; color: var(--fg-2); cursor: pointer;
+  display: grid; place-items: center; width: 22px; height: 22px; margin-right: calc(var(--space-1) * -1);
+  border-radius: var(--radius-sm); opacity: 0; flex: none;
+  transition: opacity var(--dur-flip) var(--ease-out), background var(--dur-flip) var(--ease-out);
+}
+.ls-crow:hover .ls-more, .ls-crow:focus-within .ls-more, .ls-more.is-shown { opacity: 1; }
+.ls-more:hover { background: var(--bg-4); color: var(--fg-0); }
+.ls-more:focus-visible { opacity: 1; outline: 2px solid var(--focus-ring); outline-offset: -1px; }
+
+/* ─── Layers ─────────────────────────────────────────────────────────────── */
+.ls-layer { position: relative; gap: var(--space-1); cursor: default; }
+.ls-guide { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--border-subtle); }
+.ls-disc {
+  appearance: none; border: 0; background: transparent; color: var(--fg-2); cursor: pointer; padding: 0;
+  display: grid; place-items: center; width: 14px; height: 14px; border-radius: var(--radius-xs); flex: none;
+  transition: transform var(--dur-flip) var(--ease-out);
+}
+.ls-disc.is-open { transform: rotate(90deg); }
+.ls-disc:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.ls-disc-space { width: 14px; flex: none; }
+.ls-type { color: var(--fg-2); display: grid; place-items: center; margin-right: var(--space-1); }
+.ls-layer[aria-current="true"] .ls-type { color: var(--accent-text); }
+
+.ls-actions { display: inline-flex; gap: 2px; margin-left: auto; flex: none; }
+.ls-act {
+  appearance: none; border: 0; background: transparent; color: var(--fg-2); cursor: pointer; padding: 0;
+  display: grid; place-items: center; width: 22px; height: 22px; border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: opacity var(--dur-flip) var(--ease-out), background var(--dur-flip) var(--ease-out);
+}
+.ls-layer:hover .ls-act, .ls-layer:focus-within .ls-act, .ls-actions.is-shown .ls-act, .ls-act.is-on { opacity: 1; }
+.ls-act:hover { background: var(--bg-4); color: var(--fg-0); }
+.ls-act:focus-visible { opacity: 1; outline: 2px solid var(--focus-ring); outline-offset: -1px; }
+.ls-layer.is-hidden .ls-name, .ls-layer.is-hidden .ls-type { color: var(--fg-2); }
+
+.ls-adv { margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--border-subtle); }
+.ls-adv-btn {
+  appearance: none; border: 0; background: transparent; font: inherit; cursor: pointer;
+  display: flex; align-items: center; gap: var(--space-1); width: 100%;
+  padding: var(--space-1); border-radius: var(--radius-sm);
+  font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2);
+}
+.ls-adv-btn:hover { background: var(--bg-3); color: var(--fg-0); }
+.ls-adv-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -1px; }
+.ls-adv-body { margin: var(--space-1) 0 0; padding: var(--space-2); border-radius: var(--radius-md); background: var(--bg-3); display: flex; flex-direction: column; gap: 2px; }
+.ls-adv-body div { display: flex; justify-content: space-between; gap: var(--space-2); font-size: var(--type-xs); }
+.ls-adv-body dt { color: var(--fg-2); }
+.ls-adv-body dd { margin: 0; color: var(--fg-0); }
+
+/* ─── Hero stage ─────────────────────────────────────────────────────────── */
+.ls-hero { height: 700px; }
+.ls-col { position: absolute; left: var(--space-4); top: var(--space-4); width: 252px; display: flex; flex-direction: column; gap: var(--space-3); z-index: 4; }
+.ls-isl-hd { display: flex; align-items: baseline; justify-content: space-between; }
+.ls-hd-count { font-size: var(--type-xs); color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.ls-find { position: relative; display: block; margin: 0 0 var(--space-2); color: var(--fg-2); }
+.ls-find .ls-ic { position: absolute; left: var(--space-2); top: 50%; transform: translateY(-50%); }
+.ls-find .input { padding-left: calc(var(--space-5) + var(--space-1)); height: 30px; }
+.ls-hero-note { position: absolute; right: var(--space-4); bottom: var(--space-3); margin: 0; font-size: var(--type-xs); color: var(--fg-2); max-width: none; }
+
+/* The artboard — each region is a layer you can pick. */
+.ls-board {
+  position: absolute; left: 330px; top: 56px; width: 460px; height: 540px;
+  display: flex; flex-direction: column;
+  background: var(--bg-2); border-radius: var(--radius-sm); box-shadow: var(--shadow-md);
+}
+.ls-board-label { position: absolute; left: 0; top: -22px; font-size: var(--type-xs); color: var(--fg-2); }
+.ls-r { position: relative; cursor: pointer; transition: opacity var(--dur-soft) var(--ease-out), box-shadow var(--dur-flip) var(--ease-out); }
+.ls-r:hover { box-shadow: inset 0 0 0 1px var(--accent-tint); }
+.ls-r.is-sel, .ls-board.is-sel { box-shadow: 0 0 0 2px var(--accent); z-index: 2; }
+.ls-r.is-gone { opacity: 0; pointer-events: none; }
+
+.ls-r-nav { display: flex; align-items: center; justify-content: space-between; height: 48px; padding: 0 var(--space-4); }
+.ls-r-logo { width: 22px; height: 22px; border-radius: var(--radius-sm); background: var(--fg-0); }
+.ls-r-links { font-size: var(--type-xs); color: var(--fg-2); padding: var(--space-1); }
+.ls-r-hero { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto auto 1fr; gap: var(--space-3); height: 240px; padding: var(--space-4); }
+.ls-r-headline { grid-column: 1; font-family: var(--font-display); font-size: var(--type-xl); line-height: var(--lh-xl); font-weight: var(--w-semibold); letter-spacing: var(--tracking-tight); color: var(--fg-0); align-self: end; }
+.ls-r-cta { grid-column: 1; justify-self: start; padding: var(--space-2) var(--space-3); border-radius: var(--radius-pill); background: var(--fg-0); color: var(--bg-2); font-size: var(--type-xs); font-weight: var(--w-semibold); }
+.ls-r-photo { grid-column: 2; grid-row: 1 / span 3; border-radius: var(--radius-sm); background: linear-gradient(160deg, var(--object-coral), var(--object-yellow)); }
+.ls-r-plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); padding: var(--space-3) var(--space-4); height: 150px; }
+.ls-r-plans span { border-radius: var(--radius-sm); background: var(--bg-3); }
+.ls-r-footer { flex: 1; margin: 0 var(--space-4) var(--space-4); border-radius: var(--radius-sm); background: var(--bg-3); }
+
+.ls-sticky { position: absolute; left: 820px; top: 110px; rotate: 2.4deg; }
+
+/* ─── States ─────────────────────────────────────────────────────────────── */
+.ls-states { margin: 0 0 var(--space-6); }
+.ls-states-bar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-4); margin-bottom: var(--space-4); }
+.ls-states-bar .seg button { display: inline-flex; align-items: center; gap: var(--space-1); }
+.ls-states-hint { font-size: var(--type-sm); color: var(--fg-2); max-width: 60ch; }
+.ls-states-list { max-width: 520px; display: flex; flex-direction: column; gap: 2px; }
+.ls-state { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: var(--space-3); }
+.ls-state-k { font-size: var(--type-xs); color: var(--fg-2); padding-left: var(--space-1); }
+.ls-crow.is-hover { background: var(--bg-3); }
+.ls-rename { height: 26px; padding: 0 var(--space-2); background: var(--bg-2); box-shadow: 0 0 0 3px var(--accent-tint), inset 0 0 0 1px var(--focus-ring); }
+
+.ls-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--space-4); }
+.ls-card {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-2); border-radius: var(--radius-lg);
+  background: var(--island-bg); box-shadow: var(--island-shadow), inset 0 0 0 0.5px var(--island-edge);
+}
+.ls-card.is-cur { box-shadow: var(--island-shadow), inset 0 0 0 2px var(--accent); }
+.ls-card-meta { display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-1) var(--space-1); font-size: var(--type-sm); }
+
+/* ─── Anatomy ────────────────────────────────────────────────────────────── */
+.ls-anat { display: grid; grid-template-columns: 300px 1fr; gap: var(--space-7); align-items: center; margin: 0 0 var(--space-6); }
+.ls-anat-isl { overflow: visible; }
+.ls-pin {
+  display: inline-grid; place-items: center; flex: none;
+  min-width: 20px; height: 20px; border-radius: var(--radius-pill);
+  background: var(--accent); color: var(--accent-fg);
+  font-size: var(--type-xs); font-weight: var(--w-semibold);
+  box-shadow: 0 0 0 2px var(--bg-0);
+}
+.ls-anat-isl .ls-pin { position: absolute; right: calc(var(--space-6) * -1); top: 50%; transform: translateY(-50%); }
+.ls-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.ls-legend li { display: flex; gap: var(--space-2); font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.ls-legend strong { color: var(--fg-0); margin-right: var(--space-1); }
+
+/* ─── Recents ────────────────────────────────────────────────────────────── */
+.ls-recents { display: grid; grid-template-columns: 1.1fr 1fr; gap: var(--space-5); align-items: start; margin: 0 0 var(--space-6); }
+.ls-jump { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); }
+.ls-jump-card { display: flex; flex-direction: column; gap: 2px; font-size: var(--type-sm); }
+.ls-jump-card .ls-thumb { margin-bottom: var(--space-2); box-shadow: var(--shadow-md); }
+.ls-jump-card span { font-size: var(--type-xs); color: var(--fg-2); }
+.ls-recent-group + .ls-recent-group { margin-top: var(--space-2); }
+.ls-proj { margin-left: var(--space-2); font-size: var(--type-xs); color: var(--fg-2); }
+.ls-when { font-size: var(--type-xs); color: var(--fg-2); white-space: nowrap; flex: none; min-width: 76px; text-align: right; font-variant-numeric: tabular-nums; }
+.ls-keys { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-3); padding: var(--space-2) var(--space-1) 0; border-top: 1px solid var(--border-subtle); font-size: var(--type-xs); color: var(--fg-2); }
+.ls-keys > span { display: inline-flex; align-items: center; gap: 2px; }
+.ls-keys > span .kbd:last-of-type { margin-right: var(--space-1); }
+
+/* ─── Right / wrong ──────────────────────────────────────────────────────── */
+.ls-compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+.ls-case { margin: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.ls-case figcaption { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); max-width: 60ch; }
+.ls-case figcaption strong { margin-right: var(--space-1); }
+.ls-ok { color: var(--status-success-text); }
+.ls-bad { color: var(--status-error-text); }
+.ls-mini { max-width: 320px; min-height: 140px; }
+.ls-wrong { max-width: none; background: var(--bg-1); box-shadow: inset 0 0 0 1px var(--border-strong); border-radius: var(--radius-xs); font-size: var(--type-xs); }
+.ls-w-hd, .ls-w-row { display: grid; grid-template-columns: 1fr 64px 80px; gap: var(--space-2); padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border-strong); }
+.ls-w-hd { color: var(--fg-2); letter-spacing: var(--tracking-wide); font-weight: var(--w-semibold); background: var(--bg-3); }
+.ls-w-row { color: var(--fg-1); }
+
+@media (max-width: 900px) {
+  .ls-anat, .ls-recents, .ls-compare { grid-template-columns: 1fr; }
+  .ls-board { left: 290px; width: 380px; }
+}

@@ -1,0 +1,192 @@
+/* iconography — demonstration-specific styles (anatomy lives in _components.css). */
+
+/* The family rule, in code: geometry scales with the box, the line never does. */
+.ic * { vector-effect: non-scaling-stroke; }
+.ic .ic-dots circle { fill: currentColor; stroke: none; }
+.ic { display: block; flex: none; }
+
+/* ─── Hero ─────────────────────────────────────────────────────────────── */
+.ic-hero { height: 460px; }
+
+.ic-artboard {
+  position: absolute; left: 40%; top: 76px; width: 300px; height: 236px;
+  background: var(--bg-2); border-radius: var(--radius-sm); box-shadow: var(--shadow-md); overflow: hidden;
+}
+.ic-artboard-top { height: 112px; background: var(--object-sky); }
+.ic-artboard-body { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4); }
+.ic-ab-line { display: block; height: 8px; width: 62%; border-radius: var(--radius-xs); background: var(--bg-4); }
+.ic-ab-line--lg { height: 14px; width: 78%; background: var(--fg-3); }
+.ic-ab-btn { display: block; width: 88px; height: 24px; margin-top: var(--space-1); border-radius: var(--radius-sm); background: var(--object-coral); }
+.ic-ab-label { position: absolute; left: 40%; top: 54px; font-size: var(--type-xs); color: var(--fg-2); font-weight: var(--w-medium); }
+
+.ic-pill {
+  position: absolute; left: var(--space-4); top: var(--space-4); z-index: 4;
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-2);
+  font-size: var(--type-sm); font-weight: var(--w-semibold);
+}
+button.ic-pill { appearance: none; border: 0; font: inherit; font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); cursor: pointer; }
+button.ic-pill:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.ic-pill-chev { color: var(--fg-2); }
+/* Visually hidden, still read — completes an accessible name without changing the look. */
+.ic-vh { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+.ic-layers { position: absolute; left: var(--space-4); top: 68px; width: 220px; z-index: 4; }
+.ic-layers-hd { display: flex; align-items: center; justify-content: space-between; margin: 0 0 var(--space-1); padding-left: var(--space-1); }
+.ic-layers-title { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2); }
+.ic-layers .row-item { color: var(--fg-0); }
+.ic-layers .row-item .ic { color: var(--fg-1); }
+.ic-layers .row-item[aria-current="true"] .ic { color: var(--accent-text); }
+.ic-indent { padding-left: var(--space-5); }
+.icon-btn.ic-sm { width: 24px; height: 24px; border-radius: var(--radius-sm); color: var(--fg-2); }
+
+.ic-tr {
+  position: absolute; right: var(--space-4); top: var(--space-4); z-index: 4;
+  display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1); border-radius: var(--radius-lg);
+}
+.ic-tr .btn--primary .ic { width: 16px; height: 16px; }
+
+.ic-ai-folded { position: absolute; right: var(--space-4); bottom: var(--space-4); padding: var(--space-1); border-radius: var(--radius-lg); z-index: 4; }
+.icon-btn.ic-ai-btn { color: var(--spark-text); }
+.icon-btn.ic-ai-btn:hover { background: var(--spark-muted); }
+
+.ic-dock { position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); z-index: 4; }
+
+/* Callouts — each one anchored to the island it names, with a short leader. */
+.ic-callout {
+  position: absolute; z-index: 5;
+  padding: 2px var(--space-2); border-radius: var(--radius-pill);
+  background: var(--bg-2); color: var(--fg-1); box-shadow: var(--shadow-sm);
+  font-size: var(--type-xs); font-weight: var(--w-medium); white-space: nowrap;
+}
+.ic-callout::before { content: ""; position: absolute; background: var(--border-strong); }
+.ic-callout--layers { left: 260px; top: 122px; }
+.ic-callout--layers::before { left: -20px; top: 50%; width: 16px; height: 1px; }
+.ic-callout--ai { right: 80px; bottom: 26px; }
+.ic-callout--ai::before { right: -20px; top: 50%; width: 16px; height: 1px; }
+.ic-callout--dock { left: 50%; bottom: 86px; transform: translateX(-50%); }
+.ic-callout--dock::before { left: 50%; bottom: -12px; width: 1px; height: 10px; }
+
+/* ─── The family ───────────────────────────────────────────────────────── */
+.ic-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-5); margin: 0 0 var(--space-4); }
+.ic-switch-label { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--type-sm); color: var(--fg-1); cursor: pointer; }
+
+.ic-family {
+  display: grid; gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
+  margin: 0 0 var(--space-6);
+}
+.ic-tile {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--space-3); border-radius: var(--radius-lg);
+  background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default);
+  color: var(--fg-0);
+}
+.ic-tile strong { font-size: var(--type-sm); font-weight: var(--w-semibold); margin-top: var(--space-2); }
+.ic-home { font-size: var(--type-xs); color: var(--fg-2); }
+.ic-wells { display: flex; gap: var(--space-2); }
+.ic-well {
+  position: relative; display: grid; place-items: center;
+  width: 40px; height: 40px; border-radius: var(--radius-md);
+  background: var(--bg-3); color: inherit;
+}
+.ic-well--16 { width: 32px; height: 32px; align-self: flex-end; border-radius: var(--radius-sm); }
+.ic-well > svg:not(.ic-keys) { position: relative; }
+.ic-keys { position: absolute; inset: 0; margin: auto; }
+.ic-keys * { stroke: var(--accent-tint); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+
+.ic-family[data-ink="muted"] .ic-tile { color: var(--fg-2); }
+.ic-family[data-ink="muted"] .ic-tile strong { color: var(--fg-0); }
+.ic-family[data-ink="pressed"] .ic-well { background: var(--accent); color: var(--accent-fg); }
+.ic-family[data-ink="pressed"] .ic-keys * { stroke: var(--accent-fg); stroke-opacity: 0.35; }
+.ic-tile--ai .ic-well { color: var(--spark-text); }
+.ic-family[data-ink="pressed"] .ic-tile--ai .ic-well { background: var(--spark); color: var(--spark-fg); }
+.ic-tile--ai strong { color: var(--fg-0); }
+
+/* ─── Anatomy plate ────────────────────────────────────────────────────── */
+.ic-anatomy { display: grid; grid-template-columns: auto 1fr; gap: var(--space-6); align-items: start; margin: 0 0 var(--space-6); }
+.ic-plate {
+  margin: 0; padding: var(--space-4); border-radius: var(--radius-lg);
+  background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.ic-plate svg { display: block; }
+.ic-plate figcaption { margin-top: var(--space-3); font-size: var(--type-xs); color: var(--fg-2); text-align: center; }
+.ic-plate-grid path { stroke: var(--border-subtle); stroke-width: 1px; vector-effect: non-scaling-stroke; fill: none; }
+.ic-plate-live { fill: none; stroke: var(--accent-tint); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+.ic-plate-stroke { fill: none; stroke: var(--fg-3); stroke-opacity: 0.45; stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.ic-plate-spine { fill: none; stroke: var(--fg-0); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.ic-plate-node { fill: var(--accent); }
+
+.ic-anatomy-notes { display: flex; flex-direction: column; gap: var(--space-5); }
+.ic-lineage {
+  display: grid; grid-template-columns: auto auto auto 1fr; align-items: center; gap: var(--space-3);
+  padding: var(--space-4); border-radius: var(--radius-lg);
+  background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.ic-lineage-arrow { color: var(--fg-2); font-size: var(--type-lg); }
+.ic-lineage-ic { display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--radius-md); background: var(--bg-3); color: var(--fg-0); }
+.ic-lineage p { margin: 0; font-size: var(--type-sm); line-height: var(--lh-sm); }
+.ic-anatomy-list { margin: 0; padding-left: var(--space-5); display: flex; flex-direction: column; gap: var(--space-3); font-size: var(--type-sm); color: var(--fg-1); line-height: var(--lh-sm); }
+.ic-anatomy-list strong { color: var(--fg-0); }
+.ic-anatomy-list li::marker { color: var(--fg-2); font-weight: var(--w-semibold); }
+
+/* ─── Rules ────────────────────────────────────────────────────────────── */
+.ic-rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-4); margin: 0 0 var(--space-6); }
+.ic-rule {
+  padding: var(--space-4); border-radius: var(--radius-lg);
+  background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.ic-rule h3 { margin: var(--space-3) 0 var(--space-1); font-size: var(--type-base); }
+.ic-rule p { margin: 0; font-size: var(--type-sm); line-height: var(--lh-sm); }
+.ic-rule-demo {
+  display: flex; align-items: center; justify-content: center; gap: var(--space-4);
+  height: 88px; border-radius: var(--radius-md); background: var(--bg-3); color: var(--fg-0);
+}
+.ic-weights { flex-direction: column; align-items: stretch; gap: var(--space-2); padding: 0 var(--space-5); }
+.ic-weight { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-3); font-size: var(--type-xs); color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.ic-weight i { display: block; border-radius: var(--radius-pill); background: var(--fg-3); }
+.ic-weight--thin i { height: 0.75px; }
+.ic-weight--ok i { height: 1.5px; background: var(--fg-0); }
+.ic-weight--ok { color: var(--fg-0); font-weight: var(--w-semibold); }
+.ic-weight--heavy i { height: 3px; }
+.ic-rule-sizes span { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); }
+.ic-rule-sizes small { font-size: var(--type-xs); color: var(--fg-2); }
+.ic-rule-inks span { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius-md); }
+.ic-ink-default { background: var(--bg-2); color: var(--fg-0); box-shadow: var(--shadow-sm); }
+.ic-ink-pressed { background: var(--accent); color: var(--accent-fg); }
+.ic-ink-ai { background: var(--spark-muted); color: var(--spark-text); }
+
+/* ─── Optical balance ──────────────────────────────────────────────────── */
+.ic-optical {
+  display: grid; grid-template-columns: repeat(3, auto) 1fr; gap: var(--space-5); align-items: center;
+  padding: var(--space-5); margin: 0 0 var(--space-6); border-radius: var(--radius-lg);
+  background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.ic-optical figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-2); color: var(--fg-0); }
+.ic-optical figcaption { font-size: var(--type-xs); color: var(--fg-2); }
+.ic-optical svg { display: block; border-radius: var(--radius-md); background: var(--bg-3); }
+.ic-opt-guide { fill: none; stroke: var(--accent-tint); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.ic-opt-spark { fill: var(--fg-0); }
+.ic-optical-note { margin: 0; font-size: var(--type-sm); line-height: var(--lh-sm); }
+
+/* ─── Right / wrong ────────────────────────────────────────────────────── */
+.ic-compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+.ic-case { margin: 0; }
+.ic-case figcaption { font-size: var(--type-sm); color: var(--fg-1); line-height: var(--lh-sm); }
+.ic-case figcaption strong { margin-right: var(--space-1); }
+.ic-ok { color: var(--status-success-text); }
+.ic-bad { color: var(--status-error-text); }
+.ic-mini { min-height: 140px; height: 140px; margin-bottom: var(--space-3); }
+.ic-mini-dock { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.ic-wrong .icon-btn { cursor: default; }
+.ic-wrong .icon-btn:first-child { color: var(--accent-text); }
+.ic-wrong-glyph { font-family: var(--font-display); font-weight: var(--w-semibold); font-size: var(--type-base); fill: currentColor; }
+.ic-wrong-sticky { display: block; width: 18px; height: 18px; border-radius: var(--radius-xs); background: var(--object-yellow); }
+.ic-wrong-ai { fill: var(--object-lilac); }
+
+@media (max-width: 760px) {
+  .ic-anatomy, .ic-compare, .ic-optical { grid-template-columns: 1fr; }
+}
+
+/* Captions stay at a readable measure (SF's ch runs wide). */
+.specimen .ic-case figcaption, .specimen .ic-plate figcaption, .specimen .ic-rule p, .specimen .ic-optical-note, .specimen .ic-lineage p { max-width: 60ch; }

@@ -8,6 +8,21 @@ _Auto-maintained by `/design:setup-docs`. Last updated 2026-07-31T08:32:00Z._
 
 | File | Title | Platform | Sections | Artboards | Iter | Last modified |
 |---|---|---|---|---|---|---|
+| `v2/maude-v2-moodboard.tsx` | maude-v2 moodboard (Stage-3 directions + locked direction-mix) | desktop | 2 | 4 | 0 | 2026-10-05T21:00 |
+| `v2 Triage.tsx` | v2 Triage (brief board) | desktop | 1 | 1 | 0 | 2026-10-05T20:30 |
+| `v2/00 Index.tsx` | 00 Index — The Maude v2 "in practice" set on four boards — the request and the twelve canva | desktop | 1 | 4 | 0 | 2026-10-06 |
+| `v2/01 Create Flow.tsx` | 01 Create Flow — Making a canvas and working on it — Studio site and Alligators brand | desktop | 4 | 20 | 0 | 2026-10-06 |
+| `v2/02 Onboarding.tsx` | 02 Onboarding — First launch is Home: sign in to cloud.maude.sh once, and your first sentence be | desktop | 5 | 22 | 0 | 2026-10-06 |
+| `v2/03 AI Chat.tsx` | 03 AI Chat — Using the AI chat panel, and several AI chats at once — Alligators brand | desktop | 6 | 25 | 0 | 2026-10-06 |
+| `v2/04 Modes.tsx` | 04 Modes — Edit · Preview · Present, and the tools that look like modes — Studio site and A | desktop | 8 | 23 | 0 | 2026-10-06 |
+| `v2/05 Empty States.tsx` | 05 Empty States — Every place that starts with nothing — Home, project, canvas, artboard, panels,  | desktop | 4 | 20 | 0 | 2026-10-06 |
+| `v2/06 Advanced.tsx` | 06 Advanced — Nothing deleted — Advanced inside each panel, the menu, Menu › Diagnostics, Sett | desktop | 6 | 25 | 0 | 2026-10-06 |
+| `v2/07 Video Editing.tsx` | 07 Video Editing — The timeline that comes with a video artboard — Alligators brand | desktop | 8 | 26 | 0 | 2026-10-06 |
+| `v2/08 Artboard Kinds.tsx` | 08 Artboard Kinds — Fixed size (App, Social), web page, print and video artboards — Alligators brand | desktop | 7 | 19 | 0 | 2026-10-06 |
+| `v2/09 Export.tsx` | 09 Export — One Export sheet that fits what's selected and always shows its Scope — live pap | desktop | 7 | 21 | 0 | 2026-10-06 |
+| `v2/10 Share and Collaboration.tsx` | 10 Share and Collaboration — One Share button, people and AI on the same canvas, comments, sync in words — Al | desktop | 7 | 20 | 0 | 2026-10-06 |
+| `v2/11 Projects and Navigation.tsx` | 11 Projects and Navigation — Always finding the right canvas — project tabs in two variants (native macOS vs  | desktop | 6 | 22 | 0 | 2026-10-06 |
+| `v2/12 Import and Assets.tsx` | 12 Import and Assets — Getting photos, footage, sound, Figma files and a brand into a project — Alligat | desktop | 8 | 22 | 0 | 2026-10-06 |
 | `Cloud Self Service.tsx` | Cloud Self Service | desktop | 5 | 14 | 1 | 2026-07-31T08:32 |
 | `Smoke TSX.tsx` | Smoke TSX | desktop | 1 | 1 | 36 | 2026-07-08T12:24 |
 | `Maude Video Intro.tsx` | Maude Video Intro | desktop | 1 | 2 | 24 | 2026-07-07T07:28 |

@@ -1,0 +1,193 @@
+/* focus — demonstration-specific styles (anatomy lives in _components.css).
+ *
+ * The two focus forms, written once and shared by the live controls, the auto-tour
+ * ([data-tour="true"]) and the forced "focused" demos (.fo-ring / .fo-halo / …):
+ *   ring  — outline 2px --accent, outside the control (outline never shifts layout)
+ *   halo  — 3px --accent-tint + 1px --accent inset, on the --bg-2 well (fields, AI prompt)
+ * Variants: rows draw the ring INSIDE (an island's padding would clip it otherwise);
+ * canvas objects draw it 3px OUT so it never touches the sticky's own colour.
+ */
+
+/* ─── The forms ──────────────────────────────────────────────────────────── */
+.fo-ring,
+.fo-stage [data-tour="true"]:not(.ask):not(.fo-row):not(.sticky),
+.fo-pill:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.icon-btn.fo-ring,
+.fo-stage .icon-btn[data-tour="true"],
+.seg button.fo-ring,
+.seg button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+.fo-ring-in,
+.fo-row:focus-visible,
+.fo-row[data-tour="true"] {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+.fo-ring-out,
+.fo-stage .sticky:focus-visible,
+.fo-stage .sticky[data-tour="true"] {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+.input.fo-halo,
+.fo-halo,
+.ask:focus-within,
+.fo-stage .ask[data-tour="true"] {
+  outline: none;
+  background: var(--bg-2);
+  box-shadow: 0 0 0 3px var(--accent-tint), inset 0 0 0 1px var(--focus-ring);
+}
+
+/* ─── Hero: keyboard path ────────────────────────────────────────────────── */
+.fo-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-6);
+}
+.fo-stage { height: 468px; margin: 0; }
+
+.fo-board {
+  position: absolute; left: 33%; top: 64px; width: 216px; height: 224px;
+  background: var(--bg-2); border-radius: var(--radius-sm); box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+.fo-board-img { height: 116px; background: var(--object-coral); background-image: radial-gradient(circle at 30% 70%, var(--object-yellow) 0 18%, transparent 19%); }
+.fo-board-body { padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1); }
+.fo-board-body strong { font-family: var(--font-display); font-size: var(--type-md); letter-spacing: var(--tracking-tight); }
+.fo-board-body span { color: var(--fg-2); font-size: var(--type-xs); }
+.fo-sticky { position: absolute; left: calc(33% + 236px); top: 84px; rotate: -2deg; cursor: default; }
+
+.fo-pill-wrap { position: absolute; left: var(--space-4); top: var(--space-4); z-index: 4; }
+.fo-pill {
+  appearance: none; border: 0; cursor: pointer; font: inherit;
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+  font-size: var(--type-sm); font-weight: var(--w-semibold);
+}
+.fo-list { position: absolute; left: var(--space-4); top: 68px; width: 188px; z-index: 4; }
+.fo-row {
+  appearance: none; border: 0; background: transparent; font: inherit; font-size: var(--type-sm);
+  width: 100%; text-align: left; cursor: pointer; color: var(--fg-0);
+}
+.fo-tr { position: absolute; right: var(--space-4); top: var(--space-4); z-index: 4; display: flex; gap: var(--space-1); padding: var(--space-1); }
+.fo-ai { position: absolute; right: var(--space-4); bottom: 88px; width: 252px; z-index: 4; }
+.fo-ai-hd { display: flex; align-items: center; gap: var(--space-1); font-family: var(--font-rounded); font-weight: var(--w-semibold); font-size: var(--type-sm); margin-bottom: var(--space-2); }
+.fo-ai .ask { cursor: text; transition: box-shadow var(--dur-flip) var(--ease-out); }
+.fo-dock { position: absolute; left: 50%; bottom: var(--space-4); translate: -50% 0; z-index: 4; }
+
+.fo-th-coral { background: var(--object-coral); }
+.fo-th-yellow { background: var(--object-yellow); }
+.fo-th-green { background: var(--object-green); }
+
+/* Path numbers — spec annotations: neutral ink, never accent (accent = the ring). */
+.fo-stop {
+  position: absolute; top: -8px; right: -8px; z-index: 8;
+  display: grid; place-items: center;
+  width: 20px; height: 20px;
+  border-radius: var(--radius-pill);
+  background: var(--fg-0); color: var(--bg-1);
+  font-family: var(--font-body); font-size: var(--type-xs); font-weight: var(--w-semibold);
+  box-shadow: 0 0 0 2px var(--canvas-bg);
+  pointer-events: none;
+}
+
+.fo-path {
+  list-style: none; margin: 0; padding: var(--space-2);
+  display: flex; flex-direction: column; gap: 2px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.fo-path li {
+  display: grid; grid-template-columns: auto 1fr auto; gap: var(--space-2); align-items: start;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  transition: background var(--dur-soft) var(--ease-out);
+}
+.fo-path li[data-active="true"] { background: var(--accent-muted); }
+.fo-path-n {
+  display: grid; place-items: center; width: 20px; height: 20px; border-radius: var(--radius-pill);
+  background: var(--bg-4); color: var(--fg-0); font-size: var(--type-xs); font-weight: var(--w-semibold);
+}
+.fo-path li[data-active="true"] .fo-path-n { background: var(--fg-0); color: var(--bg-1); }
+.fo-path strong { display: block; font-size: var(--type-sm); color: var(--fg-0); }
+.fo-path li div span { display: block; font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); margin-top: 2px; }
+.fo-path .fo-path-foot { display: block; margin-top: var(--space-1); padding: var(--space-2); font-size: var(--type-xs); color: var(--fg-1); box-shadow: inset 0 0.5px 0 var(--border-subtle); border-radius: 0; }
+
+/* ─── Anatomy ────────────────────────────────────────────────────────────── */
+.fo-anatomy { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); margin: 0 0 var(--space-6); }
+.fo-anat { margin: 0; }
+.fo-anat-stage {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4) var(--space-3);
+  justify-items: center; align-items: center;
+  padding: var(--space-7) var(--space-5) var(--space-5);
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.fo-anat-stage > :first-child { grid-column: 1 / -1; margin-bottom: var(--space-4); }
+.fo-anat-input { max-width: 260px; height: 40px; font-size: var(--type-base); }
+.fo-anat figcaption { font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.fo-anat figcaption strong { color: var(--fg-0); }
+
+/* Legend chips: a little drawing of each layer of the form. */
+.fo-dim { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--type-xs); color: var(--fg-1); }
+.fo-dim::before { content: ""; display: block; width: 22px; height: 14px; border-radius: var(--radius-xs); }
+.fo-dim--ring::before { box-shadow: inset 0 0 0 2px var(--accent); }
+.fo-dim--gap::before { background: var(--bg-3); box-shadow: inset 0 0 0 2px var(--bg-1), 0 0 0 2px var(--accent); width: 18px; height: 10px; }
+.fo-dim--halo::before { background: var(--accent-tint); }
+.fo-dim--line::before { box-shadow: inset 0 0 0 1px var(--accent); background: var(--bg-2); }
+
+/* ─── Idle vs focused grid ───────────────────────────────────────────────── */
+.fo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-4);
+  margin: 0 0 var(--space-6);
+}
+.fo-cell-hd { display: flex; align-items: baseline; justify-content: space-between; margin: 0 var(--space-1) var(--space-2); }
+.fo-cell-hd strong { font-size: var(--type-sm); }
+.fo-cell-hd span { font-size: var(--type-xs); color: var(--fg-2); }
+.fo-cell-pair { display: grid; grid-template-columns: 1fr 1fr; }
+.fo-cell-slot { display: grid; place-items: center; min-height: 112px; padding: var(--space-4) var(--space-3); }
+.fo-cell-slot + .fo-cell-slot { box-shadow: inset 0.5px 0 0 var(--border-default); }
+.fo-cell-slot .input { max-width: 132px; }
+.fo-ask { width: 132px; }
+.fo-row-demo { width: 120px; }
+.fo-mini-sticky { width: 72px; min-height: 64px; font-size: var(--type-sm); rotate: -2deg; }
+
+/* ─── Try it ─────────────────────────────────────────────────────────────── */
+.fo-try { min-height: 264px; display: grid; place-items: center; }
+.fo-try-island { width: 320px; display: flex; flex-direction: column; gap: var(--space-3); }
+.fo-try-row { display: flex; gap: var(--space-2); }
+.fo-try-end { justify-content: flex-end; }
+
+/* ─── Rules ──────────────────────────────────────────────────────────────── */
+.fo-rules { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); }
+.fo-rule {
+  display: flex; flex-direction: column; gap: var(--space-1);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+  font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1);
+}
+.fo-rule strong { font-family: var(--font-display); font-size: var(--type-base); color: var(--fg-0); }
+
+@media (max-width: 900px) {
+  .fo-hero, .fo-anatomy { grid-template-columns: 1fr; }
+  .fo-rules { grid-template-columns: 1fr 1fr; }
+}
+
+/* The tool you're holding is muted azure — Share stays the one solid azure surface (colors-accent). */
+.dock .icon-btn[aria-pressed="true"] { background: var(--accent-muted); color: var(--accent-text); }
+
+/* Captions and running notes hold a 60ch measure (CONTRACT §5). */
+.specimen p, .specimen figcaption { max-width: 60ch; }

@@ -1,0 +1,351 @@
+/* components-resize-panels — demonstration-specific styles (.island, .dock, .row-item, .seg,
+   .switch, .chip, .kbd live in _components.css). Specimen p rules are scoped with .specimen. */
+
+.rp-ic { display: block; flex: none; }
+
+/* CONTRACT §5: lede ≤ 56ch, running captions ≤ 60ch. */
+.rp-page .specimen-title .lede { max-width: 56ch; }
+
+/* ─── Controls + state line ──────────────────────────────────────────────── */
+.rp-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2);
+  border-radius: var(--radius-lg);
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.rp-controls .kbd { margin-left: var(--space-1); }
+.rp-sp { flex: 1; }
+.rp-toggle { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--type-sm); color: var(--fg-1); }
+.specimen .rp-state { margin: calc(var(--space-3) * -1) 0 var(--space-6); font-size: var(--type-sm); color: var(--fg-2); }
+
+/* ─── The floating stage ─────────────────────────────────────────────────── */
+.rp-stage { height: 440px; min-height: 440px; }
+
+.rp-board {
+  position: absolute;
+  left: calc(50% - 240px);
+  top: 60px;
+  width: 300px;
+  height: 290px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-xs);
+  background: var(--bg-2);
+  box-shadow: var(--shadow-md);
+}
+.rp-board-name { position: absolute; left: 0; top: -20px; font-size: var(--type-xs); font-weight: var(--w-medium); color: var(--fg-2); }
+.rp-board-hero { position: relative; display: block; height: 130px; flex: none; border-radius: var(--radius-sm); overflow: hidden; background: var(--object-sky); }
+.rp-board-hero i { position: absolute; right: 18px; top: 14px; width: 32px; height: 32px; border-radius: var(--radius-pill); background: var(--object-yellow); }
+.rp-board-line { display: block; width: 70%; height: 10px; border-radius: var(--radius-xs); background: var(--fg-3); }
+.rp-board-line--s { width: 45%; height: 6px; background: var(--border-strong); }
+.rp-board-cta { display: block; width: 96px; height: 26px; margin-top: var(--space-1); border-radius: var(--radius-pill); background: var(--fg-0); }
+.rp-st1 { position: absolute; left: calc(50% + 100px); top: 64px; rotate: 3deg; }
+.rp-st2 { position: absolute; left: calc(50% + 116px); top: 196px; rotate: -2.4deg; }
+
+/* Slots hold an island at its own size, so the ghost and the icon line up exactly. */
+.rp-slot { position: absolute; z-index: 5; }
+.rp-slot--left { left: var(--space-4); top: var(--space-4); width: 212px; }
+.rp-slot--right { right: var(--space-4); top: var(--space-4); width: 236px; }
+.rp-slot--ai { right: var(--space-4); bottom: var(--space-4); width: 280px; }
+
+.rp-ghost {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-lg);
+  border: 1.5px dashed var(--border-strong);
+  pointer-events: none;
+}
+.rp-ghost::after { content: "Comes back here"; font-size: var(--type-xs); color: var(--fg-2); }
+
+.rp-hd { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-1); padding-left: var(--space-1); font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2); }
+.rp-right .rp-hd > span:first-child { font-size: var(--type-sm); color: var(--fg-0); }
+.rp-hd-sub { margin-left: var(--space-1); font-weight: var(--w-regular); color: var(--fg-2); }
+/* The inspector and the AI chat panel sit over busy canvas — the stronger frost, no peek-through. */
+.island.rp-right, .island.rp-ai { background: var(--island-bg-strong); }
+.rp-ai-name { display: inline-flex; align-items: center; gap: var(--space-1); font-family: var(--font-rounded); font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.icon-btn.rp-ib { width: 26px; height: 26px; color: var(--fg-1); }
+
+.rp-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 28px; padding: 0 var(--space-1); font-size: var(--type-sm); }
+.rp-row > span:first-child { color: var(--fg-1); }
+.rp-val { display: inline-flex; align-items: center; gap: var(--space-2); font-variant-numeric: tabular-nums; color: var(--fg-0); }
+.rp-sw { display: inline-block; width: 12px; height: 12px; border-radius: var(--radius-xs); background: var(--bg-2); box-shadow: inset 0 0 0 0.5px var(--border-strong); }
+.rp-sw--sky { background: var(--object-sky); }
+
+.rp-adv {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  padding: var(--space-2) var(--space-1) 2px;
+  box-shadow: inset 0 0.5px 0 var(--border-default);
+  font-size: var(--type-sm);
+  font-weight: var(--w-semibold);
+  color: var(--fg-1);
+}
+.rp-adv-n { margin-left: auto; font-size: var(--type-xs); font-weight: var(--w-regular); color: var(--fg-2); }
+.rp-adv .rp-ic { color: var(--fg-2); }
+.rp-adv-body { padding-top: var(--space-1); }
+
+.rp-th-coral { background: var(--object-coral); }
+.rp-th-green { background: var(--object-green); }
+.rp-th-yellow { background: var(--object-yellow); }
+.rp-th-lilac { background: var(--object-lilac); }
+
+.rp-dock { position: absolute; left: 50%; bottom: var(--space-4); translate: -50% 0; z-index: 5; }
+/* Same toolbar as the desktop showcase: the active tool is a muted azure, never a second azure fill. */
+.rp-dock .icon-btn[aria-pressed="true"], .rp-ddock .icon-btn[aria-pressed="true"] { background: var(--accent-muted); color: var(--accent-text); }
+.rp-note {
+  position: absolute;
+  left: 50%;
+  bottom: 88px;
+  z-index: 7;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--type-sm);
+  white-space: nowrap;
+}
+
+/* ─── Fold ↔ icon — transform + opacity only, --dur-panel · --ease-out ──── */
+.rp-fold {
+  transition:
+    transform var(--dur-panel) var(--ease-out),
+    opacity var(--dur-panel) var(--ease-out),
+    visibility 0s linear 0s;
+}
+.rp-fold[data-folded="true"] {
+  transform: scale(0.14);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform var(--dur-panel) var(--ease-out),
+    opacity var(--dur-panel) var(--ease-out),
+    visibility 0s linear var(--dur-panel);
+}
+.rp-fold--tl { transform-origin: top left; }
+.rp-fold--tr { transform-origin: top right; }
+.rp-fold--br { transform-origin: bottom right; }
+
+.rp-icon { position: absolute; z-index: 6; padding: var(--space-1); }
+.rp-icon--tl { left: 0; top: 0; }
+.rp-icon--tr { right: 0; top: 0; }
+.rp-icon--br { right: 0; bottom: 0; }
+.rp-unfold {
+  opacity: 0;
+  transform: scale(0.6);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform var(--dur-panel) var(--ease-out),
+    opacity var(--dur-panel) var(--ease-out),
+    visibility 0s linear var(--dur-panel);
+}
+.rp-unfold[data-shown="true"] {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    transform var(--dur-panel) var(--ease-out),
+    opacity var(--dur-panel) var(--ease-out),
+    visibility 0s linear 0s;
+}
+
+/* ─── Four folded states (the same stage, scaled into a clipped frame) ──── */
+.rp-states, .rp-compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5) var(--space-5); margin: 0 0 var(--space-6); }
+.rp-case { margin: 0; }
+.rp-case figcaption { max-width: 60ch; margin-top: var(--space-3); font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.rp-case figcaption strong { display: block; color: var(--fg-0); }
+.rp-case figcaption .rp-ok, .rp-case figcaption .rp-bad { display: inline; margin-right: var(--space-1); }
+.rp-ok { color: var(--status-success-text); }
+.rp-bad { color: var(--status-error-text); }
+.rp-mini {
+  position: relative;
+  aspect-ratio: 1056 / 440;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.rp-mini-in { width: 1056px; transform: scale(0.4924); transform-origin: top left; pointer-events: none; }
+.rp-mini .stage { margin: 0; border-radius: 0; }
+
+/* ─── Advanced setting + the docked layout ───────────────────────────────── */
+.rp-setting-row { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: var(--space-5); align-items: start; margin: 0 0 var(--space-4); }
+/* Menu › View, drawn on the popover plane (opaque, largest shadow) like every menu in the shell. */
+.rp-menu {
+  padding: var(--space-1);
+  border-radius: var(--radius-lg);
+  background: var(--bg-2);
+  box-shadow: var(--shadow-lg), inset 0 0 0 0.5px var(--island-edge);
+  color: var(--fg-0);
+}
+.specimen .rp-menu-path { margin: var(--space-1) var(--space-1) var(--space-2); }
+.rp-mrow { justify-content: space-between; cursor: default; }
+.rp-mrow--quiet { color: var(--fg-1); }
+.rp-mrow--on { background: var(--bg-3); color: var(--fg-0); }
+.rp-mkeys { font-size: var(--type-xs); color: var(--fg-2); }
+.rp-msep { display: block; height: 1px; margin: var(--space-1) var(--space-2); background: var(--border-subtle); }
+.rp-menu .rp-adv { margin: 0; padding: var(--space-2) var(--space-2) var(--space-1); box-shadow: none; font-size: var(--type-xs); }
+.specimen .rp-setting-hint { margin: var(--space-2) 0 var(--space-1); padding: 0 var(--space-2); font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+.specimen .rp-setting-note { max-width: 60ch; margin: var(--space-2) 0 0; font-size: var(--type-sm); color: var(--fg-1); }
+.rp-floating-note .stage { margin-bottom: var(--space-3); }
+
+.rp-docked {
+  display: grid;
+  height: 420px;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--bg-1);
+  box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default);
+}
+.rp-pane { min-width: 0; overflow: hidden; padding: var(--space-2); background: var(--bg-1); }
+.rp-pane-hd { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-1) var(--space-1) var(--space-2); font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2); }
+.rp-pane-hd .rp-hd-sub { margin-right: auto; }
+.rp-layer { white-space: nowrap; overflow: hidden; }
+.rp-layer-ic { display: grid; color: var(--fg-2); }
+
+.rp-dcanvas {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+}
+.rp-dboard {
+  position: absolute;
+  left: 50%;
+  top: 40px;
+  width: min(300px, 80%);
+  height: 260px;
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-xs);
+  background: var(--bg-2);
+  box-shadow: var(--shadow-md);
+}
+.rp-dsel { position: absolute; left: 10px; right: 10px; top: 10px; height: 134px; border: 2px solid var(--accent); border-radius: var(--radius-sm); }
+.rp-ddock { position: absolute; left: 50%; bottom: var(--space-4); translate: -50% 0; }
+/* Compact toolbar so all eight tools + More fit the narrowest docked canvas (384 at both maxes). */
+.dock.rp-ddock .icon-btn { width: 32px; height: 32px; }
+
+/* The handle: 8 px to grab, 1 px to see. Width follows the pointer — nothing animates layout. */
+.rp-handle {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  cursor: col-resize;
+  touch-action: none;
+  background: var(--bg-1);
+  outline: none;
+}
+.rp-handle-line {
+  display: block;
+  width: 1px;
+  height: 100%;
+  background: var(--border-default);
+  transition: background var(--dur-flip) var(--ease-out), transform var(--dur-flip) var(--ease-out);
+}
+.rp-handle:hover .rp-handle-line,
+.rp-handle:focus-visible .rp-handle-line,
+.rp-handle[data-drag] .rp-handle-line,
+.rp-handle--hover .rp-handle-line,
+.rp-handle--drag .rp-handle-line { background: var(--accent); transform: scaleX(2); }
+.rp-handle:focus-visible { box-shadow: inset 0 0 0 2px var(--accent-tint); }
+.rp-handle-tip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  translate: -50% -50%;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-xs);
+  background: var(--fg-0);
+  color: var(--bg-2);
+  font-size: var(--type-xs);
+  font-weight: var(--w-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.rp-readout { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: var(--space-3) 0 var(--space-6); }
+.rp-readout .chip { font-variant-numeric: tabular-nums; }
+.rp-readout-hint { flex: 1; font-size: var(--type-xs); color: var(--fg-2); }
+
+/* ─── The handle, up close ───────────────────────────────────────────────── */
+.rp-anat { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: var(--space-5); margin: 0 0 var(--space-6); }
+.rp-anat-states { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
+.rp-anat-case { margin: 0; }
+.rp-anat-case figcaption { margin-top: var(--space-2); font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-1); }
+.rp-anat-case figcaption strong { display: block; font-size: var(--type-sm); color: var(--fg-0); }
+.rp-anat-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8px minmax(0, 1.3fr);
+  height: 150px;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.rp-anat-pane { background: var(--bg-1); }
+.rp-anat-canvas {
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+}
+.rp-handle--demo { cursor: default; }
+.rp-hit { position: absolute; inset: var(--space-2) 0; border-radius: 2px; outline: 1px dashed var(--border-strong); outline-offset: 0; }
+.rp-handle--hover .rp-hit, .rp-handle--drag .rp-hit { outline-color: var(--accent); }
+.rp-handle--hover { cursor: col-resize; }
+
+.rp-limits { width: 100%; margin: 0 0 var(--space-4); border-collapse: collapse; font-size: var(--type-sm); }
+.rp-limits caption { padding-bottom: var(--space-2); text-align: left; font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2); }
+.rp-limits th, .rp-limits td { padding: var(--space-2); text-align: left; border-bottom: 1px solid var(--border-subtle); }
+.rp-limits thead th { font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2); }
+.rp-limits tbody th { font-weight: var(--w-medium); color: var(--fg-0); }
+.rp-limits td { font-variant-numeric: tabular-nums; color: var(--fg-1); }
+.rp-keys { display: grid; gap: var(--space-2); margin: 0; }
+.rp-keys div { display: flex; gap: var(--space-3); font-size: var(--type-sm); }
+.rp-keys dt { min-width: 96px; font-weight: var(--w-semibold); color: var(--fg-0); }
+.rp-keys dd { margin: 0; color: var(--fg-1); }
+
+/* ─── Wrong: docked chrome boxing the canvas in, by default ──────────────── */
+.rp-wrong {
+  display: grid;
+  grid-template-columns: 120px 6px minmax(0, 1fr) 6px 110px;
+  grid-template-rows: 26px minmax(0, 1fr) 20px;
+  aspect-ratio: 1056 / 440;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 0.5px var(--border-default);
+}
+.rp-w-bar, .rp-w-status { grid-column: 1 / -1; background: var(--bg-3); }
+.rp-w-bar { box-shadow: inset 0 -1px 0 var(--border-default); }
+.rp-w-status { box-shadow: inset 0 1px 0 var(--border-default); }
+.rp-w-side { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2); background: var(--bg-1); }
+.rp-w-side i { display: block; height: 8px; border-radius: var(--radius-xs); background: var(--bg-4); }
+.rp-w-grip { background: var(--bg-4); box-shadow: inset 1px 0 0 var(--border-strong), inset -1px 0 0 var(--border-strong); }
+.rp-w-canvas {
+  display: grid;
+  place-items: center;
+  background-color: var(--canvas-bg);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: var(--canvas-grid) var(--canvas-grid);
+}
+.rp-w-board { width: 44%; height: 56%; border-radius: var(--radius-xs); background: var(--bg-2); box-shadow: var(--shadow-md); }

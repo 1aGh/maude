@@ -15,13 +15,15 @@
 ├── config.json                 ← per-repo plugin config (designSystems[], canvasGroups, handoffTargets, …)
 │
 ├── system/
-│   └── maude/                  ← THE design system for this repo — "Unified Pro Studio"
+│   ├── maude/                  ← THE design system for today's client — "Unified Pro Studio"
 │       ├── README.md           ← philosophy + voice + hard rules (READ BEFORE EDITING)
 │       ├── SKILL.md            ← terse per-DS rules (loaded by every iterator agent)
 │       ├── colors_and_type.css ← tokens (authoritative — never invent colors)
 │       ├── assets/              ← brand mark + glyph assets
 │       ├── preview/             ← ~79 token/component/foundation specimens (colors-*, components-*, type-scale, motion, logo, …)
 │       └── ui_kits/              ← platform showcase(s)
+│   └── maude-v2/               ← the Maude v2.0.0 redesign DS — "Light glass with a spark" (designer-first, light default,
+│                                  floating islands over a full-window canvas; azure acts, spark = AI). Use --ds=maude-v2.
 │
 └── ui/                          ← 19 product canvases that consume the maude DS (ChatPanel, CreateProject, DiffView, GitHubIdentity, GitPanel, LiveCollab, Onboarding, OnboardingTour, RepoBranchSwitcher, Studio, Studio Docs, Studio Hub, Studio Intro Video, Docs Infographics, Commands Overview, Agency Hero, Horizon Landing, Maude Video Intro, Smoke TSX)
 ```

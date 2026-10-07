@@ -1,0 +1,149 @@
+{
+  "title": "10 Share and Collaboration",
+  "subtitle": "One Share button, people and AI on the same canvas, comments, sync in words — Alligators brand at full complexity",
+  "brief": "...co te jeste napadne — Share & Collaboration: Share sheet (invite people, link, roles), presence (faces, cursors, AI cursor), comment threads, follow someone, sync status words, a conflict when both edit offline, a local project shared → move to cloud.",
+  "platform": "desktop",
+  "designSystem": "maude-v2",
+  "opt_out_scope": "palette",
+  "sections": [
+    {
+      "id": "share",
+      "title": "One Share button — Invite first",
+      "subtitle": "Invite people by email, say what they can do in plain words, copy a link second — for one canvas or the whole project; a link opens in any browser"
+    },
+    {
+      "id": "presence",
+      "title": "Who's here, and where",
+      "subtitle": "Faces in the Share cluster, named cursors, your AI and Tereza's AI, following someone, bringing everyone to you"
+    },
+    {
+      "id": "comments",
+      "title": "Comments together",
+      "subtitle": "A thread with a mention, how a mention reaches you, a comment on a video frame, a comment on a print artboard"
+    },
+    {
+      "id": "sync",
+      "title": "Sync in words",
+      "subtitle": "A day offline on Alligators brand, back online with 14 changes, the same sticky changed on two Macs, a canvas moved to the trash while you had it open"
+    },
+    {
+      "id": "local",
+      "title": "A local project wants to be shared",
+      "subtitle": "Share offers Move to cloud, signs you in only if needed, then opens on Invite while it goes up — the same steps as 02 Onboarding"
+    },
+    {
+      "id": "edges",
+      "title": "When sharing gets crowded, or ends",
+      "subtitle": "Twelve people on one canvas, view access meeting an edit, someone removed, a link turned off"
+    },
+    {
+      "id": "advanced",
+      "title": "Share › Advanced",
+      "subtitle": "The same fold as 06 Advanced — link rules, other ways in, where it syncs — the roles side by side, and a project on a self-hosted hub"
+    }
+  ],
+  "artboards": [
+    {
+      "id": "co-share-sheet",
+      "label": "1 · Share — Invite is the first thing",
+      "note": "Share opens on Invite: an email, a role in words, Invite; Petra's pending invite shows its expiry and Resend; the project's team row is read-only here; Copy link second; This canvas or Whole project first; the Share cluster carries Edit · Preview · Present."
+    },
+    {
+      "id": "co-share-roles",
+      "label": "2 · Roles in words — one canvas or the whole project",
+      "note": "The role menu says what each role lets you do, with one trash rule (editors move to the trash, owners clear it out); downloads start at Can comment, Can view is look only; one shared canvas shows alone with no New canvas; the whole project brings all 93."
+    },
+    {
+      "id": "co-browser-view",
+      "label": "3 · A link, opened in a browser",
+      "note": "Vojta has no app: the link opens Combine-kampan live on cloud.maude.sh in Viewing — cursors, Preview and Present; Ask to edit is the way to more; Open in the Mac app is one quiet button."
+    },
+    {
+      "id": "co-presence",
+      "label": "4 · Faces, cursors and two AIs",
+      "note": "Three faces then +4; people wear soft colours, only AI wears the spark; Tereza's face menu offers Follow, Go to and Bring everyone here."
+    },
+    {
+      "id": "co-follow",
+      "label": "5 · Following Tereza",
+      "note": "Following Tereza: a thin frame in her colour and one pill with esc; her selection is drawn in her colour; esc, a scroll or a click stops it."
+    },
+    {
+      "id": "co-bring",
+      "label": "6 · Bring everyone here — the moment",
+      "note": "The signature moment as a 3-frame filmstrip: you ask (⌘K or any face), every cursor glides to you on its own curve with a dotted wake in its colour while your frame draws in, then they land with a small spring. Motion spec + reduced-motion fallback."
+    },
+    {
+      "id": "co-spotlight",
+      "label": "7 · Everyone's here",
+      "note": "The end of the glide at full size: a frame in your colour, a pill with Stop; each person can leave with esc."
+    },
+    {
+      "id": "co-comment-thread",
+      "label": "8 · A thread, a mention, Resolve",
+      "note": "A thread on A4 · plakát with Resolve; @ suggests people with their role; the Comments panel filters Open / Mine / Resolved."
+    },
+    {
+      "id": "co-mention-notify",
+      "label": "9 · When someone mentions you",
+      "note": "A mention reaches you once: a toast with Open, a Mac notification + Dock count in the background, an e-mail from cloud.maude.sh with Open in the Mac app when the app is closed."
+    },
+    {
+      "id": "co-comment-video",
+      "label": "10 · A comment on a video frame",
+      "note": "A pin on Reels · nábor at 0:12 shows only at that moment; the timeline carries one marker per thread."
+    },
+    {
+      "id": "co-comment-print",
+      "label": "11 · A comment on a print artboard",
+      "note": "A comment on the A6 flyer speaks millimetres; print guides show the trim and safe margin it is about."
+    },
+    {
+      "id": "co-sync-offline",
+      "label": "12 · A day offline on Alligators brand",
+      "note": "A day offline: everything works and stays on this Mac; unsent canvases say “not sent”, the panel foot counts; a comment is Queued — sends when this Mac is online; invites wait too."
+    },
+    {
+      "id": "co-sync-back",
+      "label": "13 · Back online — 14 changes go up",
+      "note": "Back online: Syncing…, the panel foot counts; Tereza's overnight change arrives with her name; the conflicted sticky wears a “2 versions” mark; one toast with Show."
+    },
+    {
+      "id": "co-conflict",
+      "label": "14 · You and Jonas changed the same sticky",
+      "note": "Both versions side by side with who/when/where: Keep yours, Keep Jonas's or Keep both; Version history shows both with Restore — nothing lost, visibly."
+    },
+    {
+      "id": "co-trashed",
+      "label": "15 · Moved to the trash while you had it open",
+      "note": "Tereza (Can edit) moved Combine-cisla to the trash while you had it open: you can keep looking, changes stay with it, Restore is the one action; only an owner clears out the trash."
+    },
+    {
+      "id": "co-local-cloud",
+      "label": "16 · Local project — Share moves it to the cloud",
+      "note": "Step for step as 02 Onboarding: the Move to cloud offer, the browser sign-in only if needed, then Share opens on Invite while canvases go up (Syncing…, toast)."
+    },
+    {
+      "id": "co-twelve",
+      "label": "17 · Twelve people on one canvas",
+      "note": "Twelve people: three faces and +8, a people list with where each one is, idle cursors turn grey and shrink to an initial, Bring everyone here at its foot."
+    },
+    {
+      "id": "co-ask-edit",
+      "label": "18 · Can view, trying to change something",
+      "note": "Petra can view: Viewing in the mode switch, a look-only toolbar, her drag explains itself; Ask to edit sends one request that waits at the top of the owner's Share — Let Petra edit / Not now."
+    },
+    {
+      "id": "co-access-ends",
+      "label": "19 · Access ends, gently",
+      "note": "Removing Lukáš asks once; his open canvas dims behind one sentence + Back to Home; a link turned off shows a viewer the same calm card."
+    },
+    {
+      "id": "co-share-advanced",
+      "label": "20 · Share › Advanced — link rules, other ways in, where it syncs",
+      "note": "Share › Advanced, row for row as 06 Advanced (link rules, App link, This Mac only, GitHub invite, Hub, Last synced); the roles matrix with the trash rule; a self-hosted hub with only the roles it supports."
+    }
+  ],
+  "created": "2026-10-06T00:00:00Z",
+  "last_modified": "2026-10-06T12:00:00Z"
+}

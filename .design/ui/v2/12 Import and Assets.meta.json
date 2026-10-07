@@ -1,0 +1,164 @@
+{
+  "title": "12 Import and Assets",
+  "subtitle": "Getting photos, footage, sound, Figma files and a brand into a project — Alligators brand and Studio site",
+  "brief": "…co tě ještě napadne — Import & Assets: drag photos in, the asset library (247 assets, footage, music), import from Figma, import a brand (logo → palette), light photo editing (background removal), AI-generated images, broken or missing assets. Drawn as edge cases on Alligators brand (Czech content) and Studio site.",
+  "platform": "desktop",
+  "designSystem": "maude-v2",
+  "opt_out_scope": "palette",
+  "sections": [
+    {
+      "id": "getting-in",
+      "title": "Getting things in",
+      "subtitle": "Drag photos from Finder onto an artboard — then paste, a video file, a logo; everything also lands in Assets"
+    },
+    {
+      "id": "assets",
+      "title": "Assets — 247 things, the third tab of the left panel",
+      "subtitle": "Grouped by kind, pictures first; drag or press ↵ to place; widen it to browse; search names and tags — and, once you say yes, what's in the pictures"
+    },
+    {
+      "id": "photo",
+      "title": "Photo editing — light, per use, and nothing lost",
+      "subtitle": "Select a photo: placement, a look in words, light and colour, remove the background with AI — on this one use; Apply to every use is a choice"
+    },
+    {
+      "id": "generate",
+      "title": "Generate an image (or a clip)",
+      "subtitle": "From the AI chat panel or Assets › Generate — the artboard sets the shape, the best of four lands in the frame, ← → tries the others right there"
+    },
+    {
+      "id": "figma",
+      "title": "Import from Figma",
+      "subtitle": "Menu › File › Import from Figma… — paste a link, connect once, pick frames and where they go; frames arrive as Figma's exact picture; a FigJam board becomes the whiteboard"
+    },
+    {
+      "id": "brand",
+      "title": "Import a brand",
+      "subtitle": "Menu › File › Import a brand… — drop a logo or type a website; it reads, says what failed, then shows colours with their roles, fonts and a preview"
+    },
+    {
+      "id": "edges",
+      "title": "When a file is waiting, missing, huge, twice, foreign, offline or someone else's",
+      "subtitle": "Waiting for Jonas's Mac is quiet; Missing + Relink only when no device has it · a 4K file · a .psd · no internet · Tereza's photo · a Figma file you can't open · no Google key"
+    },
+    {
+      "id": "advanced",
+      "title": "Advanced — file names, sidecars, the command",
+      "subtitle": "One disclosure away in an asset's details: the fingerprint name, the original path, the per-use edits as a sidecar file, the maude command"
+    }
+  ],
+  "artboards": [
+    {
+      "id": "ia-drop-photos",
+      "label": "1 · Drag 6 photos from Finder onto an artboard",
+      "note": "Drop on an artboard and the photos go inside it: the artboard lights up and says what will happen; empty frames fill in order."
+    },
+    {
+      "id": "ia-placed",
+      "label": "2 · Placed 6 photos — still going up to the cloud",
+      "note": "Placed and selected at once; also first in Assets › Just added. Thin bars and Syncing… say what is still uploading."
+    },
+    {
+      "id": "ia-more-ways",
+      "label": "3 · Paste, a video file, a logo",
+      "note": "⌘V lands under the pointer; .mov files prepare in place; a logo is cleaned for the canvas, quietly."
+    },
+    {
+      "id": "ia-assets-panel",
+      "label": "4 · Assets — drag a photo onto an artboard",
+      "note": "Assets is the left panel's third tab (Menu › View › Assets, ⌘K). Hover shows the name and where it's used; drag replaces a photo."
+    },
+    {
+      "id": "ia-assets-keys",
+      "label": "5 · Place without dragging — select a tile, ↵",
+      "note": "Select an artboard, then a tile: ↵ places it; the tile's menu (the one overlay here) says the same with Place, and ⌘I opens the details."
+    },
+    {
+      "id": "ia-assets-browse",
+      "label": "6 · Photos 120 › — a wide view to browse and pick many",
+      "note": "A group heading widens Assets into a browse view: names, sort, size, many-select. ↵ fills Fotky ze zápasu's six frames."
+    },
+    {
+      "id": "ia-assets-find",
+      "label": "7 · Search what's in the pictures — asked once per project",
+      "note": "Names and tags first; one sheet asks to describe pictures for this project (your Claude account). Without AI connected, names only."
+    },
+    {
+      "id": "ia-assets-tidy",
+      "label": "8 · By name · Not used · where the words come from",
+      "note": "“dron” by name and by content; Not used leaves out older versions and today's AI takes; a hit jumps the clip to its moment."
+    },
+    {
+      "id": "ia-asset-details",
+      "label": "9 · An asset's details — photo, made by AI, footage, sound",
+      "note": "Where it's used, who added it, what AI saw; every card has Place (a clip or a sound goes on a video artboard); Made by AI keeps its prompt and one licence line."
+    },
+    {
+      "id": "ia-photo-inspector",
+      "label": "10 · Select a photo — the photo inspector",
+      "note": "Edits stay with this one use; the other canvases keep the original until Apply to every use. Remove background wears the spark."
+    },
+    {
+      "id": "ia-photo-steps",
+      "label": "11 · Crop · Remove background · Done · Apply to every use",
+      "note": "The frame moves, the photo stays whole; the cut-out runs on this Mac; Apply to every use is a sheet naming each canvas."
+    },
+    {
+      "id": "ia-gen-ask",
+      "label": "12 · Generate an image — the ask",
+      "note": "The artboard sets the shape (4:5); one line for time and whose key pays, one for the licence."
+    },
+    {
+      "id": "ia-gen-placed",
+      "label": "13 · Four takes — the best one in the frame, ← → for the others",
+      "note": "The best take lands in Gameweek 5, selected; ← → tries the others on the canvas. The picture carries Made by AI, not the artboard."
+    },
+    {
+      "id": "ia-figma-sheets",
+      "label": "14 · Paste a link · Connect once · Pick frames and where they go",
+      "note": "Link, a one-time token, frames and a destination (a taken name becomes “(Figma)”). Frames come in as pictures; editing needs Dev Mode."
+    },
+    {
+      "id": "ia-figma-arrived",
+      "label": "15 · Artboards arrive — exact pictures, editable on request",
+      "note": "Each frame is Figma's exact picture; Make editable needs the Figma app in Dev Mode on a paid seat. The summary names every compromise."
+    },
+    {
+      "id": "ia-figjam",
+      "label": "16 · A FigJam board becomes the whiteboard",
+      "note": "Stickies, sections and connectors stay themselves; a widget that can't come across is named. Ask AI stays in its corner."
+    },
+    {
+      "id": "ia-brand-steps",
+      "label": "17 · Drop a logo or type a website · Reading · Couldn't read the site",
+      "note": "One sheet from drop to result; a site that doesn't answer keeps the logo's colours, with Try again as the one action."
+    },
+    {
+      "id": "ia-brand",
+      "label": "18 · Import a brand — use it as the project's style",
+      "note": "Each colour shows its role (Coral → Accent) and can change; one font found, the logo's lettering not — said plainly."
+    },
+    {
+      "id": "ia-missing",
+      "label": "19 · Not here yet — Waiting for Jonas's Mac",
+      "note": "Quiet, not an error: the frame keeps its place and fills in by itself; Relink… only if you have a copy."
+    },
+    {
+      "id": "ia-missing-gone",
+      "label": "20 · Missing — no device has it",
+      "note": "Removed before it synced, so nobody has it: red hatch, Missing, Relink… as the fix."
+    },
+    {
+      "id": "ia-edges",
+      "label": "21 · Huge · twice · .psd · offline · Tereza's · a link · Figma access · no Google key · HEIC",
+      "note": "Nine awkward arrivals, each answered in one line — nothing blocks the canvas."
+    },
+    {
+      "id": "ia-advanced",
+      "label": "22 · Under Advanced — how assets are stored",
+      "note": "Fingerprint names for every file, originals too (combine-40yd.mov is assets/7c40e2b1.mov); footage/ keeps only light copies; the original path, per-use edits as sidecar JSON, the import-asset command."
+    }
+  ],
+  "created": "2026-10-06T00:00:00.000Z",
+  "last_modified": "2026-10-06T12:00:00.000Z"
+}
