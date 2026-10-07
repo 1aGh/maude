@@ -1,5 +1,28 @@
 # @1agh/maude
 
+## 1.8.0
+
+### Minor Changes
+
+- 9eff034: PNG and PDF exports can now capture the whole canvas as one image or one page, with the layout between artboards kept. Pick **Whole canvas** in the export dialog's Scope menu, or **Selection area** for the bounding box around everything you have selected. Tick **Include annotations** to bring stickies, shapes, arrows and the rest of the whiteboard layer along. Comment pins are never exported. The CLI takes the same scopes: `maude design export png --scope canvas-whole --option includeAnnotations=true`.
+- b5f01ea: A self-hosted hub can now be embedded in another app, so a design can sit next to the task it belongs to.
+
+  Frame `https://<hub>/?open=<file>&embed=1` and the studio shows that one canvas on its own — no file tree, no toolbars, no comments, read-only, still pannable and zoomable. Add `&artboard=<id>` to frame a single artboard. The embed tells the app around it when the canvas is `ready`, when the file is `not-found`, and when the viewer needs to sign in (`auth-required`), by message to that app's exact address and to no one else. A viewer who is not signed in sees a short page with a link that opens the normal sign-in in a new tab, instead of a frame the browser refuses to show.
+
+  Nothing can frame the studio until the operator names it in `MAUDE_EMBED_ORIGINS` (or `maude hub workspace-up --embed-origin <origin>`). That list only allows framing: an embedding app gets no write access to a canvas, unlike the shell origins the hub already knew about. The studio page also now says who may frame it — before, any site could.
+
+- 2e1aa73: Video and audio clips up to 512 MB can now be dropped, pasted or picked onto a canvas. The limit used to be 100 MB, which most real footage exceeds. Large clips upload in pieces, and the asset picker shows progress as they go. The desktop app's "Open file" dialog no longer loads the whole file into the window first, so big clips stay responsive there too. In the cloud, a large clip is stored like any other upload and survives a restart.
+
+### Patch Changes
+
+- e2bc5ce: Maude now runs on Bun 1.4.2. On Linux — including cloud projects — the file watcher could miss changes that arrived together, so a folder created while the studio was running (the first comment on a project creates one) was never watched: comments and hot reload went quiet there until a restart. They now arrive.
+- d6d8250: An idle desktop now really lets its cloud project sleep. The first night after the previous release showed the desktop never parked: its canvas connections were reconnecting every half minute (each time re-reading the project), and a handful of files that could never be delivered made it look as if work was still in progress. The project now keeps every connection quiet but alive, and files that stopped moving no longer hold the connection open. When an idle desktop does stay connected, its log now says why.
+- 5a0a31c: Canvases render on Windows again. Every canvas there failed with "Failed to fetch dynamically imported module" while the canvas list, comments and the Assistant worked: the studio mixed `/` and `\` in file paths, did not recognise a canvas file as a design, and sent it to the browser as plain text instead of compiled code.
+
+  **Security (Windows):** the same path handling let a URL with an encoded backslash (`..%5c`) step out of the project, so a canvas synced from a team project could read files elsewhere on the machine. Requests are now resolved with Windows path rules and refuse backslashes, drive letters, streams, device names and encoded `..` segments. Separately, a canvas whose project sits behind a symbolic link (or a `subst` drive or junction on Windows) could import any file on disk into its bundle; the import check now compares real paths and refuses an importer that is neither the project nor Maude itself. Update if you use Maude on Windows or open team projects.
+
+- f88ab3f: The Windows app no longer flashes a console window every few seconds. With more than one project open (always the case right after onboarding), the app checked the other projects for running chats every 6 seconds by starting a command-line program, and Windows showed a window for each one. The Assistant also starts on Windows machines that have Node.js installed: the app passed its own folder to Node in a form (`\\?\C:\…`) Node cannot run a script from.
+
 ## 1.7.1
 
 ### Patch Changes

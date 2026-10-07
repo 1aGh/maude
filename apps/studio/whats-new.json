@@ -3,8 +3,8 @@
   "entries": [
     {
       "id": "large-video-drops",
-      "version": null,
-      "date": null,
+      "version": "1.8.0",
+      "date": "2026-10-07",
       "kind": "improvement",
       "title": "Drop video clips up to 512 MB",
       "summary": "Large video and audio files now upload to the canvas in pieces, so clips up to 512 MB can be dropped, pasted or picked instead of stopping at 100 MB. The asset picker shows how far the upload has got.",
@@ -12,8 +12,8 @@
     },
     {
       "id": "windows-canvases-and-assistant",
-      "version": null,
-      "date": null,
+      "version": "1.8.0",
+      "date": "2026-10-07",
       "kind": "fix",
       "title": "Maude works properly on Windows",
       "summary": "Canvases render on Windows again instead of failing to load, the app no longer flashes a console window every few seconds, and the Assistant starts on machines with Node.js installed. This release also closes a Windows file-access hole, so please update.",
@@ -21,8 +21,8 @@
     },
     {
       "id": "export-whole-canvas",
-      "version": null,
-      "date": null,
+      "version": "1.8.0",
+      "date": "2026-10-07",
       "kind": "feature",
       "title": "Export the whole canvas as one image",
       "summary": "PNG and PDF exports can now capture the whole canvas, or the area around your selection, as a single image or page with the layout intact. Tick Include annotations to bring your stickies, shapes and arrows along. Comment pins are left out.",
