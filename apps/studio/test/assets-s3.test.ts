@@ -7,8 +7,12 @@
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 
+import { createHash } from 'node:crypto';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 // The HUB's independent SigV4 implementation — imported to pin the two against
 // each other, exactly as the doc-namespace grammars are pinned.
 import { signRequest as hubSignRequest } from '../../hub/src/s3.mjs';
@@ -187,6 +191,24 @@ describe('the mirror, against a live S3-shaped server', () => {
 
     expect(seenAuth.length).toBeGreaterThan(0);
     expect(seenAuth.every((a) => a.startsWith('AWS4-HMAC-SHA256 Credential='))).toBe(true);
+  });
+
+  test('pushFile streams from disk and signs the same as an in-memory body', async () => {
+    const bytes = bytesFor('a big clip, pretend — streamed, never read whole');
+    const rel = assetPath(bytes, 'mp4');
+    const dir = mkdtempSync(join(tmpdir(), 'mirror-'));
+    const abs = join(dir, 'clip.mp4');
+    writeFileSync(abs, bytes);
+    const digest = createHash('sha256').update(bytes).digest('hex');
+
+    const now = new Date('2026-10-07T00:00:00Z');
+    expect(
+      signRequest(cfg, { method: 'PUT', key: rel, bodySha256: digest, now }).headers.authorization
+    ).toBe(signRequest(cfg, { method: 'PUT', key: rel, body: bytes, now }).headers.authorization);
+
+    const mirror = createAssetMirror(cfg);
+    expect(await mirror.pushFile(rel, abs, digest)).toBe(true);
+    expect([...(store.get(rel) ?? [])]).toEqual([...bytes]);
   });
 
   test('push is idempotent — content addressing means a re-push is a no-op', async () => {

@@ -13,6 +13,7 @@ import {
 import {
   createStudioProxy,
   INJECTED_HEADER_PREFIX,
+  isAssetWriteCompletion,
   isNavigationRequest,
   sessionKeyFor,
   upstreamHeaders,
@@ -1011,6 +1012,64 @@ test('a successful asset upload tells the hub to mirror it — and only then', a
     session: { email: 'v@b.c', role: 'viewer', sessionKey: 'k' },
   });
   assert.equal(fired.length, 1);
+});
+
+test('a chunked upload is mirrored on its finish, at both doors (issue #126)', async () => {
+  // Pure rule first: only the request that can leave a NEW file on disk.
+  assert.equal(isAssetWriteCompletion('POST', '/_api/asset/chunk-finish', 201), true);
+  assert.equal(isAssetWriteCompletion('POST', '/_api/asset', 201), true);
+  assert.equal(isAssetWriteCompletion('POST', '/_api/asset/chunk-start', 201), false);
+  assert.equal(isAssetWriteCompletion('POST', '/_api/asset/chunk', 204), false);
+  assert.equal(isAssetWriteCompletion('POST', '/_api/asset/chunk-finish', 415), false);
+  assert.equal(isAssetWriteCompletion('GET', '/_api/asset/chunk-finish', 200), false);
+
+  const fired = [];
+  const shell = makeProxy({ onAssetWritten: () => fired.push('shell') });
+  await shell.proxy.handle({
+    request: { headers: {}, url: '/_api/asset/chunk-finish?session=x' },
+    response: fakeResponse(),
+    pathname: '/_api/asset/chunk-finish',
+    method: 'POST',
+    session: { email: 'o@b.c', role: 'owner', sessionKey: 'k' },
+  });
+  const canvas = makeProxy({
+    env: { MAUDE_PUBLIC_CANVAS_ORIGIN: CANVAS_ORIGIN },
+    onAssetWritten: () => fired.push('canvas'),
+  });
+  const r = fakeResponse();
+  await canvas.proxy.handleCanvas({
+    request: {
+      headers: { origin: CANVAS_ORIGIN, cookie: 'maude_canvas=own' },
+      url: '/_api/asset/chunk-finish?session=x&t=own',
+    },
+    response: r,
+    pathname: '/_api/asset/chunk-finish',
+    method: 'POST',
+    verifyToken: writeVerify,
+  });
+  assert.equal(r.statusCode, 200);
+  assert.deepEqual(fired, ['shell', 'canvas']);
+});
+
+test('a viewer cannot open, feed or finish a chunked upload', async () => {
+  const { proxy, forwarded } = makeProxy();
+  for (const [method, path] of [
+    ['POST', '/_api/asset/chunk-start'],
+    ['POST', '/_api/asset/chunk'],
+    ['DELETE', '/_api/asset/chunk'],
+    ['POST', '/_api/asset/chunk-finish'],
+  ]) {
+    const response = fakeResponse();
+    await proxy.handle({
+      request: { headers: {}, url: path },
+      response,
+      pathname: path,
+      method,
+      session: { email: 'v@b.c', role: 'viewer' },
+    });
+    assert.equal(response.statusCode, 403, `${method} ${path} was not refused`);
+  }
+  assert.equal(forwarded.length, 0);
 });
 
 test('a failed upload is not mirrored', async () => {

@@ -126,6 +126,11 @@ export const STUDIO_ROUTES = Object.freeze({
   // ---- changing the project ----------------------------------------------
   '/_api/canvas': { safe: 'read', unsafe: 'edit' },
   '/_api/asset': { safe: 'read', unsafe: 'edit' },
+  // Issue #126 — chunked upload of one video/audio clip; the same write as
+  // `/_api/asset`, split into bounded requests (caps live in the studio).
+  '/_api/asset/chunk-start': { safe: 'read', unsafe: 'edit' },
+  '/_api/asset/chunk': { safe: 'read', unsafe: 'edit' },
+  '/_api/asset/chunk-finish': { safe: 'read', unsafe: 'edit' },
   '/_api/import-asset': { safe: null, unsafe: 'edit' },
   '/_api/import-brand': { safe: null, unsafe: 'edit' },
   '/_api/edit-attr': { safe: null, unsafe: 'edit' },

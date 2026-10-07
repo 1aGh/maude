@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-read-picked-media"
+description = "Enables the read_picked_media command without any pre-configured scope."
+commands.allow = ["read_picked_media"]
+
+[[permission]]
+identifier = "deny-read-picked-media"
+description = "Denies the read_picked_media command without any pre-configured scope."
+commands.deny = ["read_picked_media"]

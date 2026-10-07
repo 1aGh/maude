@@ -3,6 +3,28 @@
   "currentPhase": null,
   "phases": [
     {
+      "id": "feature-chunked-asset-upload",
+      "title": "Feature: chunked upload for the canvas media-drop asset route (Option C, issue #126)",
+      "status": "done",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
+      "planPath": ".ai/plans/archive/feature-chunked-asset-upload.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
+      "id": "feature-video-asset-size-cap-decision",
+      "title": "Feature: raise or reshape the video/audio asset drop size cap (issue #126)",
+      "status": "done",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
+      "planPath": ".ai/plans/archive/feature-video-asset-size-cap-decision.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
       "id": "phase-1-contribute-infra-changesets",
       "title": "Phase 1: Contribute infrastructure + Changesets bootstrap",
       "status": "done",

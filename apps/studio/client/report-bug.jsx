@@ -14,7 +14,13 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-import { invoke, isNativeApp, openGitHubUrl, pickMediaFile } from './github.js';
+import {
+  invoke,
+  isNativeApp,
+  openGitHubUrl,
+  pickMediaFile,
+  readPickedMediaBlob,
+} from './github.js';
 
 // Two of these are auto-captured (window + artboard), so the ceiling leaves
 // room for the user to still attach their own.
@@ -207,7 +213,7 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
     if (isNativeApp()) {
       try {
         const picked = await pickMediaFile();
-        if (picked?.bytes) addShotBlob(new Blob([new Uint8Array(picked.bytes)]), 'attached');
+        if (picked) addShotBlob(await readPickedMediaBlob(picked), 'attached');
       } catch {
         /* cancelled or dialog failure — paste (⌘V) still works */
       }

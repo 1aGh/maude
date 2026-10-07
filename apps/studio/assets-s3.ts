@@ -99,8 +99,16 @@ export function signRequest(
     method,
     key,
     body = null,
+    bodySha256,
     now = new Date(),
-  }: { method: string; key: string; body?: Uint8Array | null; now?: Date }
+  }: {
+    method: string;
+    key: string;
+    body?: Uint8Array | null;
+    /** Hex SHA-256 of a body the caller streams instead of passing as `body`. */
+    bodySha256?: string;
+    now?: Date;
+  }
 ): SignedRequest {
   const url = new URL(`${cfg.endpoint}/${cfg.bucket}${key ? `/${encodeKey(key)}` : ''}`);
   const iso = now
@@ -108,7 +116,7 @@ export function signRequest(
     .replace(/[-:]/g, '')
     .replace(/\.\d{3}/, '');
   const dateStamp = iso.slice(0, 8);
-  const payloadHash = body === null ? sha256Hex('') : sha256Hex(body);
+  const payloadHash = bodySha256 ?? (body === null ? sha256Hex('') : sha256Hex(body));
 
   const headers: Record<string, string> = {
     host: url.host,
@@ -202,6 +210,11 @@ export interface AssetMirror {
    * bucket is the redundant copy, not the authority).
    */
   push(rel: string, bytes: Uint8Array): Promise<boolean>;
+  /**
+   * {@link push} for a file already on disk, streamed so a 512 MB clip is never
+   * held in RAM. `sha256Hex` is the hash of the file's bytes (the writer has it).
+   */
+  pushFile(rel: string, absPath: string, sha256Hex: string): Promise<boolean>;
   /** Download one asset, or null when absent. Verifies the content address. */
   pull(rel: string): Promise<Uint8Array | null>;
   /** True when the object exists. Used by the dangling-pointer check. */
@@ -212,6 +225,9 @@ const NOOP_MIRROR: AssetMirror = {
   configured: false,
   describe: 'none',
   async push() {
+    return false;
+  },
+  async pushFile() {
     return false;
   },
   async pull() {
@@ -253,6 +269,25 @@ export function createAssetMirror(
       } catch (err) {
         // Offline, DNS, a bad key — all the same answer. The asset is safely on
         // local disk; a later push (or `maude hub asset-check`) reconciles.
+        log.warn(`[assets] mirror PUT ${rel} failed: ${(err as Error).message}`);
+        return false;
+      }
+    },
+
+    async pushFile(rel, absPath, sha256Hex) {
+      try {
+        const { url, headers } = signRequest(cfg, {
+          method: 'PUT',
+          key: rel,
+          bodySha256: sha256Hex,
+        });
+        const res = await fetch(url, { method: 'PUT', headers, body: Bun.file(absPath) });
+        if (!res.ok) {
+          log.warn(`[assets] mirror PUT ${rel} failed: ${res.status}`);
+          return false;
+        }
+        return true;
+      } catch (err) {
         log.warn(`[assets] mirror PUT ${rel} failed: ${(err as Error).message}`);
         return false;
       }

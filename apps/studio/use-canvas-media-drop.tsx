@@ -22,7 +22,10 @@
  */
 
 import { useEffect } from 'react';
+import { shouldChunk, uploadAsset } from './asset-upload.ts';
 import { showCanvasToast } from './canvas-notifications.tsx';
+
+export { uploadAsset } from './asset-upload.ts';
 
 export { showCanvasToast } from './canvas-notifications.tsx';
 
@@ -163,34 +166,6 @@ export function classifyMediaPayload(p: MediaPayload): MediaIntent | null {
     return { kind: 'link', url, title };
   }
   return null;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Upload
-
-/** POST raw image bytes to the capped asset route. Returns the assets/ path. */
-export async function uploadAsset(file: Blob): Promise<{ path: string } | { error: string }> {
-  try {
-    const res = await fetch('/_api/asset', {
-      method: 'POST',
-      headers: { 'Content-Type': file.type || 'application/octet-stream' },
-      body: file,
-    });
-    if (!res.ok) {
-      let msg = `upload failed (${res.status})`;
-      try {
-        const j = (await res.json()) as { error?: string };
-        if (j?.error) msg = j.error;
-      } catch {
-        /* non-JSON error body */
-      }
-      return { error: msg };
-    }
-    const j = (await res.json()) as { path?: string };
-    return typeof j?.path === 'string' ? { path: j.path } : { error: 'malformed upload response' };
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : 'network error' };
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -377,6 +352,11 @@ export async function uploadAndAnnounceMedia(
   mediaKind: 'video' | 'audio'
 ): Promise<void> {
   const sizeMb = file.size / (1024 * 1024);
+  // A chunked clip takes long enough over a cell's uplink that silence reads
+  // as "the drop did nothing".
+  if (shouldChunk(file.size, file.type)) {
+    showCanvasToast(`Uploading ${file.name || mediaKind} (${Math.round(sizeMb)} MB)…`);
+  }
   const res = await uploadAsset(file);
   if ('error' in res) {
     showCanvasToast(`Couldn't add ${mediaKind}: ${res.error}`, 'error');

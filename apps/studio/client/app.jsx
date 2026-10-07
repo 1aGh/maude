@@ -124,8 +124,10 @@ import {
   isNativeApp,
   onMenuReportBug,
   onUpdateReady,
+  pickedMediaSource,
   pickMediaFile,
   pickMediaFiles,
+  readPickedMediaBlob,
   restartToUpdate,
 } from './github.js';
 import { COLLAB_TOUR } from './tour/collab-tour.js';
@@ -133,6 +135,7 @@ import { TourOverlay } from './tour/overlay.jsx';
 import { QUICK_SETUP_TOUR } from './tour/quick-setup-tour.js';
 import { USAGE_TOUR } from './tour/usage-tour.js';
 import { dismissNotice, NotificationHost, notify, notifyCanvasText } from '../notifications.tsx';
+import { uploadAsset } from '../asset-upload.ts';
 import { acceptCanvasNotice } from '../canvas-notice-message.ts';
 import { ExportBadge, ExportPanel, ExportToast, useExportCenter } from './export-center.jsx';
 import { ReportBugDialog } from './report-bug.jsx';
@@ -1248,6 +1251,7 @@ function AssetPicker({
 }) {
   const [assets, setAssets] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(null);
   const [err, setErr] = useState(null);
   // feature-bulk-media-insert — multi-select state. `kindByPath` merges the
   // fetched listing with freshly uploaded assets (the upload response carries
@@ -1311,17 +1315,12 @@ function AssetPicker({
 
   // Shared upload core — both the single-pick `doUpload` and the multi-file
   // `doUploadMany` post through here, so neither duplicates the request shape.
+  // The shared client chunks a large clip (issue #126) — the same path the
+  // canvas drop takes, so the picker isn't left at the one-shot cap.
   const uploadOne = async (f) => {
-    const res = await fetch('/_api/asset', {
-      method: 'POST',
-      headers: { 'content-type': f.type || 'application/octet-stream' },
-      body: f,
-    });
-    const j = await res.json().catch(() => ({}));
-    // /_api/asset returns 201 { path } on success — NO `ok` field (the bug: a
-    // `j.ok` check always failed → "upload failed" even on a good upload).
-    if (res.ok && j.path) return { ok: true, path: j.path };
-    return { ok: false, error: j.error || `upload failed (HTTP ${res.status})` };
+    const res = await uploadAsset(f, { onProgress: setProgress });
+    setProgress(null);
+    return 'path' in res ? { ok: true, path: res.path } : { ok: false, error: res.error };
   };
 
   const doUpload = async (f) => {
@@ -1377,20 +1376,30 @@ function AssetPicker({
     setBusy(true);
     setErr(null);
     try {
+      // The picker hands back tokens, not bytes; each source reads its file in
+      // slices as the upload needs them (issue #126 — a 500 MB clip must not
+      // cross IPC whole). The server sniffs the bytes, so the ext-derived type
+      // only routes small images to the one-shot path.
       if (multiple) {
         const picked = await pickMediaFiles();
-        const files = (picked || []).map(
-          (p) => new File([new Uint8Array(p.bytes)], p.name, { type: mimeFromExt(p.name) })
-        );
+        const sources = (picked || []).map((p) => pickedMediaSource(p, mimeFromExt(p.name)));
         setBusy(false);
-        if (files.length) await doUploadMany(files);
+        try {
+          if (sources.length) await doUploadMany(sources);
+        } finally {
+          for (const src of sources) src.release();
+        }
         return;
       }
       const picked = await pickMediaFile();
-      if (picked?.bytes) {
-        // Blob from the byte array; the server sniffs the type, so no content-type
-        // needed. (doUpload sets its own busy=false in finally.)
-        await doUpload(new Blob([new Uint8Array(picked.bytes)]));
+      if (picked) {
+        // (doUpload sets its own busy=false.)
+        const src = pickedMediaSource(picked, mimeFromExt(picked.name));
+        try {
+          await doUpload(src);
+        } finally {
+          src.release();
+        }
         return;
       }
     } catch (e) {
@@ -1448,7 +1457,11 @@ function AssetPicker({
         <div className="st-dialog-bd">
           <div className="st-ap-toolbar">
             <button type="button" className="st-btn" onClick={openFilePicker} disabled={busy}>
-              {busy ? 'Uploading…' : 'Upload…'}
+              {busy
+                ? progress == null
+                  ? 'Uploading…'
+                  : `Uploading… ${Math.round(progress * 100)}%`
+                : 'Upload…'}
             </button>
             {err && <span className="st-ap-err">{err}</span>}
           </div>
@@ -17106,8 +17119,8 @@ function App() {
               };
               if (isNativeApp()) {
                 pickMediaFile()
-                  .then((picked) => {
-                    if (picked?.bytes) uploadPicked(new Blob([new Uint8Array(picked.bytes)]), '');
+                  .then(async (picked) => {
+                    if (picked) uploadPicked(await readPickedMediaBlob(picked), '');
                   })
                   .catch((e2) => shellToast(`Image pick failed: ${e2?.message || 'dialog error'}`));
                 return;

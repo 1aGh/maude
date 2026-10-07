@@ -31,7 +31,7 @@ import {
   readChatMessages,
   writeChatMeta,
 } from './acp/transcript.ts';
-import { type Api, ASSET_MAX_BYTES, ASSET_MAX_VIDEO_BYTES } from './api.ts';
+import { type Api, ASSET_CHUNK_BYTES, ASSET_MAX_BYTES, ASSET_MAX_VIDEO_BYTES } from './api.ts';
 import { ImportAssetError, importSvg, SVG_MAX_BYTES } from './bin/_import-asset.mjs';
 import { ImportBrandError, importBrand } from './bin/_import-brand.mjs';
 import { buildCanvasModule } from './canvas-build.ts';
@@ -330,6 +330,26 @@ export function cspForCapture(): string {
     "webrtc 'block'",
   ].join('; ');
 }
+
+/**
+ * Issue #126 — the chunked-upload routes refuse a request the browser itself
+ * marks as coming from another SITE. They are canvas-origin reachable by design
+ * (like `/_api/asset`, so no `sameOriginWrite`), but a blind `text/plain` POST
+ * from any page the user visits could otherwise open sessions it can never use
+ * and pin the session cap. The canvas iframe and the shell are same-origin or
+ * same-site (localhost ports, `canvas.<zone>`); a browser that sends no
+ * Fetch Metadata, and non-browser clients, are let through — the session cap,
+ * empty-session TTL and budget remain the backstop.
+ */
+export function isCrossSiteFetch(req: Request): boolean {
+  return req.headers.get('sec-fetch-site') === 'cross-site';
+}
+
+const CROSS_SITE_CHUNK_REFUSAL = () =>
+  Response.json(
+    { ok: false, error: 'cross-site upload rejected' },
+    { status: 403, headers: { 'Cache-Control': 'no-store' } }
+  );
 
 /**
  * CSRF guard for the main-origin source-write routes (edit-css / edit-text /
@@ -4657,6 +4677,89 @@ export function createHttp(
       );
     },
 
+    // Issue #126 — chunked upload for video/audio past the one-shot cap. Same
+    // canvas-origin grant as `/_api/asset`, so all three routes are listed in
+    // BOTH CANVAS_SAFE_API (below) and startCanvasServer's `routes` map
+    // (server.ts) — Bun matches `routes` before `fetch`, so a one-list entry
+    // 404s from the canvas iframe. Static paths + query params on purpose: a
+    // dynamic segment would need a regex in every gate (here, the read-only
+    // list, the hub manifest), and each regex is a hole nobody sees by reading
+    // the list. The load-bearing caps live in api.ts (fixed chunk sizes, session
+    // cap, budget reserved at start, sniff on the reassembled stream).
+    '/_api/asset/chunk-start': async (req: Request) => {
+      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+      if (isCrossSiteFetch(req)) return CROSS_SITE_CHUNK_REFUSAL();
+      const body = await readJson<{ totalSize?: unknown }>(req, 1024);
+      if (!body) return new Response('body required', { status: 400 });
+      const result = await api.startAssetChunkSession(body.totalSize);
+      if (!result.ok) {
+        return Response.json(
+          { ok: false, error: result.error },
+          { status: result.status, headers: { 'Cache-Control': 'no-store' } }
+        );
+      }
+      return Response.json(
+        { session: result.session, chunkBytes: result.chunkBytes, chunkCount: result.chunkCount },
+        { status: 201, headers: { 'Cache-Control': 'no-store' } }
+      );
+    },
+
+    '/_api/asset/chunk': async (req: Request) => {
+      const q = new URL(req.url).searchParams;
+      if (isCrossSiteFetch(req)) return CROSS_SITE_CHUNK_REFUSAL();
+      if (req.method === 'DELETE') {
+        const result = await api.abortAssetChunkSession(q.get('session'));
+        if (!result.ok) {
+          return Response.json(
+            { ok: false, error: result.error },
+            { status: result.status, headers: { 'Cache-Control': 'no-store' } }
+          );
+        }
+        return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
+      }
+      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+      // Fast reject of an honest oversize declaration; the streamed per-chunk
+      // size check in api.writeAssetChunk is the authoritative gate.
+      const declared = Number(req.headers.get('content-length') || '0');
+      if (Number.isFinite(declared) && declared > ASSET_CHUNK_BYTES) {
+        return Response.json(
+          { ok: false, error: `chunk exceeds ${ASSET_CHUNK_BYTES} bytes` },
+          { status: 413, headers: { 'Cache-Control': 'no-store' } }
+        );
+      }
+      if (!req.body) return new Response('empty body', { status: 400 });
+      const result = await api.writeAssetChunk(
+        q.get('session'),
+        q.get('index'),
+        req.body as ReadableStream<Uint8Array>
+      );
+      if (!result.ok) {
+        return Response.json(
+          { ok: false, error: result.error },
+          { status: result.status, headers: { 'Cache-Control': 'no-store' } }
+        );
+      }
+      return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
+    },
+
+    '/_api/asset/chunk-finish': async (req: Request) => {
+      if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+      if (isCrossSiteFetch(req)) return CROSS_SITE_CHUNK_REFUSAL();
+      const result = await api.finishAssetChunkSession(
+        new URL(req.url).searchParams.get('session')
+      );
+      if (!result.ok) {
+        return Response.json(
+          { ok: false, error: result.error },
+          { status: result.status ?? 400, headers: { 'Cache-Control': 'no-store' } }
+        );
+      }
+      return Response.json(
+        { path: result.path },
+        { status: 201, headers: { 'Cache-Control': 'no-store' } }
+      );
+    },
+
     // DDR-167 (Phase 3 / T10) — hardened LOCAL-file SVG ingestion for the
     // in-app Brand-upload panel (T12). Privileged + main-origin-only (Decision
     // 4): absent from CANVAS_SAFE_API + startCanvasServer's routes map — the
@@ -6116,6 +6219,11 @@ export function createHttp(
     '/_api/annotations', // annotation board (GET + whole-board PUT) — drives the collab bridge
     '/_api/annotations/ops', // DDR-242 annotation op batches (POST). MIRROR in server.ts routes.
     '/_api/asset', // Phase 23 — capped binary image upload (sniff+category cap+sha8 name+no-SVG)
+    // Issue #126 — chunked video/audio upload (fixed chunks, session cap, budget
+    // reserved at start, sniff on the reassembled stream). MIRROR in server.ts routes.
+    '/_api/asset/chunk-start',
+    '/_api/asset/chunk',
+    '/_api/asset/chunk-finish',
     '/_api/photo-edit', // feature-photo-editor — PhotoEdit sidecar GET/PUT (cap-stack gated). MIRROR in server.ts routes.
     '/_api/git-committers', // @mention autocomplete
     '/_api/ai', // AI-activity banner
