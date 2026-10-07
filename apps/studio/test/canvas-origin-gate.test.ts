@@ -354,6 +354,10 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
       // or 404 (fell through to file-serve). Guards the dual-allowlist invariant:
       // CANVAS_SAFE_API + the startCanvasServer `routes` map must stay in sync.
       expect(await code('/_api/asset')).toBe(405);
+      // Issue #126 — the chunked-upload trio rides the same dual allowlist.
+      expect(await code('/_api/asset/chunk-start')).toBe(405);
+      expect(await code('/_api/asset/chunk')).toBe(405);
+      expect(await code('/_api/asset/chunk-finish')).toBe(405);
 
       // (4) The shell carries the hardened CSP (A6).
       const shell = await fetch(`${canvas}/_canvas-shell.html`);

@@ -155,16 +155,49 @@ export const saveExport = (filename, jobId) => invoke('save_export', { filename,
 /**
  * Native "open file" for media upload — the read counterpart to saveExport.
  * WKWebView won't present the file panel for an HTML <input type=file>, so the
- * AssetPicker uses this in the desktop app. Returns { name, bytes:[...] } or null
- * (cancelled). Browser build uses the <input type=file> path instead.
+ * AssetPicker uses this in the desktop app. Returns `{ token, name, size }` or
+ * null (cancelled) — never the bytes: read them with {@link pickedMediaSource}.
+ * Browser build uses the <input type=file> path instead.
  */
 export const pickMediaFile = () => invoke('pick_media_file');
 
 /**
  * feature-bulk-media-insert — multi-select counterpart to pickMediaFile.
- * Resolves to `[{name, bytes:[...]}, ...]` (empty array if cancelled).
+ * Resolves to `[{ token, name, size }, ...]` (empty array if cancelled).
  */
 export const pickMediaFiles = () => invoke('pick_media_files');
+
+/**
+ * A picked file as an upload source (`asset-upload.ts` ChunkSource): bytes are
+ * read one slice at a time as a raw ArrayBuffer over IPC, so a 500 MB clip is
+ * never held whole in the page. Call `release()` when the upload is done.
+ */
+export function pickedMediaSource(ref, type) {
+  return {
+    size: ref.size,
+    type: type || '',
+    name: ref.name,
+    async read(start, end) {
+      const buf = await invoke('read_picked_media', {
+        token: ref.token,
+        offset: start,
+        len: end - start,
+      });
+      return new Uint8Array(buf);
+    },
+    release: () => invoke('release_picked_media', { token: ref.token }).catch(() => {}),
+  };
+}
+
+/** A small picked file read whole (screenshots). Releases the pick. */
+export async function readPickedMediaBlob(ref, type) {
+  const src = pickedMediaSource(ref, type);
+  try {
+    return new Blob([await src.read(0, ref.size)], type ? { type } : undefined);
+  } finally {
+    src.release();
+  }
+}
 
 // ── Tauri shell: auto-update (Phase 32 / Task 1) ────────────────────────────────
 // The shell downloads + stages a newer build in the background and emits

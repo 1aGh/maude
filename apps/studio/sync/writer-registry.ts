@@ -143,6 +143,11 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/photo-edit': { class: 'file-plane', rows: 'S25' },
   '/_api/footage': { class: 'file-plane', rows: 'S26' },
   '/_api/asset': { class: 'file-plane', rows: 'S27' },
+  // Issue #126 — chunks stay in this machine's `_state/asset-chunks/` scratch;
+  // only the reassembled asset written by chunk-finish joins the file plane.
+  '/_api/asset/chunk-start': { class: 'local' },
+  '/_api/asset/chunk': { class: 'local' },
+  '/_api/asset/chunk-finish': { class: 'file-plane', rows: 'S27' },
   '/_api/assets': { class: 'file-plane', rows: 'S27' },
   '/_api/import-asset': { class: 'file-plane', rows: 'S28/I08' },
   '/_api/import-brand': { class: 'file-plane', rows: 'S28/I07' },

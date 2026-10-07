@@ -3,6 +3,15 @@
   "version": "1.7.1",
   "entries": [
     {
+      "id": "large-video-drops",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "Drop video clips up to 512 MB",
+      "summary": "Large video and audio files now upload to the canvas in pieces, so clips up to 512 MB can be dropped, pasted or picked instead of stopping at 100 MB. The asset picker shows how far the upload has got.",
+      "surface": "design-ui"
+    },
+    {
       "id": "windows-canvases-and-assistant",
       "version": null,
       "date": null,

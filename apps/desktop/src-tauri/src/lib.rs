@@ -23,6 +23,7 @@ mod managed;
 mod menu;
 mod notify;
 mod oauth;
+mod picked_media;
 mod prefs;
 mod project_resolve;
 mod server_json;
@@ -255,34 +256,25 @@ async fn stream_download_to_file(url: &str, dest: &std::path::Path) -> Result<()
     Ok(())
 }
 
-/// Serialized picked-file payload for `pick_media_file`.
-#[derive(serde::Serialize)]
-struct PickedMedia {
-    name: String,
-    bytes: Vec<u8>,
-}
-
 /// Native "open file" for media upload — the READ counterpart to save_export.
 /// WKWebView won't present a file panel for an HTML `<input type=file>` (dogfood:
 /// "upload native okno nevyskoci v tauri"), so the AssetPicker routes through
-/// this: opens an image/video open-dialog, reads the chosen file, and returns
-/// `{ name, bytes }` (or `None` if cancelled). JS then POSTs the bytes to
-/// `/_api/asset` — the same content-addressed, magic-byte-sniffed intake as a
-/// drag-drop, so no trust is placed in the name/extension.
+/// this: opens an image/video open-dialog and returns `{ token, name, size }`
+/// (or `None` if cancelled). The page then reads the file in slices through
+/// `read_picked_media` and POSTs them to `/_api/asset*` — the same
+/// content-addressed, magic-byte-sniffed intake as a drag-drop, so no trust is
+/// placed in the name/extension. See picked_media.rs for why it is not bytes.
 #[tauri::command]
-async fn pick_media_file(app: tauri::AppHandle) -> Result<Option<PickedMedia>, String> {
+async fn pick_media_file(
+    app: tauri::AppHandle,
+    registry: tauri::State<'_, picked_media::PickedMediaRegistry>,
+) -> Result<Option<picked_media::PickedMediaRef>, String> {
     // E2E (debug builds only): a native open dialog can't be DOM-driven, so the
     // harness injects the source path via MAUDE_E2E_OPEN_PATH. Never in release.
     #[cfg(debug_assertions)]
     if let Ok(p) = std::env::var("MAUDE_E2E_OPEN_PATH") {
         if !p.is_empty() {
-            let bytes = std::fs::read(&p).map_err(|e| format!("Couldn’t read the file: {e}"))?;
-            let name = std::path::Path::new(&p)
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("upload")
-                .to_string();
-            return Ok(Some(PickedMedia { name, bytes }));
+            return registry.register(PathBuf::from(p)).map(Some);
         }
     }
     let (tx, rx) = tokio::sync::oneshot::channel();
@@ -300,45 +292,31 @@ async fn pick_media_file(app: tauri::AppHandle) -> Result<Option<PickedMedia>, S
         });
     let path = rx.await.map_err(|_| "Open dialog closed unexpectedly.".to_string())?;
     match path {
-        Some(p) => {
-            let bytes = std::fs::read(&p).map_err(|e| format!("Couldn’t read the file: {e}"))?;
-            let name = p
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("upload")
-                .to_string();
-            Ok(Some(PickedMedia { name, bytes }))
-        }
+        Some(p) => registry.register(p).map(Some),
         None => Ok(None), // cancelled — not an error
     }
 }
 
 /// feature-bulk-media-insert — multi-select counterpart to `pick_media_file`.
-/// Same read-and-return-bytes shape, `.pick_files()` (plural) instead of
+/// Same `{ token, name, size }` shape, `.pick_files()` (plural) instead of
 /// `.pick_file()`. Returns an empty Vec on cancel (not an error) so the JS
 /// side can treat "nothing picked" uniformly with an empty selection.
 #[tauri::command]
-async fn pick_media_files(app: tauri::AppHandle) -> Result<Vec<PickedMedia>, String> {
+async fn pick_media_files(
+    app: tauri::AppHandle,
+    registry: tauri::State<'_, picked_media::PickedMediaRegistry>,
+) -> Result<Vec<picked_media::PickedMediaRef>, String> {
     // E2E (debug builds only): mirrors MAUDE_E2E_OPEN_PATH but plural —
     // comma-separated source paths, never read in a release build.
     #[cfg(debug_assertions)]
     if let Ok(p) = std::env::var("MAUDE_E2E_OPEN_PATHS") {
         if !p.is_empty() {
-            let mut out = Vec::new();
-            for part in p.split(',') {
-                let part = part.trim();
-                if part.is_empty() {
-                    continue;
-                }
-                let bytes = std::fs::read(part).map_err(|e| format!("Couldn’t read the file: {e}"))?;
-                let name = std::path::Path::new(part)
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("upload")
-                    .to_string();
-                out.push(PickedMedia { name, bytes });
-            }
-            return Ok(out);
+            return p
+                .split(',')
+                .map(str::trim)
+                .filter(|part| !part.is_empty())
+                .map(|part| registry.register(PathBuf::from(part)))
+                .collect();
         }
     }
     let (tx, rx) = tokio::sync::oneshot::channel();
@@ -361,19 +339,7 @@ async fn pick_media_files(app: tauri::AppHandle) -> Result<Vec<PickedMedia>, Str
         });
     let paths = rx.await.map_err(|_| "Open dialog closed unexpectedly.".to_string())?;
     match paths {
-        Some(paths) => {
-            let mut out = Vec::with_capacity(paths.len());
-            for p in paths {
-                let bytes = std::fs::read(&p).map_err(|e| format!("Couldn’t read the file: {e}"))?;
-                let name = p
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("upload")
-                    .to_string();
-                out.push(PickedMedia { name, bytes });
-            }
-            Ok(out)
-        }
+        Some(paths) => paths.into_iter().map(|p| registry.register(p)).collect(),
         None => Ok(Vec::new()), // cancelled — not an error
     }
 }
@@ -479,6 +445,8 @@ pub fn run() {
             save_export,
             pick_media_file,
             pick_media_files,
+            picked_media::read_picked_media,
+            picked_media::release_picked_media,
             open_local_project,
             app_state::app_is_first_run,
             app_state::app_get_last_project,
@@ -574,6 +542,7 @@ pub fn run() {
             // maude:// links (Phase 17). macOS delivers through the plugin;
             // the state is parked until the client asks for it.
             app.manage(deep_link::PendingDeepLink::default());
+            app.manage(picked_media::PickedMediaRegistry::default());
             {
                 use tauri_plugin_deep_link::DeepLinkExt;
                 let dl_handle = handle.clone();

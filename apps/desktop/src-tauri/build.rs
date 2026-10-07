@@ -28,6 +28,8 @@ fn main() {
                 "save_export",
                 "pick_media_file",
                 "pick_media_files",
+                "read_picked_media",
+                "release_picked_media",
                 "list_crash_logs",
                 "read_crash_log",
                 "take_pending_deep_link",

@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-06T00:00:00.000Z",
+  "generated": "2026-10-07T00:00:00.000Z",
   "currentPhase": null,
   "phases": [
     {
@@ -2320,6 +2320,28 @@
       "date": "2026-10-06",
       "summary": "Users can export individual artboards, or every artboard as a separate file (canvas-as-separate). They cannot export the canvas as one image or one document, with the annotations and surrounding la...",
       "planPath": ".ai/plans/archive/feature-canvas-whole-export-with-annotations.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
+      "id": "feature-chunked-asset-upload",
+      "title": "Feature: chunked upload for the canvas media-drop asset route (Option C, issue #126)",
+      "status": "done",
+      "shipTarget": null,
+      "date": "2026-10-07",
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
+      "planPath": ".ai/plans/archive/feature-chunked-asset-upload.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
+      "id": "feature-video-asset-size-cap-decision",
+      "title": "Feature: raise or reshape the video/audio asset drop size cap (issue #126)",
+      "status": "done",
+      "shipTarget": null,
+      "date": "2026-10-07",
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports.",
+      "planPath": ".ai/plans/archive/feature-video-asset-size-cap-decision.md",
       "archived": true,
       "phaseKey": null
     },

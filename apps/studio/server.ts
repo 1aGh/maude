@@ -541,6 +541,10 @@ function startCanvasServer(port: number): BunServer {
       // explicitly — the CANVAS_SAFE_API entry alone only opens the fetch
       // fall-through (which serves files, not route handlers). See DDR (Task 9).
       '/_api/asset': http.routes['/_api/asset'],
+      // Issue #126 — chunked upload; MIRROR of the CANVAS_SAFE_API entries (http.ts).
+      '/_api/asset/chunk-start': http.routes['/_api/asset/chunk-start'],
+      '/_api/asset/chunk': http.routes['/_api/asset/chunk'],
+      '/_api/asset/chunk-finish': http.routes['/_api/asset/chunk-finish'],
       // feature-photo-editor — PhotoEdit sidecar GET/PUT. MUST be here AND in
       // CANVAS_SAFE_API (http.ts): Bun matches `routes` before `fetch`, so a
       // one-list entry 404s from the canvas iframe (the DDR-088 rollout bug).

@@ -19,6 +19,8 @@
     "allow-save-export",
     "allow-pick-media-file",
     "allow-pick-media-files",
+    "allow-read-picked-media",
+    "allow-release-picked-media",
     "allow-open-local-project",
     "allow-app-is-first-run",
     "allow-app-get-last-project",

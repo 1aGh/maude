@@ -562,6 +562,22 @@ export interface Api {
   /** DDR-148 — streaming variant for the HTTP route (100 MB video without a
    *  full in-RAM buffer). Sniffs + caps + content-addresses like saveAsset. */
   saveAssetFromStream(stream: ReadableStream<Uint8Array>): Promise<SaveAssetResult>;
+  /** Issue #126 — chunked upload for video/audio past the one-shot cap. */
+  startAssetChunkSession(
+    totalSize: unknown
+  ): Promise<
+    | { ok: true; session: string; chunkBytes: number; chunkCount: number }
+    | { ok: false; status: number; error: string }
+  >;
+  writeAssetChunk(
+    sessionId: unknown,
+    index: unknown,
+    stream: ReadableStream<Uint8Array>
+  ): Promise<{ ok: true } | { ok: false; status: number; error: string }>;
+  finishAssetChunkSession(sessionId: unknown): Promise<SaveAssetResult>;
+  abortAssetChunkSession(
+    sessionId: unknown
+  ): Promise<{ ok: true } | { ok: false; status: number; error: string }>;
   // Persist a clipboard-pasted ACP composer image → runtime `_chat/attachments/`,
   // returns an absolute path (Phase 31 follow-up — POST /_api/acp/attachment).
   saveChatAttachment(bytes: Uint8Array): Promise<SaveAssetResult>;
@@ -1005,10 +1021,11 @@ export const ASSET_MAX_BYTES = (() => {
  */
 export const ASSET_SESSION_BUDGET = (() => {
   const env = Number(process.env.MAUDE_ASSET_SESSION_BUDGET);
-  // DDR-148 — raised 256 MB → 1 GB now that the route accepts video/audio (one
-  // 100 MB clip would blow a 256 MB budget after a couple of drops). Still an
-  // aggregate per-server-instance disk-fill bound; env-overridable.
-  return Number.isFinite(env) && env > 0 ? env : 1024 * 1024 * 1024;
+  // DDR-148 raised 256 MB → 1 GB for video/audio; issue #126 raised it to 4 GB
+  // once chunked upload allowed 512 MB clips (1 GB = two drops, then 429 until
+  // restart). Still an aggregate per-server-instance disk-fill bound, now also
+  // charged up front by chunk-session reservations; env-overridable.
+  return Number.isFinite(env) && env > 0 ? env : 4 * 1024 * 1024 * 1024;
 })();
 
 /**
@@ -1128,14 +1145,55 @@ export function assetCapForCategory(category: AssetCategory): number {
   return category === 'image' ? ASSET_MAX_BYTES : ASSET_MAX_VIDEO_BYTES;
 }
 
+function envBytes(name: string, fallback: number): number {
+  const env = Number(process.env[name]);
+  return Number.isFinite(env) && env > 0 ? env : fallback;
+}
+
+/**
+ * Issue #126 — chunked upload for video/audio past {@link ASSET_MAX_VIDEO_BYTES}.
+ * Each request carries one fixed-size chunk, so Bun's global body ceiling
+ * (`MAX_REQUEST_BODY`, server.ts) never has to rise; only the reassembled file
+ * may be larger. The default ceiling equals the desktop sync lane's 512 MiB
+ * push/pull cap (sync/asset-push.ts) — a bigger clip would land locally and
+ * silently never reach a peer.
+ */
+// Whole bytes, and never above the one-shot cap: a chunk must always fit under
+// the global request ceiling (`MAX_REQUEST_BODY`) that this whole design keeps.
+export const ASSET_CHUNK_BYTES = Math.min(
+  Math.floor(envBytes('MAUDE_ASSET_CHUNK_BYTES', 16 * 1024 * 1024)),
+  ASSET_MAX_VIDEO_BYTES
+);
+export const ASSET_MAX_CHUNKED_BYTES = Math.floor(
+  envBytes('MAUDE_ASSET_MAX_CHUNKED_BYTES', 512 * 1024 * 1024)
+);
+/** Idle time after which an unfinished chunk session is swept. */
+export const ASSET_CHUNK_SESSION_TTL_MS = envBytes(
+  'MAUDE_ASSET_CHUNK_SESSION_TTL_MS',
+  30 * 60 * 1000
+);
+/** A session that never received a chunk holds a slot + reservation for no
+ *  reason — a blind cross-site or scripted start must not pin it for the TTL. */
+export const ASSET_CHUNK_EMPTY_SESSION_TTL_MS = envBytes(
+  'MAUDE_ASSET_CHUNK_EMPTY_SESSION_TTL_MS',
+  60 * 1000
+);
+/** Absolute age cap — re-sending a chunk keeps a session idle-fresh, not alive forever. */
+export const ASSET_CHUNK_SESSION_MAX_AGE_MS = envBytes(
+  'MAUDE_ASSET_CHUNK_SESSION_MAX_AGE_MS',
+  2 * 60 * 60 * 1000
+);
+/** Open chunk sessions per server instance — bounds dirs/fds beyond the byte budget. */
+export const ASSET_CHUNK_MAX_SESSIONS = Math.floor(envBytes('MAUDE_ASSET_CHUNK_MAX_SESSIONS', 4));
+
 const UNSUPPORTED_ASSET_MSG =
   'unsupported media type — png/jpeg/gif/webp images or mp4/mov/webm/mp3/wav/m4a media only (SVG/script rejected)';
 
-function capError(category?: AssetCategory): string {
+function capError(category: AssetCategory | undefined, mediaCap = ASSET_MAX_VIDEO_BYTES): string {
   if (category === 'image') {
     return `image exceeds the ${Math.round(ASSET_MAX_BYTES / (1024 * 1024))} MB cap`;
   }
-  const mb = Math.round(ASSET_MAX_VIDEO_BYTES / (1024 * 1024));
+  const mb = Math.round(mediaCap / (1024 * 1024));
   return `media exceeds the ${mb} MB cap`;
 }
 
@@ -2473,14 +2531,27 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     ctx.bus.emit('fs:any', rel);
   }
 
-  async function saveAssetFromStream(stream: ReadableStream<Uint8Array>): Promise<SaveAssetResult> {
+  interface ConsumeAssetOpts {
+    /** Ceiling for video/audio; images always get {@link ASSET_MAX_BYTES}. */
+    mediaCap: number;
+    /** 'reserved' — a chunk session already charged the budget at chunk-start. */
+    budget: 'check' | 'reserved';
+    allowImages: boolean;
+  }
+
+  async function consumeAssetStream(
+    stream: ReadableStream<Uint8Array>,
+    opts: ConsumeAssetOpts
+  ): Promise<SaveAssetResult> {
     const assetsDir = path.join(paths.designRoot, 'assets');
     const tmpName = `.tmp-${crypto.randomBytes(8).toString('hex')}`;
     const tmpAbs = path.join(assetsDir, tmpName);
     const hash = crypto.createHash('sha256');
     let sink: Bun.FileSink | null = null;
     let typeInfo: AssetTypeInfo | null = null;
-    let cap = ASSET_MAX_VIDEO_BYTES; // provisional max until the head is sniffed
+    let cap = opts.mediaCap; // provisional max until the head is sniffed
+    const capFor = (info: AssetTypeInfo) =>
+      info.category === 'image' ? ASSET_MAX_BYTES : opts.mediaCap;
     let total = 0;
     const headChunks: Uint8Array[] = [];
     let headLen = 0;
@@ -2520,21 +2591,17 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         total += chunk.length;
         if (total > cap) {
           await cleanup();
-          return { ok: false, status: 413, error: capError(typeInfo?.category) };
+          return { ok: false, status: 413, error: capError(typeInfo?.category, opts.mediaCap) };
         }
         if (!typeInfo) {
           headChunks.push(chunk);
           headLen += chunk.length;
           if (headLen >= 12) {
             typeInfo = sniffAssetType(concatBytes(headChunks));
-            if (!typeInfo) {
+            const refused = acceptType(typeInfo);
+            if (refused) {
               await cleanup(); // nothing written yet — no temp file to remove
-              return { ok: false, status: 415, error: UNSUPPORTED_ASSET_MSG };
-            }
-            cap = assetCapForCategory(typeInfo.category);
-            if (total > cap) {
-              await cleanup();
-              return { ok: false, status: 413, error: capError(typeInfo.category) };
+              return refused;
             }
             sink = Bun.file(tmpAbs).writer();
             flushHead();
@@ -2552,21 +2619,19 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       // A body shorter than 12 bytes never triggered the mid-stream sniff.
       if (!typeInfo) {
         typeInfo = sniffAssetType(concatBytes(headChunks));
-        if (!typeInfo) {
+        const refused = acceptType(typeInfo);
+        if (refused) {
           await cleanup();
-          return { ok: false, status: 415, error: UNSUPPORTED_ASSET_MSG };
-        }
-        cap = assetCapForCategory(typeInfo.category);
-        if (total > cap) {
-          await cleanup();
-          return { ok: false, status: 413, error: capError(typeInfo.category) };
+          return refused;
         }
         sink = Bun.file(tmpAbs).writer();
         flushHead();
       }
+      if (!typeInfo) throw new Error('unreachable: asset type unresolved');
       if (sink) await sink.end();
 
-      const sha8 = hash.digest('hex').slice(0, 8);
+      const digest = hash.digest('hex');
+      const sha8 = digest.slice(0, 8);
       const name = `${sha8}.${typeInfo.ext}`;
       const fileAbs = path.join(assetsDir, name);
       // Containment backstop — the name is content-addressed (sha8 hex + sniffed
@@ -2581,8 +2646,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         return { ok: true, path: `assets/${name}` };
       }
       // Aggregate write budget — bounds a scripted disk-fill loop from the
-      // untrusted canvas origin. Only a genuinely NEW file counts.
-      if (assetBytesWritten + total > ASSET_SESSION_BUDGET) {
+      // untrusted canvas origin. Only a genuinely NEW file counts. Bytes held by
+      // open chunk sessions count too, or one-shot writes could oversubscribe
+      // what those sessions were promised.
+      if (
+        opts.budget === 'check' &&
+        assetBytesWritten + assetBytesReserved + total > ASSET_SESSION_BUDGET
+      ) {
         await rm(tmpAbs, { force: true });
         return {
           ok: false,
@@ -2595,13 +2665,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       const rel = `assets/${name}`;
       announceWritten(rel);
       // S3/R2 lane (Cloud Phase 3) — mirror the bytes so a second machine can
-      // resolve them without the file riding git. Deliberately awaited but
-      // never able to fail the save: the asset is already on disk, the mirror
-      // is the redundant copy, and `maude hub asset-check` reconciles a miss.
-      // Only a genuinely NEW file reaches here, so this is not re-uploading on
-      // every dedupe hit.
+      // resolve them without the file riding git. Never able to fail the save:
+      // the asset is already on disk, the mirror is the redundant copy, and
+      // `maude hub asset-check` reconciles a miss. Streamed from disk — a 512 MB
+      // clip must not be read whole into RAM. Only a genuinely NEW file reaches
+      // here, so this is not re-uploading on every dedupe hit.
       if (assetMirror.configured) {
-        void assetMirror.push(rel, new Uint8Array(await Bun.file(fileAbs).arrayBuffer()));
+        void assetMirror.pushFile(rel, fileAbs, digest);
       }
       return { ok: true, path: rel };
     } catch (err) {
@@ -2614,6 +2684,304 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         /* already released */
       }
     }
+
+    function acceptType(info: AssetTypeInfo | null): SaveAssetResult | null {
+      if (!info) return { ok: false, status: 415, error: UNSUPPORTED_ASSET_MSG };
+      if (info.category === 'image' && !opts.allowImages) {
+        return { ok: false, status: 415, error: 'images upload in one request, not in chunks' };
+      }
+      cap = capFor(info);
+      if (total > cap) {
+        return { ok: false, status: 413, error: capError(info.category, opts.mediaCap) };
+      }
+      return null;
+    }
+  }
+
+  /** DDR-148 — the one-shot streamed write behind `POST /_api/asset`. */
+  function saveAssetFromStream(stream: ReadableStream<Uint8Array>): Promise<SaveAssetResult> {
+    return consumeAssetStream(stream, {
+      mediaCap: ASSET_MAX_VIDEO_BYTES,
+      budget: 'check',
+      allowImages: true,
+    });
+  }
+
+  // Issue #126 — chunked upload. Same untrusted canvas origin as the one-shot
+  // route, so: fixed chunk sizes (bounded file count per session), a cap on open
+  // sessions, the byte budget charged at chunk-start before any byte is
+  // accepted, one write in flight per session, idle / empty / over-age sessions
+  // swept, and the sniff run on the REASSEMBLED stream by the shared core —
+  // never per chunk. Session scratch lives under the runtime `_state/` tree,
+  // never the versioned + synced `assets/`. See DDR-248.
+  interface ChunkSession {
+    id: string;
+    dir: string;
+    totalSize: number;
+    chunkCount: number;
+    received: Set<number>;
+    createdAt: number;
+    lastActivity: number;
+    /** A chunk write is streaming — a second write or a finish is refused (409). */
+    writing: boolean;
+    /** Set once finish/abort starts — later chunk writes are refused. */
+    closing: boolean;
+  }
+  const CHUNK_SESSION_ID = /^[0-9a-f]{32}$/;
+  const chunkSessions = new Map<string, ChunkSession>();
+  let assetBytesReserved = 0;
+  const chunkRoot = () => path.join(paths.designRoot, '_state', 'asset-chunks');
+
+  /** Unregister + release synchronously; the directory removal is best-effort. */
+  async function dropChunkSession(s: ChunkSession): Promise<void> {
+    if (chunkSessions.get(s.id) === s) {
+      chunkSessions.delete(s.id);
+      assetBytesReserved = Math.max(0, assetBytesReserved - s.totalSize);
+    }
+    try {
+      await rm(s.dir, { recursive: true, force: true });
+    } catch {
+      /* a racing write recreated a temp file — the orphan sweep collects it */
+    }
+  }
+
+  function chunkSessionExpired(s: ChunkSession, now: number): boolean {
+    if (s.closing || s.writing) return false;
+    if (now - s.createdAt > ASSET_CHUNK_SESSION_MAX_AGE_MS) return true;
+    if (s.received.size === 0 && now - s.createdAt > ASSET_CHUNK_EMPTY_SESSION_TTL_MS) return true;
+    return now - s.lastActivity > ASSET_CHUNK_SESSION_TTL_MS;
+  }
+
+  /**
+   * Drop expired sessions (idle, never fed, or past their absolute age), and
+   * orphan dirs left by an earlier process (its sessions died with it). An
+   * orphan is only removed once it is itself idle past the TTL, so a second
+   * server on the same project is never undercut mid-upload.
+   */
+  async function sweepStaleChunkSessions(now = Date.now()): Promise<void> {
+    for (const s of [...chunkSessions.values()]) {
+      if (chunkSessionExpired(s, now)) await dropChunkSession(s);
+    }
+    let names: string[];
+    try {
+      names = await readdir(chunkRoot());
+    } catch {
+      return; // nothing ever chunked here
+    }
+    for (const name of names) {
+      if (chunkSessions.has(name)) continue;
+      const dir = path.join(chunkRoot(), name);
+      try {
+        const st = await statp(dir);
+        if (now - st.mtimeMs > ASSET_CHUNK_SESSION_TTL_MS) {
+          await rm(dir, { recursive: true, force: true });
+        }
+      } catch {
+        /* raced with another sweep */
+      }
+    }
+  }
+  void sweepStaleChunkSessions();
+
+  function chunkSessionFor(
+    id: unknown
+  ): { session: ChunkSession } | { ok: false; status: number; error: string } {
+    if (typeof id !== 'string' || !CHUNK_SESSION_ID.test(id)) {
+      return { ok: false, status: 400, error: 'invalid upload session' };
+    }
+    const session = chunkSessions.get(id);
+    if (!session) return { ok: false, status: 404, error: 'upload session not found or expired' };
+    if (session.closing) return { ok: false, status: 409, error: 'upload session is closing' };
+    return { session };
+  }
+
+  async function startAssetChunkSession(
+    totalSize: unknown
+  ): Promise<
+    | { ok: true; session: string; chunkBytes: number; chunkCount: number }
+    | { ok: false; status: number; error: string }
+  > {
+    if (typeof totalSize !== 'number' || !Number.isSafeInteger(totalSize) || totalSize <= 0) {
+      return { ok: false, status: 400, error: 'totalSize must be a positive integer' };
+    }
+    if (totalSize > ASSET_MAX_CHUNKED_BYTES) {
+      return { ok: false, status: 413, error: capError('video', ASSET_MAX_CHUNKED_BYTES) };
+    }
+    await sweepStaleChunkSessions();
+    // Check, register and reserve with NO await in between: concurrent
+    // chunk-starts must each see the ones before them, or N parallel requests
+    // all pass the session cap and the budget against the same empty state.
+    if (chunkSessions.size >= ASSET_CHUNK_MAX_SESSIONS) {
+      return { ok: false, status: 429, error: 'too many uploads in progress — try again shortly' };
+    }
+    if (assetBytesWritten + assetBytesReserved + totalSize > ASSET_SESSION_BUDGET) {
+      return {
+        ok: false,
+        status: 429,
+        error: 'asset write budget exceeded for this server session',
+      };
+    }
+    const id = crypto.randomBytes(16).toString('hex');
+    const dir = path.join(chunkRoot(), id);
+    if (path.resolve(dir) !== path.join(path.resolve(chunkRoot()), id)) {
+      return { ok: false, status: 400, error: 'resolved chunk dir escapes _state' };
+    }
+    const now = Date.now();
+    const session: ChunkSession = {
+      id,
+      dir,
+      totalSize,
+      chunkCount: Math.ceil(totalSize / ASSET_CHUNK_BYTES),
+      received: new Set(),
+      createdAt: now,
+      lastActivity: now,
+      writing: false,
+      closing: false,
+    };
+    chunkSessions.set(id, session);
+    assetBytesReserved += totalSize;
+    try {
+      await mkdir(dir, { recursive: true });
+    } catch (err) {
+      await dropChunkSession(session);
+      return { ok: false, status: 500, error: err instanceof Error ? err.message : 'mkdir failed' };
+    }
+    return { ok: true, session: id, chunkBytes: ASSET_CHUNK_BYTES, chunkCount: session.chunkCount };
+  }
+
+  async function writeAssetChunk(
+    sessionId: unknown,
+    indexRaw: unknown,
+    stream: ReadableStream<Uint8Array>
+  ): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+    const found = chunkSessionFor(sessionId);
+    if (!('session' in found)) return found;
+    const s = found.session;
+    if (typeof indexRaw !== 'string' || !/^\d{1,9}$/.test(indexRaw)) {
+      return { ok: false, status: 400, error: 'invalid chunk index' };
+    }
+    const index = Number(indexRaw);
+    if (index >= s.chunkCount) return { ok: false, status: 400, error: 'chunk index out of range' };
+    // One write at a time per session: the client is sequential, and parallel
+    // writes would each hold an uncounted temp file + fd outside the budget.
+    if (s.writing) return { ok: false, status: 409, error: 'another chunk is still uploading' };
+    s.writing = true;
+    const expected =
+      index === s.chunkCount - 1 ? s.totalSize - index * ASSET_CHUNK_BYTES : ASSET_CHUNK_BYTES;
+
+    // Written under a unique temp name, then renamed — a retried chunk can
+    // never leave a torn `.part` behind.
+    const partAbs = path.join(s.dir, `${index}.part`);
+    const tmpAbs = path.join(s.dir, `${index}.part.tmp-${crypto.randomBytes(6).toString('hex')}`);
+    const reader = stream.getReader();
+    let got = 0;
+    let failure: { ok: false; status: number; error: string } | null = null;
+    try {
+      const sink = Bun.file(tmpAbs).writer();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (!value || value.length === 0) continue;
+        got += value.length;
+        if (got > expected) {
+          failure = { ok: false, status: 413, error: `chunk exceeds its ${expected}-byte size` };
+          break;
+        }
+        sink.write(value);
+      }
+      await sink.end();
+      if (!failure && got !== expected) {
+        failure = { ok: false, status: 400, error: `chunk must be exactly ${expected} bytes` };
+      }
+      if (!failure && s.closing) {
+        failure = { ok: false, status: 409, error: 'upload session is closing' };
+      }
+      if (failure) {
+        await rm(tmpAbs, { force: true });
+        return failure;
+      }
+      await rename(tmpAbs, partAbs);
+      s.received.add(index);
+      s.lastActivity = Date.now();
+      return { ok: true };
+    } catch (err) {
+      await rm(tmpAbs, { force: true }).catch(() => undefined);
+      return { ok: false, status: 500, error: err instanceof Error ? err.message : 'write failed' };
+    } finally {
+      s.writing = false;
+      try {
+        reader.releaseLock();
+      } catch {
+        /* already released */
+      }
+    }
+  }
+
+  /** The session's `.part` files, in index order, as one byte stream. */
+  function reassembledStream(s: ChunkSession): ReadableStream<Uint8Array> {
+    let index = 0;
+    let current: ReadableStreamDefaultReader<Uint8Array> | null = null;
+    return new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        for (;;) {
+          if (!current) {
+            if (index >= s.chunkCount) {
+              controller.close();
+              return;
+            }
+            const part = Bun.file(path.join(s.dir, `${index}.part`)).stream();
+            current = part.getReader() as ReadableStreamDefaultReader<Uint8Array>;
+            index += 1;
+          }
+          const { done, value } = await current.read();
+          if (done) {
+            current = null;
+            continue;
+          }
+          controller.enqueue(value);
+          return;
+        }
+      },
+      async cancel() {
+        await current?.cancel();
+      },
+    });
+  }
+
+  async function finishAssetChunkSession(sessionId: unknown): Promise<SaveAssetResult> {
+    const found = chunkSessionFor(sessionId);
+    if (!('session' in found)) return found;
+    const s = found.session;
+    if (s.writing) return { ok: false, status: 409, error: 'a chunk is still uploading' };
+    s.closing = true;
+    try {
+      if (s.received.size !== s.chunkCount) {
+        return {
+          ok: false,
+          status: 400,
+          error: `incomplete upload — ${s.received.size} of ${s.chunkCount} chunks received`,
+        };
+      }
+      // The reservation covers this write; releasing it happens in finally, on
+      // success, dedupe and failure alike.
+      return await consumeAssetStream(reassembledStream(s), {
+        mediaCap: ASSET_MAX_CHUNKED_BYTES,
+        budget: 'reserved',
+        allowImages: false,
+      });
+    } finally {
+      await dropChunkSession(s);
+    }
+  }
+
+  async function abortAssetChunkSession(
+    sessionId: unknown
+  ): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+    const found = chunkSessionFor(sessionId);
+    if (!('session' in found)) return found;
+    found.session.closing = true;
+    await dropChunkSession(found.session);
+    return { ok: true };
   }
 
   async function saveAsset(bytes: Uint8Array): Promise<SaveAssetResult> {
@@ -2952,7 +3320,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     }
     try {
       if (!(await Bun.file(fileAbs).exists())) {
-        if (assetBytesWritten + bytes.length > ASSET_SESSION_BUDGET) {
+        if (assetBytesWritten + assetBytesReserved + bytes.length > ASSET_SESSION_BUDGET) {
           return {
             ok: false,
             status: 429,
@@ -6885,6 +7253,10 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     searchAudioLibrary,
     listStickers,
     saveAssetFromStream,
+    startAssetChunkSession,
+    writeAssetChunk,
+    finishAssetChunkSession,
+    abortAssetChunkSession,
     saveChatAttachment,
     resolveChatAttachment,
     createCanvas,

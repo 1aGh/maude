@@ -344,6 +344,21 @@ function respondCanvasExpiredPage(response, shellOrigin) {
   response.end(html);
 }
 
+/**
+ * A request after which a NEW asset may be on the studio's disk: a one-shot
+ * upload, or the finish of a chunked one (issue #126). Both doors ask this one
+ * question so a new upload route can't be mirrored at one door and not the
+ * other — an asset the hub never mirrors is gone when the cell restarts.
+ */
+export function isAssetWriteCompletion(method, path, statusCode) {
+  return (
+    method === 'POST' &&
+    (path === '/_api/asset' || path === '/_api/asset/chunk-finish') &&
+    statusCode >= 200 &&
+    statusCode < 300
+  );
+}
+
 function refuse(response, status, body) {
   const payload = JSON.stringify(body);
   response.writeHead(status, {
@@ -477,12 +492,7 @@ export function createStudioProxy({
     // B3 — only on a write that SUCCEEDED. The studio's own caps and sniff have
     // already run by the time it answered 2xx, so mirroring here inherits every
     // one of them rather than re-deciding what an asset is.
-    if (
-      method === 'POST' &&
-      pathname === '/_api/asset' &&
-      response.statusCode >= 200 &&
-      response.statusCode < 300
-    ) {
+    if (isAssetWriteCompletion(method, pathname, response.statusCode)) {
       try {
         onAssetWritten?.();
       } catch {
@@ -720,12 +730,7 @@ export function createStudioProxy({
     // B3 parity with the shell door: an asset that landed THROUGH THIS DOOR
     // (the iframe's media drop arrives here, not at the shell) must reach
     // object storage too, or it survives only until the container restarts.
-    if (
-      method === 'POST' &&
-      rest === '/_api/asset' &&
-      response.statusCode >= 200 &&
-      response.statusCode < 300
-    ) {
+    if (isAssetWriteCompletion(method, rest, response.statusCode)) {
       try {
         onAssetWritten?.();
       } catch {
