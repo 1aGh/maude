@@ -155,26 +155,7 @@ import { CommandPalette } from './dialogs/command-palette.jsx';
 import { AssetPicker } from './dialogs/asset-picker.jsx';
 import { ExportDialog, downloadCapturedBlob } from './dialogs/export-dialog.jsx';
 import { Sidebar } from './tree/tree.jsx';
-
-// Collapsed rail — a thin strip shown when the sidebar is collapsed, with a
-// re-open affordance + quick search/files shortcuts (mockup CollapsedRail).
-function CollapsedRail({ shown, onExpand, onSearch }) {
-  return (
-    <div className={'st-rail' + (shown ? ' is-shown' : '')}>
-      <div className="st-rail-inner">
-        <button type="button" className="st-iconbtn" aria-label="Expand sidebar" title="Expand sidebar (T)" onClick={onExpand}>
-          <StIcon name="panel-left" size={15} />
-        </button>
-        <button type="button" className="st-iconbtn" aria-label="Search" title="Search (/)" onClick={onSearch}>
-          <StIcon name="search" size={15} />
-        </button>
-        <button type="button" className="st-iconbtn" aria-label="Files" title="Files" onClick={onExpand}>
-          <StIcon name="folder" size={15} />
-        </button>
-      </div>
-    </div>
-  );
-}
+import { CollapsedRail } from './shell/collapsed-rail.jsx';
 
 // Help modal — hosts the cheatsheet that used to live in the left sidebar.
 // Triggered from the menubar's Help item. Esc + backdrop click close it.
