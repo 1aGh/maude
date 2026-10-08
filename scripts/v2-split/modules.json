@@ -1,0 +1,232 @@
+{
+  "apps/studio/client/shell/constants.js": [
+    "USAGE_TOUR_STORE",
+    "COLLAB_TOUR_STORE",
+    "SYSTEM_TAB",
+    "THEME_STORE",
+    "SHOW_HIDDEN_STORE",
+    "CP_MODE_STORE",
+    "SIDEBAR_STORE",
+    "MINIMAP_STORE",
+    "ZOOMCTL_STORE",
+    "ANNOT_STORE",
+    "AUTOOPEN_STORE",
+    "ATTENTION_NOTIFY_COOLDOWN_MS",
+    "PANEL_SIDES_STORE",
+    "LAYERS_MODE_STORE",
+    "CANVAS_EXT_RE",
+    "isModuleCanvasPath",
+    "MDCC_VERSION",
+    "EMPTY_GROUPS",
+    "MODE_HINT_SEEN"
+  ],
+  "apps/studio/client/shell/util.js": [
+    "persistUiPrefs",
+    "PREVIEW_KIND_RULES",
+    "previewKind",
+    "pathTestIdSlug",
+    "layersTreeSig",
+    "notifyDesktop",
+    "readInitialTheme",
+    "readBoolStore",
+    "readJsonStore",
+    "sectionDefaultOpen",
+    "basename",
+    "shellToast",
+    "browseFirstRunHint",
+    "displayName",
+    "canvasBase",
+    "groupBySidecar",
+    "buildTree",
+    "filterTree",
+    "openCount",
+    "timeAgo",
+    "totalCounts"
+  ],
+  "apps/studio/client/shell/icons.jsx": [
+    "Lu",
+    "Icon",
+    "STICONS",
+    "StIcon",
+    "initialsOf",
+    "StAvatar",
+    "Kbd"
+  ],
+  "apps/studio/client/shell/dock.jsx": [
+    "DOCK_PANELS",
+    "PANEL_SIDES_DEFAULTS",
+    "DockSlot",
+    "usePanelSize",
+    "PanelGrip"
+  ],
+  "apps/studio/client/dialogs/command-palette.jsx": [
+    "CommandPalette"
+  ],
+  "apps/studio/client/dialogs/asset-picker.jsx": [
+    "EXT_MIME",
+    "mimeFromExt",
+    "AssetPicker"
+  ],
+  "apps/studio/client/dialogs/export-dialog.jsx": [
+    "EXPORT_CARDS",
+    "EXPORT_SCOPE_LABELS",
+    "EXPORT_REGION_SCOPES",
+    "PNG_SCALES",
+    "PNG_RESOLUTIONS",
+    "PNG_RESOLUTION_DEFAULT",
+    "PDF_DPI_OPTIONS",
+    "PDF_DPI_DEFAULT",
+    "PDF_TEXT_OPTIONS",
+    "PDF_TEXT_DEFAULT",
+    "downloadCapturedBlob",
+    "ExportDialog"
+  ],
+  "apps/studio/client/tree/tree.jsx": [
+    "TREE_INDENT_BASE",
+    "TREE_INDENT_STEP",
+    "DirRow",
+    "DsFolderRow",
+    "FileRow",
+    "CanvasRow",
+    "Tree",
+    "SECTION_META",
+    "sectionMetaFor",
+    "TreeLoading",
+    "Sidebar"
+  ],
+  "apps/studio/client/shell/collapsed-rail.jsx": [
+    "CollapsedRail"
+  ],
+  "apps/studio/client/dialogs/help-modal.jsx": [
+    "HelpModal"
+  ],
+  "apps/studio/client/dialogs/shortcuts-overlay.jsx": [
+    "SHORTCUT_GROUPS",
+    "ShortcutCombo",
+    "ShortcutsOverlay"
+  ],
+  "apps/studio/client/menus/menubar.jsx": [
+    "MENU_NAMES",
+    "useDropdownClose",
+    "ViewDropdown",
+    "DropdownMenu",
+    "HelpDropdown",
+    "SelectionDropdown",
+    "ToolsDropdown",
+    "FileDropdown",
+    "EditDropdown",
+    "Menubar"
+  ],
+  "apps/studio/client/shell/viewport.jsx": [
+    "Viewport",
+    "CanvasLoading"
+  ],
+  "apps/studio/client/system/system-view.jsx": [
+    "TOKEN_GROUP_ORDER",
+    "TOKEN_GROUP_LABELS",
+    "isSwatchKind",
+    "TokenLadder",
+    "findLeadingFor",
+    "sampleFontFamily",
+    "TypeLadder",
+    "SystemView",
+    "Gallery"
+  ],
+  "apps/studio/client/shell/status-bar.jsx": [
+    "StatusBar"
+  ],
+  "apps/studio/client/shell/comments-panel.jsx": [
+    "CommentsPanel"
+  ],
+  "apps/studio/client/shell/banners.jsx": [
+    "ROLE_LINE",
+    "CloudRoleBanner",
+    "UpdateBanner",
+    "SyncBanner"
+  ],
+  "apps/studio/client/inspector/css-vocab.js": [
+    "CSS_DISPLAYS",
+    "GRID_TRACK_UNITS",
+    "CSS_FLEX_DIR",
+    "CSS_FLEX_WRAP",
+    "CSS_ALIGN",
+    "CSS_ALIGN_SELF",
+    "CSS_JUSTIFY",
+    "CSS_WEIGHTS",
+    "replacedValue",
+    "CSS_FONTS",
+    "CSS_BORDER_STYLES",
+    "CSS_UNITS",
+    "CSS_UNITLESS",
+    "PROP_LEAD",
+    "CSS_ALIGN_OPTS",
+    "CSS_POSITION",
+    "CSS_FONT_STYLE",
+    "CSS_TEXT_TRANSFORM",
+    "CSS_TEXT_DECORATION",
+    "CSS_WHITE_SPACE",
+    "CSS_OBJECT_FIT",
+    "CSS_OVERFLOW",
+    "CSS_BLEND_MODES",
+    "CSS_ASPECT_RATIO",
+    "SCREEN_PRESETS"
+  ],
+  "apps/studio/client/inspector/color.js": [
+    "_cssColorCtx",
+    "cssColorToHex",
+    "clamp01",
+    "hexToRgb",
+    "rgbToHex",
+    "rgbToHsv",
+    "hsvToRgb",
+    "cssHint",
+    "cssSplitUnit"
+  ],
+  "apps/studio/client/inspector/selection.js": [
+    "mergeSelClientFields"
+  ],
+  "apps/studio/client/inspector/ds-tokens.js": [
+    "cssTokensRelFor",
+    "activeDsNameFor",
+    "parseTokensCss",
+    "useAllDsTokens"
+  ],
+  "apps/studio/client/inspector/color-picker.jsx": [
+    "ColorPicker"
+  ],
+  "apps/studio/client/inspector/token-popover.jsx": [
+    "TokenPopover"
+  ],
+  "apps/studio/client/inspector/grid-tracks-editor.jsx": [
+    "GridTracksEditor"
+  ],
+  "apps/studio/client/inspector/css-knobs.jsx": [
+    "recordableWrites",
+    "trackRecordableWrite",
+    "afterRecordableWrites",
+    "CssKnobs",
+    "RawKnob",
+    "AttrKnob"
+  ],
+  "apps/studio/client/inspector/layers.jsx": [
+    "LAYER_TYPE_ICON",
+    "moveLayerNode",
+    "LAYER_VOID_TAGS",
+    "LayerRow"
+  ],
+  "apps/studio/client/inspector/inspect-computed.jsx": [
+    "InspectComputed"
+  ],
+  "apps/studio/client/inspector/artboard-knobs.jsx": [
+    "resolveArtboardIdFromSelection",
+    "ARTBOARD_LAYOUT_OPTIONS",
+    "ARTBOARD_KIND_OPTIONS",
+    "ArtboardKnobs"
+  ],
+  "apps/studio/client/inspector/inspector-panel.jsx": [
+    "PHOTO_ASSET_RE",
+    "PHOTO_ASSET_RE_G",
+    "photoAssetOfSelection",
+    "InspectorPanel"
+  ]
+}
