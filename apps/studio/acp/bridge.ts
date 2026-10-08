@@ -30,7 +30,12 @@ import {
 
 import { scrubAgentEnv } from './env.ts';
 import type { SdkPluginConfig } from './plugin-bootstrap.ts';
-import { resolveAdapterEntry, resolveAgentRuntime, resolveClaudePath } from './probe.ts';
+import {
+  resolveAdapterEntry,
+  resolveAgentClaudeExecutable,
+  resolveAgentRuntime,
+  resolveClaudePath,
+} from './probe.ts';
 import { countTranscriptLinesAt, stripInlineBlobs } from './transcript-io.ts';
 import {
   isWriteToolName,
@@ -1056,6 +1061,13 @@ export class AcpBridge {
     if (!claudePath) {
       throw new Error("Claude Code isn't connected — run `claude` in a terminal and `/login`.");
     }
+    // #148 — a Windows npm `claude.cmd` shim can't be spawned by Node without a shell.
+    const agentClaude = resolveAgentClaudeExecutable(claudePath);
+    if (!agentClaude) {
+      throw new Error(
+        'Claude Code is installed as an npm `claude.cmd` shim the chat cannot start — reinstall it with the native installer.'
+      );
+    }
 
     // DDR-123 guardrail #1 — strip ANTHROPIC_API_KEY so the child stays on the
     // user's subscription. This is the whole compliance story; do not weaken it.
@@ -1069,7 +1081,7 @@ export class AcpBridge {
     // this pin the packaged adapter would throw "native binary not found". Driving
     // the user's installed CLI is also the documented intent: it keeps the turn on
     // their subscription rather than the SDK's embedded runtime.
-    env.CLAUDE_CODE_EXECUTABLE = claudePath;
+    env.CLAUDE_CODE_EXECUTABLE = agentClaude;
     // Least-privilege: the adapter child never talks to the dev-server's GitHub
     // token bridge (only apps/studio/github/token.ts does), so drop the loopback
     // keychain-bridge handle from its env. Keeps a hijacked-PATH `claude` (which

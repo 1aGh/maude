@@ -8,7 +8,7 @@
 
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, win32 } from 'node:path';
 
 import { DEV_SERVER_ROOT, IS_COMPILED_BINARY } from '../paths.ts';
 import { scrubAgentEnv } from './env.ts';
@@ -155,6 +155,47 @@ export function resolveClaudePath(): string | null {
 }
 
 /**
+ * #148 — the path the ADAPTER can spawn as `CLAUDE_CODE_EXECUTABLE`.
+ *
+ * The adapter runs under Node (#141), and the SDK spawns this path with
+ * `child_process.spawn` and no shell. Since CVE-2024-27980 Node refuses to
+ * spawn a `.cmd`/`.bat` that way (EINVAL), and an npm-installed Claude Code on
+ * Windows resolves to exactly that: `%APPDATA%\npm\claude.cmd`. `Bun.spawn`
+ * (readiness, auth status, sign-in) launches the shim fine, which is why the
+ * header said Ready while every session failed with "Internal error".
+ *
+ * So on win32 a shim is followed to its real target: the target the npm
+ * cmd-shim itself names (`"%dp0%\node_modules\...\cli.js"`), else the
+ * package entry beside the shim, else a native `claude.exe` next to it. The SDK
+ * runs a `.js` executable through its own JS runtime. Returns null when no
+ * spawnable target exists — callers report that, never spawn the shim.
+ */
+export function resolveAgentClaudeExecutable(
+  claudePath: string,
+  platform: NodeJS.Platform = process.platform,
+  exists: (p: string) => boolean = existsSync,
+  readText: (p: string) => string = (p) => readFileSync(p, 'utf8')
+): string | null {
+  if (platform !== 'win32' || !/\.(cmd|bat)$/i.test(claudePath)) return claudePath;
+  const shimDir = win32.dirname(claudePath);
+  const candidates: string[] = [];
+  try {
+    for (const m of readText(claudePath).matchAll(
+      /%~?dp0%?\\([^"%\r\n]+?\.(?:js|mjs|cjs|exe))/gi
+    )) {
+      candidates.push(win32.join(shimDir, m[1]));
+    }
+  } catch {
+    /* unreadable shim — fall through to the conventional layout */
+  }
+  candidates.push(
+    win32.join(shimDir, 'node_modules', '@anthropic-ai', 'claude-code', 'cli.js'),
+    win32.join(shimDir, 'claude.exe')
+  );
+  return candidates.find((c) => exists(c)) ?? null;
+}
+
+/**
  * The JS runtime used to launch the adapter, plus whether it must be spawned
  * with `BUN_BE_BUN=1`. Ladder: explicit `MAUDE_ACP_RUNTIME` override → a real
  * `node` (the adapter + `@anthropic-ai/claude-agent-sdk` are authored for Node)
@@ -210,6 +251,15 @@ export function probeAcpAvailability(): AcpAvailability {
       reason: "Claude Code isn't connected — run `claude` in a terminal and `/login`.",
       adapterEntry,
       claudePath: null,
+    };
+  }
+  if (!resolveAgentClaudeExecutable(claudePath)) {
+    return {
+      available: false,
+      reason:
+        'Claude Code was found only as an npm `claude.cmd` shim the chat cannot start. Reinstall it with the native installer (`irm https://claude.ai/install.ps1 | iex`).',
+      adapterEntry,
+      claudePath,
     };
   }
   return { available: true, adapterEntry, claudePath };
