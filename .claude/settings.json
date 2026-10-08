@@ -5,7 +5,14 @@
     "CLAUDE_CODE_STOP_HOOK_BLOCK_CAP": "50"
   },
   "permissions": {
-    "allow": ["Read", "Edit", "Write", "Bash", "WebFetch", "WebSearch"],
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Bash",
+      "WebFetch",
+      "WebSearch"
+    ],
     "deny": [
       "Read(.env)",
       "Read(.env.*)",
@@ -19,5 +26,58 @@
   },
   "enabledPlugins": {
     "pixijs-skills@pixijs-skills": true
+  },
+  "hooks": {
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/v2-hooks/v2-hook.mjs\" subagent-start"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/v2-hooks/v2-hook.mjs\" subagent-stop"
+          }
+        ]
+      }
+    ],
+    "TaskCreated": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/v2-hooks/v2-hook.mjs\" task-created"
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/v2-hooks/v2-hook.mjs\" task-completed"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/v2-hooks/v2-hook.mjs\" stop",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
   }
 }
