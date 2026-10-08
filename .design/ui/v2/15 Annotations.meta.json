@@ -1,0 +1,214 @@
+{
+  "title": "15 Annotations",
+  "subtitle": "Stickies, arrows, marker, sections, stickers and AI on the layer above the design — a Homepage review on Studio site and the Combine 2026 plan on Alligators brand",
+  "brief": "Michal, 2026-10-08: \"jeste me doslo ze tam vubec neni navrh jak bude vypadat prace s artboards a annotations, jak bude vypadat ta samotna editace a objekty atd.\" — the ANNOTATIONS half (14 Editing draws artboards and objects). Preview's toolbar is annotation tools only, FigJam-style (CONTRACT §2): Hand · Sticky N · Comment C · Marker M · Arrow A · Shape · Text · Stickers E · Section S; the keys in Edit switch to Preview; View › Annotations ⇧P; Edit › Select all annotations ⇧⌘A. Every capability of today's whiteboard layer stays reachable: stickies, shapes, arrows (bound to board items today; to artboards and elements inside them — proposed), text, marker + highlighter, sections, groups, lock/unlock (⇧⌘L), templates (retro, kanban, flow…), the Stickers gallery (vote stamps + the four bundled packs, keyword search, 160 px drop), element context for AI (canvas-rects), AI reading (read-annotations) and writing (annotate), FigJam import (--from-figjam), comments vs annotations, opt-in export.",
+  "platform": "desktop",
+  "designSystem": "maude-v2",
+  "opt_out_scope": "palette",
+  "sections": [
+    {
+      "id": "enter",
+      "title": "Entering annotate — N in Edit, and the layer is yours",
+      "subtitle": "Preview opens with Sticky in hand; the design stays live under the layer · stickies on and between artboards · a sticky up close"
+    },
+    {
+      "id": "arrows",
+      "title": "Arrows that stick",
+      "subtitle": "Proposed: an arrow bound to the exact button inside an artboard, following it when the artboard moves and when AI rewrites it · shipped: elbow vs curved, heads, labels"
+    },
+    {
+      "id": "marker",
+      "title": "Marker and highlighter",
+      "subtitle": "Circle the problem, highlight the words, erase with the third tip · strokes belong to the artboard they're drawn over"
+    },
+    {
+      "id": "sections",
+      "title": "Sections and templates",
+      "subtitle": "Wrap stickies into a section, colour it, fold it · start from a template (Section tool or ⌘K) · the Combine 2026 campaign plan, made in a minute"
+    },
+    {
+      "id": "stickers",
+      "title": "Stickers — the gallery, a quick yes, and status at a glance",
+      "subtitle": "E opens the gallery: vote stamps on top, Recent, then four bundled packs with keyword search and credits · a Project status sticker at 160 px · three jersey directions voted with stamps, then a proper vote (proposed)"
+    },
+    {
+      "id": "vs",
+      "title": "Comments and annotations",
+      "subtitle": "A comment is a conversation pinned to a spot; an annotation is a mark on the canvas · and one turns into the other"
+    },
+    {
+      "id": "ai",
+      "title": "AI with annotations",
+      "subtitle": "AI reads the layer and offers the change · applies it in Edit and resolves the stickies it answered — kept, not deleted · writes a review as notes with arrows, in its spark colour"
+    },
+    {
+      "id": "manage",
+      "title": "Managing the layer",
+      "subtitle": "Show only Tereza's · lock a sticky so nobody drags it by accident · ⇧P hide, ⇧⌘A select all, quiet in Edit · move resolved stickies to the trash"
+    },
+    {
+      "id": "edges",
+      "title": "When annotations meet the real world",
+      "subtitle": "An arrow whose button is gone · 200 stickies · a sticky on a video · a print artboard and export · someone who may only comment · a FigJam board arriving"
+    }
+  ],
+  "artboards": [
+    {
+      "id": "an-enter",
+      "label": "1 · N in Edit — Preview opens with Sticky in hand",
+      "note": "Edit with quiet stickies → N → Preview with Sticky and its colours; no banner or toast — the toolbar, switch and brightening stickies are the signal; the design stays live; esc → Hand → Edit."
+    },
+    {
+      "id": "an-place",
+      "label": "2 · Stickies on and between artboards",
+      "note": "On an artboard a sticky belongs to it (proposed — today it stays put); between artboards it stays on the canvas; dropped on another it stacks with an offset; typing grows it to five lines, then wider."
+    },
+    {
+      "id": "an-sticky",
+      "label": "3 · A sticky, up close",
+      "note": "Auto-size, a stable ±2° tilt, stacking + Fan out, ten papers (five up front, +5 for white, grey, peach, aqua, pink; AI writes on paper with a spark edge), the author line (≥ 4.5:1 on every paper), and the selected sticky's toolbar (colour · size Small→Huge · list · Lock · Turn into a comment, proposed)."
+    },
+    {
+      "id": "an-today",
+      "label": "4 · Everything the annotation layer already does — kept",
+      "note": "Everything today's whiteboard does, kept and placed: Text (T, Small→Huge, 8–200), Shape (R, five kinds, fill + stroke apart, label inside), pictures and link cards (paste/drop), video/audio chips (drop a file), Group ⌘G / ⇧⌘G, align + distribute, dashed lines, bullet/number lists, the complete palettes, and where each lives."
+    },
+    {
+      "id": "an-arrow-bind",
+      "label": "5 · An arrow to the button, not the artboard",
+      "note": "PROPOSED: the end snaps to the element under it (the button, not the artboard) and names it; over an artboard's edge the whole artboard lights up. Today an arrow binds to board items only; a pointer end on the design is a fixed point."
+    },
+    {
+      "id": "an-follow",
+      "label": "6 · Move the artboard — the arrow goes around Mobile, never through",
+      "note": "PROPOSED (signature): Mobile sits squarely between Tereza's sticky and See the work. Three states of one drag — 0 ms (outline, straight down), 120 ms (outline, under Mobile), let go (over Mobile, shortest clean path, 160 ms); the straight line that would cross Mobile is shown and refused. Marker loop and sun sticky ride on Desktop; the loose note stays."
+    },
+    {
+      "id": "an-rebind",
+      "label": "7 · AI rewrites the button the arrow points at",
+      "note": "PROPOSED: AI rewrites the button an arrow points at. Same element rewritten (bigger, “See our work”) → the arrow stays bound to its new version. Replaced by a different element (a sign-up field) → the arrow keeps its end, dashed: “Pointed at the old “See the work” — replaced by AI · Point to…”. Needs stable element ids through AI rewrites."
+    },
+    {
+      "id": "an-arrow-kinds",
+      "label": "8 · Edges, elbows, curves and labels",
+      "note": "Edges (proposed), Straight · Curved · Elbow, labels on the line, six head styles — lines, heads and labels exist today; the ink row shows four with +5 for the rest."
+    },
+    {
+      "id": "an-marker",
+      "label": "9 · Circle it, highlight it, rub it out",
+      "note": "Marker · Highlighter · Eraser; nine inks with Ink (black) first and default, +4 for the rest; two marker widths. Strokes belonging to the artboard under them is proposed."
+    },
+    {
+      "id": "an-section",
+      "label": "10 · Tereza's feedback, wrapped in a section",
+      "note": "Wrap in section or draw one with S; name, colour, ask AI about it. Folding to one line is proposed."
+    },
+    {
+      "id": "an-templates",
+      "label": "11 · Start from a template",
+      "note": "Section tool opens templates above the toolbar (or ⌘K); the pick follows the pointer; or describe it (in the project's language) and AI builds it with your items."
+    },
+    {
+      "id": "an-plan",
+      "label": "12 · The Combine 2026 plan, next to the work",
+      "note": "A kanban (Nápady · Rozpracované · Hotovo) colour-coded by channel, cards with stamps, arrows tying cards to the post and the leták they're about."
+    },
+    {
+      "id": "an-stk-gallery",
+      "label": "13 · E opens the Stickers gallery",
+      "note": "E opens one gallery: vote stamps (proposed) on top, Recent, then the four bundled packs with “by <author>” and a credits footer with each pack's source link, as the shipped picker shows."
+    },
+    {
+      "id": "an-stk-search",
+      "label": "14 · Search “done” across every pack",
+      "note": "Search reads each sticker's keywords across all packs and the stamps: “done” → 6 Project status stickers with their keywords, matched words as chips with counts; the other packs step aside; “hotovo” finds nothing and says the words are English."
+    },
+    {
+      "id": "an-stk-drop",
+      "label": "15 · Done — a Project status sticker on the post, at 160 px",
+      "note": "A Project status sticker lands at 160 px, selected; context toolbar Replace… · Flip · Lock · Duplicate. Never part of the design."
+    },
+    {
+      "id": "an-stamps",
+      "label": "16 · Three jersey directions, voted with stamps",
+      "note": "PROPOSED (stamps as an element type): six stamps with faces; the gallery folds to the stamp row after one; several gather into a count, one per person per kind; hover lists who."
+    },
+    {
+      "id": "an-vote",
+      "label": "17 · Start a vote — three directions, three votes each",
+      "note": "PROPOSED: Start a vote on three selected artboards (right-click › Start a vote…, or ⌘K) — 3 votes each, 2 min, others' votes hidden until the end, End vote; at 0:00 every count shows and the result stays as a section AI can read (last week's helmet vote shown on the canvas)."
+    },
+    {
+      "id": "an-vs",
+      "label": "18 · People talk, people draw",
+      "note": "Comment (a thread pinned to a spot) beside annotation (a mark on the layer), then a table: where it lives, tools, who can, talking, done, show/hide, AI, export."
+    },
+    {
+      "id": "an-convert",
+      "label": "19 · A sticky becomes a comment",
+      "note": "PROPOSED: a sticky becomes a comment thread where its arrow pointed (or where it sat), signed by its author — “From Jonas's sticky · turned into a comment by You”; the sticky goes to the trash; a thread's ⋯ turns it back."
+    },
+    {
+      "id": "an-ai-read",
+      "label": "20 · AI reads three stickies",
+      "note": "Three stickies selected become the Ask AI scope; AI outlines the hero picture they mean in spark, says what they ask in one line and offers Make these changes."
+    },
+    {
+      "id": "an-ai-apply",
+      "label": "21 · AI makes the change in Edit — the stickies stay, resolved",
+      "note": "Edit: the hero picture fills the right half; the three answered stickies are resolved (ticked, struck through, kept); the layer is quiet in Edit; the open sticky is offered as a chip."
+    },
+    {
+      "id": "an-ai-stickers",
+      "label": "22 · AI marks what it resolved with a status sticker",
+      "note": "AI resolves the stickies it answered, places Done! and Flagged (on the one that needs your call) with a spark; voice: “Warmer sun?” is flagged — that one is your call. Exports leave stickers out unless included."
+    },
+    {
+      "id": "an-ai-write",
+      "label": "23 · AI writes a review as notes with arrows",
+      "note": "AI reviews Pricing as notes with a spark edge and spark arrows to what each means. Binding those ends to elements is proposed; today they are fixed points."
+    },
+    {
+      "id": "an-layers",
+      "label": "24 · Only Tereza's, and a locked sticky",
+      "note": "Layers in Preview lists the annotation layer by section with a person filter (Tereza) — others hidden, not gone; a locked sticky resists a drag with one line and Unlock ⇧⌘L."
+    },
+    {
+      "id": "an-visibility",
+      "label": "25 · Quiet in Edit, hidden with ⇧P, all with ⇧⌘A, cleared with ⌘K",
+      "note": "Preview full strength · Edit quiet (faded paper, readable words ≥ 4.5:1, click-through) · ⇧P hides in any mode · ⇧⌘A selects all · ⌘K “resolved” moves resolved stickies to the trash. Comment pins: Edit and Preview, never Present."
+    },
+    {
+      "id": "an-dangling",
+      "label": "26 · The button it pointed at is in the trash",
+      "note": "PROPOSED (bound to a button inside an artboard): Book a call moved to the trash; the arrow keeps its end, dashed, names what it meant; Point to… re-aims; restoring re-attaches."
+    },
+    {
+      "id": "an-crowd",
+      "label": "27 · 200 stickies, zoomed out",
+      "note": "At 9 % stickies draw as colour blocks; each section shows its count; hover says who's in it; words return when legible."
+    },
+    {
+      "id": "an-video",
+      "label": "28 · A sticky on a video, pinned to 0:12",
+      "note": "PROPOSED: a sticky placed on a playing video is pinned to that moment and fades at other times; the timeline marks notes and comments."
+    },
+    {
+      "id": "an-print",
+      "label": "29 · Print artboards — notes stay outside, exports leave them out",
+      "note": "Notes over a print area say “Not printed”. Export: Include annotations is off and unavailable for print files (“Print files never carry them — pick PDF for a review copy”) — same row as 09 Export."
+    },
+    {
+      "id": "an-viewer",
+      "label": "30 · Can comment — Hand and Comment only",
+      "note": "Can comment sees everyone's annotations read-only with Hand + Comment; N answers \"Stickies need Can edit.\" with Ask to edit."
+    },
+    {
+      "id": "an-figjam",
+      "label": "31 · A FigJam board arrives as annotations",
+      "note": "A FigJam link through Import from Figma… arrives editable as annotations in one section, authors kept; widgets — like Figma frames — arrive as pictures."
+    }
+  ],
+  "created": "2026-10-08T00:00:00Z",
+  "last_modified": "2026-10-08T21:00:00Z"
+}

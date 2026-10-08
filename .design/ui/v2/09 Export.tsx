@@ -160,6 +160,15 @@ function Check({ on = true, children, sub, off = false }: { on?: boolean; childr
   );
 }
 
+/** Annotations are opt-in (9eff034b `includeAnnotations`) — off by default; print files never carry them (= 15 Annotations · 29). */
+function AnnoRow({ print = false }: { print?: boolean }) {
+  return (
+    <Row k="Annotations" note={print ? "Print files never carry them — pick PDF for a review copy." : undefined}>
+      <Check on={false} off={print} sub="Stickies, arrows and stickers stay out unless you include them">Include annotations</Check>
+    </Row>
+  );
+}
+
 /** A choice tile (render place, version, handoff target). */
 function Option({ on = false, icon, title, sub, off = false, badge }: { on?: boolean; icon?: ReactNode; title: ReactNode; sub?: ReactNode; off?: boolean; badge?: ReactNode }) {
   return (
@@ -635,6 +644,7 @@ export default function Export() {
               >
                 <Row k="Format"><Seg options={["PNG", "JPG"]} value="PNG" /><span className="btn btn--ghost btn--sm">Other…</span></Row>
                 <Row k="Size" note="Instagram resizes anything larger."><Seg options={[["1×", "1080 × 1350"], ["2×", "2160 × 2700"]]} value="1×" /></Row>
+                <AnnoRow />
                 <Row k="File name"><Field>DOMA · Post 4-5 — feed matchday.png</Field></Row>
                 <Row k="Save to"><InSelect value="Downloads" /></Row>
               </ExSheet>
@@ -673,6 +683,7 @@ export default function Export() {
                   </span>
                 </Row>
                 <Row k="Colour"><span className="ex-val">RGB — the print shop converts to CMYK.</span></Row>
+                <AnnoRow print />
                 <Row k="File name"><Field>LetakA6 — FLAG.pdf</Field></Row>
                 <Row k="Save to"><InSelect value="Downloads" /></Row>
               </ExSheet>
@@ -697,6 +708,7 @@ export default function Export() {
                 <Row k="Format"><Seg options={["Image", "PDF"]} value="Image" /><span className="btn btn--ghost btn--sm">Other…</span></Row>
                 <Row k="Area"><Seg options={[["Full page", "1440 × 3120"], ["Visible area", "1440 × 900"]]} value="Full page" /></Row>
                 <Row k="Size" note="2× stays sharp on Retina screens."><Seg options={["PNG 1×", "PNG 2×", "JPG 2×"]} value="PNG 2×" /></Row>
+                <AnnoRow />
                 <Row k="File name"><Field>Homepage — Desktop@2x.png</Field></Row>
                 <Row k="Save to"><InSelect value="Downloads" /></Row>
                 <span className="ex-code"><Icon name="corner" size={14} />Code for a developer?<span className="ex-code-a">Handoff to production…</span><Kbd>⇧⌘H</Kbd></span>

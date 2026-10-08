@@ -4,8 +4,8 @@
  * @platform    desktop
  * @opt_out     palette
  * @artboards   md-model | md-keys |
- *              md-edit |
- *              md-motion | md-preview | md-preview-follow | md-preview-combine |
+ *              md-edit | md-edit-image | md-edit-component |
+ *              md-motion | md-annotate | md-preview | md-preview-follow | md-preview-combine |
  *              md-present-menu | md-present-lift | md-present-full | md-present-video | md-present-canvas | md-presenter | md-present-link |
  *              md-comment | md-comment-only |
  *              md-draw |
@@ -21,8 +21,15 @@
  * view or comment get Viewing in the first slot; editing controls are hidden, never greyed.
  *
  * PREVIEW = THE LIVE CANVAS (DDR-223): every artboard works in place (links, hovers, video, scrolling pages);
- * stickies, annotations and comment pins stay; you pan the whole canvas; the toolbar keeps only the annotation
- * tools (Hand · Sticky · Comment · More). A link to another canvas opens it in Preview at the linked artboard.
+ * stickies, annotations and comment pins stay; you pan the whole canvas. A link to another canvas opens it in
+ * Preview at the linked artboard.
+ * TWO TOOLBARS, ONE PER MODE (CONTRACT §2, Michal 2026-10-08): Edit's toolbar makes things INSIDE artboards —
+ * Select · Hand · Frame · Shape · Pen · Text · Image · Component · More (Line · Ellipse · Polygon · Crop · Export area);
+ * md-edit-image + md-edit-component show the two new ones in use. Preview's toolbar is annotation tools ONLY,
+ * FigJam-style and a size bigger — Hand · Sticky · Comment · Marker · Arrow · Shape · Text · Stickers · Section, colours
+ * one click away for Sticky and Marker (md-annotate). The design stays live, never editable. Annotation keys
+ * (N C M A E S) pressed in Edit switch to Preview with that tool; esc steps back to Edit. Both toolbars are the kit's
+ * (Toolbar mode "edit" | "annotate", ToolbarMorph for the filmstrips) — compared side by side on md-model.
  *
  * PRESENT has two kinds: Artboards (one by one, full screen, in canvas order) and Canvas (today's Presentation
  * mode, DDR-117 — no chrome, no pins, no annotations, pan and zoom freely). One name: Present.
@@ -46,7 +53,8 @@ import type { CSSProperties, ReactNode } from "react";
 import {
   AIPanel, Artboard, Avatar, Canvas, CanvasesPanel, CommentPin, GatorMock, HeroMock, Icon, InFill, InSelect, InSize,
   Inspector, Kbd, Menu, Note, PanelIcon, PhoneMock, ProjectPill, Selection, Spark, Stage, StatusWord, Sticky, TABS, Thumb,
-  Toolbar, V2, VideoFrameMock, Window, ZoomUndo, ALLIGATORS_COUNT, ALLIGATORS_FOLDERS, ALLIGATORS_ROOT,
+  Toolbar, ToolbarMorph, AnnotateIcon, V2, VideoFrameMock, Window, ZoomUndo, ALLIGATORS_COUNT, ALLIGATORS_FOLDERS, ALLIGATORS_ROOT,
+  TOOLS, ANNOTATE_TOOLS, MORE_TOOLS, easeOut,
 } from "./_kit";
 import type { Art, Folder, Kind, Who } from "./_kit";
 
@@ -58,18 +66,6 @@ const RUN = 14; // 15 artboards on Combine-kampan, 1 skipped → a run of 14
 /* ═══ Motion helpers (the filmstrips) ════════════════════════════════════════════════════════ */
 
 const lerp = (a: number, b: number, p: number) => a + (b - a) * p;
-/** --ease-out = cubic-bezier(0.25, 0.8, 0.25, 1): progress at time fraction t. */
-function easeOut(t: number) {
-  let lo = 0;
-  let hi = 1;
-  for (let k = 0; k < 32; k++) {
-    const s = (lo + hi) / 2;
-    const x = 0.75 * s * (1 - s) + s * s * s;
-    if (x < t) lo = s; else hi = s;
-  }
-  const s = (lo + hi) / 2;
-  return 2.4 * s * (1 - s) * (1 - s) + 3 * s * s * (1 - s) + s * s * s;
-}
 
 /* ═══ Mode glyphs — the modes' own, never a tool's or a menu row's (DDR-223 addendum 2) ═══════
    Drawn on a 24 grid at 2.25 stroke = the house 16 grid at 1.5 stroke. Kit candidates. */
@@ -201,44 +197,63 @@ function PreviewBar({ name, back, hint = "to edit", style }: { name: string; bac
   );
 }
 
-/** Preview keeps a toolbar with only the annotation tools (DDR-223 d.5). Can comment gets Select · Hand · Comment. */
-const PREVIEW_TOOLS: [string, string, string][] = [["hand", "Hand", "H"], ["sticky", "Sticky", "N"], ["comment", "Comment", "C"]];
-const COMMENT_TOOLS: [string, string, string][] = [["select", "Select", "V"], ["hand", "Hand", "H"], ["comment", "Comment", "C"]];
-function SlimDock({ tools = PREVIEW_TOOLS, pressed, more = true, style }: { tools?: [string, string, string][]; pressed?: string; more?: boolean; style?: CSSProperties }) {
+/* ─── Two toolbars (CONTRACT §2, Michal 2026-10-08) ──────────────────────────────────────────
+   Edit's tools make things INSIDE artboards; Preview's only draw on the annotation layer above them. Both are the kit
+   Toolbar (mode "edit" | "annotate"); the words here say what each tool does. */
+const EDIT_DO: Record<string, string> = {
+  select: "Pick, move and resize anything inside an artboard.",
+  hand: "Pan the canvas — or hold Space in any tool.",
+  frame: "Draw an artboard, or a frame inside one.",
+  shape: "Rectangles and circles that are part of the design.",
+  pen: "Paths and custom shapes.",
+  text: "Type that ships with the design.",
+  image: "A picture from Assets or this Mac, into a frame (4).",
+  component: "A piece of the Design system, kept linked (5).",
+  more: "Line · Ellipse · Polygon · Crop · Export area.",
+};
+const ANNO_DO: Record<string, string> = {
+  hand: "Rests here: a click uses the design, a drag pans.",
+  sticky: "A note — ten colours, five up front.",
+  comment: "A pin and its thread.",
+  marker: "Free ink; Highlighter is its second tip.",
+  arrow: "From a note to the thing it means.",
+  shape: "Boxes and circles on the layer, never in the design.",
+  text: "A loose label on the layer.",
+  stamp: "Vote stamps and sticker packs, one gallery.",
+  section: "Groups notes so AI can be asked about one.",
+};
+/** One mode's toolbar, drawn by the kit, with what each of its tools does. */
+function ToolCard({ mode }: { mode: "edit" | "annotate" }) {
+  const edit = mode === "edit";
+  const rows: [string, string, string][] = edit ? [...TOOLS, ["more", "More", ""]] : ANNOTATE_TOOLS;
+  const doMap = edit ? EDIT_DO : ANNO_DO;
   return (
-    <div className="island dock k-dock" style={style}>
-      {tools.map(([id, label, key]) => (
-        <span key={id} className={`icon-btn${pressed === id ? " k-pressed" : ""}`} title={`${label} · ${key}`}><Icon name={id} size={18} /></span>
-      ))}
-      {more ? (
-        <>
-          <span className="divider-v" />
-          <span className="icon-btn" title="More — Arrow, Highlighter, Section, Eraser"><Icon name="more" size={18} /></span>
-        </>
-      ) : null}
+    <div className="md-tc">
+      <p className="md-tc-h"><ModeGlyph m={edit ? "edit" : "preview"} size={15} /><strong>{edit ? "Edit" : "Preview"}</strong><span>{edit ? "makes things inside artboards" : "marks up a layer above them — the design stays live"}</span></p>
+      <div className="md-tc-bar"><Toolbar mode={mode} inline keys /></div>
+      <div className="md-tc-list">
+        {rows.map(([id, label, key]) => (
+          <span className="md-tc-r" key={id}>
+            <span className="md-tc-ic">{edit ? <Icon name={id} size={16} /> : <AnnotateIcon id={id} size={18} />}</span>
+            <strong>{label}</strong>
+            <span className="md-tc-k">{key ? <Kbd>{key}</Kbd> : null}</span>
+            <em>{doMap[id]}</em>
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
 
-/** The edit toolbar mid-fold: tools that only edit slide out (motion frame 2). */
-const EDIT_ONLY = ["select", "frame", "shape", "pen", "text"];
-function MorphDock({ p }: { p: number }) {
-  const all: [string, string][] = [["select", "Select"], ["hand", "Hand"], ["frame", "Frame"], ["shape", "Shape"], ["pen", "Pen"], ["text", "Text"], ["sticky", "Sticky"], ["comment", "Comment"]];
+/** A photo, drawn in --object-* colours (pictures stay theme-fixed). */
+function Photo({ v = 0, style }: { v?: number; style?: CSSProperties }) {
   return (
-    <div className="island dock k-dock">
-      {all.map(([id, label]) => {
-        const out = EDIT_ONLY.includes(id);
-        return (
-          <span key={id} className="icon-btn md-morph" title={label} style={out ? { width: 36 * (1 - p), opacity: 1 - p, transform: `translateY(${p * 14}px)` } : undefined}>
-            <Icon name={id} size={18} />
-          </span>
-        );
-      })}
-      <span className="divider-v" />
-      <span className="icon-btn"><Icon name="more" size={18} /></span>
-    </div>
+    <span className={`md-photo md-photo--${v} maude-v2 k-fixed`} data-theme="light" style={style} aria-hidden="true">
+      <i className="md-photo-a" /><i className="md-photo-b" /><i className="md-photo-c" />
+    </span>
   );
 }
+const PHOTOS: [number, string][] = [[0, "studio-morning.jpg"], [1, "team-at-table.jpg"], [2, "brno-roofs.jpg"], [3, "desk-detail.jpg"], [4, "plant-window.jpg"], [5, "sketchbook.jpg"]];
 
 function ZoomOnly({ zoom, style }: { zoom: string; style?: CSSProperties }) {
   return <div className="island md-zoomonly" style={style}><span className="btn btn--ghost btn--sm k-zoom">{zoom}</span></div>;
@@ -340,7 +355,7 @@ function SoundGlyph({ size = 16 }: { size?: number }) {
 /* ─── Studio site — the real pages, drawn at their real size ───────────────────────────────── */
 
 /** Homepage at 1440 × 900. Key boxes (base px): "See pricing" 250,436 · 184×52 · "Book a call" 1226,20 · 150×48. */
-function SiteHome({ hover, linkSel = false }: { hover?: "cta"; linkSel?: boolean }) {
+function SiteHome({ hover, linkSel = false, ghost = false }: { hover?: "cta"; linkSel?: boolean; /** a Button instance being placed in the CTA row (md-edit-component) */ ghost?: boolean }) {
   return (
     <div className="md-sh">
       <div className="md-sh-nav">
@@ -353,6 +368,7 @@ function SiteHome({ hover, linkSel = false }: { hover?: "cta"; linkSel?: boolean
       <div className="md-sh-ctas">
         <span className="md-sh-btn md-sh-btn--ink">See the work</span>
         <span className="md-sh-btn md-sh-btn--line" data-hover={hover === "cta" ? "true" : undefined} data-link={linkSel ? "true" : undefined}>See pricing →</span>
+        {ghost ? <span className="md-sh-btn md-sh-btn--line md-sh-btn--ghost">Book a call</span> : null}
       </div>
       <div className="md-sh-art"><span className="md-sh-sun" /><span className="md-sh-hill" /><span className="md-sh-hill2" /></div>
       <div className="md-sh-svc">
@@ -650,7 +666,7 @@ function InspectPanel({ style }: { style?: CSSProperties }) {
       <p className="island-title md-insp-g">Colour and type</p>
       <div className="k-insp-row"><span>Fill</span><InFill name="Ink" tone="ink" /></div>
       <div className="k-insp-row"><span>Text</span><span className="md-ro">SF Pro Text · 19 · Semibold</span></div>
-      <div className="k-insp-row"><span>Text colour</span><InFill name="Paper" /></div>
+      <div className="k-insp-row"><span>Text colour</span><InFill name="Page" /></div>
       <p className="island-title md-insp-g">Export</p>
       <div className="md-insp-ex"><span className="btn btn--sm">PNG 1×</span><span className="btn btn--sm">PNG 2×</span><span className="btn btn--sm">SVG</span><span className="btn btn--sm">Handoff…</span></div>
       <div className="md-insp-acts">
@@ -725,7 +741,7 @@ function UniBoard({ eyebrow, title, items }: { eyebrow: string; title: string; i
 
 const FRAME_W = 416;
 /** One frame of the Edit → Preview move at progress p (0 = Edit, 1 = Preview). */
-function EditPreviewFrame({ p, click = false }: { p: number; click?: boolean }) {
+function EditPreviewFrame({ p, t = 0, click = false }: { p: number; t?: number; click?: boolean }) {
   const z = lerp(0.28, 0.7639, p);
   const ox = lerp(300, 170, p);
   const oy = lerp(140, 84, p);
@@ -748,7 +764,7 @@ function EditPreviewFrame({ p, click = false }: { p: number; click?: boolean }) 
       {p > 0 ? <PreviewBar name="Homepage" style={{ opacity: p, translate: `-50% ${(p - 1) * 10}px` }} /> : null}
       <MdCluster people={["tereza"]} mode={p === 0 ? "edit" : "preview"} click={click ? "preview" : undefined} fade={p > 0 && p < 1 ? open : undefined} compact={p === 1} />
       {p === 0 ? <ZoomUndo zoom={28} /> : <ZoomOnly zoom={`${Math.round(z * 100)}%`} />}
-      {p === 0 ? <Toolbar /> : p < 1 ? <MorphDock p={p} /> : <SlimDock />}
+      {p === 0 ? <Toolbar /> : p < 1 ? <ToolbarMorph t={t} /> : <Toolbar mode="annotate" />}
       {p < 1 ? (
         <div className="md-fold md-fold--ai" style={{ transform: `scale(${lerp(1, 0.12, p)})`, opacity: lerp(1, 0.2, p) }}>
           <AIPanel scope="Homepage" messages={[{ from: "you", text: "Make the hero calmer" }, { from: "ai", text: "Done — softer sky, one headline line shorter." }]} />
@@ -838,6 +854,52 @@ function EaseCurve({ marks, total }: { marks: number[]; total: number }) {
   );
 }
 
+/* ─── Edit · Image and Component in use ──────────────────────────────────────────────────── */
+
+const EK = 900 / 1440; // Desktop artboard at 900 px wide on these two
+const EX = 300;
+const EY = 100;
+/** The Assets tab while the Image tool is out: photos, the dragged one marked. */
+function AssetPhotos({ dragging = 0 }: { dragging?: number }) {
+  return (
+    <>
+      <span className="k-find"><Icon name="search" size={14} /><span className="k-find-q k-find-ph">Search assets</span></span>
+      <p className="island-title k-cp-t">Photos<span className="k-cp-tc">{PHOTOS.length}</span></p>
+      <div className="md-assets">
+        {PHOTOS.map(([v, name]) => (
+          <span key={name} className="md-asset" data-drag={v === dragging ? "true" : undefined}>
+            <Photo v={v} />
+            <span className="md-asset-n">{name}</span>
+          </span>
+        ))}
+      </div>
+      <span className="row-item k-mi md-asset-mac"><span className="k-mi-ic"><Icon name="folder" size={14} /></span><span className="k-mi-lab">From this Mac…</span></span>
+    </>
+  );
+}
+
+/** ⇧I — the Design system's components, Button open on its variants. */
+function ComponentPicker({ style }: { style?: CSSProperties }) {
+  const rows: [string, string][] = [["Card", "2 variants"], ["Nav bar", ""], ["Price card", "3 variants"], ["Footer", ""], ["Badge", "4 variants"]];
+  return (
+    <div className="k-menu md-cpick" style={style}>
+      <span className="k-find"><Icon name="search" size={14} /><span className="k-find-q k-find-ph">Search components</span></span>
+      <p className="island-title md-cpick-t"><Icon name="system" size={12} />Studio site system</p>
+      <span className="row-item k-mi" data-hl="true"><span className="k-mi-ic"><Icon name="component" size={14} /></span><span className="k-mi-lab">Button</span><span className="k-mi-note">3 variants</span></span>
+      <span className="md-cpick-v maude-v2 k-fixed" data-theme="light">
+        <span className="md-cpick-b md-cpick-b--ink">Primary</span>
+        <span className="md-cpick-b md-cpick-b--line" aria-current="true">Secondary</span>
+        <span className="md-cpick-b md-cpick-b--ghost">Ghost</span>
+      </span>
+      {rows.map(([l, n]) => (
+        <span key={l} className="row-item k-mi"><span className="k-mi-ic"><Icon name="component" size={14} /></span><span className="k-mi-lab">{l}</span>{n ? <span className="k-mi-note">{n}</span> : null}</span>
+      ))}
+      <span className="k-msep" />
+      <span className="row-item k-mi"><span className="k-mi-ic"><Icon name="system" size={14} /></span><span className="k-mi-lab">Open Design system</span></span>
+    </div>
+  );
+}
+
 /* ═══ The canvas ═══════════════════════════════════════════════════════════════════════════ */
 export default function Modes() {
   const ik = 1000 / 1440; // inspect zoom
@@ -848,8 +910,8 @@ export default function Modes() {
   return (
     <DesignCanvas>
       {/* ── 0 · The model ───────────────────────────────────────────────────────────────── */}
-      <DCSection id="model" title="One switch for how you look at a canvas" subtitle="Edit · Preview · Present in the Share cluster, with their own glyphs; Comment, Annotations and Inspect are tools, not modes">
-        <DCArtboard id="md-model" label="1 · The mode switch, and what each mode shows" width={W} height={900} fixed>
+      <DCSection id="model" title="One switch for how you look at a canvas" subtitle="Edit · Preview · Present in the Share cluster, with their own glyphs; two toolbars, one per mode; Comment, Annotations and Inspect are tools, not modes">
+        <DCArtboard id="md-model" label="1 · The mode switch, and what each mode shows" width={W} height={1460} fixed>
           <V2 className="md-close md-close--model">
             <div className="md-close-l">
               <p className="md-close-h">One switch for how you look at a canvas.</p>
@@ -860,7 +922,7 @@ export default function Modes() {
                 <span className="md-state-l md-state-l--top"><ModeGlyph m="preview" size={14} />Preview</span>
                 <span className="md-state-p">
                   <MdCluster mode="preview" compact style={{ position: "relative", right: "auto", top: "auto" }} />
-                  <span className="md-state-d">Faces and status step aside; the switch stays exactly where it was.</span>
+                  <span className="md-state-d">Faces and status step aside; the switch stays exactly where it was. The toolbar swaps to Preview's own: annotation tools only.</span>
                 </span>
                 <span className="md-state-l md-state-l--top"><ModeGlyph m="present" size={14} />Present</span>
                 <span className="md-state-p">
@@ -887,13 +949,13 @@ export default function Modes() {
                 <span className="md-tbl-h"><ModeGlyph m="present" size={13} />Present · Canvas</span>
                 {[
                   ["Clicks on the design", "Select", "Use it — links, hovers, video", "Next artboard", "Pan and zoom"],
-                  ["Toolbar", "Shown", "Hand, Sticky, Comment, More", "Hidden", "Hidden"],
+                  ["Toolbar", "Making tools", "Annotation tools only", "Hidden", "Hidden"],
                   ["Canvases panel", "Shown", "Folded to its icon", "Hidden", "Hidden"],
                   ["Inspector", "On selection", "⌘-click → Inspect", "Hidden", "Hidden"],
                   ["Hold ⌥ and point", "Measures the gap", "Measures the gap", "Off", "Off"],
-                  ["AI chat panel", "Shown", "Folded to the spark", "Hidden", "Hidden"],
+                  ["AI chat panel", "Shown", "Folded — opens from the spark", "Hidden", "Hidden"],
                   ["What AI changes", "Shows live", "Live — never under your pointer", "Lands when you move on", "Shows live, unmarked"],
-                  ["Stickies and annotations", "Shown · ⇧P hides", "Shown · ⇧P hides", "Hidden", "Hidden"],
+                  ["Stickies and annotations", "Quiet (faded, readable) · N C M A E S switch to Preview", "Drawn here · ⇧P hides", "Hidden", "Hidden"],
                   ["Comment pins", "Shown", "Shown", "Hidden", "Hidden"],
                   ["Project menu", "Project pill", "Folded pill (mark)", "esc first", "esc first"],
                   ["esc", "Steps back", "Back to Edit", "Artboard settles back", "Back to the same view"],
@@ -904,25 +966,33 @@ export default function Modes() {
                   </span>
                 ))}
               </div>
-              <p className="island-title md-notmodes-t">Not modes — tools that work in Edit and Preview</p>
+              <p className="island-title md-notmodes-t">Not modes — tools</p>
               <div className="md-notmodes">
-                <span><b><Icon name="comment" size={14} />Comment · <Kbd>C</Kbd></b>Pins and threads on any artboard, in Edit and Preview, and for anyone who can comment. ⇧⌘M lists them.</span>
-                <span><b><Icon name="sticky" size={14} />Annotations · <Kbd>N</Kbd> and More</b>Stickies, arrows, sections, highlights — a layer AI reads. Preview's toolbar keeps exactly these.</span>
+                <span><b><Icon name="comment" size={14} />Comment · <Kbd>C</Kbd></b>In Preview's toolbar. Pins show in Edit and Preview; C in Edit switches to Preview with Comment in hand. ⇧⌘M lists them.</span>
+                <span><b><Icon name="sticky" size={14} />Annotations · Preview's toolbar</b>Sticky, marker, arrows, shapes, text, stickers, sections — a layer AI reads. They're drawn in Preview (7); in Edit they show quiet — faded paper, readable words — and their keys switch to Preview with that tool.</span>
                 <span><b><InspectGlyph />Inspect · ⌘-click</b>In Preview, ⌘-click inspects instead of following the link; ↵ opens that element in Edit. In Viewing, a click is enough.</span>
               </div>
             </div>
-            <div className="md-close-note"><Note n={1} title="Why the Share cluster.">It is on screen whenever the switch matters and already says how you're working (faces, Saved). The toolbar keeps CONTRACT §2's order; the switch holds only ways of looking.</Note></div>
+            <div className="md-tb2">
+              <p className="island-title">Two toolbars, one per mode — never the same set twice</p>
+              <div className="md-tb2-g">
+                <ToolCard mode="edit" />
+                <ToolCard mode="annotate" />
+              </div>
+              <p className="md-tb2-cap">Hand, Shape and Text sit in both and do different jobs: in Preview, Shape and Text draw on the annotation layer, never in the design. Pressed in Edit, <Kbd>N</Kbd> <Kbd>C</Kbd> <Kbd>M</Kbd> <Kbd>A</Kbd> <Kbd>E</Kbd> <Kbd>S</Kbd> switch to Preview with that tool; <Kbd>esc</Kbd> steps back to Edit.</p>
+            </div>
+            <div className="md-close-note"><Note n={1} title="Why the Share cluster.">It is on screen whenever the switch matters and already says how you're working (faces, Saved). The switch holds only ways of looking; each mode brings its own toolbar (CONTRACT §2).</Note></div>
           </V2>
         </DCArtboard>
 
-        <DCArtboard id="md-keys" label="2 · Its own glyphs, words and keys" width={W} height={690} fixed>
+        <DCArtboard id="md-keys" label="2 · Its own glyphs, words and keys" width={W} height={980} fixed>
           <V2 className="md-close md-close--keys">
             <div className="md-close-l">
               <p className="md-close-h">Its own glyphs, words and keys.</p>
               <p className="md-close-lede">A mode is how you look at the canvas; a tool is what your click does. The two never share a glyph or a word.</p>
               <p className="island-title">The modes</p>
               <div className="md-gl">
-                {([["edit", "Editors"], ["preview", "Everyone"], ["present", "Everyone"], ["viewing", "Can view or comment"]] as [Mode, string][]).map(([m, who]) => (
+                {([["edit", "Editors"], ["preview", "Everyone · annotate here"], ["present", "Everyone"], ["viewing", "Can view or comment"]] as [Mode, string][]).map(([m, who]) => (
                   <span key={m} className="md-gl-c"><span className="md-gl-i"><ModeGlyph m={m} size={28} /></span><strong>{MODE_WORD[m]}</strong><em>{who}</em></span>
                 ))}
               </div>
@@ -933,9 +1003,17 @@ export default function Modes() {
                 ))}
               </div>
               <p className="md-gl-cap">“View” stays the menu's word, so read-only is <strong>Viewing</strong>. Status words say what someone may do: <strong>Can view</strong> (look only), <strong>Can comment</strong> (look, comment and download) — words only, no glyph.</p>
+              <p className="island-title">Tool keys — one toolbar per mode (CONTRACT §2)</p>
+              <div className="md-tk">
+                <span className="md-tk-l"><ModeGlyph m="edit" size={13} />Edit</span>
+                <Toolbar inline keys />
+                <span className="md-tk-l"><ModeGlyph m="preview" size={13} />Preview</span>
+                <Toolbar mode="annotate" inline keys />
+              </div>
+              <p className="md-gl-cap">H, R and T have the same letter in both; in Preview, R and T draw on the annotation layer. Edit's More holds {MORE_TOOLS.map(([, l]) => l).join(", ")} — no letters, ⌘K finds them.</p>
             </div>
             <div className="md-close-r">
-              <p className="md-keys-hd"><span className="chip chip--accent">Proposed keys</span>CONTRACT §1 already has Present the canvas. Still proposed: Preview ⌥⌘P, Present ⌥⌘↵, Present from the start ⇧⌥⌘↵, the L pointer, and Viewing as the read-only slot word.</p>
+              <p className="md-keys-hd"><span className="chip chip--accent">Proposed keys</span>CONTRACT §1 has Present the canvas; §2 has both toolbars' keys. Still proposed: Preview ⌥⌘P, Present ⌥⌘↵, Present from the start ⇧⌥⌘↵, the L pointer, and Viewing as the read-only slot word.</p>
               <div className="md-keys2">
                 <div className="md-kl">
                   {([
@@ -945,7 +1023,8 @@ export default function Modes() {
                     ["", "Present the canvas — no key; Search ⌘K finds it"],
                     ["→ ← space", "Next and previous. In Present, space moves on even on a video (a click pauses it); in Edit, a tap plays it"],
                     ["L", "Pointer, in your presence colour"],
-                    ["esc", "One step back — see 23"],
+                    ["N C M A E S", "In Edit: switch to Preview with that tool — Sticky, Comment, Marker, Arrow, Stickers, Section"],
+                    ["esc", "One step back — from an annotation tool, back to Edit. See 26"],
                   ] as [string, string][]).map(([k, a]) => (
                     <span className="md-kl-r" key={a}>
                       <span className="md-kl-k">{k ? k.split(" ").map((x) => <Kbd key={x}>{x}</Kbd>) : <span className="md-kl-none">—</span>}</span>
@@ -963,7 +1042,7 @@ export default function Modes() {
                       { label: "Advanced", sub: true },
                     ]} />
                   </div>
-                  <p className="md-vm-cap"><i />New or renamed rows. The Present menu (8) lists the same rows with the same keys.</p>
+                  <p className="md-vm-cap"><i />New or renamed rows. The Present menu (11) lists the same rows with the same keys.</p>
                 </div>
               </div>
             </div>
@@ -973,7 +1052,7 @@ export default function Modes() {
       </DCSection>
 
       {/* ── 1 · Edit ────────────────────────────────────────────────────────────────────── */}
-      <DCSection id="edit" title="Edit — the default" subtitle="Everything visible; a button's On click says where Preview will go; ⌥ measures here too">
+      <DCSection id="edit" title="Edit — the default" subtitle="Everything visible; the toolbar makes things inside artboards — a button's On click, a photo into a frame, a Button from the Design system">
         <DCArtboard id="md-edit" label="3 · Edit — set up where a click goes" width={W} height={H} fixed>
           <Stage note={<Note n={3} title="Edit is home.">Select “See pricing”: its On click reads Go to Pricing, and the link shows on the canvas while it's selected. Hold ⌥ and point at a neighbour to measure — in Edit as in Inspect.</Note>}>
             <Window tabs={TABS2} activeTab={0}>
@@ -989,7 +1068,7 @@ export default function Modes() {
               <MdCluster people={["tereza"]} mode="edit" />
               <Inspector title="See pricing" kind="Button" rows={[
                 ["Size", <InSize w={184} h={52} />],
-                ["Fill", <InFill name="Paper" />],
+                ["Fill", <InFill name="Page" />],
                 ["Border", <InFill name="Ink" tone="ink" pct="1.5" />],
                 ["On click", <span className="md-focus"><InSelect value="Go to Pricing" /></span>],
                 ["On hover", <InSelect value="Fill with Ink" />],
@@ -1000,18 +1079,68 @@ export default function Modes() {
             </Window>
           </Stage>
         </DCArtboard>
+
+        <DCArtboard id="md-edit-image" label="4 · Image — a photo into a frame" width={W} height={H} fixed>
+          <Stage note={<Note n={4} title="Image · I — a picture, into a frame.">I opens Assets on the left. Drag a photo onto a frame and it fills it, cropped to fit — or select the frame and press ↵. On empty canvas it becomes its own frame.</Note>}>
+            <Window tabs={TABS2} activeTab={0}>
+              <Canvas>
+                <Artboard label="Desktop" kind="web" x={EX} y={EY} w={900} h={562.5}>
+                  <Scaled w={900}><SiteHome /></Scaled>
+                  <span className="md-drop" style={{ left: 760 * EK, top: 136 * EK, width: 616 * EK, height: 400 * EK }}>
+                    <Photo v={0} />
+                    <span className="md-drop-tag"><Icon name="image" size={12} />Hero image · fills, cropped to fit</span>
+                  </span>
+                </Artboard>
+                <span className="md-drag" style={{ left: EX + 640, top: EY + 250 }}>
+                  <Photo v={0} />
+                  <svg className="k-ic md-drag-ptr" width="20" height="20" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2l9 4.4-4 1.1-1.1 4z" fill="var(--bg-2)" stroke="var(--fg-0)" strokeWidth="1" strokeLinejoin="round" /></svg>
+                </span>
+              </Canvas>
+              <ProjectPill project="Studio site" canvas="Homepage" />
+              <CanvasesPanel project="Studio site" tab="assets" assets={<AssetPhotos dragging={0} />} />
+              <MdCluster people={["tereza"]} mode="edit" />
+              <ZoomUndo zoom={63} />
+              <Toolbar tool="image" />
+              <PanelIcon icon="spark" at="ai" />
+            </Window>
+          </Stage>
+        </DCArtboard>
+
+        <DCArtboard id="md-edit-component" label="5 · Component — a Button from the Design system" width={W} height={H} fixed>
+          <Stage note={<Note n={5} title="Component · ⇧I — a piece of the Design system.">⇧I lists Studio site system's components. Pick Button, choose Secondary, click where it goes: it joins the row and stays linked to the Design system (13 Design System).</Note>}>
+            <Window tabs={TABS2} activeTab={0}>
+              <Canvas>
+                <Artboard label="Desktop" kind="web" x={EX} y={EY} w={900} h={562.5}>
+                  <Scaled w={900}><SiteHome ghost /></Scaled>
+                  <span className="md-gap" style={{ left: 434 * EK, top: 452 * EK, width: 16 * EK }} />
+                  <span className="md-place-tag" style={{ left: 450 * EK, top: 498 * EK }}><Icon name="component" size={12} />Button · Secondary</span>
+                </Artboard>
+                <span className="md-drag md-drag--ptr" style={{ left: EX + 520 * EK + 24, top: EY + 470 * EK }}>
+                  <svg className="k-ic md-drag-ptr" width="20" height="20" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2l9 4.4-4 1.1-1.1 4z" fill="var(--bg-2)" stroke="var(--fg-0)" strokeWidth="1" strokeLinejoin="round" /></svg>
+                </span>
+              </Canvas>
+              <ProjectPill project="Studio site" canvas="Homepage" />
+              <PanelIcon icon="panel-left" at="left" />
+              <MdCluster people={["tereza"]} mode="edit" />
+              <ComponentPicker style={{ left: 760, bottom: 84, width: 272 }} />
+              <ZoomUndo zoom={63} />
+              <Toolbar tool="component" />
+              <PanelIcon icon="spark" at="ai" />
+            </Window>
+          </Stage>
+        </DCArtboard>
       </DCSection>
 
       {/* ── 2 · Preview ─────────────────────────────────────────────────────────────────── */}
-      <DCSection id="preview" title="Preview — the canvas, alive" subtitle="Every artboard works in place; stickies and pins stay; pan anywhere · a link to another canvas · a canvas with no links at all">
-        <DCArtboard id="md-motion" label="4 · Edit → Preview, in motion" width={W} height={830} fixed>
+      <DCSection id="preview" title="Preview — the canvas, alive" subtitle="Every artboard works in place; the toolbar swaps to annotation tools; stickies and pins stay; pan anywhere · a link to another canvas · a canvas with no links at all">
+        <DCArtboard id="md-motion" label="6 · Edit → Preview, in motion" width={W} height={830} fixed>
           <V2 className="md-close md-close--col">
             <p className="md-close-h">Edit → Preview: the same artboard, no cut.</p>
             <p className="md-close-lede">One press of Preview. The chrome folds toward its icons while the camera eases onto the artboard you were on — 220 ms on <span className="md-tok">--dur-panel</span>, shaped by <span className="md-tok">--ease-out</span>.</p>
             <div className="md-film">
               <Frame n={1} t="0 ms" title="Edit. You press Preview; the dashed box is where the artboard will land."><EditPreviewFrame p={0} click /><Ghost /></Frame>
-              <Frame n={2} t="40 ms" pct={`${Math.round(mid * 100)} % of the way`} title="Ease-out does most of the move early: panels shrink toward their icons, edit-only tools slide out."><EditPreviewFrame p={mid} /><Ghost /></Frame>
-              <Frame n={3} t="220 ms" title="Preview. The Desktop artboard fills the view, live; the switch hasn't moved."><EditPreviewFrame p={1} /></Frame>
+              <Frame n={2} t="40 ms" pct={`${Math.round(mid * 100)} % of the way`} title="Ease-out does most of the move early: panels shrink toward their icons, the editing tools sink out of the toolbar."><EditPreviewFrame p={mid} t={40} /><Ghost /></Frame>
+              <Frame n={3} t="220 ms" title="Preview. The Desktop artboard fills the view, live; the toolbar holds annotation tools only; the switch hasn't moved."><EditPreviewFrame p={1} /></Frame>
             </div>
             <div className="md-chor">
               <div className="md-chor-g">
@@ -1020,7 +1149,7 @@ export default function Modes() {
               </div>
               <div className="md-chor-l">
                 {([
-                  ["Toolbar", "The tools that only edit — Select, Frame, Shape, Pen, Text — slide out. Hand, Sticky, Comment and More stay."],
+                  ["Toolbar", "Edit's tools sink out and Preview's annotation tools rise in their place — a different set, up close in 7."],
                   ["Panels", "The Canvases panel and the AI chat panel fold into their icons, in the corners they came from."],
                   ["Camera", "Eases onto the artboard you were on. Same artboard, same place on the canvas — no new page."],
                   ["Switch", "Stays put; only the pressed segment moves. Faces and status fade beside it."],
@@ -1029,16 +1158,74 @@ export default function Modes() {
                 ))}
               </div>
             </div>
-            <div className="md-close-note md-close-note--col"><Note n={4} title="The promise, made visible.">One switch, one place, one artboard: Preview is the canvas you were already looking at, waking up. Back to Edit runs the same frames in reverse.</Note></div>
+            <div className="md-close-note md-close-note--col"><Note n={6} title="The promise, made visible.">One switch, one place, one artboard: Preview is the canvas you were already looking at, waking up. Back to Edit runs the same frames in reverse.</Note></div>
           </V2>
         </DCArtboard>
 
-        <DCArtboard id="md-preview" label="5 · Previewing Homepage" width={W} height={H} fixed>
-          <Stage note={<Note n={5} title="The canvas, alive.">Every artboard works in place: links, hovers, video. Stickies and Jonas's pin stay; the toolbar keeps Hand, Sticky, Comment and More. Pan anywhere. esc returns to Edit on the artboard in view.</Note>}>
+        <DCArtboard id="md-annotate" label="7 · Preview's toolbar — annotation tools only" width={W} height={900} fixed>
+          <V2 className="md-close md-close--col">
+            <p className="md-close-h md-annot-h">Preview swaps the toolbar for annotation tools.</p>
+            <p className="md-close-lede">Edit's tools make things inside artboards; Preview's only draw on the layer above them. Switching mode swaps the whole set — FigJam's, a size bigger, with colours one click away.</p>
+            <div className="md-am">
+              <div className="md-am-film">
+                {([
+                  [0, "Edit: Select to Component, the tools that make things. You press Preview."],
+                  [40, "Edit's tools sink and fade; the island starts to widen."],
+                  [140, "A different set rises into the same island, a size bigger and taller."],
+                  [220, "Preview. Hand rests; the design underneath is live."],
+                ] as [number, string][]).map(([t, d], k) => (
+                  <div className="md-am-r" key={t}>
+                    <p className="md-fr-t md-am-t"><span className="md-fr-n">{k + 1}</span><strong>{t} ms</strong></p>
+                    <div className="md-am-box"><ToolbarMorph t={t} inline /></div>
+                    <p className="md-am-d">{d}</p>
+                  </div>
+                ))}
+                <div className="md-am-r md-am-r--pop">
+                  <p className="md-fr-t md-am-t"><span className="md-fr-n">5</span><strong>N in Edit</strong></p>
+                  <div className="md-am-box md-am-box--pop"><Toolbar mode="annotate" inline tool="sticky" swatches="sticky" color="green" keys /></div>
+                  <p className="md-am-d">Or press N in Edit: Preview opens with Sticky in hand, its colours above it. M does the same for Marker, with Highlighter beside it. esc steps back to Edit.</p>
+                </div>
+              </div>
+              <div className="md-am-side">
+                <EaseCurve marks={[0, 40, 140, 220]} total={220} />
+                <p className="md-chor-tok"><span className="chip">--dur-panel · 220 ms</span><span className="chip">--ease-out</span><span className="md-chor-rm">Reduce motion: a 1 ms cut to 4.</span></p>
+                <div className="md-am-tools">
+                  {([
+                    ["hand", "Hand", "H", "Rests here: a click uses the design, a drag pans."],
+                    ["sticky", "Sticky", "N", "A note — ten colours, five up front."],
+                    ["comment", "Comment", "C", "A pin and its thread."],
+                    ["marker", "Marker", "M", "Free ink; Highlighter is its second tip."],
+                    ["arrow", "Arrow", "A", "From a note to the thing it means."],
+                    ["shape", "Shape", "R", "Boxes and circles on the layer, never in the design."],
+                    ["text", "Text", "T", "A loose label on the layer."],
+                    ["stamp", "Stickers", "E", "Vote stamps and sticker packs, one gallery."],
+                    ["section", "Section", "S", "Groups notes so AI can be asked about one."],
+                  ] as [string, string, string, string][]).map(([id, l, k, d]) => (
+                    <span className="md-am-tool" key={id}>
+                      <span className="md-am-ic"><AnnotateIcon id={id} size={20} /></span>
+                      <strong>{l}</strong><Kbd>{k}</Kbd>
+                      <em>{d}</em>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="md-close-note md-close-note--col"><Note n={7} title="Focus by taking away.">Preview can't change the design, so its toolbar holds nothing that would — and Edit's holds nothing that only annotates. Stickies and arrows move by dragging them; esc leaves a tool for Hand, then goes back to Edit. Both sets side by side: 1.</Note></div>
+          </V2>
+        </DCArtboard>
+
+        <DCArtboard id="md-preview" label="8 · Previewing Homepage" width={W} height={H} fixed>
+          <Stage note={<Note n={8} title="The canvas, alive — and yours to mark up.">Every artboard works in place: links, hovers, video. The toolbar holds annotation tools only, so notes, marker and arrows land on the layer above and the design can't change. esc returns to Edit.</Note>}>
             <Window tabs={TABS2} activeTab={0}>
               <Canvas>
                 <HomeBoards z={pz} ox={170} oy={84} hover="cta" />
-                <Sticky color="yellow" x={22} y={250} rotate={-2} w={128}>Hero: teplejší obloha?</Sticky>
+                <Sticky color="yellow" x={22} y={250} rotate={-2} w={128}>Nadpis na jeden řádek?</Sticky>
+                <Sticky color="coral" x={900} y={372} rotate={2} w={124}>Teplejší slunce?</Sticky>
+                <svg className="md-arrows md-ink" width="1440" height="860" viewBox="0 0 1440 860" aria-hidden="true">
+                  <path className="md-ink-mk" d="M1072 230 C 1104 196, 1184 204, 1194 252 C 1204 302, 1148 330, 1108 318 C 1068 306, 1050 268, 1084 232" />
+                  <path d="M992 372 C 1004 344, 1030 326, 1066 318" />
+                  <path d="M1054 312 l13 6 l-11 9" />
+                </svg>
                 <CommentPin who="jonas" x={170 + 1290 * pz} y={84 + 628 * pz} />
                 <Hand x={170 + 420 * pz} y={84 + 468 * pz} />
               </Canvas>
@@ -1047,14 +1234,14 @@ export default function Modes() {
               <PreviewBar name="Homepage" />
               <MdCluster mode="preview" compact />
               <ZoomOnly zoom="76%" />
-              <SlimDock />
+              <Toolbar mode="annotate" />
               <PanelIcon icon="spark" at="ai" />
             </Window>
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="md-preview-follow" label="6 · Followed a link to Pricing" width={W} height={H} fixed>
-          <Stage note={<Note n={6} title="A link to another canvas opens it in Preview.">See pricing goes to the Pricing canvas, on its Desktop artboard; ‹ Homepage goes back. Tablet sits beside it, live too. Tereza's pin is here — comments don't hide in Preview.</Note>}>
+        <DCArtboard id="md-preview-follow" label="9 · Followed a link to Pricing" width={W} height={H} fixed>
+          <Stage note={<Note n={9} title="A link to another canvas opens it in Preview.">See pricing goes to the Pricing canvas, on its Desktop artboard; ‹ Homepage goes back. Tablet sits beside it, live too. Tereza's pin is here — comments don't hide in Preview.</Note>}>
             <Window tabs={TABS2} activeTab={0}>
               <Canvas>
                 <Artboard label="Desktop" kind="web" x={110} y={84} w={1000} h={625}><Scaled w={1000}><SitePricing hoverYearly /></Scaled></Artboard>
@@ -1067,14 +1254,14 @@ export default function Modes() {
               <PreviewBar back="Homepage" name="Pricing" />
               <MdCluster mode="preview" compact />
               <ZoomOnly zoom="69%" />
-              <SlimDock />
+              <Toolbar mode="annotate" />
               <PanelIcon icon="spark" at="ai" />
             </Window>
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="md-preview-combine" label="7 · Preview on a canvas with no links" width={W} height={H} fixed>
-          <Stage note={<Note n={7} title="No links — Preview still earns its place.">Videos play with sound, the web page scrolls inside its artboard, and you pan across all 15. Nothing can be moved by accident.</Note>}>
+        <DCArtboard id="md-preview-combine" label="10 · Preview on a canvas with no links" width={W} height={H} fixed>
+          <Stage note={<Note n={10} title="No links — Preview still earns its place.">Videos play with sound, the web page scrolls inside its artboard, and you pan across all 15. Nothing can be moved by accident.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas>
                 <CampaignBoards live />
@@ -1089,7 +1276,7 @@ export default function Modes() {
               <PreviewBar name="Combine-kampan" />
               <MdCluster mode="preview" compact />
               <ZoomOnly zoom="14%" />
-              <SlimDock />
+              <Toolbar mode="annotate" />
               <PanelIcon icon="spark" at="ai" />
             </Window>
           </Stage>
@@ -1098,8 +1285,8 @@ export default function Modes() {
 
       {/* ── 3 · Present ─────────────────────────────────────────────────────────────────── */}
       <DCSection id="present" title="Present — artboards one by one, or the whole canvas" subtitle="Combine-kampan: 15 artboards of web, social, video and print · the lift · presenter view · a link for cloud viewers">
-        <DCArtboard id="md-present-menu" label="8 · Present, and its small menu" width={W} height={H} fixed>
-          <Stage note={<Note n={8} title="Present has a small menu.">A click on Present starts from the selected artboard. The arrow beside it offers the start, the whole canvas with nothing on it, presenter view, the order and notes, and a link that follows you.</Note>}>
+        <DCArtboard id="md-present-menu" label="11 · Present, and its small menu" width={W} height={H} fixed>
+          <Stage note={<Note n={11} title="Present has a small menu.">A click on Present starts from the selected artboard. The arrow beside it offers the start, the whole canvas with nothing on it, presenter view, the order and notes, and a link that follows you.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas><CampaignBoards selected={2} /></Canvas>
               <ProjectPill project="Alligators brand" canvas="Combine-kampan" />
@@ -1124,7 +1311,7 @@ export default function Modes() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="md-present-lift" label="9 · Present lifts the artboard out of the canvas" width={W} height={780} fixed>
+        <DCArtboard id="md-present-lift" label="12 · Present lifts the artboard out of the canvas" width={W} height={780} fixed>
           <V2 className="md-close md-close--col">
             <p className="md-close-h">Present lifts the artboard out of the canvas.</p>
             <p className="md-close-lede">The selected artboard rises from its place and fills the screen while everything else sinks into the dark. esc sets it back exactly where it was — the canvas never moved.</p>
@@ -1138,41 +1325,41 @@ export default function Modes() {
               <path d="M200 20 L208 8 L216 20" />
             </svg>
             <p className="md-back-t"><Kbd>esc</Kbd>runs it backwards: the artboard settles into its slot, and selection, zoom and panels are as you left them. <span className="chip">--dur-route · 280 ms</span><span className="chip">--ease-out</span><span className="md-chor-rm">Reduce motion: a 1 ms cut both ways.</span></p>
-            <div className="md-close-note md-close-note--col"><Note n={9} title="A deck that is still the canvas.">Present doesn't open a new document — it lifts the work out of the place it lives and puts it back. Present the canvas skips the lift: the camera simply stays.</Note></div>
+            <div className="md-close-note md-close-note--col"><Note n={12} title="A deck that is still the canvas.">Present doesn't open a new document — it lifts the work out of the place it lives and puts it back. Present the canvas skips the lift: the camera simply stays.</Note></div>
           </V2>
         </DCArtboard>
 
-        <DCArtboard id="md-present-full" label={`10 · Full screen — 3 of ${RUN}`} width={W} height={H} fixed>
-          <ScreenStage note={<Note n={10} title="Only the work.">→ ← or space step through in canvas order (space moves on, as a clicker does). L turns the pointer into a ringed dot in your presence colour. The controls fade after two seconds; with Reduce motion they just hide.</Note>}>
+        <DCArtboard id="md-present-full" label={`13 · Full screen — 3 of ${RUN}`} width={W} height={H} fixed>
+          <ScreenStage note={<Note n={13} title="Only the work.">→ ← or space step through in canvas order (space moves on, as a clicker does). L turns the pointer into a ringed dot in your presence colour. The controls fade after two seconds; with Reduce motion they just hide.</Note>}>
             <div className="md-slide" style={{ left: 310, top: 40, width: 820, height: 820 }}><Fit w={820} h={820} bw={320}><SlideArt i={2} /></Fit></div>
             <Laser x={640} y={500} />
             <PresentControls n={3} label="Post 1:1 · Combine 2026" />
           </ScreenStage>
         </DCArtboard>
 
-        <DCArtboard id="md-present-video" label="11 · A 9:16 video plays inline" width={W} height={H} fixed>
-          <ScreenStage note={<Note n={11} title="Video plays where it stands.">Reels · nábor starts with sound when its turn comes, pillarboxed on a wide screen. A click on the video pauses it; → or space moves on mid-clip — nothing waits for the end.</Note>}>
+        <DCArtboard id="md-present-video" label="14 · A 9:16 video plays inline" width={W} height={H} fixed>
+          <ScreenStage note={<Note n={14} title="Video plays where it stands.">Reels · nábor starts with sound when its turn comes, pillarboxed on a wide screen. A click on the video pauses it; → or space moves on mid-clip — nothing waits for the end.</Note>}>
             <div className="md-slide md-novbar" style={{ left: 495, top: 24, width: 450, height: 800 }}><Fit w={450} h={800} bw={225}><VideoFrameMock vertical caption="STAŇ SE GATOREM" time="0:06 / 0:15" /></Fit></div>
             <PresentControls n={9} label="Reels · nábor" video="0:06 / 0:15" />
           </ScreenStage>
         </DCArtboard>
 
-        <DCArtboard id="md-present-canvas" label="12 · Present the canvas — pan freely" width={W} height={H} fixed>
-          <ScreenStage kind="canvas" note={<Note n={12} title="Today's Presentation mode, kept.">No chrome, no pins, no annotations — only the artboards where they live. Drag or scroll to pan, pinch to zoom — for mood-board canvases and long walkthroughs. esc returns to the same view.</Note>}>
+        <DCArtboard id="md-present-canvas" label="15 · Present the canvas — pan freely" width={W} height={H} fixed>
+          <ScreenStage kind="canvas" note={<Note n={15} title="Today's Presentation mode, kept.">No chrome, no pins, no annotations — only the artboards where they live. Drag or scroll to pan, pinch to zoom — for mood-board canvases and long walkthroughs. esc returns to the same view.</Note>}>
             <CampaignBoards z={1.5} dx={-90} dy={-70} labels={false} />
             <span className="md-grab maude-v2 k-fixed" data-theme="light" style={{ left: 706, top: 352 }}><Icon name="hand" size={26} /></span>
             <CanvasPill zoom="21%" />
           </ScreenStage>
         </DCArtboard>
 
-        <DCArtboard id="md-presenter" label="13 · Presenter view on the Mac" width={W} height={H} fixed>
-          <ScreenStage kind="ui" note={<Note n={13} title="Your screen, not theirs.">The audience gets the artboard on the second display; the Mac shows now, next, notes, the clock — and the order as the canvas itself, so you can jump by where things live.</Note>}>
+        <DCArtboard id="md-presenter" label="16 · Presenter view on the Mac" width={W} height={H} fixed>
+          <ScreenStage kind="ui" note={<Note n={16} title="Your screen, not theirs.">The audience gets the artboard on the second display; the Mac shows now, next, notes, the clock — and the order as the canvas itself, so you can jump by where things live.</Note>}>
             <PresenterView cur={4} />
           </ScreenStage>
         </DCArtboard>
 
-        <DCArtboard id="md-present-link" label="14 · Watching from a link — and looking back" width={W} height={H} fixed>
-          <Stage note={<Note n={14} title="Following Tereza, in a browser.">← took you back to 5 on your own, so the bar offers one action: Catch up. In a browser, esc first leaves the browser's full screen. A Share link opens the canvas instead.</Note>}>
+        <DCArtboard id="md-present-link" label="17 · Watching from a link — and looking back" width={W} height={H} fixed>
+          <Stage note={<Note n={17} title="Following Tereza, in a browser.">← took you back to 5 on your own, so the bar offers one action: Catch up. In a browser, esc first leaves the browser's full screen. A Share link opens the canvas instead.</Note>}>
             <BrowserWin url="alligators.cloud.maude.sh/present/combine-kampan">
               <div className="md-screen md-screen--stage md-screen--flat">
                 <div className="md-slide" style={{ left: 410, top: 90, width: 620, height: 620 }}><Fit w={620} h={620} bw={320}><GatorMock variant="numbers" /></Fit></div>
@@ -1190,9 +1377,9 @@ export default function Modes() {
       </DCSection>
 
       {/* ── 4 · Comment ─────────────────────────────────────────────────────────────────── */}
-      <DCSection id="comment" title="Comment — a tool, in Edit or Preview" subtitle="Pins on artboards, threads, resolve, Open / Mine, @mentions · someone who may only comment">
-        <DCArtboard id="md-comment" label="15 · Pins, a thread, a mention" width={W} height={H} fixed>
-          <Stage note={<Note n={15} title="C pins a comment to the spot.">The thread opens beside its pin; Resolve hides it from Open. The panel filters Open and Mine, newest first. @ suggests people on the project, with what they can do.</Note>}>
+      <DCSection id="comment" title="Comment — a tool in Preview's toolbar" subtitle="C from Edit switches to it · pins on artboards, threads, resolve, Open / Mine, @mentions · someone who may only comment">
+        <DCArtboard id="md-comment" label="18 · Pins, a thread, a mention" width={W} height={H} fixed>
+          <Stage note={<Note n={18} title="C pins a comment to the spot.">C in Edit switches to Preview with Comment in hand. The thread opens beside its pin; Resolve hides it from Open. @ suggests people, with what they can do.</Note>}>
             <Window tabs={TABS2} activeTab={0}>
               <Canvas>
                 <Artboard label="Desktop" kind="web" x={312} y={96} w={704} h={440}><Scaled w={704}><SitePricing /></Scaled></Artboard>
@@ -1202,18 +1389,19 @@ export default function Modes() {
                 <CommentPin who="you" x={1150} y={250} />
                 <Thread x={762} y={190} />
               </Canvas>
-              <ProjectPill project="Studio site" canvas="Pricing" />
+              <ProjectPill project="Studio site" folded />
               <CommentsPanel />
-              <MdCluster people={["tereza", "jonas"]} mode="edit" />
-              <ZoomUndo zoom={49} />
-              <Toolbar tool="comment" />
+              <PreviewBar name="Pricing" />
+              <MdCluster mode="preview" compact />
+              <ZoomOnly zoom="49%" />
+              <Toolbar mode="annotate" tool="comment" />
               <PanelIcon icon="spark" at="ai" />
             </Window>
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="md-comment-only" label="16 · Someone who may only comment" width={W} height={H} fixed>
-          <Stage note={<Note n={16} title="Can comment: Select, Hand, Comment.">Clicks select for specs. No editing tools, no AI chat panel — hidden, not greyed.</Note>}>
+        <DCArtboard id="md-comment-only" label="19 · Someone who may only comment" width={W} height={H} fixed>
+          <Stage note={<Note n={19} title="Can comment: Hand and Comment.">Preview's toolbar, cut to what they may do: Hand (a click shows specs, a drag pans) and Comment. No other annotation tools, no editing tools, no AI chat panel — hidden, not greyed.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas>
                 {UNI.map((b, i) => (
@@ -1230,16 +1418,16 @@ export default function Modes() {
               <CanvasesPanel project="Alligators brand" count={ALLIGATORS_COUNT} selected="Uniformy-2027" folders={DRESY_TREE} items={ALLIGATORS_ROOT} />
               <MdCluster people={["tereza", "jonas"]} mode="viewing" canEdit={false} access="Can comment" />
               <ZoomOnly zoom="32%" />
-              <SlimDock tools={COMMENT_TOOLS} pressed="comment" more={false} />
+              <Toolbar mode="annotate" only={["hand", "comment"]} tool="comment" />
             </Window>
           </Stage>
         </DCArtboard>
       </DCSection>
 
       {/* ── 5 · Annotations ─────────────────────────────────────────────────────────────── */}
-      <DCSection id="draw" title="Annotations — a layer above the artboards" subtitle="Stickies, arrows, a section, a highlight; AI reads the layer and works through it · the same tools stay in Preview">
-        <DCArtboard id="md-draw" label="17 · Annotations AI can read" width={W} height={H} fixed>
-          <Stage note={<Note n={17} title="Think on top of the work.">Stickies, arrows, sections and highlights sit on their own layer and never change the artboards. AI reads them — “do what the stickies say” works, and it asks when one is unclear. ⇧P hides the layer.</Note>}>
+      <DCSection id="draw" title="Annotations — Preview's own toolbar" subtitle="Preview doubles as annotate (CONTRACT §2). Stickies, marker, arrows, a section on a layer above the live design; AI reads the layer and works through it · in Edit their keys switch to Preview">
+        <DCArtboard id="md-draw" label="20 · Annotate in Preview — AI reads the layer" width={W} height={H} fixed>
+          <Stage note={<Note n={20} title="Think on top of the work.">In Preview, stickies, marker, arrows and sections sit on their own layer and never change the artboards. AI reads them — “do what the stickies say” works, and it asks when one is unclear. ⇧P hides the layer.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas>
                 <DrawSection x={300} y={88} w={760} h={500} title="Feedback od trenérů" />
@@ -1259,11 +1447,12 @@ export default function Modes() {
                 </svg>
                 <Cursor2 />
               </Canvas>
-              <ProjectPill project="Alligators brand" canvas="Combine-kampan" />
+              <ProjectPill project="Alligators brand" folded />
               <PanelIcon icon="panel-left" at="left" />
-              <MdCluster people={["tereza", "jonas"]} mode="edit" />
-              <ZoomUndo zoom={36} />
-              <Toolbar tool="arrow" more />
+              <PreviewBar name="Combine-kampan" />
+              <MdCluster mode="preview" compact />
+              <ZoomOnly zoom="36%" />
+              <Toolbar mode="annotate" tool="sticky" swatches="sticky" color="green" />
               <AIPanel
                 scope="Feedback od trenérů"
                 messages={[
@@ -1279,8 +1468,8 @@ export default function Modes() {
 
       {/* ── 6 · Inspect ─────────────────────────────────────────────────────────────────── */}
       <DCSection id="inspect" title="Inspect — read-only specs" subtitle="⌘-click in Preview, or a click in Viewing: sizes, gaps, colours, export, Handoff, Copy code">
-        <DCArtboard id="md-inspect" label="18 · Inspect “Book a call”" width={W} height={H} fixed>
-          <Stage note={<Note n={18} title="Specs without the knobs.">Values read as words and numbers; hold ⌥ and point at a neighbour for the gap. Raw CSS waits under Advanced. Edit ↵ switches to Edit with Book a call selected; Handoff sends it on.</Note>}>
+        <DCArtboard id="md-inspect" label="21 · Inspect “Book a call”" width={W} height={H} fixed>
+          <Stage note={<Note n={21} title="Specs without the knobs.">Values read as words and numbers; hold ⌥ and point at a neighbour for the gap. Raw CSS waits under Advanced. Edit ↵ switches to Edit with Book a call selected; Handoff sends it on.</Note>}>
             <Window tabs={TABS2} activeTab={0}>
               <Canvas>
                 <Artboard label="Desktop" kind="web" x={80} y={84} w={1000} h={625}><Scaled w={1000}><SiteHome /></Scaled></Artboard>
@@ -1296,7 +1485,7 @@ export default function Modes() {
               <MdCluster mode="preview" compact />
               <InspectPanel style={{ top: 72, width: 300 }} />
               <ZoomOnly zoom="69%" />
-              <SlimDock />
+              <Toolbar mode="annotate" />
               <PanelIcon icon="spark" at="ai" />
             </Window>
           </Stage>
@@ -1305,8 +1494,8 @@ export default function Modes() {
 
       {/* ── 7 · Edge cases ──────────────────────────────────────────────────────────────── */}
       <DCSection id="edges" title="When modes meet the real world" subtitle="AI changing the artboard you're using, a view-only link, mixed kinds on one screen, no internet, and what esc does everywhere">
-        <DCArtboard id="md-edge-ai" label="19 · AI changes the artboard you're clicking through" width={W} height={H} fixed>
-          <Stage note={<Note n={19} title="AI never pulls the page out from under you.">The artboard under your pointer holds still, hover and all; AI's new hero lands when you move off it. Tablet, which you aren't touching, updates live.</Note>}>
+        <DCArtboard id="md-edge-ai" label="22 · AI changes the artboard you're clicking through" width={W} height={H} fixed>
+          <Stage note={<Note n={22} title="AI never pulls the page out from under you.">The artboard under your pointer holds still, hover and all; AI's new hero lands when you move off it. Tablet, which you aren't touching, updates live.</Note>}>
             <Window tabs={TABS2} activeTab={0}>
               <Canvas>
                 <HomeBoards z={pz} ox={170} oy={84} hover="cta" aiDesktop="AI has a new hero — it lands when you move off" aiTablet />
@@ -1317,14 +1506,14 @@ export default function Modes() {
               <PreviewBar name="Homepage" />
               <MdCluster mode="preview" compact />
               <ZoomOnly zoom="76%" />
-              <SlimDock />
+              <Toolbar mode="annotate" />
               <PanelIcon icon="spark" at="ai" dot />
             </Window>
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="md-edge-viewer" label="20 · A view-only link, in a browser" width={W} height={H} fixed>
-          <Stage note={<Note n={20} title="Can view: it opens in Preview.">The designs are live, pins show, nothing can change — and Viewing is one click away for specs. The menu lists only what a viewer can do: Version history opens to look, without Restore.</Note>}>
+        <DCArtboard id="md-edge-viewer" label="23 · A view-only link, in a browser" width={W} height={H} fixed>
+          <Stage note={<Note n={23} title="Can view: it opens in Preview.">The designs are live, pins show, nothing can change — and Viewing is one click away for specs. The menu lists only what a viewer can do: Version history opens to look, without Restore.</Note>}>
             <BrowserWin url="alligators.cloud.maude.sh/social/matchday">
               <Canvas>
                 <Artboard label="Post · Gameweek 4" kind="digital" x={330} y={130} w={240} h={240}><div className="md-wrap md-noem"><GatorMock variant="social" headline="GAMEWEEK 4" sub="So 15:00 · Riviera" /></div></Artboard>
@@ -1347,7 +1536,7 @@ export default function Modes() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="md-edge-mixed" label="21 · Mixed kinds on one screen" width={W} height={900} fixed>
+        <DCArtboard id="md-edge-mixed" label="24 · Mixed kinds on one screen" width={W} height={900} fixed>
           <V2 className="md-close md-close--col">
             <p className="md-close-h">Every kind fills the screen its own way.</p>
             <p className="md-close-lede">Presenting Combine-kampan walks web, social, video and print in canvas order. Each kind gets the treatment people expect from it.</p>
@@ -1369,17 +1558,17 @@ export default function Modes() {
                 </div>
               ))}
             </div>
-            <div className="md-close-note md-close-note--col"><Note n={21} title="One rule per kind, no settings.">Fit, scroll, play or trim follows the artboard's kind. A skipped artboard (Banner FB cover) stays on the canvas — it's only left out of the run, which is why the counters say 14.</Note></div>
+            <div className="md-close-note md-close-note--col"><Note n={24} title="One rule per kind, no settings.">Fit, scroll, play or trim follows the artboard's kind. A skipped artboard (Banner FB cover) stays on the canvas — it's only left out of the run, which is why the counters say 14.</Note></div>
           </V2>
         </DCArtboard>
 
-        <DCArtboard id="md-edge-offline" label="22 · Presenting with no internet" width={W} height={H} fixed>
-          <ScreenStage kind="ui" note={<Note n={22} title="Offline still presents.">Everything on this Mac plays. The one clip that never downloaded holds its first frame on the audience screen; only presenter view says why, with Skip. Copy presentation link waits for a connection.</Note>}>
+        <DCArtboard id="md-edge-offline" label="25 · Presenting with no internet" width={W} height={H} fixed>
+          <ScreenStage kind="ui" note={<Note n={25} title="Offline still presents.">Everything on this Mac plays. The one clip that never downloaded holds its first frame on the audience screen; only presenter view says why, with Skip. Copy presentation link waits for a connection.</Note>}>
             <PresenterView cur={9} offline />
           </ScreenStage>
         </DCArtboard>
 
-        <DCArtboard id="md-esc" label="23 · What esc does, everywhere" width={W} height={780} fixed>
+        <DCArtboard id="md-esc" label="26 · What esc does, everywhere" width={W} height={830} fixed>
           <V2 className="md-close md-close--col">
             <p className="md-close-h">esc always steps back one place.</p>
             <p className="md-close-lede">Menus, sheets and Search close first, whatever the mode. After that, each mode has one step back — never two at once, never out of the project.</p>
@@ -1389,8 +1578,9 @@ export default function Modes() {
                 [{ m: "preview" }, "Preview", "Closes a menu or overlay inside the design first.", "Then back to Edit, on the artboard in view."],
                 [{ m: "present" }, "Present · Artboards", "Back to the canvas; the artboard settles into its slot.", "Presenter view closes with it."],
                 [{ m: "present" }, "Present · Canvas", "Back to the canvas at the same view.", "Panels return as they were."],
-                [{ ic: "comment" }, "Comment · C", "Closes the open thread; a half-written reply is kept.", "Second esc: back to the mode's resting tool."],
-                [{ ic: "sticky" }, "Annotation tools", "Leaves the tool; stickies and arrows stay where they are.", "Select in Edit, the live design in Preview."],
+                [{ ic: "image" }, "Image · Component", "Closes the picker; nothing is placed.", "Second esc: back to Select."],
+                [{ ic: "comment" }, "Comment · C", "Closes the open thread; a half-written reply is kept.", "Second esc: back to Hand, then to Edit."],
+                [{ ic: "sticky" }, "Annotation tools", "Leaves the tool for Hand; stickies, marker and arrows stay where they are.", "Second esc: back to Edit — also when N C M A E S brought you here."],
                 [{ ic: "inspect" }, "Inspect · ⌘-click", "Clears the selection.", "Second esc: back to Edit."],
                 [{ m: "viewing" }, "Viewing · Can view, Can comment", "Preview → Viewing. Present → back to wherever you came from.", "There's no Edit to return to."],
                 [{ ic: "arrow" }, "Switching mid-drag", "A drag is set down where it is; a half-drawn arrow is kept.", "Same as esc: nothing lost."],
@@ -1404,7 +1594,7 @@ export default function Modes() {
                 </div>
               ))}
             </div>
-            <div className="md-close-note md-close-note--col"><Note n={23} title="Same key, same promise.">esc never discards work: a draft comment, a half-drawn arrow or an AI run in progress all survive it. Stopping AI is its own button.</Note></div>
+            <div className="md-close-note md-close-note--col"><Note n={26} title="Same key, same promise.">esc never discards work: a draft comment, a half-drawn arrow or an AI run in progress all survive it. Stopping AI is its own button.</Note></div>
           </V2>
         </DCArtboard>
       </DCSection>
