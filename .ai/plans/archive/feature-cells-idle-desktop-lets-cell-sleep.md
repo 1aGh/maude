@@ -231,13 +231,13 @@ UI change: one status string in the Sync panel. Add a desktop E2E scenario `sync
 
 ## Acceptance Criteria
 
-- [ ] An idle desktop makes no journal pass more often than the 20 s poll (Bug A, test red before).
-- [ ] The `maude.files` socket stays connected while idle (Bug B, test red before).
-- [ ] `/_cell/state` answers from the DO, never starts or warms the cell (rig with a shortened `sleepAfter`).
-- [ ] A parked desktop holds no sockets and no polls. An edit while parked lands, and a remote change while parked arrives (integration test).
-- [ ] Old desktop × new cell and new desktop × old cell / self-host behave as today.
-- [ ] Released. One night with a desktop left open measures ≈ 0 instance-hours beyond genuine wakes. Recorded in STATE.md and L7c.
-- [ ] Decisions recorded in kg.
+- [x] An idle desktop makes no journal pass more often than the 20 s poll (Bug A, test red before).
+- [x] The `maude.files` socket stays connected while idle (Bug B, test red before).
+- [x] `/_cell/state` answers from the DO, never starts or warms the cell (rig with a shortened `sleepAfter`).
+- [x] A parked desktop holds no sockets and no polls. An edit while parked lands, and a remote change while parked arrives (integration test).
+- [x] Old desktop × new cell and new desktop × old cell / self-host behave as today.
+- [x] Released (v1.6.13 → fix in v1.8.0/v1.8.1). Measured on the 2026-10-08 daytime idle test instead of a night: the cell sleeps exactly `sleepAfter` after every park (1.9 of 3.25 instance-hours, the rest two input-driven wakes). Recorded in STATE.md and L7c. An overnight confirmation was not run — closed by the owner.
+- [x] Decisions recorded in kg.
 
 ---
 
@@ -250,7 +250,7 @@ UI change: one status string in the Sync panel. Add a desktop E2E scenario `sync
 - ✅ Task 5: `sync/park.ts` reducer + table tests.
 - ✅ Task 6: runtime wiring (factory `park()`/`unpark()`, parked-aware poll/plane/watchdog, `ui:active` presence from the studio client, status `parked` + `statusbar-sync` testid). Integration test covers the full park → remote change → unpark → park → local edit → unpark cycle.
 - ✅ Close-out security review: defender PASS WITH SUGGESTIONS (LOW-2/3 fixed), attacker NEEDS FIXES → F1/F2/F3/F6 fixed with fail-first tests; F4 (HMAC probe) and F5 (stat sweep while parked) are follow-ups; verdicts in kg.
-- ⏳ Task 7: released 2026-10-05. **Overnight measurement 2026-10-06: FAIL** — 11.24 instance-hours; the real desktop never parked (zero `/_cell/state`, constant ~6 s `bootstrap`+`documents` + 10 s `journal` polling). Rig still open — use it to find why park never engages. Check during the measurement: hub `afterLoadDocument` writes / boot `walkImport` appends must not raise `noteChange` on a plain wake (attacker creativity finding).
+- ✅ Task 7 (closed 2026-10-08, see Retro): released 2026-10-05. **Overnight measurement 2026-10-06: FAIL** — 11.24 instance-hours; the real desktop never parked (zero `/_cell/state`, constant ~6 s `bootstrap`+`documents` + 10 s `journal` polling). Rig still open — use it to find why park never engages. Check during the measurement: hub `afterLoadDocument` writes / boot `walkImport` appends must not raise `noteChange` on a plain wake (attacker creativity finding).
 - ✅ Task 8: kg `maude/cells-idle-desktop-parks-not-cell-forced`, `maude/cells-change-signal-and-cell-state-probe` (both EXTEND `cells-members-only-wake-as-built`).
 
 ### Night after v1.6.13 (2026-10-06): FAIL, 11.24 h — two causes, fixed on `main`
@@ -258,3 +258,21 @@ UI change: one status string in the Sync panel. Add a desktop E2E scenario `sync
 - **Canvas sockets recycled too.** 214 `GET /` upgrades/h: the desktop's canvas sockets (two shards) were as silent as the control socket, so the 30 s silence check recycled each every ~33 s, and every reconnect ran `pollRemoteSoon` + `remotePull` (bootstrap + documents + a journal pass, and a store `manifest` RPC per bootstrap). Fix: the hub keep-alive is per SOCKET now (`createSocketKeepalive`, one frame per socket per 15 s, deduplicated by websocket, control doc first); a real-socket test pins a canvas socket staying up.
 - **The park never engaged.** `hasSelfRetryingWork` read the file plane's `seeding` phase as work in flight, and five `stuck` rows keep Alligators in `seeding` forever. Fix: the file lane is judged from the ledger (`fileLaneBusy`: a row being pushed, or unsent rows while something landed in the last 20 min); an unacknowledged canvas holds the link only for 20 min. The desktop now logs `idle, but staying connected: <reason>` and, every 30 min, what last reset its idle clock.
 - Needs a release + another overnight measurement.
+
+### Daytime idle test after v1.8.1 (2026-10-08): PARTIAL, 1.9 h of 3 h
+
+- Park works: 3 parks ~20 min after the last input, `/_cell/state` ~1/min, cell asleep ~20 min after each park (07:40–07:45, 08:30–09:15Z). No `staying connected` blocker.
+- Two unparks by `studio input` (7 s / 11 s before the log line) at ~07:45 and ~09:15Z with the app supposedly untouched. Find which client event counts as input (window focus, visibility, pointer move?) and whether it should. Task 7 stays open.
+
+### Daytime idle test (2026-10-08, v1.8.1): the park works
+
+Desktop restarted on 1.8.1 at 08:57 local, left alone from ~09:00. Workers Logs: parked 07:18–07:44Z, 08:06–09:14Z and 09:36Z onwards (only `GET /_cell/state`, once a minute), unparked twice by studio input (owner: possibly an accidental click). GraphQL 07:00–10:15Z: **1.9 instance-hours** of 3.25, asleep 07:40–07:45, 08:30–09:15 and 10:00Z onwards — each sleep exactly `sleepAfter` (20 min) after the park. Socket churn is gone while active (no `GET /` besides the reconnect at each unpark).
+
+## Retro
+
+- **Model the real client, not the test client.** Every unit and integration test passed on v1.6.13 and the real desktop never parked: the test harness had one socket and no stuck rows. Two production facts — canvas sockets are as silent as the control socket, and long-lived `stuck` ledger rows keep the plane "seeding" — only surfaced from the cloud's request log. The next plan touching sync liveness should start from a recorded request trace of a real desktop.
+- **"Unfinished" is not "in flight".** The F1 security fix (block the park on pending work) was right in spirit and wrong in its signal; a guard that blocks on a state that never resolves blocks forever. Judge lanes by whether they move (`fileLaneBusy`), and let stalled work resume on the next edit/click/backstop.
+- **Make the client explain itself.** The `idle, but staying connected: <reason>` / `park: active — last activity …` lines turned a night of guessing into a one-grep diagnosis on the 2026-10-08 test. Diagnostic logging belongs in the first version of any idle/liveness feature.
+- **Releases: a bundle diff after a Bun pin move is the stale artifact.** v1.8.0's desktop build refused the committed bundle; rebuild from a frozen install and stage it, as the runbook says — then never re-push under a fleet tag that already rolled (cut a patch instead).
+- **Measuring needs a fresh token.** The wrangler OAuth token expires in a day and cannot refresh non-interactively; scheduled measurements should check auth first and say so instead of failing quietly.
+- **Open follow-ups:** F4 (HMAC-gated `/_cell/state`), F5 (local stat sweep while parked), browser-tab park, optional "wheel counts only on a focused window", and an overnight confirmation of the L7c gate.

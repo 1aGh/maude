@@ -130,6 +130,14 @@ stranger's card can be charged. L5–L7 are the proof that it worked.
   all night. The owner's desktop never parked (zero `GET /_cell/state`) and kept
   polling `bootstrap` + `documents` ~every 6 s and `journal` every 10 s; the Mac
   never slept. The gate stays open.
+  **2026-10-08 (v1.8.1, daytime idle test):** PARTIAL — the desktop now parks
+  (3×, ~20 min after the last input, `/_cell/state` probes ~1/min, no socket/
+  bootstrap storm) and the cell sleeps 20 min after each park, but it was
+  asleep only 07:40–07:45 and 08:30–09:15Z of 07–10Z (1.9 instance-hours):
+  two `unparked` with `park: active — last activity studio input` (7 s / 11 s
+  ago) at ~07:45 and ~09:15Z while the app was supposedly untouched; each
+  costs ~45 min awake. Next: find what counts as "studio input" with nobody
+  at the Mac; overnight run still needed.
 
 - [ ] **L8 — retract the pilot callouts.** Once L4–L7c are green, remove the
   "not yet taking live payments" callout from `pricing.mdx`, `terms.mdx`,
