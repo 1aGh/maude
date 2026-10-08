@@ -636,3 +636,5 @@ Persona: Michal (owner), Tereza (editor, second Mac), Jonas (Can comment, browse
 ## Progress log
 
 _(the run appends here: `YYYY-MM-DD · V2-x.y · done/blocked · commits · evidence · notes`)_
+
+2026-10-08 · V2-0.0 · done · b7fcbe12 · .ai/scenarios/maude-v2/harness-smoke.md · run harness: v2-done.sh red by design (7 checks), ledger 511 rows (80 tasks · 12 packages · 360 artboards · 33 rules · 20 G0-D · 6 G0-E), v2-test-lane.sh, 5 gated hooks; 24+6 fail-first tests (12 red on noop-hook). Smoke: TaskCreated ignores exit 2 in the desktop host → all blocks use JSON decision:block; sub-agent/named-agent hook inputs carry the lead's session_id. kg: decision:maude/v2-V2-0.0-harness-json-block · kg: task:maude/v2/V2-0.0
