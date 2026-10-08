@@ -1,0 +1,120 @@
+# viewer/shell-empty
+div
+  div .maude
+    div .maude-notifications
+      section [aria-label="Notifications alt+T"] [tabindex="-1"]
+    div .st-shell
+      header .st-menubar [data-testid="menubar"] [aria-label="Application menubar"]
+        span .st-brand [data-tour="brand"]
+          span .st-brand-mark
+            svg [aria-hidden="true"]
+          span .st-brand-name "maude"
+        nav .st-menus [role="menubar"] [aria-label="Application menus"] [data-tour="menus"]
+          button .st-menu [data-testid="menu-file"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "File"
+          button .st-menu [data-testid="menu-edit"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Edit"
+          button .st-menu [data-testid="menu-view"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "View"
+          button .st-menu [data-testid="menu-selection"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Selection"
+          button .st-menu [data-testid="menu-tools"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Tools"
+          button .st-menu [data-testid="menu-help"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="help"] [type="button"] "Help"
+        div .st-mb-right [data-tour="status"]
+          div .st-presence
+            span .st-avatar [aria-label="You"] "YO"
+          span .st-stamp.st-stamp--viewonly [data-testid="view-only-stamp"] "VIEW ONLY"
+          button .st-mb-icon.st-share-btn [data-testid="share-btn"] [aria-label="Share link"] [type="button"] [disabled]
+            svg [aria-hidden="true"]
+          button .st-exports [aria-label="Exports"] [data-tour="exports"] [type="button"]
+            span [aria-hidden="true"] "⬇"
+          button .st-reportbug [data-testid="report-bug-toggle"] [aria-label="Report a bug"] [type="button"]
+            svg [aria-hidden="true"]
+          button .st-whatsnew [aria-label="What's new"] [data-tour="whatsnew"] [type="button"]
+            svg [aria-hidden="true"]
+          span .st-stamp "IDLE"
+          span .st-mb-file [title]
+            span "no canvas open"
+          span .st-mb-sep
+          span .st-mb-count "0 ARTBOARDS"
+            span .st-dot
+          span .st-mb-sep
+          span .st-mb-proj "characterization"
+      div .st-body
+        div .st-rail
+          div .st-rail-inner
+            button .st-iconbtn [aria-label="Expand sidebar"] [title="Expand sidebar (T)"] [type="button"]
+              svg [aria-hidden="true"]
+            button .st-iconbtn [aria-label="Search"] [title="Search (/)"] [type="button"]
+              svg [aria-hidden="true"]
+            button .st-iconbtn [aria-label="Files"] [title="Files"] [type="button"]
+              svg [aria-hidden="true"]
+        div .st-dockslot.st-dockslot--left
+          div .st-docktabs [role="tablist"] [aria-label="left panels"]
+            button .is-active.st-docktab [data-testid="dock-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Files"
+            button .st-docktab [data-testid="dock-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
+          nav .st-sidebar [aria-label="Files"] [data-tour="sidebar"]
+            div .st-sb-hd
+              span .st-sb-title "Files"
+              div .st-sb-hd-actions
+                button .st-iconbtn.st-refresh [aria-label="Refresh files"] [type="button"]
+                  svg [aria-hidden="true"]
+                span .st-live "4 / 4"
+                  span .is-connected.st-live-dot [aria-hidden="true"]
+                button .st-iconbtn [aria-label="Collapse sidebar"] [type="button"]
+                  svg [aria-hidden="true"]
+            div .st-search
+              div .st-search-box
+                svg [aria-hidden="true"]
+                input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"] [value]
+                span .kbd "/"
+            div .st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="-1"]
+              div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="DESIGN SYSTEM"] [aria-expanded="false"] [tabindex="0"]
+                div .st-row-wrap
+                  button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="false"] [title="Expand section"] [type="button"] [tabindex="-1"]
+                    svg .st-chev [aria-hidden="true"]
+                    span .st-sec-name "DESIGN SYSTEM"
+                    span .st-pill "1"
+              div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="UI CANVASES"] [aria-expanded="false"] [tabindex="-1"]
+                div .st-row-wrap
+                  button .st-tree-sec-hd [data-testid="tree-section-ui-kit"] [aria-expanded="false"] [title="Expand section"] [type="button"] [tabindex="-1"]
+                    svg .st-chev [aria-hidden="true"]
+                    span .st-sec-name "UI CANVASES"
+                    span .st-pill "3"
+            div .cb-rail.gi-rail [data-testid="cloud-bar"]
+              button .btn.btn--ghost.btn--sm.gi-rail-signin [data-testid="cloud-signin"] [type="button"] "Sign in to Maude Cloud"
+                svg [aria-hidden="true"]
+        div .st-grip [role="separator"] [aria-label="Resize left panel"] [tabindex="0"]
+          svg .st-grip-dots [aria-hidden="true"]
+        div .main
+          div .st-stage.viewport [data-tour="viewport"]
+            div .st-empty
+              div .st-empty-brand
+                span .st-brand-mark
+                  svg [aria-hidden="true"]
+                span .st-empty-wm "maude"
+                span .st-empty-sub.st-mono "CANVAS · CHARACTERIZATION / <ver> / localhost:<port>"
+              div .st-empty-title "Nothing open yet"
+              div .st-empty-body "← Pick a screen from the list on the left, or open above it to see your colors, type, and components. hold and hover to preview an element, "
+                strong "Design system"
+                br
+                br
+                strong "To select something on the canvas:"
+                span .kbd "⌘"
+                span .kbd "⌘⇧"
+      footer .st-statusbar [data-testid="statusbar"] [role="contentinfo"]
+        span .st-sb-active.st-sb-slot [role="group"] [aria-label="Active file"]
+          span .lead [aria-hidden="true"]
+          span .lbl "active"
+          span .val [title] "—"
+        span .st-sb-slot [role="group"] [aria-label="Open comments"]
+          span .lbl "comments"
+          span .val "0 open"
+        span .st-sb-spacer
+        span .st-sb-slot [role="group"] [aria-label="Connection"]
+          span .is-connected.st-live-dot [aria-hidden="true"]
+          span .lbl "live"
+        span .st-sb-slot.st-sb-version [role="group"] [aria-label="Maude version"]
+          span .val [data-testid="statusbar-version"] "<ver>"
+        button .st-sb-theme [aria-label="Switch to light theme"] [type="button"] "light"
+          svg [aria-hidden="true"]
+    div .mdcc-tour-nudge [role="status"]
+      div .mdcc-tour-nudge__body "New here? Take a 60-second tour of the canvas browser."
+      button .mdcc-tour-nudge__cta [type="button"] "Start"
+      button .mdcc-tour-nudge__skip [aria-label="Dismiss"] [type="button"] "×"

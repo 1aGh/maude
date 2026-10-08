@@ -1,0 +1,14 @@
+# browser/palette-query
+div .st-palette [role="dialog"] [aria-label="Command palette"] [aria-modal="true"]
+  div .st-pal-search
+    svg [aria-hidden="true"]
+    input [aria-label="Command search"] [placeholder="Type a command or search…"] [value="export"] {value="export"}
+    span .kbd "⌘K"
+  div .st-pal-list
+    div .st-pal-group "Canvas"
+    button .is-active.st-pal-item [type="button"]
+      span .st-pal-icon
+        svg [aria-hidden="true"]
+      span .st-pal-label "Export…"
+      span .st-pal-kbd
+        span .kbd "⇧⌘E"

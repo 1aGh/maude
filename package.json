@@ -87,6 +87,8 @@
     "!apps/studio/**/*.test.*",
     "!apps/studio/**/*.spec.*",
     "!apps/studio/**/.DS_Store",
+    "!apps/studio/client/TESTIDS.md",
+    "!apps/studio/client/testids.json",
     "plugins/design/dependencies.json",
     "plugins/design/dependencies.schema.json",
     "plugins/design/templates",

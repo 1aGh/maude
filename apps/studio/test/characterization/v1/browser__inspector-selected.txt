@@ -1,0 +1,714 @@
+# browser/inspector-selected
+div
+  div .maude
+    div .maude-notifications
+      section [aria-label="Notifications alt+T"] [tabindex="-1"]
+        ol [tabindex="-1"]
+          li [tabindex="0"]
+            div
+              div
+                div .maude-notice [data-testid="notice-mode-hint"]
+                  button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
+                  div .maude-notice-title "You’re in Edit"
+                  div .maude-notice-summary "Click selects, like Figma. Switch to Preview in the toolbar to use the live mock."
+    div .st-shell
+      header .st-menubar [data-testid="menubar"] [aria-label="Application menubar"]
+        span .st-brand [data-tour="brand"]
+          span .st-brand-mark
+            svg [aria-hidden="true"]
+          span .st-brand-name "maude"
+        nav .st-menus [role="menubar"] [aria-label="Application menus"] [data-tour="menus"]
+          button .st-menu [data-testid="menu-file"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "File"
+          button .st-menu [data-testid="menu-edit"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Edit"
+          button .st-menu [data-testid="menu-view"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "View"
+          button .st-menu [data-testid="menu-selection"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Selection"
+          button .st-menu [data-testid="menu-tools"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Tools"
+          button .st-menu [data-testid="menu-help"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="help"] [type="button"] "Help"
+        div .st-mb-right [data-tour="status"]
+          div .st-presence
+            span .st-avatar [aria-label="You"] "YO"
+          button .st-mb-icon.st-share-btn [data-testid="share-btn"] [aria-label="Share link"] [type="button"]
+            svg [aria-hidden="true"]
+          button .st-exports [aria-label="Exports"] [data-tour="exports"] [type="button"]
+            span [aria-hidden="true"] "⬇"
+          button .st-reportbug [data-testid="report-bug-toggle"] [aria-label="Report a bug"] [type="button"]
+            svg [aria-hidden="true"]
+          button .st-whatsnew [aria-label="What's new"] [data-tour="whatsnew"] [type="button"]
+            svg [aria-hidden="true"]
+          span .st-stamp "CANVAS"
+          span .st-mb-file [title=".design/ui/Home.tsx"] ".design/ui/"
+            b "Home"
+          span .st-mb-sep
+          span .st-mb-count "0 ARTBOARDS"
+            span .st-dot
+          span .st-mb-sep
+          span .st-mb-proj "characterization"
+      div .st-body
+        div .st-rail
+          div .st-rail-inner
+            button .st-iconbtn [aria-label="Expand sidebar"] [title="Expand sidebar (T)"] [type="button"]
+              svg [aria-hidden="true"]
+            button .st-iconbtn [aria-label="Search"] [title="Search (/)"] [type="button"]
+              svg [aria-hidden="true"]
+            button .st-iconbtn [aria-label="Files"] [title="Files"] [type="button"]
+              svg [aria-hidden="true"]
+        div .st-dockslot.st-dockslot--left
+          div .st-docktabs [role="tablist"] [aria-label="left panels"]
+            button .is-active.st-docktab [data-testid="dock-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Files"
+            button .st-docktab [data-testid="dock-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
+          nav .st-sidebar [aria-label="Files"] [data-tour="sidebar"]
+            div .st-sb-hd
+              span .st-sb-title "Files"
+              div .st-sb-hd-actions
+                button .st-iconbtn [aria-label="New blank brief board"] [aria-expanded="false"] [type="button"]
+                  svg [aria-hidden="true"]
+                button .st-iconbtn [data-testid="tree-new-folder"] [aria-label="New folder"] [aria-expanded="false"] [type="button"]
+                  svg [aria-hidden="true"]
+                button .st-iconbtn.st-refresh [aria-label="Refresh files"] [type="button"]
+                  svg [aria-hidden="true"]
+                span .st-live "4 / 4"
+                  span .is-connected.st-live-dot [aria-hidden="true"]
+                button .st-iconbtn [aria-label="Collapse sidebar"] [type="button"]
+                  svg [aria-hidden="true"]
+            div .st-search
+              div .st-search-box
+                svg [aria-hidden="true"]
+                input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"] [value]
+                span .kbd "/"
+            div .st-tree [data-testid="canvas-list"] [role="tree"] [aria-label="Project file tree"] [tabindex="-1"]
+              div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="DESIGN SYSTEM"] [aria-expanded="true"] [tabindex="-1"]
+                div .st-row-wrap
+                  button .st-tree-sec-hd [data-testid="tree-section-design-system"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+                    svg .is-open.st-chev [aria-hidden="true"]
+                    span .st-sec-name "DESIGN SYSTEM"
+                    span .st-pill "1"
+                div [role="group"]
+                  div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="false"] [aria-selected="false"] [tabindex="-1"]
+                    div .st-row-wrap
+                      div .st-ds-folder.st-row
+                        button .st-ds-chev [aria-label="Expand design system"] [title="Expand"] [type="button"]
+                          svg .st-chev [aria-hidden="true"]
+                        button .st-ds-open [aria-label="Open demo design system view"] [title="Open the design system view"] [type="button"] [tabindex="-1"]
+                          span .st-row-glyph
+                            svg [aria-hidden="true"]
+                          span .st-row-name "demo"
+              div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="UI CANVASES"] [aria-expanded="true"] [tabindex="-1"]
+                div .st-row-wrap
+                  button .st-tree-sec-hd [data-testid="tree-section-ui-kit"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+                    svg .is-open.st-chev [aria-hidden="true"]
+                    span .st-sec-name "UI CANVASES"
+                    span .st-pill "3"
+                div [role="group"]
+                  div .st-tree-item [role="treeitem"] [aria-label="Broken"] [aria-selected="false"] [tabindex="-1"]
+                    div .st-row-wrap
+                      button .st-row [data-testid="canvas-row-ui-broken"] [title=".design/ui/Broken.tsx"] [type="button"] [tabindex="-1"]
+                        span .st-row-glyph
+                          svg [aria-hidden="true"]
+                        span .st-row-name "Broken"
+                      button .has-delete-sibling.st-row-menu-btn [data-testid="tree-row-menu-ui-broken"] [aria-label="Actions for Broken"] [aria-haspopup="menu"] [title="Actions for Broken"] [type="button"]
+                        svg
+                      button .st-row-del [aria-label="Delete canvas Broken"] [title="Delete Broken"] [type="button"]
+                        svg
+                  div .st-tree-item [role="treeitem"] [aria-label="Home"] [aria-selected="true"] [tabindex="0"]
+                    div .st-row-wrap
+                      button .is-sel.st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+                        span .st-row-glyph
+                          svg [aria-hidden="true"]
+                        span .st-row-name "Home"
+                      button .has-delete-sibling.st-row-menu-btn [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [aria-haspopup="menu"] [title="Actions for Home"] [type="button"]
+                        svg
+                      button .st-row-del [aria-label="Delete canvas Home"] [title="Delete Home"] [type="button"]
+                        svg
+                  div .st-tree-item [role="treeitem"] [aria-label="marketing"] [aria-expanded="true"] [tabindex="-1"]
+                    div .st-row-wrap
+                      button .st-row [data-testid="tree-folder-ui-marketing"] [aria-expanded="true"] [type="button"] [tabindex="-1"]
+                        span .st-row-glyph
+                          svg .is-open.st-chev [aria-hidden="true"]
+                        span .st-row-name "marketing"
+                      button .st-row-menu-btn [data-testid="tree-row-menu-ui-marketing"] [aria-label="Folder actions for marketing"] [aria-haspopup="menu"] [title="Folder actions — marketing"] [type="button"]
+                        svg
+                    div [role="group"]
+                      div .st-tree-item [role="treeitem"] [aria-label="Landing"] [aria-selected="false"] [tabindex="-1"]
+                        div .st-row-wrap
+                          button .st-row [data-testid="canvas-row-ui-marketing-landing"] [title=".design/ui/marketing/Landing.tsx"] [type="button"] [tabindex="-1"]
+                            span .st-row-glyph
+                              svg [aria-hidden="true"]
+                            span .st-row-name "Landing"
+                          button .has-delete-sibling.st-row-menu-btn [data-testid="tree-row-menu-ui-marketing-landing"] [aria-label="Actions for Landing"] [aria-haspopup="menu"] [title="Actions for Landing"] [type="button"]
+                            svg
+                          button .st-row-del [aria-label="Delete canvas Landing"] [title="Delete Landing"] [type="button"]
+                            svg
+            div .cb-rail.gi-rail [data-testid="cloud-bar"]
+              button .btn.btn--ghost.btn--sm.gi-rail-signin [data-testid="cloud-signin"] [type="button"] "Sign in to Maude Cloud"
+                svg [aria-hidden="true"]
+        div .st-grip [role="separator"] [aria-label="Resize left panel"] [tabindex="0"]
+          svg .st-grip-dots [aria-hidden="true"]
+        div .main
+          div .st-stage.viewport [data-tour="viewport"]
+            iframe .active [data-testid="canvas-frame"] [data-path=".design/ui/Home.tsx"] [title="Canvas: .design/ui/Home.tsx"]
+        div .st-grip [role="separator"] [aria-label="Resize right panel"] [tabindex="0"]
+          svg .st-grip-dots [aria-hidden="true"]
+        div .st-dockslot.st-dockslot--right
+          div .st-docktabs [role="tablist"] [aria-label="right panels"]
+            button .is-active.st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="true"] [type="button"] "Inspector"
+            button .st-docktab [data-testid="dock-tab-comments"] [role="tab"] [aria-selected="false"] [type="button"] "Comments"
+            button .st-docktab [data-testid="dock-tab-changes"] [role="tab"] [aria-selected="false"] [type="button"] "Changes"
+          aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
+            div .st-rp-tabs [data-tour="inspector-tabs"]
+              button .st-rp-tab [type="button"] "Inspect"
+                svg [aria-hidden="true"]
+              button .is-active.st-rp-tab [type="button"] "CSS"
+                svg [aria-hidden="true"]
+              button .st-iconbtn [aria-label="Close inspector"] [type="button"]
+                svg [aria-hidden="true"]
+            div .st-scope.st-scope--local [title="This edit affects only this element."] "Local · this element only"
+              span .st-scope-dot [aria-hidden="true"]
+            div .st-rp-body
+              div .st-cp [data-tour="css-panel"]
+                div .st-cp-id
+                  span .st-cp-idtag "main"
+                  span .st-cp-idmode [data-tour="cp-mode"]
+                    div .st-cp-iconseg [role="radiogroup"] [aria-label="panel vocabulary mode"]
+                      button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+                        svg .lucide.lucide-braces [aria-hidden="true"]
+                      button [role="radio"] [aria-label="Designer — Figma vocabulary"] [aria-checked="false"] [title="Designer — Figma vocabulary"] [type="button"]
+                        svg .lucide.lucide-wand-sparkles [aria-hidden="true"]
+                section .st-cp-sec
+                  div .st-cp-sechd-row
+                    button .st-cp-sechd [data-testid="inspector-section-layout"] [aria-expanded="true"] [type="button"] "Layout"
+                      span .st-cp-caret [aria-hidden="true"] "▾"
+                    button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+                      svg .lucide.lucide-rotate-cw [aria-hidden="true"]
+                  div .is-open.st-cp-sec-anim
+                    div .st-cp-sec-inner
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="display"] "display"
+                        div .st-cp-ctl
+                          select .st-cp-nsel [aria-label="display"]
+                            option [disabled] [value] "block"
+                            option [value="block"] "block"
+                            option [value="inline-block"] "inline-block"
+                            option [value="flex"] "flex"
+                            option [value="inline-flex"] "inline-flex"
+                            option [value="grid"] "grid"
+                            option [value="inline"] "inline"
+                            option [value="none"] "none"
+                      button .st-cp-makeflex [type="button"] "+ Auto layout (flex)"
+                section .st-cp-sec
+                  div .st-cp-sechd-row
+                    button .st-cp-sechd [data-testid="inspector-section-position"] [aria-expanded="true"] [type="button"] "Position"
+                      span .st-cp-caret [aria-hidden="true"] "▾"
+                    button .is-quiet.st-cp-secreset [aria-label="reset Position section to original"] [title="reset Position"] [type="button"] [disabled]
+                      svg .lucide.lucide-rotate-cw [aria-hidden="true"]
+                  div .is-open.st-cp-sec-anim
+                    div .st-cp-sec-inner
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="position"] "position"
+                        div .st-cp-ctl
+                          select .st-cp-nsel [aria-label="position"]
+                            option [disabled] [value] "static"
+                            option [value="static"] "static"
+                            option [value="relative"] "relative"
+                            option [value="absolute"] "absolute"
+                            option [value="fixed"] "fixed"
+                            option [value="sticky"] "sticky"
+                      div .st-cp-box.st-cp-box--inset [aria-label="position inset (top / right / bottom / left)"]
+                        span .st-cp-boxtag.st-cp-boxtag--i "inset"
+                          span .st-cp-prov.st-cp-prov--inherit [role="img"] [aria-label="inherited"]
+                        input .is-zero.st-cp-boxv.st-cp-boxv--it.st-cp-scrub [aria-label="top"] [title="drag to scrub · alt = axis pair · alt+shift = all sides · type auto"] [placeholder="auto"] [value]
+                        input .is-zero.st-cp-boxv.st-cp-boxv--ir.st-cp-scrub [aria-label="right"] [title="drag to scrub · alt = axis pair · alt+shift = all sides · type auto"] [placeholder="auto"] [value]
+                        input .is-zero.st-cp-boxv.st-cp-boxv--ib.st-cp-scrub [aria-label="bottom"] [title="drag to scrub · alt = axis pair · alt+shift = all sides · type auto"] [placeholder="auto"] [value]
+                        input .is-zero.st-cp-boxv.st-cp-boxv--il.st-cp-scrub [aria-label="left"] [title="drag to scrub · alt = axis pair · alt+shift = all sides · type auto"] [placeholder="auto"] [value]
+                        div .st-cp-boxcore.st-cp-boxcore--pos "static"
+                      div .st-cp-note "top / right / bottom / left apply once position is relative, absolute, fixed, or sticky"
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="z-index"] "z-index"
+                        div .st-cp-ctl
+                          div .st-cp-num
+                            span .st-cp-handle.st-cp-numlead [role="presentation"] [aria-hidden="true"] [title="Drag to change · Shift ×10 · Alt fine"]
+                              span .st-cp-grip
+                            input .st-cp-numin [role="spinbutton"] [aria-label="z-index"] [value="0"] {value="0"}
+                            span .st-cp-step
+                              button .st-cp-stepb [aria-label="increase z-index"] [type="button"] [tabindex="-1"] "▲"
+                              button .st-cp-stepb [aria-label="decrease z-index"] [type="button"] [tabindex="-1"] "▼"
+                section .st-cp-sec
+                  div .st-cp-sechd-row
+                    button .st-cp-sechd [data-testid="inspector-section-typography"] [aria-expanded="true"] [type="button"] "Typography"
+                      span .st-cp-caret [aria-hidden="true"] "▾"
+                    button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
+                      svg .lucide.lucide-rotate-cw [aria-hidden="true"]
+                  div .is-open.st-cp-sec-anim
+                    div .st-cp-sec-inner
+                      div .st-cp-row
+                        button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="button"] [tabindex="0"]
+                        label .st-cp-label [title="font-family"] "font-family"
+                        div .st-cp-ctl
+                          select .st-cp-nsel [aria-label="font-family"] {value="system-ui"}
+                            option [disabled] [value] "system-ui"
+                            option [value="inherit"] "inherit"
+                            option [value="system-ui"] "system-ui"
+                            option [value="sans-serif"] "sans-serif"
+                            option [value="serif"] "serif"
+                            option [value="monospace"] "monospace"
+                            option [value="Inter"] "Inter"
+                            option [value="Inter Tight"] "Inter Tight"
+                            option [value="JetBrains Mono"] "JetBrains Mono"
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="color"] "color"
+                        div .st-cp-ctl
+                          span .st-cp-cf
+                            button .st-cp-cf-sw [aria-label="color colour"] [aria-expanded="false"] [aria-haspopup="dialog"] [title="pick a colour"] [type="button"]
+                              span
+                            input .st-cp-cf-in [aria-label="color"] [value]
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="font-size"] "font-size"
+                        div .st-cp-ctl
+                          div .st-cp-tokfield
+                            div .st-cp-num
+                              span .st-cp-handle.st-cp-numlead [role="presentation"] [aria-hidden="true"] [title="Drag to change · Shift ×10 · Alt fine"]
+                                svg .lucide.lucide-a-large-small.lucide-alarge-small [aria-hidden="true"]
+                              input .st-cp-numin [role="spinbutton"] [aria-label="font-size"] [value="16"] {value="16"}
+                              select .st-cp-unitsel [aria-label="font-size unit"] {value="px"}
+                                option [value="px"] "px"
+                                option [value="rem"] "rem"
+                                option [value="em"] "em"
+                                option [value="%"] "%"
+                                option [value="vw"] "vw"
+                                option [value="vh"] "vh"
+                                option [value="auto"] "auto"
+                            span
+                              button .st-cp-tokbtn [aria-label="font-size — bind a design token"] [aria-expanded="false"] [aria-haspopup="dialog"] [title="bind a design token"] [type="button"]
+                                svg .lucide.lucide-diamond [aria-hidden="true"]
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="font-weight"] "font-weight"
+                        div .st-cp-ctl
+                          select .st-cp-nsel [aria-label="font-weight"]
+                            option [disabled] [value] "400"
+                            option [value="300"] "300"
+                            option [value="400"] "400"
+                            option [value="500"] "500"
+                            option [value="600"] "600"
+                            option [value="700"] "700"
+                            option [value="800"] "800"
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="line-height"] "line-height"
+                        div .st-cp-ctl
+                          div .st-cp-num
+                            span .st-cp-handle.st-cp-numlead [role="presentation"] [aria-hidden="true"] [title="Drag to change · Shift ×10 · Alt fine"]
+                              svg .lucide.lucide-baseline [aria-hidden="true"]
+                            input .st-cp-numin [role="spinbutton"] [aria-label="line-height"] [value="0"] {value="0"}
+                            span .st-cp-step
+                              button .st-cp-stepb [aria-label="increase line-height"] [type="button"] [tabindex="-1"] "▲"
+                              button .st-cp-stepb [aria-label="decrease line-height"] [type="button"] [tabindex="-1"] "▼"
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="letter-spacing"] "letter-spacing"
+                        div .st-cp-ctl
+                          div .st-cp-num
+                            span .st-cp-handle.st-cp-numlead [role="presentation"] [aria-hidden="true"] [title="Drag to change · Shift ×10 · Alt fine"]
+                              svg .lucide.lucide-move-horizontal [aria-hidden="true"]
+                            input .st-cp-numin [role="spinbutton"] [aria-label="letter-spacing"] [value="0"] {value="0"}
+                            span .st-cp-step
+                              button .st-cp-stepb [aria-label="increase letter-spacing"] [type="button"] [tabindex="-1"] "▲"
+                              button .st-cp-stepb [aria-label="decrease letter-spacing"] [type="button"] [tabindex="-1"] "▼"
+                            select .st-cp-unitsel [aria-label="letter-spacing unit"] {value="px"}
+                              option [value="px"] "px"
+                              option [value="rem"] "rem"
+                              option [value="em"] "em"
+                              option [value="%"] "%"
+                              option [value="vw"] "vw"
+                              option [value="vh"] "vh"
+                              option [value="auto"] "auto"
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="text-align"] "text-align"
+                        div .st-cp-ctl
+                          div .st-cp-iconseg [role="radiogroup"] [aria-label="text-align"]
+                            button [role="radio"] [aria-label="Left"] [aria-checked="false"] [title="Left"] [type="button"]
+                              svg .lucide.lucide-text-align-start [aria-hidden="true"]
+                            button [role="radio"] [aria-label="Center"] [aria-checked="false"] [title="Center"] [type="button"]
+                              svg .lucide.lucide-text-align-center [aria-hidden="true"]
+                            button [role="radio"] [aria-label="Right"] [aria-checked="false"] [title="Right"] [type="button"]
+                              svg .lucide.lucide-text-align-end [aria-hidden="true"]
+                            button [role="radio"] [aria-label="Justify"] [aria-checked="false"] [title="Justify"] [type="button"]
+                              svg .lucide.lucide-text-align-justify [aria-hidden="true"]
+                      div .st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="font-style"] "font-style"
+                        div .st-cp-ctl
+                          div .st-cp-iconseg [role="group"] [aria-label="text style"]
+                            button [aria-label="Bold"] [aria-pressed="false"] [title="Bold"] [type="button"]
+                              svg .lucide.lucide-bold [aria-hidden="true"]
+                            button [aria-label="Italic"] [aria-pressed="false"] [title="Italic"] [type="button"]
+                              svg .lucide.lucide-italic [aria-hidden="true"]
+                            button [aria-label="Underline"] [aria-pressed="false"] [title="Underline"] [type="button"]
+                              svg .lucide.lucide-underline [aria-hidden="true"]
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="text-transform"] "text-transform"
+                        div .st-cp-ctl
+                          select .st-cp-nsel [aria-label="text-transform"]
+                            option [disabled] [value] "none"
+                            option [value="none"] "none"
+                            option [value="uppercase"] "uppercase"
+                            option [value="lowercase"] "lowercase"
+                            option [value="capitalize"] "capitalize"
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="white-space"] "white-space"
+                        div .st-cp-ctl
+                          select .st-cp-nsel [aria-label="white-space"]
+                            option [disabled] [value] "normal"
+                            option [value="normal"] "normal"
+                            option [value="nowrap"] "nowrap"
+                            option [value="pre"] "pre"
+                            option [value="pre-wrap"] "pre-wrap"
+                            option [value="pre-line"] "pre-line"
+                            option [value="break-spaces"] "break-spaces"
+                section .st-cp-sec
+                  div .st-cp-sechd-row
+                    button .st-cp-sechd [data-testid="inspector-section-spacing"] [aria-expanded="true"] [type="button"] "Spacing"
+                      span .st-cp-caret [aria-hidden="true"] "▾"
+                    button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
+                      svg .lucide.lucide-rotate-cw [aria-hidden="true"]
+                  div .is-open.st-cp-sec-anim
+                    div .st-cp-sec-inner
+                      div .st-cp-box [aria-label="margin and padding"]
+                        span .st-cp-boxtag.st-cp-boxtag--m "margin"
+                          span .st-cp-prov.st-cp-prov--inherit [role="img"] [aria-label="inherited"]
+                        input .is-zero.st-cp-boxv.st-cp-boxv--mt.st-cp-scrub [aria-label="margin-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] [value="0"] {value="0"}
+                        input .is-zero.st-cp-boxv.st-cp-boxv--mr.st-cp-scrub [aria-label="margin-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] [value="0"] {value="0"}
+                        input .is-zero.st-cp-boxv.st-cp-boxv--mb.st-cp-scrub [aria-label="margin-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] [value="0"] {value="0"}
+                        input .is-zero.st-cp-boxv.st-cp-boxv--ml.st-cp-scrub [aria-label="margin-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] [value="0"] {value="0"}
+                        div .st-cp-boxpad
+                          span .st-cp-boxtag.st-cp-boxtag--p "padding"
+                            span .st-cp-prov.st-cp-prov--raw [role="img"] [aria-label="raw override"]
+                          input .st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] [value="40"] {value="40"}
+                          input .st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] [value="40"] {value="40"}
+                          input .st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] [value="40"] {value="40"}
+                          input .st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] [value="40"] {value="40"}
+                          div .st-cp-boxcore "542 × 146"
+                section .st-cp-sec
+                  div .st-cp-sechd-row
+                    button .st-cp-sechd [data-testid="inspector-section-size"] [aria-expanded="true"] [type="button"] "Size"
+                      span .st-cp-caret [aria-hidden="true"] "▾"
+                    button .is-quiet.st-cp-secreset [aria-label="reset Size section to original"] [title="reset Size"] [type="button"] [disabled]
+                      svg .lucide.lucide-rotate-cw [aria-hidden="true"]
+                  div .is-open.st-cp-sec-anim
+                    div .st-cp-sec-inner
+                      div .st-cp-modes
+                        div .st-cp-moderow
+                          span .st-cp-modelabel "Width sizing"
+                          div .st-cp-modeseg [role="group"] [aria-label="width sizing mode"]
+                            div .st-cp-seg [role="radiogroup"] [aria-label="width sizing"]
+                              button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+                              button .st-cp-segbtn [role="radio"] [aria-checked="false"] [type="button"] "hug"
+                              button .st-cp-segbtn [role="radio"] [aria-checked="false"] [type="button"] "fill"
+                        div .st-cp-moderow
+                          span .st-cp-modelabel "Height sizing"
+                          div .st-cp-modeseg [role="group"] [aria-label="height sizing mode"]
+                            div .st-cp-seg [role="radiogroup"] [aria-label="height sizing"]
+                              button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+                              button .st-cp-segbtn [role="radio"] [aria-checked="false"] [type="button"] "hug"
+                              button .st-cp-segbtn [role="radio"] [aria-checked="false"] [type="button"] "fill"
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="width"] "width"
+                        div .st-cp-ctl
+                          div .st-cp-num
+                            span .st-cp-handle.st-cp-numlead [role="presentation"] [aria-hidden="true"] [title="Drag to change · Shift ×10 · Alt fine"] "W"
+                            input .st-cp-numin [role="spinbutton"] [aria-label="width"] [value="720"] {value="720"}
+                            span .st-cp-step
+                              button .st-cp-stepb [aria-label="increase width"] [type="button"] [tabindex="-1"] "▲"
+                              button .st-cp-stepb [aria-label="decrease width"] [type="button"] [tabindex="-1"] "▼"
+                            select .st-cp-unitsel [aria-label="width unit"] {value="px"}
+                              option [value="px"] "px"
+                              option [value="rem"] "rem"
+                              option [value="em"] "em"
+                              option [value="%"] "%"
+                              option [value="vw"] "vw"
+                              option [value="vh"] "vh"
+                              option [value="auto"] "auto"
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="height"] "height"
+                        div .st-cp-ctl
+                          div .st-cp-num
+                            span .st-cp-handle.st-cp-numlead [role="presentation"] [aria-hidden="true"] [title="Drag to change · Shift ×10 · Alt fine"] "H"
+                            input .st-cp-numin [role="spinbutton"] [aria-label="height"] [value="135"] {value="135"}
+                            span .st-cp-step
+                              button .st-cp-stepb [aria-label="increase height"] [type="button"] [tabindex="-1"] "▲"
+                              button .st-cp-stepb [aria-label="decrease height"] [type="button"] [tabindex="-1"] "▼"
+                            select .st-cp-unitsel [aria-label="height unit"] {value="px"}
+                              option [value="px"] "px"
+                              option [value="rem"] "rem"
+                              option [value="em"] "em"
+                              option [value="%"] "%"
+                              option [value="vw"] "vw"
+                              option [value="vh"] "vh"
+                              option [value="auto"] "auto"
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="min-width"] "min-width"
+                        div .st-cp-ctl
+                          div .st-cp-num
+                            span .st-cp-handle.st-cp-numlead [role="presentation"] [aria-hidden="true"] [title="Drag to change · Shift ×10 · Alt fine"]
+                              span .st-cp-grip
+                            input .st-cp-numin [role="spinbutton"] [aria-label="min-width"] [value="0"] {value="0"}
+                            span .st-cp-step
+                              button .st-cp-stepb [aria-label="increase min-width"] [type="button"] [tabindex="-1"] "▲"
+                              button .st-cp-stepb [aria-label="decrease min-width"] [type="button"] [tabindex="-1"] "▼"
+                            select .st-cp-unitsel [aria-label="min-width unit"] {value="px"}
+                              option [value="px"] "px"
+                              option [value="rem"] "rem"
+                              option [value="em"] "em"
+                              option [value="%"] "%"
+                              option [value="vw"] "vw"
+                              option [value="vh"] "vh"
+                              option [value="auto"] "auto"
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="max-width"] "max-width"
+                        div .st-cp-ctl
+                          div .st-cp-num
+                            span .st-cp-handle.st-cp-numlead [role="presentation"] [aria-hidden="true"] [title="Drag to change · Shift ×10 · Alt fine"] "W"
+                            input .st-cp-numin [role="spinbutton"] [aria-label="max-width"] [value="0"] {value="0"}
+                            span .st-cp-step
+                              button .st-cp-stepb [aria-label="increase max-width"] [type="button"] [tabindex="-1"] "▲"
+                              button .st-cp-stepb [aria-label="decrease max-width"] [type="button"] [tabindex="-1"] "▼"
+                            select .st-cp-unitsel [aria-label="max-width unit"] {value="px"}
+                              option [value="px"] "px"
+                              option [value="rem"] "rem"
+                              option [value="em"] "em"
+                              option [value="%"] "%"
+                              option [value="vw"] "vw"
+                              option [value="vh"] "vh"
+                              option [value="auto"] "auto"
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="min-height"] "min-height"
+                        div .st-cp-ctl
+                          div .st-cp-num
+                            span .st-cp-handle.st-cp-numlead [role="presentation"] [aria-hidden="true"] [title="Drag to change · Shift ×10 · Alt fine"]
+                              span .st-cp-grip
+                            input .st-cp-numin [role="spinbutton"] [aria-label="min-height"] [value="0"] {value="0"}
+                            span .st-cp-step
+                              button .st-cp-stepb [aria-label="increase min-height"] [type="button"] [tabindex="-1"] "▲"
+                              button .st-cp-stepb [aria-label="decrease min-height"] [type="button"] [tabindex="-1"] "▼"
+                            select .st-cp-unitsel [aria-label="min-height unit"] {value="px"}
+                              option [value="px"] "px"
+                              option [value="rem"] "rem"
+                              option [value="em"] "em"
+                              option [value="%"] "%"
+                              option [value="vw"] "vw"
+                              option [value="vh"] "vh"
+                              option [value="auto"] "auto"
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="max-height"] "max-height"
+                        div .st-cp-ctl
+                          div .st-cp-num
+                            span .st-cp-handle.st-cp-numlead [role="presentation"] [aria-hidden="true"] [title="Drag to change · Shift ×10 · Alt fine"]
+                              span .st-cp-grip
+                            input .st-cp-numin [role="spinbutton"] [aria-label="max-height"] [value="0"] {value="0"}
+                            span .st-cp-step
+                              button .st-cp-stepb [aria-label="increase max-height"] [type="button"] [tabindex="-1"] "▲"
+                              button .st-cp-stepb [aria-label="decrease max-height"] [type="button"] [tabindex="-1"] "▼"
+                            select .st-cp-unitsel [aria-label="max-height unit"] {value="px"}
+                              option [value="px"] "px"
+                              option [value="rem"] "rem"
+                              option [value="em"] "em"
+                              option [value="%"] "%"
+                              option [value="vw"] "vw"
+                              option [value="vh"] "vh"
+                              option [value="auto"] "auto"
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="overflow"] "overflow"
+                        div .st-cp-ctl
+                          div .st-cp-iconseg [role="radiogroup"] [aria-label="overflow"]
+                            button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+                              svg .lucide.lucide-eye [aria-hidden="true"]
+                            button [role="radio"] [aria-label="Hidden"] [aria-checked="false"] [title="Hidden"] [type="button"]
+                              svg .lucide.lucide-scissors [aria-hidden="true"]
+                            button [role="radio"] [aria-label="Scroll"] [aria-checked="false"] [title="Scroll"] [type="button"]
+                              svg .lucide.lucide-scroll-text [aria-hidden="true"]
+                section .st-cp-sec
+                  div .st-cp-sechd-row
+                    button .st-cp-sechd [data-testid="inspector-section-appearance"] [aria-expanded="true"] [type="button"] "Appearance"
+                      span .st-cp-caret [aria-hidden="true"] "▾"
+                    button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+                      svg .lucide.lucide-rotate-cw [aria-hidden="true"]
+                  div .is-open.st-cp-sec-anim
+                    div .st-cp-sec-inner
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="background-color"] "background-color"
+                        div .st-cp-ctl
+                          span .st-cp-cf
+                            button .st-cp-cf-sw [aria-label="background-color colour"] [aria-expanded="false"] [aria-haspopup="dialog"] [title="pick a colour"] [type="button"]
+                              span
+                            input .st-cp-cf-in [aria-label="background-color"] [value]
+                      div .st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="border-radius"] "border-radius"
+                        div .st-cp-ctl
+                          div .st-cp-radius
+                            div .st-cp-radius-main
+                              div .st-cp-num
+                                span .st-cp-handle.st-cp-numlead [role="presentation"] [aria-hidden="true"] [title="Drag to change · Shift ×10 · Alt fine"]
+                                  svg .lucide.lucide-spline [aria-hidden="true"]
+                                input .st-cp-numin [role="spinbutton"] [aria-label="border-radius"] [value="0"] {value="0"}
+                                span .st-cp-numsuffix [aria-hidden="true"] "px"
+                              button .st-cp-splitbtn [aria-label="detach corners"] [aria-pressed="false"] [title="detach corners — edit each independently"] [type="button"]
+                                svg .lucide.lucide-square-dashed [aria-hidden="true"]
+                      div .st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="border"] "border"
+                        div .st-cp-ctl
+                          div .st-cp-border
+                            div .st-cp-num
+                              span .st-cp-handle.st-cp-numlead [role="presentation"] [aria-hidden="true"] [title="Drag to change · Shift ×10 · Alt fine"]
+                                svg .lucide.lucide-minus [aria-hidden="true"]
+                              input .st-cp-numin [role="spinbutton"] [aria-label="border-width"] [value="0"] {value="0"}
+                              span .st-cp-step
+                                button .st-cp-stepb [aria-label="increase border-width"] [type="button"] [tabindex="-1"] "▲"
+                                button .st-cp-stepb [aria-label="decrease border-width"] [type="button"] [tabindex="-1"] "▼"
+                            select .st-cp-nsel.st-cp-nsel--mini [aria-label="border-style"]
+                              option [disabled] [value] "style"
+                              option [value="none"] "none"
+                              option [value="solid"] "solid"
+                              option [value="dashed"] "dashed"
+                              option [value="dotted"] "dotted"
+                              option [value="double"] "double"
+                            button .st-cp-swatch.st-cp-swatch--mini.st-cp-swatch--trigger [aria-label="border colour"] [aria-expanded="false"] [aria-haspopup="dialog"] [title="pick a colour"] [type="button"]
+                              span
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="box-shadow"] "box-shadow"
+                        div .st-cp-ctl
+                          input .st-cp-fin [aria-label="box-shadow"] [placeholder="none"] [value]
+                      div .st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="filter"] "filter"
+                        div .st-cp-ctl
+                          div .st-cp-num
+                            span .st-cp-handle.st-cp-numlead [role="presentation"] [aria-hidden="true"] [title="Drag to change · Shift ×10 · Alt fine"]
+                              span .st-cp-grip
+                            input .st-cp-numin [role="spinbutton"] [aria-label="filter blur"] [value="0"] {value="0"}
+                            span .st-cp-step
+                              button .st-cp-stepb [aria-label="increase filter blur"] [type="button"] [tabindex="-1"] "▲"
+                              button .st-cp-stepb [aria-label="decrease filter blur"] [type="button"] [tabindex="-1"] "▼"
+                            span .st-cp-numsuffix [aria-hidden="true"] "px"
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="mix-blend-mode"] "mix-blend-mode"
+                        div .st-cp-ctl
+                          select .st-cp-nsel [aria-label="mix-blend-mode"]
+                            option [disabled] [value] "—"
+                            option [value="normal"] "normal"
+                            option [value="multiply"] "multiply"
+                            option [value="screen"] "screen"
+                            option [value="overlay"] "overlay"
+                            option [value="darken"] "darken"
+                            option [value="lighten"] "lighten"
+                            option [value="color-dodge"] "color-dodge"
+                            option [value="color-burn"] "color-burn"
+                            option [value="hard-light"] "hard-light"
+                            option [value="soft-light"] "soft-light"
+                            option [value="difference"] "difference"
+                            option [value="exclusion"] "exclusion"
+                            option [value="hue"] "hue"
+                            option [value="saturation"] "saturation"
+                            option [value="color"] "color"
+                            option [value="luminosity"] "luminosity"
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="opacity"] "opacity"
+                        div .st-cp-ctl
+                          div .st-cp-sfield
+                            div .st-cp-slider
+                              div .st-cp-track [role="slider"] [aria-label="opacity"] [tabindex="0"]
+                                span .st-cp-fill
+                                span .st-cp-thumb
+                            div .st-cp-num.st-cp-num--compact
+                              input .st-cp-numin [role="spinbutton"] [aria-label="opacity"] [value="100"] {value="100"}
+                              span .st-cp-numsuffix [aria-hidden="true"] "%"
+                      div .st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="rotation"] "rotation"
+                        div .st-cp-ctl
+                          div .st-cp-num
+                            button .st-cp-dial [role="slider"] [aria-label="rotation"] [title="drag to rotate · arrows to nudge"] [type="button"]
+                              span .st-cp-dial-needle
+                            div .st-cp-num
+                              span .st-cp-handle.st-cp-numlead [role="presentation"] [aria-hidden="true"] [title="Drag to change · Shift ×10 · Alt fine"]
+                                svg .lucide.lucide-rotate-cw [aria-hidden="true"]
+                              input .st-cp-numin [role="spinbutton"] [aria-label="rotation"] [value="0"] {value="0"}
+                              span .st-cp-numsuffix [aria-hidden="true"] "°"
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="transform"] "transform"
+                        div .st-cp-ctl
+                          input .st-cp-fin [aria-label="transform"] [placeholder="none"] [value]
+                      div .is-unset.st-cp-row
+                        button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+                        label .st-cp-label [title="transform-origin"] "transform-origin"
+                        div .st-cp-ctl
+                          input .st-cp-fin [aria-label="transform-origin"] [placeholder="399.996px 107.524px"] [value]
+                section .st-cp-sec
+                  div .st-cp-sechd-row
+                    button .st-cp-sechd [data-testid="inspector-section-advanced"] [aria-expanded="false"] [type="button"] "Advanced"
+                      span .st-cp-caret [aria-hidden="true"] "▸"
+                    button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+                      svg .lucide.lucide-rotate-cw [aria-hidden="true"]
+                  div .st-cp-sec-anim
+                    div .st-cp-sec-inner
+                      div .st-cp-advbody
+                        div .st-cp-advgrp "Add CSS property"
+                        div .st-cp-kv
+                          input .st-cp-fin [aria-label="custom property name"] [placeholder="property"] [value]
+                          input .st-cp-fin [aria-label="custom property value"] [placeholder="value"] [value]
+                        div .st-cp-note "applied as-is — not token-bound"
+                        div .st-cp-advgrp "Add HTML attribute"
+                        div .st-cp-kv
+                          input .st-cp-fin [aria-label="custom attribute name"] [placeholder="data-…"] [value]
+                          input .st-cp-fin [aria-label="custom attribute value"] [placeholder="value"] [value]
+                div .st-cp-legend
+                  span "token"
+                    i .st-cp-prov.st-cp-prov--bound [aria-hidden="true"]
+                  span "override"
+                    i .st-cp-prov.st-cp-prov--raw [aria-hidden="true"]
+                  span "inherited"
+                    i .st-cp-prov.st-cp-prov--inherit [aria-hidden="true"]
+      footer .st-statusbar [data-testid="statusbar"] [role="contentinfo"]
+        span .st-sb-active.st-sb-slot [role="group"] [aria-label="Active file"]
+          span .lead [aria-hidden="true"]
+          span .lbl "active"
+          span .val [title=".design/ui/Home.tsx"] ".design/ui/Home.tsx"
+        span .st-sb-sel.st-sb-slot [role="group"] [aria-label="Selected element"]
+          span .lbl "selected"
+          span .val [title="div#canvas-root > div > div.dc-canvas > div.dc-world > div.dc-section.dc-section"] "[data-dc-screen=\"home-hero\"] [data-cd-id=\"3807c330\"] — \"Hero Characterization fixture. Get started\""
+          button .st-sb-sel-clear [aria-label="Clear selection"] [type="button"] "×"
+        span .st-sb-slot [role="group"] [aria-label="Open comments"]
+          span .lbl "comments"
+          span .val "0 open"
+        span .st-sb-spacer
+        span .st-sb-slot [role="group"] [aria-label="Connection"]
+          span .is-connected.st-live-dot [aria-hidden="true"]
+          span .lbl "live"
+        span .st-sb-slot.st-sb-version [role="group"] [aria-label="Maude version"]
+          span .val [data-testid="statusbar-version"] "<ver>"
+        button .st-sb-theme [aria-label="Switch to light theme"] [type="button"] "light"
+          svg [aria-hidden="true"]
+    div .mdcc-tour-nudge [role="status"]
+      div .mdcc-tour-nudge__body "New here? Take a 60-second tour of the canvas browser."
+      button .mdcc-tour-nudge__cta [type="button"] "Start"
+      button .mdcc-tour-nudge__skip [aria-label="Dismiss"] [type="button"] "×"

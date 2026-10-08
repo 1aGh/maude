@@ -77,6 +77,8 @@ dev-server/.cache/
 .ai/state/v2-hooks.log.jsonl
 .ai/state/v2-done.last.json
 .ai/state/v2-waiting-for-michal.md
+# V2-0.1/0.2 local screenshot baseline of the v1 shell (byte-compared during the split; not committed)
+.ai/scenarios/maude-v2/phase0-shots/
 .ai/device/
 .ai/browser/
 .ai/scenarios/**/baseline-staging/

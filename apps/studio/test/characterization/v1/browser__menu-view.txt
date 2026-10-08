@@ -1,0 +1,118 @@
+# browser/menu-view
+header .st-menubar [data-testid="menubar"] [aria-label="Application menubar"]
+  span .st-brand [data-tour="brand"]
+    span .st-brand-mark
+      svg [aria-hidden="true"]
+    span .st-brand-name "maude"
+  nav .st-menus [role="menubar"] [aria-label="Application menus"] [data-tour="menus"]
+    button .st-menu [data-testid="menu-file"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "File"
+    button .st-menu [data-testid="menu-edit"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Edit"
+    button .st-menu [data-testid="menu-view"] [role="menuitem"] [aria-expanded="true"] [aria-haspopup="menu"] [type="button"] "View"
+    button .st-menu [data-testid="menu-selection"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Selection"
+    button .st-menu [data-testid="menu-tools"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [type="button"] "Tools"
+    button .st-menu [data-testid="menu-help"] [role="menuitem"] [aria-expanded="false"] [aria-haspopup="menu"] [data-tour="help"] [type="button"] "Help"
+  div .st-dropdown [role="menu"] [aria-label="View"]
+    div .st-dd-hd "Panels"
+    button .is-on.st-dd-item [role="menuitem"] [type="button"]
+      span .st-dd-lead
+        span .st-dd-check
+          svg [aria-hidden="true"]
+        span "Project Tree"
+      span .kbd "T"
+    button .st-dd-item [role="menuitem"] [type="button"]
+      span .st-dd-lead
+        span .st-dd-check
+        span "Changes"
+      span .kbd "⌘ ⇧ G"
+    button .st-dd-item [role="menuitem"] [type="button"]
+      span .st-dd-lead
+        span .st-dd-check
+        span "Comments Sidebar"
+      span .kbd "⌘ ⇧ M"
+    button .st-dd-item [role="menuitem"] [type="button"]
+      span .st-dd-lead
+        span .st-dd-check
+        span "Show hidden files"
+      span .kbd "H"
+    button .st-dd-item [role="menuitem"] [type="button"]
+      span .st-dd-lead
+        span .st-dd-check
+        span "Layers"
+    button .st-dd-item [role="menuitem"] [type="button"]
+      span .st-dd-lead
+        span .st-dd-check
+        span "Inspector"
+      span .kbd "⌘ ⇧ I"
+    button .is-on.st-dd-item [role="menuitem"] [type="button"]
+      span .st-dd-lead
+        span .st-dd-check
+          svg [aria-hidden="true"]
+        span "Auto-open Inspector on select"
+    button .st-dd-item [role="menuitem"] [type="button"]
+      span .st-dd-lead
+        span .st-dd-check
+        span "Timeline"
+      span .kbd "⌘ ⇧ T"
+    button .is-on.st-dd-item [role="menuitem"] [type="button"]
+      span .st-dd-lead
+        span .st-dd-check
+          svg [aria-hidden="true"]
+        span "Annotations"
+      span .kbd "⇧ P"
+    button .st-dd-item [role="menuitem"] [aria-disabled="true"] [type="button"]
+      span .st-dd-lead
+        span .st-dd-check
+        span "Minimap"
+    button .st-dd-item [role="menuitem"] [aria-disabled="true"] [type="button"]
+      span .st-dd-lead
+        span .st-dd-check
+        span "Zoom controls"
+    button .st-dd-item [role="menuitem"] [aria-disabled="true"] [type="button"]
+      span .st-dd-lead
+        span .st-dd-check
+        span "Presentation Mode"
+    button .st-dd-item [role="menuitem"] [aria-disabled="true"] [type="button"]
+      span .st-dd-lead
+        span .st-dd-check
+        span "Show print guides"
+    div .st-dd-sep
+    div .st-dd-hd "Zoom"
+    button .st-dd-item [role="menuitem"] [aria-disabled="true"] [type="button"]
+      span .st-dd-lead
+        span .st-dd-check
+        span "Zoom In"
+      span .kbd "⌘ +"
+    button .st-dd-item [role="menuitem"] [aria-disabled="true"] [type="button"]
+      span .st-dd-lead
+        span .st-dd-check
+        span "Zoom Out"
+      span .kbd "⌘ −"
+    button .st-dd-item [role="menuitem"] [aria-disabled="true"] [type="button"]
+      span .st-dd-lead
+        span .st-dd-check
+        span "Fit to Screen"
+      span .kbd "⌘ 0"
+    button .st-dd-item [role="menuitem"] [aria-disabled="true"] [type="button"]
+      span .st-dd-lead
+        span .st-dd-check
+        span "Actual Size · 100 %"
+      span .kbd "⌘ 1"
+  div .st-mb-right [data-tour="status"]
+    div .st-presence
+      span .st-avatar [aria-label="You"] "YO"
+    button .st-mb-icon.st-share-btn [data-testid="share-btn"] [aria-label="Share link"] [type="button"] [disabled]
+      svg [aria-hidden="true"]
+    button .st-exports [aria-label="Exports"] [data-tour="exports"] [type="button"]
+      span [aria-hidden="true"] "⬇"
+    button .st-reportbug [data-testid="report-bug-toggle"] [aria-label="Report a bug"] [type="button"]
+      svg [aria-hidden="true"]
+    button .st-whatsnew [aria-label="What's new"] [data-tour="whatsnew"] [type="button"]
+      svg [aria-hidden="true"]
+    span .st-stamp "IDLE"
+    span .st-mb-file [title]
+      span "no canvas open"
+    span .st-mb-sep
+    span .st-mb-count "0 ARTBOARDS"
+      span .st-dot
+    span .st-mb-sep
+    span .st-mb-proj "characterization"

@@ -82,12 +82,16 @@ describe('attribute values keep their type (T23)', () => {
 const PER_CANVAS = 12;
 
 describe('structured operations on the real corpus (T23/T24)', () => {
+  // Each test walks the repo's whole .design/ corpus, which grows with every canvas
+  // (the 16 v2 canvases pushed one walk past bun's 5 s default) — same budget as the
+  // lookup test below.
+  const CORPUS_MS = 120_000;
   test('the corpus is real and parses', () => {
     expect(files.length).toBeGreaterThan(20);
     let elements = 0;
     for (const f of files) elements += listElements(f, readFileSync(f, 'utf8')).length;
     expect(elements).toBeGreaterThan(1000);
-  });
+  }, CORPUS_MS);
 
   test('a no-op attribute set changes no byte, anywhere in the corpus', () => {
     const drift: string[] = [];
@@ -112,7 +116,7 @@ describe('structured operations on the real corpus (T23/T24)', () => {
     }
     expect(checked).toBeGreaterThan(100);
     expect(drift).toEqual([]);
-  });
+  }, CORPUS_MS);
 
   test('a change and its reversal return the original bytes; the same op is deterministic', () => {
     const broken: string[] = [];
@@ -146,7 +150,7 @@ describe('structured operations on the real corpus (T23/T24)', () => {
     }
     expect(checked).toBeGreaterThan(100);
     expect(broken).toEqual([]);
-  });
+  }, CORPUS_MS);
 
   test('a no-op text edit changes no byte', () => {
     const drift: string[] = [];
@@ -171,7 +175,7 @@ describe('structured operations on the real corpus (T23/T24)', () => {
     }
     expect(checked).toBeGreaterThan(50);
     expect(drift).toEqual([]);
-  });
+  }, CORPUS_MS);
 
   test('every uniquely printed element is re-found by print alone — and addressing stays fast', () => {
     const lost: string[] = [];
@@ -205,5 +209,5 @@ describe('structured operations on the real corpus (T23/T24)', () => {
     // The support matrix's limit: a lookup on the largest real canvas stays
     // interactive (one re-apply after a lost race is a handful of lookups).
     expect(largest.ms).toBeLessThan(250);
-  }, 120_000);
+  }, CORPUS_MS);
 });

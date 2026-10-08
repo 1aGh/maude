@@ -1,0 +1,2514 @@
+# browser/settings-tabs
+## tab 0
+div .is-settings.st-dialog [role="dialog"] [aria-label="Settings"] [aria-modal="true"]
+  div .st-dialog-hd
+    span .st-dialog-title "Settings"
+    button .st-iconbtn [aria-label="Close"] [type="button"]
+      svg [aria-hidden="true"]
+  div .st-settings-tabs
+    div .st-settings-rail [role="tablist"] [aria-label="Settings categories"]
+      button .is-active.st-settings-tab [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Appearance"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Canvas & View"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Layout"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "AI generation"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Figma"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Subtitles"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Video"
+    div .st-settings-pane
+      section [role="tabpanel"]
+        div .st-rp-hd "Appearance"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Theme"
+          div .st-provider-notes "Controls Maude’s own chrome — menubar, sidebar, canvas plane, minimap, zoom HUD. Artboards keep their own design-system theme."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Theme"]
+            label .st-engine-radio
+              input [type="radio"] [value="light"] [name="maude-theme"] {value="light"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Light"
+                span .st-engine-radio-note "Bright shell chrome"
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [value="dark"] [name="maude-theme"] {value="dark"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Dark"
+                span .st-engine-radio-note "Dim shell chrome"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Inspector vocabulary"
+          div .st-provider-notes "How the CSS panel labels controls. You can also flip this from the small toggle in the panel’s own corner — this choice is remembered."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Inspector vocabulary"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [value="advanced"] [name="maude-cp-mode"] {value="advanced"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Advanced"
+                span .st-engine-radio-note "Raw CSS property names — border-radius, flex-direction…"
+            label .st-engine-radio
+              input [type="radio"] [value="designer"] [name="maude-cp-mode"] {value="designer"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Designer"
+                span .st-engine-radio-note "Figma vocabulary — Fill, Stroke, Corner radius, Auto layout…"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Canvas & View"
+        label .is-disabled.st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Minimap"
+            span .st-pref-note "Open a canvas to use this."
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .is-disabled.st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Zoom controls"
+            span .st-pref-note "Open a canvas to use this."
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Annotations"
+            span .st-pref-note "Show annotation pins and overlays on the canvas."
+          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+        label .st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Auto-open Inspector on select"
+            span .st-pref-note "Open the Inspector automatically when you select an element."
+          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Layout"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Layers panel"
+          div .st-provider-notes "Show Layers as its own dockable panel, or as a tab inside the Inspector."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Layers mode"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [name="layers-mode"] {value="on"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Separate panel"
+                span .st-engine-radio-note "Layers docks on its own (default: left)."
+            label .st-engine-radio
+              input [type="radio"] [name="layers-mode"] {value="on"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Inside Inspector"
+                span .st-engine-radio-note "Layers is a tab within the Inspector."
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Panel positions"
+          div .st-provider-notes "Dock each panel to the left or right side. Each side shows one panel at a time, with tabs to switch between the panels docked there."
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Files"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Layers"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Inspector"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Comments"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Changes"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Assistant"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Provider keys"
+        p .st-settings-intro "Bring your own API keys to generate images (and, soon, audio + video) inside Maude. Keys are stored on this machine only — in your OS keycha"
+          code "~/.config/maude/keys.json"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Google Gemini (Nano Banana + Veo)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "image · video"
+          div .st-provider-notes "Nano Banana image generation + Veo video (async, native synced audio + image-to-video). Your Google AI Studio key bills your own Google acco"
+          a .st-provider-keylink [href="https://aistudio.google.com/apikey"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="Google Gemini (Nano Banana + Veo) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "ElevenLabs (audio)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "audio · transcription"
+          div .st-provider-notes "Music, sound effects, text-to-speech, and Scribe speech-to-text — one key for the whole stack, billing your own ElevenLabs account. Music ca"
+          a .st-provider-keylink [href="https://elevenlabs.io/app/settings/api-keys"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="ElevenLabs (audio) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Groq (Whisper STT)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "transcription"
+          div .st-provider-notes "Managed, fast cloud speech-to-text (Whisper large-v3) — an optional alternative to local whisper.cpp when you want no local install, billing"
+          a .st-provider-keylink [href="https://console.groq.com/keys"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="Groq (Whisper STT) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Figma"
+        div .st-provider-card [data-testid="figma-connect-card"]
+          div .st-provider-hd
+            span .st-provider-name "Figma"
+          p .st-settings-intro "Import real Figma documents — frames become editable canvases, FigJam boards become the whiteboard, and paint/text/effect styles become desi"
+          p .st-settings-intro "Create a personal access token with the scope. It is stored on this machine only and is never sent anywhere but Figma."
+            code "file_content:read"
+          a .st-provider-keylink [href="https://www.figma.com/developers/api#access-tokens"] "Get a token"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .st-provider-keyinput [data-testid="figma-connect-input"] [aria-label="Figma personal access token"] [type="password"] [placeholder="figd_…"] [value]
+            button .st-btn [data-testid="figma-connect-save"] [type="button"] [disabled] "Save"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Subtitles"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Subtitles — transcription engine"
+          div .st-provider-notes "Which engine turns audio into subtitles. Maude never switches engines behind your back — pin one, or pick and it uses the best you're set up"
+            strong "Auto"
+          div .st-engine-radios [role="radiogroup"] [aria-label="Transcription engine"]
+            label .st-engine-radio
+              input [type="radio"] [value="auto"] [name="transcription-engine"] {value="auto"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Auto"
+                span .st-engine-radio-note "Use the best engine this machine is set up for — the card says which."
+            label .is-selected.st-engine-radio
+              input [type="radio"] [value="whisper"] [name="transcription-engine"] {value="whisper"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Local whisper.cpp"
+                span .st-engine-radio-note "Free · offline · no key · runs on your hardware"
+            label .st-engine-radio
+              input [type="radio"] [value="elevenlabs"] [name="transcription-engine"] {value="elevenlabs"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "ElevenLabs Scribe"
+                span .st-engine-radio-note "Cloud · accuracy · needs an ElevenLabs key"
+            label .st-engine-radio
+              input [type="radio"] [value="groq"] [name="transcription-engine"] {value="groq"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Groq Whisper"
+                span .st-engine-radio-note "Cloud · fast · needs a Groq key"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Local subtitle models (whisper.cpp)"
+          div .st-provider-notes "Local subtitles need two things: the whisper.cpp engine and one model. Models are stored on this machine only and never committed."
+          div .st-setup
+            div .is-done.st-step
+              span .st-step-n "✓"
+              div .st-step-body
+                span .st-step-title "whisper.cpp engine is installed"
+            div .st-step
+              span .st-step-n "2"
+              div .st-step-body
+                span .st-step-title "Download a model (below)"
+          div .st-model-list
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Tiny (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~75 MB"
+                span .st-engine-radio-note "Fastest, lowest accuracy. Good for a quick draft in any language."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Base (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~142 MB"
+                span .st-engine-radio-note "The recommended default — works in any language (incl. Czech). Modest accuracy."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Base (English-only)"
+                  span .is-local.st-pill "English-only"
+                  span .st-model-size "~142 MB"
+                span .st-engine-radio-note "English audio only — do NOT use for other languages (it garbles them)."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Small (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~466 MB"
+                span .st-engine-radio-note "Noticeably more accurate than base, ~3× larger."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Large v3 Turbo (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~1560 MB"
+                span .st-engine-radio-note "Best accuracy, ~1.5 GB. Slower and disk-heavy, but close to cloud quality."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Video"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Scene-aware keyframes — analysis engine"
+          div .st-provider-notes "How Maude picks frames when it analyzes a video (`/design:video-analyze`, `/design:reel`). Scene-aware beats a blind frame rate. This is an "
+            strong "Auto"
+          div .st-engine-radios [role="radiogroup"] [aria-label="Keyframe engine"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [value="auto"] [name="keyframe-engine"] {value="auto"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Auto"
+                span .st-engine-radio-note "Use the best available: Gemma scout → ffmpeg → blind."
+            label .st-engine-radio
+              input [type="radio"] [value="gemma"] [name="keyframe-engine"] {value="gemma"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Gemma scout"
+                span .st-engine-radio-note "Semantic action beats. Needs Ollama (gemma3 vision) or mlx-vlm + a model."
+            label .st-engine-radio
+              input [type="radio"] [value="ffmpeg"] [name="keyframe-engine"] {value="ffmpeg"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "ffmpeg scene-detect"
+                span .st-engine-radio-note "Scene cuts + endpoints. Needs ffmpeg. No model download."
+            label .st-engine-radio
+              input [type="radio"] [value="blind"] [name="keyframe-engine"] {value="blind"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Blind (even-spaced)"
+                span .st-engine-radio-note "Chromium fallback — works with neither ffmpeg nor Gemma."
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Gemma scout model (optional)"
+          div .st-provider-notes "Adds semantic action-beat detection on top of scene cuts. Two short steps in a terminal — Maude picks the result up on its own."
+          div .st-setup
+            div .st-step
+              span .st-step-n "1"
+              div .st-step-body
+                span .st-step-title "Start Ollama"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "ollama serve"
+                  button .rdy-copy [aria-label="Copy the install command"] [type="button"] "Copy"
+            div .st-step
+              span .st-step-n "2"
+              div .st-step-body
+                span .st-step-title "Download the model"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "ollama pull gemma3:4b"
+                  button .rdy-copy [aria-label="Copy the model pull command"] [type="button"] "Copy"
+            details .st-setup-more
+              summary "Other ways to install"
+              div .st-setup-option
+                span .st-setup-option-label "mlx-vlm instead of Ollama — faster, Apple Silicon only"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "python3 -m venv '<work>/home/.maude/mlx-venv' && '<work>/home/.maude/mlx-venv/bin/pip' install -U mlx-vlm"
+                  button .rdy-copy [aria-label="Copy the mlx-vlm install command"] [type="button"] "Copy"
+                span .st-provider-notes "Then download a model below. Models live in your HuggingFace cache."
+          div .st-provider-notes "Active tier on this machine:"
+            strong "ffmpeg scene-detect"
+          div .st-model-list
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 4 E4B (4-bit)"
+                  span .st-model-size "~3.3 GB"
+                span .st-engine-radio-note "The recommended scout — best semantic beats. ~3.3 GB. Needs an Apple-Silicon Mac + mlx-vlm."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "needs mlx-vlm"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 4 E2B (4-bit)"
+                  span .st-model-size "~1.9 GB"
+                span .st-engine-radio-note "Smaller/faster, coarser beats. ~1.9 GB. Good for 16 GB Macs."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "needs mlx-vlm"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 3 4B (Ollama)"
+                  span .st-model-size "~3.3 GB"
+                span .st-engine-radio-note "The recommended Ollama scout. ~3.3 GB. Pulled and managed by Ollama."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "start Ollama first"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 3 12B (Ollama)"
+                  span .st-model-size "~8.1 GB"
+                span .st-engine-radio-note "Sharper beats, needs more RAM. ~8.1 GB."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "start Ollama first"
+## tab 1
+div .is-settings.st-dialog [role="dialog"] [aria-label="Settings"] [aria-modal="true"]
+  div .st-dialog-hd
+    span .st-dialog-title "Settings"
+    button .st-iconbtn [aria-label="Close"] [type="button"]
+      svg [aria-hidden="true"]
+  div .st-settings-tabs
+    div .st-settings-rail [role="tablist"] [aria-label="Settings categories"]
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Appearance"
+      button .is-active.st-settings-tab [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Canvas & View"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Layout"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "AI generation"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Figma"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Subtitles"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Video"
+    div .st-settings-pane
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Appearance"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Theme"
+          div .st-provider-notes "Controls Maude’s own chrome — menubar, sidebar, canvas plane, minimap, zoom HUD. Artboards keep their own design-system theme."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Theme"]
+            label .st-engine-radio
+              input [type="radio"] [value="light"] [name="maude-theme"] {value="light"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Light"
+                span .st-engine-radio-note "Bright shell chrome"
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [value="dark"] [name="maude-theme"] {value="dark"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Dark"
+                span .st-engine-radio-note "Dim shell chrome"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Inspector vocabulary"
+          div .st-provider-notes "How the CSS panel labels controls. You can also flip this from the small toggle in the panel’s own corner — this choice is remembered."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Inspector vocabulary"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [value="advanced"] [name="maude-cp-mode"] {value="advanced"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Advanced"
+                span .st-engine-radio-note "Raw CSS property names — border-radius, flex-direction…"
+            label .st-engine-radio
+              input [type="radio"] [value="designer"] [name="maude-cp-mode"] {value="designer"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Designer"
+                span .st-engine-radio-note "Figma vocabulary — Fill, Stroke, Corner radius, Auto layout…"
+      section [role="tabpanel"]
+        div .st-rp-hd "Canvas & View"
+        label .is-disabled.st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Minimap"
+            span .st-pref-note "Open a canvas to use this."
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .is-disabled.st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Zoom controls"
+            span .st-pref-note "Open a canvas to use this."
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Annotations"
+            span .st-pref-note "Show annotation pins and overlays on the canvas."
+          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+        label .st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Auto-open Inspector on select"
+            span .st-pref-note "Open the Inspector automatically when you select an element."
+          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Layout"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Layers panel"
+          div .st-provider-notes "Show Layers as its own dockable panel, or as a tab inside the Inspector."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Layers mode"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [name="layers-mode"] {value="on"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Separate panel"
+                span .st-engine-radio-note "Layers docks on its own (default: left)."
+            label .st-engine-radio
+              input [type="radio"] [name="layers-mode"] {value="on"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Inside Inspector"
+                span .st-engine-radio-note "Layers is a tab within the Inspector."
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Panel positions"
+          div .st-provider-notes "Dock each panel to the left or right side. Each side shows one panel at a time, with tabs to switch between the panels docked there."
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Files"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Layers"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Inspector"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Comments"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Changes"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Assistant"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Provider keys"
+        p .st-settings-intro "Bring your own API keys to generate images (and, soon, audio + video) inside Maude. Keys are stored on this machine only — in your OS keycha"
+          code "~/.config/maude/keys.json"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Google Gemini (Nano Banana + Veo)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "image · video"
+          div .st-provider-notes "Nano Banana image generation + Veo video (async, native synced audio + image-to-video). Your Google AI Studio key bills your own Google acco"
+          a .st-provider-keylink [href="https://aistudio.google.com/apikey"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="Google Gemini (Nano Banana + Veo) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "ElevenLabs (audio)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "audio · transcription"
+          div .st-provider-notes "Music, sound effects, text-to-speech, and Scribe speech-to-text — one key for the whole stack, billing your own ElevenLabs account. Music ca"
+          a .st-provider-keylink [href="https://elevenlabs.io/app/settings/api-keys"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="ElevenLabs (audio) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Groq (Whisper STT)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "transcription"
+          div .st-provider-notes "Managed, fast cloud speech-to-text (Whisper large-v3) — an optional alternative to local whisper.cpp when you want no local install, billing"
+          a .st-provider-keylink [href="https://console.groq.com/keys"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="Groq (Whisper STT) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Figma"
+        div .st-provider-card [data-testid="figma-connect-card"]
+          div .st-provider-hd
+            span .st-provider-name "Figma"
+          p .st-settings-intro "Import real Figma documents — frames become editable canvases, FigJam boards become the whiteboard, and paint/text/effect styles become desi"
+          p .st-settings-intro "Create a personal access token with the scope. It is stored on this machine only and is never sent anywhere but Figma."
+            code "file_content:read"
+          a .st-provider-keylink [href="https://www.figma.com/developers/api#access-tokens"] "Get a token"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .st-provider-keyinput [data-testid="figma-connect-input"] [aria-label="Figma personal access token"] [type="password"] [placeholder="figd_…"] [value]
+            button .st-btn [data-testid="figma-connect-save"] [type="button"] [disabled] "Save"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Subtitles"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Subtitles — transcription engine"
+          div .st-provider-notes "Which engine turns audio into subtitles. Maude never switches engines behind your back — pin one, or pick and it uses the best you're set up"
+            strong "Auto"
+          div .st-engine-radios [role="radiogroup"] [aria-label="Transcription engine"]
+            label .st-engine-radio
+              input [type="radio"] [value="auto"] [name="transcription-engine"] {value="auto"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Auto"
+                span .st-engine-radio-note "Use the best engine this machine is set up for — the card says which."
+            label .is-selected.st-engine-radio
+              input [type="radio"] [value="whisper"] [name="transcription-engine"] {value="whisper"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Local whisper.cpp"
+                span .st-engine-radio-note "Free · offline · no key · runs on your hardware"
+            label .st-engine-radio
+              input [type="radio"] [value="elevenlabs"] [name="transcription-engine"] {value="elevenlabs"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "ElevenLabs Scribe"
+                span .st-engine-radio-note "Cloud · accuracy · needs an ElevenLabs key"
+            label .st-engine-radio
+              input [type="radio"] [value="groq"] [name="transcription-engine"] {value="groq"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Groq Whisper"
+                span .st-engine-radio-note "Cloud · fast · needs a Groq key"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Local subtitle models (whisper.cpp)"
+          div .st-provider-notes "Local subtitles need two things: the whisper.cpp engine and one model. Models are stored on this machine only and never committed."
+          div .st-setup
+            div .is-done.st-step
+              span .st-step-n "✓"
+              div .st-step-body
+                span .st-step-title "whisper.cpp engine is installed"
+            div .st-step
+              span .st-step-n "2"
+              div .st-step-body
+                span .st-step-title "Download a model (below)"
+          div .st-model-list
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Tiny (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~75 MB"
+                span .st-engine-radio-note "Fastest, lowest accuracy. Good for a quick draft in any language."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Base (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~142 MB"
+                span .st-engine-radio-note "The recommended default — works in any language (incl. Czech). Modest accuracy."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Base (English-only)"
+                  span .is-local.st-pill "English-only"
+                  span .st-model-size "~142 MB"
+                span .st-engine-radio-note "English audio only — do NOT use for other languages (it garbles them)."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Small (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~466 MB"
+                span .st-engine-radio-note "Noticeably more accurate than base, ~3× larger."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Large v3 Turbo (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~1560 MB"
+                span .st-engine-radio-note "Best accuracy, ~1.5 GB. Slower and disk-heavy, but close to cloud quality."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Video"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Scene-aware keyframes — analysis engine"
+          div .st-provider-notes "How Maude picks frames when it analyzes a video (`/design:video-analyze`, `/design:reel`). Scene-aware beats a blind frame rate. This is an "
+            strong "Auto"
+          div .st-engine-radios [role="radiogroup"] [aria-label="Keyframe engine"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [value="auto"] [name="keyframe-engine"] {value="auto"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Auto"
+                span .st-engine-radio-note "Use the best available: Gemma scout → ffmpeg → blind."
+            label .st-engine-radio
+              input [type="radio"] [value="gemma"] [name="keyframe-engine"] {value="gemma"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Gemma scout"
+                span .st-engine-radio-note "Semantic action beats. Needs Ollama (gemma3 vision) or mlx-vlm + a model."
+            label .st-engine-radio
+              input [type="radio"] [value="ffmpeg"] [name="keyframe-engine"] {value="ffmpeg"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "ffmpeg scene-detect"
+                span .st-engine-radio-note "Scene cuts + endpoints. Needs ffmpeg. No model download."
+            label .st-engine-radio
+              input [type="radio"] [value="blind"] [name="keyframe-engine"] {value="blind"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Blind (even-spaced)"
+                span .st-engine-radio-note "Chromium fallback — works with neither ffmpeg nor Gemma."
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Gemma scout model (optional)"
+          div .st-provider-notes "Adds semantic action-beat detection on top of scene cuts. Two short steps in a terminal — Maude picks the result up on its own."
+          div .st-setup
+            div .st-step
+              span .st-step-n "1"
+              div .st-step-body
+                span .st-step-title "Start Ollama"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "ollama serve"
+                  button .rdy-copy [aria-label="Copy the install command"] [type="button"] "Copy"
+            div .st-step
+              span .st-step-n "2"
+              div .st-step-body
+                span .st-step-title "Download the model"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "ollama pull gemma3:4b"
+                  button .rdy-copy [aria-label="Copy the model pull command"] [type="button"] "Copy"
+            details .st-setup-more
+              summary "Other ways to install"
+              div .st-setup-option
+                span .st-setup-option-label "mlx-vlm instead of Ollama — faster, Apple Silicon only"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "python3 -m venv '<work>/home/.maude/mlx-venv' && '<work>/home/.maude/mlx-venv/bin/pip' install -U mlx-vlm"
+                  button .rdy-copy [aria-label="Copy the mlx-vlm install command"] [type="button"] "Copy"
+                span .st-provider-notes "Then download a model below. Models live in your HuggingFace cache."
+          div .st-provider-notes "Active tier on this machine:"
+            strong "ffmpeg scene-detect"
+          div .st-model-list
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 4 E4B (4-bit)"
+                  span .st-model-size "~3.3 GB"
+                span .st-engine-radio-note "The recommended scout — best semantic beats. ~3.3 GB. Needs an Apple-Silicon Mac + mlx-vlm."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "needs mlx-vlm"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 4 E2B (4-bit)"
+                  span .st-model-size "~1.9 GB"
+                span .st-engine-radio-note "Smaller/faster, coarser beats. ~1.9 GB. Good for 16 GB Macs."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "needs mlx-vlm"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 3 4B (Ollama)"
+                  span .st-model-size "~3.3 GB"
+                span .st-engine-radio-note "The recommended Ollama scout. ~3.3 GB. Pulled and managed by Ollama."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "start Ollama first"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 3 12B (Ollama)"
+                  span .st-model-size "~8.1 GB"
+                span .st-engine-radio-note "Sharper beats, needs more RAM. ~8.1 GB."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "start Ollama first"
+## tab 2
+div .is-settings.st-dialog [role="dialog"] [aria-label="Settings"] [aria-modal="true"]
+  div .st-dialog-hd
+    span .st-dialog-title "Settings"
+    button .st-iconbtn [aria-label="Close"] [type="button"]
+      svg [aria-hidden="true"]
+  div .st-settings-tabs
+    div .st-settings-rail [role="tablist"] [aria-label="Settings categories"]
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Appearance"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Canvas & View"
+      button .is-active.st-settings-tab [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Layout"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "AI generation"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Figma"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Subtitles"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Video"
+    div .st-settings-pane
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Appearance"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Theme"
+          div .st-provider-notes "Controls Maude’s own chrome — menubar, sidebar, canvas plane, minimap, zoom HUD. Artboards keep their own design-system theme."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Theme"]
+            label .st-engine-radio
+              input [type="radio"] [value="light"] [name="maude-theme"] {value="light"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Light"
+                span .st-engine-radio-note "Bright shell chrome"
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [value="dark"] [name="maude-theme"] {value="dark"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Dark"
+                span .st-engine-radio-note "Dim shell chrome"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Inspector vocabulary"
+          div .st-provider-notes "How the CSS panel labels controls. You can also flip this from the small toggle in the panel’s own corner — this choice is remembered."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Inspector vocabulary"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [value="advanced"] [name="maude-cp-mode"] {value="advanced"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Advanced"
+                span .st-engine-radio-note "Raw CSS property names — border-radius, flex-direction…"
+            label .st-engine-radio
+              input [type="radio"] [value="designer"] [name="maude-cp-mode"] {value="designer"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Designer"
+                span .st-engine-radio-note "Figma vocabulary — Fill, Stroke, Corner radius, Auto layout…"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Canvas & View"
+        label .is-disabled.st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Minimap"
+            span .st-pref-note "Open a canvas to use this."
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .is-disabled.st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Zoom controls"
+            span .st-pref-note "Open a canvas to use this."
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Annotations"
+            span .st-pref-note "Show annotation pins and overlays on the canvas."
+          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+        label .st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Auto-open Inspector on select"
+            span .st-pref-note "Open the Inspector automatically when you select an element."
+          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+      section [role="tabpanel"]
+        div .st-rp-hd "Layout"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Layers panel"
+          div .st-provider-notes "Show Layers as its own dockable panel, or as a tab inside the Inspector."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Layers mode"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [name="layers-mode"] {value="on"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Separate panel"
+                span .st-engine-radio-note "Layers docks on its own (default: left)."
+            label .st-engine-radio
+              input [type="radio"] [name="layers-mode"] {value="on"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Inside Inspector"
+                span .st-engine-radio-note "Layers is a tab within the Inspector."
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Panel positions"
+          div .st-provider-notes "Dock each panel to the left or right side. Each side shows one panel at a time, with tabs to switch between the panels docked there."
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Files"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Layers"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Inspector"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Comments"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Changes"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Assistant"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Provider keys"
+        p .st-settings-intro "Bring your own API keys to generate images (and, soon, audio + video) inside Maude. Keys are stored on this machine only — in your OS keycha"
+          code "~/.config/maude/keys.json"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Google Gemini (Nano Banana + Veo)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "image · video"
+          div .st-provider-notes "Nano Banana image generation + Veo video (async, native synced audio + image-to-video). Your Google AI Studio key bills your own Google acco"
+          a .st-provider-keylink [href="https://aistudio.google.com/apikey"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="Google Gemini (Nano Banana + Veo) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "ElevenLabs (audio)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "audio · transcription"
+          div .st-provider-notes "Music, sound effects, text-to-speech, and Scribe speech-to-text — one key for the whole stack, billing your own ElevenLabs account. Music ca"
+          a .st-provider-keylink [href="https://elevenlabs.io/app/settings/api-keys"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="ElevenLabs (audio) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Groq (Whisper STT)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "transcription"
+          div .st-provider-notes "Managed, fast cloud speech-to-text (Whisper large-v3) — an optional alternative to local whisper.cpp when you want no local install, billing"
+          a .st-provider-keylink [href="https://console.groq.com/keys"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="Groq (Whisper STT) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Figma"
+        div .st-provider-card [data-testid="figma-connect-card"]
+          div .st-provider-hd
+            span .st-provider-name "Figma"
+          p .st-settings-intro "Import real Figma documents — frames become editable canvases, FigJam boards become the whiteboard, and paint/text/effect styles become desi"
+          p .st-settings-intro "Create a personal access token with the scope. It is stored on this machine only and is never sent anywhere but Figma."
+            code "file_content:read"
+          a .st-provider-keylink [href="https://www.figma.com/developers/api#access-tokens"] "Get a token"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .st-provider-keyinput [data-testid="figma-connect-input"] [aria-label="Figma personal access token"] [type="password"] [placeholder="figd_…"] [value]
+            button .st-btn [data-testid="figma-connect-save"] [type="button"] [disabled] "Save"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Subtitles"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Subtitles — transcription engine"
+          div .st-provider-notes "Which engine turns audio into subtitles. Maude never switches engines behind your back — pin one, or pick and it uses the best you're set up"
+            strong "Auto"
+          div .st-engine-radios [role="radiogroup"] [aria-label="Transcription engine"]
+            label .st-engine-radio
+              input [type="radio"] [value="auto"] [name="transcription-engine"] {value="auto"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Auto"
+                span .st-engine-radio-note "Use the best engine this machine is set up for — the card says which."
+            label .is-selected.st-engine-radio
+              input [type="radio"] [value="whisper"] [name="transcription-engine"] {value="whisper"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Local whisper.cpp"
+                span .st-engine-radio-note "Free · offline · no key · runs on your hardware"
+            label .st-engine-radio
+              input [type="radio"] [value="elevenlabs"] [name="transcription-engine"] {value="elevenlabs"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "ElevenLabs Scribe"
+                span .st-engine-radio-note "Cloud · accuracy · needs an ElevenLabs key"
+            label .st-engine-radio
+              input [type="radio"] [value="groq"] [name="transcription-engine"] {value="groq"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Groq Whisper"
+                span .st-engine-radio-note "Cloud · fast · needs a Groq key"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Local subtitle models (whisper.cpp)"
+          div .st-provider-notes "Local subtitles need two things: the whisper.cpp engine and one model. Models are stored on this machine only and never committed."
+          div .st-setup
+            div .is-done.st-step
+              span .st-step-n "✓"
+              div .st-step-body
+                span .st-step-title "whisper.cpp engine is installed"
+            div .st-step
+              span .st-step-n "2"
+              div .st-step-body
+                span .st-step-title "Download a model (below)"
+          div .st-model-list
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Tiny (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~75 MB"
+                span .st-engine-radio-note "Fastest, lowest accuracy. Good for a quick draft in any language."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Base (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~142 MB"
+                span .st-engine-radio-note "The recommended default — works in any language (incl. Czech). Modest accuracy."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Base (English-only)"
+                  span .is-local.st-pill "English-only"
+                  span .st-model-size "~142 MB"
+                span .st-engine-radio-note "English audio only — do NOT use for other languages (it garbles them)."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Small (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~466 MB"
+                span .st-engine-radio-note "Noticeably more accurate than base, ~3× larger."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Large v3 Turbo (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~1560 MB"
+                span .st-engine-radio-note "Best accuracy, ~1.5 GB. Slower and disk-heavy, but close to cloud quality."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Video"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Scene-aware keyframes — analysis engine"
+          div .st-provider-notes "How Maude picks frames when it analyzes a video (`/design:video-analyze`, `/design:reel`). Scene-aware beats a blind frame rate. This is an "
+            strong "Auto"
+          div .st-engine-radios [role="radiogroup"] [aria-label="Keyframe engine"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [value="auto"] [name="keyframe-engine"] {value="auto"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Auto"
+                span .st-engine-radio-note "Use the best available: Gemma scout → ffmpeg → blind."
+            label .st-engine-radio
+              input [type="radio"] [value="gemma"] [name="keyframe-engine"] {value="gemma"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Gemma scout"
+                span .st-engine-radio-note "Semantic action beats. Needs Ollama (gemma3 vision) or mlx-vlm + a model."
+            label .st-engine-radio
+              input [type="radio"] [value="ffmpeg"] [name="keyframe-engine"] {value="ffmpeg"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "ffmpeg scene-detect"
+                span .st-engine-radio-note "Scene cuts + endpoints. Needs ffmpeg. No model download."
+            label .st-engine-radio
+              input [type="radio"] [value="blind"] [name="keyframe-engine"] {value="blind"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Blind (even-spaced)"
+                span .st-engine-radio-note "Chromium fallback — works with neither ffmpeg nor Gemma."
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Gemma scout model (optional)"
+          div .st-provider-notes "Adds semantic action-beat detection on top of scene cuts. Two short steps in a terminal — Maude picks the result up on its own."
+          div .st-setup
+            div .st-step
+              span .st-step-n "1"
+              div .st-step-body
+                span .st-step-title "Start Ollama"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "ollama serve"
+                  button .rdy-copy [aria-label="Copy the install command"] [type="button"] "Copy"
+            div .st-step
+              span .st-step-n "2"
+              div .st-step-body
+                span .st-step-title "Download the model"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "ollama pull gemma3:4b"
+                  button .rdy-copy [aria-label="Copy the model pull command"] [type="button"] "Copy"
+            details .st-setup-more
+              summary "Other ways to install"
+              div .st-setup-option
+                span .st-setup-option-label "mlx-vlm instead of Ollama — faster, Apple Silicon only"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "python3 -m venv '<work>/home/.maude/mlx-venv' && '<work>/home/.maude/mlx-venv/bin/pip' install -U mlx-vlm"
+                  button .rdy-copy [aria-label="Copy the mlx-vlm install command"] [type="button"] "Copy"
+                span .st-provider-notes "Then download a model below. Models live in your HuggingFace cache."
+          div .st-provider-notes "Active tier on this machine:"
+            strong "ffmpeg scene-detect"
+          div .st-model-list
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 4 E4B (4-bit)"
+                  span .st-model-size "~3.3 GB"
+                span .st-engine-radio-note "The recommended scout — best semantic beats. ~3.3 GB. Needs an Apple-Silicon Mac + mlx-vlm."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "needs mlx-vlm"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 4 E2B (4-bit)"
+                  span .st-model-size "~1.9 GB"
+                span .st-engine-radio-note "Smaller/faster, coarser beats. ~1.9 GB. Good for 16 GB Macs."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "needs mlx-vlm"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 3 4B (Ollama)"
+                  span .st-model-size "~3.3 GB"
+                span .st-engine-radio-note "The recommended Ollama scout. ~3.3 GB. Pulled and managed by Ollama."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "start Ollama first"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 3 12B (Ollama)"
+                  span .st-model-size "~8.1 GB"
+                span .st-engine-radio-note "Sharper beats, needs more RAM. ~8.1 GB."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "start Ollama first"
+## tab 3
+div .is-settings.st-dialog [role="dialog"] [aria-label="Settings"] [aria-modal="true"]
+  div .st-dialog-hd
+    span .st-dialog-title "Settings"
+    button .st-iconbtn [aria-label="Close"] [type="button"]
+      svg [aria-hidden="true"]
+  div .st-settings-tabs
+    div .st-settings-rail [role="tablist"] [aria-label="Settings categories"]
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Appearance"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Canvas & View"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Layout"
+      button .is-active.st-settings-tab [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "AI generation"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Figma"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Subtitles"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Video"
+    div .st-settings-pane
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Appearance"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Theme"
+          div .st-provider-notes "Controls Maude’s own chrome — menubar, sidebar, canvas plane, minimap, zoom HUD. Artboards keep their own design-system theme."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Theme"]
+            label .st-engine-radio
+              input [type="radio"] [value="light"] [name="maude-theme"] {value="light"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Light"
+                span .st-engine-radio-note "Bright shell chrome"
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [value="dark"] [name="maude-theme"] {value="dark"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Dark"
+                span .st-engine-radio-note "Dim shell chrome"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Inspector vocabulary"
+          div .st-provider-notes "How the CSS panel labels controls. You can also flip this from the small toggle in the panel’s own corner — this choice is remembered."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Inspector vocabulary"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [value="advanced"] [name="maude-cp-mode"] {value="advanced"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Advanced"
+                span .st-engine-radio-note "Raw CSS property names — border-radius, flex-direction…"
+            label .st-engine-radio
+              input [type="radio"] [value="designer"] [name="maude-cp-mode"] {value="designer"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Designer"
+                span .st-engine-radio-note "Figma vocabulary — Fill, Stroke, Corner radius, Auto layout…"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Canvas & View"
+        label .is-disabled.st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Minimap"
+            span .st-pref-note "Open a canvas to use this."
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .is-disabled.st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Zoom controls"
+            span .st-pref-note "Open a canvas to use this."
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Annotations"
+            span .st-pref-note "Show annotation pins and overlays on the canvas."
+          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+        label .st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Auto-open Inspector on select"
+            span .st-pref-note "Open the Inspector automatically when you select an element."
+          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Layout"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Layers panel"
+          div .st-provider-notes "Show Layers as its own dockable panel, or as a tab inside the Inspector."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Layers mode"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [name="layers-mode"] {value="on"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Separate panel"
+                span .st-engine-radio-note "Layers docks on its own (default: left)."
+            label .st-engine-radio
+              input [type="radio"] [name="layers-mode"] {value="on"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Inside Inspector"
+                span .st-engine-radio-note "Layers is a tab within the Inspector."
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Panel positions"
+          div .st-provider-notes "Dock each panel to the left or right side. Each side shows one panel at a time, with tabs to switch between the panels docked there."
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Files"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Layers"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Inspector"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Comments"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Changes"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Assistant"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+      section [role="tabpanel"]
+        div .st-rp-hd "Provider keys"
+        p .st-settings-intro "Bring your own API keys to generate images (and, soon, audio + video) inside Maude. Keys are stored on this machine only — in your OS keycha"
+          code "~/.config/maude/keys.json"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Google Gemini (Nano Banana + Veo)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "image · video"
+          div .st-provider-notes "Nano Banana image generation + Veo video (async, native synced audio + image-to-video). Your Google AI Studio key bills your own Google acco"
+          a .st-provider-keylink [href="https://aistudio.google.com/apikey"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="Google Gemini (Nano Banana + Veo) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "ElevenLabs (audio)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "audio · transcription"
+          div .st-provider-notes "Music, sound effects, text-to-speech, and Scribe speech-to-text — one key for the whole stack, billing your own ElevenLabs account. Music ca"
+          a .st-provider-keylink [href="https://elevenlabs.io/app/settings/api-keys"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="ElevenLabs (audio) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Groq (Whisper STT)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "transcription"
+          div .st-provider-notes "Managed, fast cloud speech-to-text (Whisper large-v3) — an optional alternative to local whisper.cpp when you want no local install, billing"
+          a .st-provider-keylink [href="https://console.groq.com/keys"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="Groq (Whisper STT) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Figma"
+        div .st-provider-card [data-testid="figma-connect-card"]
+          div .st-provider-hd
+            span .st-provider-name "Figma"
+          p .st-settings-intro "Import real Figma documents — frames become editable canvases, FigJam boards become the whiteboard, and paint/text/effect styles become desi"
+          p .st-settings-intro "Create a personal access token with the scope. It is stored on this machine only and is never sent anywhere but Figma."
+            code "file_content:read"
+          a .st-provider-keylink [href="https://www.figma.com/developers/api#access-tokens"] "Get a token"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .st-provider-keyinput [data-testid="figma-connect-input"] [aria-label="Figma personal access token"] [type="password"] [placeholder="figd_…"] [value]
+            button .st-btn [data-testid="figma-connect-save"] [type="button"] [disabled] "Save"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Subtitles"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Subtitles — transcription engine"
+          div .st-provider-notes "Which engine turns audio into subtitles. Maude never switches engines behind your back — pin one, or pick and it uses the best you're set up"
+            strong "Auto"
+          div .st-engine-radios [role="radiogroup"] [aria-label="Transcription engine"]
+            label .st-engine-radio
+              input [type="radio"] [value="auto"] [name="transcription-engine"] {value="auto"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Auto"
+                span .st-engine-radio-note "Use the best engine this machine is set up for — the card says which."
+            label .is-selected.st-engine-radio
+              input [type="radio"] [value="whisper"] [name="transcription-engine"] {value="whisper"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Local whisper.cpp"
+                span .st-engine-radio-note "Free · offline · no key · runs on your hardware"
+            label .st-engine-radio
+              input [type="radio"] [value="elevenlabs"] [name="transcription-engine"] {value="elevenlabs"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "ElevenLabs Scribe"
+                span .st-engine-radio-note "Cloud · accuracy · needs an ElevenLabs key"
+            label .st-engine-radio
+              input [type="radio"] [value="groq"] [name="transcription-engine"] {value="groq"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Groq Whisper"
+                span .st-engine-radio-note "Cloud · fast · needs a Groq key"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Local subtitle models (whisper.cpp)"
+          div .st-provider-notes "Local subtitles need two things: the whisper.cpp engine and one model. Models are stored on this machine only and never committed."
+          div .st-setup
+            div .is-done.st-step
+              span .st-step-n "✓"
+              div .st-step-body
+                span .st-step-title "whisper.cpp engine is installed"
+            div .st-step
+              span .st-step-n "2"
+              div .st-step-body
+                span .st-step-title "Download a model (below)"
+          div .st-model-list
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Tiny (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~75 MB"
+                span .st-engine-radio-note "Fastest, lowest accuracy. Good for a quick draft in any language."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Base (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~142 MB"
+                span .st-engine-radio-note "The recommended default — works in any language (incl. Czech). Modest accuracy."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Base (English-only)"
+                  span .is-local.st-pill "English-only"
+                  span .st-model-size "~142 MB"
+                span .st-engine-radio-note "English audio only — do NOT use for other languages (it garbles them)."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Small (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~466 MB"
+                span .st-engine-radio-note "Noticeably more accurate than base, ~3× larger."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Large v3 Turbo (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~1560 MB"
+                span .st-engine-radio-note "Best accuracy, ~1.5 GB. Slower and disk-heavy, but close to cloud quality."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Video"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Scene-aware keyframes — analysis engine"
+          div .st-provider-notes "How Maude picks frames when it analyzes a video (`/design:video-analyze`, `/design:reel`). Scene-aware beats a blind frame rate. This is an "
+            strong "Auto"
+          div .st-engine-radios [role="radiogroup"] [aria-label="Keyframe engine"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [value="auto"] [name="keyframe-engine"] {value="auto"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Auto"
+                span .st-engine-radio-note "Use the best available: Gemma scout → ffmpeg → blind."
+            label .st-engine-radio
+              input [type="radio"] [value="gemma"] [name="keyframe-engine"] {value="gemma"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Gemma scout"
+                span .st-engine-radio-note "Semantic action beats. Needs Ollama (gemma3 vision) or mlx-vlm + a model."
+            label .st-engine-radio
+              input [type="radio"] [value="ffmpeg"] [name="keyframe-engine"] {value="ffmpeg"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "ffmpeg scene-detect"
+                span .st-engine-radio-note "Scene cuts + endpoints. Needs ffmpeg. No model download."
+            label .st-engine-radio
+              input [type="radio"] [value="blind"] [name="keyframe-engine"] {value="blind"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Blind (even-spaced)"
+                span .st-engine-radio-note "Chromium fallback — works with neither ffmpeg nor Gemma."
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Gemma scout model (optional)"
+          div .st-provider-notes "Adds semantic action-beat detection on top of scene cuts. Two short steps in a terminal — Maude picks the result up on its own."
+          div .st-setup
+            div .st-step
+              span .st-step-n "1"
+              div .st-step-body
+                span .st-step-title "Start Ollama"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "ollama serve"
+                  button .rdy-copy [aria-label="Copy the install command"] [type="button"] "Copy"
+            div .st-step
+              span .st-step-n "2"
+              div .st-step-body
+                span .st-step-title "Download the model"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "ollama pull gemma3:4b"
+                  button .rdy-copy [aria-label="Copy the model pull command"] [type="button"] "Copy"
+            details .st-setup-more
+              summary "Other ways to install"
+              div .st-setup-option
+                span .st-setup-option-label "mlx-vlm instead of Ollama — faster, Apple Silicon only"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "python3 -m venv '<work>/home/.maude/mlx-venv' && '<work>/home/.maude/mlx-venv/bin/pip' install -U mlx-vlm"
+                  button .rdy-copy [aria-label="Copy the mlx-vlm install command"] [type="button"] "Copy"
+                span .st-provider-notes "Then download a model below. Models live in your HuggingFace cache."
+          div .st-provider-notes "Active tier on this machine:"
+            strong "ffmpeg scene-detect"
+          div .st-model-list
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 4 E4B (4-bit)"
+                  span .st-model-size "~3.3 GB"
+                span .st-engine-radio-note "The recommended scout — best semantic beats. ~3.3 GB. Needs an Apple-Silicon Mac + mlx-vlm."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "needs mlx-vlm"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 4 E2B (4-bit)"
+                  span .st-model-size "~1.9 GB"
+                span .st-engine-radio-note "Smaller/faster, coarser beats. ~1.9 GB. Good for 16 GB Macs."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "needs mlx-vlm"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 3 4B (Ollama)"
+                  span .st-model-size "~3.3 GB"
+                span .st-engine-radio-note "The recommended Ollama scout. ~3.3 GB. Pulled and managed by Ollama."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "start Ollama first"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 3 12B (Ollama)"
+                  span .st-model-size "~8.1 GB"
+                span .st-engine-radio-note "Sharper beats, needs more RAM. ~8.1 GB."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "start Ollama first"
+## tab 4
+div .is-settings.st-dialog [role="dialog"] [aria-label="Settings"] [aria-modal="true"]
+  div .st-dialog-hd
+    span .st-dialog-title "Settings"
+    button .st-iconbtn [aria-label="Close"] [type="button"]
+      svg [aria-hidden="true"]
+  div .st-settings-tabs
+    div .st-settings-rail [role="tablist"] [aria-label="Settings categories"]
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Appearance"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Canvas & View"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Layout"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "AI generation"
+      button .is-active.st-settings-tab [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Figma"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Subtitles"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Video"
+    div .st-settings-pane
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Appearance"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Theme"
+          div .st-provider-notes "Controls Maude’s own chrome — menubar, sidebar, canvas plane, minimap, zoom HUD. Artboards keep their own design-system theme."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Theme"]
+            label .st-engine-radio
+              input [type="radio"] [value="light"] [name="maude-theme"] {value="light"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Light"
+                span .st-engine-radio-note "Bright shell chrome"
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [value="dark"] [name="maude-theme"] {value="dark"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Dark"
+                span .st-engine-radio-note "Dim shell chrome"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Inspector vocabulary"
+          div .st-provider-notes "How the CSS panel labels controls. You can also flip this from the small toggle in the panel’s own corner — this choice is remembered."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Inspector vocabulary"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [value="advanced"] [name="maude-cp-mode"] {value="advanced"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Advanced"
+                span .st-engine-radio-note "Raw CSS property names — border-radius, flex-direction…"
+            label .st-engine-radio
+              input [type="radio"] [value="designer"] [name="maude-cp-mode"] {value="designer"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Designer"
+                span .st-engine-radio-note "Figma vocabulary — Fill, Stroke, Corner radius, Auto layout…"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Canvas & View"
+        label .is-disabled.st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Minimap"
+            span .st-pref-note "Open a canvas to use this."
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .is-disabled.st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Zoom controls"
+            span .st-pref-note "Open a canvas to use this."
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Annotations"
+            span .st-pref-note "Show annotation pins and overlays on the canvas."
+          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+        label .st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Auto-open Inspector on select"
+            span .st-pref-note "Open the Inspector automatically when you select an element."
+          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Layout"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Layers panel"
+          div .st-provider-notes "Show Layers as its own dockable panel, or as a tab inside the Inspector."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Layers mode"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [name="layers-mode"] {value="on"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Separate panel"
+                span .st-engine-radio-note "Layers docks on its own (default: left)."
+            label .st-engine-radio
+              input [type="radio"] [name="layers-mode"] {value="on"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Inside Inspector"
+                span .st-engine-radio-note "Layers is a tab within the Inspector."
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Panel positions"
+          div .st-provider-notes "Dock each panel to the left or right side. Each side shows one panel at a time, with tabs to switch between the panels docked there."
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Files"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Layers"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Inspector"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Comments"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Changes"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Assistant"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Provider keys"
+        p .st-settings-intro "Bring your own API keys to generate images (and, soon, audio + video) inside Maude. Keys are stored on this machine only — in your OS keycha"
+          code "~/.config/maude/keys.json"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Google Gemini (Nano Banana + Veo)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "image · video"
+          div .st-provider-notes "Nano Banana image generation + Veo video (async, native synced audio + image-to-video). Your Google AI Studio key bills your own Google acco"
+          a .st-provider-keylink [href="https://aistudio.google.com/apikey"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="Google Gemini (Nano Banana + Veo) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "ElevenLabs (audio)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "audio · transcription"
+          div .st-provider-notes "Music, sound effects, text-to-speech, and Scribe speech-to-text — one key for the whole stack, billing your own ElevenLabs account. Music ca"
+          a .st-provider-keylink [href="https://elevenlabs.io/app/settings/api-keys"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="ElevenLabs (audio) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Groq (Whisper STT)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "transcription"
+          div .st-provider-notes "Managed, fast cloud speech-to-text (Whisper large-v3) — an optional alternative to local whisper.cpp when you want no local install, billing"
+          a .st-provider-keylink [href="https://console.groq.com/keys"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="Groq (Whisper STT) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+      section [role="tabpanel"]
+        div .st-rp-hd "Figma"
+        div .st-provider-card [data-testid="figma-connect-card"]
+          div .st-provider-hd
+            span .st-provider-name "Figma"
+          p .st-settings-intro "Import real Figma documents — frames become editable canvases, FigJam boards become the whiteboard, and paint/text/effect styles become desi"
+          p .st-settings-intro "Create a personal access token with the scope. It is stored on this machine only and is never sent anywhere but Figma."
+            code "file_content:read"
+          a .st-provider-keylink [href="https://www.figma.com/developers/api#access-tokens"] "Get a token"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .st-provider-keyinput [data-testid="figma-connect-input"] [aria-label="Figma personal access token"] [type="password"] [placeholder="figd_…"] [value]
+            button .st-btn [data-testid="figma-connect-save"] [type="button"] [disabled] "Save"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Subtitles"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Subtitles — transcription engine"
+          div .st-provider-notes "Which engine turns audio into subtitles. Maude never switches engines behind your back — pin one, or pick and it uses the best you're set up"
+            strong "Auto"
+          div .st-engine-radios [role="radiogroup"] [aria-label="Transcription engine"]
+            label .st-engine-radio
+              input [type="radio"] [value="auto"] [name="transcription-engine"] {value="auto"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Auto"
+                span .st-engine-radio-note "Use the best engine this machine is set up for — the card says which."
+            label .is-selected.st-engine-radio
+              input [type="radio"] [value="whisper"] [name="transcription-engine"] {value="whisper"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Local whisper.cpp"
+                span .st-engine-radio-note "Free · offline · no key · runs on your hardware"
+            label .st-engine-radio
+              input [type="radio"] [value="elevenlabs"] [name="transcription-engine"] {value="elevenlabs"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "ElevenLabs Scribe"
+                span .st-engine-radio-note "Cloud · accuracy · needs an ElevenLabs key"
+            label .st-engine-radio
+              input [type="radio"] [value="groq"] [name="transcription-engine"] {value="groq"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Groq Whisper"
+                span .st-engine-radio-note "Cloud · fast · needs a Groq key"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Local subtitle models (whisper.cpp)"
+          div .st-provider-notes "Local subtitles need two things: the whisper.cpp engine and one model. Models are stored on this machine only and never committed."
+          div .st-setup
+            div .is-done.st-step
+              span .st-step-n "✓"
+              div .st-step-body
+                span .st-step-title "whisper.cpp engine is installed"
+            div .st-step
+              span .st-step-n "2"
+              div .st-step-body
+                span .st-step-title "Download a model (below)"
+          div .st-model-list
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Tiny (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~75 MB"
+                span .st-engine-radio-note "Fastest, lowest accuracy. Good for a quick draft in any language."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Base (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~142 MB"
+                span .st-engine-radio-note "The recommended default — works in any language (incl. Czech). Modest accuracy."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Base (English-only)"
+                  span .is-local.st-pill "English-only"
+                  span .st-model-size "~142 MB"
+                span .st-engine-radio-note "English audio only — do NOT use for other languages (it garbles them)."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Small (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~466 MB"
+                span .st-engine-radio-note "Noticeably more accurate than base, ~3× larger."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Large v3 Turbo (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~1560 MB"
+                span .st-engine-radio-note "Best accuracy, ~1.5 GB. Slower and disk-heavy, but close to cloud quality."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Video"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Scene-aware keyframes — analysis engine"
+          div .st-provider-notes "How Maude picks frames when it analyzes a video (`/design:video-analyze`, `/design:reel`). Scene-aware beats a blind frame rate. This is an "
+            strong "Auto"
+          div .st-engine-radios [role="radiogroup"] [aria-label="Keyframe engine"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [value="auto"] [name="keyframe-engine"] {value="auto"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Auto"
+                span .st-engine-radio-note "Use the best available: Gemma scout → ffmpeg → blind."
+            label .st-engine-radio
+              input [type="radio"] [value="gemma"] [name="keyframe-engine"] {value="gemma"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Gemma scout"
+                span .st-engine-radio-note "Semantic action beats. Needs Ollama (gemma3 vision) or mlx-vlm + a model."
+            label .st-engine-radio
+              input [type="radio"] [value="ffmpeg"] [name="keyframe-engine"] {value="ffmpeg"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "ffmpeg scene-detect"
+                span .st-engine-radio-note "Scene cuts + endpoints. Needs ffmpeg. No model download."
+            label .st-engine-radio
+              input [type="radio"] [value="blind"] [name="keyframe-engine"] {value="blind"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Blind (even-spaced)"
+                span .st-engine-radio-note "Chromium fallback — works with neither ffmpeg nor Gemma."
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Gemma scout model (optional)"
+          div .st-provider-notes "Adds semantic action-beat detection on top of scene cuts. Two short steps in a terminal — Maude picks the result up on its own."
+          div .st-setup
+            div .st-step
+              span .st-step-n "1"
+              div .st-step-body
+                span .st-step-title "Start Ollama"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "ollama serve"
+                  button .rdy-copy [aria-label="Copy the install command"] [type="button"] "Copy"
+            div .st-step
+              span .st-step-n "2"
+              div .st-step-body
+                span .st-step-title "Download the model"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "ollama pull gemma3:4b"
+                  button .rdy-copy [aria-label="Copy the model pull command"] [type="button"] "Copy"
+            details .st-setup-more
+              summary "Other ways to install"
+              div .st-setup-option
+                span .st-setup-option-label "mlx-vlm instead of Ollama — faster, Apple Silicon only"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "python3 -m venv '<work>/home/.maude/mlx-venv' && '<work>/home/.maude/mlx-venv/bin/pip' install -U mlx-vlm"
+                  button .rdy-copy [aria-label="Copy the mlx-vlm install command"] [type="button"] "Copy"
+                span .st-provider-notes "Then download a model below. Models live in your HuggingFace cache."
+          div .st-provider-notes "Active tier on this machine:"
+            strong "ffmpeg scene-detect"
+          div .st-model-list
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 4 E4B (4-bit)"
+                  span .st-model-size "~3.3 GB"
+                span .st-engine-radio-note "The recommended scout — best semantic beats. ~3.3 GB. Needs an Apple-Silicon Mac + mlx-vlm."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "needs mlx-vlm"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 4 E2B (4-bit)"
+                  span .st-model-size "~1.9 GB"
+                span .st-engine-radio-note "Smaller/faster, coarser beats. ~1.9 GB. Good for 16 GB Macs."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "needs mlx-vlm"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 3 4B (Ollama)"
+                  span .st-model-size "~3.3 GB"
+                span .st-engine-radio-note "The recommended Ollama scout. ~3.3 GB. Pulled and managed by Ollama."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "start Ollama first"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 3 12B (Ollama)"
+                  span .st-model-size "~8.1 GB"
+                span .st-engine-radio-note "Sharper beats, needs more RAM. ~8.1 GB."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "start Ollama first"
+## tab 5
+div .is-settings.st-dialog [role="dialog"] [aria-label="Settings"] [aria-modal="true"]
+  div .st-dialog-hd
+    span .st-dialog-title "Settings"
+    button .st-iconbtn [aria-label="Close"] [type="button"]
+      svg [aria-hidden="true"]
+  div .st-settings-tabs
+    div .st-settings-rail [role="tablist"] [aria-label="Settings categories"]
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Appearance"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Canvas & View"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Layout"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "AI generation"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Figma"
+      button .is-active.st-settings-tab [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Subtitles"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Video"
+    div .st-settings-pane
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Appearance"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Theme"
+          div .st-provider-notes "Controls Maude’s own chrome — menubar, sidebar, canvas plane, minimap, zoom HUD. Artboards keep their own design-system theme."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Theme"]
+            label .st-engine-radio
+              input [type="radio"] [value="light"] [name="maude-theme"] {value="light"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Light"
+                span .st-engine-radio-note "Bright shell chrome"
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [value="dark"] [name="maude-theme"] {value="dark"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Dark"
+                span .st-engine-radio-note "Dim shell chrome"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Inspector vocabulary"
+          div .st-provider-notes "How the CSS panel labels controls. You can also flip this from the small toggle in the panel’s own corner — this choice is remembered."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Inspector vocabulary"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [value="advanced"] [name="maude-cp-mode"] {value="advanced"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Advanced"
+                span .st-engine-radio-note "Raw CSS property names — border-radius, flex-direction…"
+            label .st-engine-radio
+              input [type="radio"] [value="designer"] [name="maude-cp-mode"] {value="designer"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Designer"
+                span .st-engine-radio-note "Figma vocabulary — Fill, Stroke, Corner radius, Auto layout…"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Canvas & View"
+        label .is-disabled.st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Minimap"
+            span .st-pref-note "Open a canvas to use this."
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .is-disabled.st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Zoom controls"
+            span .st-pref-note "Open a canvas to use this."
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Annotations"
+            span .st-pref-note "Show annotation pins and overlays on the canvas."
+          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+        label .st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Auto-open Inspector on select"
+            span .st-pref-note "Open the Inspector automatically when you select an element."
+          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Layout"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Layers panel"
+          div .st-provider-notes "Show Layers as its own dockable panel, or as a tab inside the Inspector."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Layers mode"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [name="layers-mode"] {value="on"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Separate panel"
+                span .st-engine-radio-note "Layers docks on its own (default: left)."
+            label .st-engine-radio
+              input [type="radio"] [name="layers-mode"] {value="on"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Inside Inspector"
+                span .st-engine-radio-note "Layers is a tab within the Inspector."
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Panel positions"
+          div .st-provider-notes "Dock each panel to the left or right side. Each side shows one panel at a time, with tabs to switch between the panels docked there."
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Files"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Layers"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Inspector"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Comments"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Changes"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Assistant"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Provider keys"
+        p .st-settings-intro "Bring your own API keys to generate images (and, soon, audio + video) inside Maude. Keys are stored on this machine only — in your OS keycha"
+          code "~/.config/maude/keys.json"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Google Gemini (Nano Banana + Veo)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "image · video"
+          div .st-provider-notes "Nano Banana image generation + Veo video (async, native synced audio + image-to-video). Your Google AI Studio key bills your own Google acco"
+          a .st-provider-keylink [href="https://aistudio.google.com/apikey"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="Google Gemini (Nano Banana + Veo) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "ElevenLabs (audio)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "audio · transcription"
+          div .st-provider-notes "Music, sound effects, text-to-speech, and Scribe speech-to-text — one key for the whole stack, billing your own ElevenLabs account. Music ca"
+          a .st-provider-keylink [href="https://elevenlabs.io/app/settings/api-keys"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="ElevenLabs (audio) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Groq (Whisper STT)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "transcription"
+          div .st-provider-notes "Managed, fast cloud speech-to-text (Whisper large-v3) — an optional alternative to local whisper.cpp when you want no local install, billing"
+          a .st-provider-keylink [href="https://console.groq.com/keys"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="Groq (Whisper STT) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Figma"
+        div .st-provider-card [data-testid="figma-connect-card"]
+          div .st-provider-hd
+            span .st-provider-name "Figma"
+          p .st-settings-intro "Import real Figma documents — frames become editable canvases, FigJam boards become the whiteboard, and paint/text/effect styles become desi"
+          p .st-settings-intro "Create a personal access token with the scope. It is stored on this machine only and is never sent anywhere but Figma."
+            code "file_content:read"
+          a .st-provider-keylink [href="https://www.figma.com/developers/api#access-tokens"] "Get a token"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .st-provider-keyinput [data-testid="figma-connect-input"] [aria-label="Figma personal access token"] [type="password"] [placeholder="figd_…"] [value]
+            button .st-btn [data-testid="figma-connect-save"] [type="button"] [disabled] "Save"
+      section [role="tabpanel"]
+        div .st-rp-hd "Subtitles"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Subtitles — transcription engine"
+          div .st-provider-notes "Which engine turns audio into subtitles. Maude never switches engines behind your back — pin one, or pick and it uses the best you're set up"
+            strong "Auto"
+          div .st-engine-radios [role="radiogroup"] [aria-label="Transcription engine"]
+            label .st-engine-radio
+              input [type="radio"] [value="auto"] [name="transcription-engine"] {value="auto"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Auto"
+                span .st-engine-radio-note "Use the best engine this machine is set up for — the card says which."
+            label .is-selected.st-engine-radio
+              input [type="radio"] [value="whisper"] [name="transcription-engine"] {value="whisper"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Local whisper.cpp"
+                span .st-engine-radio-note "Free · offline · no key · runs on your hardware"
+            label .st-engine-radio
+              input [type="radio"] [value="elevenlabs"] [name="transcription-engine"] {value="elevenlabs"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "ElevenLabs Scribe"
+                span .st-engine-radio-note "Cloud · accuracy · needs an ElevenLabs key"
+            label .st-engine-radio
+              input [type="radio"] [value="groq"] [name="transcription-engine"] {value="groq"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Groq Whisper"
+                span .st-engine-radio-note "Cloud · fast · needs a Groq key"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Local subtitle models (whisper.cpp)"
+          div .st-provider-notes "Local subtitles need two things: the whisper.cpp engine and one model. Models are stored on this machine only and never committed."
+          div .st-setup
+            div .is-done.st-step
+              span .st-step-n "✓"
+              div .st-step-body
+                span .st-step-title "whisper.cpp engine is installed"
+            div .st-step
+              span .st-step-n "2"
+              div .st-step-body
+                span .st-step-title "Download a model (below)"
+          div .st-model-list
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Tiny (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~75 MB"
+                span .st-engine-radio-note "Fastest, lowest accuracy. Good for a quick draft in any language."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Base (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~142 MB"
+                span .st-engine-radio-note "The recommended default — works in any language (incl. Czech). Modest accuracy."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Base (English-only)"
+                  span .is-local.st-pill "English-only"
+                  span .st-model-size "~142 MB"
+                span .st-engine-radio-note "English audio only — do NOT use for other languages (it garbles them)."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Small (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~466 MB"
+                span .st-engine-radio-note "Noticeably more accurate than base, ~3× larger."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Large v3 Turbo (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~1560 MB"
+                span .st-engine-radio-note "Best accuracy, ~1.5 GB. Slower and disk-heavy, but close to cloud quality."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Video"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Scene-aware keyframes — analysis engine"
+          div .st-provider-notes "How Maude picks frames when it analyzes a video (`/design:video-analyze`, `/design:reel`). Scene-aware beats a blind frame rate. This is an "
+            strong "Auto"
+          div .st-engine-radios [role="radiogroup"] [aria-label="Keyframe engine"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [value="auto"] [name="keyframe-engine"] {value="auto"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Auto"
+                span .st-engine-radio-note "Use the best available: Gemma scout → ffmpeg → blind."
+            label .st-engine-radio
+              input [type="radio"] [value="gemma"] [name="keyframe-engine"] {value="gemma"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Gemma scout"
+                span .st-engine-radio-note "Semantic action beats. Needs Ollama (gemma3 vision) or mlx-vlm + a model."
+            label .st-engine-radio
+              input [type="radio"] [value="ffmpeg"] [name="keyframe-engine"] {value="ffmpeg"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "ffmpeg scene-detect"
+                span .st-engine-radio-note "Scene cuts + endpoints. Needs ffmpeg. No model download."
+            label .st-engine-radio
+              input [type="radio"] [value="blind"] [name="keyframe-engine"] {value="blind"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Blind (even-spaced)"
+                span .st-engine-radio-note "Chromium fallback — works with neither ffmpeg nor Gemma."
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Gemma scout model (optional)"
+          div .st-provider-notes "Adds semantic action-beat detection on top of scene cuts. Two short steps in a terminal — Maude picks the result up on its own."
+          div .st-setup
+            div .st-step
+              span .st-step-n "1"
+              div .st-step-body
+                span .st-step-title "Start Ollama"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "ollama serve"
+                  button .rdy-copy [aria-label="Copy the install command"] [type="button"] "Copy"
+            div .st-step
+              span .st-step-n "2"
+              div .st-step-body
+                span .st-step-title "Download the model"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "ollama pull gemma3:4b"
+                  button .rdy-copy [aria-label="Copy the model pull command"] [type="button"] "Copy"
+            details .st-setup-more
+              summary "Other ways to install"
+              div .st-setup-option
+                span .st-setup-option-label "mlx-vlm instead of Ollama — faster, Apple Silicon only"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "python3 -m venv '<work>/home/.maude/mlx-venv' && '<work>/home/.maude/mlx-venv/bin/pip' install -U mlx-vlm"
+                  button .rdy-copy [aria-label="Copy the mlx-vlm install command"] [type="button"] "Copy"
+                span .st-provider-notes "Then download a model below. Models live in your HuggingFace cache."
+          div .st-provider-notes "Active tier on this machine:"
+            strong "ffmpeg scene-detect"
+          div .st-model-list
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 4 E4B (4-bit)"
+                  span .st-model-size "~3.3 GB"
+                span .st-engine-radio-note "The recommended scout — best semantic beats. ~3.3 GB. Needs an Apple-Silicon Mac + mlx-vlm."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "needs mlx-vlm"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 4 E2B (4-bit)"
+                  span .st-model-size "~1.9 GB"
+                span .st-engine-radio-note "Smaller/faster, coarser beats. ~1.9 GB. Good for 16 GB Macs."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "needs mlx-vlm"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 3 4B (Ollama)"
+                  span .st-model-size "~3.3 GB"
+                span .st-engine-radio-note "The recommended Ollama scout. ~3.3 GB. Pulled and managed by Ollama."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "start Ollama first"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 3 12B (Ollama)"
+                  span .st-model-size "~8.1 GB"
+                span .st-engine-radio-note "Sharper beats, needs more RAM. ~8.1 GB."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "start Ollama first"
+## tab 6
+div .is-settings.st-dialog [role="dialog"] [aria-label="Settings"] [aria-modal="true"]
+  div .st-dialog-hd
+    span .st-dialog-title "Settings"
+    button .st-iconbtn [aria-label="Close"] [type="button"]
+      svg [aria-hidden="true"]
+  div .st-settings-tabs
+    div .st-settings-rail [role="tablist"] [aria-label="Settings categories"]
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Appearance"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Canvas & View"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Layout"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "AI generation"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Figma"
+      button .st-settings-tab [role="tab"] [aria-selected="false"] [type="button"] [tabindex="-1"] "Subtitles"
+      button .is-active.st-settings-tab [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Video"
+    div .st-settings-pane
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Appearance"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Theme"
+          div .st-provider-notes "Controls Maude’s own chrome — menubar, sidebar, canvas plane, minimap, zoom HUD. Artboards keep their own design-system theme."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Theme"]
+            label .st-engine-radio
+              input [type="radio"] [value="light"] [name="maude-theme"] {value="light"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Light"
+                span .st-engine-radio-note "Bright shell chrome"
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [value="dark"] [name="maude-theme"] {value="dark"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Dark"
+                span .st-engine-radio-note "Dim shell chrome"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Inspector vocabulary"
+          div .st-provider-notes "How the CSS panel labels controls. You can also flip this from the small toggle in the panel’s own corner — this choice is remembered."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Inspector vocabulary"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [value="advanced"] [name="maude-cp-mode"] {value="advanced"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Advanced"
+                span .st-engine-radio-note "Raw CSS property names — border-radius, flex-direction…"
+            label .st-engine-radio
+              input [type="radio"] [value="designer"] [name="maude-cp-mode"] {value="designer"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Designer"
+                span .st-engine-radio-note "Figma vocabulary — Fill, Stroke, Corner radius, Auto layout…"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Canvas & View"
+        label .is-disabled.st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Minimap"
+            span .st-pref-note "Open a canvas to use this."
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .is-disabled.st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Zoom controls"
+            span .st-pref-note "Open a canvas to use this."
+          input .st-switch [role="switch"] [aria-checked="false"] [type="checkbox"] [disabled] {value="on"} {off}
+        label .st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Annotations"
+            span .st-pref-note "Show annotation pins and overlays on the canvas."
+          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+        label .st-pref-row
+          span .st-pref-body
+            span .st-pref-label "Auto-open Inspector on select"
+            span .st-pref-note "Open the Inspector automatically when you select an element."
+          input .st-switch [role="switch"] [aria-checked="true"] [type="checkbox"] [checked] {value="on"} {on}
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Layout"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Layers panel"
+          div .st-provider-notes "Show Layers as its own dockable panel, or as a tab inside the Inspector."
+          div .st-engine-radios [role="radiogroup"] [aria-label="Layers mode"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [checked] [name="layers-mode"] {value="on"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Separate panel"
+                span .st-engine-radio-note "Layers docks on its own (default: left)."
+            label .st-engine-radio
+              input [type="radio"] [name="layers-mode"] {value="on"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Inside Inspector"
+                span .st-engine-radio-note "Layers is a tab within the Inspector."
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Panel positions"
+          div .st-provider-notes "Dock each panel to the left or right side. Each side shows one panel at a time, with tabs to switch between the panels docked there."
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Files"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Layers"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Inspector"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Comments"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Changes"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+          div .st-pref-row
+            span .st-pref-body
+              span .st-pref-label "Assistant"
+            span .st-sidetoggle [role="radiogroup"] [aria-label="Panel side"]
+              button .st-sidebtn [role="radio"] [aria-checked="false"] [type="button"] "Left"
+              button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Provider keys"
+        p .st-settings-intro "Bring your own API keys to generate images (and, soon, audio + video) inside Maude. Keys are stored on this machine only — in your OS keycha"
+          code "~/.config/maude/keys.json"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Google Gemini (Nano Banana + Veo)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "image · video"
+          div .st-provider-notes "Nano Banana image generation + Veo video (async, native synced audio + image-to-video). Your Google AI Studio key bills your own Google acco"
+          a .st-provider-keylink [href="https://aistudio.google.com/apikey"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="Google Gemini (Nano Banana + Veo) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "ElevenLabs (audio)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "audio · transcription"
+          div .st-provider-notes "Music, sound effects, text-to-speech, and Scribe speech-to-text — one key for the whole stack, billing your own ElevenLabs account. Music ca"
+          a .st-provider-keylink [href="https://elevenlabs.io/app/settings/api-keys"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="ElevenLabs (audio) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Groq (Whisper STT)"
+            span .st-pill "Cloud"
+              svg [aria-hidden="true"]
+          div .st-provider-modalities "transcription"
+          div .st-provider-notes "Managed, fast cloud speech-to-text (Whisper large-v3) — an optional alternative to local whisper.cpp when you want no local install, billing"
+          a .st-provider-keylink [href="https://console.groq.com/keys"] "Get a key"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .input.st-provider-keyinput [aria-label="Groq (Whisper STT) API key"] [type="password"] [placeholder="paste API key"] [value]
+            button .st-btn [type="button"] [disabled] "Save"
+              svg [aria-hidden="true"]
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Figma"
+        div .st-provider-card [data-testid="figma-connect-card"]
+          div .st-provider-hd
+            span .st-provider-name "Figma"
+          p .st-settings-intro "Import real Figma documents — frames become editable canvases, FigJam boards become the whiteboard, and paint/text/effect styles become desi"
+          p .st-settings-intro "Create a personal access token with the scope. It is stored on this machine only and is never sent anywhere but Figma."
+            code "file_content:read"
+          a .st-provider-keylink [href="https://www.figma.com/developers/api#access-tokens"] "Get a token"
+            svg [aria-hidden="true"]
+          div .st-provider-keyrow
+            input .st-provider-keyinput [data-testid="figma-connect-input"] [aria-label="Figma personal access token"] [type="password"] [placeholder="figd_…"] [value]
+            button .st-btn [data-testid="figma-connect-save"] [type="button"] [disabled] "Save"
+      section [role="tabpanel"] [hidden]
+        div .st-rp-hd "Subtitles"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Subtitles — transcription engine"
+          div .st-provider-notes "Which engine turns audio into subtitles. Maude never switches engines behind your back — pin one, or pick and it uses the best you're set up"
+            strong "Auto"
+          div .st-engine-radios [role="radiogroup"] [aria-label="Transcription engine"]
+            label .st-engine-radio
+              input [type="radio"] [value="auto"] [name="transcription-engine"] {value="auto"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Auto"
+                span .st-engine-radio-note "Use the best engine this machine is set up for — the card says which."
+            label .is-selected.st-engine-radio
+              input [type="radio"] [value="whisper"] [name="transcription-engine"] {value="whisper"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Local whisper.cpp"
+                span .st-engine-radio-note "Free · offline · no key · runs on your hardware"
+            label .st-engine-radio
+              input [type="radio"] [value="elevenlabs"] [name="transcription-engine"] {value="elevenlabs"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "ElevenLabs Scribe"
+                span .st-engine-radio-note "Cloud · accuracy · needs an ElevenLabs key"
+            label .st-engine-radio
+              input [type="radio"] [value="groq"] [name="transcription-engine"] {value="groq"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Groq Whisper"
+                span .st-engine-radio-note "Cloud · fast · needs a Groq key"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Local subtitle models (whisper.cpp)"
+          div .st-provider-notes "Local subtitles need two things: the whisper.cpp engine and one model. Models are stored on this machine only and never committed."
+          div .st-setup
+            div .is-done.st-step
+              span .st-step-n "✓"
+              div .st-step-body
+                span .st-step-title "whisper.cpp engine is installed"
+            div .st-step
+              span .st-step-n "2"
+              div .st-step-body
+                span .st-step-title "Download a model (below)"
+          div .st-model-list
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Tiny (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~75 MB"
+                span .st-engine-radio-note "Fastest, lowest accuracy. Good for a quick draft in any language."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Base (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~142 MB"
+                span .st-engine-radio-note "The recommended default — works in any language (incl. Czech). Modest accuracy."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Base (English-only)"
+                  span .is-local.st-pill "English-only"
+                  span .st-model-size "~142 MB"
+                span .st-engine-radio-note "English audio only — do NOT use for other languages (it garbles them)."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Small (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~466 MB"
+                span .st-engine-radio-note "Noticeably more accurate than base, ~3× larger."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Large v3 Turbo (multilingual)"
+                  span .st-pill "multilingual"
+                  span .st-model-size "~1560 MB"
+                span .st-engine-radio-note "Best accuracy, ~1.5 GB. Slower and disk-heavy, but close to cloud quality."
+              div .st-model-actions
+                button .st-btn [type="button"] "Download"
+      section [role="tabpanel"]
+        div .st-rp-hd "Video"
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Scene-aware keyframes — analysis engine"
+          div .st-provider-notes "How Maude picks frames when it analyzes a video (`/design:video-analyze`, `/design:reel`). Scene-aware beats a blind frame rate. This is an "
+            strong "Auto"
+          div .st-engine-radios [role="radiogroup"] [aria-label="Keyframe engine"]
+            label .is-selected.st-engine-radio
+              input [type="radio"] [value="auto"] [name="keyframe-engine"] {value="auto"} {on}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Auto"
+                span .st-engine-radio-note "Use the best available: Gemma scout → ffmpeg → blind."
+            label .st-engine-radio
+              input [type="radio"] [value="gemma"] [name="keyframe-engine"] {value="gemma"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Gemma scout"
+                span .st-engine-radio-note "Semantic action beats. Needs Ollama (gemma3 vision) or mlx-vlm + a model."
+            label .st-engine-radio
+              input [type="radio"] [value="ffmpeg"] [name="keyframe-engine"] {value="ffmpeg"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "ffmpeg scene-detect"
+                span .st-engine-radio-note "Scene cuts + endpoints. Needs ffmpeg. No model download."
+            label .st-engine-radio
+              input [type="radio"] [value="blind"] [name="keyframe-engine"] {value="blind"} {off}
+              span .st-engine-radio-body
+                span .st-engine-radio-label "Blind (even-spaced)"
+                span .st-engine-radio-note "Chromium fallback — works with neither ffmpeg nor Gemma."
+        div .st-provider-card
+          div .st-provider-hd
+            span .st-provider-name "Gemma scout model (optional)"
+          div .st-provider-notes "Adds semantic action-beat detection on top of scene cuts. Two short steps in a terminal — Maude picks the result up on its own."
+          div .st-setup
+            div .st-step
+              span .st-step-n "1"
+              div .st-step-body
+                span .st-step-title "Start Ollama"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "ollama serve"
+                  button .rdy-copy [aria-label="Copy the install command"] [type="button"] "Copy"
+            div .st-step
+              span .st-step-n "2"
+              div .st-step-body
+                span .st-step-title "Download the model"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "ollama pull gemma3:4b"
+                  button .rdy-copy [aria-label="Copy the model pull command"] [type="button"] "Copy"
+            details .st-setup-more
+              summary "Other ways to install"
+              div .st-setup-option
+                span .st-setup-option-label "mlx-vlm instead of Ollama — faster, Apple Silicon only"
+                span .rdy-cmd
+                  code .rdy-cmd-tx "python3 -m venv '<work>/home/.maude/mlx-venv' && '<work>/home/.maude/mlx-venv/bin/pip' install -U mlx-vlm"
+                  button .rdy-copy [aria-label="Copy the mlx-vlm install command"] [type="button"] "Copy"
+                span .st-provider-notes "Then download a model below. Models live in your HuggingFace cache."
+          div .st-provider-notes "Active tier on this machine:"
+            strong "ffmpeg scene-detect"
+          div .st-model-list
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 4 E4B (4-bit)"
+                  span .st-model-size "~3.3 GB"
+                span .st-engine-radio-note "The recommended scout — best semantic beats. ~3.3 GB. Needs an Apple-Silicon Mac + mlx-vlm."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "needs mlx-vlm"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 4 E2B (4-bit)"
+                  span .st-model-size "~1.9 GB"
+                span .st-engine-radio-note "Smaller/faster, coarser beats. ~1.9 GB. Good for 16 GB Macs."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "needs mlx-vlm"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 3 4B (Ollama)"
+                  span .st-model-size "~3.3 GB"
+                span .st-engine-radio-note "The recommended Ollama scout. ~3.3 GB. Pulled and managed by Ollama."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "start Ollama first"
+            div .st-model-row
+              div .st-model-info
+                span .st-model-label "Gemma 3 12B (Ollama)"
+                  span .st-model-size "~8.1 GB"
+                span .st-engine-radio-note "Sharper beats, needs more RAM. ~8.1 GB."
+              div .st-model-actions
+                span .st-model-action
+                  button .st-btn [type="button"] [disabled] "Download"
+                  span .st-model-action-note "start Ollama first"
