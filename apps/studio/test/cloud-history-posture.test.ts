@@ -130,21 +130,36 @@ describe('while cloud-managed, the desktop runs NO local git of its own', () => 
     // consumer is a temporal-dead-zone ReferenceError at boot, not a warning.
     //
     // Checked in the scope that declares it: the declaration must be the FIRST
-    // mention of `savingIsManaged` in App(). That covers the status fetch and
-    // the dirtyByPath memo this pinned by name while they are inline, and still
-    // covers them once an effect group moves into a hook — the hook's call in
-    // App() then names the posture, and the call is what must come after it.
+    // mention of `savingIsManaged` in the function that declares it. While that is
+    // App() itself this covers the status fetch and the dirtyByPath memo by name.
+    // Once the declaration lives in a hook App() calls (the V2-0.2 split moved it
+    // into useShellCore), App()'s first mention must be that hook's call — every
+    // later hook call that names the posture then comes after it.
     const DECLARATION = 'const savingIsManaged = cellManaged || cloudManaged;';
     // Whole-line comments blanked (same length, so offsets hold): prose is not a use.
-    const app = fnBody('App').replace(/^[ \t]*\/\/.*$/gm, (line) => ' '.repeat(line.length));
-    const declared = app.indexOf(DECLARATION);
+    const blank = (src: string) =>
+      src.replace(/^[ \t]*\/\/.*$/gm, (line) => ' '.repeat(line.length));
+    const owner = fileContaining(DECLARATION).src;
+    const fnName = [...owner.matchAll(/^(?:export )?function (\w+)\(/gm)]
+      .filter((m) => (m.index ?? 0) < owner.indexOf(DECLARATION))
+      .pop()?.[1];
+    expect(fnName).toBeDefined();
+    const body = blank(fnBody(fnName as string));
+    const declared = body.indexOf(DECLARATION);
     expect(declared).toBeGreaterThan(0);
-    expect(app.search(/\bsavingIsManaged\b/)).toBe(declared + 'const '.length);
-    // The original by-name pins, for as long as those consumers are written
-    // inline in App() (true until an effect group moves out; the line above
-    // then carries the rule).
+    expect(body.search(/\bsavingIsManaged\b/)).toBe(declared + 'const '.length);
+    if (fnName !== 'App') {
+      const app = blank(fnBody('App'));
+      const call = app.indexOf(`${fnName}(`);
+      expect(call).toBeGreaterThan(0);
+      const statementStart = app.lastIndexOf('\n', app.lastIndexOf('const {', call));
+      expect(app.search(/\bsavingIsManaged\b/)).toBeGreaterThan(statementStart);
+      expect(app.search(/\bsavingIsManaged\b/)).toBeLessThan(call);
+    }
+    // The original by-name pins, for as long as those consumers are written in the
+    // declaring function (the line above carries the rule once they move out).
     for (const consumer of ["fetch('/_api/git/status')", 'const dirtyByPath = useMemo']) {
-      const at = app.indexOf(consumer);
+      const at = body.indexOf(consumer);
       if (at !== -1) expect(declared).toBeLessThan(at);
     }
   });
