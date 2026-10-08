@@ -181,6 +181,7 @@ import { useKeyboardShortcuts } from './hooks/use-keyboard-shortcuts.jsx';
 import { useCanvasBridge } from './hooks/use-canvas-bridge.jsx';
 import { useTabs } from './hooks/use-tabs.jsx';
 import { useGitActions } from './hooks/use-git-actions.jsx';
+import { useWebSocket } from './hooks/use-web-socket.jsx';
 
 // ---------- App ----------
 
@@ -2335,13 +2336,7 @@ function App() {
       console.error('failed to load comments', e);
     }
   }, []);
-
-  useEffect(() => {
-    loadAllComments();
-  }, [loadAllComments]);
-
-  // ----- WebSocket -----
-  const canvasListChangeRef = useRef(() => {});
+  const { canvasListChangeRef } = useWebSocket({ loadAllComments });
   useEffect(() => {
     // KEEPALIVE. The inspector feed only pushes on events (a comment, a
     // selection, sync:status), so an idle designer's socket exchanges nothing
