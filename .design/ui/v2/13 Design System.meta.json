@@ -1,6 +1,6 @@
 {
   "title": "13 Design System",
-  "subtitle": "The design system lives on one canvas inside the project — Light and Dark, edited in place, the files written from it — Studio site and Alligators brand",
+  "subtitle": "Each design system lives on its own canvas inside the project — Light and Dark, edited in place, the files written from it; several systems per project, switched in one review — Studio site and Alligators brand",
   "brief": "ukaz mi jeste jeden canvas kde uvidim jak bude vypadat tvorba a zobrazeni design systemu, premyslim ze oproti tomu jak je to dnes by to klidne taky mohlo zit jen v ramci boardu/canvas — and, on 11: \"kde bude design system?\" Proposal (CONTRACT §7): one pinned \"Design system\" canvas per project with Brand · Colour · Type · Space & shape · Motion · Components · Patterns; every colour has a Light and a Dark value; edited in place, changes reach canvases after a review where every canvas has a tick; for designers the canvas is the source, the files are generated from it and are the source for code — an outside file change comes back as a review; made with AI from a sentence instead of the long setup-ds wizard; the files are its Advanced layer.",
   "platform": "desktop",
   "designSystem": "maude-v2",
@@ -9,7 +9,7 @@
     {
       "id": "where",
       "title": "Where the design system lives",
-      "subtitle": "One canvas, “Design system”, pinned above every canvas — reached from the panel, ⌘K and the inspector. The project menu gains nothing."
+      "subtitle": "One canvas per system, “Design system”, pinned above every canvas — reached from the panel, ⌘K and the inspector. A project with several systems pins one row per system (see Several systems). The project menu gains nothing."
     },
     {
       "id": "board",
@@ -34,7 +34,12 @@
     {
       "id": "many",
       "title": "Many systems",
-      "subtitle": "A project uses one system at a time — preview the whole project in another before switching; share one as a team library on cloud.maude.sh; a linked project sees it read-only"
+      "subtitle": "Preview canvases in another system before switching; share one as a team library on cloud.maude.sh; a linked project sees it read-only. A project can use several systems at once — next section"
+    },
+    {
+      "id": "multi",
+      "title": "Several systems in one project",
+      "subtitle": "Each canvas uses one system; a project can hold several — the club's system and a campaign's — each on its own Design system canvas. Systems that follow the Maude schema switch with one review and nothing to map; an older one is brought up to the schema by AI once. One is the default for new canvases; a system nothing uses is a draft"
     },
     {
       "id": "edges",
@@ -149,31 +154,56 @@
       "note": "Linked means read here, edited at home."
     },
     {
+      "id": "ds-multi-panel",
+      "label": "21 · Two systems in use, pinned together",
+      "note": "Every system the project uses sits on top."
+    },
+    {
+      "id": "ds-multi-schema",
+      "label": "22 · A system made before the schema — AI brings it up first",
+      "note": "Old systems are brought up once, by AI."
+    },
+    {
+      "id": "ds-multi-switch",
+      "label": "23 · Then move a folder to another system — one review, nothing to map",
+      "note": "Switching is one review — nothing to map."
+    },
+    {
+      "id": "ds-multi-menu",
+      "label": "24 · A system's own menu — default for new canvases",
+      "note": "One default; new canvases follow their folder."
+    },
+    {
+      "id": "ds-multi-migrate",
+      "label": "25 · Three old system folders — two canvases and a draft",
+      "note": "Every folder in use becomes its own canvas."
+    },
+    {
       "id": "ds-edge-contrast",
-      "label": "21 · A change that breaks contrast on two surfaces",
+      "label": "26 · A change that breaks contrast on two surfaces",
       "note": "A quiet warning, with the fix as the action."
     },
     {
       "id": "ds-edge-trash",
-      "label": "22 · A colour 40 canvases use, moved to the trash",
+      "label": "27 · A colour 40 canvases use, moved to the trash",
       "note": "Moving a token to the trash never breaks a canvas."
     },
     {
       "id": "ds-edge-suggest",
-      "label": "23 · AI spots a hand-picked colour that isn't in the system",
+      "label": "28 · AI spots a hand-picked colour that isn't in the system",
       "note": "Off-system colours get one quiet question."
     },
     {
       "id": "ds-edge-migrate",
-      "label": "24 · An old-style system folder becomes the Design system canvas",
+      "label": "29 · One folder, up close — 42 pages fold into 7 sections",
       "note": "One question, then nothing is thrown away."
     },
     {
       "id": "ds-advanced",
-      "label": "25 · Design system › Advanced — files, tokens, history, checks",
+      "label": "30 · Design system › Advanced — files, tokens, history, checks",
       "note": "Today's folder, one fold down — written from the canvas."
     }
   ],
   "created": "2026-10-08T16:00:00.000Z",
-  "last_modified": "2026-10-08T19:30:00.000Z"
+  "last_modified": "2026-10-08T20:30:03.995782+00:00"
 }

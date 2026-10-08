@@ -14,6 +14,10 @@
 
 ---
 
+
+> **Superseded in part (2026-10-08, Gate 0 A13):** Michal's direction is "files are the API" — Claude keeps driving Maude through skills and direct edits of the readable JSX/JSON files in `.design/`, with the `maude` CLI for non-file operations. The MCP tool server (`maude mcp`) and the generic `maude act` dispatcher recommended in §3 are **not** built. The parity matrix (§2), the invariants via hooks (§3.4), the permission narrowing (§3.3.4), the plugin evolution list (§4) and the parity tests (§5, MCP-specific items replaced by file/CLI contract tests) still apply.
+
+
 ## 1. Inventory of today's AI / automation surface
 
 ### 1.1 Design plugin — commands (24; `plugins/design/commands/`, ACP auto-loads all of them)

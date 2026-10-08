@@ -91,6 +91,9 @@
   --ds-s-o-yellow: var(--ds-sl-o-yellow);
   --ds-s-link: var(--ds-sl-link);
   --ds-offblue: oklch(0.62 0.160 262);
+  /* Combine 2026 — a campaign system next to the club one (several systems in one project) */
+  --ds-camp-orange: oklch(0.70 0.175 50);
+  --ds-camp-black: oklch(0.205 0.008 60);
   /* Alligators — Dark (the club green): brand constants (FROZEN), tonal surfaces, text, status, lines */
   --ds-g-green: oklch(0.291 0.039 176.6);   /* Pantone 627 C */
   --ds-g-ink: oklch(0.205 0.020 248.8);     /* Pantone Black 6 C */
@@ -190,6 +193,7 @@
 .ds-c--focus { --L: var(--ds-sl-focus); --D: var(--ds-sd-focus); }
 .ds-c--hl { --L: var(--ds-sl-hl); --D: var(--ds-sd-hl); }
 .ds-c--offblue { --L: var(--ds-offblue); --D: var(--ds-offblue); }
+.ds-c--camp { --L: var(--ds-camp-orange); --D: var(--ds-camp-orange); }
 .ds-c--g-green { --L: var(--ds-g-green); --D: var(--ds-g-green); }
 .ds-c--g-ink { --L: var(--ds-g-ink); --D: var(--ds-g-ink); }
 .ds-c--g-gray { --L: var(--ds-g-gray); --D: var(--ds-g-gray); }
@@ -986,3 +990,55 @@
 .ds-sx-faq i:last-child { width: 2cqw; }
 .k-cp-ds:has(.ds-cp-two) { flex: none; }
 .ds-uses-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Several systems in one project (21–24) ─────────────────────────────────────────────────── */
+/* The campaign system is the user's content too: it re-points the club's poster tokens inside .ds-camp. */
+.ds-camp { position: absolute; inset: 0; --ds-g-green: var(--ds-camp-black); --ds-g-yellow: var(--ds-camp-orange); }
+/* The pinned group (kit candidate CanvasesPanel `systems[]`): one row per system, inside the kit's pinned slot. */
+.k-cp-ds:has(.ds-mg) { flex: none; display: block; padding: 0; background: transparent; }
+.k-cp-ds:has(.ds-mg) > .k-cp-dsic { display: none; }
+.ds-mg { display: flex; flex-direction: column; gap: 2px; padding-bottom: var(--space-2); box-shadow: inset 0 -0.5px 0 var(--border-default); }
+.ds-mg-h { display: flex; align-items: baseline; justify-content: space-between; padding: var(--space-1) var(--space-2); font-size: var(--type-xs); line-height: var(--lh-xs); font-weight: var(--w-semibold); color: var(--fg-2); }
+.ds-mg-h em { font-style: normal; font-weight: var(--w-regular); font-variant-numeric: tabular-nums; }
+.ds-mg-r { display: flex; align-items: center; gap: var(--space-2); min-width: 0; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); }
+.ds-mg-r[data-sel], .ds-mg-r[data-menu] { background: var(--accent-tint); }
+.ds-mg-ic { display: grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: var(--radius-xs); background: var(--bg-3); color: var(--fg-1); }
+.ds-mg-r[data-draft] .ds-mg-ic { background: transparent; box-shadow: inset 0 0 0 1px var(--border-strong); color: var(--fg-2); }
+.ds-mg-t { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.ds-mg-t b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--type-sm); line-height: var(--lh-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ds-mg-t em { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: normal; font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+.ds-mg-r[data-draft] .ds-mg-t b { font-weight: var(--w-medium); color: var(--fg-1); }
+.ds-mg-more { display: grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: var(--radius-xs); background: var(--bg-3); color: var(--fg-0); }
+/* Switch review: Scope row + tick list */
+.ds-mt-scope { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-3) 0; font-size: var(--type-sm); color: var(--fg-1); }
+.ds-mt-scope > span:first-child { flex: none; width: 52px; color: var(--fg-2); }
+.ds-mt { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-3); }
+.ds-mt-h { display: flex; align-items: center; gap: var(--space-3); padding: 0 var(--space-2) var(--space-1); font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ds-mt-r { display: flex; align-items: center; gap: var(--space-3); min-height: 40px; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--bg-3); }
+.ds-mt-r[data-off] { background: transparent; box-shadow: inset 0 0 0 1px var(--border-default); }
+.ds-mt-r[data-off] .k-thumb { opacity: 0.6; }
+.ds-mt-n { display: flex; flex-direction: column; min-width: 0; }
+.ds-mt-n b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--type-sm); line-height: var(--lh-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ds-mt-n em { font-style: normal; font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+/* Migration of several folders */
+.ds-mm { display: flex; flex-direction: column; margin: var(--space-3) 0; border-radius: var(--radius-sm); box-shadow: inset 0 0 0 0.5px var(--border-default); }
+.ds-mm-r { display: grid; grid-template-columns: 180px 1fr auto; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); box-shadow: inset 0 -0.5px 0 var(--border-default); font-size: var(--type-xs); line-height: var(--lh-xs); }
+.ds-mm-r:last-child { box-shadow: none; }
+.ds-mm-r b { font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ds-mm-r > span:nth-child(2) { display: flex; flex-direction: column; color: var(--fg-1); }
+.ds-mm-r em { font-style: normal; color: var(--fg-2); }
+.ds-mm-to { white-space: nowrap; }
+/* The list scrolls under a soft edge instead of cutting a row in half when the systems group takes room. */
+.k-cp-list:has(.ds-mg) { mask-image: linear-gradient(to bottom, black calc(100% - var(--space-6)), transparent); }
+/* Switch review: the one AI line (on by default) */
+.ds-mt-ai { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-2) 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--bg-3); color: var(--accent-text); }
+.ds-mt-ai > span:nth-child(2) { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.ds-mt-ai b { font-size: var(--type-sm); line-height: var(--lh-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ds-mt-ai em { font-style: normal; font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+/* A system made before the schema */
+.ds-mg-warn { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--status-warn); }
+.ds-sch { display: flex; flex-direction: column; margin: var(--space-3) 0; border-radius: var(--radius-sm); box-shadow: inset 0 0 0 0.5px var(--border-default); }
+.ds-sch-r { display: grid; grid-template-columns: 16px 180px 1fr; align-items: baseline; gap: var(--space-2); padding: var(--space-2) var(--space-3); box-shadow: inset 0 -0.5px 0 var(--border-default); font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-1); }
+.ds-sch-r:last-child { box-shadow: none; }
+.ds-sch-r > :first-child { color: var(--accent-text); }
+.ds-sch-r b { font-size: var(--type-sm); font-weight: var(--w-semibold); color: var(--fg-0); }

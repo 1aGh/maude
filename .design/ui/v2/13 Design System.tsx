@@ -1,7 +1,7 @@
 /**
- * @canvas      13 Design System — the design system lives on ONE canvas inside the project: where it is, what it
+ * @canvas      13 Design System — each design system lives on its own canvas inside the project: where it is, what it
  *              holds (Light and Dark), editing in place and choosing who follows, the files behind it, making one
- *              with AI, many systems, edge cases, Advanced
+ *              with AI, many systems, several systems in one project, edge cases, Advanced
  * @ds          maude-v2
  * @platform    desktop
  * @opt_out     palette
@@ -11,6 +11,7 @@
  *              ds-truth-outside | ds-truth-conflict |
  *              ds-make-inputs | ds-make-directions | ds-make-mix | ds-make-filling | ds-make-done |
  *              ds-many-switch | ds-many-library | ds-many-linked |
+ *              ds-multi-panel | ds-multi-switch | ds-multi-schema | ds-multi-menu | ds-multi-migrate |
  *              ds-edge-contrast | ds-edge-trash | ds-edge-suggest | ds-edge-migrate |
  *              ds-advanced
  * @brief       "ukaz mi jeste jeden canvas kde uvidim jak bude vypadat tvorba a zobrazeni design systemu, premyslim ze
@@ -19,7 +20,7 @@
  *
  * Today a design system is a folder (system/<ds>/: tokens CSS, README/SKILL/CONTRACT, ~38–42 specimen pages, assets)
  * made by the long /design:setup-ds wizard. v2 proposal (CONTRACT §7 "Design system lives on a canvas" + "source of
- * truth"): it is ONE canvas — "Design system" in UI copy — pinned above every canvas. Sections are artboards:
+ * truth"): each system is ONE canvas — "Design system" in UI copy — pinned above every canvas (several systems → one row each). Sections are artboards:
  * Brand · Colour · Type · Space & shape · Motion · Components · Patterns. Every colour has a Light and a Dark value.
  * For designers this canvas is the source; the files are generated from it and are the source for code. A file
  * changed outside the app comes back as a review. Nothing that exists today is deleted — it is one fold down.
@@ -821,13 +822,62 @@ function RevRows({ compact }: { compact?: boolean }) {
   );
 }
 
+/* ═══ Several systems in one project (Alligators brand: the club system + the Combine 2026 campaign system) ═══ */
+
+const CAMP_SYS = "Combine 2026";
+/** The pinned group when a project uses more than one system (kit candidate: CanvasesPanel `systems[]`).
+ *  Counts follow the canonical tree: 93 canvases = 87 on the club system + 6 in 2026/combine. */
+function MultiGroup({ selected, menuOn, ds, schemaOld }: { selected?: "gator" | "camp"; menuOn?: "gator" | "camp"; ds?: "gator" | "camp"; schemaOld?: "gator" | "camp" }) {
+  const rows: [key: "gator" | "camp" | "draft", name: string, sub: string][] = [
+    ["gator", GATOR_SYS, "Default · 87 canvases"],
+    ["camp", CAMP_SYS, "6 canvases · 2026/combine"],
+    ["draft", "Alligators 2023", "Draft · no canvas uses it"],
+  ];
+  return (
+    <span className="ds-mg">
+      <span className="ds-mg-h">Design systems<em>2 in use</em></span>
+      {rows.map(([k, n, sub]) => (
+        <span key={k} className="ds-mg-r" data-sel={selected === k || ds === k ? "true" : undefined} data-menu={menuOn === k ? "true" : undefined} data-draft={k === "draft" ? "true" : undefined}>
+          <span className="ds-mg-ic"><Icon name="system" size={14} /></span>
+          <span className="ds-mg-t"><b>{n}</b><em>{schemaOld === k ? "Made before the schema" : sub}</em></span>
+          {schemaOld === k ? <span className="ds-mg-warn" title="Made before the schema" /> : null}
+          {menuOn === k ? <span className="ds-mg-more"><Icon name="more" size={14} /></span> : null}
+        </span>
+      ))}
+    </span>
+  );
+}
+function MultiPanel({ selected, menuOn, ds, schemaOld }: { selected?: string; menuOn?: "gator" | "camp"; ds?: "gator" | "camp"; schemaOld?: "gator" | "camp" }) {
+  return <CanvasesPanel advanced project="Alligators brand" count={ALLIGATORS_COUNT} selected={selected} folders={GATOR_COMBINE_OPEN} items={ALLIGATORS_ROOT}
+    system={{ name: (<MultiGroup menuOn={menuOn} ds={ds} schemaOld={schemaOld} />) as unknown as string, selected: false }} />;
+}
+const MULTI_SWITCH: [string, Art, string, boolean][] = [
+  ["Combine-kampan", "gator-poster", "Tereza has it open — updates when she next looks", true],
+  ["Combine-kampan — varianta pro partnery a sponzory", "gator-web", "Web page", true],
+  ["Combine-letak-registrace", "gator-print", "Print · at the printer", true],
+  ["Combine-invite", "gator-social", "Post", true],
+  ["Combine-cisla", "gator-numbers", "Post", true],
+  ["Combine-video-AI", "video", "Left out — keeps Combine 2026", false],
+];
+const SCHEMA_FIX: [string, string][] = [
+  ["Adds 6 roles", "Display ramp, On accent, Focus, Selection, Scrim, Status text — from Combine 2026's own colours and type"],
+  ["Renames 2 components", "Tlačítko kampaň → Button · Štítek kampaň → Tag, variants and Czech names kept"],
+  ["Keeps 4 own tokens", "Camo pattern, scute height, stripe width, number outline — named as its own, so a switch hands them to AI"],
+  ["Updates 6 canvases", "They point at the new names; nothing looks different"],
+];
+const MULTI_MIGRATE: [string, string, string, string][] = [
+  [GATOR_SYS, "system/alligators", "87 canvases · default", "Design system canvas"],
+  [CAMP_SYS, "system/combine-2026", "6 canvases in 2026/combine", "Design system canvas"],
+  ["Alligators 2023", "system/alligators-2023", "no canvas uses it", "Draft"],
+];
+
 /* ═══ Canvas ═══════════════════════════════════════════════════════════════════════════════════ */
 
 export default function DesignSystem() {
   return (
     <DesignCanvas>
       {/* ── 1 · Where it lives ─────────────────────────────────────────────────────────────── */}
-      <DCSection id="where" title="Where the design system lives" subtitle="One canvas, “Design system”, pinned above every canvas — reached from the panel, ⌘K and the inspector. The project menu gains nothing.">
+      <DCSection id="where" title="Where the design system lives" subtitle="One canvas per system, “Design system”, pinned above every canvas — reached from the panel, ⌘K and the inspector. A project with several systems pins one row per system (see Several systems). The project menu gains nothing.">
         <DCArtboard id="ds-where-studio" label="1 · Studio site — pinned above every canvas" width={W} height={H} fixed>
           <Stage note={<Note n={1} title="It's a canvas, so it lives with the canvases.">“Design system” sits pinned above the list (1). Select anything and the inspector names its system — “Uses Studio site system” (2) opens it on that colour.</Note>}>
             <Window tabs={TABS2} activeTab={0}>
@@ -881,7 +931,7 @@ export default function DesignSystem() {
                 ] },
                 { title: "Actions", rows: [
                   { label: "Check the system", icon: "done", where: "Design system › Advanced" },
-                  { label: "Switch design system…", icon: "sync", where: "Design system row" },
+                  { label: "Switch canvases to another system…", icon: "sync", where: "Design system row" },
                 ] },
               ]} />
             </Window>
@@ -1251,9 +1301,9 @@ export default function DesignSystem() {
       </DCSection>
 
       {/* ── 6 · Many systems ───────────────────────────────────────────────────────────────── */}
-      <DCSection id="many" title="Many systems" subtitle="A project uses one system at a time — preview the whole project in another before switching; share one as a team library on cloud.maude.sh; a linked project sees it read-only">
+      <DCSection id="many" title="Many systems" subtitle="Preview canvases in another system before switching; share one as a team library on cloud.maude.sh; a linked project sees it read-only. A project can use several systems at once — next section">
         <DCArtboard id="ds-many-switch" label="18 · Preview the project in another system" width={W} height={H} fixed>
-          <Stage note={<Note n={18} title="Try a whole project in another system, then decide.">↑↓ in the row's menu previews each system in every canvas, ↵ switches, esc steps back. Warm paper is direction B, kept as a draft on the same Design system canvas.</Note>}>
+          <Stage note={<Note n={18} title="Try a whole project in another system, then decide.">↑↓ in the row's menu previews each system in every canvas; ↵ opens the switch review (23); esc steps back. Warm paper is direction B — an AI direction kept on the same Design system canvas, not a separate system.</Note>}>
             <Window tabs={TABS2} activeTab={0}>
               <Canvas>
                 <Artboard label="Desktop" kind="web" x={300} y={118} w={403} h={252}><WarmHero /></Artboard>
@@ -1276,7 +1326,7 @@ export default function DesignSystem() {
               <ZoomUndo zoom={28} />
               <Toolbar />
               <PanelIcon icon="spark" at="ai" />
-              <Banner icon="view" action="Switch to Warm paper" sub="5 canvases shown in it · esc to stop">Previewing Studio site in Warm paper.</Banner>
+              <Banner icon="view" action="Switch…" sub="5 canvases shown in it · esc to stop">Previewing Studio site in Warm paper.</Banner>
             </Window>
           </Stage>
         </DCArtboard>
@@ -1327,10 +1377,133 @@ export default function DesignSystem() {
         </DCArtboard>
       </DCSection>
 
+      {/* ── 6b · Several systems in one project ─────────────────────────────────────────────────── */}
+      <DCSection id="multi" title="Several systems in one project" subtitle="Each canvas uses one system; a project can hold several — the club's system and a campaign's — each on its own Design system canvas. Systems that follow the Maude schema switch with one review and nothing to map; an older one is brought up to the schema by AI once. One is the default for new canvases; a system nothing uses is a draft">
+        <DCArtboard id="ds-multi-panel" label="21 · Two systems in use, pinned together" width={W} height={H} fixed>
+          <Stage note={<Note n={21} title="Every system the project uses sits on top.">Alligators brand uses its club system on 87 canvases and Combine 2026 on the 6 in 2026/combine. Select anything — the inspector names the system that canvas uses.</Note>}>
+            <Window tabs={TABS2} activeTab={1}>
+              <Canvas>
+                <Artboard label="Combine-kampan · A4" kind="print" x={300} y={104} w={300} h={424}><div className="ds-camp"><GPoster sel /></div></Artboard>
+                <Artboard label="Post 1:1" kind="digital" x={636} y={104} w={300} h={300}><div className="ds-camp"><GPost /></div></Artboard>
+              </Canvas>
+              <ProjectPill project="Alligators brand" canvas="Combine-kampan" />
+              <MultiPanel selected="Combine-kampan" schemaOld="camp" />
+              <ShareCluster people={["tereza"]} mode="edit" />
+              <Insp title="Tlačítko kampaň" kind="Instance" advCount="Instance of Tlačítko kampaň">
+                <Row k="Variant"><span className="k-fill">Plné</span></Row>
+                <Row k="Fill"><span className="k-fill"><span className="k-fill-sw ds-c--camp" />Oranžová</span></Row>
+                <Uses name={CAMP_SYS} />
+                <Line tone="quiet" icon="folder">Same as the rest of 2026/combine.</Line>
+              </Insp>
+              <ZoomUndo zoom={50} />
+              <Toolbar />
+              <PanelIcon icon="spark" at="ai" />
+            </Window>
+          </Stage>
+        </DCArtboard>
+
+        <DCArtboard id="ds-multi-schema" label="22 · A system made before the schema — AI brings it up first" width={W} height={H} fixed>
+          <Stage note={<Note n={22} title="Old systems are brought up once, by AI.">Opens from the amber dot on its row, or when a switch to or from it starts. AI fills the missing roles from its own colours and type — one review, one undo step.</Note>}>
+            <Window tabs={TABS2} activeTab={1}>
+              <Canvas>
+                <Artboard label="Combine-kampan · A4" kind="print" x={300} y={104} w={300} h={424}><div className="ds-camp"><GPoster /></div></Artboard>
+                <Artboard label="Post 1:1" kind="digital" x={636} y={104} w={300} h={300}><div className="ds-camp"><GPost /></div></Artboard>
+              </Canvas>
+              <ProjectPill project="Alligators brand" canvas="Combine-kampan" />
+              <MultiPanel selected="Combine-kampan" schemaOld="camp" />
+              <ShareCluster people={["tereza"]} mode="edit" />
+              <ZoomUndo zoom={50} />
+              <Toolbar />
+              <Veil />
+              <Dialog title={<>Bring {CAMP_SYS} up to the schema?</>} primary="✦ Bring it up" width={600}>
+                <p>{CAMP_SYS} was made before the schema. Until it does, canvases can't switch to or from it cleanly.</p>
+                <div className="ds-sch">
+                  {SCHEMA_FIX.map(([t, d]) => <span key={t} className="ds-sch-r"><Spark size={12} color="var(--accent-text)" /><b>{t}</b><span>{d}</span></span>)}
+                </div>
+                <p className="ds-rev-fine">Nothing on the 6 canvases changes how it looks. Uses your Claude account. Design system › Advanced › Map by hand… if you'd rather choose each one.</p>
+              </Dialog>
+            </Window>
+          </Stage>
+        </DCArtboard>
+
+        <DCArtboard id="ds-multi-switch" label="23 · Then move a folder to another system — one review, nothing to map" width={W} height={H} fixed>
+          <Stage note={<Note n={23} title="Switching is one review — nothing to map.">Both systems follow the schema now, so nothing needs matching. AI restyles Combine 2026's own tokens; with it off, they keep their look, marked off-system.</Note>}>
+            <Window tabs={TABS2} activeTab={1}>
+              <Canvas>
+                <Artboard label="Combine-kampan · A4" kind="print" x={300} y={104} w={300} h={424}><GPoster /></Artboard>
+                <Artboard label="Post 1:1" kind="digital" x={636} y={104} w={300} h={300}><GPost /></Artboard>
+              </Canvas>
+              <ProjectPill project="Alligators brand" canvas="Combine-kampan" />
+              <MultiPanel selected="Combine-kampan" />
+              <ShareCluster people={["tereza"]} mode="edit" />
+              <ZoomUndo zoom={50} />
+              <Toolbar />
+              <Banner icon="view" sub="5 canvases shown in it">Previewing 2026/combine in {GATOR_SYS}.</Banner>
+              <Veil />
+              <Dialog title={<>Switch canvases to {GATOR_SYS}?</>} primary="Switch 5 canvases" width={600}>
+                <div className="ds-mt-scope"><span>Scope</span><InSeg options={["This canvas", "Folder · 2026/combine", "Whole project"]} value="Folder · 2026/combine" /></div>
+                <div className="ds-mt">
+                  <span className="ds-mt-h"><Tick on="mixed" />5 of 6 canvases in 2026/combine</span>
+                  {MULTI_SWITCH.map(([n, art, sub, on]) => (
+                    <span key={n} className="ds-mt-r" data-off={on ? undefined : "true"}>
+                      <Tick on={on} /><Thumb art={art} w={44} h={32} /><span className="ds-mt-n"><b>{n}</b><em>{sub}</em></span>
+                    </span>
+                  ))}
+                </div>
+                <Line tone="ok" icon="done">Both follow the schema — core roles and components swap; the display ramp and illustration palette pair by kind.</Line>
+                <span className="ds-mt-ai"><Spark size={14} color="var(--accent-text)" /><span><b>AI restyles Combine 2026's 4 own tokens</b><em>Camo pattern, scute height, stripe width, number outline · plus 12 colours picked by hand outside the system · your Claude account · one undo step</em></span><InSwitch on /></span>
+                <p className="ds-rev-fine">Version history keeps the old look.</p>
+              </Dialog>
+            </Window>
+          </Stage>
+        </DCArtboard>
+
+        <DCArtboard id="ds-multi-menu" label="24 · A system's own menu — default for new canvases" width={W} height={H} fixed>
+          <Stage note={<Note n={24} title="One default; new canvases follow their folder.">⌘N uses the default — inside a folder whose canvases all use one system, that one. A mixed folder falls back to the default.</Note>}>
+            <Window tabs={TABS2} activeTab={1}>
+              <Canvas>
+                <Artboard label="Combine-kampan · A4" kind="print" x={660} y={104} w={300} h={424}><div className="ds-camp"><GPoster /></div></Artboard>
+              </Canvas>
+              <ProjectPill project="Alligators brand" canvas="Combine-kampan" />
+              <MultiPanel menuOn="camp" />
+              <Menu style={{ left: 252, top: 300 }} width={340} items={[
+                { label: `Open ${CAMP_SYS}`, keys: "↵" },
+                { label: "Use for new canvases", highlight: true, note: `now ${GATOR_SYS}` },
+                { label: "Switch canvases to another system…" },
+                { label: "Rename…" },
+              ]} />
+              <ShareCluster people={["tereza"]} mode="edit" />
+              <ZoomUndo zoom={50} />
+              <Toolbar />
+              <PanelIcon icon="spark" at="ai" />
+            </Window>
+          </Stage>
+        </DCArtboard>
+
+        <DCArtboard id="ds-multi-migrate" label="25 · Three old system folders — two canvases and a draft" width={W} height={H} fixed>
+          <Stage note={<Note n={25} title="Every folder in use becomes its own canvas.">Today a project can carry several system/ folders. Each folder that canvases use becomes its own Design system canvas; one nothing uses becomes a draft. Nothing is thrown away.</Note>}>
+            <Window tabs={TABS2} activeTab={1}>
+              <Canvas><Board sys="gator" z={0.42} x={300} y={104} /></Canvas>
+              <BoardChrome project="gator" zoom={42} people={["tereza", "jonas"]} left={<MultiPanel ds="gator" />} />
+              <Veil strong />
+              <Dialog title="Convert 3 system folders?" primary="Convert" width={640}>
+                <p>2 become Design system canvases. Alligators 2023 becomes a draft — listed with the systems, used by no canvas. The files stay exactly where they are.</p>
+                <div className="ds-mm">
+                  {MULTI_MIGRATE.map(([n, from, use, to]) => (
+                    <span key={n} className="ds-mm-r"><b>{n}</b><span>{from}<em>{use}</em></span><span className="chip ds-mm-to">{to}</span></span>
+                  ))}
+                </div>
+                <p className="ds-rev-fine">{GATOR_SYS} stays the default for new canvases. A converted system made before the schema shows an amber dot — Bring it up (22) lines it up. Version history keeps the folder view; Restore undoes the conversion.</p>
+              </Dialog>
+            </Window>
+          </Stage>
+        </DCArtboard>
+      </DCSection>
+
       {/* ── 7 · Edge cases ─────────────────────────────────────────────────────────────────── */}
       <DCSection id="edges" title="Edge cases" subtitle="A change that breaks contrast · a colour 40 canvases use goes to the trash · AI spots a hand-picked colour outside the system · an old-style folder becomes the Design system canvas">
-        <DCArtboard id="ds-edge-contrast" label="21 · A change that breaks contrast on two surfaces" width={W} height={H} fixed>
-          <Stage note={<Note n={21} title="A quiet warning, with the fix as the action.">Darker Terciární drops to 3.1:1 on Pole and Hover, which 3 canvases use. Nothing is blocked — Lighten to 4.5:1 fixes it in one step; Show walks the 3 canvases.</Note>}>
+        <DCArtboard id="ds-edge-contrast" label="26 · A change that breaks contrast on two surfaces" width={W} height={H} fixed>
+          <Stage note={<Note n={26} title="A quiet warning, with the fix as the action.">Darker Terciární drops to 3.1:1 on Pole and Hover, which 3 canvases use. Nothing is blocked — Lighten to 4.5:1 fixes it in one step; Show walks the 3 canvases.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas><Board sys="gator" z={0.6} x={-40} y={110} o={{ sel: "Terciární", darkTertiary: true }} /></Canvas>
               <BoardChrome project="gator" zoom={60} people={["tereza", "jonas"]} left={<PanelIcon icon="panel-left" at="left" />}
@@ -1349,8 +1522,8 @@ export default function DesignSystem() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="ds-edge-trash" label="22 · A colour 40 canvases use, moved to the trash" width={W} height={H} fixed>
-          <Stage note={<Note n={22} title="Moving a token to the trash never breaks a canvas.">Its 40 canvases switch to the closest colour still in the system. Restore from the Trash puts it back everywhere it was.</Note>}>
+        <DCArtboard id="ds-edge-trash" label="27 · A colour 40 canvases use, moved to the trash" width={W} height={H} fixed>
+          <Stage note={<Note n={27} title="Moving a token to the trash never breaks a canvas.">Its 40 canvases switch to the closest colour still in the system. Restore from the Trash puts it back everywhere it was.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas><Board sys="gator" z={0.6} x={-40} y={110} o={{ sel: "Linka — jemná" }} /></Canvas>
               <BoardChrome project="gator" zoom={60} people={["tereza", "jonas"]} left={<PanelIcon icon="panel-left" at="left" />} />
@@ -1364,8 +1537,8 @@ export default function DesignSystem() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="ds-edge-suggest" label="23 · AI spots a hand-picked colour that isn't in the system" width={W} height={H} fixed>
-          <Stage note={<Note n={23} title="Off-system colours get one quiet question.">You picked a blue by hand for the yearly badge. AI offers the closest system colour, or to add this one — the system grows from real work.</Note>}>
+        <DCArtboard id="ds-edge-suggest" label="28 · AI spots a hand-picked colour that isn't in the system" width={W} height={H} fixed>
+          <Stage note={<Note n={28} title="Off-system colours get one quiet question.">You picked a blue by hand for the yearly badge. AI offers the closest system colour, or to add this one — the system grows from real work.</Note>}>
             <Window tabs={TABS2} activeTab={0}>
               <Canvas>
                 <Artboard label="Pricing · Desktop" kind="web" x={300} y={110} w={640} h={400}><SPricing offBadge /></Artboard>
@@ -1388,13 +1561,13 @@ export default function DesignSystem() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="ds-edge-migrate" label="24 · An old-style system folder becomes the Design system canvas" width={W} height={H} fixed>
-          <Stage note={<Note n={24} title="One question, then nothing is thrown away.">42 pages fold into 7 sections; showcases stay as their own artboards. The files keep working for code, agents and Tereza's older Maude. A second system folder becomes a draft.</Note>}>
+        <DCArtboard id="ds-edge-migrate" label="29 · One folder, up close — 42 pages fold into 7 sections" width={W} height={H} fixed>
+          <Stage note={<Note n={29} title="One question, then nothing is thrown away.">42 pages fold into 7 sections; showcases stay as their own artboards. The files keep working for code, agents and Tereza's older Maude. Other system folders become their own Design system canvases (25); only one that no canvas uses becomes a draft.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas><Board sys="gator" z={0.42} x={300} y={104} /></Canvas>
               <BoardChrome project="gator" zoom={42} people={["tereza", "jonas"]} />
               <Veil strong />
-              <Dialog title="Convert system/alligators into the Design system canvas?" primary="Convert" width={620}>
+              <Dialog title="Convert system/alligators into its Design system canvas?" primary="Convert" width={620}>
                 <p>42 specimen pages fold into 7 sections. The files stay exactly where they are.</p>
                 <div className="ds-map">
                   {([
@@ -1419,9 +1592,9 @@ export default function DesignSystem() {
 
       {/* ── 8 · Advanced ───────────────────────────────────────────────────────────────────── */}
       <DCSection id="advanced" title="Advanced — the files behind the Design system" subtitle="Tokens as CSS or JSON (both modes), the system/<ds>/ folder, which way changes flow, code handoff, the system's own version history, and Check the system">
-        <DCArtboard id="ds-advanced" label="25 · Design system › Advanced — files, tokens, history, checks" width={W} height={940} fixed>
+        <DCArtboard id="ds-advanced" label="30 · Design system › Advanced — files, tokens, history, checks" width={W} height={940} fixed>
           <Closeup title="Design system › Advanced" sub="Nothing selected on the Design system canvas, the inspector shows the system. Advanced holds everything today's folder had — mono only here."
-            note={<Note n={25} title="Today's folder, one fold down — written from the canvas.">For designers the canvas is the source; these files are generated from it and are the source for code and agents. A file changed outside the app comes back as a review.</Note>}>
+            note={<Note n={30} title="Today's folder, one fold down — written from the canvas.">For designers the canvas is the source; these files are generated from it and are the source for code and agents. A file changed outside the app comes back as a review.</Note>}>
             <div className="ds-adv-row">
               <div className="island island--pad k-insp ds-insp ds-adv-insp">
                 <div className="k-insp-hd"><strong>{STUDIO_SYS}</strong><span className="chip">Design system</span></div>
@@ -1481,6 +1654,7 @@ export default function DesignSystem() {
                   <span className="ds-chk"><span className="ds-chk-ic ds-chk-ic--ok"><Icon name="done" size={14} /></span><b>Contrast</b><span>41 of 42 text pairs pass 4.5:1, Light and Dark</span></span>
                   <span className="ds-chk"><span className="ds-chk-ic ds-chk-ic--warn"><Icon name="problem" size={14} /></span><b>Quiet on Well</b><span>Dark: 4.2:1 — large text only</span><span className="btn btn--sm btn--ghost">Show</span></span>
                   <span className="ds-chk"><span className="ds-chk-ic ds-chk-ic--ok"><Icon name="done" size={14} /></span><b>Complete</b><span>7 sections, both modes, reduced motion</span></span>
+                  <span className="ds-chk"><span className="ds-chk-ic ds-chk-ic--ok"><Icon name="done" size={14} /></span><b>Schema</b><span>Follows the schema — switches cleanly with any system that does</span></span>
                   <span className="ds-chk ds-chk--adv"><span className="k-mono">critic panel: a11y · completeness · keeper</span></span>
                 </div>
               </div>
