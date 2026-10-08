@@ -1,6 +1,6 @@
 ---
 name: feature-maude-v2-redesign
-status: Phase 0 ready (not gated); Phases 1–8 blocked on Gate 0 (decisions register) waiting for Michal
+status: Phase 0 ready (not gated); Gate 0 signed 2026-10-08 except A12 (multi design system) — Phases 1–8 wait for A12
 created: 2026-10-08
 supersedes:
   - feature-desktop-project-tabs-and-identity-profiles (absorbed as Phase 3; full Rust spec kept at .ai/plans/archive/feature-desktop-project-tabs-and-identity-profiles.md)
@@ -168,82 +168,83 @@ Verified 2026-10-08 against the installed kgai plugin (1.7.x) and Claude Code do
 
 ## Gate 0 — Decisions register (Michal signs before the run)
 
-Status of every row: **⏳ waiting for Michal**. Michal ticks ✓ (accept recommendation) or writes an override in the last column. The run reads this table at start and **refuses to begin Phase 1 while any row is ⏳**. After sign-off, the lead folds the outcomes into `CONTRACT.md` §6/§7 (and the kit header) in the first commit of Phase 1, so the canvases' spec stays the single source.
+Status: **signed by Michal 2026-10-08** (all recommendations accepted; A8 overridden; A12 open). Michal ticks ✓ (accept recommendation) or writes an override in the last column. The run reads this table at start and **refuses to begin Phase 1 while any row is ⏳**. After sign-off, the lead folds the outcomes into `CONTRACT.md` §6/§7 (and the kit header) in the first commit of Phase 1, so the canvases' spec stays the single source.
 
 ### G0-A · Product model (from `v2-open-questions.md`)
 
 | ID | Question | Recommendation (default) | Source | ✓ / override |
 | --- | --- | --- | --- | --- |
 | A1 | Project tabs | **A — native macOS window tabs** (decided 2026-10-08). Home = its own window tab (⌘T). Tab avatar/menu from CONTRACT §6 → the tab's right-click uses the native tab menu plus "Sign in as another account…" in the project pill menu | 11 pn-ab | ✓ decided |
-| A2 | AI = bring your own Claude account | Yes. Cloud does not include AI; the connect sheet appears on first Ask AI; Claude Pro/Max sign-in or API key | 02, 03, §7 | ⏳ |
-| A3 | Cloud trial | 14 days, no card, starts at first sign-in. At the end: projects stay readable and exportable, editing and sync pause behind "Choose a plan" | 02 | ⏳ |
-| A4 | One AI per artboard | Yes. A second ask waits in line or "Run on a copy"; different artboards run side by side; a whole-canvas ask starts on free artboards first. No "Run anyway" | 03 ai-queue-rule | ⏳ |
-| A5 | Quitting while AI runs | AI runs on this Mac and stops; the dialog warns; "Keep going" on next launch resumes the session. No server-side AI in v2.0 | 03 ai-quit | ⏳ |
-| A6 | Roles | Can view = look only · Can comment = look, comment, download · Can edit · Owner. Editors move to the trash; only owners clear it out. Self-hosted hub without view-only accounts hides Can view and links | 10, §6 | ⏳ |
-| A7 | Mode switch + keys | Edit · Preview · Present in the Share cluster; Viewing slot for read-only. Keys ⌥⌘P Preview · ⌥⌘↵ Present from the selected artboard · ⇧⌥⌘↵ Present from the start · L pointer (Present). Add to CONTRACT §1/§2 | 04 md-keys | ⏳ |
-| A8 | AI under the pointer in Preview | AI never changes the artboard under your pointer; the change lands when the pointer leaves; in Present it lands when you move on | 04 md-edge-ai | ⏳ |
-| A9 | Design system lives on a canvas | Yes — one "Design system" canvas pinned in Canvases; files are its Advanced layer and are generated from it; outside changes arrive as a review | 13, §7 | ⏳ |
-| A10 | Editing the same object | Soft lock: others see the editor's colour ring and read-only fields + Comment; frees on deselect / blur / 30 s idle / disconnect. AI holds its run's objects the same way | 14, §7 | ⏳ |
-| A11 | Object keys | ⌥⌘G frame (⌘G alias) · ⇧⌘G remove frame · ] [ · ⌘] ⌘[ · arrows 1 px / ⇧ 10 px · ⌘D · ⌫ · ⇧⌘L lock. In Preview ⌘G / ⇧⌘G = group / ungroup annotations | 14, 15 | ⏳ |
+| A2 | AI = bring your own Claude account | Yes. Cloud does not include AI; the connect sheet appears on first Ask AI; Claude Pro/Max sign-in or API key | 02, 03, §7 | ✓ Michal 2026-10-08 |
+| A3 | Cloud trial | 14 days, no card, starts at first sign-in. At the end: projects stay readable and exportable, editing and sync pause behind "Choose a plan" | 02 | ✓ Michal 2026-10-08 |
+| A4 | One AI per artboard | Yes. A second ask waits in line or "Run on a copy"; different artboards run side by side; a whole-canvas ask starts on free artboards first. No "Run anyway" | 03 ai-queue-rule | ✓ Michal 2026-10-08 |
+| A5 | Quitting while AI runs | AI runs on this Mac and stops; the dialog warns; "Keep going" on next launch resumes the session. No server-side AI in v2.0 | 03 ai-quit | ✓ Michal 2026-10-08 |
+| A6 | Roles | Can view = look only · Can comment = look, comment, download · Can edit · Owner. Editors move to the trash; only owners clear it out. Self-hosted hub without view-only accounts hides Can view and links | 10, §6 | ✓ Michal 2026-10-08 |
+| A7 | Mode switch + keys | Edit · Preview · Present in the Share cluster; Viewing slot for read-only. Keys ⌥⌘P Preview · ⌥⌘↵ Present from the selected artboard · ⇧⌥⌘↵ Present from the start · L pointer (Present). Add to CONTRACT §1/§2 | 04 md-keys | ✓ Michal 2026-10-08 |
+| A8 | AI under the pointer in Preview | ~~AI never changes the artboard under your pointer~~ — **override (Michal, 2026-10-08): AI changes show live in Preview, under the pointer too.** Present is unchanged: a change lands when you move on to the next artboard (audience-facing) | 04 md-edge-ai | ✓ Michal 2026-10-08 (override) |
+| A9 | Design system lives on a canvas | Yes — one "Design system" canvas pinned in Canvases; files are its Advanced layer and are generated from it; outside changes arrive as a review | 13, §7 | ✓ Michal 2026-10-08 |
+| A10 | Editing the same object | Soft lock: others see the editor's colour ring and read-only fields + Comment; frees on deselect / blur / 30 s idle / disconnect. AI holds its run's objects the same way | 14, §7 | ✓ Michal 2026-10-08 |
+| A11 | Object keys | ⌥⌘G frame (⌘G alias) · ⇧⌘G remove frame · ] [ · ⌘] ⌘[ · arrows 1 px / ⇧ 10 px · ⌘D · ⌫ · ⇧⌘L lock. In Preview ⌘G / ⇧⌘G = group / ungroup annotations | 14, 15 | ✓ Michal 2026-10-08 |
+| A12 | Several design systems in one project (today `designSystems[]` holds N, each canvas declares its own; this repo runs `maude` + `maude-v2` side by side). Canvas 13 draws "a project uses one system at a time" and turns a second system folder into a draft — that would remove a capability | ⏳ see Progress log — design pending | 13 ds-many-*, ds-edge-migrate | ⏳ |
 
 ### G0-B · Scope — "drawn as if it exists" (all NEW; recommendation: all in v2.0, per Michal's brief)
 
 | ID | Feature set | Recommendation | ✓ / override |
 | --- | --- | --- | --- |
-| B1 | Links between artboards and canvases (On click / On hover), presenter view on a 2nd display, presentation link with Catch up, per-artboard notes + order | In | ⏳ |
-| B2 | Follow (exists → restyle), Go to, **Bring everyone here** + spotlight, @mentions with Mac notification, Dock badge and e-mail | In | ⏳ |
-| B3 | Video: word-by-word captions, edit-by-transcript, beat detection + Cut to the beat, music ducking, poster frame, linked formats with per-format framing (subject tracking), Sound only, 4K, .srt | In; subject tracking may ship as "centre + manual nudge" if the spike shows no reliable tracker (record in DDR) | ⏳ |
-| B4 | Export: JPG, folder batch, file-name tokens, cloud vs this Mac render, colour profile, font-licence check, export a past version | In | ⏳ |
-| B5 | 300 dpi print PDF default (today 96) | In | ⏳ |
-| B6 | Search inside pictures (opt-in AI descriptions per project) | In | ⏳ |
-| B7 | Brand import from a website | In | ⏳ |
-| B8 | AI: offline prompt queue, drag-and-drop attachments, Open in terminal, chats grouped per canvas, full-text chat search | In | ⏳ |
-| B9 | DS: per-canvas "left out" updates (update dot), outside-change review, conflict pick, AI three directions, team libraries on cloud.maude.sh, migration of `system/<ds>/` folders | In | ⏳ |
-| B10 | Annotations PROPOSED set: arrows bound to artboards/elements with live re-route, annotations ride with their artboard, vote stamps + vote sessions, sticky ↔ comment, video time-pinned stickies, section Fold | In | ⏳ |
-| B11 | Version history: thumbnails, named versions, "what changed" in words, restore one artboard, object-scoped history | In; object-scoped history may be derived from the journal — DDR in Phase 1 | ⏳ |
+| B1 | Links between artboards and canvases (On click / On hover), presenter view on a 2nd display, presentation link with Catch up, per-artboard notes + order | In | ✓ Michal 2026-10-08 |
+| B2 | Follow (exists → restyle), Go to, **Bring everyone here** + spotlight, @mentions with Mac notification, Dock badge and e-mail | In | ✓ Michal 2026-10-08 |
+| B3 | Video: word-by-word captions, edit-by-transcript, beat detection + Cut to the beat, music ducking, poster frame, linked formats with per-format framing (subject tracking), Sound only, 4K, .srt | In; subject tracking may ship as "centre + manual nudge" if the spike shows no reliable tracker (record in DDR) | ✓ Michal 2026-10-08 |
+| B4 | Export: JPG, folder batch, file-name tokens, cloud vs this Mac render, colour profile, font-licence check, export a past version | In | ✓ Michal 2026-10-08 |
+| B5 | 300 dpi print PDF default (today 96) | In | ✓ Michal 2026-10-08 |
+| B6 | Search inside pictures (opt-in AI descriptions per project) | In | ✓ Michal 2026-10-08 |
+| B7 | Brand import from a website | In | ✓ Michal 2026-10-08 |
+| B8 | AI: offline prompt queue, drag-and-drop attachments, Open in terminal, chats grouped per canvas, full-text chat search | In | ✓ Michal 2026-10-08 |
+| B9 | DS: per-canvas "left out" updates (update dot), outside-change review, conflict pick, AI three directions, team libraries on cloud.maude.sh, migration of `system/<ds>/` folders | In | ✓ Michal 2026-10-08 |
+| B10 | Annotations PROPOSED set: arrows bound to artboards/elements with live re-route, annotations ride with their artboard, vote stamps + vote sessions, sticky ↔ comment, video time-pinned stickies, section Fold | In | ✓ Michal 2026-10-08 |
+| B11 | Version history: thumbnails, named versions, "what changed" in words, restore one artboard, object-scoped history | In; object-scoped history may be derived from the journal — DDR in Phase 1 | ✓ Michal 2026-10-08 |
 
 ### G0-C · Contradictions between canvases (recommendation resolves each)
 
 | ID | Contradiction | Recommendation | ✓ / override |
 | --- | --- | --- | --- |
-| C1 | Token names: 13/14 write `--page`, `--ink`, `--space-24`; DDR-043 contract is `--bg-*`, `--fg-*`, `--accent*` | Files keep the DS's existing token names; designer names are display names stored in `tokens.json` (`name`, any language). The words→CSS table emits the real variable names. New spacing/radius/elevation tokens added under DDR-043-compatible names | ⏳ |
-| C2 | Save status words: kit has a 5th "Not saved" | Keep CONTRACT's four; a failed, un-queued write shows "Not saved" as the 5th word only while true, with one action (Retry). Amend §6 | ⏳ |
-| C3 | Native ⌘N = New Project vs CONTRACT ⌘N = New canvas | Native File menu becomes New canvas ⌘N · New project… ⇧⌘N · Open project… ⌘O · New Home tab ⌘T; add a Window menu (native tab commands) | ⏳ |
-| C4 | New canvas naming | "Untitled canvas" (+ " 2", " 3"); Home-created canvases are named from the prompt by a non-AI heuristic; offline create uses the same rule | ⏳ |
-| C5 | Render-error "Go back to 14:05" | Creates a new version (same as Restore — Now is never rewritten) | ⏳ |
-| C6 | Accounts: per project (11) vs app-wide (02 Settings) | Settings › General lists every account on this Mac; each project tab is bound to one; "Sign in as another account…" from the pill menu | ⏳ |
-| C7 | Comments filters (Open · Mine · Resolved) drop today's All | Open · Mine · Resolved · All (All kept — nothing deleted); default Open | ⏳ |
-| C8 | Comments panel slot: left (04) vs right (05) | Right side, floating, like the AI chat panel (the left slot stays Canvases · Layers · Assets) | ⏳ |
-| C9 | Exports entry: Share-cluster icon (09) vs Export › Advanced (06) | Exports icon with progress ring in the Share cluster once any export exists + ⌘K "Exports" + Menu › View › Exports | ⏳ |
-| C10 | Trash entry | Last row of the Canvases panel + ⌘K "Trash"; clear-out owner-only | ⏳ |
-| C11 | Two Share surfaces (02 popover vs 10 sheet) | 10's sheet everywhere; 02's local-project state ("Move to cloud…") added to it | ⏳ |
-| C12 | "Stamp" vs "Stickers" | UI says **Stickers (E)**; "stamp" in copy means only vote stamps; internal id may stay `stamp` | ⏳ |
-| C13 | Sticker pack order / names | CONTRACT order: FigJam Doodle · Life Style · Opposing Thoughts · Project status; display names trimmed ("Project status"), authors as in manifests | ⏳ |
-| C14 | Marker inks/tips: kit vs 15 | 15 wins: Marker · Highlighter · Eraser tips; inks Ink (default) · red · amber · green · blue + more | ⏳ |
-| C15 | Gap "Auto" vs Spacing "Packed / Space between" | One control: Spacing seg Packed · Space between; the Gap menu lists tokens + "A number, no token…" | ⏳ |
-| C16 | Inspector kind chip | Always the artboard kind (Web page · Fixed size · Print · Video); height mode is a row, not a chip | ⏳ |
-| C17 | ⌫ on an object vs "moved to the trash" | Objects inside an artboard: removed (⌘Z and Version history bring them back). Artboards, canvases, assets, chats, tokens: moved to the trash | ⏳ |
-| C18 | Linked DS library state word | A distinct state "Linked library — view only", not the people-permission word "Can view" | ⏳ |
-| C19 | 07's export sheet vs 09 | Build 09's sheet only; 07 supplies content (format ticks, captions, render location). Captions default Off; estimates computed, never copy | ⏳ |
-| C20 | Retry label | "Retry <name>" button, manual (never auto) | ⏳ |
-| C21 | Inspector export (08 buttons vs 09 section) | 09's Export section (+/−, presets, Copy as PNG ⇧⌘C); 08's buttons are its default presets per kind | ⏳ |
-| C22 | Video length cap (08 warns at 2 min; 07 shows 4:12 without warning) | Cap per artboard, warn everywhere past 3600 frames, "Allow longer" stored per artboard up to the exporter ceiling (18000) | ⏳ |
-| C23 | Figma comments | Figma design comments → comment pins; FigJam comments → stickies; fix the sheet's option label | ⏳ |
-| C24 | Figma frames' kind | Arrive as Fixed size at Figma px | ⏳ |
-| C25 | Print guides precedence | View › Advanced › Print guides = default for all; per-artboard switch in the print inspector overrides | ⏳ |
-| C26 | Key collisions by focus | Focus-scoped resolution: focused text field > timeline focus (S split, I/O loop, ←/→ frames, ⌘+/− timeline zoom) > selection (generated image ←/→ takes) > mode tools > global. ⌘B always splits | ⏳ |
-| C27 | Chats across people | Chats are personal and stay on this Mac (as today `_chat/`); others' *running* runs on a shared canvas are visible View only; others' finished chats are not listed | ⏳ |
-| C28 | Two AI panel headers in 04/05 | 03's canonical header only | ⏳ |
-| C29 | Resolved stickies | Struck through in place; ⌘K "Hide resolved stickies" toggles (per user) | ⏳ |
-| C30 | Can comment and AI | No AI chat panel for Can view / Can comment | ⏳ |
-| C31 | Present order | Canvas order (row by row, left to right) unless "Order and notes…" set an order; notes + order + skip in `.meta.json` (versioned) | ⏳ |
-| C32 | Presence colours | Stable per person per project (coral reserved for AI); "You" is yellow locally | ⏳ |
-| C33 | Bring everyone here | Editors and owners only; followers leave with esc | ⏳ |
-| C34 | Settings › Advanced rows without backing | "Local server port": display only. "Faster canvas engine": not built. "Send anonymous usage data": not built (no-telemetry DDR, T23). "Decision memory": shows count when kgai is set up, else "Not set up" | ⏳ |
-| C35 | Timeline tracks (four fixed) vs today's overlay lanes | Text · Graphics · Video · Music by default; "+ track" under timeline Advanced adds Video 2 / Music 2; existing comps' overlay lanes migrate to Video 2 | ⏳ |
-| C36 | Sound-only and captions file formats | Sound only = .m4a (AAC); .wav under Advanced. Captions file = .srt; .vtt under Advanced | ⏳ |
-| C37 | Errors & recovery (crash recovery, full disk) are not drawn | Crash: on relaunch a one-line callout "Maude quit unexpectedly. Your work up to 14:05 is here." + Report a bug…; full disk: status word "Not saved" + callout "This Mac is out of space — changes wait here until there's room." + Show in Finder | ⏳ |
-| C38 | Home tab backend shape (no project) | A project-less **Home** server mode (one shared instance, loopback) serving the same client bundle in Home mode; the shell owns the cross-project index (recents, pins, open tabs, thumbnails cache). Confirm in Phase 1 spike S1 | ⏳ |
+| C1 | Token names: 13/14 write `--page`, `--ink`, `--space-24`; DDR-043 contract is `--bg-*`, `--fg-*`, `--accent*` | Files keep the DS's existing token names; designer names are display names stored in `tokens.json` (`name`, any language). The words→CSS table emits the real variable names. New spacing/radius/elevation tokens added under DDR-043-compatible names | ✓ Michal 2026-10-08 |
+| C2 | Save status words: kit has a 5th "Not saved" | Keep CONTRACT's four; a failed, un-queued write shows "Not saved" as the 5th word only while true, with one action (Retry). Amend §6 | ✓ Michal 2026-10-08 |
+| C3 | Native ⌘N = New Project vs CONTRACT ⌘N = New canvas | Native File menu becomes New canvas ⌘N · New project… ⇧⌘N · Open project… ⌘O · New Home tab ⌘T; add a Window menu (native tab commands) | ✓ Michal 2026-10-08 |
+| C4 | New canvas naming | "Untitled canvas" (+ " 2", " 3"); Home-created canvases are named from the prompt by a non-AI heuristic; offline create uses the same rule | ✓ Michal 2026-10-08 |
+| C5 | Render-error "Go back to 14:05" | Creates a new version (same as Restore — Now is never rewritten) | ✓ Michal 2026-10-08 |
+| C6 | Accounts: per project (11) vs app-wide (02 Settings) | Settings › General lists every account on this Mac; each project tab is bound to one; "Sign in as another account…" from the pill menu | ✓ Michal 2026-10-08 |
+| C7 | Comments filters (Open · Mine · Resolved) drop today's All | Open · Mine · Resolved · All (All kept — nothing deleted); default Open | ✓ Michal 2026-10-08 |
+| C8 | Comments panel slot: left (04) vs right (05) | Right side, floating, like the AI chat panel (the left slot stays Canvases · Layers · Assets) | ✓ Michal 2026-10-08 |
+| C9 | Exports entry: Share-cluster icon (09) vs Export › Advanced (06) | Exports icon with progress ring in the Share cluster once any export exists + ⌘K "Exports" + Menu › View › Exports | ✓ Michal 2026-10-08 |
+| C10 | Trash entry | Last row of the Canvases panel + ⌘K "Trash"; clear-out owner-only | ✓ Michal 2026-10-08 |
+| C11 | Two Share surfaces (02 popover vs 10 sheet) | 10's sheet everywhere; 02's local-project state ("Move to cloud…") added to it | ✓ Michal 2026-10-08 |
+| C12 | "Stamp" vs "Stickers" | UI says **Stickers (E)**; "stamp" in copy means only vote stamps; internal id may stay `stamp` | ✓ Michal 2026-10-08 |
+| C13 | Sticker pack order / names | CONTRACT order: FigJam Doodle · Life Style · Opposing Thoughts · Project status; display names trimmed ("Project status"), authors as in manifests | ✓ Michal 2026-10-08 |
+| C14 | Marker inks/tips: kit vs 15 | 15 wins: Marker · Highlighter · Eraser tips; inks Ink (default) · red · amber · green · blue + more | ✓ Michal 2026-10-08 |
+| C15 | Gap "Auto" vs Spacing "Packed / Space between" | One control: Spacing seg Packed · Space between; the Gap menu lists tokens + "A number, no token…" | ✓ Michal 2026-10-08 |
+| C16 | Inspector kind chip | Always the artboard kind (Web page · Fixed size · Print · Video); height mode is a row, not a chip | ✓ Michal 2026-10-08 |
+| C17 | ⌫ on an object vs "moved to the trash" | Objects inside an artboard: removed (⌘Z and Version history bring them back). Artboards, canvases, assets, chats, tokens: moved to the trash | ✓ Michal 2026-10-08 |
+| C18 | Linked DS library state word | A distinct state "Linked library — view only", not the people-permission word "Can view" | ✓ Michal 2026-10-08 |
+| C19 | 07's export sheet vs 09 | Build 09's sheet only; 07 supplies content (format ticks, captions, render location). Captions default Off; estimates computed, never copy | ✓ Michal 2026-10-08 |
+| C20 | Retry label | "Retry <name>" button, manual (never auto) | ✓ Michal 2026-10-08 |
+| C21 | Inspector export (08 buttons vs 09 section) | 09's Export section (+/−, presets, Copy as PNG ⇧⌘C); 08's buttons are its default presets per kind | ✓ Michal 2026-10-08 |
+| C22 | Video length cap (08 warns at 2 min; 07 shows 4:12 without warning) | Cap per artboard, warn everywhere past 3600 frames, "Allow longer" stored per artboard up to the exporter ceiling (18000) | ✓ Michal 2026-10-08 |
+| C23 | Figma comments | Figma design comments → comment pins; FigJam comments → stickies; fix the sheet's option label | ✓ Michal 2026-10-08 |
+| C24 | Figma frames' kind | Arrive as Fixed size at Figma px | ✓ Michal 2026-10-08 |
+| C25 | Print guides precedence | View › Advanced › Print guides = default for all; per-artboard switch in the print inspector overrides | ✓ Michal 2026-10-08 |
+| C26 | Key collisions by focus | Focus-scoped resolution: focused text field > timeline focus (S split, I/O loop, ←/→ frames, ⌘+/− timeline zoom) > selection (generated image ←/→ takes) > mode tools > global. ⌘B always splits | ✓ Michal 2026-10-08 |
+| C27 | Chats across people | Chats are personal and stay on this Mac (as today `_chat/`); others' *running* runs on a shared canvas are visible View only; others' finished chats are not listed | ✓ Michal 2026-10-08 |
+| C28 | Two AI panel headers in 04/05 | 03's canonical header only | ✓ Michal 2026-10-08 |
+| C29 | Resolved stickies | Struck through in place; ⌘K "Hide resolved stickies" toggles (per user) | ✓ Michal 2026-10-08 |
+| C30 | Can comment and AI | No AI chat panel for Can view / Can comment | ✓ Michal 2026-10-08 |
+| C31 | Present order | Canvas order (row by row, left to right) unless "Order and notes…" set an order; notes + order + skip in `.meta.json` (versioned) | ✓ Michal 2026-10-08 |
+| C32 | Presence colours | Stable per person per project (coral reserved for AI); "You" is yellow locally | ✓ Michal 2026-10-08 |
+| C33 | Bring everyone here | Editors and owners only; followers leave with esc | ✓ Michal 2026-10-08 |
+| C34 | Settings › Advanced rows without backing | "Local server port": display only. "Faster canvas engine": not built. "Send anonymous usage data": not built (no-telemetry DDR, T23). "Decision memory": shows count when kgai is set up, else "Not set up" | ✓ Michal 2026-10-08 |
+| C35 | Timeline tracks (four fixed) vs today's overlay lanes | Text · Graphics · Video · Music by default; "+ track" under timeline Advanced adds Video 2 / Music 2; existing comps' overlay lanes migrate to Video 2 | ✓ Michal 2026-10-08 |
+| C36 | Sound-only and captions file formats | Sound only = .m4a (AAC); .wav under Advanced. Captions file = .srt; .vtt under Advanced | ✓ Michal 2026-10-08 |
+| C37 | Errors & recovery (crash recovery, full disk) are not drawn | Crash: on relaunch a one-line callout "Maude quit unexpectedly. Your work up to 14:05 is here." + Report a bug…; full disk: status word "Not saved" + callout "This Mac is out of space — changes wait here until there's room." + Show in Finder | ✓ Michal 2026-10-08 |
+| C38 | Home tab backend shape (no project) | A project-less **Home** server mode (one shared instance, loopback) serving the same client bundle in Home mode; the shell owns the cross-project index (recents, pins, open tabs, thumbnails cache). Confirm in Phase 1 spike S1 | ✓ Michal 2026-10-08 |
 
 ### G0-D · Homes for today's features that no canvas places (nothing-deleted)
 
@@ -251,26 +252,26 @@ These rows extend the 124-row ledger drawn in `06 Advanced` (`ITEMS`). Recommend
 
 | ID | Today | v2 home (recommendation) | ✓ / override |
 | --- | --- | --- | --- |
-| D1 | Browse tool | Preview mode (Hand + click uses the design); "?" sheet lists it under "Keys and tools that moved" | ⏳ |
-| D2 | Pen B, Rect R, Ellipse O, Highlighter I, Eraser E, Section ⇧S | P · Shape R · Edit › More › Ellipse · Marker tip · Marker option · S — all listed in "?" › moved | ⏳ |
-| D3 | Canvas-palette Export ⌘E, ⌘⇧E re-run last export, in-canvas export dialog | One sheet ⇧⌘E; "Export again" on every Exports row; ⌘E unbound | ⏳ |
-| D4 | ⇧⌘R Refresh tree, T toggle tree, H hidden files, S DS view, N new board | ⇧⌘R kept (Canvases › Advanced + ⌘K); tree → ⌘\ / panel icon; hidden files → Canvases › Advanced switch (no key); DS → pinned row; new board → ⌘N | ⏳ |
-| D5 | Files panel: New folder, inline composer, folder menu, drag-drop, keyboard tree nav, open-comment count, Figma/experimental badges, non-canvas file preview | Canvases panel (11 pn-organise / pn-move); counts and badges as row meta; preview opens from hidden files | ⏳ |
-| D6 | Right-click menus: world (Fit/Reset view, Paste artboard, Export project ZIP / canvas as separate), artboard (Theme, Kind, Fit, Reset position, Convert to absolute, Open Timeline), element (Inspect, Select layer, Insert ▸, Replace image, Convert children to absolute, Copy/Paste style, Hide, Lock, Export selection), multi-select align/distribute | v2 artboard / object menus (14) + an **Advanced ▸** submenu holding every remaining item; Kind + Theme in the artboard inspector (Theme under its Advanced); world menu kept on empty-canvas right-click | ⏳ |
-| D7 | Contextual element toolbar (copy selector/id, inspect, align, Tidy up) | Align bar (14) + object menu Advanced ▸ | ⏳ |
-| D8 | Comments: All filter, Reopen, Delete, file group headers | Comments panel (C7); Reopen in a resolved thread; "Delete comment" for your own comments; grouping by canvas | ⏳ |
-| D9 | Chat: "Implement N comments", empty-state CTAs, per-chat Rename/Archive/Delete/Copy transcript, ModeBanner, rate-limit banner, ErrorCard, Permission/Elicitation prompts, OS notifications | 03 equivalents (suggestion chips, chat list menu with Move to trash, inline permission/choice cards, "used up until HH:MM", Needs you) | ⏳ |
-| D10 | Git panel: empty states, "Cloud is saving", result banners, Undo a restore, Retry cloud history, Save all, DiffView (compare, side by side / overlay wipe, zoom), chat-guard before branch switch | Version history (11) + its Advanced (06 ad-history); pixel compare under Version history › Advanced › "Compare pictures" | ⏳ |
-| D11 | CloudBar project list (Connect/Disconnect), "Connect this folder" deep link, file deep-link dialog, device-code sign-in | Settings › Connections (cloud projects on this Mac) · 11 deep links · browser sign-in sheet with "Use a code instead" | ⏳ |
-| D12 | TeamProjects "Your team's own server" form, SyncConsentDialog, Sync notice Dismiss, delivery attention list, SyncBanner diverged/rejected, CloudRoleBanner, mode-hint toast | Settings › Connections "Add a team server…" · consent shown once in the Move-to-cloud/first-link flow + Settings › Advanced · Diagnostics › Sync details · status-word callouts · access-status word | ⏳ |
-| D13 | Tours (usage, collab, quick-setup), SetupChecklist, "Start quick setup", What's new panel/toast, ReportBugDialog (3 steps), Help modal sections | Help › Take the tour (tours rewritten for v2) · Help › "Set up Maude…" (checklist) · Home first-run line · Help › What's new + quiet dot · Help › Report a bug… (unchanged flow) · Help › Help and guides | ⏳ |
-| D14 | Figma token Test, transcription engines (whisper.cpp / Scribe / Groq), keyframe engines (Gemma / ffmpeg / Blind), Generate model select + Generate/Insert | Settings › Connections "Test" · full selects in Settings › Advanced · AI chat Generate mode (12) with model select in its Advanced | ⏳ |
-| D15 | Timeline: AI clip Generate ✨, ClipInspector (Speed, Audio, Crop, Grade, Text, Transition), transport (Loop, Mute, Volume, comp picker), clip context menu (~17 items) | Timeline (07) + clip right-click menu (all 17 kept) + clip inspector with Grade/Crop/Transition frames under its Advanced | ⏳ |
-| D16 | Photo knobs (8 sliders, Duotone, Grain, Pattern, Mask, Background) | Photo (12) Looks + Light/Colour; every knob under Photo › Advanced | ⏳ |
-| D17 | Palette "Toggle theme", "New video…" | ⌘K "Theme" + Settings › General · ⌘K "New video" + New artboard › Video | ⏳ |
-| D18 | Inspector Advanced raw CSS (~33 properties, custom CSS property rows, HTML attribute rows) and the Designer/Advanced vocabulary toggle | Designer is the only default; inspector › Advanced carries the full raw editor unchanged (not only CSS · tokens · id) | ⏳ |
-| D19 | Native OS menu: About, Check for Updates…, Quit, Help › Report a Bug | Unchanged (CONTRACT §1); Check for updates also in Settings › Advanced | ⏳ |
-| D20 | Persisted prefs (~40 `mdcc-*`/`maude-*` keys, `prefs.json` panelSides/layersMode) | Versioned migration to v2 homes (fold state, pinned panels, theme); "seen" flags re-keyed so upgraders get the v2 tour once | ⏳ |
+| D1 | Browse tool | Preview mode (Hand + click uses the design); "?" sheet lists it under "Keys and tools that moved" | ✓ Michal 2026-10-08 |
+| D2 | Pen B, Rect R, Ellipse O, Highlighter I, Eraser E, Section ⇧S | P · Shape R · Edit › More › Ellipse · Marker tip · Marker option · S — all listed in "?" › moved | ✓ Michal 2026-10-08 |
+| D3 | Canvas-palette Export ⌘E, ⌘⇧E re-run last export, in-canvas export dialog | One sheet ⇧⌘E; "Export again" on every Exports row; ⌘E unbound | ✓ Michal 2026-10-08 |
+| D4 | ⇧⌘R Refresh tree, T toggle tree, H hidden files, S DS view, N new board | ⇧⌘R kept (Canvases › Advanced + ⌘K); tree → ⌘\ / panel icon; hidden files → Canvases › Advanced switch (no key); DS → pinned row; new board → ⌘N | ✓ Michal 2026-10-08 |
+| D5 | Files panel: New folder, inline composer, folder menu, drag-drop, keyboard tree nav, open-comment count, Figma/experimental badges, non-canvas file preview | Canvases panel (11 pn-organise / pn-move); counts and badges as row meta; preview opens from hidden files | ✓ Michal 2026-10-08 |
+| D6 | Right-click menus: world (Fit/Reset view, Paste artboard, Export project ZIP / canvas as separate), artboard (Theme, Kind, Fit, Reset position, Convert to absolute, Open Timeline), element (Inspect, Select layer, Insert ▸, Replace image, Convert children to absolute, Copy/Paste style, Hide, Lock, Export selection), multi-select align/distribute | v2 artboard / object menus (14) + an **Advanced ▸** submenu holding every remaining item; Kind + Theme in the artboard inspector (Theme under its Advanced); world menu kept on empty-canvas right-click | ✓ Michal 2026-10-08 |
+| D7 | Contextual element toolbar (copy selector/id, inspect, align, Tidy up) | Align bar (14) + object menu Advanced ▸ | ✓ Michal 2026-10-08 |
+| D8 | Comments: All filter, Reopen, Delete, file group headers | Comments panel (C7); Reopen in a resolved thread; "Delete comment" for your own comments; grouping by canvas | ✓ Michal 2026-10-08 |
+| D9 | Chat: "Implement N comments", empty-state CTAs, per-chat Rename/Archive/Delete/Copy transcript, ModeBanner, rate-limit banner, ErrorCard, Permission/Elicitation prompts, OS notifications | 03 equivalents (suggestion chips, chat list menu with Move to trash, inline permission/choice cards, "used up until HH:MM", Needs you) | ✓ Michal 2026-10-08 |
+| D10 | Git panel: empty states, "Cloud is saving", result banners, Undo a restore, Retry cloud history, Save all, DiffView (compare, side by side / overlay wipe, zoom), chat-guard before branch switch | Version history (11) + its Advanced (06 ad-history); pixel compare under Version history › Advanced › "Compare pictures" | ✓ Michal 2026-10-08 |
+| D11 | CloudBar project list (Connect/Disconnect), "Connect this folder" deep link, file deep-link dialog, device-code sign-in | Settings › Connections (cloud projects on this Mac) · 11 deep links · browser sign-in sheet with "Use a code instead" | ✓ Michal 2026-10-08 |
+| D12 | TeamProjects "Your team's own server" form, SyncConsentDialog, Sync notice Dismiss, delivery attention list, SyncBanner diverged/rejected, CloudRoleBanner, mode-hint toast | Settings › Connections "Add a team server…" · consent shown once in the Move-to-cloud/first-link flow + Settings › Advanced · Diagnostics › Sync details · status-word callouts · access-status word | ✓ Michal 2026-10-08 |
+| D13 | Tours (usage, collab, quick-setup), SetupChecklist, "Start quick setup", What's new panel/toast, ReportBugDialog (3 steps), Help modal sections | Help › Take the tour (tours rewritten for v2) · Help › "Set up Maude…" (checklist) · Home first-run line · Help › What's new + quiet dot · Help › Report a bug… (unchanged flow) · Help › Help and guides | ✓ Michal 2026-10-08 |
+| D14 | Figma token Test, transcription engines (whisper.cpp / Scribe / Groq), keyframe engines (Gemma / ffmpeg / Blind), Generate model select + Generate/Insert | Settings › Connections "Test" · full selects in Settings › Advanced · AI chat Generate mode (12) with model select in its Advanced | ✓ Michal 2026-10-08 |
+| D15 | Timeline: AI clip Generate ✨, ClipInspector (Speed, Audio, Crop, Grade, Text, Transition), transport (Loop, Mute, Volume, comp picker), clip context menu (~17 items) | Timeline (07) + clip right-click menu (all 17 kept) + clip inspector with Grade/Crop/Transition frames under its Advanced | ✓ Michal 2026-10-08 |
+| D16 | Photo knobs (8 sliders, Duotone, Grain, Pattern, Mask, Background) | Photo (12) Looks + Light/Colour; every knob under Photo › Advanced | ✓ Michal 2026-10-08 |
+| D17 | Palette "Toggle theme", "New video…" | ⌘K "Theme" + Settings › General · ⌘K "New video" + New artboard › Video | ✓ Michal 2026-10-08 |
+| D18 | Inspector Advanced raw CSS (~33 properties, custom CSS property rows, HTML attribute rows) and the Designer/Advanced vocabulary toggle | Designer is the only default; inspector › Advanced carries the full raw editor unchanged (not only CSS · tokens · id) | ✓ Michal 2026-10-08 |
+| D19 | Native OS menu: About, Check for Updates…, Quit, Help › Report a Bug | Unchanged (CONTRACT §1); Check for updates also in Settings › Advanced | ✓ Michal 2026-10-08 |
+| D20 | Persisted prefs (~40 `mdcc-*`/`maude-*` keys, `prefs.json` panelSides/layersMode) | Versioned migration to v2 homes (fold state, pinned panels, theme); "seen" flags re-keyed so upgraders get the v2 tour once | ✓ Michal 2026-10-08 |
 
 ### G0-E · Owner-run steps (the autonomous run builds the code, then stops and reports at these)
 
@@ -317,7 +318,7 @@ Default approaches the spikes start from (SHIPPER's minimal paths — keep them 
 | ID | Spike | Must answer | Feeds |
 | --- | --- | --- | --- |
 | V2-1.1 | Home window + cross-project index (C38) | How Home is served; where recents/pins/thumbnails/open-tab state live; how Home talks to project sidecars without leaking across origins | P3, S6, S1 |
-| V2-1.2 | Mode + toolbar ownership | Shell owns mode; the iframe renders the two toolbars and tools; new `dgn` messages (`set-mode`, mode echo, `occluded-insets` for floating panels, Preview hold-under-pointer); one typed message table | P4, S3, S2, S4 |
+| V2-1.2 | Mode + toolbar ownership | Shell owns mode; the iframe renders the two toolbars and tools; new `dgn` messages (`set-mode`, mode echo, `occluded-insets` for floating panels); one typed message table | P4, S3, S2, S4 |
 | V2-1.3 | Action / shortcut registry | One registry (id, label, where-path, keys, visibility predicate by role/shell/mode/focus) feeding menus, ⌘K, "?", native menu; focus-scoped key resolution (C26) | P2, everything |
 | V2-1.4 | Stable element ids | Ids that survive AI rewrites and drive Layers, locks, undo scopes, bound arrows, co-edit; canvas-only metadata store (lock, hide-in-editor, Place freely) that never leaks to export | S2, S4, S5 |
 | V2-1.5 | Unified undo + AI attribution | One op log for user + AI; one AI run = one step; per-user stacks; Undo history; map ACP edits to artboard ids (rings, queue, Made by AI) | S5, S2, S10 |
@@ -348,7 +349,7 @@ Absorbs hardening backlog T3, T13 (minimum), T17 (vocabulary), T21′, T23 (diag
 | V2-2.7 | **Prefs migration** (D20) in `ui-prefs.ts` + client, versioned, read-old/write-new | migration test with a fixture of every old key |
 | V2-2.8 | **Known bugs:** fixed artboard loses 24 px (canvas-lib label inside height); CLI `--option marks=crop` / numeric options dropped; `export zip` without scope rejected; ⇧⌘E double meaning; print PDF 96 → 300 dpi (B5) | each has a fail-first regression test |
 | V2-2.9 | **Diagnostics data (T23)** — ring-buffer logs per source (sync, server, AI, export) with 7-day retention, status providers, "Copy diagnostic report", no-telemetry DDR | Diagnostics API returns all four sources; redaction test |
-| V2-2.10 | **Typed shell↔canvas bridge** — one typed `dgn` message table (existing messages + `set-mode`, mode echo, `occluded-insets`, Preview hold-under-pointer) shared by shell and iframe; geometry test that Fit/reveal honour insets | bridge test green; every existing message still handled |
+| V2-2.10 | **Typed shell↔canvas bridge** — one typed `dgn` message table (existing messages + `set-mode`, mode echo, `occluded-insets`) shared by shell and iframe; geometry test that Fit/reveal honour insets | bridge test green; every existing message still handled |
 | V2-2.12 | **Boot gate extended to interaction** — `check-client-boots(-source)` and the `.app` gate assert, in the minified build with the `__TAURI__` stub, that the app is usable, not just mounted: today `#root` + the main panels respond; from Phase 4 on the v2 landmarks (the project pill opens the menu, ⌘K opens Search, the mode switch posts `set-mode`) | gate fails on a planted mounted-but-dead shell |
 | V2-2.13 | **Full studio suite → required** (`quality.yml` `studio-suite` off `continue-on-error`) once the quarantine list is named or empty; triage the `/_api/figma/import` cluster | job required on PRs |
 
@@ -402,7 +403,7 @@ Work packages (S1–S11) run on the lanes defined in "How this plan runs" — L1
 | --- | --- | --- | --- | --- |
 | **S1 Navigation & history** | 11, 05 (nav empties), 01 (find) | Canvases panel at 93 canvases (folders, pins, sort, inline rename, move, search with accent folding + typos + artboards), cross-project ⌘K groups, artboard jump list, Version history ⌥⌘H (thumbnails, named versions, words diff, restore whole / one artboard, compare), Trash with artboards (owner-only clear-out), moved-folder / removed / access-changed states | `client/v2/canvases/*`, `client/v2/history/*`, history/trash routes | S5 (AI versions), S9 (roles) |
 | **S2 Editing** | 14 | Artboards (8 handles, preset ruler, smart guides magenta, equal gaps, Tidy, ⌘D rhythm, rename in place), objects (enter frames, breadcrumb, multi-select, rotate, nudge, frame/unframe, z-order, lock, hide), auto layout with token ruler + reorder slot, constraints, text in place (Czech ties, Language, Case, style overrides), shapes + corner dots, Pen + Combine shapes, images + crop mode, components (⇧I picker, instances, variants, overrides, Detach), the 10-section inspector + Advanced (D18), Interaction section, words→CSS writer, co-edit soft lock (A10), Undo history, Figma paste bar, keyboard/VoiceOver model | canvas-shell editing modules, `client/v2/inspector/*`, edit routes | S3, S4, S5, S10 |
-| **S3 Modes & Present** | 04 | Mode state machine (V2-1.2), Preview (live design, links between artboards/canvases with back), Inspect/measure (⌥), Present one by one (lift, controls, video autoplay, counter excludes skipped), Present the canvas, presenter view on a 2nd display, Order and notes…, presentation link with Catch up, what-shows-per-mode table, esc everywhere, AI held under pointer (A8) | mode/present modules, Tauri multi-display, hub `/present/<canvas>` | S2 (Interaction), S9 (link auth) |
+| **S3 Modes & Present** | 04 | Mode state machine (V2-1.2), Preview (live design, links between artboards/canvases with back), Inspect/measure (⌥), Present one by one (lift, controls, video autoplay, counter excludes skipped), Present the canvas, presenter view on a 2nd display, Order and notes…, presentation link with Catch up, what-shows-per-mode table, esc everywhere, AI live in Preview / lands on move-on in Present (A8) | mode/present modules, Tauri multi-display, hub `/present/<canvas>` | S2 (Interaction), S9 (link auth) |
 | **S4 Annotations** | 15 | Preview toolbar tools (sticky colours + per-person last colour, stack + Fan out, Comment, Marker 3 tips + inks, Arrow with styles, Shape, Text, Section + Fold, templates panel + AI "describe it"), Stickers gallery (vote stamps, Recent, 4 packs, keyword search, follow-pointer drop at 160 px, Replace / Flip), quiet rendering in Edit with click-through, LOD mosaic < 25 %, bound arrows with live re-route + dangling, ride-with-artboard, votes, sticky ↔ comment, video time pins, Can comment denial line, FigJam import entry, AI read/apply/write | annotations-* modules, `StickerPicker` successor, annotation model | S2 (ids), S3, S7 |
 | **S5 AI chat** | 03 (+ AI parts of 01, 05) | Canonical panel (title ⌄, ✦ N runs, +, hide), simple composer with selection chip + paperclip, suggestions with why, result describes itself, per-artboard rings/tags + "Made by AI", one AI per artboard queue + Run on a copy (A4), run list (yours + others View only), chat list grouped by canvas + full-text search + Move to trash, attachments + folder consent, inline permission/choice cards, Needs you across panel/pill/notification/Dock, offline/setup/used-up queue (prompt never lost), quit/close-tab dialog + Keep going (A5), Undo this chat, Open in terminal, connect sheet (A2), Advanced (model, effort, permission mode, fast, view, context %, raw log) | `client/panels/Chat*` successors, ACP runtime + run registry routes | S2 (undo), S1 (versions), S10 (DS make) |
 
