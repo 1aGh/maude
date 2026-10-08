@@ -258,3 +258,8 @@ UI change: one status string in the Sync panel. Add a desktop E2E scenario `sync
 - **Canvas sockets recycled too.** 214 `GET /` upgrades/h: the desktop's canvas sockets (two shards) were as silent as the control socket, so the 30 s silence check recycled each every ~33 s, and every reconnect ran `pollRemoteSoon` + `remotePull` (bootstrap + documents + a journal pass, and a store `manifest` RPC per bootstrap). Fix: the hub keep-alive is per SOCKET now (`createSocketKeepalive`, one frame per socket per 15 s, deduplicated by websocket, control doc first); a real-socket test pins a canvas socket staying up.
 - **The park never engaged.** `hasSelfRetryingWork` read the file plane's `seeding` phase as work in flight, and five `stuck` rows keep Alligators in `seeding` forever. Fix: the file lane is judged from the ledger (`fileLaneBusy`: a row being pushed, or unsent rows while something landed in the last 20 min); an unacknowledged canvas holds the link only for 20 min. The desktop now logs `idle, but staying connected: <reason>` and, every 30 min, what last reset its idle clock.
 - Needs a release + another overnight measurement.
+
+### Daytime idle test after v1.8.1 (2026-10-08): PARTIAL, 1.9 h of 3 h
+
+- Park works: 3 parks ~20 min after the last input, `/_cell/state` ~1/min, cell asleep ~20 min after each park (07:40–07:45, 08:30–09:15Z). No `staying connected` blocker.
+- Two unparks by `studio input` (7 s / 11 s before the log line) at ~07:45 and ~09:15Z with the app supposedly untouched. Find which client event counts as input (window focus, visibility, pointer move?) and whether it should. Task 7 stays open.
