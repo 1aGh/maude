@@ -57,10 +57,6 @@
 .gr-ai { position: absolute; right: var(--space-4); bottom: 92px; width: 260px; z-index: 4; }
 .gr-ai-hd { display: flex; align-items: center; gap: var(--space-1); font-family: var(--font-rounded); font-weight: var(--w-semibold); font-size: var(--type-sm); margin-bottom: var(--space-2); }
 .gr-dock { position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); z-index: 4; }
-.gr-dock-sticky { display: block; width: 20px; height: 20px; border-radius: var(--radius-xs); box-shadow: var(--shadow-sm); }
-.gr-ds-yellow { background: var(--object-yellow); }
-.gr-ds-green { background: var(--object-green); }
-.gr-ds-lilac { background: var(--object-lilac); }
 
 .gr-th-coral { background: var(--object-coral); }
 .gr-th-yellow { background: var(--object-yellow); }

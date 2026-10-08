@@ -523,7 +523,7 @@ export default function Onboarding() {
         </DCArtboard>
 
         <DCArtboard id="ob-invite-landed" label="8 · Landed on her comment" width={W} height={H} fixed>
-          <Stage note={<Note n={8} title="No Home, no picking — you land where she pointed.">The camera eases from the whole canvas onto the poster and stops at Tereza's comment, reply field ready. She's here, live. This is how every entry point should feel.</Note>}>
+          <Stage note={<Note n={8} title="No Home, no picking — you land where she pointed.">The camera eases onto the poster and stops at Tereza's comment, reply field ready, in Preview with Comment. She's here, live. Every entry point should feel this way.</Note>}>
             <Window tabs={[TABS.home, TABS.alligators]} activeTab={1}>
               <Canvas>
                 <Artboard label="A4 · plakát" kind="print" x={360} y={100} w={300} h={424}><GatorMock variant="poster" /></Artboard>
@@ -541,9 +541,9 @@ export default function Onboarding() {
               </Canvas>
               <ProjectPill project="Alligators brand" canvas="Combine-kampan" />
               <CanvasesPanel project="Alligators brand" count={ALLIGATORS_COUNT} selected="Combine-kampan" folders={ALLIGATORS_FOLDERS} items={ALLIGATORS_ROOT} />
-              <ShareCluster people={["tereza", "jonas"]} mode="edit" />
+              <ShareCluster people={["tereza", "jonas"]} mode="preview" />
               <ZoomUndo zoom={55} />
-              <Toolbar />
+              <Toolbar mode="annotate" tool="comment" />
               <PanelIcon icon="spark" at="ai" />
               <Toast at="top" icon="people">Tereza invited you here — her comment is on the poster.</Toast>
             </Window>

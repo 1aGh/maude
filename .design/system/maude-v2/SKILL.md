@@ -17,7 +17,7 @@ Locked direction: [`ui/v2/maude-v2-moodboard.tsx`](../../ui/v2/maude-v2-moodboar
    No docked bars/sidebars in the default view (docked = an Advanced option only).
 2. **Three colour roles, never mixed:** `--accent` (azure) = primary action, selection, focus ·
    `--spark` (vermilion) = the AI only · `--object-*` = things on the canvas (stickies, shapes).
-   Never fill chrome with object colours; never use the spark for decoration or errors.
+   Never fill chrome with object colours; never use the spark for decoration or errors. Buttons that hand work to AI (send, Ask AI) are azure like every action, with the spark as their glyph — a vermilion fill marks AI's presence (cursor, working tag), never a button. Elevation is quiet: islands lift with a soft `--island-shadow`, not a drop shadow.
 3. **Native type.** `--font-display`/`--font-body` = SF Pro; `--font-rounded` = SF Pro Rounded for
    playful surfaces (empty states, onboarding, stickies); `--font-mono` ONLY in Advanced/code.
 4. **Nothing deleted, only hidden.** Developer detail (ports, paths, SHA, branches, status stamps,

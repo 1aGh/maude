@@ -33,7 +33,11 @@
  * face rings / overflow / a comment count on top via CSS. Share › Advanced is 06 ad-share's fold, verbatim
  * (Links, link rules, sync). Local → cloud follows 02 Onboarding step for step (offer → browser sign-in if needed →
  * Share opens on Invite while it goes up). Thread / Comments panel from 04 (md-th, md-cm). Busy-canvas legend from
- * 01 (cf-busy). Timeline from 07 (ve-tl). Print guides from 08 (ak-pg-*). Viewer toolbar from 05 (es-vdock).
+ * 01 (cf-busy). Timeline from 07 (ve-tl). Print guides from 08 (ak-pg-*).
+ *
+ * Toolbars (CONTRACT §2): Edit's toolbar while designing; a comment or a sticky is Preview — the cluster reads Preview and
+ * the toolbar is Preview's annotation toolbar (04 md-comment). Can view has no toolbar and opens in Preview (04
+ * md-edge-viewer); Can comment would get Hand · Comment (04 md-comment-only).
  *
  * Presence colours: people wear sky / green / yellow / lilac / grey only — never coral, which sits next to the AI
  * spark. You = yellow, Tereza = sky, Jonas = green, Petra = lilac, Lukáš = grey; a crowd repeats tones, names carry it.
@@ -51,7 +55,7 @@ import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
 import { Fragment } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import {
-  Artboard, Avatar, Canvas, CanvasesPanel, CommentPin, Cursor, Dialog, GatorMock, Icon, InSelect, InSize, Inspector, Kbd,
+  Artboard, Avatar, Canvas, CanvasesPanel, CommentPin, Cursor, Dialog, GatorMock, Icon, InSelect, Kbd,
   Mark, Note, PanelIcon, ProjectPill, SearchPalette, Selection, ShareCluster, Spark, Stage, Sticky, TABS, Thumb, Toast,
   Toolbar, Tooltip, V2, VideoFrameMock, Window, ZoomUndo,
 } from "./_kit";
@@ -264,19 +268,6 @@ function KampanChrome({ children, left = false, zoom = 27 }: { children?: ReactN
       <Toolbar />
       {children}
     </>
-  );
-}
-
-/** A viewer's toolbar — lifted from 05 (es-vdock). Can view: Select and Hand; Can comment adds Comment. */
-function ViewDock({ comment = false, style }: { comment?: boolean; style?: CSSProperties }) {
-  return (
-    <div className="island dock k-dock co-vdock" style={style}>
-      <span className="icon-btn k-pressed" title="Select · V"><Icon name="select" size={18} /></span>
-      <span className="icon-btn" title="Hand · H"><Icon name="hand" size={18} /></span>
-      {comment ? <span className="icon-btn" title="Comment · C"><Icon name="comment" size={18} /></span> : null}
-      <span className="divider-v" />
-      <span className="co-vdock-t"><Icon name="view" size={14} />{comment ? "You can look and comment" : "You can look"}</span>
-    </div>
   );
 }
 
@@ -538,7 +529,7 @@ export default function ShareAndCollaboration() {
         </DCArtboard>
 
         <DCArtboard id="co-browser-view" label="3 · A link, opened in a browser" width={W} height={H} fixed>
-          <Stage note={<Note n={3} title="Any browser is enough to look.">Vojta has no app. The link opens Combine-kampan live on cloud.maude.sh, in Viewing — cursors, Preview and Present work. Ask to edit is the way to more.</Note>}>
+          <Stage note={<Note n={3} title="Any browser is enough to look.">Vojta has no app. The link opens Combine-kampan live on cloud.maude.sh in Preview — cursors and pins, no toolbar. Ask to edit is the way to more.</Note>}>
             <BrowserWin url="alligators.cloud.maude.sh/c/combine-kampan" w={1440} h={900}>
               <Canvas>
                 <Kampan yourAi={false}>
@@ -548,8 +539,7 @@ export default function ShareAndCollaboration() {
                 </Kampan>
               </Canvas>
               <ProjectPill project="Alligators brand" canvas="Combine-kampan" />
-              <CoCluster faces={["tereza", "jonas"]} canEdit={false} access="Can view" />
-              <ViewDock />
+              <CoCluster faces={["tereza", "jonas"]} canEdit={false} access="Can view" mode="preview" />
               <span className="island co-openapp"><Mark size={18} />Open in the Mac app</span>
               <span className="island k-uz co-zoom-only"><span className="btn btn--ghost btn--sm k-zoom">27%</span></span>
             </BrowserWin>
@@ -663,7 +653,7 @@ export default function ShareAndCollaboration() {
       {/* ── 3 · Comments ───────────────────────────────────────────────────────────────────── */}
       <DCSection id="comments" title="Comments together" subtitle="A thread with a mention, how a mention reaches you, a comment on a video frame, a comment on a print artboard">
         <DCArtboard id="co-comment-thread" label="8 · A thread, a mention, Resolve" width={W} height={H} fixed>
-          <Stage note={<Note n={8} title="A comment lives on its spot.">@ suggests people with their role and reaches them anywhere (9). Resolve moves the thread to Resolved — kept.</Note>}>
+          <Stage note={<Note n={8} title="A comment lives on its spot.">C switches to Preview with Comment in hand. @ suggests people with their role and reaches them anywhere (9). Resolve moves the thread to Resolved — kept.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas>
                 <Artboard label="Post 1:1 · Combine 2026" kind="digital" x={330} y={110} w={432} h={432}><GatorMock variant="social" headline="COMBINE 2026" sub="So 14. 3. · Kraví hora" /></Artboard>
@@ -690,9 +680,9 @@ export default function ShareAndCollaboration() {
                 { who: P.petra, on: "Reels · nábor · at 0:12", t: "Logo naskočí moc brzo.", m: "yesterday" },
                 { who: "you", on: "Web · STAŇ SE GATOREM", t: "Tlačítko ZAPIŠ SE chce víc kontrastu.", m: "Monday" },
               ]} />
-              <CoCluster faces={["tereza", "jonas"]} comments />
+              <CoCluster faces={["tereza", "jonas"]} comments mode="preview" />
               <ZoomUndo zoom={40} />
-              <Toolbar tool="comment" />
+              <Toolbar mode="annotate" tool="comment" />
               <PanelIcon icon="spark" at="ai" />
             </Window>
           </Stage>
@@ -765,11 +755,10 @@ export default function ShareAndCollaboration() {
               </Canvas>
               <ProjectPill project="Alligators brand" canvas="video-hype" />
               <PanelIcon icon="panel-left" at="left" />
-              <CoCluster faces={["tereza", "jonas"]} comments />
-              <Inspector title="Reels · nábor" kind="Video" rows={[["Size", <InSize w={1080} h={1920} />], ["Length", <span>0:30</span>], ["Poster frame", <span>0:04</span>]]} />
-              <CommentTimeline style={{ left: 250, width: 880, bottom: 80 }} />
+              <CoCluster faces={["tereza", "jonas"]} comments mode="preview" />
+              <CommentTimeline style={{ left: 250, width: 880, bottom: 92 }} />
               <ZoomUndo zoom={25} />
-              <Toolbar tool="comment" />
+              <Toolbar mode="annotate" tool="comment" />
             </Window>
           </Stage>
         </DCArtboard>
@@ -791,9 +780,9 @@ export default function ShareAndCollaboration() {
               </Canvas>
               <ProjectPill project="Alligators brand" canvas="LetakA6" />
               <PanelIcon icon="panel-left" at="left" />
-              <CoCluster faces={["jonas"]} comments />
+              <CoCluster faces={["jonas"]} comments mode="preview" />
               <ZoomUndo zoom={30} />
-              <Toolbar tool="comment" />
+              <Toolbar mode="annotate" tool="comment" />
               <PanelIcon icon="spark" at="ai" />
             </Window>
           </Stage>
@@ -812,10 +801,10 @@ export default function ShareAndCollaboration() {
               </Canvas>
               <ProjectPill project="Alligators brand" canvas="Uniformy-2027" />
               <CanvasesPanel project="Alligators brand" count={93} selected="Uniformy-2027" folders={DRESY_FOLDERS("offline")} foot="14 changes since yesterday 18:20 — kept on this Mac" />
-              <CoCluster faces={[]} status="offline" />
+              <CoCluster faces={[]} status="offline" mode="preview" />
               <Tooltip text="Invites send when this Mac is online." x={1306} y={66} below />
               <ZoomUndo zoom={29} />
-              <Toolbar />
+              <Toolbar mode="annotate" tool="comment" />
               <PanelIcon icon="spark" at="ai" />
             </Window>
           </Stage>
@@ -832,10 +821,10 @@ export default function ShareAndCollaboration() {
               </Canvas>
               <ProjectPill project="Alligators brand" canvas="Uniformy-2027" />
               <CanvasesPanel project="Alligators brand" count={93} selected="Uniformy-2027" folders={DRESY_FOLDERS("syncing")} foot="Sending 14 changes · 9 sent" />
-              <CoCluster faces={["tereza", "jonas"]} status="syncing" />
+              <CoCluster faces={["tereza", "jonas"]} status="syncing" mode="preview" />
               <Toast at="top" icon="sync" action="Show">Back online. Your changes are going up; one sticky needs a look.</Toast>
               <ZoomUndo zoom={29} />
-              <Toolbar />
+              <Toolbar mode="annotate" />
               <PanelIcon icon="spark" at="ai" />
             </Window>
           </Stage>
@@ -866,7 +855,7 @@ export default function ShareAndCollaboration() {
               </Canvas>
               <ProjectPill project="Alligators brand" canvas="Uniformy-2027" />
               <PanelIcon icon="panel-left" at="left" />
-              <CoCluster faces={["tereza", "jonas"]} />
+              <CoCluster faces={["tereza", "jonas"]} mode="preview" />
               <div className="island co-vh" style={{ left: 1028, top: 420 }}>
                 <p className="co-vh-t"><Icon name="history" size={14} />Version history<span>this sticky</span></p>
                 <span className="co-vh-r"><Avatar who="jonas" size="sm" /><span><span><strong>Jonas</strong> · today 7:55</span><em>“Číslo 25 cm — jinak se nad…”</em></span><span className="btn btn--ghost btn--sm">Restore</span></span>
@@ -875,7 +864,7 @@ export default function ShareAndCollaboration() {
                 <p className="co-hint co-vh-f">Both stay here whatever you keep. <Kbd>⌥⌘H</Kbd></p>
               </div>
               <ZoomUndo zoom={29} />
-              <Toolbar />
+              <Toolbar mode="annotate" />
               <PanelIcon icon="spark" at="ai" />
             </Window>
           </Stage>
@@ -1022,7 +1011,6 @@ export default function ShareAndCollaboration() {
                   </Canvas>
                   <ProjectPill project="Alligators brand" canvas="Combine-kampan" />
                   <CoCluster faces={["tereza"]} canEdit={false} access="Can view" />
-                  <ViewDock />
                 </MiniWin>
                 <p className="co-col-cap">When the owner says yes, Petra sees:</p>
                 <Toast at="free" icon="done" style={{ position: "relative", left: "auto", top: "auto", translate: "none", alignSelf: "flex-start" }}>You can edit Combine-kampan now.</Toast>
@@ -1042,7 +1030,7 @@ export default function ShareAndCollaboration() {
                   rows={[KAMPAN_ROWS[0], KAMPAN_ROWS[1], { who: P.petra, sub: "petra@alligators.cz", role: "Can view" }]} />
               </div>
             </div>
-            <div className="co-closeup-note"><Note n={18} title="A view-only person can ask, once.">The mode switch reads Viewing and the toolbar only looks. Petra's drag does nothing and one dark tip says why; Ask to edit waits at the top of the owner's Share.</Note></div>
+            <div className="co-closeup-note"><Note n={18} title="A view-only person can ask, once.">The mode switch reads Viewing and there is no toolbar. Petra's drag does nothing and one dark tip says why; Ask to edit waits at the top of the owner's Share.</Note></div>
           </V2>
         </DCArtboard>
 

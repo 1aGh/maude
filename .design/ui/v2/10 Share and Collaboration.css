@@ -314,9 +314,6 @@
 .co-sel-tone { display: contents; }
 .co-sel-tone .k-sel { border-color: var(--co-ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--co-ring) 35%, transparent); }
 
-/* viewer toolbar — lifted from 05 (es-vdock) */
-.island.co-vdock { align-items: center; }
-.co-vdock-t { display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-3) 0 var(--space-2); font-size: var(--type-xs); color: var(--fg-1); white-space: nowrap; }
 
 /* browser view: the app is one quiet way out; zoom without undo (a viewer changes nothing) */
 .island.co-openapp { position: absolute; right: var(--space-4); bottom: var(--space-4); z-index: 12; display: inline-flex; align-items: center; gap: var(--space-2); height: 40px; padding: 0 var(--space-3) 0 var(--space-2); font-size: var(--type-sm); font-weight: var(--w-medium); }

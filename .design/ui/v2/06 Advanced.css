@@ -356,6 +356,8 @@
 .ad-ks-hd strong { font-size: var(--type-md); font-weight: var(--w-semibold); }
 .ad-ks-find.k-find { flex: 1; margin: 0; }
 .ad-ks-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-5); }
+.ad-ks-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); } /* three column stacks: Edit tools · Preview tools + File · Canvas + Panels and AI */
+.ad-ks-col { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
 .ad-ks-g { display: flex; flex-direction: column; gap: 1px; }
 .ad-ks-gt { margin-bottom: var(--space-1); font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2); }
 .ad-ks-r { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 26px; font-size: var(--type-sm); }

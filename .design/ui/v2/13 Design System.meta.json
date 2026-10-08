@@ -1,0 +1,179 @@
+{
+  "title": "13 Design System",
+  "subtitle": "The design system lives on one canvas inside the project — Light and Dark, edited in place, the files written from it — Studio site and Alligators brand",
+  "brief": "ukaz mi jeste jeden canvas kde uvidim jak bude vypadat tvorba a zobrazeni design systemu, premyslim ze oproti tomu jak je to dnes by to klidne taky mohlo zit jen v ramci boardu/canvas — and, on 11: \"kde bude design system?\" Proposal (CONTRACT §7): one pinned \"Design system\" canvas per project with Brand · Colour · Type · Space & shape · Motion · Components · Patterns; every colour has a Light and a Dark value; edited in place, changes reach canvases after a review where every canvas has a tick; for designers the canvas is the source, the files are generated from it and are the source for code — an outside file change comes back as a review; made with AI from a sentence instead of the long setup-ds wizard; the files are its Advanced layer.",
+  "platform": "desktop",
+  "designSystem": "maude-v2",
+  "opt_out_scope": "palette",
+  "sections": [
+    {
+      "id": "where",
+      "title": "Where the design system lives",
+      "subtitle": "One canvas, “Design system”, pinned above every canvas — reached from the panel, ⌘K and the inspector. The project menu gains nothing."
+    },
+    {
+      "id": "board",
+      "title": "The Design system canvas",
+      "subtitle": "Seven sections as artboards — Brand · Colour · Type · Space & shape · Motion · Components · Patterns. Every colour has a Light and a Dark value; one switch shows the whole system in either."
+    },
+    {
+      "id": "edit",
+      "title": "Editing in place — and choosing who follows",
+      "subtitle": "A swatch, then a component master. Edits wait in one review; every canvas has a tick, left-out canvases get a quiet dot, Cancel changes nothing."
+    },
+    {
+      "id": "truth",
+      "title": "The Design system canvas and its files",
+      "subtitle": "For designers the canvas is the source; the files are written from it and are the source for code. A file changed outside the app comes back as a review; a clash keeps both until one is picked."
+    },
+    {
+      "id": "make",
+      "title": "Making a design system",
+      "subtitle": "How Studio site got its system — a sentence and a few things to learn from, three directions on a canvas, pick or mix, AI builds it live, partial results said plainly"
+    },
+    {
+      "id": "many",
+      "title": "Many systems",
+      "subtitle": "A project uses one system at a time — preview the whole project in another before switching; share one as a team library on cloud.maude.sh; a linked project sees it read-only"
+    },
+    {
+      "id": "edges",
+      "title": "Edge cases",
+      "subtitle": "A change that breaks contrast · a colour 40 canvases use goes to the trash · AI spots a hand-picked colour outside the system · an old-style folder becomes the Design system canvas"
+    },
+    {
+      "id": "advanced",
+      "title": "Advanced — the files behind the Design system",
+      "subtitle": "Tokens as CSS or JSON (both modes), the system/<ds>/ folder, which way changes flow, code handoff, the system's own version history, and Check the system"
+    }
+  ],
+  "artboards": [
+    {
+      "id": "ds-where-studio",
+      "label": "1 · Studio site — pinned above every canvas",
+      "note": "It's a canvas, so it lives with the canvases."
+    },
+    {
+      "id": "ds-where-gator",
+      "label": "2 · Alligators brand — ⌘K “design system”",
+      "note": "Search finds the Design system, and everything in it."
+    },
+    {
+      "id": "ds-board-studio",
+      "label": "3 · The Design system canvas — Studio site system, at 100 %",
+      "note": "The specimen pages, as one canvas you can edit."
+    },
+    {
+      "id": "ds-board-dark",
+      "label": "4 · The same system in Dark",
+      "note": "Dark is the system's own mode, not the app's theme."
+    },
+    {
+      "id": "ds-board-gator",
+      "label": "5 · Alligators brand system — the club green",
+      "note": "Same seven sections, the club's own colours."
+    },
+    {
+      "id": "ds-edit-colour",
+      "label": "6 · Select a swatch, edit the colour",
+      "note": "Edit the Light value; Dark follows unless you say otherwise."
+    },
+    {
+      "id": "ds-edit-reach",
+      "label": "7 · One colour, everywhere it lands — Show",
+      "note": "Only a canvas-native system can show its own reach."
+    },
+    {
+      "id": "ds-edit-review",
+      "label": "8 · Update canvases — tick who follows",
+      "note": "Every canvas has a tick; Cancel changes nothing."
+    },
+    {
+      "id": "ds-edit-master",
+      "label": "9 · Edit a component master — leave a folder out",
+      "note": "Leave a whole folder out with one tick."
+    },
+    {
+      "id": "ds-edit-instance",
+      "label": "10 · A canvas that was left out — update available",
+      "note": "A quiet dot, not a nag."
+    },
+    {
+      "id": "ds-truth-outside",
+      "label": "11 · 2 tokens changed outside the app",
+      "note": "An outside edit arrives as a review, never silently."
+    },
+    {
+      "id": "ds-truth-conflict",
+      "label": "12 · You and the file changed the same token",
+      "note": "A clash keeps both, side by side, until one is picked."
+    },
+    {
+      "id": "ds-make-inputs",
+      "label": "13 · Make a design system — three quick inputs",
+      "note": "Three inputs instead of a long interview."
+    },
+    {
+      "id": "ds-make-directions",
+      "label": "14 · Three directions, on the Design system canvas",
+      "note": "Directions are artboards, so you can mark them up."
+    },
+    {
+      "id": "ds-make-mix",
+      "label": "15 · Pick one, or mix",
+      "note": "Pick a direction, or borrow a part of another."
+    },
+    {
+      "id": "ds-make-filling",
+      "label": "16 · The Design system fills in, section by section",
+      "note": "Watch it being built — and stop it any time."
+    },
+    {
+      "id": "ds-make-done",
+      "label": "17 · Ready — use it as Studio site's style",
+      "note": "Done, with what's missing said plainly."
+    },
+    {
+      "id": "ds-many-switch",
+      "label": "18 · Preview the project in another system",
+      "note": "Try a whole project in another system, then decide."
+    },
+    {
+      "id": "ds-many-library",
+      "label": "19 · A team library on cloud.maude.sh — updates arrive as a review",
+      "note": "Shared once, reviewed everywhere."
+    },
+    {
+      "id": "ds-many-linked",
+      "label": "20 · A project that links a team library",
+      "note": "Linked means read here, edited at home."
+    },
+    {
+      "id": "ds-edge-contrast",
+      "label": "21 · A change that breaks contrast on two surfaces",
+      "note": "A quiet warning, with the fix as the action."
+    },
+    {
+      "id": "ds-edge-trash",
+      "label": "22 · A colour 40 canvases use, moved to the trash",
+      "note": "Moving a token to the trash never breaks a canvas."
+    },
+    {
+      "id": "ds-edge-suggest",
+      "label": "23 · AI spots a hand-picked colour that isn't in the system",
+      "note": "Off-system colours get one quiet question."
+    },
+    {
+      "id": "ds-edge-migrate",
+      "label": "24 · An old-style system folder becomes the Design system canvas",
+      "note": "One question, then nothing is thrown away."
+    },
+    {
+      "id": "ds-advanced",
+      "label": "25 · Design system › Advanced — files, tokens, history, checks",
+      "note": "Today's folder, one fold down — written from the canvas."
+    }
+  ],
+  "created": "2026-10-08T16:00:00.000Z",
+  "last_modified": "2026-10-08T19:30:00.000Z"
+}

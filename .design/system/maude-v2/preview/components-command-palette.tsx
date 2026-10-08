@@ -52,10 +52,13 @@ const GLYPH: Record<string, ReactNode> = {
   shape: (<><rect x="2.5" y="2.5" width="7" height="7" rx="1.5" /><circle cx="10.25" cy="10.25" r="3.5" /></>),
   pen: (<><path d="M10.25 3.25l2.5 2.5L6 12.5l-3.25.75.75-3.25z" /><path d="M8.75 4.75l2.5 2.5" /></>),
   text: <path d="M3.5 4.5V3h9v1.5M8 3v10M6.25 13h3.5" />,
+  image: (<><rect x="2.5" y="3" width="11" height="10" rx="2" /><circle cx="6" cy="6.5" r="1.25" /><path d="M2.75 11.5l3.25-3 2.5 2.25 1.75-1.5 3 2.5" /></>),
+  component: (<><path d="M8 1.75l2.25 2.25L8 6.25 5.75 4z" /><path d="M8 9.75l2.25 2.25L8 14.25 5.75 12z" /><path d="M4 5.75l2.25 2.25L4 10.25 1.75 8z" /><path d="M12 5.75l2.25 2.25L12 10.25 9.75 8z" /></>),
   more: (<g className="cp-dots"><circle cx="3.5" cy="8" r="1.1" /><circle cx="8" cy="8" r="1.1" /><circle cx="12.5" cy="8" r="1.1" /></g>),
   file: (<><path d="M4 2.5h5.25l2.75 2.75v8.25H4z" /><path d="M9 2.5v3h3" /></>),
 };
-const TOOLBAR = ["select", "hand", "frame", "shape", "pen", "text", "sticky", "comment", "more"];
+/** Edit toolbar, left → right (CONTRACT §2). */
+const TOOLBAR = ["select", "hand", "frame", "shape", "pen", "text", "image", "component", "more"];
 
 function Ic({ id, size = 16 }: { id: string; size?: number }) {
   return (

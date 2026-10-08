@@ -17,7 +17,7 @@
  */
 import "./_layout.css";
 import "./colors-surfaces.css";
-import { Mark, Spark, SpecimenHeader } from "./_specimen-controls";
+import { Mark, SpecimenHeader } from "./_specimen-controls";
 
 const LADDER = [
   { t: "--bg-0", role: "Canvas", where: "The whole window. The dot grid sits on it.", cls: "b0" },
@@ -101,8 +101,13 @@ export default function ColorsSurfaces() {
               <button className="icon-btn" type="button" aria-label="Frame">
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M2 5h12M2 11h12M5 2v12M11 2v12" /></svg>
               </button>
+              <button className="icon-btn" type="button" aria-label="Text">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M3 4h10M8 4v9" /></svg>
+              </button>
               <span className="divider-v" />
-              <button className="icon-btn" type="button" aria-label="Ask AI"><Spark size={16} color="var(--spark)" /></button>
+              <button className="icon-btn" type="button" aria-label="More tools">
+                <svg viewBox="0 0 16 16" fill="currentColor" stroke="none"><circle cx="3.5" cy="8" r="1.1" /><circle cx="8" cy="8" r="1.1" /><circle cx="12.5" cy="8" r="1.1" /></svg>
+              </button>
             </div>
 
             {/* surface tags live INSIDE the surface they name (1–4); the canvas tag sits on the canvas */}

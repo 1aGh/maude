@@ -43,11 +43,7 @@
 .ai-sw--dark { background: color-mix(in srgb, var(--object-green) 55%, var(--object-ink)); }
 .ai-sw--none { background: var(--bg-3); box-shadow: none; }
 
-/* Attachments */
-.ai-att { display: inline-flex; align-items: center; gap: var(--space-2); max-width: 100%; padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1); border-radius: var(--radius-md); background: var(--bg-2); box-shadow: inset 0 0 0 0.5px var(--border-default); }
-.ai-att-pic { position: relative; flex: none; }
-.ai-att-thumb { width: 36px; height: 28px; border-radius: var(--radius-xs); }
-.ai-att-kind { position: absolute; right: -3px; bottom: -3px; display: grid; place-items: center; width: 14px; height: 14px; border-radius: var(--radius-pill); background: var(--bg-2); color: var(--fg-1); box-shadow: var(--shadow-sm); }
+/* Attachment text (inside the prompt's chips and sent chips) */
 .ai-att-txt { min-width: 0; display: flex; flex-direction: column; line-height: var(--lh-xs); }
 .ai-att-n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--type-xs); font-weight: var(--w-medium); }
 .ai-att-m { font-size: var(--type-xs); color: var(--fg-2); }
@@ -406,3 +402,118 @@
 .ai-fine { font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
 .ai-queued { align-self: flex-end; display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
 .ai-offline { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--bg-3); font-size: var(--type-sm); line-height: var(--lh-sm); font-weight: var(--w-medium); color: var(--status-warn-text); }
+
+/* ─── Review 2026-10-08 · the paperclip, chips inside the prompt, contextual suggestions, long chats ─── */
+
+/* Every kit ask in this canvas carries the paperclip before the scope chip (kit candidate: AIPanel attach button). */
+.ask.k-ask { padding-left: var(--space-1); }
+.ask.k-ask::before { content: ""; flex: none; width: 28px; height: 28px; margin-right: calc(-1 * var(--space-1)); background: var(--fg-1); -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M11 5.25L6.6 9.65a1.2 1.2 0 0 0 1.7 1.7l4.4-4.4a2.6 2.6 0 0 0-3.68-3.68L4.6 7.7a4 4 0 0 0 5.66 5.66l3.24-3.26'/></svg>") center / 16px 16px no-repeat; mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M11 5.25L6.6 9.65a1.2 1.2 0 0 0 1.7 1.7l4.4-4.4a2.6 2.6 0 0 0-3.68-3.68L4.6 7.7a4 4 0 0 0 5.66 5.66l3.24-3.26'/></svg>") center / 16px 16px no-repeat; }
+/* The kit's own field is replaced by the local Composer where the prompt holds chips or several lines. */
+.ai-own .k-ai-askwrap > .k-ask:last-child { display: none; }
+
+/* Composer: chips on top, words (wrapping when long), then 📎 · scope · send */
+.ask.ai-ask { position: relative; flex: none; flex-direction: column; align-items: stretch; gap: var(--space-1); padding: var(--space-1); }
+.ai-ask-row { display: flex; align-items: center; gap: var(--space-2); min-height: 28px; }
+.ai-clip { flex: none; margin-right: calc(-1 * var(--space-1)); }
+.ai-ask-sp { flex: 1; }
+.ai-ask-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-1) var(--space-1); }
+.ai-ask-text { padding: var(--space-1) var(--space-2) 0; font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-0); }
+.ai-ask-text .k-caretline { vertical-align: middle; }
+
+/* Attachment chips */
+.ai-ach { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; max-width: 100%; height: 40px; padding: 0 var(--space-2) 0 5px; border-radius: var(--radius-md); background: var(--bg-3); box-shadow: inset 0 0 0 0.5px var(--border-default); }
+.ai-ach .ai-att-txt { max-width: 138px; }
+.ai-ach--img { width: 40px; padding: 0; background: none; box-shadow: none; }
+.ai-ach-thumb { width: 40px; height: 40px; border-radius: var(--radius-sm); }
+.ai-ach-x { position: absolute; top: -5px; right: -5px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: var(--radius-pill); background: var(--bg-2); color: var(--fg-1); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-strong); }
+.ai-ach-ic { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: var(--radius-sm); background: var(--bg-2); color: var(--fg-1); box-shadow: inset 0 0 0 0.5px var(--border-default); }
+.ai-ach-pic { position: relative; flex: none; }
+.ai-ach-vthumb { width: 40px; height: 30px; border-radius: var(--radius-sm); }
+.ai-ach-play { position: absolute; left: 50%; top: 50%; translate: -50% -50%; display: grid; place-items: center; width: 16px; height: 16px; border-radius: var(--radius-pill); background: var(--bg-2); color: var(--fg-0); }
+/* a folder waiting for the one-time "Let AI read" — azure = your turn */
+.ai-ach--wait { background: var(--accent-muted); box-shadow: inset 0 0 0 1px var(--accent); }
+.ai-ach--wait .ai-ach-ic { color: var(--accent-text); }
+.ai-ach--sent { height: 36px; background: var(--bg-2); }
+.ai-ach--sent .ai-ach-ic { width: 26px; height: 26px; background: var(--bg-3); box-shadow: none; }
+.ai-sent-img { width: 56px; height: 56px; border-radius: var(--radius-md); }
+
+/* Folder consent — once per folder, read only */
+.ai-consent { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-2); padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--accent-muted); }
+.ai-consent-t { display: flex; align-items: flex-start; gap: var(--space-2); font-size: var(--type-sm); line-height: var(--lh-sm); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ai-consent-ic { flex: none; display: grid; place-items: center; width: 20px; height: 20px; border-radius: var(--radius-pill); background: var(--bg-2); color: var(--accent-text); }
+.ai-consent-d { padding-left: calc(20px + var(--space-2)); font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-1); }
+
+/* Contextual suggestions: max 3, one line each, one reason */
+.ai-sugg-row { margin-bottom: var(--space-1); }
+.ai-sugg-chip { white-space: nowrap; }
+.ai-sugg-lead { background: var(--bg-2); color: var(--fg-0); box-shadow: inset 0 0 0 0.5px var(--border-strong); }
+.ai-sugg-lead .k-ic { color: var(--fg-1); }
+.ai-why { margin-bottom: var(--space-2); padding: 0 var(--space-1); font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }
+
+/* Suggestions close-up: four contexts side by side */
+.ai-ctxs { display: grid; grid-template-columns: repeat(4, 340px); justify-content: space-between; gap: var(--space-5); height: 100%; }
+.ai-ctx { display: flex; flex-direction: column; gap: var(--space-2); }
+.ai-ctx > .k-ai { width: 340px; }
+.ai-ctx-stage { position: relative; flex: none; height: 184px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-lg); background: var(--canvas-bg); box-shadow: inset 0 0 0 0.5px var(--border-default); }
+.ai-mini.ai-ctx-mini { width: 140px; height: 140px; margin-top: 0; }
+.ai-ctx-stage--clips { flex-direction: row; flex-wrap: wrap; align-content: center; gap: var(--space-2); }
+.ai-clipsel { display: flex; flex-direction: column; gap: 2px; width: 140px; }
+.ai-clipsel-th { width: 140px; height: 54px; border-radius: var(--radius-xs); box-shadow: 0 0 0 2px var(--accent); }
+.ai-clipsel-n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--type-xs); color: var(--fg-1); }
+.ai-ctx-row { display: flex; gap: var(--space-2); }
+.ai-mini.ai-ctx-s { width: 64px; height: 92px; }
+.ai-ctx-event { display: inline-flex; align-items: center; gap: var(--space-1); max-width: 100%; padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--bg-2); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--border-default); font-size: var(--type-xs); color: var(--fg-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ai-ctx-event .k-ic { flex: none; color: var(--fg-2); }
+.ai-ctx-stage--last { align-items: stretch; }
+.ai-ctx-stage--last .ai-ctx-event { align-self: center; }
+.ai-ctx-ask { align-self: flex-end; }
+
+/* Paperclip close-up */
+.ai-am { display: grid; grid-template-columns: 340px 1fr 340px; gap: var(--space-6); height: 100%; }
+.ai-am-col { display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; }
+.ai-am-stage { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; min-height: 0; }
+.ai-am-stage > .k-ai { width: 340px; }
+.ai-am-kinds { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: var(--space-4); padding: var(--space-4) var(--space-5); border-radius: var(--radius-lg); background: var(--canvas-bg); box-shadow: inset 0 0 0 0.5px var(--border-default); }
+.ai-am-kind { display: grid; grid-template-columns: 220px 1fr; align-items: center; gap: var(--space-4); }
+.ai-am-kind > .ai-ach { justify-self: start; }
+.ai-am-kind > span:last-child { display: flex; flex-direction: column; font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
+.ai-am-kind strong { color: var(--fg-0); font-weight: var(--w-semibold); }
+
+/* The tall panel — full window height under the Share cluster, 420 wide, resizable */
+.k-ai.ai-big { top: 72px; bottom: var(--space-4); width: 420px; max-height: none; }
+.ai-big-msgs--up { justify-content: flex-start; -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 56px), transparent); mask-image: linear-gradient(to bottom, black calc(100% - 56px), transparent); }
+.ai-pinbtn { position: relative; }
+.ai-pin-tip { right: -4px; top: calc(100% + var(--space-2)); }
+.ai-jump { position: relative; z-index: 2; align-self: center; display: inline-flex; align-items: center; gap: var(--space-1); height: 28px; margin: -44px 0 var(--space-3); padding: 0 var(--space-3) 0 var(--space-2); border-radius: var(--radius-pill); background: var(--bg-2); box-shadow: var(--shadow-md), inset 0 0 0 0.5px var(--border-default); font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-0); }
+.ai-jump .k-ic { color: var(--fg-1); }
+.ai-jump-n { margin-left: var(--space-1); font-weight: var(--w-medium); color: var(--accent-text); }
+.ai-resize { position: absolute; left: -6px; top: var(--space-4); bottom: var(--space-4); z-index: 3; width: 12px; }
+.ai-resize-line { position: absolute; left: 5px; top: 0; bottom: 0; width: 2px; border-radius: var(--radius-pill); background: var(--accent); }
+.ai-resize-grip { position: absolute; left: 3px; top: 50%; width: 6px; height: 36px; translate: 0 -50%; border-radius: var(--radius-pill); background: var(--accent); box-shadow: 0 0 0 2px var(--bg-2); }
+.ai-resize-cur { position: absolute; left: -8px; top: calc(50% + 28px); display: grid; }
+.ai-resize-tip { right: calc(100% + var(--space-2)); top: 50%; translate: 0 -50%; }
+
+/* A long chat: sent attachments, before → after, folded steps, six picks */
+.ai-youwith { align-self: flex-end; display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); max-width: 86%; }
+.ai-youwith-att { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-1); }
+.ai-youwith .k-ai-msg--you { max-width: none; }
+.ai-ba { display: flex; align-items: center; gap: var(--space-2); padding-left: var(--space-1); color: var(--fg-2); }
+.ai-ba-pic { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.ai-mini.ai-ba-mini { width: 64px; height: 114px; margin-top: 0; align-self: auto; }
+.ai-ba-l { font-size: var(--type-xs); color: var(--fg-2); }
+.ai-steps { width: auto; height: 24px; font-size: var(--type-xs); font-weight: var(--w-medium); color: var(--fg-2); }
+.ai-six { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--space-1); padding-left: var(--space-1); }
+.ai-six-th { width: 100%; height: 44px; border-radius: var(--radius-xs); }
+
+/* Pinned to the side — the panel becomes a flush full-height column; the canvas makes room */
+.ai-pinlay { position: absolute; inset: 0; display: flex; }
+.ai-pin-c { position: relative; flex: 1; min-width: 0; overflow: hidden; }
+.ai-pin-h { position: relative; flex: none; width: 8px; display: grid; place-items: center; background: var(--bg-1); }
+.ai-pin-h i { width: 1px; height: 100%; background: var(--border-default); }
+.ai-pin-r { flex: none; width: 420px; display: flex; flex-direction: column; min-height: 0; padding: var(--space-3) var(--space-3) var(--space-3) var(--space-2); background: var(--bg-1); }
+.island.k-ai.ai-big--pinned { position: relative; top: auto; right: auto; bottom: auto; flex: 1; width: auto; min-height: 0; padding: 0; background: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.ai-pindot { display: grid; place-items: center; width: 16px; height: 16px; flex: none; border-radius: var(--radius-pill) var(--radius-pill) var(--radius-pill) 2px; font-family: var(--font-rounded); font-size: var(--type-xs); line-height: 1; font-weight: var(--w-semibold); color: var(--object-ink); }
+/* The drop target clears the taller prompt (chips inside it) */
+.ai-own .ai-drop { bottom: 150px; }
+/* pinned: earlier turns slide under a soft top edge */
+.ai-big--pinned .k-ai-msgs { -webkit-mask-image: linear-gradient(to bottom, transparent, black 48px); mask-image: linear-gradient(to bottom, transparent, black 48px); }

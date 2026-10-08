@@ -181,7 +181,7 @@ button.ic-pill:focus-visible { outline: 2px solid var(--focus-ring); outline-off
 .ic-wrong .icon-btn { cursor: default; }
 .ic-wrong .icon-btn:first-child { color: var(--accent-text); }
 .ic-wrong-glyph { font-family: var(--font-display); font-weight: var(--w-semibold); font-size: var(--type-base); fill: currentColor; }
-.ic-wrong-sticky { display: block; width: 18px; height: 18px; border-radius: var(--radius-xs); background: var(--object-yellow); }
+.ic-wrong-fill { display: block; width: 18px; height: 18px; border-radius: var(--radius-xs); background: var(--object-sky); }
 .ic-wrong-ai { fill: var(--object-lilac); }
 
 @media (max-width: 760px) {
@@ -190,3 +190,30 @@ button.ic-pill:focus-visible { outline: 2px solid var(--focus-ring); outline-off
 
 /* Captions stay at a readable measure (SF's ch runs wide). */
 .specimen .ic-case figcaption, .specimen .ic-plate figcaption, .specimen .ic-rule p, .specimen .ic-optical-note, .specimen .ic-lineage p { max-width: 60ch; }
+
+/* ─── Preview toolbar — the playful exception (kit Toolbar mode="annotate", CONTRACT §2) ──
+   48 px buttons, 22 px glyphs; each tool may wear the object colour of what it makes. */
+.ic .ic-stamp-disc { fill: none; }
+.ic-adock { gap: var(--space-1); padding: var(--space-2); }
+.dock .icon-btn.ic-ad-b { position: relative; width: 48px; height: 48px; border-radius: var(--radius-lg); }
+.dock .icon-btn.ic-ad-b .ic { width: 22px; height: 22px; }
+.ic-ad-note { display: block; width: 22px; height: 22px; border-radius: var(--radius-xs) var(--radius-xs) var(--radius-md) var(--radius-xs); rotate: -6deg; box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--object-ink) 14%, transparent); }
+.ic-ad-note--yellow, .ic-ad-ink--yellow, .ic-ad-sw--yellow { background: var(--object-yellow); }
+.ic-ad-note--coral, .ic-ad-ink--coral, .ic-ad-sw--coral { background: var(--object-coral); }
+.ic-ad-note--green, .ic-ad-ink--green, .ic-ad-sw--green { background: var(--object-green); }
+.ic-ad-note--sky, .ic-ad-ink--sky, .ic-ad-sw--sky { background: var(--object-sky); }
+.ic-ad-note--lilac, .ic-ad-ink--lilac, .ic-ad-sw--lilac { background: var(--object-lilac); }
+.ic-ad-mk { position: relative; display: grid; place-items: center; }
+.ic-ad-ink { position: absolute; left: 1px; right: 1px; bottom: -5px; height: 4px; border-radius: var(--radius-pill); }
+.ic-ad-stamp { display: grid; place-items: center; }
+.ic-ad-stamp .ic-stamp-disc { fill: var(--object-yellow); }
+.ic-ad-pop { position: absolute; left: 50%; bottom: calc(100% + var(--space-3)); z-index: 2; translate: -50% 0; display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-pill); white-space: nowrap; }
+.ic-ad-seg { margin-right: var(--space-1); }
+.ic-ad-sw { display: block; width: 20px; height: 20px; border-radius: var(--radius-pill); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--object-ink) 14%, transparent); }
+.ic-ad-sw[data-on] { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px var(--accent); }
+/* The Preview case needs room above its toolbar for the colour row. */
+/* Both toolbars sit on the same baseline, with room above Preview's for its colour row. */
+.ic-modes .ic-mini { height: 180px; }
+.ic-modes .ic-mini-dock { top: auto; bottom: var(--space-4); transform: translateX(-50%); }
+.ic-ad-seg > span { display: inline-flex; align-items: center; padding: var(--space-1) var(--space-3); border-radius: calc(var(--radius-md) - 2px); font-size: var(--type-xs); color: var(--fg-1); }
+.ic-ad-seg > span[aria-pressed="true"] { background: var(--bg-2); color: var(--fg-0); box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--accent); }

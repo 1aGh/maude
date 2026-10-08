@@ -7,7 +7,7 @@
   "opt_out_scope": "palette",
   "sections": [
     { "id": "map", "title": "Nothing deleted — where everything went", "subtitle": "124 things visible today, each with its new home and the artboard that draws it · why there is no switch · one thing traced end to end" },
-    { "id": "panels", "title": "Advanced, inside each panel — closed, then open", "subtitle": "Inspector · Canvases, Layers and Trash · AI chat panel · Share · Timeline · Export · Version history · the design system view" },
+    { "id": "panels", "title": "Advanced, inside each panel — closed, then open", "subtitle": "Inspector · Canvases, Layers and Trash · AI chat panel · Share · Timeline · Export · Version history · Design system › Advanced" },
     { "id": "diagnostics", "title": "The menu and Menu › Diagnostics", "subtitle": "File · View › Advanced · Help take in the menu bar; Diagnostics shows status in words, Logs, Server, AI setup, and the whole old Sync panel" },
     { "id": "settings", "title": "Settings › Advanced", "subtitle": "General · Connections · Advanced — this Mac and this project, plain words, the exact value in mono beside them" },
     { "id": "power", "title": "For people who live in Advanced", "subtitle": "Pin panels to the side · ⌘K with paths · the ? sheet · Open all Advanced, once · the code view and the terminal commands" },
@@ -24,14 +24,14 @@
     { "id": "ad-timeline", "label": "8 · Timeline › Advanced, at its foot", "note": "Fold at the foot (07 · ve-advanced): ruler in frames, 07's timecode, keyframes; video settings, the selected keyframe's curve, the cut as code." },
     { "id": "ad-export", "label": "9 · Export › Advanced", "note": "Scope, format, size, save-to up front (as 09); Advanced: exact scale, dpi, sRGB · Display P3, the {canvas} — {artboard}@{scale} file names, the command and /design:export. Exports panel; Print PDF: RGB — the print shop converts to CMYK. Other formats: 09 · ex-formats." },
     { "id": "ad-history", "label": "10 · Version history › Advanced — the git, folded", "note": "Closed: versions, Compare, Restore — no commit ids. Open: branch, drafts, remote, the version's commit id and files, diff, git actions incl. Pull a copy." },
-    { "id": "ad-ds", "label": "11 · The design system view", "note": "Was S and the DESIGN SYSTEM tree section: from Canvases › Advanced or ⌘K; colours, type, specimens; folder, tokens and MAUDE-DSN/01 under its Advanced." },
+    { "id": "ad-ds", "label": "11 · The old design system view — now under Design system › Advanced", "note": "Superseded by 13 Design System — the default view is the Design system canvas (13 · ds-board-studio). This specimen view (was S and the DESIGN SYSTEM tree section: colours, type, specimens; folder, tokens and MAUDE-DSN/01) is kept under Design system › Advanced (13 · ds-advanced)." },
     { "id": "ad-menus", "label": "12 · Menu › File, View › Advanced, Help", "note": "CONTRACT §1 menus (View: Assets, Present the canvas, Advanced › Keep timeline open ⇧⌘T) with the rows that took in today's menu-bar items marked: Back to Home, Open project, imports, Handoff, Comments count, Present the canvas, View › Advanced toggles, Help." },
     { "id": "ad-diag", "label": "13 · Menu › Diagnostics, Advanced open", "note": "Sync, Server, AI setup in words; Logs, Reload canvas, Check AI setup again; Address, Process, Project folder, Resync now, Download all under Advanced." },
     { "id": "ad-logs", "label": "14 · Logs, Server, AI setup", "note": "A filterable log; Server keeps the status bar's live dot, version, mode stamp and port; AI setup check incl. where Claude Code was found." },
     { "id": "ad-syncd", "label": "15 · Sync details — the old Sync panel, whole", "note": "Get latest; conflict Keep mine · Use theirs · Keep both; unfinished AI edit Publish · Discard; transfers with Cancel; counts; Sign in again; terminal hints under Advanced." },
     { "id": "ad-settings", "label": "16 · Settings › Advanced", "note": "This Mac (version, Restart now for an update, port, keys), Claude Code (incl. SVG agent and brand import commands), engines with whisper and Gemma model cards, privacy, this project's sync rules, experimental, reset." },
     { "id": "ad-pinned", "label": "17 · Pin panels to the side", "note": "Docked left panel and inspector with drag handles; each keeps its Advanced at the foot." },
-    { "id": "ad-search", "label": "18 · ⌘K and ? — find any hidden tool", "note": "Search results carry their home path; the ? sheet's Advanced holds only View › Advanced / Diagnostics keys plus every key that moved." },
+    { "id": "ad-search", "label": "18 · ⌘K and ? — find any hidden tool", "note": "Search results carry their home path; the ? sheet lists Edit tools and Preview tools apart (CONTRACT §2 — N C M A E S switch to Preview), and its Advanced holds only View › Advanced / Diagnostics keys plus every key and tool that moved: Arrow, Highlighter (Marker's second tip), Eraser (a Marker option) and Section to Preview's toolbar, Insert to Edit's Image and Component." },
     { "id": "ad-open-all", "label": "19 · “Advanced mode” as a one-shot — Open all", "note": "⌘K “advanced” → Open all Advanced sections: every fold opens once, nothing stays switched on; Close all is its inverse." },
     { "id": "ad-code", "label": "20 · The canvas as code, read-only", "note": "View code with the selected artboard's lines marked; Open in editor; terminal and Claude Code commands under Advanced." },
     { "id": "ad-edge-sync", "label": "21 · Sync problem — words first, details folded", "note": "Status says Syncing… (CONTRACT §6); 3 changes waiting, safe on this Mac, one verb Try now; hub, reply code and waiting files under Advanced." },
@@ -41,5 +41,5 @@
     { "id": "ad-edge-remember", "label": "25 · The remembered fold", "note": "Inspector › Advanced opened Monday is open Tuesday; Canvases kept its own; Settings › Advanced › Reset lists what's open and closes all." }
   ],
   "created": "2026-10-06T00:00:00Z",
-  "last_modified": "2026-10-06T00:00:00Z"
+  "last_modified": "2026-10-08T19:00:00Z"
 }

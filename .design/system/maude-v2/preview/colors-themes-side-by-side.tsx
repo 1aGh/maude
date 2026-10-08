@@ -55,13 +55,19 @@ function AppSlice() {
         <button className="icon-btn" type="button" aria-pressed="true" aria-label="Select">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"><path d="M4 3l9 4.5-4 1.2L8 13z" /></svg>
         </button>
+        <button className="icon-btn" type="button" aria-label="Frame">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M2 5h12M2 11h12M5 2v12M11 2v12" /></svg>
+        </button>
         <button className="icon-btn" type="button" aria-label="Text">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M3 4h10M8 4v9" /></svg>
         </button>
+        <button className="icon-btn" type="button" aria-label="Image">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2.5" y="3" width="11" height="10" rx="2" /><circle cx="6" cy="6.5" r="1.25" /><path d="M2.75 11.5l3.25-3 2.5 2.25 1.75-1.5 3 2.5" /></svg>
+        </button>
         <span className="divider-v" />
-        {["yellow", "green", "lilac", "coral"].map((c) => (
-          <button key={c} className="icon-btn" type="button" aria-label={`${c} sticky`}><span className={`th-dock-st th-ds-${c}`} /></button>
-        ))}
+        <button className="icon-btn" type="button" aria-label="More tools">
+          <svg viewBox="0 0 16 16" fill="currentColor" stroke="none"><circle cx="3.5" cy="8" r="1.1" /><circle cx="8" cy="8" r="1.1" /><circle cx="12.5" cy="8" r="1.1" /></svg>
+        </button>
       </div>
     </>
   );

@@ -595,7 +595,8 @@
 .sc-pal-row { display: flex; align-items: center; gap: var(--space-3); min-height: 36px; padding: var(--space-1) var(--space-2); border-radius: var(--radius-md); font-size: var(--type-sm); }
 .sc-pal-row[aria-selected="true"] { background: var(--accent-muted); }
 .sc-pal-ic { display: grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: var(--radius-sm); background: var(--bg-3); color: var(--fg-1); }
-.sc-pal-ic--spark { background: var(--spark); }
+.sc-pal-ic--spark { background: var(--accent); color: var(--accent-fg); }
+.sc-pal-ic--spark svg path { fill: currentColor; }
 .sc-pal-label { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--space-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sc-pal-via, .sc-pal-meta { font-size: var(--type-xs); color: var(--fg-2); white-space: nowrap; }
 .sc-mark { background: var(--accent-tint); color: inherit; border-radius: var(--radius-xs); padding: 0 1px; }
@@ -869,3 +870,38 @@
 .specimen .sc-step-cap { max-width: 60ch; margin: var(--space-3) 0 0; font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-1); }
 .sc-step-cap strong { color: var(--fg-0); margin-right: var(--space-1); }
 .sc-step-at { display: inline-block; min-width: 52px; margin-right: var(--space-2); font-size: var(--type-xs); font-variant-numeric: tabular-nums; color: var(--fg-2); }
+
+/* ─── 1b · Two toolbars, one per mode (CONTRACT §2) ──────────────────────── */
+.sc-modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); margin: 0 0 var(--space-6); }
+.sc-mode { margin: 0; min-width: 0; }
+.sc-mode-stage { min-height: 0; height: 280px; margin: 0; }
+.sc-mode-in { position: absolute; inset: 0; }
+.sc-mode-dock { position: absolute; left: 50%; bottom: var(--space-4); translate: -50% 0; }
+.sc-mode-dock .icon-btn[aria-pressed="true"], .sc-mode-dock .sc-more-on { background: var(--accent-muted); color: var(--accent-text); }
+.sc-mode-slot { display: contents; }
+/* More opens above its own button, right-aligned with the toolbar's end. */
+.sc-more { position: absolute; right: calc(50% - 204px); bottom: 80px; width: 168px; padding: var(--space-1); }
+.sc-more-row { min-height: 28px; }
+.sc-more-row .sc-ic { color: var(--fg-1); }
+.sc-mode-st { position: absolute; left: 50%; top: var(--space-6); translate: -50% 0; rotate: -3deg; }
+@media (max-width: 1100px) { .sc-modes { grid-template-columns: 1fr; } }
+
+/* Preview toolbar — the playful exception (kit Toolbar mode="annotate", CONTRACT §2): 48 px buttons, 22 px glyphs,
+   each tool may wear the object colour of what it makes. */
+.sc-ic .sc-stamp-disc { fill: none; }
+.sc-adock { gap: var(--space-1); padding: var(--space-2); }
+.dock .icon-btn.sc-ad-b { position: relative; width: 48px; height: 48px; border-radius: var(--radius-lg); }
+.dock .icon-btn.sc-ad-b .sc-ic { width: 22px; height: 22px; }
+.sc-ad-ic, .sc-ad-stamp { display: grid; place-items: center; }
+.sc-ad-note { display: block; width: 22px; height: 22px; border-radius: var(--radius-xs) var(--radius-xs) var(--radius-md) var(--radius-xs); rotate: -6deg; box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--object-ink) 14%, transparent); }
+.sc-ad-note--yellow, .sc-ad-ink--yellow, .sc-ad-sw--yellow { background: var(--object-yellow); }
+.sc-ad-note--coral, .sc-ad-ink--coral, .sc-ad-sw--coral { background: var(--object-coral); }
+.sc-ad-note--green, .sc-ad-ink--green, .sc-ad-sw--green { background: var(--object-green); }
+.sc-ad-note--sky, .sc-ad-ink--sky, .sc-ad-sw--sky { background: var(--object-sky); }
+.sc-ad-note--lilac, .sc-ad-ink--lilac, .sc-ad-sw--lilac { background: var(--object-lilac); }
+.sc-ad-mk { position: relative; display: grid; place-items: center; }
+.sc-ad-ink { position: absolute; left: 1px; right: 1px; bottom: -5px; height: 4px; border-radius: var(--radius-pill); }
+.sc-ad-stamp .sc-stamp-disc { fill: var(--object-yellow); }
+.sc-ad-pop { position: absolute; left: 50%; bottom: calc(100% + var(--space-3)); z-index: 2; translate: -50% 0; display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-pill); white-space: nowrap; }
+.sc-ad-sw { display: block; width: 20px; height: 20px; border-radius: var(--radius-pill); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--object-ink) 14%, transparent); }
+.sc-ad-sw[data-on] { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px var(--accent); }

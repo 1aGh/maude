@@ -61,7 +61,7 @@ const DIAG: { label: string; word?: string; keys?: string }[] = [
   { label: "|" }, { label: "Advanced ›" },
 ];
 
-/** Toolbar glyphs, left → right (CONTRACT §2) — copied verbatim from iconography.tsx GLYPHS. */
+/** Edit toolbar glyphs, left → right (CONTRACT §2) — copied verbatim from iconography.tsx GLYPHS. */
 const TOOLBAR = [
   { name: "Select", d: <path d="M3.5 2.5l9 4.5-4 1.3-1.5 4.2z" /> },
   { name: "Hand", d: <path d="M5.5 9V4.5a1 1 0 0 1 2 0V8M7.5 7.5V3.5a1 1 0 0 1 2 0V8M9.5 8V4.5a1 1 0 0 1 2 0v5c0 2.5-1.7 4-4 4h-.6c-1.3 0-2.3-.6-3-1.6L2.4 9.3a1 1 0 0 1 1.6-1.2l1.5 1.7" /> },
@@ -69,8 +69,8 @@ const TOOLBAR = [
   { name: "Shape", d: <><rect x="2.5" y="2.5" width="7" height="7" rx="1.5" /><circle cx="10.25" cy="10.25" r="3.5" /></> },
   { name: "Pen", d: <><path d="M10.25 3.25l2.5 2.5L6 12.5l-3.25.75.75-3.25z" /><path d="M8.75 4.75l2.5 2.5" /></> },
   { name: "Text", d: <path d="M3.5 4.5V3h9v1.5M8 3v10M6.25 13h3.5" /> },
-  { name: "Sticky", d: <><path d="M4 2.5h8A1.5 1.5 0 0 1 13.5 4v5L9 13.5H4A1.5 1.5 0 0 1 2.5 12V4A1.5 1.5 0 0 1 4 2.5z" /><path d="M13.5 9h-3A1.5 1.5 0 0 0 9 10.5v3" /></> },
-  { name: "Comment", d: <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v8.5H5A2.5 2.5 0 0 1 2.5 11V5A2.5 2.5 0 0 1 5 2.5z" /> },
+  { name: "Image", d: <><rect x="2.5" y="3" width="11" height="10" rx="2" /><circle cx="6" cy="6.5" r="1.25" /><path d="M2.75 11.5l3.25-3 2.5 2.25 1.75-1.5 3 2.5" /></> },
+  { name: "Component", d: <><path d="M8 1.75l2.25 2.25L8 6.25 5.75 4z" /><path d="M8 9.75l2.25 2.25L8 14.25 5.75 12z" /><path d="M4 5.75l2.25 2.25L4 10.25 1.75 8z" /><path d="M12 5.75l2.25 2.25L12 10.25 9.75 8z" /></> },
   { name: "More", d: <g fill="currentColor" stroke="none"><circle cx="3.5" cy="8" r="1.1" /><circle cx="8" cy="8" r="1.1" /><circle cx="12.5" cy="8" r="1.1" /></g> },
 ];
 

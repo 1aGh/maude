@@ -1,7 +1,7 @@
 {
   "title": "00 Index",
-  "subtitle": "The Maude v2 \"in practice\" set on four boards — the request and the twelve canvases that answer it, the rules they all follow, the open questions, and what's shared",
-  "brief": "The overview Michal opens first to review the whole v2 canvases set: his request (verbatim, Czech) checked off against the canvases, a card per canvas (01–12), the cross-canvas rules (CONTRACT §6–§7), the open questions (v2-open-questions.md) and the shared kit.",
+  "subtitle": "The Maude v2 \"in practice\" set on four boards — the request and the thirteen canvases that answer it, the rules they all follow, the open questions, and what's shared",
+  "brief": "The overview Michal opens first to review the whole v2 canvases set: his request (verbatim, Czech) and the 8 Oct follow-up checked off against the canvases, a card per canvas (01–13), the cross-canvas rules (CONTRACT §6–§7), the open questions (v2-open-questions.md plus 13's round) and the shared kit.",
   "platform": "desktop",
   "designSystem": "maude-v2",
   "opt_out_scope": "palette",
@@ -15,18 +15,18 @@
   "artboards": [
     {
       "id": "ix-map",
-      "label": "1 · The map — request, twelve canvases",
-      "note": "Michal's request ticked off bullet by bullet against the canvas that answers it, then twelve cards in four groups — each with its question, artboard count, three artboards to start with and its file."
+      "label": "1 · The map — request, thirteen canvases",
+      "note": "Michal's request ticked off bullet by bullet against the canvas that answers it — plus the 8 Oct follow-up (→ 13, 11 · pn-ds) — then thirteen cards in four groups, each with its question, artboard count, three artboards to start with and its file."
     },
     {
       "id": "ix-rules",
       "label": "2 · The rules every canvas follows",
-      "note": "CONTRACT §6–§7 as a rule sheet in seven topics; each rule says whether it is settled or proposed for Michal to confirm, and which artboard draws it."
+      "note": "CONTRACT §6–§7 as a rule sheet in eight topics — now with the design system on a board, azure AI buttons, lower elevation and the two toolbars of §2 (Edit makes things inside artboards, incl. Image and Component; Preview only marks up); each rule says whether it is settled or proposed for Michal to confirm, and which artboard draws it."
     },
     {
       "id": "ix-questions",
       "label": "3 · Open questions for Michal",
-      "note": "The eight product-model decisions up top, then the features drawn as if they existed as a scope checklist, then the smaller word, key and placement calls — each with the canvas to look at."
+      "note": "The eight product-model decisions up top, then six more from the latest round (13 Design System, two AI details from 03), then the features drawn as if they existed as a scope checklist, then the smaller word, key and placement calls — each with the canvas to look at."
     },
     {
       "id": "ix-kit",
@@ -35,5 +35,5 @@
     }
   ],
   "created": "2026-10-06T05:00:00.000Z",
-  "last_modified": "2026-10-06T05:00:00.000Z"
+  "last_modified": "2026-10-08T19:00:00.000Z"
 }

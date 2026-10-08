@@ -7,7 +7,7 @@
  * @artboards   ix-map | ix-rules | ix-questions | ix-kit
  * @brief       The first thing Michal opens to review the whole set. Content comes from
  *              .ai/plans/notes/v2-canvases-brief.md (request verbatim), v2-open-questions.md,
- *              CONTRACT.md §6–§7 and every canvas's .meta.json (01–12).
+ *              CONTRACT.md §6–§7 and every canvas's .meta.json (01–13).
  *
  * Convention: four reading boards, 1600 wide, HUG height (no `fixed`) — a fixed artboard counts its
  * ~24 px label strip inside its height and clips the foot (known issue, listed on ix-kit). All
@@ -25,9 +25,9 @@ import type { Art, Kind } from "./_kit";
 
 const W = 1600;
 /* Height floors (hug artboards grow past them). The page fills at least the floor, so no band shows. */
-const H = { map: 3300, rules: 1760, questions: 1490, kit: 1820 };
+const H = { map: 3370, rules: 1960, questions: 2020, kit: 1820 };
 
-/* ═══ Data — the twelve canvases (from each .meta.json) ═════════════════════════════════════ */
+/* ═══ Data — the thirteen canvases (from each .meta.json) ═════════════════════════════════════ */
 
 type Pic = { art: Art; w: number; h: number };
 type CanvasCard = {
@@ -59,16 +59,16 @@ const CANVASES: CanvasCard[] = [
     look: [["1 · First launch is Home", "ob-first-launch"], ["8 · Landed on her comment", "ob-invite-landed"], ["14 · Advanced options, opened", "ob-adv-open"]],
   },
   {
-    n: "03", title: "AI Chat", file: "03 AI Chat", boards: 25, sections: 6,
+    n: "03", title: "AI Chat", file: "03 AI Chat", boards: 29, sections: 7,
     q: "How do I ask AI — and what happens when several chats run at once?",
     pics: [PORTRAIT("gator-poster"), P("gator-social", 68, 68), PORTRAIT("gator-reel")], badge: <Spark size={14} />,
-    look: [["1 · Two AIs, two artboards", "ai-hero"], ["11 · The rule, drawn once", "ai-queue-rule"], ["17 · Needs you — panel hidden, another canvas", "ai-needs-hidden"]],
+    look: [["1 · Two AIs, two artboards", "ai-hero"], ["15 · The rule, drawn once", "ai-queue-rule"], ["21 · Needs you — panel hidden, another canvas", "ai-needs-hidden"]],
   },
   {
-    n: "04", title: "Modes", file: "04 Modes", boards: 23, sections: 8,
+    n: "04", title: "Modes", file: "04 Modes", boards: 26, sections: 8,
     q: "How do I switch between Edit, Preview and Present — and what stays on screen?",
     pics: [P("home"), P("price"), PORTRAIT("gator-reel")], badge: <Icon name="view" size={14} />,
-    look: [["1 · The mode switch, and what each mode shows", "md-model"], ["10 · Full screen — 3 of 14", "md-present-full"], ["18 · Inspect “Book a call”", "md-inspect"]],
+    look: [["1 · The mode switch, and what each mode shows", "md-model"], ["13 · Full screen — 3 of 14", "md-present-full"], ["21 · Inspect “Book a call”", "md-inspect"]],
   },
   {
     n: "05", title: "Empty States", file: "05 Empty States", boards: 20, sections: 4,
@@ -80,7 +80,7 @@ const CANVASES: CanvasCard[] = [
     n: "06", title: "Advanced", file: "06 Advanced", boards: 25, sections: 6,
     q: "Where did every advanced control go? Nothing deleted — one fold away, and ⌘K finds it.",
     pics: [P("admin"), P("flow"), P("board")], badge: <Icon name="settings" size={14} />,
-    look: [["1 · The map — 125 things, each with its home", "ad-map"], ["2 · Why there's no Advanced mode switch", "ad-why"], ["13 · Menu › Diagnostics, Advanced open", "ad-diag"]],
+    look: [["1 · The map — 124 things, each with its home", "ad-map"], ["2 · Why there's no Advanced mode switch", "ad-why"], ["13 · Menu › Diagnostics, Advanced open", "ad-diag"]],
   },
   {
     n: "07", title: "Video Editing", file: "07 Video Editing", boards: 26, sections: 8,
@@ -107,16 +107,22 @@ const CANVASES: CanvasCard[] = [
     look: [["1 · Share — Invite is the first thing", "co-share-sheet"], ["6 · Bring everyone here", "co-bring"], ["14 · You and Jonas changed the same sticky", "co-conflict"]],
   },
   {
-    n: "11", title: "Projects and Navigation", file: "11 Projects and Navigation", boards: 22, sections: 6,
+    n: "11", title: "Projects and Navigation", file: "11 Projects and Navigation", boards: 23, sections: 6,
     q: "How do I always find the right project, canvas and artboard?",
     pics: [P("moodboard"), P("gator-numbers"), P("gator-jersey")], badge: <Icon name="search" size={14} />,
-    look: [["5 · A or B — the trade-offs, and a pick", "pn-ab"], ["16 · Artboards by name, accents and typos", "pn-k-close"], ["17 · Versions with pictures", "pn-history"]],
+    look: [["5 · A or B — the trade-offs, and a pick", "pn-ab"], ["17 · Artboards by name, accents and typos", "pn-k-close"], ["18 · Versions with pictures", "pn-history"]],
   },
   {
     n: "12", title: "Import and Assets", file: "12 Import and Assets", boards: 22, sections: 8,
     q: "How do photos, footage, sound, Figma files and a brand get into a project?",
     pics: [P("moodboard"), P("brand"), PORTRAIT("gator-poster")], badge: <Icon name="image" size={14} />,
     look: [["4 · Assets — drag a photo onto an artboard", "ia-assets-panel"], ["10 · Select a photo — the photo inspector", "ia-photo-inspector"], ["18 · Import a brand — use it as the project's style", "ia-brand"]],
+  },
+  {
+    n: "13", title: "Design System", file: "13 Design System", boards: 25, sections: 8,
+    q: "Where does the design system live — and how is one made, edited and shared? On one board.",
+    pics: [P("brand"), P("gator-web", 78, 58), P("gator-social", 58, 58)], badge: <Icon name="layers" size={14} />,
+    look: [["3 · The Design system canvas — Studio site", "ds-board-studio"], ["8 · Update canvases — tick who follows", "ds-edit-review"], ["13 · Make a design system — three quick inputs", "ds-make-inputs"]],
   },
 ];
 const BY_N = Object.fromEntries(CANVASES.map((c) => [c.n, c]));
@@ -126,7 +132,7 @@ const GROUPS: { title: string; range: string; line: string; ns: string[]; span: 
   { title: "Core flows", range: "01–04", line: "The everyday loop — make a canvas, get in, ask AI, look at the work.", ns: ["01", "02", "03", "04"], span: 3 },
   { title: "States and depth", range: "05–06", line: "What nothing looks like, and where everything advanced went.", ns: ["05", "06"], span: 6 },
   { title: "Media and output", range: "07–09", line: "Video, the four artboard kinds, and getting files out.", ns: ["07", "08", "09"], span: 4 },
-  { title: "Extras", range: "10–12", line: "Answers to “...co te jeste napadne” — people, finding things, bringing things in.", ns: ["10", "11", "12"], span: 4 },
+  { title: "Extras", range: "10–13", line: "Answers to “...co te jeste napadne” — people, finding things, bringing things in — and the design system, on a board.", ns: ["10", "11", "12", "13"], span: 3 },
 ];
 
 /* Michal's request, verbatim (Czech, as typed), each bullet → the canvases that answer it. */
@@ -144,10 +150,12 @@ const REQUEST: { q: string; to: string[]; extra?: string }[] = [
   { q: "...co te jeste napadne", to: ["10", "11", "12"] },
 ];
 const REQUEST_OUTRO = "Vse rozkresli jako edge cases napriklad Maude/alligators ktery uz ma docela komplikovanou strukturu i spoustu ruznych artboards a typu";
+/* The follow-up, 8 Oct 2026 (verbatim) → 13, with 11 · pn-ds drawing where the board sits. */
+const REQUEST_DS = "ukaz mi jeste jeden canvas kde uvidim jak bude vypadat tvorba a zobrazeni design systemu";
 
 /* ═══ Data — rules (CONTRACT §3, §4, §6 settled · §7 proposed) ══════════════════════════════ */
 
-type Rule = { t: string; d: ReactNode; see: string[]; src: "§3" | "§4" | "§6" | "§7" | "Q" };
+type Rule = { t: string; d: ReactNode; see: string[]; src: "§2" | "§3" | "§4" | "§6" | "§7" | "Q" };
 const RULES: { title: string; icon: ReactNode; rules: Rule[] }[] = [
   {
     title: "AI", icon: <Spark size={15} />,
@@ -156,6 +164,7 @@ const RULES: { title: string; icon: ReactNode; rules: Rule[] }[] = [
       { t: "AI not connected yet", src: "§7", d: <>Ask AI looks the same. The first use opens one sheet — <q>Connect your Claude account to let AI draft this.</q> Cloud doesn't include AI; people bring their own Claude account.</>, see: ["02 · ob-ai-connect"] },
       { t: "One AI per artboard", src: "§7", d: <>A second ask on a busy artboard waits in line, or runs on a copy. Different artboards run side by side; a whole-canvas ask takes free artboards first.</>, see: ["03 · ai-queue-rule"] },
       { t: "A way in without AI", src: "§7", d: <>Home always offers <q>Start with an empty canvas ⌘N</q> under the starters.</>, see: ["05 · es-home-cloud"] },
+      { t: "Send and Ask AI are azure", src: "§7", d: <>An AI action is still an action — azure with a white spark. Vermilion fills only AI's presence: its cursor, the working tag, progress.</>, see: ["03 · ai-open", "CONTRACT §7"] },
       { t: "AI describes the result", src: "§4", d: <>Never itself: <q>Done — three hero variants are on the canvas. Pick one.</q> ⌘Z undoes AI's changes too.</>, see: ["01 · cf-undo-ai"] },
     ],
   },
@@ -169,11 +178,27 @@ const RULES: { title: string; icon: ReactNode; rules: Rule[] }[] = [
     ],
   },
   {
+    title: "Video", icon: <Icon name="video" size={15} />,
+    rules: [
+      { t: "The timeline comes with a video artboard", src: "§7", d: <>⇧⌘T shows or hides it; it folds away on deselect unless Keep timeline open is on.</>, see: ["07 · ve-deselect"] },
+      { t: "Space", src: "§7", d: <>Tap Space plays or pauses a selected video artboard; hold Space is always Hand.</>, see: ["07 · ve-play"] },
+    ],
+  },
+  {
     title: "Modes", icon: <Icon name="view" size={15} />,
     rules: [
       { t: "The mode switch lives in the Share cluster", src: "§7", d: <>Edit · Preview · Present. Read-only people see <b>Viewing</b> there instead of Edit.</>, see: ["04 · md-model", "04 · md-comment-only"] },
       { t: "AI holds still under your pointer", src: "Q", d: <>While you preview, AI's change to the artboard you're clicking through lands when you move off it.</>, see: ["04 · md-edge-ai"] },
+      { t: "Two toolbars, one per mode", src: "§2", d: <><b>Edit</b> makes things inside artboards — Select · Hand · Frame · Shape · Pen · Text · <b>Image</b> · <b>Component</b> · More. <b>Preview</b> only marks up, FigJam-style — Hand · Sticky · Comment · Marker · Arrow · Shape · Text · Stickers · Section; the design stays live. N C M A E S in Edit switch to Preview with that tool; esc returns to Edit.</>, see: ["04 · md-annotate", "04 · md-edit-image", "04 · md-edit-component"] },
       { t: "Keys for the modes", src: "Q", d: <>⌥⌘P Preview · ⌥⌘↵ Present from the selection · ⇧⌥⌘↵ from the start · L for a ringed pointer while presenting.</>, see: ["04 · md-keys"] },
+    ],
+  },
+  {
+    title: "Design system", icon: <Icon name="layers" size={15} />,
+    rules: [
+      { t: "The design system lives on a board", src: "§7", d: <>Michal's idea: one <b>Design system</b> board per project, pinned above every canvas — Brand · Colour · Type · Space & shape · Motion · Components · Patterns. ⌘K and the inspector's <q>Uses …</q> link find it; the files are its Advanced.</>, see: ["13 · ds-where-studio", "11 · pn-ds"] },
+      { t: "System changes arrive as a review", src: "§7", d: <>Tokens and components are edited in place on the board; canvases change only after <q>Update 5 canvases</q>. A canvas that stayed out shows a quiet dot.</>, see: ["13 · ds-edit-review", "13 · ds-edit-instance"] },
+      { t: "Lower elevation", src: "§7", d: <>Islands float on a soft shadow, not a drop shadow — the elevation tokens were lowered in Michal's review.</>, see: ["every canvas"] },
     ],
   },
   {
@@ -182,13 +207,6 @@ const RULES: { title: string; icon: ReactNode; rules: Rule[] }[] = [
       { t: "Scope is always visible", src: "§7", d: <>⇧⌘E with nothing selected exports this canvas. The sheet shows Selection · This canvas · Folder · Whole project, with a size and time estimate.</>, see: ["09 · ex-canvas"] },
       { t: "Done means Show in Finder", src: "§7", d: <>The done toast's one action. A partial failure says <q>Exported 114 of 115</q> and offers one Retry. Links live in Share.</>, see: ["09 · ex-states"] },
       { t: "Print colour, in one line", src: "§7", d: <><q>RGB — the print shop converts to CMYK</q>. No CMYK option in v2.</>, see: ["08 · ak-print-letak", "09 · ex-print"] },
-    ],
-  },
-  {
-    title: "Video", icon: <Icon name="video" size={15} />,
-    rules: [
-      { t: "The timeline comes with a video artboard", src: "§7", d: <>⇧⌘T shows or hides it; it folds away on deselect unless Keep timeline open is on.</>, see: ["07 · ve-deselect"] },
-      { t: "Space", src: "§7", d: <>Tap Space plays or pauses a selected video artboard; hold Space is always Hand.</>, see: ["07 · ve-play"] },
     ],
   },
   {
@@ -227,6 +245,16 @@ const BIG: { t: string; d: ReactNode; pick?: string; see: string[] }[] = [
   { t: "AI never changes what you're pointing at", d: <>While you preview, AI's change to the artboard under your pointer lands when you move off it.</>, see: ["04 · md-edge-ai"] },
 ];
 
+/* The latest round — 13 Design System, plus two AI details from 03. Numbered on after BIG. */
+const NEW_Q: { t: string; d: ReactNode; see: string[] }[] = [
+  { t: "System changes — push or pull?", d: <>Drawn as push with a review: <q>Update 5 canvases</q> before anything changes, a quiet dot on a canvas that stayed out. Or does each canvas pull an update when it's opened?</>, see: ["13 · ds-edit-review", "13 · ds-edit-instance"] },
+  { t: "Frozen brand colours — lock, or only warn?", d: <>Alligators' 2023 brand colours carry a lock: used, never changed. Or a warning that still lets an editor change them?</>, see: ["13 · ds-board-gator"] },
+  { t: "“Make a design system” — instead of setup-ds?", d: <>A sentence, things to learn from, three directions. Does it replace today's long <code className="k-mono">/design:setup-ds</code> interview, or does the interview stay under Advanced?</>, see: ["13 · ds-make-inputs"] },
+  { t: "What a shared system is called", d: <>Drawn as a <b>team library</b> on cloud.maude.sh, updates arriving as a review. Library, shared system, brand kit — which word?</>, see: ["13 · ds-many-library"] },
+  { t: "How far does a folder's “read” reach?", d: <>A folder asks once — <q>Let AI read “Combine 2026 fotky” (48 files)?</q> Once per folder, per project or per chat — and do new files in it count?</>, see: ["03 · ai-attach-menu"] },
+  { t: "Is sharing the done signal?", d: <>After a share the lead suggestion says <q>Because you just shared this canvas</q> and offers a review or a print check. Is a share the right sign that work is ready?</>, see: ["03 · ai-suggest"] },
+];
+
 const SCOPE: { f: string; see: string }[] = [
   { f: "Links between artboards (On click → Go to Pricing), presenter view, presentation links, per-artboard notes", see: "04" },
   { f: "Follow · Bring everyone here · mention e-mails from cloud.maude.sh", see: "10" },
@@ -258,7 +286,7 @@ const SMALL: { t: string; see: string }[] = [
 const KIT_GROUPS: { title: string; items: string[] }[] = [
   { title: "Layout and scope", items: ["V2", "Stage", "Window", "TABS", "Canvas", "Veil"] },
   { title: "Glyphs and people", items: ["Icon", "Mark", "Spark", "Avatar", "Kbd", "Thumb", "KindGlyph", "StatusWord"] },
-  { title: "Panels", items: ["ProjectPill", "ProjectMenu", "CanvasesPanel", "Toolbar", "ShareCluster", "ModeSwitch", "ZoomUndo", "AIPanel", "Inspector + In*", "PanelIcon"] },
+  { title: "Panels", items: ["ProjectPill", "ProjectMenu", "CanvasesPanel", "Toolbar · edit + annotate", "ToolbarMorph", "AnnotateIcon", "ShareCluster", "ModeSwitch", "ZoomUndo", "AIPanel", "Inspector + In*", "PanelIcon"] },
   { title: "On the canvas", items: ["Artboard", "Selection", "Sticky", "Cursor", "CommentPin", "HeroMock", "PricingMock", "PosterMock", "PhoneMock", "VideoFrameMock", "GatorMock"] },
   { title: "Overlays", items: ["Toast", "Dialog · Sheet", "Menu", "SearchPalette", "Tooltip", "Home"] },
   { title: "Explainers", items: ["Note", "Callout"] },
@@ -276,7 +304,7 @@ const PREFIXES: [string, string, string][] = [
   ["00", "ix", "Index"], ["01", "cf", "Create Flow"], ["02", "ob", "Onboarding"], ["03", "ai", "AI Chat"],
   ["04", "md", "Modes"], ["05", "es", "Empty States"], ["06", "ad", "Advanced"], ["07", "ve", "Video Editing"],
   ["08", "ak", "Artboard Kinds"], ["09", "ex", "Export"], ["10", "co", "Share and Collaboration"],
-  ["11", "pn", "Projects and Navigation"], ["12", "ia", "Import and Assets"],
+  ["11", "pn", "Projects and Navigation"], ["12", "ia", "Import and Assets"], ["13", "ds", "Design System"],
 ];
 
 /* ═══ Local pieces (ix-) ═══════════════════════════════════════════════════════════════════ */
@@ -350,29 +378,29 @@ function MapBoard() {
         title="Maude v2 — in practice"
         aside={
           <dl className="ix-stats">
-            <div><dt>Canvases</dt><dd>12</dd></div>
+            <div><dt>Canvases</dt><dd>{CANVASES.length}</dd></div>
             <div><dt>Artboards</dt><dd>{TOTAL_BOARDS}</dd></div>
             <div><dt>Projects</dt><dd>2</dd></div>
             <div><dt>People</dt><dd className="ix-stats-faces"><Avatar who="you" size="md" /><Avatar who="tereza" size="md" /><Avatar who="jonas" size="md" /><span className="ix-stats-ai"><Spark size={12} /></span></dd></div>
           </dl>
         }
       >
-        The maude-v2 design system, drawn in practice: twelve canvases that answer one request, each told
-        happy path first, then its edge cases — on Studio site (four canvases) and Alligators brand
+        The maude-v2 design system, drawn in practice: thirteen canvases that answer one request and its
+        follow-up, each told happy path first, then its edge cases — on Studio site (four canvases) and Alligators brand
         (93 canvases, 247 assets, three people and their AI).
       </Head>
 
       <section className="ix-req">
         <div className="ix-req-hd">
           <p className="ix-h2">The request, and where it's answered</p>
-          <p className="ix-req-who">Michal, 6 Oct 2026 — verbatim</p>
+          <p className="ix-req-who">Michal, 6 and 8 Oct 2026 — verbatim</p>
         </div>
         <p className="ix-req-intro"><q>{REQUEST_INTRO}</q></p>
         <ul className="ix-req-list">
           <li className="ix-req-row">
             <span className="ix-req-check"><Icon name="check" size={12} /></span>
             <span className="ix-req-q"><q>Udelej novou slozku v canvases</q></span>
-            <span className="ix-req-to"><span className="ix-cchip ix-cchip--path"><Icon name="folder" size={12} />.design/ui/v2/ — 00 to 12</span></span>
+            <span className="ix-req-to"><span className="ix-cchip ix-cchip--path"><Icon name="folder" size={12} />.design/ui/v2/ — 00 to 13</span></span>
           </li>
           {REQUEST.map((r) => (
             <li className="ix-req-row" key={r.q}>
@@ -384,7 +412,12 @@ function MapBoard() {
           <li className="ix-req-row ix-req-row--all">
             <span className="ix-req-check"><Icon name="check" size={12} /></span>
             <span className="ix-req-q"><q>{REQUEST_OUTRO}</q></span>
-            <span className="ix-req-to"><span className="ix-cchip ix-cchip--path">Every canvas — edge cases close each section; Alligators brand in all twelve</span></span>
+            <span className="ix-req-to"><span className="ix-cchip ix-cchip--path">Every canvas — edge cases close each section; Alligators brand in all thirteen</span></span>
+          </li>
+          <li className="ix-req-row ix-req-row--new">
+            <span className="ix-req-check"><Icon name="check" size={12} /></span>
+            <span className="ix-req-q"><span className="ix-req-when">8 Oct</span><q>{REQUEST_DS}</q></span>
+            <span className="ix-req-to"><CanvasChip n="13" /><span className="ix-cchip"><span className="ix-cchip-n">11</span>pn-ds — where the board sits</span></span>
           </li>
         </ul>
       </section>
@@ -404,7 +437,7 @@ function MapBoard() {
 
       <p className="ix-foot">
         <Icon name="help" size={14} />
-        Read in this order: the rules (next board) hold across all twelve; the open questions after that are the
+        Read in this order: the rules (next board) hold across all thirteen; the open questions after that are the
         decisions only Michal can make — each points at the artboard that draws it.
       </p>
     </V2>
@@ -418,7 +451,7 @@ function RulesBoard() {
     <V2 className="ix-page" style={{ minHeight: H.rules }}>
       <Head
         eyebrow="Rules every canvas follows"
-        title="One behaviour, drawn the same way twelve times"
+        title="One behaviour, drawn the same way thirteen times"
         aside={
           <div className="ix-legend">
             <Proposed src="§7" />
@@ -427,7 +460,7 @@ function RulesBoard() {
           </div>
         }
       >
-        From CONTRACT §6–§7, with the words and voice of §3–§4 and two mode details from the open questions. Settled details are copied as they are;
+        From CONTRACT §6–§7, with the two toolbars of §2, the words and voice of §3–§4 and two mode details from the open questions. Settled details are copied as they are;
         the cross-canvas rules of §7 are proposals the whole set already follows — confirming one changes nothing,
         rejecting one changes the canvases listed under it.
       </Head>
@@ -456,7 +489,7 @@ function QuestionsBoard() {
     <V2 className="ix-page" style={{ minHeight: H.questions }}>
       <Head
         eyebrow="Open questions for Michal"
-        title="Eight decisions shape the product — the rest are details"
+        title="Eight decisions shape the product, six more came with 13"
         aside={<p className="ix-legend-p ix-legend-p--wide">Every answer is already drawn as a sensible default marked <b>Proposed</b>. Answering one changes a canvas, not the whole set.</p>}
       />
 
@@ -469,6 +502,20 @@ function QuestionsBoard() {
               <p className="ix-bigq-t">{b.t}</p>
               <p className="ix-bigq-d">{b.d}</p>
               {b.pick ? <p className="ix-bigq-pick"><Icon name="check" size={12} />{b.pick}</p> : null}
+              <p className="ix-bigq-see">{b.see.map((s) => <See key={s} to={s} />)}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="ix-big">
+        <p className="ix-h2">New this round — 13 Design System, and two AI details from 03</p>
+        <ol className="ix-big-grid ix-big-grid--3">
+          {NEW_Q.map((b, i) => (
+            <li className="ix-bigq ix-bigq--new" key={b.t}>
+              <span className="ix-bigq-n">{BIG.length + i + 1}</span>
+              <p className="ix-bigq-t">{b.t}</p>
+              <p className="ix-bigq-d">{b.d}</p>
               <p className="ix-bigq-see">{b.see.map((s) => <See key={s} to={s} />)}</p>
             </li>
           ))}
@@ -619,7 +666,7 @@ function KitBoard() {
             <span className="ix-task"><Icon name="arrow" size={12} />Spun off as a task</span>
           </li>
           <li className="ix-issue">
-            <p className="ix-issue-t">13 Errors and Recovery wasn't drawn on its own</p>
+            <p className="ix-issue-t">Errors and Recovery wasn't drawn on its own</p>
             <p className="ix-issue-d">Its cases live where they happen. Crash recovery and a full disk aren't drawn yet.</p>
             <p className="ix-issue-see"><See to="01 · cf-render-error" /><See to="01 · cf-offline-create" /><See to="03 · ai-choice-fail" /><See to="06 · ad-edge-sync" /><See to="06 · ad-edge-syntax" /><See to="10 · co-conflict" /></p>
           </li>
@@ -639,7 +686,7 @@ export default function Index() {
   return (
     <DesignCanvas>
       <DCSection id="overview" title="Maude v2 — in practice" subtitle="The whole set on four boards: the map, the rules, the open questions, what's shared">
-        <DCArtboard id="ix-map" label="1 · The map — request, twelve canvases" width={W} height={H.map}>
+        <DCArtboard id="ix-map" label="1 · The map — request, thirteen canvases" width={W} height={H.map}>
           <MapBoard />
         </DCArtboard>
         <DCArtboard id="ix-rules" label="2 · The rules every canvas follows" width={W} height={H.rules}>

@@ -6,7 +6,7 @@
  *               with a pointer and an --accent-tint ring on its target) · .kbd inside each ·
  *               --dur-soft fades with no movement.
  * COMPOSITION:  hero = a slice of the app with all three kinds anchored to real controls: a hint
- *               on the Show panels button, a rich tooltip on the Sticky tool in the toolbar,
+ *               on the Show panels button, a rich tooltip on the Component tool in the toolbar,
  *               an ink tooltip on zoom · the three kinds side by side with their timing · a delay
  *               timeline (pause → appear, glide to a neighbour → instant) · a live dock to hover ·
  *               placement points toward the canvas · hints instead of tours (right/wrong) ·
@@ -15,7 +15,7 @@
  *               sentence about what it does to your work; a hint says what just happened and
  *               how to undo it, in the product's own voice.
  * WHEN SCAFFOLDED: universal (default-on).
- * NOTES:        Keys and toolbar order are CONTRACT §2 exactly (V H F R P T N C · More); glyphs are
+ * NOTES:        Keys and Edit-toolbar order are CONTRACT §2 exactly (V H F R P T I ⇧I · More); glyphs are
  *               iconography.tsx GLYPHS, verbatim. The AI is not a toolbar tool — it is the AI chat
  *               panel, hidden to its spark at the bottom right.
  *               Tooltips never carry information you can't get another way — they name things.
@@ -31,7 +31,7 @@ type Tool = { id: string; label: string; key: string; d: ReactNode };
 
 const I = { fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
-/** The toolbar, left → right (CONTRACT §2) — glyphs copied verbatim from iconography.tsx GLYPHS. */
+/** The Edit toolbar, left → right (CONTRACT §2) — glyphs copied verbatim from iconography.tsx GLYPHS. */
 const TOOLS: Tool[] = [
   { id: "select", label: "Select", key: "V", d: <path d="M3.5 2.5l9 4.5-4 1.3-1.5 4.2z" /> },
   { id: "hand", label: "Hand", key: "H", d: <path d="M5.5 9V4.5a1 1 0 0 1 2 0V8M7.5 7.5V3.5a1 1 0 0 1 2 0V8M9.5 8V4.5a1 1 0 0 1 2 0v5c0 2.5-1.7 4-4 4h-.6c-1.3 0-2.3-.6-3-1.6L2.4 9.3a1 1 0 0 1 1.6-1.2l1.5 1.7" /> },
@@ -39,8 +39,8 @@ const TOOLS: Tool[] = [
   { id: "shape", label: "Shape", key: "R", d: <><rect x="2.5" y="2.5" width="7" height="7" rx="1.5" /><circle cx="10.25" cy="10.25" r="3.5" /></> },
   { id: "pen", label: "Pen", key: "P", d: <><path d="M10.25 3.25l2.5 2.5L6 12.5l-3.25.75.75-3.25z" /><path d="M8.75 4.75l2.5 2.5" /></> },
   { id: "text", label: "Text", key: "T", d: <path d="M3.5 4.5V3h9v1.5M8 3v10M6.25 13h3.5" /> },
-  { id: "sticky", label: "Sticky", key: "N", d: <><path d="M4 2.5h8A1.5 1.5 0 0 1 13.5 4v5L9 13.5H4A1.5 1.5 0 0 1 2.5 12V4A1.5 1.5 0 0 1 4 2.5z" /><path d="M13.5 9h-3A1.5 1.5 0 0 0 9 10.5v3" /></> },
-  { id: "comment", label: "Comment", key: "C", d: <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v8.5H5A2.5 2.5 0 0 1 2.5 11V5A2.5 2.5 0 0 1 5 2.5z" /> },
+  { id: "image", label: "Image", key: "I", d: <><rect x="2.5" y="3" width="11" height="10" rx="2" /><circle cx="6" cy="6.5" r="1.25" /><path d="M2.75 11.5l3.25-3 2.5 2.25 1.75-1.5 3 2.5" /></> },
+  { id: "component", label: "Component", key: "⇧I", d: <><path d="M8 1.75l2.25 2.25L8 6.25 5.75 4z" /><path d="M8 9.75l2.25 2.25L8 14.25 5.75 12z" /><path d="M4 5.75l2.25 2.25L4 10.25 1.75 8z" /><path d="M12 5.75l2.25 2.25L12 10.25 9.75 8z" /></> },
   { id: "more", label: "More", key: "", d: <g fill="currentColor" stroke="none"><circle cx="3.5" cy="8" r="1.1" /><circle cx="8" cy="8" r="1.1" /><circle cx="12.5" cy="8" r="1.1" /></g> },
 ];
 
@@ -136,10 +136,10 @@ export default function ComponentsTooltips() {
             </span>
           </div>
 
-          {/* 2 · rich tooltip on the Sticky tool */}
+          {/* 2 · rich tooltip on the Component tool */}
           <div className="island dock tt-dock" role="toolbar" aria-label="Toolbar">
             {TOOLS.map((t) => (
-              <button key={t.id} className={`icon-btn${t.id === "sticky" ? " tt-hover" : ""}`} type="button" aria-pressed={t.id === "more" ? undefined : t.id === "select"} aria-label={t.label} aria-describedby={t.id === "sticky" ? "tt-rich-1" : undefined}>
+              <button key={t.id} className={`icon-btn${t.id === "component" ? " tt-hover" : ""}`} type="button" aria-pressed={t.id === "more" ? undefined : t.id === "select"} aria-label={t.label} aria-describedby={t.id === "component" ? "tt-rich-1" : undefined}>
                 <ToolIcon t={t} />
               </button>
             ))}
@@ -148,11 +148,8 @@ export default function ComponentsTooltips() {
             <button className="icon-btn tt-ai" type="button" aria-label="Open the AI chat panel"><Spark size={16} color="var(--spark)" /></button>
           </div>
           <div className="tt-rich tt-rich--hero" role="tooltip" id="tt-rich-1">
-            <span className="tt-rich-hd"><strong>Sticky</strong><span className="kbd">N</span></span>
-            <span>Drop a note anywhere on the canvas. Pick a colour as you place it.</span>
-            <span className="tt-rich-swatches" aria-hidden="true">
-              <span className="tt-sw tt-sw--yellow" /><span className="tt-sw tt-sw--green" /><span className="tt-sw tt-sw--lilac" /><span className="tt-sw tt-sw--coral" /><span className="tt-sw tt-sw--sky" />
-            </span>
+            <span className="tt-rich-hd"><strong>Component</strong><span className="tt-rich-keys"><span className="kbd">⇧</span><span className="kbd">I</span></span></span>
+            <span>Place a piece from your design system. Change the original and every copy follows.</span>
             <span className="tt-arrow tt-arrow--down tt-arrow--card" aria-hidden="true" />
           </div>
 
@@ -170,7 +167,7 @@ export default function ComponentsTooltips() {
         </div>
         <ol className="tt-hero-key">
           <li><span className="tt-tag">1</span><span><strong>First-use hint.</strong> You just pressed ⌘\ by accident. It says what happened and how to undo it, then leaves for good.</span></li>
-          <li><span className="tt-tag">2</span><span><strong>Rich tooltip.</strong> Stickies are new to many designers, so the tool explains itself in one line.</span></li>
+          <li><span className="tt-tag">2</span><span><strong>Rich tooltip.</strong> Components are new to many people, so the tool explains itself in one line.</span></li>
           <li><span className="tt-tag">3</span><span><strong>Tooltip.</strong> The name and the shortcut. Nothing else.</span></li>
         </ol>
 
@@ -210,7 +207,7 @@ export default function ComponentsTooltips() {
             <div className="tt-lane-bar"><span className="tt-seg tt-seg--show" style={{ left: 0, width: "100%" }}>“Text T” — no wait, the tooltip just moves</span></div>
           </div>
           <div className="tt-lane">
-            <span className="tt-lane-l">Pause on Sticky</span>
+            <span className="tt-lane-l">Pause on Component</span>
             <div className="tt-lane-bar"><span className="tt-seg tt-seg--wait" style={{ left: 0, width: "58.3%" }}>waiting a little longer</span><span className="tt-seg tt-seg--rich" style={{ left: "58.3%", width: "41.7%" }}>rich tooltip</span></div>
           </div>
           <div className="tt-lane">

@@ -106,7 +106,7 @@
     {
       "id": "es-viewer",
       "label": "16 · A shared canvas you can comment on, not edit",
-      "note": "Can comment: the same Select · Hand · Comment toolbar as 04 · md-comment-only, no AI chat panel; the Share cluster says Can comment, the switch reads Viewing, Ask to edit goes to the owner. Uniformy-2027's real 16:9 digital boards."
+      "note": "Can comment: the same Hand · Comment toolbar as 04 · md-comment-only (Preview's annotation toolbar, cut to what they may do), no AI chat panel; the Share cluster says Can comment, the switch reads Viewing, Ask to edit goes to the owner. Uniformy-2027's real 16:9 digital boards."
     },
     {
       "id": "es-arriving",
@@ -130,5 +130,5 @@
     }
   ],
   "created": "2026-10-06T00:00:00Z",
-  "last_modified": "2026-10-06"
+  "last_modified": "2026-10-08"
 }

@@ -84,7 +84,8 @@ function Landing({
   );
 }
 
-function StudioChrome({ canvas = "Landing page", left = true, ai, insp, tool = "select", zoom = LANDING_ZOOM, status = "saved" as const, selected = "Landing page", landingAi = false, items }: { canvas?: string; left?: boolean; ai?: ReactNode; insp?: ReactNode; tool?: string; zoom?: number; status?: "saved" | "syncing" | "offline" | "local"; selected?: string; landingAi?: boolean; items?: CanvasItem[] }) {
+/** preview = the person is annotating: the Share cluster's switch reads Preview and the toolbar is Preview's (CONTRACT §2). */
+function StudioChrome({ canvas = "Landing page", left = true, ai, insp, tool = "select", preview = false, swatches, zoom = LANDING_ZOOM, status = "saved" as const, selected = "Landing page", landingAi = false, items }: { canvas?: string; left?: boolean; ai?: ReactNode; insp?: ReactNode; tool?: string; preview?: boolean; swatches?: "sticky" | "marker"; zoom?: number; status?: "saved" | "syncing" | "offline" | "local"; selected?: string; landingAi?: boolean; items?: CanvasItem[] }) {
   return (
     <>
       <ProjectPill project="Studio site" canvas={canvas} />
@@ -93,10 +94,10 @@ function StudioChrome({ canvas = "Landing page", left = true, ai, insp, tool = "
       ) : (
         <PanelIcon icon="panel-left" at="left" />
       )}
-      <ShareCluster people={["tereza"]} status={status} mode="edit" />
+      <ShareCluster people={["tereza"]} status={status} mode={preview ? "preview" : "edit"} />
       {insp}
       <ZoomUndo zoom={zoom} />
-      <Toolbar tool={tool} />
+      <Toolbar mode={preview ? "annotate" : "edit"} tool={tool} swatches={swatches} />
       {ai}
     </>
   );
@@ -322,7 +323,7 @@ function EmptyCanvas({ offline = false }: { offline?: boolean }) {
         Ask AI for a first draft, or start drawing.
         {offline ? <><br /><span className="cf-offline-line"><Icon name="offline" size={13} />AI is back when this Mac is online.</span></> : null}
       </p>
-      <div className="es-acts"><span className="btn btn--spark btn--sm cf-ask"><Spark size={10} color="var(--spark-fg)" />Ask AI<span className="cf-ask-k">⌘/</span></span></div>
+      <div className="es-acts"><span className="btn btn--spark btn--sm cf-ask"><Spark size={10} color="currentColor" />Ask AI<span className="cf-ask-k">⌘/</span></span></div>
     </div>
   );
 }
@@ -332,7 +333,7 @@ function Legend() {
   const rows: [string, string, string][] = [
     ["cf-lg--you", "You", "FB event cover · selected"],
     ["cf-lg--ai", "AI", "Pozvánka na combine · making it greener"],
-    ["cf-lg--tereza", "Tereza", "the sticky · typing"],
+    ["cf-lg--tereza", "Tereza", "a sticky · typing, in her Preview"],
     ["cf-lg--jonas", "Jonas", "Arch 1 · selected"],
   ];
   return (
@@ -402,7 +403,7 @@ export default function CreateFlow() {
         </DCArtboard>
 
         <DCArtboard id="cf-sticky-comment" label="5 · A sticky and a comment" width={W} height={H} fixed>
-          <Stage note={<Note n={5} title="Think out loud, or ask someone.">N drops a sticky anywhere — for you. C pins a comment to the exact spot; Tereza's sits on the button and waits for an answer.</Note>}>
+          <Stage note={<Note n={5} title="Think out loud, or ask someone.">N switches to Preview with Sticky: one anywhere, for you. C pins a comment to the exact spot; Tereza's sits on the button and waits for an answer.</Note>}>
             <Window tabs={GATOR_TABS} activeTab={0}>
               <Canvas>
                 <Landing>
@@ -411,7 +412,7 @@ export default function CreateFlow() {
                   <CommentPin who="tereza" x={408} y={306} text="Could the button say “Book a call”? It's what people want." />
                 </Landing>
               </Canvas>
-              <StudioChrome tool="sticky" ai={<PanelIcon icon="spark" at="ai" />} />
+              <StudioChrome preview tool="sticky" swatches="sticky" ai={<PanelIcon icon="spark" at="ai" />} />
             </Window>
           </Stage>
         </DCArtboard>
@@ -675,7 +676,7 @@ export default function CreateFlow() {
       {/* ── 4 · Edge cases ──────────────────────────────────────────────────────────────── */}
       <DCSection id="edges" title="When it gets busy, slow or broken" subtitle="Several people and AI at once, status in words, a canvas that won't draw, no internet">
         <DCArtboard id="cf-busy" label="17 · Tereza, Jonas, AI and you" width={W} height={H} fixed>
-          <Stage note={<div className="cf-note-row"><Note n={17} title="Everyone on one canvas.">Each person is on their own object, in their own colour; AI's tag sits off the art. Two of your AI chats run at once — the second on a story out of view.</Note><Legend /></div>}>
+          <Stage note={<div className="cf-note-row"><Note n={17} title="Everyone on one canvas.">Each person on their own object, in their own colour; AI's tag sits off the art. Modes are per person: Tereza writes in her Preview, you stay in Edit. Two of your AI chats run at once.</Note><Legend /></div>}>
             <Window tabs={GATOR_TABS} activeTab={1}>
               <Canvas>
                 {/* Combine-kampan at 22%: FB cover 1920 × 1005 → 422 × 221, IG post 4:5 → 238 × 297, A4-landscape sheet → 252 × 180. */}

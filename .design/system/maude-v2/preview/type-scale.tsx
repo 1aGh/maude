@@ -22,16 +22,16 @@ import "./_layout.css";
 import "./type-scale.css";
 import { Mark, Spark, SpecimenHeader } from "./_specimen-controls";
 
-/* The toolbar, in CONTRACT §2 order (V H F R P T N C). */
-const TOOLS: { name: string; key: string; d: string }[] = [
-  { name: "Select", key: "V", d: "M4 3l9 4.5-4 1.2L8 13z" },
-  { name: "Hand", key: "H", d: "M5.5 8V4.3a1 1 0 0 1 2 0V7.5M7.5 7V3.3a1 1 0 0 1 2 0V7.5M9.5 7.5V4.5a1 1 0 0 1 2 0v4.8c0 2.4-1.6 4.2-4 4.2-1.5 0-2.6-.7-3.4-1.9L2.7 9.2a1 1 0 0 1 1.6-1.2L5.5 9.5" },
-  { name: "Frame", key: "F", d: "M2 5h12M2 11h12M5 2v12M11 2v12" },
-  { name: "Shape", key: "R", d: "M5 3h6a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" },
-  { name: "Pen", key: "P", d: "M3 13l1-3.4 6.6-6.6a1.4 1.4 0 0 1 2 2L6 11.6z" },
-  { name: "Text", key: "T", d: "M3 4h10M8 4v9" },
-  { name: "Sticky", key: "N", d: "M3.5 3h9v6.2L9.2 12.5H3.5zM9.2 12.5V9.2h3.3" },
-  { name: "Comment", key: "C", d: "M3 4.5A1.5 1.5 0 0 1 4.5 3h7A1.5 1.5 0 0 1 13 4.5v5a1.5 1.5 0 0 1-1.5 1.5H7.2L4.5 13v-2H4.5A1.5 1.5 0 0 1 3 9.5z" },
+/* The Edit toolbar, in CONTRACT §2 order (V H F R P T I ⇧I) — glyphs verbatim from iconography.tsx. */
+const TOOLS: { name: string; key: string; d: ReactNode }[] = [
+  { name: "Select", key: "V", d: <path d="M3.5 2.5l9 4.5-4 1.3-1.5 4.2z" /> },
+  { name: "Hand", key: "H", d: <path d="M5.5 9V4.5a1 1 0 0 1 2 0V8M7.5 7.5V3.5a1 1 0 0 1 2 0V8M9.5 8V4.5a1 1 0 0 1 2 0v5c0 2.5-1.7 4-4 4h-.6c-1.3 0-2.3-.6-3-1.6L2.4 9.3a1 1 0 0 1 1.6-1.2l1.5 1.7" /> },
+  { name: "Frame", key: "F", d: <path d="M5 2.5v11M11 2.5v11M2.5 5h11M2.5 11h11" /> },
+  { name: "Shape", key: "R", d: <><rect x="2.5" y="2.5" width="7" height="7" rx="1.5" /><circle cx="10.25" cy="10.25" r="3.5" /></> },
+  { name: "Pen", key: "P", d: <><path d="M10.25 3.25l2.5 2.5L6 12.5l-3.25.75.75-3.25z" /><path d="M8.75 4.75l2.5 2.5" /></> },
+  { name: "Text", key: "T", d: <path d="M3.5 4.5V3h9v1.5M8 3v10M6.25 13h3.5" /> },
+  { name: "Image", key: "I", d: <><rect x="2.5" y="3" width="11" height="10" rx="2" /><circle cx="6" cy="6.5" r="1.25" /><path d="M2.75 11.5l3.25-3 2.5 2.25 1.75-1.5 3 2.5" /></> },
+  { name: "Component", key: "⇧I", d: <><path d="M8 1.75l2.25 2.25L8 6.25 5.75 4z" /><path d="M8 9.75l2.25 2.25L8 14.25 5.75 12z" /><path d="M4 5.75l2.25 2.25L4 10.25 1.75 8z" /><path d="M12 5.75l2.25 2.25L12 10.25 9.75 8z" /></> },
 ];
 
 /** Wraps a string and, when sizes are shown, pins its ladder step onto it. */
@@ -151,18 +151,18 @@ export default function TypeScale() {
             {TOOLS.map((t) => (
               <span className="ts-tool" key={t.name}>
                 <button
-                  className={`icon-btn${t.name === "Sticky" ? " ts-dock-hot" : ""}`}
+                  className={`icon-btn${t.name === "Image" ? " ts-dock-hot" : ""}`}
                   type="button"
                   aria-pressed={t.name === "Select"}
                   aria-label={t.name}
-                  aria-keyshortcuts={t.key}
+                  aria-keyshortcuts={t.key.replace("⇧", "Shift+")}
                 >
-                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={t.d} /></svg>
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{t.d}</svg>
                 </button>
-                {t.name === "Sticky" ? (
+                {t.name === "Image" ? (
                   <span className="ts-tip" role="tooltip">
-                    <Sized step="xs" show={show} side="top">Sticky</Sized>
-                    <span className="kbd">N</span>
+                    <Sized step="xs" show={show} side="top">Image</Sized>
+                    <span className="kbd">I</span>
                   </span>
                 ) : null}
               </span>

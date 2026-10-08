@@ -5,7 +5,7 @@
 .so-mark { background: var(--accent-tint); color: inherit; border-radius: var(--radius-xs); padding: 0 1px; }
 
 /* ─── Hero stage ─────────────────────────────────────────────────────────── */
-.so-hero { height: 640px; }
+.so-hero { height: 780px; }
 .so-bg { position: absolute; inset: 0; }
 .so-board { position: absolute; left: 34%; top: 92px; width: 300px; background: var(--bg-2); border-radius: var(--radius-sm); box-shadow: var(--shadow-md); padding-bottom: var(--space-4); }
 .so-board-img { display: block; height: 150px; border-radius: var(--radius-sm) var(--radius-sm) 0 0; background: var(--object-sky); }
@@ -52,7 +52,7 @@
 .so-cols { columns: 3 220px; column-gap: var(--space-6); padding: var(--space-2) var(--space-5) var(--space-4); overflow: auto; }
 .so-group { break-inside: avoid; margin-bottom: var(--space-4); }
 .so-group.is-adv { padding: var(--space-2); margin-left: calc(var(--space-2) * -1); margin-right: calc(var(--space-2) * -1); border-radius: var(--radius-md); background: var(--bg-1); box-shadow: inset 0 0 0 0.5px var(--border-subtle); }
-.so-gt { display: flex; align-items: baseline; gap: var(--space-2); }
+.so-gt { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-2); }
 .so-gt-note { font-weight: var(--w-regular); color: var(--fg-2); }
 .so-group dl, .so-guide-sheet dl { margin: 0; }
 .so-row {
@@ -115,17 +115,18 @@
 .so-size figcaption { font-size: var(--type-sm); color: var(--fg-1); }
 .so-size figcaption strong { color: var(--fg-0); margin-right: var(--space-1); }
 .so-sz { min-height: 0; margin: 0; padding: var(--space-4); }
-.so-sz-wide { height: 236px; }
-.so-sz-mid { height: 256px; }
-.so-sz-narrow { height: 276px; }
+.so-sz-wide { height: 276px; }
+.so-sz-mid { height: 296px; }
+.so-sz-narrow { height: 316px; }
+/* Flows like the real sheet: CSS columns, a group never splits. */
 .so-sz-sheet {
-  display: grid; gap: var(--space-3); height: 100%;
+  column-gap: var(--space-3); height: 100%;
   padding: var(--space-3);
   background: var(--bg-2); border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md), inset 0 0 0 0.5px var(--island-edge);
   overflow: hidden;
 }
-.so-sz-g { display: flex; flex-direction: column; gap: var(--space-1); }
+.so-sz-g { display: flex; flex-direction: column; gap: var(--space-1); break-inside: avoid; margin-bottom: var(--space-3); }
 .so-sz-t { font-size: var(--type-xs); font-weight: var(--w-semibold); color: var(--fg-2); }
 .so-sz-r { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); }
 .so-sz-r i { height: 6px; flex: 1; max-width: 64px; border-radius: var(--radius-pill); background: var(--bg-4); }

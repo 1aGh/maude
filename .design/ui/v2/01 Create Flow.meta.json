@@ -51,7 +51,7 @@
     {
       "id": "cf-sticky-comment",
       "label": "5 · A sticky and a comment",
-      "note": "N drops a sticky for yourself; C pins a comment on the button that waits for an answer."
+      "note": "Annotating, so this is Preview: N switches to Preview with Sticky (its colours above it) and drops one for yourself; C pins a comment on the button that waits for an answer. The Share cluster reads Preview; esc returns to Edit."
     },
     {
       "id": "cf-undo-before",
@@ -111,7 +111,7 @@
     {
       "id": "cf-busy",
       "label": "17 · Tereza, Jonas, AI and you",
-      "note": "Each person on their own object in their own colour, AI's tag off the art, two AI chats open — with a legend."
+      "note": "Each person on their own object in their own colour, AI's tag off the art, two AI chats open — with a legend. Modes are per person: Tereza writes on a sticky in her own Preview while you stay in Edit with Edit's toolbar."
     },
     {
       "id": "cf-status-words",
@@ -130,5 +130,5 @@
     }
   ],
   "created": "2026-10-06T00:00:00Z",
-  "last_modified": "2026-10-06T18:00:00Z"
+  "last_modified": "2026-10-08T19:00:00Z"
 }

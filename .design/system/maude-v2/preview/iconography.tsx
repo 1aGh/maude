@@ -3,7 +3,7 @@
  *
  * DEMONSTRATES: the maude-v2 icon family — one hand-drawn set of inline SVGs on a 16-unit
  *   grid, 1.5px rounded stroke that never scales, shown at its two sizes (16 in panels and
- *   menus, 18 in the toolbar), colour via currentColor, and the spark (the logo's four-point
+ *   menus, 18 in the toolbars), colour via currentColor, and the spark (the logo's four-point
  *   star, lifted from <Spark> = assets/logos/spark.svg) as the one filled glyph — the AI's.
  *   SOURCE OF TRUTH: every glyph the one menu uses (home, file, edit, view, help, history,
  *   share, export, pulse = Diagnostics, settings, submenu, check) lives in GLYPHS below; other
@@ -11,13 +11,14 @@
  * COMPOSITION: hero = a slice of the app where every icon sits in its real home (islands,
  *   toolbar, the AI chat panel folded into its spark) with anchored size callouts; then the
  *   full family with a keyline overlay + ink switcher, a magnified anatomy plate (the
- *   comment bubble is cut from the logo tile), the four drawing rules, optical balance,
- *   and a right/wrong toolbar.
+ *   comment bubble is cut from the logo tile), the two toolbars (Edit: tools that make things
+ *   inside artboards; Preview: annotation only — CONTRACT §2), the four drawing rules, optical
+ *   balance, and a right/wrong toolbar.
  * COPY VOICE: everyday names, where each icon lives — no glyph codes, no SKU labels.
  * NOTES: one family, never mixed with a library set. Strokes carry
  *   vector-effect: non-scaling-stroke (iconography.css), so 18px grows the shape, not the line.
  */
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import type { ReactNode } from "react";
 import "./_layout.css";
 import "./iconography.css";
@@ -27,21 +28,22 @@ import { Mark, Spark, SpecimenHeader } from "./_specimen-controls";
 type Glyph = { id: string; name: string; home: string; draw: ReactNode };
 
 const GLYPHS: Glyph[] = [
-  /* The toolbar, left → right (CONTRACT §2): Select · Hand · Frame · Shape · Pen · Text · Sticky · Comment · More */
-  { id: "select", name: "Select", home: "toolbar · V", draw: <path d="M3.5 2.5l9 4.5-4 1.3-1.5 4.2z" /> },
+  /* The Edit toolbar, left → right (CONTRACT §2) — tools that make things inside artboards:
+     Select · Hand · Frame · Shape · Pen · Text · Image · Component · More */
+  { id: "select", name: "Select", home: "Edit toolbar · V", draw: <path d="M3.5 2.5l9 4.5-4 1.3-1.5 4.2z" /> },
   {
     id: "hand",
     name: "Hand",
-    home: "toolbar · H, or hold Space",
+    home: "both toolbars · H, or hold Space",
     draw: (
       <path d="M5.5 9V4.5a1 1 0 0 1 2 0V8M7.5 7.5V3.5a1 1 0 0 1 2 0V8M9.5 8V4.5a1 1 0 0 1 2 0v5c0 2.5-1.7 4-4 4h-.6c-1.3 0-2.3-.6-3-1.6L2.4 9.3a1 1 0 0 1 1.6-1.2l1.5 1.7" />
     ),
   },
-  { id: "frame", name: "Frame", home: "toolbar · F · layers", draw: <path d="M5 2.5v11M11 2.5v11M2.5 5h11M2.5 11h11" /> },
+  { id: "frame", name: "Frame", home: "Edit toolbar · F · layers", draw: <path d="M5 2.5v11M11 2.5v11M2.5 5h11M2.5 11h11" /> },
   {
     id: "shape",
     name: "Shape",
-    home: "toolbar · R · layers",
+    home: "both toolbars · R · layers",
     draw: (
       <>
         <rect x="2.5" y="2.5" width="7" height="7" rx="1.5" />
@@ -52,7 +54,7 @@ const GLYPHS: Glyph[] = [
   {
     id: "pen",
     name: "Pen",
-    home: "toolbar · P",
+    home: "Edit toolbar · P",
     draw: (
       <>
         <path d="M10.25 3.25l2.5 2.5L6 12.5l-3.25.75.75-3.25z" />
@@ -60,11 +62,68 @@ const GLYPHS: Glyph[] = [
       </>
     ),
   },
-  { id: "text", name: "Text", home: "toolbar · T · layers", draw: <path d="M3.5 4.5V3h9v1.5M8 3v10M6.25 13h3.5" /> },
+  { id: "text", name: "Text", home: "both toolbars · T · layers", draw: <path d="M3.5 4.5V3h9v1.5M8 3v10M6.25 13h3.5" /> },
+  {
+    id: "image",
+    name: "Image",
+    home: "Edit toolbar · I · layers",
+    draw: (
+      <>
+        <rect x="2.5" y="3" width="11" height="10" rx="2" />
+        <circle cx="6" cy="6.5" r="1.25" />
+        <path d="M2.75 11.5l3.25-3 2.5 2.25 1.75-1.5 3 2.5" />
+      </>
+    ),
+  },
+  {
+    id: "component",
+    name: "Component",
+    home: "Edit toolbar · ⇧I · layers",
+    draw: (
+      <>
+        <path d="M8 1.75l2.25 2.25L8 6.25 5.75 4z" />
+        <path d="M8 9.75l2.25 2.25L8 14.25 5.75 12z" />
+        <path d="M4 5.75l2.25 2.25L4 10.25 1.75 8z" />
+        <path d="M12 5.75l2.25 2.25L12 10.25 9.75 8z" />
+      </>
+    ),
+  },
+  {
+    id: "more",
+    name: "More",
+    home: "end of the Edit toolbar · every panel",
+    draw: (
+      <g className="ic-dots">
+        <circle cx="3.5" cy="8" r="1.1" />
+        <circle cx="8" cy="8" r="1.1" />
+        <circle cx="12.5" cy="8" r="1.1" />
+      </g>
+    ),
+  },
+
+  /* Under the Edit toolbar's More: Line · Ellipse · Polygon · Crop · Export area */
+  { id: "line", name: "Line", home: "Edit toolbar › More", draw: <path d="M3 13L13 3" /> },
+  { id: "ellipse", name: "Ellipse", home: "Edit toolbar › More", draw: <ellipse cx="8" cy="8" rx="5.5" ry="4.5" /> },
+  { id: "polygon", name: "Polygon", home: "Edit toolbar › More", draw: <path d="M8 2.25l5.5 4-2.1 6.5H4.6l-2.1-6.5z" /> },
+  { id: "crop", name: "Crop", home: "Edit toolbar › More · a photo", draw: <path d="M4.5 1.75v9.75h9.75M1.75 4.5h9.75v9.75" /> },
+  {
+    id: "slice",
+    name: "Export area",
+    home: "Edit toolbar › More",
+    draw: (
+      <>
+        <rect x="2.5" y="2.5" width="11" height="11" rx="1.5" strokeDasharray="2 2" />
+        <path d="M5.5 10.5l5-5" />
+      </>
+    ),
+  },
+
+  /* The Preview toolbar — annotation only (CONTRACT §2): Hand · Sticky · Comment · Marker · Arrow · Shape ·
+     Text · Stickers · Section. Hand, Shape and Text are the shared glyphs above. */
   {
     id: "sticky",
     name: "Sticky",
-    home: "toolbar · N · layers",
+    home: "Preview toolbar · N · layers",
     draw: (
       <>
         <path d="M4 2.5h8A1.5 1.5 0 0 1 13.5 4v5L9 13.5H4A1.5 1.5 0 0 1 2.5 12V4A1.5 1.5 0 0 1 4 2.5z" />
@@ -75,19 +134,42 @@ const GLYPHS: Glyph[] = [
   {
     id: "comment",
     name: "Comment",
-    home: "toolbar · C · top-right panel",
+    home: "Preview toolbar · C · top-right panel",
     draw: <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v8.5H5A2.5 2.5 0 0 1 2.5 11V5A2.5 2.5 0 0 1 5 2.5z" />,
   },
   {
-    id: "more",
-    name: "More",
-    home: "end of the toolbar · every panel",
+    id: "marker",
+    name: "Marker",
+    home: "Preview toolbar · M",
     draw: (
-      <g className="ic-dots">
-        <circle cx="3.5" cy="8" r="1.1" />
-        <circle cx="8" cy="8" r="1.1" />
-        <circle cx="12.5" cy="8" r="1.1" />
-      </g>
+      <>
+        <path d="M10.75 2.75l2.5 2.5-6 6-2.5-2.5z" />
+        <path d="M4.75 8.75L3 13l4.25-1.75" />
+      </>
+    ),
+  },
+  { id: "arrow", name: "Arrow", home: "Preview toolbar · A", draw: <path d="M3 13L13 3M7.5 3H13v5.5" /> },
+  {
+    id: "stamp",
+    name: "Stickers",
+    home: "Preview toolbar · E",
+    draw: (
+      <>
+        <circle className="ic-stamp-disc" cx="8" cy="8" r="5.75" />
+        <path d="M5.6 9.4a2.9 2.9 0 0 0 4.8 0" />
+        <path d="M6.1 6.4h.01M9.9 6.4h.01" strokeWidth={2} />
+      </>
+    ),
+  },
+  {
+    id: "section",
+    name: "Section",
+    home: "Preview toolbar · S",
+    draw: (
+      <>
+        <path d="M2.5 5V3.5a1 1 0 0 1 1-1H5M11 2.5h1.5a1 1 0 0 1 1 1V5M13.5 11v1.5a1 1 0 0 1-1 1H11M5 13.5H3.5a1 1 0 0 1-1-1V11" />
+        <path d="M5.5 6h5" />
+      </>
     ),
   },
   { id: "spark", name: "AI", home: "the AI chat panel, folded", draw: null },
@@ -283,6 +365,15 @@ function Icon({ id, size = 16 }: { id: string; size?: number }) {
   );
 }
 
+/** One Preview-toolbar tool, drawn the FigJam way (kit AnnotateIcon): Sticky is a note in its colour, Marker
+ *  shows its ink, Stickers a yellow disc. The object colours of the thing each tool makes — Preview only. */
+const SWATCHES = ["yellow", "coral", "green", "sky", "lilac"] as const;
+function AnnotateIcon({ id, color = "yellow", ink = "coral" }: { id: string; color?: string; ink?: string }) {
+  if (id === "sticky") return <span className={`ic-ad-note ic-ad-note--${color}`} />;
+  if (id === "marker") return <span className="ic-ad-mk"><Icon id="marker" size={22} /><i className={`ic-ad-ink ic-ad-ink--${ink}`} /></span>;
+  return <span className={id === "stamp" ? "ic-ad-stamp" : undefined}><Icon id={id} size={22} /></span>;
+}
+
 /** Keyline overlay: the 2–14 live area, the 12-unit circle and the centre lines. */
 function Keylines({ size }: { size: number }) {
   return (
@@ -294,8 +385,11 @@ function Keylines({ size }: { size: number }) {
   );
 }
 
-/** Toolbar order, left → right (CONTRACT §2). The AI is not a tool — it is the AI chat panel. */
-const DOCK = ["select", "hand", "frame", "shape", "pen", "text", "sticky", "comment", "more"];
+/** The Edit toolbar, left → right (CONTRACT §2) — tools that make things inside artboards. The AI is not a
+ *  tool — it is the AI chat panel. */
+const DOCK = ["select", "hand", "frame", "shape", "pen", "text", "image", "component", "more"];
+/** The Preview toolbar (CONTRACT §2) — annotation only; Hand, then the marks you leave on the design. */
+const PREVIEW_DOCK = ["hand", "sticky", "comment", "marker", "arrow", "shape", "text", "stamp", "section"];
 const INKS = [
   { id: "default", label: "Default" },
   { id: "muted", label: "Muted" },
@@ -319,7 +413,7 @@ export default function Iconography() {
           <h1>Drawn in one hand, light enough to disappear.</h1>
           <p className="lede">
             {GLYPHS.length} icons, one line weight, rounded at every end. They sit at 16 in panels and
-            menus and 18 in the toolbar, take their colour from whatever holds them, and stay out of the
+            menus and 18 in the Edit toolbar, take their colour from whatever holds them, and stay out of the
             way of your work. The spark is the only filled one — it means the AI.
           </p>
         </section>
@@ -327,7 +421,7 @@ export default function Iconography() {
         <dl className="specimen-meta">
           <div><dt>Stroke</dt><dd>1.5 px · round caps + joins</dd></div>
           <div><dt>Grid</dt><dd>16 × 16 · live area 2–14</dd></div>
-          <div><dt>Sizes</dt><dd>16 panels and menus · 18 toolbar</dd></div>
+          <div><dt>Sizes</dt><dd>16 panels and menus · 18 Edit toolbar · 22 Preview toolbar</dd></div>
           <div><dt>Colour</dt><dd>currentColor</dd></div>
         </dl>
 
@@ -425,6 +519,44 @@ export default function Iconography() {
           ))}
         </div>
 
+        {/* ── Two toolbars ──────────────────────────────────────────────── */}
+        <h2 data-no>Two toolbars<span className="h2-aside">one per mode, the same hand — Preview is the playful one</span></h2>
+        <div className="ic-compare ic-modes">
+          <figure className="ic-case">
+            <div className="stage ic-mini">
+              <div className="island dock ic-mini-dock" role="toolbar" aria-label="Edit toolbar">
+                {DOCK.map((id, i) => (
+                  <button key={id} className="icon-btn" type="button" aria-pressed={id === "more" ? undefined : i === 0} aria-label={BY_ID[id].name} tabIndex={-1}>
+                    <Icon id={id} size={18} />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <figcaption><strong>Edit</strong> Tools that make things inside artboards — monochrome, 18 px. Line, Ellipse, Polygon, Crop and Export area wait under More.</figcaption>
+          </figure>
+          <figure className="ic-case">
+            <div className="stage ic-mini">
+              <div className="island dock ic-mini-dock ic-adock" role="toolbar" aria-label="Preview toolbar">
+                {PREVIEW_DOCK.map((id, i) => (
+                  <Fragment key={id}>
+                    <button className="icon-btn ic-ad-b" type="button" aria-pressed={id === "marker"} aria-label={BY_ID[id].name} tabIndex={-1}>
+                      <AnnotateIcon id={id} />
+                      {id === "marker" ? (
+                        <span className="island ic-ad-pop" aria-hidden="true">
+                          <span className="seg ic-ad-seg"><span aria-pressed="true">Marker</span><span>Highlighter</span></span>
+                          {SWATCHES.map((c) => <i key={c} className={`ic-ad-sw ic-ad-sw--${c}`} data-on={c === "coral" ? "true" : undefined} />)}
+                        </span>
+                      ) : null}
+                    </button>
+                    {i === 0 ? <span className="divider-v" /> : null}
+                  </Fragment>
+                ))}
+              </div>
+            </div>
+            <figcaption><strong>Preview</strong> Only marks on top of the live design, a size bigger — 22 px in 48. Each tool may wear the colour of what it makes: the sticky, the marker's ink, the sticker. Press N, C, M, A, E or S in Edit to come here; esc goes back.</figcaption>
+          </figure>
+        </div>
+
         {/* ── Anatomy ───────────────────────────────────────────────────── */}
         <h2 data-no>Anatomy<span className="h2-aside">the comment bubble, at fourteen times</span></h2>
         <div className="ic-anatomy">
@@ -497,8 +629,8 @@ export default function Iconography() {
               <span><Icon id="layers" size={16} /><small>16</small></span>
               <span><Icon id="layers" size={18} /><small>18</small></span>
             </div>
-            <h3>Optical size · two steps</h3>
-            <p>16 inside panels and menus, 18 in the toolbar where your hand lives. No 12, no 24 — bigger icons are illustrations.</p>
+            <h3>Optical size · 16 and 18</h3>
+            <p>16 inside panels and menus, 18 in the Edit toolbar where your hand lives. The one exception is Preview's toolbar, 22 — it's for play. No 12, no 24.</p>
           </article>
           <article className="ic-rule">
             <div className="ic-rule-demo ic-rule-inks">
@@ -507,7 +639,7 @@ export default function Iconography() {
               <span className="ic-ink-ai"><Icon id="spark" /></span>
             </div>
             <h3>Colour · inherited</h3>
-            <p>Icons take currentColor. Azure only behind a pressed tool; the spark wears its own colour only for the AI.</p>
+            <p>Icons take currentColor. Azure only behind a pressed tool; the spark wears its own colour only for the AI. Preview's toolbar may show the colour a tool lays down.</p>
           </article>
         </div>
 
@@ -549,14 +681,14 @@ export default function Iconography() {
           <figure className="ic-case">
             <div className="stage ic-mini">
               <div className="island dock ic-mini-dock">
-                {["select", "hand", "frame", "shape", "pen", "text", "sticky", "comment", "more"].map((id, i) => (
+                {DOCK.map((id, i) => (
                   <button key={id} className="icon-btn" type="button" aria-pressed={id === "more" ? undefined : i === 0} aria-label={BY_ID[id].name} tabIndex={-1}>
                     <Icon id={id} size={18} />
                   </button>
                 ))}
               </div>
             </div>
-            <figcaption><strong className="ic-ok">Right</strong> One weight, round ends, quiet ink, in toolbar order. The pressed tool is the only azure — the AI has its own panel, not a slot here.</figcaption>
+            <figcaption><strong className="ic-ok">Right</strong> The Edit toolbar: one weight, round ends, quiet ink, in toolbar order. The pressed tool is the only azure — the AI has its own panel, not a slot here.</figcaption>
           </figure>
           <figure className="ic-case">
             <div className="stage ic-mini">
@@ -565,12 +697,12 @@ export default function Iconography() {
                 <span className="icon-btn"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="0.6"><path d="M5 1v14M11 1v14M1 5h14M1 11h14" /></svg></span>
                 <span className="icon-btn"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinejoin="miter"><path d="M11 2l3 3-8 8H3v-3z" /></svg></span>
                 <span className="icon-btn"><svg width="18" height="18" viewBox="0 0 16 16"><text x="2" y="13" className="ic-wrong-glyph">T</text></svg></span>
-                <span className="icon-btn"><span className="ic-wrong-sticky" /></span>
+                <span className="icon-btn"><span className="ic-wrong-fill" /></span>
                 <span className="divider-v" />
                 <span className="icon-btn"><svg width="18" height="18" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" className="ic-wrong-ai" /></svg></span>
               </div>
             </div>
-            <figcaption><strong className="ic-bad">Wrong</strong> A filled arrow, a hairline frame, a heavy square pen, a letter for text, a coloured sticky, and a blob for the AI parked in the toolbar. Six icons, six families.</figcaption>
+            <figcaption><strong className="ic-bad">Wrong</strong> An Edit toolbar with a filled arrow, a hairline frame, a heavy square pen, a letter for text, a colour-filled tile, and a blob for the AI parked in it. Six icons, six families — colour belongs only to Preview's tools.</figcaption>
           </figure>
         </div>
       </main>

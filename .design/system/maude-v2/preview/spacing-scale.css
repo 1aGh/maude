@@ -54,11 +54,6 @@
 .sp-row { position: relative; gap: 0; }
 
 .sp-dock { position: relative; gap: 0; }
-.sp-dock-slot { display: contents; }
-.sp-dock-sticky { display: block; width: 20px; height: 20px; border-radius: var(--radius-xs); box-shadow: var(--shadow-sm); }
-.sp-ds-yellow { background: var(--object-yellow); }
-.sp-ds-green { background: var(--object-green); }
-.sp-ds-lilac { background: var(--object-lilac); }
 
 .sp-th-coral { background: var(--object-coral); }
 .sp-th-yellow { background: var(--object-yellow); }

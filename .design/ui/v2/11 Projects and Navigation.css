@@ -423,3 +423,18 @@
 
 /* pn-trash: who may clear out — under the dialog inset (10's rule: editors move to the trash, owners clear it out). */
 .pn-inset-cap { max-width: 380px; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--bg-2); box-shadow: var(--shadow-sm), inset 0 0 0 0.5px var(--island-edge); font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-1); }
+
+/* pn-ds — where the design system lives (CONTRACT §7, proposed: Michal's idea). The row itself is the kit's k-cp-ds. */
+.pn-wins--ds { gap: var(--space-6); }
+.pn-wins--ds .k-cp { flex: none; }
+/* the pinned row's meta never truncates ("used by 3 …"): the system's name and its reach each get a line of their own */
+.pn-ds.k-cp-row--two { padding-block: var(--space-1); }
+.pn-ds .k-cp-sub { white-space: normal; overflow: visible; text-overflow: clip; }
+.pn-ds-l { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pn-ds-insp { position: relative; right: auto; top: auto; width: 300px; }
+.pn-ds-v { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--type-sm); color: var(--fg-0); }
+.pn-ds-sw { display: block; width: 14px; height: 14px; border-radius: var(--radius-xs); background: var(--object-green); box-shadow: inset 0 0 0 0.5px var(--border-strong); }
+.pn-ds-uses { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); padding: var(--space-2); border-radius: var(--radius-md); background: var(--accent-muted); color: var(--accent-text); font-size: var(--type-sm); }
+.pn-ds-uses > span { flex: 1; min-width: 0; }
+.pn-ds-uses strong { font-weight: var(--w-semibold); }
+.pn-ds-cap { max-width: 36ch; font-size: var(--type-xs); line-height: var(--lh-xs); color: var(--fg-2); }

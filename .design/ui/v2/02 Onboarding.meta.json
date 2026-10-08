@@ -20,7 +20,7 @@
     { "id": "ob-first-draw", "label": "5 · AI draws the first canvas", "note": "The poster builds piece by piece; no tip card while AI works; the project is named from the sentence, Rename is the toast's one action." },
     { "id": "ob-sig-draw", "label": "6 · How a first draft arrives", "note": "Signature moment: colour, picture, words, details — four frames on a time rail; one contextual hint at the first selection." },
     { "id": "ob-invite-page", "label": "7 · The invite, in the browser", "note": "Who invited you, to what, her comment, one download; Open in Maude if installed; view-only browser link kept." },
-    { "id": "ob-invite-landed", "label": "8 · Landed on her comment", "note": "Hero: the camera stops at Tereza's comment on the poster, reply field ready, her live cursor beside it." },
+    { "id": "ob-invite-landed", "label": "8 · Landed on her comment", "note": "Hero: the camera stops at Tereza's comment on the poster, reply field ready, her live cursor beside it. You land in Preview with Comment (you came to answer); esc is Edit." },
     { "id": "ob-home-team", "label": "9 · Next time — Home shows the team's work", "note": "Home shows Alligators brand with 93 canvases, Tereza and Jonas; the prompt chip says the new canvas lands there." },
     { "id": "ob-local-name", "label": "10 · Name it — that's all", "note": "One field; stored in your Maude folder on this Mac, said in words; the path appears only under Advanced." },
     { "id": "ob-local-first", "label": "11 · The first local canvas", "note": "An empty canvas with the CONTRACT line; AI connects the same way at the first Ask AI; status says Local project." },
@@ -37,5 +37,5 @@
     { "id": "ob-edge-whats-new", "label": "22 · After an update — findable, never in the way", "note": "Land where you left off (1.x too); Home shows one What's new line once; Menu › Help keeps the dot." }
   ],
   "created": "2026-10-06T00:00:00Z",
-  "last_modified": "2026-10-06T18:00:00Z"
+  "last_modified": "2026-10-08T19:00:00Z"
 }

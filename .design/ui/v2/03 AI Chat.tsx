@@ -4,7 +4,8 @@
  * @platform    desktop
  * @opt_out     palette
  * @artboards   ai-hero |
- *              ai-open | ai-scope | ai-working | ai-done | ai-attach | ai-question |
+ *              ai-open | ai-suggest | ai-scope | ai-working | ai-done | ai-attach | ai-attach-menu | ai-question |
+ *              ai-long | ai-long-pinned |
  *              ai-two-artboards | ai-same-artboard | ai-copy | ai-queue-rule | ai-other-tab | ai-tereza | ai-chat-list |
  *              ai-panel-closed | ai-quit |
  *              ai-needs-hidden | ai-needs-tab | ai-needs-away | ai-permission | ai-choice-fail | ai-not-ready |
@@ -18,8 +19,12 @@
  * Convention (same as 01 Create Flow): every app artboard is a <Stage> — a 1440 × 900 window with its note
  * strip underneath (artboard 1440 × 980). Close-ups are V2 boards on the dotted canvas with the note at the
  * foot. Chrome comes from ./_kit; the richer AI chat panel pieces are local (prefix ai-) and listed as kit
- * candidates: Working, Result, Waiting, Permission, Choice, Problem, Attachment, ChatList, TheirAi,
- * Wipe, Ring, FoldNeeds, tab marks.
+ * candidates: Working, Result, Waiting, Permission, Choice, Problem, ChatList, TheirAi,
+ * Wipe, Ring, FoldNeeds, tab marks — plus (review 2026-10-08) Clip glyph, Composer (paperclip + chips inside the
+ * prompt + multi-line), AChip, AttachMenu, Consent, Suggest (contextual chips + why), BigChat (tall / pinned panel).
+ *
+ * THE PAPERCLIP (every prompt in this canvas): the kit's single-row ask gets a paperclip before the scope chip
+ * (drawn by CSS on .k-ask until the kit AIPanel grows an `attach` button); rich states use the local Composer.
  *
  * THE RULE drawn here (ai-same-artboard + ai-queue-rule): one AI at a time per artboard. Different artboards run
  * side by side; a second ask on a busy artboard — yours or anyone's AI — waits its turn and starts by itself on
@@ -38,7 +43,7 @@ import "./03 AI Chat.css";
 import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
 import type { CSSProperties, ReactNode } from "react";
 import {
-  AIPanel, AIRunIcon, ALLIGATORS_COUNT, ALLIGATORS_FOLDERS, ALLIGATORS_ROOT, Artboard, ConnectSheet, Avatar, Canvas, CanvasesPanel, Cursor, Dialog, GatorMock, HeroMock, Icon, InFill, InSelect, InSize,
+  AIPanel, AIRunIcon, ALLIGATORS_COUNT, ALLIGATORS_FOLDERS, ALLIGATORS_ROOT, Artboard, ConnectSheet, Avatar, Canvas, CanvasesPanel, CommentPin, Cursor, Dialog, GatorMock, HeroMock, Icon, InFill, InSelect, InSize,
   InSwitch, Inspector, Kbd, Mark, Menu, Note, PanelIcon, PhoneMock, PricingMock, ProjectPill, ShareCluster,
   Spark, Stage, TABS, Thumb, Toast, Toolbar, Tooltip, V2, Veil, VideoFrameMock, Window, ZoomUndo,
 } from "./_kit";
@@ -150,14 +155,155 @@ function Problem({ title, children, verb }: { title: ReactNode; children?: React
   );
 }
 
-function Attachment({ name, meta, art = "blank", kind = "image" }: { name: string; meta: string; art?: Art; kind?: "image" | "video" }) {
+/* ─── The prompt, with a paperclip (Michal's review 2026-10-08, kit candidates) ─────────────────── */
+
+/** Paperclip — drawn in the family's hand (16 grid, 1.5 round stroke). Kit candidate: GLYPHS.attach. */
+function Clip({ size = 16 }: { size?: number }) {
   return (
-    <span className="ai-att">
-      <span className="ai-att-pic"><Thumb art={art} className="ai-att-thumb" /><span className="ai-att-kind"><Icon name={kind} size={10} /></span></span>
+    <svg className="k-ic" width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M11 5.25L6.6 9.65a1.2 1.2 0 0 0 1.7 1.7l4.4-4.4a2.6 2.6 0 0 0-3.68-3.68L4.6 7.7a4 4 0 0 0 5.66 5.66l3.24-3.26" />
+    </svg>
+  );
+}
+
+type AttKind = "image" | "video" | "file" | "folder";
+/** One attachment inside the prompt. Pictures are a thumbnail (name on hover); files and folders say name + what. */
+function AChip({ kind, name, meta, art = "blank", wait = false }: { kind: AttKind; name?: string; meta?: string; art?: Art; wait?: boolean }) {
+  if (kind === "image") {
+    return (
+      <span className="ai-ach ai-ach--img" title={name}>
+        <Thumb art={art} className="ai-ach-thumb" />
+        <span className="ai-ach-x"><Icon name="close" size={9} /></span>
+      </span>
+    );
+  }
+  return (
+    <span className={`ai-ach${wait ? " ai-ach--wait" : ""}`}>
+      {kind === "video" ? (
+        <span className="ai-ach-pic"><Thumb art={art} className="ai-ach-vthumb" /><span className="ai-ach-play"><Icon name="play" size={8} /></span></span>
+      ) : <span className="ai-ach-ic"><Icon name={kind === "folder" ? "folder" : "file"} size={14} /></span>}
       <span className="ai-att-txt"><span className="ai-att-n">{name}</span><span className="ai-att-m">{meta}</span></span>
       <span className="ai-att-x"><Icon name="close" size={10} /></span>
     </span>
   );
+}
+
+/** The prompt field. One row when short: 📎 · scope chip · text · send. Attachments sit inside it, on top; a long
+ *  prompt wraps above the row (multi). The paperclip opens Attach files… · Choose a folder… · From Assets · Paste. */
+function Composer({ scope, text, placeholder = "Ask AI…", chips, multi = false, clipOpen = false, menu, className = "" }: {
+  scope: string; text?: ReactNode; placeholder?: string; chips?: ReactNode; multi?: boolean; clipOpen?: boolean; menu?: ReactNode; className?: string;
+}) {
+  const clip = <span className={`icon-btn k-icon-sm ai-clip${clipOpen ? " k-pressed" : ""}`} title="Attach"><Clip size={16} /></span>;
+  return (
+    <div className={`ask ai-ask${multi ? " ai-ask--multi" : ""}${className ? " " + className : ""}`}>
+      {chips ? <div className="ai-ask-chips">{chips}</div> : null}
+      {multi ? <p className="ai-ask-text">{text}<i className="k-caretline" /></p> : null}
+      <div className="ai-ask-row">
+        {clip}
+        <span className="chip chip--accent k-selchip">◆ {scope}</span>
+        {multi ? <span className="ai-ask-sp" /> : <span className={`k-ask-in${text ? "" : " k-ask-ph"}`}>{text ?? placeholder}{text ? <i className="k-caretline" /> : null}</span>}
+        <span className="send"><Spark size={12} color="var(--spark-fg)" /></span>
+      </div>
+      {menu}
+    </div>
+  );
+}
+
+/** The paperclip's menu — one short list; dragging stays the fastest way. */
+function AttachMenu({ style, highlight }: { style?: CSSProperties; highlight?: string }) {
+  return (
+    <Menu style={style} width={232} highlight={highlight} items={[
+      { label: "Attach files…", icon: "file" },
+      { label: "Choose a folder…", icon: "folder" },
+      { label: "From Assets", icon: "image" },
+      { label: "Paste a screenshot", icon: "fit", keys: "⌘V" },
+      "sep",
+      { label: "Or drag files here", icon: "insert", disabled: true },
+    ]} />
+  );
+}
+
+/** A folder from disk asks once: AI may read it (never writes to it). Title verb = button verb. */
+function Consent({ name = "Combine 2026 fotky", count = 48 }: { name?: string; count?: number }) {
+  return (
+    <div className="ai-consent">
+      <p className="ai-consent-t"><span className="ai-consent-ic"><Icon name="folder" size={14} /></span><span>Let AI read “{name}” ({count} files)?</span></p>
+      <p className="ai-consent-d">Asked once for this folder. AI only reads it — nothing on disk changes.</p>
+      <span className="ai-card-a"><span className="btn btn--sm">Not now</span><span className="btn btn--sm btn--primary">Let AI read</span></span>
+    </div>
+  );
+}
+
+/** The comment pin's own shape (kit .k-cpin-dot), small, for a chip that is about comments. */
+function PinDot({ ini = "T", tone = "sky" }: { ini?: string; tone?: string }) {
+  return <span className={`ai-pindot k-av--${tone}`}>{ini}</span>;
+}
+
+/** Suggestions come from what you were doing. Max 3 chips, one line each; the lead chip carries its context glyph and
+ *  the tiny "why" under the row explains it. Follow-ups under an answer need no why. */
+function Suggest({ chips, why, icon }: { chips: string[]; why?: ReactNode; icon?: string | ReactNode }) {
+  return (
+    <div className="ai-sugg">
+      <div className="k-ai-sugg ai-sugg-row">
+        {chips.slice(0, 3).map((c, i) => <span key={c} className={`chip k-sugg ai-sugg-chip${i === 0 && icon ? " ai-sugg-lead" : ""}`}>{i === 0 && icon ? (typeof icon === "string" ? <Icon name={icon} size={12} /> : icon) : null}{c}</span>)}
+      </div>
+      {why ? <p className="ai-why">{why}</p> : null}
+    </div>
+  );
+}
+
+/** The tall AI chat panel (long chats): 420 wide, full window height, resizable edge, Pin to the side in the header.
+ *  Same header, messages and foot as the kit panel. pinned = docked flush in the right column. Kit candidate. */
+function BigChat({ title, count, pinned = false, up = false, children, jump, composer, resize, pinTip }: {
+  title: string; count?: number; pinned?: boolean; up?: boolean; children: ReactNode; jump?: ReactNode; composer: ReactNode; resize?: boolean; pinTip?: ReactNode;
+}) {
+  return (
+    <div className={`island island--pad k-ai k-ai--chat ai-big${pinned ? " ai-big--pinned" : ""}`}>
+      <div className="k-ai-hd k-ai-hd--chat">
+        <Spark size={14} />
+        <span className="k-ai-title"><span className="k-ai-title-t">{title}</span><Icon name="chevron" size={12} /></span>
+        {count ? <span className="chip k-ai-sess k-ai-count"><Spark size={10} /><b>{count}</b><Icon name="chevron" size={12} /></span> : null}
+        <span className="icon-btn k-icon-sm" title="New chat"><Icon name="plus" size={14} /></span>
+        <span className={`icon-btn k-icon-sm ai-pinbtn${pinned ? " k-pressed" : ""}`} title={pinned ? "Unpin" : "Pin to the side"}><Icon name="panel-right" size={14} />{pinTip}</span>
+        <span className="icon-btn k-icon-sm" title="Hide the AI chat panel"><Icon name="chevron" size={14} /></span>
+      </div>
+      <div className={`k-ai-msgs ai-big-msgs${up ? " ai-big-msgs--up" : " k-ai-msgs--end"}`}>{children}</div>
+      {jump}
+      <div className="k-ai-askwrap">{composer}</div>
+      <span className="k-adv-btn k-ai-adv"><span className="k-adv-ch"><Icon name="submenu" size={12} /></span>Advanced</span>
+      {resize ? (
+        <span className="ai-resize">
+          <i className="ai-resize-line" /><i className="ai-resize-grip" />
+          <span className="ai-resize-cur"><svg className="k-ic" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M2.5 11h17M6 7.5L2.5 11 6 14.5M16 7.5l3.5 3.5-3.5 3.5" fill="none" stroke="var(--bg-2)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" /><path d="M2.5 11h17M6 7.5L2.5 11 6 14.5M16 7.5l3.5 3.5-3.5 3.5" fill="none" stroke="var(--fg-0)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
+          <span className="k-tip ai-resize-tip">Drag to resize · double-click for full height</span>
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/** You, with what you attached above the words. */
+function YouWith({ chips, children }: { chips: ReactNode; children: ReactNode }) {
+  return (
+    <div className="ai-youwith">
+      <span className="ai-youwith-att">{chips}</span>
+      <p className="k-ai-msg k-ai-msg--you">{children}</p>
+    </div>
+  );
+}
+/** Sent attachments (read-only, no ×). */
+function Sent({ kind, name, meta, art = "blank" }: { kind: AttKind; name?: string; meta?: string; art?: Art }) {
+  if (kind === "image") return <Thumb art={art} className="ai-sent-img" />;
+  return (
+    <span className="ai-ach ai-ach--sent">
+      <span className="ai-ach-ic"><Icon name={kind === "folder" ? "folder" : kind === "video" ? "video" : "file"} size={14} /></span>
+      <span className="ai-att-txt"><span className="ai-att-n">{name}</span><span className="ai-att-m">{meta}</span></span>
+    </span>
+  );
+}
+/** What AI did — folded by default; the steps live behind it (the raw log is under Advanced). */
+function Steps({ children }: { children: ReactNode }) {
+  return <span className="k-adv-btn ai-steps"><span className="k-adv-ch"><Icon name="submenu" size={12} /></span>{children}</span>;
 }
 
 /** Another person's AI on the same canvas — the same spark outline and spark-led tag as yours; her avatar
@@ -365,7 +511,7 @@ export default function AIChat() {
       {/* ── 0 · The moment ───────────────────────────────────────────────────────────────── */}
       <DCSection id="moment" title="Two AIs, side by side" subtitle="The signature moment — your AI finishes in place while Tereza's AI keeps working on the artboard next to it">
         <DCArtboard id="ai-hero" label="1 · Two AIs, two artboards — the finish lands in place" width={W} height={H} fixed>
-          <Stage note={<Note n={1} title="The result shows up where it happened.">Your AI is done: a solid spark ring settles once and a wipe passes before → after across Post 1:1. Next to it Tereza's AI keeps translating the poster — nobody waits.</Note>}>
+          <Stage note={<Note n={1} title="The result shows up where it happened.">A solid spark ring settles and a wipe passes before → after on Post 1:1 while Tereza's AI keeps translating the poster. The paperclip attaches photos, a PDF or a whole folder; a folder asks once.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas>
                 <Artboard label="Post 1:1 · Combine 2026" kind="digital" x={200} y={130} w={480} h={480} aiMade="Made by AI" size="1080 × 1080"><Wipe at={30} /></Artboard>
@@ -375,7 +521,12 @@ export default function AIChat() {
                 <Cursor name="tereza" x={560} y={720} />
               </Canvas>
               <GatorChrome zoom={64} ai={
-                <AIPanel advanced chat="Make it greener" scope="Post 1:1" chips={["Same on Story 9:16", "A darker green"]}>
+                <AIPanel advanced className="ai-own" chat="Make it greener" scope="Post 1:1" chips={["Same on Story 9:16", "A darker green"]}
+                  above={<>
+                    <Consent />
+                    <Composer scope="Post 1:1" text="Swap the background for the sharpest photo"
+                      chips={<><AChip kind="image" name="kravi-hora-01.jpg" art="gator-poster" /><AChip kind="folder" name="Combine 2026 fotky" meta="48 files" wait /><AChip kind="file" name="Combine-brief-2026.pdf" meta="PDF · 12 pages" /></>} />
+                  </>}>
                   <You>{ASK}</You>
                   <Result>{DONE}</Result>
                 </AIPanel>
@@ -388,13 +539,20 @@ export default function AIChat() {
       {/* ── 1 · Simple mode ──────────────────────────────────────────────────────────────── */}
       <DCSection id="simple" title="Ask, watch, keep or undo" subtitle="Simple mode on Combine-kampan — one field, the selection as a chip, results described in one line">
         <DCArtboard id="ai-open" label="2 · ⌘/ opens the AI chat panel" width={W} height={H} fixed>
-          <Stage note={<Note n={2} title="Select, press ⌘/, type.">The folded spark opens the AI chat panel with what you selected already attached as a chip. Three suggestions fit the selection; nothing else to choose.</Note>}>
+          <Stage note={<Note n={2} title="Select, press ⌘/, type.">The panel opens with your selection as a chip. Up to three suggestions come from what you are doing — here Tereza's open comments — and a quiet line says why.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
-              <Canvas><Kampan sel="post" /></Canvas>
+              <Canvas>
+                <Kampan sel="post">
+                  <CommentPin who="tereza" x={826} y={150} />
+                  <CommentPin who="tereza" x={980} y={214} />
+                  <CommentPin who="tereza" x={884} y={316} />
+                </Kampan>
+              </Canvas>
               <GatorChrome left
                 insp={<Inspector title="Post 1:1 · Combine 2026" rows={[["Preset", <InSelect value="Post" />], ["Size", <InSize w={1080} h={1080} />], ["Fill", <InFill name="Ink" tone="ink" />], ["Clip content", <InSwitch on />]]} />}
                 ai={
-                  <AIPanel advanced chat="New chat" scope="Post 1:1" prompt={ASK} chips={["Make it greener", "Three variants", "English version"]}>
+                  <AIPanel advanced chat="New chat" scope="Post 1:1" prompt={ASK}
+                    above={<Suggest icon={<PinDot />} chips={["Resolve 3 comments", "Three variants", "English version"]} why="Because Tereza left 3 comments on Post 1:1" />}>
                     <p className="ai-hint">Ask for a change, a few variants, or an answer. AI works on what the chip says.</p>
                   </AIPanel>
                 } />
@@ -402,8 +560,62 @@ export default function AIChat() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="ai-scope" label="3 · The chip says what AI touches" width={1320} height={540} fixed>
-          <Closeup title="The chip is the scope — it follows your selection." note={<Note n={3} title="One chip, four cases.">Nothing selected means the whole canvas. Click the chip to change it before you send; ⌘/ always attaches what is selected now.</Note>}>
+        <DCArtboard id="ai-suggest" label="3 · Suggestions follow what you were doing" width={1520} height={640} fixed>
+          <Closeup title="Suggestions come from your last moves, and say why." note={<Note n={3} title="Three chips at most, each one line, with one reason.">Open comments, selected clips, a canvas you just shared, your last ask — the lead chip follows it. Follow-ups under an answer need no reason; Advanced › Suggestions turns them off.</Note>}>
+            <div className="ai-ctxs">
+              <div className="ai-ctx">
+                <span className="ai-scope-lab">3 comments are open</span>
+                <div className="ai-ctx-stage">
+                  <div className="ai-mini ai-ctx-mini"><GatorMock variant="social" headline="COMBINE 2026" sub="So 14. 3. · Kraví hora" /></div>
+                  <CommentPin who="tereza" x={130} y={22} />
+                  <CommentPin who="tereza" x={214} y={70} />
+                  <CommentPin who="jonas" x={150} y={118} />
+                </div>
+                <AIPanel free chat="New chat" scope="Combine-kampan"
+                  above={<Suggest icon={<PinDot />} chips={["Resolve 3 comments", "Reply to Tereza", "List what changed"]} why="Because 3 comments are open on this canvas" />}>
+                  <p className="ai-hint">Ask for a change, a few variants, or an answer.</p>
+                </AIPanel>
+              </div>
+              <div className="ai-ctx">
+                <span className="ai-scope-lab">4 clips are selected</span>
+                <div className="ai-ctx-stage ai-ctx-stage--clips">
+                  {["trenink-0412.mov", "combine-start.mov", "40y-sprint.mov", "tackle-2.mov"].map((c) => (
+                    <span key={c} className="ai-clipsel"><Thumb art="video" className="ai-clipsel-th" /><span className="ai-clipsel-n">{c}</span></span>
+                  ))}
+                </div>
+                <AIPanel free chat="New chat" scope="4 clips"
+                  above={<Suggest icon="video" chips={["Cut a 15 s video from these", "Czech captions", "Best moments"]} why="Because 4 clips are selected" />}>
+                  <p className="ai-hint">Ask for a change, a few variants, or an answer.</p>
+                </AIPanel>
+              </div>
+              <div className="ai-ctx">
+                <span className="ai-scope-lab">A canvas you just shared</span>
+                <div className="ai-ctx-stage ai-ctx-stage--done">
+                  <span className="ai-ctx-row"><span className="ai-mini ai-mini--s ai-ctx-s"><GatorMock variant="invite" headline="POZVÁNKA" sub="" /></span><span className="ai-mini ai-mini--s ai-ctx-s"><GatorMock variant="invite" headline="COMBINE" sub="" /></span><span className="ai-mini ai-mini--s ai-ctx-s"><GatorMock variant="social" headline="14. 3." sub="" /></span></span>
+                  <span className="ai-ctx-event"><Icon name="people" size={12} />Combine-invite · shared with Jonas · 2 min ago</span>
+                </div>
+                <AIPanel free chat="New chat" scope="Combine-invite"
+                  above={<Suggest icon="view" chips={["Run a design review", "Check it for print", "English version"]} why="Because you just shared this canvas" />}>
+                  <p className="ai-hint">Ask for a change, a few variants, or an answer.</p>
+                </AIPanel>
+              </div>
+              <div className="ai-ctx">
+                <span className="ai-scope-lab">Your last ask was about colour</span>
+                <div className="ai-ctx-stage ai-ctx-stage--last">
+                  <p className="k-ai-msg k-ai-msg--you ai-ctx-ask">{ASK}</p>
+                  <span className="ai-ctx-event"><Icon name="check" size={12} />Done on Post 1:1 · 10 min ago</span>
+                </div>
+                <AIPanel free chat="New chat" scope="Story 9:16"
+                  above={<Suggest icon="history" chips={["Same for the story", "A darker green", "Same on all 21"]} why="Because you last asked for a greener post" />}>
+                  <p className="ai-hint">Ask for a change, a few variants, or an answer.</p>
+                </AIPanel>
+              </div>
+            </div>
+          </Closeup>
+        </DCArtboard>
+
+        <DCArtboard id="ai-scope" label="4 · The chip says what AI touches" width={1320} height={540} fixed>
+          <Closeup title="The chip is the scope — it follows your selection." note={<Note n={4} title="One chip, four cases.">Nothing selected means the whole canvas. Click the chip to change it before you send; ⌘/ always attaches what is selected now.</Note>}>
             <div className="ai-scope-grid">
               <div className="ai-scope-col">
                 <span className="ai-scope-lab">Folded</span>
@@ -444,8 +656,8 @@ export default function AIChat() {
           </Closeup>
         </DCArtboard>
 
-        <DCArtboard id="ai-working" label="4 · AI works where you can see it" width={W} height={H} fixed>
-          <Stage note={<Note n={4} title="Progress is one line, on the panel and on the canvas.">The artboard wears a dashed spark and a tag; the panel shows the same words with Stop. You keep working anywhere else.</Note>}>
+        <DCArtboard id="ai-working" label="5 · AI works where you can see it" width={W} height={H} fixed>
+          <Stage note={<Note n={5} title="Progress is one line, on the panel and on the canvas.">The artboard wears a dashed spark and a tag; the panel shows the same words with Stop. You keep working anywhere else.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas>
                 <Kampan post="half" postAi="AI is making it greener">
@@ -462,8 +674,8 @@ export default function AIChat() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="ai-done" label="5 · Done — the finish, then Undo or Keep going" width={W} height={H} fixed>
-          <Stage note={<Note n={5} title="Done shows itself on the artboard.">The dashed spark closes into a solid ring and a wipe passes before → after, then settles into Made by AI. The panel says what changed; Undo takes the whole change back.</Note>}>
+        <DCArtboard id="ai-done" label="6 · Done — the finish, then Undo or Keep going" width={W} height={H} fixed>
+          <Stage note={<Note n={6} title="Done shows itself on the artboard.">The dashed spark closes into a solid ring and a wipe passes before → after, then settles into Made by AI. The panel says what changed; Undo takes the whole change back.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas>
                 <Kampan postWipe={62} postMade="Made by AI">
@@ -480,12 +692,13 @@ export default function AIChat() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="ai-attach" label="6 · Drop a photo or footage in" width={W} height={H} fixed>
-          <Stage note={<Note n={6} title="Drag files straight onto the panel, or paste.">Photos and footage attach to the chat and land in Assets too. ⌘V pastes a screenshot as the same chip. The scope chip still says where AI works.</Note>}>
+        <DCArtboard id="ai-attach" label="7 · Drop a photo or footage in" width={W} height={H} fixed>
+          <Stage note={<Note n={7} title="Drag files straight onto the panel, or paste.">Photos, footage and PDFs land inside the prompt and in Assets too; ⌘V pastes a screenshot the same way. The scope chip still says where AI works.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas><Kampan sel="teaser" /></Canvas>
               <GatorChrome ai={
-                <AIPanel advanced style={{ height: 400 }} chat="New chat" scope="16:9 · teaser" prompt="Use this clip for the first three seconds" attach={<Attachment name="kravi-hora-hriste.jpg" meta="Photo · 2.4 MB" art="gator-poster" />}
+                <AIPanel advanced className="ai-own" style={{ height: 400 }} chat="New chat" scope="16:9 · teaser"
+                  above={<Composer scope="16:9 · teaser" text="Use this clip for the first three seconds" chips={<><AChip kind="image" name="kravi-hora-hriste.jpg" art="gator-poster" /><AChip kind="file" name="Combine-brief-2026.pdf" meta="PDF · 12 pages" /></>} />}
                   drop={<span className="ai-drop"><Icon name="video" size={20} /><strong>Drop to attach</strong><span>AI can use it in this chat</span></span>}>
                   <p className="ai-hint">Ask for a change, a few variants, or an answer. AI works on what the chip says.</p>
                 </AIPanel>
@@ -498,8 +711,44 @@ export default function AIChat() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="ai-question" label="7 · A question — the canvas stays put" width={W} height={H} fixed>
-          <Stage note={<Note n={7} title="Ask anything; not every answer is a change.">The answer says the canvas didn't change. AI points at the spot it means with a small spark ring, gone when you click, and offers the fix as a chip.</Note>}>
+        <DCArtboard id="ai-attach-menu" label="8 · The paperclip — files, a folder, Assets, a screenshot" width={1320} height={700} fixed>
+          <Closeup title="One paperclip in the prompt. Everything you attach sits inside it." note={<Note n={8} title="Attach without leaving the field.">The paperclip lists the four ways in; dragging onto the panel still works. A folder from disk asks once, then attaches straight away next time.</Note>}>
+            <div className="ai-am">
+              <div className="ai-am-col">
+                <span className="ai-scope-lab">The paperclip opens</span>
+                <div className="ai-am-stage">
+                  <AIPanel free className="ai-own" style={{ height: 380 }} chat="New chat" scope="Post 1:1"
+                    above={<Composer scope="Post 1:1" clipOpen menu={<AttachMenu highlight="Choose a folder…" style={{ left: 0, bottom: "calc(100% + 8px)" }} />} />}>
+                    <p className="ai-hint">Ask for a change, a few variants, or an answer. AI works on what the chip says.</p>
+                  </AIPanel>
+                </div>
+                <p className="ai-scope-cap">Attach files… and Choose a folder… open the Mac's own picker. From Assets opens the left panel's Assets tab to pick from.</p>
+              </div>
+              <div className="ai-am-col">
+                <span className="ai-scope-lab">What a chip shows</span>
+                <div className="ai-am-kinds">
+                  <span className="ai-am-kind"><AChip kind="image" name="kravi-hora-01.jpg" art="gator-poster" /><span><strong>Photo</strong>A thumbnail; the name shows on hover.</span></span>
+                  <span className="ai-am-kind"><AChip kind="video" name="trenink-0412.mov" meta="Footage · 0:42" art="video" /><span><strong>Footage</strong>Its length, so AI knows what it has.</span></span>
+                  <span className="ai-am-kind"><AChip kind="file" name="Combine-brief-2026.pdf" meta="PDF · 12 pages" /><span><strong>File</strong>Name and what it is.</span></span>
+                  <span className="ai-am-kind"><AChip kind="folder" name="Combine 2026 fotky" meta="48 files" /><span><strong>Folder</strong>Name and how many files are inside.</span></span>
+                  <span className="ai-am-kind"><AChip kind="image" name="Snímek obrazovky 2026-10-06 v 14.05.png" art="board" /><span><strong>Screenshot</strong>⌘V in the field — same as a photo.</span></span>
+                </div>
+                <p className="ai-scope-cap">Every chip has its ×. What you attach also lands in Assets, so the next chat can use it.</p>
+              </div>
+              <div className="ai-am-col">
+                <span className="ai-scope-lab">A folder asks once</span>
+                <div className="ai-am-stage">
+                  <AIPanel free className="ai-own" chat="New chat" scope="Story 9:16"
+                    above={<><Consent /><Composer scope="Story 9:16" text="Pick the six sharpest action shots" chips={<AChip kind="folder" name="Combine 2026 fotky" meta="48 files" wait />} /></>} />
+                </div>
+                <p className="ai-scope-cap">Only for folders on your Mac. Not now keeps the chip and sends without it; allowed folders are listed in the panel's Advanced.</p>
+              </div>
+            </div>
+          </Closeup>
+        </DCArtboard>
+
+        <DCArtboard id="ai-question" label="9 · A question — the canvas stays put" width={W} height={H} fixed>
+          <Stage note={<Note n={9} title="Ask anything; not every answer is a change.">The answer says the canvas didn't change. AI points at the spot it means with a small spark ring, gone when you click, and offers the fix as a chip.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas>
                 <Kampan>
@@ -517,10 +766,97 @@ export default function AIChat() {
         </DCArtboard>
       </DCSection>
 
+      {/* ── 1b · A long chat ─────────────────────────────────────────────────────────────── */}
+      <DCSection id="long" title="A long chat, in a bigger panel" subtitle="Many turns with photos, a PDF and a folder — the panel grows to full height, resizes from its edge, and pins to the side">
+        <DCArtboard id="ai-long" label="10 · A long chat — full height, resizable, scrolled up" width={W} height={H} fixed>
+          <Stage note={<Note n={10} title="Long chats get room.">The panel grows to the window's full height and its left edge drags wider; earlier turns fold their steps, and Jump to latest brings you back. The prompt grows to six lines before it scrolls.</Note>}>
+            <Window tabs={TABS2} activeTab={1}>
+              <Canvas>
+                <Artboard label="Web · STAŇ SE GATOREM" kind="web" x={100} y={110} w={420} h={262}><GatorMock variant="web" /></Artboard>
+                <Artboard label="Post 1:1 · Combine 2026" kind="digital" x={560} y={110} w={240} h={240}><div className="ai-post ai-post--green"><GatorMock variant="social" headline="COMBINE 2026" sub="So 14. 3. · Kraví hora" /></div></Artboard>
+                <Artboard label="Story 9:16 · Zapiš se" kind="digital" x={100} y={440} w={150} h={267}><div className="ai-post ai-post--green"><GatorMock variant="reel" headline="ZAPIŠ SE" sub="do 10. 3." /></div></Artboard>
+                <Artboard label="A4 · plakát" kind="print" x={290} y={430} w={190} h={269}><GatorMock variant="poster" headline="COMBINE 2026" sub="So 14. 3. · Kraví hora" /></Artboard>
+                <Artboard label="Reels 9:16 · recap" kind="video" x={520} y={440} w={150} h={267}><VideoFrameMock caption="Combine 2026" time="0:00 / 0:15" vertical /></Artboard>
+              </Canvas>
+              <ProjectPill project="Alligators brand" canvas="Combine-kampan" />
+              <PanelIcon icon="panel-left" at="left" />
+              <ShareCluster people={["tereza", "jonas"]} mode="edit" />
+              <ZoomUndo zoom={36} />
+              <Toolbar />
+              <BigChat title="Combine recap" up resize
+                jump={<span className="ai-jump"><Icon name="chevron" size={12} />Jump to latest<span className="ai-jump-n">2 new</span></span>}
+                composer={<Composer multi scope="Reels 9:16 · recap"
+                  chips={<AChip kind="video" name="recap-2025.mp4" meta="Footage · 0:31" art="video" />}
+                  text="Now cut a 15 s recap for Reels from the six shots — fast cuts on the beat, end on the ZAPIŠ SE card, and use the music from last year's recap." />}>
+                <Divider>Yesterday, 18:20</Divider>
+                <YouWith chips={<><Sent kind="image" art="gator-poster" /><Sent kind="image" art="gator-social" /><Sent kind="image" art="gator-reel" /></>}>Make a story from these three, same look as the post</YouWith>
+                <div className="ai-result">
+                  <p className="k-ai-msg k-ai-msg--ai">Done — Story 9:16 uses the three photos in Club green, like Post 1:1. The logo stays white.</p>
+                  <span className="ai-ba">
+                    <span className="ai-ba-pic"><span className="ai-mini ai-ba-mini"><GatorMock variant="reel" headline="" sub="" /></span><span className="ai-ba-l">Before</span></span>
+                    <Icon name="chevron-r" size={14} />
+                    <span className="ai-ba-pic"><span className="ai-mini ai-ba-mini ai-post--green"><GatorMock variant="reel" headline="" sub="" /></span><span className="ai-ba-l">After</span></span>
+                  </span>
+                  <span className="ai-result-acts"><span className="chip ai-act"><Icon name="undo" size={12} />Undo</span><span className="chip ai-act"><Icon name="view" size={12} />Compare</span></span>
+                  <Steps>What AI did · 6 steps · 41 s</Steps>
+                </div>
+                <YouWith chips={<Sent kind="file" name="Combine-brief-2026.pdf" meta="PDF · 12 pages" />}>Check the poster against the brief</YouWith>
+                <Says>Two things differ from the brief: the date should read “So 14. 3. 2026”, and the sponsor strip is missing. The canvas didn't change.</Says>
+                <Divider>Today, 09:12</Divider>
+                <YouWith chips={<Sent kind="folder" name="Combine 2026 fotky" meta="48 files" />}>Pick the six sharpest action shots for the recap</YouWith>
+                <Says>Six shots picked — they're in Assets › Combine recap, sharpest first. Two more were close; they're marked.</Says>
+              </BigChat>
+            </Window>
+          </Stage>
+        </DCArtboard>
+
+        <DCArtboard id="ai-long-pinned" label="11 · Pinned to the side — a full-height column" width={W} height={H} fixed>
+          <Stage note={<Note n={11} title="Pin to the side when the chat is the work.">The pin in the panel's header docks it as a full-height column and the canvas makes room; drag the edge to size it. Same as Menu › View › Advanced › Pin panels to the side, for this panel only.</Note>}>
+            <Window tabs={TABS2} activeTab={1}>
+              <div className="ai-pinlay">
+                <div className="ai-pin-c">
+                  <Canvas>
+                    <Artboard label="Story 9:16 · Zapiš se" kind="digital" x={100} y={130} w={150} h={267}><div className="ai-post ai-post--green"><GatorMock variant="reel" headline="ZAPIŠ SE" sub="do 10. 3." /></div></Artboard>
+                    <Artboard label="Reels 9:16 · recap" kind="video" x={300} y={130} w={180} h={320} aiWorking="AI is cutting the recap" aiAt="below"><VideoFrameMock caption="Combine 2026" time="0:06 / 0:15" vertical /></Artboard>
+                    <Artboard label="Post 1:1 · Combine 2026" kind="digital" x={540} y={130} w={220} h={220}><div className="ai-post ai-post--green"><GatorMock variant="social" headline="COMBINE 2026" sub="So 14. 3. · Kraví hora" /></div></Artboard>
+                    <Artboard label="A4 · plakát" kind="print" x={540} y={410} w={170} h={240}><GatorMock variant="poster" headline="COMBINE 2026" sub="So 14. 3. · Kraví hora" /></Artboard>
+                  </Canvas>
+                  <ProjectPill project="Alligators brand" canvas="Combine-kampan" />
+                  <PanelIcon icon="panel-left" at="left" />
+                  <ShareCluster people={["tereza", "jonas"]} status="syncing" mode="edit" />
+                  <ZoomUndo zoom={36} />
+                  <Toolbar />
+                </div>
+                <span className="ai-pin-h"><i /></span>
+                <div className="ai-pin-r">
+                  <BigChat title="Combine recap" pinned count={1}
+                    pinTip={<span className="k-tip ai-pin-tip">Unpin — float over the canvas</span>}
+                    composer={<Composer scope="Reels 9:16 · recap" />}>
+                    <YouWith chips={<><Sent kind="image" art="gator-poster" /><Sent kind="image" art="gator-social" /><Sent kind="image" art="gator-reel" /></>}>Make a story from these three, same look as the post</YouWith>
+                    <Result actions={["Undo", "Compare"]}>Done — Story 9:16 uses the three photos in Club green, like Post 1:1. The logo stays white.</Result>
+                    <YouWith chips={<Sent kind="file" name="Combine-brief-2026.pdf" meta="PDF · 12 pages" />}>Check the poster against the brief</YouWith>
+                    <Says>Two things differ from the brief: the date should read “So 14. 3. 2026”, and the sponsor strip is missing. The canvas didn't change.</Says>
+                    <Divider>Today, 09:12</Divider>
+                    <YouWith chips={<Sent kind="folder" name="Combine 2026 fotky" meta="48 files" />}>Pick the six sharpest action shots for the recap</YouWith>
+                    <div className="ai-result">
+                      <p className="k-ai-msg k-ai-msg--ai">Six shots picked — they're in Assets › Combine recap, sharpest first. Two more were close; they're marked.</p>
+                      <span className="ai-six">{(["gator-poster", "gator-social", "gator-reel", "gator-poster", "gator-social", "gator-reel"] as Art[]).map((a, i) => <Thumb key={i} art={a} className="ai-six-th" />)}</span>
+                      <Steps>What AI did · 4 steps · 1 min</Steps>
+                    </div>
+                    <YouWith chips={<Sent kind="video" name="recap-2025.mp4" meta="Footage · 0:31" />}>Now cut a 15 s recap for Reels from the six shots — fast cuts on the beat, end on the ZAPIŠ SE card, and use the music from last year's recap.</YouWith>
+                    <Working step="4 of 6 shots placed · music next">AI is cutting the recap</Working>
+                  </BigChat>
+                </div>
+              </div>
+            </Window>
+          </Stage>
+        </DCArtboard>
+      </DCSection>
+
       {/* ── 2 · Several at once ──────────────────────────────────────────────────────────── */}
       <DCSection id="several" title="Several AI chats at once" subtitle="Different artboards, the same artboard, a copy, another project tab, Tereza's AI, many chats, a hidden panel, quitting mid-run">
-        <DCArtboard id="ai-two-artboards" label="8 · Two chats, two artboards" width={W} height={H} fixed>
-          <Stage note={<Note n={8} title="Side by side, each on its own artboard.">Every running chat has its artboard, its spark outline and its tag. The count next to the title lists them; click one to jump there. Nothing to manage.</Note>}>
+        <DCArtboard id="ai-two-artboards" label="12 · Two chats, two artboards" width={W} height={H} fixed>
+          <Stage note={<Note n={12} title="Side by side, each on its own artboard.">Every running chat has its artboard, its spark outline and its tag. The count next to the title lists them; click one to jump there. Nothing to manage.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas><Kampan post="half" poster="en" postAi="AI is making it greener" posterAi="AI is translating to English" /></Canvas>
               <GatorChrome status="syncing" ai={
@@ -536,8 +872,8 @@ export default function AIChat() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="ai-same-artboard" label="9 · Same artboard — the second one waits" width={W} height={H} fixed>
-          <Stage note={<Note n={9} title="One AI per artboard. The next one waits its turn.">The second ask starts by itself when “Make it greener” finishes, on top of its result. Can't wait? Run on a copy puts a duplicate beside it for AI to work on.</Note>}>
+        <DCArtboard id="ai-same-artboard" label="13 · Same artboard — the second one waits" width={W} height={H} fixed>
+          <Stage note={<Note n={13} title="One AI per artboard. The next one waits its turn.">The second ask starts by itself when “Make it greener” finishes, on top of its result. Can't wait? Run on a copy puts a duplicate beside it for AI to work on.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas><Kampan post="half" postAi="AI is making it greener · 1 waiting" /></Canvas>
               <GatorChrome status="syncing" ai={
@@ -550,8 +886,8 @@ export default function AIChat() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="ai-copy" label="10 · Run on a copy — both versions, side by side" width={W} height={H} fixed>
-          <Stage note={<Note n={10} title="A copy starts from before the busy chat, so ideas never mix.">Post 1:1 · copy lands right beside the original. Keep the copy replaces Post 1:1 (the original stays in Version history); Undo removes the copy.</Note>}>
+        <DCArtboard id="ai-copy" label="14 · Run on a copy — both versions, side by side" width={W} height={H} fixed>
+          <Stage note={<Note n={14} title="A copy starts from before the busy chat, so ideas never mix.">Post 1:1 · copy lands right beside the original. Keep the copy replaces Post 1:1 (the original stays in Version history); Undo removes the copy.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas>
                 <Kampan post="green" postMade="Made by AI">
@@ -573,8 +909,8 @@ export default function AIChat() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="ai-queue-rule" label="11 · The rule, drawn once" width={1320} height={580} fixed>
-          <Closeup title="One AI at a time per artboard. Everything else runs side by side." note={<Note n={11} title="Why a line, not a race.">Two AIs writing the same artboard would undo each other. A line keeps both changes; a copy keeps both versions. Same rule for your AI, Tereza's and Jonas's.</Note>}>
+        <DCArtboard id="ai-queue-rule" label="15 · The rule, drawn once" width={1320} height={580} fixed>
+          <Closeup title="One AI at a time per artboard. Everything else runs side by side." note={<Note n={15} title="Why a line, not a race.">Two AIs writing the same artboard would undo each other. A line keeps both changes; a copy keeps both versions. Same rule for your AI, Tereza's and Jonas's.</Note>}>
             <div className="ai-lanes">
               <div className="ai-lane-hd"><span /><span className="ai-tick">now</span><span className="ai-tick">+1 min</span><span className="ai-tick">+2 min</span></div>
               <div className="ai-lane">
@@ -614,8 +950,8 @@ export default function AIChat() {
           </Closeup>
         </DCArtboard>
 
-        <DCArtboard id="ai-other-tab" label="12 · Running in another project tab" width={W} height={H} fixed>
-          <Stage note={<Note n={12} title="A tab with a spark is still working.">AI keeps going in Alligators brand while you work in Studio site. When a chat there finishes, one toast says so; Show switches tabs and opens the result.</Note>}>
+        <DCArtboard id="ai-other-tab" label="16 · Running in another project tab" width={W} height={H} fixed>
+          <Stage note={<Note n={16} title="A tab with a spark is still working.">AI keeps going in Alligators brand while you work in Studio site. When a chat there finishes, one toast says so; Show switches tabs and opens the result.</Note>}>
             <div className="ai-tabrun">
               <Window tabs={TABS2} activeTab={0}>
                 <Canvas>
@@ -636,8 +972,8 @@ export default function AIChat() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="ai-tereza" label="13 · Tereza's AI on the same canvas" width={W} height={H} fixed>
-          <Stage note={<Note n={13} title="Other people's AI looks like yours, with their face in the tag.">Tereza's AI wears the same spark outline and tag, led by her avatar. It shows under “On this canvas” — view only, her chat stays hers.</Note>}>
+        <DCArtboard id="ai-tereza" label="17 · Tereza's AI on the same canvas" width={W} height={H} fixed>
+          <Stage note={<Note n={17} title="Other people's AI looks like yours, with their face in the tag.">Tereza's AI wears the same spark outline and tag, led by her avatar. It shows under “On this canvas” — view only, her chat stays hers.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas>
                 <Kampan webAi="AI is adding the date">
@@ -658,8 +994,8 @@ export default function AIChat() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="ai-chat-list" label="14 · 41 chats — Running, then Earlier" width={1100} height={860} fixed>
-          <Closeup title="Every chat is kept with the project, grouped by canvas." note={<Note n={14} title="Running first, then by canvas.">The chat title opens the list. Search finds words inside chats, not just titles. A chat that needs you says so instead of a time.</Note>}>
+        <DCArtboard id="ai-chat-list" label="18 · 41 chats — Running, then Earlier" width={1100} height={860} fixed>
+          <Closeup title="Every chat is kept with the project, grouped by canvas." note={<Note n={18} title="Running first, then by canvas.">The chat title opens the list. Search finds words inside chats, not just titles. A chat that needs you says so instead of a time.</Note>}>
             <div className="ai-cl-pair">
               <ChatList
                 running={[
@@ -700,8 +1036,8 @@ export default function AIChat() {
           </Closeup>
         </DCArtboard>
 
-        <DCArtboard id="ai-panel-closed" label="15 · Panel hidden — AI keeps going" width={W} height={H} fixed>
-          <Stage note={<Note n={15} title="Hiding the panel never stops AI.">⌘\ or the panel's own chevron hides it to the spark; the dot says AI is busy. The outline stays on the canvas, and a toast says when each chat is done. Only Stop stops.</Note>}>
+        <DCArtboard id="ai-panel-closed" label="19 · Panel hidden — AI keeps going" width={W} height={H} fixed>
+          <Stage note={<Note n={19} title="Hiding the panel never stops AI.">⌘\ or the panel's own chevron hides it to the spark; the dot says AI is busy. The outline stays on the canvas, and a toast says when each chat is done. Only Stop stops.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas><Kampan post="green" postMade="Made by AI" storyAi="AI is making the date bigger" /></Canvas>
               <GatorChrome status="syncing" ai={<span className="ai-fold-busy"><PanelIcon icon="spark" at="ai" dot /></span>} />
@@ -710,8 +1046,8 @@ export default function AIChat() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="ai-quit" label="16 · Quitting mid-run" width={1200} height={620} fixed>
-          <Closeup title="Quitting stops AI where it is — and keeps what it finished." note={<Note n={16} title="Asked once, honest about what stops.">AI runs on this Mac, so quitting stops it. What it finished is a version; next time the chat carries on with Keep going. Closing a project tab asks the same.</Note>}>
+        <DCArtboard id="ai-quit" label="20 · Quitting mid-run" width={1200} height={620} fixed>
+          <Closeup title="Quitting stops AI where it is — and keeps what it finished." note={<Note n={20} title="Asked once, honest about what stops.">AI runs on this Mac, so quitting stops it. What it finished is a version; next time the chat carries on with Keep going. Closing a project tab asks the same.</Note>}>
             <div className="ai-quit">
               <div className="ai-quit-win">
                 <V2 className="ai-quit-scene">
@@ -740,8 +1076,8 @@ export default function AIChat() {
 
       {/* ── 3 · AI needs you ─────────────────────────────────────────────────────────────── */}
       <DCSection id="needs-you" title="When AI needs you" subtitle="How a waiting chat finds you out of sight, then permission, a question, a failure, and AI not ready">
-        <DCArtboard id="ai-needs-hidden" label="17 · Needs you — panel hidden, another canvas" width={W} height={H} fixed>
-          <Stage note={<Note n={17} title="A chat that needs you finds you.">The folded spark turns azure with a count, the canvas row says Needs you, and one toast offers Open. The count stays until you answer.</Note>}>
+        <DCArtboard id="ai-needs-hidden" label="21 · Needs you — panel hidden, another canvas" width={W} height={H} fixed>
+          <Stage note={<Note n={21} title="A chat that needs you finds you.">The folded spark turns azure with a count, the canvas row says Needs you, and one toast offers Open. The count stays until you answer.</Note>}>
             <div className="ai-needs-hidden">
               <Window tabs={TABS2} activeTab={1}>
                 <Canvas><Kampan post="green" postMade="Made by AI" /></Canvas>
@@ -752,8 +1088,8 @@ export default function AIChat() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="ai-needs-tab" label="18 · Needs you — in another project tab" width={W} height={H} fixed>
-          <Stage note={<Note n={18} title="The tab's spark turns into an azure question mark.">You're in Studio site; a chat in Alligators brand is waiting. One toast says where; Open switches tabs, opens Uniformy-2027 and the question.</Note>}>
+        <DCArtboard id="ai-needs-tab" label="22 · Needs you — in another project tab" width={W} height={H} fixed>
+          <Stage note={<Note n={22} title="The tab's spark turns into an azure question mark.">You're in Studio site; a chat in Alligators brand is waiting. One toast says where; Open switches tabs, opens Uniformy-2027 and the question.</Note>}>
             <div className="ai-tabneeds">
               <Window tabs={TABS2} activeTab={0}>
                 <Canvas>
@@ -774,8 +1110,8 @@ export default function AIChat() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="ai-needs-away" label="19 · Needs you — the app in the background" width={1320} height={640} fixed>
-          <Closeup title="One mark for “needs you”, wherever you are." note={<Note n={19} title="Needs you never times out and never decides for you.">The chat waits on its question while every other chat keeps running. Each mark leads to the same place: the question, open, on its canvas.</Note>}>
+        <DCArtboard id="ai-needs-away" label="23 · Needs you — the app in the background" width={1320} height={640} fixed>
+          <Closeup title="One mark for “needs you”, wherever you are." note={<Note n={23} title="Needs you never times out and never decides for you.">The chat waits on its question while every other chat keeps running. Each mark leads to the same place: the question, open, on its canvas.</Note>}>
             <div className="ai-away">
               <div className="ai-desk">
                 <div className="ai-desk-app"><span className="ai-desk-bar"><i /><i /><i /></span><span className="ai-desk-lines"><i /><i /><i /><i /></span></div>
@@ -809,8 +1145,8 @@ export default function AIChat() {
           </Closeup>
         </DCArtboard>
 
-        <DCArtboard id="ai-permission" label="20 · Asks before replacing your work" width={W} height={H} fixed>
-          <Stage note={<Note n={20} title="Open lands here: the question open, the ring on what will change.">AI asks first only when it would replace something you made or move it to the trash. Restyling never asks — Undo takes it back.</Note>}>
+        <DCArtboard id="ai-permission" label="24 · Asks before replacing your work" width={W} height={H} fixed>
+          <Stage note={<Note n={24} title="Open lands here: the question open, the ring on what will change.">AI asks first only when it would replace something you made or move it to the trash. Restyling never asks — Undo takes it back.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas><Uniformy ring /></Canvas>
               <GatorChrome canvas="Uniformy-2027" zoom={24} ai={
@@ -823,8 +1159,8 @@ export default function AIChat() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="ai-choice-fail" label="21 · A question back, and a failure" width={920} height={600} fixed>
-          <Closeup title="AI asks when it can't guess; it says plainly when it can't finish." note={<Note n={21} title="Choices, not essays.">A question comes with picks and a way to type your own. A failure says what happened, that nothing changed, and the one verb that fixes it.</Note>}>
+        <DCArtboard id="ai-choice-fail" label="25 · A question back, and a failure" width={920} height={600} fixed>
+          <Closeup title="AI asks when it can't guess; it says plainly when it can't finish." note={<Note n={25} title="Choices, not essays.">A question comes with picks and a way to type your own. A failure says what happened, that nothing changed, and the one verb that fixes it.</Note>}>
             <div className="ai-pair">
               <AIPanel free advanced chat="Make it greener" scope="Post 1:1">
                 <You>{ASK}</You>
@@ -845,8 +1181,8 @@ export default function AIChat() {
           </Closeup>
         </DCArtboard>
 
-        <DCArtboard id="ai-not-ready" label="22 · Not connected · offline · setting up · used up · almost used up" width={1840} height={660} fixed>
-          <Closeup title="When AI can't run yet: Ask AI still takes the prompt, and keeps it." note={<Note n={22} title="The rest of the app keeps working.">Not connected, the first send asks once to connect a Claude account; offline, the prompt is queued. Setting up or used up, it waits in the field. Details: Menu › Diagnostics › AI setup.</Note>}>
+        <DCArtboard id="ai-not-ready" label="26 · Not connected · offline · setting up · used up · almost used up" width={1840} height={660} fixed>
+          <Closeup title="When AI can't run yet: Ask AI still takes the prompt, and keeps it." note={<Note n={26} title="The rest of the app keeps working.">Not connected, the first send asks once to connect a Claude account; offline, the prompt is queued. Setting up or used up, it waits in the field. Details: Menu › Diagnostics › AI setup.</Note>}>
             <div className="ai-trio">
               <div className="ai-conn">
                 <AIPanel free advanced dim chat="Three Story variants" scope="Whole canvas">
@@ -885,8 +1221,8 @@ export default function AIChat() {
 
       {/* ── 4 · Advanced ─────────────────────────────────────────────────────────────────── */}
       <DCSection id="advanced" title="Advanced, inside the panel" subtitle="Model, modes, tools, images video and voice, the raw log, slash commands, the session, Open in terminal — one disclosure away, never in the way">
-        <DCArtboard id="ai-advanced" label="23 · Advanced — everything that used to be visible" width={1000} height={1260} fixed>
-          <Closeup title="Advanced is a layer of the panel, not a mode of the app." note={<Note n={23} title="Nothing removed, only hidden.">Model, modes, tools, the image, video and voice settings, the raw tool log, slash commands and the session sit under Advanced at the panel's foot. ⌘K finds each by name (“model”, “raw log”, “terminal”).</Note>}>
+        <DCArtboard id="ai-advanced" label="27 · Advanced — everything that used to be visible" width={1000} height={1340} fixed>
+          <Closeup title="Advanced is a layer of the panel, not a mode of the app." note={<Note n={27} title="Nothing removed, only hidden.">Model, modes, tools, the image, video and voice settings, the raw tool log, slash commands and the session sit under Advanced at the panel's foot. ⌘K finds each by name (“model”, “raw log”, “terminal”).</Note>}>
             <div className="ai-pair">
               <AIPanel free chat="Make it greener" scope="Post 1:1" advanced={
                 <>
@@ -897,11 +1233,13 @@ export default function AIChat() {
                     <span className="ai-adv-row"><span>Fast mode</span><InSwitch on={false} /></span>
                     <span className="ai-adv-row"><span>Ask before</span><InSelect value="Replace or move to the trash" /></span>
                     <span className="ai-adv-row"><span>Show in chat</span><InSelect value="Normal" /></span>
+                    <span className="ai-adv-row"><span>Suggestions</span><InSelect value="On" /></span>
                     <span className="ai-adv-sub">AI may</span>
                     <span className="ai-adv-row"><span>Change canvases</span><InSwitch on /></span>
                     <span className="ai-adv-row"><span>Use Assets and footage</span><InSwitch on /></span>
                     <span className="ai-adv-row"><span>Search the web</span><InSwitch on /></span>
                     <span className="ai-adv-row"><span>Write outside this project</span><span className="ai-adv-val">Asks every time</span></span>
+                    <span className="ai-adv-row"><span>Folders AI may read</span><span className="ai-adv-val">1 · Combine 2026 fotky</span></span>
                     <span className="ai-adv-row"><span>Always allowed on this canvas</span><span className="btn btn--ghost btn--sm">Reset</span></span>
                     <span className="ai-adv-sub">From the agent</span>
                     <span className="ai-adv-row"><span>Agent persona</span><InSelect value="Default" /></span>
@@ -956,8 +1294,8 @@ export default function AIChat() {
           </Closeup>
         </DCArtboard>
 
-        <DCArtboard id="ai-adv-edges" label="24 · Modes, slash, paste, Copy and Retry, the terminal" width={1520} height={820} fixed>
-          <Closeup title="Every agent control has a plain-words home." note={<Note n={24} title="Modes read as what AI may do.">The agent's own names stay in grey for people who know them. A mode where AI changes nothing is said up front, with one verb to undo it.</Note>}>
+        <DCArtboard id="ai-adv-edges" label="28 · Modes, slash, paste, Copy and Retry, the terminal" width={1520} height={820} fixed>
+          <Closeup title="Every agent control has a plain-words home." note={<Note n={28} title="Modes read as what AI may do.">The agent's own names stay in grey for people who know them. A mode where AI changes nothing is said up front, with one verb to undo it.</Note>}>
             <div className="ai-edges">
               <div className="ai-edge">
                 <span className="ai-scope-lab">Ask before — the whole list</span>
@@ -990,14 +1328,13 @@ export default function AIChat() {
               <div className="ai-edge">
                 <span className="ai-scope-lab">Type / in the simple field</span>
                 <div className="ai-edge-stage">
-                  <AIPanel free advanced style={{ height: 460 }} chat="New chat" scope="Post 1:1" prompt="/des"
-                    attach={<Attachment name="Snímek obrazovky 2026-10-06 v 14.05.png" meta="Pasted · 380 KB" art="gator-social" />}
-                    above={<div className="ai-slashup"><Menu style={{ position: "relative", left: 0, top: 0 }} width={308} items={[
+                  <AIPanel free advanced className="ai-own" style={{ height: 460 }} chat="New chat" scope="Post 1:1"
+                    above={<><div className="ai-slashup"><Menu style={{ position: "relative", left: 0, top: 0 }} width={308} items={[
                       { group: "Slash commands" },
                       { label: "/design:critic", note: "Review this canvas", highlight: true },
                       { label: "/design:edit", note: "Change the selection" },
                       { label: "/design:export", note: "Export this canvas" },
-                    ]} /></div>}>
+                    ]} /></div><Composer scope="Post 1:1" text="/des" chips={<AChip kind="image" name="Snímek obrazovky 2026-10-06 v 14.05.png" art="gator-social" />} /></>}>
                     <p className="ai-hint">Ask for a change, a few variants, or an answer. AI works on what the chip says.</p>
                   </AIPanel>
                 </div>
@@ -1021,8 +1358,8 @@ export default function AIChat() {
 
       {/* ── 5 · History & trust ──────────────────────────────────────────────────────────── */}
       <DCSection id="history" title="History and trust" subtitle="Every AI change is a version — compare before and after, restore, undo across chats">
-        <DCArtboard id="ai-history" label="25 · Made by AI, in Version history" width={W} height={H} fixed>
-          <Stage note={<Note n={25} title="Every AI change is a version you can compare and restore.">⌘Z steps back through your changes and your AI's, newest first. Undo this chat takes back one chat out of order. Tereza's changes are never in your ⌘Z.</Note>}>
+        <DCArtboard id="ai-history" label="29 · Made by AI, in Version history" width={W} height={H} fixed>
+          <Stage note={<Note n={29} title="Every AI change is a version you can compare and restore.">⌘Z steps back through your changes and your AI's, newest first. Undo this chat takes back one chat out of order. Tereza's changes are never in your ⌘Z.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas>
                 <div className="ai-cmp">

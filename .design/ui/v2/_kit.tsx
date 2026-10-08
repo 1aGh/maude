@@ -48,7 +48,7 @@
  *   ProjectMenu({ open?: "file"|"edit"|"view"|"help"|"diagnostics"|null, highlight?, advanced?, diag?, checked?: string[] })
  *       CONTRACT §1 tree exactly. highlight = a row label to mark (main or submenu). advanced = expand the
  *       open submenu's Advanced group. diag = { sync?, server?, ai?: [word, state] } status words.
- *   CanvasesPanel({ project, count?, folders?, items?, recents?, selected?, tab?: "canvases"|"layers",
+ *   CanvasesPanel(system?: {name,meta,selected,ai} (pinned Design system row), { project, count?, folders?, items?, recents?, selected?, tab?: "canvases"|"layers",
  *                   search?, folded?, layers?, empty?, tooltip?, foot?, advanced? })
  *       advanced = the quiet Advanced row at the panel's foot (off by default).
  *       CanvasItem = { name, art?, people?: Who[], ai?: string|boolean, kinds?: Kind[], meta?, dim?, local?, sub? }
@@ -57,7 +57,23 @@
  *       Folder     = { name, open?, count?, items?: CanvasItem[], folders?: Folder[] }
  *       LayerRow   = { name, icon, depth?, selected?, hidden?, locked? }
  *       tooltip    = { text, row: name } — shows the full label of a truncated row.
- *   Toolbar({ tool? = "select", more?: boolean })                 CONTRACT §2 dock order; `more` opens the More popover.
+ *   Toolbar({ mode? = "edit", tool?, more?, folded?, tip?, swatches?, color?, ink?, keys?, only?, inline? })
+ *       CONTRACT §2 — TWO toolbars, one per mode:
+ *       mode "edit"     (default) TOOLS: Select V · Hand H · Frame F · Shape R · Pen P · Text T · Image I · Component ⇧I
+ *                       · More (MORE_TOOLS: Line · Ellipse · Polygon · Crop · Export area). Tools that make things inside
+ *                       artboards. tool defaults to "select"; `more` opens the More popover.
+ *       mode "annotate" Preview's toolbar, ANNOTATE_TOOLS: Hand H | Sticky N · Comment C · Marker M · Arrow A · Shape R ·
+ *                       Text T · Stamp E · Section S — FigJam-style, 48px buttons (a size bigger). tool defaults to "hand".
+ *                       swatches: "sticky" | "marker" opens the colour row above that tool (Marker adds Marker · Highlighter);
+ *                       color = Sticky's colour, ink = Marker's ink (Swatch: yellow coral green sky lilac).
+ *       A `tool` that only exists in Preview (sticky comment marker arrow stamp section) with no `mode` renders the
+ *       annotate toolbar — the key switches to Preview with that tool (CONTRACT §2).
+ *       tip = tool id whose tooltip (label + key) shows · keys = key letters in each button's corner ·
+ *       only = tool ids to show (Can comment: mode="annotate" only={["hand","comment"]}; add "more" to keep More in Edit) ·
+ *       inline = static in a close-up instead of pinned bottom-centre.
+ *   ToolbarMorph({ t, inline? })    Edit → annotate morph frame at t ms on --dur-panel 220 (0 = Edit, ≥ 220 = Preview).
+ *   AnnotateIcon({ id, color?, ink?, size? = 22 })   one annotation tool drawn the FigJam way (key charts, legends).
+ *   easeOut(x)                      --ease-out progress at time fraction x (for filmstrips).
  *   ShareCluster({ people?, status?: "saved"|"syncing"|"offline"|"local"|"error", statusText?,  mode?: "edit"|"preview"|"present"|"viewing" (shows ModeSwitch), canEdit?, access?,    (words per CONTRACT §6)
  *                  panelsButton? = true, zen?, comments? })
  *   ZoomUndo({ zoom? = 100, folded? })
@@ -113,6 +129,7 @@
  *                                    look (open ring) so it never reads as a Note badge.
  * ────────────────────────────────────────────────────────────────────────────────────────────
  */
+import { Fragment } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 /* ═══ Glyphs ═══════════════════════════════════════════════════════════════════════════════ */
@@ -169,6 +186,13 @@ const FAMILY: Record<string, ReactNode> = {
    1.5 round stroke) for the four artboard kinds, the More tools and a few states.
    Promote into preview/iconography.tsx GLYPHS when the DS next moves. */
 const KIT_GLYPHS: Record<string, ReactNode> = {
+  component: (<><path d="M8 1.75l2.25 2.25L8 6.25 5.75 4z" /><path d="M8 9.75l2.25 2.25L8 14.25 5.75 12z" /><path d="M4 5.75l2.25 2.25L4 10.25 1.75 8z" /><path d="M12 5.75l2.25 2.25L12 10.25 9.75 8z" /></>),
+  line: <path d="M3 13L13 3" />,
+  ellipse: <ellipse cx="8" cy="8" rx="5.5" ry="4.5" />,
+  polygon: <path d="M8 2.25l5.5 4-2.1 6.5H4.6l-2.1-6.5z" />,
+  crop: <path d="M4.5 1.75v9.75h9.75M1.75 4.5h9.75v9.75" />,
+  slice: (<><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" strokeDasharray="2 2" /><path d="M5.5 10.5l5-5" /></>),
+  system: (<><rect x="2.5" y="2.5" width="4.75" height="4.75" rx="1.25" /><rect x="8.75" y="2.5" width="4.75" height="4.75" rx="1.25" /><rect x="2.5" y="8.75" width="4.75" height="4.75" rx="1.25" /><circle cx="11.125" cy="11.125" r="2.375" /></>),
   terminal: (<><rect x="2" y="3" width="12" height="10" rx="2.5" /><path d="M5 6.5l2 1.5-2 1.5M8.75 10h2.5" /></>),
   web: (<><rect x="2" y="3" width="12" height="10" rx="2.5" /><path d="M2 6.25h12M4.5 4.65h.01M6.25 4.65h.01" /></>),
   digital: (<><rect x="4.5" y="2" width="7" height="12" rx="2" /><path d="M7.25 11.75h1.5" /></>),
@@ -176,6 +200,8 @@ const KIT_GLYPHS: Record<string, ReactNode> = {
   image: (<><rect x="2.5" y="3" width="11" height="10" rx="2" /><circle cx="6" cy="6.5" r="1.25" /><path d="M2.75 11.5l3.25-3 2.5 2.25 1.75-1.5 3 2.5" /></>),
   arrow: <path d="M3 13L13 3M7.5 3H13v5.5" />,
   highlighter: (<><path d="M9.5 2.75l3.75 3.75-5.5 5.5H4v-3.75z" /><path d="M2.5 13.5h5" /></>),
+  marker: (<><path d="M10.75 2.75l2.5 2.5-6 6-2.5-2.5z" /><path d="M4.75 8.75L3 13l4.25-1.75" /></>),
+  stamp: (<><circle className="k-stamp-disc" cx="8" cy="8" r="5.75" /><path d="M5.6 9.4a2.9 2.9 0 0 0 4.8 0" /><path d="M6.1 6.4h.01M9.9 6.4h.01" strokeWidth={2} /></>),
   section: (<><path d="M2.5 5V3.5a1 1 0 0 1 1-1H5M11 2.5h1.5a1 1 0 0 1 1 1V5M13.5 11v1.5a1 1 0 0 1-1 1H11M5 13.5H3.5a1 1 0 0 1-1-1V11" /><path d="M5.5 6h5" /></>),
   eraser: <path d="M6.5 13.5h7M3.1 9.4l5.5-5.5a1.5 1.5 0 0 1 2.1 0l2.4 2.4a1.5 1.5 0 0 1 0 2.1l-5.1 5.1H6.2z" />,
   insert: (<><rect x="2.5" y="2.5" width="11" height="11" rx="2.5" /><path d="M8 5.5v5M5.5 8h5" /></>),
@@ -560,10 +586,11 @@ function FolderRows({ f, depth, selected, tip }: { f: Folder; depth: number; sel
 }
 
 export function CanvasesPanel({
-  project, count, folders = [], items = [], recents, selected, tab = "canvases", search, folded = false, layers, assets, empty, tooltip, foot, advanced = false, style,
+  project, count, folders = [], items = [], recents, selected, tab = "canvases", search, folded = false, layers, assets, system, empty, tooltip, foot, advanced = false, style,
 }: {
   project: string; count?: number; folders?: Folder[]; items?: CanvasItem[]; recents?: CanvasItem[]; selected?: string; tab?: "canvases" | "layers" | "assets";
   /** Body of the Assets tab (CONTRACT §7: Assets is the left panel's third tab). */ assets?: ReactNode;
+  /** The project's design system, pinned above every canvas (13 Design System). */ system?: { name?: string; meta?: string; selected?: boolean; ai?: boolean };
   search?: string; folded?: boolean; layers?: LayerRow[]; empty?: ReactNode; tooltip?: { text: string; row: string };
   /** A quiet line at the panel's foot, inside the island (e.g. "4 results · ⌘K searches every project"). */
   foot?: ReactNode;
@@ -589,6 +616,14 @@ export function CanvasesPanel({
             {search ? <span className="k-find-x"><Icon name="close" size={10} /></span> : <Kbd>⌘K</Kbd>}
           </span>
           <div className="k-cp-list">
+            {system && !search ? (
+              <span className="row-item k-cp-ds" aria-current={system.selected ? "true" : undefined}>
+                <span className="k-cp-dsic"><Icon name="system" size={14} /></span>
+                <span className="k-cp-name">{system.name ?? "Design system"}</span>
+                {system.ai ? <span className="k-cp-ai"><Spark size={11} /></span> : null}
+                {system.meta ? <span className="k-cp-meta">{system.meta}</span> : null}
+              </span>
+            ) : null}
             {recents?.length ? (
               <>
                 <p className="island-title k-cp-t">Recent</p>
@@ -636,32 +671,157 @@ export function PanelIcon({ icon, at, dot = false, style }: { icon: string; at: 
   );
 }
 
-/* ─── Toolbar (CONTRACT §2) ─── */
-const TOOLS: [string, string, string][] = [
+/* ─── Toolbar (CONTRACT §2) — two toolbars, one per mode ─── */
+/* Edit = tools that make things INSIDE artboards (CONTRACT §2, Michal 2026-10-08). Annotation tools (Sticky, Comment,
+   Marker, Arrow, Stamp, Section) live in Preview's toolbar; their keys (N C M A E S) switch to Preview with that tool. */
+export const TOOLS: [string, string, string][] = [
   ["select", "Select", "V"], ["hand", "Hand", "H"], ["frame", "Frame", "F"], ["shape", "Shape", "R"],
-  ["pen", "Pen", "P"], ["text", "Text", "T"], ["sticky", "Sticky", "N"], ["comment", "Comment", "C"],
+  ["pen", "Pen", "P"], ["text", "Text", "T"], ["image", "Image", "I"], ["component", "Component", "⇧I"],
 ];
-const MORE_TOOLS: [string, string][] = [["arrow", "Arrow"], ["highlighter", "Highlighter"], ["section", "Section"], ["eraser", "Eraser"], ["insert", "Insert"]];
+export const MORE_TOOLS: [string, string][] = [["line", "Line"], ["ellipse", "Ellipse"], ["polygon", "Polygon"], ["crop", "Crop"], ["slice", "Export area"]];
+/* Preview = annotation tools only, FigJam-style (lifted from 04 Modes · AnnotateDock). R and T draw on the annotation
+   layer here, never in the design. */
+export const ANNOTATE_TOOLS: [string, string, string][] = [
+  ["hand", "Hand", "H"], ["sticky", "Sticky", "N"], ["comment", "Comment", "C"], ["marker", "Marker", "M"], ["arrow", "Arrow", "A"],
+  ["shape", "Shape", "R"], ["text", "Text", "T"], ["stamp", "Stickers", "E"], ["section", "Section", "S"],
+];
+/** Annotation-only tool ids — a `tool` from this list on an Edit toolbar renders the Preview toolbar (CONTRACT §2: the key switches mode). */
+const ANNOTATE_ONLY = ["sticky", "comment", "marker", "arrow", "stamp", "section"];
+export const SWATCHES = ["yellow", "coral", "green", "sky", "lilac"] as const;
+export type Swatch = (typeof SWATCHES)[number];
+export type ToolbarMode = "edit" | "annotate";
 
-export function Toolbar({ tool = "select", more = false, folded = false, tip, style }: { tool?: string; more?: boolean; folded?: boolean; tip?: string; style?: CSSProperties }) {
-  if (folded) return <PanelIcon icon={tool} at="dock" />;
+/** One annotation tool, drawn the FigJam way: Sticky is a coloured note, Marker shows its ink, Stamp a filled disc. */
+export function AnnotateIcon({ id, color = "yellow", ink = "coral", size = 22 }: { id: string; color?: Swatch; ink?: Swatch; size?: number }) {
+  if (id === "sticky") return <span className={`k-ad-note k-ad-note--${color}`} style={{ width: size, height: size }} />;
+  if (id === "marker") return <span className="k-ad-mk"><Icon name="marker" size={size} /><i className={`k-ad-ink k-ad-ink--${ink}`} /></span>;
+  return <Icon name={id} size={size} className={id === "stamp" ? "k-ad-stamp" : ""} />;
+}
+
+function SwatchPop({ of, color, ink }: { of: "sticky" | "marker"; color: Swatch; ink: Swatch }) {
   return (
-    <div className="island dock k-dock" style={style}>
-      {TOOLS.map(([id, label, key]) => (
-        <span key={id} className={`icon-btn${tool === id ? " k-pressed" : ""}`} title={`${label} · ${key}`}>
+    <span className="island k-ad-pop">
+      {of === "marker" ? <span className="seg k-seg k-ad-seg"><span className="k-seg-b" aria-pressed="true">Marker</span><span className="k-seg-b">Highlighter</span></span> : null}
+      {SWATCHES.map((c) => <i key={c} className={`k-ad-sw k-ad-sw--${c}`} aria-current={(of === "sticky" ? color : ink) === c ? "true" : undefined} />)}
+    </span>
+  );
+}
+
+export function Toolbar({ mode, tool, more = false, folded = false, tip, swatches, color = "yellow", ink = "coral", keys = false, only, inline = false, style }: {
+  /** "edit" (default) = the Edit toolbar · "annotate" = Preview's annotation toolbar, a size bigger. */
+  mode?: ToolbarMode;
+  /** pressed tool id. Default: "select" in Edit, "hand" in annotate. An annotation-only id (sticky, comment, marker,
+   *  arrow, stamp, section) with no `mode` renders the annotate toolbar — the key switches to Preview (CONTRACT §2). */
+  tool?: string;
+  /** Edit only — opens the More popover (Line · Ellipse · Polygon · Crop · Export area). */
+  more?: boolean;
+  folded?: boolean;
+  /** tool id whose tooltip (label + key) shows above it. */
+  tip?: string;
+  /** annotate only — opens the colour row above Sticky ("sticky") or Marker ("marker", with Marker · Highlighter). */
+  swatches?: "sticky" | "marker";
+  /** Sticky's current colour · Marker's ink. */
+  color?: Swatch;
+  ink?: Swatch;
+  /** small key letters in each button's corner (close-ups, key charts). */
+  keys?: boolean;
+  /** show only these tool ids (e.g. Can comment: ["hand", "comment"]); More hides when it isn't listed. */
+  only?: string[];
+  /** static in a close-up instead of pinned to the window's bottom centre. */
+  inline?: boolean;
+  style?: CSSProperties;
+}) {
+  const m: ToolbarMode = mode ?? (tool && ANNOTATE_ONLY.includes(tool) ? "annotate" : "edit");
+  const t = tool ?? (m === "annotate" ? "hand" : "select");
+  if (folded) return <PanelIcon icon={t} at="dock" />;
+  const pin = inline ? " k-dock--inline" : "";
+  if (m === "annotate") {
+    const list = only ? ANNOTATE_TOOLS.filter(([id]) => only.includes(id)) : ANNOTATE_TOOLS;
+    return (
+      <div className={`island dock k-dock k-adock${pin}`} style={style}>
+        {list.map(([id, label, key], i) => (
+          <Fragment key={id}>
+            <span className={`icon-btn k-ad-b${t === id ? " k-pressed" : ""}`} title={`${label} · ${key}`}>
+              <AnnotateIcon id={id} color={color} ink={ink} />
+              {keys ? <span className="k-ad-key">{key}</span> : null}
+              {tip === id ? <span className="k-tip k-tip--up">{label}<Kbd>{key}</Kbd></span> : null}
+              {swatches === id ? <SwatchPop of={swatches} color={color} ink={ink} /> : null}
+            </span>
+            {i === 0 && id === "hand" && list.length > 1 ? <span className="divider-v" /> : null}
+          </Fragment>
+        ))}
+      </div>
+    );
+  }
+  const list = only ? TOOLS.filter(([id]) => only.includes(id)) : TOOLS;
+  const showMore = !only || only.includes("more");
+  return (
+    <div className={`island dock k-dock${pin}`} style={style}>
+      {list.map(([id, label, key]) => (
+        <span key={id} className={`icon-btn${t === id ? " k-pressed" : ""}`} title={`${label} · ${key}`}>
           <Icon name={id} size={18} />
+          {keys ? <span className="k-ad-key">{key}</span> : null}
           {tip === id ? <span className="k-tip k-tip--up">{label}<Kbd>{key}</Kbd></span> : null}
         </span>
       ))}
-      <span className="divider-v" />
-      <span className={`icon-btn${more || MORE_TOOLS.some(([m]) => m === tool) ? " k-pressed" : ""}`} title="More tools"><Icon name="more" size={18} /></span>
+      {showMore ? (
+        <>
+          <span className="divider-v" />
+          <span className={`icon-btn${more || MORE_TOOLS.some(([x]) => x === t) ? " k-pressed" : ""}`} title="More tools"><Icon name="more" size={18} /></span>
+        </>
+      ) : null}
       {more ? (
         <span className="k-menu k-more">
           {MORE_TOOLS.map(([id, label]) => (
-            <span key={id} className="row-item k-mi" data-hl={tool === id ? "true" : undefined}><span className="k-mi-ic"><Icon name={id} size={14} /></span><span className="k-mi-lab">{label}</span></span>
+            <span key={id} className="row-item k-mi" data-hl={t === id ? "true" : undefined}><span className="k-mi-ic"><Icon name={id} size={14} /></span><span className="k-mi-lab">{label}</span></span>
           ))}
         </span>
       ) : null}
+    </div>
+  );
+}
+
+/* ─── Toolbar morph (lifted from 04 Modes · MorphToolbar) ───────────────────────────────────
+   Edit → Preview on --dur-panel 220 ms: the Edit tools sink out over 0–100 ms, the annotation tools rise in over
+   80–220 ms; movement rides --ease-out, opacity is linear (so mid frames show both rows); the island widens and grows
+   a little taller. `t` = ms since the press (0 = Edit toolbar, ≥ 220 = annotate toolbar). Back to Edit = reversed. */
+const TB_EDIT_W = 421;
+const TB_ANNO_W = 493;
+/** --ease-out = cubic-bezier(0.25, 0.8, 0.25, 1): progress at time fraction x. */
+export function easeOut(x: number) {
+  let lo = 0;
+  let hi = 1;
+  for (let k = 0; k < 32; k++) {
+    const s = (lo + hi) / 2;
+    const v = 0.75 * s * (1 - s) + s * s * s;
+    if (v < x) lo = s; else hi = s;
+  }
+  const s = (lo + hi) / 2;
+  return 2.4 * s * (1 - s) * (1 - s) + 3 * s * s * (1 - s) + s * s * s;
+}
+export function ToolbarMorph({ t, inline = false, style }: { t: number; inline?: boolean; style?: CSSProperties }) {
+  const c = (v: number) => Math.max(0, Math.min(1, v));
+  const out = easeOut(c(t / 100));
+  const outO = c(t / 100);
+  const inn = easeOut(c((t - 80) / 140));
+  const innO = c((t - 80) / 140);
+  const grow = easeOut(c(t / 220));
+  const lerp = (a: number, b: number) => a + (b - a) * grow;
+  return (
+    <div className={`island dock k-dock k-morph${inline ? " k-dock--inline" : ""}`} style={{ width: lerp(TB_EDIT_W, TB_ANNO_W), height: lerp(56, 64), ...style }}>
+      <span className="k-morph-row" style={{ opacity: 1 - outO, transform: `translate(-50%, calc(-50% + ${out * 18}px))` }}>
+        {TOOLS.map(([id, label], i) => <span key={id} className={`icon-btn${i === 0 ? " k-pressed" : ""}`} title={label}><Icon name={id} size={18} /></span>)}
+        <span className="divider-v" />
+        <span className="icon-btn"><Icon name="more" size={18} /></span>
+      </span>
+      <span className="k-morph-row" style={{ opacity: innO, transform: `translate(-50%, calc(-50% + ${(1 - inn) * 18}px))` }}>
+        {ANNOTATE_TOOLS.map(([id, label], i) => (
+          <Fragment key={id}>
+            <span className={`icon-btn k-ad-b${i === 0 ? " k-pressed" : ""}`} title={label}><AnnotateIcon id={id} /></span>
+            {i === 0 ? <span className="divider-v" /> : null}
+          </Fragment>
+        ))}
+      </span>
     </div>
   );
 }

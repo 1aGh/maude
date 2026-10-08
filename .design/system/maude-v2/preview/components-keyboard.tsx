@@ -4,8 +4,9 @@
  * DEMONSTRATES: the key cap (`.kbd`) — anatomy, three sizes, combos as caps sitting 2px
  *   apart (the gap is the plus), Mac glyphs (⌘ ⇧ ⌥ ⌃) vs spelled-out words on Windows with
  *   an identical visual style — and the core shortcut set of Maude v2:
- *   CONTRACT §2, exactly: V select · H hand · F frame · R shape · P pen · T text · N sticky ·
- *   C comment · ⌘K Search · ⌘\ hide / show panels · ⌘/ Ask AI · ? every shortcut · ⌘N new
+ *   CONTRACT §2, exactly: the Edit tools V select · H hand · F frame · R shape · P pen · T text ·
+ *   I image · ⇧I component; the annotation keys N sticky · C comment · M marker · A arrow ·
+ *   E stickers · S section, which switch to Preview with that tool; ⌘K Search · ⌘\ hide / show panels · ⌘/ Ask AI · ? every shortcut · ⌘N new
  *   canvas · ⇧⌘N new project · ⌥⌘H version history · ⌘0 zoom to fit. Modifiers in macOS
  *   order (⌥⇧⌘), Return as ↵.
  * COMPOSITION: hero = a keyboard map where only the keys that do something are lit; hover,
@@ -35,16 +36,23 @@ function Combo({ keys, p, size }: { keys: string[]; p: Platform; size?: "sm" | "
 }
 
 /* ─── The core set ───────────────────────────────────────────────────────── */
-type Shortcut = { id: string; keys: string[]; name: string; what: string; group: "Tools" | "Everywhere" | "Canvas" };
+type Group = "Edit tools" | "Preview tools" | "Everywhere" | "Canvas";
+type Shortcut = { id: string; keys: string[]; name: string; what: string; group: Group };
 const SET: Shortcut[] = [
-  { id: "select", keys: ["V"], name: "Select", what: "Pick, move and resize things on the canvas.", group: "Tools" },
-  { id: "hand", keys: ["H"], name: "Hand", what: "Pan around. Or hold Space with any tool.", group: "Tools" },
-  { id: "frame", keys: ["F"], name: "Frame", what: "Draw an artboard, or a frame inside one.", group: "Tools" },
-  { id: "shape", keys: ["R"], name: "Shape", what: "Rectangles, ellipses and lines. Hold ⇧ to keep it even.", group: "Tools" },
-  { id: "pen", keys: ["P"], name: "Pen", what: "Draw a path, point by point.", group: "Tools" },
-  { id: "text", keys: ["T"], name: "Text", what: "Click to type. Drag to set a width.", group: "Tools" },
-  { id: "sticky", keys: ["N"], name: "Sticky", what: "Drop a sticky. Press again to change its colour.", group: "Tools" },
-  { id: "comment", keys: ["C"], name: "Comment", what: "Pin a comment to anything on the canvas.", group: "Tools" },
+  { id: "select", keys: ["V"], name: "Select", what: "Pick, move and resize things on the canvas.", group: "Edit tools" },
+  { id: "hand", keys: ["H"], name: "Hand", what: "Pan around. Or hold Space with any tool. In both toolbars.", group: "Edit tools" },
+  { id: "frame", keys: ["F"], name: "Frame", what: "Draw an artboard, or a frame inside one.", group: "Edit tools" },
+  { id: "shape", keys: ["R"], name: "Shape", what: "A rectangle. Hold ⇧ to keep it square; ellipse, line and polygon wait under More.", group: "Edit tools" },
+  { id: "pen", keys: ["P"], name: "Pen", what: "Draw a path, point by point.", group: "Edit tools" },
+  { id: "text", keys: ["T"], name: "Text", what: "Click to type. Drag to set a width.", group: "Edit tools" },
+  { id: "image", keys: ["I"], name: "Image", what: "Place a picture from your Mac or from Assets.", group: "Edit tools" },
+  { id: "component", keys: ["⇧", "I"], name: "Component", what: "Place a piece from your design system.", group: "Edit tools" },
+  { id: "sticky", keys: ["N"], name: "Sticky", what: "Drop a sticky. Press again to change its colour. From Edit, it switches to Preview.", group: "Preview tools" },
+  { id: "comment", keys: ["C"], name: "Comment", what: "Pin a comment to anything on the canvas. From Edit, it switches to Preview.", group: "Preview tools" },
+  { id: "marker", keys: ["M"], name: "Marker", what: "Draw freehand over the design. From Edit, it switches to Preview.", group: "Preview tools" },
+  { id: "arrow", keys: ["A"], name: "Arrow", what: "Point from one thing to another. From Edit, it switches to Preview.", group: "Preview tools" },
+  { id: "stamp", keys: ["E"], name: "Stickers", what: "The sticker gallery — vote stamps on top, then the sticker packs. From Edit, it switches to Preview.", group: "Preview tools" },
+  { id: "section", keys: ["S"], name: "Section", what: "Gather notes under a name. From Edit, it switches to Preview.", group: "Preview tools" },
   { id: "palette", keys: ["⌘", "K"], name: "Search", what: "Canvases, actions, AI, and every hidden tool.", group: "Everywhere" },
   { id: "panels", keys: ["⌘", "\\"], name: "Hide / show panels", what: "Hide every panel, and bring them back.", group: "Everywhere" },
   { id: "ask", keys: ["⌘", "/"], name: "Ask AI", what: "Open the AI chat panel with your selection attached.", group: "Everywhere" },
@@ -64,13 +72,14 @@ const SC = Object.fromEntries(SET.map((s) => [s.id, s]));
 /* ─── The keyboard map ──────────────────────────────────────────────────── */
 type Key = { cap: string; w?: number; sc?: string[]; mod?: boolean };
 const ROWS: Key[][] = [
-  [{ cap: "esc", w: 1.3, sc: ["esc"] }, { cap: "Q" }, { cap: "W" }, { cap: "E" }, { cap: "R", sc: ["shape"] }, { cap: "T", sc: ["text"] }, ..."YUIO".split("").map((c) => ({ cap: c })), { cap: "P", sc: ["pen"] }, { cap: "[" }, { cap: "]" }, { cap: "\\", w: 1.3, sc: ["panels"] }],
-  [{ cap: "⇪", w: 1.6 }, { cap: "A" }, { cap: "S" }, { cap: "D" }, { cap: "F", sc: ["frame"] }, { cap: "G" }, { cap: "H", sc: ["hand", "history"] }, { cap: "J" }, { cap: "K", sc: ["palette"] }, { cap: "L" }, { cap: ";" }, { cap: "'" }, { cap: "↵", w: 1.6 }],
-  [{ cap: "⇧", w: 2.1, mod: true }, { cap: "Z", sc: ["undo", "redo"] }, { cap: "X" }, { cap: "C", sc: ["comment"] }, { cap: "V", sc: ["select"] }, { cap: "B" }, { cap: "N", sc: ["sticky", "newcanvas", "newproject"] }, { cap: "M" }, { cap: "," }, { cap: "." }, { cap: "/", sc: ["ask", "help"] }, { cap: "⇧", w: 2.1, mod: true }],
+  [{ cap: "esc", w: 1.3, sc: ["esc"] }, { cap: "Q" }, { cap: "W" }, { cap: "E", sc: ["stamp"] }, { cap: "R", sc: ["shape"] }, { cap: "T", sc: ["text"] }, { cap: "Y" }, { cap: "U" }, { cap: "I", sc: ["image", "component"] }, { cap: "O" }, { cap: "P", sc: ["pen"] }, { cap: "[" }, { cap: "]" }, { cap: "\\", w: 1.3, sc: ["panels"] }],
+  [{ cap: "⇪", w: 1.6 }, { cap: "A", sc: ["arrow"] }, { cap: "S", sc: ["section"] }, { cap: "D" }, { cap: "F", sc: ["frame"] }, { cap: "G" }, { cap: "H", sc: ["hand", "history"] }, { cap: "J" }, { cap: "K", sc: ["palette"] }, { cap: "L" }, { cap: ";" }, { cap: "'" }, { cap: "↵", w: 1.6 }],
+  [{ cap: "⇧", w: 2.1, mod: true }, { cap: "Z", sc: ["undo", "redo"] }, { cap: "X" }, { cap: "C", sc: ["comment"] }, { cap: "V", sc: ["select"] }, { cap: "B" }, { cap: "N", sc: ["sticky", "newcanvas", "newproject"] }, { cap: "M", sc: ["marker"] }, { cap: "," }, { cap: "." }, { cap: "/", sc: ["ask", "help"] }, { cap: "⇧", w: 2.1, mod: true }],
   [{ cap: "fn" }, { cap: "⌃", mod: true }, { cap: "⌥", mod: true }, { cap: "⌘", w: 1.3, mod: true }, { cap: "Space", w: 5.6, sc: ["pan"] }, { cap: "⌘", w: 1.3, mod: true }, { cap: "⌥", mod: true }],
 ];
 const CAPTION: Record<string, string> = {
-  select: "Select", hand: "Hand", frame: "Frame", shape: "Shape", pen: "Pen", text: "Text", sticky: "Sticky", comment: "Comment",
+  select: "Select", hand: "Hand", frame: "Frame", shape: "Shape", pen: "Pen", text: "Text", image: "Image",
+  sticky: "Sticky", comment: "Comment", marker: "Marker", arrow: "Arrow", stamp: "Stickers", section: "Section",
   palette: "Search", panels: "⌘ Panels", ask: "⌘ Ask AI", undo: "⌘ Undo", pan: "Hold to pan", esc: "Back",
 };
 
@@ -173,14 +182,15 @@ export default function ComponentsKeyboard() {
         <section className="specimen-title">
           <h1>A handful of keys, each with one job.</h1>
           <p className="lede">
-            Eight letters pick a tool, a few combinations reach everything else. Caps look like the keys on
+            One letter picks a tool, a few combinations reach everything else. Caps look like the keys on
             your keyboard — same face as the rest of the app, glyphs on a Mac in macOS order, words on Windows.
           </p>
         </section>
 
         <div className="kb-meta-row">
           <dl className="specimen-meta">
-            <div><dt>Tools</dt><dd>V · H · F · R · P · T · N · C</dd></div>
+            <div><dt>Edit tools</dt><dd>V · H · F · R · P · T · I · ⇧I</dd></div>
+            <div><dt>Preview tools</dt><dd>N · C · M · A · E · S</dd></div>
             <div><dt>Everywhere</dt><dd>⌘K · ⌘\ · ⌘/ · ? · ⌥⌘H</dd></div>
             <div><dt>Order</dt><dd>⌥ ⇧ ⌘ · Return is ↵</dd></div>
             <div><dt>Cap</dt><dd>body face · 4 px radius · a lip, not a border</dd></div>
@@ -243,12 +253,12 @@ export default function ComponentsKeyboard() {
           <figure className="kb-place">
             <div className="stage kb-place-stage">
               <div className="island dock kb-place-dock" aria-hidden="true">
-                {/* the right end of the toolbar, in order: Text · Sticky · Comment (glyphs from iconography.tsx) */}
+                {/* three tools from the Edit toolbar, in order: Text · Image · Component (glyphs from iconography.tsx) */}
                 <span className="icon-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 4.5V3h9v1.5M8 3v10M6.25 13h3.5" /></svg></span>
-                <span className="icon-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M4 2.5h8A1.5 1.5 0 0 1 13.5 4v5L9 13.5H4A1.5 1.5 0 0 1 2.5 12V4A1.5 1.5 0 0 1 4 2.5z" /><path d="M13.5 9h-3A1.5 1.5 0 0 0 9 10.5v3" /></svg></span>
-                <span className="icon-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v8.5H5A2.5 2.5 0 0 1 2.5 11V5A2.5 2.5 0 0 1 5 2.5z" /></svg></span>
+                <span className="icon-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><rect x="2.5" y="3" width="11" height="10" rx="2" /><circle cx="6" cy="6.5" r="1.25" /><path d="M2.75 11.5l3.25-3 2.5 2.25 1.75-1.5 3 2.5" /></svg></span>
+                <span className="icon-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M8 1.75l2.25 2.25L8 6.25 5.75 4z" /><path d="M8 9.75l2.25 2.25L8 14.25 5.75 12z" /><path d="M4 5.75l2.25 2.25L4 10.25 1.75 8z" /><path d="M12 5.75l2.25 2.25L12 10.25 9.75 8z" /></svg></span>
               </div>
-              <div className="kb-tip" role="tooltip">Comment <Combo keys={["C"]} p={p} /></div>
+              <div className="kb-tip" role="tooltip">Image <Combo keys={["I"]} p={p} /></div>
             </div>
             <figcaption><strong>In a tooltip</strong> The tool's name and one base cap. Shown after a short hover, never on the button itself.</figcaption>
           </figure>
@@ -265,7 +275,7 @@ export default function ComponentsKeyboard() {
 
         <h2 data-no>The core set</h2>
         <div className="kb-set">
-          {(["Tools", "Everywhere", "Canvas"] as const).map((g) => (
+          {(["Edit tools", "Preview tools", "Everywhere", "Canvas"] as const).map((g) => (
             <section className="kb-set-col" key={g}>
               <p className="island-title">{g}</p>
               <dl>
@@ -302,7 +312,7 @@ export default function ComponentsKeyboard() {
         <div className="kb-prose">
           <p>
             Press <Combo keys={["⌘", "K"]} p={p} /> anywhere to search for a canvas or a tool. <Combo keys={["N"]} p={p} /> drops a
-            sticky; press it again to change the colour. Hold <Combo keys={["Space"]} p={p} /> to pan, and <Combo keys={["esc"]} p={p} /> to
+            sticky — from Edit it switches to Preview first; press it again to change the colour. Hold <Combo keys={["Space"]} p={p} /> to pan, and <Combo keys={["esc"]} p={p} /> to
             step back out of anything.
           </p>
           <p className="kb-prose-small">Caps keep the line height — base caps are 20 px high, the same as a line of small text.</p>

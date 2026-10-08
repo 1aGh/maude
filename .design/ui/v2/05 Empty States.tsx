@@ -373,8 +373,8 @@ function KindChips({ counts, on }: { counts: Record<"all" | Kind, number>; on: "
   );
 }
 
-/** A small toolbar for a card-sized canvas crop (CONTRACT §2 order). */
-const MINI_TOOLS = ["select", "hand", "frame", "shape", "pen", "text", "sticky", "comment"];
+/** A small Edit toolbar for a card-sized canvas crop (CONTRACT §2: Edit's tools, in order, then More). */
+const MINI_TOOLS = ["select", "hand", "frame", "shape", "pen", "text", "image", "component"];
 function MiniDock() {
   return (
     <span className="island dock es-minidock">
@@ -575,17 +575,8 @@ function NoRecentsPalette() {
   );
 }
 
-/* ─── Can comment: the toolbar is 04 · md-comment-only's, exactly — Select · Hand · Comment, nothing else ─── */
-const COMMENT_TOOLS: [string, string, string][] = [["select", "Select", "V"], ["hand", "Hand", "H"], ["comment", "Comment", "C"]];
-function CommentDock({ pressed = "select" }: { pressed?: string }) {
-  return (
-    <div className="island dock k-dock">
-      {COMMENT_TOOLS.map(([id, label, key]) => (
-        <span key={id} className={`icon-btn${pressed === id ? " k-pressed" : ""}`} title={`${label} · ${key}`}><Icon name={id} size={18} /></span>
-      ))}
-    </div>
-  );
-}
+/* ─── Can comment: the toolbar is 04 · md-comment-only's — Preview's toolbar cut to Hand · Comment, nothing else.
+   It rests on Hand here (nothing written yet; the empty Comments panel says press C). ─── */
 
 /* ─── Uniformy-2027 as it really is: 1920 × 1080 boards, fixed-size digital. Same piece and labels as 04 · md-comment-only. ─── */
 type UniItem = { dir: "a" | "b" | "c"; away?: boolean; helmet?: boolean };
@@ -881,7 +872,7 @@ export default function EmptyStates() {
                 </Artboard>
                 <Artboard label="Mobile" kind="web" x={320} y={420} w={130} h={281}><PhoneMock title="Calm software" tone="sky" /></Artboard>
                 <Empty className="es-abhint" title="Empty artboard." chips={<AskBtn keys="⌘/">Ask AI to fill Tablet</AskBtn>}>
-                  Draw a frame with <Kbd>F</Kbd>, drop images in, or let AI start it from Desktop.
+                  Draw a frame with <Kbd>F</Kbd>, place an image <Kbd>I</Kbd> or a component <Kbd>⇧I</Kbd>, or let AI start it from Desktop.
                 </Empty>
               </Canvas>
               <ProjectPill project="Studio site" canvas="Homepage" />
@@ -1114,7 +1105,7 @@ export default function EmptyStates() {
       {/* ── 4 · Edge cases ────────────────────────────────────────────────────────────────── */}
       <DCSection id="edges" title="When it's not really empty" subtitle="View-only, still arriving, offline and never downloaded, everything in the trash, a chat search, a team of one">
         <DCArtboard id="es-viewer" label="16 · A shared canvas you can comment on, not edit" width={W} height={H} fixed>
-          <Stage note={<Note n={16} title="Can comment: Select, Hand, Comment.">No editing tools and no AI chat panel, as in 04. Ask to edit goes to the owner.</Note>}>
+          <Stage note={<Note n={16} title="Can comment: Hand and Comment.">Preview's toolbar, cut to what they may do — no other annotation tools, no editing tools, no AI chat panel, as in 04. Ask to edit goes to the owner.</Note>}>
             <Window tabs={[TABS.studio, { ...TABS.alligators, account: "Alligators — can comment" }]} activeTab={1}>
               <Canvas>
                 {UNI.map((u, i) => (
@@ -1130,7 +1121,7 @@ export default function EmptyStates() {
                 </Empty>
               </SidePanel>
               <div className="island k-uz"><span className="btn btn--ghost btn--sm k-zoom">24%</span></div>
-              <CommentDock />
+              <Toolbar mode="annotate" only={["hand", "comment"]} />
             </Window>
           </Stage>
         </DCArtboard>

@@ -502,7 +502,6 @@
 .ia-fig-menu .ia-crop .k-pill { position: absolute; }
 
 /* Figma comments that came across — kit Sticky, made small (style prop); the author's name on its own line */
-.ia-st-who { display: block; margin-top: 2px; font-weight: var(--w-semibold); }
 
 /* The ask field wraps a long Czech prompt; the scope chip sits on its own line */
 .ia-chat .k-ask { flex-wrap: wrap; align-items: flex-start; row-gap: var(--space-1); padding-top: var(--space-1); padding-bottom: var(--space-1); }

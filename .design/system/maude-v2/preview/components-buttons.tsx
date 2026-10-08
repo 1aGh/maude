@@ -14,7 +14,7 @@
  * COPY VOICE:   short everyday verbs about the user's work — "Share", "Invite", "Duplicate",
  *               "Generate variants". Working labels keep the verb ("Inviting", not "Loading…").
  * CONTRACT:     the project pill is one button whose name ends "Project menu"; the toolbar runs
- *               Select · Hand · Frame · Shape · Pen · Text · Sticky · Comment · More (the AI is the AI
+ *               Select · Hand · Frame · Shape · Pen · Text · Image · Component · More (Edit; the AI is the AI
  *               chat panel, never a toolbar slot); keys per CONTRACT §2; a callout carries one
  *               action; dialogs pair the title's verb with the button and say "Cancel".
  * NOTES:        Disabled never relies on colour alone: it says why, next to the button. Destructive is a
@@ -39,7 +39,6 @@ const I = {
   select: <path d="M3.5 2.5l9 4.5-4 1.3-1.5 4.2z" />,
   frame: <path d="M5 2.5v11M11 2.5v11M2.5 5h11M2.5 11h11" />,
   text: <path d="M3.5 4.5V3h9v1.5M8 3v10M6.25 13h3.5" />,
-  comment: <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v8.5H5A2.5 2.5 0 0 1 2.5 11V5A2.5 2.5 0 0 1 5 2.5z" />,
   panels: (<><rect x="2" y="3" width="12" height="10" rx="2.5" /><path d="M10 3v10" /></>),
   share: (<><path d="M8 9.5v-7M5.25 5.25L8 2.5l2.75 2.75" /><path d="M5 7.5h-.5A1.5 1.5 0 0 0 3 9v3a1.5 1.5 0 0 0 1.5 1.5h7A1.5 1.5 0 0 0 13 12V9a1.5 1.5 0 0 0-1.5-1.5H11" /></>),
   plus: <path d="M8 3v10M3 8h10" />,
@@ -53,14 +52,15 @@ const I = {
   hand: <path d="M5.5 9V4.5a1 1 0 0 1 2 0V8M7.5 7.5V3.5a1 1 0 0 1 2 0V8M9.5 8V4.5a1 1 0 0 1 2 0v5c0 2.5-1.7 4-4 4h-.6c-1.3 0-2.3-.6-3-1.6L2.4 9.3a1 1 0 0 1 1.6-1.2l1.5 1.7" />,
   shape: (<><rect x="2.5" y="2.5" width="7" height="7" rx="1.5" /><circle cx="10.25" cy="10.25" r="3.5" /></>),
   pen: (<><path d="M10.25 3.25l2.5 2.5L6 12.5l-3.25.75.75-3.25z" /><path d="M8.75 4.75l2.5 2.5" /></>),
-  sticky: (<><path d="M4 2.5h8A1.5 1.5 0 0 1 13.5 4v5L9 13.5H4A1.5 1.5 0 0 1 2.5 12V4A1.5 1.5 0 0 1 4 2.5z" /><path d="M13.5 9h-3A1.5 1.5 0 0 0 9 10.5v3" /></>),
+  image: (<><rect x="2.5" y="3" width="11" height="10" rx="2" /><circle cx="6" cy="6.5" r="1.25" /><path d="M2.75 11.5l3.25-3 2.5 2.25 1.75-1.5 3 2.5" /></>),
+  component: (<><path d="M8 1.75l2.25 2.25L8 6.25 5.75 4z" /><path d="M8 9.75l2.25 2.25L8 14.25 5.75 12z" /><path d="M4 5.75l2.25 2.25L4 10.25 1.75 8z" /><path d="M12 5.75l2.25 2.25L12 10.25 9.75 8z" /></>),
 };
 
-/** The toolbar, left → right (CONTRACT §2). */
+/** The Edit toolbar, left → right (CONTRACT §2) — tools that make things inside artboards. */
 const TOOLBAR: { k: keyof typeof I; name: string; key: string }[] = [
   { k: "select", name: "Select", key: "V" }, { k: "hand", name: "Hand", key: "H" }, { k: "frame", name: "Frame", key: "F" },
   { k: "shape", name: "Shape", key: "R" }, { k: "pen", name: "Pen", key: "P" }, { k: "text", name: "Text", key: "T" },
-  { k: "sticky", name: "Sticky", key: "N" }, { k: "comment", name: "Comment", key: "C" }, { k: "more", name: "More", key: "" },
+  { k: "image", name: "Image", key: "I" }, { k: "component", name: "Component", key: "⇧I" }, { k: "more", name: "More", key: "" },
 ];
 
 const PEOPLE = [

@@ -98,12 +98,12 @@
   --island-bg-strong: oklch(0.995 0.002 240 / 0.96); /* large islands over busy canvas: inspector, AI chat panel */
   --island-blur:   16px;
   --island-edge:   oklch(0.24 0.014 250 / 0.10);    /* 0.5px inner hairline   */
-  --island-shadow: 0 10px 30px oklch(0.24 0.030 250 / 0.14), 0 1px 3px oklch(0.24 0.030 250 / 0.08);
+  --island-shadow: 0 2px 10px oklch(0.24 0.030 250 / 0.07), 0 0.5px 1.5px oklch(0.24 0.030 250 / 0.06);
 
   /* ─── Shadows / elevation (soft) ───────────────────────────────────── */
   --shadow-sm: 0 1px 2px oklch(0.24 0.030 250 / 0.08);
-  --shadow-md: 0 6px 18px oklch(0.24 0.030 250 / 0.12), 0 1px 2px oklch(0.24 0.030 250 / 0.06);
-  --shadow-lg: 0 16px 44px oklch(0.24 0.030 250 / 0.18), 0 2px 6px oklch(0.24 0.030 250 / 0.08);
+  --shadow-md: 0 3px 10px oklch(0.24 0.030 250 / 0.08), 0 1px 2px oklch(0.24 0.030 250 / 0.05);
+  --shadow-lg: 0 8px 24px oklch(0.24 0.030 250 / 0.11), 0 2px 4px oklch(0.24 0.030 250 / 0.06);
 }
 
 .maude-v2[data-theme="dark"] {
@@ -182,12 +182,12 @@
   --island-bg-strong: oklch(0.245 0.007 250 / 0.96);
   --island-blur:   16px;
   --island-edge:   oklch(1 0 0 / 0.09);
-  --island-shadow: 0 12px 34px oklch(0 0 0 / 0.40), 0 1px 3px oklch(0 0 0 / 0.30);
+  --island-shadow: 0 4px 14px oklch(0 0 0 / 0.30), 0 0.5px 1.5px oklch(0 0 0 / 0.26);
 
   /* ─── Shadows ──────────────────────────────────────────────────────── */
   --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.30);
-  --shadow-md: 0 6px 18px oklch(0 0 0 / 0.36), 0 1px 2px oklch(0 0 0 / 0.24);
-  --shadow-lg: 0 16px 44px oklch(0 0 0 / 0.46), 0 2px 6px oklch(0 0 0 / 0.30);
+  --shadow-md: 0 3px 10px oklch(0 0 0 / 0.30), 0 1px 2px oklch(0 0 0 / 0.22);
+  --shadow-lg: 0 10px 28px oklch(0 0 0 / 0.38), 0 2px 4px oklch(0 0 0 / 0.26);
 }
 
 /* Theme-independent tokens (same in both themes). */

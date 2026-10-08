@@ -39,7 +39,6 @@ const SCALE = [
   { t: "--space-8", px: 64, u: "8", role: "First-run and empty-canvas breathing room", cls: "sp-b8" },
 ];
 
-const STICKIES = ["yellow", "green", "lilac"];
 
 export default function SpacingScale() {
   const [on, setOn] = useState(true);
@@ -125,16 +124,15 @@ export default function SpacingScale() {
                   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M3 4h10M8 4v9" /></svg>
                 </button>
                 <Gap step={1} on={on} axis="x" />
+                <button className="icon-btn" type="button" aria-label="Image">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2.5" y="3" width="11" height="10" rx="2" /><circle cx="6" cy="6.5" r="1.25" /><path d="M2.75 11.5l3.25-3 2.5 2.25 1.75-1.5 3 2.5" /></svg>
+                </button>
+                <Gap step={1} on={on} axis="x" />
                 <span className="divider-v" />
                 <Gap step={1} on={on} axis="x" />
-                {STICKIES.map((c, i) => (
-                  <span key={c} className="sp-dock-slot">
-                    {i > 0 ? <Gap step={1} on={on} axis="x" /> : null}
-                    <button className="icon-btn" type="button" aria-label={`${c} sticky`}>
-                      <span className={`sp-dock-sticky sp-ds-${c}`} style={{ rotate: `${[-6, 4, -3][i]}deg` }} />
-                    </button>
-                  </span>
-                ))}
+                <button className="icon-btn" type="button" aria-label="More tools">
+                  <svg viewBox="0 0 16 16" fill="currentColor" stroke="none"><circle cx="3.5" cy="8" r="1.1" /><circle cx="8" cy="8" r="1.1" /><circle cx="12.5" cy="8" r="1.1" /></svg>
+                </button>
                 {on ? <i className="sp-tag sp-tag--under">button 40 · gap 4</i> : null}
               </div>
               <figcaption>Dock · 8 around, 4 between, 40 per button — a little chunkier than the other islands</figcaption>

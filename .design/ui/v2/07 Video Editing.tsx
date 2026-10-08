@@ -399,10 +399,10 @@ export default function VideoEditing() {
       {/* ── 2 · Basic edits ──────────────────────────────────────────────────────────────────────── */}
       <DCSection id="edits" title="Basic edits" subtitle="Drop footage, trim, split, move, a transition, a title with motion, captions you edit as text, a music bed that steps aside for speech">
         <DCArtboard id="ve-drop" label="4 · Drop footage — on the artboard or the timeline" width={W} height={H} fixed>
-          <Stage note={<Note n={4} title="Drag clips in from Finder or Assets.">Over the timeline, a line shows exactly where they land; over the artboard, they go to the end. The video grows by what you drop — here 0:20, after Dron nad lajnou.</Note>}>
+          <Stage note={<Note n={4} title="Drag clips in from Finder or Assets.">Over the timeline, a line shows where they land; over the artboard, they go to the end. The video grows by what you drop — here 0:20. Image (I) picks clips without a drag.</Note>}>
             <Window tabs={GTABS} activeTab={1}>
               <HypeCanvas sel="reels" drop reels={hypeSel} />
-              <Chrome canvas="video-hype" insp={<VideoInspector />} tl={
+              <Chrome canvas="video-hype" tool="image" insp={<VideoInspector />} tl={
                 <Timeline {...HYPE} t={4} under={CX_HYPE_REELS}
                   over={<><span className="ve-insert" style={{ left: "60%", top: 72, height: 54 }} /><span className="ve-tip" style={{ left: "61%", top: -3 }}>Drop 3 clips at 0:09<span className="ve-tip-dim">the video grows by 0:20</span></span></>}
                 />

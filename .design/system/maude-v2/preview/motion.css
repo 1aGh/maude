@@ -296,3 +296,16 @@
   --dur-route: 1ms !important;
   --dur-spring: 1ms !important;
 }
+
+/* Preview toolbar — the playful exception (kit Toolbar mode="annotate", CONTRACT §2): 48 px buttons, 22 px glyphs,
+   each tool may wear the object colour of what it makes. */
+.mo-slot { display: contents; }
+.mo-toolbar .mo-stamp-disc { fill: none; }
+.mo-adock { gap: var(--space-1); padding: var(--space-2); }
+.dock .icon-btn.mo-ad-b { position: relative; width: 48px; height: 48px; border-radius: var(--radius-lg); }
+.dock .icon-btn.mo-ad-b svg { width: 22px; height: 22px; }
+.mo-ad-ic, .mo-ad-stamp { display: grid; place-items: center; }
+.mo-ad-note { display: block; width: 22px; height: 22px; border-radius: var(--radius-xs) var(--radius-xs) var(--radius-md) var(--radius-xs); rotate: -6deg; background: var(--object-yellow); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--object-ink) 14%, transparent); }
+.mo-ad-mk { position: relative; display: grid; place-items: center; }
+.mo-ad-ink { position: absolute; left: 1px; right: 1px; bottom: -5px; height: 4px; border-radius: var(--radius-pill); background: var(--object-coral); }
+.mo-ad-stamp .mo-stamp-disc { fill: var(--object-yellow); }

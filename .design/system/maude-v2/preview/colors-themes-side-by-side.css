@@ -83,11 +83,6 @@
 .th-ai-hd { display: flex; align-items: center; gap: var(--space-1); margin-bottom: var(--space-2); font-family: var(--font-rounded); font-size: var(--type-sm); font-weight: var(--w-semibold); }
 .th-ai-msg { margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--bg-3); font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-0); max-width: none; }
 .th-dock { position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); z-index: 4; }
-.th-dock-st { display: block; width: 20px; height: 20px; border-radius: var(--radius-xs); box-shadow: var(--shadow-sm); }
-.th-ds-yellow { background: var(--object-yellow); rotate: -6deg; }
-.th-ds-green { background: var(--object-green); rotate: 4deg; }
-.th-ds-lilac { background: var(--object-lilac); rotate: -3deg; }
-.th-ds-coral { background: var(--object-coral); rotate: 7deg; }
 .th-th-coral { background: var(--object-coral); }
 .th-th-yellow { background: var(--object-yellow); }
 .th-th-green { background: var(--object-green); }

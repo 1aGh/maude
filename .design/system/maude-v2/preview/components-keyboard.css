@@ -126,7 +126,7 @@
 .kb-teach-t { font-weight: var(--w-semibold); color: var(--fg-0); }
 
 /* ─── Core set ───────────────────────────────────────────────────────────── */
-.kb-set { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); margin: 0 0 var(--space-6); }
+.kb-set { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); margin: 0 0 var(--space-6); }
 .kb-set-col {
   padding: var(--space-3);
   border-radius: var(--radius-lg);

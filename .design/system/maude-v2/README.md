@@ -70,6 +70,7 @@ dark is an equal-status theme (every family token is declared in both).
   only as an Advanced option (Figma's UI3 lesson: big floating panels cramp the canvas).
 - **Azure acts, the spark is the AI, colour lives on the canvas.** Don't fill chrome
   with `--object-*`; don't use `--spark` for anything the AI didn't do.
+- **Edit toolbar is monochrome 18 px; the Preview toolbar may carry the object colours of the thing each tool makes** (sticky colour, marker ink, stamp disc — 48 px buttons, 22 px glyphs, CONTRACT §2).
 - **No developer chrome in the default view.** No ports, paths, PIDs, SHA, branch names,
   status stamps or slash commands. They live in the icon menu ▸ Diagnostics, ⌘K, or an
   Advanced section. Hiding is fine; **deleting a capability is not.**

@@ -50,7 +50,7 @@ import "./12 Import and Assets.css";
 import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
 import type { CSSProperties, ReactNode } from "react";
 import {
-  Artboard, Avatar, Canvas, CanvasesPanel, GatorMock, HeroMock, Icon, InSeg, InSwitch, Kbd, Menu, Note, PanelIcon,
+  Artboard, Avatar, Canvas, CanvasesPanel, CommentPin, GatorMock, HeroMock, Icon, InSeg, InSwitch, Kbd, Menu, Note, PanelIcon,
   ProjectMenu, ProjectPill, Selection, ShareCluster, Spark, Stage, StatusWord, Sticky, TABS, Thumb, Toast, Toolbar, V2, Veil,
   VideoFrameMock, Window, ZoomUndo,
 } from "./_kit";
@@ -179,8 +179,13 @@ const GATOR_TREE: Folder[] = [
   { name: "legacy", count: 27 },
 ];
 
+/** Preview's annotation tools — a chrome given one of these is in Preview. */
+const ANNOTATING = ["sticky", "comment", "marker", "arrow", "stamp", "section"];
+
 /** The Alligators window chrome. `left`: the Canvases tab, the Assets tab (kit slot, body in `assets`), or folded.
-    `extra` = an overlay that is NOT a panel slot (an import summary) — the folded spark (Ask AI) stays put. */
+    `extra` = an overlay that is NOT a panel slot (an import summary) — the folded spark (Ask AI) stays put.
+    `tool`: an Edit tool (select, image …) keeps Edit; an annotation tool (sticky, comment …) puts the window in Preview —
+    the cluster reads Preview and the toolbar is Preview's annotation toolbar (CONTRACT §2). */
 function GatorChrome({ canvas = "matchday", left = "canvases", assets, assetsFoot = "247 assets · 1.4 GB", leftStyle, ai, insp, extra, tool = "select", zoom = 20, status = "saved", people = ["tereza", "jonas"] }: {
   canvas?: string; left?: "canvases" | "assets" | "folded"; assets?: ReactNode; assetsFoot?: ReactNode; leftStyle?: CSSProperties;
   ai?: ReactNode; insp?: ReactNode; extra?: ReactNode; tool?: string; zoom?: number | string;
@@ -192,10 +197,10 @@ function GatorChrome({ canvas = "matchday", left = "canvases", assets, assetsFoo
       {left === "canvases" ? <CanvasesPanel project="Alligators brand" count={93} selected={canvas} folders={GATOR_TREE} />
         : left === "assets" ? <CanvasesPanel project="Alligators brand" tab="assets" assets={assets} foot={assetsFoot} style={leftStyle} />
         : <PanelIcon icon="panel-left" at="left" />}
-      <ShareCluster people={people} status={status} mode="edit" />
+      <ShareCluster people={people} status={status} mode={ANNOTATING.includes(tool) ? "preview" : "edit"} />
       {insp}
       <ZoomUndo zoom={zoom} />
-      <Toolbar tool={tool} />
+      <Toolbar tool={tool} mode={ANNOTATING.includes(tool) ? "annotate" : "edit"} />
       {ai ?? <PanelIcon icon="spark" at="ai" />}
       {extra}
     </>
@@ -555,7 +560,6 @@ function StudioChrome() {
 }
 
 /* sticky at canvas scale (Figma comments that came across) — the kit Sticky, made small */
-const MINI_STICKY: CSSProperties = { width: 116, minHeight: 0, padding: "var(--space-2)", fontSize: "var(--type-xs)", lineHeight: "var(--lh-xs)", zIndex: 6 };
 
 /* ═══ The canvas ══════════════════════════════════════════════════════════════════════════════════════ */
 export default function ImportAndAssets() {
@@ -564,14 +568,14 @@ export default function ImportAndAssets() {
       {/* ── 1 · Getting things in ─────────────────────────────────────────────────────────────────── */}
       <DCSection id="getting-in" title="Getting things in" subtitle="Drag photos from Finder onto an artboard — then paste, a video file, a logo; everything also lands in Assets">
         <DCArtboard id="ia-drop-photos" label="1 · Drag 6 photos from Finder onto an artboard" width={W} height={H} fixed>
-          <Stage note={<Note n={1} title="Drop on an artboard and the photos go inside it.">The artboard under the pointer lights up and says what will happen. Empty frames fill in order; with no frames, the photos land in a tidy grid. Drop on bare canvas and they stay loose.</Note>}>
+          <Stage note={<Note n={1} title="Drop on an artboard and the photos go inside it.">The artboard under the pointer lights up and says what will happen: empty frames fill in order, or a tidy grid. On bare canvas they stay loose. Image (I) does the same without a drag.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas>
                 <Boards list={matchday(0, { "Post 4:5 · Fotky ze zápasu": { body: <MatchPost drop /> } })} />
                 <DropTarget x={312} y={112} w={216} h={270}>Drop to place 6 photos in Fotky ze zápasu</DropTarget>
                 <DragStack x={402} y={236} pics={["td", "huddle", "crowd"]} count={6} name="IMG_2231.jpg + 5 more" />
               </Canvas>
-              <GatorChrome left="assets" assets={<AssetsBody><Library /></AssetsBody>} />
+              <GatorChrome left="assets" tool="image" assets={<AssetsBody><Library /></AssetsBody>} />
             </Window>
           </Stage>
         </DCArtboard>
@@ -583,7 +587,7 @@ export default function ImportAndAssets() {
                 <Boards list={matchday(0, { "Post 4:5 · Fotky ze zápasu": { body: <MatchPost photos={["td", "huddle", "tackle", "crowd", "kick", "night"]} uploading={[4, 5]} /> } })} />
                 <span className="ia-groupsel" style={{ left: 319, top: 190, width: 202, height: 164 }}><span className="ia-groupsel-tag">6 photos</span></span>
               </Canvas>
-              <GatorChrome status="syncing" left="assets" assetsFoot="253 assets · 1.4 GB" assets={
+              <GatorChrome status="syncing" left="assets" tool="image" assetsFoot="253 assets · 1.4 GB" assets={
                 <AssetsBody>
                   <GroupHead title="Just added" count={6} more={false} />
                   <div className="ia-grid ia-grid--3">
@@ -673,7 +677,7 @@ export default function ImportAndAssets() {
                 <DropTarget x={628} y={112} w={216} h={195} frame>Drop to replace the photo</DropTarget>
                 <span className="ia-dragtile" style={{ left: 694, top: 184 }}><Pic v="portrait" className="ia-fill" /></span>
               </Canvas>
-              <GatorChrome left="assets" assets={<AssetsBody><Library dragging hover /></AssetsBody>} />
+              <GatorChrome left="assets" tool="image" assets={<AssetsBody><Library dragging hover /></AssetsBody>} />
             </Window>
           </Stage>
         </DCArtboard>
@@ -684,7 +688,7 @@ export default function ImportAndAssets() {
               <Canvas>
                 <Boards list={matchday(60, { "Post 4:5 · MVP zápasu": { sel: true, size: "1080 × 1350", body: <MvpPost photo={null} /> } })} />
               </Canvas>
-              <GatorChrome left="assets" assets={<AssetsBody><Library selected /></AssetsBody>} />
+              <GatorChrome left="assets" tool="image" assets={<AssetsBody><Library selected /></AssetsBody>} />
               <Menu width={244} style={{ position: "absolute", left: 272, top: 196, zIndex: 30 }} items={[
                 { label: "Place in MVP zápasu", keys: "↵", highlight: true },
                 { label: "Show details", keys: "⌘I" },
@@ -1054,7 +1058,7 @@ export default function ImportAndAssets() {
       </DCSection>
 
       {/* ── 5 · Import from Figma ─────────────────────────────────────────────────────────────────── */}
-      <DCSection id="figma" title="Import from Figma" subtitle="Menu › File › Import from Figma… — paste a link, connect once, pick frames and where they go; frames arrive as Figma's exact picture; a FigJam board becomes the whiteboard">
+      <DCSection id="figma" title="Import from Figma" subtitle="Menu › File › Import from Figma… — paste a link, connect once, pick frames and where they go; frames arrive as Figma's exact picture; a FigJam board becomes annotations">
         <DCArtboard id="ia-figma-sheets" label="14 · Paste a link · Connect once · Pick frames and where they go" width={W} height={H} fixed>
           <Closeup title="A link, a one-time connection, then the frames you want — and where they land." sub="Menu › File › Import from Figma… — the same sheet walks through all three."
             note={<Note n={14} title="Connecting is a step, not a detour.">The first time, the sheet says Figma isn't connected and offers Connect… in place. The sheet says up front that frames come in as pictures — editing comes later, one artboard at a time.</Note>}>
@@ -1070,7 +1074,7 @@ export default function ImportAndAssets() {
                 <IaSheet flow title="Import from Figma" width={372} actions={<><span className="btn">Cancel</span><span className="btn btn--primary ia-off">Import</span></>}>
                   <span className="field"><span className="field-label">Figma link</span><span className="input ia-mono">figma.com/design/k8Fq2…/Uniformy-2027<i className="k-caretline" /></span></span>
                   <span className="ia-callout"><Icon name="lock" size={14} /><span><strong>Figma isn't connected yet.</strong> Connect once to read this file.</span><span className="btn btn--sm">Connect…</span></span>
-                  <p className="ia-fine">A board from FigJam works too — it comes in as a whiteboard.</p>
+                  <p className="ia-fine">A board from FigJam works too — it comes in as annotations.</p>
                 </IaSheet>
               </Col>
               <Col label="2 · Connect once" where="Settings › Connections">
@@ -1118,9 +1122,9 @@ export default function ImportAndAssets() {
                 {([["Helma z boku", "Helma z boku", 300, 112], ["Dres domácí — přední", "Domácí dres 2027", 532, 112], ["Dres domácí — zadní", "Domácí · záda", 764, 112], ["Dres venkovní — přední", "Venkovní dres 2027", 300, 446], ["Kalhoty doma", "Kalhoty doma", 532, 446], ["Kalhoty venku", "Kalhoty venku", 764, 446]] as [string, string, number, number][]).map(([l, h, x, y]) => (
                   <Artboard key={l} label={l} kind="print" x={x} y={y} w={198} h={282} selected={l === "Dres domácí — přední"}><GatorMock variant="jersey" headline={h} /></Artboard>
                 ))}
-                <Sticky color="yellow" x={668} y={168} rotate={-1.5} style={MINI_STICKY}>Číslo víc doprava?<b className="ia-st-who">Jonas</b></Sticky>
-                <Sticky color="yellow" x={436} y={520} rotate={1} style={MINI_STICKY}>Pruh na kalhotách tenčí<b className="ia-st-who">Tereza</b></Sticky>
-                <Sticky color="green" x={204} y={300} rotate={1} style={{ ...MINI_STICKY, opacity: 0.55 }}>Logo na rukáv<b className="ia-st-who">Vyřešeno</b></Sticky>
+                {/* Figma's comments arrive as comment pins — pins show in Edit; stickies live in Preview only (CONTRACT §2, 04) */}
+                <CommentPin who="jonas" x={690} y={176} />
+                <CommentPin who="tereza" x={470} y={530} />
               </Canvas>
               <GatorChrome canvas="Uniformy-2027 (Figma)" left="folded" zoom={22} insp={
                 <div className="island island--pad k-insp ia-figinsp">
@@ -1133,7 +1137,7 @@ export default function ImportAndAssets() {
               } extra={
                 <Summary style={{ right: 16, bottom: 76 }} title={<>Imported 6 frames from Uniformy-2027</>} adv="node ids · reason codes" rows={[
                   ["ok", "6 artboards, at their Figma sizes, as pictures"],
-                  ["ok", "3 comments → stickies (1 resolved, faded)"],
+                  ["ok", "3 comments came across as comments (1 resolved)"],
                   ["warn", "2 fonts not on this Mac — Druk Wide shows as Inter Tight, Gotham as Inter, once made editable"],
                   ["warn", "1 video fill kept as a still"],
                   ["skip", "4 hidden layers left out"],
@@ -1144,7 +1148,7 @@ export default function ImportAndAssets() {
         </DCArtboard>
 
         <DCArtboard id="ia-figjam" label="16 · A FigJam board becomes the whiteboard" width={W} height={H} fixed>
-          <Stage note={<Note n={16} title="FigJam boards land as stickies, not pictures.">A FigJam link lands on the whiteboard layer: stickies, sections and connectors stay themselves. A widget that can't come across is named; its connector ends at the box.</Note>}>
+          <Stage note={<Note n={16} title="FigJam boards land as stickies, not pictures.">A FigJam link opens in Preview, on the annotation layer: stickies, sections and connectors stay themselves. A widget that can't come across is named; its connector ends at the box.</Note>}>
             <Window tabs={TABS2} activeTab={1}>
               <Canvas>
                 <span className="ia-banner" style={{ left: 96, top: 62 }}><Icon name="file" size={12} />From FigJam — Nábor 2027 — retro by Tereza</span>
@@ -1168,7 +1172,7 @@ export default function ImportAndAssets() {
                 <span className="ia-widget" style={{ left: 896, top: 476 }}><Icon name="problem" size={14} /><span><strong>Hlasování</strong> — a FigJam widget; it can't come across</span></span>
               </Canvas>
               <GatorChrome canvas="Nábor 2027 — retro" left="folded" zoom={62} tool="sticky" extra={
-                <Summary style={{ right: 16, bottom: 76, width: 340 }} title="Imported Nábor 2027 — retro as a whiteboard" adv="node ids · reason codes" rows={[
+                <Summary style={{ right: 16, bottom: 76, width: 340 }} title="Imported Nábor 2027 — retro as annotations" adv="node ids · reason codes" rows={[
                   ["ok", "24 stickies, 3 sections, 2 pictures"],
                   ["ok", "8 connectors, still attached"],
                   ["warn", "1 voting widget can't come across — its connector ends at the box"],

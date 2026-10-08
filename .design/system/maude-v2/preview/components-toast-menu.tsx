@@ -52,6 +52,8 @@ const G: Record<string, ReactNode> = {
   text: <path d="M3.5 4.5V3h9v1.5M8 3v10M6.25 13h3.5" />,
   sticky: (<><path d="M4 2.5h8A1.5 1.5 0 0 1 13.5 4v5L9 13.5H4A1.5 1.5 0 0 1 2.5 12V4A1.5 1.5 0 0 1 4 2.5z" /><path d="M13.5 9h-3A1.5 1.5 0 0 0 9 10.5v3" /></>),
   comment: <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v8.5H5A2.5 2.5 0 0 1 2.5 11V5A2.5 2.5 0 0 1 5 2.5z" />,
+  image: (<><rect x="2.5" y="3" width="11" height="10" rx="2" /><circle cx="6" cy="6.5" r="1.25" /><path d="M2.75 11.5l3.25-3 2.5 2.25 1.75-1.5 3 2.5" /></>),
+  component: (<><path d="M8 1.75l2.25 2.25L8 6.25 5.75 4z" /><path d="M8 9.75l2.25 2.25L8 14.25 5.75 12z" /><path d="M4 5.75l2.25 2.25L4 10.25 1.75 8z" /><path d="M12 5.75l2.25 2.25L12 10.25 9.75 8z" /></>),
   more: (<g className="tm-dots"><circle cx="3.5" cy="8" r="1.1" /><circle cx="8" cy="8" r="1.1" /><circle cx="12.5" cy="8" r="1.1" /></g>),
 };
 function Ic({ id, size = 16 }: { id: string; size?: number }) {
@@ -62,8 +64,8 @@ function Ic({ id, size = 16 }: { id: string; size?: number }) {
   );
 }
 
-/** Toolbar order, left → right (CONTRACT §2). The AI is not a tool here — it is the AI chat panel. */
-const TOOLBAR = ["select", "hand", "frame", "shape", "pen", "text", "sticky", "comment", "more"];
+/** Edit toolbar order, left → right (CONTRACT §2). The AI is not a tool here — it is the AI chat panel. */
+const TOOLBAR = ["select", "hand", "frame", "shape", "pen", "text", "image", "component", "more"];
 
 /* ─── Menu keyboard model (WAI-ARIA menu) ──────────────────────────────────── */
 function ownItems(menu: HTMLElement): HTMLElement[] {
@@ -406,10 +408,12 @@ const MAP: Moved[] = [
   { from: "View", was: "Zoom in · out · fit · actual", to: "Menu › View · ⌘0 ⌘1", kind: "menu" },
   { from: "Selection", was: "Deselect all", to: "Merged into Menu › Edit", kind: "menu" },
   { from: "Selection", was: "Select all annotations", to: "Merged into Menu › Edit", kind: "menu" },
-  { from: "Tools", was: "Select · Hand · Frame", to: "The toolbar · V H F", kind: "canvas" },
-  { from: "Tools", was: "Rect · Ellipse · Pen", to: "The toolbar · Shape R · Pen P", kind: "canvas" },
-  { from: "Tools", was: "Text · Sticky · Comment", to: "The toolbar · T N C", kind: "canvas" },
-  { from: "Tools", was: "Arrow · Eraser · Browse", to: "The toolbar › More", kind: "canvas" },
+  { from: "Tools", was: "Select · Hand · Frame", to: "Edit toolbar · V H F", kind: "canvas" },
+  { from: "Tools", was: "Rect · Pen · Text", to: "Edit toolbar · Shape R · Pen P · Text T", kind: "canvas" },
+  { from: "Tools", was: "Ellipse", to: "Edit toolbar › More", kind: "canvas" },
+  { from: "Tools", was: "Sticky · Comment · Arrow", to: "Preview toolbar · N C A — from Edit too", kind: "canvas" },
+  { from: "Tools", was: "Browse", to: "Preview, in the mode switch", kind: "canvas" },
+  { from: "Tools", was: "Eraser", to: "Search · ⌘K", kind: "keys" },
   { from: "Help", was: "Keyboard shortcuts", to: "Menu › Help · ?", kind: "keys" },
   { from: "Help", was: "Help · commands & flows", to: "Menu › Help · F1", kind: "menu" },
   { from: "Help", was: "Report a bug…", to: "Menu › Help", kind: "menu" },

@@ -340,3 +340,12 @@
   height: 22px; padding: 0 var(--space-2); border-radius: var(--radius-sm);
   background: var(--accent-muted); color: var(--accent-text); font-size: var(--type-xs); font-weight: var(--w-semibold);
 }
+
+/* ─── Additions (13 Design System round) ─────────────────────────────────── */
+.ix-req-when {
+  display: inline-flex; align-items: center; height: 20px; margin-right: var(--space-2); padding: 0 var(--space-2);
+  border-radius: var(--radius-sm); background: var(--accent-muted); color: var(--accent-text);
+  font-size: var(--type-xs); font-weight: var(--w-semibold); vertical-align: 1px; white-space: nowrap;
+}
+.ix-big-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ix-bigq--new::before { background: var(--border-strong); }

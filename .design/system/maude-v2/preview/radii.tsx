@@ -143,7 +143,7 @@ export default function Radii() {
                   {circles ? <Circle kind="i" /> : null}
                   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"><path d="M4 3l9 4.5-4 1.2L8 13z" /></svg>
                 </span>
-                <span className="icon-btn" aria-hidden="true"><span className="rd-dock-sticky" /></span>
+                <span className="icon-btn" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M2 5h12M2 11h12M5 2v12M11 2v12" /></svg></span>
               </div>
             </div>
             <figcaption><span className="rd-eq">20 = 12 + 8</span>Dock · rounder, with an 8 px edge</figcaption>

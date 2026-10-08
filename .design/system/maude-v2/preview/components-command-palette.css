@@ -79,7 +79,8 @@
 
 /* Ask AI — the one spark row, separated by a hairline so it reads as "and also". */
 .cp-ask-wrap { margin-top: var(--space-1); padding-top: var(--space-1); border-top: 1px solid var(--border-subtle); }
-.cp-ask-ic { display: grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm); background: var(--spark); flex: none; }
+.cp-ask-ic { display: grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm); background: var(--accent); color: var(--accent-fg); flex: none; }
+.cp-ask-ic svg path { fill: currentColor; }
 .cp-ask .cp-row-label { font-weight: var(--w-semibold); }
 .cp-ask-q { font-weight: var(--w-regular); color: var(--fg-1); }
 

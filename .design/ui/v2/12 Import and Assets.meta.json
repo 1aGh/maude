@@ -29,7 +29,7 @@
     {
       "id": "figma",
       "title": "Import from Figma",
-      "subtitle": "Menu › File › Import from Figma… — paste a link, connect once, pick frames and where they go; frames arrive as Figma's exact picture; a FigJam board becomes the whiteboard"
+      "subtitle": "Menu › File › Import from Figma… — paste a link, connect once, pick frames and where they go; frames arrive as Figma's exact picture; a FigJam board becomes annotations"
     },
     {
       "id": "brand",

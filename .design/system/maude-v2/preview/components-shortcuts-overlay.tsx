@@ -2,7 +2,8 @@
  * SPECIMEN — components-shortcuts-overlay · maude-v2
  *
  * DEMONSTRATES: the ? sheet — every shortcut on one large, calm surface that opens over the
- *   canvas: grouped by what you're doing (Tools · Canvas · Panels & AI · Search · Edit · File),
+ *   canvas: grouped by what you're doing (Tools · Edit · Tools · Preview · Canvas · Panels & AI ·
+ *   Search · Edit · File — the two tool groups are CONTRACT §2's two toolbars),
  *   searchable as you type, with an Advanced switch for the shortcuts of panels kept under
  *   Advanced (Inspector, Timeline…). Keys are CONTRACT §2 exactly, modifiers in macOS order
  *   (⌥⇧⌘). A soft veil quiets the canvas behind; it never lets the work peek through.
@@ -23,13 +24,17 @@ import "./components-shortcuts-overlay.css";
 import { Spark, SpecimenHeader } from "./_specimen-controls";
 
 type Row = { label: string; keys: string[]; hold?: boolean };
-type Group = { title: string; rows: Row[]; advanced?: boolean };
+type Group = { title: string; rows: Row[]; advanced?: boolean; note?: string };
 
 const GROUPS: Group[] = [
-  { title: "Tools", rows: [
+  { title: "Tools · Edit", rows: [
     { label: "Select", keys: ["V"] }, { label: "Hand", keys: ["H"] }, { label: "Frame", keys: ["F"] },
     { label: "Shape", keys: ["R"] }, { label: "Pen", keys: ["P"] }, { label: "Text", keys: ["T"] },
-    { label: "Sticky", keys: ["N"] }, { label: "Comment", keys: ["C"] },
+    { label: "Image", keys: ["I"] }, { label: "Component", keys: ["⇧", "I"] },
+  ] },
+  { title: "Tools · Preview", note: "pressed in Edit, they switch to Preview", rows: [
+    { label: "Sticky", keys: ["N"] }, { label: "Comment", keys: ["C"] }, { label: "Marker", keys: ["M"] },
+    { label: "Arrow", keys: ["A"] }, { label: "Stickers", keys: ["E"] }, { label: "Section", keys: ["S"] },
   ] },
   { title: "Canvas", rows: [
     { label: "Pan", keys: ["Space"], hold: true }, { label: "Zoom in", keys: ["⌘", "+"] }, { label: "Zoom out", keys: ["⌘", "−"] },
@@ -57,7 +62,7 @@ const GROUPS: Group[] = [
   ] },
 ];
 
-/** Toolbar glyphs, left → right — copied verbatim from iconography.tsx GLYPHS. */
+/** Edit toolbar glyphs, left → right (CONTRACT §2) — copied verbatim from iconography.tsx GLYPHS. */
 const TOOLBAR = [
   <path d="M3.5 2.5l9 4.5-4 1.3-1.5 4.2z" />,
   <path d="M5.5 9V4.5a1 1 0 0 1 2 0V8M7.5 7.5V3.5a1 1 0 0 1 2 0V8M9.5 8V4.5a1 1 0 0 1 2 0v5c0 2.5-1.7 4-4 4h-.6c-1.3 0-2.3-.6-3-1.6L2.4 9.3a1 1 0 0 1 1.6-1.2l1.5 1.7" />,
@@ -65,8 +70,8 @@ const TOOLBAR = [
   <><rect x="2.5" y="2.5" width="7" height="7" rx="1.5" /><circle cx="10.25" cy="10.25" r="3.5" /></>,
   <><path d="M10.25 3.25l2.5 2.5L6 12.5l-3.25.75.75-3.25z" /><path d="M8.75 4.75l2.5 2.5" /></>,
   <path d="M3.5 4.5V3h9v1.5M8 3v10M6.25 13h3.5" />,
-  <><path d="M4 2.5h8A1.5 1.5 0 0 1 13.5 4v5L9 13.5H4A1.5 1.5 0 0 1 2.5 12V4A1.5 1.5 0 0 1 4 2.5z" /><path d="M13.5 9h-3A1.5 1.5 0 0 0 9 10.5v3" /></>,
-  <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v8.5H5A2.5 2.5 0 0 1 2.5 11V5A2.5 2.5 0 0 1 5 2.5z" />,
+  <><rect x="2.5" y="3" width="11" height="10" rx="2" /><circle cx="6" cy="6.5" r="1.25" /><path d="M2.75 11.5l3.25-3 2.5 2.25 1.75-1.5 3 2.5" /></>,
+  <><path d="M8 1.75l2.25 2.25L8 6.25 5.75 4z" /><path d="M8 9.75l2.25 2.25L8 14.25 5.75 12z" /><path d="M4 5.75l2.25 2.25L4 10.25 1.75 8z" /><path d="M12 5.75l2.25 2.25L12 10.25 9.75 8z" /></>,
   <g fill="currentColor" stroke="none"><circle cx="3.5" cy="8" r="1.1" /><circle cx="8" cy="8" r="1.1" /><circle cx="12.5" cy="8" r="1.1" /></g>,
 ];
 
@@ -164,7 +169,7 @@ function Sheet() {
           <div className="so-cols">
             {visible.map((g) => (
               <div className={`so-group${g.advanced ? " is-adv" : ""}`} key={g.title}>
-                <p className="island-title so-gt">{g.title}{g.advanced ? <span className="so-gt-note">for panels under Advanced</span> : null}</p>
+                <p className="island-title so-gt">{g.title}{g.advanced ? <span className="so-gt-note">for panels under Advanced</span> : g.note ? <span className="so-gt-note">{g.note}</span> : null}</p>
                 <dl>
                   {g.rows.map((r) => (
                     <div className="so-row" key={r.label}>
@@ -226,7 +231,7 @@ export default function ComponentsShortcutsOverlay() {
         <dl className="specimen-meta">
           <div><dt>Opens with</dt><dd>? — anywhere but a text field</dd></div>
           <div><dt>Closes with</dt><dd>esc, ?, or a click on the canvas</dd></div>
-          <div><dt>Groups</dt><dd>Tools · Canvas · Panels & AI · Search · Edit · File</dd></div>
+          <div><dt>Groups</dt><dd>Tools · Edit · Tools · Preview · Canvas · Panels & AI · Search · Edit · File</dd></div>
           <div><dt>Advanced</dt><dd>a switch inside the sheet</dd></div>
         </dl>
 
@@ -249,7 +254,7 @@ export default function ComponentsShortcutsOverlay() {
             </dl>
           </div>
           <ol className="so-legend">
-            <li><span className="so-pin">1</span><span><strong>Group title</strong> Named after what you're doing, not after a menu. Six groups, always in the same order.</span></li>
+            <li><span className="so-pin">1</span><span><strong>Group title</strong> Named after what you're doing, not after a menu. Seven groups, always in the same order.</span></li>
             <li><span className="so-pin">2</span><span><strong>Label, then keys</strong> A short verb on the left, caps on the right edge, so your eye runs down one column of keys.</span></li>
             <li><span className="so-pin">3</span><span><strong>Hover</strong> The row lifts to <code>--bg-3</code>. The spark marks the one AI row, nothing else.</span></li>
             <li><span className="so-pin">4</span><span><strong>Advanced</strong> Off by default; on when you switch it or when your search matches it.</span></li>
@@ -265,11 +270,11 @@ export default function ComponentsShortcutsOverlay() {
           ].map((s) => (
             <figure className="so-size" key={s.name}>
               <div className={`stage so-sz ${s.w}`}>
-                <div className="so-sz-sheet" style={{ gridTemplateColumns: `repeat(${s.cols}, 1fr)` }}>
-                  {["Tools", "Canvas", "Panels & AI", "Search", "Edit", "File"].slice(0, s.cols === 1 ? 3 : 6).map((g, i) => (
+                <div className="so-sz-sheet" style={{ columns: s.cols }}>
+                  {["Tools · Edit", "Tools · Preview", "Canvas", "Panels & AI", "Search", "Edit", "File"].slice(0, s.cols === 1 ? 3 : 7).map((g, i) => (
                     <div className="so-sz-g" key={g}>
                       <span className="so-sz-t">{g}</span>
-                      {Array.from({ length: [5, 3, 3, 3, 4, 4][i] }).map((_, j) => <span className="so-sz-r" key={j}><i /><b /></span>)}
+                      {Array.from({ length: [5, 4, 3, 3, 3, 4, 4][i] }).map((_, j) => <span className="so-sz-r" key={j}><i /><b /></span>)}
                     </div>
                   ))}
                 </div>

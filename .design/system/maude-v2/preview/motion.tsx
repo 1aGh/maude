@@ -32,6 +32,7 @@
  *   useReducedMotion(). Spring never touches chrome, not even as a counter-example.
  */
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import "./_layout.css";
 import "./motion.css";
 import { MotionDemo, MotionTrack, TokenPlayback, useMotionTokens, useReducedMotion, motion } from "@maude/canvas-lib";
@@ -162,26 +163,53 @@ function PointerIcon() {
   );
 }
 
-/* The toolbar, in CONTRACT §2 order. The tool you're holding is muted azure (Share is the one solid azure). */
-const TOOLS: { name: string; d: string }[] = [
-  { name: "Select", d: "M4 3l9 4.5-4 1.2L8 13z" },
-  { name: "Hand", d: "M5.5 8V4.3a1 1 0 0 1 2 0V7.5M7.5 7V3.3a1 1 0 0 1 2 0V7.5M9.5 7.5V4.5a1 1 0 0 1 2 0v4.8c0 2.4-1.6 4.2-4 4.2-1.5 0-2.6-.7-3.4-1.9L2.7 9.2a1 1 0 0 1 1.6-1.2L5.5 9.5" },
-  { name: "Frame", d: "M2 5h12M2 11h12M5 2v12M11 2v12" },
-  { name: "Shape", d: "M5 3h6a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" },
-  { name: "Pen", d: "M3 13l1-3.4 6.6-6.6a1.4 1.4 0 0 1 2 2L6 11.6z" },
-  { name: "Text", d: "M3 4h10M8 4v9" },
-  { name: "Sticky", d: "M3.5 3h9v6.2L9.2 12.5H3.5zM9.2 12.5V9.2h3.3" },
-  { name: "Comment", d: "M3 4.5A1.5 1.5 0 0 1 4.5 3h7A1.5 1.5 0 0 1 13 4.5v5a1.5 1.5 0 0 1-1.5 1.5H7.2L4.5 13v-2H4.5A1.5 1.5 0 0 1 3 9.5z" },
-];
+/* The two toolbars, in CONTRACT §2 order — Edit (tools that make things inside artboards) and Preview
+   (annotation only). Glyphs verbatim from iconography.tsx. The tool you're holding is muted azure
+   (Share is the one solid azure). */
+const GLYPH: Record<string, ReactNode> = {
+  Select: <path d="M3.5 2.5l9 4.5-4 1.3-1.5 4.2z" />,
+  Hand: <path d="M5.5 9V4.5a1 1 0 0 1 2 0V8M7.5 7.5V3.5a1 1 0 0 1 2 0V8M9.5 8V4.5a1 1 0 0 1 2 0v5c0 2.5-1.7 4-4 4h-.6c-1.3 0-2.3-.6-3-1.6L2.4 9.3a1 1 0 0 1 1.6-1.2l1.5 1.7" />,
+  Frame: <path d="M5 2.5v11M11 2.5v11M2.5 5h11M2.5 11h11" />,
+  Shape: <><rect x="2.5" y="2.5" width="7" height="7" rx="1.5" /><circle cx="10.25" cy="10.25" r="3.5" /></>,
+  Pen: <><path d="M10.25 3.25l2.5 2.5L6 12.5l-3.25.75.75-3.25z" /><path d="M8.75 4.75l2.5 2.5" /></>,
+  Text: <path d="M3.5 4.5V3h9v1.5M8 3v10M6.25 13h3.5" />,
+  Image: <><rect x="2.5" y="3" width="11" height="10" rx="2" /><circle cx="6" cy="6.5" r="1.25" /><path d="M2.75 11.5l3.25-3 2.5 2.25 1.75-1.5 3 2.5" /></>,
+  Component: <><path d="M8 1.75l2.25 2.25L8 6.25 5.75 4z" /><path d="M8 9.75l2.25 2.25L8 14.25 5.75 12z" /><path d="M4 5.75l2.25 2.25L4 10.25 1.75 8z" /><path d="M12 5.75l2.25 2.25L12 10.25 9.75 8z" /></>,
+  Sticky: <><path d="M4 2.5h8A1.5 1.5 0 0 1 13.5 4v5L9 13.5H4A1.5 1.5 0 0 1 2.5 12V4A1.5 1.5 0 0 1 4 2.5z" /><path d="M13.5 9h-3A1.5 1.5 0 0 0 9 10.5v3" /></>,
+  Comment: <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v8.5H5A2.5 2.5 0 0 1 2.5 11V5A2.5 2.5 0 0 1 5 2.5z" />,
+  Marker: <><path d="M10.75 2.75l2.5 2.5-6 6-2.5-2.5z" /><path d="M4.75 8.75L3 13l4.25-1.75" /></>,
+  Arrow: <path d="M3 13L13 3M7.5 3H13v5.5" />,
+  Stickers: <><circle className="mo-stamp-disc" cx="8" cy="8" r="5.75" /><path d="M5.6 9.4a2.9 2.9 0 0 0 4.8 0" /><path d="M6.1 6.4h.01M9.9 6.4h.01" strokeWidth={2} /></>,
+  Section: <><path d="M2.5 5V3.5a1 1 0 0 1 1-1H5M11 2.5h1.5a1 1 0 0 1 1 1V5M13.5 11v1.5a1 1 0 0 1-1 1H11M5 13.5H3.5a1 1 0 0 1-1-1V11" /><path d="M5.5 6h5" /></>,
+};
+const EDIT_TOOLS = ["Select", "Hand", "Frame", "Shape", "Pen", "Text", "Image", "Component"];
+const PREVIEW_TOOLS = ["Hand", "Sticky", "Comment", "Marker", "Arrow", "Shape", "Text", "Stickers", "Section"];
 
-function Toolbar({ className, active = "Select", only }: { className: string; active?: string; only?: string[] }) {
-  const tools = only ? TOOLS.filter((t) => only.includes(t.name)) : TOOLS;
+const Glyph = ({ t }: { t: string }) => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{GLYPH[t]}</svg>
+);
+
+/** Preview's tools are the playful exception (kit Toolbar mode="annotate"): a size bigger, and each may wear the
+ *  object colour of what it makes — the sticky's note, the marker's ink, the Stickers yellow disc. */
+function AnnotateIcon({ t }: { t: string }) {
+  if (t === "Sticky") return <span className="mo-ad-note" />;
+  if (t === "Marker") return <span className="mo-ad-mk"><Glyph t={t} /><i className="mo-ad-ink" /></span>;
+  return <span className={t === "Stickers" ? "mo-ad-stamp" : "mo-ad-ic"}><Glyph t={t} /></span>;
+}
+
+function Toolbar({ className, active = "Select", only, mode = "edit" }: { className: string; active?: string; only?: string[]; mode?: "edit" | "preview" }) {
+  const set = mode === "preview" ? PREVIEW_TOOLS : EDIT_TOOLS;
+  const tools = only ? set.filter((t) => only.includes(t)) : set;
+  const preview = mode === "preview";
   return (
-    <div className={`island dock mo-toolbar ${className}`} role="toolbar" aria-label="Toolbar">
-      {tools.map((t) => (
-        <button key={t.name} className="icon-btn" type="button" aria-pressed={t.name === active} aria-label={t.name}>
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={t.d} /></svg>
-        </button>
+    <div className={`island dock mo-toolbar${preview ? " mo-adock" : ""} ${className}`} role="toolbar" aria-label={preview ? "Preview toolbar" : "Toolbar"}>
+      {tools.map((t, i) => (
+        <span className="mo-slot" key={t}>
+          <button className={`icon-btn${preview ? " mo-ad-b" : ""}`} type="button" aria-pressed={t === active} aria-label={t}>
+            {preview ? <AnnotateIcon t={t} /> : <Glyph t={t} />}
+          </button>
+          {preview && i === 0 && t === "Hand" ? <span className="divider-v" /> : null}
+        </span>
       ))}
     </div>
   );
@@ -444,7 +472,7 @@ function StickyLands() {
         >
           Ask Jonas about the footer
         </motion.div>
-        <Toolbar className="mo-mdock" active="Sticky" only={["Select", "Hand", "Frame", "Text", "Sticky", "Comment"]} />
+        <Toolbar className="mo-mdock" mode="preview" active="Sticky" only={["Hand", "Sticky", "Comment", "Marker", "Arrow", "Text"]} />
       </div>
       <figcaption><strong>A sticky lands.</strong> Paper-light: it drops, settles with a tilt, done. Shapes and frames don't do this.</figcaption>
     </figure>

@@ -18,7 +18,7 @@ Menu
 │                Duplicate canvas · Rename canvas · Move to…
 │                Import from Figma… · Import a brand… · Assemble clips into a video
 │                Export… ⇧⌘E · Handoff to production ⇧⌘H · Close canvas
-├─ Edit ›        Undo ⌘Z · Redo ⇧⌘Z · Cut ⌘X · Copy ⌘C · Paste ⌘V
+├─ Edit ›        Undo ⌘Z · Redo ⇧⌘Z · Undo history… · Cut ⌘X · Copy ⌘C · Paste ⌘V · Copy / Paste properties ⌥⌘C / ⌥⌘V
 │                Select all ⌘A · Deselect all esc · Select all annotations ⇧⌘A
 │                Advanced ▸ New artboard (Desktop · Laptop · Tablet · Mobile · A4 · Letter)
 ├─ View ›        Hide panels / Show panels ⌘\ · Comments ⇧⌘M · Assets · Annotations ⇧P · Present the canvas
@@ -48,10 +48,15 @@ Menu
 | R | Shape | ? | All shortcuts |
 | P | Pen | esc | Step back (deselect, close, leave tool) |
 | T | Text | ⌘Z / ⇧⌘Z | Undo / Redo (includes changes made by AI) |
-| N | Sticky | ⌘0 / ⌘1 | Zoom to fit / Actual size |
-| C | Comment | ⌥⌘H | Version history |
+| I / ⇧I | Image / Component | ⌘0 / ⌘1 | Zoom to fit / Actual size |
+| N C M A E S | Sticky · Comment · Marker · Arrow · Stickers · Section — switch to Preview with that tool | ⌥⌘H | Version history |
 
-- Dock order (left → right): **Select · Hand · Frame · Shape · Pen · Text · Sticky · Comment · More (…)**. "More" holds Arrow, Highlighter, Section, Eraser, Insert. The AI is NOT a dock tool — it is the AI chat panel (its folded icon is the spark).
+- **Two toolbars, one per mode (Michal 2026-10-08):**
+  - **Edit** — tools that make things *inside artboards*: **Select · Hand · Frame · Shape · Pen · Text · Image · Component · More (…)**. "More" holds Line, Ellipse, Polygon, Crop, Export area.
+  - **Preview** — annotation tools only, FigJam-style: **Hand · Sticky · Comment · Marker · Arrow · Shape · Text · Stickers · Section**. The design is live, not editable. **Stickers (E)** opens the sticker gallery: quick stamps for voting on top, then the bundled sticker packs (FigJam Doodle · Life Style · Opposing Thoughts · Project status) with keyword search and Recent; a picked sticker lands at 160 px.
+  - Annotation keys (N C M A E S) pressed in Edit switch to Preview with that tool; esc steps back to Edit. The AI is NOT a toolbar tool — it is the AI chat panel (its folded icon is the spark).
+- **Object keys in Edit (proposed, 14 Editing):** ⌥⌘G frame selection (⌘G works too) · ⇧⌘G remove frame · ] / [ forward / backward · ⌘] / ⌘[ to front / back · arrows nudge 1 px (⇧ 10 px), inside auto layout arrows reorder · double-click enters a frame, esc steps out · ⌘D duplicate · ⌫ removes (⌘Z and Version history bring it back). Hide has no key (⇧⌘H is Handoff).
+- **⇧⌘L** locks / unlocks the selection — objects in Edit, annotations in Preview (shipped behaviour). A locked item rides along with its artboard but can't be dragged by itself.
 - Write modifier order as macOS does: **⌥⇧⌘** (e.g. `⇧⌘E`, `⌥⌘H`). Return key glyph: **↵**.
 
 ## 3 · Words (use exactly these)
@@ -120,3 +125,7 @@ Menu
 - **Figma import:** frames arrive as Figma's exact picture; "Make editable" converts one artboard (needs Figma Dev Mode on a paid seat). Never claim text stays editable on import.
 - **Not here yet vs missing:** a file that exists on someone's device but hasn't synced = "Waiting for Jonas's Mac" (quiet, no error). Only a file no device has is "Missing" with Relink….
 - **Photo edits** (crop, look, background removal) apply to that one use; "Apply to every use" is an explicit choice.
+- **AI buttons and elevation (Michal's review, 2026-10-08):** send / Ask AI buttons are azure with a white spark glyph (an AI action is still an action); vermilion fills only for AI presence (cursor, working tag, progress). Elevation tokens lowered — islands float on a soft shadow, not a drop shadow.
+- **Design system lives on a canvas (proposed, Michal's idea 2026-10-08):** a project's design system is ONE canvas — called "Design system" in UI copy (never "board", §3) — pinned above every canvas in the Canvases panel (kit `CanvasesPanel system`), also reachable from ⌘K and the inspector's "Uses <DS name>" link. Sections on the board: Brand (logo, voice) · Colour · Type · Space & shape · Motion · Components · Patterns. Tokens and components are edited in place on the board; changes reach every canvas that uses them after a review ("Update 12 canvases"). Files (tokens CSS, specimens) are its Advanced layer, never the default view.
+- **Design system — source of truth (proposed):** for designers the Design system canvas is the source; the files under Advanced (tokens CSS/JSON) are generated from it and are the source for code. A change made to the files outside the app (git, an agent, Claude Code) arrives on the canvas as a review ("2 tokens changed outside the app"); if both sides changed the same token, both are kept side by side until one is picked. The "Update N canvases" review lists every canvas with a tick (leave some out — they get the "update available" dot); Cancel leaves everything as it was. Every colour has a Light and a Dark value; the canvas has a Light · Dark switch and shows both on each swatch.
+- **Editing the same object (proposed, 14 Editing):** while someone edits an object, others see it in that person's colour ring with readable, read-only fields and one action (Comment); the fields open as soon as they move on. Different objects in the same artboard are editable by everyone at once. One AI run is one undo step; Edit › Undo history… lists You and AI steps.

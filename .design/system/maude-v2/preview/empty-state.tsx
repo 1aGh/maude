@@ -37,6 +37,8 @@ import { Mark, Spark, SpecimenHeader } from "./_specimen-controls";
 
 /* ─── Icons — lifted from the maude-v2 family (16-unit grid, 1.5 rounded stroke) ── */
 const PATHS: Record<string, ReactNode> = {
+  image: (<><rect x="2.5" y="3" width="11" height="10" rx="2" /><circle cx="6" cy="6.5" r="1.25" /><path d="M2.75 11.5l3.25-3 2.5 2.25 1.75-1.5 3 2.5" /></>),
+  component: (<><path d="M8 1.75l2.25 2.25L8 6.25 5.75 4z" /><path d="M8 9.75l2.25 2.25L8 14.25 5.75 12z" /><path d="M4 5.75l2.25 2.25L4 10.25 1.75 8z" /><path d="M12 5.75l2.25 2.25L12 10.25 9.75 8z" /></>),
   search: (
     <>
       <circle cx="7" cy="7" r="4.25" />
@@ -74,10 +76,10 @@ const PATHS: Record<string, ReactNode> = {
   ),
 };
 
-/** Toolbar, left → right (CONTRACT §2). */
+/** Edit toolbar, left → right (CONTRACT §2) — tools that make things inside artboards. */
 const TOOLBAR: [string, string][] = [
   ["select", "Select"], ["hand", "Hand"], ["frame", "Frame"], ["shape", "Shape"], ["pen", "Pen"],
-  ["text", "Text"], ["sticky", "Sticky"], ["comment", "Comment"], ["more", "More"],
+  ["text", "Text"], ["image", "Image"], ["component", "Component"], ["more", "More"],
 ];
 
 function Ico({ id, size = 16 }: { id: string; size?: number }) {

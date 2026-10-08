@@ -56,7 +56,7 @@
     {
       "id": "co-browser-view",
       "label": "3 · A link, opened in a browser",
-      "note": "Vojta has no app: the link opens Combine-kampan live on cloud.maude.sh in Viewing — cursors, Preview and Present; Ask to edit is the way to more; Open in the Mac app is one quiet button."
+      "note": "Vojta has no app: the link opens Combine-kampan live on cloud.maude.sh in Preview — cursors and pins, no toolbar; Viewing is one click away; Ask to edit is the way to more; Open in the Mac app is one quiet button."
     },
     {
       "id": "co-presence",
@@ -131,7 +131,7 @@
     {
       "id": "co-ask-edit",
       "label": "18 · Can view, trying to change something",
-      "note": "Petra can view: Viewing in the mode switch, a look-only toolbar, her drag explains itself; Ask to edit sends one request that waits at the top of the owner's Share — Let Petra edit / Not now."
+      "note": "Petra can view: Viewing in the mode switch, no toolbar, her drag explains itself; Ask to edit sends one request that waits at the top of the owner's Share — Let Petra edit / Not now."
     },
     {
       "id": "co-access-ends",

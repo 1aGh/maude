@@ -51,7 +51,6 @@ const G: Record<string, ReactNode> = {
       <path d="M8.75 4.75l2.5 2.5" />
     </>
   ),
-  comment: <path d="M5 2.5h6A2.5 2.5 0 0 1 13.5 5v8.5H5A2.5 2.5 0 0 1 2.5 11V5A2.5 2.5 0 0 1 5 2.5z" />,
   more: (
     <g fill="currentColor" stroke="none">
       <circle cx="3.5" cy="8" r="1.15" />
@@ -66,6 +65,8 @@ const G: Record<string, ReactNode> = {
     </>
   ),
   text: <path d="M3.5 4.5V3h9v1.5M8 3v10M6.25 13h3.5" />,
+  image: (<><rect x="2.5" y="3" width="11" height="10" rx="2" /><circle cx="6" cy="6.5" r="1.25" /><path d="M2.75 11.5l3.25-3 2.5 2.25 1.75-1.5 3 2.5" /></>),
+  component: (<><path d="M8 1.75l2.25 2.25L8 6.25 5.75 4z" /><path d="M8 9.75l2.25 2.25L8 14.25 5.75 12z" /><path d="M4 5.75l2.25 2.25L4 10.25 1.75 8z" /><path d="M12 5.75l2.25 2.25L12 10.25 9.75 8z" /></>),
   frame: <path d="M5 2.5v11M11 2.5v11M2.5 5h11M2.5 11h11" />,
   shape: (
     <>
@@ -95,7 +96,7 @@ function Ic({ id, size = 16 }: { id: string; size?: number }) {
   );
 }
 
-/* ─── The toolbar — order + keys from CONTRACT.md §2 (lifted from the desktop showcase) ── */
+/* ─── The Edit toolbar — order + keys from CONTRACT.md §2 (lifted from the desktop showcase) ── */
 const TOOLS = [
   { id: "select", label: "Select", key: "V" },
   { id: "hand", label: "Hand", key: "H" },
@@ -103,8 +104,8 @@ const TOOLS = [
   { id: "shape", label: "Shape", key: "R" },
   { id: "pen", label: "Pen", key: "P" },
   { id: "text", label: "Text", key: "T" },
-  { id: "sticky", label: "Sticky", key: "N" },
-  { id: "comment", label: "Comment", key: "C" },
+  { id: "image", label: "Image", key: "I" },
+  { id: "component", label: "Component", key: "Shift+I" },
 ];
 
 function Toolbar({ className }: { className: string }) {
@@ -116,7 +117,7 @@ function Toolbar({ className }: { className: string }) {
         </button>
       ))}
       <span className="divider-v" />
-      <button className="icon-btn" type="button" aria-label="More tools: Arrow, Highlighter, Section, Eraser, Insert">
+      <button className="icon-btn" type="button" aria-label="More tools: Line, Ellipse, Polygon, Crop, Export area">
         <Ic id="more" size={18} />
       </button>
     </div>

@@ -11,6 +11,8 @@
  *   carrying the account it works as) stacked down the page, one screen each:
  *     1. Canvas workspace — LIVE: click an artboard, press ⌘\ or ⌘K, open the project pill,
  *        name the parts (on by default, so the numbered legend always has pins to match).
+ *     1b. Two toolbars, one per mode (CONTRACT §2) — Edit (tools that make things inside artboards,
+ *        More open) beside Preview (annotation only, Sticky in hand).
  *     2. Panels hidden — the signature moment, full height: every panel folded into its icon, the
  *        note centred above the folded toolbar, then a three-step strip of the fold itself
  *        (open → folding with a ghost outline → icon only) on --dur-panel · --ease-out.
@@ -56,6 +58,17 @@ const GLYPH: Record<string, ReactNode> = {
   shape: (<><rect x="2.5" y="2.5" width="7" height="7" rx="1.5" /><circle cx="10.25" cy="10.25" r="3.5" /></>),
   sticky: (<><path d="M4 2.5h8A1.5 1.5 0 0 1 13.5 4v5L9 13.5H4A1.5 1.5 0 0 1 2.5 12V4A1.5 1.5 0 0 1 4 2.5z" /><path d="M13.5 9h-3A1.5 1.5 0 0 0 9 10.5v3" /></>),
   text: <path d="M3.5 4.5V3h9v1.5M8 3v10M6.25 13h3.5" />,
+  image: (<><rect x="2.5" y="3" width="11" height="10" rx="2" /><circle cx="6" cy="6.5" r="1.25" /><path d="M2.75 11.5l3.25-3 2.5 2.25 1.75-1.5 3 2.5" /></>),
+  component: (<><path d="M8 1.75l2.25 2.25L8 6.25 5.75 4z" /><path d="M8 9.75l2.25 2.25L8 14.25 5.75 12z" /><path d="M4 5.75l2.25 2.25L4 10.25 1.75 8z" /><path d="M12 5.75l2.25 2.25L12 10.25 9.75 8z" /></>),
+  line: <path d="M3 13L13 3" />,
+  ellipse: <ellipse cx="8" cy="8" rx="5.5" ry="4.5" />,
+  polygon: <path d="M8 2.25l5.5 4-2.1 6.5H4.6l-2.1-6.5z" />,
+  crop: <path d="M4.5 1.75v9.75h9.75M1.75 4.5h9.75v9.75" />,
+  slice: (<><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" strokeDasharray="2 2" /><path d="M5.5 10.5l5-5" /></>),
+  marker: (<><path d="M10.75 2.75l2.5 2.5-6 6-2.5-2.5z" /><path d="M4.75 8.75L3 13l4.25-1.75" /></>),
+  arrow: <path d="M3 13L13 3M7.5 3H13v5.5" />,
+  stamp: (<><circle className="sc-stamp-disc" cx="8" cy="8" r="5.75" /><path d="M5.6 9.4a2.9 2.9 0 0 0 4.8 0" /><path d="M6.1 6.4h.01M9.9 6.4h.01" strokeWidth={2} /></>),
+  section: (<><path d="M2.5 5V3.5a1 1 0 0 1 1-1H5M11 2.5h1.5a1 1 0 0 1 1 1V5M13.5 11v1.5a1 1 0 0 1-1 1H11M5 13.5H3.5a1 1 0 0 1-1-1V11" /><path d="M5.5 6h5" /></>),
   more: (<g fill="currentColor" stroke="none"><circle cx="3.5" cy="8" r="1.15" /><circle cx="8" cy="8" r="1.15" /><circle cx="12.5" cy="8" r="1.15" /></g>),
   share: (<><path d="M8 9.5v-7M5.25 5.25L8 2.5l2.75 2.75" /><path d="M5 7.5h-.5A1.5 1.5 0 0 0 3 9v3a1.5 1.5 0 0 0 1.5 1.5h7A1.5 1.5 0 0 0 13 12V9a1.5 1.5 0 0 0-1.5-1.5H11" /></>),
   "panel-left": (<><rect x="2" y="3" width="12" height="10" rx="2.5" /><path d="M6 3v10" /></>),
@@ -326,7 +339,8 @@ function TopRight({ zen, panelsOn, onPanels, pins }: { zen: boolean; panelsOn: b
   );
 }
 
-/** Toolbar order + keys from CONTRACT.md §2. The AI is not a tool — it is the AI chat panel. */
+/** The Edit toolbar — order + keys from CONTRACT.md §2: tools that make things inside artboards.
+ *  The AI is not a tool — it is the AI chat panel. */
 const TOOLS = [
   { id: "select", label: "Select", key: "V" },
   { id: "hand", label: "Hand", key: "H" },
@@ -334,8 +348,28 @@ const TOOLS = [
   { id: "shape", label: "Shape", key: "R" },
   { id: "pen", label: "Pen", key: "P" },
   { id: "text", label: "Text", key: "T" },
+  { id: "image", label: "Image", key: "I" },
+  { id: "component", label: "Component", key: "Shift+I" },
+];
+/** Under the Edit toolbar's More (CONTRACT §2). */
+const MORE_TOOLS = [
+  { id: "line", label: "Line" },
+  { id: "ellipse", label: "Ellipse" },
+  { id: "polygon", label: "Polygon" },
+  { id: "crop", label: "Crop" },
+  { id: "slice", label: "Export area" },
+];
+/** The Preview toolbar (CONTRACT §2) — annotation only; the design stays live. Keys pressed in Edit switch here. */
+const PREVIEW_TOOLS = [
+  { id: "hand", label: "Hand", key: "H" },
   { id: "sticky", label: "Sticky", key: "N" },
   { id: "comment", label: "Comment", key: "C" },
+  { id: "marker", label: "Marker", key: "M" },
+  { id: "arrow", label: "Arrow", key: "A" },
+  { id: "shape", label: "Shape", key: "R" },
+  { id: "text", label: "Text", key: "T" },
+  { id: "stamp", label: "Stickers", key: "E" },
+  { id: "section", label: "Section", key: "S" },
 ];
 
 function Dock({ folded, pins }: { folded: boolean; pins: boolean }) {
@@ -348,13 +382,72 @@ function Dock({ folded, pins }: { folded: boolean; pins: boolean }) {
           </button>
         ))}
         <span className="divider-v" />
-        <button className="icon-btn" type="button" aria-label="More tools: Arrow, Highlighter, Section, Eraser, Insert"><Ic id="more" size={18} /></button>
+        <button className="icon-btn" type="button" aria-label="More tools: Line, Ellipse, Polygon, Crop, Export area"><Ic id="more" size={18} /></button>
         <Pin n={5} show={pins} />
       </div>
       <div className="island sc-iconbtn sc-iconbtn--dock sc-unfold" data-shown={folded ? "true" : undefined} aria-hidden={!folded}>
         <button className="icon-btn" type="button" aria-pressed="true" aria-label="Select — show the toolbar"><Ic id="select" /></button>
       </div>
     </>
+  );
+}
+
+/** One Preview-toolbar tool, drawn the FigJam way (kit AnnotateIcon): Sticky is a note in its colour, Marker shows
+ *  its ink, Stickers a yellow disc — the object colours of what each tool makes, allowed in Preview only. */
+const SWATCHES = ["yellow", "coral", "green", "sky", "lilac"];
+function AnnotateIcon({ id, color = "yellow", ink = "coral" }: { id: string; color?: string; ink?: string }) {
+  if (id === "sticky") return <span className={`sc-ad-note sc-ad-note--${color}`} />;
+  if (id === "marker") return <span className="sc-ad-mk"><Ic id="marker" size={22} /><i className={`sc-ad-ink sc-ad-ink--${ink}`} /></span>;
+  return <span className={id === "stamp" ? "sc-ad-stamp" : "sc-ad-ic"}><Ic id={id} size={22} /></span>;
+}
+
+/** Close-up: the two toolbars, one per mode (CONTRACT §2). Static figures — no tab stops. */
+function ModeToolbars() {
+  return (
+    <div className="sc-modes" role="group" aria-label="The two toolbars">
+      <figure className="sc-mode">
+        <div className="stage sc-mode-stage" role="img" aria-label="Edit toolbar with More open: Line, Ellipse, Polygon, Crop, Export area">
+          <div className="sc-mode-in" inert>
+            <div className="island sc-more" role="menu" aria-label="More tools">
+              {MORE_TOOLS.map((t, i) => (
+                <span className="row-item sc-more-row" role="menuitem" aria-current={i === 1 ? "true" : undefined} key={t.id}><Ic id={t.id} />{t.label}</span>
+              ))}
+            </div>
+            <div className="island dock sc-mode-dock">
+              {TOOLS.map((t, i) => (
+                <span className="icon-btn" aria-pressed={i === 0} key={t.id}><Ic id={t.id} size={18} /></span>
+              ))}
+              <span className="divider-v" />
+              <span className="icon-btn sc-more-on"><Ic id="more" size={18} /></span>
+            </div>
+          </div>
+        </div>
+        <figcaption className="sc-cap"><strong>Edit.</strong> Tools that make things inside artboards — frames, shapes, paths, text, images, components. Line, Ellipse, Polygon, Crop and Export area wait under More.</figcaption>
+      </figure>
+      <figure className="sc-mode">
+        <div className="stage sc-mode-stage" role="img" aria-label="Preview toolbar: Hand, Sticky, Comment, Marker, Arrow, Shape, Text, Stickers, Section — Sticky in hand, its colours open">
+          <div className="sc-mode-in" inert>
+            <div className="sticky sticky--yellow sc-mode-st">Bigger photo?</div>
+            <div className="island dock sc-mode-dock sc-adock">
+              {PREVIEW_TOOLS.map((t, i) => (
+                <span className="sc-mode-slot" key={t.id}>
+                  <span className="icon-btn sc-ad-b" aria-pressed={t.id === "sticky"}>
+                    <AnnotateIcon id={t.id} />
+                    {t.id === "sticky" ? (
+                      <span className="island sc-ad-pop">
+                        {SWATCHES.map((c) => <i key={c} className={`sc-ad-sw sc-ad-sw--${c}`} data-on={c === "yellow" ? "true" : undefined} />)}
+                      </span>
+                    ) : null}
+                  </span>
+                  {i === 0 ? <span className="divider-v" /> : null}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+        <figcaption className="sc-cap"><strong>Preview.</strong> Only marks on top of the live work, a size bigger and a little playful — each tool wears the colour of what it makes, and Sticky's colours open above it. Press N, C, M, A, E or S in Edit to come here with that tool; esc takes you back.</figcaption>
+      </figure>
+    </div>
   );
 }
 
@@ -675,7 +768,7 @@ const LEGEND: [string, string][] = [
   ["Canvases · Layers", "Find a canvas by its picture. Folds into the icon on its corner."],
   ["Who's here · Share", "Faces, the word Saved, one Share button — the only azure fill."],
   ["Panels button", "⌘\\ hides every panel; press it again to show them."],
-  ["Toolbar", "Select to Comment. Arrow, Highlighter and the rest wait under More."],
+  ["Toolbar", "Edit's tools make things inside artboards. Line, Ellipse and the rest wait under More."],
   ["Undo · zoom", "Small and low, out of the work's way."],
   ["AI chat panel", "One prompt, the selection as a chip, the spark to send."],
   ["AI's cursor", "On the footer it is drawing — AI always shows where it works."],
@@ -903,7 +996,7 @@ const MOVED: { was: string; now: string; items: string; note?: string }[] = [
   { was: "File", now: "Menu › File", items: "New canvas ⌘N · New project… ⇧⌘N · Open project… ⌘O · Export… ⇧⌘E · Close canvas", note: "Generate with AI is the AI chat panel now." },
   { was: "Edit + Selection", now: "Menu › Edit", items: "Undo ⌘Z · Redo ⇧⌘Z · Select all ⌘A · Deselect all esc", note: "New artboard sizes → Edit › Advanced." },
   { was: "View", now: "Menu › View", items: "Hide panels ⌘\\ · Comments ⇧⌘M · Presentation mode · Zoom to fit ⌘0", note: "Minimap, print guides, hidden files → View › Advanced." },
-  { was: "Tools", now: "The toolbar", items: "Select · Hand · Frame · Shape · Pen · Text · Sticky · Comment", note: "Arrow, Highlighter, Section, Eraser, Insert → More." },
+  { was: "Tools", now: "Two toolbars", items: "Edit: Select · Hand · Frame · Shape · Pen · Text · Image · Component", note: "Line, Ellipse, Polygon, Crop, Export area → More. Sticky, Comment, Arrow → Preview's toolbar." },
   { was: "Help", now: "Menu › Help", items: "Keyboard shortcuts ? · What's new · Take the tour · Report a bug…", note: "What's new is a quiet dot, not a toast." },
   { was: "Changes", now: "Menu › Version history", items: "Saved versions, each with a preview and Restore · ⌥⌘H", note: "Branches and pull requests → its Advanced." },
   { was: "Status bar", now: "Menu › Diagnostics", items: "Sync · Server · AI setup · Logs · Reload canvas ⌘R", note: "Shown in words. Address, process and folder under Advanced." },
@@ -952,6 +1045,10 @@ export default function UiKitsDesktopShowcase() {
         {/* ── 1 · Hero ─────────────────────────────────────────────────── */}
         <h2 data-no>Canvas workspace<span className="h2-aside">live — click an artboard, press ⌘\ or ⌘K, open the project pill</span></h2>
         <LiveHero />
+
+        {/* ── 1b · Two toolbars — one per mode ─────────────────────────── */}
+        <h2 data-no>Two toolbars<span className="h2-aside">Edit makes things inside artboards · Preview marks them up</span></h2>
+        <ModeToolbars />
 
         {/* ── 2 · Panels hidden — the signature moment ─────────────────── */}
         <h2 data-no>Panels hidden<span className="h2-aside">⌘\ — every panel folds into its icon, and the canvas is all that's left</span></h2>

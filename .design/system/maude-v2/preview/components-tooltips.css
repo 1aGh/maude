@@ -25,10 +25,7 @@
 }
 .tt-rich-hd { display: flex; align-items: center; justify-content: space-between; color: var(--fg-0); }
 .tt-rich-hd strong { font-size: var(--type-sm); }
-.tt-rich-swatches { display: flex; gap: var(--space-1); margin-top: var(--space-1); }
-.tt-sw { width: 18px; height: 18px; border-radius: var(--radius-xs); box-shadow: var(--shadow-sm); }
-.tt-sw--yellow { background: var(--object-yellow); } .tt-sw--green { background: var(--object-green); }
-.tt-sw--lilac { background: var(--object-lilac); } .tt-sw--coral { background: var(--object-coral); } .tt-sw--sky { background: var(--object-sky); }
+.tt-rich-keys { display: inline-flex; gap: var(--space-1); }
 
 /* First-use hint: a small sheet with a pointer, at the control it's about. */
 .tt-hint {
@@ -89,7 +86,8 @@
 .tt-dock { position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); z-index: 4; }
 .tt-hover { background: var(--bg-3); }
 .tt-ai:hover { background: var(--spark-muted); }
-.tt-rich--hero { position: absolute; left: calc(50% + 88px); bottom: 84px; translate: -50% 0; z-index: 5; }
+/* over the Component tool (8th of 9 in the Edit toolbar) */
+.tt-rich--hero { position: absolute; left: calc(50% + 132px); bottom: 84px; translate: -50% 0; z-index: 5; }
 
 .tt-zoom { position: absolute; left: var(--space-4); bottom: var(--space-4); display: flex; align-items: center; padding: var(--space-1); border-radius: var(--radius-lg); z-index: 4; }
 .tt-zoom-v {
@@ -107,7 +105,7 @@
 }
 .tt-hero .tt-tag { position: absolute; z-index: 6; box-shadow: 0 0 0 3px var(--canvas-bg); }
 .tt-tag--1 { right: 276px; top: 74px; }
-.tt-tag--2 { left: calc(50% - 46px); bottom: 196px; }
+.tt-tag--2 { left: calc(50% - 16px); bottom: 162px; }
 .tt-tag--3 { left: 22px; bottom: 98px; }
 
 .tt-hero-key { list-style: none; margin: 0 0 var(--space-6); padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }

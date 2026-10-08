@@ -21,7 +21,9 @@
  * line) that the v2 default view no longer shows. Each row has exactly one new home AND a `ref`: the artboard that
  * draws that home — an id in BOARDS (this canvas; numbers are computed from the order), "NN · <artboard id>" for
  * another v2 canvas, or null = "not drawn yet". Every count on the map is computed from this list.
- * Not counted: tools that moved into the toolbar's More (one click in the default view), and NEW Advanced rows that
+ * Not counted: tools that moved into a toolbar (one click in the default view) — CONTRACT §2's two toolbars: Line ·
+ * Ellipse · Polygon · Crop · Export area in Edit's More; Arrow, Highlighter (Marker's second tip), Eraser (a Marker
+ * option) and Section on Preview's annotation toolbar; Insert became Edit's Image + Component — and NEW Advanced rows that
  * today's app doesn't have (fps, codec, colour profile, link expiry, file-name tokens).
  *
  * Convention (same as 01/03/04): app artboards are a <Stage> — a 1440 × 900 window + note strip (1440 × 980).
@@ -62,7 +64,7 @@ const BOARDS = [
   ["ad-timeline", "Timeline › Advanced, at its foot"],
   ["ad-export", "Export › Advanced"],
   ["ad-history", "Version history › Advanced — the git, folded"],
-  ["ad-ds", "The design system view"],
+  ["ad-ds", "The old design system view — now under Design system › Advanced"],
   ["ad-menus", "Menu › File, View › Advanced, Help"],
   ["ad-diag", "Menu › Diagnostics, Advanced open"],
   ["ad-logs", "Logs, Server, AI setup"],
@@ -96,7 +98,7 @@ const TARGETS: { id: string; home: HomeId; label: string; head?: string }[] = [
   { id: "canv", home: "panel", label: "Canvases panel" },
   { id: "lay", home: "panel", label: "Layers" },
   { id: "assets", home: "panel", label: "Assets tab", head: "Assets — the left panel's third tab" },
-  { id: "ds", home: "panel", label: "Design system view", head: "Design system view — from Canvases" },
+  { id: "ds", home: "panel", label: "Design system", head: "Design system › Advanced — 13" },
   { id: "ai", home: "panel", label: "AI chat panel" },
   { id: "share", home: "panel", label: "Share" },
   { id: "tl", home: "panel", label: "Timeline" },
@@ -127,7 +129,7 @@ const SOURCES: { id: string; label: string }[] = [
 ];
 
 /** Where the home is drawn: an artboard of this canvas, "NN · <id>" in another v2 canvas, or null = not drawn yet. */
-type Ref = BoardId | `${"02" | "03" | "04" | "05" | "07" | "08" | "09" | "10" | "12"} · ${string}` | null;
+type Ref = BoardId | `${"02" | "03" | "04" | "05" | "07" | "08" | "09" | "10" | "12" | "13"} · ${string}` | null;
 const TRACE = "Resync";
 /* [what, today's place, new home, where that home is drawn] */
 const ITEMS: [string, string, string, Ref][] = [
@@ -183,9 +185,9 @@ const ITEMS: [string, string, string, Ref][] = [
   ["Print guides", "canvas", "view", "ad-menus"],
   ["Export project ZIP, canvas as separate", "canvas", "exp", "09 · ex-formats"],
   ["Asset picker — Upload…, thumbnails, Insert", "canvas", "assets", "12 · ia-assets-panel"],
-  ["Design system view — S key, picker", "canvas", "ds", "ad-ds"],
-  ["Token and type ladders, preview galleries", "canvas", "ds", "ad-ds"],
-  ["Raw system folder and MAUDE-DSN/01", "canvas", "ds", "ad-ds"],
+  ["Design system view — S key, picker", "canvas", "ds", "13 · ds-advanced"],
+  ["Token and type ladders, preview galleries", "canvas", "ds", "13 · ds-advanced"],
+  ["Raw system folder and MAUDE-DSN/01", "canvas", "ds", "13 · ds-advanced"],
   /* 4 · inspector */
   ["CSS tab — raw properties", "insp", "insp", "ad-inspector"],
   ["Tag and Class", "insp", "insp", "ad-inspector"],
@@ -628,7 +630,7 @@ function MapBoard() {
       </div>
       <Ledger />
       <div className="ad-map-note">
-        <Note title="Counted, not estimated.">Each row is a thing visible in today's app that the v2 default view no longer shows, swept line by line from the feature inventory; every number here is computed from that one list. Not counted: Trash (still the Canvases panel's last row), tools now in the toolbar's More (one click away), Export's Scope (now on the sheet itself, as in 09), and new Advanced rows (fps, codec, colour profile, link expiry).</Note>
+        <Note title="Counted, not estimated.">Each row is a thing visible in today's app that the v2 default view no longer shows, swept line by line from the feature inventory; every number here is computed from that one list. Not counted: Trash (still the Canvases panel's last row), tools now in a toolbar, one click away (Edit's More; Arrow, Highlighter, Eraser and Section on Preview's toolbar; Insert as Image and Component), Export's Scope (now on the sheet itself, as in 09), and new Advanced rows (fps, codec, colour profile, link expiry).</Note>
       </div>
     </V2>
   );
@@ -1297,13 +1299,13 @@ function HistoryBoard() {
   );
 }
 
-/* ─── The design system view ─── */
+/* ─── The old design system view — superseded by 13 Design System; kept as Design system › Advanced layer ─── */
 function DsBoard() {
   const sw: [string, string][] = [["Gator green", "green"], ["Ink", "ink"], ["Lime", "yellow"], ["Sky", "sky"], ["Paper", "paper"]];
   const type: [string, string, string][] = [["Display", "COMBINE 2026", "64 · Heavy"], ["Headline", "Staň se gatorem", "40 · Bold"], ["Body", "Nábor pro sezónu 2026, všechny věkové kategorie.", "16 · Regular"], ["Caption", "So 14. 3. · Kraví hora", "12 · Medium"]];
   return (
-    <Closeup title="The design system view — from the design system's row in Canvases, or ⌘K" sub="Alligators brand · its design system “alligators”. Colours, type and components for everyone; the folder, the token names and the raw file one fold down."
-      note={<Note n={bn("ad-ds")} title="Was the S key and a DESIGN SYSTEM section in the tree.">The picker appears only when a project has two design systems. ⌘K “design system” opens it from anywhere; S is now free for the canvas, so nothing fights over it.</Note>}>
+    <Closeup title="The specimen view — now the Advanced layer of the Design system canvas" sub={<>Superseded by <b>13 Design System</b>: the default view is the Design system canvas itself, pinned above every canvas. This page — colours, type and specimens, then the folder, the token names and the raw file — is what Design system › Advanced opens.</>}
+      note={<Note n={bn("ad-ds")} title="Superseded by 13 Design System — kept, one fold down.">Was the S key and a DESIGN SYSTEM section in the tree. The default is now the Design system canvas (13 · ds-board-studio); this view lives under its Advanced (13 · ds-advanced). ⌘K “design system” opens it; S stays free for the canvas.</Note>}>
       <div className="ad-cols ad-cols--top">
         <Col label="How you get here">
           <div className="island island--pad ad-ds-way">
@@ -1316,7 +1318,7 @@ function DsBoard() {
         <Arrow />
         <Col label="The view" open>
           <div className="island ad-ds">
-            <div className="ad-ds-hd"><Icon name="layers" size={16} /><strong>Design system</strong><InSelect value="alligators" /><span className="ad-ds-n">1 of 2 in this project</span><span className="ad-tl-sp" /><span className="icon-btn k-icon-sm"><Icon name="close" size={12} /></span></div>
+            <div className="ad-ds-hd"><Icon name="layers" size={16} /><strong>Design system › Advanced</strong><InSelect value="alligators" /><span className="ad-ds-n">1 of 2 in this project</span><span className="ad-tl-sp" /><span className="icon-btn k-icon-sm"><Icon name="close" size={12} /></span></div>
             <div className="ad-ds-body">
               <div className="ad-ds-sec">
                 <p className="ad-ds-t">Colours</p>
@@ -1392,7 +1394,7 @@ function MenusBoard() {
   ];
   return (
     <Closeup title="The menu holds what the menu bar showed — File, View › Advanced, Help" sub="CONTRACT §1, the rows that took in something from today's app are marked. Same menu under the project pill on every project."
-      note={<Note n={bn("ad-menus")} title="Six menus became one; nothing fell off.">Selection and Tools merged into Edit and the toolbar; every View toggle and setting that was on screen is either here or under View › Advanced. Diagnostics is next ({bn("ad-diag")}).</Note>}>
+      note={<Note n={bn("ad-menus")} title="Six menus became one; nothing fell off.">Selection and Tools merged into Edit and the two toolbars; every View toggle and setting that was on screen is either here or under View › Advanced. Diagnostics is next ({bn("ad-diag")}).</Note>}>
       <div className="ad-menus">
         {cols.map(([t, items, cap]) => (
           <div className="ad-menus-col" key={t}>
@@ -1686,16 +1688,19 @@ function PinnedBoard() {
 
 function SearchBoard() {
   const groups: { title: string; keys: [string, string][] }[] = [
-    { title: "Tools", keys: [["Select", "V"], ["Hand", "H"], ["Frame", "F"], ["Shape", "R"], ["Pen", "P"], ["Text", "T"], ["Sticky", "N"], ["Comment", "C"]] },
+    { title: "Edit tools", keys: [["Select", "V"], ["Hand", "H"], ["Frame", "F"], ["Shape", "R"], ["Pen", "P"], ["Text", "T"], ["Image", "I"], ["Component", "⇧I"]] },
+    { title: "Preview tools — the key switches to Preview", keys: [["Sticky", "N"], ["Comment", "C"], ["Marker", "M"], ["Arrow", "A"], ["Stickers", "E"], ["Section", "S"]] },
     { title: "Canvas", keys: [["Zoom to fit", "⌘0"], ["Actual size", "⌘1"], ["Undo", "⌘Z"], ["Redo", "⇧⌘Z"], ["Step back", "esc"]] },
     { title: "Panels and AI", keys: [["Hide / show panels", "⌘\\"], ["Ask AI", "⌘/"], ["Comments", "⇧⌘M"], ["Search", "⌘K"], ["All shortcuts", "?"]] },
     { title: "File", keys: [["New canvas", "⌘N"], ["Version history", "⌥⌘H"], ["Export…", "⇧⌘E"], ["Settings…", "⌘,"]] },
   ];
   const adv: [string, string, string][] = [["Inspector", "⇧⌘I", "Menu › View › Advanced"], ["Keep timeline open", "⇧⌘T", "Menu › View › Advanced"], ["Reload canvas", "⌘R", "Menu › Diagnostics"]];
-  const moved: [string, string][] = [["Changes ⇧⌘G", "Version history ⌥⌘H"], ["Assistant ⇧⌘A", "Ask AI ⌘/ — ⇧⌘A now selects all annotations"], ["Files tree T", "Hide panels ⌘\\ — T is Text"], ["Hidden files H", "Canvases › Advanced — H is Hand"], ["Design system S", "⌘K “design system”"], ["New board N", "New canvas ⌘N — N is Sticky"], ["Search / and ⌘F", "⌘K"]];
+  const moved: [string, string][] = [["Changes ⇧⌘G", "Version history ⌥⌘H"], ["Assistant ⇧⌘A", "Ask AI ⌘/ — ⇧⌘A now selects all annotations"], ["Files tree T", "Hide panels ⌘\\ — T is Text"], ["Hidden files H", "Canvases › Advanced — H is Hand"], ["Design system S", "⌘K “design system” — S is Section"], ["New board N", "New canvas ⌘N — N is Sticky, in Preview"], ["Search / and ⌘F", "⌘K"], ["Arrow, Highlighter", "Preview's toolbar — Arrow A; Highlighter is Marker's second tip"], ["Section, Eraser", "Preview's toolbar — Section S; Eraser is a Marker option"], ["Insert", "Edit's toolbar — Image I · Component ⇧I"]];
+  /* Three columns, balanced by row count: Edit tools · Preview tools + File · Canvas + Panels and AI. */
+  const cols = [[0], [1, 4], [2, 3]];
   return (
     <Closeup title="Two keys find everything — ⌘K by name, ? by key" sub="Search shows where each hidden tool lives, so you learn the way back. The shortcut sheet keeps the Advanced keys, and the keys that moved, one fold down."
-      note={<Note n={bn("ad-search")} title="Learn the home while you use the shortcut.">Every Search result carries its path — Inspector › Advanced, Menu › Diagnostics — and ↵ runs it without opening the menu. The ? sheet's Advanced holds only View › Advanced and Diagnostics keys, plus every key that changed.</Note>}>
+      note={<Note n={bn("ad-search")} title="Learn the home while you use the shortcut.">Every Search result carries its path — Inspector › Advanced, Menu › Diagnostics — and ↵ runs it without opening the menu. The ? sheet splits the tools by toolbar — Edit's make things inside artboards, Preview's only mark up — and its Advanced holds only View › Advanced and Diagnostics keys, plus every key and tool that moved.</Note>}>
       <div className="ad-two">
         <SearchPalette query="copy" style={{ ...FREE, translate: "none", width: 560 }} groups={[
           { title: "Actions", aside: "6 hidden tools", rows: [
@@ -1710,18 +1715,22 @@ function SearchBoard() {
         ]} footer="7 results" />
         <div className="ad-keys-sheet">
           <div className="ad-ks-hd"><strong>Keyboard shortcuts</strong><span className="k-find ad-ks-find"><Icon name="search" size={14} /><span className="k-find-q k-find-ph">Find a shortcut</span></span><span className="icon-btn k-icon-sm"><Icon name="close" size={12} /></span></div>
-          <div className="ad-ks-grid">
-            {groups.map((g) => (
-              <div className="ad-ks-g" key={g.title}>
-                <p className="ad-ks-gt">{g.title}</p>
-                {g.keys.map(([l, k]) => <span className="ad-ks-r" key={l}><span>{l}</span><Kbd>{k}</Kbd></span>)}
+          <div className="ad-ks-grid ad-ks-grid--3">
+            {cols.map((c) => (
+              <div className="ad-ks-col" key={c.join()}>
+                {c.map((i) => groups[i]).map((g) => (
+                  <div className="ad-ks-g" key={g.title}>
+                    <p className="ad-ks-gt">{g.title}</p>
+                    {g.keys.map(([l, k]) => <span className="ad-ks-r" key={l}><span>{l}</span><Kbd>{k}</Kbd></span>)}
+                  </div>
+                ))}
               </div>
             ))}
           </div>
           <Fold open remembered>
             <div className="ad-ks-adv">
               {adv.map(([l, k, p]) => <span className="ad-ks-r ad-ks-r--adv" key={l}><span>{l}</span><span className="ad-ks-p">{p}</span><Kbd>{k}</Kbd></span>)}
-              <ASub>Keys that moved</ASub>
+              <ASub>Keys and tools that moved</ASub>
               {moved.map(([o, n]) => <span className="ad-ks-r ad-ks-mv" key={o}><span className="ad-ks-o">{o}</span><Icon name="submenu" size={11} /><span className="ad-ks-n">{n}</span></span>)}
             </div>
           </Fold>
@@ -2052,7 +2061,7 @@ export default function Advanced() {
         <DCArtboard id="ad-trace" label={lab("ad-trace")} width={W} height={H} fixed><TraceBoard /></DCArtboard>
       </DCSection>
 
-      <DCSection id="panels" title="Advanced, inside each panel — closed, then open" subtitle="Inspector · Canvases, Layers and Trash · AI chat panel · Share · Timeline · Export · Version history · the design system view">
+      <DCSection id="panels" title="Advanced, inside each panel — closed, then open" subtitle="Inspector · Canvases, Layers and Trash · AI chat panel · Share · Timeline · Export · Version history · Design system › Advanced">
         <DCArtboard id="ad-inspector" label={lab("ad-inspector")} width={W} height={1180} fixed><InspectorBoard /></DCArtboard>
         <DCArtboard id="ad-left" label={lab("ad-left")} width={W} height={1360} fixed><LeftBoard /></DCArtboard>
         <DCArtboard id="ad-ai" label={lab("ad-ai")} width={W} height={1080} fixed><AiBoard /></DCArtboard>

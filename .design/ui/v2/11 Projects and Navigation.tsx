@@ -5,7 +5,7 @@
  * @opt_out     palette
  * @artboards   pn-tab-a | pn-tab-b | pn-tab-a20 | pn-tab-b20 | pn-ab | pn-tab-menu | pn-windows | pn-accounts |
  *              pn-home | pn-home-search |
- *              pn-organise | pn-move | pn-trash | pn-jump |
+ *              pn-ds | pn-organise | pn-move | pn-trash | pn-jump |
  *              pn-k-across | pn-k-close |
  *              pn-history | pn-compare |
  *              pn-switch-ai | pn-relaunch | pn-deeplink | pn-cant-open
@@ -49,8 +49,10 @@
  *   · Version history: Compare / Restore this version (06's verbs). Restore brings back the WHOLE canvas as a new version;
  *     "Restore only this artboard" is the narrow one. Nothing after it is lost.
  *   · Search groups results by project once they come from 2+ projects; this tab first.
- *   · Canvases panel: Pinned, then the tree sorted by Recent (01's Recent block becomes this sort). Expanded canvas rows
- *     are the jump list for artboards; Layers lists what's inside one.
+ *   · Canvases panel: the project's Design system row pinned first (CONTRACT §7, Michal's idea — the canvas is drawn in
+ *     13 Design System; also ⌘K and the inspector's "Uses …" link, pn-ds), then Pinned, then the tree sorted by Recent
+ *     (01's Recent block becomes this sort). Expanded canvas rows are the jump list for artboards; Layers lists what's
+ *     inside one.
  *
  * Convention (same as 01 Create Flow): every app artboard is a <Stage> — a 1440 × 900 window with its note strip
  * underneath (artboard 1440 × 980). Close-ups (pn-ab, pn-tab-menu, pn-windows, pn-k-close, pn-cant-open) are V2 boards
@@ -479,6 +481,17 @@ function TrashRow({ count, on }: { count: number; on?: boolean }) {
   );
 }
 
+/** The project's design system, pinned above every canvas — the kit's CanvasesPanel `system` row (k-cp-ds), drawn
+ *  inside PnPanel. One canvas, the "Design system" canvas (13 Design System); CONTRACT §7, proposed. */
+function DsRow({ name = "Design system", meta = "Alligators brand system · used by 3 projects", current }: { name?: string; meta?: string; current?: boolean }) {
+  return (
+    <span className="row-item k-cp-ds k-cp-row--two pn-ds" aria-current={current ? "true" : undefined} title={`${name} — ${meta}`}>
+      <span className="k-cp-dsic"><Icon name="system" size={14} /></span>
+      <span className="k-cp-two"><span className="k-cp-name">{name}</span><span className="k-cp-sub">{meta.split(" · ").map((m) => <span key={m} className="pn-ds-l">{m}</span>)}</span></span>
+    </span>
+  );
+}
+
 const T = ({ children, aside }: { children: ReactNode; aside?: ReactNode }) => <p className="island-title k-cp-t">{children}{aside ? <span className="k-cp-tc">{aside}</span> : null}</p>;
 
 /** The tree as it is — 2026 open on combine, the rest folded, the four leftovers at the root. */
@@ -832,10 +845,11 @@ export default function ProjectsAndNavigation() {
       {/* ── 1 · Project tabs, two ways ───────────────────────────────────────────────────── */}
       <DCSection id="tabs" title="Project tabs — two ways to draw them" subtitle="Michal asked for both: A · native macOS window tabs (the plan) · B · a Figma-style strip drawn by Maude — three tabs, then twenty, then the trade-offs. Everything after this section draws A">
         <DCArtboard id="pn-tab-a" label="1 · A · Native macOS tabs — titles only" width={W} height={H} fixed>
-          <Stage note={<Note n={1} tag="Variant A" title="A: the Mac draws the tabs — titles only.">① Titles, × and + are AppKit's. ② The project and its AI sit in the pill. ③ The account sits by the faces.</Note>}>
+          <Stage note={<Note n={1} tag="Variant A" title="A: the Mac draws the tabs — titles only.">① Titles, × and + are AppKit's. ② The project and its AI sit in the pill. ③ The account sits by the faces. ④ The design system is pinned above every canvas (11).</Note>}>
             <NativeWindow tabs={TABS3} active={1}>
               <Canvas><Kampan /></Canvas>
               <PnPanel foot={<>93 canvases · ⌘K searches every project</>}>
+                <DsRow />
                 <T aside={<span className="pn-sort">Recent<Icon name="chevron" size={11} /></span>}>Alligators brand</T>
                 <GatorTree />
                 <TrashRow count={3} />
@@ -845,6 +859,7 @@ export default function ProjectsAndNavigation() {
             <Callout n={1} x={600} y={10} />
             <Callout n={2} x={340} y={66} />
             <Callout n={3} x={932} y={66} />
+            <Callout n={4} x={258} y={188} />
           </Stage>
         </DCArtboard>
 
@@ -853,6 +868,7 @@ export default function ProjectsAndNavigation() {
             <PnWindow tabs={[T_HOME, T_STUDIO, T_GATOR, { ...P20[3] }, { ...P20[2] }]} active={2} tabTip={{ i: 3, text: <>Matchday 2026 · AI is drawing the score card</> }}>
               <Canvas><Kampan /></Canvas>
               <PnPanel foot={<>93 canvases · ⌘K searches every project</>}>
+                <DsRow />
                 <T aside={<span className="pn-sort">Recent<Icon name="chevron" size={11} /></span>}>Alligators brand</T>
                 <GatorTree />
                 <TrashRow count={3} />
@@ -1073,11 +1089,52 @@ export default function ProjectsAndNavigation() {
 
       {/* ── 3 · Inside a big project ──────────────────────────────────────────────────────── */}
       <DCSection id="big" title="Inside a big project" subtitle="Alligators brand — 93 canvases: pin, sort, drag into a folder, rename, Move to trash and back, and a canvas with 21 artboards">
-        <DCArtboard id="pn-organise" label="11 · Pinned on top, sorted your way" width={W} height={H} fixed>
-          <Stage note={<Note n={11} title="Pinned on top, then the tree, sorted your way.">Hover a row for its pin and ⋯. Recent is a sort here — the same order 01's Recent list shows.</Note>}>
+        <DCArtboard id="pn-ds" label="11 · Where the design system lives" width={W} height={680} fixed>
+          <Closeup title="Where's the design system? Pinned on top — one canvas, three ways in"
+            sub="A project's design system is one canvas, the Design system canvas — drawn in 13 Design System. It never sits in a folder or scrolls away with 93 canvases. Studio site works the same way: Studio site system, pinned on top."
+            note={<Note n={11} tag="Proposed — Michal's idea" title="One canvas, pinned on top.">Colours, type and components are edited on the Design system canvas itself; every canvas that uses them updates after a review. The token files are its Advanced layer.</Note>}>
+            <div className="pn-wins pn-wins--ds">
+              <Col n={1} label="Pinned above every canvas" w={300}>
+                <PnPanel style={{ position: "relative", left: "auto", top: "auto", bottom: "auto", height: 420 }} foot={<>93 canvases · ⌘K searches every project</>}>
+                  <DsRow current />
+                  <T aside={<span className="pn-sort">Recent<Icon name="chevron" size={11} /></span>}>Alligators brand</T>
+                  <FRow name="2026" count={16} />
+                  <FRow name="club-web" count={9} />
+                  <FRow name="print" count={6} />
+                  <FRow name="social" count={31} />
+                  <FRow name="legacy" count={27} />
+                  <PRow name="test" art="blank" />
+                  <TrashRow count={3} />
+                </PnPanel>
+              </Col>
+              <Col n={2} label="⌘K — type “design” or “barvy”" w={560}>
+                <PnPalette query="design" style={{ position: "relative", left: "auto", top: "auto", translate: "none", width: 560 }} foot="3 results" groups={[
+                  { title: "Alligators brand", sq: ["A", "lilac"], rows: [
+                    { label: "Alligators brand system", icon: "system", meta: "Design system · used by 3 projects", sel: true, words: [], metaWords: ["design"] },
+                    { label: "Colour", icon: "system", meta: "section of the Design system", words: [], metaWords: ["design"] },
+                    { label: "Components", icon: "system", meta: "section of the Design system", words: [], metaWords: ["design"] },
+                  ] },
+                ]} />
+              </Col>
+              <Col n={3} label="The inspector's “Uses …” link" w={300}>
+                <div className="island island--pad k-insp pn-ds-insp">
+                  <div className="k-insp-hd"><strong>STAŇ SE GATOREM</strong><span className="chip">Text</span></div>
+                  <div className="k-insp-row"><span>Type</span><span className="pn-ds-v">Display · 48</span></div>
+                  <div className="k-insp-row"><span>Colour</span><span className="pn-ds-v"><i className="pn-ds-sw" />Gator green</span></div>
+                  <span className="pn-ds-uses"><Icon name="system" size={13} /><span>Uses <strong>Alligators brand system</strong></span><Icon name="submenu" size={12} /></span>
+                </div>
+                <p className="pn-ds-cap">A click opens the Design system on the style this text uses — Type › Display.</p>
+              </Col>
+            </div>
+          </Closeup>
+        </DCArtboard>
+
+        <DCArtboard id="pn-organise" label="12 · Pinned on top, sorted your way" width={W} height={H} fixed>
+          <Stage note={<Note n={12} title="Design system first, then Pinned, then the tree, sorted your way.">Hover a row for its pin and ⋯. Recent is a sort here — the same order 01's Recent list shows.</Note>}>
             <NativeWindow tabs={TABS3} active={1}>
               <Canvas><Kampan /></Canvas>
               <PnPanel>
+                <DsRow />
                 <T aside="2">Pinned</T>
                 <PRow name="Combine-kampan" art="gator-poster" pinned current people={["tereza"]} />
                 <PRow name="Uniformy-2027" art="gator-jersey" pinned hover />
@@ -1085,7 +1142,7 @@ export default function ProjectsAndNavigation() {
                 <GatorTree kampanCurrent={false} combineOpen={false} />
                 <TrashRow count={3} />
               </PnPanel>
-              <Menu width={260} highlight="Recently opened" style={{ left: 196, top: 272 }} items={[
+              <Menu width={260} highlight="Recently opened" style={{ left: 196, top: 316 }} items={[
                 { group: "Sort by" },
                 { label: "Recently opened", checked: true }, { label: "Name", checked: false }, { label: "Kind", checked: false, note: "web · social · print · video" }, "sep",
                 { label: "Folders on top", checked: true },
@@ -1095,19 +1152,20 @@ export default function ProjectsAndNavigation() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="pn-move" label="12 · Drag into a folder · rename in place" width={W} height={H} fixed>
-          <Stage note={<Note n={12} title="Drag onto a folder; double-click to rename.">① The folder says where it lands. ② ↵ renames, esc keeps the name. Or Menu › File › Move to…</Note>}>
+        <DCArtboard id="pn-move" label="13 · Drag into a folder · rename in place" width={W} height={H} fixed>
+          <Stage note={<Note n={13} title="Drag onto a folder; double-click to rename.">① The folder says where it lands. ② ↵ renames, esc keeps the name. Or Menu › File › Move to…</Note>}>
             <NativeWindow tabs={TABS3} active={1}>
               <Canvas><Kampan /></Canvas>
               <PnPanel>
+                <DsRow />
                 <T aside={<span className="pn-sort">Recent<Icon name="chevron" size={11} /></span>}>Alligators brand</T>
                 <GatorTree dragging combineOpen={false} kampanCurrent={false} />
                 <TrashRow count={3} />
               </PnPanel>
-              <span className="pn-dragrow" style={{ left: 112, top: 412 }}>
+              <span className="pn-dragrow" style={{ left: 112, top: 456 }}>
                 <Thumb art="board" className="k-thumb--row" /><span>ahoj2</span>
               </span>
-              <span className="pn-inset" style={{ left: 16, top: 592 }}>
+              <span className="pn-inset" style={{ left: 16, top: 636 }}>
                 <span className="chip pn-inset-tag">Double-click a name</span>
                 <span className="island pn-inset-panel">
                   <span className="row-item k-cp-row pn-row pn-row--edit">
@@ -1119,13 +1177,13 @@ export default function ProjectsAndNavigation() {
               </span>
               <GatorChrome />
             </NativeWindow>
-            <Callout n={1} x={288} y={434} />
-            <Callout n={2} x={290} y={640} />
+            <Callout n={1} x={288} y={478} />
+            <Callout n={2} x={290} y={684} />
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="pn-trash" label="13 · Move to trash, Restore, clear out" width={W} height={H} fixed>
-          <Stage note={<Note n={13} title="Nothing is gone until you clear out the trash.">① Move to trash ② Undo ③ Trash: the panel's last row, also in Canvases › Advanced ④ Clear out asks.</Note>}>
+        <DCArtboard id="pn-trash" label="14 · Move to trash, Restore, clear out" width={W} height={H} fixed>
+          <Stage note={<Note n={14} title="Nothing is gone until you clear out the trash.">① Move to trash ② Undo ③ Trash: the panel's last row, also in Canvases › Advanced ④ Clear out asks.</Note>}>
             <NativeWindow tabs={TABS3} active={1}>
               <Canvas><Kampan /></Canvas>
               <PnPanel find={<span className="pn-back"><span className="pn-back-ch"><Icon name="chevron" size={12} /></span><strong>Trash</strong><span className="k-cp-count">3 canvases · 1 artboard</span></span>}
@@ -1162,8 +1220,8 @@ export default function ProjectsAndNavigation() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="pn-jump" label="14 · 21 artboards — jump from the panel" width={W} height={H} fixed>
-          <Stage note={<Note n={14} title="A canvas row opens into its artboards — the jump list.">Click one of the 21 and the canvas glides there. Layers lists what's inside one.</Note>}>
+        <DCArtboard id="pn-jump" label="15 · 21 artboards — jump from the panel" width={W} height={H} fixed>
+          <Stage note={<Note n={15} title="A canvas row opens into its artboards — the jump list.">Click one of the 21 and the canvas glides there. Layers lists what's inside one.</Note>}>
             <NativeWindow tabs={TABS3} active={1}>
               <Canvas>
                 <KAb b={KB_HOST} x={328} y={150} z={0.3} />
@@ -1172,6 +1230,7 @@ export default function ProjectsAndNavigation() {
                 <KAb b={KB_STORY2} x={1068} y={150} z={0.3} />
               </Canvas>
               <PnPanel foot="21 artboards · 19 digital, 2 print">
+                <DsRow />
                 <T aside={<span className="pn-sort">Recent<Icon name="chevron" size={11} /></span>}>Alligators brand</T>
                 <FRow name="2026" count={16} open />
                 <FRow name="combine" count={6} open depth={1} />
@@ -1186,8 +1245,8 @@ export default function ProjectsAndNavigation() {
 
       {/* ── 4 · ⌘K everywhere ─────────────────────────────────────────────────────────────── */}
       <DCSection id="search" title="⌘K everywhere" subtitle="Canvases and artboards across every open project, grouped by project with pictures · artboards by name · hidden tools with their path · typos and Czech accents">
-        <DCArtboard id="pn-k-across" label="15 · ⌘K — every project, grouped" width={W} height={H} fixed>
-          <Stage note={<Note n={15} title="From 2+ projects, results group by project — this tab first.">Another tab switches to it; a closed project opens a tab.</Note>}>
+        <DCArtboard id="pn-k-across" label="16 · ⌘K — every project, grouped" width={W} height={H} fixed>
+          <Stage note={<Note n={16} title="From 2+ projects, results group by project — this tab first.">Another tab switches to it; a closed project opens a tab.</Note>}>
             <NativeWindow tabs={TABS3} active={1}>
               <Canvas><Kampan /></Canvas>
               <GatorChrome />
@@ -1213,9 +1272,9 @@ export default function ProjectsAndNavigation() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="pn-k-close" label="16 · Artboards by name, accents and typos" width={W} height={680} fixed>
+        <DCArtboard id="pn-k-close" label="17 · Artboards by name, accents and typos" width={W} height={680} fixed>
           <Closeup title="Type it the way you'd say it" sub="Accents, word order and a swapped letter don't matter. The marks show what matched — in the name or in its canvas."
-            note={<Note n={16} title="Every word counts, in any order.">“letak a6 predni” finds LetakA6 › A · přední FLAG. One letter off still finds Uniformy-2027 — and says so.</Note>}>
+            note={<Note n={17} title="Every word counts, in any order.">“letak a6 predni” finds LetakA6 › A · přední FLAG. One letter off still finds Uniformy-2027 — and says so.</Note>}>
             <div className="pn-pals">
               <PnPalette query="letak a6 predni" style={{ position: "relative", left: "auto", top: "auto", translate: "none", width: 600 }} foot="5 results" groups={[
                 { title: "Canvases and artboards", rows: [
@@ -1244,8 +1303,8 @@ export default function ProjectsAndNavigation() {
 
       {/* ── 5 · Version history ───────────────────────────────────────────────────────────── */}
       <DCSection id="history" title="Version history — ⌥⌘H" subtitle="Saved versions with pictures, who or AI made each, named versions; Compare and Restore this version (06's verbs); Restore adds a new version; the git stays in Advanced">
-        <DCArtboard id="pn-history" label="17 · Versions with pictures — looking at yesterday" width={W} height={H} fixed>
-          <Stage note={<Note n={17} title="Click a version to look at it, read-only.">Each has its picture and a face or the spark. Restore this version adds it as a new version — Now stays.</Note>}>
+        <DCArtboard id="pn-history" label="18 · Versions with pictures — looking at yesterday" width={W} height={H} fixed>
+          <Stage note={<Note n={18} title="Click a version to look at it, read-only.">Each has its picture and a face or the spark. Restore this version adds it as a new version — Now stays.</Note>}>
             <NativeWindow tabs={TABS3} active={1}>
               <Canvas>
                 <Artboard label="Domácí dres · přední" kind="print" x={300} y={130} w={220} h={276}><Jersey v="approved" /></Artboard>
@@ -1282,8 +1341,8 @@ export default function ProjectsAndNavigation() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="pn-compare" label="18 · Compare two versions — every change, and what Restore takes back" width={W} height={H} fixed>
-          <Stage note={<Note n={18} title="A and B side by side; every change, in words.">Restore this version brings back the whole canvas (git: 06 › 10).</Note>}>
+        <DCArtboard id="pn-compare" label="19 · Compare two versions — every change, and what Restore takes back" width={W} height={H} fixed>
+          <Stage note={<Note n={19} title="A and B side by side; every change, in words.">Restore this version brings back the whole canvas (git: 06 › 10).</Note>}>
             <NativeWindow tabs={TABS3} active={1}>
               <Canvas>
                 <Artboard label="A · Schváleno trenéry · 5 Oct, 18:40" kind="print" x={290} y={110} w={320} h={400}><Jersey away v="approved" /></Artboard>
@@ -1325,8 +1384,8 @@ export default function ProjectsAndNavigation() {
 
       {/* ── 6 · Edge cases ────────────────────────────────────────────────────────────────── */}
       <DCSection id="edges" title="When navigation gets hard" subtitle="AI working in the tab you left · a restart with 20 tabs · a link from Slack · a project that moved on disk · access removed, or turned to Can view on a project someone else owns">
-        <DCArtboard id="pn-switch-ai" label="19 · Switch tabs while AI works — and the keys" width={W} height={H} fixed>
-          <Stage note={<Note n={19} title="Leave mid-run; AI keeps going and tells you when it's done.">Tabs move with ⌃Tab like every Mac app; ⌘0 and ⌘1 stay zoom.</Note>}>
+        <DCArtboard id="pn-switch-ai" label="20 · Switch tabs while AI works — and the keys" width={W} height={H} fixed>
+          <Stage note={<Note n={20} title="Leave mid-run; AI keeps going and tells you when it's done.">Tabs move with ⌃Tab like every Mac app; ⌘0 and ⌘1 stay zoom.</Note>}>
             <NativeWindow tabs={TABS3} active={0}>
               <Canvas><StudioView /></Canvas>
               <PnPill project="Studio site" canvas="Homepage" />
@@ -1356,11 +1415,12 @@ export default function ProjectsAndNavigation() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="pn-relaunch" label="20 · After a restart — 20 tabs come back, resting" width={W} height={H} fixed>
-          <Stage note={<Note n={20} tag="Plan amendment" title="Proposed: after a restart, every tab comes back.">Only the front one runs; the rest wake when you open them.</Note>}>
+        <DCArtboard id="pn-relaunch" label="21 · After a restart — 20 tabs come back, resting" width={W} height={H} fixed>
+          <Stage note={<Note n={21} tag="Plan amendment" title="Proposed: after a restart, every tab comes back.">Only the front one runs; the rest wake when you open them.</Note>}>
             <NativeWindow tabs={A20_VIS} active={1} more={A20_MORE}>
               <Canvas><Kampan /></Canvas>
               <PnPanel foot={<>93 canvases · ⌘K searches every project</>}>
+                <DsRow />
                 <T aside={<span className="pn-sort">Recent<Icon name="chevron" size={11} /></span>}>Alligators brand</T>
                 <GatorTree />
                 <TrashRow count={3} />
@@ -1371,8 +1431,8 @@ export default function ProjectsAndNavigation() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="pn-deeplink" label="21 · A link from Slack — right tab, right artboard" width={W} height={H} fixed>
-          <Stage note={<Note n={21} title="A link opens the exact spot.">Its tab comes forward (or opens), the canvas glides to the story and her comment opens.</Note>}>
+        <DCArtboard id="pn-deeplink" label="22 · A link from Slack — right tab, right artboard" width={W} height={H} fixed>
+          <Stage note={<Note n={22} title="A link opens the exact spot.">Its tab comes forward (or opens), the canvas glides to the story and her comment opens.</Note>}>
             <NativeWindow tabs={TABS3} active={1}>
               <Canvas>
                 <KAb b={KB_HOST} x={360} y={130} z={0.33} />
@@ -1395,10 +1455,10 @@ export default function ProjectsAndNavigation() {
           </Stage>
         </DCArtboard>
 
-        <DCArtboard id="pn-cant-open" label="22 · A project that moved · access removed · now Can view" width={W} height={800} fixed>
+        <DCArtboard id="pn-cant-open" label="23 · A project that moved · access removed · now Can view" width={W} height={800} fixed>
           <Closeup title="When a project can't open the way it used to"
             sub="Each says what happened, what is safe, and gives one thing to do. Access changes happen on Brno Open 2026, a project Tereza owns — you own Alligators brand and Studio site. Words match 10 Share and Collaboration (co-access-ends, co-ask-edit)."
-            note={<Note n={22} title="Words, not errors — nothing thrown away.">A moved folder is found again. Removed: changes were saved first. Can view: Ask to edit.</Note>}>
+            note={<Note n={23} title="Words, not errors — nothing thrown away.">A moved folder is found again. Removed: changes were saved first. Can view: Ask to edit.</Note>}>
             <div className="pn-wins pn-wins--3">
               <Col n={1} label="Portfolio 2026 was moved on disk" w={440}>
                 <div className="pn-mini">

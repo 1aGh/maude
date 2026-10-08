@@ -19,7 +19,7 @@
     {
       "id": "big",
       "title": "Inside a big project",
-      "subtitle": "Alligators brand — 93 canvases: pin, sort, drag into a folder, rename, Move to trash and back, and a canvas with 21 artboards"
+      "subtitle": "Alligators brand — 93 canvases: the Design system pinned on top, pin, sort, drag into a folder, rename, Move to trash and back, and a canvas with 21 artboards"
     },
     {
       "id": "search",
@@ -41,7 +41,7 @@
     {
       "id": "pn-tab-a",
       "label": "1 · A · Native macOS tabs — titles only",
-      "note": "A: the Mac draws the tabs — titles only. ① Titles, × and + are AppKit's. ② The project and its AI sit in the pill. ③ The account sits by the faces."
+      "note": "A: the Mac draws the tabs — titles only. ① Titles, × and + are AppKit's. ② The project and its AI sit in the pill. ③ The account sits by the faces. ④ The Design system row is pinned above every canvas (11)."
     },
     {
       "id": "pn-tab-b",
@@ -89,66 +89,71 @@
       "note": "An empty Search is a shortcut list. Recent searches, open tabs with their AI, recent canvases — from every project, open or not."
     },
     {
+      "id": "pn-ds",
+      "label": "11 · Where the design system lives",
+      "note": "Proposed — Michal's idea (CONTRACT §7): one Design system canvas per project, pinned above every canvas in the Canvases panel, found by ⌘K and by the inspector's “Uses Alligators brand system” link. The board itself is 13 Design System."
+    },
+    {
       "id": "pn-organise",
-      "label": "11 · Pinned on top, sorted your way",
-      "note": "Pinned on top, then the tree, sorted your way. Hover a row for its pin and ⋯. Recent is a sort here — the same order 01's Recent list shows."
+      "label": "12 · Pinned on top, sorted your way",
+      "note": "Design system first, then Pinned, then the tree, sorted your way. Hover a row for its pin and ⋯. Recent is a sort here — the same order 01's Recent list shows."
     },
     {
       "id": "pn-move",
-      "label": "12 · Drag into a folder · rename in place",
+      "label": "13 · Drag into a folder · rename in place",
       "note": "Drag onto a folder; double-click to rename. ① The folder says where it lands. ② ↵ renames, esc keeps the name. Or Menu › File › Move to…"
     },
     {
       "id": "pn-trash",
-      "label": "13 · Move to trash, Restore, clear out",
+      "label": "14 · Move to trash, Restore, clear out",
       "note": "Nothing is gone until you clear out the trash. ① Move to trash ② Undo ③ Trash: the panel's last row, also in Canvases › Advanced ④ Clear out asks — and only an owner clears out the trash."
     },
     {
       "id": "pn-jump",
-      "label": "14 · 21 artboards — jump from the panel",
+      "label": "15 · 21 artboards — jump from the panel",
       "note": "A canvas row opens into its artboards — the jump list. Click one of the 21 and the canvas glides there. Layers lists what's inside one."
     },
     {
       "id": "pn-k-across",
-      "label": "15 · ⌘K — every project, grouped",
+      "label": "16 · ⌘K — every project, grouped",
       "note": "From 2+ projects, results group by project — this tab first. Another tab switches to it; a closed project opens a tab."
     },
     {
       "id": "pn-k-close",
-      "label": "16 · Artboards by name, accents and typos",
+      "label": "17 · Artboards by name, accents and typos",
       "note": "Every word counts, in any order. “letak a6 predni” finds LetakA6 › A · přední FLAG. One letter off still finds Uniformy-2027 — and says so."
     },
     {
       "id": "pn-history",
-      "label": "17 · Versions with pictures — looking at yesterday",
+      "label": "18 · Versions with pictures — looking at yesterday",
       "note": "Click a version to look at it, read-only. Each has its picture and a face or the spark. Restore this version adds it as a new version — Now stays."
     },
     {
       "id": "pn-compare",
-      "label": "18 · Compare two versions — every change, and what Restore takes back",
+      "label": "19 · Compare two versions — every change, and what Restore takes back",
       "note": "A and B side by side; every change, in words. Restore this version brings back the whole canvas (git: 06 › 10)."
     },
     {
       "id": "pn-switch-ai",
-      "label": "19 · Switch tabs while AI works — and the keys",
+      "label": "20 · Switch tabs while AI works — and the keys",
       "note": "Leave mid-run; AI keeps going and tells you when it's done. Tabs move with ⌃Tab like every Mac app; ⌘0 and ⌘1 stay zoom."
     },
     {
       "id": "pn-relaunch",
-      "label": "20 · After a restart — 20 tabs come back, resting",
+      "label": "21 · After a restart — 20 tabs come back, resting",
       "note": "Proposed: after a restart, every tab comes back. Only the front one runs; the rest wake when you open them."
     },
     {
       "id": "pn-deeplink",
-      "label": "21 · A link from Slack — right tab, right artboard",
+      "label": "22 · A link from Slack — right tab, right artboard",
       "note": "A link opens the exact spot. Its tab comes forward (or opens), the canvas glides to the story and her comment opens. The link is alligators.cloud.maude.sh/c/combine-kampan — a move or rename keeps it."
     },
     {
       "id": "pn-cant-open",
-      "label": "22 · A project that moved · access removed · now Can view",
+      "label": "23 · A project that moved · access removed · now Can view",
       "note": "Words, not errors — nothing thrown away. A moved folder is found again. Removed and Can view happen on Brno Open 2026, Tereza's project: changes were saved first; Ask to edit goes to her."
     }
   ],
   "created": "2026-10-06",
-  "last_modified": "2026-10-06"
+  "last_modified": "2026-10-08"
 }

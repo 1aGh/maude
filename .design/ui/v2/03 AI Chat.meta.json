@@ -17,6 +17,11 @@
       "subtitle": "Simple mode on Combine-kampan — one field, the selection as a chip, results described in one line"
     },
     {
+      "id": "long",
+      "title": "A long chat, in a bigger panel",
+      "subtitle": "Many turns with photos, a PDF and a folder — the panel grows to full height, resizes from its edge, and pins to the side"
+    },
+    {
       "id": "several",
       "title": "Several AI chats at once",
       "subtitle": "Different artboards, the same artboard, a copy, another project tab, Tereza's AI, many chats, a hidden panel, quitting mid-run"
@@ -41,129 +46,149 @@
     {
       "id": "ai-hero",
       "label": "1 · Two AIs, two artboards — the finish lands in place",
-      "note": "Your AI finishes on Post 1:1 — solid spark ring, a before → after wipe — while Tereza's AI keeps translating the poster beside it."
+      "note": "Your AI finishes on Post 1:1 — solid spark ring, a before → after wipe — while Tereza's AI keeps translating the poster beside it. The prompt now has a paperclip: a photo, a folder (48 files, asks once) and a PDF sit inside it."
     },
     {
       "id": "ai-open",
       "label": "2 · ⌘/ opens the AI chat panel",
-      "note": "The selection arrives as a chip; three suggestions fit it; nothing else to choose."
+      "note": "The selection arrives as a chip; up to three suggestions come from what you're doing (Tereza's 3 open comments) with a one-line why."
+    },
+    {
+      "id": "ai-suggest",
+      "label": "3 · Suggestions follow what you were doing",
+      "note": "Four contexts side by side — open comments, selected clips, a canvas just shared, your last ask about colour — each leads with one contextual chip and says why. Max 3 chips, one line each."
     },
     {
       "id": "ai-scope",
-      "label": "3 · The chip says what AI touches",
+      "label": "4 · The chip says what AI touches",
       "note": "Folded spark, one artboard, whole canvas, 3 artboards — the chip is the scope and can be changed before sending."
     },
     {
       "id": "ai-working",
-      "label": "4 · AI works where you can see it",
+      "label": "5 · AI works where you can see it",
       "note": "Dashed spark outline + tag on the artboard; the panel says the same words with Stop; you keep working elsewhere."
     },
     {
       "id": "ai-done",
-      "label": "5 · Done — the finish, then Undo or Keep going",
+      "label": "6 · Done — the finish, then Undo or Keep going",
       "note": "The outline closes into a solid ring and a wipe passes before → after, then settles into Made by AI. Undo first, then Keep going."
     },
     {
       "id": "ai-attach",
-      "label": "6 · Drop a photo or footage in",
-      "note": "Files dragged onto the panel — or a screenshot pasted with ⌘V — attach to the chat and land in Assets."
+      "label": "7 · Drop a photo or footage in",
+      "note": "Drag files onto the panel or paste; photos, footage and PDFs land inside the prompt as chips and in Assets too."
+    },
+    {
+      "id": "ai-attach-menu",
+      "label": "8 · The paperclip — files, a folder, Assets, a screenshot",
+      "note": "The paperclip menu (Attach files… · Choose a folder… · From Assets · Paste a screenshot ⌘V · or drag here), what each chip shows, and the one-time folder consent."
     },
     {
       "id": "ai-question",
-      "label": "7 · A question — the canvas stays put",
+      "label": "9 · A question — the canvas stays put",
       "note": "Text answer that says the canvas didn't change; a small spark ring points at the 9 pt date line; the fix is offered as a chip."
     },
     {
+      "id": "ai-long",
+      "label": "10 · A long chat — full height, resizable, scrolled up",
+      "note": "A long conversation in the tall panel: full window height, 420 wide, left edge drags wider; photos, a PDF and a folder in the turns, a before → after result, folded steps, Jump to latest, a three-line prompt."
+    },
+    {
+      "id": "ai-long-pinned",
+      "label": "11 · Pinned to the side — a full-height column",
+      "note": "Pin to the side in the panel header docks the AI chat panel as a full-height column; the canvas makes room. Same as View › Advanced › Pin panels to the side, for this panel only."
+    },
+    {
       "id": "ai-two-artboards",
-      "label": "8 · Two chats, two artboards",
+      "label": "12 · Two chats, two artboards",
       "note": "Each running chat has its artboard, outline and tag; the compact count next to the title lists them."
     },
     {
       "id": "ai-same-artboard",
-      "label": "9 · Same artboard — the second one waits",
+      "label": "13 · Same artboard — the second one waits",
       "note": "One AI per artboard: the second ask waits and starts by itself on top of the result; Run on a copy is the one verb, × cancels."
     },
     {
       "id": "ai-copy",
-      "label": "10 · Run on a copy — both versions, side by side",
+      "label": "14 · Run on a copy — both versions, side by side",
       "note": "The copy lands beside the original, started from before the busy chat; Keep the copy replaces the original (kept in Version history), Undo removes the copy."
     },
     {
       "id": "ai-queue-rule",
-      "label": "11 · The rule, drawn once",
+      "label": "15 · The rule, drawn once",
       "note": "Lanes per artboard: parallel across artboards, a line on one artboard, whole-canvas asks take artboards as they free up, copies skip the line."
     },
     {
       "id": "ai-other-tab",
-      "label": "12 · Running in another project tab",
+      "label": "16 · Running in another project tab",
       "note": "The other project's tab carries a spark that breathes (still under reduced motion); a toast with Show says when a chat there finishes."
     },
     {
       "id": "ai-tereza",
-      "label": "13 · Tereza's AI on the same canvas",
+      "label": "17 · Tereza's AI on the same canvas",
       "note": "Her AI wears the same spark outline and tag as yours, led by her avatar; listed under On this canvas, view only."
     },
     {
       "id": "ai-chat-list",
-      "label": "14 · 41 chats — Running, then Earlier",
+      "label": "18 · 41 chats — Running, then Earlier",
       "note": "Running first, then Earlier grouped by canvas; search finds words inside chats; row menu keeps Rename, Copy transcript, Archive, Move to trash."
     },
     {
       "id": "ai-panel-closed",
-      "label": "15 · Panel hidden — AI keeps going",
+      "label": "19 · Panel hidden — AI keeps going",
       "note": "Hiding the panel never stops AI; the spark carries a dot and a toast says when each chat is done."
     },
     {
       "id": "ai-quit",
-      "label": "16 · Quitting mid-run",
+      "label": "20 · Quitting mid-run",
       "note": "Quit asks once and says what stops; next launch the chat offers Undo or Keep going."
     },
     {
       "id": "ai-needs-hidden",
-      "label": "17 · Needs you — panel hidden, another canvas",
+      "label": "21 · Needs you — panel hidden, another canvas",
       "note": "Folded spark turns azure with a count, the Uniformy-2027 row says Needs you, one toast offers Open; the count stays until answered."
     },
     {
       "id": "ai-needs-tab",
-      "label": "18 · Needs you — in another project tab",
+      "label": "22 · Needs you — in another project tab",
       "note": "The tab's spark becomes an azure question mark; one toast with Open switches tabs and opens the question."
     },
     {
       "id": "ai-needs-away",
-      "label": "19 · Needs you — the app in the background",
+      "label": "23 · Needs you — the app in the background",
       "note": "A Mac notification and a Dock count, the same pair a mention gets (10 · co-mention-notify); the same azure mark on every surface; the ring legend; the screen-reader rule."
     },
     {
       "id": "ai-permission",
-      "label": "20 · Asks before replacing your work",
+      "label": "24 · Asks before replacing your work",
       "note": "Where Open lands: the question open, an azure ring around the 4 photo artboards; Replace 4 photos / Not now. Restyling never asks."
     },
     {
       "id": "ai-choice-fail",
-      "label": "21 · A question back, and a failure",
+      "label": "25 · A question back, and a failure",
       "note": "Choices with a way to type your own; a failure says what happened, that nothing changed, and Pick another clip."
     },
     {
       "id": "ai-not-ready",
-      "label": "22 · Not connected · offline · setting up · used up · almost used up",
+      "label": "26 · Not connected · offline · setting up · used up · almost used up",
       "note": "CONTRACT §7: not connected — the one Connect sheet at the first send; offline — “Queued — sends when this Mac is online.” and “AI is back when this Mac is online.”; setting up, used up and almost used up keep the prompt."
     },
     {
       "id": "ai-advanced",
-      "label": "23 · Advanced — everything that used to be visible",
-      "note": "Model, effort, fast mode, Ask before, transcript view, tools, options from the agent, context and usage, session, raw log, slash commands, Open in terminal; plus Images, video and voice (provider, shape, place on the canvas) — as in 06 ad-ai."
+      "label": "27 · Advanced — everything that used to be visible",
+      "note": "Model, modes, tools, suggestions, readable folders, media providers, the raw log, slash commands and the session — all under the panel's Advanced; ⌘K finds each by name."
     },
     {
       "id": "ai-adv-edges",
-      "label": "24 · Modes, slash, paste, Copy and Retry, the terminal",
+      "label": "28 · Modes, slash, paste, Copy and Retry, the terminal",
       "note": "The full Ask before list mapped to the agent's modes, the suggest-only banner, / in the simple field, pasted screenshots, per-message Copy and Retry, the terminal hand-off both ways."
     },
     {
       "id": "ai-history",
-      "label": "25 · Made by AI, in Version history",
+      "label": "29 · Made by AI, in Version history",
       "note": "Every AI change is a version with Made by AI; compare side by side; Restore or Undo this chat."
     }
   ],
   "created": "2026-10-06",
-  "last_modified": "2026-10-06T18:00:00Z"
+  "last_modified": "2026-10-08T16:30:00Z"
 }

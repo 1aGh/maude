@@ -292,6 +292,29 @@
 .k-dock { position: absolute; left: 50%; bottom: var(--space-4); translate: -50% 0; z-index: 10; }
 .k-dock .icon-btn { position: relative; }
 .k-more { left: auto; right: 0; bottom: calc(100% + var(--space-2)); width: 176px; }
+.k-dock.k-dock--inline { position: relative; left: auto; bottom: auto; translate: none; }
+/* Preview's toolbar — annotation tools only, a size bigger than Edit's (lifted from 04 Modes · AnnotateDock). */
+.k-adock { gap: var(--space-1); padding: var(--space-2); }
+.dock .icon-btn.k-ad-b { position: relative; width: 48px; height: 48px; border-radius: var(--radius-lg); }
+.dock .icon-btn.k-ad-b svg { width: 22px; height: 22px; }
+.k-ad-note { display: block; width: 22px; height: 22px; border-radius: var(--radius-xs) var(--radius-xs) var(--radius-md) var(--radius-xs); rotate: -6deg; box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--object-ink) 14%, transparent); }
+.k-ad-note--yellow, .k-ad-ink--yellow, .k-ad-sw--yellow { background: var(--object-yellow); }
+.k-ad-note--coral, .k-ad-ink--coral, .k-ad-sw--coral { background: var(--object-coral); }
+.k-ad-note--green, .k-ad-ink--green, .k-ad-sw--green { background: var(--object-green); }
+.k-ad-note--sky, .k-ad-ink--sky, .k-ad-sw--sky { background: var(--object-sky); }
+.k-ad-note--lilac, .k-ad-ink--lilac, .k-ad-sw--lilac { background: var(--object-lilac); }
+.k-ad-mk { position: relative; display: grid; place-items: center; }
+.k-ad-ink { position: absolute; left: 1px; right: 1px; bottom: -5px; height: 4px; border-radius: var(--radius-pill); }
+.k-ad-stamp .k-stamp-disc { fill: var(--object-yellow); }
+.k-ad-key { position: absolute; right: 3px; bottom: 2px; font-size: calc(var(--type-xs) - 1px); line-height: 1; font-weight: var(--w-semibold); color: var(--fg-2); font-variant-numeric: tabular-nums; pointer-events: none; }
+.dock .icon-btn:not(.k-ad-b) .k-ad-key { right: 2px; bottom: 1px; font-size: calc(var(--type-xs) - 2px); }
+.k-ad-pop { position: absolute; left: 50%; bottom: calc(100% + var(--space-3)); z-index: 20; translate: -50% 0; display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-pill); white-space: nowrap; }
+.k-ad-seg { margin-right: var(--space-1); }
+.k-ad-sw { display: block; width: 20px; height: 20px; border-radius: var(--radius-pill); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--object-ink) 14%, transparent); }
+.k-ad-sw[aria-current] { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px var(--accent); }
+/* The Edit → Preview morph (ToolbarMorph): both rows overlaid in one island that widens. */
+.k-morph { display: block; overflow: hidden; padding: 0; }
+.k-morph-row { position: absolute; left: 50%; top: 50%; display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; }
 
 /* ─── AI chat panel ──────────────────────────────────────────────────────── */
 .island.k-ai, .island.k-insp { background: var(--island-bg-strong); }
@@ -655,7 +678,8 @@
 .k-pal-row { display: flex; align-items: center; gap: var(--space-3); min-height: 36px; padding: var(--space-1) var(--space-2); border-radius: var(--radius-md); font-size: var(--type-sm); }
 .k-pal-row[data-sel] { background: var(--accent-muted); }
 .k-pal-ic { display: grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: var(--radius-sm); background: var(--bg-3); color: var(--fg-1); }
-.k-pal-ic--spark { background: var(--spark); }
+.k-pal-ic--spark { background: var(--accent); color: var(--accent-fg); }
+.k-pal-ic--spark svg path { fill: currentColor; }
 .k-pal-label { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--space-2); white-space: nowrap; overflow: hidden; }
 .k-pal-ltxt { overflow: hidden; text-overflow: ellipsis; }
 .k-pal-via, .k-pal-meta { font-size: var(--type-xs); color: var(--fg-2); white-space: nowrap; }
@@ -912,10 +936,10 @@
   --island-bg-strong: oklch(0.995 0.002 240 / 0.96);
   --island-blur:   16px;
   --island-edge:   oklch(0.24 0.014 250 / 0.10);
-  --island-shadow: 0 10px 30px oklch(0.24 0.030 250 / 0.14), 0 1px 3px oklch(0.24 0.030 250 / 0.08);
+  --island-shadow: 0 2px 10px oklch(0.24 0.030 250 / 0.07), 0 0.5px 1.5px oklch(0.24 0.030 250 / 0.06);
   --shadow-sm: 0 1px 2px oklch(0.24 0.030 250 / 0.08);
-  --shadow-md: 0 6px 18px oklch(0.24 0.030 250 / 0.12), 0 1px 2px oklch(0.24 0.030 250 / 0.06);
-  --shadow-lg: 0 16px 44px oklch(0.24 0.030 250 / 0.18), 0 2px 6px oklch(0.24 0.030 250 / 0.08);
+  --shadow-md: 0 3px 10px oklch(0.24 0.030 250 / 0.08), 0 1px 2px oklch(0.24 0.030 250 / 0.05);
+  --shadow-lg: 0 8px 24px oklch(0.24 0.030 250 / 0.11), 0 2px 4px oklch(0.24 0.030 250 / 0.06);
 }
 
 /* ─── Mode switch (lifted from 04 Modes) ─── */
@@ -932,3 +956,7 @@
 .k-project > .k-av,
 .k-proj .k-av,
 .k-proj.k-av { border-radius: var(--radius-xs); }
+
+/* ─── Design system row — pinned above the canvases (13 Design System) ─── */
+.k-cp-ds { margin-bottom: var(--space-1); box-shadow: inset 0 -0.5px 0 var(--border-default); }
+.k-cp-dsic { display: grid; place-items: center; width: 22px; height: 22px; flex: none; border-radius: var(--radius-xs); background: var(--accent-muted); color: var(--accent-text); }

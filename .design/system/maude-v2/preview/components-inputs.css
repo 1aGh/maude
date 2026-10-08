@@ -108,7 +108,8 @@
 .in-multi { flex-direction: column; align-items: stretch; gap: var(--space-1); padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3); }
 .in-multi textarea { border: 0; background: transparent; resize: none; outline: none; font: inherit; font-size: var(--type-sm); line-height: var(--lh-sm); color: var(--fg-0); padding: 0; }
 .in-multi-ft { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-2); }
-.in-multi-ft .send { display: grid; place-items: center; width: 28px; height: 28px; border-radius: var(--radius-md); background: var(--spark); color: var(--spark-fg); }
+.in-multi-ft .send { display: grid; place-items: center; width: 28px; height: 28px; border-radius: var(--radius-md); background: var(--accent); color: var(--accent-fg); }
+.in-multi-ft .send svg path { fill: currentColor; }
 
 /* ─── Number fields ──────────────────────────────────────────────────────── */
 .in-num {

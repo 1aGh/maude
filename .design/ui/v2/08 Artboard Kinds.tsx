@@ -35,7 +35,7 @@ import { DesignCanvas, DCSection, DCArtboard } from "@maude/canvas-lib";
 import type { CSSProperties, ReactNode } from "react";
 import {
   Artboard, Canvas, CommentPin, Dialog, GatorMock, Icon, InButton, InFill, InNum, InSeg, InSelect, InSize, InSwitch,
-  Inspector, KindGlyph, Note, PanelIcon, ProjectMenu, ProjectPill, Selection, ShareCluster, Stage, Sticky, TABS, Thumb,
+  Inspector, KindGlyph, Note, PanelIcon, ProjectMenu, ProjectPill, Selection, ShareCluster, Stage, TABS, Thumb,
   Toast, Toolbar, V2, Veil, VideoFrameMock, Window, ZoomUndo,
 } from "./_kit";
 import type { Art, Kind } from "./_kit";
@@ -693,7 +693,6 @@ export default function ArtboardKinds() {
                 <Artboard label="B · zadní (FLAG)" kind="print" x={509} y={140} w={189} h={261}><Flyer side="b" variant="flag" /></Artboard>
                 <Artboard label="A · přední (TACKLE)" kind="print" x={740} y={140} w={189} h={261}><Flyer side="a" variant="tackle" /></Artboard>
                 <Artboard label="B · zadní (TACKLE)" kind="print" x={949} y={140} w={189} h={261}><Flyer side="b" variant="tackle" /></Artboard>
-                <Sticky color="yellow" x={330} y={470} rotate={-2}>Tiskárna chce PDF se spadávkou do pátku</Sticky>
                 <CommentPin who="tereza" x={720} y={500} text="QR vede na alligators.cz/nabor — ověřeno." />
               </Canvas>
               <GatorChrome canvas="LetakA6" zoom={45} insp={

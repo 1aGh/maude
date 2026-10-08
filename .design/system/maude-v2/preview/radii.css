@@ -41,7 +41,6 @@
 .rd-dock { --rr: var(--radius-xl); position: relative; }
 .rd-dock .rd-rel { --rr: calc(var(--radius-xl) - var(--space-2)); }
 .rd-dock .rd-pressed { background: var(--accent); color: var(--accent-fg); }
-.rd-dock-sticky { display: block; width: 20px; height: 20px; border-radius: var(--radius-xs); background: var(--object-yellow); rotate: -6deg; box-shadow: var(--shadow-sm); }
 
 .rd-caption { font-size: var(--type-sm); line-height: var(--lh-sm); margin: 0 0 var(--space-6); }
 .specimen .rd-caption { color: var(--fg-2); }

@@ -1,0 +1,189 @@
+{
+  "title": "14 Editing",
+  "subtitle": "Artboards, the objects inside them, layout, text, shapes, images, components and the inspector — Studio site and Alligators brand",
+  "brief": "jeste me doslo ze tam vubec neni navrh jak bude vypadat prace s artboards a annotations, jak bude vypadat ta samotna editace a objekty atd. — this canvas covers artboards + objects + editing (annotations: 15 Annotations). Selecting, resizing (preset snapping, Fits content vs Fixed), arranging with smart guides, tidy up, the artboard menu, rename in place; entering frames, multi-select, nudge, frame selection, order, lock, hide, Layers in sync; auto layout with token gap/padding, drag-to-reorder with a slot, free placement with constraints, Convert layout to absolute; text editing, styles, overrides and detach in Czech; shapes with per-corner radius, Pen; image place + crop; components from the Design system with overrides, variant swap, detach; the whole inspector; and edge cases — AI and you in one artboard, Tereza on the same object, a 6000 px page, undo across AI, ⌘/ on a selection resolving in place, a paste from Figma, keyboard only.",
+  "platform": "desktop",
+  "designSystem": "maude-v2",
+  "opt_out_scope": "palette",
+  "sections": [
+    {
+      "id": "artboards",
+      "title": "Artboards — select, size, arrange",
+      "subtitle": "Eight handles, preset snapping, Fits content vs Fixed, smart guides and equal gaps, tidy up, the artboard menu, rename in place"
+    },
+    {
+      "id": "objects",
+      "title": "Objects inside an artboard",
+      "subtitle": "Double-click goes inside, esc steps out; ⇧-click adds; nudge, frame, order, lock, hide; Layers follows"
+    },
+    {
+      "id": "layout",
+      "title": "Layout — auto layout and free placement",
+      "subtitle": "Gap and padding are Space tokens that snap while you drag; Hug · Fill · Fixed; Auto = space between; dragging opens a slot; social graphics pinned by constraints"
+    },
+    {
+      "id": "text",
+      "title": "Text",
+      "subtitle": "Edit in place; a style from the Design system; an override shows a dot; detach keeps the look"
+    },
+    {
+      "id": "shapes",
+      "title": "Shapes and Pen",
+      "subtitle": "Fill, border, each corner; Line · Ellipse · Polygon under More; Pen draws, then edits points and handles"
+    },
+    {
+      "id": "images",
+      "title": "Images",
+      "subtitle": "Place from Assets or Finder into a frame, crop in place; background removal hands off to Photo (12)"
+    },
+    {
+      "id": "components",
+      "title": "Components",
+      "subtitle": "⇧I grouped like the Design system; overrides, variant swap, detach, go to the main (13)"
+    },
+    {
+      "id": "inspector",
+      "title": "The inspector, every section",
+      "subtitle": "Position, Size, Layout, Fill, Corners, Border, Effects, Type, Interaction, Export — Advanced last"
+    },
+    {
+      "id": "edge",
+      "title": "Edge cases",
+      "subtitle": "AI and you in one artboard · ⌘/ on a selection, in place · Tereza on the same object · a 6000 px page · undo across AI · a Figma paste · keyboard only"
+    }
+  ],
+  "artboards": [
+    {
+      "id": "ed-ab-select",
+      "label": "1 · Select an artboard",
+      "note": "Name turns azure with its size, eight handles, the artboard inspector: preset, size, height, clip, fill, layout, export."
+    },
+    {
+      "id": "ed-ab-resize",
+      "label": "2 · Resize — snaps to presets",
+      "note": "Dragging an edge clicks onto Laptop 1280 on the preset ruler; size reads by the pointer; height still fits content."
+    },
+    {
+      "id": "ed-ab-arrange",
+      "label": "3 · Move one — smart guides and equal gaps",
+      "note": "Trenéři snaps to the row's top edge; three magenta chips say every gap is 80; X/Y by the pointer."
+    },
+    {
+      "id": "ed-ab-tidy",
+      "label": "4 · Several at once — align, distribute, tidy up",
+      "note": "Four stories selected; the bar offers align, distribute and Tidy up, previewed as dashed outlines on the lowest one's line."
+    },
+    {
+      "id": "ed-ab-menu",
+      "label": "5 · Right-click, ⌘D, rename in place",
+      "note": "The settled artboard menu with Duplicate at another width open; ⌘D lands at the same gap; the name field grows to the full Czech name."
+    },
+    {
+      "id": "ed-obj-enter",
+      "label": "6 · Double-click goes inside a frame",
+      "note": "Services dashed (you're inside it), Brand systems selected and set by Services' auto layout (Place freely off), breadcrumb with esc, Layers synced."
+    },
+    {
+      "id": "ed-obj-multi",
+      "label": "7 · Multi-select — shared properties, align",
+      "note": "Three objects on the Alligators post: shared values, Mixed where they differ, Align left previewed with a guide; rotate just outside a corner."
+    },
+    {
+      "id": "ed-obj-order",
+      "label": "8 · Nudge, frame, order, lock, hide",
+      "note": "Arrows 1 / ⇧10 px, ⌥⌘G (or ⌘G) frame selection, the object menu with ] [ ⌘] ⌘[ and copy/paste properties, a locked logo that hands the click to its parent, Layers hover tools."
+    },
+    {
+      "id": "ed-lay-auto",
+      "label": "9 · Auto layout — gap and padding are tokens",
+      "note": "Dragging a gap clicks through the system's space (12 · 16 · 24 · 32 · 48) on a ruler; gap and padding read Space 24; Auto = space between; Convert layout to absolute under Advanced."
+    },
+    {
+      "id": "ed-lay-reorder",
+      "label": "10 · Drag to reorder — the slot opens",
+      "note": "Signature: Small apps lifts, neighbours slide, a numbered slot opens with measured gaps; a 220 ms filmstrip and Layers showing the same slot."
+    },
+    {
+      "id": "ed-lay-free",
+      "label": "11 · Free placement with constraints",
+      "note": "Datum pinned Right · Top keeps 64 from the corner on the post and on its 9:16 story copy; its yellow is Podklad's."
+    },
+    {
+      "id": "ed-text-edit",
+      "label": "12 · Edit text in place",
+      "note": "STAŇ SE GATOREM with a caret and selection; style Plakát from the Alligators system; Čeština keeps one-letter words with the next word, the ties shown while typing."
+    },
+    {
+      "id": "ed-text-style",
+      "label": "13 · A style, an override, a detach",
+      "note": "Three states side by side: following Plakát, one changed value with a dot and Reset, detached with the look kept."
+    },
+    {
+      "id": "ed-shape",
+      "label": "14 · Shape — fill, stroke, each corner",
+      "note": "Podklad with three round corners and one tighter one; corner dots on the canvas; Border and Flat elevation from the Alligators system; More open with Line, Ellipse, Polygon."
+    },
+    {
+      "id": "ed-pen",
+      "label": "15 · Pen — draw, then points, handles, bend",
+      "note": "Pen draws a new path (sharp click, smooth drag, ⇧ 45°, click the first point to close), then edits points and handles; the old curve dashed."
+    },
+    {
+      "id": "ed-img",
+      "label": "16 · Image — place, then crop",
+      "note": "Assets open on Image; the photo fills Hráč · foto; crop mode shows the whole photo faded beyond the frame; Adjust and Remove background (with the AI spark) open Photo (12)."
+    },
+    {
+      "id": "ed-comp-pick",
+      "label": "17 · Component ⇧I — from the Design system",
+      "note": "Picker grouped like 13: Brand (Logo, Signs) · Components · Patterns; Tlačítko · Plné placed, snapping to the story's centre."
+    },
+    {
+      "id": "ed-comp-instance",
+      "label": "18 · An instance — override, swap, detach",
+      "note": "Text and fill changed with dots and Reset; swap the variant (Plné · Obrys) or the component; Update Tlačítko for every canvas…; Detach breaks nothing."
+    },
+    {
+      "id": "ed-inspector",
+      "label": "19 · The inspector for one button",
+      "note": "Every section for Book a call — Position, Size, Layout (with Space between), Fill, Corners, Border, Effects, Type, Interaction, Export — a words → CSS table, Advanced last."
+    },
+    {
+      "id": "ed-edge-ai",
+      "label": "20 · AI edits the footer, you edit the headline",
+      "note": "AI's dashed outline only around the footer it is drawing; clicking the footer says it's AI's until done; you keep typing in the headline."
+    },
+    {
+      "id": "ed-edge-ask",
+      "label": "21 · ⌘/ on a selection — AI works in place",
+      "note": "Three cards selected, ⌘/ asked; AI's outline sits on the selection only, skeleton links in each card, and the whole change is one ⌘Z step."
+    },
+    {
+      "id": "ed-edge-tereza",
+      "label": "22 · Tereza is editing the same button",
+      "note": "Her sky ring and name; you can select and read every value (Interaction included); the fields open when she moves on; one action, Comment."
+    },
+    {
+      "id": "ed-edge-huge",
+      "label": "23 · A 6000 px page",
+      "note": "The name sticks to the window top; a minimap with sections to jump to appears while you work inside."
+    },
+    {
+      "id": "ed-edge-undo",
+      "label": "24 · Undo across AI and you",
+      "note": "Menu › Edit › Undo history interleaves You and AI; an AI run is one step; pointing at a row lights what it would undo."
+    },
+    {
+      "id": "ed-edge-paste",
+      "label": "25 · Pasted from Figma",
+      "note": "A Figma frame arrives as its exact picture (an Image) with one action, Make editable; the inspector says what that needs."
+    },
+    {
+      "id": "ed-edge-keys",
+      "label": "26 · Keyboard only",
+      "note": "F6 to the canvas, tab order badges, a focus ring with a halo, VoiceOver's line in words, and the key path incl. resize and keyboard creation."
+    }
+  ],
+  "created": "2026-10-08",
+  "last_modified": "2026-10-08"
+}

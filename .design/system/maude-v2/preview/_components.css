@@ -72,8 +72,11 @@
 .btn--ghost { background: transparent; color: var(--fg-1); }
 .btn--ghost:hover { background: var(--bg-3); color: var(--fg-0); }
 
-.btn--spark { background: var(--spark); color: var(--spark-fg); }
-.btn--spark:hover { background: var(--spark-hover); }
+.btn--spark { background: var(--accent); color: var(--accent-fg); }
+.btn--spark:hover { background: var(--accent-hover); }
+/* An AI action is still an action: azure fill ("Azure acts"), the spark only as its glyph, in the button's own colour.
+   Vermilion fills stay for AI presence (cursor, working tag) — never a button you are asked to press. */
+.btn--spark svg path, .ask .send svg path { fill: currentColor; }
 
 .btn--lg { height: 40px; padding: 0 var(--space-4); font-size: var(--type-base); border-radius: var(--radius-lg); }
 .btn--sm { height: 26px; padding: 0 var(--space-2); font-size: var(--type-xs); border-radius: var(--radius-sm); }
@@ -141,8 +144,8 @@
   display: grid; place-items: center;
   width: 28px; height: 28px;
   border-radius: var(--radius-md);
-  background: var(--spark);
-  color: var(--spark-fg);
+  background: var(--accent);
+  color: var(--accent-fg);
 }
 
 /* ─── Segmented control + switch ─────────────────────────────────────────── */
