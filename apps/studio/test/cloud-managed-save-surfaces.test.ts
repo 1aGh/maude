@@ -17,8 +17,12 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { clientMatches, clientSource } from './_client-source.ts';
+
 const STUDIO = join(import.meta.dir, '..');
-const APP = readFileSync(join(STUDIO, 'client', 'app.jsx'), 'utf8');
+// The shell's code, whichever client file it lives in (app.jsx before the
+// V2-0.2 split, its modules after) — see `_client-source.ts`.
+const APP = clientSource();
 const PANEL = readFileSync(join(STUDIO, 'client', 'panels', 'GitPanel.jsx'), 'utf8');
 
 describe('one expression owns "who is saving this project"', () => {
@@ -44,13 +48,14 @@ describe('the dirty COUNT is withheld wherever saving is managed', () => {
 
   test('no surface reads the raw file count for display', () => {
     // Exactly one `gitStatus?.files?.length` may exist, and it is the gated one
-    // above. A second occurrence is a new leak by construction.
-    const raw = APP.match(/gitStatus\?\.files\?\.length/g) ?? [];
+    // above. A second occurrence is a new leak by construction — counted across
+    // every client module, so a surface split out of app.jsx is still counted.
+    const raw = clientMatches(/gitStatus\?\.files\?\.length/g);
     expect(raw.length).toBe(1);
   });
 
   test('every changesCount consumer is fed the gated value', () => {
-    const feeds = APP.match(/changesCount=\{[^}]+\}/g) ?? [];
+    const feeds = clientMatches(/changesCount=\{[^}]+\}/g);
     expect(feeds.length).toBeGreaterThan(0);
     for (const feed of feeds) expect(feed).toBe('changesCount={unsavedCount}');
   });

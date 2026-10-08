@@ -11,8 +11,12 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { clientSource } from './_client-source.ts';
+
 const STUDIO = join(import.meta.dir, '..');
-const APP = readFileSync(join(STUDIO, 'client', 'app.jsx'), 'utf8');
+// The shell's code, whichever client file it lives in (app.jsx before the
+// V2-0.2 split, its modules after) — see `_client-source.ts`.
+const APP = clientSource();
 const PANEL = readFileSync(join(STUDIO, 'client', 'panels', 'SyncPanel.jsx'), 'utf8');
 
 describe('the Sync panel exists only where a hub link exists', () => {

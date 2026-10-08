@@ -26,6 +26,7 @@ import {
   useTreeExpansion,
 } from '../client/tree-expansion.js';
 import { normalizeTreeState, TREE_STATE_MAX_DIRS } from '../tree-state.ts';
+import { clientSource, fnBody } from './_client-source.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
 const GROUPS = [
@@ -251,17 +252,12 @@ describe('/_api/tree-state — HTTP round-trip', () => {
 
 // Source tripwire — the regression itself lived in app.jsx (too large to mount
 // in a unit test): folder rows seeded `useState(defaultOpen)` from a hard-coded
-// `defaultOpen={true}`, and sections defaulted open. Pin the controlled shape.
+// `defaultOpen={true}`, and sections defaulted open. Pin the controlled shape —
+// read through `_client-source.ts`, so it holds wherever the tree components
+// live (app.jsx before the V2-0.2 split, client/tree/… after).
 describe('app.jsx — tree rows are controlled and default closed', () => {
-  const app = readFileSync(new URL('../client/app.jsx', import.meta.url), 'utf8');
-  const fnBody = (name: string) => {
-    const start = app.indexOf(`function ${name}(`);
-    expect(start).toBeGreaterThan(-1);
-    return app.slice(start, app.indexOf('\nfunction ', start + 1));
-  };
-
   test('no folder row is hard-coded open', () => {
-    expect(app).not.toContain('defaultOpen={true}');
+    expect(clientSource()).not.toContain('defaultOpen={true}');
   });
 
   test('DirRow / DsFolderRow hold no local disclosure state', () => {

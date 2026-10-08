@@ -27,9 +27,14 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { fileContaining } from './_client-source.ts';
+
 const STUDIO = join(import.meta.dir, '..');
 const HTTP_TS = readFileSync(join(STUDIO, 'http.ts'), 'utf8');
-const APP_JSX = readFileSync(join(STUDIO, 'client', 'app.jsx'), 'utf8');
+// The client file that holds the `/_config` fetch — app.jsx before the V2-0.2
+// split, wherever that handler moves after it (see `_client-source.ts`). Read
+// inside each test, so a missing or duplicated handler fails a test, not the import.
+const clientConfigFile = () => fileContaining("fetch('/_config')").src;
 
 /**
  * Fields the `/_config` handler adds ON TOP of the `...ctx.cfg` spread.
@@ -56,6 +61,7 @@ function serverComputedConfigFields(): string[] {
 
 /** Fields the client's `/_config` handler copies into `cfg`. */
 function clientProjectedFields(): string[] {
+  const APP_JSX = clientConfigFile();
   const start = APP_JSX.indexOf("fetch('/_config')");
   expect(start).toBeGreaterThan(0);
   const end = APP_JSX.indexOf('.catch(() => {});', start);
@@ -96,6 +102,7 @@ describe('/_config projection', () => {
     // `/_index-data` race, and a full replace clobbers `canvasDesignSystems`
     // (DDR-093). Anyone "simplifying" this into a spread of `data` must not
     // also drop the functional merge.
+    const APP_JSX = clientConfigFile();
     const start = APP_JSX.indexOf("fetch('/_config')");
     const src = APP_JSX.slice(start, APP_JSX.indexOf('.catch(() => {});', start));
     expect(src).toContain('setCfg((prev) => ({');

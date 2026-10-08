@@ -30,6 +30,7 @@ import {
 } from '../exporters/format-scopes.ts';
 import { FORMATS } from '../exporters/index.ts';
 import { DEV_SERVER_ROOT } from '../paths.ts';
+import { clientSource, fileDefining } from './_client-source.ts';
 
 describe('format × scope coherence', () => {
   test('every known format has a scope list', () => {
@@ -91,14 +92,18 @@ describe('region scopes (issue #125)', () => {
 describe('no client keeps its own copy of the scope table', () => {
   const read = (...p: string[]) => readFileSync(join(DEV_SERVER_ROOT, ...p), 'utf8');
 
-  for (const [file, banned] of [
-    ['client/app.jsx', 'EXPORT_VALID_SCOPES = {'],
-    ['export-dialog.tsx', 'VALID_SCOPES_PER_FORMAT: Record'],
-  ] as const) {
-    test(`${file} sources its scopes from exporters/format-scopes.ts`, () => {
-      const src = read(...file.split('/'));
-      expect(src).not.toContain(banned);
-      expect(src).toContain('format-scopes');
-    });
-  }
+  // The studio shell's copy lived in client/app.jsx. Pinned move-proof: no
+  // client module may carry the literal table, and the module that defines
+  // ExportDialog — the one consumer of the scope helpers — imports the shared
+  // table (app.jsx today; its own module after the V2-0.2 split).
+  test('the studio client (ExportDialog) sources its scopes from exporters/format-scopes.ts', () => {
+    expect(clientSource()).not.toContain('EXPORT_VALID_SCOPES = {');
+    expect(fileDefining('ExportDialog').src).toContain('format-scopes');
+  });
+
+  test('export-dialog.tsx sources its scopes from exporters/format-scopes.ts', () => {
+    const src = read('export-dialog.tsx');
+    expect(src).not.toContain('VALID_SCOPES_PER_FORMAT: Record');
+    expect(src).toContain('format-scopes');
+  });
 });

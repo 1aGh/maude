@@ -16,8 +16,12 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { clientMatches, clientSource, fileContaining, fnBody } from './_client-source.ts';
+
 const STUDIO = join(import.meta.dir, '..');
-const APP = readFileSync(join(STUDIO, 'client', 'app.jsx'), 'utf8');
+// The shell's code, whichever client file it lives in (app.jsx before the
+// V2-0.2 split, its modules after) — see `_client-source.ts`.
+const APP = clientSource();
 const PANEL = readFileSync(join(STUDIO, 'client', 'panels', 'GitPanel.jsx'), 'utf8');
 const HTTP = readFileSync(join(STUDIO, 'http.ts'), 'utf8');
 const ENDPOINTS = readFileSync(join(STUDIO, 'cloud', 'endpoints.ts'), 'utf8');
@@ -44,7 +48,11 @@ describe('the loader is chosen ONCE, where the posture is named', () => {
 
   test('a failed load is reported, not rendered as an empty history', () => {
     // Collapsing "could not reach" into "nothing saved yet" IS the bug.
-    expect(APP).toMatch(/if \(!r\.ok\) return null;/);
+    // Read in the file that holds the cloud loader: the same guard exists in
+    // unrelated client modules, which must not be able to satisfy this.
+    expect(fileContaining("'/_api/cloud/history?limit=40'").src).toMatch(
+      /if \(!r\.ok\) return null;/
+    );
     expect(PANEL).toContain('const [logFailed, setLogFailed] = useState(false);');
     expect(PANEL).toContain('setLogFailed(entries == null);');
     expect(PANEL).toContain('data-testid="git-history-unreachable"');
@@ -68,22 +76,28 @@ describe('while cloud-managed, the desktop runs NO local git of its own', () => 
   test('the mount status fetch is gated, and reacts live', () => {
     // Reactive on the posture, not mount-only: Connect must stop it and
     // Disconnect must resume it, both without a reload.
-    expect(APP).toMatch(/if \(savingIsManaged\) \{\n\s*\/\/[\s\S]*?setGitStatus\(null\);/);
+    // `[\s\S]` patterns are matched one file at a time (clientMatches), so a
+    // match can never start in one module and finish in the next.
+    expect(
+      clientMatches(/if \(savingIsManaged\) \{\n\s*\/\/[\s\S]*?setGitStatus\(null\);/)
+    ).not.toEqual([]);
     expect(APP).toMatch(/\}, \[savingIsManaged\]\);/);
   });
 
   test('both refreshers refuse in that posture', () => {
-    const refreshers = APP.match(
+    const refreshers = clientMatches(
       /const refresh(GitStatus|RemoteSync) = useCallback\(async \(\) => \{[\s\S]{0,600}?\n {2}\}, \[\]\);/g
     );
-    expect(refreshers?.length).toBe(2);
-    for (const fn of refreshers ?? []) expect(fn).toContain('savingIsManagedRef.current');
+    expect(refreshers.length).toBe(2);
+    for (const fn of refreshers) expect(fn).toContain('savingIsManagedRef.current');
   });
 
   test('the remote ahead/behind probe stops AND clears its last answer', () => {
     // A stale ahead/behind would otherwise outlive the link and keep the
     // "Get latest" nudge on a remote this project has nothing to do with.
-    expect(APP).toMatch(/if \(savingIsManaged\) \{[\s\S]{0,400}?setRemoteSync\(null\);/);
+    expect(
+      clientMatches(/if \(savingIsManaged\) \{[\s\S]{0,400}?setRemoteSync\(null\);/)
+    ).not.toEqual([]);
     expect(APP).toContain(
       '}, [savingIsManaged, gitStatus?.repo, changesOpen, refreshRemoteSync]);'
     );
@@ -114,10 +128,25 @@ describe('while cloud-managed, the desktop runs NO local git of its own', () => 
   test('the posture is declared above every effect that names it', () => {
     // A dependency array evaluates during render, so a `const` below its first
     // consumer is a temporal-dead-zone ReferenceError at boot, not a warning.
-    const declared = APP.indexOf('const savingIsManaged = cellManaged || cloudManaged;');
+    //
+    // Checked in the scope that declares it: the declaration must be the FIRST
+    // mention of `savingIsManaged` in App(). That covers the status fetch and
+    // the dirtyByPath memo this pinned by name while they are inline, and still
+    // covers them once an effect group moves into a hook — the hook's call in
+    // App() then names the posture, and the call is what must come after it.
+    const DECLARATION = 'const savingIsManaged = cellManaged || cloudManaged;';
+    // Whole-line comments blanked (same length, so offsets hold): prose is not a use.
+    const app = fnBody('App').replace(/^[ \t]*\/\/.*$/gm, (line) => ' '.repeat(line.length));
+    const declared = app.indexOf(DECLARATION);
     expect(declared).toBeGreaterThan(0);
-    expect(declared).toBeLessThan(APP.indexOf("fetch('/_api/git/status')"));
-    expect(declared).toBeLessThan(APP.indexOf('const dirtyByPath = useMemo'));
+    expect(app.search(/\bsavingIsManaged\b/)).toBe(declared + 'const '.length);
+    // The original by-name pins, for as long as those consumers are written
+    // inline in App() (true until an effect group moves out; the line above
+    // then carries the rule).
+    for (const consumer of ["fetch('/_api/git/status')", 'const dirtyByPath = useMemo']) {
+      const at = app.indexOf(consumer);
+      if (at !== -1) expect(declared).toBeLessThan(at);
+    }
   });
 });
 
@@ -127,7 +156,8 @@ describe('what must NOT be withdrawn', () => {
     // canvases. Disabling it would silently desync anyone who uses git in a
     // terminal — precisely the workflow DDR-218 promised would survive. A
     // NEGATIVE assertion, so a future tidy-up cannot quietly add the gate.
-    const handler = APP.slice(APP.indexOf("m.type === 'git-lifecycle'"));
+    const ws = fileContaining("m.type === 'git-lifecycle'").src;
+    const handler = ws.slice(ws.indexOf("m.type === 'git-lifecycle'"));
     const body = handler.slice(0, handler.indexOf('}\n        } catch {}'));
     expect(body).toContain('setGitLifecycle(m.payload);');
     expect(body).not.toContain('savingIsManaged');

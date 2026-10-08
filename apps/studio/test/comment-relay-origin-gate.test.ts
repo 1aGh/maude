@@ -21,15 +21,18 @@
 // correctly, only that the control is present and reachable.
 
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 
-const SRC = readFileSync(join(import.meta.dir, '..', 'client', 'app.jsx'), 'utf8');
+import { clientFiles, fileContaining } from './_client-source.ts';
 
-/** The body of one `else if (m.dgn === '<name>' …)` branch, up to the next one. */
+/**
+ * The body of one `else if (m.dgn === '<name>' …)` branch, up to the next one —
+ * read in whichever client file holds the handler (app.jsx's `onMessage`
+ * before the V2-0.2 split; the dgn-listener hook after it).
+ */
 function branch(name: string): string {
+  const { src: SRC } = fileContaining(`m.dgn === '${name}'`);
   const start = SRC.indexOf(`m.dgn === '${name}'`);
-  expect(start, `branch for ${name} not found in app.jsx`).toBeGreaterThan(-1);
+  expect(start, `branch for ${name} not found in the client`).toBeGreaterThan(-1);
   const rest = SRC.slice(start + name.length);
   const end = rest.indexOf('} else if (m.dgn ===');
   return rest.slice(0, end === -1 ? 2000 : end);
@@ -81,33 +84,43 @@ describe('canvas → shell comment relays are scoped to the active canvas', () =
   // not hypothetical: the first cut of this fix shipped it, and every
   // string-matching assertion above stayed green.
   test('every activeWin comparison has a declaration, derived from activePath', () => {
-    // Line comments are blanked first — the prose in this handler quotes the
-    // gate expression, and a comment is not a use.
-    const CODE = SRC.split('\n')
-      .map((l) => l.replace(/^\s*\/\/.*$/, ''))
-      .join('\n');
-    const BRANCH_START = /\b(?:else )?if \(m\.dgn ===/g;
-    const starts = [...CODE.matchAll(BRANCH_START)].map((m) => m.index ?? 0);
     const undeclared: string[] = [];
+    let uses = 0;
+    // Every client file, each scanned on its own: a branch boundary in one
+    // file must never stand in for the start of a usage's branch in another.
+    for (const { src: SRC } of clientFiles()) {
+      // Line comments are blanked first — the prose in this handler quotes the
+      // gate expression, and a comment is not a use.
+      const CODE = SRC.split('\n')
+        .map((l) => l.replace(/^\s*\/\/.*$/, ''))
+        .join('\n');
+      const BRANCH_START = /\b(?:else )?if \(m\.dgn ===/g;
+      const starts = [...CODE.matchAll(BRANCH_START)].map((m) => m.index ?? 0);
 
-    // Both idioms count: the `===` gate used by the comment relays and the
-    // `!== … return` early-exit form five other branches use. Checking only
-    // one lets a branch convert to the other and slip the check.
-    for (const use of [...CODE.matchAll(/e\.source [!=]== activeWin/g)].map((m) => m.index ?? 0)) {
-      // Nearest branch boundary at or before this usage.
-      const open = starts.filter((s) => s < use).pop() ?? 0;
-      // `= activePath` is the load-bearing half: a declaration that derives the
-      // window from the MESSAGE (`iframesRef.current.get(m.file)`) instead of
-      // from app state satisfies a bare `const activeWin` check while handing
-      // the attacker the very comparison the gate exists to make.
-      if (!/const activeWin =\s*\n?\s*activePath/.test(CODE.slice(open, use))) {
-        undeclared.push(
-          CODE.slice(open, open + 60)
-            .split('\n')[0]!
-            .trim()
-        );
+      // Both idioms count: the `===` gate used by the comment relays and the
+      // `!== … return` early-exit form five other branches use. Checking only
+      // one lets a branch convert to the other and slip the check.
+      for (const use of [...CODE.matchAll(/e\.source [!=]== activeWin/g)].map(
+        (m) => m.index ?? 0
+      )) {
+        uses++;
+        // Nearest branch boundary at or before this usage.
+        const open = starts.filter((s) => s < use).pop() ?? 0;
+        // `= activePath` is the load-bearing half: a declaration that derives the
+        // window from the MESSAGE (`iframesRef.current.get(m.file)`) instead of
+        // from app state satisfies a bare `const activeWin` check while handing
+        // the attacker the very comparison the gate exists to make.
+        if (!/const activeWin =\s*\n?\s*activePath/.test(CODE.slice(open, use))) {
+          undeclared.push(
+            CODE.slice(open, open + 60)
+              .split('\n')[0]!
+              .trim()
+          );
+        }
       }
     }
+    // The handler was found at all — an empty scan approves everything.
+    expect(uses).toBeGreaterThan(0);
 
     expect(
       undeclared,

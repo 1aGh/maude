@@ -31,8 +31,18 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import {
+  clientFiles,
+  clientMatches,
+  clientSource,
+  fileContaining,
+  fnBody,
+} from './_client-source.ts';
+
 const STUDIO = join(import.meta.dir, '..');
-const APP = readFileSync(join(STUDIO, 'client', 'app.jsx'), 'utf8');
+// The shell's code, whichever client file it lives in (app.jsx before the
+// V2-0.2 split, its modules after) — see `_client-source.ts`.
+const APP = clientSource();
 const SETTINGS = readFileSync(join(STUDIO, 'client', 'panels', 'SettingsPanel.jsx'), 'utf8');
 
 describe('the cloud shell offers nothing it cannot honour', () => {
@@ -76,7 +86,7 @@ describe('the cloud shell offers nothing it cannot honour', () => {
     // Matched on the GUARD rather than the whole element, so adding a prop to
     // CloudBar (DDR-214 drilled the live sync payload in) does not read as a
     // regression in a rule that is entirely about `=== null`.
-    expect(APP).toMatch(/\{cloud === null \? <CloudBar[^>]*\/> : null\}/);
+    expect(clientMatches(/\{cloud === null \? <CloudBar[^>]*\/> : null\}/)).not.toEqual([]);
     expect(APP).not.toMatch(/\{cloud \? null : <CloudBar/);
   });
 
@@ -96,19 +106,31 @@ describe('the cloud shell offers nothing it cannot honour', () => {
     // `exportLane` disjunct is safe for the same reason it is invisible here:
     // it arrives in the SAME `/_config` payload, so it is undefined for exactly
     // as long as `cloud` is.)
-    const call = /useExportCenter\(\{[\s\S]*?\}\)/.exec(APP)?.[0] ?? '';
-    expect(call).toContain('cfg.cloud === null');
-    expect(call).not.toMatch(/enabled:\s*!cfg\.cloud/);
-    expect(call).not.toMatch(/enabled:\s*cfg\.cloud\s*[?&|]/);
+    // Every CALL in the client — `export function useExportCenter({ enabled = true } = {})`
+    // in export-center.jsx is the hook's own signature, not a call site.
+    const calls = clientFiles().flatMap((f) =>
+      [...f.src.matchAll(/useExportCenter\(\{[\s\S]*?\}\)/g)]
+        .filter((m) => !f.src.slice(0, m.index).endsWith('function '))
+        .map((m) => m[0])
+    );
+    expect(calls.length).toBeGreaterThan(0);
+    for (const call of calls) {
+      expect(call).toContain('cfg.cloud === null');
+      expect(call).not.toMatch(/enabled:\s*!cfg\.cloud/);
+      expect(call).not.toMatch(/enabled:\s*cfg\.cloud\s*[?&|]/);
+    }
   });
 
   test('every component that gates on the shell is actually GIVEN the flag', () => {
     // The bug this exists for: three `cfg?.cloud` reads inside a component that
     // never receives `cfg` — a ReferenceError at render, and a blank app.
     for (const call of ['<Menubar', '<Sidebar', '<SettingsPanel']) {
-      const at = APP.indexOf(call);
+      // Sliced inside the one file that renders it, so the window never runs
+      // past the end of that file into the next.
+      const { src } = fileContaining(call);
+      const at = src.indexOf(call);
       expect(at).toBeGreaterThan(0);
-      const props = APP.slice(at, at + 900);
+      const props = src.slice(at, at + 900);
       // Passed RAW — a `?? null` here would erase the "not known yet" state
       // before any component could see it.
       expect(props).toContain('cloud={cfg.cloud}');
@@ -118,11 +140,11 @@ describe('the cloud shell offers nothing it cannot honour', () => {
   test('no component reaches for `cfg` where only the flag was passed', () => {
     // `cfg` is a real variable at the top level, so a stray reference in a
     // child component is a ReferenceError the bundler happily emits.
-    for (const fn of ['function Menubar({', 'function Sidebar({']) {
-      const start = APP.indexOf(fn);
-      expect(start).toBeGreaterThan(0);
-      // Bounded window: the component's own body, not the whole file.
-      const body = APP.slice(start, APP.indexOf('\nfunction ', start + 10));
+    for (const name of ['Menubar', 'Sidebar']) {
+      // Bounded window: the component's own body, not the whole file —
+      // wherever that component is defined.
+      const body = fnBody(name);
+      expect(body.startsWith(`function ${name}({`)).toBe(true);
       expect(body).not.toMatch(/\bcfg\?\./);
       expect(body).not.toMatch(/\bcfg\./);
     }
@@ -135,15 +157,16 @@ describe('"not known yet" survives every layer between /_config and the DOM', ()
   // default fires on `undefined` — so "we have not asked yet" turned back into
   // "this is not the cloud" one layer further in, the sign-in bar mounted for a
   // frame, and the boot 404 came back looking exactly like the one just fixed.
-  const APP_SRC = readFileSync(join(STUDIO, 'client', 'app.jsx'), 'utf8');
-  const SETTINGS_SRC = readFileSync(join(STUDIO, 'client', 'panels', 'SettingsPanel.jsx'), 'utf8');
+  // Checked in EVERY client module (app.jsx and SettingsPanel.jsx were the two
+  // named here; a component split out of app.jsx must stay covered wherever it
+  // lands), except the one panel whose `cloud = null` default is pinned on
+  // purpose by sync-panel-surface.test.ts ("it is ABSENT in the cloud").
+  const DEFAULTS_ON_PURPOSE = new Set(['panels/SyncPanel.jsx']);
 
   test('no component defaults the shell flag', () => {
-    for (const [label, src] of [
-      ['app.jsx', APP_SRC],
-      ['SettingsPanel.jsx', SETTINGS_SRC],
-    ] as const) {
-      expect(src, label).not.toMatch(/^\s*cloud = (null|false|\{\}),$/m);
+    for (const { path, src } of clientFiles()) {
+      if (DEFAULTS_ON_PURPOSE.has(path)) continue;
+      expect(src, path).not.toMatch(/^\s*cloud = (null|false|\{\}),$/m);
     }
   });
 });
@@ -162,13 +185,20 @@ describe('the way back out exists only where there is somewhere to go', () => {
   // carried its own copy of the same fallback.
   test('the client never names the vendor as a fallback destination', () => {
     // The literal is the bug. `dashboardUrl` is either configured or absent.
-    expect(APP).not.toContain("'https://cloud.maude.sh'");
+    // Checked in every client module except the two desktop sign-in panels,
+    // whose default sign-in target IS the managed cloud (not a "way back out").
+    const SIGN_IN_TARGET = new Set(['panels/CloudBar.jsx', 'panels/TeamProjects.jsx']);
+    for (const { path, src } of clientFiles()) {
+      if (SIGN_IN_TARGET.has(path)) continue;
+      expect(src, path).not.toContain("'https://cloud.maude.sh'");
+    }
   });
 
   test('the ← Dashboard anchor is gated on the URL, not on the shell', () => {
-    const at = APP.indexOf('data-testid="cloud-back"');
+    const { src } = fileContaining('data-testid="cloud-back"');
+    const at = src.indexOf('data-testid="cloud-back"');
     expect(at).toBeGreaterThan(0);
-    const block = APP.slice(at, at + 1200);
+    const block = src.slice(at, at + 1200);
     expect(block).toContain('{cloud.dashboardUrl ? (');
     expect(block).toContain('href={cloud.dashboardUrl}');
     // The project name is NOT gated with it: a tab must still say which
