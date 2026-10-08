@@ -1,6 +1,8 @@
 {
   "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_ENABLE_TODO_TOOLS": "1",
+    "CLAUDE_CODE_STOP_HOOK_BLOCK_CAP": "50"
   },
   "permissions": {
     "allow": ["Read", "Edit", "Write", "Bash", "WebFetch", "WebSearch"],

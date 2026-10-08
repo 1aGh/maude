@@ -3,6 +3,17 @@
   "currentPhase": null,
   "phases": [
     {
+      "id": "feature-desktop-project-tabs-and-identity-profiles",
+      "title": "Feature: Desktop project tabs + per-project identity profiles",
+      "status": "done",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. The Rust shell is the centre of gravity here — read apps/desktop/src-tauri/src/sidecar...",
+      "planPath": ".ai/plans/archive/feature-desktop-project-tabs-and-identity-profiles.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
       "id": "phase-1-contribute-infra-changesets",
       "title": "Phase 1: Contribute infrastructure + Changesets bootstrap",
       "status": "done",
@@ -2368,17 +2379,6 @@
       "phaseKey": null
     },
     {
-      "id": "feature-desktop-project-tabs-and-identity-profiles",
-      "title": "Feature: Desktop project tabs + per-project identity profiles",
-      "status": "planned",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. The Rust shell is the centre of gravity here — read apps/desktop/src-tauri/src/sidecar...",
-      "planPath": ".ai/plans/feature-desktop-project-tabs-and-identity-profiles.md",
-      "archived": false,
-      "phaseKey": null
-    },
-    {
       "id": "feature-local-media-generation",
       "title": "Feature: Power-user local media generation + native keychain (post-v1)",
       "status": "planned",
@@ -2386,6 +2386,17 @@
       "date": null,
       "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. This is the extracted Phase 5 of feature-ai-media-generation (closed at Phase 4, 2026-...",
       "planPath": ".ai/plans/feature-local-media-generation.md",
+      "archived": false,
+      "phaseKey": null
+    },
+    {
+      "id": "feature-maude-v2-redesign",
+      "title": "Feature: Maude v2.0.0 — the redesign, implemented end to end",
+      "status": "planned",
+      "shipTarget": null,
+      "date": null,
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. The canvases are the spec; this file is the route through them.",
+      "planPath": ".ai/plans/feature-maude-v2-redesign.md",
       "archived": false,
       "phaseKey": null
     },

@@ -10,9 +10,9 @@ historical context and is not an active task list.
 | ---- | ----------- |
 | [`cloud-live-payments-rollout.md`](./cloud-live-payments-rollout.md) | Open; L1–L8 remain gated on legal/accounting, Stripe live-mode setup, and live proofs. |
 | [`feature-cells-idle-desktop-lets-cell-sleep.md`](./feature-cells-idle-desktop-lets-cell-sleep.md) | Released in v1.6.13; one measured night with an open desktop and the kg decisions remain. |
-| [`feature-desktop-project-tabs-and-identity-profiles.md`](./feature-desktop-project-tabs-and-identity-profiles.md) | Planned; implementation not started. |
+| [`feature-maude-v2-redesign.md`](./feature-maude-v2-redesign.md) | Planned 2026-10-08; blocked on Gate 0 (Michal signs the decisions register). One plan for every feature in `.design/ui/v2/`; absorbs the project-tabs plan (archived as Phase 3 spec) and the client items of the hardening backlog. Inventories in [`notes/v2-inventory/`](./notes/v2-inventory/). |
 | [`feature-local-media-generation.md`](./feature-local-media-generation.md) | Planned; native keychain, local adapters, and desktop E2E not started. |
-| [`feature-post-1.0-hardening-backlog.md`](./feature-post-1.0-hardening-backlog.md) | Open backlog; resolved entries stay as evidence, remaining program is not empty. |
+| [`feature-post-1.0-hardening-backlog.md`](./feature-post-1.0-hardening-backlog.md) | Open backlog; resolved entries stay as evidence; client items marked ABSORBED into the v2 plan (2026-10-08); the remaining program is not empty. |
 | [`feature-video-tracking-and-stabilization.md`](./feature-video-tracking-and-stabilization.md) | Planned; even the `s3Assets` JSON-sidecar prerequisite remains open. |
 
 Rejected or completed plans live under [`archive/`](./archive/), including the

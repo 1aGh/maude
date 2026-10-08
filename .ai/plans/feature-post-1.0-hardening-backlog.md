@@ -12,6 +12,8 @@ Validate docs and codebase patterns before implementing. Pay attention to existi
 
 ## Description
 
+> **2026-10-08:** the client-facing items of this backlog (T3, T6, T7–T10, T13 minimum, T17, T21′, T23, studio-suite-required) moved into [`feature-maude-v2-redesign`](./feature-maude-v2-redesign.md) — marked **ABSORBED** below. Everything else stays open here.
+
 Everything the original 5-phase hardening program (rounds 1–3, 2026-08-05) and the sync arc's open-findings list contain that does **NOT** gate the v1.0.0 tag. Deferred, not dropped — each item is named here so nothing silently disappears. Source of the full task detail: the pre-re-scope revision of `feature-production-grade-hardening.md` (`git log -p --follow` on that file) and `.ai/plans/archive/feature-sync-burn-down-and-shared-doc.md` § "Inherited security findings".
 
 **Ordering guidance, not mandate**: the "Before first external users" block is BINDING debt (it was traded away in round 4 only because Maude has zero external users today); the rest is opportunistic 1.x work.
@@ -56,11 +58,11 @@ work but npm is still 0.60.7 per STATE.md).
 
 ### Release-channel + detection (old Phase 5, re-scoped by round 4)
 
-- **T21′ prerelease channel — tooling FIRST**: round 4 measured that no canary mechanism exists (`bump-version.sh:77` rejects prerelease strings, parity script same, `npm publish` has no `--tag`, updater endpoint has no channel dimension) and the `v*.*.*` globs would match an rc tag. Before any soak/promotion model: extend the version grammar, add `--tag next`, verify the site updater route's `releases/latest` prerelease exclusion, split the workflow globs. Then the written promotion rule + maintainer-on-canary from the original T21.
+- **→ ABSORBED into [`feature-maude-v2-redesign`](./feature-maude-v2-redesign.md) V2-2.0 (2026-10-08).** **T21′ prerelease channel — tooling FIRST**: round 4 measured that no canary mechanism exists (`bump-version.sh:77` rejects prerelease strings, parity script same, `npm publish` has no `--tag`, updater endpoint has no channel dimension) and the `v*.*.*` globs would match an rc tag. Before any soak/promotion model: extend the version grammar, add `--tag next`, verify the site updater route's `releases/latest` prerelease exclusion, split the workflow globs. Then the written promotion rule + maintainer-on-canary from the original T21.
 - **T22 nightly ecosystem-verify** — the repo still has zero `schedule:` workflows: clean-container `npm pack` → install → every `maude design <verb>`; upgrade-from-N-1 leg (the auto-updater code path has never been exercised); built-`.app` boot legs.
-- **T23 local diagnostics + no-telemetry DDR** — ring-buffer boot log, Help ▸ Copy diagnostic report, `maude doctor --bundle`, redaction test; record the no-background-telemetry commitment; document the updater's outbound call in privacy.mdx.
+- **→ ABSORBED into [`feature-maude-v2-redesign`](./feature-maude-v2-redesign.md) V2-2.9 (2026-10-08).** **T23 local diagnostics + no-telemetry DDR** — ring-buffer boot log, Help ▸ Copy diagnostic report, `maude doctor --bundle`, redaction test; record the no-background-telemetry commitment; document the updater's outbound call in privacy.mdx.
 - **T5b trusted publishing** — migrate the 8 npm packages off the long-lived `NPM_TOKEN` (`build-binaries.yml` ×2) to npm OIDC trusted publishing. (Do not conflate with hub end-user OIDC.)
-- **Full studio suite → required**: flip A3's non-blocking full-suite job to required once clean-CI data names (or empties) the quarantine list. Includes triaging the `/_api/figma/import` cluster round 4's SHIPPER flagged as possibly real.
+- **→ ABSORBED into [`feature-maude-v2-redesign`](./feature-maude-v2-redesign.md) V2-2.13 (2026-10-08).** **Full studio suite → required**: flip A3's non-blocking full-suite job to required once clean-CI data names (or empties) the quarantine list. Includes triaging the `/_api/figma/import` cluster round 4's SHIPPER flagged as possibly real.
 
 ### Observability + hygiene (old Phase 1 residue)
 
@@ -80,7 +82,7 @@ work but npm is still 0.60.7 per STATE.md).
   published that week. `check-version-parity.sh` asserts all of it: the file
   exists and is exact x.y.z, no workflow carries a literal `bun-version:`, and
   the Dockerfile tags match (both negative cases verified firing).
-- **T3** remove the Biome client exclusion (`"!**/apps/studio/client"`) — format-only commit first, then errors-only ratchet over the 33k virgin lines.
+- **→ ABSORBED into [`feature-maude-v2-redesign`](./feature-maude-v2-redesign.md) V2-2.2 (2026-10-08).** **T3** remove the Biome client exclusion (`"!**/apps/studio/client"`) — format-only commit first, then errors-only ratchet over the 33k virgin lines.
 - **T4 — RESOLVED (2026-08-20).** New path-filtered `client-boot.yml` on
   `client/**` PRs: (a) `check-runtime-bundles.sh` size floors per-PR (v0.22.0
   class — previously release-only); (b) `scripts/check-client-boots-source.mjs`
@@ -93,14 +95,14 @@ work but npm is still 0.60.7 per STATE.md).
   macOS↔Linux nondeterminism — the boot gate is the correctness check.
 - **T5** JSDoc `@ts-check` trial over `cli/lib` with the three named escalation triggers.
 - **T2′** cloud/cells type gate (`wrangler types` + `tsc --noEmit` — cloud has no tsconfig at all today); **T15c** `apps/cells` → TypeScript (838 lines guarding tenant isolation).
-- **T6** characterization tests + desktop-e2e scenarios for panels about to move (prerequisite for the decomposition below).
+- **→ ABSORBED into [`feature-maude-v2-redesign`](./feature-maude-v2-redesign.md) V2-0.1 — Phase 0, on `main` (2026-10-08).** **T6** characterization tests + desktop-e2e scenarios for panels about to move (prerequisite for the decomposition below).
 
 ### Decompose + shared layer + unified UI (old Phases 2–4, unchanged verdicts)
 
-- **T7–T10** `app.jsx` (15,936 lines) decomposition along the `client/panels/` seam — pure move-and-export commits, bundle byte-delta band, exit ≤ ~2,000 lines.
+- **→ ABSORBED into [`feature-maude-v2-redesign`](./feature-maude-v2-redesign.md) V2-0.2 — Phase 0, on `main` (2026-10-08).** **T7–T10** `app.jsx` (15,936 lines) decomposition along the `client/panels/` seam — pure move-and-export commits, bundle byte-delta band, exit ≤ ~2,000 lines.
 - **T11** duplication census (admission rule: ≥2 named real consumers); **T12** five-environment reachability canary + dep-surface freeze — blocks all content moves.
-- **T13** `packages/tokens` (DTCG source, hand-written emitters, byte-identical first run); **T14** `packages/protocol` (runtime-state list generator, DDR-088 parity, slug conformance + property tests); **T15** `packages/crypto-portable` narrowed to token grammar + timing-safe compare; **T15b** hub COPY-manifest gate + published dep posture.
-- **T16–T19** `@maude/ds-css` pilot (kill-switch), shell vocabulary convergence, handoff `--check` + self-containment, DiffView inversion pilot → written go/no-go incl. trust-boundary review.
+- **→ PARTLY ABSORBED into [`feature-maude-v2-redesign`](./feature-maude-v2-redesign.md) V2-2.6 (minimum: maude-v2 tokens into client + generated iframe HUD block + site token sync retargeted; full DTCG package stays here).** **T13** `packages/tokens` (DTCG source, hand-written emitters, byte-identical first run); **T14** `packages/protocol` (runtime-state list generator, DDR-088 parity, slug conformance + property tests); **T15** `packages/crypto-portable` narrowed to token grammar + timing-safe compare; **T15b** hub COPY-manifest gate + published dep posture.
+- **T17 shell vocabulary convergence → ABSORBED into [`feature-maude-v2-redesign`](./feature-maude-v2-redesign.md) (CONTRACT.md §3 is the target vocabulary).** **T16–T19** `@maude/ds-css` pilot (kill-switch), shell vocabulary convergence, handoff `--check` + self-containment, DiffView inversion pilot → written go/no-go incl. trust-boundary review.
 - **T20** TypeScript policy DDR (checker-first ratchet) — record once the trial evidence exists.
 
 ### Desktop E2E harness residue (found running the v1.0.0 gate's e2e lane, 2026-08-19)
@@ -194,6 +196,8 @@ is left is harness quality, not correctness:
   before the thing it gates, unless D-1 is fixed first.
 
 ### DS specimen defects (found reading all 73 smoke PNGs, 2026-08-19)
+
+> These are in the OLD `maude` DS specimens; they retire with that DS when v2 flips (`feature-maude-v2-redesign` V2-8.0). Fix only if the old DS stays in use.
 
 All three are **pre-existing** — confirmed byte-identical to the previous cleared
 smoke run, so none is a regression from the gate set. Cosmetic, none blocking.

@@ -1,6 +1,6 @@
 ---
 name: feature-desktop-project-tabs-and-identity-profiles
-status: active
+status: superseded — absorbed into feature-maude-v2-redesign (Phase 3), 2026-10-08
 created: 2026-09-13
 decisions:
   - One native window tab per open project (Tauri `WebviewWindow` + macOS `tabbing_identifier`), each navigated to its own pooled sidecar origin — the origin-bound studio client gets NO project id and NO in-page tab strip.
@@ -11,6 +11,8 @@ decisions:
 ---
 
 # Feature: Desktop project tabs + per-project identity profiles
+
+> **Superseded 2026-10-08 — not implemented, absorbed.** This plan is now Phase 3 of [`../feature-maude-v2-redesign.md`](../feature-maude-v2-redesign.md) (Michal chose variant A, native macOS tabs). T1–T9 and T12–T14 below remain the **technical spec** for that phase — re-verify every file:line anchor first (`app.jsx` is being decomposed in v2 Phase 2). **T10 and T11 (UI) are replaced** by the v2 shell: "Open in new tab", the profile chip and "Sign in as another account…" live in the project pill menu, Home and Settings › General (`.design/ui/v2/02`, `11`), not in RepoBranchSwitcher / IdentityBar. The v2 plan adds what this one left open: a Home window (no project), open-once, resting tabs and relaunch restore.
 
 Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. The Rust shell is the centre of gravity here — read `apps/desktop/src-tauri/src/sidecar.rs` top-to-bottom before touching anything.
 
