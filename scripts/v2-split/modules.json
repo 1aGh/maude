@@ -144,7 +144,7 @@
     "UpdateBanner",
     "SyncBanner"
   ],
-  "apps/studio/client/inspector/css-vocab.js": [
+  "apps/studio/client/inspector/css-vocab.jsx": [
     "CSS_DISPLAYS",
     "GRID_TRACK_UNITS",
     "CSS_FLEX_DIR",
