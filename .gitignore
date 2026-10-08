@@ -71,10 +71,9 @@ dev-server/.cache/
 
 # AI workflow runtime — committed templates live in .ai/templates/
 .ai/state/HANDOFF.md
-# Maude v2 run harness runtime (plan V2-0.0): the session-id run marker, the test-lane lock,
+# Maude v2 run harness runtime (plan V2-0.0): the session-id run marker,
 # the hook call log, the last v2-done.sh result and the owner-checkpoint note.
 .ai/state/v2-run.json
-.ai/state/v2-test.lock
 .ai/state/v2-hooks.log.jsonl
 .ai/state/v2-done.last.json
 .ai/state/v2-waiting-for-michal.md

@@ -45,7 +45,7 @@ const lane = (args) =>
 
 test('passes the command exit code through and releases the lock', () => {
   assert.equal(lane(['--', 'bash', '-c', 'exit 3']).status, 3);
-  assert.equal(existsSync(join(root, '.ai/state/v2-test.lock')), false);
+  assert.equal(existsSync(join(root, '.git/v2-test.lock')), false);
 });
 
 test('a run that clobbers a tracked dist file gets it reverted', () => {
@@ -71,7 +71,7 @@ test('a second run cannot take a held lane', async () => {
   const holder = spawn('bash', [join(root, 'scripts/v2-test-lane.sh'), '--', 'sleep', '3'], {
     cwd: root,
   });
-  for (let i = 0; i < 40 && !existsSync(join(root, '.ai/state/v2-test.lock')); i++)
+  for (let i = 0; i < 40 && !existsSync(join(root, '.git/v2-test.lock')); i++)
     await new Promise((r) => setTimeout(r, 50));
   const r = lane(['--wait', '0', '--', 'true']);
   assert.equal(r.status, 75);
@@ -80,9 +80,22 @@ test('a second run cannot take a held lane', async () => {
   await new Promise((r) => holder.on('exit', r));
 });
 
+test('a worktree shares the main checkout lock', () => {
+  const git = (...a) => spawnSync('git', a, { cwd: root, encoding: 'utf8' });
+  git('worktree', 'add', '-q', join(root, 'wt'), '-b', 'lane');
+  const holder = spawnSync(
+    'bash',
+    [
+      '-c',
+      `${join(root, 'wt/scripts/v2-test-lane.sh')} --wait 0 -- bash -c 'ls ${join(root, '.git/v2-test.lock')}'`,
+    ],
+    { cwd: join(root, 'wt'), encoding: 'utf8' }
+  );
+  assert.equal(holder.status, 0, holder.stderr);
+});
+
 test('a stale lock (dead pid) is taken over', () => {
-  mkdirSync(join(root, '.ai/state'), { recursive: true });
-  writeFileSync(join(root, '.ai/state/v2-test.lock'), '999999\t2026-01-01\told run\n');
+  writeFileSync(join(root, '.git/v2-test.lock'), '999999\t2026-01-01\told run\n');
   const r = lane(['--wait', '0', '--', 'true']);
   assert.equal(r.status, 0);
   assert.match(r.stderr, /stale lock/);

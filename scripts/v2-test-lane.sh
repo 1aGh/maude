@@ -5,8 +5,9 @@
 #
 # One machine, one suite at a time: parallel runs fabricate failures, and `bun test` has
 # clobbered apps/studio/dist/ before. This wrapper
-#   1. takes the lock .ai/state/v2-test.lock (waits up to --wait seconds, default 900; a lock whose
-#      pid is gone is stale and is taken over),
+#   1. takes the machine-wide lock `<git common dir>/v2-test.lock` — shared by the main checkout and
+#      every lane worktree (waits up to --wait seconds, default 900; a lock whose pid is gone is stale
+#      and is taken over),
 #   2. records `git status apps/studio/dist/` before the run,
 #   3. runs the command,
 #   4. compares dist/ after the run and reverts tracked files the run changed (unless --keep-dist),
@@ -15,7 +16,9 @@
 
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LOCK="$ROOT/.ai/state/v2-test.lock"
+# One lock for the main checkout AND every worktree: the git common dir is shared by all of them.
+COMMON="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo "$ROOT/.git")"
+LOCK="$COMMON/v2-test.lock"
 KEEP_DIST=0
 WAIT=900
 
@@ -32,7 +35,6 @@ if [[ $# -eq 0 ]]; then
   exit 2
 fi
 
-mkdir -p "$ROOT/.ai/state"
 waited=0
 while ! (set -o noclobber; printf '%s\t%s\t%s\n' "$$" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >"$LOCK") 2>/dev/null; do
   holder_pid="$(cut -f1 "$LOCK" 2>/dev/null)"
