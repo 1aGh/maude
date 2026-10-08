@@ -39,12 +39,20 @@
 // path", and the hub looks. It cannot say what it found.
 
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, renameSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
+// Imported, never re-typed — same reason server.mjs pulls this in for the
+// canvas-path receiver (see that file's own import of it).
+import { canvasSlugFromRel } from '../../studio/canvas-slug.ts';
 import { MAX_PROJECT_FILE_BYTES, sha256File } from './file-limits.mjs';
 import { listProjectFiles, readCanvasGroups, resolveProjectFileTarget } from './file-manifest.mjs';
-import { classifyProjectFile, isFilePlaneClass, isProjectFileShape } from './file-membership.mjs';
+import {
+  classifyProjectFile,
+  isFilePlaneClass,
+  isProjectFileShape,
+  normalizeGroup,
+} from './file-membership.mjs';
 import { headObject } from './s3.mjs';
 
 const require = createRequire(import.meta.url);
@@ -1335,6 +1343,128 @@ export function quarantineStaleInert({ journal, designRoot, log = console }) {
   return { moved, scanned: files.length };
 }
 
+/** Depth ceiling for the grouped-side walk below `designRoot/<group>/` —
+ *  matches the manifest walk's cap (file-manifest.mjs `MAX_WALK_DEPTH`). */
+const FLAT_TWIN_WALK_DEPTH = 8;
+
+/** File-count ceiling across BOTH sides of the walk — matches
+ *  file-manifest.mjs `MAX_MANIFEST_FILES`'s order of magnitude. Without this
+ *  a project with one ordinary flat canvas pays an unbounded second walk on
+ *  every tick forever (security review, #140). */
+const FLAT_TWIN_WALK_MAX_FILES = 20_000;
+
+/** The declared canvas-group directories, same default as the classifier's
+ *  own `normalizedGroups` (file-membership.mjs, not exported — this mirrors
+ *  its five lines rather than reaching for a private helper). */
+function canvasGroupDirs(designRoot) {
+  const out = [];
+  for (const g of readCanvasGroups(designRoot) ?? []) {
+    const p = normalizeGroup(g?.path);
+    if (p && !out.includes(p)) out.push(p);
+  }
+  return out.length > 0 ? out : ['system', 'ui'];
+}
+
+/**
+ * Flat `.tsx` paths (no `/`) confirmed to be a pre-fix-5 flat-fallback twin of
+ * a REAL grouped canvas — the shape the original report described exactly:
+ * "the file concatenated with itself", 2× the grouped body's size. This is
+ * deliberately a CONTENT check, not just a filename/slug match: a slug
+ * collision alone is forgeable by anyone who can create a grouped canvas
+ * (any project collaborator with ordinary CRDT-doc write access — security
+ * review for #140), which would let that collaborator permanently blind
+ * walk-import to an unrelated flat file by naming a stub after it. Requiring
+ * the flat body to be the grouped body's bytes, twice, closes that: forging
+ * it now takes matching exact content, not just a name — and if the flat
+ * file's content later changes for real, it stops matching and walk-import
+ * resumes journaling it (self-healing, not a permanent blind spot).
+ *
+ * Scoped to the TOP LEVEL (flat candidates) and the declared canvas-group
+ * directories (grouped candidates) — the only places `classifyProjectFile`
+ * ever calls `canvas-owned`, so this walk visits exactly the directories a
+ * real grouped twin could live in, not the whole tree.
+ *
+ * `apps/studio/sync/migrate-flat-fallback.ts`'s quarantine is the studio-side
+ * sibling (skipped under cell pairing — a cell's checkout is the hub's to
+ * manage); this is its cell-safe, read-only counterpart. Never touches the
+ * checkout — it only decides what `walkImport` journals.
+ */
+function flatCanvasTwinPaths(designRoot) {
+  let topEntries;
+  try {
+    topEntries = readdirSync(designRoot, { withFileTypes: true });
+  } catch {
+    return new Set();
+  }
+  let budget = FLAT_TWIN_WALK_MAX_FILES;
+  const flatBySlug = new Map();
+  for (const entry of topEntries) {
+    if (budget <= 0) break;
+    if (!entry.isFile() || !/\.tsx$/i.test(entry.name)) continue;
+    budget -= 1;
+    flatBySlug.set(canvasSlugFromRel(entry.name, ''), entry.name);
+  }
+  if (flatBySlug.size === 0) return new Set();
+
+  const groupedBySlug = new Map();
+  const walkGroup = (dir, rel, depth) => {
+    if (budget <= 0 || depth > FLAT_TWIN_WALK_DEPTH) return;
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (budget <= 0) return;
+      const name = entry.name;
+      if (entry.isDirectory()) {
+        if (name.startsWith('_') || name.startsWith('.') || name === 'node_modules') continue;
+        walkGroup(join(dir, name), `${rel}/${name}`, depth + 1);
+        continue;
+      }
+      if (!entry.isFile() || !/\.tsx$/i.test(name)) continue;
+      budget -= 1;
+      const childRel = `${rel}/${name}`;
+      groupedBySlug.set(canvasSlugFromRel(childRel, ''), childRel);
+    }
+  };
+  for (const group of canvasGroupDirs(designRoot)) {
+    walkGroup(join(designRoot, group), group, 1);
+  }
+
+  const twins = new Set();
+  for (const [slug, flatRel] of flatBySlug) {
+    const groupedRel = groupedBySlug.get(slug);
+    if (groupedRel && isDoubledBody(designRoot, flatRel, groupedRel)) twins.add(flatRel);
+  }
+  return twins;
+}
+
+/** Does `flatRel`'s content equal `groupedRel`'s content, exactly twice?
+ *  Refuses rather than reads when either side is past the project-wide file
+ *  ceiling — same guard `listProjectFiles` applies before this walk ever
+ *  gets a candidate, re-asserted here since this walk is unfiltered by size. */
+function isDoubledBody(designRoot, flatRel, groupedRel) {
+  try {
+    const flatAbs = join(designRoot, flatRel);
+    const groupedAbs = join(designRoot, groupedRel);
+    const groupedSize = statSync(groupedAbs).size;
+    const flatSize = statSync(flatAbs).size;
+    if (groupedSize === 0 || flatSize !== groupedSize * 2) return false;
+    if (flatSize > MAX_PROJECT_FILE_BYTES) return false;
+    const groupedBytes = readFileSync(groupedAbs);
+    const flatBytes = readFileSync(flatAbs);
+    return (
+      flatBytes.length === groupedBytes.length * 2 &&
+      flatBytes.subarray(0, groupedBytes.length).equals(groupedBytes) &&
+      flatBytes.subarray(groupedBytes.length).equals(groupedBytes)
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The permanent walk-import reconciler (DDR-226 §2).
  *
@@ -1346,10 +1476,12 @@ export function quarantineStaleInert({ journal, designRoot, log = console }) {
  * Runs post-bind (the cell serves stale-until-repaired) and on a slow timer.
  * Never throws: a reconciler that can fail a boot is worse than a stale row.
  *
- * @returns {{ appended: number, scanned: number, unchanged: number }}
+ * @returns {{ appended: number, scanned: number, unchanged: number, skippedFlatTwin: number }}
  */
 export function walkImport({ journal, designRoot, source = 'walk-import', log = console }) {
-  if (!designRoot || !existsSync(designRoot)) return { appended: 0, scanned: 0, unchanged: 0 };
+  if (!designRoot || !existsSync(designRoot)) {
+    return { appended: 0, scanned: 0, unchanged: 0, skippedFlatTwin: 0 };
+  }
   let files;
   try {
     // Reuse the manifest walk verbatim — one walk implementation, one set of
@@ -1357,7 +1489,7 @@ export function walkImport({ journal, designRoot, source = 'walk-import', log = 
     files = listProjectFiles(designRoot).files;
   } catch (err) {
     log.error?.(`[journal] walk-import could not read ${designRoot}: ${err.message}`);
-    return { appended: 0, scanned: 0, unchanged: 0 };
+    return { appended: 0, scanned: 0, unchanged: 0, skippedFlatTwin: 0 };
   }
 
   const known = new Map(journal.compaction().map((r) => [r.path, r]));
@@ -1365,10 +1497,21 @@ export function walkImport({ journal, designRoot, source = 'walk-import', log = 
   // journaling what happens to be on disk could put an older photo back over
   // a newer row. The doors and the studio report journal real writes.
   const skipInert = journal.inertCached?.() === true;
+  // #140 — see flatCanvasTwinPaths. Only worth the extra walk when there is
+  // at least one flat-shaped `.tsx` candidate in the manifest result.
+  const hasFlatTsxCandidate = files.some(
+    (f) => f.class === 'code-module' && !f.path.includes('/') && /\.tsx$/i.test(f.path)
+  );
+  const flatTwinPaths = hasFlatTsxCandidate ? flatCanvasTwinPaths(designRoot) : null;
   let appended = 0;
   let unchanged = 0;
+  let skippedFlatTwin = 0;
   for (const f of files) {
     if (skipInert && f.class === 'inert-media') continue;
+    if (flatTwinPaths?.has(f.path)) {
+      skippedFlatTwin += 1;
+      continue;
+    }
     const prev = known.get(f.path);
     if (prev && !prev.deleted && prev.sha256 === f.sha256) {
       unchanged += 1;
@@ -1383,5 +1526,10 @@ export function walkImport({ journal, designRoot, source = 'walk-import', log = 
       `[journal] walk-import appended ${appended} row(s) the write hooks did not see (${files.length} file(s) scanned).`
     );
   }
-  return { appended, scanned: files.length, unchanged };
+  if (skippedFlatTwin > 0) {
+    log.warn?.(
+      `[journal] walk-import skipped ${skippedFlatTwin} flat .tsx twin(s) (pre-fix-5 fallback debris — body byte-identical to a grouped twin, doubled) — left on disk, unjournaled, for a human/future hub-side quarantine.`
+    );
+  }
+  return { appended, scanned: files.length, unchanged, skippedFlatTwin };
 }

@@ -588,6 +588,109 @@ describe('walk-import — the permanent reconciler', () => {
   });
 });
 
+// #140 — a pre-fix-5 flat-fallback twin (`ui-welcome.tsx` next to `ui/welcome.tsx`,
+// the real canvas, with a DOUBLED body — the Yjs concurrent-insert class fixed
+// upstream by f2a38c46/v0.58.2) sat on a cell's checkout, unseen by any
+// cleanup (`migrateFlatFallback` is studio-only and skipped under cell
+// pairing). walk-import — new in sync v2 — journaled it as live content the
+// first time it ever looked, which is how old debris became a "new" stuck
+// Sync-panel row.
+describe('walk-import — a pre-existing flat-fallback twin never becomes a row (#140)', () => {
+  it('a flat .tsx with a grouped twin of the same slug is skipped, not journaled', () => {
+    mkdirSync(join(designRoot, 'ui'), { recursive: true });
+    const real = 'export default function Welcome() { return null; }\n';
+    writeFileSync(join(designRoot, 'ui/welcome.tsx'), real);
+    // The reported shape: the flat twin's body is the real one, doubled.
+    writeFileSync(join(designRoot, 'ui-welcome.tsx'), real + real);
+
+    const j = openJournal(dataDir);
+    const warn = [];
+    const out = walkImport({
+      journal: j,
+      designRoot,
+      log: { log() {}, warn: (m) => warn.push(m) },
+    });
+
+    assert.equal(out.skippedFlatTwin, 1);
+    assert.equal(j.latestFor('ui-welcome.tsx'), null); // never got a row at all
+    assert.equal(j.latestFor('ui/welcome.tsx'), null); // canvas-owned (Plane A) — never in this journal either
+    assert.equal(
+      warn.some((m) => m.includes('flat .tsx twin')),
+      true
+    );
+  });
+
+  it('a genuinely flat canvas with NO grouped twin is journaled as before', () => {
+    const body = 'export default function Standalone() { return null; }\n';
+    writeFileSync(join(designRoot, 'standalone.tsx'), body);
+
+    const j = openJournal(dataDir);
+    const out = walkImport({ journal: j, designRoot, log: { log() {}, warn() {} } });
+
+    assert.equal(out.skippedFlatTwin, 0);
+    assert.match(j.latestFor('standalone.tsx').sha256, /^[0-9a-f]{64}$/);
+  });
+
+  it('a second pass stays quiet once the tree already converged', () => {
+    mkdirSync(join(designRoot, 'ui'), { recursive: true });
+    const real = 'export default function Welcome() { return null; }\n';
+    writeFileSync(join(designRoot, 'ui/welcome.tsx'), real);
+    writeFileSync(join(designRoot, 'ui-welcome.tsx'), real + real);
+
+    const j = openJournal(dataDir);
+    walkImport({ journal: j, designRoot, log: { log() {}, warn() {} } });
+    const head = j.head();
+    const again = walkImport({ journal: j, designRoot, log: { log() {}, warn() {} } });
+    assert.equal(again.appended, 0);
+    assert.equal(again.skippedFlatTwin, 1);
+    assert.equal(j.head(), head);
+  });
+
+  // Security review finding: a slug collision ALONE is forgeable by any
+  // collaborator who can write a grouped canvas — naming it after an
+  // unrelated existing flat file would permanently blind walk-import to that
+  // flat file if the check were filename-only. It must require the flat
+  // body to actually BE the grouped body, doubled — not just a matching name.
+  it('a same-slug collision with UNRELATED content is journaled, not skipped', () => {
+    mkdirSync(join(designRoot, 'ui'), { recursive: true });
+    writeFileSync(join(designRoot, 'ui/welcome.tsx'), 'export default function Welcome() {}\n');
+    // A legitimate, unrelated flat file that merely shares a slug — its body
+    // is NOT the grouped file's bytes doubled.
+    writeFileSync(
+      join(designRoot, 'ui-welcome.tsx'),
+      'export default function TotallyDifferent() { return <div className="x" />; }\n'
+    );
+
+    const j = openJournal(dataDir);
+    const out = walkImport({ journal: j, designRoot, log: { log() {}, warn() {} } });
+
+    assert.equal(out.skippedFlatTwin, 0);
+    assert.match(j.latestFor('ui-welcome.tsx').sha256, /^[0-9a-f]{64}$/);
+  });
+
+  // Self-healing: once the flat twin's content genuinely changes (e.g. a
+  // human/peer fixes it through a real write), it must stop matching the
+  // doubled-body shape and resume being journaled normally — the skip is not
+  // a permanent, content-blind blacklist.
+  it('a flat twin that stops being doubled is journaled again on the next pass', () => {
+    mkdirSync(join(designRoot, 'ui'), { recursive: true });
+    const real = 'export default function Welcome() { return null; }\n';
+    writeFileSync(join(designRoot, 'ui/welcome.tsx'), real);
+    writeFileSync(join(designRoot, 'ui-welcome.tsx'), real + real);
+
+    const j = openJournal(dataDir);
+    const first = walkImport({ journal: j, designRoot, log: { log() {}, warn() {} } });
+    assert.equal(first.skippedFlatTwin, 1);
+    assert.equal(j.latestFor('ui-welcome.tsx'), null);
+
+    // A real edit — the content no longer doubles the grouped twin.
+    writeFileSync(join(designRoot, 'ui-welcome.tsx'), 'export default function FixedUp() {}\n');
+    const second = walkImport({ journal: j, designRoot, log: { log() {}, warn() {} } });
+    assert.equal(second.skippedFlatTwin, 0);
+    assert.match(j.latestFor('ui-welcome.tsx').sha256, /^[0-9a-f]{64}$/);
+  });
+});
+
 describe('the walk-import belt is a backstop, and a backstop has to be prompt', () => {
   it('one minute by default — not the fifteen it was tuned to when the walk was assumed expensive', () => {
     assert.equal(walkIntervalFromEnv({}), 60_000);
