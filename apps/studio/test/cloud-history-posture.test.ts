@@ -148,8 +148,15 @@ describe('while cloud-managed, the desktop runs NO local git of its own', () => 
     const declared = body.indexOf(DECLARATION);
     expect(declared).toBeGreaterThan(0);
     expect(body.search(/\bsavingIsManaged\b/)).toBe(declared + 'const '.length);
-    if (fnName !== 'App') {
-      const app = blank(fnBody('App'));
+    if (fnName !== 'App' && fnName !== 'ShellState') {
+      // The function that calls the declaring hook: App() until V2-2.3, then ShellState —
+      // the shell's state owner (App renders <ShellState><ShellTree /></ShellState>).
+      const caller = fileContaining(`= ${fnName}(`).src;
+      const callerName = [...caller.matchAll(/^(?:export )?function (\w+)\(/gm)]
+        .filter((m) => (m.index ?? 0) < caller.indexOf(`= ${fnName}(`))
+        .pop()?.[1];
+      expect(callerName).toBeDefined();
+      const app = blank(fnBody(callerName as string));
       const call = app.indexOf(`${fnName}(`);
       expect(call).toBeGreaterThan(0);
       const statementStart = app.lastIndexOf('\n', app.lastIndexOf('const {', call));
