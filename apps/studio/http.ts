@@ -1938,6 +1938,12 @@ export function createHttp(
         .replace(/[^a-z0-9_-]/gi, '')
         .slice(0, 64);
       if (req.method === 'DELETE') {
+        // V2-2.8 S2 — the same CSRF + loopback gate as PATCH below. Ungated, a
+        // blind cross-site DELETE (or a DNS-rebound page) erased a transcript.
+        if (!sameOriginWrite(req))
+          return new Response('cross-origin write rejected', { status: 403 });
+        if (!isTrustedRequestHost(req))
+          return new Response('local request required (DNS-rebinding guard)', { status: 403 });
         const removed = id ? deleteChat(ctx.paths.designRoot, id) : false;
         return Response.json({ ok: removed }, { headers: { 'Cache-Control': 'no-store' } });
       }
