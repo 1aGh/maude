@@ -38,7 +38,7 @@
     {"id":"V2-1.9","kind":"task","phase":1,"title":"Version history semantics","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"V2-1.10","kind":"task","phase":1,"title":"Video intelligence","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"V2-1.11","kind":"task","phase":1,"title":"AI-operability contract — files are the API (A13)","status":"open","evidence":null,"evidenceHash":null,"commit":null},
-    {"id":"V2-1.12","kind":"task","phase":1,"title":"File formats across versions (A17)","status":"open","evidence":null,"evidenceHash":null,"commit":null},
+    {"id":"V2-1.12","kind":"task","phase":1,"title":"File formats across versions (A17)","status":"verified","evidence":"apps/studio/client/v2/contracts/V2-1.12-file-formats.md","evidenceHash":null,"commit":"4109e002"},
     {"id":"V2-1.13","kind":"task","phase":1,"title":"DS schema v1 (A14)","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"V2-1.14","kind":"task","phase":1,"title":"One offline outbox","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"V2-1.15","kind":"task","phase":1,"title":"AI run registry + hub leases","status":"open","evidence":null,"evidenceHash":null,"commit":null},
