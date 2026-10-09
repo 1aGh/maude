@@ -225,6 +225,14 @@ export interface Context {
    */
   canvasOrigin?: string;
   /**
+   * V2-2.8 S9 (V2-1.16 L21) — origin of the read-only CAPTURE listener
+   * (`http://localhost:<port>`), set by server.ts on a desktop / plain server
+   * while the origin split is on. The main origin 307s headless canvas-shell
+   * renders here (http.ts); never advertised to clients. Undefined in a cell,
+   * with the split off, in tests and before boot.
+   */
+  captureOrigin?: string;
+  /**
    * T2 (9.1-A) — origin of the MAIN dev-server listener (e.g.
    * `http://localhost:4399`), set by server.ts once the primary listener binds.
    * Used by `cspForCanvasShell` to allowlist the legit embedder in the canvas

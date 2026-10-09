@@ -517,7 +517,65 @@ function startServer(port: number): BunServer {
 // /_sync-status, /_comments, or arbitrary repo files. Routes are a hard
 // allowlist: Bun matches `routes` before `fetch`, so we expose ONLY the two
 // gated API endpoints the runtime needs here and 403 everything else in fetch.
-function startCanvasServer(port: number): BunServer {
+//
+// V2-2.8 S9 (V2-1.16 L21) — `{ capture: true }` starts the CAPTURE origin: the
+// same listener, a third port, for headless renders only (exports, `maude
+// design screenshot`, smoke, perf, …). The main origin 307s every canvas-shell
+// request the canvas origin can serve to it (http.ts), so tenant canvas code in
+// a capture runs here — read-only by construction — and never on the main
+// origin, where its requests passed sameOriginWrite + isTrustedRequestHost.
+function captureWriteRefusal(): Response {
+  return new Response('the capture origin is read-only', {
+    status: 405,
+    headers: { Allow: 'GET, HEAD', 'Cache-Control': 'no-store' },
+  });
+}
+
+/** Each route behind a GET/HEAD gate — the capture origin's copy of the ONE table. */
+function readOnlyRoutes<R extends Record<string, unknown>>(routes: R): R {
+  const out: Record<string, unknown> = {};
+  for (const [path, handler] of Object.entries(routes)) {
+    const fn = handler as (req: Request) => Response | Promise<Response>;
+    out[path] = (req: Request) =>
+      req.method === 'GET' || req.method === 'HEAD' ? fn(req) : captureWriteRefusal();
+  }
+  return out as R;
+}
+
+function startCanvasServer(
+  port: number,
+  { capture = false }: { capture?: boolean } = {}
+): BunServer {
+  // Hard allowlist of route-table endpoints (Bun matches `routes` before
+  // `fetch`). Only the collab/display-data endpoints the canvas runtime needs
+  // — see http.isCanvasSafeRoute for the trust rationale. The dynamic
+  // /_api/comments/<id>/reply POST is fetch-handled + gated there.
+  const routes = {
+    '/_health': http.routes['/_health'],
+    '/_api/git-user': http.routes['/_api/git-user'],
+    '/_api/canvas-meta': http.routes['/_api/canvas-meta'],
+    '/_api/annotations': http.routes['/_api/annotations'],
+    '/_api/annotations/ops': http.routes['/_api/annotations/ops'],
+    // Phase 23 — capped binary image upload (magic-byte sniff + category cap +
+    // content-addressed name + traversal guard + no-SVG, in api.saveAsset).
+    // Bun matches `routes` BEFORE `fetch`, so the route must be listed here
+    // explicitly — the CANVAS_SAFE_API entry alone only opens the fetch
+    // fall-through (which serves files, not route handlers). See DDR (Task 9).
+    '/_api/asset': http.routes['/_api/asset'],
+    // Issue #126 — chunked upload; MIRROR of the CANVAS_SAFE_API entries (http.ts).
+    '/_api/asset/chunk-start': http.routes['/_api/asset/chunk-start'],
+    '/_api/asset/chunk': http.routes['/_api/asset/chunk'],
+    '/_api/asset/chunk-finish': http.routes['/_api/asset/chunk-finish'],
+    // feature-photo-editor — PhotoEdit sidecar GET/PUT. MUST be here AND in
+    // CANVAS_SAFE_API (http.ts): Bun matches `routes` before `fetch`, so a
+    // one-list entry 404s from the canvas iframe (the DDR-088 rollout bug).
+    '/_api/photo-edit': http.routes['/_api/photo-edit'],
+    // V2-2.8 S6 — NOT the main-origin handler: the canvas origin gets the
+    // no-e-mail projection (names + commit counts) for @mention suggestions.
+    '/_api/git-committers': http.canvasRoutes['/_api/git-committers'],
+    '/_api/ai': http.routes['/_api/ai'],
+    '/_comments': http.routes['/_comments'],
+  };
   return Bun.serve<WsData, never>({
     port,
     hostname: '127.0.0.1',
@@ -525,38 +583,22 @@ function startCanvasServer(port: number): BunServer {
     // DDR-088 follow-up — bound the pre-handler request buffer on the UNTRUSTED
     // canvas origin (the asset upload lives here). See MAX_REQUEST_BODY.
     maxRequestBodySize: MAX_REQUEST_BODY,
-    // Hard allowlist of route-table endpoints (Bun matches `routes` before
-    // `fetch`). Only the collab/display-data endpoints the canvas runtime needs
-    // — see http.isCanvasSafeRoute for the trust rationale. The dynamic
-    // /_api/comments/<id>/reply POST is fetch-handled + gated there.
-    routes: {
-      '/_health': http.routes['/_health'],
-      '/_api/git-user': http.routes['/_api/git-user'],
-      '/_api/canvas-meta': http.routes['/_api/canvas-meta'],
-      '/_api/annotations': http.routes['/_api/annotations'],
-      '/_api/annotations/ops': http.routes['/_api/annotations/ops'],
-      // Phase 23 — capped binary image upload (magic-byte sniff + category cap +
-      // content-addressed name + traversal guard + no-SVG, in api.saveAsset).
-      // Bun matches `routes` BEFORE `fetch`, so the route must be listed here
-      // explicitly — the CANVAS_SAFE_API entry alone only opens the fetch
-      // fall-through (which serves files, not route handlers). See DDR (Task 9).
-      '/_api/asset': http.routes['/_api/asset'],
-      // Issue #126 — chunked upload; MIRROR of the CANVAS_SAFE_API entries (http.ts).
-      '/_api/asset/chunk-start': http.routes['/_api/asset/chunk-start'],
-      '/_api/asset/chunk': http.routes['/_api/asset/chunk'],
-      '/_api/asset/chunk-finish': http.routes['/_api/asset/chunk-finish'],
-      // feature-photo-editor — PhotoEdit sidecar GET/PUT. MUST be here AND in
-      // CANVAS_SAFE_API (http.ts): Bun matches `routes` before `fetch`, so a
-      // one-list entry 404s from the canvas iframe (the DDR-088 rollout bug).
-      '/_api/photo-edit': http.routes['/_api/photo-edit'],
-      // V2-2.8 S6 — NOT the main-origin handler: the canvas origin gets the
-      // no-e-mail projection (names + commit counts) for @mention suggestions.
-      '/_api/git-committers': http.canvasRoutes['/_api/git-committers'],
-      '/_api/ai': http.routes['/_api/ai'],
-      '/_comments': http.routes['/_comments'],
-    },
+    // The capture origin serves the SAME route table, each entry behind a
+    // GET/HEAD gate — never a third allowlist (V2-2.8 S9).
+    routes: capture ? readOnlyRoutes(routes) : routes,
     async fetch(req, srv) {
       const pathname = new URL(req.url).pathname;
+
+      // V2-2.8 S9 — the capture origin is read-only BY CONSTRUCTION: no
+      // upgrade (no collab room, no HMR feed) and no unsafe method, before
+      // anything else is consulted. It is its own origin, so nothing a page
+      // runs can remove these properties (a restricting cookie or header could
+      // be stripped by `fetch(…, { credentials: 'omit' })`; a port cannot).
+      if (capture) {
+        if (req.headers.get('upgrade'))
+          return new Response('the capture origin accepts no upgrades', { status: 403 });
+        if (req.method !== 'GET' && req.method !== 'HEAD') return captureWriteRefusal();
+      }
 
       // Collab WS — shared registry, loopback-only (same gate as the main
       // origin), with the same workspace-mode vouched path: in a cell the hub's
@@ -745,6 +787,15 @@ const canvasOrigin = process.env.MAUDE_PUBLIC_CANVAS_ORIGIN?.replace(/\/+$/, '')
     ? `http://localhost:${canvasServer.port}`
     : undefined;
 if (canvasOrigin) ctx.canvasOrigin = canvasOrigin;
+// V2-2.8 S9 — the read-only CAPTURE origin (see startCanvasServer). Desktop /
+// plain server only: a cell renders nothing in-process (the render worker
+// captures on the public canvas origin), and with the split OFF there is no
+// segregated origin to mirror — captures stay on the main origin there, as do
+// interactive canvases (a named residual). Not advertised in `_server.json`:
+// callers reach it through the main origin's 307.
+const captureServer =
+  CANVAS_ORIGIN_SPLIT && !WORKSPACE ? startCanvasServer(0, { capture: true }) : null;
+if (captureServer) ctx.captureOrigin = `http://localhost:${captureServer.port}`;
 
 await Bun.write(
   ctx.paths.serverInfoFile,
@@ -935,6 +986,11 @@ async function shutdown() {
   server.stop();
   try {
     canvasServer?.stop();
+  } catch {
+    /* best-effort */
+  }
+  try {
+    captureServer?.stop();
   } catch {
     /* best-effort */
   }
