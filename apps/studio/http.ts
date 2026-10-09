@@ -116,6 +116,7 @@ import { refuseCheckoutRewrite } from './git/accepted-guard.ts';
 import { createGitEndpoints } from './git/endpoints.ts';
 import { gitShowFile } from './git/service.ts';
 import { createGitHubEndpoints } from './github/endpoints.ts';
+import { createIndexService } from './index/service.ts';
 import type { InspectRegistry } from './inspect.ts';
 import { canvasSlug, writeLocator } from './locator.ts';
 import { prepareManagedProject } from './managed-projects.ts';
@@ -1677,6 +1678,32 @@ export function createHttp(
       }),
     ].map(guardLane)
   );
+  // V2-2.17 — the project index (contract V2-1.17): built now, updated per fs event, persisted
+  // in the machine cache (~/.maude/index/v1, outside the project). Cells write none.
+  const projectIndex = createIndexService({
+    root: ctx.paths.repoRoot,
+    designRel: ctx.paths.designRel,
+    context: () => ({
+      designRoot: ctx.paths.designRoot,
+      groups: ctx.cfg.canvasGroups,
+      defaultDs: ctx.cfg.defaultDesignSystem || ctx.cfg.designSystems?.[0]?.name || null,
+      designSystems: ctx.cfg.designSystems ?? [],
+    }),
+    project: () => ({
+      name: ctx.cfg.name ?? ctx.projectLabel,
+      label: ctx.projectLabel ?? null,
+      formatVersion: projectFormat(ctx).value,
+      linkedHub: ctx.cfg.linkedHub ? { url: ctx.cfg.linkedHub.url } : null,
+      managed: isWorkspaceMode(),
+    }),
+    persist: !isWorkspaceMode(),
+  });
+  ctx.bus.on('fs:any', (rel: string) => {
+    projectIndex.update([rel]);
+  });
+  ctx.bus.on('config-updated', () => projectIndex.rebuild());
+  projectIndex.on('changed', (e) => ctx.bus.emit('index-changed', e));
+
   /** What a read-only session may still write: the module allowlist plus what
    *  the lane tables declare (`readOnly: 'allowed'`). */
   const readOnlyAllowed = {
@@ -2161,6 +2188,26 @@ export function createHttp(
       return new Response(text, {
         headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
       });
+    },
+
+    // V2-2.17 — the project index: the snapshot (`?since=<seq>` answers {unchanged} when
+    // current) or a search (`?q=`). Main origin only (absent from both canvas allowlists,
+    // DDR-088) + the DNS-rebinding guard; cells will filter by V2-1.16 `sees` (S9).
+    '/_api/index': (req: Request) => {
+      if (!sameOriginRead(req)) return new Response('cross-origin rejected', { status: 403 });
+      if (!isTrustedRequestHost(req))
+        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+      const url = new URL(req.url);
+      const q = url.searchParams.get('q');
+      if (q !== null)
+        return Response.json(projectIndex.search(q, { limit: 200 }), {
+          headers: { 'Cache-Control': 'no-store' },
+        });
+      const snap = projectIndex.snapshot();
+      const since = Number(url.searchParams.get('since'));
+      if (Number.isFinite(since) && since > 0 && since === snap.writer.seq)
+        return Response.json({ unchanged: true, seq: snap.writer.seq });
+      return Response.json(snap, { headers: { 'Cache-Control': 'no-store' } });
     },
 
     '/_api/debug-bundle': (req: Request) => {

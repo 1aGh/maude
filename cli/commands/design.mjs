@@ -135,6 +135,10 @@ const BIN_VERBS = new Set([
   // host — see DDR-185's rejected alternatives). No dev server dependency —
   // pure Node, no `<designRoot>` involvement.
   'curl-local',
+  // V2-2.17. `index` reads the project index (canvases, artboards, kinds; search with accent /
+  // word-order / one-typo folding) from the running studio, or builds the static index
+  // in-process when none runs. Read-only — writes nothing.
+  'index',
   // feature-canvas-render-performance (Task 1 + 11). `perf` drives a scripted
   // pan/zoom against a live canvas and reports frame-time percentiles plus the
   // React render count during the gesture, delta'd against the previous run of

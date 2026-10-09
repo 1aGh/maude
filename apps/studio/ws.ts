@@ -251,6 +251,10 @@ export function createWs(
   // /_config so cfg-derived state (designSystems, tokensCssRel, canvasGroups)
   // matches the reloaded server config. Inspector clients only.
   ctx.bus.on('config-updated', () => broadcast({ type: 'config-updated' }));
+  // V2-2.17 — the project index changed: `seq` + the canvases it touched (contract V2-1.17 §5.3).
+  ctx.bus.on('index-changed', (e: { seq: number; rels: string[] }) =>
+    broadcast({ type: 'index-changed', seq: e.seq, rels: e.rels })
+  );
 
   // Phase 31 (DDR-123) — `/design:chat` → `maude design chat-open` → POST
   // /_api/acp/focus emits this; the shell (app.jsx, native-only) opens the

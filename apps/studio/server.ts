@@ -35,6 +35,7 @@ import { createFsWatch } from './fs-watch.ts';
 import { createGenerationJobQueue } from './generation/jobs.ts';
 import { createGitWatch } from './git/watch.ts';
 import { createHttp } from './http.ts';
+import { flushAllIndexes } from './index/service.ts';
 import { createInspectRegistry } from './inspect.ts';
 import { startHeapWatch } from './mem.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
@@ -876,6 +877,7 @@ if (!process.env.NO_OPEN && !WORKSPACE) {
 async function shutdown() {
   console.log('\n  Stopping…');
   void stopDiagnostics();
+  flushAllIndexes();
   // DDR-166 — reap in-flight claude-provisioning grandchildren before this
   // process exits. Security-review finding: neither the SIGTERM/SIGINT path
   // here nor sidecar.rs's child.kill() on the Tauri side propagate to a
