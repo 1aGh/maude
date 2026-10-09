@@ -312,8 +312,18 @@ export function cspForCanvasShell(
 }
 
 /**
- * CSP for the EXPORT/CAPTURE render (DDR-148 security, attacker F1). The export
- * renders the (untrusted, DDR-054) canvas on the MAIN origin — where the normal
+ * CSP for a main-origin CAPTURE render (DDR-148 security, attacker F1).
+ *
+ * V2-2.8 S9: while the origin split is on, captures no longer render on the
+ * main origin at all — the main origin 307s them to the read-only capture
+ * origin, which serves the strict canvas CSP (`cspForCanvasShell`, DDR-232).
+ * This policy now applies only where a capture still renders on the main
+ * origin: with the split OFF (`MAUDE_CANVAS_ORIGIN_SPLIT=0`). (Maude's own
+ * local `_draw/` / `_photo/` harnesses stay on the main origin too, but only
+ * as bare `?canvas=` requests — one carrying `hide-chrome` is redirected.)
+ *
+ * Original rationale: the export rendered the (untrusted, DDR-054) canvas on
+ * the MAIN origin — where the normal
  * shell CSP is env-gated off — and the capture shim ACTIVELY primes+seeks every
  * `<video>`, so a canvas with `<Video src="http://169.254.169.254/…">` or comp
  * JS doing `fetch(internal)` would turn ⌘E into read-SSRF + exfil-via-artifact.
@@ -6154,14 +6164,16 @@ export function createHttp(
       if (pathname === '/_canvas-shell.html' || pathname === '/_canvas-shell') {
         // V2-2.8 S9 (V2-1.16 L21) — only the MAIN listener reaches this branch
         // (the canvas and capture listeners answer the shell themselves, in
-        // server.ts). A canvas the canvas origin can serve is never rendered
-        // here: it goes to the read-only capture origin. See captureRedirect.
+        // server.ts). While the split is on, every request here goes to the
+        // read-only capture origin, bar Maude's own local harnesses (see
+        // captureRedirect) — so what follows serves only those, and every
+        // shell when the split is OFF.
         const toCapture = captureRedirect(url);
         if (toCapture) return toCapture;
         // The segregated canvas origin (server.ts) calls serveCanvasShell(true)
         // directly with CSP always on; on the legacy main origin the CSP stays
         // env-gated (MAUDE_CSP_POC) for the POC / backwards-compat. A capture
-        // render (?hide-chrome=1 — ⌘E export / screenshot shim) ALWAYS gets the
+        // render (?hide-chrome=1) that still lands here ALWAYS gets the
         // network-locked capture CSP so it can't SSRF/exfil (attacker F1).
         const capture = url.searchParams.get('hide-chrome') === '1';
         return serveCanvasShell(process.env.MAUDE_CSP_POC === '1', capture);
@@ -6382,26 +6394,41 @@ export function createHttp(
    * screenshot`, smoke, perf, canvas-rects, visual-sanity, older CLIs) load the
    * shell from the MAIN origin, where tenant canvas code (DDR-054) is
    * same-origin with every privileged route and passes `sameOriginWrite` +
-   * `isTrustedRequestHost`. While the split is on, every such request for a
-   * canvas the canvas origin can serve gets a 307 to the read-only capture
-   * origin (server.ts `startCanvasServer(0, { capture: true })`) — same
-   * route table, GET/HEAD only, no upgrades, strict CSP. The decision runs
-   * `isCanvasSafeRoute` on the canvas's own module path, so a path traversal
-   * is normalised first and a `%` in a file name cannot dodge it.
+   * `isTrustedRequestHost`. While the split is on, every such request gets a
+   * 307 to the read-only capture origin (server.ts
+   * `startCanvasServer(0, { capture: true })`) — same
+   * route table, GET/HEAD only, no upgrades, strict CSP; the capture origin's
+   * own `isCanvasSafeRoute` door then refuses whatever it must not serve.
    *
-   * Not redirected (named residuals): Maude's own local harnesses under
-   * runtime dirs the canvas-safe table refuses (`_draw/` draw-proof,
-   * `_photo/` photo-bg-remove — generated on this machine, never synced), and
-   * everything when the split is off or in a cell (no capture listener; a
-   * cell's proxy never routes the main-origin shell).
+   * FAIL CLOSED: every main-origin shell request redirects. The shell builds
+   * its module URL from the REQUEST's `designRel` + `canvas` (and loads
+   * `tokens`/`components`/`layout`/`sha` too), so predicting which module a
+   * URL will load and redirecting "only the dangerous ones" fails open on any
+   * input the prediction misreads (V2-2.8 security review).
+   *
+   * The ONE exception (a named residual): Maude's own local harnesses, matched
+   * exactly — `maude design draw-proof` (`_draw/<slug>.proof.tsx`) and
+   * `photo-bg-remove` (`_photo/<slug>.bgremove.tsx`), with no parameter beyond
+   * `canvas` and the server's own `designRel`. They live under DDR-115
+   * runtime dirs the canvas-safe table refuses, and are generated on this
+   * machine (never synced), so they keep rendering here exactly as before.
+   * Nothing is redirected when the split is off or in a cell (no capture
+   * listener; a cell's proxy never routes the main-origin shell).
    */
+  const LOCAL_HARNESS =
+    /^_(?:draw\/[a-z0-9_][a-z0-9._-]*\.proof|photo\/[a-z0-9_][a-z0-9._-]*\.bgremove)\.tsx$/;
+  function isLocalHarness(url: URL): boolean {
+    const params = [...url.searchParams.keys()];
+    if (params.some((k) => k !== 'canvas' && k !== 'designRel')) return false;
+    const canvases = url.searchParams.getAll('canvas');
+    if (canvases.length !== 1 || !LOCAL_HARNESS.test(canvases[0] ?? '')) return false;
+    const own = ctx.paths.designRel.replace(/^\/+|\/+$/g, '');
+    const asked = url.searchParams.getAll('designRel');
+    return asked.length === 0 || (asked.length === 1 && asked[0] === own);
+  }
   function captureRedirect(url: URL): Response | null {
     if (!ctx.captureOrigin) return null;
-    const canvas = url.searchParams.get('canvas');
-    if (!canvas) return null;
-    const designRel = ctx.paths.designRel.replace(/^\/+|\/+$/g, '');
-    const modulePath = `/${designRel}/${canvas.split('/').map(encodeURIComponent).join('/')}`;
-    if (!isCanvasSafeRoute(modulePath)) return null;
+    if (isLocalHarness(url)) return null;
     return new Response(null, {
       status: 307,
       headers: {

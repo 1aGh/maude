@@ -168,24 +168,41 @@ describe('captures render on the read-only capture origin (V2-2.8 S9, V2-1.16 L2
         expect(loc.search).toBe(new URL(`http://x${path}`).search);
       }
 
-      // A path traversal in `canvas=` cannot pick the main origin for a
-      // canvas-group file: it is normalised before the decision.
-      const sneaky = await fetch(
-        `http://localhost:${port}/_canvas-shell.html?canvas=_draw/../ui/Probe.tsx`,
-        { redirect: 'manual' }
-      );
-      expect(sneaky.status).toBe(307);
+      // FAIL CLOSED. The shell builds its module URL from the REQUEST's own
+      // `designRel` + `canvas` (plugins/design/templates/_shell.html), so the
+      // server must not try to predict which module a URL loads: every
+      // main-origin shell request redirects, whatever its parameters say…
+      const status = async (q: string) =>
+        (await fetch(`http://localhost:${port}/_canvas-shell.html${q}`, { redirect: 'manual' }))
+          .status;
+      for (const q of [
+        '', // no canvas at all
+        '?canvas=_draw/../ui/Probe.tsx', // traversal back into a canvas group
+        '?canvas=_x/../../Probe.tsx&designRel=.design/ui/sub', // the shell resolves ui/Probe.tsx
+        '?canvas=ui/100%25zz.tsx', // a name the canonical decoder rejects
+        '?canvas=_untrusted/peer/ui/Evil.tsx', // peer-pushed quarantine
+        '?canvas=ui/Probe.html', // a non-.tsx canvas
+        '?canvas=_draw/mark.proof.tsx&designRel=.design/ui', // harness name, foreign root
+        '?canvas=_draw/mark.proof.tsx&sha=HEAD', // harness name, history build
+        '?canvas=_draw/mark.proof.tsx&components=ui/x.css', // harness name, extra loads
+        '?canvas=_draw/mark.proof.tsx&canvas=ui/Probe.tsx', // two canvases
+        '?canvas=_draw/sub/mark.proof.tsx', // not the generated shape
+      ]) {
+        expect(`${q} ${await status(q)}`).toBe(`${q} 307`);
+      }
 
-      // Named residual: Maude's OWN local harnesses under DDR-115 runtime dirs
-      // (`maude design draw-proof` → `_draw/`, `photo-bg-remove` → `_photo/`)
-      // are refused by the canvas-safe table, so they keep rendering on the
-      // main origin exactly as before. They are generated on this machine and
-      // never synced.
-      const harness = await fetch(
-        `http://localhost:${port}/_canvas-shell.html?canvas=_draw/mark.proof.tsx`,
-        { redirect: 'manual' }
-      );
-      expect(harness.status).toBe(200);
+      // …except Maude's OWN local harnesses, matched EXACTLY (a named residual:
+      // `maude design draw-proof` → `_draw/<slug>.proof.tsx`, `photo-bg-remove`
+      // → `_photo/<slug>.bgremove.tsx`). They live under DDR-115 runtime dirs
+      // the canvas-safe table refuses, are generated on this machine and never
+      // synced, so they keep rendering on the main origin exactly as before.
+      for (const q of [
+        '?canvas=_draw/mark.proof.tsx',
+        '?canvas=_draw/brand.v2_mark-1.proof.tsx&designRel=.design',
+        '?canvas=_photo/a1b2c3d4.bgremove.tsx',
+      ]) {
+        expect(`${q} ${await status(q)}`).toBe(`${q} 200`);
+      }
     } finally {
       await killProc(proc);
     }
@@ -241,6 +258,21 @@ describe('captures render on the read-only capture origin (V2-2.8 S9, V2-1.16 L2
       // Canvas-safe reads still serve (the capture must render).
       expect((await at('/.design/ui/Probe.tsx')).status).toBe(200);
       expect((await at('/_api/canvas-meta?file=.design/ui/Probe.tsx')).status).toBe(200);
+
+      // A DNS-rebound page (foreign Host) reads nothing here — the listener is
+      // loopback-only and never sits behind a proxy.
+      const evilHost = { host: `evil.example:${new URL(capture).port}` };
+      // …through the fall-through AND through the route table (Bun matches
+      // `routes` first, so a gate on `fetch` alone would miss this one).
+      expect((await at('/.design/ui/Probe.tsx', { headers: evilHost })).status).toBe(403);
+      expect(
+        (await at('/_api/canvas-meta?file=.design/ui/Probe.tsx', { headers: evilHost })).status
+      ).toBe(403);
+      // A canvas cannot install a service worker on the capture origin: in a
+      // reused browser session (agent-browser keeps one) it would answer the
+      // NEXT canvas's capture with whatever the first canvas chose.
+      const sw = await at('/.design/ui/Probe.tsx', { headers: { 'service-worker': 'script' } });
+      expect(sw.status).toBe(403);
 
       // The shell carries the STRICT canvas CSP — not the permissive capture CSP.
       const shell = await at('/_canvas-shell.html?canvas=ui/Probe.tsx&hide-chrome=1');
