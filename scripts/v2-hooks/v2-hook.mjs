@@ -227,7 +227,7 @@ function stop(root) {
     [
       `The v2 goal is not met: \`bash scripts/v2-done.sh\` is red (${out || `exit ${r.status}`}).`,
       next ? `Next open plan task: ${next.id} — ${next.title}.` : '',
-      'Resume from the Progress log + ledger + git log and keep going. Owner-run steps (G0-E) are done by the run itself when existing access allows (amendment 2026-10-09). Stop only when a step really needs Michal — a new account, a key the run does not have, live money, a new OAuth client, a release/tag that reaches production, deleting data or production infra — after finishing everything else; then collect every waiting item in .ai/state/v2-waiting-for-michal.md.',
+      "Resume from the Progress log + ledger + git log and keep going. Owner-run steps (G0-E, amended 2026-10-09) are the run's own when existing access allows: pushing feat/maude-v2, opening the PR into main at the end (the merge is Michal's), and the V2-2.18 releases (commit on main, bump-version, annotated tag, push --follow-tags per .ai/release-guide.md; all gates green before; fleet + render roll verified by a real export after; then merge main back). Stop only for a new account, a key the run does not have, live money, a new OAuth client, a production release/tag outside V2-2.18 (the v2.0.0-rc tag waits for Michal's merge), a FAILED release or verification (never fix production blind), deleting data or production infra — after finishing everything else; then collect every waiting item in .ai/state/v2-waiting-for-michal.md.",
     ]
       .filter(Boolean)
       .join(' ')
