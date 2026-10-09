@@ -11,6 +11,7 @@ import type { Context } from './context.ts';
 import { createContainerWriteBridge, createHmrBroadcaster } from './hmr-broadcast.ts';
 import type { InspectRegistry } from './inspect.ts';
 import { startCellFileEvents } from './sync/cell-file-events.ts';
+import { isRuntimeStateRel } from './sync/file-membership.ts';
 import { isWorkspaceMode } from './workspace-mode.ts';
 
 /**
@@ -208,9 +209,19 @@ export function createWs(
     broadcast({ type: 'selected', selected: sel }, meta?.session)
   );
   ctx.bus.on('active', (file, meta) => broadcast({ type: 'active', file }, meta?.session));
-  ctx.bus.on('fs:html', (file) => broadcast({ type: 'fs:html', file }));
-  ctx.bus.on('fs:css', (file) => broadcast({ type: 'fs:css', file }));
-  ctx.bus.on('fs:json', (file) => broadcast({ type: 'fs:json', file }));
+  // V2-2.8 S7 (follow-up) — runtime state (the DDR-115 classifier) never rides
+  // these socket pushes: in a cell `_active.<session>.json` and
+  // `_canvas-state/<session>/…` named every member's session key — and when
+  // they were active — to every other member. The shell acts on none of them
+  // (client/hmr.mjs reloads canvases and reacts to a canvas `.meta.json`);
+  // server-side bus subscribers still see every event.
+  const fsPush = (type: string) => (file: string) => {
+    if (typeof file === 'string' && isRuntimeStateRel(file)) return;
+    broadcast({ type, file });
+  };
+  ctx.bus.on('fs:html', fsPush('fs:html'));
+  ctx.bus.on('fs:css', fsPush('fs:css'));
+  ctx.bus.on('fs:json', fsPush('fs:json'));
   ctx.bus.on('comments', ({ file, comments }: { file: string; comments: unknown[] }) =>
     broadcast({ type: 'comments', file, comments })
   );
