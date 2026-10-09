@@ -29,6 +29,7 @@ import path from 'node:path';
 import { readAllArtboardPrintProps } from '../canvas-edit.ts';
 
 import type { Bus } from '../context.ts';
+import { currentSession, normalizeSessionKey } from '../session-scope.ts';
 import { resolveRenderLane } from '../workspace-mode.ts';
 import {
   type ExportContext,
@@ -115,12 +116,27 @@ export interface EnqueueArgs {
    * is `local` and this is never read.
    */
   remoteCanvas?: RemoteCanvasAccess;
+  /**
+   * V2-2.8 S5 — whose job this is: the proxy-vouched session key of the member
+   * who asked (session-scope.ts). Defaults to the ambient request's session;
+   * `''` (desktop, CLI, tests) is the one shared owner a desktop always had.
+   */
+  session?: string;
 }
 
 export type DownloadResult =
   | { ok: true; bytes: Uint8Array; filename: string; contentType: string }
   | { ok: false; reason: 'missing' | 'not-done' };
 
+/**
+ * V2-2.8 S5 (V2-1.16 L7 "everyone-fix") — every read below is scoped to ONE
+ * owner: the `session` argument, defaulting to the ambient request's session
+ * key (session-scope.ts `currentSession()`, set per request by server.ts
+ * `withSession`). A cell serves every member from one process (DDR-209), and
+ * these used to answer with every member's jobs. An invisible job answers
+ * exactly like a missing one (U1). On a desktop every key is `''`, so the
+ * answers are unchanged.
+ */
 export interface ExportJobQueue {
   enqueue(args: EnqueueArgs): { id: string; result: Promise<ExportResult> };
   /**
@@ -128,11 +144,16 @@ export interface ExportJobQueue {
    * lane) so it appears in the same ledger every other export does. No bytes
    * are kept — the file never passed through this process.
    */
-  recordBrowserExport(args: { format: Format; scope: Scope; filename: string }): ExportHistoryEntry;
-  get(id: string): ExportJob | undefined;
-  list(): ExportJob[];
-  loadHistory(): ExportHistoryEntry[];
-  getBytes(id: string): Promise<DownloadResult>;
+  recordBrowserExport(args: {
+    format: Format;
+    scope: Scope;
+    filename: string;
+    session?: string;
+  }): ExportHistoryEntry;
+  get(id: string, session?: string): ExportJob | undefined;
+  list(session?: string): ExportJob[];
+  loadHistory(session?: string): ExportHistoryEntry[];
+  getBytes(id: string, session?: string): Promise<DownloadResult>;
 }
 
 const HISTORY_DEPTH = 20;
@@ -304,6 +325,12 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
   const maxConcurrent = Math.max(1, Number(process.env.MAUDE_EXPORT_MAX_CONCURRENT) || 2);
   const semaphore = new Semaphore(maxConcurrent);
   const jobs = new Map<string, ExportJob>();
+  // V2-2.8 S5 — job id → the session key that asked for it. Kept beside the job
+  // rather than on it so no response, socket frame or public ledger row ever
+  // carries a session key; only the on-disk ledger stores it (as `session`).
+  const owners = new Map<string, string>();
+  const ownerOf = (id: string): string => owners.get(id) ?? '';
+  const ownedBy = (session: string) => (job: ExportJob) => ownerOf(job.id) === session;
 
   // Seed the ledger from disk ONCE — the only read of the history file. Every
   // later persist derives fresh from `jobs` and overwrites; there is no
@@ -334,6 +361,10 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
           filename: e.filename as string | undefined,
           error: e.error as string | undefined,
         });
+        // V2-2.8 S5 — a row written before ownership existed has no `session`
+        // and stays the shared ('') owner's, which in a cell is nobody.
+        const owner = normalizeSessionKey(typeof e.session === 'string' ? e.session : '');
+        if (owner) owners.set(id, owner);
       }
     }
   } catch {
@@ -352,12 +383,17 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
     .then(() => {});
 
   function emit(job: ExportJob): void {
-    bus.emit('export:job', { ...job });
+    // V2-2.8 S5 — the socket push goes to the owner's shell only (ws.ts honours
+    // `meta.session`); a desktop job (owner '') still reaches every socket.
+    const owner = ownerOf(job.id);
+    bus.emit('export:job', { ...job }, owner ? { session: owner } : undefined);
   }
 
-  function deriveHistory(): ExportHistoryEntry[] {
+  /** `filter` scopes the PUBLIC view; the on-disk ledger passes none. */
+  function deriveHistory(filter?: (job: ExportJob) => boolean): ExportHistoryEntry[] {
     return Array.from(jobs.values())
       .filter(isFinished)
+      .filter((j) => (filter ? filter(j) : true))
       .sort((a, b) => (b.finishedAt ?? '').localeCompare(a.finishedAt ?? ''))
       .slice(0, HISTORY_DEPTH)
       .map((j) => ({
@@ -379,7 +415,14 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
   }
 
   async function persistAndEvict(): Promise<void> {
-    const history = deriveHistory();
+    // The ledger keeps every member's rows, each with its owner (`session`,
+    // only when there is one — a desktop ledger is byte-for-byte unchanged), so
+    // ownership survives a restart. It is runtime state (DDR-115), never served
+    // as-is: GET /_api/export-history reads `loadHistory(session)` instead.
+    const history = deriveHistory().map((entry) => {
+      const owner = entry.id ? ownerOf(entry.id) : '';
+      return owner ? { ...entry, session: owner } : entry;
+    });
     await Bun.write(historyPath, JSON.stringify(history, null, 2));
 
     const now = Date.now();
@@ -402,6 +445,7 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
     });
     for (const job of staleBytes) {
       jobs.delete(job.id);
+      owners.delete(job.id);
       await rm(path.join(jobsDir, job.id), { recursive: true, force: true }).catch(() => {});
     }
 
@@ -411,7 +455,10 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
     const byteless = Array.from(jobs.values())
       .filter((j) => isFinished(j) && (j.deliveredInBrowser || !j.filename))
       .sort((a, b) => (b.finishedAt ?? '').localeCompare(a.finishedAt ?? ''));
-    for (const job of byteless.slice(HISTORY_DEPTH)) jobs.delete(job.id);
+    for (const job of byteless.slice(HISTORY_DEPTH)) {
+      jobs.delete(job.id);
+      owners.delete(job.id);
+    }
   }
 
   function enqueue(args: EnqueueArgs): { id: string; result: Promise<ExportResult> } {
@@ -430,6 +477,8 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
       status: 'queued',
       createdAt: new Date().toISOString(),
     };
+    const owner = normalizeSessionKey(args.session ?? currentSession());
+    if (owner) owners.set(id, owner);
     jobs.set(id, job);
     emit(job);
 
@@ -584,9 +633,15 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
 
   return {
     enqueue,
-    get: (id) => jobs.get(id),
-    list: () => Array.from(jobs.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    recordBrowserExport({ format, scope, filename }) {
+    get(id, session = currentSession()) {
+      const job = jobs.get(id);
+      return job && ownerOf(id) === normalizeSessionKey(session) ? job : undefined;
+    },
+    list: (session = currentSession()) =>
+      Array.from(jobs.values())
+        .filter(ownedBy(normalizeSessionKey(session)))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    recordBrowserExport({ format, scope, filename, session = currentSession() }) {
       const now = new Date().toISOString();
       const job: ExportJob = {
         id: crypto.randomUUID(),
@@ -600,6 +655,8 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
         filename,
         deliveredInBrowser: true,
       };
+      const owner = normalizeSessionKey(session);
+      if (owner) owners.set(job.id, owner);
       jobs.set(job.id, job);
       emit(job);
       // Fire-and-forget: the member already HAS the file, so a slow ledger
@@ -618,10 +675,13 @@ export function createExportJobQueue(bus: Bus, designRoot: string): ExportJobQue
         deliveredInBrowser: true,
       };
     },
-    loadHistory: deriveHistory,
-    async getBytes(id) {
+    loadHistory: (session = currentSession()) =>
+      deriveHistory(ownedBy(normalizeSessionKey(session))),
+    async getBytes(id, session = currentSession()) {
       const job = jobs.get(id);
-      if (!job) return { ok: false, reason: 'missing' };
+      // Another member's job answers exactly like a missing one (V2-1.16 U1).
+      if (!job || ownerOf(id) !== normalizeSessionKey(session))
+        return { ok: false, reason: 'missing' };
       if (job.status !== 'done') return { ok: false, reason: 'not-done' };
       if (!job.filename) return { ok: false, reason: 'missing' };
       const file = Bun.file(path.join(jobsDir, id, job.filename));
