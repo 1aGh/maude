@@ -1,0 +1,1879 @@
+{
+  "schema": "maude.nothing-deleted/1",
+  "about": "Every v1 feature and its v2 home. rows = §A (06 Advanced ITEMS) + §B (G0-D); v2 = registry action id / testid / where-path, filled by the package that builds the home; map = v1-manifest entry id → row id. Audited by scripts/check-v2-nothing-deleted.mjs.",
+  "rows": [
+    {
+      "id": "A-six-menus-file-edit-view-selection-tools-help",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Six menus: File · Edit · View · Selection · Tools · Help",
+      "today": "bar",
+      "home": "menu",
+      "drawnAt": "ad-menus",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-mode-stamp-idle-canvas-system",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Mode stamp Idle · Canvas · System",
+      "today": "bar",
+      "home": "diag",
+      "drawnAt": "ad-logs",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-active-file-path",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Active file path",
+      "today": "bar",
+      "home": "canv",
+      "drawnAt": "ad-left",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-n-artboards-count",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "“N artboards” count",
+      "today": "bar",
+      "home": "lay",
+      "drawnAt": "ad-left",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-what-s-new-megaphone",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "What's new megaphone",
+      "today": "bar",
+      "home": "menu",
+      "drawnAt": "ad-menus",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-report-a-bug-icon",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Report-a-bug icon",
+      "today": "bar",
+      "home": "menu",
+      "drawnAt": "ad-menus",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-export-jobs-badge",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Export jobs badge",
+      "today": "bar",
+      "home": "exp",
+      "drawnAt": "ad-export",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-cloud-account-email-and-sign-out",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Cloud account email and Sign out",
+      "today": "bar",
+      "home": "setc",
+      "drawnAt": "ad-edge-hub",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-browser-dashboard-link",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Browser “← Dashboard” link",
+      "today": "bar",
+      "home": "menu",
+      "drawnAt": "ad-menus",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-dock-resize-grips-and-tab-strips",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Dock resize grips and tab strips",
+      "today": "bar",
+      "home": "view",
+      "drawnAt": "ad-pinned",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-update-banner-restart-now-later",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Update banner — Restart now · Later",
+      "today": "bar",
+      "home": "seta",
+      "drawnAt": "ad-settings",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-generate-with-ai-provider-model-aspect",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Generate with AI… — provider, model, aspect",
+      "today": "bar",
+      "home": "ai",
+      "drawnAt": "ad-ai",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-selected-element-s-selector",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Selected element's selector",
+      "today": "status",
+      "home": "insp",
+      "drawnAt": "ad-inspector",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-open-comments-count",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Open comments count",
+      "today": "status",
+      "home": "menu",
+      "drawnAt": "ad-menus",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-changes-chip-n-unsaved",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Changes chip — N unsaved",
+      "today": "status",
+      "home": "vh",
+      "drawnAt": "ad-history",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-live-reconnecting-dot",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Live / reconnecting dot",
+      "today": "status",
+      "home": "diag",
+      "drawnAt": "ad-logs",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-hub-sync-chip",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Hub sync chip",
+      "today": "status",
+      "home": "diag",
+      "drawnAt": "ad-diag",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-app-version",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "App version",
+      "today": "status",
+      "home": "seta",
+      "drawnAt": "ad-settings",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-light-dark-toggle",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Light / dark toggle",
+      "today": "status",
+      "home": "setg",
+      "drawnAt": "02 · ob-settings",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-refresh-tree-r",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Refresh tree ⇧⌘R",
+      "today": "files",
+      "home": "canv",
+      "drawnAt": "ad-left",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-live-dot-and-shown-total-count",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Live dot and shown / total count",
+      "today": "files",
+      "home": "canv",
+      "drawnAt": "ad-left",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-show-hidden-files-h",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Show hidden files (H)",
+      "today": "files",
+      "home": "canv",
+      "drawnAt": "ad-left",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-sidecar-files-meta-json-css",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Sidecar files — .meta.json, .css",
+      "today": "files",
+      "home": "canv",
+      "drawnAt": "ad-left",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-runtime-gitignored-section",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Runtime · gitignored section",
+      "today": "files",
+      "home": "canv",
+      "drawnAt": "ad-left",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-rename-a-supporting-file",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Rename a supporting file",
+      "today": "files",
+      "home": "canv",
+      "drawnAt": "ad-left",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-design-system-folder-path",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Design system folder path",
+      "today": "files",
+      "home": "canv",
+      "drawnAt": "ad-left",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-preview-of-non-canvas-files-md-fonts-audio",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Preview of non-canvas files — md, fonts, audio",
+      "today": "files",
+      "home": "canv",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-imported-from-figma-and-experimental-badges",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Imported-from-Figma and experimental badges",
+      "today": "files",
+      "home": "canv",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-unsaved-badges-m-a-d-u",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Unsaved badges M · A · D · U",
+      "today": "files",
+      "home": "vh",
+      "drawnAt": "ad-history",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-branch-switcher",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Branch switcher",
+      "today": "files",
+      "home": "vh",
+      "drawnAt": "ad-history",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-pull-a-local-copy",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Pull a local copy",
+      "today": "files",
+      "home": "vh",
+      "drawnAt": "ad-history",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-continue-on-draft-chip",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "“Continue on <draft>” chip",
+      "today": "files",
+      "home": "vh",
+      "drawnAt": "ad-history",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-open-another-folder-or-team-project",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Open another folder or team project",
+      "today": "files",
+      "home": "menu",
+      "drawnAt": "ad-menus",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-sign-in-with-github",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Sign in with GitHub",
+      "today": "files",
+      "home": "setc",
+      "drawnAt": "ad-edge-hub",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-open-the-cloud-dashboard",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Open the cloud dashboard",
+      "today": "files",
+      "home": "setg",
+      "drawnAt": "02 · ob-settings",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-new-github-project-visibility-description",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "New GitHub project — visibility, description",
+      "today": "files",
+      "home": "menu",
+      "drawnAt": "02 · ob-adv-sheets",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-localhost-port-and-version-line",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "“localhost:PORT” and version line",
+      "today": "canvas",
+      "home": "diag",
+      "drawnAt": "ad-diag",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-copy-css",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Copy CSS",
+      "today": "canvas",
+      "home": "insp",
+      "drawnAt": "ad-inspector",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-copy-data-cd-id",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Copy data-cd-id",
+      "today": "canvas",
+      "home": "insp",
+      "drawnAt": "ad-inspector",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-copy-style-paste-style",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Copy style · Paste style",
+      "today": "canvas",
+      "home": "insp",
+      "drawnAt": "ad-inspector",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-convert-layout-to-absolute",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Convert layout to absolute",
+      "today": "canvas",
+      "home": "insp",
+      "drawnAt": "ad-inspector",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-artboard-theme-ds-default-follow-chrome",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Artboard theme — DS default · Follow chrome",
+      "today": "canvas",
+      "home": "insp",
+      "drawnAt": "ad-inspector",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-reset-position-fit-just-this-artboard",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Reset position · Fit just this artboard",
+      "today": "canvas",
+      "home": "insp",
+      "drawnAt": "ad-inspector",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-minimap",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Minimap",
+      "today": "canvas",
+      "home": "view",
+      "drawnAt": "ad-menus",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-zoom-controls",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Zoom controls",
+      "today": "canvas",
+      "home": "view",
+      "drawnAt": "ad-menus",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-print-guides",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Print guides",
+      "today": "canvas",
+      "home": "view",
+      "drawnAt": "ad-menus",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-export-project-zip-canvas-as-separate",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Export project ZIP, canvas as separate",
+      "today": "canvas",
+      "home": "exp",
+      "drawnAt": "09 · ex-formats",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-asset-picker-upload-thumbnails-insert",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Asset picker — Upload…, thumbnails, Insert",
+      "today": "canvas",
+      "home": "assets",
+      "drawnAt": "12 · ia-assets-panel",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-design-system-view-s-key-picker",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Design system view — S key, picker",
+      "today": "canvas",
+      "home": "ds",
+      "drawnAt": "13 · ds-advanced",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-token-and-type-ladders-preview-galleries",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Token and type ladders, preview galleries",
+      "today": "canvas",
+      "home": "ds",
+      "drawnAt": "13 · ds-advanced",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-raw-system-folder-and-maude-dsn-01",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Raw system folder and MAUDE-DSN/01",
+      "today": "canvas",
+      "home": "ds",
+      "drawnAt": "13 · ds-advanced",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-css-tab-raw-properties",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "CSS tab — raw properties",
+      "today": "insp",
+      "home": "insp",
+      "drawnAt": "ad-inspector",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-tag-and-class",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Tag and Class",
+      "today": "insp",
+      "home": "insp",
+      "drawnAt": "ad-inspector",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-custom-css-property-rows",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Custom CSS property rows",
+      "today": "insp",
+      "home": "insp",
+      "drawnAt": "ad-inspector",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-html-attribute-rows",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "HTML attribute rows",
+      "today": "insp",
+      "home": "insp",
+      "drawnAt": "ad-inspector",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-token-popover-per-design-system",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Token popover per design system",
+      "today": "insp",
+      "home": "insp",
+      "drawnAt": "ad-inspector",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-grid-tracks-editor",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Grid tracks editor",
+      "today": "insp",
+      "home": "insp",
+      "drawnAt": "ad-inspector",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-body-layout-select",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Body layout select",
+      "today": "insp",
+      "home": "insp",
+      "drawnAt": "ad-inspector",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-edit-scope-local-shared-detach",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Edit scope — Local · Shared, Detach",
+      "today": "insp",
+      "home": "insp",
+      "drawnAt": "ad-inspector",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-layer-tags",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Layer tags",
+      "today": "insp",
+      "home": "lay",
+      "drawnAt": "ad-left",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-layer-ids-the-dom-tree",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Layer ids — the DOM tree",
+      "today": "insp",
+      "home": "lay",
+      "drawnAt": "ad-left",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-layers-as-a-separate-panel",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Layers as a separate panel",
+      "today": "insp",
+      "home": "view",
+      "drawnAt": "ad-menus",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-branch-names-and-new-branch",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Branch names and New branch",
+      "today": "git",
+      "home": "vh",
+      "drawnAt": "ad-history",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-sha-on-every-version",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "SHA on every version",
+      "today": "git",
+      "home": "vh",
+      "drawnAt": "ad-history",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-fetch-remote-branches",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Fetch remote branches",
+      "today": "git",
+      "home": "vh",
+      "drawnAt": "ad-history",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-add-to-shared-opens-a-pr",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "“Add to shared” — opens a PR",
+      "today": "git",
+      "home": "vh",
+      "drawnAt": "ad-history",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-save-version-with-a-message",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Save version with a message",
+      "today": "git",
+      "home": "vh",
+      "drawnAt": "ad-history",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-publish-changes",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Publish changes",
+      "today": "git",
+      "home": "vh",
+      "drawnAt": "ad-history",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-discard-a-file-s-changes",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Discard a file's changes",
+      "today": "git",
+      "home": "vh",
+      "drawnAt": "ad-history",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-get-latest",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Get latest",
+      "today": "git",
+      "home": "diag",
+      "drawnAt": "ad-syncd",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-resync",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Resync",
+      "today": "sync",
+      "home": "diag",
+      "drawnAt": "ad-diag",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-download-all",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Download all",
+      "today": "sync",
+      "home": "diag",
+      "drawnAt": "ad-diag",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-held-rate-limited-failed-lists",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Held · rate-limited · failed lists",
+      "today": "sync",
+      "home": "diag",
+      "drawnAt": "ad-syncd",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-asset-transfers-with-cancel",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Asset transfers with Cancel",
+      "today": "sync",
+      "home": "diag",
+      "drawnAt": "ad-syncd",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-conflict-keep-mine-use-theirs-keep-both",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Conflict — Keep mine · Use theirs · Keep both",
+      "today": "sync",
+      "home": "diag",
+      "drawnAt": "ad-syncd",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-unfinished-ai-edit-publish-discard",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Unfinished AI edit — Publish · Discard",
+      "today": "sync",
+      "home": "diag",
+      "drawnAt": "ad-syncd",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-sign-in-again-when-sync-stops",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "“Sign in again” when sync stops",
+      "today": "sync",
+      "home": "diag",
+      "drawnAt": "ad-syncd",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-hints-maude-design-status-design-rollback",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Hints — maude design status, /design:rollback",
+      "today": "sync",
+      "home": "diag",
+      "drawnAt": "ad-syncd",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-repo-state-changed-reload",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "“Repo state changed — reload?”",
+      "today": "sync",
+      "home": "diag",
+      "drawnAt": "ad-diag",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-trash-clear-out-old-files",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Trash — clear out old files",
+      "today": "sync",
+      "home": "canv",
+      "drawnAt": "ad-left",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-sync-project-files-propagate-deletions",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Sync project files · Propagate deletions",
+      "today": "sync",
+      "home": "seta",
+      "drawnAt": "ad-settings",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-first-link-conflicts-rule",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "First-link conflicts rule",
+      "today": "sync",
+      "home": "seta",
+      "drawnAt": "ad-settings",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-hand-design-to-the-workspace",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Hand .design/ to the workspace",
+      "today": "sync",
+      "home": "seta",
+      "drawnAt": "ad-settings",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-sync-canvases-only-or-everything",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Sync canvases only or everything",
+      "today": "sync",
+      "home": "seta",
+      "drawnAt": "ad-settings",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-local-link-this-mac-only",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Local link — this Mac only",
+      "today": "share",
+      "home": "share",
+      "drawnAt": "ad-share",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-open-in-maude-app-link",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Open in Maude app link",
+      "today": "share",
+      "home": "share",
+      "drawnAt": "ad-share",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-invite-by-github-username",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Invite by GitHub username",
+      "today": "share",
+      "home": "share",
+      "drawnAt": "ad-share",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-model-effort-fast-mode",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Model · Effort · Fast mode",
+      "today": "ai",
+      "home": "ai",
+      "drawnAt": "ad-ai",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-permission-mode",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Permission mode",
+      "today": "ai",
+      "home": "ai",
+      "drawnAt": "ad-ai",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-transcript-view-thinking-verbose",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Transcript view — thinking, verbose",
+      "today": "ai",
+      "home": "ai",
+      "drawnAt": "ad-ai",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-context-and-token-counts",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Context % and token counts",
+      "today": "ai",
+      "home": "ai",
+      "drawnAt": "ad-ai",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-slash-command-quick-actions",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Slash-command quick actions",
+      "today": "ai",
+      "home": "ai",
+      "drawnAt": "ad-ai",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-tool-call-cards-in-the-feed",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Tool-call cards in the feed",
+      "today": "ai",
+      "home": "ai",
+      "drawnAt": "ad-ai",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-readiness-list-claude-code",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Readiness list — Claude Code",
+      "today": "ai",
+      "home": "diag",
+      "drawnAt": "ad-logs",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-frame-readout",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Frame readout",
+      "today": "tl",
+      "home": "tl",
+      "drawnAt": "ad-timeline",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-long-comp-badge",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Long-comp badge",
+      "today": "tl",
+      "home": "tl",
+      "drawnAt": "ad-timeline",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-keyframe-markers",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Keyframe markers",
+      "today": "tl",
+      "home": "tl",
+      "drawnAt": "ad-timeline",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-png-at-150-300-600-dpi",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "PNG at 150 · 300 · 600 dpi",
+      "today": "export",
+      "home": "exp",
+      "drawnAt": "ad-export",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-pdf-quality-and-text-outlines",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "PDF quality and text outlines",
+      "today": "export",
+      "home": "exp",
+      "drawnAt": "ad-export",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-crop-and-registration-marks",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Crop and registration marks",
+      "today": "export",
+      "home": "exp",
+      "drawnAt": "ad-export",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-ai-handoff-copies-design-handoff",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "AI handoff — copies /design:handoff",
+      "today": "export",
+      "home": "exp",
+      "drawnAt": "ad-export",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-html-powerpoint-canva-formats",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "HTML · PowerPoint · Canva formats",
+      "today": "export",
+      "home": "exp",
+      "drawnAt": "09 · ex-formats",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-render-service-note",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Render service note",
+      "today": "export",
+      "home": "exp",
+      "drawnAt": "09 · ex-advanced",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-inspector-vocabulary-advanced-designer",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Inspector vocabulary Advanced · Designer",
+      "today": "settings",
+      "home": "insp",
+      "drawnAt": "ad-inspector",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-auto-open-inspector-on-select",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Auto-open inspector on select",
+      "today": "settings",
+      "home": "view",
+      "drawnAt": "ad-menus",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-panel-positions-left-right",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Panel positions left / right",
+      "today": "settings",
+      "home": "view",
+      "drawnAt": "ad-pinned",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-ai-provider-keys",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "AI provider keys",
+      "today": "settings",
+      "home": "setc",
+      "drawnAt": "ad-edge-hub",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-figma-token",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Figma token",
+      "today": "settings",
+      "home": "setc",
+      "drawnAt": "ad-edge-hub",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-where-keys-are-kept-keys-json",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Where keys are kept — keys.json",
+      "today": "settings",
+      "home": "seta",
+      "drawnAt": "ad-settings",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-transcription-engine-and-whisper-model",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Transcription engine and whisper model",
+      "today": "settings",
+      "home": "seta",
+      "drawnAt": "ad-settings",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-keyframe-engine-and-gemma-model",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Keyframe engine and Gemma model",
+      "today": "settings",
+      "home": "seta",
+      "drawnAt": "ad-settings",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-install-claude-code-automatically",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Install Claude Code automatically",
+      "today": "settings",
+      "home": "seta",
+      "drawnAt": "ad-settings",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-help-slash-commands-opt-out-critic-loop",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Help: slash commands, opt-out, critic loop",
+      "today": "help",
+      "home": "menu",
+      "drawnAt": "ad-menus",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-quick-setup-brand-figma-import",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Quick setup — brand, Figma import",
+      "today": "help",
+      "home": "menu",
+      "drawnAt": "ad-menus",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-handoff-to-production-h",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Handoff to production ⇧⌘H",
+      "today": "help",
+      "home": "menu",
+      "drawnAt": "ad-menus",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-server-build-name-maude-dev-srv",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Server build name MAUDE-DEV-SRV",
+      "today": "help",
+      "home": "seta",
+      "drawnAt": "ad-settings",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-draw-with-the-svg-agent-copies-design-draw",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Draw with the SVG agent — copies /design:draw",
+      "today": "help",
+      "home": "seta",
+      "drawnAt": "ad-settings",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-brand-upload-copy-command",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Brand upload “Copy command”",
+      "today": "help",
+      "home": "seta",
+      "drawnAt": "ad-settings",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-check-ai-editing-readiness",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Check AI editing readiness…",
+      "today": "help",
+      "home": "diag",
+      "drawnAt": "ad-diag",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-the-claude-binary-path",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "The claude binary path",
+      "today": "help",
+      "home": "diag",
+      "drawnAt": "ad-logs",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-reload-canvas-r",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Reload canvas ⌘R",
+      "today": "help",
+      "home": "diag",
+      "drawnAt": "ad-diag",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-server-log-tail",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Server log tail",
+      "today": "help",
+      "home": "diag",
+      "drawnAt": "ad-logs",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-team-hub-address-and-access-token",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Team hub address and access token",
+      "today": "help",
+      "home": "setc",
+      "drawnAt": "ad-edge-hub",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "A-your-team-s-own-server-email-password",
+      "source": "§A 06 Advanced ITEMS",
+      "what": "Your team's own server — email, password",
+      "today": "help",
+      "home": "setc",
+      "drawnAt": "ad-edge-hub",
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D1",
+      "source": "§B G0-D",
+      "what": "Browse tool",
+      "today": null,
+      "home": "Preview mode (Hand + click uses the design); \"?\" sheet lists it under \"Keys and tools that moved\"",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D2",
+      "source": "§B G0-D",
+      "what": "Pen B, Rect R, Ellipse O, Highlighter I, Eraser E, Section ⇧S",
+      "today": null,
+      "home": "P · Shape R · Edit › More › Ellipse · Marker tip · Marker option · S — all listed in \"?\" › moved",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D3",
+      "source": "§B G0-D",
+      "what": "Canvas-palette Export ⌘E, ⌘⇧E re-run last export, in-canvas export dialog",
+      "today": null,
+      "home": "One sheet ⇧⌘E; \"Export again\" on every Exports row; ⌘E unbound",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D4",
+      "source": "§B G0-D",
+      "what": "⇧⌘R Refresh tree, T toggle tree, H hidden files, S DS view, N new board",
+      "today": null,
+      "home": "⇧⌘R kept (Canvases › Advanced + ⌘K); tree → ⌘\\ / panel icon; hidden files → Canvases › Advanced switch (no key); DS → pinned row; new board → ⌘N",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D5",
+      "source": "§B G0-D",
+      "what": "Files panel: New folder, inline composer, folder menu, drag-drop, keyboard tree nav, open-comment count, Figma/experimental badges, non-canvas file preview",
+      "today": null,
+      "home": "Canvases panel (11 pn-organise / pn-move); counts and badges as row meta; preview opens from hidden files",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D6",
+      "source": "§B G0-D",
+      "what": "Right-click menus: world (Fit/Reset view, Paste artboard, Export project ZIP / canvas as separate), artboard (Theme, Kind, Fit, Reset position, Convert to absolute, Open Timeline), element (Inspect, Select layer, Insert ▸, Replace image, Convert children to absolute, Copy/Paste style, Hide, Lock, Export selection), multi-select align/distribute",
+      "today": null,
+      "home": "v2 artboard / object menus (14) + an **Advanced ▸** submenu holding every remaining item; Kind + Theme in the artboard inspector (Theme under its Advanced); world menu kept on empty-canvas right-click",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D7",
+      "source": "§B G0-D",
+      "what": "Contextual element toolbar (copy selector/id, inspect, align, Tidy up)",
+      "today": null,
+      "home": "Align bar (14) + object menu Advanced ▸",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D8",
+      "source": "§B G0-D",
+      "what": "Comments: All filter, Reopen, Delete, file group headers",
+      "today": null,
+      "home": "Comments panel (C7); Reopen in a resolved thread; \"Delete comment\" for your own comments; grouping by canvas",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D9",
+      "source": "§B G0-D",
+      "what": "Chat: \"Implement N comments\", empty-state CTAs, per-chat Rename/Archive/Delete/Copy transcript, ModeBanner, rate-limit banner, ErrorCard, Permission/Elicitation prompts, OS notifications",
+      "today": null,
+      "home": "03 equivalents (suggestion chips, chat list menu with Move to trash, inline permission/choice cards, \"used up until HH:MM\", Needs you)",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D10",
+      "source": "§B G0-D",
+      "what": "Git panel: empty states, \"Cloud is saving\", result banners, Undo a restore, Retry cloud history, Save all, DiffView (compare, side by side / overlay wipe, zoom), chat-guard before branch switch",
+      "today": null,
+      "home": "Version history (11) + its Advanced (06 ad-history); pixel compare under Version history › Advanced › \"Compare pictures\"",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D11",
+      "source": "§B G0-D",
+      "what": "CloudBar project list (Connect/Disconnect), \"Connect this folder\" deep link, file deep-link dialog, device-code sign-in",
+      "today": null,
+      "home": "Settings › Connections (cloud projects on this Mac) · 11 deep links · browser sign-in sheet with \"Use a code instead\"",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D12",
+      "source": "§B G0-D",
+      "what": "TeamProjects \"Your team's own server\" form, SyncConsentDialog, Sync notice Dismiss, delivery attention list, SyncBanner diverged/rejected, CloudRoleBanner, mode-hint toast",
+      "today": null,
+      "home": "Settings › Connections \"Add a team server…\" · consent shown once in the Move-to-cloud/first-link flow + Settings › Advanced · Diagnostics › Sync details · status-word callouts · access-status word",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D13",
+      "source": "§B G0-D",
+      "what": "Tours (usage, collab, quick-setup), SetupChecklist, \"Start quick setup\", What's new panel/toast, ReportBugDialog (3 steps), Help modal sections",
+      "today": null,
+      "home": "Help › Take the tour (tours rewritten for v2) · Help › \"Set up Maude…\" (checklist) · Home first-run line · Help › What's new + quiet dot · Help › Report a bug… (unchanged flow) · Help › Help and guides",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D14",
+      "source": "§B G0-D",
+      "what": "Figma token Test, transcription engines (whisper.cpp / Scribe / Groq), keyframe engines (Gemma / ffmpeg / Blind), Generate model select + Generate/Insert",
+      "today": null,
+      "home": "Settings › Connections \"Test\" · full selects in Settings › Advanced · AI chat Generate mode (12) with model select in its Advanced",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D15",
+      "source": "§B G0-D",
+      "what": "Timeline: AI clip Generate ✨, ClipInspector (Speed, Audio, Crop, Grade, Text, Transition), transport (Loop, Mute, Volume, comp picker), clip context menu (~17 items)",
+      "today": null,
+      "home": "Timeline (07) + clip right-click menu (all 17 kept) + clip inspector with Grade/Crop/Transition frames under its Advanced",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D16",
+      "source": "§B G0-D",
+      "what": "Photo knobs (8 sliders, Duotone, Grain, Pattern, Mask, Background)",
+      "today": null,
+      "home": "Photo (12) Looks + Light/Colour; every knob under Photo › Advanced",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D17",
+      "source": "§B G0-D",
+      "what": "Palette \"Toggle theme\", \"New video…\"",
+      "today": null,
+      "home": "⌘K \"Theme\" + Settings › General · ⌘K \"New video\" + New artboard › Video",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D18",
+      "source": "§B G0-D",
+      "what": "Inspector Advanced raw CSS (~33 properties, custom CSS property rows, HTML attribute rows) and the Designer/Advanced vocabulary toggle",
+      "today": null,
+      "home": "Designer is the only default; inspector › Advanced carries the full raw editor unchanged (not only CSS · tokens · id)",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D19",
+      "source": "§B G0-D",
+      "what": "Native OS menu: About, Check for Updates…, Quit, Help › Report a Bug",
+      "today": null,
+      "home": "Unchanged (CONTRACT §1); Check for updates also in Settings › Advanced",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    },
+    {
+      "id": "D20",
+      "source": "§B G0-D",
+      "what": "Persisted prefs (~40 `mdcc-*`/`maude-*` keys, `prefs.json` panelSides/layersMode)",
+      "today": null,
+      "home": "Versioned migration to v2 homes (fold state, pinned panels, theme); \"seen\" flags re-keyed so upgraders get the v2 tour once",
+      "drawnAt": null,
+      "v2": {
+        "action": null,
+        "testid": null,
+        "where": null
+      }
+    }
+  ],
+  "map": {}
+}
