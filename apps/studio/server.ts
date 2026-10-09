@@ -521,9 +521,9 @@ function startServer(port: number): BunServer {
 // V2-2.8 S9 (V2-1.16 L21) — `{ capture: true }` starts the CAPTURE origin: the
 // same listener, a third port, for headless renders only (exports, `maude
 // design screenshot`, smoke, perf, …). The main origin 307s every canvas-shell
-// request the canvas origin can serve to it (http.ts), so tenant canvas code in
-// a capture runs here — read-only by construction — and never on the main
-// origin, where its requests passed sameOriginWrite + isTrustedRequestHost.
+// request to it (http.ts `captureRedirect`), so tenant canvas code in a capture
+// runs here — read-only by construction — and never on the main origin, where
+// its requests passed sameOriginWrite + isTrustedRequestHost.
 function captureWriteRefusal(): Response {
   return new Response('the capture origin is read-only', {
     status: 405,
@@ -531,13 +531,37 @@ function captureWriteRefusal(): Response {
   });
 }
 
-/** Each route behind a GET/HEAD gate — the capture origin's copy of the ONE table. */
+/**
+ * What the capture origin refuses before anything else is consulted — applied
+ * to its `routes` entries AND its `fetch` (Bun matches `routes` first, so a
+ * gate on `fetch` alone would miss the route table). Read-only BY
+ * CONSTRUCTION: it is its own origin, so nothing a page runs can remove these
+ * properties (a restricting cookie or header could be stripped by
+ * `fetch(…, { credentials: 'omit' })`; a port cannot).
+ *   - loopback only: it never sits behind a proxy, so a foreign Host is a
+ *     DNS-rebound page;
+ *   - no upgrade: no collab room, no HMR feed;
+ *   - no service worker: in a reused browser session (agent-browser keeps one)
+ *     it would answer the NEXT canvas's capture with whatever the first chose;
+ *   - GET/HEAD only.
+ */
+function captureRefusal(req: Request): Response | null {
+  if (!isLoopbackHost(req.headers.get('host')))
+    return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+  if (req.headers.get('upgrade'))
+    return new Response('the capture origin accepts no upgrades', { status: 403 });
+  if (req.headers.get('service-worker'))
+    return new Response('the capture origin installs no service workers', { status: 403 });
+  if (req.method !== 'GET' && req.method !== 'HEAD') return captureWriteRefusal();
+  return null;
+}
+
+/** Each route behind the capture gate — the capture origin's copy of the ONE table. */
 function readOnlyRoutes<R extends Record<string, unknown>>(routes: R): R {
   const out: Record<string, unknown> = {};
   for (const [path, handler] of Object.entries(routes)) {
     const fn = handler as (req: Request) => Response | Promise<Response>;
-    out[path] = (req: Request) =>
-      req.method === 'GET' || req.method === 'HEAD' ? fn(req) : captureWriteRefusal();
+    out[path] = (req: Request) => captureRefusal(req) ?? fn(req);
   }
   return out as R;
 }
@@ -589,15 +613,11 @@ function startCanvasServer(
     async fetch(req, srv) {
       const pathname = new URL(req.url).pathname;
 
-      // V2-2.8 S9 — the capture origin is read-only BY CONSTRUCTION: no
-      // upgrade (no collab room, no HMR feed) and no unsafe method, before
-      // anything else is consulted. It is its own origin, so nothing a page
-      // runs can remove these properties (a restricting cookie or header could
-      // be stripped by `fetch(…, { credentials: 'omit' })`; a port cannot).
+      // V2-2.8 S9 — the capture origin's gate (see captureRefusal), before
+      // anything else is consulted.
       if (capture) {
-        if (req.headers.get('upgrade'))
-          return new Response('the capture origin accepts no upgrades', { status: 403 });
-        if (req.method !== 'GET' && req.method !== 'HEAD') return captureWriteRefusal();
+        const refused = captureRefusal(req);
+        if (refused) return refused;
       }
 
       // Collab WS — shared registry, loopback-only (same gate as the main
