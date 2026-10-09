@@ -109,7 +109,9 @@ export function TreeRowMenu({ state, onClose, rootItems, destinations, onPickDes
         if (items.length === 0) return;
         const idx = items.indexOf(document.activeElement);
         const next =
-          e.key === 'ArrowDown' ? (idx + 1) % items.length : (idx - 1 + items.length) % items.length;
+          e.key === 'ArrowDown'
+            ? (idx + 1) % items.length
+            : (idx - 1 + items.length) % items.length;
         items[next]?.focus();
       }
     };
@@ -123,7 +125,13 @@ export function TreeRowMenu({ state, onClose, rootItems, destinations, onPickDes
 
   if (!state) return null;
   const style = placed
-    ? { position: 'fixed', left: placed.left, top: placed.top, maxHeight: placed.maxHeight, overflowY: 'auto' }
+    ? {
+        position: 'fixed',
+        left: placed.left,
+        top: placed.top,
+        maxHeight: placed.maxHeight,
+        overflowY: 'auto',
+      }
     : { position: 'fixed', left: state.x, top: state.y };
 
   if (state.view === 'move-to') {

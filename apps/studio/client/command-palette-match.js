@@ -10,7 +10,8 @@ export function matchCommands(actions, query) {
     .toLowerCase();
   if (!needle) return actions;
   return actions.filter(
-    (a) => a.label.toLowerCase().includes(needle) || (a.group && a.group.toLowerCase().includes(needle))
+    (a) =>
+      a.label.toLowerCase().includes(needle) || (a.group && a.group.toLowerCase().includes(needle))
   );
 }
 

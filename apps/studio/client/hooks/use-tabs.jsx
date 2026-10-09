@@ -9,12 +9,40 @@ import { notify } from '../../notifications.tsx';
 import { isNativeApp } from '../github.js';
 
 export function useTabs({
-  groups, treeLoaded, addressMode, previousAddressPath, project, tabs, setTabs, activePath,
-  setActivePath, previewPath, setPreviewPath, onPreview, setSelected, cloudLinkedHub,
-  localProjectName, systemData, setLoadingPath, setCanvasError, setCanvasReloadNonce, setLoadedPath,
-  cfg, loadServerConfig, setFocusedCommentId, updateTreeExp, setShareDialog, setTimelineOpen,
-  timelineArtboardId, iframesRef, pushTlUndo, askText, loadTree, loadSystemData, canvasListChangeRef,
-  wsSend
+  groups,
+  treeLoaded,
+  addressMode,
+  previousAddressPath,
+  project,
+  tabs,
+  setTabs,
+  activePath,
+  setActivePath,
+  previewPath,
+  setPreviewPath,
+  onPreview,
+  setSelected,
+  cloudLinkedHub,
+  localProjectName,
+  systemData,
+  setLoadingPath,
+  setCanvasError,
+  setCanvasReloadNonce,
+  setLoadedPath,
+  cfg,
+  loadServerConfig,
+  setFocusedCommentId,
+  updateTreeExp,
+  setShareDialog,
+  setTimelineOpen,
+  timelineArtboardId,
+  iframesRef,
+  pushTlUndo,
+  askText,
+  loadTree,
+  loadSystemData,
+  canvasListChangeRef,
+  wsSend,
 }) {
   // ----- Tab management (single-canvas) -----
   // Single-canvas model: opening a file REPLACES the active one (no tab strip).
@@ -24,41 +52,53 @@ export function useTabs({
   // `reveal: false` for opens the USER didn't just ask for (URL restore on
   // boot, the cloud first-canvas auto-open): nothing expands itself on launch
   // (#124). Every other open reveals the canvas's row in the Files tree.
-  const openTab = useCallback((path, { reveal = true } = {}) => {
-    if (reveal && path && path !== SYSTEM_TAB)
-      updateTreeExp((st) => revealPath(st, groups, path));
-    addressMode.current = 'push';
-    setFocusedCommentId(null);
-    setPreviewPath(null);
-    // The same path keeps its mounted iframe. It will not emit a new loaded
-    // event, so keep its current loading/error state until an actual retry.
-    if (path === activePath) return;
-    setTabs((prev) => {
-      // Drop the previously-open iframe so we don't leak DOM nodes.
-      for (const t of prev) if (t.path !== path) iframesRef.current.delete(t.path);
-      return [{ path }];
-    });
-    setActivePath(path);
-    setCanvasError(null);
-    setLoadedPath(null);
-    // Canvas-compile skeleton — cleared by the iframe's dgn:'loaded' message,
-    // the onLoad fallback timer (legacy .html), or a hard 15s cap.
-    if (path !== SYSTEM_TAB) setLoadingPath(path);
-  }, [activePath, groups, updateTreeExp]);
+  const openTab = useCallback(
+    (path, { reveal = true } = {}) => {
+      if (reveal && path && path !== SYSTEM_TAB)
+        updateTreeExp((st) => revealPath(st, groups, path));
+      addressMode.current = 'push';
+      setFocusedCommentId(null);
+      setPreviewPath(null);
+      // The same path keeps its mounted iframe. It will not emit a new loaded
+      // event, so keep its current loading/error state until an actual retry.
+      if (path === activePath) return;
+      setTabs((prev) => {
+        // Drop the previously-open iframe so we don't leak DOM nodes.
+        for (const t of prev) if (t.path !== path) iframesRef.current.delete(t.path);
+        return [{ path }];
+      });
+      setActivePath(path);
+      setCanvasError(null);
+      setLoadedPath(null);
+      // Canvas-compile skeleton — cleared by the iframe's dgn:'loaded' message,
+      // the onLoad fallback timer (legacy .html), or a hard 15s cap.
+      if (path !== SYSTEM_TAB) setLoadingPath(path);
+    },
+    [activePath, groups, updateTreeExp]
+  );
 
   // Resolve URL identities against the loaded tree, including non-canvas previews.
-  const openLinkedFile = useCallback((rel, mode = 'push') => {
-    const path = groups.flatMap((g) => g.paths || []).find((p) => normalizeOpenPath(p, cfg.designRel) === rel);
-    if (path && CANVAS_EXT_RE.test(path)) openTab(path, { reveal: false });
-    else if (path && previewKind(basename(path))) onPreview(path);
-    else {
-      setTabs([]);
-      setActivePath(null);
-      setPreviewPath(null);
-      notify({ title: 'Not here yet', description: `${rel} is not in this project (not synced yet?)`, kind: 'info' });
-    }
-    addressMode.current = mode;
-  }, [groups, cfg.designRel, openTab, onPreview]);
+  const openLinkedFile = useCallback(
+    (rel, mode = 'push') => {
+      const path = groups
+        .flatMap((g) => g.paths || [])
+        .find((p) => normalizeOpenPath(p, cfg.designRel) === rel);
+      if (path && CANVAS_EXT_RE.test(path)) openTab(path, { reveal: false });
+      else if (path && previewKind(basename(path))) onPreview(path);
+      else {
+        setTabs([]);
+        setActivePath(null);
+        setPreviewPath(null);
+        notify({
+          title: 'Not here yet',
+          description: `${rel} is not in this project (not synced yet?)`,
+          kind: 'info',
+        });
+      }
+      addressMode.current = mode;
+    },
+    [groups, cfg.designRel, openTab, onPreview]
+  );
 
   const addressBooted = useRef(false);
   useEffect(() => {
@@ -90,18 +130,26 @@ export function useTabs({
     previousAddressPath.current = visible;
     const rel = normalizeOpenPath(visible, cfg.designRel);
     if (addressMode.current !== 'none' && readOpenParam(location, cfg.designRel) !== rel) {
-      history[rel ? 'pushState' : 'replaceState'](rel ? { open: rel } : null, '', withOpenParam(location, rel));
+      history[rel ? 'pushState' : 'replaceState'](
+        rel ? { open: rel } : null,
+        '',
+        withOpenParam(location, rel)
+      );
     }
     addressMode.current = 'push';
   }, [activePath, previewPath, cfg.designRel]);
 
   const sharePath = previewPath || (activePath === SYSTEM_TAB ? null : activePath);
   const shareShell = cfg.cloud ? 'cloud' : isNativeApp() ? 'native' : 'local';
-  const shareLinksFor = (path) => buildShareLinks({
-    rel: normalizeOpenPath(path, cfg.designRel), shell: shareShell, location,
-    linkedHubUrl: cloudLinkedHub?.url, project: cfg.cloud ? project : localProjectName,
-    localUrl: location.origin,
-  });
+  const shareLinksFor = (path) =>
+    buildShareLinks({
+      rel: normalizeOpenPath(path, cfg.designRel),
+      shell: shareShell,
+      location,
+      linkedHubUrl: cloudLinkedHub?.url,
+      project: cfg.cloud ? project : localProjectName,
+      localUrl: location.origin,
+    });
   const showShare = (path = sharePath) => {
     const rel = normalizeOpenPath(path, cfg.designRel);
     if (rel) setShareDialog({ path, rel, label: basename(path) });
@@ -137,7 +185,10 @@ export function useTabs({
   useEffect(() => {
     if (autoOpened.current) return;
     if (!cfg.cloud) return; // desktop / unknown-yet
-    if (new URLSearchParams(location.search).has('open')) { autoOpened.current = true; return; }
+    if (new URLSearchParams(location.search).has('open')) {
+      autoOpened.current = true;
+      return;
+    }
     if (tabs.length > 0) return;
     if (!groups.length) return; // tree not loaded
     // The first canvas that is somebody's WORK — a design-system specimen is a
@@ -208,9 +259,9 @@ export function useTabs({
       closeTab(file);
     } else if (change.action === 'moved' && change.fromRel) {
       const fromFile = `${designRel}/${change.fromRel}`;
-      setTabs((prev) => prev.map((t) => t.path === fromFile ? { ...t, path: file } : t));
-      setActivePath((prev) => prev === fromFile ? file : prev);
-      setLoadingPath((prev) => prev === fromFile ? null : prev);
+      setTabs((prev) => prev.map((t) => (t.path === fromFile ? { ...t, path: file } : t)));
+      setActivePath((prev) => (prev === fromFile ? file : prev));
+      setLoadingPath((prev) => (prev === fromFile ? null : prev));
       iframesRef.current.delete(fromFile);
     }
   };
@@ -347,11 +398,16 @@ export function useTabs({
         for (const g of doc.querySelectorAll('[data-tool="mediaref"]')) {
           const src = g.getAttribute('data-src');
           if (!src) continue;
-          clips.push({ src, mediaKind: g.getAttribute('data-media-kind') === 'audio' ? 'audio' : 'video' });
+          clips.push({
+            src,
+            mediaKind: g.getAttribute('data-media-kind') === 'audio' ? 'audio' : 'video',
+          });
         }
       }
       if (clips.length === 0) {
-        window.alert('Drop video/audio clips on the canvas first, then assemble them into a video.');
+        window.alert(
+          'Drop video/audio clips on the canvas first, then assemble them into a video.'
+        );
         return;
       }
       const baseName = displayName(basename(activePath)).replace(/\.tsx$/i, '');
@@ -621,7 +677,10 @@ export function useTabs({
           return;
         }
         // #124 — the renamed folder keeps its open state (and its subfolders').
-        const designRel = (cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '');
+        const designRel = (cfg?.designRel || cfg?.designRoot || '.design').replace(
+          /^\/+|\/+$/g,
+          ''
+        );
         const toDir = typeof j.toRel === 'string' ? `${designRel}/${j.toRel}` : `${parent}/${name}`;
         updateTreeExp((st) => remapDirPrefix(st, dirPath, toDir));
         await loadTree();
@@ -676,7 +735,13 @@ export function useTabs({
           return;
         }
         await loadTree();
-        shellToast(`Duplicated as ${j.rel.split('/').pop().replace(/\.tsx$/i, '')}`, true);
+        shellToast(
+          `Duplicated as ${j.rel
+            .split('/')
+            .pop()
+            .replace(/\.tsx$/i, '')}`,
+          true
+        );
       } catch (e) {
         shellToast(`Duplicate failed: ${e instanceof Error ? e.message : 'network error'}`);
       }
@@ -686,9 +751,12 @@ export function useTabs({
 
   const deleteFileReq = useCallback(
     async (filePath, name) => {
-      if (!window.confirm(`Move “${name}” to trash?\n\nYou can restore it from .design/_trash/.`)) return;
+      if (!window.confirm(`Move “${name}” to trash?\n\nYou can restore it from .design/_trash/.`))
+        return;
       try {
-        const r = await fetch(`/_api/canvas?file=${encodeURIComponent(filePath)}`, { method: 'DELETE' });
+        const r = await fetch(`/_api/canvas?file=${encodeURIComponent(filePath)}`, {
+          method: 'DELETE',
+        });
         const j = await r.json().catch(() => ({}));
         if (!r.ok || !j.ok) {
           shellToast(`Could not delete: ${j.error || `error ${r.status}`}`);
@@ -715,9 +783,30 @@ export function useTabs({
     }
   }, [activePath]);
   return {
-    assembleVideo, clearSelected, closeTab, createBoard, createVideo, deleteBoard, deleteFileReq,
-    deleteFolderReq, duplicateCanvasReq, moveCanvasReq, newFolderReq, openLinkedFile, openSystem,
-    openTab, refreshTree, reloadActive, renameCanvasReq, renameFolderReq, replaceMediaViaPicker,
-    retryCanvasLoad, shareLinksFor, sharePath, shareShell, showShare, treeRefreshing
+    assembleVideo,
+    clearSelected,
+    closeTab,
+    createBoard,
+    createVideo,
+    deleteBoard,
+    deleteFileReq,
+    deleteFolderReq,
+    duplicateCanvasReq,
+    moveCanvasReq,
+    newFolderReq,
+    openLinkedFile,
+    openSystem,
+    openTab,
+    refreshTree,
+    reloadActive,
+    renameCanvasReq,
+    renameFolderReq,
+    replaceMediaViaPicker,
+    retryCanvasLoad,
+    shareLinksFor,
+    sharePath,
+    shareShell,
+    showShare,
+    treeRefreshing,
   };
 }

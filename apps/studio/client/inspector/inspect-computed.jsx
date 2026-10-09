@@ -59,7 +59,9 @@ export function InspectComputed({ el }) {
         <div className="st-insp-row">
           <span className="st-insp-label">Font</span>
           <div className="st-insp-fields">
-            <span className="st-mono" style={{ fontSize: 11, color: 'var(--fg-0)' }}>{font}</span>
+            <span className="st-mono" style={{ fontSize: 11, color: 'var(--fg-0)' }}>
+              {font}
+            </span>
           </div>
         </div>
       ) : null}

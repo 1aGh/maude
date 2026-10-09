@@ -11,7 +11,9 @@ import { useEffect, useRef } from 'react';
 function toolTarget(toolCall) {
   const raw = toolCall?.rawInput;
   const fromInput =
-    raw && typeof raw === 'object' ? raw.path || raw.file_path || raw.abs_path || raw.filePath : undefined;
+    raw && typeof raw === 'object'
+      ? raw.path || raw.file_path || raw.abs_path || raw.filePath
+      : undefined;
   const fromLocation = Array.isArray(toolCall?.locations) ? toolCall.locations[0]?.path : undefined;
   const path = fromInput || fromLocation;
   return path ? String(path).split('/').pop() : null;
@@ -45,7 +47,9 @@ function kindClass(kind) {
 export function pickDefaultAllow(options) {
   const list = Array.isArray(options) ? options : [];
   return (
-    list.find((o) => o?.kind === 'allow_once') ?? list.find((o) => o?.kind === 'allow_always') ?? null
+    list.find((o) => o?.kind === 'allow_once') ??
+    list.find((o) => o?.kind === 'allow_always') ??
+    null
   );
 }
 
@@ -226,8 +230,8 @@ export default function PermissionPrompt({ request, onRespond, queueLength = 1 }
             <p className="chat-perm-scope">
               {outOfProject.inProjectDenied ? (
                 <>
-                  Git hooks and Claude settings can execute code later, so Maude asks even
-                  though they live inside this project.
+                  Git hooks and Claude settings can execute code later, so Maude asks even though
+                  they live inside this project.
                 </>
               ) : (
                 <>

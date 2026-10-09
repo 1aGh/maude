@@ -49,7 +49,8 @@ const REASON_WORD = {
 function Row({ item }) {
   const name = safeName(item.slug, '(unnamed)');
   const state = STATE_WORD[item.state] || 'syncing';
-  const reason = item.state === 'auth-rejected' ? REASON_WORD[item.reason] || REASON_WORD.generic : null;
+  const reason =
+    item.state === 'auth-rejected' ? REASON_WORD[item.reason] || REASON_WORD.generic : null;
   return (
     <li className={'sp-row is-' + item.state} data-testid={'sync-row-' + item.slug}>
       <span className="sp-row-dot" aria-hidden="true" />
@@ -275,8 +276,14 @@ export default function SyncPanel({
       const r = await fetch('/_api/sync/offline', { method: 'POST' });
       const j = await r.json().catch(() => ({}));
       if (!j.ok) setOffline(j.error || 'Could not download the project right now.');
-      else if (j.complete) setOffline(`Everything is on this device${j.pulled ? ` — ${j.pulled} file${j.pulled === 1 ? '' : 's'} came down` : ''}.`);
-      else setOffline(`${j.pulled} file${j.pulled === 1 ? '' : 's'} came down; ${j.failed} still to come — Maude keeps trying.`);
+      else if (j.complete)
+        setOffline(
+          `Everything is on this device${j.pulled ? ` — ${j.pulled} file${j.pulled === 1 ? '' : 's'} came down` : ''}.`
+        );
+      else
+        setOffline(
+          `${j.pulled} file${j.pulled === 1 ? '' : 's'} came down; ${j.failed} still to come — Maude keeps trying.`
+        );
     } catch {
       setOffline('Maude isn’t reachable right now.');
     } finally {
@@ -299,7 +306,10 @@ export default function SyncPanel({
         body: JSON.stringify({ choice }),
       });
       const j = await r.json().catch(() => ({}));
-      if (!j.ok) setAiNote(j.error || (j.code ? `The project refused it (${j.code}).` : 'That did not work.'));
+      if (!j.ok)
+        setAiNote(
+          j.error || (j.code ? `The project refused it (${j.code}).` : 'That did not work.')
+        );
     } catch {
       setAiNote('Maude isn’t reachable right now.');
     } finally {
@@ -402,7 +412,11 @@ export default function SyncPanel({
     setSettings(json.settings);
     // Saved is a fact; whether it took effect NOW depends on the supervisor —
     // say which of the two happened rather than letting "saved" imply "live".
-    setSettingsNote(json.applied ? 'Saved — sync is restarting with the new setting.' : 'Saved — applies the next time sync restarts.');
+    setSettingsNote(
+      json.applied
+        ? 'Saved — sync is restarting with the new setting.'
+        : 'Saved — applies the next time sync restarts.'
+    );
   }, []);
 
   // Ownership (Task 2) — repo-owned vs hub-owned, previously CLI-only against
@@ -540,9 +554,7 @@ export default function SyncPanel({
   // chip can never say "NaN synced" while the note below fails closed.
   const rawDocs = status?.docs;
   const docs =
-    rawDocs && [rawDocs.synced, rawDocs.pending, rawDocs.rejected].every(isCount)
-      ? rawDocs
-      : null;
+    rawDocs && [rawDocs.synced, rawDocs.pending, rawDocs.rejected].every(isCount) ? rawDocs : null;
   const counts =
     docs &&
     [
@@ -611,7 +623,12 @@ export default function SyncPanel({
           </div>
         )}
         {offline && (
-          <div className="sp-resync-note" role="status" aria-live="polite" data-testid="sync-offline-note">
+          <div
+            className="sp-resync-note"
+            role="status"
+            aria-live="polite"
+            data-testid="sync-offline-note"
+          >
             {safeDetail(offline, '')}
           </div>
         )}
@@ -652,24 +669,44 @@ export default function SyncPanel({
             console.warn a desktop user never sees. Dismiss is per (notice,
             hub) on this machine — a new hub resurfaces them by design. */}
         {aiHeld && (
-          <section aria-label="Unfinished AI edit" className="sp-notice sp-ai-held" data-testid="sync-ai-held">
+          <section
+            aria-label="Unfinished AI edit"
+            className="sp-notice sp-ai-held"
+            data-testid="sync-ai-held"
+          >
             <p className="sp-notice-text">
               <b>An unfinished AI edit is kept on this device.</b>{' '}
               {safeDetail(aiHeld.label, 'AI edit')} changed{' '}
               {Array.isArray(aiHeld.canvases) ? aiHeld.canvases.length : 0} canvas
-              {Array.isArray(aiHeld.canvases) && aiHeld.canvases.length === 1 ? '' : 'es'} and did not finish,
-              so nothing of it is shared yet. Publish it as it stands, or discard it — the
-              discarded bytes stay in recovery.
+              {Array.isArray(aiHeld.canvases) && aiHeld.canvases.length === 1 ? '' : 'es'} and did
+              not finish, so nothing of it is shared yet. Publish it as it stands, or discard it —
+              the discarded bytes stay in recovery.
             </p>
             <div className="sp-ai-actions">
-              <button type="button" className="btn btn--sm btn--primary" disabled={!!aiBusy} onClick={() => resolveAi('publish')} data-testid="sync-ai-publish">
+              <button
+                type="button"
+                className="btn btn--sm btn--primary"
+                disabled={!!aiBusy}
+                onClick={() => resolveAi('publish')}
+                data-testid="sync-ai-publish"
+              >
                 {aiBusy === 'publish' ? 'Publishing…' : 'Publish'}
               </button>
-              <button type="button" className="btn btn--sm btn--ghost" disabled={!!aiBusy} onClick={() => resolveAi('discard')} data-testid="sync-ai-discard">
+              <button
+                type="button"
+                className="btn btn--sm btn--ghost"
+                disabled={!!aiBusy}
+                onClick={() => resolveAi('discard')}
+                data-testid="sync-ai-discard"
+              >
                 {aiBusy === 'discard' ? 'Discarding…' : 'Discard'}
               </button>
             </div>
-            {aiNote && <p className="sp-notice-text" role="alert">{safeDetail(aiNote, '')}</p>}
+            {aiNote && (
+              <p className="sp-notice-text" role="alert">
+                {safeDetail(aiNote, '')}
+              </p>
+            )}
           </section>
         )}
         {notices.length > 0 && (
@@ -703,7 +740,10 @@ export default function SyncPanel({
 
         {items.length === 0 && !assets && (
           <div className="gp-empty">
-            <p>No per-file detail yet — it arrives with the first sync report after this panel shipped. If this persists, restart Maude.</p>
+            <p>
+              No per-file detail yet — it arrives with the first sync report after this panel
+              shipped. If this persists, restart Maude.
+            </p>
           </div>
         )}
 
@@ -823,8 +863,8 @@ export default function SyncPanel({
                 )}
                 {progress.passCapped && progress.remaining > 0 && (
                   <div className="sp-assets-line">
-                    More is on the way — the last pass reached its limit and picks up where it
-                    left off.
+                    More is on the way — the last pass reached its limit and picks up where it left
+                    off.
                   </div>
                 )}
                 {progress.blocked.map((b) => (
@@ -966,8 +1006,8 @@ export default function SyncPanel({
             </div>
             <div className="sp-assets-line">
               {trash.total} file{trash.total === 1 ? '' : 's'} kept instead of deleted (
-              {fmtBytes(trash.bytes)}) — replaced copies, conflict losers and remote deletions
-              land here, in .design/_trash/.
+              {fmtBytes(trash.bytes)}) — replaced copies, conflict losers and remote deletions land
+              here, in .design/_trash/.
             </div>
             <ul className="sp-list" data-testid="sync-trash-list">
               {trash.entries.slice(0, 50).map((e) => (
@@ -1022,7 +1062,8 @@ export default function SyncPanel({
                   onClick={() =>
                     trashAction(
                       { action: 'prune', olderThanDays: 30 },
-                      (j) => `Removed ${j.pruned} file${j.pruned === 1 ? '' : 's'} (${fmtBytes(j.bytes)}); ${j.kept} kept.`
+                      (j) =>
+                        `Removed ${j.pruned} file${j.pruned === 1 ? '' : 's'} (${fmtBytes(j.bytes)}); ${j.kept} kept.`
                     )
                   }
                 >
@@ -1154,8 +1195,8 @@ export default function SyncPanel({
                 ) : (
                   <>
                     Disconnect from the workspace ({hostOf(ownership.hubUrl)}) and take .design/
-                    back into git. Every file is already on disk in full; commit the folder when
-                    you are ready.
+                    back into git. Every file is already on disk in full; commit the folder when you
+                    are ready.
                   </>
                 )}{' '}
                 <button

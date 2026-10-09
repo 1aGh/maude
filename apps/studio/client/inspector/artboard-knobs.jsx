@@ -4,7 +4,13 @@ import { activeDsNameFor, useAllDsTokens } from './ds-tokens.js';
 import { SCREEN_PRESETS } from './css-vocab.jsx';
 import { PAPER_PRESETS, resolvePrintArtboard } from '../../print/units.ts';
 import { resolveHeightCommit } from '../../artboard-hug-commit.ts';
-import { ColorField, NumberField, Segmented, Select, ValueTokenField } from '../inspector-controls.jsx';
+import {
+  ColorField,
+  NumberField,
+  Segmented,
+  Select,
+  ValueTokenField,
+} from '../inspector-controls.jsx';
 import { TokenPopover } from './token-popover.jsx';
 import { cssColorToHex } from './color.js';
 
@@ -69,7 +75,9 @@ export function ArtboardKnobs({
       .map((d) => ({ ds: d.name, names: d[familyKey] || [], vals: d.vals }))
       .filter((g) => g.names.length);
   const flatTokens = (familyKey) =>
-    tokenGroups(familyKey).flatMap((g) => (g.names || []).map((n) => ({ name: n, value: g.vals?.[n] || '' })));
+    tokenGroups(familyKey).flatMap((g) =>
+      (g.names || []).map((n) => ({ name: n, value: g.vals?.[n] || '' }))
+    );
   // Resolve a `var(--x)` binding to its concrete value across every DS (for
   // the Bg swatch color); a raw value passes through.
   const resolveTokenValue = (v) => {
@@ -397,7 +405,10 @@ export function ArtboardKnobs({
           const bgResolved = resolveTokenValue(bg);
           const bgBound = /var\(\s*--/.test(bg);
           const bgDisplay = bgBound
-            ? bg.replace(/^var\(\s*|\s*\)$/g, '').replace(/^--/, '').replace(/-/g, ' ')
+            ? bg
+                .replace(/^var\(\s*|\s*\)$/g, '')
+                .replace(/^--/, '')
+                .replace(/-/g, ' ')
             : bg;
           return (
             <ColorField
@@ -437,9 +448,7 @@ export function ArtboardKnobs({
             ariaLabel="artboard padding"
             lead="Pad"
             min={0}
-            onChange={(v) =>
-              commitStyle({ padding: typeof v === 'string' ? v : v > 0 ? v : null })
-            }
+            onChange={(v) => commitStyle({ padding: typeof v === 'string' ? v : v > 0 ? v : null })}
           />
           <ValueTokenField
             value={/^var\(/.test(gap) ? gap : Number.parseFloat(gap) || 0}

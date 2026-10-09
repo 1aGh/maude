@@ -36,19 +36,73 @@ const api = async (path, init) => {
 function Icon({ name, size = 16, className }) {
   const p = {
     check: <polyline points="3 8.2 6.4 11.5 13 4.2" />,
-    'arrow-right': (<><line x1="2.5" y1="8" x2="13" y2="8" /><polyline points="9 4 13 8 9 12" /></>),
+    'arrow-right': (
+      <>
+        <line x1="2.5" y1="8" x2="13" y2="8" />
+        <polyline points="9 4 13 8 9 12" />
+      </>
+    ),
     folder: <path d="M2 4.5h4l1.3 1.5H14V13H2z" />,
-    server: (<><rect x="2.5" y="3" width="11" height="4" rx="1" /><rect x="2.5" y="9" width="11" height="4" rx="1" /><circle cx="5" cy="5" r="0.5" fill="currentColor" /><circle cx="5" cy="11" r="0.5" fill="currentColor" /></>),
-    globe: (<><circle cx="8" cy="8" r="5.5" /><path d="M2.5 8h11M8 2.5c1.7 1.5 2.6 3.5 2.6 5.5S9.7 12.5 8 13.5C6.3 12 5.4 10 5.4 8S6.3 3.5 8 2.5z" /></>),
-    x: (<><line x1="3.5" y1="3.5" x2="12.5" y2="12.5" /><line x1="12.5" y1="3.5" x2="3.5" y2="12.5" /></>),
-    external: (<><path d="M6 3.5H3.2A.7.7 0 0 0 2.5 4.2v8.6a.7.7 0 0 0 .7.7h8.6a.7.7 0 0 0 .7-.7V10" /><line x1="8" y1="8" x2="13" y2="3" /><polyline points="9.5 3 13 3 13 6.5" /></>),
-    copy: (<><rect x="5.5" y="5.5" width="7.5" height="7.5" rx="1.2" /><path d="M3 10.5V3.2A.7.7 0 0 1 3.7 2.5H10" /></>),
+    server: (
+      <>
+        <rect x="2.5" y="3" width="11" height="4" rx="1" />
+        <rect x="2.5" y="9" width="11" height="4" rx="1" />
+        <circle cx="5" cy="5" r="0.5" fill="currentColor" />
+        <circle cx="5" cy="11" r="0.5" fill="currentColor" />
+      </>
+    ),
+    globe: (
+      <>
+        <circle cx="8" cy="8" r="5.5" />
+        <path d="M2.5 8h11M8 2.5c1.7 1.5 2.6 3.5 2.6 5.5S9.7 12.5 8 13.5C6.3 12 5.4 10 5.4 8S6.3 3.5 8 2.5z" />
+      </>
+    ),
+    x: (
+      <>
+        <line x1="3.5" y1="3.5" x2="12.5" y2="12.5" />
+        <line x1="12.5" y1="3.5" x2="3.5" y2="12.5" />
+      </>
+    ),
+    external: (
+      <>
+        <path d="M6 3.5H3.2A.7.7 0 0 0 2.5 4.2v8.6a.7.7 0 0 0 .7.7h8.6a.7.7 0 0 0 .7-.7V10" />
+        <line x1="8" y1="8" x2="13" y2="3" />
+        <polyline points="9.5 3 13 3 13 6.5" />
+      </>
+    ),
+    copy: (
+      <>
+        <rect x="5.5" y="5.5" width="7.5" height="7.5" rx="1.2" />
+        <path d="M3 10.5V3.2A.7.7 0 0 1 3.7 2.5H10" />
+      </>
+    ),
     spinner: <path d="M8 2.2a5.8 5.8 0 1 0 5.8 5.8" />,
-    key: (<><circle cx="5" cy="5" r="2.6" /><path d="M6.9 6.9 13 13M11 11l1.4-1.4M9.2 9.2l1.6-1.6" /></>),
-    user: (<><circle cx="8" cy="5.5" r="2.5" /><path d="M3 13.5c.6-2.6 2.6-4 5-4s4.4 1.4 5 4" /></>),
+    key: (
+      <>
+        <circle cx="5" cy="5" r="2.6" />
+        <path d="M6.9 6.9 13 13M11 11l1.4-1.4M9.2 9.2l1.6-1.6" />
+      </>
+    ),
+    user: (
+      <>
+        <circle cx="8" cy="5.5" r="2.5" />
+        <path d="M3 13.5c.6-2.6 2.6-4 5-4s4.4 1.4 5 4" />
+      </>
+    ),
   }[name];
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      className={className}
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       {p}
     </svg>
   );
@@ -75,7 +129,9 @@ function ErrorLine({ text }) {
   if (!text) return null;
   return (
     <div className="callout callout--error ob-callout" role="alert" data-testid="team-error">
-      <span className="ob-callout-glyph" style={{ color: 'var(--status-error)' }}><Icon name="x" /></span>
+      <span className="ob-callout-glyph" style={{ color: 'var(--status-error)' }}>
+        <Icon name="x" />
+      </span>
       <span>{text}</span>
     </div>
   );
@@ -83,7 +139,11 @@ function ErrorLine({ text }) {
 
 export default function TeamProjects({ variant = 'door', initialServer = '' }) {
   const [recents, setRecents] = useState(null);
-  const [cloud, setCloud] = useState({ state: 'loading', email: null, url: 'https://cloud.maude.sh' });
+  const [cloud, setCloud] = useState({
+    state: 'loading',
+    email: null,
+    url: 'https://cloud.maude.sh',
+  });
   const [projects, setProjects] = useState(null);
   const [device, setDevice] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -135,20 +195,23 @@ export default function TeamProjects({ variant = 'door', initialServer = '' }) {
     setDevice(r.json);
     openExternal(r.json.verificationUrl);
     clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
-      const p = await api('/_api/cloud/signin/poll', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ deviceCode: r.json.deviceCode }),
-      });
-      if (p.json?.pending) return;
-      clearInterval(pollRef.current);
-      setDevice(null);
-      if (p.ok && p.json?.ok) {
-        setCloud((c) => ({ ...c, state: 'in', email: p.json.email ?? null }));
-        loadProjects();
-      } else setErr(p.json?.error || 'The sign-in did not finish. Try again.');
-    }, (r.json.interval ?? 5) * 1000);
+    pollRef.current = setInterval(
+      async () => {
+        const p = await api('/_api/cloud/signin/poll', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ deviceCode: r.json.deviceCode }),
+        });
+        if (p.json?.pending) return;
+        clearInterval(pollRef.current);
+        setDevice(null);
+        if (p.ok && p.json?.ok) {
+          setCloud((c) => ({ ...c, state: 'in', email: p.json.email ?? null }));
+          loadProjects();
+        } else setErr(p.json?.error || 'The sign-in did not finish. Try again.');
+      },
+      (r.json.interval ?? 5) * 1000
+    );
   }
 
   function cancelCloudSignIn() {
@@ -174,7 +237,12 @@ export default function TeamProjects({ variant = 'door', initialServer = '' }) {
   const openRecent = (p) =>
     run(`recent:${p.key}`, p.name, async () => {
       try {
-        await managedProjectOpen({ serverUrl: p.server_url, projectId: p.project_id, name: p.name, canvasGroups: [] });
+        await managedProjectOpen({
+          serverUrl: p.server_url,
+          projectId: p.project_id,
+          name: p.name,
+          canvasGroups: [],
+        });
         return { ok: true };
       } catch (e) {
         return { ok: false, error: String(e?.message || e) };
@@ -186,7 +254,12 @@ export default function TeamProjects({ variant = 'door', initialServer = '' }) {
 
   const openHub = () =>
     run('hub', serverLabel(hub.url), () =>
-      openTeamProject({ kind: 'hub', url: hub.url.trim(), email: hub.email.trim(), password: hub.password })
+      openTeamProject({
+        kind: 'hub',
+        url: hub.url.trim(),
+        email: hub.email.trim(),
+        password: hub.password,
+      })
     );
 
   const canHub = hub.url.trim() && hub.email.trim() && hub.password;
@@ -194,9 +267,18 @@ export default function TeamProjects({ variant = 'door', initialServer = '' }) {
   return (
     <div className={`tp tp--${variant}`} data-testid="team-projects">
       {opening && (
-        <div className="callout callout--info ob-callout" role="status" aria-live="polite" data-testid="team-opening">
-          <span className="ob-callout-glyph"><Icon name="spinner" size={15} className="ob-spin" /></span>
-          <span>Opening <b>{opening}</b>… your canvases arrive as they download.</span>
+        <div
+          className="callout callout--info ob-callout"
+          role="status"
+          aria-live="polite"
+          data-testid="team-opening"
+        >
+          <span className="ob-callout-glyph">
+            <Icon name="spinner" size={15} className="ob-spin" />
+          </span>
+          <span>
+            Opening <b>{opening}</b>… your canvases arrive as they download.
+          </span>
         </div>
       )}
 
@@ -207,13 +289,30 @@ export default function TeamProjects({ variant = 'door', initialServer = '' }) {
             {recents.map((p) => {
               const k = `recent:${p.key}`;
               return (
-                <button type="button" key={p.key} className="ob-repo" disabled={!!busy} onClick={() => openRecent(p)} data-testid={`team-recent-${p.key}`}>
-                  <span className="ob-repo-icon"><Icon name="folder" size={15} /></span>
+                <button
+                  type="button"
+                  key={p.key}
+                  className="ob-repo"
+                  disabled={!!busy}
+                  onClick={() => openRecent(p)}
+                  data-testid={`team-recent-${p.key}`}
+                >
+                  <span className="ob-repo-icon">
+                    <Icon name="folder" size={15} />
+                  </span>
                   <span className="ob-repo-tx">
                     <span className="ob-repo-name">{p.name}</span>
                     <span className="ob-repo-meta">{serverLabel(p.server_url)}</span>
                   </span>
-                  <span className="ob-repo-go">{busy === k ? <Icon name="spinner" size={16} className="ob-spin" /> : <><Icon name="arrow-right" size={15} /> Open</>}</span>
+                  <span className="ob-repo-go">
+                    {busy === k ? (
+                      <Icon name="spinner" size={16} className="ob-spin" />
+                    ) : (
+                      <>
+                        <Icon name="arrow-right" size={15} /> Open
+                      </>
+                    )}
+                  </span>
                 </button>
               );
             })}
@@ -225,24 +324,43 @@ export default function TeamProjects({ variant = 'door', initialServer = '' }) {
         <div className="ob-section-label">Maude Cloud</div>
         {cloud.state === 'loading' && <div className="ob-foot-note">Checking your sign-in…</div>}
         {cloud.state === 'out' && !device && (
-          <button type="button" className="ob-repo" onClick={startCloudSignIn} data-testid="team-cloud-signin">
-            <span className="ob-repo-icon"><Spark size={15} /></span>
+          <button
+            type="button"
+            className="ob-repo"
+            onClick={startCloudSignIn}
+            data-testid="team-cloud-signin"
+          >
+            <span className="ob-repo-icon">
+              <Spark size={15} />
+            </span>
             <span className="ob-repo-tx">
               <span className="ob-repo-name">Sign in to Maude Cloud</span>
               <span className="ob-repo-meta">See the projects you were invited to</span>
             </span>
-            <span className="ob-repo-go"><Icon name="arrow-right" size={15} /> Sign in</span>
+            <span className="ob-repo-go">
+              <Icon name="arrow-right" size={15} /> Sign in
+            </span>
           </button>
         )}
         {device && (
           <div className="tp-device" data-testid="team-cloud-device">
             <span className="ob-field-label">Confirm this code on your Maude Cloud dashboard</span>
             <div className="gi-code">
-              <span className="gi-code-val" data-testid="team-cloud-code">{device.userCode}</span>
+              <span className="gi-code-val" data-testid="team-cloud-code">
+                {device.userCode}
+              </span>
               <button
                 type="button"
                 className="btn btn--ghost gi-code-copy"
-                onClick={() => navigator.clipboard?.writeText(device.userCode).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }, () => {})}
+                onClick={() =>
+                  navigator.clipboard?.writeText(device.userCode).then(
+                    () => {
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1500);
+                    },
+                    () => {}
+                  )
+                }
                 aria-label="Copy the code"
               >
                 <Icon name="copy" size={15} /> {copied ? 'Copied' : 'Copy'}
@@ -250,12 +368,17 @@ export default function TeamProjects({ variant = 'door', initialServer = '' }) {
             </div>
             {device.verificationUrl && isDisplayableUrl(device.verificationUrl, cloud.url) && (
               <span className="ob-foot-note">
-                If your browser didn’t open, go to <span className="gi-dc-url">{device.verificationUrl}</span>
+                If your browser didn’t open, go to{' '}
+                <span className="gi-dc-url">{device.verificationUrl}</span>
               </span>
             )}
             <div className="ob-form-actions">
-              <span className="gi-dc-status" aria-live="polite"><span className="gi-pulse" aria-hidden="true" /> Waiting for you to confirm…</span>
-              <button type="button" className="btn btn--ghost" onClick={cancelCloudSignIn}>Cancel</button>
+              <span className="gi-dc-status" aria-live="polite">
+                <span className="gi-pulse" aria-hidden="true" /> Waiting for you to confirm…
+              </span>
+              <button type="button" className="btn btn--ghost" onClick={cancelCloudSignIn}>
+                Cancel
+              </button>
             </div>
           </div>
         )}
@@ -264,7 +387,8 @@ export default function TeamProjects({ variant = 'door', initialServer = '' }) {
             {projects === null && <div className="ob-foot-note">Loading your projects…</div>}
             {Array.isArray(projects) && projects.length === 0 && (
               <div className="ob-foot-note" data-testid="team-cloud-empty">
-                You aren’t in any project yet. Ask whoever runs your team’s project to invite {cloud.email || 'you'}.
+                You aren’t in any project yet. Ask whoever runs your team’s project to invite{' '}
+                {cloud.email || 'you'}.
               </div>
             )}
             {Array.isArray(projects) && projects.length > 0 && (
@@ -273,24 +397,55 @@ export default function TeamProjects({ variant = 'door', initialServer = '' }) {
                   const k = `cloud:${p.id}`;
                   if (p.role === 'viewer') {
                     return (
-                      <button type="button" key={p.id} className="ob-repo" onClick={() => openExternal(shareViewUrl(p.url, p.id))} data-testid={`team-cloud-project-${p.id}`} title="Viewing works in the browser. Editing in the app needs the member role — ask whoever runs the project.">
-                        <span className="ob-repo-icon"><Icon name="globe" size={15} /></span>
+                      <button
+                        type="button"
+                        key={p.id}
+                        className="ob-repo"
+                        onClick={() => openExternal(shareViewUrl(p.url, p.id))}
+                        data-testid={`team-cloud-project-${p.id}`}
+                        title="Viewing works in the browser. Editing in the app needs the member role — ask whoever runs the project."
+                      >
+                        <span className="ob-repo-icon">
+                          <Icon name="globe" size={15} />
+                        </span>
                         <span className="ob-repo-tx">
                           <span className="ob-repo-name">{p.name || p.id}</span>
                           <span className="ob-repo-meta">viewer · opens in your browser</span>
                         </span>
-                        <span className="ob-repo-go"><Icon name="external" size={15} /> View</span>
+                        <span className="ob-repo-go">
+                          <Icon name="external" size={15} /> View
+                        </span>
                       </button>
                     );
                   }
                   return (
-                    <button type="button" key={p.id} className="ob-repo" disabled={!!busy} onClick={() => openCloud(p)} data-testid={`team-cloud-project-${p.id}`}>
-                      <span className="ob-repo-icon"><Spark size={15} /></span>
+                    <button
+                      type="button"
+                      key={p.id}
+                      className="ob-repo"
+                      disabled={!!busy}
+                      onClick={() => openCloud(p)}
+                      data-testid={`team-cloud-project-${p.id}`}
+                    >
+                      <span className="ob-repo-icon">
+                        <Spark size={15} />
+                      </span>
                       <span className="ob-repo-tx">
                         <span className="ob-repo-name">{p.name || p.id}</span>
-                        <span className="ob-repo-meta">{p.role}{p.stateLabel ? ` · ${p.stateLabel}` : ''}</span>
+                        <span className="ob-repo-meta">
+                          {p.role}
+                          {p.stateLabel ? ` · ${p.stateLabel}` : ''}
+                        </span>
                       </span>
-                      <span className="ob-repo-go">{busy === k ? <Icon name="spinner" size={16} className="ob-spin" /> : <><Icon name="arrow-right" size={15} /> Open</>}</span>
+                      <span className="ob-repo-go">
+                        {busy === k ? (
+                          <Icon name="spinner" size={16} className="ob-spin" />
+                        ) : (
+                          <>
+                            <Icon name="arrow-right" size={15} /> Open
+                          </>
+                        )}
+                      </span>
                     </button>
                   );
                 })}
@@ -311,32 +466,78 @@ export default function TeamProjects({ variant = 'door', initialServer = '' }) {
         >
           <label className="ob-field">
             <span className="ob-field-label">Server address</span>
-            <span className="ob-field-wrap"><Icon name="server" size={14} className="ob-field-pre" />
-              <input className="input ob-input" type="url" inputMode="url" autoComplete="url" value={hub.url} placeholder="https://design.yourteam.com" aria-label="Server address" data-testid="team-hub-url" onChange={(e) => setHub((h) => ({ ...h, url: e.target.value }))} />
+            <span className="ob-field-wrap">
+              <Icon name="server" size={14} className="ob-field-pre" />
+              <input
+                className="input ob-input"
+                type="url"
+                inputMode="url"
+                autoComplete="url"
+                value={hub.url}
+                placeholder="https://design.yourteam.com"
+                aria-label="Server address"
+                data-testid="team-hub-url"
+                onChange={(e) => setHub((h) => ({ ...h, url: e.target.value }))}
+              />
             </span>
           </label>
           <label className="ob-field">
             <span className="ob-field-label">Email</span>
-            <span className="ob-field-wrap"><Icon name="user" size={14} className="ob-field-pre" />
-              <input className="input ob-input" type="email" autoComplete="username" value={hub.email} placeholder="you@yourteam.com" aria-label="Email" data-testid="team-hub-email" onChange={(e) => setHub((h) => ({ ...h, email: e.target.value }))} />
+            <span className="ob-field-wrap">
+              <Icon name="user" size={14} className="ob-field-pre" />
+              <input
+                className="input ob-input"
+                type="email"
+                autoComplete="username"
+                value={hub.email}
+                placeholder="you@yourteam.com"
+                aria-label="Email"
+                data-testid="team-hub-email"
+                onChange={(e) => setHub((h) => ({ ...h, email: e.target.value }))}
+              />
             </span>
           </label>
           <label className="ob-field">
             <span className="ob-field-label">Password</span>
-            <span className="ob-field-wrap"><Icon name="key" size={14} className="ob-field-pre" />
-              <input className="input ob-input" type="password" autoComplete="current-password" value={hub.password} aria-label="Password" data-testid="team-hub-password" onChange={(e) => setHub((h) => ({ ...h, password: e.target.value }))} />
+            <span className="ob-field-wrap">
+              <Icon name="key" size={14} className="ob-field-pre" />
+              <input
+                className="input ob-input"
+                type="password"
+                autoComplete="current-password"
+                value={hub.password}
+                aria-label="Password"
+                data-testid="team-hub-password"
+                onChange={(e) => setHub((h) => ({ ...h, password: e.target.value }))}
+              />
             </span>
           </label>
           <div className="ob-form-actions">
-            <button type="submit" className="btn btn--primary" disabled={!canHub || !!busy} data-testid="team-hub-open">
-              {busy === 'hub' ? <><Icon name="spinner" size={15} className="ob-spin" /> Signing in…</> : <><Icon name="arrow-right" size={15} /> Sign in and open</>}
+            <button
+              type="submit"
+              className="btn btn--primary"
+              disabled={!canHub || !!busy}
+              data-testid="team-hub-open"
+            >
+              {busy === 'hub' ? (
+                <>
+                  <Icon name="spinner" size={15} className="ob-spin" /> Signing in…
+                </>
+              ) : (
+                <>
+                  <Icon name="arrow-right" size={15} /> Sign in and open
+                </>
+              )}
             </button>
           </div>
         </form>
       </section>
 
       <ErrorLine text={err} />
-      <p className="ob-foot-note">Maude keeps the project’s copy on this computer and saves every change to your team as you work.</p>
+      <p className="ob-foot-note">
+        Maude keeps the project’s copy on this computer and saves every change to your team as you
+        work.
+      </p>
     </div>
   );
 }
@@ -365,7 +566,13 @@ export function TeamProjectsDialog({ onClose, initialServer = '', title = 'Open 
             <h2 id="tp-dialog-title">{title}</h2>
             <p>Projects you were added to open in their own copy on this computer.</p>
           </div>
-          <button type="button" className="btn btn--ghost btn--sm" onClick={onClose} aria-label="Close" data-testid="team-projects-close">
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            onClick={onClose}
+            aria-label="Close"
+            data-testid="team-projects-close"
+          >
             <Icon name="x" size={14} />
           </button>
         </div>

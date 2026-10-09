@@ -184,24 +184,26 @@ export function InspectorPanel({
   // HMR reload re-posts the tree with the new label.
   const renameLayer = (node, value) => {
     if (!canvasFile || !node?.id) return;
-    trackRecordableWrite(fetch('/_api/edit-attr', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ canvas: canvasFile, id: node.id, attr: 'data-dc-element', value }),
-    })
-      .then((r) => r.json().catch(() => ({})))
-      .then((j) => {
-        if (!j.ok) return;
-        onRecordEdit?.({
-          op: 'attr',
-          canvas: canvasFile,
-          id: node.id,
-          key: 'data-dc-element',
-          before: node.dcElement ?? null,
-          after: value,
-        });
+    trackRecordableWrite(
+      fetch('/_api/edit-attr', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ canvas: canvasFile, id: node.id, attr: 'data-dc-element', value }),
       })
-      .catch(() => {}));
+        .then((r) => r.json().catch(() => ({})))
+        .then((j) => {
+          if (!j.ok) return;
+          onRecordEdit?.({
+            op: 'attr',
+            canvas: canvasFile,
+            id: node.id,
+            key: 'data-dc-element',
+            before: node.dcElement ?? null,
+            after: value,
+          });
+        })
+        .catch(() => {})
+    );
   };
   const handleReorder = onReorderLayer
     ? (dragged, ref, position) => {
@@ -292,7 +294,8 @@ export function InspectorPanel({
   const layerDragRef = useRef(null);
   const layerTreeRef = useRef(null);
   const startLayerDrag = (e, node, key) => {
-    if (!handleReorder || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (!handleReorder || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+      return;
     if (layersBusyRef?.current) return; // a prior reorder is still landing (ids churning)
     const startX = e.clientX;
     const startY = e.clientY;
@@ -332,7 +335,10 @@ export function InspectorPanel({
       // floated, so it's meaningless for gap math).
       const rows = [].slice
         .call(document.querySelectorAll('.st-layer--row[data-layer-key]'))
-        .map((el) => ({ rect: el.getBoundingClientRect(), it: flatByKey.get(el.getAttribute('data-layer-key')) }))
+        .map((el) => ({
+          rect: el.getBoundingClientRect(),
+          it: flatByKey.get(el.getAttribute('data-layer-key')),
+        }))
         .filter((r) => r.it && r.it.key !== key);
       if (rows.length) {
         const rowLeft = rows[0].rect.left;
@@ -389,7 +395,14 @@ export function InspectorPanel({
         if (refIt && refIt.key !== key && !forbidden.has(refIt.key)) {
           const y = prev ? rows[gap - 1].rect.bottom : rows[0].rect.top;
           const left = rowLeft + BASE + targetDepth * INDENT;
-          target = { refId: refIt.id, position, node: refIt.node, y, left, w: Math.max(24, rowRight - left) };
+          target = {
+            refId: refIt.id,
+            position,
+            node: refIt.node,
+            y,
+            left,
+            w: Math.max(24, rowRight - left),
+          };
         }
       }
       const next = { key, node, dx, dy, target };
@@ -602,7 +615,9 @@ export function InspectorPanel({
               StIcon={StIcon}
               onEdit={(edit) => onPhotoEdit?.(photoTarget.asset, edit)}
               onRemoveBackground={onPhotoRemoveBackground}
-              onRecordEdit={(before, after) => onPhotoRecordEdit?.(photoTarget.asset, before, after)}
+              onRecordEdit={(before, after) =>
+                onPhotoRecordEdit?.(photoTarget.asset, before, after)
+              }
             />
           </div>
         ) : !el && !(effTab === 'layers' && layersTree?.nodes?.length) ? (

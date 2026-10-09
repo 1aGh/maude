@@ -208,7 +208,12 @@ function ZoomBar({ view, setView }) {
 }
 
 const CHOICES = [
-  { id: 'mine', icon: 'user', title: 'Keep mine', desc: 'Use your version. Their edits are set aside.' },
+  {
+    id: 'mine',
+    icon: 'user',
+    title: 'Keep mine',
+    desc: 'Use your version. Their edits are set aside.',
+  },
   {
     id: 'theirs',
     icon: 'users',
@@ -285,7 +290,12 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
         const inside = sheetRef.current?.contains(document.activeElement);
         const first = items[0];
         const last = items[items.length - 1];
-        if (e.shiftKey && (!inside || document.activeElement === first || document.activeElement === sheetRef.current)) {
+        if (
+          e.shiftKey &&
+          (!inside ||
+            document.activeElement === first ||
+            document.activeElement === sheetRef.current)
+        ) {
           e.preventDefault();
           last.focus();
         } else if (!e.shiftKey && (!inside || document.activeElement === last)) {
@@ -407,8 +417,8 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
                 <span>
                   While you were working, someone published their own changes to{' '}
                   <strong style={{ color: 'var(--fg-0)' }}>{baseName(file)}</strong>. Pick which to
-                  keep — <strong style={{ color: 'var(--fg-0)' }}>Keep both</strong> saves yours as a
-                  copy so nothing is lost.
+                  keep — <strong style={{ color: 'var(--fg-0)' }}>Keep both</strong> saves yours as
+                  a copy so nothing is lost.
                 </span>
               </div>
             </div>
@@ -532,7 +542,9 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
                   <div className="dv-col">
                     <div className="dv-col-hd">
                       <span className="dv-col-tag is-after">Your version</span>
-                      <span className="dv-col-who">{acceptedPreview ? 'now · working copy' : 'now · unsaved'}</span>
+                      <span className="dv-col-who">
+                        {acceptedPreview ? 'now · working copy' : 'now · unsaved'}
+                      </span>
                     </div>
                     <div className="dv-thumb is-after">
                       <CanvasView
@@ -547,7 +559,12 @@ export default function DiffView({ target, cfg, loadLog, onResolve, onRestore, o
               ) : (
                 <div className="dv-overlay" ref={overlayRef} style={{ '--dv-split': `${split}%` }}>
                   <div className="dv-overlay-layer">
-                    <CanvasView src={beforeSrc} view={view} setView={setView} label="Saved version" />
+                    <CanvasView
+                      src={beforeSrc}
+                      view={view}
+                      setView={setView}
+                      label="Saved version"
+                    />
                   </div>
                   <div className="dv-overlay-after">
                     <CanvasView src={afterSrc} view={view} setView={setView} label="Your version" />

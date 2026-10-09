@@ -37,7 +37,7 @@
   color: var(--maude-hud-accent-fg, #faf6ef);
   border: 1.5px solid var(--maude-chrome-bg-0, #14131a);
   border-radius: 5px 5px 5px 2px;
-  box-shadow: 0 4px 14px var(--maude-chrome-shadow, rgba(0,0,0,0.3));
+  box-shadow: 0 4px 14px var(--maude-chrome-shadow, rgba(0, 0, 0, 0.3));
   font: 600 11px / 1 var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   letter-spacing: 0.04em;
   display: grid;
@@ -50,8 +50,11 @@
 }
 
 .cm-pin:hover,
-.cm-pin[aria-expanded='true'] {
-  background: var(--maude-hud-accent-hover, color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 90%, white));
+.cm-pin[aria-expanded="true"] {
+  background: var(
+    --maude-hud-accent-hover,
+    color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 90%, white)
+  );
 }
 
 .cm-pin:focus-visible {
@@ -59,7 +62,7 @@
   box-shadow: 0 0 0 2px var(--maude-hud-accent, #d63b1f);
 }
 
-.cm-pin[data-resolved='true'] {
+.cm-pin[data-resolved="true"] {
   background: var(--maude-chrome-bg-2, #1c1916);
   color: var(--maude-chrome-fg-1, #6e6660);
   opacity: 0.6;
@@ -69,13 +72,13 @@
    comment is kept at its last known place (never deleted by software, #134/#136).
    A hollow, dashed pin: the state reads from the shape, not from colour alone,
    and the number keeps full contrast. The aria-label says "detached" too. */
-.cm-pin[data-detached='true'] {
+.cm-pin[data-detached="true"] {
   background: var(--maude-chrome-bg-1, #faf6ef);
   color: var(--maude-chrome-fg-0, #2a2520);
   border: 1.5px dashed var(--maude-hud-accent, #6f63ef);
 }
 
-.cm-pin[data-focused='true'] {
+.cm-pin[data-focused="true"] {
   /* Subtle ring — DS hard-edges discipline: no glow, just a hairline outline. */
   outline: 1px solid var(--maude-chrome-fg-0, #2a2520);
   outline-offset: 1px;
@@ -89,8 +92,10 @@
   border: 1px solid var(--maude-chrome-border, #3a352f);
   border-radius: 2px;
   padding: 12px;
-  box-shadow: 0 4px 14px var(--maude-chrome-shadow, rgba(0,0,0,0.22));
-  font: 13px / 1.5 system-ui, sans-serif;
+  box-shadow: 0 4px 14px var(--maude-chrome-shadow, rgba(0, 0, 0, 0.22));
+  font:
+    13px / 1.5 system-ui,
+    sans-serif;
   color: var(--maude-chrome-fg-0, #2a2520);
   pointer-events: auto;
   z-index: 4;
@@ -109,7 +114,11 @@
 
 .cm-composer__selector {
   color: var(--maude-chrome-fg-0, #4a4540);
-  background: color-mix(in oklab, var(--maude-chrome-bg-1, #faf6ef) 80%, var(--maude-hud-accent, #d63b1f) 6%);
+  background: color-mix(
+    in oklab,
+    var(--maude-chrome-bg-1, #faf6ef) 80%,
+    var(--maude-hud-accent, #d63b1f) 6%
+  );
   padding: 0 4px;
   border: 1px solid var(--maude-chrome-border, #c8bfb4);
   font-size: 11px;
@@ -144,7 +153,8 @@
 }
 
 .cm-btn {
-  font: 500 11px / 1.4 var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font:
+    500 11px / 1.4 var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 4px 8px;
@@ -157,7 +167,10 @@
 }
 
 .cm-btn:hover {
-  background: var(--maude-chrome-bg-2, color-mix(in oklab, var(--maude-chrome-bg-1, #faf6ef) 80%, var(--maude-chrome-fg-0, #2a2520) 6%));
+  background: var(
+    --maude-chrome-bg-2,
+    color-mix(in oklab, var(--maude-chrome-bg-1, #faf6ef) 80%, var(--maude-chrome-fg-0, #2a2520) 6%)
+  );
 }
 
 .cm-btn--primary {
@@ -167,7 +180,10 @@
 }
 
 .cm-btn--primary:hover {
-  background: var(--maude-hud-accent-hover, color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 90%, white));
+  background: var(
+    --maude-hud-accent-hover,
+    color-mix(in oklab, var(--maude-hud-accent, #d63b1f) 90%, white)
+  );
 }
 
 .cm-btn:disabled {
@@ -186,12 +202,17 @@
   width: 340px;
   max-height: 60vh;
   overflow: auto;
-  background: var(--maude-chrome-bg-2, color-mix(in oklab, var(--maude-chrome-bg-1, #faf6ef) 80%, var(--maude-chrome-fg-0, #2a2520) 6%));
+  background: var(
+    --maude-chrome-bg-2,
+    color-mix(in oklab, var(--maude-chrome-bg-1, #faf6ef) 80%, var(--maude-chrome-fg-0, #2a2520) 6%)
+  );
   border: 1px solid var(--maude-chrome-border, #3a352f);
   border-radius: 2px;
   padding: 12px;
-  box-shadow: 0 4px 14px var(--maude-chrome-shadow, rgba(0,0,0,0.22));
-  font: 13px / 1.5 system-ui, sans-serif;
+  box-shadow: 0 4px 14px var(--maude-chrome-shadow, rgba(0, 0, 0, 0.22));
+  font:
+    13px / 1.5 system-ui,
+    sans-serif;
   color: var(--maude-chrome-fg-0, #2a2520);
   pointer-events: auto;
   z-index: 5;
@@ -230,7 +251,8 @@
   color: var(--maude-chrome-fg-1, #6e6660);
   border: 1px solid var(--maude-chrome-border, #3a352f);
   padding: 0 4px;
-  font: 600 11px / 1.2 var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font:
+    600 11px / 1.2 var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   cursor: pointer;
   align-self: flex-start;
   margin-left: auto;
@@ -263,7 +285,11 @@
   font-size: 11px;
   border: 1px solid var(--maude-chrome-border, #c8bfb4);
   padding: 0 4px;
-  background: color-mix(in oklab, var(--maude-chrome-bg-1, #faf6ef) 80%, var(--maude-hud-accent, #d63b1f) 6%);
+  background: color-mix(
+    in oklab,
+    var(--maude-chrome-bg-1, #faf6ef) 80%,
+    var(--maude-hud-accent, #d63b1f) 6%
+  );
   align-self: flex-start;
   max-width: 100%;
   overflow: hidden;
@@ -365,7 +391,10 @@
 /* ─── @mention autocomplete ──────────────────────────────────────────────── */
 .cm-mention-popup {
   position: absolute;
-  background: var(--maude-chrome-bg-2, color-mix(in oklab, var(--maude-chrome-bg-1, #faf6ef) 80%, var(--maude-chrome-fg-0, #2a2520) 6%));
+  background: var(
+    --maude-chrome-bg-2,
+    color-mix(in oklab, var(--maude-chrome-bg-1, #faf6ef) 80%, var(--maude-chrome-fg-0, #2a2520) 6%)
+  );
   border: 1px solid var(--maude-chrome-border, #3a352f);
   border-radius: 5px;
   font: 11px / 1.3 var(--maude-chrome-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
@@ -373,7 +402,7 @@
   max-height: 180px;
   min-width: 160px;
   overflow: auto;
-  box-shadow: 0 4px 14px var(--maude-chrome-shadow, rgba(0,0,0,0.22));
+  box-shadow: 0 4px 14px var(--maude-chrome-shadow, rgba(0, 0, 0, 0.22));
   pointer-events: auto;
   z-index: 6;
   list-style: none;
@@ -389,7 +418,7 @@
   gap: 8px;
 }
 
-.cm-mention-popup__item[aria-selected='true'] {
+.cm-mention-popup__item[aria-selected="true"] {
   background: var(--maude-hud-accent, #d63b1f);
   color: var(--maude-hud-accent-fg, #faf6ef);
 }
@@ -403,7 +432,7 @@
   font-size: 11px;
 }
 
-.cm-mention-popup__item[aria-selected='true'] .cm-mention-popup__email {
+.cm-mention-popup__item[aria-selected="true"] .cm-mention-popup__email {
   color: var(--maude-hud-accent-fg, #faf6ef);
   opacity: 0.85;
 }

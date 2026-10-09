@@ -339,7 +339,9 @@ export default function GitPanel({
             <button
               type="button"
               className="gp-discard"
-              title={hasKids ? 'Discard this canvas and its supporting files' : 'Discard this change'}
+              title={
+                hasKids ? 'Discard this canvas and its supporting files' : 'Discard this change'
+              }
               aria-label={`Discard changes to ${name}`}
               onClick={async () => {
                 const msg = hasKids
@@ -586,7 +588,13 @@ export default function GitPanel({
             <div className="gp-callout-col">
               <span>
                 {banner.title && (
-                  <strong style={{ display: 'block', marginBottom: 'var(--space-1)', color: 'var(--fg-0)' }}>
+                  <strong
+                    style={{
+                      display: 'block',
+                      marginBottom: 'var(--space-1)',
+                      color: 'var(--fg-0)',
+                    }}
+                  >
                     {banner.title}
                   </strong>
                 )}
@@ -699,7 +707,10 @@ export default function GitPanel({
                     className="btn btn--sm"
                     disabled={!!busy}
                     onClick={() =>
-                      run('getLatest', onGetLatest, { variant: 'success', text: 'Up to date with everyone.' })
+                      run('getLatest', onGetLatest, {
+                        variant: 'success',
+                        text: 'Up to date with everyone.',
+                      })
                     }
                   >
                     <Icon name="download" size={14} /> Get latest
@@ -730,67 +741,67 @@ export default function GitPanel({
             </div>
 
             {!readOnly && (
-            <div className="gp-compose">
-              <label className="gp-selectall">
-                <input
-                  ref={selectAllRef}
-                  type="checkbox"
-                  className="gp-check"
-                  checked={checkedPaths.length === files.length && files.length > 0}
-                  onChange={toggleAll}
-                  aria-label="Select all changed files"
+              <div className="gp-compose">
+                <label className="gp-selectall">
+                  <input
+                    ref={selectAllRef}
+                    type="checkbox"
+                    className="gp-check"
+                    checked={checkedPaths.length === files.length && files.length > 0}
+                    onChange={toggleAll}
+                    aria-label="Select all changed files"
+                  />
+                  {checkedPaths.length} of {count} selected
+                </label>
+                <textarea
+                  className="gp-msg"
+                  data-testid="git-commit-message"
+                  placeholder="Describe what changed in this version…"
+                  aria-label="Describe what changed in this version"
+                  rows={2}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
                 />
-                {checkedPaths.length} of {count} selected
-              </label>
-              <textarea
-                className="gp-msg"
-                data-testid="git-commit-message"
-                placeholder="Describe what changed in this version…"
-                aria-label="Describe what changed in this version"
-                rows={2}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-              />
-              <div className="gp-compose-actions">
-                <button
-                  type="button"
-                  className="btn btn--primary gp-save"
-                  data-tour="save-local"
-                  disabled={!canSave}
-                  aria-disabled={!canSave}
-                  onClick={async () => {
-                    const r = await run('save', () => onCommit(message.trim(), checkedPaths), {
-                      variant: 'success',
-                      text: 'Version saved.',
-                    });
-                    if (r?.ok) setMessage('');
-                  }}
-                >
-                  <Icon name="save" size={15} /> Save version
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm"
-                  data-testid="git-save-all"
-                  disabled={!message.trim() || !!busy}
-                  title="Save every change"
-                  onClick={async () => {
-                    const r = await run('saveAll', () => onCommit(message.trim(), undefined), {
-                      variant: 'success',
-                      text: 'Version saved.',
-                    });
-                    if (r?.ok) setMessage('');
-                  }}
-                >
-                  Save all
-                </button>
+                <div className="gp-compose-actions">
+                  <button
+                    type="button"
+                    className="btn btn--primary gp-save"
+                    data-tour="save-local"
+                    disabled={!canSave}
+                    aria-disabled={!canSave}
+                    onClick={async () => {
+                      const r = await run('save', () => onCommit(message.trim(), checkedPaths), {
+                        variant: 'success',
+                        text: 'Version saved.',
+                      });
+                      if (r?.ok) setMessage('');
+                    }}
+                  >
+                    <Icon name="save" size={15} /> Save version
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    data-testid="git-save-all"
+                    disabled={!message.trim() || !!busy}
+                    title="Save every change"
+                    onClick={async () => {
+                      const r = await run('saveAll', () => onCommit(message.trim(), undefined), {
+                        variant: 'success',
+                        text: 'Version saved.',
+                      });
+                      if (r?.ok) setMessage('');
+                    }}
+                  >
+                    Save all
+                  </button>
+                </div>
+                {!canSave && (
+                  <span className="gp-hint">
+                    Type a message and pick at least one file to save a version.
+                  </span>
+                )}
               </div>
-              {!canSave && (
-                <span className="gp-hint">
-                  Type a message and pick at least one file to save a version.
-                </span>
-              )}
-            </div>
             )}
 
             {!readOnly && publishBar}
@@ -868,7 +879,9 @@ export default function GitPanel({
                   <h3>No versions yet</h3>
                   <p>
                     The cloud is saving this project
-                    {previewable ? `. Versions of ${activeName} appear here as you work.` : '. Versions appear here as you work.'}
+                    {previewable
+                      ? `. Versions of ${activeName} appear here as you work.`
+                      : '. Versions appear here as you work.'}
                   </p>
                 </>
               ) : (

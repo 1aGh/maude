@@ -96,12 +96,17 @@ export function Viewport({
         <div className="st-empty">
           <div className="st-empty-brand">
             <span className="st-brand-mark">
-              <svg viewBox="0 0 32 32" width="100%" height="100%" fill="none" aria-hidden="true"><path d="M16 5l2.8 8.2L27 16l-8.2 2.8L16 27l-2.8-8.2L5 16l8.2-2.8z" fill="currentColor" /></svg>
+              <svg viewBox="0 0 32 32" width="100%" height="100%" fill="none" aria-hidden="true">
+                <path
+                  d="M16 5l2.8 8.2L27 16l-8.2 2.8L16 27l-2.8-8.2L5 16l8.2-2.8z"
+                  fill="currentColor"
+                />
+              </svg>
             </span>
             <span className="st-empty-wm">maude</span>
             <span className="st-empty-sub st-mono">
-              CANVAS · {(project || 'MAUDE').toUpperCase()} / v{MDCC_VERSION} /
-              localhost:{typeof window !== 'undefined' ? window.location.port : '4399'}
+              CANVAS · {(project || 'MAUDE').toUpperCase()} / v{MDCC_VERSION} / localhost:
+              {typeof window !== 'undefined' ? window.location.port : '4399'}
             </span>
           </div>
           <div className="st-empty-title">Nothing open yet</div>
@@ -117,8 +122,8 @@ export function Viewport({
               <>
                 <br />
                 <br />
-                Claude can see whatever's selected when you ask for a change in the Assistant
-                panel, so pointing is often faster than describing it.
+                Claude can see whatever's selected when you ask for a change in the Assistant panel,
+                so pointing is often faster than describing it.
               </>
             ) : null}
           </div>
@@ -192,16 +197,14 @@ export function Viewport({
             <div className="st-canvas-error-body">
               {canvasError.kind === 'server' ? (
                 <>
-                  The canvas couldn't be reached. This usually means Maude's
-                  server restarted underneath this window — your files on disk
-                  are untouched.
+                  The canvas couldn't be reached. This usually means Maude's server restarted
+                  underneath this window — your files on disk are untouched.
                 </>
               ) : (
                 <>
                   The server is up, but{' '}
-                  <code>{sanitizeDisplayText(basename(canvasError.path))}</code>{' '}
-                  never finished compiling. Its own error, if it has one, is in
-                  the canvas frame.
+                  <code>{sanitizeDisplayText(basename(canvasError.path))}</code> never finished
+                  compiling. Its own error, if it has one, is in the canvas frame.
                 </>
               )}
             </div>
@@ -234,7 +237,12 @@ export function CanvasLoading({ path, cloud }) {
   }, []);
   const name = sanitizeDisplayText(basename(path || '').replace(/\.(tsx|jsx|html?)$/i, ''));
   return (
-    <div className="st-canvas-loading" role="status" aria-live="polite" data-testid="canvas-loading">
+    <div
+      className="st-canvas-loading"
+      role="status"
+      aria-live="polite"
+      data-testid="canvas-loading"
+    >
       <div className="st-skel-card">
         <div className="st-canvas-loading-head">
           <span className="st-canvas-loading-spinner" aria-hidden="true" />

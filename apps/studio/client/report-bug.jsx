@@ -156,7 +156,12 @@ function ShotTile({ shot, redacting, onRects, onRemove }) {
             Clear redactions
           </button>
         )}
-        <button type="button" className="rb-link" data-testid="report-bug-shot-remove" onClick={onRemove}>
+        <button
+          type="button"
+          className="rb-link"
+          data-testid="report-bug-shot-remove"
+          onClick={onRemove}
+        >
           Remove
         </button>
       </div>
@@ -521,7 +526,9 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                 ) : (
                   <>
                     {redacting && (
-                      <p className="rb-hint">Drag over anything private — it ships as solid black.</p>
+                      <p className="rb-hint">
+                        Drag over anything private — it ships as solid black.
+                      </p>
                     )}
                     <div className="rb-shots">
                       {shots.map((shot, i) => (
@@ -587,8 +594,8 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                       onChange={(e) => setConsent({ ...consent, logTail: e.target.checked })}
                     />
                     <span>
-                      Recent server log ({bundle.logs.serverLogTail.split('\n').length} lines,
-                      paths &amp; secrets scrubbed)
+                      Recent server log ({bundle.logs.serverLogTail.split('\n').length} lines, paths
+                      &amp; secrets scrubbed)
                       {bundle?.process
                         ? ` + server memory (${Math.round(bundle.process.rssBytes / 1048576)} MB)`
                         : ''}{' '}
@@ -608,7 +615,8 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                       onChange={(e) => setConsent({ ...consent, crashLogs: e.target.checked })}
                     />
                     <span>
-                      Crash logs ({crashLogs.length}) — <code>{crashLogs.map((l) => l.name).join(', ')}</code>
+                      Crash logs ({crashLogs.length}) —{' '}
+                      <code>{crashLogs.map((l) => l.name).join(', ')}</code>
                     </span>
                   </label>
                 )}
@@ -657,8 +665,7 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
                     }}
                   >
                     report #{result.issueNumber}
-                  </button>
-                  {' '}
+                  </button>{' '}
                   on the public Maude issue tracker. Screenshots and logs stay in a private
                   repository only maintainers can open — the issue links to them.
                 </p>
@@ -689,8 +696,8 @@ export function ReportBugDialog({ open, onClose, activeCanvas = null }) {
               </p>
               <p className="rb-hint">
                 You can save the report locally instead and file it on GitHub yourself — the
-                prefilled issue carries the text; screenshots stay on this machine unless you
-                attach them by hand.
+                prefilled issue carries the text; screenshots stay on this machine unless you attach
+                them by hand.
               </p>
               <footer className="rb-actions">
                 <button type="button" className="st-btn" onClick={() => setStep('preview')}>

@@ -70,13 +70,20 @@ export function buildUnits(files, designRel) {
       const c = canvasByBase.get(f.path.replace(META_RE, ''));
       if (c) attach(c, f);
     } else if (ANNOT_RE.test(f.path)) {
-      const c = canvasBySlug.get(stripDesignRel(f.path, designRel).replace(ANNOT_RE, '').toLowerCase());
+      const c = canvasBySlug.get(
+        stripDesignRel(f.path, designRel).replace(ANNOT_RE, '').toLowerCase()
+      );
       if (c) attach(c, f);
     }
   }
   const byName = (a, b) => baseName(a.primary.path).localeCompare(baseName(b.primary.path));
   const canvasUnits = canvases
-    .map((c) => ({ key: c.path, kind: 'canvas', primary: c, supporting: supporting.get(c.path) ?? [] }))
+    .map((c) => ({
+      key: c.path,
+      kind: 'canvas',
+      primary: c,
+      supporting: supporting.get(c.path) ?? [],
+    }))
     .sort(byName);
   const otherUnits = files
     .filter((f) => !CANVAS_RE.test(f.path) && !consumed.has(f.path))

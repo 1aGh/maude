@@ -83,7 +83,22 @@ import GenerateDialog from './generate-dialog.jsx';
 import RepoBranchSwitcher from './panels/RepoBranchSwitcher.jsx';
 import SettingsPanel from './panels/SettingsPanel.jsx';
 import StickerPicker from './panels/StickerPicker.jsx';
-import { AlignPad, AngleDial, ColorField, IconButtonGroup, IconToggleGroup, makeScrubHandler, NumberField, RadiusControl, Segmented, Select, SliderField, Toggle, UnitSelect, ValueTokenField } from './inspector-controls.jsx';
+import {
+  AlignPad,
+  AngleDial,
+  ColorField,
+  IconButtonGroup,
+  IconToggleGroup,
+  makeScrubHandler,
+  NumberField,
+  RadiusControl,
+  Segmented,
+  Select,
+  SliderField,
+  Toggle,
+  UnitSelect,
+  ValueTokenField,
+} from './inspector-controls.jsx';
 import {
   ALargeSmall as LuALargeSmall,
   AlignCenter as LuAlignCenter,
@@ -147,10 +162,55 @@ import {
   toggleSection as toggleSectionState,
   useTreeExpansion,
 } from './tree-expansion.js';
-import { ANNOT_STORE, ATTENTION_NOTIFY_COOLDOWN_MS, CANVAS_EXT_RE, COLLAB_TOUR_STORE, CP_MODE_STORE, EMPTY_GROUPS, LAYERS_MODE_STORE, MDCC_VERSION, MINIMAP_STORE, MODE_HINT_SEEN, PANEL_SIDES_STORE, SHOW_HIDDEN_STORE, SIDEBAR_STORE, SYSTEM_TAB, THEME_STORE, USAGE_TOUR_STORE, ZOOMCTL_STORE, isModuleCanvasPath } from './shell/constants.js';
-import { basename, browseFirstRunHint, buildTree, displayName, filterTree, groupBySidecar, layersTreeSig, notifyDesktop, openCount, pathTestIdSlug, persistUiPrefs, previewKind, readBoolStore, readInitialTheme, readJsonStore, sectionDefaultOpen, shellToast, timeAgo, totalCounts } from './shell/util.js';
+import {
+  ANNOT_STORE,
+  ATTENTION_NOTIFY_COOLDOWN_MS,
+  CANVAS_EXT_RE,
+  COLLAB_TOUR_STORE,
+  CP_MODE_STORE,
+  EMPTY_GROUPS,
+  LAYERS_MODE_STORE,
+  MDCC_VERSION,
+  MINIMAP_STORE,
+  MODE_HINT_SEEN,
+  PANEL_SIDES_STORE,
+  SHOW_HIDDEN_STORE,
+  SIDEBAR_STORE,
+  SYSTEM_TAB,
+  THEME_STORE,
+  USAGE_TOUR_STORE,
+  ZOOMCTL_STORE,
+  isModuleCanvasPath,
+} from './shell/constants.js';
+import {
+  basename,
+  browseFirstRunHint,
+  buildTree,
+  displayName,
+  filterTree,
+  groupBySidecar,
+  layersTreeSig,
+  notifyDesktop,
+  openCount,
+  pathTestIdSlug,
+  persistUiPrefs,
+  previewKind,
+  readBoolStore,
+  readInitialTheme,
+  readJsonStore,
+  sectionDefaultOpen,
+  shellToast,
+  timeAgo,
+  totalCounts,
+} from './shell/util.js';
 import { Icon, Kbd, Lu, StAvatar, StIcon, initialsOf } from './shell/icons.jsx';
-import { DOCK_PANELS, DockSlot, PANEL_SIDES_DEFAULTS, PanelGrip, usePanelSize } from './shell/dock.jsx';
+import {
+  DOCK_PANELS,
+  DockSlot,
+  PANEL_SIDES_DEFAULTS,
+  PanelGrip,
+  usePanelSize,
+} from './shell/dock.jsx';
 import { CommandPalette } from './dialogs/command-palette.jsx';
 import { AssetPicker } from './dialogs/asset-picker.jsx';
 import { ExportDialog, downloadCapturedBlob } from './dialogs/export-dialog.jsx';
@@ -164,8 +224,36 @@ import { Viewport } from './shell/viewport.jsx';
 import { StatusBar } from './shell/status-bar.jsx';
 import { CommentsPanel } from './shell/comments-panel.jsx';
 import { CloudRoleBanner, SyncBanner, UpdateBanner } from './shell/banners.jsx';
-import { CSS_ALIGN_SELF, CSS_ASPECT_RATIO, CSS_BLEND_MODES, CSS_BORDER_STYLES, CSS_DISPLAYS, CSS_FONTS, CSS_FONT_STYLE, CSS_OBJECT_FIT, CSS_POSITION, CSS_TEXT_TRANSFORM, CSS_UNITLESS, CSS_UNITS, CSS_WEIGHTS, CSS_WHITE_SPACE, GRID_TRACK_UNITS, PROP_LEAD, SCREEN_PRESETS, replacedValue } from './inspector/css-vocab.jsx';
-import { clamp01, cssColorToHex, cssHint, cssSplitUnit, hexToRgb, hsvToRgb, rgbToHex, rgbToHsv } from './inspector/color.js';
+import {
+  CSS_ALIGN_SELF,
+  CSS_ASPECT_RATIO,
+  CSS_BLEND_MODES,
+  CSS_BORDER_STYLES,
+  CSS_DISPLAYS,
+  CSS_FONTS,
+  CSS_FONT_STYLE,
+  CSS_OBJECT_FIT,
+  CSS_POSITION,
+  CSS_TEXT_TRANSFORM,
+  CSS_UNITLESS,
+  CSS_UNITS,
+  CSS_WEIGHTS,
+  CSS_WHITE_SPACE,
+  GRID_TRACK_UNITS,
+  PROP_LEAD,
+  SCREEN_PRESETS,
+  replacedValue,
+} from './inspector/css-vocab.jsx';
+import {
+  clamp01,
+  cssColorToHex,
+  cssHint,
+  cssSplitUnit,
+  hexToRgb,
+  hsvToRgb,
+  rgbToHex,
+  rgbToHsv,
+} from './inspector/color.js';
 import { mergeSelClientFields } from './inspector/selection.js';
 import { activeDsNameFor, useAllDsTokens } from './inspector/ds-tokens.js';
 import { ColorPicker } from './inspector/color-picker.jsx';
@@ -190,47 +278,237 @@ import { useShellCore } from './hooks/use-shell-core.jsx';
 
 function App() {
   const {
-    activeArtboards, activeComps, activePath, addressMode, agentActive, agentIdleRef,
-    annotationsVisible, assistantBusy, assistantOpen, assistantUnseen, autoOpenInspector, bodyRef,
-    brandUploadOpen, canvasActiveArtboard, canvasError, canvasReloadNonce, captureFromCanvas,
-    cellManaged, cfg, changesOpen, cloudLinkedHub, cloudManaged, collabNudge, commentsByFile,
-    commentsFilter, commentsPanelOpen, componentMap, cpMode, diffTarget, dragSide, editScope,
-    exportCenter, exportDialog, figmaImportOpen, firstRun, focusedCommentId, generateOpen,
-    gitLifecycle, gitStatus, gitUser, groups, handleAssistantAttention, handleAssistantFinished,
-    helpOpen, iframesRef, inspectorOpen, inspectorTab, introOpen, lastLayersTreeRef,
-    lastLocalSelectAtRef, layersBusyRef, layersBusyTimerRef, layersMode, layersOpen, layersTree,
-    loadServerConfig, loadedPath, loadingPath, localProjectName, markCollabSeen, markUsageSeen,
-    maybeAutoOpenInspectorOnSelect, minimapVisible, onIframeLoad, onPreview, openMenu,
-    openPanelExclusive, openRightPanel, paletteOpen, panelSide, pendingReorderRef, photoRev,
-    photoSel, photoUndoRef, postToActiveCanvas, presentMode, previewPath, previousAddressPath,
-    printGuidesVisible, project, quickSetupOpen, readinessOpen, remoteSync, reorderLayerRef,
-    reportBugOpen, repositionElementRef, resizeElementRef, rpSize, savingIsManaged,
-    savingIsManagedRef, sbSize, scheduleArtboardResync, scheduleHaloRestore, search,
-    sectionsExpanded, selected, selectedRef, setActiveArtboards, setActiveComps, setActivePath,
-    setAgentActive, setAnnotationsVisible, setAssistantBusy, setAssistantOpen, setAutoOpenInspector,
-    setBrandUploadOpen, setCanvasActiveArtboard, setCanvasError, setCanvasReloadNonce, setCfg,
-    setChangesOpen, setCloudLinkedHub, setCommentsByFile, setCommentsFilter, setCpMode,
-    setDiffTarget, setDragSide, setExportDialog, setFigmaImportOpen, setFocusedCommentId,
-    setGenerateOpen, setGitLifecycle, setGitStatus, setGitUser, setGroups, setHelpOpen,
-    setInspectorOpen, setInspectorTab, setIntroOpen, setLayersMode, setLayersOpen, setLayersTree,
-    setLoadedPath, setLoadingPath, setLocalProjectName, setMinimapVisible, setOpenMenu,
-    setPaletteOpen, setPanelSide, setPhotoRev, setPhotoSel, setPresentMode, setPreviewPath,
-    setPrintGuidesVisible, setProject, setQuickSetupOpen, setReadinessOpen, setRemoteSync,
-    setReportBugOpen, setSearch, setSelected, setSettingsOpen, setShareDialog, setShortcutsOpen,
-    setShowHidden, setSyncPanelOpen, setSyncStatus, setSystemData, setTabs, setTheme,
-    setTimelineArtboardId, setTimelineAudio, setTimelineFrame, setTimelineHeight, setTimelineLoop,
-    setTimelineMuted, setTimelineOpen, setTimelinePlaying, setTimelineSelectedClip,
-    setTimelineSequences, setTimelineTotal, setTimelineTransitions, setTimelineVolume, setTourSteps,
-    setTreeLoadFailures, setTreeLoaded, setUiPrefsHydrated, setUpdateReady, setWsConnected,
-    setZoomCtlVisible, settingsOpen, settlePendingSelectionRef, setupReadiness, shareDialog,
-    shortcutsOpen, showHidden, sidebarOpen, startTour, syncPanelOpen, syncStatus, systemData, tabs,
-    theme, timelineArtboardId, timelineArtboardIdRef, timelineAudio, timelineCompId,
-    timelineCompIdRef, timelineFps, timelineFrame, timelineFrameRef, timelineHeight, timelineLoop,
-    timelineMuted, timelineOpFailed, timelineOpen, timelinePlaying, timelineRefresh,
-    timelineSelectedClip, timelineSequences, timelineTotal, timelineTransitions, timelineVolume,
-    togglePanel, toggleRightPanel, toggleTimeline, tourBus, tourSteps, treeExp, treeLoadFailures,
-    treeLoaded, uiPrefsHydrated, unsavedCount, updateReady, updateTreeExp, usageNudge, viewerMode,
-    whatsNew, wsConnected, wsRef, zoomCtlVisible
+    activeArtboards,
+    activeComps,
+    activePath,
+    addressMode,
+    agentActive,
+    agentIdleRef,
+    annotationsVisible,
+    assistantBusy,
+    assistantOpen,
+    assistantUnseen,
+    autoOpenInspector,
+    bodyRef,
+    brandUploadOpen,
+    canvasActiveArtboard,
+    canvasError,
+    canvasReloadNonce,
+    captureFromCanvas,
+    cellManaged,
+    cfg,
+    changesOpen,
+    cloudLinkedHub,
+    cloudManaged,
+    collabNudge,
+    commentsByFile,
+    commentsFilter,
+    commentsPanelOpen,
+    componentMap,
+    cpMode,
+    diffTarget,
+    dragSide,
+    editScope,
+    exportCenter,
+    exportDialog,
+    figmaImportOpen,
+    firstRun,
+    focusedCommentId,
+    generateOpen,
+    gitLifecycle,
+    gitStatus,
+    gitUser,
+    groups,
+    handleAssistantAttention,
+    handleAssistantFinished,
+    helpOpen,
+    iframesRef,
+    inspectorOpen,
+    inspectorTab,
+    introOpen,
+    lastLayersTreeRef,
+    lastLocalSelectAtRef,
+    layersBusyRef,
+    layersBusyTimerRef,
+    layersMode,
+    layersOpen,
+    layersTree,
+    loadServerConfig,
+    loadedPath,
+    loadingPath,
+    localProjectName,
+    markCollabSeen,
+    markUsageSeen,
+    maybeAutoOpenInspectorOnSelect,
+    minimapVisible,
+    onIframeLoad,
+    onPreview,
+    openMenu,
+    openPanelExclusive,
+    openRightPanel,
+    paletteOpen,
+    panelSide,
+    pendingReorderRef,
+    photoRev,
+    photoSel,
+    photoUndoRef,
+    postToActiveCanvas,
+    presentMode,
+    previewPath,
+    previousAddressPath,
+    printGuidesVisible,
+    project,
+    quickSetupOpen,
+    readinessOpen,
+    remoteSync,
+    reorderLayerRef,
+    reportBugOpen,
+    repositionElementRef,
+    resizeElementRef,
+    rpSize,
+    savingIsManaged,
+    savingIsManagedRef,
+    sbSize,
+    scheduleArtboardResync,
+    scheduleHaloRestore,
+    search,
+    sectionsExpanded,
+    selected,
+    selectedRef,
+    setActiveArtboards,
+    setActiveComps,
+    setActivePath,
+    setAgentActive,
+    setAnnotationsVisible,
+    setAssistantBusy,
+    setAssistantOpen,
+    setAutoOpenInspector,
+    setBrandUploadOpen,
+    setCanvasActiveArtboard,
+    setCanvasError,
+    setCanvasReloadNonce,
+    setCfg,
+    setChangesOpen,
+    setCloudLinkedHub,
+    setCommentsByFile,
+    setCommentsFilter,
+    setCpMode,
+    setDiffTarget,
+    setDragSide,
+    setExportDialog,
+    setFigmaImportOpen,
+    setFocusedCommentId,
+    setGenerateOpen,
+    setGitLifecycle,
+    setGitStatus,
+    setGitUser,
+    setGroups,
+    setHelpOpen,
+    setInspectorOpen,
+    setInspectorTab,
+    setIntroOpen,
+    setLayersMode,
+    setLayersOpen,
+    setLayersTree,
+    setLoadedPath,
+    setLoadingPath,
+    setLocalProjectName,
+    setMinimapVisible,
+    setOpenMenu,
+    setPaletteOpen,
+    setPanelSide,
+    setPhotoRev,
+    setPhotoSel,
+    setPresentMode,
+    setPreviewPath,
+    setPrintGuidesVisible,
+    setProject,
+    setQuickSetupOpen,
+    setReadinessOpen,
+    setRemoteSync,
+    setReportBugOpen,
+    setSearch,
+    setSelected,
+    setSettingsOpen,
+    setShareDialog,
+    setShortcutsOpen,
+    setShowHidden,
+    setSyncPanelOpen,
+    setSyncStatus,
+    setSystemData,
+    setTabs,
+    setTheme,
+    setTimelineArtboardId,
+    setTimelineAudio,
+    setTimelineFrame,
+    setTimelineHeight,
+    setTimelineLoop,
+    setTimelineMuted,
+    setTimelineOpen,
+    setTimelinePlaying,
+    setTimelineSelectedClip,
+    setTimelineSequences,
+    setTimelineTotal,
+    setTimelineTransitions,
+    setTimelineVolume,
+    setTourSteps,
+    setTreeLoadFailures,
+    setTreeLoaded,
+    setUiPrefsHydrated,
+    setUpdateReady,
+    setWsConnected,
+    setZoomCtlVisible,
+    settingsOpen,
+    settlePendingSelectionRef,
+    setupReadiness,
+    shareDialog,
+    shortcutsOpen,
+    showHidden,
+    sidebarOpen,
+    startTour,
+    syncPanelOpen,
+    syncStatus,
+    systemData,
+    tabs,
+    theme,
+    timelineArtboardId,
+    timelineArtboardIdRef,
+    timelineAudio,
+    timelineCompId,
+    timelineCompIdRef,
+    timelineFps,
+    timelineFrame,
+    timelineFrameRef,
+    timelineHeight,
+    timelineLoop,
+    timelineMuted,
+    timelineOpFailed,
+    timelineOpen,
+    timelinePlaying,
+    timelineRefresh,
+    timelineSelectedClip,
+    timelineSequences,
+    timelineTotal,
+    timelineTransitions,
+    timelineVolume,
+    togglePanel,
+    toggleRightPanel,
+    toggleTimeline,
+    tourBus,
+    tourSteps,
+    treeExp,
+    treeLoadFailures,
+    treeLoaded,
+    uiPrefsHydrated,
+    unsavedCount,
+    updateReady,
+    updateTreeExp,
+    usageNudge,
+    viewerMode,
+    whatsNew,
+    wsConnected,
+    wsRef,
+    zoomCtlVisible,
   } = useShellCore({});
 
   // Issue #125 — "Selection area" needs every selected item, canvas elements
@@ -250,7 +528,9 @@ function App() {
           if (e.source !== cw) return;
           const m = e.data;
           if (!m || m.dgn !== 'export-selection' || m.id !== id) return;
-          done(Array.isArray(m.selectors) ? m.selectors.filter((x) => typeof x === 'string') : null);
+          done(
+            Array.isArray(m.selectors) ? m.selectors.filter((x) => typeof x === 'string') : null
+          );
         };
         const timer = setTimeout(() => done(null), 1500);
         function done(v) {
@@ -268,23 +548,88 @@ function App() {
     [activePath]
   );
   const {
-    askText, broadcastChrome, exitPresent, lockedKeys, onPhotoEdit, onPhotoRecordEdit,
-    onPhotoRemoveBackground, performPhotoUndo, pushTlUndo, resolveClipRef, settleShellPrompt,
-    shellPromptState, timelineAddComment, timelineClipVerb, timelineRemoveClip, timelineTransClips,
-    tlKeyRef, toggleAnnotations, toggleLockedKey, toggleMinimap, togglePresent, togglePrintGuides,
-    toggleSection, toggleZoomCtl
+    askText,
+    broadcastChrome,
+    exitPresent,
+    lockedKeys,
+    onPhotoEdit,
+    onPhotoRecordEdit,
+    onPhotoRemoveBackground,
+    performPhotoUndo,
+    pushTlUndo,
+    resolveClipRef,
+    settleShellPrompt,
+    shellPromptState,
+    timelineAddComment,
+    timelineClipVerb,
+    timelineRemoveClip,
+    timelineTransClips,
+    tlKeyRef,
+    toggleAnnotations,
+    toggleLockedKey,
+    toggleMinimap,
+    togglePresent,
+    togglePrintGuides,
+    toggleSection,
+    toggleZoomCtl,
   } = usePhotoAndTimeline({
-    groups, treeLoaded, activePath, selected, theme, setTheme, sidebarOpen, showHidden, treeExp,
-    updateTreeExp, panelSide, setPanelSide, layersMode, setLayersMode, timelineOpen, activeComps,
-    setActiveComps, timelineFrame, setTimelineFrame, timelinePlaying, setTimelinePlaying,
-    timelineLoop, timelineMuted, canvasActiveArtboard, timelineSequences, setTimelineSequences,
-    setTimelineAudio, setTimelineTransitions, timelineTotal, setTimelineTotal, timelineArtboardId,
-    setTimelineArtboardId, timelineArtboardIdRef, timelineCompId, timelineSelectedClip,
-    setTimelineSelectedClip, timelineRefresh, timelineOpFailed, photoUndoRef, setPhotoRev,
-    autoOpenInspector, setAutoOpenInspector, annotationsVisible, setAnnotationsVisible,
-    uiPrefsHydrated, setUiPrefsHydrated, minimapVisible, setMinimapVisible, zoomCtlVisible,
-    setZoomCtlVisible, setPresentMode, setPrintGuidesVisible, setActiveArtboards, setGitUser,
-    iframesRef, postToActiveCanvas, wsSend
+    groups,
+    treeLoaded,
+    activePath,
+    selected,
+    theme,
+    setTheme,
+    sidebarOpen,
+    showHidden,
+    treeExp,
+    updateTreeExp,
+    panelSide,
+    setPanelSide,
+    layersMode,
+    setLayersMode,
+    timelineOpen,
+    activeComps,
+    setActiveComps,
+    timelineFrame,
+    setTimelineFrame,
+    timelinePlaying,
+    setTimelinePlaying,
+    timelineLoop,
+    timelineMuted,
+    canvasActiveArtboard,
+    timelineSequences,
+    setTimelineSequences,
+    setTimelineAudio,
+    setTimelineTransitions,
+    timelineTotal,
+    setTimelineTotal,
+    timelineArtboardId,
+    setTimelineArtboardId,
+    timelineArtboardIdRef,
+    timelineCompId,
+    timelineSelectedClip,
+    setTimelineSelectedClip,
+    timelineRefresh,
+    timelineOpFailed,
+    photoUndoRef,
+    setPhotoRev,
+    autoOpenInspector,
+    setAutoOpenInspector,
+    annotationsVisible,
+    setAnnotationsVisible,
+    uiPrefsHydrated,
+    setUiPrefsHydrated,
+    minimapVisible,
+    setMinimapVisible,
+    zoomCtlVisible,
+    setZoomCtlVisible,
+    setPresentMode,
+    setPrintGuidesVisible,
+    setActiveArtboards,
+    setGitUser,
+    iframesRef,
+    postToActiveCanvas,
+    wsSend,
   });
   const treeExpansion = useMemo(
     () => ({
@@ -293,7 +638,15 @@ function App() {
     }),
     [treeExp.state, updateTreeExp]
   );
-  const { loadSystemData, loadTree, toggleTheme } = useProjectData({ setGroups, setTreeLoaded, setTreeLoadFailures, setProject, setSystemData, setCfg, setTheme });
+  const { loadSystemData, loadTree, toggleTheme } = useProjectData({
+    setGroups,
+    setTreeLoaded,
+    setTreeLoadFailures,
+    setProject,
+    setSystemData,
+    setCfg,
+    setTheme,
+  });
 
   // ----- Comments — initial load of all files -----
   const loadAllComments = useCallback(async () => {
@@ -491,12 +844,31 @@ function App() {
     };
   }, []);
   const {
-    acceptedDiff, cloudHistory, dirtyByPath, gitCommit, gitDiscard, gitGetLatest, gitLoadCloudLog,
-    gitLoadLog, gitPublish, gitResolveConflict, loadAcceptedLog, loadDiffLog, projectHistoryOn,
-    projectHistoryRefresh, refreshRemoteSync, restoreProjectVersion, setProjectHistoryOn
+    acceptedDiff,
+    cloudHistory,
+    dirtyByPath,
+    gitCommit,
+    gitDiscard,
+    gitGetLatest,
+    gitLoadCloudLog,
+    gitLoadLog,
+    gitPublish,
+    gitResolveConflict,
+    loadAcceptedLog,
+    loadDiffLog,
+    projectHistoryOn,
+    projectHistoryRefresh,
+    refreshRemoteSync,
+    restoreProjectVersion,
+    setProjectHistoryOn,
   } = useGitActions({
-    gitStatus, setGitStatus, setRemoteSync, diffTarget, setDiffTarget, savingIsManaged,
-    savingIsManagedRef
+    gitStatus,
+    setGitStatus,
+    setRemoteSync,
+    diffTarget,
+    setDiffTarget,
+    savingIsManaged,
+    savingIsManagedRef,
   });
 
   // Phase 28 (E3) — keep remote ahead/behind fresh so the "Get latest" nudge
@@ -522,17 +894,66 @@ function App() {
     return () => clearInterval(id);
   }, [savingIsManaged, gitStatus?.repo, changesOpen, refreshRemoteSync]);
   const {
-    assembleVideo, clearSelected, closeTab, createBoard, createVideo, deleteBoard, deleteFileReq,
-    deleteFolderReq, duplicateCanvasReq, moveCanvasReq, newFolderReq, openLinkedFile, openSystem,
-    openTab, refreshTree, reloadActive, renameCanvasReq, renameFolderReq, replaceMediaViaPicker,
-    retryCanvasLoad, shareLinksFor, sharePath, shareShell, showShare, treeRefreshing
+    assembleVideo,
+    clearSelected,
+    closeTab,
+    createBoard,
+    createVideo,
+    deleteBoard,
+    deleteFileReq,
+    deleteFolderReq,
+    duplicateCanvasReq,
+    moveCanvasReq,
+    newFolderReq,
+    openLinkedFile,
+    openSystem,
+    openTab,
+    refreshTree,
+    reloadActive,
+    renameCanvasReq,
+    renameFolderReq,
+    replaceMediaViaPicker,
+    retryCanvasLoad,
+    shareLinksFor,
+    sharePath,
+    shareShell,
+    showShare,
+    treeRefreshing,
   } = useTabs({
-    groups, treeLoaded, addressMode, previousAddressPath, project, tabs, setTabs, activePath,
-    setActivePath, previewPath, setPreviewPath, onPreview, setSelected, cloudLinkedHub,
-    localProjectName, systemData, setLoadingPath, setCanvasError, setCanvasReloadNonce,
-    setLoadedPath, cfg, loadServerConfig, setFocusedCommentId, updateTreeExp, setShareDialog,
-    setTimelineOpen, timelineArtboardId, iframesRef, pushTlUndo, askText, loadTree, loadSystemData,
-    canvasListChangeRef, wsSend
+    groups,
+    treeLoaded,
+    addressMode,
+    previousAddressPath,
+    project,
+    tabs,
+    setTabs,
+    activePath,
+    setActivePath,
+    previewPath,
+    setPreviewPath,
+    onPreview,
+    setSelected,
+    cloudLinkedHub,
+    localProjectName,
+    systemData,
+    setLoadingPath,
+    setCanvasError,
+    setCanvasReloadNonce,
+    setLoadedPath,
+    cfg,
+    loadServerConfig,
+    setFocusedCommentId,
+    updateTreeExp,
+    setShareDialog,
+    setTimelineOpen,
+    timelineArtboardId,
+    iframesRef,
+    pushTlUndo,
+    askText,
+    loadTree,
+    loadSystemData,
+    canvasListChangeRef,
+    wsSend,
   });
 
   // ----- Push comments to iframe whenever they change for active file -----
@@ -548,23 +969,84 @@ function App() {
     } catch {}
   }, [activePath, commentsByFile, presentMode]);
   const {
-    applyOptimisticStyle, assetPickerReq, clearActiveCanvasSelection, deleteComment,
-    detachInstanceShell, duplicateArtboardShell, insertGeneratedImage, onAssetPicked,
-    onInsertArtboard, onPickMany, onReplaceMedia, onStickerPicked, recordSourceEdit, reopenComment,
-    reorderLayer, resizeArtboardShell, resolveComment, setArtboardHugShell, setArtboardKindShell,
-    setArtboardPrintShell, setArtboardStyleShell, setAssetPickerReq, setStickerPickerReq,
-    stickerPickerReq
+    applyOptimisticStyle,
+    assetPickerReq,
+    clearActiveCanvasSelection,
+    deleteComment,
+    detachInstanceShell,
+    duplicateArtboardShell,
+    insertGeneratedImage,
+    onAssetPicked,
+    onInsertArtboard,
+    onPickMany,
+    onReplaceMedia,
+    onStickerPicked,
+    recordSourceEdit,
+    reopenComment,
+    reorderLayer,
+    resizeArtboardShell,
+    resolveComment,
+    setArtboardHugShell,
+    setArtboardKindShell,
+    setArtboardPrintShell,
+    setArtboardStyleShell,
+    setAssetPickerReq,
+    setStickerPickerReq,
+    stickerPickerReq,
   } = useCanvasBridge({
-    activePath, selected, setSelected, selectedRef, lastLocalSelectAtRef, scheduleHaloRestore,
-    scheduleArtboardResync, pendingReorderRef, lastLayersTreeRef, settlePendingSelectionRef,
-    reorderLayerRef, repositionElementRef, resizeElementRef, layersBusyRef, layersBusyTimerRef,
-    layersTree, setLayersTree, setLoadingPath, setCanvasError, setLoadedPath, cfg, viewerMode,
-    commentsByFile, focusedCommentId, setFocusedCommentId, theme, setPaletteOpen, setExportDialog,
-    setTimelineOpen, setActiveComps, setTimelineFrame, setTimelinePlaying, canvasActiveArtboard,
-    setCanvasActiveArtboard, timelineFrameRef, timelineCompIdRef, setInspectorTab, setPhotoSel,
-    openRightPanel, toggleRightPanel, maybeAutoOpenInspectorOnSelect, toggleTimeline, minimapVisible,
-    zoomCtlVisible, presentMode, setPresentMode, setActiveArtboards, iframesRef, postToActiveCanvas,
-    captureFromCanvas, broadcastChrome, wsSend, reloadActive
+    activePath,
+    selected,
+    setSelected,
+    selectedRef,
+    lastLocalSelectAtRef,
+    scheduleHaloRestore,
+    scheduleArtboardResync,
+    pendingReorderRef,
+    lastLayersTreeRef,
+    settlePendingSelectionRef,
+    reorderLayerRef,
+    repositionElementRef,
+    resizeElementRef,
+    layersBusyRef,
+    layersBusyTimerRef,
+    layersTree,
+    setLayersTree,
+    setLoadingPath,
+    setCanvasError,
+    setLoadedPath,
+    cfg,
+    viewerMode,
+    commentsByFile,
+    focusedCommentId,
+    setFocusedCommentId,
+    theme,
+    setPaletteOpen,
+    setExportDialog,
+    setTimelineOpen,
+    setActiveComps,
+    setTimelineFrame,
+    setTimelinePlaying,
+    canvasActiveArtboard,
+    setCanvasActiveArtboard,
+    timelineFrameRef,
+    timelineCompIdRef,
+    setInspectorTab,
+    setPhotoSel,
+    openRightPanel,
+    toggleRightPanel,
+    maybeAutoOpenInspectorOnSelect,
+    toggleTimeline,
+    minimapVisible,
+    zoomCtlVisible,
+    presentMode,
+    setPresentMode,
+    setActiveArtboards,
+    iframesRef,
+    postToActiveCanvas,
+    captureFromCanvas,
+    broadcastChrome,
+    wsSend,
+    reloadActive,
   });
 
   // Jump from right-sidebar list to a comment: open file tab if needed, focus pin.
@@ -595,37 +1077,175 @@ function App() {
     [activePath]
   );
   const { onShellContextMenu, registerIframe, totalOpen } = useKeyboardShortcuts({
-    activePath, selected, viewerMode, commentsByFile, focusedCommentId, setFocusedCommentId,
-    sidebarOpen, setShowHidden, setHelpOpen, setShortcutsOpen, setPaletteOpen, setExportDialog,
-    setSettingsOpen, inspectorTab, openPanelExclusive, togglePanel, toggleRightPanel, toggleTimeline,
-    presentMode, iframesRef, postToActiveCanvas, performPhotoUndo, tlKeyRef, exitPresent, openSystem,
-    closeTab, reloadActive, refreshTree, clearActiveCanvasSelection
+    activePath,
+    selected,
+    viewerMode,
+    commentsByFile,
+    focusedCommentId,
+    setFocusedCommentId,
+    sidebarOpen,
+    setShowHidden,
+    setHelpOpen,
+    setShortcutsOpen,
+    setPaletteOpen,
+    setExportDialog,
+    setSettingsOpen,
+    inspectorTab,
+    openPanelExclusive,
+    togglePanel,
+    toggleRightPanel,
+    toggleTimeline,
+    presentMode,
+    iframesRef,
+    postToActiveCanvas,
+    performPhotoUndo,
+    tlKeyRef,
+    exitPresent,
+    openSystem,
+    closeTab,
+    reloadActive,
+    refreshTree,
+    clearActiveCanvasSelection,
   });
   const {
-    activeCanvasFile, activeOpenComments, dockLabels, leftActive, leftHostsAssistant, leftIds,
-    paletteActions, renderPanelBody, resizingFor, rightActive, rightHostsAssistant, rightIds
+    activeCanvasFile,
+    activeOpenComments,
+    dockLabels,
+    leftActive,
+    leftHostsAssistant,
+    leftIds,
+    paletteActions,
+    renderPanelBody,
+    resizingFor,
+    rightActive,
+    rightHostsAssistant,
+    rightIds,
   } = usePaletteAndPanels({
-    groups, treeLoaded, treeLoadFailures, project, activePath, previewPath, onPreview, selected,
-    editScope, layersBusyRef, layersTree, componentMap, wsConnected, syncStatus, cloudLinkedHub,
-    setCloudLinkedHub, localProjectName, setLocalProjectName, gitStatus, remoteSync, changesOpen,
-    setChangesOpen, syncPanelOpen, setSyncPanelOpen, setDiffTarget, search, setSearch, systemData,
-    dragSide, cfg, cellManaged, cloudManaged, savingIsManaged, viewerMode, commentsByFile,
-    focusedCommentId, commentsPanelOpen, commentsFilter, setCommentsFilter, cpMode, setCpMode,
-    sidebarOpen, showHidden, treeExp, sectionsExpanded, setHelpOpen, setReportBugOpen,
-    setShortcutsOpen, setExportDialog, setSettingsOpen, setGenerateOpen, inspectorOpen,
-    setInspectorOpen, layersOpen, setLayersOpen, panelSide, layersMode, assistantOpen, inspectorTab,
-    setInspectorTab, photoSel, photoRev, openPanelExclusive, togglePanel, openRightPanel,
-    toggleRightPanel, whatsNew, postToActiveCanvas, onPhotoEdit, onPhotoRecordEdit, performPhotoUndo,
-    onPhotoRemoveBackground, lockedKeys, toggleLockedKey, toggleSection, treeExpansion, toggleTheme,
-    gitCommit, gitDiscard, gitPublish, gitGetLatest, gitLoadLog, cloudHistory, gitLoadCloudLog,
-    projectHistoryOn, setProjectHistoryOn, projectHistoryRefresh, loadAcceptedLog,
-    restoreProjectVersion, dirtyByPath, openTab, openLinkedFile, sharePath, shareShell,
-    shareLinksFor, showShare, openSystem, reloadActive, treeRefreshing, refreshTree, createBoard,
-    createVideo, deleteBoard, moveCanvasReq, newFolderReq, deleteFolderReq, renameFolderReq,
-    renameCanvasReq, duplicateCanvasReq, deleteFileReq, applyOptimisticStyle, recordSourceEdit,
-    reorderLayer, detachInstanceShell, resizeArtboardShell, duplicateArtboardShell,
-    setArtboardHugShell, setArtboardStyleShell, setArtboardKindShell, setArtboardPrintShell,
-    onReplaceMedia, resolveComment, reopenComment, deleteComment, jumpToComment
+    groups,
+    treeLoaded,
+    treeLoadFailures,
+    project,
+    activePath,
+    previewPath,
+    onPreview,
+    selected,
+    editScope,
+    layersBusyRef,
+    layersTree,
+    componentMap,
+    wsConnected,
+    syncStatus,
+    cloudLinkedHub,
+    setCloudLinkedHub,
+    localProjectName,
+    setLocalProjectName,
+    gitStatus,
+    remoteSync,
+    changesOpen,
+    setChangesOpen,
+    syncPanelOpen,
+    setSyncPanelOpen,
+    setDiffTarget,
+    search,
+    setSearch,
+    systemData,
+    dragSide,
+    cfg,
+    cellManaged,
+    cloudManaged,
+    savingIsManaged,
+    viewerMode,
+    commentsByFile,
+    focusedCommentId,
+    commentsPanelOpen,
+    commentsFilter,
+    setCommentsFilter,
+    cpMode,
+    setCpMode,
+    sidebarOpen,
+    showHidden,
+    treeExp,
+    sectionsExpanded,
+    setHelpOpen,
+    setReportBugOpen,
+    setShortcutsOpen,
+    setExportDialog,
+    setSettingsOpen,
+    setGenerateOpen,
+    inspectorOpen,
+    setInspectorOpen,
+    layersOpen,
+    setLayersOpen,
+    panelSide,
+    layersMode,
+    assistantOpen,
+    inspectorTab,
+    setInspectorTab,
+    photoSel,
+    photoRev,
+    openPanelExclusive,
+    togglePanel,
+    openRightPanel,
+    toggleRightPanel,
+    whatsNew,
+    postToActiveCanvas,
+    onPhotoEdit,
+    onPhotoRecordEdit,
+    performPhotoUndo,
+    onPhotoRemoveBackground,
+    lockedKeys,
+    toggleLockedKey,
+    toggleSection,
+    treeExpansion,
+    toggleTheme,
+    gitCommit,
+    gitDiscard,
+    gitPublish,
+    gitGetLatest,
+    gitLoadLog,
+    cloudHistory,
+    gitLoadCloudLog,
+    projectHistoryOn,
+    setProjectHistoryOn,
+    projectHistoryRefresh,
+    loadAcceptedLog,
+    restoreProjectVersion,
+    dirtyByPath,
+    openTab,
+    openLinkedFile,
+    sharePath,
+    shareShell,
+    shareLinksFor,
+    showShare,
+    openSystem,
+    reloadActive,
+    treeRefreshing,
+    refreshTree,
+    createBoard,
+    createVideo,
+    deleteBoard,
+    moveCanvasReq,
+    newFolderReq,
+    deleteFolderReq,
+    renameFolderReq,
+    renameCanvasReq,
+    duplicateCanvasReq,
+    deleteFileReq,
+    applyOptimisticStyle,
+    recordSourceEdit,
+    reorderLayer,
+    detachInstanceShell,
+    resizeArtboardShell,
+    duplicateArtboardShell,
+    setArtboardHugShell,
+    setArtboardStyleShell,
+    setArtboardKindShell,
+    setArtboardPrintShell,
+    onReplaceMedia,
+    resolveComment,
+    reopenComment,
+    deleteComment,
+    jumpToComment,
   });
 
   return (
@@ -642,8 +1262,10 @@ function App() {
           only appears if you happen to open the Sync panel is not consent.
           Skipped during first-run onboarding so two flows don't stack. */}
       {!firstRun && <SyncConsentDialog status={syncStatus} cloud={cfg.cloud} />}
-      <NotificationHost paused={!!usageNudge || !!tourSteps}
-        hiddenGroups={exportCenter.panelOpen ? ['exports'] : []} />
+      <NotificationHost
+        paused={!!usageNudge || !!tourSteps}
+        hiddenGroups={exportCenter.panelOpen ? ['exports'] : []}
+      />
       <WhatsNewToast wn={whatsNew} />
       <ExportToast center={exportCenter} />
       {gitLifecycle && (
@@ -661,7 +1283,11 @@ function App() {
           >
             Reload
           </button>
-          <button type="button" className="btn btn--ghost btn--sm" onClick={() => setGitLifecycle(null)}>
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            onClick={() => setGitLifecycle(null)}
+          >
             Dismiss
           </button>
         </div>
@@ -760,12 +1386,7 @@ function App() {
                 title={gitUser ? `${gitUser} (you)` : 'You'}
               />
               {agentActive && (
-                <StAvatar
-                  initials="C"
-                  hue="var(--presence-agent)"
-                  title="Claude · editing"
-                  pulse
-                />
+                <StAvatar initials="C" hue="var(--presence-agent)" title="Claude · editing" pulse />
               )}
             </>
           }
@@ -798,7 +1419,10 @@ function App() {
                   activeCanvas={activeCanvasFile}
                   selected={selected}
                   openComments={activeOpenComments}
-                  designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}
+                  designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(
+                    /^\/+|\/+$/g,
+                    ''
+                  )}
                   resizing={resizingFor('assistant')}
                   onClose={() => setAssistantOpen(false)}
                   onBusyChange={setAssistantBusy}
@@ -877,7 +1501,10 @@ function App() {
                   activeCanvas={activeCanvasFile}
                   selected={selected}
                   openComments={activeOpenComments}
-                  designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}
+                  designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(
+                    /^\/+|\/+$/g,
+                    ''
+                  )}
                   resizing={resizingFor('assistant')}
                   onClose={() => setAssistantOpen(false)}
                   onBusyChange={setAssistantBusy}
@@ -912,7 +1539,11 @@ function App() {
               setTimelinePlaying(true);
               // Sync mute + loop to the Player, then play (the artboard has no
               // chrome — the Timeline owns transport/sound/loop now).
-              postToActiveCanvas({ dgn: 'timeline-mute', muted: timelineMuted, id: timelineCompId });
+              postToActiveCanvas({
+                dgn: 'timeline-mute',
+                muted: timelineMuted,
+                id: timelineCompId,
+              });
               postToActiveCanvas({ dgn: 'timeline-loop', loop: timelineLoop, id: timelineCompId });
               postToActiveCanvas({ dgn: 'timeline-play', id: timelineCompId });
             }}
@@ -1122,7 +1753,8 @@ function App() {
                   if (j && !j.ok) timelineOpFailed('Hide refused', j.error);
                   else if (j && j.ok) {
                     shellToast(j.hidden ? 'Clip hidden.' : 'Clip shown.', true);
-                    if (j.seq != null) pushTlUndo(activePath, j.seq, j.hidden ? 'hide clip' : 'show clip');
+                    if (j.seq != null)
+                      pushTlUndo(activePath, j.seq, j.hidden ? 'hide clip' : 'show clip');
                   }
                 })
                 .catch(() => shellToast('Hide failed: network error'));
@@ -1240,7 +1872,10 @@ function App() {
                     }
                   }
                   if (upgraded) {
-                    shellToast('Artboard upgraded to a video comp — clips added to the storyline.', true);
+                    shellToast(
+                      'Artboard upgraded to a video comp — clips added to the storyline.',
+                      true
+                    );
                     return;
                   }
                   for (let n = 0; n < 8; n += 1) {
@@ -1258,7 +1893,10 @@ function App() {
                     }
                     await loadTree();
                     openTab(j.file);
-                    shellToast(`Started a new cut from ${clips.length} clip${clips.length > 1 ? 's' : ''}.`, true);
+                    shellToast(
+                      `Started a new cut from ${clips.length} clip${clips.length > 1 ? 's' : ''}.`,
+                      true
+                    );
                     return;
                   }
                   shellToast('New cut failed: too many "New Cut" canvases — rename some.');
@@ -1286,7 +1924,9 @@ function App() {
                     up = null;
                   }
                   if (!up?.path) {
-                    shellToast(`Upload failed: ${up?.error || 'server unreachable — retry in a moment'}`);
+                    shellToast(
+                      `Upload failed: ${up?.error || 'server unreachable — retry in a moment'}`
+                    );
                     continue;
                   }
                   const isAudio = mediaTag === 'Audio';
@@ -1295,7 +1935,9 @@ function App() {
                   // the user then has to drag out by hand. Images have no
                   // inherent duration, so they keep the fallback.
                   const probedSec =
-                    mediaTag === 'Video' ? await probeMediaDuration(up.path).catch(() => null) : null;
+                    mediaTag === 'Video'
+                      ? await probeMediaDuration(up.path).catch(() => null)
+                      : null;
                   const body = { canvas, artboardId, mediaTag, src: up.path };
                   if (pos && (isAudio || pos.lane === 'audio')) {
                     body.lane = 'audio';
@@ -1387,30 +2029,30 @@ function App() {
               // Player DOM isn't the canvas edit surface, so inline editing
               // happens in the timeline inspector).
               Promise.resolve('Title').then((text) => {
-              if (!text) return;
-              const fps = timelineFps;
-              fetch('/_api/insert-sequence', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                  canvas: activePath,
-                  artboardId: timelineArtboardId || undefined,
-                  lane: 'overlay',
-                  from: frame,
-                  durationInFrames: Math.round(fps * 3),
-                  mediaTag: 'Title',
-                  src: text,
-                }),
-              })
-                .then((r) => r.json().catch(() => null))
-                .then((j) => {
-                  if (j && !j.ok) timelineOpFailed('Title refused', j.error);
-                  else if (j?.ok) {
-                    shellToast('Title added.', true);
-                    if (j.seq != null) pushTlUndo(activePath, j.seq, 'add title');
-                  }
+                if (!text) return;
+                const fps = timelineFps;
+                fetch('/_api/insert-sequence', {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({
+                    canvas: activePath,
+                    artboardId: timelineArtboardId || undefined,
+                    lane: 'overlay',
+                    from: frame,
+                    durationInFrames: Math.round(fps * 3),
+                    mediaTag: 'Title',
+                    src: text,
+                  }),
                 })
-                .catch(() => shellToast('Title failed: network error'));
+                  .then((r) => r.json().catch(() => null))
+                  .then((j) => {
+                    if (j && !j.ok) timelineOpFailed('Title refused', j.error);
+                    else if (j?.ok) {
+                      shellToast('Title added.', true);
+                      if (j.seq != null) pushTlUndo(activePath, j.seq, 'add title');
+                    }
+                  })
+                  .catch(() => shellToast('Title failed: network error'));
               });
             }}
             onAddAiClip={() => {
@@ -1420,29 +2062,32 @@ function App() {
               // lands with a starter prompt the user rewrites IN PLACE
               // (double-click the slate text in the artboard, or Text tab).
               (async () => {
-              const prompt = 'Describe this shot — double-click to edit';
-              const kind = 'veo';
-              const fps = timelineFps;
-              fetch('/_api/insert-sequence', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                  canvas: activePath,
-                  artboardId: timelineArtboardId || undefined,
-                  lane: 'storyline',
-                  durationInFrames: Math.round(fps * 5),
-                  placeholder: { prompt, kind },
-                }),
-              })
-                .then((r) => r.json().catch(() => null))
-                .then((j) => {
-                  if (j && !j.ok) timelineOpFailed('AI clip refused', j.error);
-                  else if (j?.ok) {
-                    shellToast('AI placeholder added — double-click its text to write the prompt, then right-click → Generate ✨.', true);
-                    if (j.seq != null) pushTlUndo(activePath, j.seq, 'add AI placeholder');
-                  }
+                const prompt = 'Describe this shot — double-click to edit';
+                const kind = 'veo';
+                const fps = timelineFps;
+                fetch('/_api/insert-sequence', {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({
+                    canvas: activePath,
+                    artboardId: timelineArtboardId || undefined,
+                    lane: 'storyline',
+                    durationInFrames: Math.round(fps * 5),
+                    placeholder: { prompt, kind },
+                  }),
                 })
-                .catch(() => shellToast('AI clip failed: network error'));
+                  .then((r) => r.json().catch(() => null))
+                  .then((j) => {
+                    if (j && !j.ok) timelineOpFailed('AI clip refused', j.error);
+                    else if (j?.ok) {
+                      shellToast(
+                        'AI placeholder added — double-click its text to write the prompt, then right-click → Generate ✨.',
+                        true
+                      );
+                      if (j.seq != null) pushTlUndo(activePath, j.seq, 'add AI placeholder');
+                    }
+                  })
+                  .catch(() => shellToast('AI clip failed: network error'));
               })();
             }}
             onGeneratePlaceholder={(clipRef) => {
@@ -1473,7 +2118,9 @@ function App() {
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ provider: 'gemini', modality, prompt }),
                   })
-                    .then(async (r) => (r.ok ? r.json() : Promise.reject(new Error(await r.text()))))
+                    .then(async (r) =>
+                      r.ok ? r.json() : Promise.reject(new Error(await r.text()))
+                    )
                     .then((job) => {
                       const jobId = job?.id;
                       if (!jobId) throw new Error('no job id');
@@ -1504,13 +2151,19 @@ function App() {
                               .then((cc2) => {
                                 const live = resolveClipRef(cc2, { stableId });
                                 if (!live?.stableId) {
-                                  shellToast('Placeholder clip is gone — generated asset kept in assets/.');
+                                  shellToast(
+                                    'Placeholder clip is gone — generated asset kept in assets/.'
+                                  );
                                   return;
                                 }
-                                timelineClipVerb({ stableId: live.stableId }, 'resolve-placeholder', {
-                                  src: asset,
-                                  mediaKind: modality === 'image' ? 'image' : 'video',
-                                });
+                                timelineClipVerb(
+                                  { stableId: live.stableId },
+                                  'resolve-placeholder',
+                                  {
+                                    src: asset,
+                                    mediaKind: modality === 'image' ? 'image' : 'video',
+                                  }
+                                );
                               });
                           })
                           .catch(() => setTimeout(poll, 6000));
@@ -1518,7 +2171,9 @@ function App() {
                       setTimeout(poll, 3000);
                     })
                     .catch((e) =>
-                      shellToast(`Generate failed: ${e?.message || 'provider error'} — is a Gemini key set in Settings?`)
+                      shellToast(
+                        `Generate failed: ${e?.message || 'provider error'} — is a Gemini key set in Settings?`
+                      )
                     );
                 })
                 .catch(() => shellToast('Generate failed: network error'));
@@ -1657,7 +2312,12 @@ function App() {
             if (e.target === e.currentTarget) settleShellPrompt(null);
           }}
         >
-          <div className="st-dialog st-prompt" role="dialog" aria-modal="true" aria-label={shellPromptState.title}>
+          <div
+            className="st-dialog st-prompt"
+            role="dialog"
+            aria-modal="true"
+            aria-label={shellPromptState.title}
+          >
             <div className="st-dialog-hd">
               <span className="st-dialog-title">{shellPromptState.title}</span>
             </div>
@@ -1694,7 +2354,15 @@ function App() {
           </div>
         </div>
       )}
-      {shareDialog && <ShareDialog target={shareDialog} links={shareLinksFor(shareDialog.path)} shell={shareShell} onClose={() => setShareDialog(null)} Icon={StIcon} />}
+      {shareDialog && (
+        <ShareDialog
+          target={shareDialog}
+          links={shareLinksFor(shareDialog.path)}
+          shell={shareShell}
+          onClose={() => setShareDialog(null)}
+          Icon={StIcon}
+        />
+      )}
       {exportDialog && (
         <ExportDialog
           mode={exportDialog.mode}
@@ -1708,7 +2376,9 @@ function App() {
           // viewport-active artboard canvas-lib reports on pan. Without this,
           // scope=artboard fell back to `:first-of-type` (always the first).
           activeArtboardId={selected?.artboardId ?? canvasActiveArtboard ?? null}
-          selection={selected?.selector ? { selector: selected.selector, file: selected.file } : null}
+          selection={
+            selected?.selector ? { selector: selected.selector, file: selected.file } : null
+          }
           exportLane={cfg.exportLane || 'local'}
           onBrowserCapture={captureFromCanvas}
           onQuerySelection={querySelectionFromCanvas}
@@ -1767,7 +2437,10 @@ function App() {
           onClose={() => setDiffTarget(null)}
           onRestore={async (file, version) => {
             const res = acceptedDiff
-              ? await restoreProjectVersion(file, /^r\d+$/.test(version || '') ? Number(version.slice(1)) : NaN)
+              ? await restoreProjectVersion(
+                  file,
+                  /^r\d+$/.test(version || '') ? Number(version.slice(1)) : NaN
+                )
               : await gitDiscard([file]);
             if (res?.ok) setDiffTarget(null);
             else window.alert(res?.error || 'Could not restore that version. Try again.');
@@ -1781,7 +2454,9 @@ function App() {
             if (res.ok) {
               setDiffTarget(null);
             } else {
-              window.alert(res.error || 'Could not finish the merge. Get the latest again, then retry.');
+              window.alert(
+                res.error || 'Could not finish the merge. Get the latest again, then retry.'
+              );
             }
           }}
         />
@@ -1818,10 +2493,7 @@ function App() {
       />
       <BrandUploadPanel open={brandUploadOpen} onClose={() => setBrandUploadOpen(false)} />
       {figmaImportOpen && (
-        <FigmaImportPanel
-          onClose={() => setFigmaImportOpen(false)}
-          onImported={() => loadTree()}
-        />
+        <FigmaImportPanel onClose={() => setFigmaImportOpen(false)} onImported={() => loadTree()} />
       )}
       {usageNudge && !tourSteps && !collabNudge && (
         <div className="mdcc-tour-nudge" role="status" aria-live="polite">
@@ -1889,4 +2561,6 @@ function App() {
 
 // DDR-247 — `?embed=1` is a different root, not a mode of <App>: nothing the
 // shell does (prefs, address bar, panels) runs inside another app's frame.
-createRoot(document.getElementById('root')).render(isEmbedLocation(location) ? <EmbedView /> : <App />);
+createRoot(document.getElementById('root')).render(
+  isEmbedLocation(location) ? <EmbedView /> : <App />
+);

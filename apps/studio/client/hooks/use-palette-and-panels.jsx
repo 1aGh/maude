@@ -13,27 +13,131 @@ import { InspectorPanel } from '../inspector/inspector-panel.jsx';
 import { CommentsPanel } from '../shell/comments-panel.jsx';
 
 export function usePaletteAndPanels({
-  groups, treeLoaded, treeLoadFailures, project, activePath, previewPath, onPreview, selected,
-  editScope, layersBusyRef, layersTree, componentMap, wsConnected, syncStatus, cloudLinkedHub,
-  setCloudLinkedHub, localProjectName, setLocalProjectName, gitStatus, remoteSync, changesOpen,
-  setChangesOpen, syncPanelOpen, setSyncPanelOpen, setDiffTarget, search, setSearch, systemData,
-  dragSide, cfg, cellManaged, cloudManaged, savingIsManaged, viewerMode, commentsByFile,
-  focusedCommentId, commentsPanelOpen, commentsFilter, setCommentsFilter, cpMode, setCpMode,
-  sidebarOpen, showHidden, treeExp, sectionsExpanded, setHelpOpen, setReportBugOpen,
-  setShortcutsOpen, setExportDialog, setSettingsOpen, setGenerateOpen, inspectorOpen,
-  setInspectorOpen, layersOpen, setLayersOpen, panelSide, layersMode, assistantOpen, inspectorTab,
-  setInspectorTab, photoSel, photoRev, openPanelExclusive, togglePanel, openRightPanel,
-  toggleRightPanel, whatsNew, postToActiveCanvas, onPhotoEdit, onPhotoRecordEdit, performPhotoUndo,
-  onPhotoRemoveBackground, lockedKeys, toggleLockedKey, toggleSection, treeExpansion, toggleTheme,
-  gitCommit, gitDiscard, gitPublish, gitGetLatest, gitLoadLog, cloudHistory, gitLoadCloudLog,
-  projectHistoryOn, setProjectHistoryOn, projectHistoryRefresh, loadAcceptedLog,
-  restoreProjectVersion, dirtyByPath, openTab, openLinkedFile, sharePath, shareShell, shareLinksFor,
-  showShare, openSystem, reloadActive, treeRefreshing, refreshTree, createBoard, createVideo,
-  deleteBoard, moveCanvasReq, newFolderReq, deleteFolderReq, renameFolderReq, renameCanvasReq,
-  duplicateCanvasReq, deleteFileReq, applyOptimisticStyle, recordSourceEdit, reorderLayer,
-  detachInstanceShell, resizeArtboardShell, duplicateArtboardShell, setArtboardHugShell,
-  setArtboardStyleShell, setArtboardKindShell, setArtboardPrintShell, onReplaceMedia, resolveComment,
-  reopenComment, deleteComment, jumpToComment
+  groups,
+  treeLoaded,
+  treeLoadFailures,
+  project,
+  activePath,
+  previewPath,
+  onPreview,
+  selected,
+  editScope,
+  layersBusyRef,
+  layersTree,
+  componentMap,
+  wsConnected,
+  syncStatus,
+  cloudLinkedHub,
+  setCloudLinkedHub,
+  localProjectName,
+  setLocalProjectName,
+  gitStatus,
+  remoteSync,
+  changesOpen,
+  setChangesOpen,
+  syncPanelOpen,
+  setSyncPanelOpen,
+  setDiffTarget,
+  search,
+  setSearch,
+  systemData,
+  dragSide,
+  cfg,
+  cellManaged,
+  cloudManaged,
+  savingIsManaged,
+  viewerMode,
+  commentsByFile,
+  focusedCommentId,
+  commentsPanelOpen,
+  commentsFilter,
+  setCommentsFilter,
+  cpMode,
+  setCpMode,
+  sidebarOpen,
+  showHidden,
+  treeExp,
+  sectionsExpanded,
+  setHelpOpen,
+  setReportBugOpen,
+  setShortcutsOpen,
+  setExportDialog,
+  setSettingsOpen,
+  setGenerateOpen,
+  inspectorOpen,
+  setInspectorOpen,
+  layersOpen,
+  setLayersOpen,
+  panelSide,
+  layersMode,
+  assistantOpen,
+  inspectorTab,
+  setInspectorTab,
+  photoSel,
+  photoRev,
+  openPanelExclusive,
+  togglePanel,
+  openRightPanel,
+  toggleRightPanel,
+  whatsNew,
+  postToActiveCanvas,
+  onPhotoEdit,
+  onPhotoRecordEdit,
+  performPhotoUndo,
+  onPhotoRemoveBackground,
+  lockedKeys,
+  toggleLockedKey,
+  toggleSection,
+  treeExpansion,
+  toggleTheme,
+  gitCommit,
+  gitDiscard,
+  gitPublish,
+  gitGetLatest,
+  gitLoadLog,
+  cloudHistory,
+  gitLoadCloudLog,
+  projectHistoryOn,
+  setProjectHistoryOn,
+  projectHistoryRefresh,
+  loadAcceptedLog,
+  restoreProjectVersion,
+  dirtyByPath,
+  openTab,
+  openLinkedFile,
+  sharePath,
+  shareShell,
+  shareLinksFor,
+  showShare,
+  openSystem,
+  reloadActive,
+  treeRefreshing,
+  refreshTree,
+  createBoard,
+  createVideo,
+  deleteBoard,
+  moveCanvasReq,
+  newFolderReq,
+  deleteFolderReq,
+  renameFolderReq,
+  renameCanvasReq,
+  duplicateCanvasReq,
+  deleteFileReq,
+  applyOptimisticStyle,
+  recordSourceEdit,
+  reorderLayer,
+  detachInstanceShell,
+  resizeArtboardShell,
+  duplicateArtboardShell,
+  setArtboardHugShell,
+  setArtboardStyleShell,
+  setArtboardKindShell,
+  setArtboardPrintShell,
+  onReplaceMedia,
+  resolveComment,
+  reopenComment,
+  deleteComment,
+  jumpToComment,
 }) {
   // ⌘K palette actions — shell-doable only (in-canvas export lives in the iframe).
   // T4 (Plan C) — grouped command set per `.design/ui/Studio.tsx` AB-D.
@@ -76,7 +180,11 @@ export function usePaletteAndPanels({
         group: 'Canvas',
         label: 'Copy share link',
         icon: 'link',
-        run: () => { const links = shareLinksFor(sharePath); const link = links.web ?? links.app ?? links.local; if (link) copyShareLink(link); },
+        run: () => {
+          const links = shareLinksFor(sharePath);
+          const link = links.web ?? links.app ?? links.local;
+          if (link) copyShareLink(link);
+        },
       },
       {
         id: 'handoff',
@@ -187,7 +295,18 @@ export function usePaletteAndPanels({
         run: () => setReportBugOpen(true),
       },
     ],
-    [openSystem, toggleTheme, reloadActive, whatsNew, createVideo, sharePath, shareShell, cloudLinkedHub, localProjectName, cfg.designRel]
+    [
+      openSystem,
+      toggleTheme,
+      reloadActive,
+      whatsNew,
+      createVideo,
+      sharePath,
+      shareShell,
+      cloudLinkedHub,
+      localProjectName,
+      cfg.designRel,
+    ]
   );
 
   // feature-configurable-panel-docking — resolve, for each slot, the panels
@@ -238,13 +357,13 @@ export function usePaletteAndPanels({
   const resizingFor = (id) =>
     (panelSide[id] || PANEL_SIDES_DEFAULTS[id]) === 'left' ? dragSide === 'sb' : dragSide === 'rp';
   const activeCanvasFile =
-    activePath && activePath !== SYSTEM_TAB && /\.(tsx|html)$/i.test(activePath) ? activePath : null;
+    activePath && activePath !== SYSTEM_TAB && /\.(tsx|html)$/i.test(activePath)
+      ? activePath
+      : null;
   // Issue #74 — drives the chat panel's "Implement N comments" quick action.
   // Canvas-wide on purpose: the verb operates on every open comment of the
   // active canvas, so it is deliberately NOT scoped to the current selection.
-  const activeOpenComments = activeCanvasFile
-    ? openCount(commentsByFile[activeCanvasFile])
-    : 0;
+  const activeOpenComments = activeCanvasFile ? openCount(commentsByFile[activeCanvasFile]) : 0;
 
   // Render a panel body by id (width undefined ⇒ fills the .st-dockslot wrapper,
   // which owns the resizable width). Assistant is handled separately below as an
@@ -254,7 +373,7 @@ export function usePaletteAndPanels({
     // viewer; what they must not do is offer an edit, and that is already
     // handled inside them (`readOnly` is threaded through every control).
     // Refusing to mount was a blunter instrument than the role model asks for.
-    
+
     if (id === 'tree')
       return (
         <Sidebar
@@ -353,19 +472,25 @@ export function usePaletteAndPanels({
           }}
           historySource={projectHistoryOn ? 'project' : cloudManaged ? 'cloud' : 'local'}
           historyRefresh={`${syncStatus?.appliedRevision ?? 0}:${projectHistoryRefresh}`}
-          onRestoreVersion={(revision) => restoreProjectVersion(activePath, revision).then((r) => !!r.ok)}
+          onRestoreVersion={(revision) =>
+            restoreProjectVersion(activePath, revision).then((r) => !!r.ok)
+          }
           // Not through a cell's door: every browser editor proposes under the
           // studio's one credential there, so "your own action" is not
           // knowable and the hub refuses the route (studio-manifest.mjs).
-          onUndoAction={cellManaged ? undefined : async (actionId) => {
-            const r = await fetch('/_api/project/undo', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ actionId }),
-            }).catch(() => null);
-            const j = r ? await r.json().catch(() => null) : null;
-            return !!j?.ok;
-          }}
+          onUndoAction={
+            cellManaged
+              ? undefined
+              : async (actionId) => {
+                  const r = await fetch('/_api/project/undo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ actionId }),
+                  }).catch(() => null);
+                  const j = r ? await r.json().catch(() => null) : null;
+                  return !!j?.ok;
+                }
+          }
           // What the cloud half of the header names. The cell reports its own
           // project and branch with the log; the hub host is the fallback,
           // because a header that names the LOCAL folder while listing the
@@ -374,7 +499,9 @@ export function usePaletteAndPanels({
           onOpenCanvas={(p) => openTab(p)}
           onOpenDiff={(file) => setDiffTarget({ file, beforeSha: 'HEAD', conflict: false })}
           activeCanvas={activeCanvasFile}
-          onPreviewVersion={(sha) => setDiffTarget({ file: activePath, beforeSha: sha, conflict: false })}
+          onPreviewVersion={(sha) =>
+            setDiffTarget({ file: activePath, beforeSha: sha, conflict: false })
+          }
           designRel={(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}
         />
       );
@@ -468,7 +595,17 @@ export function usePaletteAndPanels({
     return null;
   };
   return {
-    activeCanvasFile, activeOpenComments, dockLabels, leftActive, leftHostsAssistant, leftIds,
-    paletteActions, renderPanelBody, resizingFor, rightActive, rightHostsAssistant, rightIds
+    activeCanvasFile,
+    activeOpenComments,
+    dockLabels,
+    leftActive,
+    leftHostsAssistant,
+    leftIds,
+    paletteActions,
+    renderPanelBody,
+    resizingFor,
+    rightActive,
+    rightHostsAssistant,
+    rightIds,
   };
 }

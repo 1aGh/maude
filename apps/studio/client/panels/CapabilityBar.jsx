@@ -55,7 +55,9 @@ export default function CapabilityBar({ modes, configOptions, onSetMode, onSetCo
           value={modes?.currentModeId ?? ''}
           aria-label="Permission mode"
           data-testid="chat-mode-picker"
-          title={modeList.find((m) => m.id === modes?.currentModeId)?.description || 'Permission mode'}
+          title={
+            modeList.find((m) => m.id === modes?.currentModeId)?.description || 'Permission mode'
+          }
           disabled={disabled}
           onChange={(e) => onSetMode(e.target.value)}
         >

@@ -86,8 +86,10 @@ describe('the cloud shell offers nothing it cannot honour', () => {
     // Matched on the GUARD rather than the whole element, so adding a prop to
     // CloudBar (DDR-214 drilled the live sync payload in) does not read as a
     // regression in a rule that is entirely about `=== null`.
-    expect(clientMatches(/\{cloud === null \? <CloudBar[^>]*\/> : null\}/)).not.toEqual([]);
-    expect(APP).not.toMatch(/\{cloud \? null : <CloudBar/);
+    expect(
+      clientMatches(/\{cloud === null \?\s*\(?\s*<CloudBar[^>]*\/>\s*\)?\s*: null\s*\}/)
+    ).not.toEqual([]);
+    expect(APP).not.toMatch(/\{cloud \?\s*null\s*:\s*\(?\s*<CloudBar/);
   });
 
   test('the local export queue does not hydrate before the shell is known', () => {

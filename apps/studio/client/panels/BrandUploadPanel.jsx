@@ -149,7 +149,12 @@ export default function BrandUploadPanel({ open, onClose }) {
           <span className="title" id="brand-up-modal-title">
             Bring my existing brand
           </span>
-          <button type="button" className="help-modal-close" aria-label="Close (Esc)" onClick={onClose}>
+          <button
+            type="button"
+            className="help-modal-close"
+            aria-label="Close (Esc)"
+            onClick={onClose}
+          >
             ×
           </button>
         </header>
@@ -207,7 +212,9 @@ export default function BrandUploadPanel({ open, onClose }) {
                   className="btn btn--primary btn--sm"
                   data-testid="brand-up-copy-command"
                   onClick={() =>
-                    navigator.clipboard?.writeText(`/design:setup-ds --from-brand ${result.logoRef}`)
+                    navigator.clipboard?.writeText(
+                      `/design:setup-ds --from-brand ${result.logoRef}`
+                    )
                   }
                 >
                   Copy command

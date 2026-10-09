@@ -89,8 +89,7 @@ function Summary({ result }) {
 
       {result.mode === 'tokens' && result.path && (
         <div className="st-figma-summary-row">
-          Saved. Turn it into a design system with{' '}
-          <code>maude design import-tokens</code>.
+          Saved. Turn it into a design system with <code>maude design import-tokens</code>.
         </div>
       )}
     </div>

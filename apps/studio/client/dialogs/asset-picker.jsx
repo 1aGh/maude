@@ -11,15 +11,32 @@ import { StIcon } from '../shell/icons.jsx';
 // upload is always magic-byte-sniffed server-side, so a wrong guess here
 // can't misrepresent what gets stored, only which picker UI state it shows.
 export const EXT_MIME = {
-  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
-  webp: 'image/webp', avif: 'image/avif', svg: 'image/svg+xml',
-  mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', m4v: 'video/mp4', ogg: 'video/ogg',
-  mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', aac: 'audio/aac',
-  flac: 'audio/flac', oga: 'audio/ogg', opus: 'audio/opus',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  avif: 'image/avif',
+  svg: 'image/svg+xml',
+  mp4: 'video/mp4',
+  mov: 'video/quicktime',
+  webm: 'video/webm',
+  m4v: 'video/mp4',
+  ogg: 'video/ogg',
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  m4a: 'audio/mp4',
+  aac: 'audio/aac',
+  flac: 'audio/flac',
+  oga: 'audio/ogg',
+  opus: 'audio/opus',
 };
 
 export function mimeFromExt(name) {
-  const ext = String(name || '').split('.').pop()?.toLowerCase();
+  const ext = String(name || '')
+    .split('.')
+    .pop()
+    ?.toLowerCase();
   return EXT_MIME[ext] || 'application/octet-stream';
 }
 
@@ -80,7 +97,9 @@ export function AssetPicker({
     return () => window.removeEventListener('keydown', onKey, true);
   }, [onClose]);
 
-  const hasNonImageSelected = Array.from(selected).some((p) => (kindByPath[p] || 'image') !== 'image');
+  const hasNonImageSelected = Array.from(selected).some(
+    (p) => (kindByPath[p] || 'image') !== 'image'
+  );
   const artboardDisabled = !hasArtboardAnchor || hasNonImageSelected;
   const artboardDisabledReason = !hasArtboardAnchor
     ? 'No artboard on this canvas'
@@ -236,7 +255,12 @@ export function AssetPicker({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="st-dialog st-asset-picker" role="dialog" aria-modal="true" aria-label="Choose media">
+      <div
+        className="st-dialog st-asset-picker"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Choose media"
+      >
         <div className="st-dialog-hd">
           <span className="st-dialog-title">Choose media</span>
           <button type="button" className="st-iconbtn" aria-label="Close" onClick={onClose}>
@@ -280,7 +304,12 @@ export function AssetPicker({
                     {a.kind === 'video' ? (
                       <video className="st-ap-thumb" src={assetUrl(a.path)} muted playsInline />
                     ) : (
-                      <img className="st-ap-thumb" src={assetUrl(a.path)} alt={a.name} loading="lazy" />
+                      <img
+                        className="st-ap-thumb"
+                        src={assetUrl(a.path)}
+                        alt={a.name}
+                        loading="lazy"
+                      />
                     )}
                     <span className="st-ap-name">{a.name}</span>
                   </button>

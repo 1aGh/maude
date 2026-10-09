@@ -10,7 +10,15 @@
 //
 // Native-app only — app.jsx mounts this gated on isNativeApp().
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import {
   ActionBarPrimitive,
@@ -84,12 +92,7 @@ const Check = ({ size = 13 }) => (
 );
 const Close = ({ size = 14 }) => (
   <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
-    <path
-      d="M4 4l8 8M12 4l-8 8"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-    />
+    <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
 );
 const SendArrow = ({ size = 16 }) => (
@@ -221,7 +224,9 @@ function modeFootnote(modes) {
   if (!modes?.currentModeId || !modes.availableModes?.length) return null;
   const current = modes.availableModes.find((m) => m.id === modes.currentModeId);
   const name = current?.name || modes.currentModeId;
-  return NO_PROMPT_MODE_IDS.has(modes.currentModeId) ? `${name} — no prompts` : `${name} — you'll be asked`;
+  return NO_PROMPT_MODE_IDS.has(modes.currentModeId)
+    ? `${name} — no prompts`
+    : `${name} — you'll be asked`;
 }
 
 // The loud, top-of-thread alert shown ONLY while the current mode blocks edits
@@ -239,9 +244,12 @@ function ModeBanner({ modes, onSetMode }) {
   const targetName = target && (modes.availableModes.find((m) => m.id === target)?.name || target);
   return (
     <div className="chat-mode-banner" role="alert" data-testid="chat-mode-banner">
-      <span className="chat-mode-banner-icon" aria-hidden="true">⏸</span>
+      <span className="chat-mode-banner-icon" aria-hidden="true">
+        ⏸
+      </span>
       <span className="chat-mode-banner-text">
-        <b>{name}</b>{' — '}
+        <b>{name}</b>
+        {' — '}
         {isPlan
           ? "Claude is planning and won't edit files or run tools."
           : 'edits and tools without a standing approval are denied — nothing will change.'}
@@ -429,9 +437,10 @@ function ChatToolCard({ toolName, args, result, isError, verbose, flat = false }
   const running = result === undefined;
   const path =
     args && typeof args === 'object' ? args.path || args.file || args.filePath : undefined;
-  const argsPreview = verbose && args && typeof args === 'object' && Object.keys(args).length
-    ? jsonPreview(args)
-    : null;
+  const argsPreview =
+    verbose && args && typeof args === 'object' && Object.keys(args).length
+      ? jsonPreview(args)
+      : null;
   const resultPreview = verbose && !running && result != null ? jsonPreview(result) : null;
   const statusLabel = running ? 'running…' : isError ? 'failed' : 'done';
 
@@ -632,7 +641,11 @@ function UserMessage() {
     <div className="chat-msg chat-msg--user">
       <MessagePrimitive.Parts components={{ Text: UserBubble }} />
       <div className="chat-msg-actions" data-testid="chat-msg-actions">
-        <ActionBarPrimitive.Copy className="chat-msg-action" aria-label="Copy message" title="Copy message">
+        <ActionBarPrimitive.Copy
+          className="chat-msg-action"
+          aria-label="Copy message"
+          title="Copy message"
+        >
           <Copy size={12} />
         </ActionBarPrimitive.Copy>
       </div>
@@ -684,10 +697,18 @@ function AssistantMessage() {
         ) : null
       )}
       <div className="chat-msg-actions" data-testid="chat-msg-actions">
-        <ActionBarPrimitive.Copy className="chat-msg-action" aria-label="Copy message" title="Copy message">
+        <ActionBarPrimitive.Copy
+          className="chat-msg-action"
+          aria-label="Copy message"
+          title="Copy message"
+        >
           <Copy size={12} />
         </ActionBarPrimitive.Copy>
-        <ActionBarPrimitive.Reload className="chat-msg-action" aria-label="Retry" title="Retry — re-send the last message">
+        <ActionBarPrimitive.Reload
+          className="chat-msg-action"
+          aria-label="Retry"
+          title="Retry — re-send the last message"
+        >
           <Retry size={12} />
         </ActionBarPrimitive.Reload>
       </div>
@@ -973,7 +994,8 @@ function RateLimitBanner({ rateLimit, onDismiss }) {
   return (
     <div className="chat-usage-banner" role="status" data-testid="chat-usage-banner">
       <span>
-        You're at {rateLimit.pct != null ? `${rateLimit.pct}%` : 'high usage'} of your {rateLimit.label}
+        You're at {rateLimit.pct != null ? `${rateLimit.pct}%` : 'high usage'} of your{' '}
+        {rateLimit.label}
         {resetLabel ? ` · resets ${resetLabel}` : ''}
       </span>
       <button
@@ -1568,8 +1590,13 @@ function ChatThread({
     }
     if (parsedOptions.effort && picks.effort) {
       const values = flattenSelectOptions(parsedOptions.effort.options).map((o) => o.value);
-      const resolved = resolvePersistedPick(values, picks.effort, parsedOptions.effort.currentValue);
-      if (resolved !== parsedOptions.effort.currentValue) conn.setConfig(chatId, 'effort', resolved);
+      const resolved = resolvePersistedPick(
+        values,
+        picks.effort,
+        parsedOptions.effort.currentValue
+      );
+      if (resolved !== parsedOptions.effort.currentValue)
+        conn.setConfig(chatId, 'effort', resolved);
     }
     if (hasModes && picks.mode) {
       const ids = caps.modes.availableModes.map((m) => m.id);
@@ -1718,65 +1745,66 @@ function ChatThread({
     (usage.rateLimit.status === 'allowed_warning' || usage.rateLimit.status === 'rejected') &&
     bannerDismissedFor !== `${usage.rateLimit.type}:${usage.rateLimit.resetsAt}`;
   const dismissRateLimitBanner = useCallback(() => {
-    if (usage.rateLimit) setBannerDismissedFor(`${usage.rateLimit.type}:${usage.rateLimit.resetsAt}`);
+    if (usage.rateLimit)
+      setBannerDismissedFor(`${usage.rateLimit.type}:${usage.rateLimit.resetsAt}`);
   }, [usage.rateLimit]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <ChatMediaContext.Provider value={media}>
-      <div className="chat-panel" style={hidden ? { display: 'none' } : undefined}>
-        <StatusRow
-          tools={activeTools}
-          transcriptView={transcriptView}
-          onSetTranscriptView={onSetTranscriptView}
-        />
-        {/* DDR-184 #3 — loud alert when the current mode can't edit (plan / dontAsk),
-            so a user typing "change X" isn't silently ignored. Above the feed. */}
-        <ModeBanner modes={caps.modes} onSetMode={onSetMode} />
-        <ThreadPrimitive.Root className="chat-thread">
-          <ThreadPrimitive.Viewport className="chat-feed" autoScroll>
-            <ThreadPrimitive.Empty>
-              <ChatEmpty />
-            </ThreadPrimitive.Empty>
-            <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
-            {/* Background work that outlived the turn — streamed here so it's not
-                dropped (RCA F2). */}
-            <ContinuationBubble parts={bgParts} viewMode={transcriptView} />
-            {/* "still working" indicator under the latest message */}
-            <ActivityBar tools={activeTools} />
-          </ThreadPrimitive.Viewport>
-          {activePermission ? (
-            <PermissionPrompt
-              request={activePermission}
-              onRespond={respondPermission}
-              queueLength={pendingPermissions.length}
-            />
-          ) : activeElicitation ? (
-            <ElicitationPrompt request={activeElicitation} onRespond={respondElicitation} />
-          ) : (
-            <ErrorCard error={turnError} onRetry={retryLastTurn} />
-          )}
-          <QuickActions openComments={openComments} />
-          <Composer
-            activeCanvas={activeCanvas}
-            chatCtx={ctxDismissed ? null : chatCtx}
-            onCtxDismiss={dismissCtx}
-            picksRef={picksRef}
-            caps={{ modes: caps.modes, parsedOptions }}
-            onSetMode={onSetMode}
-            onSetConfig={onSetConfig}
-            conn={conn}
-            chatId={chatId}
-            attachmentsRef={attachmentsRef}
-            usage={usage}
-            showRateLimitBanner={showRateLimitBanner}
-            onDismissRateLimitBanner={dismissRateLimitBanner}
+        <div className="chat-panel" style={hidden ? { display: 'none' } : undefined}>
+          <StatusRow
+            tools={activeTools}
+            transcriptView={transcriptView}
+            onSetTranscriptView={onSetTranscriptView}
           />
-        </ThreadPrimitive.Root>
-        {lightboxSrc ? (
-          <ChatLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
-        ) : null}
-      </div>
+          {/* DDR-184 #3 — loud alert when the current mode can't edit (plan / dontAsk),
+            so a user typing "change X" isn't silently ignored. Above the feed. */}
+          <ModeBanner modes={caps.modes} onSetMode={onSetMode} />
+          <ThreadPrimitive.Root className="chat-thread">
+            <ThreadPrimitive.Viewport className="chat-feed" autoScroll>
+              <ThreadPrimitive.Empty>
+                <ChatEmpty />
+              </ThreadPrimitive.Empty>
+              <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
+              {/* Background work that outlived the turn — streamed here so it's not
+                dropped (RCA F2). */}
+              <ContinuationBubble parts={bgParts} viewMode={transcriptView} />
+              {/* "still working" indicator under the latest message */}
+              <ActivityBar tools={activeTools} />
+            </ThreadPrimitive.Viewport>
+            {activePermission ? (
+              <PermissionPrompt
+                request={activePermission}
+                onRespond={respondPermission}
+                queueLength={pendingPermissions.length}
+              />
+            ) : activeElicitation ? (
+              <ElicitationPrompt request={activeElicitation} onRespond={respondElicitation} />
+            ) : (
+              <ErrorCard error={turnError} onRetry={retryLastTurn} />
+            )}
+            <QuickActions openComments={openComments} />
+            <Composer
+              activeCanvas={activeCanvas}
+              chatCtx={ctxDismissed ? null : chatCtx}
+              onCtxDismiss={dismissCtx}
+              picksRef={picksRef}
+              caps={{ modes: caps.modes, parsedOptions }}
+              onSetMode={onSetMode}
+              onSetConfig={onSetConfig}
+              conn={conn}
+              chatId={chatId}
+              attachmentsRef={attachmentsRef}
+              usage={usage}
+              showRateLimitBanner={showRateLimitBanner}
+              onDismissRateLimitBanner={dismissRateLimitBanner}
+            />
+          </ThreadPrimitive.Root>
+          {lightboxSrc ? (
+            <ChatLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+          ) : null}
+        </div>
       </ChatMediaContext.Provider>
     </AssistantRuntimeProvider>
   );
@@ -2098,7 +2126,11 @@ export default function ChatPanel({
           .map((m) => {
             const body = (m.parts || [])
               .map((p) =>
-                p.type === 'text' ? p.text || '' : p.type === 'tool' ? `[${p.toolName || 'tool'}]` : ''
+                p.type === 'text'
+                  ? p.text || ''
+                  : p.type === 'tool'
+                    ? `[${p.toolName || 'tool'}]`
+                    : ''
               )
               .join('');
             return `${m.role === 'user' ? 'User' : 'Claude'}: ${body}`;
@@ -2236,21 +2268,27 @@ export default function ChatPanel({
                           title="More options"
                           aria-haspopup="menu"
                           aria-expanded={overflowChatId === c.id}
-                          onClick={() =>
-                            setOverflowChatId((prev) => (prev === c.id ? null : c.id))
-                          }
+                          onClick={() => setOverflowChatId((prev) => (prev === c.id ? null : c.id))}
                         >
                           ⋯
                         </button>
                         {overflowChatId === c.id ? (
-                          <div className="chat-menu-overflow" role="menu" data-testid="chat-overflow-menu">
+                          <div
+                            className="chat-menu-overflow"
+                            role="menu"
+                            data-testid="chat-overflow-menu"
+                          >
                             <button type="button" role="menuitem" onClick={() => startRename(c)}>
                               Rename
                             </button>
                             <button type="button" role="menuitem" onClick={() => archiveChat(c.id)}>
                               Archive
                             </button>
-                            <button type="button" role="menuitem" onClick={() => copyTranscript(c.id)}>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => copyTranscript(c.id)}
+                            >
                               Copy transcript
                             </button>
                             <button

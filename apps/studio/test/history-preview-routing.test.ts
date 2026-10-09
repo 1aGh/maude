@@ -33,12 +33,12 @@ test('accepted preview history and restore use project actions, not Git discard'
   expect(diff).toContain('loadLog={loadDiffLog}');
   expect(diff).toContain('onRestore={async (file, version) =>');
   expect(diff).toContain('acceptedDiff');
-  expect(diff).toContain('restoreProjectVersion(file,');
+  expect(diff).toMatch(/restoreProjectVersion\(\s*file,/);
   expect(/historyRefresh=.*syncStatus\?\.appliedRevision.*projectHistoryRefresh/.test(app)).toBe(
     true
   );
-  expect(app).toContain(
-    'onRestoreVersion={(revision) => restoreProjectVersion(activePath, revision)'
+  expect(app).toMatch(
+    /onRestoreVersion=\{\(revision\) =>\s*restoreProjectVersion\(activePath, revision\)/
   );
   expect(app).toMatch(/if \(!acceptedDiff\) return gitLoadLog\(path\);/);
   expect(app).toMatch(

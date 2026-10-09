@@ -23,9 +23,7 @@ function Icon({ name, size = 16 }) {
         <line x1="12" y1="4" x2="4" y2="12" />
       </>
     ),
-    sparkle: (
-      <path d="M8 2.5l1.2 3.3L12.5 7 9.2 8.2 8 11.5 6.8 8.2 3.5 7l3.3-1.2z" />
-    ),
+    sparkle: <path d="M8 2.5l1.2 3.3L12.5 7 9.2 8.2 8 11.5 6.8 8.2 3.5 7l3.3-1.2z" />,
     copy: (
       <>
         <rect x="5.5" y="5.5" width="7.5" height="7.5" rx="1.2" />
@@ -122,7 +120,11 @@ export default function GenerateDialog({ onClose, onInsert }) {
     const ok = onInsert(resultAsset) === true;
     setPlaced(ok);
     if (ok) setStatus({ ok: true, msg: 'Placed on canvas ✓' });
-    else setStatus({ ok: true, msg: 'Generated — open a canvas artboard to place it, or insert below.' });
+    else
+      setStatus({
+        ok: true,
+        msg: 'Generated — open a canvas artboard to place it, or insert below.',
+      });
   }, [resultAsset, placeOnCanvas, onInsert]);
 
   const current = providers.find((p) => p.id === provider);

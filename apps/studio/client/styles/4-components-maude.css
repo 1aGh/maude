@@ -9,126 +9,305 @@
  */
 
 @layer components {
+  /* ─── Buttons ───────────────────────────────────────────────────────────── */
+  .maude .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    font-weight: 500;
+    line-height: 1;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    color: var(--fg-0);
+    cursor: pointer;
+    transition:
+      background var(--dur-soft) var(--ease-out),
+      border-color var(--dur-soft) var(--ease-out),
+      color var(--dur-soft) var(--ease-out);
+  }
+  .maude .btn:hover {
+    background: var(--bg-3);
+    border-color: var(--border-strong);
+  }
+  .maude .btn:active {
+    background: var(--bg-4);
+  }
+  .maude .btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .maude .btn:disabled {
+    color: var(--fg-3);
+    cursor: not-allowed;
+    background: var(--bg-1);
+  }
 
-/* ─── Buttons ───────────────────────────────────────────────────────────── */
-.maude .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-family: var(--font-body);
-  font-size: var(--type-sm);
-  font-weight: 500;
-  line-height: 1;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-2);
-  color: var(--fg-0);
-  cursor: pointer;
-  transition: background var(--dur-soft) var(--ease-out),
-              border-color var(--dur-soft) var(--ease-out),
-              color var(--dur-soft) var(--ease-out);
-}
-.maude .btn:hover { background: var(--bg-3); border-color: var(--border-strong); }
-.maude .btn:active { background: var(--bg-4); }
-.maude .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.maude .btn:disabled { color: var(--fg-3); cursor: not-allowed; background: var(--bg-1); }
+  .maude .btn--primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-fg);
+  }
+  .maude .btn--primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+  }
+  .maude .btn--primary:active {
+    background: var(--accent-active);
+  }
 
-.maude .btn--primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
-.maude .btn--primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-.maude .btn--primary:active { background: var(--accent-active); }
+  .maude .btn--ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--fg-1);
+  }
+  .maude .btn--ghost:hover {
+    background: var(--bg-2);
+    color: var(--fg-0);
+  }
 
-.maude .btn--ghost { background: transparent; border-color: transparent; color: var(--fg-1); }
-.maude .btn--ghost:hover { background: var(--bg-2); color: var(--fg-0); }
+  .maude .btn--danger {
+    background: transparent;
+    border-color: var(--border-default);
+    color: var(--status-error);
+  }
+  .maude .btn--danger:hover {
+    background: color-mix(in oklab, var(--status-error) 14%, transparent);
+    border-color: var(--status-error);
+  }
 
-.maude .btn--danger { background: transparent; border-color: var(--border-default); color: var(--status-error); }
-.maude .btn--danger:hover { background: color-mix(in oklab, var(--status-error) 14%, transparent); border-color: var(--status-error); }
+  .maude .btn--icon {
+    padding: var(--space-3);
+    width: 28px;
+    height: 28px;
+    justify-content: center;
+  }
+  .maude .btn--sm {
+    font-size: var(--type-xs);
+    padding: var(--space-2) var(--space-3);
+  }
 
-.maude .btn--icon { padding: var(--space-3); width: 28px; height: 28px; justify-content: center; }
-.maude .btn--sm { font-size: var(--type-xs); padding: var(--space-2) var(--space-3); }
+  /* ─── Keyboard hint ─────────────────────────────────────────────────────── */
+  .maude .kbd {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    line-height: 1;
+    padding: 3px 6px;
+    border: 1px solid var(--border-default);
+    border-bottom-width: 2px;
+    border-radius: var(--radius-xs);
+    background: var(--bg-2);
+    color: var(--fg-1);
+  }
 
-/* ─── Keyboard hint ─────────────────────────────────────────────────────── */
-.maude .kbd {
-  font-family: var(--font-mono);
-  font-size: var(--type-xs);
-  line-height: 1;
-  padding: 3px 6px;
-  border: 1px solid var(--border-default);
-  border-bottom-width: 2px;
-  border-radius: var(--radius-xs);
-  background: var(--bg-2);
-  color: var(--fg-1);
-}
+  /* ─── Callout ───────────────────────────────────────────────────────────── */
+  .maude .callout {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border: 1px solid var(--border-default);
+    border-left-width: 3px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-1);
+    color: var(--fg-1);
+  }
+  .maude .callout--info {
+    border-left-color: var(--status-info);
+  }
+  .maude .callout--success {
+    border-left-color: var(--status-success);
+  }
+  .maude .callout--warn {
+    border-left-color: var(--status-warn);
+  }
+  .maude .callout--error {
+    border-left-color: var(--status-error);
+  }
 
-/* ─── Callout ───────────────────────────────────────────────────────────── */
-.maude .callout {
-  display: flex; gap: var(--space-3); padding: var(--space-4);
-  border: 1px solid var(--border-default); border-left-width: 3px;
-  border-radius: var(--radius-sm); background: var(--bg-1); color: var(--fg-1);
-}
-.maude .callout--info    { border-left-color: var(--status-info); }
-.maude .callout--success { border-left-color: var(--status-success); }
-.maude .callout--warn    { border-left-color: var(--status-warn); }
-.maude .callout--error   { border-left-color: var(--status-error); }
-
-/* ── Report-a-Bug dialog (feature-bug-report-button) ─────────────────────────
+  /* ── Report-a-Bug dialog (feature-bug-report-button) ─────────────────────────
  * Rides the shared .st-scrim/.st-dialog shell (3-shell-maude.css); rb-* covers
  * only what the shell doesn't: the consent checklist, screenshot tiles, and
  * the redaction overlay. Same DS voice as the generate/github dialogs —
  * body-font copy, mono uppercase section heads, accent focus rings. */
-.rb-dialog { width: 560px; }
-.rb-dialog .rb-body { max-height: 68vh; overflow-y: auto; }
-.rb-dialog .rb-label { font-family: var(--font-body); font-size: var(--type-sm); font-weight: 600; color: var(--fg-0); }
-/* base field styling joins the shared .gi-dialog/.cp-dialog recipe in
+  .rb-dialog {
+    width: 560px;
+  }
+  .rb-dialog .rb-body {
+    max-height: 68vh;
+    overflow-y: auto;
+  }
+  .rb-dialog .rb-label {
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+  /* base field styling joins the shared .gi-dialog/.cp-dialog recipe in
  * 3-shell-maude.css (F3 — one source for field + focus ring); only the
  * rb-specific sizing lives here. */
-.rb-dialog .textarea { resize: vertical; min-height: 96px; }
-.rb-dialog .rb-hint { font-family: var(--font-body); font-size: var(--type-xs); color: var(--fg-2); margin: 0; }
-.rb-dialog .rb-error { font-family: var(--font-body); font-size: var(--type-sm); color: var(--status-error); margin: 0; }
-.rb-dialog .rb-section { display: flex; flex-direction: column; gap: var(--space-2); }
-.rb-dialog .rb-section-hd {
-  display: flex; align-items: center; justify-content: space-between;
-  font-family: var(--font-mono); font-size: var(--type-xs);
-  letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--fg-2);
-}
-.rb-dialog .rb-check { display: flex; gap: var(--space-3); align-items: baseline; cursor: pointer; font-family: var(--font-body); font-size: var(--type-sm); color: var(--fg-1); }
-.rb-dialog .rb-check input { accent-color: var(--accent); }
-.rb-dialog .rb-check code { font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-0); background: var(--bg-3); border-radius: var(--radius-xs); padding: 1px 5px; overflow-wrap: anywhere; }
-.rb-dialog .rb-details summary { cursor: pointer; color: var(--fg-2); font-size: var(--type-xs); }
-.rb-dialog .rb-log {
-  max-height: 160px; overflow: auto; margin: var(--space-2) 0 0;
-  font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-1);
-  background: var(--bg-0); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
-  padding: var(--space-3); white-space: pre-wrap; word-break: break-all;
-}
-.rb-dialog .rb-shots { display: flex; flex-wrap: wrap; gap: var(--space-3); }
-.rb-dialog .rb-shot { display: flex; flex-direction: column; gap: var(--space-1); }
-.rb-dialog .rb-shot-box {
-  position: relative; max-width: 260px; overflow: hidden;
-  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
-  background: var(--bg-3); user-select: none;
-}
-.rb-dialog .rb-shot-box img { display: block; max-width: 100%; height: auto; }
-.rb-dialog .rb-shot-box.is-redacting { cursor: crosshair; box-shadow: 0 0 0 3px var(--accent-tint); border-color: var(--accent); }
-.rb-dialog .rb-shot-box.is-redacting img { pointer-events: none; }
-.rb-dialog .rb-redact-rect { position: absolute; background: #000; pointer-events: none; }
-.rb-dialog .rb-shot-actions { display: flex; gap: var(--space-3); }
-.rb-dialog .rb-hd-actions { display: flex; gap: var(--space-3); align-items: center; }
-.rb-dialog .rb-shot-src {
-  font-family: var(--font-mono); font-size: var(--type-xs);
-  letter-spacing: var(--tracking-wide); color: var(--fg-2); max-width: 260px;
-}
-.rb-dialog .rb-link {
-  appearance: none; background: transparent; border: 0; padding: 0; cursor: pointer;
-  font-size: var(--type-xs); font-family: var(--font-body);
-  color: var(--accent); text-decoration: underline; text-underline-offset: 2px;
-  text-decoration-color: var(--accent-muted, var(--accent));
-}
-.rb-dialog .rb-link:hover, .rb-dialog .rb-link.is-on { color: var(--accent-hover, var(--accent)); }
-.rb-dialog .rb-actions { display: flex; justify-content: flex-end; gap: var(--space-3); margin-top: var(--space-2); }
-.rb-dialog .rb-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
-.rb-dialog .rb-primary:hover:not(:disabled) { background: var(--accent-hover, var(--accent)); border-color: var(--accent-hover, var(--accent)); }
-.rb-dialog .st-btn:focus-visible,
-.rb-dialog .st-iconbtn:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
-
+  .rb-dialog .textarea {
+    resize: vertical;
+    min-height: 96px;
+  }
+  .rb-dialog .rb-hint {
+    font-family: var(--font-body);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    margin: 0;
+  }
+  .rb-dialog .rb-error {
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    color: var(--status-error);
+    margin: 0;
+  }
+  .rb-dialog .rb-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .rb-dialog .rb-section-hd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--fg-2);
+  }
+  .rb-dialog .rb-check {
+    display: flex;
+    gap: var(--space-3);
+    align-items: baseline;
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+  }
+  .rb-dialog .rb-check input {
+    accent-color: var(--accent);
+  }
+  .rb-dialog .rb-check code {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-0);
+    background: var(--bg-3);
+    border-radius: var(--radius-xs);
+    padding: 1px 5px;
+    overflow-wrap: anywhere;
+  }
+  .rb-dialog .rb-details summary {
+    cursor: pointer;
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+  }
+  .rb-dialog .rb-log {
+    max-height: 160px;
+    overflow: auto;
+    margin: var(--space-2) 0 0;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    background: var(--bg-0);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: var(--space-3);
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .rb-dialog .rb-shots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+  .rb-dialog .rb-shot {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .rb-dialog .rb-shot-box {
+    position: relative;
+    max-width: 260px;
+    overflow: hidden;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
+    user-select: none;
+  }
+  .rb-dialog .rb-shot-box img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+  .rb-dialog .rb-shot-box.is-redacting {
+    cursor: crosshair;
+    box-shadow: 0 0 0 3px var(--accent-tint);
+    border-color: var(--accent);
+  }
+  .rb-dialog .rb-shot-box.is-redacting img {
+    pointer-events: none;
+  }
+  .rb-dialog .rb-redact-rect {
+    position: absolute;
+    background: #000;
+    pointer-events: none;
+  }
+  .rb-dialog .rb-shot-actions {
+    display: flex;
+    gap: var(--space-3);
+  }
+  .rb-dialog .rb-hd-actions {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+  }
+  .rb-dialog .rb-shot-src {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    letter-spacing: var(--tracking-wide);
+    color: var(--fg-2);
+    max-width: 260px;
+  }
+  .rb-dialog .rb-link {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    font-size: var(--type-xs);
+    font-family: var(--font-body);
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-color: var(--accent-muted, var(--accent));
+  }
+  .rb-dialog .rb-link:hover,
+  .rb-dialog .rb-link.is-on {
+    color: var(--accent-hover, var(--accent));
+  }
+  .rb-dialog .rb-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    margin-top: var(--space-2);
+  }
+  .rb-dialog .rb-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-fg);
+  }
+  .rb-dialog .rb-primary:hover:not(:disabled) {
+    background: var(--accent-hover, var(--accent));
+    border-color: var(--accent-hover, var(--accent));
+  }
+  .rb-dialog .st-btn:focus-visible,
+  .rb-dialog .st-iconbtn:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
+  }
 }

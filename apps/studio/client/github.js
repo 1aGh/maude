@@ -76,15 +76,22 @@ async function api(path, opts = {}) {
 
 export const fetchIdentity = () => api('/_api/github/identity');
 export const listRepos = () => api('/_api/github/repos');
-export const createRepo = (body) => api('/_api/github/create-repo', { method: 'POST', body: JSON.stringify(body) });
-export const invite = (username) => api('/_api/github/invite', { method: 'POST', body: JSON.stringify({ username }) });
-export const cloneRepo = (body) => api('/_api/github/clone', { method: 'POST', body: JSON.stringify(body) });
-export const createProject = (body) => api('/_api/github/create-project', { method: 'POST', body: JSON.stringify(body) });
+export const createRepo = (body) =>
+  api('/_api/github/create-repo', { method: 'POST', body: JSON.stringify(body) });
+export const invite = (username) =>
+  api('/_api/github/invite', { method: 'POST', body: JSON.stringify({ username }) });
+export const cloneRepo = (body) =>
+  api('/_api/github/clone', { method: 'POST', body: JSON.stringify(body) });
+export const createProject = (body) =>
+  api('/_api/github/create-project', { method: 'POST', body: JSON.stringify(body) });
 /** Create a local-only project (git init + .design scaffold, no GitHub remote). body: { name, parentDir }. */
-export const createLocalProject = (body) => api('/_api/project/create-local', { method: 'POST', body: JSON.stringify(body) });
-export const initDesign = (dir) => api('/_api/design/init', { method: 'POST', body: JSON.stringify({ dir }) });
+export const createLocalProject = (body) =>
+  api('/_api/project/create-local', { method: 'POST', body: JSON.stringify(body) });
+export const initDesign = (dir) =>
+  api('/_api/design/init', { method: 'POST', body: JSON.stringify({ dir }) });
 /** Phase 29 (E4) Door C — connect to a team hub (saves the global hub credential). */
-export const hubLink = (body) => api('/_api/hub/link', { method: 'POST', body: JSON.stringify(body) });
+export const hubLink = (body) =>
+  api('/_api/hub/link', { method: 'POST', body: JSON.stringify(body) });
 
 // ── managed team projects (plan T21/T22) ───────────────────────────────────────
 /**
@@ -93,7 +100,8 @@ export const hubLink = (body) => api('/_api/hub/link', { method: 'POST', body: J
  * { kind: 'handoff', code, claimedProject } | { kind: 'hub', url, email, password }
  * | { kind: 'known-hub', url }.
  */
-export const prepareProject = (body) => api('/_api/projects/prepare', { method: 'POST', body: JSON.stringify(body) });
+export const prepareProject = (body) =>
+  api('/_api/projects/prepare', { method: 'POST', body: JSON.stringify(body) });
 /** Create (first time) or reuse the project's managed copy, then switch to it. */
 export const managedProjectOpen = (p) =>
   invoke('managed_project_open', {
@@ -112,7 +120,11 @@ export const managedProjectsList = () => invoke('managed_projects_list');
 export async function openTeamProject(input) {
   const r = await prepareProject(input);
   if (!r.ok || !r.json?.ok) {
-    return { ok: false, error: r.json?.error || 'The project could not be opened.', status: r.status };
+    return {
+      ok: false,
+      error: r.json?.error || 'The project could not be opened.',
+      status: r.status,
+    };
   }
   try {
     const path = await managedProjectOpen(r.json);

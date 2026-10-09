@@ -1,7 +1,14 @@
 // inspector/css-vocab.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
 import { Lu } from '../shell/icons.jsx';
-import { ALargeSmall as LuALargeSmall, AlignHorizontalSpaceBetween as LuSpaceBetween, Baseline as LuBaseline, Minus as LuMinus, MoveHorizontal as LuMoveH, Spline as LuSpline } from 'lucide-react';
+import {
+  ALargeSmall as LuALargeSmall,
+  AlignHorizontalSpaceBetween as LuSpaceBetween,
+  Baseline as LuBaseline,
+  Minus as LuMinus,
+  MoveHorizontal as LuMoveH,
+  Spline as LuSpline,
+} from 'lucide-react';
 
 // ---------- CSS knobs (Phase 12.2, DDR-104) — interactive panel ----------
 //
@@ -14,7 +21,15 @@ import { ALargeSmall as LuALargeSmall, AlignHorizontalSpaceBetween as LuSpaceBet
 // faint placeholder only (NOT editable — the v1 UX bug). Ported from the
 // critic-approved + user-iterated `.design/ui/Studio.tsx` spec.
 
-export const CSS_DISPLAYS = ['block', 'inline-block', 'flex', 'inline-flex', 'grid', 'inline', 'none'];
+export const CSS_DISPLAYS = [
+  'block',
+  'inline-block',
+  'flex',
+  'inline-flex',
+  'grid',
+  'inline',
+  'none',
+];
 
 // feature-3-web-artboards T5 — per-track unit ladder for the Grid section's
 // UnitSelect (the stub's own list: px/%/fr/em/auto/min-content/max-content).
@@ -62,7 +77,15 @@ export const CSS_BORDER_STYLES = ['none', 'solid', 'dashed', 'dotted', 'double']
 export const CSS_UNITS = ['px', 'rem', 'em', '%', 'vw', 'vh', 'auto'];
 
 // Properties whose bare-number value is unitless — never append a unit suffix.
-export const CSS_UNITLESS = new Set(['line-height', 'opacity', 'font-weight', 'z-index', 'flex-grow', 'flex-shrink', 'order']);
+export const CSS_UNITLESS = new Set([
+  'line-height',
+  'opacity',
+  'font-weight',
+  'z-index',
+  'flex-grow',
+  'flex-shrink',
+  'order',
+]);
 
 // #2 — Figma-style property prefix inside numeric fields: a small glyph (icon) or
 // a mono letter (t). Only where it reads cleanly; selects/colours keep their own.
@@ -119,7 +142,17 @@ export const CSS_BLEND_MODES = [
 
 // Common aspect ratios for the Media dropdown (dogfood request — a select, not a
 // free-text field). Canonical spaced form so a dropdown-set value round-trips.
-export const CSS_ASPECT_RATIO = ['auto', '1 / 1', '4 / 3', '3 / 2', '16 / 9', '21 / 9', '3 / 4', '2 / 3', '9 / 16'];
+export const CSS_ASPECT_RATIO = [
+  'auto',
+  '1 / 1',
+  '4 / 3',
+  '3 / 2',
+  '16 / 9',
+  '21 / 9',
+  '3 / 4',
+  '2 / 3',
+  '9 / 16',
+];
 
 // feature-element-editing-robustness Stage I4 — device presets for the "New
 // artboard" menu (inserts an empty <DCArtboard> of these dims into the canvas).

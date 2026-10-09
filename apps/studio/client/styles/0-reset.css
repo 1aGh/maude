@@ -1,22 +1,32 @@
 /* @layer reset — minimal base reset. */
 @layer reset {
-* { box-sizing: border-box; }
+  * {
+    box-sizing: border-box;
+  }
 
-html, body {
-  margin: 0; padding: 0; height: 100%;
-  background: var(--u-bg-0);
-  color: var(--u-fg-0);
-  font-family: var(--u-font-sans);
-  font-size: 13px;
-  line-height: 1.45;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  /* WebKit (Safari + WKWebView) text inflation can re-grow text that the canvas
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--u-bg-0);
+    color: var(--u-fg-0);
+    font-family: var(--u-font-sans);
+    font-size: 13px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* WebKit (Safari + WKWebView) text inflation can re-grow text that the canvas
      scales down during zoom-out, undoing the shrink. Pin it off. No-op on Blink. */
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-}
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
 
-button { font: inherit; }
-::selection { background: var(--u-accent-bg); color: var(--u-fg-0); }
+  button {
+    font: inherit;
+  }
+  ::selection {
+    background: var(--u-accent-bg);
+    color: var(--u-fg-0);
+  }
 }

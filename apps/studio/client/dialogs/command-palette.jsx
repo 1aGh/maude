@@ -19,9 +19,7 @@ export function CommandPalette({ open, onClose, actions }) {
   }, [open]);
   // Keep the keyboard-active row visible while arrowing through a scrolled list.
   useEffect(() => {
-    listRef.current
-      ?.querySelector('.st-pal-item.is-active')
-      ?.scrollIntoView({ block: 'nearest' });
+    listRef.current?.querySelector('.st-pal-item.is-active')?.scrollIntoView({ block: 'nearest' });
   }, [active]);
   const filtered = useMemo(() => matchCommands(actions, q), [q, actions]);
   useEffect(() => {

@@ -113,7 +113,9 @@ export function TourOverlay({ steps, open, onClose, onComplete, bus, hasSelectio
       if (settled) {
         if (r) {
           try {
-            document.querySelector(step.target)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            document
+              .querySelector(step.target)
+              ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
           } catch {}
           // Re-measure after the scroll so the spotlight is glued post-layout.
           requestAnimationFrame(() => {

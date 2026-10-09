@@ -28,19 +28,19 @@
     background: var(--bg-3);
     color: var(--fg-0);
   }
-  .st-assistant[data-active='true'] {
+  .st-assistant[data-active="true"] {
     background: var(--bg-3);
     color: var(--accent);
   }
-  .st-assistant[data-busy='true'] {
+  .st-assistant[data-busy="true"] {
     color: var(--presence-agent);
     animation: chat-pip 1.2s var(--ease-out) infinite;
   }
-  .st-assistant[data-unseen='true'] {
+  .st-assistant[data-unseen="true"] {
     color: var(--presence-agent);
   }
-  .st-assistant[data-unseen='true']::after {
-    content: '';
+  .st-assistant[data-unseen="true"]::after {
+    content: "";
     position: absolute;
     top: 3px;
     right: 3px;
@@ -579,7 +579,7 @@
     opacity: 0.4;
     cursor: default;
   }
-  .chat-msg-action[data-copied='true'] {
+  .chat-msg-action[data-copied="true"] {
     color: var(--status-success);
   }
   @media (prefers-reduced-motion: reduce) {
@@ -688,7 +688,7 @@
     display: none;
   }
   .chat-think-sum::after {
-    content: '▸';
+    content: "▸";
     margin-left: auto;
     transition: transform var(--dur-soft) var(--ease-out);
   }
@@ -736,7 +736,7 @@
     display: none;
   }
   .chat-toolgroup-sum::after {
-    content: '▸';
+    content: "▸";
     margin-left: auto;
     color: var(--fg-3);
     transition: transform var(--dur-soft) var(--ease-out);
@@ -996,7 +996,7 @@
     color: var(--fg-3);
   }
   .chat-elicit-meta > span + span::before {
-    content: '·';
+    content: "·";
     margin-right: var(--space-2);
   }
   .chat-elicit-question {
@@ -1051,7 +1051,10 @@
     color: var(--fg-2);
   }
   .chat-elicit-custom--inline {
-    margin-left: calc(16px + var(--space-2)); /* aligns under the "Other" label, not the radio dot */
+    margin-left: calc(
+      16px +
+      var(--space-2)
+    ); /* aligns under the "Other" label, not the radio dot */
   }
   .chat-elicit-option-body {
     display: flex;
@@ -1478,7 +1481,7 @@
     border-radius: var(--radius-xs);
   }
   .chat-foot-info-btn:hover,
-  .chat-foot-info-btn[aria-expanded='true'] {
+  .chat-foot-info-btn[aria-expanded="true"] {
     color: var(--fg-1);
     background: var(--bg-3);
   }
@@ -1852,7 +1855,7 @@
     .chat-status-dot--working,
     .chat-tool-dot--run,
     .chat-activity-spin,
-    .st-assistant[data-busy='true'],
+    .st-assistant[data-busy="true"],
     .chat-dot--busy,
     .chat-msg,
     .chat-lightbox {
@@ -1869,135 +1872,359 @@
    present rows reassure, missing rows carry a copy-paste fix, optional rows stay
    muted (never alarming). */
 @layer components {
-  .rdy { display: flex; flex-direction: column; gap: var(--space-3); }
+  .rdy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
   .rdy-list {
-    list-style: none; margin: 0; padding: 0;
-    display: flex; flex-direction: column; gap: var(--space-2);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
   }
   .rdy-row {
-    display: flex; gap: var(--space-2); align-items: flex-start;
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
-    background: var(--bg-2); text-align: left;
-  }
-  .rdy-ic { flex-shrink: 0; margin-top: 1px; }
-  .rdy-row--present .rdy-ic { color: var(--status-success); }
-  .rdy-row--missing .rdy-ic { color: var(--status-error); }
-  .rdy-row--unknown .rdy-ic { color: var(--status-info); }
-  /* optional, missing → muted, not alarming */
-  .rdy-row--opt.rdy-row--missing .rdy-ic { color: var(--fg-3); }
-  .rdy-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .rdy-label { font-size: var(--type-sm); font-weight: 600; color: var(--fg-0); }
-  .rdy-detail { font-size: var(--type-xs); color: var(--fg-2); line-height: var(--lh-xs); }
-  .rdy-fix {
-    margin-top: var(--space-2); display: flex; gap: var(--space-2);
+    display: flex;
+    gap: var(--space-2);
     align-items: flex-start;
-    font-size: var(--type-xs); color: var(--fg-1); line-height: var(--lh-xs);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    text-align: left;
   }
-  .rdy-fix-tx { min-width: 0; }
+  .rdy-ic {
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .rdy-row--present .rdy-ic {
+    color: var(--status-success);
+  }
+  .rdy-row--missing .rdy-ic {
+    color: var(--status-error);
+  }
+  .rdy-row--unknown .rdy-ic {
+    color: var(--status-info);
+  }
+  /* optional, missing → muted, not alarming */
+  .rdy-row--opt.rdy-row--missing .rdy-ic {
+    color: var(--fg-3);
+  }
+  .rdy-tx {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .rdy-label {
+    font-size: var(--type-sm);
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+  .rdy-detail {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    line-height: var(--lh-xs);
+  }
+  .rdy-fix {
+    margin-top: var(--space-2);
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-start;
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+    line-height: var(--lh-xs);
+  }
+  .rdy-fix-tx {
+    min-width: 0;
+  }
   .rdy code {
-    font-family: var(--font-mono); font-size: var(--type-xs);
-    color: var(--fg-0); background: var(--bg-3);
-    padding: 1px 5px; border-radius: var(--radius-xs);
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-0);
+    background: var(--bg-3);
+    padding: 1px 5px;
+    border-radius: var(--radius-xs);
     overflow-wrap: anywhere;
   }
   .rdy-copy {
-    flex-shrink: 0; cursor: pointer;
-    font-size: var(--type-xs); color: var(--fg-2);
-    background: transparent; border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-xs); padding: 1px 6px;
+    flex-shrink: 0;
+    cursor: pointer;
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xs);
+    padding: 1px 6px;
   }
-  .rdy-copy:hover { color: var(--fg-0); background: var(--bg-3); }
-  .rdy-foot { display: flex; justify-content: flex-end; }
+  .rdy-copy:hover {
+    color: var(--fg-0);
+    background: var(--bg-3);
+  }
+  .rdy-foot {
+    display: flex;
+    justify-content: flex-end;
+  }
   /* DDR-166 T0c/T0d — verbatim install command + Sign-in action rows. */
   .rdy-cmd {
-    margin-top: var(--space-2); display: flex; gap: var(--space-2);
-    align-items: center; flex-wrap: wrap;
+    margin-top: var(--space-2);
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+    flex-wrap: wrap;
   }
   .rdy-cmd-tx {
-    font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-0);
-    background: var(--bg-3); padding: var(--space-1) var(--space-2);
-    border-radius: var(--radius-xs); overflow-wrap: anywhere; flex: 1 1 auto;
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-0);
+    background: var(--bg-3);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-xs);
+    overflow-wrap: anywhere;
+    flex: 1 1 auto;
   }
-  .rdy-fix-tx--err { color: var(--status-error); }
-  .rdy-fallback-label { display: block; margin-top: var(--space-2); color: var(--fg-3); }
+  .rdy-fix-tx--err {
+    color: var(--status-error);
+  }
+  .rdy-fallback-label {
+    display: block;
+    margin-top: var(--space-2);
+    color: var(--fg-3);
+  }
   /* DDR-166 Decision 3 — the resolved-binary disclosure shown before Sign-in. */
-  .rdy-resolved-path { display: block; margin-top: var(--space-2); color: var(--fg-3); word-break: break-all; }
-  .rdy-resolved-path code { font-family: var(--font-mono); color: var(--fg-1); }
-  .rdy-signin {
-    flex-shrink: 0; cursor: pointer;
-    font-size: var(--type-xs); font-weight: 600; color: var(--bg-0);
-    background: var(--accent); border: 1px solid var(--accent);
-    border-radius: var(--radius-xs); padding: 3px 10px;
+  .rdy-resolved-path {
+    display: block;
+    margin-top: var(--space-2);
+    color: var(--fg-3);
+    word-break: break-all;
   }
-  .rdy-signin:hover { filter: brightness(1.08); }
+  .rdy-resolved-path code {
+    font-family: var(--font-mono);
+    color: var(--fg-1);
+  }
+  .rdy-signin {
+    flex-shrink: 0;
+    cursor: pointer;
+    font-size: var(--type-xs);
+    font-weight: 600;
+    color: var(--bg-0);
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-xs);
+    padding: 3px 10px;
+  }
+  .rdy-signin:hover {
+    filter: brightness(1.08);
+  }
   /* Help ▸ Check AI editing readiness… modal (reuses .help-modal chrome). */
-  .rdy-modal { max-width: 520px; }
-  .rdy-modal-note { margin: 0 0 var(--space-3); color: var(--fg-2); font-size: var(--type-sm); line-height: var(--lh-md); }
+  .rdy-modal {
+    max-width: 520px;
+  }
+  .rdy-modal-note {
+    margin: 0 0 var(--space-3);
+    color: var(--fg-2);
+    font-size: var(--type-sm);
+    line-height: var(--lh-md);
+  }
   /* DDR-166 Decision 5 — auto-setup opt-out, mirrors .ob-crash-optin. */
-  .rdy-autosetup-toggle { display: flex; align-items: flex-start; gap: var(--space-2); margin-top: var(--space-3); color: var(--fg-2); font-size: var(--type-xs); line-height: var(--lh-md); cursor: pointer; text-align: left; }
-  .rdy-autosetup-toggle input { margin-top: 2px; flex: 0 0 auto; accent-color: var(--accent); cursor: pointer; }
+  .rdy-autosetup-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+    color: var(--fg-2);
+    font-size: var(--type-xs);
+    line-height: var(--lh-md);
+    cursor: pointer;
+    text-align: left;
+  }
+  .rdy-autosetup-toggle input {
+    margin-top: 2px;
+    flex: 0 0 auto;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
 }
 
 /* DDR-166 plan, Phase 2 (T7/T8) — design-setup checklist (SetupChecklist.jsx).
    Mirrors .rdy-* above (same present/missing two-state shape, no remediation
    copy — this probe never offers an automated fix, just progress). */
 @layer components {
-  .setup-cl { display: flex; flex-direction: column; gap: var(--space-3); }
+  .setup-cl {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
   .setup-cl-list {
-    list-style: none; margin: 0; padding: 0;
-    display: flex; flex-direction: column; gap: var(--space-2);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
   }
   .setup-cl-row {
-    display: flex; gap: var(--space-2); align-items: flex-start;
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-start;
     padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
-    background: var(--bg-2); text-align: left;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-2);
+    text-align: left;
   }
-  .setup-cl-ic { flex-shrink: 0; margin-top: 1px; }
-  .setup-cl-row--present .setup-cl-ic { color: var(--status-success); }
-  .setup-cl-row--missing .setup-cl-ic { color: var(--fg-3); }
-  .setup-cl-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .setup-cl-label { font-size: var(--type-sm); font-weight: 600; color: var(--fg-0); }
-  .setup-cl-detail { font-size: var(--type-xs); color: var(--fg-2); line-height: var(--lh-xs); }
-  .setup-cl-foot { display: flex; justify-content: flex-end; gap: var(--space-2); flex-wrap: wrap; }
-  .setup-cl-brand { text-decoration: none; }
-  .setup-cl-modal { max-width: 520px; }
-  .setup-cl-note { margin: 0 0 var(--space-3); color: var(--fg-2); font-size: var(--type-sm); line-height: var(--lh-md); }
+  .setup-cl-ic {
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .setup-cl-row--present .setup-cl-ic {
+    color: var(--status-success);
+  }
+  .setup-cl-row--missing .setup-cl-ic {
+    color: var(--fg-3);
+  }
+  .setup-cl-tx {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .setup-cl-label {
+    font-size: var(--type-sm);
+    font-weight: 600;
+    color: var(--fg-0);
+  }
+  .setup-cl-detail {
+    font-size: var(--type-xs);
+    color: var(--fg-2);
+    line-height: var(--lh-xs);
+  }
+  .setup-cl-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+  .setup-cl-brand {
+    text-decoration: none;
+  }
+  .setup-cl-modal {
+    max-width: 520px;
+  }
+  .setup-cl-note {
+    margin: 0 0 var(--space-3);
+    color: var(--fg-2);
+    font-size: var(--type-sm);
+    line-height: var(--lh-md);
+  }
 }
 
 /* T12 (DDR-173) — the in-app Brand-upload panel (BrandUploadPanel.jsx).
    Reuses .help-modal-* chrome; new rules cover the pick/result content only. */
 @layer components {
-  .brand-up-modal { max-width: 480px; }
-  .brand-up-note { margin: 0 0 var(--space-4); color: var(--fg-2); font-size: var(--type-sm); line-height: var(--lh-md); }
-  .brand-up-pick { display: flex; justify-content: center; padding: var(--space-5) 0; }
-  .brand-up-error { margin: var(--space-2) 0 0; color: var(--status-error); font-size: var(--type-sm); }
-  .brand-up-empty { margin: 0; color: var(--fg-3); font-size: var(--type-xs); line-height: var(--lh-sm); }
+  .brand-up-modal {
+    max-width: 480px;
+  }
+  .brand-up-note {
+    margin: 0 0 var(--space-4);
+    color: var(--fg-2);
+    font-size: var(--type-sm);
+    line-height: var(--lh-md);
+  }
+  .brand-up-pick {
+    display: flex;
+    justify-content: center;
+    padding: var(--space-5) 0;
+  }
+  .brand-up-error {
+    margin: var(--space-2) 0 0;
+    color: var(--status-error);
+    font-size: var(--type-sm);
+  }
+  .brand-up-empty {
+    margin: 0;
+    color: var(--fg-3);
+    font-size: var(--type-xs);
+    line-height: var(--lh-sm);
+  }
   .brand-up-preview {
-    display: block; max-width: 100%; max-height: 120px; margin: 0 auto var(--space-4);
-    border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-3);
+    display: block;
+    max-width: 100%;
+    max-height: 120px;
+    margin: 0 auto var(--space-4);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-3);
     padding: var(--space-3);
   }
   .brand-up-sechd {
-    margin: var(--space-4) 0 var(--space-2); font-size: var(--type-xs); font-weight: 600;
-    text-transform: uppercase; letter-spacing: var(--tracking-wide); color: var(--fg-2);
+    margin: var(--space-4) 0 var(--space-2);
+    font-size: var(--type-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide);
+    color: var(--fg-2);
   }
-  .brand-up-swatches { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
-  .brand-up-swatch { display: flex; align-items: center; gap: var(--space-2); }
+  .brand-up-swatches {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .brand-up-swatch {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
   .brand-up-swatch-chip {
-    display: inline-block; width: 20px; height: 20px; border-radius: var(--radius-xs);
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-xs);
     border: 1px solid var(--border-default);
   }
-  .brand-up-swatch-value { font-family: var(--font-mono); font-size: var(--type-xs); color: var(--fg-2); }
-  .brand-up-fonts { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
-  .brand-up-font-chip {
-    padding: 2px var(--space-2); border-radius: var(--radius-pill); border: 1px solid var(--border-default);
-    background: var(--bg-2); font-size: var(--type-xs); color: var(--fg-1);
+  .brand-up-swatch-value {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs);
+    color: var(--fg-2);
   }
-  .brand-up-nextstep { margin: var(--space-4) 0 0; font-size: var(--type-sm); color: var(--fg-1); line-height: var(--lh-md); }
-  .brand-up-nextstep code { font-family: var(--font-mono); background: var(--bg-3); padding: 1px 4px; border-radius: var(--radius-xs); }
-  .brand-up-actions { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+  .brand-up-fonts {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .brand-up-font-chip {
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border-default);
+    background: var(--bg-2);
+    font-size: var(--type-xs);
+    color: var(--fg-1);
+  }
+  .brand-up-nextstep {
+    margin: var(--space-4) 0 0;
+    font-size: var(--type-sm);
+    color: var(--fg-1);
+    line-height: var(--lh-md);
+  }
+  .brand-up-nextstep code {
+    font-family: var(--font-mono);
+    background: var(--bg-3);
+    padding: 1px 4px;
+    border-radius: var(--radius-xs);
+  }
+  .brand-up-actions {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+  }
 
   /* DDR-184 #3 — loud top-of-thread alert while the current mode can't edit
      (Plan / Don't-Ask). Warn-toned so it reads as "you're blocked", distinct

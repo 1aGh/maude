@@ -80,7 +80,12 @@ export function ColorPicker({ seed, label, onApply }) {
   };
   const onSvKeyDown = (e) => {
     const step = e.shiftKey ? 0.1 : 0.02;
-    const deltas = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] };
+    const deltas = {
+      ArrowLeft: [-step, 0],
+      ArrowRight: [step, 0],
+      ArrowUp: [0, step],
+      ArrowDown: [0, -step],
+    };
     const d = deltas[e.key];
     if (!d) return;
     e.preventDefault();
@@ -113,7 +118,11 @@ export function ColorPicker({ seed, label, onApply }) {
   const rgb = hsvToRgb(hsv);
   const setRgb = (patch) => {
     const next = { ...rgb, ...patch };
-    const h = rgbToHsv({ r: clamp01(next.r / 255) * 255, g: clamp01(next.g / 255) * 255, b: clamp01(next.b / 255) * 255 });
+    const h = rgbToHsv({
+      r: clamp01(next.r / 255) * 255,
+      g: clamp01(next.g / 255) * 255,
+      b: clamp01(next.b / 255) * 255,
+    });
     setHsv(h);
     onApply(rgbToHex(hsvToRgb(h)));
   };
@@ -184,7 +193,9 @@ export function ColorPicker({ seed, label, onApply }) {
             <input
               aria-label={k.toUpperCase()}
               value={Math.round(rgb[k])}
-              onChange={(e) => setRgb({ [k]: clamp01((Number.parseFloat(e.target.value) || 0) / 255) * 255 })}
+              onChange={(e) =>
+                setRgb({ [k]: clamp01((Number.parseFloat(e.target.value) || 0) / 255) * 255 })
+              }
               onFocus={(e) => e.currentTarget.select()}
             />
             <span>{k.toUpperCase()}</span>

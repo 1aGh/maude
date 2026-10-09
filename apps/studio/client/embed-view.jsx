@@ -61,7 +61,8 @@ export default function EmbedView() {
   // The allowlist and the echo travel in refs: posting must never wait on a render.
   const allowRef = useRef([]);
   const openRef = useRef('');
-  const post = (type, title) => postToEmbedder(window, allowRef.current, type, openRef.current, title);
+  const post = (type, title) =>
+    postToEmbedder(window, allowRef.current, type, openRef.current, title);
 
   // Follow the OS theme for the little chrome there is. Never persisted.
   useEffect(() => {
@@ -124,7 +125,8 @@ export default function EmbedView() {
       let title = null;
       try {
         const meta = await readJson(`/_api/canvas-meta?file=${encodeURIComponent(path)}`);
-        if (typeof meta?.title === 'string' && meta.title.trim()) title = meta.title.trim().slice(0, 200);
+        if (typeof meta?.title === 'string' && meta.title.trim())
+          title = meta.title.trim().slice(0, 200);
       } catch {
         /* a canvas without a sidecar still renders — it just has no title */
       }
@@ -168,7 +170,9 @@ export default function EmbedView() {
         { dgn: 'comments-set', comments: [] },
         { dgn: 'theme', theme },
         { dgn: 'view-chrome', minimap: false, zoom: false, present: true },
-        view.artboard ? { dgn: 'zoom', op: 'artboard', id: view.artboard } : { dgn: 'zoom', op: 'fit' },
+        view.artboard
+          ? { dgn: 'zoom', op: 'artboard', id: view.artboard }
+          : { dgn: 'zoom', op: 'fit' },
       ];
       for (const m of messages) {
         try {

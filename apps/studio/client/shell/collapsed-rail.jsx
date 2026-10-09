@@ -8,13 +8,31 @@ export function CollapsedRail({ shown, onExpand, onSearch }) {
   return (
     <div className={'st-rail' + (shown ? ' is-shown' : '')}>
       <div className="st-rail-inner">
-        <button type="button" className="st-iconbtn" aria-label="Expand sidebar" title="Expand sidebar (T)" onClick={onExpand}>
+        <button
+          type="button"
+          className="st-iconbtn"
+          aria-label="Expand sidebar"
+          title="Expand sidebar (T)"
+          onClick={onExpand}
+        >
           <StIcon name="panel-left" size={15} />
         </button>
-        <button type="button" className="st-iconbtn" aria-label="Search" title="Search (/)" onClick={onSearch}>
+        <button
+          type="button"
+          className="st-iconbtn"
+          aria-label="Search"
+          title="Search (/)"
+          onClick={onSearch}
+        >
           <StIcon name="search" size={15} />
         </button>
-        <button type="button" className="st-iconbtn" aria-label="Files" title="Files" onClick={onExpand}>
+        <button
+          type="button"
+          className="st-iconbtn"
+          aria-label="Files"
+          title="Files"
+          onClick={onExpand}
+        >
           <StIcon name="folder" size={15} />
         </button>
       </div>

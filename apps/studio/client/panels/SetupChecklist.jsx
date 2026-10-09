@@ -80,7 +80,14 @@ function StatusIcon({ present }) {
   );
 }
 
-export function SetupChecklist({ report, loading, refresh, onStartTour, onBringBrand, onImportFigma }) {
+export function SetupChecklist({
+  report,
+  loading,
+  refresh,
+  onStartTour,
+  onBringBrand,
+  onImportFigma,
+}) {
   return (
     <div className="setup-cl">
       <ul className="setup-cl-list">

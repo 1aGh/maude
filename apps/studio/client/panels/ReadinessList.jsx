@@ -49,19 +49,49 @@ export function useReadiness(enabled = true) {
 function StatusIcon({ status }) {
   if (status === 'present')
     return (
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
         <polyline points="3 8.4 6.4 11.8 13 4.4" />
       </svg>
     );
   if (status === 'unknown')
     return (
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
         <path d="M6 6a2 2 0 1 1 2.6 1.9c-.4.2-.6.5-.6 1V10" />
         <circle cx="8" cy="12.4" r="0.6" fill="currentColor" stroke="none" />
       </svg>
     );
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <circle cx="8" cy="8" r="5.5" />
       <line x1="8" y1="5" x2="8" y2="8.6" />
     </svg>
@@ -148,7 +178,9 @@ function SetupAction({ mode, refresh }) {
       if (Date.now() > timerRef.current.deadline) {
         stopPoll();
         setPhase('error');
-        setError('Install is taking longer than expected — it may still finish in the background; you can also run the command below yourself, then Re-check.');
+        setError(
+          'Install is taking longer than expected — it may still finish in the background; you can also run the command below yourself, then Re-check.'
+        );
         return;
       }
       const state = await fetch('/_api/claude/install-status')
@@ -286,7 +318,12 @@ function Row({ item, refresh }) {
               <Inline text={item.remediation} />
             </span>
             {!item.installCommand && !item.action ? (
-              <button type="button" className="rdy-copy" onClick={copyFix} aria-label={`Copy the fix for ${item.label}`}>
+              <button
+                type="button"
+                className="rdy-copy"
+                onClick={copyFix}
+                aria-label={`Copy the fix for ${item.label}`}
+              >
                 {copied ? 'Copied' : 'Copy'}
               </button>
             ) : null}
@@ -311,8 +348,8 @@ function Row({ item, refresh }) {
           <>
             {item.action === 'install' ? (
               <span className="rdy-fix-tx rdy-fallback-label">
-                Clicking above runs this command, then opens your browser to sign in. Prefer to do it
-                yourself?
+                Clicking above runs this command, then opens your browser to sign in. Prefer to do
+                it yourself?
               </span>
             ) : null}
             <InstallCommand command={item.installCommand} />
@@ -333,7 +370,12 @@ export default function ReadinessList({ report, loading, refresh }) {
       </ul>
       {refresh ? (
         <div className="rdy-foot">
-          <button type="button" className="btn btn--ghost btn--sm rdy-recheck" onClick={refresh} disabled={loading}>
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm rdy-recheck"
+            onClick={refresh}
+            disabled={loading}
+          >
             {loading ? 'Checking…' : 'Re-check'}
           </button>
         </div>
@@ -400,12 +442,22 @@ export function ReadinessDialog({ open, onClose }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="help-modal rdy-modal" role="dialog" aria-modal="true" aria-labelledby="rdy-modal-title">
+      <div
+        className="help-modal rdy-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rdy-modal-title"
+      >
         <header className="help-modal-hd">
           <span className="title" id="rdy-modal-title">
             Check AI editing readiness
           </span>
-          <button type="button" className="help-modal-close" aria-label="Close (Esc)" onClick={onClose}>
+          <button
+            type="button"
+            className="help-modal-close"
+            aria-label="Close (Esc)"
+            onClick={onClose}
+          >
             ×
           </button>
         </header>

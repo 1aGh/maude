@@ -4,10 +4,64 @@ import { useEffect, useRef, useState } from 'react';
 import { activeDsNameFor, useAllDsTokens } from './ds-tokens.js';
 import { cssColorToHex, cssHint, cssSplitUnit } from './color.js';
 import { sizingModeOf, sizingModePatch } from '../../sizing-mode.ts';
-import { AlignPad, AngleDial, ColorField, IconButtonGroup, IconToggleGroup, NumberField, RadiusControl, Segmented, SliderField, Toggle, UnitSelect, ValueTokenField, makeScrubHandler } from '../inspector-controls.jsx';
+import {
+  AlignPad,
+  AngleDial,
+  ColorField,
+  IconButtonGroup,
+  IconToggleGroup,
+  NumberField,
+  RadiusControl,
+  Segmented,
+  SliderField,
+  Toggle,
+  UnitSelect,
+  ValueTokenField,
+  makeScrubHandler,
+} from '../inspector-controls.jsx';
 import { Lu, StIcon } from '../shell/icons.jsx';
-import { AlignCenter as LuAlignCenter, AlignHorizontalJustifyCenter as LuJustifyCenter, AlignHorizontalJustifyEnd as LuJustifyEnd, AlignHorizontalJustifyStart as LuJustifyStart, AlignHorizontalSpaceBetween as LuSpaceBetween, AlignJustify as LuAlignJustify, AlignLeft as LuAlignLeft, AlignRight as LuAlignRight, AlignVerticalJustifyCenter as LuVJustifyCenter, AlignVerticalJustifyEnd as LuVJustifyEnd, AlignVerticalJustifyStart as LuVJustifyStart, Bold as LuBold, Braces as LuBraces, Columns3 as LuColumns3, Eye as LuEye, Italic as LuItalic, RotateCw as LuRotateCw, Rows3 as LuRows3, Scissors as LuScissors, ScrollText as LuScrollText, StretchHorizontal as LuStretch, Underline as LuUnderline, Wand2 as LuWand2 } from 'lucide-react';
-import { CSS_ALIGN_SELF, CSS_ASPECT_RATIO, CSS_BLEND_MODES, CSS_BORDER_STYLES, CSS_DISPLAYS, CSS_FONTS, CSS_FONT_STYLE, CSS_OBJECT_FIT, CSS_POSITION, CSS_TEXT_TRANSFORM, CSS_UNITLESS, CSS_UNITS, CSS_WEIGHTS, CSS_WHITE_SPACE, PROP_LEAD } from './css-vocab.jsx';
+import {
+  AlignCenter as LuAlignCenter,
+  AlignHorizontalJustifyCenter as LuJustifyCenter,
+  AlignHorizontalJustifyEnd as LuJustifyEnd,
+  AlignHorizontalJustifyStart as LuJustifyStart,
+  AlignHorizontalSpaceBetween as LuSpaceBetween,
+  AlignJustify as LuAlignJustify,
+  AlignLeft as LuAlignLeft,
+  AlignRight as LuAlignRight,
+  AlignVerticalJustifyCenter as LuVJustifyCenter,
+  AlignVerticalJustifyEnd as LuVJustifyEnd,
+  AlignVerticalJustifyStart as LuVJustifyStart,
+  Bold as LuBold,
+  Braces as LuBraces,
+  Columns3 as LuColumns3,
+  Eye as LuEye,
+  Italic as LuItalic,
+  RotateCw as LuRotateCw,
+  Rows3 as LuRows3,
+  Scissors as LuScissors,
+  ScrollText as LuScrollText,
+  StretchHorizontal as LuStretch,
+  Underline as LuUnderline,
+  Wand2 as LuWand2,
+} from 'lucide-react';
+import {
+  CSS_ALIGN_SELF,
+  CSS_ASPECT_RATIO,
+  CSS_BLEND_MODES,
+  CSS_BORDER_STYLES,
+  CSS_DISPLAYS,
+  CSS_FONTS,
+  CSS_FONT_STYLE,
+  CSS_OBJECT_FIT,
+  CSS_POSITION,
+  CSS_TEXT_TRANSFORM,
+  CSS_UNITLESS,
+  CSS_UNITS,
+  CSS_WEIGHTS,
+  CSS_WHITE_SPACE,
+  PROP_LEAD,
+} from './css-vocab.jsx';
 import { TokenPopover } from './token-popover.jsx';
 import { parseTrackList, serializeTrackList } from '../../grid-track-handles.ts';
 import { GridTracksEditor } from './grid-tracks-editor.jsx';
@@ -33,7 +87,16 @@ export function afterRecordableWrites() {
     : new Promise((resolve) => recordableWrites.waiters.push(resolve));
 }
 
-export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, onUndoRedo, mode, onSetMode }) {
+export function CssKnobs({
+  el,
+  cfg,
+  onOptimistic,
+  onRecordEdit,
+  onReplaceMedia,
+  onUndoRedo,
+  mode,
+  onSetMode,
+}) {
   const editable = !!el.id;
   const computed = el.computed || {};
   // Phase 12.3 — optimistic local overlay over the selection's authored / custom
@@ -94,8 +157,7 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
   // CSS props / HTML attrs, so a just-added (or pre-existing) custom value is
   // visible without hunting for the disclosure. Keyed on el.id so it re-runs per
   // selection (CssKnobs persists across selections — the el prop changes).
-  const hasCustom =
-    Object.keys(customStyles).length > 0 || Object.keys(attrs).length > 0;
+  const hasCustom = Object.keys(customStyles).length > 0 || Object.keys(attrs).length > 0;
   useEffect(() => {
     if (hasCustom) setOpen((o) => (o.Advanced ? o : { ...o, Advanced: true }));
   }, [el.id, hasCustom]);
@@ -103,7 +165,8 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
   // precedent: collapsed by default (position is the rare case), auto-opens
   // the moment the element actually has a non-static position so the inset
   // fields the user just set (or that came from the source) aren't hidden.
-  const hasCustomPosition = (authored.position || cssHint(computed.position) || 'static') !== 'static';
+  const hasCustomPosition =
+    (authored.position || cssHint(computed.position) || 'static') !== 'static';
   useEffect(() => {
     if (hasCustomPosition) setOpen((o) => (o['d:Position'] ? o : { ...o, 'd:Position': true }));
   }, [el.id, hasCustomPosition]);
@@ -294,8 +357,7 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
     for (const p of patch.reset) if (authored[p]) reset(p);
     for (const [prop, value] of patch.set) commit(prop, value);
   };
-  const parentIsFlexChild =
-    el.parentDisplay === 'flex' || el.parentDisplay === 'inline-flex';
+  const parentIsFlexChild = el.parentDisplay === 'flex' || el.parentDisplay === 'inline-flex';
   const sizeModeSeg = (axis) => {
     const cur = sizingModeOf(axis, authored, computed, parentLayout);
     return (
@@ -303,12 +365,18 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
       // in the label column, the shared Segmented right-aligned in the control
       // column (aligned with the number inputs below), input-matching height.
       <div className="st-cp-moderow" key={`mode-${axis}`}>
-        <span className="st-cp-modelabel">{axis === 'width' ? 'Width sizing' : 'Height sizing'}</span>
+        <span className="st-cp-modelabel">
+          {axis === 'width' ? 'Width sizing' : 'Height sizing'}
+        </span>
         <div className="st-cp-modeseg" role="group" aria-label={`${axis} sizing mode`}>
           <Segmented
             value={cur}
             ariaLabel={`${axis} sizing`}
-            options={[{ value: 'fixed', label: 'fixed' }, { value: 'hug', label: 'hug' }, { value: 'fill', label: 'fill' }]}
+            options={[
+              { value: 'fixed', label: 'fixed' },
+              { value: 'hug', label: 'hug' },
+              { value: 'fill', label: 'fill' },
+            ]}
             onChange={(m) => applySizing(axis, m)}
           />
         </div>
@@ -328,8 +396,17 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
   const AP_ROWS = ['t', 'c', 'b'];
   const AP_COLS = ['l', 'c', 'r'];
   const alignPadCell = () => {
-    const isRow = !(authored['flex-direction'] || cssHint(computed['flex-direction']) || 'row').startsWith('column');
-    const jcPos = Math.max(0, AP_JC.indexOf(authored['justify-content'] || cssHint(computed['justify-content']) || 'flex-start'));
+    const isRow = !(
+      authored['flex-direction'] ||
+      cssHint(computed['flex-direction']) ||
+      'row'
+    ).startsWith('column');
+    const jcPos = Math.max(
+      0,
+      AP_JC.indexOf(
+        authored['justify-content'] || cssHint(computed['justify-content']) || 'flex-start'
+      )
+    );
     const aiRaw = authored['align-items'] || cssHint(computed['align-items']) || 'stretch';
     const aiPos = aiRaw === 'stretch' ? 1 : Math.max(0, AP_AI.indexOf(aiRaw));
     const [h, v] = isRow ? [jcPos, aiPos] : [aiPos, jcPos];
@@ -338,7 +415,11 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
   const setAlignPadCell = (cell) => {
     const v = AP_ROWS.indexOf(cell[0]);
     const h = AP_COLS.indexOf(cell[1]);
-    const isRow = !(authored['flex-direction'] || cssHint(computed['flex-direction']) || 'row').startsWith('column');
+    const isRow = !(
+      authored['flex-direction'] ||
+      cssHint(computed['flex-direction']) ||
+      'row'
+    ).startsWith('column');
     const [jcPos, aiPos] = isRow ? [h, v] : [v, h];
     commit('justify-content', AP_JC[jcPos]);
     commit('align-items', AP_AI[aiPos]);
@@ -391,7 +472,13 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
     const k = provKind ?? provOf(prop);
     const s = status[prop];
     const errMsg = typeof s === 'string' && s.startsWith('err:') ? s.slice(4) : '';
-    const stCls = errMsg ? ' is-err' : s === 'saved' ? ' is-saved' : s === 'saving' ? ' is-saving' : '';
+    const stCls = errMsg
+      ? ' is-err'
+      : s === 'saved'
+        ? ' is-saved'
+        : s === 'saving'
+          ? ' is-saving'
+          : '';
     const canReset = !!authored[prop];
     const tip = errMsg
       ? `error: ${errMsg}`
@@ -584,7 +671,11 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
             aria-label={`reset ${name} to original`}
             title={`reset ${name}`}
             disabled={!dirty}
-            onClick={() => props.forEach((p) => { if (authored[p]) reset(p); })}
+            onClick={() =>
+              props.forEach((p) => {
+                if (authored[p]) reset(p);
+              })
+            }
           >
             <Lu as={LuRotateCw} size={12} />
           </button>
@@ -632,10 +723,18 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
 
   // ── feature-inspector-controls-redesign handoff — the design's control set,
   // wired to CssKnobs' CSS-string commit lane. ────────────────────────────────
-  const flatTokens = (familyKey) => tokenGroups(familyKey).flatMap((g) => (g.names || []).map((n) => ({ name: n, value: g.vals?.[n] || '' })));
+  const flatTokens = (familyKey) =>
+    tokenGroups(familyKey).flatMap((g) =>
+      (g.names || []).map((n) => ({ name: n, value: g.vals?.[n] || '' }))
+    );
   // enum → lucide icon button group (commits the raw CSS keyword)
   const iconseg = (prop, options) => (
-    <IconButtonGroup value={authored[prop] || cssHint(computed[prop]) || options[0].value} ariaLabel={prop} options={options} onChange={(v) => commit(prop, v)} />
+    <IconButtonGroup
+      value={authored[prop] || cssHint(computed[prop]) || options[0].value}
+      ariaLabel={prop}
+      options={options}
+      onChange={(v) => commit(prop, v)}
+    />
   );
   // number + unit + ◇ design-token binding (space / radius / type families)
   const vtok = (prop, familyKey, opts = {}) => {
@@ -654,19 +753,51 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
         ariaLabel={prop}
         min={opts.min ?? 0}
         lead={lead ? (lead.node ?? lead.t) : undefined}
-        unitSlot={unitless ? null : <UnitSelect units={CSS_UNITS} value={cur.unit || 'px'} ariaLabel={`${prop} unit`} onChange={(u) => commit(prop, u === 'auto' ? 'auto' : `${cur.n || '0'}${u}`)} />}
-        onChange={(v) => commit(prop, typeof v === 'string' ? v : unitless ? `${v}` : `${v}${unit}`)}
+        unitSlot={
+          unitless ? null : (
+            <UnitSelect
+              units={CSS_UNITS}
+              value={cur.unit || 'px'}
+              ariaLabel={`${prop} unit`}
+              onChange={(u) => commit(prop, u === 'auto' ? 'auto' : `${cur.n || '0'}${u}`)}
+            />
+          )
+        }
+        onChange={(v) =>
+          commit(prop, typeof v === 'string' ? v : unitless ? `${v}` : `${v}${unit}`)
+        }
       />
     );
   };
   // border-radius → uniform field + ▢ detach → 2×2 corner quad
   const radiusControl = () => {
-    const parse = (p) => Number.parseFloat(cssSplitUnit(authored[p] ?? authored['border-radius'] ?? cssHint(computed[p]) ?? cssHint(computed['border-radius']) ?? '0').n) || 0;
-    const corners = { tl: parse('border-top-left-radius'), tr: parse('border-top-right-radius'), bl: parse('border-bottom-left-radius'), br: parse('border-bottom-right-radius') };
+    const parse = (p) =>
+      Number.parseFloat(
+        cssSplitUnit(
+          authored[p] ??
+            authored['border-radius'] ??
+            cssHint(computed[p]) ??
+            cssHint(computed['border-radius']) ??
+            '0'
+        ).n
+      ) || 0;
+    const corners = {
+      tl: parse('border-top-left-radius'),
+      tr: parse('border-top-right-radius'),
+      bl: parse('border-bottom-left-radius'),
+      br: parse('border-bottom-right-radius'),
+    };
     const onCorners = (c) => {
       const uniform = c.tl === c.tr && c.tr === c.bl && c.bl === c.br;
       if (uniform) {
-        ['border-top-left-radius', 'border-top-right-radius', 'border-bottom-left-radius', 'border-bottom-right-radius'].forEach((p) => { if (authored[p]) reset(p); });
+        [
+          'border-top-left-radius',
+          'border-top-right-radius',
+          'border-bottom-left-radius',
+          'border-bottom-right-radius',
+        ].forEach((p) => {
+          if (authored[p]) reset(p);
+        });
         commit('border-radius', `${c.tl}px`);
       } else {
         commit('border-top-left-radius', `${c.tl}px`);
@@ -676,7 +807,13 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
       }
     };
     const lead = PROP_LEAD['border-radius'];
-    return <RadiusControl corners={corners} lead={lead ? (lead.node ?? lead.t) : undefined} onCorners={onCorners} />;
+    return (
+      <RadiusControl
+        corners={corners}
+        lead={lead ? (lead.node ?? lead.t) : undefined}
+        onCorners={onCorners}
+      />
+    );
   };
   // border composite (width + style + colour) — DDR-171 pulled this out of the
   // Advanced-mode Appearance row inline JSX so Designer mode's "Stroke"
@@ -722,9 +859,25 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
       commit('transform', `${base ? `${base} ` : ''}rotate(${norm}deg)`.trim());
     };
     return (
-      <div className="st-cp-num" style={{ border: 0, background: 'transparent', gap: 'var(--space-2)' }}>
+      <div
+        className="st-cp-num"
+        style={{ border: 0, background: 'transparent', gap: 'var(--space-2)' }}
+      >
         <AngleDial value={deg} onChange={setDeg} />
-        <NumberField value={deg} min={0} max={360} ariaLabel="rotation" lead={<Lu as={LuRotateCw} />} steppers={false} unitSlot={<span className="st-cp-numsuffix" aria-hidden="true">°</span>} onCommit={setDeg} />
+        <NumberField
+          value={deg}
+          min={0}
+          max={360}
+          ariaLabel="rotation"
+          lead={<Lu as={LuRotateCw} />}
+          steppers={false}
+          unitSlot={
+            <span className="st-cp-numsuffix" aria-hidden="true">
+              °
+            </span>
+          }
+          onCommit={setDeg}
+        />
       </div>
     );
   };
@@ -743,13 +896,28 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
       const base = (authored.filter || '').replace(/\s*blur\([^)]*\)\s*/g, ' ').trim();
       commit('filter', n > 0 ? `${base ? `${base} ` : ''}blur(${n}px)`.trim() : base || 'none');
     };
-    return <NumberField value={px} min={0} ariaLabel="filter blur" unitSlot={<span className="st-cp-numsuffix" aria-hidden="true">px</span>} onCommit={setBlur} />;
+    return (
+      <NumberField
+        value={px}
+        min={0}
+        ariaLabel="filter blur"
+        unitSlot={
+          <span className="st-cp-numsuffix" aria-hidden="true">
+            px
+          </span>
+        }
+        onCommit={setBlur}
+      />
+    );
   };
   // handoff — shown as 0–100 % (design), stored as the CSS 0–1 value. Pulled
   // out (DDR-171) so Designer mode's "Opacity" cluster reuses it verbatim.
   const opacityControl = () => {
     const a = authored.opacity;
-    const raw = a != null && a !== '' ? Number.parseFloat(a) : Number.parseFloat(cssHint(computed.opacity)) || 1;
+    const raw =
+      a != null && a !== ''
+        ? Number.parseFloat(a)
+        : Number.parseFloat(cssHint(computed.opacity)) || 1;
     const pct = Math.round((Number.isNaN(raw) ? 1 : raw) * 100);
     return (
       <SliderField
@@ -767,14 +935,22 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
   };
   // B / I / U quick-style toggle group → font-weight / font-style / text-decoration
   const textStyleToggle = () => {
-    const isBold = Number.parseInt(authored['font-weight'] || cssHint(computed['font-weight']) || '400', 10) >= 600;
+    const isBold =
+      Number.parseInt(authored['font-weight'] || cssHint(computed['font-weight']) || '400', 10) >=
+      600;
     const isItalic = (authored['font-style'] || cssHint(computed['font-style'])) === 'italic';
-    const isUnder = /underline/.test(authored['text-decoration'] || cssHint(computed['text-decoration']) || '');
+    const isUnder = /underline/.test(
+      authored['text-decoration'] || cssHint(computed['text-decoration']) || ''
+    );
     return (
       <IconToggleGroup
         value={{ b: isBold, i: isItalic, u: isUnder }}
         ariaLabel="text style"
-        options={[{ value: 'b', node: <Lu as={LuBold} />, label: 'Bold' }, { value: 'i', node: <Lu as={LuItalic} />, label: 'Italic' }, { value: 'u', node: <Lu as={LuUnderline} />, label: 'Underline' }]}
+        options={[
+          { value: 'b', node: <Lu as={LuBold} />, label: 'Bold' },
+          { value: 'i', node: <Lu as={LuItalic} />, label: 'Italic' },
+          { value: 'u', node: <Lu as={LuUnderline} />, label: 'Underline' },
+        ]}
         onToggle={(k) => {
           if (k === 'b') commit('font-weight', isBold ? '400' : '700');
           else if (k === 'i') commit('font-style', isItalic ? 'normal' : 'italic');
@@ -783,11 +959,33 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
       />
     );
   };
-  const DIR_OPTS = [{ value: 'row', node: <Lu as={LuColumns3} />, label: 'Row' }, { value: 'column', node: <Lu as={LuRows3} />, label: 'Column' }];
-  const JUSTIFY_OPTS = [{ value: 'flex-start', node: <Lu as={LuJustifyStart} />, label: 'Start' }, { value: 'center', node: <Lu as={LuJustifyCenter} />, label: 'Center' }, { value: 'flex-end', node: <Lu as={LuJustifyEnd} />, label: 'End' }, { value: 'space-between', node: <Lu as={LuSpaceBetween} />, label: 'Space between' }];
-  const ALIGNITEMS_OPTS = [{ value: 'flex-start', node: <Lu as={LuVJustifyStart} />, label: 'Start' }, { value: 'center', node: <Lu as={LuVJustifyCenter} />, label: 'Center' }, { value: 'flex-end', node: <Lu as={LuVJustifyEnd} />, label: 'End' }, { value: 'stretch', node: <Lu as={LuStretch} />, label: 'Stretch' }];
-  const TEXTALIGN_OPTS = [{ value: 'left', node: <Lu as={LuAlignLeft} />, label: 'Left' }, { value: 'center', node: <Lu as={LuAlignCenter} />, label: 'Center' }, { value: 'right', node: <Lu as={LuAlignRight} />, label: 'Right' }, { value: 'justify', node: <Lu as={LuAlignJustify} />, label: 'Justify' }];
-  const OVERFLOW_OPTS = [{ value: 'visible', node: <Lu as={LuEye} />, label: 'Visible' }, { value: 'hidden', node: <Lu as={LuScissors} />, label: 'Hidden' }, { value: 'scroll', node: <Lu as={LuScrollText} />, label: 'Scroll' }];
+  const DIR_OPTS = [
+    { value: 'row', node: <Lu as={LuColumns3} />, label: 'Row' },
+    { value: 'column', node: <Lu as={LuRows3} />, label: 'Column' },
+  ];
+  const JUSTIFY_OPTS = [
+    { value: 'flex-start', node: <Lu as={LuJustifyStart} />, label: 'Start' },
+    { value: 'center', node: <Lu as={LuJustifyCenter} />, label: 'Center' },
+    { value: 'flex-end', node: <Lu as={LuJustifyEnd} />, label: 'End' },
+    { value: 'space-between', node: <Lu as={LuSpaceBetween} />, label: 'Space between' },
+  ];
+  const ALIGNITEMS_OPTS = [
+    { value: 'flex-start', node: <Lu as={LuVJustifyStart} />, label: 'Start' },
+    { value: 'center', node: <Lu as={LuVJustifyCenter} />, label: 'Center' },
+    { value: 'flex-end', node: <Lu as={LuVJustifyEnd} />, label: 'End' },
+    { value: 'stretch', node: <Lu as={LuStretch} />, label: 'Stretch' },
+  ];
+  const TEXTALIGN_OPTS = [
+    { value: 'left', node: <Lu as={LuAlignLeft} />, label: 'Left' },
+    { value: 'center', node: <Lu as={LuAlignCenter} />, label: 'Center' },
+    { value: 'right', node: <Lu as={LuAlignRight} />, label: 'Right' },
+    { value: 'justify', node: <Lu as={LuAlignJustify} />, label: 'Justify' },
+  ];
+  const OVERFLOW_OPTS = [
+    { value: 'visible', node: <Lu as={LuEye} />, label: 'Visible' },
+    { value: 'hidden', node: <Lu as={LuScissors} />, label: 'Hidden' },
+    { value: 'scroll', node: <Lu as={LuScrollText} />, label: 'Scroll' },
+  ];
 
   // token quick-pick — Figma-style POPOVER (W2.1) listing the DS variables for
   // this property (name + resolved value), grouped per design system (W3);
@@ -859,7 +1057,9 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
     // `opts.fixedUnit` — a px-only field (border-width) skips the unit <select>
     // entirely so the compact border-cluster row (width + style + swatch) has
     // room to fit at the panel's 260-304px widths (Task 5 overflow fix).
-    const unit = unitless ? '' : opts.fixedUnit || (cur.unit && cur.unit !== 'auto' ? cur.unit : 'px');
+    const unit = unitless
+      ? ''
+      : opts.fixedUnit || (cur.unit && cur.unit !== 'auto' ? cur.unit : 'px');
     const lead = PROP_LEAD[prop];
     // Unset (no authored value) shows the computed/inherited value as the
     // starting number — same value the old placeholder hinted at; the row's own
@@ -901,7 +1101,12 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
     const resolved = computed[prop] || authored[prop] || '';
     const av = authored[prop] ?? '';
     const bound = typeof av === 'string' && /var\(\s*--/.test(av);
-    const display = bound ? av.replace(/^var\(\s*|\s*\)$/g, '').replace(/^--/, '').replace(/-/g, ' ') : av;
+    const display = bound
+      ? av
+          .replace(/^var\(\s*|\s*\)$/g, '')
+          .replace(/^--/, '')
+          .replace(/-/g, ' ')
+      : av;
     return (
       <ColorField
         swatch={
@@ -1064,9 +1269,13 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
   // design.
   const mediaGate = () => {
     const t = (el.tag || '').toLowerCase();
-    const isMediaEl = t === 'img' || t === 'video' || t === 'picture' || t === 'svg' || t === 'canvas';
+    const isMediaEl =
+      t === 'img' || t === 'video' || t === 'picture' || t === 'svg' || t === 'canvas';
     const showMedia =
-      isMediaEl || !!authored['object-fit'] || !!authored['object-position'] || !!authored['aspect-ratio'];
+      isMediaEl ||
+      !!authored['object-fit'] ||
+      !!authored['object-position'] ||
+      !!authored['aspect-ratio'];
     // Stage F2 — "Replace…" opens the AssetPicker to re-point src (authored
     // <img>/<video> only; a template-expression src can't be string-swapped,
     // so gate on a real src attr being present).
@@ -1089,7 +1298,9 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
         <select
           className="st-cp-nsel"
           aria-label="aspect-ratio"
-          value={CSS_ASPECT_RATIO.includes(authored['aspect-ratio']) ? authored['aspect-ratio'] : ''}
+          value={
+            CSS_ASPECT_RATIO.includes(authored['aspect-ratio']) ? authored['aspect-ratio'] : ''
+          }
           onChange={(e) => {
             const v = e.target.value;
             commit('aspect-ratio', v);
@@ -1114,7 +1325,12 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
   );
 
   return (
-    <div className={`st-cp${mode === 'designer' ? ' st-cp--designer' : ''}`} key={el.id} data-tour="css-panel" onKeyDown={onKnobKeyDown}>
+    <div
+      className={`st-cp${mode === 'designer' ? ' st-cp--designer' : ''}`}
+      key={el.id}
+      data-tour="css-panel"
+      onKeyDown={onKnobKeyDown}
+    >
       <div className="st-cp-id">
         <span className="st-cp-idtag">
           {el.tag || 'element'}
@@ -1133,8 +1349,16 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
             value={mode}
             ariaLabel="panel vocabulary mode"
             options={[
-              { value: 'advanced', node: <Lu as={LuBraces} size={12} />, label: 'Advanced — raw CSS' },
-              { value: 'designer', node: <Lu as={LuWand2} size={12} />, label: 'Designer — Figma vocabulary' },
+              {
+                value: 'advanced',
+                node: <Lu as={LuBraces} size={12} />,
+                label: 'Advanced — raw CSS',
+              },
+              {
+                value: 'designer',
+                node: <Lu as={LuWand2} size={12} />,
+                label: 'Designer — Figma vocabulary',
+              },
             ]}
             onChange={setMode}
           />
@@ -1145,16 +1369,36 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
         <>
           {dsec(
             'Auto layout',
-            ['display', 'flex-direction', 'flex-wrap', 'align-items', 'justify-content', 'gap', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left'],
+            [
+              'display',
+              'flex-direction',
+              'flex-wrap',
+              'align-items',
+              'justify-content',
+              'gap',
+              'padding-top',
+              'padding-right',
+              'padding-bottom',
+              'padding-left',
+            ],
             (() => {
               const disp = (authored.display || cssHint(computed.display) || '').trim();
               const isFlex = disp === 'flex' || disp === 'inline-flex';
               return isFlex ? (
                 <>
-                  {row('flex-direction', iconseg('flex-direction', DIR_OPTS), undefined, 'Direction')}
+                  {row(
+                    'flex-direction',
+                    iconseg('flex-direction', DIR_OPTS),
+                    undefined,
+                    'Direction'
+                  )}
                   {row(
                     'align-items',
-                    <AlignPad value={alignPadCell()} onChange={setAlignPadCell} ariaLabel="auto-layout alignment" />,
+                    <AlignPad
+                      value={alignPadCell()}
+                      onChange={setAlignPadCell}
+                      ariaLabel="auto-layout alignment"
+                    />,
                     provOf('align-items'),
                     'Alignment'
                   )}
@@ -1177,7 +1421,9 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
                     ? row(
                         'flex-wrap',
                         <Toggle
-                          checked={/^wrap/.test(authored['flex-wrap'] || cssHint(computed['flex-wrap']) || '')}
+                          checked={/^wrap/.test(
+                            authored['flex-wrap'] || cssHint(computed['flex-wrap']) || ''
+                          )}
                           label="wrap items"
                           ariaLabel="flex-wrap"
                           onChange={(w) => commit('flex-wrap', w ? 'wrap' : 'nowrap')}
@@ -1188,7 +1434,12 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
                     : null}
                 </>
               ) : (
-                <button type="button" className="st-cp-makeflex" disabled={!editable} onClick={() => commit('display', 'flex')}>
+                <button
+                  type="button"
+                  className="st-cp-makeflex"
+                  disabled={!editable}
+                  onClick={() => commit('display', 'flex')}
+                >
                   + Auto layout (flex)
                 </button>
               );
@@ -1218,7 +1469,10 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
             ['position', 'top', 'right', 'bottom', 'left', 'z-index'],
             <>
               {row('position', csel('position', CSS_POSITION), undefined, 'Position')}
-              <div className="st-cp-box st-cp-box--inset" aria-label="position inset (top / right / bottom / left)">
+              <div
+                className="st-cp-box st-cp-box--inset"
+                aria-label="position inset (top / right / bottom / left)"
+              >
                 <span className="st-cp-boxtag st-cp-boxtag--i">{prov(provOf('top'))}inset</span>
                 {inset('top')}
                 {inset('right')}
@@ -1230,22 +1484,39 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
               </div>
               {(authored.position || cssHint(computed.position) || 'static') === 'static' ? (
                 <div className="st-cp-note">
-                  top / right / bottom / left apply once position is relative, absolute, fixed, or sticky
+                  top / right / bottom / left apply once position is relative, absolute, fixed, or
+                  sticky
                 </div>
               ) : null}
               <div className="st-cp-clustermore-row">{moreBtn('Position')}</div>
-              {designerMore.Position ? row('z-index', num('z-index'), undefined, 'Layer order') : null}
+              {designerMore.Position
+                ? row('z-index', num('z-index'), undefined, 'Layer order')
+                : null}
             </>,
             false
           )}
 
-          {dsec('Fill', ['background-color'], row('background-color', color('background-color'), undefined, 'Fill'))}
+          {dsec(
+            'Fill',
+            ['background-color'],
+            row('background-color', color('background-color'), undefined, 'Fill')
+          )}
 
-          {dsec('Stroke', ['border-width', 'border-style', 'border-color'], row('border', borderControl(), provOf('border-width'), 'Stroke'))}
+          {dsec(
+            'Stroke',
+            ['border-width', 'border-style', 'border-color'],
+            row('border', borderControl(), provOf('border-width'), 'Stroke')
+          )}
 
           {dsec(
             'Corner radius',
-            ['border-radius', 'border-top-left-radius', 'border-top-right-radius', 'border-bottom-left-radius', 'border-bottom-right-radius'],
+            [
+              'border-radius',
+              'border-top-left-radius',
+              'border-top-right-radius',
+              'border-bottom-left-radius',
+              'border-bottom-right-radius',
+            ],
             row('border-radius', radiusControl(), provOf('border-radius'), 'Corner radius')
           )}
 
@@ -1253,7 +1524,12 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
             'Effects',
             ['box-shadow', 'filter', 'mix-blend-mode'],
             <>
-              {row('box-shadow', tok('box-shadow', 'shadow') || text('box-shadow'), undefined, 'Shadow')}
+              {row(
+                'box-shadow',
+                tok('box-shadow', 'shadow') || text('box-shadow'),
+                undefined,
+                'Shadow'
+              )}
               {row('filter', blurControl(), provOf('filter'), 'Blur')}
               {row('mix-blend-mode', csel('mix-blend-mode', CSS_BLEND_MODES), undefined, 'Blend')}
             </>
@@ -1263,7 +1539,18 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
 
           {dsec(
             'Text',
-            ['font-family', 'color', 'font-size', 'font-weight', 'line-height', 'text-align', 'letter-spacing', 'font-style', 'text-transform', 'white-space'],
+            [
+              'font-family',
+              'color',
+              'font-size',
+              'font-weight',
+              'line-height',
+              'text-align',
+              'letter-spacing',
+              'font-style',
+              'text-transform',
+              'white-space',
+            ],
             <>
               {row('font-family', csel('font-family', CSS_FONTS), undefined, 'Font')}
               {row('color', color('color'), undefined, 'Color')}
@@ -1274,10 +1561,25 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
               <div className="st-cp-clustermore-row">{moreBtn('Text')}</div>
               {designerMore.Text ? (
                 <>
-                  {row('letter-spacing', num('letter-spacing', null, { min: -Infinity }), undefined, 'Letter spacing')}
+                  {row(
+                    'letter-spacing',
+                    num('letter-spacing', null, { min: -Infinity }),
+                    undefined,
+                    'Letter spacing'
+                  )}
                   {row('font-style', csel('font-style', CSS_FONT_STYLE), undefined, 'Style')}
-                  {row('text-transform', csel('text-transform', CSS_TEXT_TRANSFORM), undefined, 'Case')}
-                  {row('white-space', csel('white-space', CSS_WHITE_SPACE), undefined, 'Whitespace')}
+                  {row(
+                    'text-transform',
+                    csel('text-transform', CSS_TEXT_TRANSFORM),
+                    undefined,
+                    'Case'
+                  )}
+                  {row(
+                    'white-space',
+                    csel('white-space', CSS_WHITE_SPACE),
+                    undefined,
+                    'Whitespace'
+                  )}
                 </>
               ) : null}
             </>
@@ -1287,7 +1589,9 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
             'Spacing',
             ['margin-top', 'margin-right', 'margin-bottom', 'margin-left'],
             <div className="st-cp-box" aria-label="margin">
-              <span className="st-cp-boxtag st-cp-boxtag--m">{prov(provOf('margin-top'))}margin</span>
+              <span className="st-cp-boxtag st-cp-boxtag--m">
+                {prov(provOf('margin-top'))}margin
+              </span>
               {side('margin-top', 'margin')}
               {side('margin-right', 'margin')}
               {side('margin-bottom', 'margin')}
@@ -1298,336 +1602,356 @@ export function CssKnobs({ el, cfg, onOptimistic, onRecordEdit, onReplaceMedia, 
           {(() => {
             const { showMedia, canReplace } = mediaGate();
             return showMedia
-              ? dsec('Media', ['object-fit', 'object-position', 'aspect-ratio'], mediaBody(canReplace))
+              ? dsec(
+                  'Media',
+                  ['object-fit', 'object-position', 'aspect-ratio'],
+                  mediaBody(canReplace)
+                )
               : null;
           })()}
         </>
       ) : (
         <>
-      {sec(
-        'Layout',
-        (() => {
-          // Stage M2 — auto-layout editor. Present the flex vocabulary (Direction ·
-          // Wrap · Distribution · Align · Gap) only when the element IS a flex/grid
-          // container, so a plain block doesn't carry knobs that do nothing; a
-          // non-container gets a one-click "make it a flex layout" instead (the
-          // DDR-104 gap-degrades-gracefully precedent). align-items / justify-content
-          // / gap apply to grid too; flex-direction / flex-wrap are flex-only.
-          const disp = (authored.display || cssHint(computed.display) || '').trim();
-          const isFlex = disp === 'flex' || disp === 'inline-flex';
-          const isGrid = disp === 'grid' || disp === 'inline-grid';
-          return (
+          {sec(
+            'Layout',
+            (() => {
+              // Stage M2 — auto-layout editor. Present the flex vocabulary (Direction ·
+              // Wrap · Distribution · Align · Gap) only when the element IS a flex/grid
+              // container, so a plain block doesn't carry knobs that do nothing; a
+              // non-container gets a one-click "make it a flex layout" instead (the
+              // DDR-104 gap-degrades-gracefully precedent). align-items / justify-content
+              // / gap apply to grid too; flex-direction / flex-wrap are flex-only.
+              const disp = (authored.display || cssHint(computed.display) || '').trim();
+              const isFlex = disp === 'flex' || disp === 'inline-flex';
+              const isGrid = disp === 'grid' || disp === 'inline-grid';
+              return (
+                <>
+                  {row('display', csel('display', CSS_DISPLAYS))}
+                  {isFlex ? (
+                    <>
+                      {row('flex-direction', iconseg('flex-direction', DIR_OPTS))}
+                      {row(
+                        'flex-wrap',
+                        <Toggle
+                          checked={/^wrap/.test(
+                            authored['flex-wrap'] || cssHint(computed['flex-wrap']) || ''
+                          )}
+                          label="wrap items"
+                          ariaLabel="flex-wrap"
+                          onChange={(w) => commit('flex-wrap', w ? 'wrap' : 'nowrap')}
+                        />,
+                        provOf('flex-wrap')
+                      )}
+                    </>
+                  ) : null}
+                  {isFlex || isGrid ? (
+                    <>
+                      {row('align-items', iconseg('align-items', ALIGNITEMS_OPTS))}
+                      {row('justify-content', iconseg('justify-content', JUSTIFY_OPTS))}
+                      {row('gap', vtok('gap', 'space'))}
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="st-cp-makeflex"
+                      disabled={!editable}
+                      onClick={() => commit('display', 'flex')}
+                    >
+                      + Auto layout (flex)
+                    </button>
+                  )}
+                </>
+              );
+            })()
+          )}
+
+          {(() => {
+            // feature-3-web-artboards T5 (absorbed feature-grid-track-editor
+            // stub) — Grid section, only when the element IS a grid container.
+            // Track parse/serialize is the SAME grid-track-handles.ts module the
+            // on-canvas gutter-drag overlay uses, so the Inspector and the drag
+            // handles never disagree about track shape.
+            const disp = (authored.display || cssHint(computed.display) || '').trim();
+            const isGrid = disp === 'grid' || disp === 'inline-grid';
+            if (!isGrid) return null;
+            const colsRaw = authored['grid-template-columns'] || '';
+            const rowsRaw = authored['grid-template-rows'] || '';
+            const cols = parseTrackList(colsRaw);
+            const rows = parseTrackList(rowsRaw);
+            const colsEditable = cols.length > 0 || !colsRaw.trim();
+            const rowsEditable = rows.length > 0 || !rowsRaw.trim();
+            return sec(
+              'Grid',
+              <>
+                {colsEditable ? (
+                  <GridTracksEditor
+                    label="Columns"
+                    tracks={cols}
+                    editable={editable}
+                    onChange={(next) => commit('grid-template-columns', serializeTrackList(next))}
+                  />
+                ) : (
+                  <div className="st-cp-note">
+                    Columns use <code>{colsRaw}</code> — not editable as tracks here (repeat()/
+                    minmax()/subgrid); use /design:edit for these.
+                  </div>
+                )}
+                {rowsEditable ? (
+                  <GridTracksEditor
+                    label="Rows"
+                    tracks={rows}
+                    editable={editable}
+                    onChange={(next) => commit('grid-template-rows', serializeTrackList(next))}
+                  />
+                ) : (
+                  <div className="st-cp-note">
+                    Rows use <code>{rowsRaw}</code> — not editable as tracks here
+                    (repeat()/minmax()/ subgrid); use /design:edit for these.
+                  </div>
+                )}
+              </>
+            );
+          })()}
+
+          {sec(
+            'Position',
             <>
-              {row('display', csel('display', CSS_DISPLAYS))}
-              {isFlex ? (
-                <>
-                  {row('flex-direction', iconseg('flex-direction', DIR_OPTS))}
-                  {row('flex-wrap', <Toggle checked={/^wrap/.test(authored['flex-wrap'] || cssHint(computed['flex-wrap']) || '')} label="wrap items" ariaLabel="flex-wrap" onChange={(w) => commit('flex-wrap', w ? 'wrap' : 'nowrap')} />, provOf('flex-wrap'))}
-                </>
+              {row('position', csel('position', CSS_POSITION))}
+              <div
+                className="st-cp-box st-cp-box--inset"
+                aria-label="position inset (top / right / bottom / left)"
+              >
+                <span className="st-cp-boxtag st-cp-boxtag--i">{prov(provOf('top'))}inset</span>
+                {inset('top')}
+                {inset('right')}
+                {inset('bottom')}
+                {inset('left')}
+                <div className="st-cp-boxcore st-cp-boxcore--pos">
+                  {authored.position || cssHint(computed.position) || 'static'}
+                </div>
+              </div>
+              {(authored.position || cssHint(computed.position) || 'static') === 'static' ? (
+                <div className="st-cp-note">
+                  top / right / bottom / left apply once position is relative, absolute, fixed, or
+                  sticky
+                </div>
               ) : null}
-              {isFlex || isGrid ? (
-                <>
-                  {row('align-items', iconseg('align-items', ALIGNITEMS_OPTS))}
-                  {row('justify-content', iconseg('justify-content', JUSTIFY_OPTS))}
-                  {row('gap', vtok('gap', 'space'))}
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className="st-cp-makeflex"
-                  disabled={!editable}
-                  onClick={() => commit('display', 'flex')}
-                >
-                  + Auto layout (flex)
-                </button>
-              )}
+              {row('z-index', num('z-index'))}
             </>
-          );
-        })()
-      )}
+          )}
 
-      {(() => {
-        // feature-3-web-artboards T5 (absorbed feature-grid-track-editor
-        // stub) — Grid section, only when the element IS a grid container.
-        // Track parse/serialize is the SAME grid-track-handles.ts module the
-        // on-canvas gutter-drag overlay uses, so the Inspector and the drag
-        // handles never disagree about track shape.
-        const disp = (authored.display || cssHint(computed.display) || '').trim();
-        const isGrid = disp === 'grid' || disp === 'inline-grid';
-        if (!isGrid) return null;
-        const colsRaw = authored['grid-template-columns'] || '';
-        const rowsRaw = authored['grid-template-rows'] || '';
-        const cols = parseTrackList(colsRaw);
-        const rows = parseTrackList(rowsRaw);
-        const colsEditable = cols.length > 0 || !colsRaw.trim();
-        const rowsEditable = rows.length > 0 || !rowsRaw.trim();
-        return sec(
-          'Grid',
-          <>
-            {colsEditable ? (
-              <GridTracksEditor
-                label="Columns"
-                tracks={cols}
-                editable={editable}
-                onChange={(next) => commit('grid-template-columns', serializeTrackList(next))}
-              />
-            ) : (
-              <div className="st-cp-note">
-                Columns use <code>{colsRaw}</code> — not editable as tracks here (repeat()/
-                minmax()/subgrid); use /design:edit for these.
-              </div>
+          {(el.parentDisplay === 'grid' || el.parentDisplay === 'inline-grid') &&
+            sec(
+              'Grid item',
+              <>
+                <div className="st-cp-note">
+                  Manual cell placement — <code>start / end</code> or <code>start / span N</code>.
+                </div>
+                {row('grid-column', text('grid-column'))}
+                {row('grid-row', text('grid-row'))}
+              </>
             )}
-            {rowsEditable ? (
-              <GridTracksEditor
-                label="Rows"
-                tracks={rows}
-                editable={editable}
-                onChange={(next) => commit('grid-template-rows', serializeTrackList(next))}
-              />
-            ) : (
-              <div className="st-cp-note">
-                Rows use <code>{rowsRaw}</code> — not editable as tracks here (repeat()/minmax()/
-                subgrid); use /design:edit for these.
-              </div>
-            )}
-          </>
-        );
-      })()}
 
-      {sec(
-        'Position',
-        <>
-          {row('position', csel('position', CSS_POSITION))}
-          <div className="st-cp-box st-cp-box--inset" aria-label="position inset (top / right / bottom / left)">
-            <span className="st-cp-boxtag st-cp-boxtag--i">{prov(provOf('top'))}inset</span>
-            {inset('top')}
-            {inset('right')}
-            {inset('bottom')}
-            {inset('left')}
-            <div className="st-cp-boxcore st-cp-boxcore--pos">
-              {authored.position || cssHint(computed.position) || 'static'}
-            </div>
-          </div>
-          {(authored.position || cssHint(computed.position) || 'static') === 'static' ? (
-            <div className="st-cp-note">
-              top / right / bottom / left apply once position is relative, absolute, fixed, or sticky
-            </div>
-          ) : null}
-          {row('z-index', num('z-index'))}
-        </>
-      )}
-
-      {(el.parentDisplay === 'grid' || el.parentDisplay === 'inline-grid') &&
-        sec(
-          'Grid item',
-          <>
-            <div className="st-cp-note">
-              Manual cell placement — <code>start / end</code> or <code>start / span N</code>.
-            </div>
-            {row('grid-column', text('grid-column'))}
-            {row('grid-row', text('grid-row'))}
-          </>
-        )}
-
-      {sec(
-        'Typography',
-        <>
-          {row('font-family', csel('font-family', CSS_FONTS))}
-          {row('color', color('color'))}
-          {row('font-size', vtok('font-size', 'type'))}
-          {row('font-weight', csel('font-weight', CSS_WEIGHTS))}
-          {row('line-height', num('line-height', 'lh'))}
-          {row('letter-spacing', num('letter-spacing', null, { min: -Infinity }))}
-          {/* handoff — text-align as a lucide icon button group; B/I/U as a toggle
+          {sec(
+            'Typography',
+            <>
+              {row('font-family', csel('font-family', CSS_FONTS))}
+              {row('color', color('color'))}
+              {row('font-size', vtok('font-size', 'type'))}
+              {row('font-weight', csel('font-weight', CSS_WEIGHTS))}
+              {row('line-height', num('line-height', 'lh'))}
+              {row('letter-spacing', num('letter-spacing', null, { min: -Infinity }))}
+              {/* handoff — text-align as a lucide icon button group; B/I/U as a toggle
               group mapped to font-weight / font-style / text-decoration. */}
-          {row('text-align', iconseg('text-align', TEXTALIGN_OPTS))}
-          {row('font-style', textStyleToggle(), provOf('font-style'))}
-          {/* Stage B (Task B4) — promoted typography knobs (was DDR-104 OUT-list). */}
-          {row('text-transform', csel('text-transform', CSS_TEXT_TRANSFORM))}
-          {row('white-space', csel('white-space', CSS_WHITE_SPACE))}
-        </>
-      )}
+              {row('text-align', iconseg('text-align', TEXTALIGN_OPTS))}
+              {row('font-style', textStyleToggle(), provOf('font-style'))}
+              {/* Stage B (Task B4) — promoted typography knobs (was DDR-104 OUT-list). */}
+              {row('text-transform', csel('text-transform', CSS_TEXT_TRANSFORM))}
+              {row('white-space', csel('white-space', CSS_WHITE_SPACE))}
+            </>
+          )}
 
-      {sec(
-        'Spacing',
-        <>
-          <div className="st-cp-box" aria-label="margin and padding">
-            <span className="st-cp-boxtag st-cp-boxtag--m">
-              {prov(provOf('margin-top'))}margin
-            </span>
-            {side('margin-top', 'margin')}
-            {side('margin-right', 'margin')}
-            {side('margin-bottom', 'margin')}
-            {side('margin-left', 'margin')}
-            <div className="st-cp-boxpad">
-              <span className="st-cp-boxtag st-cp-boxtag--p">
-                {prov(provOf('padding-top'))}padding
-              </span>
-              {side('padding-top', 'padding')}
-              {side('padding-right', 'padding')}
-              {side('padding-bottom', 'padding')}
-              {side('padding-left', 'padding')}
-              <div className="st-cp-boxcore">
-                {/* handoff — prefer the AUTHORED size (updates live as you edit
+          {sec(
+            'Spacing',
+            <>
+              <div className="st-cp-box" aria-label="margin and padding">
+                <span className="st-cp-boxtag st-cp-boxtag--m">
+                  {prov(provOf('margin-top'))}margin
+                </span>
+                {side('margin-top', 'margin')}
+                {side('margin-right', 'margin')}
+                {side('margin-bottom', 'margin')}
+                {side('margin-left', 'margin')}
+                <div className="st-cp-boxpad">
+                  <span className="st-cp-boxtag st-cp-boxtag--p">
+                    {prov(provOf('padding-top'))}padding
+                  </span>
+                  {side('padding-top', 'padding')}
+                  {side('padding-right', 'padding')}
+                  {side('padding-bottom', 'padding')}
+                  {side('padding-left', 'padding')}
+                  <div className="st-cp-boxcore">
+                    {/* handoff — prefer the AUTHORED size (updates live as you edit
                     width/height); el.bounds is stale until the canvas re-measures. */}
-                {Math.round(Number.parseFloat(authored.width) || el.bounds?.w || 0)} × {Math.round(Number.parseFloat(authored.height) || el.bounds?.h || 0)}
+                    {Math.round(Number.parseFloat(authored.width) || el.bounds?.w || 0)} ×{' '}
+                    {Math.round(Number.parseFloat(authored.height) || el.bounds?.h || 0)}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        </>
-      )}
+            </>
+          )}
 
-      {sec(
-        'Size',
-        <>
-          {/* Stage M1 — per-axis Fixed / Hug / Fill sizing mode (Figma parity). The
+          {sec(
+            'Size',
+            <>
+              {/* Stage M1 — per-axis Fixed / Hug / Fill sizing mode (Figma parity). The
               Fixed case leaves the numeric width/height knobs below in control. */}
-          <div className="st-cp-modes">
-            {sizeModeSeg('width')}
-            {sizeModeSeg('height')}
-          </div>
-          {row('width', num('width'))}
-          {row('height', num('height'))}
-          {row('min-width', num('min-width'))}
-          {row('max-width', num('max-width'))}
-          {row('min-height', num('min-height'))}
-          {row('max-height', num('max-height'))}
-          {row('overflow', iconseg('overflow', OVERFLOW_OPTS))}
-          {/* Stage M1 — flex-CHILD controls, only meaningful when the parent is a
+              <div className="st-cp-modes">
+                {sizeModeSeg('width')}
+                {sizeModeSeg('height')}
+              </div>
+              {row('width', num('width'))}
+              {row('height', num('height'))}
+              {row('min-width', num('min-width'))}
+              {row('max-width', num('max-width'))}
+              {row('min-height', num('min-height'))}
+              {row('max-height', num('max-height'))}
+              {row('overflow', iconseg('overflow', OVERFLOW_OPTS))}
+              {/* Stage M1 — flex-CHILD controls, only meaningful when the parent is a
               flex container. align-self is the cross-axis override; flex-grow/shrink/
               basis are the main-axis behavior the Fill mode writes for you. */}
-          {parentIsFlexChild ? (
-            <>
-              <div className="st-cp-subhd">In flex parent</div>
-              {row('align-self', csel('align-self', CSS_ALIGN_SELF))}
-              {row('flex-grow', num('flex-grow', null, { unitless: true }))}
-              {row('flex-shrink', num('flex-shrink', null, { unitless: true }))}
-              {row('flex-basis', num('flex-basis'))}
+              {parentIsFlexChild ? (
+                <>
+                  <div className="st-cp-subhd">In flex parent</div>
+                  {row('align-self', csel('align-self', CSS_ALIGN_SELF))}
+                  {row('flex-grow', num('flex-grow', null, { unitless: true }))}
+                  {row('flex-shrink', num('flex-shrink', null, { unitless: true }))}
+                  {row('flex-basis', num('flex-basis'))}
+                </>
+              ) : null}
             </>
-          ) : null}
-        </>
-      )}
+          )}
 
-      {/* Stage B (Task B5) — Media framing (gate/body pulled into mediaGate()/
+          {/* Stage B (Task B5) — Media framing (gate/body pulled into mediaGate()/
           mediaBody() above, DDR-171, so Designer mode's "Media" cluster
           reuses the identical content). */}
-      {(() => {
-        const { showMedia, canReplace } = mediaGate();
-        return showMedia ? sec('Media', mediaBody(canReplace)) : null;
-      })()}
+          {(() => {
+            const { showMedia, canReplace } = mediaGate();
+            return showMedia ? sec('Media', mediaBody(canReplace)) : null;
+          })()}
 
-      {sec(
-        'Appearance',
-        <>
-          {row('background-color', color('background-color'))}
-          {row('border-radius', radiusControl(), provOf('border-radius'))}
-          {row('border', borderControl(), provOf('border-width'))}
-          {row('box-shadow', tok('box-shadow', 'shadow') || text('box-shadow'))}
-          {/* DDR-171 — blur + blend, real Advanced-mode rows (not Designer-exclusive);
+          {sec(
+            'Appearance',
+            <>
+              {row('background-color', color('background-color'))}
+              {row('border-radius', radiusControl(), provOf('border-radius'))}
+              {row('border', borderControl(), provOf('border-width'))}
+              {row('box-shadow', tok('box-shadow', 'shadow') || text('box-shadow'))}
+              {/* DDR-171 — blur + blend, real Advanced-mode rows (not Designer-exclusive);
               also power Designer mode's "Effects" cluster. */}
-          {row('filter', blurControl(), provOf('filter'))}
-          {row('mix-blend-mode', csel('mix-blend-mode', CSS_BLEND_MODES))}
-          {row('opacity', opacityControl())}
-          {/* Stage B (Task B4) — transform as a free-value row (mirrors box-shadow). */}
-          {row('rotation', rotationControl(), provOf('transform'))}
-          {row('transform', text('transform'))}
-          {row('transform-origin', text('transform-origin'))}
-        </>
-      )}
+              {row('filter', blurControl(), provOf('filter'))}
+              {row('mix-blend-mode', csel('mix-blend-mode', CSS_BLEND_MODES))}
+              {row('opacity', opacityControl())}
+              {/* Stage B (Task B4) — transform as a free-value row (mirrors box-shadow). */}
+              {row('rotation', rotationControl(), provOf('transform'))}
+              {row('transform', text('transform'))}
+              {row('transform-origin', text('transform-origin'))}
+            </>
+          )}
 
-      {/* #5 — the idle/saved status now lives in each row's leading dot (a glow),
+          {/* #5 — the idle/saved status now lives in each row's leading dot (a glow),
           so the panel no longer carries a confusing standing 'written to source'
           line. Only a hard ERROR surfaces here, with the failing property. */}
-      {(() => {
-        const err = Object.entries(status).find(
-          ([, s]) => typeof s === 'string' && s.startsWith('err:')
-        );
-        return err ? (
-          <div className="st-cp-save is-err" role="status">
-            <StIcon name="x" size={12} />
-            {err[0]}: {err[1].slice(4)}
-          </div>
-        ) : null;
-      })()}
+          {(() => {
+            const err = Object.entries(status).find(
+              ([, s]) => typeof s === 'string' && s.startsWith('err:')
+            );
+            return err ? (
+              <div className="st-cp-save is-err" role="status">
+                <StIcon name="x" size={12} />
+                {err[0]}: {err[1].slice(4)}
+              </div>
+            ) : null;
+          })()}
 
-      {sec(
-        'Advanced',
-        <div className="st-cp-advbody">
-          {customStyleRows.length ? (
-            <>
-              <div className="st-cp-advgrp">Custom CSS properties</div>
-              {customStyleRows.map(([p, v]) => (
-                <div className="st-cp-kv" key={`cs:${p}`}>
-                  <input
-                    className="st-cp-fin st-cp-fin--ro"
-                    readOnly
-                    value={p}
-                    aria-label={`custom property ${p} name`}
-                  />
-                  <input
-                    className="st-cp-fin"
-                    key={`cs:${p}:${v}`}
-                    defaultValue={v}
-                    aria-label={`${p} value`}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') e.currentTarget.blur();
-                    }}
-                    onBlur={(e) => commitCustom(p, e.currentTarget.value)}
-                  />
-                  <button
-                    type="button"
-                    className="st-cp-kvx"
-                    aria-label={`remove ${p}`}
-                    title="remove"
-                    onClick={() => resetCustom(p)}
-                  >
-                    <StIcon name="x" size={11} />
-                  </button>
-                </div>
-              ))}
-            </>
-          ) : null}
-          <div className="st-cp-advgrp">Add CSS property</div>
-          <RawKnob commit={commitCustom} />
-          <div className="st-cp-note">applied as-is — not token-bound</div>
-          {attrRows.length ? (
-            <>
-              <div className="st-cp-advgrp">Custom HTML attributes</div>
-              {attrRows.map(([a, v]) => (
-                <div className="st-cp-kv" key={`at:${a}`}>
-                  <input
-                    className="st-cp-fin st-cp-fin--ro"
-                    readOnly
-                    value={a}
-                    aria-label={`attribute ${a} name`}
-                  />
-                  <input
-                    className="st-cp-fin"
-                    key={`at:${a}:${v}`}
-                    defaultValue={v}
-                    aria-label={`${a} value`}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') e.currentTarget.blur();
-                    }}
-                    onBlur={(e) => commitAttr(a, e.currentTarget.value)}
-                  />
-                  <button
-                    type="button"
-                    className="st-cp-kvx"
-                    aria-label={`remove ${a}`}
-                    title="remove"
-                    onClick={() => resetAttr(a)}
-                  >
-                    <StIcon name="x" size={11} />
-                  </button>
-                </div>
-              ))}
-            </>
-          ) : null}
-          <div className="st-cp-advgrp">Add HTML attribute</div>
-          <AttrKnob commit={commitAttr} />
-        </div>
-      )}
+          {sec(
+            'Advanced',
+            <div className="st-cp-advbody">
+              {customStyleRows.length ? (
+                <>
+                  <div className="st-cp-advgrp">Custom CSS properties</div>
+                  {customStyleRows.map(([p, v]) => (
+                    <div className="st-cp-kv" key={`cs:${p}`}>
+                      <input
+                        className="st-cp-fin st-cp-fin--ro"
+                        readOnly
+                        value={p}
+                        aria-label={`custom property ${p} name`}
+                      />
+                      <input
+                        className="st-cp-fin"
+                        key={`cs:${p}:${v}`}
+                        defaultValue={v}
+                        aria-label={`${p} value`}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') e.currentTarget.blur();
+                        }}
+                        onBlur={(e) => commitCustom(p, e.currentTarget.value)}
+                      />
+                      <button
+                        type="button"
+                        className="st-cp-kvx"
+                        aria-label={`remove ${p}`}
+                        title="remove"
+                        onClick={() => resetCustom(p)}
+                      >
+                        <StIcon name="x" size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </>
+              ) : null}
+              <div className="st-cp-advgrp">Add CSS property</div>
+              <RawKnob commit={commitCustom} />
+              <div className="st-cp-note">applied as-is — not token-bound</div>
+              {attrRows.length ? (
+                <>
+                  <div className="st-cp-advgrp">Custom HTML attributes</div>
+                  {attrRows.map(([a, v]) => (
+                    <div className="st-cp-kv" key={`at:${a}`}>
+                      <input
+                        className="st-cp-fin st-cp-fin--ro"
+                        readOnly
+                        value={a}
+                        aria-label={`attribute ${a} name`}
+                      />
+                      <input
+                        className="st-cp-fin"
+                        key={`at:${a}:${v}`}
+                        defaultValue={v}
+                        aria-label={`${a} value`}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') e.currentTarget.blur();
+                        }}
+                        onBlur={(e) => commitAttr(a, e.currentTarget.value)}
+                      />
+                      <button
+                        type="button"
+                        className="st-cp-kvx"
+                        aria-label={`remove ${a}`}
+                        title="remove"
+                        onClick={() => resetAttr(a)}
+                      >
+                        <StIcon name="x" size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </>
+              ) : null}
+              <div className="st-cp-advgrp">Add HTML attribute</div>
+              <AttrKnob commit={commitAttr} />
+            </div>
+          )}
         </>
       )}
 

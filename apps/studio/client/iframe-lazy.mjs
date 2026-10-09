@@ -99,7 +99,7 @@ export function mountLazy(host, src, id, opts = {}) {
         }
       }
     },
-    { rootMargin, threshold: 0.01 },
+    { rootMargin, threshold: 0.01 }
   );
   io.observe(wrap);
   observers.set(wrap, io);

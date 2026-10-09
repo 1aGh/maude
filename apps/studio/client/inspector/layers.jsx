@@ -74,8 +74,20 @@ export function moveLayerNode(nodes, draggedId, refId, position) {
 // Void / self-closing tags can't hold children → not a nest target. Everything
 // else (div, section, span, …) can be nested into (matches "drop into any div").
 export const LAYER_VOID_TAGS = new Set([
-  'img', 'input', 'br', 'hr', 'area', 'base', 'col', 'embed', 'link', 'meta',
-  'param', 'source', 'track', 'wbr',
+  'img',
+  'input',
+  'br',
+  'hr',
+  'area',
+  'base',
+  'col',
+  'embed',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr',
 ]);
 
 export function LayerRow({

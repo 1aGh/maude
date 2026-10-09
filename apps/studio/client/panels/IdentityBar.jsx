@@ -68,7 +68,17 @@ function Icon({ name, size = 16 }) {
     ),
   }[name];
   return (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       {p}
     </svg>
   );
@@ -237,10 +247,19 @@ export default function IdentityBar() {
 
       {state === 'out' && (
         <>
-          <button type="button" className="btn btn--primary btn--sm gi-rail-signin" onClick={handleSignIn} disabled={signing}>
+          <button
+            type="button"
+            className="btn btn--primary btn--sm gi-rail-signin"
+            onClick={handleSignIn}
+            disabled={signing}
+          >
             <GitHubMark size={15} /> {signing ? 'Starting…' : 'Sign in with GitHub'}
           </button>
-          {error && <span className="gi-rail-err" title={error}>{error}</span>}
+          {error && (
+            <span className="gi-rail-err" title={error}>
+              {error}
+            </span>
+          )}
         </>
       )}
 
@@ -269,17 +288,46 @@ export default function IdentityBar() {
                   <span className="gi-menu-login">@{identity?.login} · connected</span>
                 </span>
               </div>
-              <button type="button" className="gi-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); setView('new'); }}>
+              <button
+                type="button"
+                className="gi-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setView('new');
+                }}
+              >
                 <Icon name="plus" size={15} /> New project
               </button>
-              <button type="button" className="gi-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); setView('get'); }}>
+              <button
+                type="button"
+                className="gi-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setView('get');
+                }}
+              >
                 <Icon name="download" size={15} /> Pull a local copy
               </button>
-              <button type="button" className="gi-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); setView('share'); }}>
+              <button
+                type="button"
+                className="gi-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setView('share');
+                }}
+              >
                 <Icon name="invite" size={15} /> Share this project
               </button>
               <div className="gi-menu-sep" />
-              <button type="button" className="gi-menu-item gi-menu-item--danger" role="menuitem" onClick={handleSignOut}>
+              <button
+                type="button"
+                className="gi-menu-item gi-menu-item--danger"
+                role="menuitem"
+                onClick={handleSignOut}
+              >
                 <Icon name="signout" size={15} /> Sign out
               </button>
             </div>
@@ -288,11 +336,21 @@ export default function IdentityBar() {
       )}
 
       {device && (
-        <div className="gi-modal" role="dialog" aria-modal="true" aria-label="Sign in with GitHub" onKeyDown={(e) => { if (e.key === 'Escape') setDevice(null); }}>
+        <div
+          className="gi-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Sign in with GitHub"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setDevice(null);
+          }}
+        >
           <div className="gi-scrim" aria-hidden="true" onClick={() => setDevice(null)} />
           <div className="gi-dialog gi-dialog--code">
             <div className="gi-dc-head">
-              <span className="gi-dc-marks"><GitHubMark size={26} /></span>
+              <span className="gi-dc-marks">
+                <GitHubMark size={26} />
+              </span>
               <h2>Sign in with GitHub</h2>
               <p>Maude opened GitHub in your browser. Enter this code to connect your account.</p>
             </div>
@@ -300,8 +358,18 @@ export default function IdentityBar() {
               <li>
                 <span className="gi-dc-step-n">1</span>
                 <span className="gi-dc-step-tx">
-                  Go to <span className="gi-dc-url">{(device.verification_uri || 'github.com/login/device').replace(/^https?:\/\//, '')}</span>
-                  <button type="button" className="btn btn--ghost btn--sm gi-dc-open" onClick={() => openVerification().catch(() => {})}>
+                  Go to{' '}
+                  <span className="gi-dc-url">
+                    {(device.verification_uri || 'github.com/login/device').replace(
+                      /^https?:\/\//,
+                      ''
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm gi-dc-open"
+                    onClick={() => openVerification().catch(() => {})}
+                  >
                     <Icon name="external" size={14} /> Open it again
                   </button>
                 </span>
@@ -313,7 +381,12 @@ export default function IdentityBar() {
             </ol>
             <div className="gi-code">
               <span className="gi-code-val">{device.user_code}</span>
-              <button type="button" className="btn btn--ghost gi-code-copy" onClick={copyCode} aria-label="Copy the code">
+              <button
+                type="button"
+                className="btn btn--ghost gi-code-copy"
+                onClick={copyCode}
+                aria-label="Copy the code"
+              >
                 <Icon name="copy" size={15} /> {copied ? 'Copied' : 'Copy'}
               </button>
             </div>
@@ -322,14 +395,23 @@ export default function IdentityBar() {
               <span>Waiting for you to authorize in your browser…</span>
             </div>
             <div className="gi-dc-foot">
-              <button type="button" className="btn btn--ghost" onClick={() => setDevice(null)}>Cancel</button>
+              <button type="button" className="btn btn--ghost" onClick={() => setDevice(null)}>
+                Cancel
+              </button>
               <span className="gi-dc-foot-note">Nothing is stored until you authorize.</span>
             </div>
           </div>
         </div>
       )}
 
-      {view && <CreateProject view={view} identity={identity} signedIn={state === 'in'} onClose={() => setView(null)} />}
+      {view && (
+        <CreateProject
+          view={view}
+          identity={identity}
+          signedIn={state === 'in'}
+          onClose={() => setView(null)}
+        />
+      )}
     </div>
   );
 }

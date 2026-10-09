@@ -64,7 +64,9 @@ export function ViewDropdown({ panels, onToggle, onClose, onZoom, hasCanvas }) {
           }}
         >
           <span className="st-dd-lead">
-            <span className="st-dd-check">{p.checked ? <StIcon name="check" size={13} /> : null}</span>
+            <span className="st-dd-check">
+              {p.checked ? <StIcon name="check" size={13} /> : null}
+            </span>
             <span>{p.label}</span>
             {p.phase ? <span className="st-dd-phase">{p.phase}</span> : null}
           </span>
@@ -256,7 +258,9 @@ export function FileDropdown({ onAction, onClose, hasCanvas, hasSharePath, readO
         { id: 'reload', label: 'Reload canvas', shortcut: '⌘R', disabled: !hasCanvas },
         { id: 'close', label: 'Close canvas', disabled: !hasCanvas },
       ];
-  return <DropdownMenu label="File" left={40} onAction={onAction} onClose={onClose} items={items} />;
+  return (
+    <DropdownMenu label="File" left={40} onAction={onAction} onClose={onClose} items={items} />
+  );
 }
 
 export function EditDropdown({ onAction, onClose, hasCanvas, readOnly = false }) {
@@ -412,11 +416,7 @@ export function Menubar({
       // In a cell this panel is History (the hub already committed the work),
       // so the menu names what it opens rather than an unsaved count there is
       // no way — and no reason — to act on.
-      label: cloud
-        ? 'History'
-        : changesCount > 0
-          ? `Changes · ${changesCount} unsaved`
-          : 'Changes',
+      label: cloud ? 'History' : changesCount > 0 ? `Changes · ${changesCount} unsaved` : 'Changes',
       shortcut: '⌘ ⇧ G',
       checked: changesOpen,
       disabled: false,
@@ -553,9 +553,7 @@ export function Menubar({
     if (!openMenu || !DROPDOWN_MENUS.includes(openMenu)) return;
     // Move focus into the menu so ↑/↓ work immediately after a click.
     const t = setTimeout(() => {
-      document
-        .querySelector('.st-dropdown [role="menuitem"]:not([aria-disabled="true"])')
-        ?.focus();
+      document.querySelector('.st-dropdown [role="menuitem"]:not([aria-disabled="true"])')?.focus();
     }, 0);
     function onKey(e) {
       const items = [
@@ -592,14 +590,15 @@ export function Menubar({
   }, [openMenu, setOpenMenu]);
 
   return (
-    <header
-      className="st-menubar"
-      aria-label="Application menubar"
-      data-testid="menubar"
-    >
+    <header className="st-menubar" aria-label="Application menubar" data-testid="menubar">
       <span className="st-brand" data-tour="brand">
         <span className="st-brand-mark">
-          <svg viewBox="0 0 32 32" width="100%" height="100%" fill="none" aria-hidden="true"><path d="M16 5l2.8 8.2L27 16l-8.2 2.8L16 27l-2.8-8.2L5 16l8.2-2.8z" fill="currentColor" /></svg>
+          <svg viewBox="0 0 32 32" width="100%" height="100%" fill="none" aria-hidden="true">
+            <path
+              d="M16 5l2.8 8.2L27 16l-8.2 2.8L16 27l-2.8-8.2L5 16l8.2-2.8z"
+              fill="currentColor"
+            />
+          </svg>
         </span>
         <span className="st-brand-name">maude</span>
       </span>
@@ -672,8 +671,10 @@ export function Menubar({
             if (id === 'new') onNewCanvas?.();
             else if (id === 'assemble') onAssembleVideo?.();
             else if (id === 'export') onOpenExport?.('export');
-            else if (id === 'share') { document.querySelector('[data-testid="menu-file"]')?.focus(); onShare?.(); }
-            else if (id === 'handoff') onOpenExport?.('handoff');
+            else if (id === 'share') {
+              document.querySelector('[data-testid="menu-file"]')?.focus();
+              onShare?.();
+            } else if (id === 'handoff') onOpenExport?.('handoff');
             else if (id === 'generate') onOpenGenerate?.();
             else if (id === 'settings') onOpenSettings?.();
             else if (id === 'reload') onReload?.();
@@ -816,7 +817,17 @@ export function Menubar({
             <StIcon name="sparkle" size={15} />
           </button>
         )}
-        <button type="button" className="st-mb-icon st-share-btn" data-testid="share-btn" data-tip={sharePath ? 'Share link' : 'Open a canvas to share it'} aria-label="Share link" disabled={!sharePath} onClick={onShare}><StIcon name="share" size={15} /></button>
+        <button
+          type="button"
+          className="st-mb-icon st-share-btn"
+          data-testid="share-btn"
+          data-tip={sharePath ? 'Share link' : 'Open a canvas to share it'}
+          aria-label="Share link"
+          disabled={!sharePath}
+          onClick={onShare}
+        >
+          <StIcon name="share" size={15} />
+        </button>
         {exportCenter && <ExportBadge center={exportCenter} />}
         <button
           type="button"

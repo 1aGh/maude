@@ -25,280 +25,292 @@
  */
 
 @layer tokens {
-
-/* ============================================================
+  /* ============================================================
    Project DS — paper-light (default for marketplace surfaces,
    also the fallback when no data-theme is set)
    ============================================================ */
-:root,
-:root[data-theme="light"] {
-  /* Surfaces — paper ladder */
-  --bg-0: oklch(97.5% 0.008 78);
-  --bg-1: oklch(95.5% 0.010 78);
-  --bg-2: oklch(93.0% 0.012 78);
-  --bg-3: oklch(89.5% 0.014 78);
-  --bg-4: oklch(85.0% 0.016 78);
+  :root,
+  :root[data-theme="light"] {
+    /* Surfaces — paper ladder */
+    --bg-0: oklch(97.5% 0.008 78);
+    --bg-1: oklch(95.5% 0.01 78);
+    --bg-2: oklch(93.0% 0.012 78);
+    --bg-3: oklch(89.5% 0.014 78);
+    --bg-4: oklch(85.0% 0.016 78);
 
-  /* Borders — 1px ink hairlines */
-  --border-subtle:  oklch(86% 0.014 70);
-  --border-default: oklch(74% 0.016 65);
-  --border-strong:  oklch(48% 0.022 60);
+    /* Borders — 1px ink hairlines */
+    --border-subtle: oklch(86% 0.014 70);
+    --border-default: oklch(74% 0.016 65);
+    --border-strong: oklch(48% 0.022 60);
 
-  /* Text — ink ladder */
-  --fg-0: oklch(20% 0.020 50);
-  --fg-1: oklch(38% 0.018 50);
-  --fg-2: oklch(52% 0.015 50);
-  --fg-3: oklch(68% 0.012 50);
+    /* Text — ink ladder */
+    --fg-0: oklch(20% 0.02 50);
+    --fg-1: oklch(38% 0.018 50);
+    --fg-2: oklch(52% 0.015 50);
+    --fg-3: oklch(68% 0.012 50);
 
-  /* Accent — amber-rust catalog stamp */
-  --accent:        oklch(56% 0.170 50);
-  --accent-hover:  oklch(50% 0.170 50);
-  --accent-active: oklch(44% 0.170 50);
-  --accent-fg:     oklch(98% 0.008 78);
-  --accent-tint:   oklch(92% 0.040 55);
+    /* Accent — amber-rust catalog stamp */
+    --accent: oklch(56% 0.17 50);
+    --accent-hover: oklch(50% 0.17 50);
+    --accent-active: oklch(44% 0.17 50);
+    --accent-fg: oklch(98% 0.008 78);
+    --accent-tint: oklch(92% 0.04 55);
 
-  /* Status — always-on family */
-  --status-success: oklch(48% 0.14 145);
-  --status-warn:    oklch(64% 0.16  88);
-  --status-error:   oklch(50% 0.20  25);
-  --status-info:    oklch(50% 0.13 230);
+    /* Status — always-on family */
+    --status-success: oklch(48% 0.14 145);
+    --status-warn: oklch(64% 0.16 88);
+    --status-error: oklch(50% 0.2 25);
+    --status-info: oklch(50% 0.13 230);
 
-  /* Mono cell helpers (inline code, DS view, comment chips) */
-  --mono-cell-bg:   oklch(95% 0.010 78);
-  --mono-cell-fg:   oklch(28% 0.020 30);
-  --mono-rule:      oklch(82% 0.014 65);
+    /* Mono cell helpers (inline code, DS view, comment chips) */
+    --mono-cell-bg: oklch(95% 0.01 78);
+    --mono-cell-fg: oklch(28% 0.02 30);
+    --mono-rule: oklch(82% 0.014 65);
 
-  color-scheme: light;
-}
+    color-scheme: light;
+  }
 
-/* ============================================================
+  /* ============================================================
    Project DS — phosphor-dark (dev-server default canvas)
    ============================================================ */
-[data-theme="dark"] {
-  --bg-0: oklch(13% 0.012 60);
-  --bg-1: oklch(17% 0.014 60);
-  --bg-2: oklch(20% 0.016 60);
-  --bg-3: oklch(24% 0.018 60);
-  --bg-4: oklch(28% 0.020 60);
+  [data-theme="dark"] {
+    --bg-0: oklch(13% 0.012 60);
+    --bg-1: oklch(17% 0.014 60);
+    --bg-2: oklch(20% 0.016 60);
+    --bg-3: oklch(24% 0.018 60);
+    --bg-4: oklch(28% 0.02 60);
 
-  --border-subtle:  oklch(28% 0.018 60);
-  --border-default: oklch(40% 0.022 60);
-  --border-strong:  oklch(58% 0.026 60);
+    --border-subtle: oklch(28% 0.018 60);
+    --border-default: oklch(40% 0.022 60);
+    --border-strong: oklch(58% 0.026 60);
 
-  --fg-0: oklch(94% 0.014 80);
-  --fg-1: oklch(78% 0.014 80);
-  --fg-2: oklch(60% 0.012 80);
-  --fg-3: oklch(44% 0.010 80);
+    --fg-0: oklch(94% 0.014 80);
+    --fg-1: oklch(78% 0.014 80);
+    --fg-2: oklch(60% 0.012 80);
+    --fg-3: oklch(44% 0.01 80);
 
-  --accent:        oklch(72% 0.160 55);
-  --accent-hover:  oklch(78% 0.160 55);
-  --accent-active: oklch(84% 0.160 55);
-  --accent-fg:     oklch(14% 0.020 50);
-  --accent-tint:   oklch(28% 0.060 55);
+    --accent: oklch(72% 0.16 55);
+    --accent-hover: oklch(78% 0.16 55);
+    --accent-active: oklch(84% 0.16 55);
+    --accent-fg: oklch(14% 0.02 50);
+    --accent-tint: oklch(28% 0.06 55);
 
-  --status-success: oklch(72% 0.16 145);
-  --status-warn:    oklch(80% 0.16  88);
-  --status-error:   oklch(68% 0.20  25);
-  --status-info:    oklch(72% 0.13 230);
+    --status-success: oklch(72% 0.16 145);
+    --status-warn: oklch(80% 0.16 88);
+    --status-error: oklch(68% 0.2 25);
+    --status-info: oklch(72% 0.13 230);
 
-  --mono-cell-bg:   oklch(20% 0.016 60);
-  --mono-cell-fg:   oklch(88% 0.014 60);
-  --mono-rule:      oklch(32% 0.020 60);
+    --mono-cell-bg: oklch(20% 0.016 60);
+    --mono-cell-fg: oklch(88% 0.014 60);
+    --mono-rule: oklch(32% 0.02 60);
 
-  color-scheme: dark;
-}
+    color-scheme: dark;
+  }
 
-/* ============================================================
+  /* ============================================================
    Theme-invariant tokens (shared between paper + phosphor)
    ============================================================ */
-:root {
-  /* Radii — hard-edges: 0 / 2 / 4 only */
-  --radius-xs: 0;
-  --radius-sm: 2px;
-  --radius-md: 4px;
-  --radius-lg: 4px;
-  --radius-xl: 4px;
-  --radius-pill: 0;
+  :root {
+    /* Radii — hard-edges: 0 / 2 / 4 only */
+    --radius-xs: 0;
+    --radius-sm: 2px;
+    --radius-md: 4px;
+    --radius-lg: 4px;
+    --radius-xl: 4px;
+    --radius-pill: 0;
 
-  /* Spacing — 4 px base */
-  --space-0:  0;
-  --space-1:  2px;
-  --space-2:  4px;
-  --space-3:  8px;
-  --space-4: 12px;
-  --space-5: 16px;
-  --space-6: 24px;
-  --space-7: 32px;
-  --space-8: 48px;
-  --space-9: 64px;
+    /* Spacing — 4 px base */
+    --space-0: 0;
+    --space-1: 2px;
+    --space-2: 4px;
+    --space-3: 8px;
+    --space-4: 12px;
+    --space-5: 16px;
+    --space-6: 24px;
+    --space-7: 32px;
+    --space-8: 48px;
+    --space-9: 64px;
 
-  /* Typography — Berkeley Mono everywhere (fall back through JetBrains Mono → ui-monospace) */
-  --font-display: 'Berkeley Mono', 'TX-02', 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-body:    'Berkeley Mono', 'TX-02', 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-mono:    'Berkeley Mono', 'TX-02', 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    /* Typography — Berkeley Mono everywhere (fall back through JetBrains Mono → ui-monospace) */
+    --font-display:
+      "Berkeley Mono", "TX-02", "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular,
+      Menlo, monospace;
+    --font-body:
+      "Berkeley Mono", "TX-02", "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular,
+      Menlo, monospace;
+    --font-mono:
+      "Berkeley Mono", "TX-02", "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular,
+      Menlo, monospace;
 
-  /* 8-step type scale */
-  --type-xs:   11px;  --lh-xs:   16px;
-  --type-sm:   12px;  --lh-sm:   18px;
-  --type-base: 13px;  --lh-base: 20px;
-  --type-md:   15px;  --lh-md:   24px;
-  --type-lg:   18px;  --lh-lg:   28px;
-  --type-xl:   22px;  --lh-xl:   30px;
-  --type-2xl:  28px;  --lh-2xl:  36px;
-  --type-3xl:  40px;  --lh-3xl:  48px;
+    /* 8-step type scale */
+    --type-xs: 11px;
+    --lh-xs: 16px;
+    --type-sm: 12px;
+    --lh-sm: 18px;
+    --type-base: 13px;
+    --lh-base: 20px;
+    --type-md: 15px;
+    --lh-md: 24px;
+    --type-lg: 18px;
+    --lh-lg: 28px;
+    --type-xl: 22px;
+    --lh-xl: 30px;
+    --type-2xl: 28px;
+    --lh-2xl: 36px;
+    --type-3xl: 40px;
+    --lh-3xl: 48px;
 
-  /* Tracking */
-  --tracking-tight:   -0.01em;
-  --tracking-normal:   0;
-  --tracking-wide:     0.04em;
-  --tracking-sku:      0.12em;
-  --tracking-eyebrow:  0.18em;
+    /* Tracking */
+    --tracking-tight: -0.01em;
+    --tracking-normal: 0;
+    --tracking-wide: 0.04em;
+    --tracking-sku: 0.12em;
+    --tracking-eyebrow: 0.18em;
 
-  /* Motion */
-  --dur-flip:  90ms;
-  --dur-panel: 140ms;
-  --dur-route: 1ms;
-  --dur-soft:  180ms;
-  --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    /* Motion */
+    --dur-flip: 90ms;
+    --dur-panel: 140ms;
+    --dur-route: 1ms;
+    --dur-soft: 180ms;
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 
-  /* Hairline rules — signature treatment */
-  --rule-thin:   1px solid var(--border-default);
-  --rule-strong: 1px solid var(--border-strong);
-  --rule-accent: 1px solid var(--accent);
+    /* Hairline rules — signature treatment */
+    --rule-thin: 1px solid var(--border-default);
+    --rule-strong: 1px solid var(--border-strong);
+    --rule-accent: 1px solid var(--accent);
 
-  /* Shadows — none. Project DS rejects blur; use hairlines instead. */
-  --shadow-sm:    none;
-  --shadow-md:    none;
-  --shadow-lg:    none;
-  --shadow-focus: 0 0 0 2px var(--accent);
+    /* Shadows — none. Project DS rejects blur; use hairlines instead. */
+    --shadow-sm: none;
+    --shadow-md: none;
+    --shadow-lg: none;
+    --shadow-focus: 0 0 0 2px var(--accent);
 
-  /* ─────────────────────────────────────────────────────────
+    /* ─────────────────────────────────────────────────────────
      Legacy `--u-*` alias bridge (Phase 3.5 alias-layer).
      Pre-existing chrome rules in 3-shell.css and 4-components.css
      consume these names. Each alias points at the project DS
      token whose ROLE (not just numeric value) matches.
      ───────────────────────────────────────────────────────── */
 
-  /* Surfaces — direct ladder mirror */
-  --u-bg-0: var(--bg-0);
-  --u-bg-1: var(--bg-1);
-  --u-bg-2: var(--bg-2);
-  --u-bg-3: var(--bg-3);
-  --u-bg-4: var(--bg-4);
+    /* Surfaces — direct ladder mirror */
+    --u-bg-0: var(--bg-0);
+    --u-bg-1: var(--bg-1);
+    --u-bg-2: var(--bg-2);
+    --u-bg-3: var(--bg-3);
+    --u-bg-4: var(--bg-4);
 
-  /* State surfaces — project DS uses surface STEPS for state
+    /* State surfaces — project DS uses surface STEPS for state
      (hover = next surface up) instead of alpha-on-color overlays.
      Selected uses the accent wash, which is theme-aware. */
-  --u-bg-hover:    var(--bg-2);
-  --u-bg-active:   var(--bg-3);
-  --u-bg-selected: var(--accent-tint);
+    --u-bg-hover: var(--bg-2);
+    --u-bg-active: var(--bg-3);
+    --u-bg-selected: var(--accent-tint);
 
-  /* Text */
-  --u-fg-0: var(--fg-0);
-  --u-fg-1: var(--fg-1);
-  --u-fg-2: var(--fg-2);
-  --u-fg-3: var(--fg-3);
+    /* Text */
+    --u-fg-0: var(--fg-0);
+    --u-fg-1: var(--fg-1);
+    --u-fg-2: var(--fg-2);
+    --u-fg-3: var(--fg-3);
 
-  /* Borders */
-  --u-border:        var(--border-default);
-  --u-border-subtle: var(--border-subtle);
-  --u-border-strong: var(--border-strong);
+    /* Borders */
+    --u-border: var(--border-default);
+    --u-border-subtle: var(--border-subtle);
+    --u-border-strong: var(--border-strong);
 
-  /* Accent — sibling roles preserved:
+    /* Accent — sibling roles preserved:
      --u-accent        = brand-fill identity (catalog stamp)
      --u-accent-strong = pressed / focus-active stroke
      --u-accent-line   = 1px boundary stroke on accent surfaces
      --u-accent-bg     = soft accent wash for cells
      --u-accent-fg     = text on a saturated accent fill */
-  --u-accent:        var(--accent);
-  --u-accent-bg:     var(--accent-tint);
-  --u-accent-line:   var(--accent-hover);
-  --u-accent-strong: var(--accent-active);
-  --u-accent-fg:     var(--accent-fg);
+    --u-accent: var(--accent);
+    --u-accent-bg: var(--accent-tint);
+    --u-accent-line: var(--accent-hover);
+    --u-accent-strong: var(--accent-active);
+    --u-accent-fg: var(--accent-fg);
 
-  /* Status */
-  --u-status-success: var(--status-success);
-  --u-status-warn:    var(--status-warn);
-  --u-status-error:   var(--status-error);
-  --u-status-info:    var(--status-info);
-  --u-status-live:    var(--status-error);
+    /* Status */
+    --u-status-success: var(--status-success);
+    --u-status-warn: var(--status-warn);
+    --u-status-error: var(--status-error);
+    --u-status-info: var(--status-info);
+    --u-status-live: var(--status-error);
 
-  /* Radii — collapse legacy ladder onto 0 / 2 / 4 (chrome chips
+    /* Radii — collapse legacy ladder onto 0 / 2 / 4 (chrome chips
      keep --radius-md to remain readable; --u-r-pill no longer
      produces full pills, by design). */
-  --u-r-xs:   var(--radius-xs);
-  --u-r-sm:   var(--radius-sm);
-  --u-r-md:   var(--radius-md);
-  --u-r-lg:   var(--radius-md);
-  --u-r-pill: var(--radius-md);
+    --u-r-xs: var(--radius-xs);
+    --u-r-sm: var(--radius-sm);
+    --u-r-md: var(--radius-md);
+    --u-r-lg: var(--radius-md);
+    --u-r-pill: var(--radius-md);
 
-  /* Spacing — legacy 5-step → project DS 4 px base */
-  --u-s-1: var(--space-2);   /*  4 px */
-  --u-s-2: var(--space-3);   /*  8 px */
-  --u-s-3: var(--space-4);   /* 12 px */
-  --u-s-4: var(--space-5);   /* 16 px */
-  --u-s-5: var(--space-6);   /* 24 px */
+    /* Spacing — legacy 5-step → project DS 4 px base */
+    --u-s-1: var(--space-2); /*  4 px */
+    --u-s-2: var(--space-3); /*  8 px */
+    --u-s-3: var(--space-4); /* 12 px */
+    --u-s-4: var(--space-5); /* 16 px */
+    --u-s-5: var(--space-6); /* 24 px */
 
-  /* Fonts — sans family collapses; everything is mono now */
-  --u-font-display: var(--font-display);
-  --u-font-body:    var(--font-body);
-  --u-font-sans:    var(--font-body);
-  --u-font-mono:    var(--font-mono);
+    /* Fonts — sans family collapses; everything is mono now */
+    --u-font-display: var(--font-display);
+    --u-font-body: var(--font-body);
+    --u-font-sans: var(--font-body);
+    --u-font-mono: var(--font-mono);
 
-  /* Mono cell helpers */
-  --u-mono-cell-bg: var(--mono-cell-bg);
-  --u-mono-cell-fg: var(--mono-cell-fg);
-  --u-mono-rule:    var(--mono-rule);
+    /* Mono cell helpers */
+    --u-mono-cell-bg: var(--mono-cell-bg);
+    --u-mono-cell-fg: var(--mono-cell-fg);
+    --u-mono-rule: var(--mono-rule);
 
-  /* Layout dims — theme-invariant chrome geometry */
-  --u-sidebar-w:  320px;
-  --u-rsidebar-w: 360px;
-  --u-header-h:   44px;
-  --u-status-h:   28px;
-}
+    /* Layout dims — theme-invariant chrome geometry */
+    --u-sidebar-w: 320px;
+    --u-rsidebar-w: 360px;
+    --u-header-h: 44px;
+    --u-status-h: 28px;
+  }
 
-/* When no data-theme attr is set AND the OS prefers dark, mirror the
+  /* When no data-theme attr is set AND the OS prefers dark, mirror the
    dark block onto :root so the dev-server still looks right when the
    <html data-theme> attribute hasn't been written by JS yet. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
-    --bg-0: oklch(13% 0.012 60);
-    --bg-1: oklch(17% 0.014 60);
-    --bg-2: oklch(20% 0.016 60);
-    --bg-3: oklch(24% 0.018 60);
-    --bg-4: oklch(28% 0.020 60);
-    --border-subtle:  oklch(28% 0.018 60);
-    --border-default: oklch(40% 0.022 60);
-    --border-strong:  oklch(58% 0.026 60);
-    --fg-0: oklch(94% 0.014 80);
-    --fg-1: oklch(78% 0.014 80);
-    --fg-2: oklch(60% 0.012 80);
-    --fg-3: oklch(44% 0.010 80);
-    --accent:        oklch(72% 0.160 55);
-    --accent-hover:  oklch(78% 0.160 55);
-    --accent-active: oklch(84% 0.160 55);
-    --accent-fg:     oklch(14% 0.020 50);
-    --accent-tint:   oklch(28% 0.060 55);
-    --status-success: oklch(72% 0.16 145);
-    --status-warn:    oklch(80% 0.16  88);
-    --status-error:   oklch(68% 0.20  25);
-    --status-info:    oklch(72% 0.13 230);
-    --mono-cell-bg:   oklch(20% 0.016 60);
-    --mono-cell-fg:   oklch(88% 0.014 60);
-    --mono-rule:      oklch(32% 0.020 60);
-    color-scheme: dark;
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+      --bg-0: oklch(13% 0.012 60);
+      --bg-1: oklch(17% 0.014 60);
+      --bg-2: oklch(20% 0.016 60);
+      --bg-3: oklch(24% 0.018 60);
+      --bg-4: oklch(28% 0.02 60);
+      --border-subtle: oklch(28% 0.018 60);
+      --border-default: oklch(40% 0.022 60);
+      --border-strong: oklch(58% 0.026 60);
+      --fg-0: oklch(94% 0.014 80);
+      --fg-1: oklch(78% 0.014 80);
+      --fg-2: oklch(60% 0.012 80);
+      --fg-3: oklch(44% 0.01 80);
+      --accent: oklch(72% 0.16 55);
+      --accent-hover: oklch(78% 0.16 55);
+      --accent-active: oklch(84% 0.16 55);
+      --accent-fg: oklch(14% 0.02 50);
+      --accent-tint: oklch(28% 0.06 55);
+      --status-success: oklch(72% 0.16 145);
+      --status-warn: oklch(80% 0.16 88);
+      --status-error: oklch(68% 0.2 25);
+      --status-info: oklch(72% 0.13 230);
+      --mono-cell-bg: oklch(20% 0.016 60);
+      --mono-cell-fg: oklch(88% 0.014 60);
+      --mono-rule: oklch(32% 0.02 60);
+      color-scheme: dark;
+    }
   }
-}
 
-/* Reduced-motion guard — collapses every transition to ~instant. */
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --dur-flip:  1ms;
-    --dur-panel: 1ms;
-    --dur-route: 1ms;
-    --dur-soft:  1ms;
+  /* Reduced-motion guard — collapses every transition to ~instant. */
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --dur-flip: 1ms;
+      --dur-panel: 1ms;
+      --dur-route: 1ms;
+      --dur-soft: 1ms;
+    }
   }
-}
-
 }

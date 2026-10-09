@@ -1,8 +1,20 @@
 // dialogs/export-dialog.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
 import { useCallback, useEffect, useState } from 'react';
-import { BROWSER_CAPTURE_FORMATS, BROWSER_SERVABLE_FORMATS, browserCaptureEligible, captureDeckViaBrowser, captureScale, recordBrowserExport, sanitizeCapturedItems } from '../export-lane.js';
-import { defaultScopeForFormat, isScopeValidForFormat, validScopesForFormat } from '../../exporters/format-scopes.ts';
+import {
+  BROWSER_CAPTURE_FORMATS,
+  BROWSER_SERVABLE_FORMATS,
+  browserCaptureEligible,
+  captureDeckViaBrowser,
+  captureScale,
+  recordBrowserExport,
+  sanitizeCapturedItems,
+} from '../export-lane.js';
+import {
+  defaultScopeForFormat,
+  isScopeValidForFormat,
+  validScopesForFormat,
+} from '../../exporters/format-scopes.ts';
 import { activeComp, resolveCompTarget } from '../panels/timeline-comp-target.js';
 import { SYSTEM_TAB } from '../shell/constants.js';
 import { basename, displayName } from '../shell/util.js';
@@ -14,7 +26,14 @@ import { StIcon } from '../shell/icons.jsx';
 // a privileged disk-write kept off HTTP routes (DDR-054), so it surfaces the
 // `/design:handoff` command instead. PPTX/Canva kept reachable (no silent cap).
 export const EXPORT_CARDS = [
-  { id: 'png', label: 'PNG', sub: 'raster · 2×', icon: 'image', format: 'png', options: { scale: 2 } },
+  {
+    id: 'png',
+    label: 'PNG',
+    sub: 'raster · 2×',
+    icon: 'image',
+    format: 'png',
+    options: { scale: 2 },
+  },
   { id: 'pdf', label: 'PDF', sub: 'vector · print', icon: 'file', format: 'pdf' },
   { id: 'svg', label: 'SVG', sub: 'per artboard', icon: 'vector', format: 'svg' },
   { id: 'html', label: 'HTML', sub: 'self-contained', icon: 'code', format: 'html' },
@@ -22,7 +41,14 @@ export const EXPORT_CARDS = [
   // DDR-148 — temporal formats. Shown only when the active canvas has a
   // video-comp (`temporal: true` + the hasComps gate in ExportDialog); the
   // capture engine renders the artboard frame-by-frame.
-  { id: 'mp4', label: 'MP4', sub: 'video · H.264', icon: 'presentation', format: 'mp4', temporal: true },
+  {
+    id: 'mp4',
+    label: 'MP4',
+    sub: 'video · H.264',
+    icon: 'presentation',
+    format: 'mp4',
+    temporal: true,
+  },
   { id: 'gif', label: 'GIF', sub: 'animated', icon: 'image', format: 'gif', temporal: true },
   { id: 'canva', label: 'Canva', sub: 'handoff bundle', icon: 'external', format: 'canva' },
   { id: 'zip', label: 'ZIP', sub: 'project bundle', icon: 'archive', format: 'zip' },
@@ -270,7 +296,10 @@ export function ExportDialog({
     if (laneBlocked(card)) {
       // Belt to the disabled-card braces — a stale selection can't submit a
       // format this workspace cannot render.
-      setStatus({ ok: false, msg: 'This format needs the render service, which this workspace doesn’t have configured.' });
+      setStatus({
+        ok: false,
+        msg: 'This format needs the render service, which this workspace doesn’t have configured.',
+      });
       return;
     }
     setBusy(true);
@@ -501,11 +530,11 @@ export function ExportDialog({
           </div>
           {exportLane === 'none' && (
             <div className="st-dialog-note" data-testid="export-lane-note">
-              PNG and SVG of the active artboard — and the PPTX deck — export right
-              here in your browser; ZIP and AI handoff work too. PDF, video and other
-              multi-artboard exports need the render service, which this workspace
-              doesn&apos;t have configured — use the desktop app, or ask your admin to
-              add the <code> maude-render</code> service (see the self-hosting docs).
+              PNG and SVG of the active artboard — and the PPTX deck — export right here in your
+              browser; ZIP and AI handoff work too. PDF, video and other multi-artboard exports need
+              the render service, which this workspace doesn&apos;t have configured — use the
+              desktop app, or ask your admin to add the <code> maude-render</code> service (see the
+              self-hosting docs).
             </div>
           )}
           {!card.handoff && (
@@ -594,7 +623,8 @@ export function ExportDialog({
           )}
           {!card.handoff && card.temporal && (
             <div className="st-mono" style={{ fontSize: 11, color: 'var(--fg-3)' }}>
-              {scale}× the artboard's native resolution (e.g. 960×540 → {960 * scale}×{540 * scale}).
+              {scale}× the artboard's native resolution (e.g. 960×540 → {960 * scale}×{540 * scale}
+              ).
             </div>
           )}
           {exportIsHeavy && (
@@ -683,8 +713,23 @@ export function ExportDialog({
                 </button>
               </div>
               {pdfMarksOpen && (
-                <div style={{ padding: '0 12px 4px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12 }}>
+                <div
+                  style={{
+                    padding: '0 12px 4px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                  }}
+                >
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      cursor: 'pointer',
+                      fontSize: 12,
+                    }}
+                  >
                     <input
                       type="checkbox"
                       checked={pdfMarksCrop}
@@ -692,7 +737,15 @@ export function ExportDialog({
                     />
                     Crop marks
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12 }}>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      cursor: 'pointer',
+                      fontSize: 12,
+                    }}
+                  >
                     <input
                       type="checkbox"
                       checked={pdfMarksRegistration}
@@ -728,8 +781,8 @@ export function ExportDialog({
           {card.handoff && (
             <div className="callout callout--info" style={{ fontSize: 12 }}>
               Hands the active canvas off to production. Copies{' '}
-              <span className="st-mono">/design:handoff &lt;path&gt;</span> — run it in Claude Code to
-              emit a ready-to-drop production component next to the canvas.
+              <span className="st-mono">/design:handoff &lt;path&gt;</span> — run it in Claude Code
+              to emit a ready-to-drop production component next to the canvas.
             </div>
           )}
           {status && (
@@ -769,11 +822,7 @@ export function ExportDialog({
             onClick={doExport}
           >
             <StIcon name="download" size={14} />
-            {card.handoff
-              ? 'Copy handoff command'
-              : busy
-                ? 'Exporting…'
-                : `Export ${card.label}`}
+            {card.handoff ? 'Copy handoff command' : busy ? 'Exporting…' : `Export ${card.label}`}
           </button>
         </div>
       </div>

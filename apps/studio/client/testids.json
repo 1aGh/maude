@@ -25,9 +25,7 @@
       "symbol": "Menubar"
     },
     "region": "menubar",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves",
     "notes": "Menubar itself focuses `[data-testid=\"menu-file\"]` when the Share shortcut fires."
   },
@@ -42,9 +40,7 @@
     },
     "region": "menubar",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/cloud-shell-surfaces.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/cloud-shell-surfaces.test.ts"],
     "v2": "moves"
   },
   {
@@ -58,9 +54,7 @@
     },
     "region": "menubar",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/cloud-shell-surfaces.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/cloud-shell-surfaces.test.ts"],
     "v2": "moves"
   },
   {
@@ -92,9 +86,7 @@
       }
     ],
     "region": "menubar",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
     "v2": "moves",
     "notes": "Duplicate testid across two components."
   },
@@ -139,10 +131,7 @@
       "symbol": "Menubar"
     },
     "region": "menubar",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/share-link.e2e.ts",
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts", "apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -168,9 +157,7 @@
       "symbol": "Menubar"
     },
     "region": "menubar",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -183,10 +170,7 @@
       "symbol": "Menubar"
     },
     "region": "menubar",
-    "consumers": [
-      "apps/studio/client/tour/usage-tour.js",
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/client/tour/usage-tour.js", "apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -216,10 +200,7 @@
       "symbol": "Menubar"
     },
     "region": "menubar",
-    "consumers": [
-      "apps/studio/client/tour/collab-tour.js",
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/client/tour/collab-tour.js", "apps/studio/whats-new.json"],
     "v2": "moves",
     "notes": "Despite its name this anchor is in the menubar, not the status bar."
   },
@@ -239,10 +220,7 @@
       }
     ],
     "region": "menubar",
-    "consumers": [
-      "apps/studio/client/tour/usage-tour.js",
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/client/tour/usage-tour.js", "apps/studio/whats-new.json"],
     "v2": "moves",
     "notes": "`WhatsNewBadge` also emits this anchor but is exported and never mounted."
   },
@@ -256,9 +234,7 @@
       "symbol": "ExportBadge"
     },
     "region": "menubar",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "moves",
     "notes": "Mounted by `Menubar` only when the export center exists."
   },
@@ -272,9 +248,7 @@
       "symbol": "StatusBar"
     },
     "region": "status bar",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/shell-parity.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/shell-parity.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -325,9 +299,7 @@
       "apps/desktop/e2e/scenarios/team-project.e2e.ts",
       "apps/studio/whats-new.json"
     ],
-    "sourceConsumers": [
-      "apps/studio/test/sync-panel-surface.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/sync-panel-surface.test.ts"],
     "v2": "moves"
   },
   {
@@ -368,9 +340,7 @@
       "apps/desktop/e2e/scenarios/splash-recovers-after-return-to-entry.e2e.ts",
       "apps/studio/test/export-e2e-lanes.test.ts"
     ],
-    "sourceConsumers": [
-      "apps/studio/test/shell-accessibility.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/shell-accessibility.test.ts"],
     "v2": "stable"
   },
   {
@@ -383,9 +353,7 @@
       "symbol": "Sidebar"
     },
     "region": "sidebar/tree",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/shell-parity.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/shell-parity.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -442,9 +410,7 @@
       "symbol": "FileRow"
     },
     "region": "sidebar/tree",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -773,9 +739,7 @@
       "symbol": "ExportDialog"
     },
     "region": "export dialog",
-    "consumers": [
-      "apps/studio/test/export-e2e-lanes.test.ts"
-    ],
+    "consumers": ["apps/studio/test/export-e2e-lanes.test.ts"],
     "v2": "moves"
   },
   {
@@ -817,9 +781,7 @@
       "symbol": "ExportPanel"
     },
     "region": "export dialog",
-    "consumers": [
-      "apps/studio/test/export-center.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/export-center.test.tsx"],
     "v2": "moves"
   },
   {
@@ -833,9 +795,7 @@
     },
     "region": "export dialog",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/exporters/degraded-propagation.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/exporters/degraded-propagation.test.ts"],
     "v2": "moves"
   },
   {
@@ -848,9 +808,7 @@
       "symbol": "InspectorPanel"
     },
     "region": "inspector",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/shell-parity.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/shell-parity.e2e.ts"],
     "v2": "moves",
     "notes": "Passed as the `testId` prop from `renderPanelBody` in `App()`."
   },
@@ -878,9 +836,7 @@
       "symbol": "CssKnobs"
     },
     "region": "inspector",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -922,10 +878,7 @@
       "symbol": "InspectorPanel"
     },
     "region": "inspector",
-    "consumers": [
-      "apps/studio/client/tour/usage-tour.js",
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/client/tour/usage-tour.js", "apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -938,9 +891,7 @@
       "symbol": "InspectorPanel"
     },
     "region": "inspector",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -953,9 +904,7 @@
       "symbol": "CssKnobs"
     },
     "region": "inspector",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -968,9 +917,7 @@
       "symbol": "CssKnobs"
     },
     "region": "inspector",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -1009,9 +956,7 @@
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -1024,9 +969,7 @@
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -1178,9 +1121,7 @@
       "symbol": "SetupAction"
     },
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -1206,9 +1147,7 @@
       "symbol": "Row"
     },
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -1253,9 +1192,7 @@
       "symbol": "ModeBanner"
     },
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-capability-picker.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/acp-capability-picker.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -1313,9 +1250,7 @@
       }
     ],
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/helpers/assistant.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/helpers/assistant.ts"],
     "v2": "stable",
     "notes": "Hover/focus-revealed (`opacity: 0` otherwise), so `isDisplayed()` never reports it, and it exists on the user message the moment it is sent — not a turn-finished signal. `e2e-helper:assistant` only counts it (one per message)."
   },
@@ -1489,9 +1424,7 @@
       "symbol": "PermissionPrompt"
     },
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -1533,9 +1466,7 @@
       "symbol": "PermissionPrompt"
     },
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -1590,9 +1521,7 @@
       "symbol": "ElicitationPrompt"
     },
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -1657,9 +1586,7 @@
       "symbol": "Question"
     },
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -1805,9 +1732,7 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -1833,9 +1758,7 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -1900,9 +1823,7 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -1931,9 +1852,7 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -1946,9 +1865,7 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -2186,9 +2103,7 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -2357,9 +2272,7 @@
       "symbol": "ClipInspector"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -2437,9 +2350,7 @@
       "symbol": "ClipInspector"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -2452,9 +2363,7 @@
       "symbol": "ClipInspector"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -2553,9 +2462,7 @@
       "symbol": "GitPanel"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -2568,9 +2475,7 @@
       "symbol": "GitPanel"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -2583,9 +2488,7 @@
       "symbol": "GitPanel"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -2598,9 +2501,7 @@
       "symbol": "GitPanel"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -2614,9 +2515,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/cloud-history-posture.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/cloud-history-posture.test.ts"],
     "v2": "stable"
   },
   {
@@ -2630,9 +2529,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/cloud-history-posture.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/cloud-history-posture.test.ts"],
     "v2": "stable"
   },
   {
@@ -2679,9 +2576,7 @@
       "symbol": "AcceptedRow"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -2743,9 +2638,7 @@
       "symbol": "GitPanel"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/studio/client/tour/collab-tour.js"
-    ],
+    "consumers": ["apps/studio/client/tour/collab-tour.js"],
     "v2": "stable"
   },
   {
@@ -2758,9 +2651,7 @@
       "symbol": "GitPanel"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/studio/client/tour/collab-tour.js"
-    ],
+    "consumers": ["apps/studio/client/tour/collab-tour.js"],
     "v2": "stable"
   },
   {
@@ -2773,9 +2664,7 @@
       "symbol": "GitPanel"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/studio/client/tour/collab-tour.js"
-    ],
+    "consumers": ["apps/studio/client/tour/collab-tour.js"],
     "v2": "stable"
   },
   {
@@ -2899,9 +2788,7 @@
       "symbol": "RepoBranchSwitcher"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -2914,9 +2801,7 @@
       "symbol": "RepoBranchSwitcher"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -2929,9 +2814,7 @@
       "symbol": "RepoBranchSwitcher"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -2944,9 +2827,7 @@
       "symbol": "RepoBranchSwitcher"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -2959,9 +2840,7 @@
       "symbol": "RepoBranchSwitcher"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -2974,9 +2853,7 @@
       "symbol": "RepoBranchSwitcher"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/git-lifecycle.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -3096,12 +2973,8 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
-    "sourceConsumers": [
-      "apps/studio/test/sync-panel-surface.test.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
+    "sourceConsumers": ["apps/studio/test/sync-panel-surface.test.ts"],
     "v2": "stable"
   },
   {
@@ -3127,9 +3000,7 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/team-project.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -3142,9 +3013,7 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -3157,9 +3026,7 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -3172,9 +3039,7 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -3213,9 +3078,7 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      ".ai/scenarios/reliable-project-multiplayer/runners/f3/s18-desktop.mjs"
-    ],
+    "consumers": [".ai/scenarios/reliable-project-multiplayer/runners/f3/s18-desktop.mjs"],
     "v2": "stable"
   },
   {
@@ -3242,9 +3105,7 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/sync-panel-surface.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/sync-panel-surface.test.ts"],
     "v2": "stable"
   },
   {
@@ -3258,9 +3119,7 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/sync-panel-surface.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/sync-panel-surface.test.ts"],
     "v2": "stable"
   },
   {
@@ -3325,9 +3184,7 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -3380,9 +3237,7 @@
     },
     "region": "sync/cloud",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/sync-panel-surface.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/sync-panel-surface.test.ts"],
     "v2": "stable"
   },
   {
@@ -3395,9 +3250,7 @@
       "symbol": "SyncPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -3673,9 +3526,7 @@
       "symbol": "SourceConflictPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      ".ai/scenarios/reliable-project-multiplayer/runners/f3/s18-desktop.mjs"
-    ],
+    "consumers": [".ai/scenarios/reliable-project-multiplayer/runners/f3/s18-desktop.mjs"],
     "v2": "stable"
   },
   {
@@ -3688,9 +3539,7 @@
       "symbol": "SourceConflictPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/studio/test/source-conflict-dialog.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/source-conflict-dialog.test.tsx"],
     "v2": "stable"
   },
   {
@@ -3703,9 +3552,7 @@
       "symbol": "SourceConflictPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/studio/test/source-conflict-dialog.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/source-conflict-dialog.test.tsx"],
     "v2": "stable"
   },
   {
@@ -3718,9 +3565,7 @@
       "symbol": "SourceConflictPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/studio/test/source-conflict-dialog.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/source-conflict-dialog.test.tsx"],
     "v2": "stable"
   },
   {
@@ -3733,9 +3578,7 @@
       "symbol": "SourceConflictPanel"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/studio/test/source-conflict-dialog.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/source-conflict-dialog.test.tsx"],
     "v2": "stable"
   },
   {
@@ -3790,9 +3633,7 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -3805,9 +3646,7 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -3820,9 +3659,7 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -3835,9 +3672,7 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -3957,9 +3792,7 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -3985,9 +3818,7 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4000,9 +3831,7 @@
       "symbol": "CloudBar"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4015,9 +3844,7 @@
       "symbol": "FileDeepLinkDialog"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/share-link.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4030,9 +3857,7 @@
       "symbol": "FileDeepLinkDialog"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/share-link.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4106,9 +3931,7 @@
       "symbol": "TeamProjects"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/team-project.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4121,9 +3944,7 @@
       "symbol": "TeamProjects"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/cloud-entry.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/cloud-entry.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4149,9 +3970,7 @@
       "symbol": "TeamProjects"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/cloud-entry.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/cloud-entry.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4164,9 +3983,7 @@
       "symbol": "TeamProjects"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/studio/test/team-projects-empty.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/team-projects-empty.test.tsx"],
     "v2": "stable"
   },
   {
@@ -4280,9 +4097,7 @@
       "symbol": "TeamProjectsDialog"
     },
     "region": "sync/cloud",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/team-project.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4512,9 +4327,7 @@
       "symbol": "SetupChecklist"
     },
     "region": "onboarding",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -4735,9 +4548,7 @@
       "symbol": "STARTER_CANVAS_TSX"
     },
     "region": "onboarding",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/onboarding.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/onboarding.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4750,9 +4561,7 @@
       "symbol": "ShareDialog"
     },
     "region": "share",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/share-link.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4765,9 +4574,7 @@
       "symbol": "ShareDialog"
     },
     "region": "share",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/share-link.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4780,9 +4587,7 @@
       "symbol": "ShareDialog"
     },
     "region": "share",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/share-link.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4808,9 +4613,7 @@
       "symbol": "ReportBugDialog"
     },
     "region": "report-bug",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4823,9 +4626,7 @@
       "symbol": "ReportBugDialog"
     },
     "region": "report-bug",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4838,9 +4639,7 @@
       "symbol": "ReportBugDialog"
     },
     "region": "report-bug",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4905,9 +4704,7 @@
       "symbol": "ReportBugDialog"
     },
     "region": "report-bug",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -4972,9 +4769,7 @@
       "symbol": "ToolPalette"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/mode-toggle.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
     "v2": "moves"
   },
   {
@@ -5006,9 +4801,7 @@
       "symbol": "ToolPalette"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/mode-toggle.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/mode-toggle.test.tsx"],
     "v2": "moves"
   },
   {
@@ -5021,9 +4814,7 @@
       "symbol": "DCArtboard"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -5036,9 +4827,7 @@
       "symbol": "LockBadge"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/e2e/annotations-lock.e2e.mjs"
-    ],
+    "consumers": ["apps/studio/test/e2e/annotations-lock.e2e.mjs"],
     "v2": "stable"
   },
   {
@@ -5051,9 +4840,7 @@
       "symbol": "AnnotationContextToolbar"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/e2e/annotations-lock.e2e.mjs"
-    ],
+    "consumers": ["apps/studio/test/e2e/annotations-lock.e2e.mjs"],
     "v2": "stable"
   },
   {
@@ -5066,9 +4853,7 @@
       "symbol": "AnnotationContextToolbar"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/e2e/annotations-lock.e2e.mjs"
-    ],
+    "consumers": ["apps/studio/test/e2e/annotations-lock.e2e.mjs"],
     "v2": "stable"
   },
   {
@@ -5081,9 +4866,7 @@
       "symbol": "CommentThread"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -5096,9 +4879,7 @@
       "symbol": "CommentThread"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -5111,9 +4892,7 @@
       "symbol": "DockSlot"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves",
     "notes": "Region: the configurable left/right panel dock, which v2 removes."
   },
@@ -5127,9 +4906,7 @@
       "symbol": "App"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -5142,9 +4919,7 @@
       "symbol": "App"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -5184,9 +4959,7 @@
     },
     "region": "menubar",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/shell-accessibility.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/shell-accessibility.test.ts"],
     "v2": "moves",
     "notes": "Source-text consumer only: `test/shell-accessibility.test.ts` parses `app.jsx` and finds these by className."
   },
@@ -5201,9 +4974,7 @@
     },
     "region": "menubar",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/shell-accessibility.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/shell-accessibility.test.ts"],
     "v2": "moves",
     "notes": "Source-text consumer only (see `.st-menus`)."
   },
@@ -5227,9 +4998,7 @@
       }
     ],
     "region": "menubar",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -5242,9 +5011,7 @@
       "symbol": "Menubar"
     },
     "region": "menubar",
-    "consumers": [
-      "apps/studio/test/shell-text-contrast.test.ts"
-    ],
+    "consumers": ["apps/studio/test/shell-text-contrast.test.ts"],
     "v2": "moves",
     "notes": "CSS consumer: `test/shell-text-contrast.test.ts` reads the rule in `styles/3-shell-maude.css`, not the DOM."
   },
@@ -5258,9 +5025,7 @@
       "symbol": "Menubar"
     },
     "region": "menubar",
-    "consumers": [
-      "apps/studio/test/shell-text-contrast.test.ts"
-    ],
+    "consumers": ["apps/studio/test/shell-text-contrast.test.ts"],
     "v2": "moves",
     "notes": "CSS consumer (rule in `styles/4-components.css`)."
   },
@@ -5284,9 +5049,7 @@
       }
     ],
     "region": "menubar",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves",
     "notes": "`surface.e2e.ts` `Surface.menu(text)` = Playwright `getByRole('menuitem', { name, exact: true })`."
   },
@@ -5317,9 +5080,7 @@
       "symbol": "StatusBar"
     },
     "region": "status bar",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -5332,9 +5093,7 @@
       "symbol": "StatusBar"
     },
     "region": "status bar",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/team-project.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/team-project.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -5347,9 +5106,7 @@
       "symbol": "StatusBar"
     },
     "region": "status bar",
-    "consumers": [
-      "apps/studio/test/shell-text-contrast.test.ts"
-    ],
+    "consumers": ["apps/studio/test/shell-text-contrast.test.ts"],
     "v2": "moves",
     "notes": "CSS consumer."
   },
@@ -5363,9 +5120,7 @@
       "symbol": "StatusBar"
     },
     "region": "status bar",
-    "consumers": [
-      "apps/studio/test/shell-text-contrast.test.ts"
-    ],
+    "consumers": ["apps/studio/test/shell-text-contrast.test.ts"],
     "v2": "moves",
     "notes": "CSS consumer."
   },
@@ -5379,9 +5134,7 @@
       "symbol": "StatusBar"
     },
     "region": "status bar",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -5394,9 +5147,7 @@
       "symbol": "StatusBar"
     },
     "region": "status bar",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -5409,9 +5160,7 @@
       "symbol": "StatusBar"
     },
     "region": "status bar",
-    "consumers": [
-      ".ai/scenarios/reliable-project-multiplayer/runners/f3/s19-browser.mjs"
-    ],
+    "consumers": [".ai/scenarios/reliable-project-multiplayer/runners/f3/s19-browser.mjs"],
     "v2": "moves",
     "notes": "Playwright `getByRole('button', { name: 'Switch to <theme> theme' })`."
   },
@@ -5425,9 +5174,7 @@
       "symbol": "FileTree"
     },
     "region": "sidebar/tree",
-    "consumers": [
-      ".claude/skills/desktop-e2e/SKILL.md"
-    ],
+    "consumers": [".claude/skills/desktop-e2e/SKILL.md"],
     "v2": "stable"
   },
   {
@@ -5440,9 +5187,7 @@
       "symbol": "Sidebar"
     },
     "region": "sidebar/tree",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -5469,9 +5214,7 @@
       }
     ],
     "region": "sidebar/tree",
-    "consumers": [
-      "apps/studio/test/file-tree-navigation.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/file-tree-navigation.test.tsx"],
     "v2": "stable"
   },
   {
@@ -5507,9 +5250,7 @@
       "symbol": "Sidebar"
     },
     "region": "sidebar/tree",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -5607,9 +5348,7 @@
       "symbol": "Sidebar"
     },
     "region": "sidebar/tree",
-    "consumers": [
-      "apps/studio/client/app.jsx"
-    ],
+    "consumers": ["apps/studio/client/app.jsx"],
     "v2": "stable",
     "notes": "Internal cross-component consumer: `App()`."
   },
@@ -5623,9 +5362,7 @@
       "symbol": "Sidebar"
     },
     "region": "sidebar/tree",
-    "consumers": [
-      "apps/studio/client/app.jsx"
-    ],
+    "consumers": ["apps/studio/client/app.jsx"],
     "v2": "stable",
     "notes": "Internal cross-component consumer: `App()`."
   },
@@ -5662,9 +5399,7 @@
       "symbol": "Viewport"
     },
     "region": "viewport",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/sidecar-respawn-canvas-switch.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/sidecar-respawn-canvas-switch.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -5685,9 +5420,7 @@
       "apps/desktop/e2e/scenarios/shell-parity.e2e.ts",
       "apps/studio/test/export-e2e-lanes.test.ts"
     ],
-    "sourceConsumers": [
-      "apps/studio/test/shell-accessibility.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/shell-accessibility.test.ts"],
     "v2": "stable",
     "notes": "`test/shell-accessibility.test.ts` also asserts (source text) that this iframe's `title` is the template literal \"Canvas: \" + `t.path`."
   },
@@ -5701,9 +5434,7 @@
       "symbol": "CanvasLoading"
     },
     "region": "viewport",
-    "consumers": [
-      "apps/desktop/src-tauri/src/e2e-frame-probe.js"
-    ],
+    "consumers": ["apps/desktop/src-tauri/src/e2e-frame-probe.js"],
     "v2": "stable"
   },
   {
@@ -5716,9 +5447,7 @@
       "symbol": "CommandPalette"
     },
     "region": "⌘K palette",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -5731,9 +5460,7 @@
       "symbol": "ExportDialog"
     },
     "region": "export dialog",
-    "consumers": [
-      "apps/studio/test/export-e2e-lanes.test.ts"
-    ],
+    "consumers": ["apps/studio/test/export-e2e-lanes.test.ts"],
     "v2": "moves"
   },
   {
@@ -5752,9 +5479,7 @@
       }
     ],
     "region": "inspector",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -5773,9 +5498,7 @@
       }
     ],
     "region": "inspector",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -5798,9 +5521,7 @@
       }
     ],
     "region": "inspector",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -5813,9 +5534,7 @@
       "symbol": "LayerRow"
     },
     "region": "inspector",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "moves"
   },
   {
@@ -5828,9 +5547,7 @@
       "symbol": "CssKnobs"
     },
     "region": "inspector",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -5849,9 +5566,7 @@
       }
     ],
     "region": "inspector",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -5864,9 +5579,7 @@
       "symbol": "CssKnobs"
     },
     "region": "inspector",
-    "consumers": [
-      ".ai/scenarios/element-editing-resize-and-position/spec.md"
-    ],
+    "consumers": [".ai/scenarios/element-editing-resize-and-position/spec.md"],
     "v2": "moves"
   },
   {
@@ -5885,9 +5598,7 @@
       }
     ],
     "region": "inspector",
-    "consumers": [
-      ".ai/scenarios/element-editing-resize-and-position/spec.md"
-    ],
+    "consumers": [".ai/scenarios/element-editing-resize-and-position/spec.md"],
     "v2": "moves"
   },
   {
@@ -5916,9 +5627,7 @@
       "symbol": "InspectorPanel"
     },
     "region": "inspector",
-    "consumers": [
-      ".ai/scenarios/element-editing-resize-and-position/spec.md"
-    ],
+    "consumers": [".ai/scenarios/element-editing-resize-and-position/spec.md"],
     "v2": "moves"
   },
   {
@@ -5941,9 +5650,7 @@
       }
     ],
     "region": "inspector",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -5978,9 +5685,7 @@
       "symbol": "CommentsPanel"
     },
     "region": "comments panel",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -5999,9 +5704,7 @@
       }
     ],
     "region": "banners",
-    "consumers": [
-      "apps/studio/test/notifications.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/notifications.test.tsx"],
     "v2": "stable"
   },
   {
@@ -6014,9 +5717,7 @@
       "symbol": "App"
     },
     "region": "banners",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves",
     "notes": "`surface.e2e.ts` clicks every visible match; there is no single producer."
   },
@@ -6064,9 +5765,7 @@
       "symbol": "Composer"
     },
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/helpers/assistant.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/helpers/assistant.ts"],
     "v2": "stable"
   },
   {
@@ -6079,9 +5778,7 @@
       "symbol": "PermissionPrompt"
     },
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -6100,9 +5797,7 @@
       }
     ],
     "region": "chat/ACP",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -6147,9 +5842,7 @@
       "symbol": "TimelinePanel"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/timeline-manual-cut.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -6162,9 +5855,7 @@
       "symbol": "ClipInspector"
     },
     "region": "timeline",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -6177,9 +5868,7 @@
       "symbol": "GitPanel"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -6192,9 +5881,7 @@
       "symbol": "AcceptedRow"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -6208,9 +5895,7 @@
     },
     "region": "git/history",
     "consumers": [],
-    "sourceConsumers": [
-      "apps/studio/test/git-cloud-posture.test.ts"
-    ],
+    "sourceConsumers": ["apps/studio/test/git-cloud-posture.test.ts"],
     "v2": "stable",
     "notes": "Source-text consumer only: `test/git-cloud-posture.test.ts` regex-matches `className=\"gp-tabs\"` / `className=\"gp-cloud-note\"` in `GitPanel.jsx`."
   },
@@ -6224,9 +5909,7 @@
       "symbol": "CanvasView"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -6239,9 +5922,7 @@
       "symbol": "ZoomBar"
     },
     "region": "git/history",
-    "consumers": [
-      "apps/studio/test/shell-text-contrast.test.ts"
-    ],
+    "consumers": ["apps/studio/test/shell-text-contrast.test.ts"],
     "v2": "stable",
     "notes": "CSS consumer."
   },
@@ -6271,9 +5952,7 @@
       "symbol": "ShareDialog"
     },
     "region": "share",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/share-link.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/share-link.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -6304,9 +5983,7 @@
       }
     ],
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/cloud-attach.e2e.ts"],
     "v2": "stable",
     "notes": "Keep the `-dialog` suffix on new dialog roots."
   },
@@ -6339,9 +6016,7 @@
       "symbol": "App"
     },
     "region": "other",
-    "consumers": [
-      ".ai/scenarios/reliable-project-multiplayer/runners/f3/s19-browser.mjs"
-    ],
+    "consumers": [".ai/scenarios/reliable-project-multiplayer/runners/f3/s19-browser.mjs"],
     "v2": "stable"
   },
   {
@@ -6354,9 +6029,7 @@
       "symbol": "ReportBugDialog"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/report-bug-dialog.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -6369,9 +6042,7 @@
       "symbol": "App"
     },
     "region": "other",
-    "consumers": [
-      ".ai/scenarios/reliable-project-multiplayer/runners/f3/s19-browser.mjs"
-    ],
+    "consumers": [".ai/scenarios/reliable-project-multiplayer/runners/f3/s19-browser.mjs"],
     "v2": "stable"
   },
   {
@@ -6384,9 +6055,7 @@
       "symbol": "App"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -6399,9 +6068,7 @@
       "symbol": "InspectorPanel"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -6414,9 +6081,7 @@
       "symbol": "AssetPicker"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -6429,9 +6094,7 @@
       "symbol": "StickerPicker"
     },
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -6450,9 +6113,7 @@
       }
     ],
     "region": "other",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -6465,9 +6126,7 @@
       "symbol": "DockSlot"
     },
     "region": "other",
-    "consumers": [
-      "apps/studio/test/shell-text-contrast.test.ts"
-    ],
+    "consumers": ["apps/studio/test/shell-text-contrast.test.ts"],
     "v2": "moves",
     "notes": "CSS consumer."
   },
@@ -6505,10 +6164,7 @@
       }
     ],
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/bin/_screenshot-playwright.mjs",
-      "apps/studio/bin/screenshot.sh"
-    ],
+    "consumers": ["apps/studio/bin/_screenshot-playwright.mjs", "apps/studio/bin/screenshot.sh"],
     "v2": "stable"
   },
   {
@@ -6543,9 +6199,7 @@
       "symbol": "ToolPalette"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "moves"
   },
   {
@@ -6704,9 +6358,7 @@
       "symbol": "DCArtboard"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      ".ai/scenarios/canvas-format-tsx/canvas-artboard-drag/spec.md"
-    ],
+    "consumers": [".ai/scenarios/canvas-format-tsx/canvas-artboard-drag/spec.md"],
     "v2": "stable"
   },
   {
@@ -6769,9 +6421,7 @@
       "symbol": "DCArtboard"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      ".ai/scenarios/artboard-kinds/spec.md"
-    ],
+    "consumers": [".ai/scenarios/artboard-kinds/spec.md"],
     "v2": "stable"
   },
   {
@@ -6828,9 +6478,7 @@
       }
     ],
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/bin/screenshot.sh"
-    ],
+    "consumers": ["apps/studio/bin/screenshot.sh"],
     "v2": "stable",
     "notes": "Read by `dom-selection.ts` (`cssPath`, `domPath`) and the Layers tree (`canvas-shell.tsx` `serializeArtboardTree`)."
   },
@@ -6861,9 +6509,7 @@
       "symbol": "PhotoBgRemoveHarness"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/bin/photo-bg-remove.sh"
-    ],
+    "consumers": ["apps/studio/bin/photo-bg-remove.sh"],
     "v2": "stable"
   },
   {
@@ -6915,9 +6561,7 @@
       "symbol": "ArtboardGuidesOverlay"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/canvas-hide-chrome.test.ts"
-    ],
+    "consumers": ["apps/studio/test/canvas-hide-chrome.test.ts"],
     "v2": "stable"
   },
   {
@@ -6961,9 +6605,7 @@
       "symbol": "ensureAxisNodes"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      ".ai/scenarios/element-editing-resize-and-position/spec.md"
-    ],
+    "consumers": [".ai/scenarios/element-editing-resize-and-position/spec.md"],
     "v2": "stable"
   },
   {
@@ -7001,9 +6643,7 @@
       "symbol": "SpacingHandlesOverlay"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      ".ai/scenarios/element-editing-resize-and-position/spec.md"
-    ],
+    "consumers": [".ai/scenarios/element-editing-resize-and-position/spec.md"],
     "v2": "stable"
   },
   {
@@ -7081,9 +6721,7 @@
       }
     ],
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -7096,9 +6734,7 @@
       "symbol": "AnnotationContextToolbar"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/e2e/annotations-parity.e2e.mjs"
-    ],
+    "consumers": ["apps/studio/test/e2e/annotations-parity.e2e.mjs"],
     "v2": "stable"
   },
   {
@@ -7111,9 +6747,7 @@
       "symbol": "CanvasRouter"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/canvas-text-editing.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/scenarios/canvas-text-editing.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -7143,9 +6777,7 @@
       "symbol": "HmrHoldingToast"
     },
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/test/canvas-hmr-loaded.test.tsx"
-    ],
+    "consumers": ["apps/studio/test/canvas-hmr-loaded.test.tsx"],
     "v2": "stable"
   },
   {
@@ -7289,9 +6921,7 @@
       }
     ],
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/desktop/e2e/multiplayer/surface.e2e.ts"
-    ],
+    "consumers": ["apps/desktop/e2e/multiplayer/surface.e2e.ts"],
     "v2": "stable"
   },
   {
@@ -7502,9 +7132,7 @@
     "meaning": "Artboard drag ghost; no component renders it.",
     "producer": null,
     "region": "canvas iframe chrome",
-    "consumers": [
-      ".ai/scenarios/canvas-format-tsx/canvas-artboard-drag/spec.md"
-    ],
+    "consumers": [".ai/scenarios/canvas-format-tsx/canvas-artboard-drag/spec.md"],
     "v2": "historical",
     "dangling": true
   },
@@ -7515,9 +7143,7 @@
     "meaning": "Canvas render error overlay; no component renders this class, so the spec's \"absent\" check passes vacuously.",
     "producer": null,
     "region": "canvas iframe chrome",
-    "consumers": [
-      ".ai/scenarios/web-artboards/spec.md"
-    ],
+    "consumers": [".ai/scenarios/web-artboards/spec.md"],
     "v2": "historical",
     "dangling": true
   },
@@ -7528,9 +7154,7 @@
     "meaning": "Tree row attribute; never emitted (rows use `data-testid=\"canvas-row-<slug>\"`).",
     "producer": null,
     "region": "sidebar/tree",
-    "consumers": [
-      ".ai/scenarios/canvas-format-tsx/tsx-canvas-render-and-edit/spec.md"
-    ],
+    "consumers": [".ai/scenarios/canvas-format-tsx/tsx-canvas-render-and-edit/spec.md"],
     "v2": "historical",
     "dangling": true
   },
@@ -7541,10 +7165,7 @@
     "meaning": "Legacy artboard-slot attribute; no current component emits it. Screenshot/smoke helpers still accept it as a fallback next to `[data-dc-screen]`.",
     "producer": null,
     "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/studio/bin/screenshot.sh",
-      "apps/studio/bin/smoke.sh"
-    ],
+    "consumers": ["apps/studio/bin/screenshot.sh", "apps/studio/bin/smoke.sh"],
     "v2": "historical",
     "dangling": true
   },
@@ -7555,9 +7176,7 @@
     "meaning": "A skeleton caption whose CSS rule is contrast-tested; no component renders the class (`CanvasLoading` renders `.st-skel-card/-thumb/-line`).",
     "producer": null,
     "region": "viewport",
-    "consumers": [
-      "apps/studio/test/shell-text-contrast.test.ts"
-    ],
+    "consumers": ["apps/studio/test/shell-text-contrast.test.ts"],
     "v2": "historical",
     "notes": "CSS consumer; the rule still exists in `styles/3-shell-maude.css`.",
     "dangling": true
@@ -7569,9 +7188,7 @@
     "meaning": "Intended: the File menu trigger, for the \"AI generation settings\" spotlight. No element carries this anchor; the File menu trigger is `data-testid=\"menu-file\"` with no `data-tour`.",
     "producer": null,
     "region": "menubar",
-    "consumers": [
-      "apps/studio/whats-new.json"
-    ],
+    "consumers": ["apps/studio/whats-new.json"],
     "v2": "historical",
     "dangling": true
   }

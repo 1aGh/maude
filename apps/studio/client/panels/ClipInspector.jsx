@@ -141,8 +141,8 @@ export default function ClipInspector({
 
   const commitGrade = (next) => {
     setGrade(next);
-    const meaningful = Object.entries(next).some(
-      ([k, v]) => (k === 'brightness' || k === 'contrast' || k === 'saturation' ? v !== 1 : v !== 0)
+    const meaningful = Object.entries(next).some(([k, v]) =>
+      k === 'brightness' || k === 'contrast' || k === 'saturation' ? v !== 1 : v !== 0
     );
     onVerb?.('grade', { grade: meaningful ? next : null });
   };
@@ -178,7 +178,9 @@ export default function ClipInspector({
       onPointerDown={(e) => e.stopPropagation()}
     >
       <div className="tlci-head" onPointerDown={beginDrag}>
-        <span className="tlci-title">{clipLabel || (mode === 'transition' ? 'Transition' : 'Clip')}</span>
+        <span className="tlci-title">
+          {clipLabel || (mode === 'transition' ? 'Transition' : 'Clip')}
+        </span>
         <button type="button" className="tlci-x" aria-label="Close" onClick={onClose}>
           ×
         </button>
@@ -285,13 +287,25 @@ export default function ClipInspector({
             />
           </label>
           <div className="tlci-presets">
-            <button type="button" className="tlci-chip" onClick={() => commitFrame({ scale: 1, x: 0, y: 0 })}>
+            <button
+              type="button"
+              className="tlci-chip"
+              onClick={() => commitFrame({ scale: 1, x: 0, y: 0 })}
+            >
               Reset
             </button>
-            <button type="button" className="tlci-chip" onClick={() => commitFrame({ ...frame, scale: 1.2 })}>
+            <button
+              type="button"
+              className="tlci-chip"
+              onClick={() => commitFrame({ ...frame, scale: 1.2 })}
+            >
               1.2×
             </button>
-            <button type="button" className="tlci-chip" onClick={() => commitFrame({ ...frame, scale: 1.5 })}>
+            <button
+              type="button"
+              className="tlci-chip"
+              onClick={() => commitFrame({ ...frame, scale: 1.5 })}
+            >
               1.5×
             </button>
           </div>

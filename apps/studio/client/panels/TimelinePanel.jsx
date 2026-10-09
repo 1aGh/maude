@@ -351,7 +351,11 @@ export default function TimelinePanel({
       const rect = trackRef.current?.getBoundingClientRect();
       const anchor =
         rect != null
-          ? clamp(Math.round(pxToFrame(e.clientX - rect.left - LABEL_GUTTER, pxf)), 0, totalFrames - 1)
+          ? clamp(
+              Math.round(pxToFrame(e.clientX - rect.left - LABEL_GUTTER, pxf)),
+              0,
+              totalFrames - 1
+            )
           : clamped;
       zoomTo(pxf * Math.exp(-e.deltaY * 0.01), anchor);
     };
@@ -528,7 +532,8 @@ export default function TimelinePanel({
     const up = () => {
       const d = retimeLive.current;
       setRetimeDrag(null);
-      if (d && d.curDur !== d.startDur) onRetime?.(d.ref ?? d.index, { durationInFrames: d.curDur });
+      if (d && d.curDur !== d.startDur)
+        onRetime?.(d.ref ?? d.index, { durationInFrames: d.curDur });
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up, { once: true });
@@ -544,7 +549,10 @@ export default function TimelinePanel({
     const move = (e) => {
       const deltaFrames = (e.clientX - moveDrag.startX) / moveDrag.pxf;
       const rawFrom = Math.max(0, Math.round(moveDrag.startFrom + deltaFrames));
-      const curFrom = Math.max(0, snapFrame(rawFrom, moveDrag.targets, e.altKey ? 0 : 8 / moveDrag.pxf));
+      const curFrom = Math.max(
+        0,
+        snapFrame(rawFrom, moveDrag.targets, e.altKey ? 0 : 8 / moveDrag.pxf)
+      );
       if (curFrom !== rawFrom) flashSnap(curFrom);
       if (Math.abs(curFrom - moveDrag.startFrom) >= 1) movedRef.current = true;
       // Vertical layer-move affordance: highlight the storyline while the clip
@@ -620,7 +628,13 @@ export default function TimelinePanel({
 
   // Snap targets for a drag on clip `index`: ticks + OTHER clips' edges + playhead.
   const snapTargetsFor = (index) =>
-    computeSnapTargets({ fps, totalFrames, clips: sequences, movingIndex: index, playhead: clamped });
+    computeSnapTargets({
+      fps,
+      totalFrames,
+      clips: sequences,
+      movingIndex: index,
+      playhead: clamped,
+    });
 
   // Task 3 — every op addresses a clip as { stableId, index }: stableId when the
   // enumerator supplied one (multi-comp-safe, survives reorder), the row index
@@ -633,9 +647,7 @@ export default function TimelinePanel({
   const startReorder = (e, index) => {
     e.stopPropagation();
     if (!onReorderMove) return;
-    const story = sequences
-      .map((s, i) => ({ s, i }))
-      .filter(({ s }) => s.series);
+    const story = sequences.map((s, i) => ({ s, i })).filter(({ s }) => s.series);
     const slot = story.findIndex(({ i }) => i === index);
     if (slot < 0) return;
     movedRef.current = false;
@@ -801,8 +813,7 @@ export default function TimelinePanel({
   // sequence a hand-authored JSX scene (Maude Video Intro, Photo Editor
   // Trailer) — keeps the stacked row-per-sequence projection, which is the
   // truthful, layer-expandable view the user asked back (dogfood 2026-07-30).
-  const bandMode =
-    storyline.length > 0 && sequences.some((s) => rowKind(s) !== 'jsx');
+  const bandMode = storyline.length > 0 && sequences.some((s) => rowKind(s) !== 'jsx');
 
   // -------------------------------------------------------------------------
   // Task 7 — real media visuals. Async extraction (never blocks the scrub);
@@ -1006,7 +1017,9 @@ export default function TimelinePanel({
     // bare tag name as the clip's identity — "Clip N" beats "bca08b1e.mov";
     // the real src stays in the tooltip.
     const rawName =
-      ['Video', 'OffthreadVideo', 'Audio', 'Img', 'MaudeVideo', 'MaudeAudio', 'MaudeImg'].includes(seq.label) && seq.mediaSrc
+      ['Video', 'OffthreadVideo', 'Audio', 'Img', 'MaudeVideo', 'MaudeAudio', 'MaudeImg'].includes(
+        seq.label
+      ) && seq.mediaSrc
         ? String(seq.mediaSrc).split('/').pop()
         : seq.label;
     const isHashName = /^[a-f0-9]{6,16}\.\w+$/i.test(rawName || '');
@@ -1061,7 +1074,12 @@ export default function TimelinePanel({
             if (seq.loose) return; // read-only row — no clip inspector
             // Task 9 — double-click opens the clip inspector on the selection.
             onSelect?.(seq.stableId ?? null);
-            setInspector({ mode: 'clip', index: i, x: e.clientX - 120, y: Math.max(60, e.clientY - 320) });
+            setInspector({
+              mode: 'clip',
+              index: i,
+              x: e.clientX - 120,
+              y: Math.max(60, e.clientY - 320),
+            });
           }}
           onClick={(e) => {
             e.stopPropagation();
@@ -1080,7 +1098,11 @@ export default function TimelinePanel({
             </span>
           ) : null}
           {mp?.muted ? (
-            <span className="tl-chip tl-chip-mute" title="Muted" data-testid={`timeline-mute-chip-${i}`}>
+            <span
+              className="tl-chip tl-chip-mute"
+              title="Muted"
+              data-testid={`timeline-mute-chip-${i}`}
+            >
               🔇
             </span>
           ) : null}
@@ -1152,7 +1174,11 @@ export default function TimelinePanel({
                 onPointerDown={(ev) => ev.stopPropagation()}
                 onClick={(ev) => {
                   ev.stopPropagation();
-                  setCommentPopover({ id: c.id, x: ev.clientX - 130, y: Math.max(60, ev.clientY - 180) });
+                  setCommentPopover({
+                    id: c.id,
+                    x: ev.clientX - 130,
+                    y: Math.max(60, ev.clientY - 180),
+                  });
                 }}
               >
                 💬
@@ -1190,7 +1216,10 @@ export default function TimelinePanel({
             onClick={(e) => e.stopPropagation()}
           />
         ) : null}
-        {onClipVerb && !seq.loose && seq.mediaSrc && (rowKind(seq) === 'video' || rowKind(seq) === 'audio') ? (
+        {onClipVerb &&
+        !seq.loose &&
+        seq.mediaSrc &&
+        (rowKind(seq) === 'video' || rowKind(seq) === 'audio') ? (
           <span
             className="tl-seq-trim-in"
             data-testid={`timeline-trim-in-${i}`}
@@ -1308,7 +1337,12 @@ export default function TimelinePanel({
   const renderAudioRow = (a, i) => (
     <div className="tl-row" key={`a${i}`} data-testid={`timeline-audio-${i}`}>
       <span className="tl-row-label" title={a.label}>
-        <span className="tl-kind" data-kind="audio" title={`Audio · ${a.label}`} aria-label={`Audio · ${a.label}`}>
+        <span
+          className="tl-kind"
+          data-kind="audio"
+          title={`Audio · ${a.label}`}
+          aria-label={`Audio · ${a.label}`}
+        >
           ♪
         </span>
         <span className="tl-row-label-text">{a.label}</span>
@@ -1409,7 +1443,12 @@ export default function TimelinePanel({
             >
               <TIcon name={playing ? 'pause' : 'play'} />
             </button>
-            <button type="button" className="tl-btn" aria-label="Jump to start" onClick={() => onSeek?.(0)}>
+            <button
+              type="button"
+              className="tl-btn"
+              aria-label="Jump to start"
+              onClick={() => onSeek?.(0)}
+            >
               <TIcon name="start" />
             </button>
             <button
@@ -1549,7 +1588,11 @@ export default function TimelinePanel({
             ⚠ {Math.round(totalFrames / (fps || 30))}s
           </span>
         ) : null}
-        {comp ? <span className="tl-meta">{fps} fps · {totalFrames}f</span> : null}
+        {comp ? (
+          <span className="tl-meta">
+            {fps} fps · {totalFrames}f
+          </span>
+        ) : null}
         {comp ? (
           <input
             type="range"
@@ -1570,8 +1613,8 @@ export default function TimelinePanel({
 
       {!comp ? (
         <div className="tl-empty" data-testid="timeline-empty">
-          No video-comp on this canvas. <b>Drop video clips right here</b> to start a
-          new cut, use <b>⌘K → New video…</b> for an empty one, or make an artboard a
+          No video-comp on this canvas. <b>Drop video clips right here</b> to start a new cut, use{' '}
+          <b>⌘K → New video…</b> for an empty one, or make an artboard a
           <code>&lt;VideoComp&gt;</code> yourself.
         </div>
       ) : (
@@ -1596,7 +1639,9 @@ export default function TimelinePanel({
                   let detached = false;
                   if (tl.clipStableId) {
                     const row = sequences.find((r2) => r2.stableId === tl.clipStableId);
-                    if (row) frame = row.from + Math.min(tl.frameOffset || 0, Math.max(0, row.duration - 1));
+                    if (row)
+                      frame =
+                        row.from + Math.min(tl.frameOffset || 0, Math.max(0, row.duration - 1));
                     else if (tl.frame != null) {
                       frame = tl.frame;
                       detached = true;
@@ -1617,7 +1662,11 @@ export default function TimelinePanel({
                       onClick={(e) => {
                         e.stopPropagation();
                         onSeek?.(clamp(frame, 0, totalFrames - 1));
-                        setCommentPopover({ id: c.id, x: e.clientX - 130, y: Math.max(60, e.clientY - 180) });
+                        setCommentPopover({
+                          id: c.id,
+                          x: e.clientX - 130,
+                          y: Math.max(60, e.clientY - 180),
+                        });
                       }}
                     >
                       💬
@@ -1631,7 +1680,11 @@ export default function TimelinePanel({
                 const major = f % (fps || 30) === 0;
                 const showLabel = major || step <= 5;
                 return (
-                  <span key={f} className={`tl-tick${major ? ' is-major' : ''}`} style={{ left: x(f) }}>
+                  <span
+                    key={f}
+                    className={`tl-tick${major ? ' is-major' : ''}`}
+                    style={{ left: x(f) }}
+                  >
                     {showLabel ? <span className="tl-tick-label">{tickLabel(f, fps)}</span> : null}
                   </span>
                 );
@@ -1664,7 +1717,10 @@ export default function TimelinePanel({
                     const rowCls =
                       `tl-row tl-row--overlay` +
                       (layerDrag && layerDrag.index === i ? ' is-layer-dragging' : '') +
-                      (layerDrag && docIdx != null && layerDrag.index !== i && layerDrag.curTarget === docIdx
+                      (layerDrag &&
+                      docIdx != null &&
+                      layerDrag.index !== i &&
+                      layerDrag.curTarget === docIdx
                         ? ' is-layer-target'
                         : '');
                     return (
@@ -1685,9 +1741,13 @@ export default function TimelinePanel({
                               V{vNum}
                             </span>
                           ) : (
-                            <span className="tl-lane-id" title="Loose media — no layer order">◌</span>
+                            <span className="tl-lane-id" title="Loose media — no layer order">
+                              ◌
+                            </span>
                           )}
-                          <span className="tl-kind" data-kind={rowKind(seq)}>{rowKindGlyph(seq)}</span>
+                          <span className="tl-kind" data-kind={rowKind(seq)}>
+                            {rowKindGlyph(seq)}
+                          </span>
                         </span>
                         <div
                           className="tl-row-track"
@@ -1695,7 +1755,10 @@ export default function TimelinePanel({
                           onDragOver={onLaneDragOver('overlay', `o${i}`)}
                           onDrop={onLaneDrop({ lane: 'overlay' })}
                         >
-                          {renderBlock(seq, i, { lane: 'overlay', laneName: vNum != null ? `V${vNum}` : 'loose' })}
+                          {renderBlock(seq, i, {
+                            lane: 'overlay',
+                            laneName: vNum != null ? `V${vNum}` : 'loose',
+                          })}
                           {laneCaret('overlay', `o${i}`)}
                         </div>
                       </div>
@@ -1714,7 +1777,9 @@ export default function TimelinePanel({
                     onDragOver={onStoryDragOver}
                     onDrop={onLaneDrop({ lane: 'storyline' })}
                   >
-                    {storyline.map(({ seq, i }) => renderBlock(seq, i, { lane: 'storyline', laneName: 'V1' }))}
+                    {storyline.map(({ seq, i }) =>
+                      renderBlock(seq, i, { lane: 'storyline', laneName: 'V1' })
+                    )}
                     {reorderDrag ? null : renderSeams()}
                     {reorderDrag ? null : renderAddSeams()}
                     {dropCaret?.lane === 'storyline' ? (
@@ -1742,7 +1807,13 @@ export default function TimelinePanel({
                           ? ly.kind
                           : 'jsx';
                       const lyGlyph =
-                        ly.kind === 'video' ? '▶' : ly.kind === 'image' ? '◫' : ly.kind === 'audio' ? '♪' : 'ƒ';
+                        ly.kind === 'video'
+                          ? '▶'
+                          : ly.kind === 'image'
+                            ? '◫'
+                            : ly.kind === 'audio'
+                              ? '♪'
+                              : 'ƒ';
                       return (
                         <div
                           className="tl-row tl-row--layer"
@@ -1751,7 +1822,9 @@ export default function TimelinePanel({
                         >
                           <span className="tl-row-label" title={`${seq.label} · ${ly.label}`}>
                             <span className="tl-layer-indent" aria-hidden="true" />
-                            <span className="tl-kind" data-kind={lyKind}>{lyGlyph}</span>
+                            <span className="tl-kind" data-kind={lyKind}>
+                              {lyGlyph}
+                            </span>
                             <span className="tl-row-label-text">{ly.label}</span>
                           </span>
                           <div className="tl-row-track" style={{ width: axisPx, flex: 'none' }}>
@@ -1764,7 +1837,12 @@ export default function TimelinePanel({
                               onContextMenu={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                setCtxMenu({ index: i, layerIndex: li, x: e.clientX, y: e.clientY });
+                                setCtxMenu({
+                                  index: i,
+                                  layerIndex: li,
+                                  x: e.clientX,
+                                  y: e.clientY,
+                                });
                               }}
                             >
                               <span className="tl-seq-name">{ly.label}</span>
@@ -1794,10 +1872,16 @@ export default function TimelinePanel({
                 {/* Audio band — standalone audio clips (movable/trimmable) +
                     loose <Audio> beds. */}
                 {audioClips.map(({ seq, i }, k) => (
-                  <div className="tl-row tl-row--overlay tl-row--audio" key={`ac${i}`} data-testid={`timeline-row-${i}`}>
+                  <div
+                    className="tl-row tl-row--overlay tl-row--audio"
+                    key={`ac${i}`}
+                    data-testid={`timeline-row-${i}`}
+                  >
                     <span className="tl-row-label" title={seq.mediaSrc || seq.label}>
                       <span className="tl-lane-id tl-lane-id--audio">A{k + 1}</span>
-                      <span className="tl-kind" data-kind="audio">♪</span>
+                      <span className="tl-kind" data-kind="audio">
+                        ♪
+                      </span>
                     </span>
                     <div
                       className="tl-row-track"
@@ -1828,7 +1912,8 @@ export default function TimelinePanel({
                   const layers = Array.isArray(seq.layers) ? seq.layers : [];
                   const decomposable = layers.length >= 2;
                   const isExpanded = decomposable && !collapsed.has(i);
-                  const dur = retimeDrag && retimeDrag.index === i ? retimeDrag.curDur : seq.duration;
+                  const dur =
+                    retimeDrag && retimeDrag.index === i ? retimeDrag.curDur : seq.duration;
                   return (
                     <Fragment key={i}>
                       <div className="tl-row" data-testid={`timeline-row-${i}`}>
@@ -1839,7 +1924,11 @@ export default function TimelinePanel({
                               className="tl-expand"
                               data-testid={`timeline-expand-${i}`}
                               title={isExpanded ? 'Collapse layers' : 'Show layers'}
-                              aria-label={isExpanded ? `Collapse ${seq.label} layers` : `Show ${seq.label} layers`}
+                              aria-label={
+                                isExpanded
+                                  ? `Collapse ${seq.label} layers`
+                                  : `Show ${seq.label} layers`
+                              }
                               aria-expanded={isExpanded}
                               onPointerDown={(e) => e.stopPropagation()}
                               onClick={(e) => {
@@ -1904,7 +1993,10 @@ export default function TimelinePanel({
                                   </span>
                                   <span className="tl-row-label-text">{ly.label}</span>
                                 </span>
-                                <div className="tl-row-track" style={{ width: axisPx, flex: 'none' }}>
+                                <div
+                                  className="tl-row-track"
+                                  style={{ width: axisPx, flex: 'none' }}
+                                >
                                   <div
                                     className="tl-seq-block tl-layer-block"
                                     data-kind={lyKind}
@@ -1914,7 +2006,12 @@ export default function TimelinePanel({
                                     onContextMenu={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
-                                      setCtxMenu({ index: i, layerIndex: li, x: e.clientX, y: e.clientY });
+                                      setCtxMenu({
+                                        index: i,
+                                        layerIndex: li,
+                                        x: e.clientX,
+                                        y: e.clientY,
+                                      });
                                     }}
                                   >
                                     <span className="tl-seq-name">{ly.label}</span>
@@ -1963,13 +2060,21 @@ export default function TimelinePanel({
       )}
       {commentDraft
         ? createPortal(
-            <div className="tlci tlci--comment" style={{ left: commentDraft.x, top: commentDraft.y }}>
+            <div
+              className="tlci tlci--comment"
+              style={{ left: commentDraft.x, top: commentDraft.y }}
+            >
               <div className="tlci-head" style={{ cursor: 'default' }}>
                 <span className="tlci-title">
                   Comment @ {fmtTime(commentDraft.at, fps)}
                   {commentDraft.anchor.lane ? ` · ${commentDraft.anchor.lane}` : ''}
                 </span>
-                <button type="button" className="tlci-x" aria-label="Close" onClick={() => setCommentDraft(null)}>
+                <button
+                  type="button"
+                  className="tlci-x"
+                  aria-label="Close"
+                  onClick={() => setCommentDraft(null)}
+                >
                   ×
                 </button>
               </div>
@@ -2013,246 +2118,315 @@ export default function TimelinePanel({
           )
         : null}
       {commentPopover
-        ? createPortal((() => {
-            const c = comments.find((k) => k.id === commentPopover.id);
-            if (!c) return null;
-            return (
-              <div
-                className="tlci"
-                style={{ left: commentPopover.x, top: commentPopover.y }}
-                role="dialog"
-                aria-label="Timeline comment"
-                data-testid="timeline-comment-popover"
-                onPointerDown={(e) => e.stopPropagation()}
-              >
-                <div className="tlci-head">
-                  <span className="tlci-title">💬 {c.author || 'comment'}</span>
-                  <button type="button" className="tlci-x" aria-label="Close" onClick={() => setCommentPopover(null)}>
-                    ×
-                  </button>
-                </div>
-                <div className="tlci-body">
-                  <p className="tlci-comment-text">{c.text}</p>
-                  {(c.thread || []).map((r2, k2) => (
-                    <p key={k2} className="tlci-note">
-                      ↳ {r2.author ? `${r2.author}: ` : ''}{r2.body}
-                    </p>
-                  ))}
-                  <div className="tlci-presets">
-                    {c.status !== 'resolved' && onResolveComment ? (
-                      <button
-                        type="button"
-                        className="tlci-chip"
-                        onClick={() => {
-                          onResolveComment(c.id);
-                          setCommentPopover(null);
-                        }}
-                      >
-                        Resolve
-                      </button>
-                    ) : null}
-                    {onDeleteComment ? (
-                      <button
-                        type="button"
-                        className="tlci-chip"
-                        onClick={() => {
-                          onDeleteComment(c.id);
-                          setCommentPopover(null);
-                        }}
-                      >
-                        Delete
-                      </button>
-                    ) : null}
+        ? createPortal(
+            (() => {
+              const c = comments.find((k) => k.id === commentPopover.id);
+              if (!c) return null;
+              return (
+                <div
+                  className="tlci"
+                  style={{ left: commentPopover.x, top: commentPopover.y }}
+                  role="dialog"
+                  aria-label="Timeline comment"
+                  data-testid="timeline-comment-popover"
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <div className="tlci-head">
+                    <span className="tlci-title">💬 {c.author || 'comment'}</span>
+                    <button
+                      type="button"
+                      className="tlci-x"
+                      aria-label="Close"
+                      onClick={() => setCommentPopover(null)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="tlci-body">
+                    <p className="tlci-comment-text">{c.text}</p>
+                    {(c.thread || []).map((r2, k2) => (
+                      <p key={k2} className="tlci-note">
+                        ↳ {r2.author ? `${r2.author}: ` : ''}
+                        {r2.body}
+                      </p>
+                    ))}
+                    <div className="tlci-presets">
+                      {c.status !== 'resolved' && onResolveComment ? (
+                        <button
+                          type="button"
+                          className="tlci-chip"
+                          onClick={() => {
+                            onResolveComment(c.id);
+                            setCommentPopover(null);
+                          }}
+                        >
+                          Resolve
+                        </button>
+                      ) : null}
+                      {onDeleteComment ? (
+                        <button
+                          type="button"
+                          className="tlci-chip"
+                          onClick={() => {
+                            onDeleteComment(c.id);
+                            setCommentPopover(null);
+                          }}
+                        >
+                          Delete
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })(), document.body)
+              );
+            })(),
+            document.body
+          )
         : null}
       {inspector
-        ? createPortal((() => {
-            if (inspector.mode === 'transition') {
-              const tClip = transitionClips[inspector.seam];
-              const tParse = (transitions || [])[inspector.seam];
-              if (!tClip) return null;
+        ? createPortal(
+            (() => {
+              if (inspector.mode === 'transition') {
+                const tClip = transitionClips[inspector.seam];
+                const tParse = (transitions || [])[inspector.seam];
+                if (!tClip) return null;
+                return (
+                  <ClipInspector
+                    mode="transition"
+                    clipLabel="Transition"
+                    transition={{ dur: tParse?.dur ?? 15 }}
+                    x={inspector.x}
+                    y={inspector.y}
+                    onVerb={(verb, params) =>
+                      onClipVerb?.({ stableId: tClip.stableId, transition: true }, verb, params)
+                    }
+                    onClose={() => setInspector(null)}
+                  />
+                );
+              }
+              const seq = sequences[inspector.index];
+              if (!seq) return null;
               return (
                 <ClipInspector
-                  mode="transition"
-                  clipLabel="Transition"
-                  transition={{ dur: tParse?.dur ?? 15 }}
+                  mode="clip"
+                  clipLabel={seq.label}
+                  kind={rowKind(seq)}
+                  textValue={
+                    seq.placeholder
+                      ? seq.placeholder.prompt || ''
+                      : rowKind(seq) === 'jsx' && !seq.series
+                        ? ''
+                        : null
+                  }
+                  mediaProps={seq.mediaProps || null}
                   x={inspector.x}
                   y={inspector.y}
                   onVerb={(verb, params) =>
-                    onClipVerb?.({ stableId: tClip.stableId, transition: true }, verb, params)
+                    onClipVerb?.(refFor(seq, inspector.index), verb, params)
                   }
                   onClose={() => setInspector(null)}
                 />
               );
-            }
-            const seq = sequences[inspector.index];
-            if (!seq) return null;
-            return (
-              <ClipInspector
-                mode="clip"
-                clipLabel={seq.label}
-                kind={rowKind(seq)}
-                textValue={seq.placeholder ? seq.placeholder.prompt || '' : rowKind(seq) === 'jsx' && !seq.series ? '' : null}
-                mediaProps={seq.mediaProps || null}
-                x={inspector.x}
-                y={inspector.y}
-                onVerb={(verb, params) => onClipVerb?.(refFor(seq, inspector.index), verb, params)}
-                onClose={() => setInspector(null)}
-              />
-            );
-          })(), document.body)
+            })(),
+            document.body
+          )
         : null}
       {ctxMenu && sequences[ctxMenu.index]
-        ? createPortal((() => {
-            const seq = sequences[ctxMenu.index];
-            const i = ctxMenu.index;
-            const li = ctxMenu.layerIndex;
-            let sections;
-            if (seq.loose) {
-              // A bare media sibling outside every <Sequence> — visible for
-              // orientation, but it has no clip identity for server ops.
-              sections = [[{ id: 'noop', label: 'Loose media (no clip wrapper) — edit via /design:edit', disabled: true, onSelect: () => {} }]];
-            } else if (li != null) {
-              // A LAYER (sub-clip) menu — a stacked layer shares the clip's
-              // timing, so only media-replace applies here.
-              const ly = (Array.isArray(seq.layers) ? seq.layers : [])[li];
-              const items = [];
-              if (onReplaceLayer && ly && (ly.mediaCdId || ly.mediaArrayRef)) {
-                items.push({ id: 'replace-layer', label: `Replace ${ly.kind}…`, onSelect: () => onReplaceLayer(refFor(seq, i), li) });
-              }
-              if (items.length === 0) {
-                items.push({ id: 'noop', label: 'No replaceable media in this layer', disabled: true, onSelect: () => {} });
-              }
-              sections = [items];
-            } else {
-              const primary = [];
-              if (onAddComment) {
-                primary.push({
-                  id: 'comment',
-                  label: 'Comment on clip…',
-                  onSelect: () => {
-                    // Same anchored composer as the C tool — no modal.
-                    setCommentDraft({
-                      x: clamp(ctxMenu.x - 130, 8, window.innerWidth - 280),
-                      y: Math.max(48, ctxMenu.y - 140),
-                      anchor: {
-                        clipStableId: seq.stableId || undefined,
-                        frameOffset: Math.max(0, clamped - (seq.from || 0)),
-                        frame: clamped,
-                      },
-                      at: clamped,
-                    });
-                  },
-                });
-              }
-              if (seq.placeholder && onGeneratePlaceholder) {
-                primary.push({
-                  id: 'generate',
-                  label: `Generate ✨ (${seq.placeholder.kind || 'veo'})`,
-                  onSelect: () => onGeneratePlaceholder(refFor(seq, i)),
-                });
-              }
-              if (onClipVerb && seq.mediaSrc) {
-                if (seq.series) {
-                  primary.push({
-                    id: 'to-overlay',
-                    label: 'Move to overlay layer',
-                    onSelect: () => onClipVerb(refFor(seq, i), 'to-overlay', {}),
-                  });
-                } else {
-                  primary.push({
-                    id: 'to-storyline',
-                    label: 'Move to storyline',
-                    onSelect: () => onClipVerb(refFor(seq, i), 'to-storyline', {}),
+        ? createPortal(
+            (() => {
+              const seq = sequences[ctxMenu.index];
+              const i = ctxMenu.index;
+              const li = ctxMenu.layerIndex;
+              let sections;
+              if (seq.loose) {
+                // A bare media sibling outside every <Sequence> — visible for
+                // orientation, but it has no clip identity for server ops.
+                sections = [
+                  [
+                    {
+                      id: 'noop',
+                      label: 'Loose media (no clip wrapper) — edit via /design:edit',
+                      disabled: true,
+                      onSelect: () => {},
+                    },
+                  ],
+                ];
+              } else if (li != null) {
+                // A LAYER (sub-clip) menu — a stacked layer shares the clip's
+                // timing, so only media-replace applies here.
+                const ly = (Array.isArray(seq.layers) ? seq.layers : [])[li];
+                const items = [];
+                if (onReplaceLayer && ly && (ly.mediaCdId || ly.mediaArrayRef)) {
+                  items.push({
+                    id: 'replace-layer',
+                    label: `Replace ${ly.kind}…`,
+                    onSelect: () => onReplaceLayer(refFor(seq, i), li),
                   });
                 }
-              }
-              if (onClipVerb) {
-                primary.push({
-                  id: 'adjust',
-                  label: 'Adjust… (Speed · Audio · Crop · Grade)',
-                  onSelect: () => {
-                    onSelect?.(seq.stableId ?? null);
-                    setInspector({ mode: 'clip', index: i, x: ctxMenu.x - 120, y: Math.max(60, ctxMenu.y - 320) });
-                  },
-                });
-                if (seq.mediaProps) {
-                  primary.push({
-                    id: 'mute',
-                    label: seq.mediaProps.muted ? 'Unmute clip' : 'Mute clip',
-                    onSelect: () => onClipVerb(refFor(seq, i), 'audio', { muted: !seq.mediaProps.muted }),
+                if (items.length === 0) {
+                  items.push({
+                    id: 'noop',
+                    label: 'No replaceable media in this layer',
+                    disabled: true,
+                    onSelect: () => {},
                   });
-                  if (rowKind(seq) === 'video' && seq.mediaSrc) {
+                }
+                sections = [items];
+              } else {
+                const primary = [];
+                if (onAddComment) {
+                  primary.push({
+                    id: 'comment',
+                    label: 'Comment on clip…',
+                    onSelect: () => {
+                      // Same anchored composer as the C tool — no modal.
+                      setCommentDraft({
+                        x: clamp(ctxMenu.x - 130, 8, window.innerWidth - 280),
+                        y: Math.max(48, ctxMenu.y - 140),
+                        anchor: {
+                          clipStableId: seq.stableId || undefined,
+                          frameOffset: Math.max(0, clamped - (seq.from || 0)),
+                          frame: clamped,
+                        },
+                        at: clamped,
+                      });
+                    },
+                  });
+                }
+                if (seq.placeholder && onGeneratePlaceholder) {
+                  primary.push({
+                    id: 'generate',
+                    label: `Generate ✨ (${seq.placeholder.kind || 'veo'})`,
+                    onSelect: () => onGeneratePlaceholder(refFor(seq, i)),
+                  });
+                }
+                if (onClipVerb && seq.mediaSrc) {
+                  if (seq.series) {
                     primary.push({
-                      id: 'detach-audio',
-                      label: 'Detach audio',
-                      onSelect: () => onClipVerb(refFor(seq, i), 'detach-audio', {}),
+                      id: 'to-overlay',
+                      label: 'Move to overlay layer',
+                      onSelect: () => onClipVerb(refFor(seq, i), 'to-overlay', {}),
+                    });
+                  } else {
+                    primary.push({
+                      id: 'to-storyline',
+                      label: 'Move to storyline',
+                      onSelect: () => onClipVerb(refFor(seq, i), 'to-storyline', {}),
                     });
                   }
                 }
-              }
-              if (onReplace && seq.replaceable && !(Array.isArray(seq.layers) && seq.layers.length >= 2)) {
-                primary.push({ id: 'replace', label: `Replace ${rowKind(seq)}…`, onSelect: () => onReplace(refFor(seq, i)) });
-              }
-              {
-                // Vertical z-order (overlay clips only) — mirrors the V-chip drag.
-                const zLadder = overlay.filter((o) => !o.seq.loose);
-                const docIdx = zLadder.findIndex((o) => o.i === i);
-                if (onClipVerb && docIdx >= 0) {
+                if (onClipVerb) {
                   primary.push({
-                    id: 'layer-up',
-                    label: 'Move layer up',
-                    disabled: docIdx >= zLadder.length - 1,
-                    onSelect: () => onClipVerb(refFor(seq, i), 'layer-order', { toIndex: docIdx + 1 }),
+                    id: 'adjust',
+                    label: 'Adjust… (Speed · Audio · Crop · Grade)',
+                    onSelect: () => {
+                      onSelect?.(seq.stableId ?? null);
+                      setInspector({
+                        mode: 'clip',
+                        index: i,
+                        x: ctxMenu.x - 120,
+                        y: Math.max(60, ctxMenu.y - 320),
+                      });
+                    },
                   });
+                  if (seq.mediaProps) {
+                    primary.push({
+                      id: 'mute',
+                      label: seq.mediaProps.muted ? 'Unmute clip' : 'Mute clip',
+                      onSelect: () =>
+                        onClipVerb(refFor(seq, i), 'audio', { muted: !seq.mediaProps.muted }),
+                    });
+                    if (rowKind(seq) === 'video' && seq.mediaSrc) {
+                      primary.push({
+                        id: 'detach-audio',
+                        label: 'Detach audio',
+                        onSelect: () => onClipVerb(refFor(seq, i), 'detach-audio', {}),
+                      });
+                    }
+                  }
+                }
+                if (
+                  onReplace &&
+                  seq.replaceable &&
+                  !(Array.isArray(seq.layers) && seq.layers.length >= 2)
+                ) {
                   primary.push({
-                    id: 'layer-down',
-                    label: 'Move layer down',
-                    disabled: docIdx <= 0,
-                    onSelect: () => onClipVerb(refFor(seq, i), 'layer-order', { toIndex: docIdx - 1 }),
+                    id: 'replace',
+                    label: `Replace ${rowKind(seq)}…`,
+                    onSelect: () => onReplace(refFor(seq, i)),
                   });
                 }
+                {
+                  // Vertical z-order (overlay clips only) — mirrors the V-chip drag.
+                  const zLadder = overlay.filter((o) => !o.seq.loose);
+                  const docIdx = zLadder.findIndex((o) => o.i === i);
+                  if (onClipVerb && docIdx >= 0) {
+                    primary.push({
+                      id: 'layer-up',
+                      label: 'Move layer up',
+                      disabled: docIdx >= zLadder.length - 1,
+                      onSelect: () =>
+                        onClipVerb(refFor(seq, i), 'layer-order', { toIndex: docIdx + 1 }),
+                    });
+                    primary.push({
+                      id: 'layer-down',
+                      label: 'Move layer down',
+                      disabled: docIdx <= 0,
+                      onSelect: () =>
+                        onClipVerb(refFor(seq, i), 'layer-order', { toIndex: docIdx - 1 }),
+                    });
+                  }
+                }
+                if (onReorder) {
+                  primary.push({
+                    id: 'earlier',
+                    label: seq.series ? 'Move earlier' : 'Bring forward',
+                    disabled: seq.series ? i <= 0 : i >= sequences.length - 1,
+                    onSelect: () => onReorder(refFor(seq, i), seq.series ? 'backward' : 'forward'),
+                  });
+                  primary.push({
+                    id: 'later',
+                    label: seq.series ? 'Move later' : 'Send backward',
+                    disabled: seq.series ? i >= sequences.length - 1 : i <= 0,
+                    onSelect: () => onReorder(refFor(seq, i), seq.series ? 'forward' : 'backward'),
+                  });
+                }
+                sections = [primary];
+                const tail = [];
+                if (onToggleHide) {
+                  tail.push({
+                    id: 'hide',
+                    label: seq.hidden ? 'Show clip' : 'Hide clip',
+                    onSelect: () => onToggleHide(refFor(seq, i)),
+                  });
+                }
+                if (onRemove) {
+                  tail.push({
+                    id: 'remove',
+                    label: 'Remove clip',
+                    destructive: true,
+                    onSelect: () => onRemove(refFor(seq, i)),
+                  });
+                }
+                if (tail.length) sections.push(tail);
               }
-              if (onReorder) {
-                primary.push({
-                  id: 'earlier',
-                  label: seq.series ? 'Move earlier' : 'Bring forward',
-                  disabled: seq.series ? i <= 0 : i >= sequences.length - 1,
-                  onSelect: () => onReorder(refFor(seq, i), seq.series ? 'backward' : 'forward'),
-                });
-                primary.push({
-                  id: 'later',
-                  label: seq.series ? 'Move later' : 'Send backward',
-                  disabled: seq.series ? i >= sequences.length - 1 : i <= 0,
-                  onSelect: () => onReorder(refFor(seq, i), seq.series ? 'forward' : 'backward'),
-                });
-              }
-              sections = [primary];
-              const tail = [];
-              if (onToggleHide) {
-                tail.push({
-                  id: 'hide',
-                  label: seq.hidden ? 'Show clip' : 'Hide clip',
-                  onSelect: () => onToggleHide(refFor(seq, i)),
-                });
-              }
-              if (onRemove) {
-                tail.push({ id: 'remove', label: 'Remove clip', destructive: true, onSelect: () => onRemove(refFor(seq, i)) });
-              }
-              if (tail.length) sections.push(tail);
-            }
-            return (
-              <ContextMenuView
-                target={{ kind: 'element', el: null, cdId: null, artboardId: null, clientX: ctxMenu.x, clientY: ctxMenu.y }}
-                sections={sections}
-                onClose={() => setCtxMenu(null)}
-              />
-            );
-          })(), document.body)
+              return (
+                <ContextMenuView
+                  target={{
+                    kind: 'element',
+                    el: null,
+                    cdId: null,
+                    artboardId: null,
+                    clientX: ctxMenu.x,
+                    clientY: ctxMenu.y,
+                  }}
+                  sections={sections}
+                  onClose={() => setCtxMenu(null)}
+                />
+              );
+            })(),
+            document.body
+          )
         : null}
     </aside>
   );

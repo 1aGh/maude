@@ -30,10 +30,22 @@
 // adapt its CSS-unit strings without the library learning about units.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, ChevronDown, Diamond, Eye, EyeOff, RotateCcw, Search, SquareDashed, X } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  Diamond,
+  Eye,
+  EyeOff,
+  RotateCcw,
+  Search,
+  SquareDashed,
+  X,
+} from 'lucide-react';
 
 // lucide wrapper — hairline stroke to match the shell's icon weight.
-const Ic = ({ as: C, size = 14 }) => <C size={size} strokeWidth={1.75} style={{ display: 'block', flex: 'none' }} />;
+const Ic = ({ as: C, size = 14 }) => (
+  <C size={size} strokeWidth={1.75} style={{ display: 'block', flex: 'none' }} />
+);
 
 const pretty = (n) => n.replace(/^--/, '').replace(/-/g, ' ');
 
@@ -82,7 +94,16 @@ const snap = (n, step) => {
 // hook there would call `useCallback` conditionally on render order, breaking
 // the rules of hooks). `useScrub` below is the convenience hook form for actual
 // components (NumberField).
-export function makeScrubHandler({ getBase, min, max, step = 1, onInput, onCommit, sensitivity = 1, sides }) {
+export function makeScrubHandler({
+  getBase,
+  min,
+  max,
+  step = 1,
+  onInput,
+  onCommit,
+  sensitivity = 1,
+  sides,
+}) {
   return (e) => {
     if (e.button !== 0) return;
     const startX = e.clientX;
@@ -119,7 +140,16 @@ export function makeScrubHandler({ getBase, min, max, step = 1, onInput, onCommi
   };
 }
 
-export function useScrub({ getBase, min, max, step = 1, onInput, onCommit, sensitivity = 1, sides }) {
+export function useScrub({
+  getBase,
+  min,
+  max,
+  step = 1,
+  onInput,
+  onCommit,
+  sensitivity = 1,
+  sides,
+}) {
   return useCallback(
     makeScrubHandler({ getBase, min, max, step, onInput, onCommit, sensitivity, sides }),
     [getBase, min, max, step, onInput, onCommit, sensitivity, sides]
@@ -150,7 +180,10 @@ export function NumberField({
   className = '',
 }) {
   const ref = useRef(null);
-  const fmt = useCallback((n) => (format ? format(n) : String(snap(Number(n) || 0, step))), [format, step]);
+  const fmt = useCallback(
+    (n) => (format ? format(n) : String(snap(Number(n) || 0, step))),
+    [format, step]
+  );
   const numOf = (v) => (typeof v === 'number' ? v : Number.parseFloat(v)) || 0;
 
   // Re-sync the uncontrolled input from an external value change, but never
@@ -263,10 +296,22 @@ export function NumberField({
       />
       {steppers ? (
         <span className="st-cp-step">
-          <button type="button" className="st-cp-stepb" tabIndex={-1} aria-label={`increase ${ariaLabel || 'value'}`} onClick={() => bump(1, 1)}>
+          <button
+            type="button"
+            className="st-cp-stepb"
+            tabIndex={-1}
+            aria-label={`increase ${ariaLabel || 'value'}`}
+            onClick={() => bump(1, 1)}
+          >
             ▲
           </button>
-          <button type="button" className="st-cp-stepb" tabIndex={-1} aria-label={`decrease ${ariaLabel || 'value'}`} onClick={() => bump(-1, 1)}>
+          <button
+            type="button"
+            className="st-cp-stepb"
+            tabIndex={-1}
+            aria-label={`decrease ${ariaLabel || 'value'}`}
+            onClick={() => bump(-1, 1)}
+          >
             ▼
           </button>
         </span>
@@ -346,8 +391,13 @@ export function Slider({ value, min = 0, max = 1, step = 0.01, onInput, onCommit
         onPointerDown={onPointerDown}
         onKeyDown={onKeyDown}
       >
-        {min < 0 && max > 0 ? <span className="st-cp-zero" style={{ left: `${zeroFrac * 100}%` }} /> : null}
-        <span className="st-cp-fill" style={{ left: `${fillLeft * 100}%`, width: `${fillWidth * 100}%` }} />
+        {min < 0 && max > 0 ? (
+          <span className="st-cp-zero" style={{ left: `${zeroFrac * 100}%` }} />
+        ) : null}
+        <span
+          className="st-cp-fill"
+          style={{ left: `${fillLeft * 100}%`, width: `${fillWidth * 100}%` }}
+        />
         <span className="st-cp-thumb" style={{ left: `${frac * 100}%` }} />
       </div>
     </div>
@@ -360,11 +410,28 @@ export function Slider({ value, min = 0, max = 1, step = 0.01, onInput, onCommit
 // exploration with live feedback, the numeric for the exact value — continuously
 // linked. `onInput` fires during drag (preview, no undo); `onCommit` on release /
 // typed entry (persist + undo).
-export function SliderField({ value, min = 0, max = 1, step = 0.01, unit = '', onInput, onCommit, ariaLabel }) {
+export function SliderField({
+  value,
+  min = 0,
+  max = 1,
+  step = 0.01,
+  unit = '',
+  onInput,
+  onCommit,
+  ariaLabel,
+}) {
   const v = value ?? (min < 0 ? 0 : min);
   return (
     <div className="st-cp-sfield">
-      <Slider value={v} min={min} max={max} step={step} onInput={onInput} onCommit={onCommit} ariaLabel={ariaLabel} />
+      <Slider
+        value={v}
+        min={min}
+        max={max}
+        step={step}
+        onInput={onInput}
+        onCommit={onCommit}
+        ariaLabel={ariaLabel}
+      />
       <NumberField
         className="st-cp-num--compact"
         value={v}
@@ -373,7 +440,13 @@ export function SliderField({ value, min = 0, max = 1, step = 0.01, unit = '', o
         step={step}
         scrub={false}
         steppers={false}
-        unitSlot={unit ? <span className="st-cp-numsuffix" aria-hidden="true">{unit}</span> : null}
+        unitSlot={
+          unit ? (
+            <span className="st-cp-numsuffix" aria-hidden="true">
+              {unit}
+            </span>
+          ) : null
+        }
         onInput={onInput}
         onCommit={onCommit}
         ariaLabel={ariaLabel}
@@ -391,7 +464,12 @@ export function SliderField({ value, min = 0, max = 1, step = 0.01, unit = '', o
 // not something this library should know about).
 export function UnitSelect({ value, units, onChange, ariaLabel }) {
   return (
-    <select className="st-cp-unitsel" aria-label={ariaLabel} value={value} onChange={(e) => onChange(e.target.value)}>
+    <select
+      className="st-cp-unitsel"
+      aria-label={ariaLabel}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    >
       {units.map((u) => (
         <option key={u} value={u}>
           {u}
@@ -407,7 +485,7 @@ export function Segmented({ value, options, onChange, ariaLabel }) {
     <div className="st-cp-seg" role="radiogroup" aria-label={ariaLabel}>
       {options.map((o) => {
         const val = typeof o === 'string' ? o : o.value;
-        const label = typeof o === 'string' ? o : o.label ?? o.value;
+        const label = typeof o === 'string' ? o : (o.label ?? o.value);
         return (
           <button
             key={val}
@@ -436,7 +514,7 @@ export function Select({ value, options, onChange, ariaLabel, mini = false }) {
     >
       {options.map((o) => {
         const val = typeof o === 'string' ? o : o.value;
-        const label = typeof o === 'string' ? o : o.label ?? o.value;
+        const label = typeof o === 'string' ? o : (o.label ?? o.value);
         return (
           <option key={val} value={val}>
             {label}
@@ -451,7 +529,13 @@ export function Select({ value, options, onChange, ariaLabel, mini = false }) {
 export function Toggle({ checked, onChange, label, ariaLabel }) {
   return (
     <label className="st-cp-toggle">
-      <input type="checkbox" className="st-cp-switch" checked={!!checked} aria-label={ariaLabel || label} onChange={(e) => onChange(e.target.checked)} />
+      <input
+        type="checkbox"
+        className="st-cp-switch"
+        checked={!!checked}
+        aria-label={ariaLabel || label}
+        onChange={(e) => onChange(e.target.checked)}
+      />
       {label ? <span className="st-cp-toggle-lbl">{label}</span> : null}
     </label>
   );
@@ -466,7 +550,11 @@ export function Swatch({ value, fallback = '#000000', label, onApply, render }) 
   const hex = value || fallback;
   if (render) return render({ hex, label, onApply });
   return (
-    <label className="st-cp-swatch st-cp-swatch--mini st-cp-swatch--trigger" style={{ background: hex }} title={label}>
+    <label
+      className="st-cp-swatch st-cp-swatch--mini st-cp-swatch--trigger"
+      style={{ background: hex }}
+      title={label}
+    >
       <input
         type="color"
         value={hex}
@@ -518,7 +606,14 @@ export function IconToggleGroup({ value, options, ariaLabel, onToggle }) {
   return (
     <div className="st-cp-iconseg" role="group" aria-label={ariaLabel}>
       {options.map((o) => (
-        <button key={o.value} type="button" aria-pressed={!!value[o.value]} aria-label={o.label} title={o.label} onClick={() => onToggle(o.value)}>
+        <button
+          key={o.value}
+          type="button"
+          aria-pressed={!!value[o.value]}
+          aria-label={o.label}
+          title={o.label}
+          onClick={() => onToggle(o.value)}
+        >
           {o.node}
         </button>
       ))}
@@ -530,8 +625,15 @@ export function IconToggleGroup({ value, options, ariaLabel, onToggle }) {
 export function Checkbox({ checked, label, ariaLabel, onChange }) {
   return (
     <label className="st-cp-check">
-      <input type="checkbox" checked={!!checked} aria-label={ariaLabel} onChange={(e) => onChange(e.target.checked)} />
-      <span className="st-cp-check-box"><Ic as={Check} size={11} /></span>
+      <input
+        type="checkbox"
+        checked={!!checked}
+        aria-label={ariaLabel}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span className="st-cp-check-box">
+        <Ic as={Check} size={11} />
+      </span>
       {label ? <span className="st-cp-check-lbl">{label}</span> : null}
     </label>
   );
@@ -543,7 +645,15 @@ export function AlignPad({ value, onChange, ariaLabel = 'alignment' }) {
   return (
     <div className="st-cp-alignpad" role="radiogroup" aria-label={ariaLabel}>
       {ALIGN_CELLS.map((c) => (
-        <button key={c} type="button" role="radio" aria-checked={value === c} aria-label={`align ${c}`} className={value === c ? 'is-active' : ''} onClick={() => onChange(c)} />
+        <button
+          key={c}
+          type="button"
+          role="radio"
+          aria-checked={value === c}
+          aria-label={`align ${c}`}
+          className={value === c ? 'is-active' : ''}
+          onClick={() => onChange(c)}
+        />
       ))}
     </div>
   );
@@ -555,7 +665,9 @@ export function AngleDial({ value, onChange, ariaLabel = 'rotation' }) {
   const angleAt = (cx, cy) => {
     const r = ref.current?.getBoundingClientRect();
     if (!r) return value;
-    let deg = Math.round((Math.atan2(cy - (r.top + r.height / 2), cx - (r.left + r.width / 2)) * 180) / Math.PI);
+    let deg = Math.round(
+      (Math.atan2(cy - (r.top + r.height / 2), cx - (r.left + r.width / 2)) * 180) / Math.PI
+    );
     if (deg < 0) deg += 360;
     return deg;
   };
@@ -620,13 +732,26 @@ export function PanelSection({ title, defaultOpen = true, onReset, right, childr
   return (
     <section className="st-cp-sec">
       <div className="st-cp-sechd-row">
-        <button type="button" className="st-cp-sechd" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-          <span className="st-cp-caret" aria-hidden="true"><Ic as={ChevronDown} size={12} /></span>
+        <button
+          type="button"
+          className="st-cp-sechd"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+        >
+          <span className="st-cp-caret" aria-hidden="true">
+            <Ic as={ChevronDown} size={12} />
+          </span>
           {title}
         </button>
         {right ?? null}
         {onReset ? (
-          <button type="button" className="st-cp-secreset" aria-label={`reset ${title} section`} title={`reset ${title}`} onClick={onReset}>
+          <button
+            type="button"
+            className="st-cp-secreset"
+            aria-label={`reset ${title} section`}
+            title={`reset ${title}`}
+            onClick={onReset}
+          >
             <Ic as={RotateCcw} size={12} />
           </button>
         ) : null}
@@ -645,7 +770,17 @@ export function PanelSection({ title, defaultOpen = true, onReset, right, childr
 // photo-knobs) as `swatch`; it renders flush as the left prefix (divider, no
 // gap). `displayValue` is the hex / token-name shown in the value input;
 // `alpha`/`onAlpha` + `visible`/`onVisible` opt into the richer fill controls.
-export function ColorField({ swatch, displayValue, bound, alpha, visible, ariaLabel, onValue, onAlpha, onVisible }) {
+export function ColorField({
+  swatch,
+  displayValue,
+  bound,
+  alpha,
+  visible,
+  ariaLabel,
+  onValue,
+  onAlpha,
+  onVisible,
+}) {
   return (
     <span className="st-cp-cf">
       {swatch}
@@ -658,10 +793,22 @@ export function ColorField({ swatch, displayValue, bound, alpha, visible, ariaLa
         readOnly={!onValue}
       />
       {onAlpha ? (
-        <input className="st-cp-cf-alpha" aria-label={`${ariaLabel || 'colour'} alpha`} value={`${alpha}`} onChange={(e) => onAlpha(clampTo(Number.parseFloat(e.target.value) || 0, 0, 100))} onFocus={(e) => e.currentTarget.select()} />
+        <input
+          className="st-cp-cf-alpha"
+          aria-label={`${ariaLabel || 'colour'} alpha`}
+          value={`${alpha}`}
+          onChange={(e) => onAlpha(clampTo(Number.parseFloat(e.target.value) || 0, 0, 100))}
+          onFocus={(e) => e.currentTarget.select()}
+        />
       ) : null}
       {onVisible ? (
-        <button type="button" className={`st-cp-cf-eye${visible ? '' : ' is-off'}`} aria-pressed={visible} aria-label={`${ariaLabel || 'colour'} visibility`} onClick={() => onVisible(!visible)}>
+        <button
+          type="button"
+          className={`st-cp-cf-eye${visible ? '' : ' is-off'}`}
+          aria-pressed={visible}
+          aria-label={`${ariaLabel || 'colour'} visibility`}
+          onClick={() => onVisible(!visible)}
+        >
           {visible ? <Ic as={Eye} /> : <Ic as={EyeOff} />}
         </button>
       ) : null}
@@ -674,7 +821,18 @@ export function ColorField({ swatch, displayValue, bound, alpha, visible, ariaLa
 // Value is `number | "var(--x)"`. Bound → the field turns into an accent chip
 // with the token name + a ✕ detach; the ◇ opens a searchable token list. Mirrors
 // CssKnobs `tok()` but with the bound-chip display the design specifies.
-export function ValueTokenField({ value, tokens, ariaLabel, lead, unit, unitSlot, min = 0, max, step = 1, onChange }) {
+export function ValueTokenField({
+  value,
+  tokens,
+  ariaLabel,
+  lead,
+  unit,
+  unitSlot,
+  min = 0,
+  max,
+  step = 1,
+  onChange,
+}) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const wrapRef = useRef(null);
@@ -692,14 +850,26 @@ export function ValueTokenField({ value, tokens, ariaLabel, lead, unit, unitSlot
     document.addEventListener('pointerdown', onDoc, true);
     return () => document.removeEventListener('pointerdown', onDoc, true);
   }, [open]);
-  const list = q ? tokens.filter((t) => pretty(t.name).includes(q) || (t.value || '').toLowerCase().includes(q)) : tokens;
+  const list = q
+    ? tokens.filter((t) => pretty(t.name).includes(q) || (t.value || '').toLowerCase().includes(q))
+    : tokens;
   return (
     <div className="st-cp-tokfield">
       {bound ? (
         <div className="st-cp-boundchip" title={`${tokenName} = ${resolved}`}>
-          {lead ? <span className="st-cp-boundchip-lead" aria-hidden="true">{lead}</span> : null}
+          {lead ? (
+            <span className="st-cp-boundchip-lead" aria-hidden="true">
+              {lead}
+            </span>
+          ) : null}
           <span className="st-cp-boundchip-name">{pretty(tokenName)}</span>
-          <button type="button" className="st-cp-boundchip-x" aria-label="detach token" title="detach — back to a raw value" onClick={() => onChange(Number.parseFloat(resolved) || 0)}>
+          <button
+            type="button"
+            className="st-cp-boundchip-x"
+            aria-label="detach token"
+            title="detach — back to a raw value"
+            onClick={() => onChange(Number.parseFloat(resolved) || 0)}
+          >
             <Ic as={X} size={12} />
           </button>
         </div>
@@ -712,23 +882,56 @@ export function ValueTokenField({ value, tokens, ariaLabel, lead, unit, unitSlot
           ariaLabel={ariaLabel}
           lead={lead}
           steppers={false}
-          unitSlot={unitSlot ?? (unit ? <span className="st-cp-numsuffix" aria-hidden="true">{unit}</span> : null)}
+          unitSlot={
+            unitSlot ??
+            (unit ? (
+              <span className="st-cp-numsuffix" aria-hidden="true">
+                {unit}
+              </span>
+            ) : null)
+          }
           onCommit={(n) => onChange(n)}
         />
       )}
       <span ref={wrapRef} style={{ position: 'relative', display: 'inline-flex' }}>
-        <button type="button" className={`st-cp-tokbtn${bound ? ' is-bound' : ''}`} aria-haspopup="dialog" aria-expanded={open} aria-label={`${ariaLabel} — bind a design token`} title="bind a design token" onClick={() => setOpen((o) => !o)}>
+        <button
+          type="button"
+          className={`st-cp-tokbtn${bound ? ' is-bound' : ''}`}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-label={`${ariaLabel} — bind a design token`}
+          title="bind a design token"
+          onClick={() => setOpen((o) => !o)}
+        >
           <Ic as={Diamond} size={13} />
         </button>
         {open ? (
-          <div className="st-cp-pop" role="dialog" aria-label="design tokens" style={{ left: 'auto', right: 0 }}>
+          <div
+            className="st-cp-pop"
+            role="dialog"
+            aria-label="design tokens"
+            style={{ left: 'auto', right: 0 }}
+          >
             <div className="st-cp-pop-search">
               <Ic as={Search} size={12} />
-              <input value={q} onChange={(e) => setQ(e.target.value.toLowerCase())} placeholder="Search variables" aria-label="search variables" />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value.toLowerCase())}
+                placeholder="Search variables"
+                aria-label="search variables"
+              />
             </div>
             {list.length ? (
               list.map((t) => (
-                <button key={t.name} type="button" className={`st-cp-pop-row${tokenName === t.name ? ' is-on' : ''}`} onClick={() => { onChange(`var(${t.name})`); setOpen(false); }}>
+                <button
+                  key={t.name}
+                  type="button"
+                  className={`st-cp-pop-row${tokenName === t.name ? ' is-on' : ''}`}
+                  onClick={() => {
+                    onChange(`var(${t.name})`);
+                    setOpen(false);
+                  }}
+                >
                   <span className="st-cp-pop-name">{pretty(t.name)}</span>
                   <span className="st-cp-pop-val">{t.value}</span>
                 </button>
@@ -755,7 +958,12 @@ export function RadiusControl({ corners, lead, onCorners }) {
   const cell = (k) => (
     <label className="st-cp-corner">
       <span className={`st-cp-cnr st-cp-cnr--${k}`} aria-hidden="true" />
-      <input aria-label={`${k} radius`} value={corners[k]} onChange={(e) => onCorners({ ...corners, [k]: Number.parseFloat(e.target.value) || 0 })} onFocus={(e) => e.currentTarget.select()} />
+      <input
+        aria-label={`${k} radius`}
+        value={corners[k]}
+        onChange={(e) => onCorners({ ...corners, [k]: Number.parseFloat(e.target.value) || 0 })}
+        onFocus={(e) => e.currentTarget.select()}
+      />
     </label>
   );
   return (
@@ -768,14 +976,32 @@ export function RadiusControl({ corners, lead, onCorners }) {
           ariaLabel="border-radius"
           lead={lead}
           steppers={false}
-          unitSlot={<span className="st-cp-numsuffix" aria-hidden="true">px</span>}
+          unitSlot={
+            <span className="st-cp-numsuffix" aria-hidden="true">
+              px
+            </span>
+          }
           onCommit={(v) => (split ? onCorners({ ...corners, tl: v }) : setAll(v))}
         />
-        <button type="button" className={`st-cp-splitbtn${split ? ' is-on' : ''}`} aria-pressed={split} aria-label="detach corners" title="detach corners — edit each independently" onClick={() => setSplit((s) => !s)}>
+        <button
+          type="button"
+          className={`st-cp-splitbtn${split ? ' is-on' : ''}`}
+          aria-pressed={split}
+          aria-label="detach corners"
+          title="detach corners — edit each independently"
+          onClick={() => setSplit((s) => !s)}
+        >
           <Ic as={SquareDashed} size={14} />
         </button>
       </div>
-      {split ? <div className="st-cp-corners">{cell('tl')}{cell('tr')}{cell('bl')}{cell('br')}</div> : null}
+      {split ? (
+        <div className="st-cp-corners">
+          {cell('tl')}
+          {cell('tr')}
+          {cell('bl')}
+          {cell('br')}
+        </div>
+      ) : null}
     </div>
   );
 }

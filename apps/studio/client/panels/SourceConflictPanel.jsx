@@ -17,8 +17,12 @@ import { useLinkDialogFocus } from '../share-dialog.jsx';
 
 /** Line diff by longest common subsequence — bounded, for a canvas source. */
 export function lineDiff(a, b, max = 2000) {
-  const x = String(a ?? '').split('\n').slice(0, max);
-  const y = String(b ?? '').split('\n').slice(0, max);
+  const x = String(a ?? '')
+    .split('\n')
+    .slice(0, max);
+  const y = String(b ?? '')
+    .split('\n')
+    .slice(0, max);
   const n = x.length;
   const m = y.length;
   const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
@@ -46,17 +50,23 @@ export function lineDiff(a, b, max = 2000) {
 
 /** Collapse long runs of unchanged lines to a count, keeping 2 lines of context. */
 function withContext(rows, ctx = 2) {
-  const keep = rows.map((r, idx) => r.kind !== 'same' || rows.slice(Math.max(0, idx - ctx), idx + ctx + 1).some((q) => q.kind !== 'same'));
+  const keep = rows.map(
+    (r, idx) =>
+      r.kind !== 'same' ||
+      rows.slice(Math.max(0, idx - ctx), idx + ctx + 1).some((q) => q.kind !== 'same')
+  );
   const out = [];
   let skipped = 0;
   rows.forEach((r, idx) => {
     if (keep[idx]) {
-      if (skipped) out.push({ kind: 'skip', text: `${skipped} unchanged line${skipped === 1 ? '' : 's'}` });
+      if (skipped)
+        out.push({ kind: 'skip', text: `${skipped} unchanged line${skipped === 1 ? '' : 's'}` });
       skipped = 0;
       out.push(r);
     } else skipped++;
   });
-  if (skipped) out.push({ kind: 'skip', text: `${skipped} unchanged line${skipped === 1 ? '' : 's'}` });
+  if (skipped)
+    out.push({ kind: 'skip', text: `${skipped} unchanged line${skipped === 1 ? '' : 's'}` });
   return out;
 }
 
@@ -81,7 +91,10 @@ export default function SourceConflictPanel({ slug, onClose }) {
     };
   }, [slug]);
 
-  const rows = useMemo(() => (sides ? withContext(lineDiff(sides.mine ?? '', sides.theirs ?? '')) : []), [sides]);
+  const rows = useMemo(
+    () => (sides ? withContext(lineDiff(sides.mine ?? '', sides.theirs ?? '')) : []),
+    [sides]
+  );
 
   async function choose(choice) {
     setBusy(choice);
@@ -94,7 +107,12 @@ export default function SourceConflictPanel({ slug, onClose }) {
       });
       const j = await r.json().catch(() => ({}));
       if (j.ok) onClose(choice);
-      else setError(j.code === 'base-conflict' ? 'Someone changed it again just now — look at the new version and choose again.' : j.error || 'That did not work.');
+      else
+        setError(
+          j.code === 'base-conflict'
+            ? 'Someone changed it again just now — look at the new version and choose again.'
+            : j.error || 'That did not work.'
+        );
     } catch {
       setError('Maude isn’t reachable right now.');
     } finally {
@@ -109,9 +127,18 @@ export default function SourceConflictPanel({ slug, onClose }) {
         <div className="tp-dialog-head">
           <div>
             <h2 id="scp-title">Review changes to {slug}</h2>
-            <p>Your draft has not been shared. Compare it with the project’s version before choosing what to keep.</p>
+            <p>
+              Your draft has not been shared. Compare it with the project’s version before choosing
+              what to keep.
+            </p>
           </div>
-          <button type="button" className="btn btn--ghost btn--sm" onClick={() => onClose()} aria-label="Close" data-testid="source-conflict-close">
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            onClick={() => onClose()}
+            aria-label="Close"
+            data-testid="source-conflict-close"
+          >
             ×
           </button>
         </div>
@@ -121,27 +148,59 @@ export default function SourceConflictPanel({ slug, onClose }) {
               <details>
                 <summary>Original draft</summary>
                 {sides.original !== null && sides.original !== undefined ? (
-                  <pre tabIndex={0} role="region" aria-label="Original draft" data-testid="source-conflict-original">{sides.original}</pre>
-                ) : <p>The original draft is not available on this device.</p>}
+                  <pre
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Original draft"
+                    data-testid="source-conflict-original"
+                  >
+                    {sides.original}
+                  </pre>
+                ) : (
+                  <p>The original draft is not available on this device.</p>
+                )}
               </details>
               <details>
                 <summary>Starting version</summary>
                 {sides.base !== null && sides.base !== undefined ? (
-                  <pre tabIndex={0} role="region" aria-label="Starting version" data-testid="source-conflict-base">{sides.base}</pre>
-                ) : <p>The version this draft started from is not known.</p>}
+                  <pre
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Starting version"
+                    data-testid="source-conflict-base"
+                  >
+                    {sides.base}
+                  </pre>
+                ) : (
+                  <p>The version this draft started from is not known.</p>
+                )}
               </details>
             </div>
             <div className="scp-legend" aria-hidden="true">
               <span className="scp-key scp-key--mine">Your version</span>
               <span className="scp-key scp-key--theirs">The project’s version</span>
             </div>
-            <div className="scp-diff" role="region" aria-label="Differences" tabIndex={0} data-testid="source-conflict-diff">
+            <div
+              className="scp-diff"
+              role="region"
+              aria-label="Differences"
+              tabIndex={0}
+              data-testid="source-conflict-diff"
+            >
               {rows.map((r, idx) => (
                 <div key={idx} className={`scp-line scp-line--${r.kind}`}>
                   <span className="scp-mark" aria-hidden="true">
-                    {r.kind === 'mine' ? '−' : r.kind === 'theirs' ? '+' : r.kind === 'skip' ? '⋯' : ' '}
+                    {r.kind === 'mine'
+                      ? '−'
+                      : r.kind === 'theirs'
+                        ? '+'
+                        : r.kind === 'skip'
+                          ? '⋯'
+                          : ' '}
                   </span>
-                  <span className="sr-only">{r.kind === 'mine' ? 'Yours: ' : r.kind === 'theirs' ? 'Project: ' : ''}</span>
+                  <span className="sr-only">
+                    {r.kind === 'mine' ? 'Yours: ' : r.kind === 'theirs' ? 'Project: ' : ''}
+                  </span>
                   <code>{r.text || ' '}</code>
                 </div>
               ))}
@@ -154,13 +213,27 @@ export default function SourceConflictPanel({ slug, onClose }) {
           </p>
         )}
         <div className="scp-actions">
-          <button type="button" className="btn btn--primary" disabled={!sides || !!busy} onClick={() => choose('mine')} data-testid="source-conflict-keep-mine">
+          <button
+            type="button"
+            className="btn btn--primary"
+            disabled={!sides || !!busy}
+            onClick={() => choose('mine')}
+            data-testid="source-conflict-keep-mine"
+          >
             {busy === 'mine' ? 'Saving…' : 'Keep my version'}
           </button>
-          <button type="button" className="btn" disabled={!sides || !!busy} onClick={() => choose('theirs')} data-testid="source-conflict-use-theirs">
+          <button
+            type="button"
+            className="btn"
+            disabled={!sides || !!busy}
+            onClick={() => choose('theirs')}
+            data-testid="source-conflict-use-theirs"
+          >
             {busy === 'theirs' ? 'Updating…' : 'Use the project’s version'}
           </button>
-          <span className="scp-hint">Or close this and edit the canvas — your next save resolves it.</span>
+          <span className="scp-hint">
+            Or close this and edit the canvas — your next save resolves it.
+          </span>
         </div>
       </div>
     </div>

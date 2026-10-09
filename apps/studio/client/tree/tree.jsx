@@ -1,6 +1,14 @@
 // tree/tree.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
-import { displayName, filterTree, groupBySidecar, openCount, pathTestIdSlug, previewKind, sectionDefaultOpen } from '../shell/util.js';
+import {
+  displayName,
+  filterTree,
+  groupBySidecar,
+  openCount,
+  pathTestIdSlug,
+  previewKind,
+  sectionDefaultOpen,
+} from '../shell/util.js';
 import { Icon, Kbd, StIcon } from '../shell/icons.jsx';
 import { FileTree, FileTreeItem } from '../file-tree.jsx';
 import { CANVAS_EXT_RE, SYSTEM_TAB } from '../shell/constants.js';
@@ -77,8 +85,14 @@ export function DirRow({ name, depth, children, dirPath, drag, menu, expansion, 
     </button>
   );
   return (
-    <FileTreeItem label={name} row={row} expanded={open} busy={isBusy}
-      onToggle={() => setOpen(v => !v)} actions={menu ? (
+    <FileTreeItem
+      label={name}
+      row={row}
+      expanded={open}
+      busy={isBusy}
+      onToggle={() => setOpen((v) => !v)}
+      actions={
+        menu ? (
           <button
             type="button"
             className="st-row-menu-btn"
@@ -88,9 +102,14 @@ export function DirRow({ name, depth, children, dirPath, drag, menu, expansion, 
             aria-haspopup="menu"
             onClick={(e) => menu.openAt(e, { kind: 'dir', dirPath })}
           >
-            <Icon d="M12 6a1 1 0 100-2 1 1 0 000 2zM12 13a1 1 0 100-2 1 1 0 000 2zM12 20a1 1 0 100-2 1 1 0 000 2z" size={12} />
+            <Icon
+              d="M12 6a1 1 0 100-2 1 1 0 000 2zM12 13a1 1 0 100-2 1 1 0 000 2zM12 20a1 1 0 100-2 1 1 0 000 2z"
+              size={12}
+            />
           </button>
-      ) : null}>
+        ) : null
+      }
+    >
       {open && children}
     </FileTreeItem>
   );
@@ -100,7 +119,17 @@ export function DirRow({ name, depth, children, dirPath, drag, menu, expansion, 
 // Split target: chevron toggles disclosure of the folder's contents; clicking
 // the folder name opens the SystemView focused on that DS (single SystemView
 // for now; the dsName is plumbed through so a future per-DS view can use it).
-export function DsFolderRow({ name, dsName, dirPath, depth, active, onOpenSystem, children, expansion, forceOpen }) {
+export function DsFolderRow({
+  name,
+  dsName,
+  dirPath,
+  depth,
+  active,
+  onOpenSystem,
+  children,
+  expansion,
+  forceOpen,
+}) {
   const open = !!forceOpen || !!expansion?.isOpen(dirPath);
   const setOpen = (v) => {
     if (forceOpen) return; // search is showing hits — don't record a choice
@@ -108,36 +137,46 @@ export function DsFolderRow({ name, dsName, dirPath, depth, active, onOpenSystem
     if (next !== open) expansion?.setOpen(dirPath, next);
   };
   return (
-    <FileTreeItem label={name} expanded={open} selected={active}
-      onToggle={() => setOpen(v => !v)} row={
-      <div
-        className={'st-row st-ds-folder' + (active ? ' is-sel' : '')}
-        style={{ paddingLeft: TREE_INDENT_BASE + depth * TREE_INDENT_STEP + 'px' }}
-      >
-        <button
-          type="button"
-          className="st-ds-chev"
-          onClick={() => setOpen((v) => !v)}
-          aria-label={open ? 'Collapse design system' : 'Expand design system'}
-          title={open ? 'Collapse' : 'Expand'}
+    <FileTreeItem
+      label={name}
+      expanded={open}
+      selected={active}
+      onToggle={() => setOpen((v) => !v)}
+      row={
+        <div
+          className={'st-row st-ds-folder' + (active ? ' is-sel' : '')}
+          style={{ paddingLeft: TREE_INDENT_BASE + depth * TREE_INDENT_STEP + 'px' }}
         >
-          <StIcon name="chevron-right" className={'st-chev' + (open ? ' is-open' : '')} size={13} />
-        </button>
-        <button
-          type="button"
-          className="st-ds-open"
-          data-tree-primary=""
-          tabIndex={-1}
-          onClick={() => onOpenSystem(dsName)}
-          aria-label={`Open ${dsName} design system view`}
-          title="Open the design system view"
-        >
-          <span className="st-row-glyph">
-            <StIcon name="folder" size={13} />
-          </span>
-          <span className="st-row-name">{name}</span>
-        </button>
-      </div>}>
+          <button
+            type="button"
+            className="st-ds-chev"
+            onClick={() => setOpen((v) => !v)}
+            aria-label={open ? 'Collapse design system' : 'Expand design system'}
+            title={open ? 'Collapse' : 'Expand'}
+          >
+            <StIcon
+              name="chevron-right"
+              className={'st-chev' + (open ? ' is-open' : '')}
+              size={13}
+            />
+          </button>
+          <button
+            type="button"
+            className="st-ds-open"
+            data-tree-primary=""
+            tabIndex={-1}
+            onClick={() => onOpenSystem(dsName)}
+            aria-label={`Open ${dsName} design system view`}
+            title="Open the design system view"
+          >
+            <span className="st-row-glyph">
+              <StIcon name="folder" size={13} />
+            </span>
+            <span className="st-row-name">{name}</span>
+          </button>
+        </div>
+      }
+    >
       {open && children}
     </FileTreeItem>
   );
@@ -266,7 +305,12 @@ export function FileRow({
         </span>
       )}
       {dirty && (
-        <span className="st-git-badge" data-kind={dirty} title={`Unsaved (${dirty})`} aria-label={`Unsaved, ${dirty}`}>
+        <span
+          className="st-git-badge"
+          data-kind={dirty}
+          title={`Unsaved (${dirty})`}
+          aria-label={`Unsaved, ${dirty}`}
+        >
           {dirty}
         </span>
       )}
@@ -275,45 +319,56 @@ export function FileRow({
   );
   // The named treeitem owns the primary action and its independent buttons.
   return (
-    <FileTreeItem label={label} row={row} selected={isSel} disabled={inert} busy={isBusy}
-      actions={<>
-      {canShare && (
-        <button
-          type="button"
-          className={'st-row-menu-btn' + (canDelete ? ' has-delete-sibling' : '')}
-          data-testid={`tree-row-menu-${pathTestIdSlug(file.path)}`}
-          title={`Actions for ${label}`}
-          aria-label={`Actions for ${label}`}
-          aria-haspopup="menu"
-          onClick={(e) =>
-            menu.openAt(e, {
-              kind: 'file',
-              path: file.path,
-              dir: fileDir,
-              canMove: canMove || supporting,
-              supporting,
-              name: file.name,
-            })
-          }
-        >
-          <Icon d="M12 6a1 1 0 100-2 1 1 0 000 2zM12 13a1 1 0 100-2 1 1 0 000 2zM12 20a1 1 0 100-2 1 1 0 000 2z" size={12} />
-        </button>
-      )}
-      {canDelete && (
-        <button
-          type="button"
-          className="st-row-del"
-          title={`Delete ${label}`}
-          aria-label={`Delete canvas ${label}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(file.path, label);
-          }}
-        >
-          <Icon d="M3 6h18 M8 6V4h8v2 M6 6l1 14h10l1-14 M10 11v6 M14 11v6" size={12} />
-        </button>
-      )}
-      </>} />
+    <FileTreeItem
+      label={label}
+      row={row}
+      selected={isSel}
+      disabled={inert}
+      busy={isBusy}
+      actions={
+        <>
+          {canShare && (
+            <button
+              type="button"
+              className={'st-row-menu-btn' + (canDelete ? ' has-delete-sibling' : '')}
+              data-testid={`tree-row-menu-${pathTestIdSlug(file.path)}`}
+              title={`Actions for ${label}`}
+              aria-label={`Actions for ${label}`}
+              aria-haspopup="menu"
+              onClick={(e) =>
+                menu.openAt(e, {
+                  kind: 'file',
+                  path: file.path,
+                  dir: fileDir,
+                  canMove: canMove || supporting,
+                  supporting,
+                  name: file.name,
+                })
+              }
+            >
+              <Icon
+                d="M12 6a1 1 0 100-2 1 1 0 000 2zM12 13a1 1 0 100-2 1 1 0 000 2zM12 20a1 1 0 100-2 1 1 0 000 2z"
+                size={12}
+              />
+            </button>
+          )}
+          {canDelete && (
+            <button
+              type="button"
+              className="st-row-del"
+              title={`Delete ${label}`}
+              aria-label={`Delete canvas ${label}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(file.path, label);
+              }}
+            >
+              <Icon d="M3 6h18 M8 6V4h8v2 M6 6l1 14h10l1-14 M10 11v6 M14 11v6" size={12} />
+            </button>
+          )}
+        </>
+      }
+    />
   );
 }
 
@@ -395,7 +450,9 @@ export function CanvasRow({
         onOpen(primary.path);
       }}
       onContextMenu={
-        canShare ? (e) => menu.openAt(e, { kind: 'file', path: primary.path, dir: primaryDir, canMove }) : undefined
+        canShare
+          ? (e) => menu.openAt(e, { kind: 'file', path: primary.path, dir: primaryDir, canMove })
+          : undefined
       }
       {...dragHandlers}
     >
@@ -428,7 +485,12 @@ export function CanvasRow({
         </span>
       )}
       {dirty && (
-        <span className="st-git-badge" data-kind={dirty} title={`Unsaved (${dirty})`} aria-label={`Unsaved, ${dirty}`}>
+        <span
+          className="st-git-badge"
+          data-kind={dirty}
+          title={`Unsaved (${dirty})`}
+          aria-label={`Unsaved, ${dirty}`}
+        >
           {dirty}
         </span>
       )}
@@ -436,9 +498,15 @@ export function CanvasRow({
     </button>
   );
   return (
-    <FileTreeItem label={displayName(primary.name)} row={row} selected={isSel}
-      expanded={open} busy={isBusy} onToggle={() => setOpenState(v => !v)}
-      actions={canShare ? (
+    <FileTreeItem
+      label={displayName(primary.name)}
+      row={row}
+      selected={isSel}
+      expanded={open}
+      busy={isBusy}
+      onToggle={() => setOpenState((v) => !v)}
+      actions={
+        canShare ? (
           <button
             type="button"
             className="st-row-menu-btn"
@@ -446,11 +514,18 @@ export function CanvasRow({
             title={`Actions for ${displayName(primary.name)}`}
             aria-label={`Actions for ${displayName(primary.name)}`}
             aria-haspopup="menu"
-            onClick={(e) => menu.openAt(e, { kind: 'file', path: primary.path, dir: primaryDir, canMove })}
+            onClick={(e) =>
+              menu.openAt(e, { kind: 'file', path: primary.path, dir: primaryDir, canMove })
+            }
           >
-            <Icon d="M12 6a1 1 0 100-2 1 1 0 000 2zM12 13a1 1 0 100-2 1 1 0 000 2zM12 20a1 1 0 100-2 1 1 0 000 2z" size={12} />
+            <Icon
+              d="M12 6a1 1 0 100-2 1 1 0 000 2zM12 13a1 1 0 100-2 1 1 0 000 2zM12 20a1 1 0 100-2 1 1 0 000 2z"
+              size={12}
+            />
           </button>
-      ) : null}>
+        ) : null
+      }
+    >
       {open &&
         sidecars.map((sc) => (
           <FileRow
@@ -805,7 +880,14 @@ export function Sidebar({
   const rowMenuRootItems =
     menuExtra?.kind === 'file'
       ? [
-          { id: 'share', label: 'Share…', onSelect: () => { rowMenu.close(); onShare(menuExtra.path); } },
+          {
+            id: 'share',
+            label: 'Share…',
+            onSelect: () => {
+              rowMenu.close();
+              onShare(menuExtra.path);
+            },
+          },
           ...(onRenameCanvas && /\.tsx$/i.test(menuExtra.path)
             ? [
                 {
@@ -815,7 +897,8 @@ export function Sidebar({
                     rowMenu.close();
                     const current = displayName(menuExtra.path.split('/').pop());
                     const name = window.prompt('Rename canvas to:', current);
-                    if (name?.trim() && name.trim() !== current) onRenameCanvas(menuExtra.path, name.trim());
+                    if (name?.trim() && name.trim() !== current)
+                      onRenameCanvas(menuExtra.path, name.trim());
                   },
                 },
               ]
@@ -845,12 +928,15 @@ export function Sidebar({
                     const ext = n.includes('.') ? n.slice(n.lastIndexOf('.')) : '';
                     const current = ext ? n.slice(0, -ext.length) : n;
                     const name = window.prompt(`Rename ${n} to:`, current);
-                    if (name?.trim() && name.trim() !== current) onRenameCanvas(menuExtra.path, name.trim());
+                    if (name?.trim() && name.trim() !== current)
+                      onRenameCanvas(menuExtra.path, name.trim());
                   },
                 },
               ]
             : []),
-          ...(menuExtra.canMove ? [{ id: 'move-to', label: 'Move to…', onSelect: () => rowMenu.showMoveTo() }] : []),
+          ...(menuExtra.canMove
+            ? [{ id: 'move-to', label: 'Move to…', onSelect: () => rowMenu.showMoveTo() }]
+            : []),
           ...(menuExtra.supporting && onDeleteFile
             ? [
                 {
@@ -883,7 +969,8 @@ export function Sidebar({
                 rowMenu.close();
                 const current = menuExtra.dirPath.split('/').pop();
                 const name = window.prompt('Rename folder to:', current);
-                if (name?.trim() && name.trim() !== current) onRenameFolder(menuExtra.dirPath, name.trim());
+                if (name?.trim() && name.trim() !== current)
+                  onRenameFolder(menuExtra.dirPath, name.trim());
               },
             },
             {
@@ -970,7 +1057,9 @@ export function Sidebar({
 
   return (
     <nav
-      className={'st-sidebar' + (collapsed ? ' is-collapsed' : '') + (resizing ? ' is-resizing' : '')}
+      className={
+        'st-sidebar' + (collapsed ? ' is-collapsed' : '') + (resizing ? ' is-resizing' : '')
+      }
       style={collapsed || !width ? undefined : { width, flexBasis: width }}
       aria-label="Files"
       data-tour="sidebar"
@@ -1028,7 +1117,10 @@ export function Sidebar({
             className="st-live"
             data-tip={wsConnected ? 'live · file index synced' : 'reconnecting…'}
           >
-            <span className={'st-live-dot' + (wsConnected ? ' is-connected' : '')} aria-hidden="true" />
+            <span
+              className={'st-live-dot' + (wsConnected ? ' is-connected' : '')}
+              aria-hidden="true"
+            />
             {htmlShown} / {htmlCount}
           </span>
           {onCollapse && (
@@ -1156,22 +1248,33 @@ export function Sidebar({
           const rootDropHandlers = canDropOnRoot ? treeDrag.dropProps(g.fullPath, true) : {};
           const isRootOver = treeDrag.overDir === g.fullPath;
           return (
-            <FileTreeItem className="st-tree-section" key={g.label} label={meta.title}
-              expanded={sectionOpen} onToggle={() => onToggleSection(g.label, defaultOpen)} row={
-              <button
-                type="button"
-                className={'st-tree-sec-hd' + (isRootOver ? ' is-drop-target' : '')}
-                data-testid={`tree-section-${g.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-                onClick={() => onToggleSection(g.label, defaultOpen)}
-                aria-expanded={sectionOpen}
-                aria-dropeffect={canDropOnRoot ? 'move' : undefined}
-                title={sectionOpen ? 'Collapse section' : 'Expand section'}
-                {...rootDropHandlers}
-              >
-                <StIcon name="chevron-right" className={'st-chev' + (sectionOpen ? ' is-open' : '')} size={13} />
-                <span className="st-sec-name">{meta.title}</span>
-                {pill && <span className="st-pill">{pill}</span>}
-              </button>}>
+            <FileTreeItem
+              className="st-tree-section"
+              key={g.label}
+              label={meta.title}
+              expanded={sectionOpen}
+              onToggle={() => onToggleSection(g.label, defaultOpen)}
+              row={
+                <button
+                  type="button"
+                  className={'st-tree-sec-hd' + (isRootOver ? ' is-drop-target' : '')}
+                  data-testid={`tree-section-${g.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                  onClick={() => onToggleSection(g.label, defaultOpen)}
+                  aria-expanded={sectionOpen}
+                  aria-dropeffect={canDropOnRoot ? 'move' : undefined}
+                  title={sectionOpen ? 'Collapse section' : 'Expand section'}
+                  {...rootDropHandlers}
+                >
+                  <StIcon
+                    name="chevron-right"
+                    className={'st-chev' + (sectionOpen ? ' is-open' : '')}
+                    size={13}
+                  />
+                  <span className="st-sec-name">{meta.title}</span>
+                  {pill && <span className="st-pill">{pill}</span>}
+                </button>
+              }
+            >
               {sectionOpen &&
                 (hasItems ? (
                   <Tree
@@ -1224,7 +1327,13 @@ export function Sidebar({
           watcher). Absent, not disabled — there is nothing to explain here. */}
       {/* Plan T22 — withdrawn means the BRANCH half. A managed project still
           needs the way to another project, so the dock stays, project-only. */}
-      <RepoBranchSwitcher project={project} liveBranch={gitBranch} remoteSync={remoteSync} onGetLatest={onGetLatest} projectOnly={savingIsManaged} />
+      <RepoBranchSwitcher
+        project={project}
+        liveBranch={gitBranch}
+        remoteSync={remoteSync}
+        onGetLatest={onGetLatest}
+        projectOnly={savingIsManaged}
+      />
       {/* Cloud Phase 23 C3 — Maude Cloud sign-in + remote-project attach, docked
           above the GitHub identity. Dev-server-backed, so it works in the desktop
           shell AND a plain browser. */}
@@ -1233,7 +1342,15 @@ export function Sidebar({
           Absent rather than disabled, because unlike the agent chat there is
           nothing here to explain — the capability is not missing, it is
           already satisfied. */}
-      {cloud === null ? <CloudBar syncStatus={syncStatus} onLinkedHub={onLinkedHub} onLocalProject={onLocalProject} onOpenFile={onOpenLinkedFile} filesReady={filesReady} /> : null}
+      {cloud === null ? (
+        <CloudBar
+          syncStatus={syncStatus}
+          onLinkedHub={onLinkedHub}
+          onLocalProject={onLocalProject}
+          onOpenFile={onOpenLinkedFile}
+          filesReady={filesReady}
+        />
+      ) : null}
       {/* Phase 28 (E3) — GitHub identity as a compact avatar docked at the BOTTOM:
           sign in, connected account + New/Pull/Share, sign out. Self-contained
           (owns its device-code + CreateProject dialogs). Renders nothing in browser. */}

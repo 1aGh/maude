@@ -128,7 +128,9 @@ export function pruneDirs(state, known) {
 
 export function normalizeClientState(raw) {
   const o = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
-  const dirs = Array.isArray(o.dirs) ? [...new Set(o.dirs.filter((d) => typeof d === 'string' && d))].sort() : [];
+  const dirs = Array.isArray(o.dirs)
+    ? [...new Set(o.dirs.filter((d) => typeof d === 'string' && d))].sort()
+    : [];
   const sections = {};
   if (o.sections && typeof o.sections === 'object' && !Array.isArray(o.sections)) {
     for (const [k, v] of Object.entries(o.sections)) if (typeof v === 'boolean') sections[k] = v;
@@ -171,7 +173,8 @@ export function useTreeExpansion({ fetchImpl } = {}) {
       .then((raw) => {
         if (cancelled) return;
         let next = normalizeClientState(raw);
-        const stored = raw && typeof raw === 'object' && raw.sections && Object.keys(raw.sections).length;
+        const stored =
+          raw && typeof raw === 'object' && raw.sections && Object.keys(raw.sections).length;
         if (!stored) {
           const legacy = readLegacySections();
           if (legacy) next = normalizeClientState({ ...next, sections: legacy });

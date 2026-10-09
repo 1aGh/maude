@@ -25,7 +25,9 @@ export function groupToolCalls(parts) {
         run.push(list[j]);
         j++;
       }
-      out.push(run.length > 1 ? { type: 'tool-group', parts: run } : { type: 'single', part: run[0] });
+      out.push(
+        run.length > 1 ? { type: 'tool-group', parts: run } : { type: 'single', part: run[0] }
+      );
       i = j;
     } else {
       out.push({ type: 'single', part: p });
@@ -57,7 +59,9 @@ export default function ToolGroup({ parts, ToolCard, forceOpen = false, verbose 
       data-testid="chat-tool-group"
     >
       <summary className="chat-toolgroup-sum">
-        <span className={`chat-tool-dot ${allDone ? 'chat-tool-dot--done' : 'chat-tool-dot--run'}`} />
+        <span
+          className={`chat-tool-dot ${allDone ? 'chat-tool-dot--done' : 'chat-tool-dot--run'}`}
+        />
         <span>{summarizeGroup(parts)}</span>
         {anyError ? <span className="del"> · error</span> : null}
       </summary>

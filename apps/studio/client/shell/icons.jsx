@@ -1,7 +1,9 @@
 // shell/icons.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
 // lucide wrapper — hairline stroke to match the shell's icon weight (handoff).
-export const Lu = ({ as: C, size = 14 }) => <C size={size} strokeWidth={1.75} style={{ display: 'block' }} />;
+export const Lu = ({ as: C, size = 14 }) => (
+  <C size={size} strokeWidth={1.75} style={{ display: 'block' }} />
+);
 
 // ---------- Components ----------
 
@@ -94,7 +96,11 @@ export const STICONS = {
   ),
   moon: <path d="M12.5 9.6A5 5 0 1 1 7 3a4 4 0 0 0 5.5 6.6z" />,
   sparkle: (
-    <path d="M8 1.8l1.4 4.8L14 8l-4.6 1.4L8 14.2l-1.4-4.8L2 8l4.6-1.4z" fill="currentColor" stroke="none" />
+    <path
+      d="M8 1.8l1.4 4.8L14 8l-4.6 1.4L8 14.2l-1.4-4.8L2 8l4.6-1.4z"
+      fill="currentColor"
+      stroke="none"
+    />
   ),
   megaphone: (
     <>
@@ -339,7 +345,10 @@ export function StIcon({ name, size = 16, className }) {
 // Up to two uppercase glyphs from a name; falls back to "?" for empties.
 export function initialsOf(name) {
   if (!name || typeof name !== 'string') return '?';
-  const parts = name.trim().split(/[\s._-]+/).filter(Boolean);
+  const parts = name
+    .trim()
+    .split(/[\s._-]+/)
+    .filter(Boolean);
   if (!parts.length) return '?';
   // Single-token names (e.g. a git username "1aGh") → first two chars, so the
   // avatar reads as initials rather than a lone count badge.

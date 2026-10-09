@@ -46,13 +46,21 @@ function httpUrl(raw) {
 
 export function projectIdFromHubUrl(raw) {
   const host = httpUrl(raw)?.hostname;
-  if (!host || host.includes(':') || /^[\d.]+$/.test(host) || host.endsWith('.localhost')) return null;
+  if (!host || host.includes(':') || /^[\d.]+$/.test(host) || host.endsWith('.localhost'))
+    return null;
   const labels = host.split('.');
   return labels.length >= 3 && PROJECT_RE.test(labels[0]) ? labels[0] : null;
 }
 
 export function projectSlug(name) {
-  const slug = String(name ?? '').split('/').pop().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40).replace(/-$/, '');
+  const slug = String(name ?? '')
+    .split('/')
+    .pop()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 40)
+    .replace(/-$/, '');
   return PROJECT_RE.test(slug) ? slug : null;
 }
 
@@ -64,19 +72,33 @@ export function localIdentityMatches(local, project) {
 
 export function buildShareLinks({ rel, shell, location, linkedHubUrl, project, localUrl }) {
   const path = normalizeOpenPath(rel);
-  const result = { web: null, app: null, local: null, projectLabel: project ?? '', appIsLocalOnly: false };
+  const result = {
+    web: null,
+    app: null,
+    local: null,
+    projectLabel: project ?? '',
+    appIsLocalOnly: false,
+  };
   if (!path) return result;
   const query = `?open=${encodeOpenPath(path)}`;
   const publicUrl = (value) => {
     const url = httpUrl(value);
-    return url && !/^(localhost|127\.[\d.]+|\[::1\])$/.test(url.hostname) && !url.hostname.endsWith('.localhost') ? url : null;
+    return url &&
+      !/^(localhost|127\.[\d.]+|\[::1\])$/.test(url.hostname) &&
+      !url.hostname.endsWith('.localhost')
+      ? url
+      : null;
   };
   const hub = publicUrl(linkedHubUrl);
   const cloud = shell === 'cloud' ? publicUrl(location?.origin) : null;
   const publicId = projectIdFromHubUrl(cloud?.origin ?? hub?.origin);
   const id = publicId ?? projectSlug(project);
   result.projectLabel = id ?? project ?? '';
-  result.web = cloud ? `${cloud.origin}${location.pathname}${query}` : hub ? `${hub.origin}/${query}` : null;
+  result.web = cloud
+    ? `${cloud.origin}${location.pathname}${query}`
+    : hub
+      ? `${hub.origin}/${query}`
+      : null;
   result.app = id ? `maude://open/${id}${query}` : null;
   result.appIsLocalOnly = !!id && !publicId;
   const local = shell !== 'cloud' && httpUrl(localUrl);
@@ -85,7 +107,9 @@ export function buildShareLinks({ rel, shell, location, linkedHubUrl, project, l
 }
 
 export function parseFileDeepLink(raw) {
-  const m = /^maude:\/\/open\/([a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?)\/?\?([^#]*)$/.exec(String(raw ?? ''));
+  const m = /^maude:\/\/open\/([a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?)\/?\?([^#]*)$/.exec(
+    String(raw ?? '')
+  );
   if (!m) return null;
   const params = new URLSearchParams(m[2]);
   if ([...params.keys()].some((key) => key !== 'open')) return null;

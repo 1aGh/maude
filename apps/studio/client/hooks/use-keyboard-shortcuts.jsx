@@ -6,11 +6,35 @@ import { isNativeApp } from '../github.js';
 import { totalCounts } from '../shell/util.js';
 
 export function useKeyboardShortcuts({
-  activePath, selected, viewerMode, commentsByFile, focusedCommentId, setFocusedCommentId,
-  sidebarOpen, setShowHidden, setHelpOpen, setShortcutsOpen, setPaletteOpen, setExportDialog,
-  setSettingsOpen, inspectorTab, openPanelExclusive, togglePanel, toggleRightPanel, toggleTimeline,
-  presentMode, iframesRef, postToActiveCanvas, performPhotoUndo, tlKeyRef, exitPresent, openSystem,
-  closeTab, reloadActive, refreshTree, clearActiveCanvasSelection
+  activePath,
+  selected,
+  viewerMode,
+  commentsByFile,
+  focusedCommentId,
+  setFocusedCommentId,
+  sidebarOpen,
+  setShowHidden,
+  setHelpOpen,
+  setShortcutsOpen,
+  setPaletteOpen,
+  setExportDialog,
+  setSettingsOpen,
+  inspectorTab,
+  openPanelExclusive,
+  togglePanel,
+  toggleRightPanel,
+  toggleTimeline,
+  presentMode,
+  iframesRef,
+  postToActiveCanvas,
+  performPhotoUndo,
+  tlKeyRef,
+  exitPresent,
+  openSystem,
+  closeTab,
+  reloadActive,
+  refreshTree,
+  clearActiveCanvasSelection,
 }) {
   // ----- Keyboard shortcuts (no Cmd+W — let browser close the tab) -----
   useEffect(() => {

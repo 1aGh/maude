@@ -125,7 +125,12 @@ export default function StickerPicker({ onPick, onClose }) {
                         title={s.keywords?.[0] || s.file}
                         onClick={() => onPick(s)}
                       >
-                        <img className="st-sp-thumb" src={s.url} alt={s.keywords?.[0] || s.file} loading="lazy" />
+                        <img
+                          className="st-sp-thumb"
+                          src={s.url}
+                          alt={s.keywords?.[0] || s.file}
+                          loading="lazy"
+                        />
                       </button>
                     ))}
                   </div>

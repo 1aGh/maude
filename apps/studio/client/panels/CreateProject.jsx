@@ -12,7 +12,16 @@
 
 import { useEffect, useState } from 'react';
 
-import { cloneRepo, createLocalProject, createProject, initDesign, invite, listRepos, openLocalProject, pickDirectory } from '../github.js';
+import {
+  cloneRepo,
+  createLocalProject,
+  createProject,
+  initDesign,
+  invite,
+  listRepos,
+  openLocalProject,
+  pickDirectory,
+} from '../github.js';
 
 function Icon({ name, size = 16 }) {
   const p = {
@@ -65,7 +74,18 @@ function Icon({ name, size = 16 }) {
     ),
   }[name];
   return (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={name === 'spinner' ? 'cp-spin' : undefined}>
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={name === 'spinner' ? 'cp-spin' : undefined}
+    >
       {p}
     </svg>
   );
@@ -80,7 +100,15 @@ const TITLES = {
 export default function CreateProject({ view, identity, signedIn, onClose }) {
   const [title, sub] = TITLES[view] || TITLES.new;
   return (
-    <div className="cp-modal" role="dialog" aria-modal="true" aria-label={title} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
+    <div
+      className="cp-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
+    >
       <div className="cp-scrim" aria-hidden="true" onClick={onClose} />
       <div className="cp-dialog">
         <div className="cp-dialog-hd">
@@ -112,7 +140,12 @@ function NewView({ identity, signedIn, onClose }) {
   const [err, setErr] = useState('');
 
   const local = where === 'local';
-  const slug = name.trim().toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
   const owner = identity?.login || 'you';
 
   // New project = a ready-to-design local project, then open it. GitHub mode also
@@ -124,7 +157,11 @@ function NewView({ identity, signedIn, onClose }) {
     try {
       setStep('Choose where to save it…');
       const parentDir = await pickDirectory();
-      if (!parentDir) { setBusy(false); setStep(''); return; } // cancelled
+      if (!parentDir) {
+        setBusy(false);
+        setStep('');
+        return;
+      } // cancelled
       let r;
       if (local) {
         setStep('Setting up your local project…');
@@ -154,8 +191,18 @@ function NewView({ identity, signedIn, onClose }) {
         <div className="cp-field">
           <span className="cp-field-label">Where</span>
           <div className="seg cp-seg" role="group" aria-label="Where to create the project">
-            <button type="button" aria-pressed={!local} disabled={!signedIn} title={signedIn ? undefined : 'Sign in with GitHub first'} onClick={() => setWhere('github')}><Icon name="globe" size={14} /> GitHub</button>
-            <button type="button" aria-pressed={local} onClick={() => setWhere('local')}><Icon name="laptop" size={14} /> This computer only</button>
+            <button
+              type="button"
+              aria-pressed={!local}
+              disabled={!signedIn}
+              title={signedIn ? undefined : 'Sign in with GitHub first'}
+              onClick={() => setWhere('github')}
+            >
+              <Icon name="globe" size={14} /> GitHub
+            </button>
+            <button type="button" aria-pressed={local} onClick={() => setWhere('local')}>
+              <Icon name="laptop" size={14} /> This computer only
+            </button>
           </div>
           <span className="cp-field-help">
             {local
@@ -167,32 +214,86 @@ function NewView({ identity, signedIn, onClose }) {
         </div>
         <label className="cp-field">
           <span className="cp-field-label">Project name</span>
-          <input className="input cp-input" type="text" value={name} placeholder="Acme Rebrand" aria-label="Project name" onChange={(e) => setName(e.target.value)} />
-          {slug && <span className="cp-field-help">{local ? <>Creates a project folder <b>{slug}</b></> : <>Creates <b>github.com/{owner}/{slug}</b></>}</span>}
+          <input
+            className="input cp-input"
+            type="text"
+            value={name}
+            placeholder="Acme Rebrand"
+            aria-label="Project name"
+            onChange={(e) => setName(e.target.value)}
+          />
+          {slug && (
+            <span className="cp-field-help">
+              {local ? (
+                <>
+                  Creates a project folder <b>{slug}</b>
+                </>
+              ) : (
+                <>
+                  Creates{' '}
+                  <b>
+                    github.com/{owner}/{slug}
+                  </b>
+                </>
+              )}
+            </span>
+          )}
         </label>
         {!local && (
           <>
             <div className="cp-field">
               <span className="cp-field-label">Who can see it</span>
               <div className="seg cp-seg" role="group" aria-label="Project visibility">
-                <button type="button" aria-pressed={isPrivate} onClick={() => setIsPrivate(true)}><Icon name="lock" size={14} /> Private</button>
-                <button type="button" aria-pressed={!isPrivate} onClick={() => setIsPrivate(false)}><Icon name="globe" size={14} /> Public</button>
+                <button type="button" aria-pressed={isPrivate} onClick={() => setIsPrivate(true)}>
+                  <Icon name="lock" size={14} /> Private
+                </button>
+                <button type="button" aria-pressed={!isPrivate} onClick={() => setIsPrivate(false)}>
+                  <Icon name="globe" size={14} /> Public
+                </button>
               </div>
-              <span className="cp-field-help">{isPrivate ? 'Only you and people you invite. The safe default.' : 'Anyone on the internet can see this project.'}</span>
+              <span className="cp-field-help">
+                {isPrivate
+                  ? 'Only you and people you invite. The safe default.'
+                  : 'Anyone on the internet can see this project.'}
+              </span>
             </div>
             <label className="cp-field">
-              <span className="cp-field-label">Description <span className="cp-optional">optional</span></span>
-              <textarea className="textarea cp-textarea" rows={2} value={desc} placeholder="What is this project for?" aria-label="Project description" onChange={(e) => setDesc(e.target.value)} />
+              <span className="cp-field-label">
+                Description <span className="cp-optional">optional</span>
+              </span>
+              <textarea
+                className="textarea cp-textarea"
+                rows={2}
+                value={desc}
+                placeholder="What is this project for?"
+                aria-label="Project description"
+                onChange={(e) => setDesc(e.target.value)}
+              />
             </label>
           </>
         )}
-        {err && <div className="callout callout--error"><span className="cp-cl-glyph" style={{ color: 'var(--status-error)' }}><Icon name="x" /></span><span>{err}</span></div>}
+        {err && (
+          <div className="callout callout--error">
+            <span className="cp-cl-glyph" style={{ color: 'var(--status-error)' }}>
+              <Icon name="x" />
+            </span>
+            <span>{err}</span>
+          </div>
+        )}
       </div>
       <div className="cp-ft">
         <span className="cp-spacer" />
-        <button type="button" className="btn btn--ghost" onClick={onClose}>Cancel</button>
-        <button type="button" className="btn btn--primary" onClick={submit} disabled={busy || !slug}>
-          <Icon name="plus" size={15} /> {busy ? step || 'Creating…' : local ? 'Create local project' : 'Create project'}
+        <button type="button" className="btn btn--ghost" onClick={onClose}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="btn btn--primary"
+          onClick={submit}
+          disabled={busy || !slug}
+        >
+          <Icon name="plus" size={15} />{' '}
+          {busy ? step || 'Creating…' : local ? 'Create local project' : 'Create project'}
         </button>
       </div>
     </>
@@ -232,7 +333,10 @@ function GetView() {
     (async () => {
       const r = await listRepos();
       if (r.ok && r.json?.ok) setRepos(r.json.repos || []);
-      else { setErr(r.json?.error || 'Couldn’t load your projects.'); setRepos([]); }
+      else {
+        setErr(r.json?.error || 'Couldn’t load your projects.');
+        setRepos([]);
+      }
     })();
   }, []);
 
@@ -243,7 +347,11 @@ function GetView() {
     try {
       setStep('Choose a folder to save it in…');
       const parentDir = await pickDirectory();
-      if (!parentDir) { setPulling(null); setStep(''); return; } // cancelled
+      if (!parentDir) {
+        setPulling(null);
+        setStep('');
+        return;
+      } // cancelled
       setStep('Downloading your project…');
       const r = await cloneRepo({ cloneUrl: repo.clone_url, parentDir, name: repo.name });
       if (!(r.ok && r.json?.ok)) {
@@ -274,18 +382,42 @@ function GetView() {
       <>
         <div className="cp-body">
           <div className="callout callout--info">
-            <span className="cp-cl-glyph" style={{ color: 'var(--status-info)' }}><Icon name="download" /></span>
+            <span className="cp-cl-glyph" style={{ color: 'var(--status-info)' }}>
+              <Icon name="download" />
+            </span>
             <span>
-              <b style={{ color: 'var(--fg-0)' }}>Got “{needsSetup.name}” — it’s not a Maude project yet.</b> Saved to{' '}
-              <b>{needsSetup.path}</b>. Set up Maude in it to start designing (you can build a design system after).
+              <b style={{ color: 'var(--fg-0)' }}>
+                Got “{needsSetup.name}” — it’s not a Maude project yet.
+              </b>{' '}
+              Saved to <b>{needsSetup.path}</b>. Set up Maude in it to start designing (you can
+              build a design system after).
             </span>
           </div>
-          {err && <div className="callout callout--error"><span className="cp-cl-glyph" style={{ color: 'var(--status-error)' }}><Icon name="x" /></span><span>{err}</span></div>}
+          {err && (
+            <div className="callout callout--error">
+              <span className="cp-cl-glyph" style={{ color: 'var(--status-error)' }}>
+                <Icon name="x" />
+              </span>
+              <span>{err}</span>
+            </div>
+          )}
         </div>
         <div className="cp-ft">
           <span className="cp-spacer" />
-          <button type="button" className="btn btn--ghost" onClick={() => setNeedsSetup(null)} disabled={settingUp}>Not now</button>
-          <button type="button" className="btn btn--primary" onClick={setupHere} disabled={settingUp}>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={() => setNeedsSetup(null)}
+            disabled={settingUp}
+          >
+            Not now
+          </button>
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={setupHere}
+            disabled={settingUp}
+          >
             <Icon name="download" size={15} /> {settingUp ? 'Setting up…' : 'Set up Maude here'}
           </button>
         </div>
@@ -295,9 +427,18 @@ function GetView() {
 
   return (
     <div className="cp-body cp-body--list">
-      {err && <div className="callout callout--error"><span className="cp-cl-glyph" style={{ color: 'var(--status-error)' }}><Icon name="x" /></span><span>{err}</span></div>}
+      {err && (
+        <div className="callout callout--error">
+          <span className="cp-cl-glyph" style={{ color: 'var(--status-error)' }}>
+            <Icon name="x" />
+          </span>
+          <span>{err}</span>
+        </div>
+      )}
       {repos === null && <div className="cp-field-help">Loading your projects…</div>}
-      {repos && repos.length === 0 && !err && <div className="cp-field-help">No projects yet — create one to get started.</div>}
+      {repos && repos.length === 0 && !err && (
+        <div className="cp-field-help">No projects yet — create one to get started.</div>
+      )}
       {repos && repos.length > 0 && (
         <div className="cp-repolist" role="group" aria-label="Your projects">
           {repos.map((r) => {
@@ -313,15 +454,28 @@ function GetView() {
                 <Icon name={r.private ? 'lock' : 'globe'} size={14} />
                 <span className="cp-repo-tx">
                   <span className="cp-repo-name">{r.name}</span>
-                  <span className="cp-repo-meta">{isPulling ? step || 'Working…' : `${r.owner} · updated ${new Date(r.updated_at).toLocaleDateString()}`}</span>
+                  <span className="cp-repo-meta">
+                    {isPulling
+                      ? step || 'Working…'
+                      : `${r.owner} · updated ${new Date(r.updated_at).toLocaleDateString()}`}
+                  </span>
                 </span>
-                <span className="cp-repo-go">{isPulling ? <Icon name="spinner" size={15} /> : <Icon name="download" size={15} />}</span>
+                <span className="cp-repo-go">
+                  {isPulling ? (
+                    <Icon name="spinner" size={15} />
+                  ) : (
+                    <Icon name="download" size={15} />
+                  )}
+                </span>
               </button>
             );
           })}
         </div>
       )}
-      <div className="cp-field-help">Pulls a fresh copy from GitHub to a folder you choose, then opens it. To open a folder you already have, use <b>File ▸ Open Project</b>.</div>
+      <div className="cp-field-help">
+        Pulls a fresh copy from GitHub to a folder you choose, then opens it. To open a folder you
+        already have, use <b>File ▸ Open Project</b>.
+      </div>
     </div>
   );
 }
@@ -345,23 +499,51 @@ function ShareView({ onClose }) {
     <>
       <div className="cp-body">
         <div className="cp-invite">
-          <span className="cp-invite-at" aria-hidden="true">@</span>
-          <input className="input cp-invite-input" type="text" value={username} placeholder="github-username" aria-label="GitHub username to invite" onChange={(e) => setUsername(e.target.value)} />
-          <button type="button" className="btn btn--primary cp-invite-btn" onClick={submit} disabled={busy || !username.trim()}>
+          <span className="cp-invite-at" aria-hidden="true">
+            @
+          </span>
+          <input
+            className="input cp-invite-input"
+            type="text"
+            value={username}
+            placeholder="github-username"
+            aria-label="GitHub username to invite"
+            onChange={(e) => setUsername(e.target.value)}
+          />
+          <button
+            type="button"
+            className="btn btn--primary cp-invite-btn"
+            onClick={submit}
+            disabled={busy || !username.trim()}
+          >
             <Icon name="invite" size={15} /> {busy ? 'Inviting…' : 'Invite'}
           </button>
         </div>
         {invited && (
           <div className="callout callout--success">
-            <span className="cp-cl-glyph" style={{ color: 'var(--status-success)' }}><Icon name="check" /></span>
-            <span><b style={{ color: 'var(--fg-0)' }}>Invited @{invited}.</b> They’ll get a GitHub email and can open this project once they accept.</span>
+            <span className="cp-cl-glyph" style={{ color: 'var(--status-success)' }}>
+              <Icon name="check" />
+            </span>
+            <span>
+              <b style={{ color: 'var(--fg-0)' }}>Invited @{invited}.</b> They’ll get a GitHub email
+              and can open this project once they accept.
+            </span>
           </div>
         )}
-        {err && <div className="callout callout--error"><span className="cp-cl-glyph" style={{ color: 'var(--status-error)' }}><Icon name="x" /></span><span>{err}</span></div>}
+        {err && (
+          <div className="callout callout--error">
+            <span className="cp-cl-glyph" style={{ color: 'var(--status-error)' }}>
+              <Icon name="x" />
+            </span>
+            <span>{err}</span>
+          </div>
+        )}
       </div>
       <div className="cp-ft">
         <span className="cp-spacer" />
-        <button type="button" className="btn btn--primary" onClick={onClose}>Done</button>
+        <button type="button" className="btn btn--primary" onClick={onClose}>
+          Done
+        </button>
       </div>
     </>
   );

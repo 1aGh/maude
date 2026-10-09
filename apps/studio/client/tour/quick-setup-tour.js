@@ -17,7 +17,7 @@ export const QUICK_SETUP_TOUR = [
   {
     target: "[data-tour='sidebar']",
     title: 'Your canvases will live here',
-    body: "Empty for now. Once you have a design system, this fills up with real screens — click any one to open it.",
+    body: 'Empty for now. Once you have a design system, this fills up with real screens — click any one to open it.',
     placement: 'right',
   },
   {
@@ -29,7 +29,7 @@ export const QUICK_SETUP_TOUR = [
   {
     target: "[data-tour='viewport']",
     title: 'Your first canvas appears here',
-    body: "Once the design system is ready, ask for a first screen and watch it land right in this space, ready to edit.",
+    body: 'Once the design system is ready, ask for a first screen and watch it land right in this space, ready to edit.',
   },
   {
     // Centered — the close-out step.

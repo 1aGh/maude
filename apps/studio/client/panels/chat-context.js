@@ -61,7 +61,10 @@ function asArray(selected) {
 }
 
 function shortName(canvas) {
-  const base = String(canvas || '').split('/').pop() || '';
+  const base =
+    String(canvas || '')
+      .split('/')
+      .pop() || '';
   return base.replace(/\.(tsx|html)$/i, '');
 }
 

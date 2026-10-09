@@ -36,7 +36,9 @@ function resolveNum(raw, consts) {
   const t = String(raw).trim();
   if (/^-?\d+$/.test(t)) return Number(t);
   if (Object.hasOwn(consts, t)) return consts[t];
-  const expr = t.replace(/[A-Za-z_$][\w$]*/g, (id) => (Object.hasOwn(consts, id) ? String(consts[id]) : id));
+  const expr = t.replace(/[A-Za-z_$][\w$]*/g, (id) =>
+    Object.hasOwn(consts, id) ? String(consts[id]) : id
+  );
   if (/^[-+*/()\d\s.]+$/.test(expr) && /\d/.test(expr)) {
     try {
       // eslint-disable-next-line no-new-func
@@ -60,7 +62,9 @@ function keyframesForComponent(source, compName, consts, seqFrom) {
   const nextDef = rest.search(/\n(?:const|function)\s+[A-Z]/);
   const body = rest.slice(0, nextDef > 0 ? nextDef : 2400);
   const kf = [];
-  for (const m of body.matchAll(/interpolate\(\s*frame\s*,\s*\[\s*([^,\]]+?)\s*,\s*([^,\]]+?)\s*[,\]]/g)) {
+  for (const m of body.matchAll(
+    /interpolate\(\s*frame\s*,\s*\[\s*([^,\]]+?)\s*,\s*([^,\]]+?)\s*[,\]]/g
+  )) {
     const a = resolveNum(m[1], consts);
     const b = resolveNum(m[2], consts);
     if (a != null && b != null && b >= a) kf.push({ from: seqFrom + a, to: seqFrom + b });
@@ -162,7 +166,9 @@ export function parseCompTimeline(source, totalFrames, selectedArtboardId) {
       const lm = after.match(/<([A-Z][A-Za-z0-9]*)\b/);
       // Media child sniff (badge + replace affordance): the first
       // <Video|OffthreadVideo|Audio|Img src="…"> DIRECTLY inside the clip body.
-      const mm = after.match(/<(?:Maude)?(Video|OffthreadVideo|Audio|Img)\b[^>]*src=["']([^"']+)["']/);
+      const mm = after.match(
+        /<(?:Maude)?(Video|OffthreadVideo|Audio|Img)\b[^>]*src=["']([^"']+)["']/
+      );
       const nameM = attrs.match(/name=["']([^"']+)["']/);
       items.push({
         type: 'seq',
@@ -191,7 +197,8 @@ export function parseCompTimeline(source, totalFrames, selectedArtboardId) {
   for (const it of items) {
     if (it.type === 'transition') {
       cursor -= it.dur || 0;
-      if (sequences.length > 0) pendingTransition = { afterIndex: sequences.length - 1, dur: it.dur || 0 };
+      if (sequences.length > 0)
+        pendingTransition = { afterIndex: sequences.length - 1, dur: it.dur || 0 };
       continue;
     }
     const from = it.from != null ? it.from : cursor;
@@ -212,9 +219,7 @@ export function parseCompTimeline(source, totalFrames, selectedArtboardId) {
     cursor = from + duration;
   }
 
-  const derived = sequences.length
-    ? Math.max(...sequences.map((s) => s.from + s.duration))
-    : 30;
+  const derived = sequences.length ? Math.max(...sequences.map((s) => s.from + s.duration)) : 30;
   const total = Number.isFinite(scopedTotal) && scopedTotal > 0 ? scopedTotal : derived;
 
   // Audio/music beds — their OWN rows (a `<Audio>` isn't a Sequence, so it never

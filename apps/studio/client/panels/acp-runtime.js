@@ -386,9 +386,7 @@ export function createAcpConnection() {
         // prompt.
         if (attachedChatId) {
           try {
-            sock.send(
-              JSON.stringify({ t: 'attach', chat: attachedChatId, seq: hydratedSeq })
-            );
+            sock.send(JSON.stringify({ t: 'attach', chat: attachedChatId, seq: hydratedSeq }));
           } catch {
             /* the frame handlers below surface a dead socket */
           }

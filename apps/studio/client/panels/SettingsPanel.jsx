@@ -108,7 +108,9 @@ function ProviderCard({ provider, onChanged }) {
       <div className="st-provider-hd">
         <span className="st-provider-name">{provider.label}</span>
         <span className={'st-pill' + (provider.kind === 'local' ? ' is-local' : '')}>
-          {provider.kind === 'local' ? 'Local' : (
+          {provider.kind === 'local' ? (
+            'Local'
+          ) : (
             <>
               <Icon name="cloud" size={12} /> Cloud
             </>
@@ -142,7 +144,12 @@ function ProviderCard({ provider, onChanged }) {
               if (e.key === 'Enter') save();
             }}
           />
-          <button type="button" className="st-btn" disabled={busy || !keyInput.trim()} onClick={save}>
+          <button
+            type="button"
+            className="st-btn"
+            disabled={busy || !keyInput.trim()}
+            onClick={save}
+          >
             <Icon name="key" size={13} /> Save
           </button>
           {configured && (
@@ -464,9 +471,21 @@ function WhisperModelCard() {
 // sibling of the Subtitles section. Persists `keyframeEngine` to /_api/generate/prefs.
 const KEYFRAME_ENGINES = [
   { id: 'auto', label: 'Auto', note: 'Use the best available: Gemma scout → ffmpeg → blind.' },
-  { id: 'gemma', label: 'Gemma scout', note: 'Semantic action beats. Needs Ollama (gemma3 vision) or mlx-vlm + a model.' },
-  { id: 'ffmpeg', label: 'ffmpeg scene-detect', note: 'Scene cuts + endpoints. Needs ffmpeg. No model download.' },
-  { id: 'blind', label: 'Blind (even-spaced)', note: 'Chromium fallback — works with neither ffmpeg nor Gemma.' },
+  {
+    id: 'gemma',
+    label: 'Gemma scout',
+    note: 'Semantic action beats. Needs Ollama (gemma3 vision) or mlx-vlm + a model.',
+  },
+  {
+    id: 'ffmpeg',
+    label: 'ffmpeg scene-detect',
+    note: 'Scene cuts + endpoints. Needs ffmpeg. No model download.',
+  },
+  {
+    id: 'blind',
+    label: 'Blind (even-spaced)',
+    note: 'Chromium fallback — works with neither ffmpeg nor Gemma.',
+  },
 ];
 
 function KeyframeEngineCard() {
@@ -559,7 +578,12 @@ function CopyCommand({ command, label }) {
   return (
     <span className="rdy-cmd">
       <code className="rdy-cmd-tx">{command}</code>
-      <button type="button" className="rdy-copy" onClick={copy} aria-label={label || 'Copy command'}>
+      <button
+        type="button"
+        className="rdy-copy"
+        onClick={copy}
+        aria-label={label || 'Copy command'}
+      >
         {copied ? 'Copied' : 'Copy'}
       </button>
     </span>
@@ -589,11 +613,7 @@ function SetupSteps({ state }) {
         <span className="st-step-n">{step1Done ? '✓' : '1'}</span>
         <div className="st-step-body">
           <span className="st-step-title">
-            {step1Done
-              ? 'Ollama is running'
-              : ollama.installed
-                ? 'Start Ollama'
-                : 'Install Ollama'}
+            {step1Done ? 'Ollama is running' : ollama.installed ? 'Start Ollama' : 'Install Ollama'}
           </span>
           {step1?.kind === 'command' ? (
             <CopyCommand command={step1.command} label="Copy the install command" />
@@ -897,8 +917,9 @@ function FigmaConnectCard() {
         code: no AI reads your file.
       </p>
       <p className="st-settings-intro">
-        Create a personal access token with the <code>{status?.requiredScope || 'file_content:read'}</code>{' '}
-        scope. It is stored on this machine only and is never sent anywhere but Figma.
+        Create a personal access token with the{' '}
+        <code>{status?.requiredScope || 'file_content:read'}</code> scope. It is stored on this
+        machine only and is never sent anywhere but Figma.
       </p>
       {status?.tokenUrl && (
         <a className="st-provider-keylink" href={status.tokenUrl} target="_blank" rel="noreferrer">
@@ -1092,7 +1113,9 @@ function PrefToggleRow({ label, note, checked, disabled, reason, onChange }) {
     <label className={'st-pref-row' + (disabled ? ' is-disabled' : '')}>
       <span className="st-pref-body">
         <span className="st-pref-label">{label}</span>
-        {(reason || note) && <span className="st-pref-note">{disabled && reason ? reason : note}</span>}
+        {(reason || note) && (
+          <span className="st-pref-note">{disabled && reason ? reason : note}</span>
+        )}
       </span>
       <input
         type="checkbox"
@@ -1119,8 +1142,16 @@ const THEME_OPTIONS = [
 // and regrouped. Persisted via the App-owned `maude-cp-mode` state, so this
 // radio and the in-panel corner toggle stay in lockstep.
 const CP_MODE_OPTIONS = [
-  { id: 'advanced', label: 'Advanced', note: 'Raw CSS property names — border-radius, flex-direction…' },
-  { id: 'designer', label: 'Designer', note: 'Figma vocabulary — Fill, Stroke, Corner radius, Auto layout…' },
+  {
+    id: 'advanced',
+    label: 'Advanced',
+    note: 'Raw CSS property names — border-radius, flex-direction…',
+  },
+  {
+    id: 'designer',
+    label: 'Designer',
+    note: 'Figma vocabulary — Fill, Stroke, Corner radius, Auto layout…',
+  },
 ];
 function AppearanceTab({ theme, onSetTheme, cpMode, onSetCpMode }) {
   return (
@@ -1135,7 +1166,10 @@ function AppearanceTab({ theme, onSetTheme, cpMode, onSetCpMode }) {
         </div>
         <div className="st-engine-radios" role="radiogroup" aria-label="Theme">
           {THEME_OPTIONS.map((o) => (
-            <label key={o.id} className={'st-engine-radio' + (theme === o.id ? ' is-selected' : '')}>
+            <label
+              key={o.id}
+              className={'st-engine-radio' + (theme === o.id ? ' is-selected' : '')}
+            >
               <input
                 type="radio"
                 name="maude-theme"
@@ -1161,7 +1195,10 @@ function AppearanceTab({ theme, onSetTheme, cpMode, onSetCpMode }) {
         </div>
         <div className="st-engine-radios" role="radiogroup" aria-label="Inspector vocabulary">
           {CP_MODE_OPTIONS.map((o) => (
-            <label key={o.id} className={'st-engine-radio' + (cpMode === o.id ? ' is-selected' : '')}>
+            <label
+              key={o.id}
+              className={'st-engine-radio' + (cpMode === o.id ? ' is-selected' : '')}
+            >
               <input
                 type="radio"
                 name="maude-cp-mode"
@@ -1327,7 +1364,12 @@ export default function SettingsPanel({
               hidden={tab !== 'appearance'}
             >
               <div className="st-rp-hd">Appearance</div>
-              <AppearanceTab theme={theme} onSetTheme={onSetTheme} cpMode={cpMode} onSetCpMode={onSetCpMode} />
+              <AppearanceTab
+                theme={theme}
+                onSetTheme={onSetTheme}
+                cpMode={cpMode}
+                onSetCpMode={onSetCpMode}
+              />
             </section>
 
             {/* Canvas & View — the persistent View-menu prefs, one canonical home. */}

@@ -11,7 +11,17 @@ import { cssColorToHex } from './color.js';
 // `kind='value'` a variable list (pretty name + resolved value, à la Figma's
 // variable picker). Picking commits `var(--token)`. Portals to <body> +
 // fixed-positions from the trigger rect so the panel's overflow never clips it.
-export function TokenPopover({ kind, groups, current, onPick, label, swatchBg, seedHex, activeDs, swatchClassName }) {
+export function TokenPopover({
+  kind,
+  groups,
+  current,
+  onPick,
+  label,
+  swatchBg,
+  seedHex,
+  activeDs,
+  swatchClassName,
+}) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState(null);
   // Phase 12.3 (#4) — colour popover gets two tabs: a normal colour input
@@ -120,7 +130,8 @@ export function TokenPopover({ kind, groups, current, onPick, label, swatchBg, s
   // `rgb(1 2 3) url(//x)` passes the colour sniff). Refuse to write a literal
   // carrying url()/image-set()/expression()/@import — fall back to var(), which
   // resolves against the CANVAS's own DS (never the attacker's value).
-  const UNSAFE_TOKEN_VALUE = /url\(|image-set\(|cross-fade\(|element\(|expression\(|@import|javascript:/i;
+  const UNSAFE_TOKEN_VALUE =
+    /url\(|image-set\(|cross-fade\(|element\(|expression\(|@import|javascript:/i;
   const pickFrom = (ds, n, resolved) => {
     if (activeDs && ds && ds !== activeDs && resolved && !UNSAFE_TOKEN_VALUE.test(resolved)) {
       onPick(resolved);
@@ -274,7 +285,10 @@ export function TokenPopover({ kind, groups, current, onPick, label, swatchBg, s
                     </button>
                   </div>
                   {mode === 'custom' ? (
-                    <ColorPicker seed={seedHex || cssColorToHex(current) || '#000000'} onApply={applyRaw} />
+                    <ColorPicker
+                      seed={seedHex || cssColorToHex(current) || '#000000'}
+                      onApply={applyRaw}
+                    />
                   ) : !total ? (
                     <div className="st-cp-pop-empty">No color tokens</div>
                   ) : (

@@ -3,8 +3,13 @@
 import { useCallback, useMemo, useState } from 'react';
 
 export function useGitActions({
-  gitStatus, setGitStatus, setRemoteSync, diffTarget, setDiffTarget, savingIsManaged,
-  savingIsManagedRef
+  gitStatus,
+  setGitStatus,
+  setRemoteSync,
+  diffTarget,
+  setDiffTarget,
+  savingIsManaged,
+  savingIsManagedRef,
 }) {
   // ----- Phase 27 (E2) — git actions -----
   // All write actions POST same-origin (the dev-server's sameOriginWrite + the
@@ -139,8 +144,7 @@ export function useGitActions({
   const [cloudHistory, setCloudHistory] = useState(null); // { branch, project, hubHost } | null
   const gitLoadCloudLog = useCallback(async (path) => {
     try {
-      const qs =
-        '/_api/cloud/history?limit=40' + (path ? `&path=${encodeURIComponent(path)}` : '');
+      const qs = '/_api/cloud/history?limit=40' + (path ? `&path=${encodeURIComponent(path)}` : '');
       const r = await fetch(qs);
       if (!r.ok) return null;
       const data = await r.json();
@@ -193,11 +197,14 @@ export function useGitActions({
   // An accepted preview must stay on project history even if loading fails:
   // switching to Git would turn Restore into an unrelated discard operation.
   const acceptedDiff = /^r\d+$/.test(diffTarget?.beforeSha || '');
-  const loadDiffLog = useCallback(async (path) => {
-    if (!acceptedDiff) return gitLoadLog(path);
-    const entries = await loadAcceptedLog(path);
-    return Array.isArray(entries) ? entries : [];
-  }, [acceptedDiff, gitLoadLog, loadAcceptedLog]);
+  const loadDiffLog = useCallback(
+    async (path) => {
+      if (!acceptedDiff) return gitLoadLog(path);
+      const entries = await loadAcceptedLog(path);
+      return Array.isArray(entries) ? entries : [];
+    },
+    [acceptedDiff, gitLoadLog, loadAcceptedLog]
+  );
   const restoreProjectVersion = useCallback(async (path, revision) => {
     if (!path || !Number.isSafeInteger(revision) || revision < 0) {
       return { ok: false, error: 'Choose a saved project version to restore.' };
@@ -229,8 +236,22 @@ export function useGitActions({
     return m;
   }, [gitStatus, savingIsManaged]);
   return {
-    acceptedDiff, cloudHistory, dirtyByPath, gitCommit, gitDiscard, gitGetLatest, gitLoadCloudLog,
-    gitLoadLog, gitPublish, gitResolveConflict, loadAcceptedLog, loadDiffLog, projectHistoryOn,
-    projectHistoryRefresh, refreshRemoteSync, restoreProjectVersion, setProjectHistoryOn
+    acceptedDiff,
+    cloudHistory,
+    dirtyByPath,
+    gitCommit,
+    gitDiscard,
+    gitGetLatest,
+    gitLoadCloudLog,
+    gitLoadLog,
+    gitPublish,
+    gitResolveConflict,
+    loadAcceptedLog,
+    loadDiffLog,
+    projectHistoryOn,
+    projectHistoryRefresh,
+    refreshRemoteSync,
+    restoreProjectVersion,
+    setProjectHistoryOn,
   };
 }

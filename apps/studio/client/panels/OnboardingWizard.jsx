@@ -38,27 +38,103 @@ import {
 function Icon({ name, size = 16, className }) {
   const p = {
     check: <polyline points="3 8.2 6.4 11.5 13 4.2" />,
-    'arrow-right': (<><line x1="2.5" y1="8" x2="13" y2="8" /><polyline points="9 4 13 8 9 12" /></>),
+    'arrow-right': (
+      <>
+        <line x1="2.5" y1="8" x2="13" y2="8" />
+        <polyline points="9 4 13 8 9 12" />
+      </>
+    ),
     'chevron-right': <polyline points="6 3.5 10.5 8 6 12.5" />,
     'chevron-down': <polyline points="3.5 6 8 10.5 12.5 6" />,
     folder: <path d="M2 4.5h4l1.3 1.5H14V13H2z" />,
-    'folder-open': (<><path d="M2 4.5h4l1.3 1.5H14" /><path d="M2 6h12.5l-1.4 7H3.4z" /></>),
-    lock: (<><rect x="3.5" y="7" width="9" height="6.5" rx="1.2" /><path d="M5.5 7V5.2a2.5 2.5 0 0 1 5 0V7" /></>),
-    globe: (<><circle cx="8" cy="8" r="5.5" /><path d="M2.5 8h11M8 2.5c1.7 1.5 2.6 3.5 2.6 5.5S9.7 12.5 8 13.5C6.3 12 5.4 10 5.4 8S6.3 3.5 8 2.5z" /></>),
-    plus: (<><line x1="8" y1="3" x2="8" y2="13" /><line x1="3" y1="8" x2="13" y2="8" /></>),
-    download: (<><line x1="8" y1="2.5" x2="8" y2="10" /><polyline points="4.5 7 8 10.5 11.5 7" /><polyline points="3 12.8 3 13.6 13 13.6 13 12.8" /></>),
-    link: (<><path d="M6.5 9.5 9.5 6.5" /><path d="M7 4.5 8.4 3.1a2.6 2.6 0 0 1 3.7 3.7L10.7 8.2" /><path d="M9 11.5 7.6 12.9a2.6 2.6 0 0 1-3.7-3.7L5.3 7.8" /></>),
-    key: (<><circle cx="5" cy="5" r="2.6" /><path d="M6.9 6.9 13 13M11 11l1.4-1.4M9.2 9.2l1.6-1.6" /></>),
-    server: (<><rect x="2.5" y="3" width="11" height="4" rx="1" /><rect x="2.5" y="9" width="11" height="4" rx="1" /><circle cx="5" cy="5" r="0.5" fill="currentColor" /><circle cx="5" cy="11" r="0.5" fill="currentColor" /></>),
-    x: (<><line x1="3.5" y1="3.5" x2="12.5" y2="12.5" /><line x1="12.5" y1="3.5" x2="3.5" y2="12.5" /></>),
-    copy: (<><rect x="5.5" y="5.5" width="7.5" height="7.5" rx="1.2" /><path d="M3 10.5V3.2A.7.7 0 0 1 3.7 2.5H10" /></>),
-    external: (<><path d="M6 3.5H3.2A.7.7 0 0 0 2.5 4.2v8.6a.7.7 0 0 0 .7.7h8.6a.7.7 0 0 0 .7-.7V10" /><line x1="8" y1="8" x2="13" y2="3" /><polyline points="9.5 3 13 3 13 6.5" /></>),
+    'folder-open': (
+      <>
+        <path d="M2 4.5h4l1.3 1.5H14" />
+        <path d="M2 6h12.5l-1.4 7H3.4z" />
+      </>
+    ),
+    lock: (
+      <>
+        <rect x="3.5" y="7" width="9" height="6.5" rx="1.2" />
+        <path d="M5.5 7V5.2a2.5 2.5 0 0 1 5 0V7" />
+      </>
+    ),
+    globe: (
+      <>
+        <circle cx="8" cy="8" r="5.5" />
+        <path d="M2.5 8h11M8 2.5c1.7 1.5 2.6 3.5 2.6 5.5S9.7 12.5 8 13.5C6.3 12 5.4 10 5.4 8S6.3 3.5 8 2.5z" />
+      </>
+    ),
+    plus: (
+      <>
+        <line x1="8" y1="3" x2="8" y2="13" />
+        <line x1="3" y1="8" x2="13" y2="8" />
+      </>
+    ),
+    download: (
+      <>
+        <line x1="8" y1="2.5" x2="8" y2="10" />
+        <polyline points="4.5 7 8 10.5 11.5 7" />
+        <polyline points="3 12.8 3 13.6 13 13.6 13 12.8" />
+      </>
+    ),
+    link: (
+      <>
+        <path d="M6.5 9.5 9.5 6.5" />
+        <path d="M7 4.5 8.4 3.1a2.6 2.6 0 0 1 3.7 3.7L10.7 8.2" />
+        <path d="M9 11.5 7.6 12.9a2.6 2.6 0 0 1-3.7-3.7L5.3 7.8" />
+      </>
+    ),
+    key: (
+      <>
+        <circle cx="5" cy="5" r="2.6" />
+        <path d="M6.9 6.9 13 13M11 11l1.4-1.4M9.2 9.2l1.6-1.6" />
+      </>
+    ),
+    server: (
+      <>
+        <rect x="2.5" y="3" width="11" height="4" rx="1" />
+        <rect x="2.5" y="9" width="11" height="4" rx="1" />
+        <circle cx="5" cy="5" r="0.5" fill="currentColor" />
+        <circle cx="5" cy="11" r="0.5" fill="currentColor" />
+      </>
+    ),
+    x: (
+      <>
+        <line x1="3.5" y1="3.5" x2="12.5" y2="12.5" />
+        <line x1="12.5" y1="3.5" x2="3.5" y2="12.5" />
+      </>
+    ),
+    copy: (
+      <>
+        <rect x="5.5" y="5.5" width="7.5" height="7.5" rx="1.2" />
+        <path d="M3 10.5V3.2A.7.7 0 0 1 3.7 2.5H10" />
+      </>
+    ),
+    external: (
+      <>
+        <path d="M6 3.5H3.2A.7.7 0 0 0 2.5 4.2v8.6a.7.7 0 0 0 .7.7h8.6a.7.7 0 0 0 .7-.7V10" />
+        <line x1="8" y1="8" x2="13" y2="3" />
+        <polyline points="9.5 3 13 3 13 6.5" />
+      </>
+    ),
     back: <polyline points="10 3.5 5.5 8 10 12.5" />,
     spinner: <path d="M8 2.2a5.8 5.8 0 1 0 5.8 5.8" />,
     play: <polygon points="5 3.2 12.8 8 5 12.8" fill="currentColor" stroke="none" />,
   }[name];
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      className={className}
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       {p}
     </svg>
   );
@@ -94,19 +170,43 @@ function Rail({ signedInAs }) {
         <span className="ob-rail-wordmark">maude</span>
       </div>
       <div className="ob-rail-lede">
-        <p className="ob-rail-h">Design together.<br />No setup, no terminal.</p>
-        <p>Open Maude, and you're in a real project in under two minutes — sharing canvases with your team as you go.</p>
+        <p className="ob-rail-h">
+          Design together.
+          <br />
+          No setup, no terminal.
+        </p>
+        <p>
+          Open Maude, and you're in a real project in under two minutes — sharing canvases with your
+          team as you go.
+        </p>
       </div>
       {signedInAs ? (
         <div className="ob-rail-signed">
           <span className="ob-rail-signed-dot" aria-hidden="true" />
-          <span>Signed in as <b>@{signedInAs}</b></span>
+          <span>
+            Signed in as <b>@{signedInAs}</b>
+          </span>
         </div>
       ) : (
         <ul className="ob-rail-reassure">
-          <li><span className="ob-rail-tick" aria-hidden="true"><Icon name="check" size={12} /></span>Sign in once — Maude remembers you</li>
-          <li><span className="ob-rail-tick" aria-hidden="true"><Icon name="check" size={12} /></span>Your work saves on its own</li>
-          <li><span className="ob-rail-tick" aria-hidden="true"><Icon name="check" size={12} /></span>Invite anyone by their name</li>
+          <li>
+            <span className="ob-rail-tick" aria-hidden="true">
+              <Icon name="check" size={12} />
+            </span>
+            Sign in once — Maude remembers you
+          </li>
+          <li>
+            <span className="ob-rail-tick" aria-hidden="true">
+              <Icon name="check" size={12} />
+            </span>
+            Your work saves on its own
+          </li>
+          <li>
+            <span className="ob-rail-tick" aria-hidden="true">
+              <Icon name="check" size={12} />
+            </span>
+            Invite anyone by their name
+          </li>
         </ul>
       )}
       <div className="ob-rail-foot">You can change any of this later.</div>
@@ -142,8 +242,8 @@ function CrashOptIn() {
         }}
       />
       <span>
-        Send crash reports to help improve Maude. Optional — a crash writes a local log
-        (stack trace + OS + version, no file contents) you can attach to an issue.
+        Send crash reports to help improve Maude. Optional — a crash writes a local log (stack trace
+        + OS + version, no file contents) you can attach to an issue.
       </span>
     </label>
   );
@@ -162,7 +262,10 @@ function AiReadiness() {
   return (
     <details className="ob-readiness">
       <summary className="ob-readiness-sum">
-        <span className={`ob-readiness-dot ob-readiness-dot--${ready ? 'ok' : 'warn'}`} aria-hidden="true" />
+        <span
+          className={`ob-readiness-dot ob-readiness-dot--${ready ? 'ok' : 'warn'}`}
+          aria-hidden="true"
+        />
         <span className="ob-readiness-lede">
           {ready ? 'AI editing is ready' : 'AI editing needs a couple of things'}
         </span>
@@ -190,7 +293,11 @@ function Welcome({ onGithub, onLocal, onHub, onTeam, signing, signedIn, identity
       <header className="ob-head">
         <span className="ob-eyebrow">Welcome</span>
         <h1>How would you like to start?</h1>
-        <p>{signedIn ? `You're signed in as @${identity?.login || 'GitHub'}. Open a project, or start a new one.` : "Most people sign in with GitHub — it's the simplest way to work with a team."}</p>
+        <p>
+          {signedIn
+            ? `You're signed in as @${identity?.login || 'GitHub'}. Open a project, or start a new one.`
+            : "Most people sign in with GitHub — it's the simplest way to work with a team."}
+        </p>
         <button
           type="button"
           data-testid="onboarding-watch-intro"
@@ -202,44 +309,100 @@ function Welcome({ onGithub, onLocal, onHub, onTeam, signing, signedIn, identity
       </header>
       <IntroVideoDialog open={introOpen} onClose={() => setIntroOpen(false)} />
       <div className="ob-doors">
-        <button type="button" data-testid="ob-door-github" className="ob-door ob-door--primary" aria-label="Continue with GitHub — recommended" onClick={onGithub} disabled={signing}>
-          <span className="ob-door-icon ob-door-icon--gh"><GitHubMark size={26} /></span>
+        <button
+          type="button"
+          data-testid="ob-door-github"
+          className="ob-door ob-door--primary"
+          aria-label="Continue with GitHub — recommended"
+          onClick={onGithub}
+          disabled={signing}
+        >
+          <span className="ob-door-icon ob-door-icon--gh">
+            <GitHubMark size={26} />
+          </span>
           <span className="ob-door-tx">
-            <span className="ob-door-title">Continue with GitHub<span className="ob-door-tag">Recommended</span></span>
-            <span className="ob-door-sub">Start a shared project, or open one a teammate shared with you.</span>
+            <span className="ob-door-title">
+              Continue with GitHub<span className="ob-door-tag">Recommended</span>
+            </span>
+            <span className="ob-door-sub">
+              Start a shared project, or open one a teammate shared with you.
+            </span>
           </span>
           <span className="ob-door-cta">
-            <span className="btn btn--primary ob-door-btn"><GitHubMark size={15} /> {signing ? 'Starting…' : signedIn ? 'Continue' : 'Sign in with GitHub'}</span>
+            <span className="btn btn--primary ob-door-btn">
+              <GitHubMark size={15} />{' '}
+              {signing ? 'Starting…' : signedIn ? 'Continue' : 'Sign in with GitHub'}
+            </span>
           </span>
         </button>
         {/* Plan T22 — a designer who was added to a project picks it and works:
             no folder, no Git, no token. */}
-        <button type="button" data-testid="ob-door-team" className="ob-door" aria-label="Open a project you were invited to" onClick={onTeam}>
-          <span className="ob-door-icon"><Icon name="link" size={22} /></span>
+        <button
+          type="button"
+          data-testid="ob-door-team"
+          className="ob-door"
+          aria-label="Open a project you were invited to"
+          onClick={onTeam}
+        >
+          <span className="ob-door-icon">
+            <Icon name="link" size={22} />
+          </span>
           <span className="ob-door-tx">
             <span className="ob-door-title">Open a project you were invited to</span>
-            <span className="ob-door-sub">Sign in to Maude Cloud or your team’s server, pick the project, and start designing.</span>
+            <span className="ob-door-sub">
+              Sign in to Maude Cloud or your team’s server, pick the project, and start designing.
+            </span>
           </span>
-          <span className="ob-door-go" aria-hidden="true"><Icon name="chevron-right" size={16} /></span>
+          <span className="ob-door-go" aria-hidden="true">
+            <Icon name="chevron-right" size={16} />
+          </span>
         </button>
-        <button type="button" data-testid="ob-door-local" className="ob-door" aria-label="Open a folder on this computer" onClick={onLocal}>
-          <span className="ob-door-icon"><Icon name="folder-open" size={22} /></span>
+        <button
+          type="button"
+          data-testid="ob-door-local"
+          className="ob-door"
+          aria-label="Open a folder on this computer"
+          onClick={onLocal}
+        >
+          <span className="ob-door-icon">
+            <Icon name="folder-open" size={22} />
+          </span>
           <span className="ob-door-tx">
             <span className="ob-door-title">Open a folder on this computer</span>
-            <span className="ob-door-sub">Already have a project folder? Open it and keep designing.</span>
+            <span className="ob-door-sub">
+              Already have a project folder? Open it and keep designing.
+            </span>
           </span>
-          <span className="ob-door-go" aria-hidden="true"><Icon name="chevron-right" size={16} /></span>
+          <span className="ob-door-go" aria-hidden="true">
+            <Icon name="chevron-right" size={16} />
+          </span>
         </button>
-        <button type="button" data-testid="ob-door-hub" className="ob-door ob-door--advanced" aria-label="Connect to a team hub — advanced" onClick={onHub}>
-          <span className="ob-door-icon ob-door-icon--quiet"><Icon name="server" size={18} /></span>
-          <span className="ob-door-tx">
-            <span className="ob-door-title">Connect to a team hub <span className="ob-door-adv">Advanced</span></span>
-            <span className="ob-door-sub">Your team runs its own Maude hub? Paste the link they gave you.</span>
+        <button
+          type="button"
+          data-testid="ob-door-hub"
+          className="ob-door ob-door--advanced"
+          aria-label="Connect to a team hub — advanced"
+          onClick={onHub}
+        >
+          <span className="ob-door-icon ob-door-icon--quiet">
+            <Icon name="server" size={18} />
           </span>
-          <span className="ob-door-go" aria-hidden="true"><Icon name="chevron-right" size={15} /></span>
+          <span className="ob-door-tx">
+            <span className="ob-door-title">
+              Connect to a team hub <span className="ob-door-adv">Advanced</span>
+            </span>
+            <span className="ob-door-sub">
+              Your team runs its own Maude hub? Paste the link they gave you.
+            </span>
+          </span>
+          <span className="ob-door-go" aria-hidden="true">
+            <Icon name="chevron-right" size={15} />
+          </span>
         </button>
       </div>
-      <p className="ob-foot-note">Browse, version, and collaborate — all in the app, no terminal.</p>
+      <p className="ob-foot-note">
+        Browse, version, and collaborate — all in the app, no terminal.
+      </p>
       <AiReadiness />
       <CrashOptIn />
     </main>
@@ -265,20 +428,35 @@ function GitHubDoor({ identity, onBack }) {
     (async () => {
       const r = await listRepos();
       if (r.ok && r.json?.ok) setRepos(r.json.repos || []);
-      else { setErr(r.json?.error || "Couldn't load your projects."); setRepos([]); }
+      else {
+        setErr(r.json?.error || "Couldn't load your projects.");
+        setRepos([]);
+      }
     })();
   }, []);
 
   async function open(repo) {
-    setErr(''); setBusy(repo.full_name);
+    setErr('');
+    setBusy(repo.full_name);
     try {
       const parentDir = await pickDirectory();
-      if (!parentDir) { setBusy(''); return; }
+      if (!parentDir) {
+        setBusy('');
+        return;
+      }
       const r = await cloneRepo({ cloneUrl: repo.clone_url, parentDir, name: repo.name });
-      if (!(r.ok && r.json?.ok)) { setErr(r.json?.error || "Couldn't open that project."); setBusy(''); return; }
+      if (!(r.ok && r.json?.ok)) {
+        setErr(r.json?.error || "Couldn't open that project.");
+        setBusy('');
+        return;
+      }
       if (r.json.hasDesign === false) {
         const init = await initDesign(r.json.path);
-        if (!(init.ok && init.json?.ok)) { setErr(init.json?.error || "Couldn't set it up."); setBusy(''); return; }
+        if (!(init.ok && init.json?.ok)) {
+          setErr(init.json?.error || "Couldn't set it up.");
+          setBusy('');
+          return;
+        }
       }
       await openLocalProject(r.json.path); // switches the sidecar → webview reloads
     } catch (e) {
@@ -295,38 +473,84 @@ function GitHubDoor({ identity, onBack }) {
       <header className="ob-head">
         <span className="ob-eyebrow">You're signed in</span>
         <h1>Open a project, or start a new one</h1>
-        <p>Pick up a shared project below, or create a fresh one — it's private until you invite someone.</p>
+        <p>
+          Pick up a shared project below, or create a fresh one — it's private until you invite
+          someone.
+        </p>
       </header>
-      <button type="button" data-testid="ob-github-create" className="ob-create" aria-label="Start a new project" onClick={() => setCreating(true)}>
-        <span className="ob-create-icon"><Icon name="plus" size={20} /></span>
+      <button
+        type="button"
+        data-testid="ob-github-create"
+        className="ob-create"
+        aria-label="Start a new project"
+        onClick={() => setCreating(true)}
+      >
+        <span className="ob-create-icon">
+          <Icon name="plus" size={20} />
+        </span>
         <span className="ob-create-tx">
           <span className="ob-create-title">Start a new project</span>
-          <span className="ob-create-sub">A blank, private project — you choose where it lives.</span>
+          <span className="ob-create-sub">
+            A blank, private project — you choose where it lives.
+          </span>
         </span>
-        <span className="btn btn--primary ob-create-btn"><Icon name="arrow-right" size={15} /> Create</span>
+        <span className="btn btn--primary ob-create-btn">
+          <Icon name="arrow-right" size={15} /> Create
+        </span>
       </button>
       <div className="ob-section-label">Your projects</div>
-      {err && <div className="callout callout--error ob-callout"><span className="ob-callout-glyph" style={{ color: 'var(--status-error)' }}><Icon name="x" /></span><span>{err}</span></div>}
+      {err && (
+        <div className="callout callout--error ob-callout">
+          <span className="ob-callout-glyph" style={{ color: 'var(--status-error)' }}>
+            <Icon name="x" />
+          </span>
+          <span>{err}</span>
+        </div>
+      )}
       {repos === null && <div className="ob-foot-note">Loading your projects…</div>}
-      {repos && repos.length === 0 && !err && <div className="ob-foot-note">No projects yet — create one to get started.</div>}
+      {repos && repos.length === 0 && !err && (
+        <div className="ob-foot-note">No projects yet — create one to get started.</div>
+      )}
       {repos && repos.length > 0 && (
         <div className="ob-repolist" role="group" aria-label="Projects you can open">
           {repos.map((r) => {
             const isBusy = busy === r.full_name;
             return (
-              <button type="button" className="ob-repo" key={r.full_name} disabled={!!busy} onClick={() => open(r)}>
-                <span className="ob-repo-icon"><Icon name={r.private ? 'lock' : 'globe'} size={15} /></span>
+              <button
+                type="button"
+                className="ob-repo"
+                key={r.full_name}
+                disabled={!!busy}
+                onClick={() => open(r)}
+              >
+                <span className="ob-repo-icon">
+                  <Icon name={r.private ? 'lock' : 'globe'} size={15} />
+                </span>
                 <span className="ob-repo-tx">
                   <span className="ob-repo-name">{r.name}</span>
-                  <span className="ob-repo-meta">{isBusy ? 'Opening…' : `${r.owner} · updated ${new Date(r.updated_at).toLocaleDateString()}`}</span>
+                  <span className="ob-repo-meta">
+                    {isBusy
+                      ? 'Opening…'
+                      : `${r.owner} · updated ${new Date(r.updated_at).toLocaleDateString()}`}
+                  </span>
                 </span>
-                <span className="ob-repo-go">{isBusy ? <Icon name="spinner" size={16} className="ob-spin" /> : <><Icon name="download" size={16} /> Open</>}</span>
+                <span className="ob-repo-go">
+                  {isBusy ? (
+                    <Icon name="spinner" size={16} className="ob-spin" />
+                  ) : (
+                    <>
+                      <Icon name="download" size={16} /> Open
+                    </>
+                  )}
+                </span>
               </button>
             );
           })}
         </div>
       )}
-      <p className="ob-foot-note">Opening a project saves a copy on this computer and keeps it in sync.</p>
+      <p className="ob-foot-note">
+        Opening a project saves a copy on this computer and keeps it in sync.
+      </p>
     </main>
   );
 }
@@ -337,23 +561,39 @@ function CreateInline({ identity, onBack }) {
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState('');
   const [err, setErr] = useState('');
-  const slug = name.trim().toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
   const owner = identity?.login || 'you';
 
   async function submit() {
-    setErr(''); setBusy(true);
+    setErr('');
+    setBusy(true);
     try {
       setStep('Choose where to save it…');
       const parentDir = await pickDirectory();
-      if (!parentDir) { setBusy(false); setStep(''); return; }
+      if (!parentDir) {
+        setBusy(false);
+        setStep('');
+        return;
+      }
       setStep('Creating your project on GitHub…');
       const r = await createProject({ name, private: isPrivate, parentDir });
-      if (!(r.ok && r.json?.ok)) { setErr(r.json?.error || "Couldn't create the project."); setBusy(false); setStep(''); return; }
+      if (!(r.ok && r.json?.ok)) {
+        setErr(r.json?.error || "Couldn't create the project.");
+        setBusy(false);
+        setStep('');
+        return;
+      }
       setStep('Opening it in Maude…');
       await openLocalProject(r.json.path);
     } catch (e) {
       setErr(String(e?.message || e || 'Something went wrong creating the project.'));
-      setBusy(false); setStep('');
+      setBusy(false);
+      setStep('');
     }
   }
 
@@ -368,19 +608,49 @@ function CreateInline({ identity, onBack }) {
       <div className="ob-form">
         <label className="ob-field">
           <span className="ob-field-label">Project name</span>
-          <input className="input ob-input" type="text" value={name} placeholder="Acme Rebrand" aria-label="Project name" onChange={(e) => setName(e.target.value)} />
-          {slug && <span className="ob-foot-note">Creates <b>github.com/{owner}/{slug}</b></span>}
+          <input
+            className="input ob-input"
+            type="text"
+            value={name}
+            placeholder="Acme Rebrand"
+            aria-label="Project name"
+            onChange={(e) => setName(e.target.value)}
+          />
+          {slug && (
+            <span className="ob-foot-note">
+              Creates{' '}
+              <b>
+                github.com/{owner}/{slug}
+              </b>
+            </span>
+          )}
         </label>
         <div className="ob-field">
           <span className="ob-field-label">Who can see it</span>
           <div className="seg" role="group" aria-label="Project visibility">
-            <button type="button" aria-pressed={isPrivate} onClick={() => setIsPrivate(true)}><Icon name="lock" size={14} /> Private</button>
-            <button type="button" aria-pressed={!isPrivate} onClick={() => setIsPrivate(false)}><Icon name="globe" size={14} /> Public</button>
+            <button type="button" aria-pressed={isPrivate} onClick={() => setIsPrivate(true)}>
+              <Icon name="lock" size={14} /> Private
+            </button>
+            <button type="button" aria-pressed={!isPrivate} onClick={() => setIsPrivate(false)}>
+              <Icon name="globe" size={14} /> Public
+            </button>
           </div>
         </div>
-        {err && <div className="callout callout--error ob-callout"><span className="ob-callout-glyph" style={{ color: 'var(--status-error)' }}><Icon name="x" /></span><span>{err}</span></div>}
+        {err && (
+          <div className="callout callout--error ob-callout">
+            <span className="ob-callout-glyph" style={{ color: 'var(--status-error)' }}>
+              <Icon name="x" />
+            </span>
+            <span>{err}</span>
+          </div>
+        )}
         <div className="ob-form-actions">
-          <button type="button" className="btn btn--primary" onClick={submit} disabled={busy || !slug}>
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={submit}
+            disabled={busy || !slug}
+          >
             <Icon name="plus" size={15} /> {busy ? step || 'Creating…' : 'Create project'}
           </button>
         </div>
@@ -396,10 +666,14 @@ function LocalDoor({ onBack }) {
   const [needsSetup, setNeedsSetup] = useState(null);
 
   async function choose() {
-    setErr(''); setBusy(true);
+    setErr('');
+    setBusy(true);
     try {
       const dir = await pickDirectory();
-      if (!dir) { setBusy(false); return; }
+      if (!dir) {
+        setBusy(false);
+        return;
+      }
       try {
         await openLocalProject(dir); // switches if it has a .design/
       } catch (e) {
@@ -414,10 +688,15 @@ function LocalDoor({ onBack }) {
   }
 
   async function setupHere() {
-    setErr(''); setBusy(true);
+    setErr('');
+    setBusy(true);
     try {
       const r = await initDesign(needsSetup);
-      if (!(r.ok && r.json?.ok)) { setErr(r.json?.error || "Couldn't set it up."); setBusy(false); return; }
+      if (!(r.ok && r.json?.ok)) {
+        setErr(r.json?.error || "Couldn't set it up.");
+        setBusy(false);
+        return;
+      }
       await openLocalProject(needsSetup);
     } catch (e) {
       setErr(String(e?.message || e || "Couldn't set it up."));
@@ -436,24 +715,69 @@ function LocalDoor({ onBack }) {
       {needsSetup ? (
         <>
           <div className="callout callout--info ob-callout">
-            <span className="ob-callout-glyph" style={{ color: 'var(--status-info)' }}><Icon name="folder-open" size={15} /></span>
-            <span>That folder isn't a Maude project yet. Set up Maude in it to start designing (you can build a design system after).</span>
+            <span className="ob-callout-glyph" style={{ color: 'var(--status-info)' }}>
+              <Icon name="folder-open" size={15} />
+            </span>
+            <span>
+              That folder isn't a Maude project yet. Set up Maude in it to start designing (you can
+              build a design system after).
+            </span>
           </div>
-          {err && <div className="callout callout--error ob-callout"><span className="ob-callout-glyph" style={{ color: 'var(--status-error)' }}><Icon name="x" /></span><span>{err}</span></div>}
+          {err && (
+            <div className="callout callout--error ob-callout">
+              <span className="ob-callout-glyph" style={{ color: 'var(--status-error)' }}>
+                <Icon name="x" />
+              </span>
+              <span>{err}</span>
+            </div>
+          )}
           <div className="ob-form-actions">
-            <button type="button" className="btn btn--ghost" onClick={() => setNeedsSetup(null)} disabled={busy}>Pick a different folder</button>
-            <button type="button" data-testid="ob-local-setup" className="btn btn--primary" onClick={setupHere} disabled={busy}><Icon name="folder" size={15} /> {busy ? 'Setting up…' : 'Set up Maude here'}</button>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => setNeedsSetup(null)}
+              disabled={busy}
+            >
+              Pick a different folder
+            </button>
+            <button
+              type="button"
+              data-testid="ob-local-setup"
+              className="btn btn--primary"
+              onClick={setupHere}
+              disabled={busy}
+            >
+              <Icon name="folder" size={15} /> {busy ? 'Setting up…' : 'Set up Maude here'}
+            </button>
           </div>
         </>
       ) : (
         <>
-          <button type="button" data-testid="ob-local-choose" className="ob-drop" onClick={choose} disabled={busy} aria-label="Choose a project folder">
-            <span className="ob-drop-glyph"><Icon name="folder-open" size={34} /></span>
+          <button
+            type="button"
+            data-testid="ob-local-choose"
+            className="ob-drop"
+            onClick={choose}
+            disabled={busy}
+            aria-label="Choose a project folder"
+          >
+            <span className="ob-drop-glyph">
+              <Icon name="folder-open" size={34} />
+            </span>
             <span className="ob-drop-title">{busy ? 'Opening…' : 'Choose a project folder'}</span>
             <span className="ob-drop-or">click to browse</span>
           </button>
-          {err && <div className="callout callout--error ob-callout"><span className="ob-callout-glyph" style={{ color: 'var(--status-error)' }}><Icon name="x" /></span><span>{err}</span></div>}
-          <p className="ob-foot-note">To open a project a teammate shared, use <b>Continue with GitHub</b> instead.</p>
+          {err && (
+            <div className="callout callout--error ob-callout">
+              <span className="ob-callout-glyph" style={{ color: 'var(--status-error)' }}>
+                <Icon name="x" />
+              </span>
+              <span>{err}</span>
+            </div>
+          )}
+          <p className="ob-foot-note">
+            To open a project a teammate shared, use <b>Continue with GitHub</b> instead.
+          </p>
         </>
       )}
     </main>
@@ -469,7 +793,8 @@ function HubDoor({ onBack }) {
   const [linked, setLinked] = useState(null);
 
   async function connect() {
-    setErr(''); setBusy(true);
+    setErr('');
+    setBusy(true);
     try {
       const r = await hubLink({ url: url.trim(), token: token.trim() });
       setBusy(false);
@@ -487,36 +812,81 @@ function HubDoor({ onBack }) {
       <header className="ob-head">
         <span className="ob-eyebrow">Advanced</span>
         <h1>Connect to a team hub</h1>
-        <p>For teams running their own Maude hub. Paste the address and the access token your team gave you.</p>
+        <p>
+          For teams running their own Maude hub. Paste the address and the access token your team
+          gave you.
+        </p>
       </header>
       <div className="ob-form">
         <label className="ob-field">
           <span className="ob-field-label">Hub address</span>
-          <span className="ob-field-wrap"><Icon name="server" size={14} className="ob-field-pre" />
-            <input className="input ob-input" type="text" value={url} placeholder="https://hub.yourteam.dev" aria-label="Hub address" onChange={(e) => setUrl(e.target.value)} />
+          <span className="ob-field-wrap">
+            <Icon name="server" size={14} className="ob-field-pre" />
+            <input
+              className="input ob-input"
+              type="text"
+              value={url}
+              placeholder="https://hub.yourteam.dev"
+              aria-label="Hub address"
+              onChange={(e) => setUrl(e.target.value)}
+            />
           </span>
         </label>
         <label className="ob-field">
           <span className="ob-field-label">Access token</span>
-          <span className="ob-field-wrap"><Icon name="key" size={14} className="ob-field-pre" />
-            <input className="input ob-input" type="text" value={token} placeholder="paste the access token your team gave you" aria-label="Access token" onChange={(e) => setToken(e.target.value)} />
+          <span className="ob-field-wrap">
+            <Icon name="key" size={14} className="ob-field-pre" />
+            <input
+              className="input ob-input"
+              type="text"
+              value={token}
+              placeholder="paste the access token your team gave you"
+              aria-label="Access token"
+              onChange={(e) => setToken(e.target.value)}
+            />
           </span>
         </label>
-        {err && <div className="callout callout--error ob-callout"><span className="ob-callout-glyph" style={{ color: 'var(--status-error)' }}><Icon name="x" /></span><span>{err}</span></div>}
+        {err && (
+          <div className="callout callout--error ob-callout">
+            <span className="ob-callout-glyph" style={{ color: 'var(--status-error)' }}>
+              <Icon name="x" />
+            </span>
+            <span>{err}</span>
+          </div>
+        )}
         {linked ? (
           <div className="callout callout--success ob-callout">
-            <span className="ob-callout-glyph" style={{ color: 'var(--status-success)' }}><Icon name="check" size={15} /></span>
-            <span><b style={{ color: 'var(--fg-0)' }}>Connected to {linked.url.replace(/^https?:\/\//, '')}.</b> {linked.healthy ? 'Your hub is reachable.' : 'Saved — we couldn’t reach it just now, but it’ll sync when it’s up.'} Now open your team’s project with <b>Continue with GitHub</b> or <b>Open a folder</b> — it’ll sync to this hub automatically.</span>
+            <span className="ob-callout-glyph" style={{ color: 'var(--status-success)' }}>
+              <Icon name="check" size={15} />
+            </span>
+            <span>
+              <b style={{ color: 'var(--fg-0)' }}>
+                Connected to {linked.url.replace(/^https?:\/\//, '')}.
+              </b>{' '}
+              {linked.healthy
+                ? 'Your hub is reachable.'
+                : 'Saved — we couldn’t reach it just now, but it’ll sync when it’s up.'}{' '}
+              Now open your team’s project with <b>Continue with GitHub</b> or <b>Open a folder</b>{' '}
+              — it’ll sync to this hub automatically.
+            </span>
           </div>
         ) : (
           <div className="ob-form-actions">
-            <button type="button" className="btn btn--primary" onClick={connect} disabled={busy || !url.trim() || !token.trim()}>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={connect}
+              disabled={busy || !url.trim() || !token.trim()}
+            >
               <Icon name="link" size={15} /> {busy ? 'Connecting…' : 'Connect'}
             </button>
           </div>
         )}
       </div>
-      <p className="ob-foot-note">Were you given an email and password for your team’s server? Use <b>Open a project you were invited to</b> instead — no token needed.</p>
+      <p className="ob-foot-note">
+        Were you given an email and password for your team’s server? Use{' '}
+        <b>Open a project you were invited to</b> instead — no token needed.
+      </p>
     </main>
   );
 }
@@ -529,7 +899,10 @@ function TeamDoor({ onBack }) {
       <header className="ob-head">
         <span className="ob-eyebrow">Your team</span>
         <h1>Open your team’s project</h1>
-        <p>Pick a project you were added to. Maude keeps its copy on this computer — nothing to set up.</p>
+        <p>
+          Pick a project you were added to. Maude keeps its copy on this computer — nothing to set
+          up.
+        </p>
       </header>
       <TeamProjects variant="door" />
     </main>
@@ -541,33 +914,81 @@ function DeviceCodeModal({ device, onClose }) {
   const [copied, setCopied] = useState(false);
   function copyCode() {
     if (!device?.user_code) return;
-    navigator.clipboard?.writeText(device.user_code).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }, () => {});
+    navigator.clipboard?.writeText(device.user_code).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      },
+      () => {}
+    );
   }
   return (
-    <div className="gi-modal" role="dialog" aria-modal="true" aria-label="Sign in with GitHub" onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
+    <div
+      className="gi-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Sign in with GitHub"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
+    >
       <div className="gi-scrim" aria-hidden="true" onClick={onClose} />
       <div className="gi-dialog gi-dialog--code" data-testid="ob-device-modal">
         <div className="gi-dc-head">
-          <span className="gi-dc-marks"><GitHubMark size={26} /></span>
+          <span className="gi-dc-marks">
+            <GitHubMark size={26} />
+          </span>
           <h2>Sign in with GitHub</h2>
-          <p>Maude opened GitHub in your browser. Enter the code there to connect — you'll grant Maude access to create and manage your project repos.</p>
+          <p>
+            Maude opened GitHub in your browser. Enter the code there to connect — you'll grant
+            Maude access to create and manage your project repos.
+          </p>
         </div>
         <ol className="gi-dc-steps">
           <li>
             <span className="gi-dc-step-n">1</span>
             <span className="gi-dc-step-tx">
-              Go to <span className="gi-dc-url">{(device.verification_uri || 'github.com/login/device').replace(/^https?:\/\//, '')}</span>
-              <button type="button" className="btn btn--ghost btn--sm gi-dc-open" onClick={() => openVerification().catch(() => {})}><Icon name="external" size={14} /> Open it again</button>
+              Go to{' '}
+              <span className="gi-dc-url">
+                {(device.verification_uri || 'github.com/login/device').replace(/^https?:\/\//, '')}
+              </span>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm gi-dc-open"
+                onClick={() => openVerification().catch(() => {})}
+              >
+                <Icon name="external" size={14} /> Open it again
+              </button>
             </span>
           </li>
-          <li><span className="gi-dc-step-n">2</span><span className="gi-dc-step-tx">Enter this code to connect Maude</span></li>
+          <li>
+            <span className="gi-dc-step-n">2</span>
+            <span className="gi-dc-step-tx">Enter this code to connect Maude</span>
+          </li>
         </ol>
         <div className="gi-code">
-          <span className="gi-code-val" data-testid="ob-device-code">{device.user_code}</span>
-          <button type="button" className="btn btn--ghost gi-code-copy" onClick={copyCode} aria-label="Copy the code"><Icon name="copy" size={15} /> {copied ? 'Copied' : 'Copy'}</button>
+          <span className="gi-code-val" data-testid="ob-device-code">
+            {device.user_code}
+          </span>
+          <button
+            type="button"
+            className="btn btn--ghost gi-code-copy"
+            onClick={copyCode}
+            aria-label="Copy the code"
+          >
+            <Icon name="copy" size={15} /> {copied ? 'Copied' : 'Copy'}
+          </button>
         </div>
-        <div className="gi-dc-status" aria-live="polite"><span className="gi-pulse" aria-hidden="true" /><span>Waiting for you to authorize in your browser…</span></div>
-        <div className="gi-dc-foot"><button type="button" className="btn btn--ghost" onClick={onClose}>Cancel</button><span className="gi-dc-foot-note">Nothing is stored until you authorize.</span></div>
+        <div className="gi-dc-status" aria-live="polite">
+          <span className="gi-pulse" aria-hidden="true" />
+          <span>Waiting for you to authorize in your browser…</span>
+        </div>
+        <div className="gi-dc-foot">
+          <button type="button" className="btn btn--ghost" onClick={onClose}>
+            Cancel
+          </button>
+          <span className="gi-dc-foot-note">Nothing is stored until you authorize.</span>
+        </div>
       </div>
     </div>
   );
@@ -592,17 +1013,30 @@ export default function OnboardingWizard() {
       try {
         if (await isSignedIn()) {
           const r = await fetchIdentity();
-          if (alive && r.ok && r.json?.ok) { setIdentity({ login: r.json.login, name: r.json.name }); setSignedIn(true); }
+          if (alive && r.ok && r.json?.ok) {
+            setIdentity({ login: r.json.login, name: r.json.name });
+            setSignedIn(true);
+          }
         }
-      } catch { /* not signed in */ }
+      } catch {
+        /* not signed in */
+      }
     })();
-    return () => { alive = false; unlistenRef.current?.then?.((fn) => fn?.()); };
+    return () => {
+      alive = false;
+      unlistenRef.current?.then?.((fn) => fn?.());
+    };
   }, [native]);
 
   async function handleGithub() {
-    if (signedIn) { setDoor('github'); return; }
+    if (signedIn) {
+      setDoor('github');
+      return;
+    }
     cancelledRef.current = false;
-    setErr(''); setSigning(true); setDevice(null);
+    setErr('');
+    setSigning(true);
+    setDevice(null);
     try {
       unlistenRef.current = onDeviceCode((p) => setDevice(p));
       const login = await signIn();
@@ -612,7 +1046,8 @@ export default function OnboardingWizard() {
       setSignedIn(true);
       setDoor('github');
     } catch (e) {
-      if (!cancelledRef.current) setErr(String(e?.message || e || "Sign-in didn't finish. Please try again."));
+      if (!cancelledRef.current)
+        setErr(String(e?.message || e || "Sign-in didn't finish. Please try again."));
     } finally {
       setSigning(false);
       setDevice(null);
@@ -624,19 +1059,49 @@ export default function OnboardingWizard() {
   if (!native) return null;
 
   return (
-    <div className="ob-overlay" data-testid="onboarding-wizard" role="dialog" aria-modal="true" aria-label="Welcome to Maude">
+    <div
+      className="ob-overlay"
+      data-testid="onboarding-wizard"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Welcome to Maude"
+    >
       <div className="ob-shell">
         <Rail signedInAs={signedIn ? identity?.login : null} />
-        {door === 'welcome' && <Welcome signing={signing} signedIn={signedIn} identity={identity} onGithub={handleGithub} onLocal={() => setDoor('local')} onHub={() => setDoor('hub')} onTeam={() => setDoor('team')} />}
+        {door === 'welcome' && (
+          <Welcome
+            signing={signing}
+            signedIn={signedIn}
+            identity={identity}
+            onGithub={handleGithub}
+            onLocal={() => setDoor('local')}
+            onHub={() => setDoor('hub')}
+            onTeam={() => setDoor('team')}
+          />
+        )}
         {door === 'github' && <GitHubDoor identity={identity} onBack={() => setDoor('welcome')} />}
         {door === 'local' && <LocalDoor onBack={() => setDoor('welcome')} />}
         {door === 'hub' && <HubDoor onBack={() => setDoor('welcome')} />}
         {door === 'team' && <TeamDoor onBack={() => setDoor('welcome')} />}
       </div>
       {err && door === 'welcome' && (
-        <div className="ob-toast callout callout--error" role="alert"><span className="ob-callout-glyph" style={{ color: 'var(--status-error)' }}><Icon name="x" /></span><span>{err}</span></div>
+        <div className="ob-toast callout callout--error" role="alert">
+          <span className="ob-callout-glyph" style={{ color: 'var(--status-error)' }}>
+            <Icon name="x" />
+          </span>
+          <span>{err}</span>
+        </div>
       )}
-      {device && <DeviceCodeModal device={device} onClose={() => { cancelledRef.current = true; setSigning(false); setDevice(null); }} />}
+      {device && (
+        <DeviceCodeModal
+          device={device}
+          onClose={() => {
+            cancelledRef.current = true;
+            setSigning(false);
+            setDevice(null);
+          }}
+        />
+      )}
     </div>
   );
 }

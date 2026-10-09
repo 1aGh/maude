@@ -2,24 +2,84 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { persistUiPrefs, shellToast } from '../shell/util.js';
-import { ANNOT_STORE, LAYERS_MODE_STORE, MINIMAP_STORE, PANEL_SIDES_STORE, SHOW_HIDDEN_STORE, SIDEBAR_STORE, SYSTEM_TAB, THEME_STORE, ZOOMCTL_STORE } from '../shell/constants.js';
+import {
+  ANNOT_STORE,
+  LAYERS_MODE_STORE,
+  MINIMAP_STORE,
+  PANEL_SIDES_STORE,
+  SHOW_HIDDEN_STORE,
+  SIDEBAR_STORE,
+  SYSTEM_TAB,
+  THEME_STORE,
+  ZOOMCTL_STORE,
+} from '../shell/constants.js';
 import { activeComp } from '../panels/timeline-comp-target.js';
 import { parseCompTimeline } from '../panels/timeline-parse.js';
 import { PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
-import { collectDirPaths, pruneDirs, toggleSection as toggleSectionState } from '../tree-expansion.js';
+import {
+  collectDirPaths,
+  pruneDirs,
+  toggleSection as toggleSectionState,
+} from '../tree-expansion.js';
 
 export function usePhotoAndTimeline({
-  groups, treeLoaded, activePath, selected, theme, setTheme, sidebarOpen, showHidden, treeExp,
-  updateTreeExp, panelSide, setPanelSide, layersMode, setLayersMode, timelineOpen, activeComps,
-  setActiveComps, timelineFrame, setTimelineFrame, timelinePlaying, setTimelinePlaying, timelineLoop,
-  timelineMuted, canvasActiveArtboard, timelineSequences, setTimelineSequences, setTimelineAudio,
-  setTimelineTransitions, timelineTotal, setTimelineTotal, timelineArtboardId, setTimelineArtboardId,
-  timelineArtboardIdRef, timelineCompId, timelineSelectedClip, setTimelineSelectedClip,
-  timelineRefresh, timelineOpFailed, photoUndoRef, setPhotoRev, autoOpenInspector,
-  setAutoOpenInspector, annotationsVisible, setAnnotationsVisible, uiPrefsHydrated,
-  setUiPrefsHydrated, minimapVisible, setMinimapVisible, zoomCtlVisible, setZoomCtlVisible,
-  setPresentMode, setPrintGuidesVisible, setActiveArtboards, setGitUser, iframesRef,
-  postToActiveCanvas, wsSend
+  groups,
+  treeLoaded,
+  activePath,
+  selected,
+  theme,
+  setTheme,
+  sidebarOpen,
+  showHidden,
+  treeExp,
+  updateTreeExp,
+  panelSide,
+  setPanelSide,
+  layersMode,
+  setLayersMode,
+  timelineOpen,
+  activeComps,
+  setActiveComps,
+  timelineFrame,
+  setTimelineFrame,
+  timelinePlaying,
+  setTimelinePlaying,
+  timelineLoop,
+  timelineMuted,
+  canvasActiveArtboard,
+  timelineSequences,
+  setTimelineSequences,
+  setTimelineAudio,
+  setTimelineTransitions,
+  timelineTotal,
+  setTimelineTotal,
+  timelineArtboardId,
+  setTimelineArtboardId,
+  timelineArtboardIdRef,
+  timelineCompId,
+  timelineSelectedClip,
+  setTimelineSelectedClip,
+  timelineRefresh,
+  timelineOpFailed,
+  photoUndoRef,
+  setPhotoRev,
+  autoOpenInspector,
+  setAutoOpenInspector,
+  annotationsVisible,
+  setAnnotationsVisible,
+  uiPrefsHydrated,
+  setUiPrefsHydrated,
+  minimapVisible,
+  setMinimapVisible,
+  zoomCtlVisible,
+  setZoomCtlVisible,
+  setPresentMode,
+  setPrintGuidesVisible,
+  setActiveArtboards,
+  setGitUser,
+  iframesRef,
+  postToActiveCanvas,
+  wsSend,
 }) {
   // ── feature-photo-editor — the Photo tab's three channels ─────────────────
   // (1) live preview: broadcast the edit DOWN to the active canvas iframe, whose
@@ -892,10 +952,29 @@ export function usePhotoAndTimeline({
     [updateTreeExp]
   );
   return {
-    askText, broadcastChrome, exitPresent, lockedKeys, onPhotoEdit, onPhotoRecordEdit,
-    onPhotoRemoveBackground, performPhotoUndo, pushTlUndo, resolveClipRef, settleShellPrompt,
-    shellPromptState, timelineAddComment, timelineClipVerb, timelineRemoveClip, timelineTransClips,
-    tlKeyRef, toggleAnnotations, toggleLockedKey, toggleMinimap, togglePresent, togglePrintGuides,
-    toggleSection, toggleZoomCtl
+    askText,
+    broadcastChrome,
+    exitPresent,
+    lockedKeys,
+    onPhotoEdit,
+    onPhotoRecordEdit,
+    onPhotoRemoveBackground,
+    performPhotoUndo,
+    pushTlUndo,
+    resolveClipRef,
+    settleShellPrompt,
+    shellPromptState,
+    timelineAddComment,
+    timelineClipVerb,
+    timelineRemoveClip,
+    timelineTransClips,
+    tlKeyRef,
+    toggleAnnotations,
+    toggleLockedKey,
+    toggleMinimap,
+    togglePresent,
+    togglePrintGuides,
+    toggleSection,
+    toggleZoomCtl,
   };
 }

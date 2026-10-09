@@ -11,23 +11,71 @@ import { applyEditRequest } from '../apply-edit-request.ts';
 import { PHOTO_ASSET_RE } from '../inspector/inspector-panel.jsx';
 import { sanitizeArtboardText } from '../panels/timeline-comp-target.js';
 import { isNativeApp } from '../github.js';
-import { browserCaptureEligible, captureDeckViaBrowser, captureScale, sanitizeCapturedItems } from '../export-lane.js';
+import {
+  browserCaptureEligible,
+  captureDeckViaBrowser,
+  captureScale,
+  sanitizeCapturedItems,
+} from '../export-lane.js';
 import { downloadCapturedBlob } from '../dialogs/export-dialog.jsx';
 import { moveLayerNode } from '../inspector/layers.jsx';
 import { SCREEN_PRESETS, replacedValue } from '../inspector/css-vocab.jsx';
 import { PAPER_PRESETS, resolvePrintArtboard } from '../../print/units.ts';
 
 export function useCanvasBridge({
-  activePath, selected, setSelected, selectedRef, lastLocalSelectAtRef, scheduleHaloRestore,
-  scheduleArtboardResync, pendingReorderRef, lastLayersTreeRef, settlePendingSelectionRef,
-  reorderLayerRef, repositionElementRef, resizeElementRef, layersBusyRef, layersBusyTimerRef,
-  layersTree, setLayersTree, setLoadingPath, setCanvasError, setLoadedPath, cfg, viewerMode,
-  commentsByFile, focusedCommentId, setFocusedCommentId, theme, setPaletteOpen, setExportDialog,
-  setTimelineOpen, setActiveComps, setTimelineFrame, setTimelinePlaying, canvasActiveArtboard,
-  setCanvasActiveArtboard, timelineFrameRef, timelineCompIdRef, setInspectorTab, setPhotoSel,
-  openRightPanel, toggleRightPanel, maybeAutoOpenInspectorOnSelect, toggleTimeline, minimapVisible,
-  zoomCtlVisible, presentMode, setPresentMode, setActiveArtboards, iframesRef, postToActiveCanvas,
-  captureFromCanvas, broadcastChrome, wsSend, reloadActive
+  activePath,
+  selected,
+  setSelected,
+  selectedRef,
+  lastLocalSelectAtRef,
+  scheduleHaloRestore,
+  scheduleArtboardResync,
+  pendingReorderRef,
+  lastLayersTreeRef,
+  settlePendingSelectionRef,
+  reorderLayerRef,
+  repositionElementRef,
+  resizeElementRef,
+  layersBusyRef,
+  layersBusyTimerRef,
+  layersTree,
+  setLayersTree,
+  setLoadingPath,
+  setCanvasError,
+  setLoadedPath,
+  cfg,
+  viewerMode,
+  commentsByFile,
+  focusedCommentId,
+  setFocusedCommentId,
+  theme,
+  setPaletteOpen,
+  setExportDialog,
+  setTimelineOpen,
+  setActiveComps,
+  setTimelineFrame,
+  setTimelinePlaying,
+  canvasActiveArtboard,
+  setCanvasActiveArtboard,
+  timelineFrameRef,
+  timelineCompIdRef,
+  setInspectorTab,
+  setPhotoSel,
+  openRightPanel,
+  toggleRightPanel,
+  maybeAutoOpenInspectorOnSelect,
+  toggleTimeline,
+  minimapVisible,
+  zoomCtlVisible,
+  presentMode,
+  setPresentMode,
+  setActiveArtboards,
+  iframesRef,
+  postToActiveCanvas,
+  captureFromCanvas,
+  broadcastChrome,
+  wsSend,
+  reloadActive,
 }) {
   // ----- Inbound messages from iframes -----
   useEffect(() => {
@@ -53,8 +101,10 @@ export function useCanvasBridge({
       const m = e.data;
       if (!m || typeof m !== 'object' || !m.dgn) return;
       if (m.dgn === 'canvas-notice') {
-        const activeWin = activePath && activePath !== SYSTEM_TAB
-          ? iframesRef.current.get(activePath)?.contentWindow : null;
+        const activeWin =
+          activePath && activePath !== SYSTEM_TAB
+            ? iframesRef.current.get(activePath)?.contentWindow
+            : null;
         const notice = acceptCanvasNotice(e, expectedOrigin, activeWin);
         if (notice) notifyCanvasText(notice.title, notice.kind);
         return;
@@ -202,12 +252,18 @@ export function useCanvasBridge({
         // (and so posted it — window messages arrive in order), so the canvas's
         // Cmd+Z sees the edit that is on screen. Read-only; nothing is written.
         const source = e.source;
-        Promise.all([editApplyChainRef.current.catch(() => {}), afterRecordableWrites()]).then(() => {
-          try {
-            source?.postMessage({ dgn: 'undo-barrier-ok', requestId: m.requestId }, '*');
-          } catch {}
-        });
-      } else if (m.dgn === 'apply-edit' && m.id && (m.op === 'css' || m.op === 'text' || m.op === 'attr')) {
+        Promise.all([editApplyChainRef.current.catch(() => {}), afterRecordableWrites()]).then(
+          () => {
+            try {
+              source?.postMessage({ dgn: 'undo-barrier-ok', requestId: m.requestId }, '*');
+            } catch {}
+          }
+        );
+      } else if (
+        m.dgn === 'apply-edit' &&
+        m.id &&
+        (m.op === 'css' || m.op === 'text' || m.op === 'attr')
+      ) {
         // Inline-edit undo/redo (DDR-103/104 follow-up). The canvas iframe's
         // `edit-source` command can't call the main-origin-only `/_api/edit-*`
         // routes (DDR-054), so it asks us to re-apply the before/after value.
@@ -222,7 +278,10 @@ export function useCanvasBridge({
         const reply = (result) => {
           if (typeof m.requestId !== 'string') return;
           try {
-            replyTo?.postMessage({ dgn: 'apply-edit-result', requestId: m.requestId, ...result }, '*');
+            replyTo?.postMessage(
+              { dgn: 'apply-edit-result', requestId: m.requestId, ...result },
+              '*'
+            );
           } catch {}
         };
         const value = typeof m.value === 'string' ? m.value : null;
@@ -352,8 +411,7 @@ export function useCanvasBridge({
         // before:{width,height,left,top} } — px strings, before values null when
         // the prop was unset (reset on undo).
         const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
-        const okShape =
-          typeof m.id === 'string' && m.patch && typeof m.patch === 'object';
+        const okShape = typeof m.id === 'string' && m.patch && typeof m.patch === 'object';
         if (e.source === activeWin && okShape) {
           resizeElementRef.current?.(
             m.id,
@@ -369,7 +427,10 @@ export function useCanvasBridge({
         // pinned to the ACTIVE canvas (never `m.canvas`).
         const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
         if (e.source === activeWin && typeof m.id === 'string') {
-          deleteElementShellRef.current?.(m.id, Number.isInteger(m.idIndex) ? m.idIndex : undefined);
+          deleteElementShellRef.current?.(
+            m.id,
+            Number.isInteger(m.idIndex) ? m.idIndex : undefined
+          );
         }
       } else if (m.dgn === 'duplicate-request') {
         // Cmd+D (Task L3) — duplicate the selected element. Confused-deputy gated
@@ -562,9 +623,7 @@ export function useCanvasBridge({
         // Stage I4 — insert a new empty artboard from a screen-size preset.
         const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
         const okShape =
-          typeof m.id === 'string' &&
-          Number.isFinite(m.width) &&
-          Number.isFinite(m.height);
+          typeof m.id === 'string' && Number.isFinite(m.width) && Number.isFinite(m.height);
         if (e.source === activeWin && okShape) {
           insertArtboardShellRef.current?.({
             id: m.id,
@@ -625,7 +684,11 @@ export function useCanvasBridge({
         // feature-3-web-artboards T3 — context-menu "Duplicate at width…"
         // submenu (inside the untrusted iframe).
         const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
-        if (e.source === activeWin && typeof m.artboardId === 'string' && Number.isFinite(m.width)) {
+        if (
+          e.source === activeWin &&
+          typeof m.artboardId === 'string' &&
+          Number.isFinite(m.width)
+        ) {
           duplicateArtboardShellRef.current?.(m.artboardId, m.width);
         }
       } else if (m.dgn === 'open-inspector') {
@@ -753,7 +816,10 @@ export function useCanvasBridge({
           .map((c) => ({
             id: String(c.id).slice(0, 120),
             fps: Math.max(1, Math.min(120, Math.round(Number(c.fps) || 30))),
-            durationInFrames: Math.max(1, Math.min(1_000_000, Math.round(Number(c.durationInFrames) || 1))),
+            durationInFrames: Math.max(
+              1,
+              Math.min(1_000_000, Math.round(Number(c.durationInFrames) || 1))
+            ),
             width: Math.max(1, Math.round(Number(c.width) || 0)),
             height: Math.max(1, Math.round(Number(c.height) || 0)),
             // The enclosing artboard (issue #75) — the key the transport target
@@ -892,7 +958,12 @@ export function useCanvasBridge({
           // canvas opened after a toggle starts in the right state.
           try {
             el.contentWindow.postMessage(
-              { dgn: 'view-chrome', minimap: minimapVisible, zoom: zoomCtlVisible, present: presentMode },
+              {
+                dgn: 'view-chrome',
+                minimap: minimapVisible,
+                zoom: zoomCtlVisible,
+                present: presentMode,
+              },
               '*'
             );
           } catch {}
@@ -1364,11 +1435,7 @@ export function useCanvasBridge({
       // artboardId/index (when it matches `id`) so every optimistic apply +
       // the belt-and-suspenders reselect below target the SAME instance.
       const curSel = selectedRef.current;
-      const curOne = Array.isArray(curSel)
-        ? curSel.length === 1
-          ? curSel[0]
-          : null
-        : curSel;
+      const curOne = Array.isArray(curSel) ? (curSel.length === 1 ? curSel[0] : null) : curSel;
       const selArtboardId = curOne && curOne.id === id ? (curOne.artboardId ?? null) : null;
       const selIndex = curOne && curOne.id === id ? (curOne.index ?? 0) : 0;
       // INV-2 (DDR-105) — arm the reload-suppression window BEFORE the edit-css
@@ -1519,7 +1586,12 @@ export function useCanvasBridge({
           // on transpile — best-effort, like reorder's pendingReorderRef).
           onOk: (j, canvas) => {
             if (!j.newId) return;
-            pendingReorderRef.current = { file: canvas, movedId: j.newId, artboardId: null, staleSig };
+            pendingReorderRef.current = {
+              file: canvas,
+              movedId: j.newId,
+              artboardId: null,
+              staleSig,
+            };
             const last = lastLayersTreeRef.current;
             if (last) settlePendingSelectionRef.current?.(last.tree, last.sig, last.artboardId);
           },
@@ -1595,7 +1667,12 @@ export function useCanvasBridge({
           // one, where the copy's id still names the next sibling.
           onOk: (j, canvas) => {
             if (!j.newId) return;
-            pendingReorderRef.current = { file: canvas, movedId: j.newId, artboardId: null, staleSig };
+            pendingReorderRef.current = {
+              file: canvas,
+              movedId: j.newId,
+              artboardId: null,
+              staleSig,
+            };
             const last = lastLayersTreeRef.current;
             if (last) settlePendingSelectionRef.current?.(last.tree, last.sig, last.artboardId);
           },
@@ -1757,10 +1834,14 @@ export function useCanvasBridge({
   // Artboard "more settings" (background/padding/layout/gap) from ArtboardKnobs.
   const setArtboardStyleShell = useCallback(
     (artboardId, patch) => {
-      structuralWrite('/_api/set-artboard-style', { artboardId, ...patch }, {
-        label: 'artboard style',
-        onOk: () => scheduleArtboardResync(artboardId, activePath),
-      });
+      structuralWrite(
+        '/_api/set-artboard-style',
+        { artboardId, ...patch },
+        {
+          label: 'artboard style',
+          onOk: () => scheduleArtboardResync(artboardId, activePath),
+        }
+      );
     },
     [structuralWrite, scheduleArtboardResync, activePath]
   );
@@ -1786,10 +1867,14 @@ export function useCanvasBridge({
   const pendingPrintSeedRef = useRef(null);
   const directArtboardKindWrite = useCallback(
     (artboardId, kind) => {
-      structuralWrite('/_api/set-artboard-kind', { artboardId, kind }, {
-        label: 'artboard kind',
-        onOk: () => scheduleArtboardResync(artboardId, activePath),
-      });
+      structuralWrite(
+        '/_api/set-artboard-kind',
+        { artboardId, kind },
+        {
+          label: 'artboard kind',
+          onOk: () => scheduleArtboardResync(artboardId, activePath),
+        }
+      );
       const seed = pendingPrintSeedRef.current;
       if (kind === 'print' && seed && seed.artboardId === artboardId) {
         pendingPrintSeedRef.current = null;
@@ -1842,10 +1927,14 @@ export function useCanvasBridge({
   // context-menu caller inside the iframe).
   const setArtboardPrintShell = useCallback(
     (artboardId, print) => {
-      structuralWrite('/_api/set-artboard-print', { artboardId, print }, {
-        label: 'artboard print',
-        onOk: () => scheduleArtboardResync(artboardId, activePath),
-      });
+      structuralWrite(
+        '/_api/set-artboard-print',
+        { artboardId, print },
+        {
+          label: 'artboard print',
+          onOk: () => scheduleArtboardResync(artboardId, activePath),
+        }
+      );
     },
     [structuralWrite, scheduleArtboardResync, activePath]
   );
@@ -2132,11 +2221,29 @@ export function useCanvasBridge({
     setFocusedCommentId((prev) => (prev === id ? null : prev));
   }, []);
   return {
-    applyOptimisticStyle, assetPickerReq, clearActiveCanvasSelection, deleteComment,
-    detachInstanceShell, duplicateArtboardShell, insertGeneratedImage, onAssetPicked,
-    onInsertArtboard, onPickMany, onReplaceMedia, onStickerPicked, recordSourceEdit, reopenComment,
-    reorderLayer, resizeArtboardShell, resolveComment, setArtboardHugShell, setArtboardKindShell,
-    setArtboardPrintShell, setArtboardStyleShell, setAssetPickerReq, setStickerPickerReq,
-    stickerPickerReq
+    applyOptimisticStyle,
+    assetPickerReq,
+    clearActiveCanvasSelection,
+    deleteComment,
+    detachInstanceShell,
+    duplicateArtboardShell,
+    insertGeneratedImage,
+    onAssetPicked,
+    onInsertArtboard,
+    onPickMany,
+    onReplaceMedia,
+    onStickerPicked,
+    recordSourceEdit,
+    reopenComment,
+    reorderLayer,
+    resizeArtboardShell,
+    resolveComment,
+    setArtboardHugShell,
+    setArtboardKindShell,
+    setArtboardPrintShell,
+    setArtboardStyleShell,
+    setAssetPickerReq,
+    setStickerPickerReq,
+    stickerPickerReq,
   };
 }

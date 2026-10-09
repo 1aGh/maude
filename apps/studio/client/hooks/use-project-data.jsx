@@ -4,7 +4,15 @@ import { useCallback, useEffect, useRef } from 'react';
 import { createIndexLoader } from '../index-loader.ts';
 import { buildTree } from '../shell/util.js';
 
-export function useProjectData({ setGroups, setTreeLoaded, setTreeLoadFailures, setProject, setSystemData, setCfg, setTheme }) {
+export function useProjectData({
+  setGroups,
+  setTreeLoaded,
+  setTreeLoadFailures,
+  setProject,
+  setSystemData,
+  setCfg,
+  setTheme,
+}) {
   const toggleTheme = useCallback(() => {
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
   }, []);
@@ -16,7 +24,10 @@ export function useProjectData({ setGroups, setTreeLoaded, setTreeLoadFailures, 
     const loader = createIndexLoader({
       read: async (signal) => {
         const r = await fetch('/_index-data', { signal, cache: 'no-store' });
-        if (!r.ok) throw Object.assign(new Error(`Project index request failed: ${r.status}`), { status: r.status });
+        if (!r.ok)
+          throw Object.assign(new Error(`Project index request failed: ${r.status}`), {
+            status: r.status,
+          });
         const data = await r.json();
         const built = data.groups.map((g) => ({
           ...g,

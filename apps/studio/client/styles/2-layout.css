@@ -1,6 +1,6 @@
 /* @layer layout — top-level grid only. */
 @layer layout {
-/* ----- App shell -----
+  /* ----- App shell -----
    `minmax(0, 1fr)` on the .main column is load-bearing: without it, a long
    selector string in the statusbar's .sb-sel-text would grow the grid track
    wider than 100vw and trigger horizontal body scroll. `1fr` defaults to
@@ -8,28 +8,28 @@
    selector string is the string's full width. Clamping to `minmax(0, 1fr)`
    lets the column shrink below content min-size and lets the inner overflow
    rules (statusbar text-overflow: ellipsis, menubar overflow: hidden) win. */
-.app {
-  display: grid;
-  grid-template-columns: var(--u-sidebar-w) minmax(0, 1fr);
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-}
-.app.with-rsidebar {
-  grid-template-columns: var(--u-sidebar-w) minmax(0, 1fr) var(--u-rsidebar-w);
-}
-/* Project tree closed (View > Project Tree off) — collapse the sidebar
+  .app {
+    display: grid;
+    grid-template-columns: var(--u-sidebar-w) minmax(0, 1fr);
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+  }
+  .app.with-rsidebar {
+    grid-template-columns: var(--u-sidebar-w) minmax(0, 1fr) var(--u-rsidebar-w);
+  }
+  /* Project tree closed (View > Project Tree off) — collapse the sidebar
    column entirely so the main viewport gets the full width. We hide instead
    of `display: none` on the .sidebar so its state (search input value, etc.)
    isn't lost on toggle. */
-.app.no-sidebar {
-  grid-template-columns: 0 minmax(0, 1fr);
-}
-.app.no-sidebar.with-rsidebar {
-  grid-template-columns: 0 minmax(0, 1fr) var(--u-rsidebar-w);
-}
-.app.no-sidebar > .sidebar {
-  visibility: hidden;
-  pointer-events: none;
-}
+  .app.no-sidebar {
+    grid-template-columns: 0 minmax(0, 1fr);
+  }
+  .app.no-sidebar.with-rsidebar {
+    grid-template-columns: 0 minmax(0, 1fr) var(--u-rsidebar-w);
+  }
+  .app.no-sidebar > .sidebar {
+    visibility: hidden;
+    pointer-events: none;
+  }
 }

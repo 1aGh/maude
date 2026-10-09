@@ -160,7 +160,9 @@ export function browseFirstRunHint(readOnly = false) {
   browseFirstRunHint.active = true;
   const dismiss = () => {
     browseFirstRunHint.active = false;
-    try { localStorage.setItem(MODE_HINT_SEEN, '1'); } catch {}
+    try {
+      localStorage.setItem(MODE_HINT_SEEN, '1');
+    } catch {}
     document.removeEventListener('keydown', onV, true);
   };
   const onV = (e) => {
@@ -170,10 +172,14 @@ export function browseFirstRunHint(readOnly = false) {
     }
   };
   if (readOnly) document.addEventListener('keydown', onV, true);
-  notify({ id: 'mode-hint', title: readOnly ? 'Your mock is live' : 'You’re in Edit',
-    description: readOnly ? 'Click things to try it. Press V to select & inspect.'
+  notify({
+    id: 'mode-hint',
+    title: readOnly ? 'Your mock is live' : 'You’re in Edit',
+    description: readOnly
+      ? 'Click things to try it. Press V to select & inspect.'
       : 'Click selects, like Figma. Switch to Preview in the toolbar to use the live mock.',
-    onDismiss: dismiss });
+    onDismiss: dismiss,
+  });
 }
 
 // Strip canvas extensions for display. `Canvas Viewport.tsx` → `Canvas Viewport`.
@@ -246,7 +252,9 @@ export function groupBySidecar(files) {
 export function buildTree(paths, stripPrefix, dirs) {
   const root = {};
   for (const d of dirs || []) {
-    const stripped = d.startsWith(stripPrefix) ? d.slice(stripPrefix.length).replace(/^\/+/, '') : d;
+    const stripped = d.startsWith(stripPrefix)
+      ? d.slice(stripPrefix.length).replace(/^\/+/, '')
+      : d;
     const parts = stripped.split('/').filter(Boolean);
     let node = root;
     for (const key of parts) node = node[key] = node[key] || {};

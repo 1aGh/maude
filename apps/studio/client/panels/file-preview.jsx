@@ -39,7 +39,13 @@ function useFetchedText(url, enabled) {
         if (!cancelled) setState({ loading: false, error: null, text, tooLarge: false });
       })
       .catch((err) => {
-        if (!cancelled) setState({ loading: false, error: err.message || 'Failed to load', text: '', tooLarge: false });
+        if (!cancelled)
+          setState({
+            loading: false,
+            error: err.message || 'Failed to load',
+            text: '',
+            tooLarge: false,
+          });
       });
     return () => {
       cancelled = true;
@@ -51,7 +57,12 @@ function useFetchedText(url, enabled) {
 function TextPreview({ url, name, as }) {
   const { loading, error, text, tooLarge } = useFetchedText(url, true);
   if (loading) return <div className="st-file-preview-status">Loading {name}…</div>;
-  if (error) return <div className="st-file-preview-status st-file-preview-error">Couldn't load {name}: {error}</div>;
+  if (error)
+    return (
+      <div className="st-file-preview-status st-file-preview-error">
+        Couldn't load {name}: {error}
+      </div>
+    );
   if (tooLarge) {
     return (
       <div className="st-file-preview-status">
@@ -59,7 +70,12 @@ function TextPreview({ url, name, as }) {
       </div>
     );
   }
-  if (as === 'markdown') return <div className="st-file-preview-markdown"><Markdown text={text} /></div>;
+  if (as === 'markdown')
+    return (
+      <div className="st-file-preview-markdown">
+        <Markdown text={text} />
+      </div>
+    );
   return <pre className="st-file-preview-text">{text}</pre>;
 }
 
@@ -74,7 +90,9 @@ function cssStringEscape(s) {
   // CRLF, AND FORM FEED (\f, U+000C) to a single LF before tokenizing, so an
   // unescaped \f terminates a double-quoted string exactly like \r/\n does —
   // strip all three, not just the two obvious ones.
-  return String(s).replace(/[\\"]/g, (c) => `\\${c}`).replace(/[\r\n\f]/g, '');
+  return String(s)
+    .replace(/[\\"]/g, (c) => `\\${c}`)
+    .replace(/[\r\n\f]/g, '');
 }
 
 function FontPreview({ url, name }) {
@@ -136,7 +154,11 @@ function ImagePreview({ url, name }) {
       {state === 'loading' && (
         <div className="st-file-preview-loading" role="status" aria-live="polite">
           <span className="st-file-preview-spinner" aria-hidden="true" />
-          <span>{attempt === 0 ? `Loading ${name}…` : 'Still fetching the photo — the first open of a large file can take a moment…'}</span>
+          <span>
+            {attempt === 0
+              ? `Loading ${name}…`
+              : 'Still fetching the photo — the first open of a large file can take a moment…'}
+          </span>
         </div>
       )}
       {state === 'error' && (
@@ -193,8 +215,12 @@ export function FilePreview({ path, kind }) {
         {kind === 'markdown' && <TextPreview url={url} name={name} as="markdown" />}
         {kind === 'text' && <TextPreview url={url} name={name} as="text" />}
         {kind === 'image' && <ImagePreview url={url} name={name} />}
-        {kind === 'video' && <video key={url} src={url} controls className="st-file-preview-media" />}
-        {kind === 'audio' && <audio key={url} src={url} controls className="st-file-preview-audio" />}
+        {kind === 'video' && (
+          <video key={url} src={url} controls className="st-file-preview-media" />
+        )}
+        {kind === 'audio' && (
+          <audio key={url} src={url} controls className="st-file-preview-audio" />
+        )}
         {kind === 'font' && <FontPreview url={url} name={name} />}
       </div>
     </div>

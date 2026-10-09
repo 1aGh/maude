@@ -19,11 +19,31 @@
  */
 export const STATIC_COMMANDS = [
   // ── design (the panel's primary surface) ──
-  { name: 'design:edit', description: 'Iterate on the active canvas in place', argHint: '"<feedback>"' },
-  { name: 'design:new', description: 'Scaffold a new multi-artboard canvas', argHint: 'Name "<brief>"' },
-  { name: 'design:setup-ds', description: 'Create a new design system', argHint: '<name> ["<brief>"]' },
-  { name: 'design:critic', description: 'Run the critic panel on the active canvas', argHint: '[--agent <name>]' },
-  { name: 'design:draw', description: 'Draw a production-grade SVG via the geometry engine', argHint: '"<what to draw>"' },
+  {
+    name: 'design:edit',
+    description: 'Iterate on the active canvas in place',
+    argHint: '"<feedback>"',
+  },
+  {
+    name: 'design:new',
+    description: 'Scaffold a new multi-artboard canvas',
+    argHint: 'Name "<brief>"',
+  },
+  {
+    name: 'design:setup-ds',
+    description: 'Create a new design system',
+    argHint: '<name> ["<brief>"]',
+  },
+  {
+    name: 'design:critic',
+    description: 'Run the critic panel on the active canvas',
+    argHint: '[--agent <name>]',
+  },
+  {
+    name: 'design:draw',
+    description: 'Draw a production-grade SVG via the geometry engine',
+    argHint: '"<what to draw>"',
+  },
   { name: 'design:screenshot', description: 'Capture a screenshot of the active canvas' },
   { name: 'design:browse', description: 'Open the local design browser' },
   { name: 'design:export', description: 'Export the active canvas (PNG / PDF / SVG / …)' },

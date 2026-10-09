@@ -46,7 +46,9 @@ function enqueue(fn) {
 /** Server-persisted cache key — the content-addressed sha8 in the asset path
  *  when present (stable across machines/paths), else a djb2 of the src. */
 export function mediaCacheKey(src, bucket) {
-  const sha = String(src).match(/([a-f0-9]{8,})\.[a-z0-9]+$/i)?.[1]?.slice(0, 12);
+  const sha = String(src)
+    .match(/([a-f0-9]{8,})\.[a-z0-9]+$/i)?.[1]
+    ?.slice(0, 12);
   if (sha) return `${sha}-${bucket}`;
   let h = 5381;
   for (let i = 0; i < src.length; i += 1) h = ((h << 5) + h + src.charCodeAt(i)) >>> 0;
@@ -92,7 +94,8 @@ async function loadVideoMetadata(url, timeoutMs) {
   // WKWebView refuses to decode a detached <video> in some codec paths (the
   // desktop "no filmstrips" bug) — keep it in the document, invisible, for the
   // whole extraction, and kick the load explicitly.
-  video.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:2px;height:2px;opacity:0;pointer-events:none;';
+  video.style.cssText =
+    'position:fixed;left:-9999px;top:-9999px;width:2px;height:2px;opacity:0;pointer-events:none;';
   document.body.appendChild(video);
   video.src = url;
   try {
