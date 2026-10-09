@@ -230,6 +230,21 @@ test('build-binaries: nothing downstream runs when the classification refuses', 
   assert.match(text, /needs\.classify\.result == 'success'/);
 });
 
+test('build-binaries: a dispatch dry run reaches the root package dry-run publish', () => {
+  // create-release is skipped on every dispatch, and GitHub's implicit
+  // `success()` is false once ANY upstream job was skipped — the first V2-2.0
+  // dry run showed desktop-gate and publish-main skipped for exactly that
+  // reason. Both must name the upstream results they depend on.
+  const text = read('build-binaries.yml');
+  const jobIf = (job) =>
+    new RegExp(`\\n {2}${job}:\\n(?: {4}.*\\n|\\s*\\n)*? {4}if: (.*)\\n`).exec(text)?.[1] ?? '';
+  assert.match(jobIf('desktop-gate'), /!cancelled\(\) && needs\.build-binaries\.result == 'success'/);
+  assert.match(
+    jobIf('publish-main'),
+    /!cancelled\(\).*needs\.build-binaries\.result == 'success'.*needs\.desktop-gate\.result == 'success'/
+  );
+});
+
 test('build-desktop: attaches to the release with the classified prerelease flag', () => {
   const text = read('build-desktop.yml');
   assert.match(text, /prerelease: \$\{\{ steps\.release\.outputs\.prerelease \}\}/);

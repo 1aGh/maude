@@ -293,6 +293,12 @@ jobs:
   desktop-gate:
     name: Desktop blank-window gates (blocking npm publish)
     needs: build-binaries
+    # Explicit, not the implicit `success()`: that one is false whenever ANY
+    # job upstream was skipped, and on a dispatch dry run create-release always
+    # is — so this job, and publish-main after it, were silently skipped and the
+    # dry run never reached `npm publish --dry-run` for the root package (seen
+    # on the first V2-2.0 dry run; no dispatch had exercised it before).
+    if: ${{ !cancelled() && needs.build-binaries.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -359,6 +365,9 @@ jobs:
 
   publish-main:
     needs: [classify, build-binaries, desktop-gate]
+    # Every upstream result named — see desktop-gate for why the implicit
+    # `success()` skipped this job on every dispatch dry run.
+    if: ${{ !cancelled() && needs.classify.result == 'success' && needs.build-binaries.result == 'success' && needs.desktop-gate.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
