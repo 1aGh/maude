@@ -5,13 +5,28 @@ name: Build per-platform binaries
 # (once every binary is uploaded) publish the main @1agh/maude tarball.
 #
 # Trigger on a v*.*.* tag push. This workflow owns the full release pipeline:
-# create-release (empty GH Release) → build-binaries matrix (build + npm publish
-# each sub-package + upload binary asset) → publish-main (install with
-# regenerated lockfile + npm publish root + populate Release notes).
+# classify (stable | rc) → create-release (empty GH Release) → build-binaries
+# matrix (build + npm publish each sub-package + upload binary asset) →
+# publish-main (install with regenerated lockfile + npm publish root + populate
+# Release notes).
+#
+# RELEASE CANDIDATES (V2-2.0, T21′). `v*.*.*` alone also matches
+# `v2.0.0-rc.1`, and every publish below used the npm default dist-tag — so an
+# rc would have become `npm i -g @1agh/maude` for everyone. Now:
+#   - the filter admits vX.Y.Z and vX.Y.Z-rc.N only (GitHub applies the
+#     patterns in order and the LAST match decides: the negation drops every
+#     prerelease, the third line re-admits exactly the rc shape);
+#   - `classify` runs scripts/release-kind.mjs once and every later job reads
+#     its answer: an rc publishes to npm dist-tag `next` and creates a
+#     PRERELEASE GitHub release (never Latest, so neither `npm i @1agh/maude`
+#     nor a stable desktop's updater ever sees it). Stable is unchanged.
+#   - the fleet / render / hub-image / self-host workflows keep a stable-only
+#     filter, so an rc tag never reaches them at all.
+# scripts/test/release-channel.test.mjs holds all of this.
 
 on:
   push:
-    tags: ['v*.*.*']
+    tags: ['v*.*.*', '!v*.*.*-*', 'v*.*.*-rc.*']
   workflow_dispatch:
     inputs:
       dry-run:
@@ -28,10 +43,31 @@ on:
         default: false
 
 jobs:
+  classify:
+    # ONE answer for the whole run: stable (npm `latest`, normal release) or rc
+    # (npm `next`, prerelease). From the tag on a tag push — which must equal
+    # package.json — and from package.json on a dispatch, so a dry run on a
+    # branch exercises the same branch of every step a real tag would.
+    name: Classify the release (stable → latest · rc → next)
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.kind.outputs.version }}
+      kind: ${{ steps.kind.outputs.kind }}
+      npm_tag: ${{ steps.kind.outputs.npm_tag }}
+      prerelease: ${{ steps.kind.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - name: Classify
+        id: kind
+        run: node scripts/release-kind.mjs
+
   create-release:
     # Create the empty GH Release first so the matrix's `gh release upload`
     # steps have something to attach to. publish-main fills in the body
     # afterwards from CHANGELOG.md (auto-generated if the section is missing).
+    needs: classify
     if: startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || inputs.dry-run != true)
     runs-on: ubuntu-latest
     permissions:
@@ -43,17 +79,30 @@ jobs:
       - name: Create empty GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRERELEASE: ${{ needs.classify.outputs.prerelease }}
         run: |
           VER="${GITHUB_REF_NAME#v}"
+          FLAGS=()
+          if [ "$PRERELEASE" = "true" ]; then FLAGS+=(--prerelease); fi
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             echo "release already exists — skipping create"
+            # build-desktop's attach step races this job and can create the
+            # record first. An rc record must END UP a prerelease whoever made
+            # it: a non-prerelease rc can be marked Latest, and Latest is what
+            # stable desktops' updater feed and the site's download links read.
+            if [ "$PRERELEASE" = "true" ]; then
+              gh release edit "$GITHUB_REF_NAME" --prerelease
+            fi
           else
-            gh release create "$GITHUB_REF_NAME" --title "v$VER" --notes "Release in progress…"
+            gh release create "$GITHUB_REF_NAME" --title "v$VER" --notes "Release in progress…" "${FLAGS[@]}"
           fi
 
   build-binaries:
-    needs: create-release
-    if: always() && (needs.create-release.result == 'success' || needs.create-release.result == 'skipped')
+    needs: [classify, create-release]
+    # `always()` lets a skipped create-release (a dispatch dry run) through —
+    # so the classification has to be required explicitly, or a refused
+    # classification would skip create-release and wave the publish through.
+    if: always() && needs.classify.result == 'success' && (needs.create-release.result == 'success' || needs.create-release.result == 'skipped')
     strategy:
       fail-fast: false
       matrix:
@@ -180,14 +229,18 @@ jobs:
         shell: bash
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TAG: ${{ needs.classify.outputs.npm_tag }}
         run: |
+          # No dist-tag, no publish: npm's default is `latest`, which is exactly
+          # what a release candidate must never get.
+          : "${NPM_TAG:?classify produced no npm dist-tag — refusing to publish}"
           cd packages/maude-${{ matrix.slug }}
           npm config set //registry.npmjs.org/:_authToken "$NODE_AUTH_TOKEN"
           # Idempotent: if the version is already published (e.g. a retry of
           # a partial release run), treat 409 as success. Any other error
           # still fails the matrix cell.
           set +e
-          OUTPUT=$(npm publish --access public --provenance 2>&1)
+          OUTPUT=$(npm publish --access public --provenance --tag "$NPM_TAG" 2>&1)
           STATUS=$?
           set -e
           echo "$OUTPUT"
@@ -203,9 +256,13 @@ jobs:
       - name: Dry-run sub-package
         if: github.event_name == 'workflow_dispatch' && inputs.dry-run == true
         shell: bash
+        env:
+          NPM_TAG: ${{ needs.classify.outputs.npm_tag }}
         run: |
+          : "${NPM_TAG:?classify produced no npm dist-tag}"
           cd packages/maude-${{ matrix.slug }}
-          npm publish --access public --provenance --dry-run
+          echo "DRY RUN — would publish @1agh/maude-${{ matrix.slug }}@$(node -p "require('./package.json').version") to npm dist-tag '$NPM_TAG'"
+          npm publish --access public --provenance --dry-run --tag "$NPM_TAG"
 
       - name: Upload binary as Release asset
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
@@ -301,7 +358,7 @@ jobs:
           echo "::warning::desktop blank-window gates skipped by explicit break-glass input"
 
   publish-main:
-    needs: [build-binaries, desktop-gate]
+    needs: [classify, build-binaries, desktop-gate]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -377,10 +434,12 @@ jobs:
         if: github.event_name == 'push' || inputs.dry-run != true
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TAG: ${{ needs.classify.outputs.npm_tag }}
         # Idempotent: see sub-package publish above for rationale.
         run: |
+          : "${NPM_TAG:?classify produced no npm dist-tag — refusing to publish}"
           set +e
-          OUTPUT=$(npm publish --access public --provenance 2>&1)
+          OUTPUT=$(npm publish --access public --provenance --tag "$NPM_TAG" 2>&1)
           STATUS=$?
           set -e
           echo "$OUTPUT"
@@ -395,7 +454,13 @@ jobs:
 
       - name: Dry-run main tarball
         if: github.event_name == 'workflow_dispatch' && inputs.dry-run == true
-        run: npm publish --access public --provenance --dry-run
+        env:
+          NPM_TAG: ${{ needs.classify.outputs.npm_tag }}
+          PRERELEASE: ${{ needs.classify.outputs.prerelease }}
+        run: |
+          : "${NPM_TAG:?classify produced no npm dist-tag}"
+          echo "DRY RUN — would publish @1agh/maude@$(node -p "require('./package.json').version") to npm dist-tag '$NPM_TAG' (GitHub release prerelease=$PRERELEASE)"
+          npm publish --access public --provenance --dry-run --tag "$NPM_TAG"
 
       - name: Populate GitHub Release notes
         if: startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || inputs.dry-run != true)

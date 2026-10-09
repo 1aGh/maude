@@ -51,6 +51,14 @@ jobs:
       - name: Test (node:test)
         run: pnpm test
 
+      - name: Release pipeline invariants (scripts/test, node:test)
+        # The release pipeline's own assertions: the stable-vs-rc tag split and
+        # the prerelease channel (V2-2.0 — release-channel, bump-version in a
+        # throwaway repo, the updater feed's channel rules), the v0.57.0 fleet
+        # invariants and the post-deploy verifier. None of these ran in any
+        # workflow before; an assertion nobody runs guards nothing.
+        run: node --test scripts/test/*.test.mjs
+
       - name: Data-plane tests (apps/cells)
         # Cloud Phase 24 B1. `cellEnv` is where a mistake means one tenant
         # reading another's data, and it had no tests and no CI at all — the

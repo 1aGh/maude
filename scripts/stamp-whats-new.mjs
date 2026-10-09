@@ -19,6 +19,15 @@ if (!version || !/^\d+\.\d+\.\d+/.test(version)) {
   process.exit(2);
 }
 
+// A release candidate never consumes pending entries (V2-2.0): rc testers see
+// them as "next", and the stable release — what most users install — is the
+// one that should carry them. scripts/bump-version.sh skips the call for an rc;
+// this is the same rule for anyone running the stamper by hand.
+if (/^\d+\.\d+\.\d+-/.test(version)) {
+  console.log(`[whats-new] ${version} is a prerelease — pending entries stay pending`);
+  process.exit(0);
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const feedPath = resolve(__dirname, '../apps/studio/whats-new.json');
 if (!existsSync(feedPath)) {

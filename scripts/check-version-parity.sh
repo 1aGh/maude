@@ -46,6 +46,19 @@ fi
 PKG_VER=$(node -p "require('$PKG_PATH').version")
 
 mismatches=0
+
+# The release grammar (V2-2.0): X.Y.Z or X.Y.Z-rc.N — the same one
+# scripts/bump-version.sh writes and scripts/release-kind.mjs classifies.
+NUM='(0|[1-9][0-9]*)'
+STABLE_RE="^${NUM}\.${NUM}\.${NUM}\$"
+RC_RE="^${NUM}\.${NUM}\.${NUM}-rc\.([1-9][0-9]*)\$"
+PKG_IS_RC=0
+if [[ "$PKG_VER" =~ $RC_RE ]]; then
+  PKG_IS_RC=1
+elif [[ ! "$PKG_VER" =~ $STABLE_RE ]]; then
+  echo "error: package.json version '$PKG_VER' is not X.Y.Z or X.Y.Z-rc.N — the release workflows refuse it" >&2
+  mismatches=$((mismatches + 1))
+fi
 for plugin in "${PLUGIN_PATHS[@]}"; do
   if [ ! -f "$plugin" ]; then
     echo "error: missing $plugin" >&2
@@ -121,8 +134,16 @@ fi
 WRANGLER_TOML_PATH="$ROOT/apps/cells/wrangler.toml"
 if [ -f "$WRANGLER_TOML_PATH" ]; then
   CELL_TAG=$(grep -m1 '^image = ' "$WRANGLER_TOML_PATH" | sed -E 's/.*maude-cell:([^"]+)".*/\1/')
-  if [[ "$CELL_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    if [ "v$PKG_VER" != "$CELL_TAG" ]; then
+  if [[ "$CELL_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+- ]]; then
+    # A prerelease never becomes the fleet instruction (V2-2.0): an rc tag
+    # does not trigger cells-deploy, so this would be a rollout nothing runs —
+    # until a manual dispatch rolls the fleet onto rc code.
+    echo "error: apps/cells/wrangler.toml names a prerelease cell image (maude-cell:$CELL_TAG) — the fleet only ever runs a stable release; restore the last stable tag" >&2
+    mismatches=$((mismatches + 1))
+  elif [[ "$CELL_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    if [ "$PKG_IS_RC" = 1 ]; then
+      echo "note: release candidate $PKG_VER — the fleet stays on $CELL_TAG (apps/cells/wrangler.toml), as it should" >&2
+    elif [ "v$PKG_VER" != "$CELL_TAG" ]; then
       echo "error: version mismatch" >&2
       printf "  %-50s %s\n" "package.json:" "$PKG_VER" >&2
       printf "  %-50s %s\n" "apps/cells/wrangler.toml (maude-cell tag):" "$CELL_TAG" >&2
@@ -139,8 +160,13 @@ fi
 RENDER_TOML_PATH="$ROOT/apps/render/wrangler.toml"
 if [ -f "$RENDER_TOML_PATH" ]; then
   RENDER_TAG=$(grep -m1 '^image = ' "$RENDER_TOML_PATH" | sed -E 's/.*maude-render:([^"]+)".*/\1/')
-  if [[ "$RENDER_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    if [ "v$PKG_VER" != "$RENDER_TAG" ]; then
+  if [[ "$RENDER_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+- ]]; then
+    echo "error: apps/render/wrangler.toml names a prerelease render image (maude-render:$RENDER_TAG) — render only ever runs a stable release; restore the last stable tag" >&2
+    mismatches=$((mismatches + 1))
+  elif [[ "$RENDER_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    if [ "$PKG_IS_RC" = 1 ]; then
+      echo "note: release candidate $PKG_VER — render stays on $RENDER_TAG (apps/render/wrangler.toml), as it should" >&2
+    elif [ "v$PKG_VER" != "$RENDER_TAG" ]; then
       echo "error: version mismatch" >&2
       printf "  %-50s %s\n" "package.json:" "$PKG_VER" >&2
       printf "  %-50s %s\n" "apps/render/wrangler.toml (maude-render tag):" "$RENDER_TAG" >&2
@@ -172,6 +198,7 @@ if [ $mismatches -gt 0 ]; then
   echo "  scripts/bump-version.sh patch    # 0.4.0 → 0.4.1" >&2
   echo "  scripts/bump-version.sh minor    # 0.4.0 → 0.5.0" >&2
   echo "  scripts/bump-version.sh X.Y.Z    # explicit" >&2
+  echo "  scripts/bump-version.sh X.Y.Z-rc.N  # release candidate (also: rc, promote)" >&2
   exit 1
 fi
 

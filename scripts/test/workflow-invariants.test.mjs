@@ -260,9 +260,11 @@ test('(b) hub-image.yml publishes the tag the cell build pins to', () => {
   // GITHUB_REF_NAME and would publish `maude-hub:vmain`. Recorded here so the
   // trap is a failing test rather than a paragraph in a plan.
   const on = topLevelSections(text).on ?? '';
+  // Stable release tags only since V2-2.0 — a prerelease must not move
+  // `:latest` (scripts/test/release-channel.test.mjs evaluates the filter).
   assert.ok(
-    /tags:\s*\['v\*\.\*\.\*'\]/.test(on),
-    'hub-image.yml no longer triggers on v*.*.* tags — the cell build pins to that tag'
+    /tags:\s*\['v\*\.\*\.\*', '!v\*\.\*\.\*-\*'\]/.test(on),
+    'hub-image.yml no longer triggers on stable v*.*.* tags — the cell build pins to that tag'
   );
   assert.ok(
     !/branches:/.test(on),

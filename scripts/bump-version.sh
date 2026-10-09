@@ -7,10 +7,24 @@
 #   - plugins/flow/.claude-plugin/plugin.json
 #
 # Usage:
-#   scripts/bump-version.sh patch    # 0.4.0 → 0.4.1
-#   scripts/bump-version.sh minor    # 0.4.0 → 0.5.0
-#   scripts/bump-version.sh major    # 0.4.0 → 1.0.0
-#   scripts/bump-version.sh 1.2.3    # explicit version
+#   scripts/bump-version.sh patch       # 0.4.0 → 0.4.1
+#   scripts/bump-version.sh minor       # 0.4.0 → 0.5.0
+#   scripts/bump-version.sh major       # 0.4.0 → 1.0.0
+#   scripts/bump-version.sh 1.2.3       # explicit version
+#
+# Release candidates (V2-2.0 — the prerelease channel; .ai/release-guide.md
+# § "Release candidates"):
+#   scripts/bump-version.sh 2.0.0-rc.1  # start an rc line (explicit — only you know
+#                                       #   whether the next release is a patch, minor or major)
+#   scripts/bump-version.sh rc          # 2.0.0-rc.1 → 2.0.0-rc.2
+#   scripts/bump-version.sh promote     # 2.0.0-rc.2 → 2.0.0 (the stable release)
+#
+# The grammar is X.Y.Z or X.Y.Z-rc.N (N ≥ 1) and nothing else — scripts/release-kind.mjs,
+# which the release workflows run, refuses everything outside it. An rc moves every
+# manifest in lockstep like any release, but it does NOT rewrite the cell/render image
+# tags in apps/{cells,render}/wrangler.toml (an rc never rolls the fleet, and those
+# tags ARE the fleet instruction) and does NOT stamp pending What's New entries (they
+# ship, stamped, with the stable release).
 #
 # After bumping, this script does NOT commit, tag, or push — review the diff,
 # then run:
@@ -59,14 +73,27 @@ APP_MANIFEST_PATHS=(
 )
 
 if [ $# -ne 1 ]; then
-  echo "usage: $0 <patch|minor|major|X.Y.Z>" >&2
+  echo "usage: $0 <patch|minor|major|X.Y.Z|X.Y.Z-rc.N|rc|promote>" >&2
   exit 2
 fi
 
 CURRENT=$(node -p "require('$PKG_PATH').version")
 
+# X.Y.Z or X.Y.Z-rc.N — no leading zeros, N ≥ 1, no build metadata. The same
+# grammar as scripts/release-kind.mjs (RELEASE_VERSION_RE); keep them together.
+NUM='(0|[1-9][0-9]*)'
+STABLE_RE="^${NUM}\.${NUM}\.${NUM}\$"
+RC_RE="^${NUM}\.${NUM}\.${NUM}-rc\.([1-9][0-9]*)\$"
+
 case "$1" in
   patch|minor|major)
+    if [[ "$CURRENT" =~ $RC_RE ]]; then
+      echo "error: package.json is on a release candidate ($CURRENT) — '$1' is ambiguous from here." >&2
+      echo "       next rc:   $0 rc" >&2
+      echo "       release:   $0 promote        (→ ${CURRENT%-rc.*})" >&2
+      echo "       or name the version explicitly." >&2
+      exit 2
+    fi
     NEW=$(node -p "
       const [a,b,c] = '$CURRENT'.split('.').map(Number);
       const kind = '$1';
@@ -75,14 +102,31 @@ case "$1" in
                          \`\${a}.\${b}.\${c+1}\`
     ")
     ;;
+  rc|promote)
+    if [[ ! "$CURRENT" =~ $RC_RE ]]; then
+      echo "error: '$1' needs package.json to be on a release candidate, and $CURRENT is not a release candidate." >&2
+      echo "       Start an rc line explicitly, e.g.: $0 X.Y.Z-rc.1" >&2
+      exit 2
+    fi
+    BASE="${CURRENT%-rc.*}"
+    if [ "$1" = "rc" ]; then
+      N="${CURRENT##*-rc.}"
+      NEW="${BASE}-rc.$((N + 1))"
+    else
+      NEW="$BASE"
+    fi
+    ;;
   *)
-    if [[ ! "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-      echo "error: '$1' is not patch|minor|major or a valid X.Y.Z" >&2
+    if [[ ! "$1" =~ $STABLE_RE && ! "$1" =~ $RC_RE ]]; then
+      echo "error: '$1' is not patch|minor|major|rc|promote, X.Y.Z, or X.Y.Z-rc.N (N ≥ 1)" >&2
       exit 2
     fi
     NEW="$1"
     ;;
 esac
+
+IS_RC=0
+[[ "$NEW" =~ $RC_RE ]] && IS_RC=1
 
 echo "$CURRENT → $NEW"
 
@@ -126,7 +170,10 @@ if [ -f "$CARGO_TOML_PATH" ]; then
     const fs = require('fs');
     const p = '$CARGO_TOML_PATH';
     const s = fs.readFileSync(p, 'utf8');
-    const out = s.replace(/^version = \"[0-9]+\.[0-9]+\.[0-9]+\"/m, 'version = \"' + process.env.NEW + '\"');
+    // The OLD value may itself be a prerelease (bumping FROM an rc), so the
+    // match takes an optional -suffix; matching X.Y.Z alone would silently
+    // leave Cargo.toml behind on every rc → rc / rc → stable bump.
+    const out = s.replace(/^version = \"[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?\"/m, 'version = \"' + process.env.NEW + '\"');
     fs.writeFileSync(p, out);
   "
 fi
@@ -140,7 +187,7 @@ if [ -f "$CARGO_LOCK_PATH" ]; then
     const fs = require('fs');
     const p = '$CARGO_LOCK_PATH';
     const s = fs.readFileSync(p, 'utf8');
-    const out = s.replace(/(name = \"maude-desktop\"\nversion = )\"[0-9]+\.[0-9]+\.[0-9]+\"/, '\$1\"' + process.env.NEW + '\"');
+    const out = s.replace(/(name = \"maude-desktop\"\nversion = )\"[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?\"/, '\$1\"' + process.env.NEW + '\"');
     fs.writeFileSync(p, out);
   "
 fi
@@ -153,8 +200,19 @@ fi
 # only rolls instances on a CONFIG change, the tag change is precisely what
 # restarts every cell onto the new image (the v30/v31 lesson: a re-pushed image
 # under an unchanged tag looks deployed and isn't running anywhere).
+#
+# A RELEASE CANDIDATE LEAVES BOTH IMAGE TAGS ALONE (V2-2.0). An rc tag never
+# triggers cells-deploy / render-deploy, so an rc-named tag here would be an
+# instruction nothing executes — until the next manual `workflow_dispatch`,
+# which would build and roll the fleet onto rc code. The tags stay on the last
+# stable release; `check-version-parity.sh` refuses an rc in them, and
+# `promote` (the stable X.Y.Z) rewrites them as usual.
 WRANGLER_TOML_PATH="$ROOT/apps/cells/wrangler.toml"
-if [ -f "$WRANGLER_TOML_PATH" ]; then
+RENDER_TOML_PATH="$ROOT/apps/render/wrangler.toml"
+if [ "$IS_RC" = 1 ]; then
+  echo "[bump] release candidate: apps/{cells,render}/wrangler.toml keep their stable image tags (an rc never rolls the fleet)"
+fi
+if [ "$IS_RC" = 0 ] && [ -f "$WRANGLER_TOML_PATH" ]; then
   NEW="$NEW" node -e "
     const fs = require('fs');
     const p = '$WRANGLER_TOML_PATH';
@@ -170,8 +228,7 @@ fi
 
 # Same contract for the render service (DDR-230): the tag in
 # apps/render/wrangler.toml is the rollout instruction render-deploy.yml reads.
-RENDER_TOML_PATH="$ROOT/apps/render/wrangler.toml"
-if [ -f "$RENDER_TOML_PATH" ]; then
+if [ "$IS_RC" = 0 ] && [ -f "$RENDER_TOML_PATH" ]; then
   NEW="$NEW" node -e "
     const fs = require('fs');
     const p = '$RENDER_TOML_PATH';
@@ -186,7 +243,14 @@ if [ -f "$RENDER_TOML_PATH" ]; then
 fi
 
 # Stamp any pending What's New entries (version:null) with the new version + date.
-node "$ROOT/scripts/stamp-whats-new.mjs" "$NEW"
+# Not for a release candidate: rc testers already see pending entries (labelled
+# "next"), and stamping them with an rc version would leave the stable release —
+# the one most users install — with nothing to announce.
+if [ "$IS_RC" = 1 ]; then
+  echo "[whats-new] release candidate: pending entries stay pending until the stable release"
+else
+  node "$ROOT/scripts/stamp-whats-new.mjs" "$NEW"
+fi
 
 # Rebuild the committed client bundle at the NEW version.
 #
@@ -275,3 +339,10 @@ echo ""
 # reached main with the tag still sitting on the laptop.
 echo "  (annotated -a -m is required — 'git push --follow-tags' only pushes annotated"
 echo "   tags; a lightweight 'git tag v$NEW' silently stays local and nothing fires)"
+if [ "$IS_RC" = 1 ]; then
+  echo ""
+  echo "  Release candidate: the tag runs build-binaries (npm dist-tag 'next') and"
+  echo "  build-desktop (a PRERELEASE GitHub release, offered only to rc installs)."
+  echo "  It does not touch npm 'latest', the hub image, the cloud fleet or render."
+  echo "  See .ai/release-guide.md § Release candidates."
+fi
