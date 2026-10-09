@@ -1473,8 +1473,8 @@ function ShellState({ children }) {
   return <ShellStoreContext.Provider value={shellStore}>{children}</ShellStoreContext.Provider>;
 }
 
-// V2-2.3: the render tree. It reads the shell store; it owns no state and no effects.
-function ShellTree() {
+// V2-2.3: the Menubar surface reads the shell store directly instead of being drilled through ShellTree.
+function ShellMenubar() {
   const {
     shellCore: {
       activeArtboards,
@@ -1486,86 +1486,232 @@ function ShellTree() {
       assistantOpen,
       assistantUnseen,
       autoOpenInspector,
-      bodyRef,
-      brandUploadOpen,
-      canvasActiveArtboard,
-      canvasError,
-      canvasReloadNonce,
-      captureFromCanvas,
       cfg,
       changesOpen,
-      collabNudge,
-      commentsByFile,
       commentsPanelOpen,
-      cpMode,
-      diffTarget,
-      dragSide,
       exportCenter,
-      exportDialog,
-      figmaImportOpen,
-      firstRun,
-      generateOpen,
-      gitLifecycle,
-      gitStatus,
       gitUser,
-      handleAssistantAttention,
-      handleAssistantFinished,
-      helpOpen,
       inspectorOpen,
       inspectorTab,
-      introOpen,
       layersMode,
-      loadedPath,
-      loadingPath,
-      markCollabSeen,
-      markUsageSeen,
       minimapVisible,
-      onIframeLoad,
       openMenu,
       openPanelExclusive,
-      openRightPanel,
-      paletteOpen,
-      panelSide,
       postToActiveCanvas,
       presentMode,
-      previewPath,
       printGuidesVisible,
       project,
-      quickSetupOpen,
-      readinessOpen,
-      reportBugOpen,
-      rpSize,
-      savingIsManaged,
-      sbSize,
-      selected,
-      setAssistantBusy,
-      setAssistantOpen,
       setAutoOpenInspector,
-      setBrandUploadOpen,
-      setCpMode,
-      setDiffTarget,
-      setDragSide,
       setExportDialog,
-      setFigmaImportOpen,
       setGenerateOpen,
-      setGitLifecycle,
       setHelpOpen,
       setInspectorOpen,
       setInspectorTab,
       setIntroOpen,
-      setLayersMode,
-      setLayersOpen,
       setOpenMenu,
-      setPaletteOpen,
-      setPanelSide,
       setQuickSetupOpen,
       setReadinessOpen,
       setReportBugOpen,
       setSettingsOpen,
-      setShareDialog,
       setShortcutsOpen,
       setShowHidden,
-      setTheme,
+      showHidden,
+      sidebarOpen,
+      startTour,
+      tabs,
+      timelineOpen,
+      togglePanel,
+      toggleRightPanel,
+      toggleTimeline,
+      unsavedCount,
+      viewerMode,
+      whatsNew,
+      zoomCtlVisible,
+    },
+    photoAndTimeline: {
+      toggleAnnotations,
+      toggleMinimap,
+      togglePresent,
+      togglePrintGuides,
+      toggleZoomCtl,
+    },
+    tabs: { assembleVideo, closeTab, openSystem, reloadActive, sharePath, showShare },
+    canvasBridge: { onInsertArtboard },
+  } = useShellStore();
+  return (
+    <Menubar
+      sharePath={sharePath}
+      onShare={() => showShare()}
+      readOnly={viewerMode}
+      // Cloud Phase 27 C2/C4 — the ONE cloud-only input the shared chrome
+      // takes. A prop, not the whole `cfg`: the Menubar needs to know it is
+      // in a browser tab on somebody else's machine, and nothing else.
+      cloud={cfg.cloud}
+      activePath={activePath}
+      project={project}
+      tabsCount={tabs.length}
+      openMenu={openMenu}
+      setOpenMenu={setOpenMenu}
+      commentsPanelOpen={commentsPanelOpen}
+      onToggleComments={() => toggleRightPanel('comments')}
+      changesOpen={changesOpen}
+      changesCount={unsavedCount}
+      onToggleChanges={() => toggleRightPanel('changes')}
+      onOpenSystem={openSystem}
+      sidebarOpen={sidebarOpen}
+      onToggleSidebar={() => togglePanel('tree')}
+      showHidden={showHidden}
+      onToggleShowHidden={() => setShowHidden((v) => !v)}
+      onOpenHelp={() => setHelpOpen(true)}
+      onOpenShortcuts={() => setShortcutsOpen(true)}
+      onReportBug={() => setReportBugOpen(true)}
+      onStartTour={() => startTour(USAGE_TOUR)}
+      onStartCollabTour={() => startTour(COLLAB_TOUR)}
+      annotationsVisible={annotationsVisible}
+      onToggleAnnotations={toggleAnnotations}
+      minimapVisible={minimapVisible}
+      onToggleMinimap={toggleMinimap}
+      zoomCtlVisible={zoomCtlVisible}
+      onToggleZoomCtl={toggleZoomCtl}
+      presentMode={presentMode}
+      onTogglePresent={togglePresent}
+      printGuidesVisible={printGuidesVisible}
+      onTogglePrintGuides={togglePrintGuides}
+      postToActiveCanvas={postToActiveCanvas}
+      onOpenReadiness={() => setReadinessOpen(true)}
+      onOpenQuickSetup={() => setQuickSetupOpen(true)}
+      onWatchIntro={() => setIntroOpen(true)}
+      onOpenWhatsNew={whatsNew.openPanel}
+      whatsNewCount={whatsNew.unseen.length}
+      exportCenter={exportCenter}
+      artboardCount={activeArtboards}
+      inspectorOpen={inspectorOpen}
+      inspectorTab={inspectorTab}
+      onToggleInspector={() => toggleRightPanel('inspector')}
+      autoOpenInspector={autoOpenInspector}
+      onToggleAutoOpenInspector={() => setAutoOpenInspector((v) => !v)}
+      onInsertArtboard={onInsertArtboard}
+      timelineOpen={timelineOpen}
+      onToggleTimeline={toggleTimeline}
+      hasComps={activeComps.length > 0}
+      assistantOpen={assistantOpen}
+      onToggleAssistant={() => toggleRightPanel('assistant')}
+      assistantBusy={assistantBusy}
+      assistantUnseen={assistantUnseen}
+      onOpenLayers={() => {
+        // feature-configurable-panel-docking — Layers is its own dockable
+        // panel when layersMode==='separate' (toggle it), else it's the
+        // Inspector's Layers tab (open the inspector on that tab).
+        if (layersMode === 'separate') {
+          togglePanel('layers');
+        } else if (inspectorOpen && inspectorTab === 'layers') {
+          setInspectorOpen(false);
+        } else {
+          setInspectorTab('layers');
+          openPanelExclusive('inspector');
+        }
+      }}
+      onNewCanvas={() => {
+        openPanelExclusive('tree');
+        setTimeout(
+          () => document.querySelector('[aria-label="New blank brief board"]')?.click(),
+          60
+        );
+      }}
+      onAssembleVideo={assembleVideo}
+      onOpenExport={(mode) => setExportDialog({ mode })}
+      onOpenSettings={() => setSettingsOpen(true)}
+      onOpenGenerate={() => setGenerateOpen(true)}
+      onReload={reloadActive}
+      onCloseCanvas={() => activePath && closeTab(activePath)}
+      presence={
+        <>
+          <StAvatar
+            initials={initialsOf(gitUser || 'you')}
+            hue="var(--accent)"
+            title={gitUser ? `${gitUser} (you)` : 'You'}
+          />
+          {agentActive && (
+            <StAvatar initials="C" hue="var(--presence-agent)" title="Claude · editing" pulse />
+          )}
+        </>
+      }
+    />
+  );
+}
+
+// V2-2.3: the StatusBar surface reads the shell store directly instead of being drilled through ShellTree.
+function ShellStatusBar() {
+  const {
+    shellCore: {
+      activePath,
+      cfg,
+      changesOpen,
+      gitStatus,
+      openRightPanel,
+      project,
+      savingIsManaged,
+      selected,
+      syncPanelOpen,
+      syncStatus,
+      theme,
+      toggleRightPanel,
+      unsavedCount,
+      wsConnected,
+    },
+    projectData: { toggleTheme },
+    tabs: { clearSelected },
+    keyboardShortcuts: { totalOpen },
+  } = useShellStore();
+  return (
+    <StatusBar
+      activePath={activePath}
+      selected={selected}
+      wsConnected={wsConnected}
+      openCount={totalOpen}
+      theme={theme}
+      onToggleTheme={toggleTheme}
+      onClearSelected={clearSelected}
+      syncStatus={syncStatus}
+      syncProject={cfg?.cloud?.projectName || project}
+      syncOpen={syncPanelOpen}
+      // Toggle through the dock helpers so the one-panel-per-side invariant
+      // holds (opening Sync closes whatever else the right slot shows).
+      onOpenSync={syncStatus ? () => toggleRightPanel('sync') : undefined}
+      changesCount={unsavedCount}
+      // `unpushed` is a LOCAL-git offer ("N to publish"), and the panel has
+      // withdrawn Publish under either managed posture — so the chip must
+      // not keep advertising it either.
+      unpushed={savingIsManaged ? 0 : gitStatus?.unpushed || 0}
+      savingIsManaged={savingIsManaged}
+      changesOpen={changesOpen}
+      // A REPO IS NOT THE ONLY REASON THIS PANEL HAS SOMETHING TO SHOW.
+      // Under managed saving the panel IS the project's history — every
+      // accepted action with its author, and Undo on the ones that are
+      // yours — and it comes from the hub, not from git. A managed copy on
+      // a designer's machine has no `.git`, so gating the chip on a repo
+      // left the invited designer with no visible way in at all: the View
+      // menu and ⌘⇧G worked, and nothing on screen said so. The chip's own
+      // `savingIsManaged` branch below was already written for this case
+      // and was simply unreachable here. Found running S20 against a live
+      // deployment; asserted in `team-project.e2e.ts` step 4b.
+      onOpenChanges={
+        gitStatus?.repo || savingIsManaged ? () => openRightPanel('changes') : undefined
+      }
+      version={cfg?.version}
+    />
+  );
+}
+
+// V2-2.3: the TimelinePanel surface reads the shell store directly instead of being drilled through ShellTree.
+function ShellTimelinePanel() {
+  const {
+    shellCore: {
+      activeComps,
+      activePath,
+      cfg,
+      commentsByFile,
+      postToActiveCanvas,
       setTimelineFrame,
       setTimelineHeight,
       setTimelineLoop,
@@ -1574,20 +1720,6 @@ function ShellTree() {
       setTimelinePlaying,
       setTimelineSelectedClip,
       setTimelineVolume,
-      setTourSteps,
-      setUpdateReady,
-      settingsOpen,
-      setupReadiness,
-      shareDialog,
-      shortcutsOpen,
-      showHidden,
-      sidebarOpen,
-      startTour,
-      syncPanelOpen,
-      syncStatus,
-      systemData,
-      tabs,
-      theme,
       timelineArtboardId,
       timelineAudio,
       timelineCompId,
@@ -1597,46 +1729,908 @@ function ShellTree() {
       timelineLoop,
       timelineMuted,
       timelineOpFailed,
-      timelineOpen,
       timelinePlaying,
       timelineSelectedClip,
       timelineSequences,
       timelineTotal,
       timelineTransitions,
       timelineVolume,
-      togglePanel,
-      toggleRightPanel,
-      toggleTimeline,
-      tourBus,
-      tourSteps,
-      unsavedCount,
-      updateReady,
-      usageNudge,
-      viewerMode,
-      whatsNew,
-      wsConnected,
-      zoomCtlVisible,
     },
-    local: { querySelectionFromCanvas, wsSend },
+    local: { wsSend },
     photoAndTimeline: {
       askText,
-      exitPresent,
       pushTlUndo,
       resolveClipRef,
-      settleShellPrompt,
-      shellPromptState,
       timelineAddComment,
       timelineClipVerb,
       timelineRemoveClip,
       timelineTransClips,
       tlKeyRef,
-      toggleAnnotations,
-      toggleMinimap,
-      togglePresent,
-      togglePrintGuides,
-      toggleZoomCtl,
     },
-    projectData: { loadSystemData, loadTree, toggleTheme },
+    projectData: { loadTree },
+    tabs: { openTab, replaceMediaViaPicker },
+  } = useShellStore();
+  return (
+    <TimelinePanel
+      comps={activeComps}
+      compId={timelineCompId}
+      sequences={timelineSequences}
+      audio={timelineAudio}
+      transitions={timelineTransitions}
+      total={timelineTotal}
+      frame={timelineFrame}
+      playing={timelinePlaying}
+      loop={timelineLoop}
+      onSeek={(f) => {
+        setTimelineFrame(f);
+        setTimelinePlaying(false);
+        postToActiveCanvas({ dgn: 'timeline-seek', frame: f, id: timelineCompId });
+      }}
+      onPlay={() => {
+        setTimelinePlaying(true);
+        // Sync mute + loop to the Player, then play (the artboard has no
+        // chrome — the Timeline owns transport/sound/loop now).
+        postToActiveCanvas({
+          dgn: 'timeline-mute',
+          muted: timelineMuted,
+          id: timelineCompId,
+        });
+        postToActiveCanvas({ dgn: 'timeline-loop', loop: timelineLoop, id: timelineCompId });
+        postToActiveCanvas({ dgn: 'timeline-play', id: timelineCompId });
+      }}
+      onPause={() => {
+        setTimelinePlaying(false);
+        postToActiveCanvas({ dgn: 'timeline-pause', id: timelineCompId });
+      }}
+      onToggleLoop={() =>
+        setTimelineLoop((v) => {
+          const next = !v;
+          postToActiveCanvas({ dgn: 'timeline-loop', loop: next, id: timelineCompId });
+          return next;
+        })
+      }
+      muted={timelineMuted}
+      onToggleMute={() => {
+        setTimelineMuted((v) => {
+          const next = !v;
+          postToActiveCanvas({ dgn: 'timeline-mute', muted: next, id: timelineCompId });
+          return next;
+        });
+      }}
+      volume={timelineVolume}
+      onVolume={(v) => {
+        setTimelineVolume(v);
+        // Dragging volume implies "I want to hear it" — unmute.
+        if (v > 0 && timelineMuted) {
+          setTimelineMuted(false);
+          postToActiveCanvas({ dgn: 'timeline-mute', muted: false, id: timelineCompId });
+        }
+        postToActiveCanvas({ dgn: 'timeline-volume', volume: v, id: timelineCompId });
+      }}
+      onRetime={(clipRef, patch) => {
+        if (!activePath || activePath === SYSTEM_TAB) return;
+        // DDR-150 P2 / Task 3 — the panel hands a { stableId, index }
+        // clipRef; stableId addressing wins (multi-comp-safe), the row
+        // index stays as the legacy fallback when the enumerator is
+        // unavailable.
+        const artboardId = timelineArtboardId || undefined;
+        const ccUrl = `/_api/comp-clips?canvas=${encodeURIComponent(activePath)}${artboardId ? `&artboardId=${encodeURIComponent(artboardId)}` : ''}`;
+        fetch(ccUrl)
+          .then((r) => r.json().catch(() => ({})))
+          .then((cc) => {
+            const clip = resolveClipRef(cc, clipRef);
+            const legacyIndex = clipRef && typeof clipRef === 'object' ? clipRef.index : clipRef;
+            const body = clip?.stableId
+              ? {
+                  canvas: activePath,
+                  artboardId,
+                  stableId: clip.stableId,
+                  contentHash: clip.contentHash,
+                  ...patch,
+                }
+              : { canvas: activePath, index: legacyIndex, ...patch };
+            return fetch('/_api/retime-sequence', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(body),
+            });
+          })
+          .then((r) => r.json())
+          .then((j) => {
+            if (!j?.ok) {
+              console.warn('[retime]', j?.error || 'failed');
+              timelineOpFailed('Retime refused', j?.error);
+            } else {
+              shellToast(patch.from != null ? 'Clip moved.' : 'Clip trimmed.', true);
+              if (j?.seq != null)
+                pushTlUndo(activePath, j.seq, patch.from != null ? 'move clip' : 'trim clip');
+            }
+            // The file watcher reloads the canvas → re-announce → the
+            // source-fetch effect re-parses the new timing.
+          })
+          .catch(() => {});
+      }}
+      onRemove={timelineRemoveClip}
+      onReplace={(clipRef) => {
+        if (!activePath || activePath === SYSTEM_TAB) return;
+        // DDR-150 P3 + dogfood #5 — replace a clip's media. The file picker
+        // MUST open synchronously inside the click gesture: browsers revoke
+        // the transient user-activation after an await/fetch round-trip, so
+        // the old fetch-then-click() silently no-oped ("replace neotevře
+        // žádné okno"). Picker first; resolve the target + upload in the
+        // change handler.
+        replaceMediaViaPicker({
+          accept: 'video/*,image/*',
+          resolveTarget: (cc) => {
+            const clip = resolveClipRef(cc, clipRef);
+            if (clip?.mediaArrayRef) return { arrayRef: clip.mediaArrayRef };
+            if (clip?.mediaCdId) return { cdId: clip.mediaCdId };
+            return null;
+          },
+        });
+      }}
+      onReplaceAudio={(index) => {
+        if (!activePath || activePath === SYSTEM_TAB) return;
+        // DDR-150 dogfood #5 — audio beds are addressable too: the
+        // enumerator lists loose media (an <Audio> under the reel) with a
+        // cd-id; ⇄ on the audio row swaps its src.
+        replaceMediaViaPicker({
+          accept: 'audio/*',
+          resolveTarget: (cc) => {
+            const beds =
+              cc?.ok && Array.isArray(cc.media) ? cc.media.filter((m) => m.tag === 'Audio') : [];
+            return beds[index]?.cdId ? { cdId: beds[index].cdId } : null;
+          },
+        });
+      }}
+      onReplaceLayer={(clipRef, layerIndex) => {
+        if (!activePath || activePath === SYSTEM_TAB) return;
+        // DDR-150 dogfood — replace a SPECIFIC layer inside an expanded clip
+        // (the mp4 background separately from the title layer). Targets the
+        // layer's own media (array-fed or literal-src) from the enumerator.
+        const rowIndex = clipRef && typeof clipRef === 'object' ? clipRef.index : clipRef;
+        const kind =
+          timelineSequences[rowIndex]?.layers?.[layerIndex]?.kind === 'audio'
+            ? 'audio/*'
+            : timelineSequences[rowIndex]?.layers?.[layerIndex]?.kind === 'image'
+              ? 'image/*'
+              : 'video/*';
+        replaceMediaViaPicker({
+          accept: kind,
+          resolveTarget: (cc) => {
+            const ly = resolveClipRef(cc, clipRef)?.layers?.[layerIndex];
+            if (ly?.mediaArrayRef) return { arrayRef: ly.mediaArrayRef };
+            if (ly?.mediaCdId) return { cdId: ly.mediaCdId };
+            return null;
+          },
+        });
+      }}
+      onReorder={(clipRef, direction) => {
+        if (!activePath || activePath === SYSTEM_TAB) return;
+        // DDR-150 P5 — z-order reorder: move a standalone <Sequence> before/
+        // after a sibling (render stacking; later sibling paints on top).
+        // ▲ forward = move AFTER the next sibling; ▼ backward = move BEFORE
+        // the previous sibling. Both clips addressed by comp-scoped stableId +
+        // fingerprint (via /_api/comp-clips); the engine refuses a TransitionSeries
+        // clip + a stale/raced target, then reloads via the file watcher.
+        const artboardId = timelineArtboardId || undefined;
+        const ccUrl = `/_api/comp-clips?canvas=${encodeURIComponent(activePath)}${artboardId ? `&artboardId=${encodeURIComponent(artboardId)}` : ''}`;
+        fetch(ccUrl)
+          .then((r) => r.json().catch(() => ({})))
+          .then((cc) => {
+            const seqs =
+              cc?.ok && Array.isArray(cc.clips)
+                ? cc.clips.filter((c) => c.kind === 'sequence')
+                : [];
+            const moved = resolveClipRef(cc, clipRef);
+            const index = moved ? seqs.indexOf(moved) : -1;
+            const refIdx = direction === 'forward' ? index + 1 : index - 1;
+            const ref = index >= 0 ? seqs[refIdx] || null : null;
+            const position = direction === 'forward' ? 'after' : 'before';
+            if (!moved?.stableId || !ref?.stableId) return null;
+            return fetch('/_api/reorder-sequence', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({
+                canvas: activePath,
+                artboardId,
+                stableId: moved.stableId,
+                contentHash: moved.contentHash,
+                refStableId: ref.stableId,
+                refContentHash: ref.contentHash,
+                position,
+              }),
+            });
+          })
+          .then((r) => (r ? r.json() : null))
+          .then((j) => {
+            if (j && !j.ok) {
+              console.warn('[reorder-clip]', j.error || 'failed');
+              timelineOpFailed('Reorder refused', j.error);
+            } else if (j?.seq != null) {
+              pushTlUndo(activePath, j.seq, 'reorder clip');
+            }
+          })
+          .catch(() => {});
+      }}
+      onToggleHide={(clipRef) => {
+        if (!activePath || activePath === SYSTEM_TAB) return;
+        // DDR-150 dogfood — hide/show a clip (gates its body behind
+        // {false && …}; the tag + time slot stay). Addressed by comp-scoped
+        // stableId + fingerprint.
+        const artboardId = timelineArtboardId || undefined;
+        const ccUrl = `/_api/comp-clips?canvas=${encodeURIComponent(activePath)}${artboardId ? `&artboardId=${encodeURIComponent(artboardId)}` : ''}`;
+        fetch(ccUrl)
+          .then((r) => r.json().catch(() => ({})))
+          .then((cc) => {
+            const clip = resolveClipRef(cc, clipRef);
+            if (!clip?.stableId) return null;
+            return fetch('/_api/toggle-hide', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({
+                canvas: activePath,
+                artboardId,
+                stableId: clip.stableId,
+                contentHash: clip.contentHash,
+              }),
+            });
+          })
+          .then((r) => (r ? r.json() : null))
+          .then((j) => {
+            if (j && !j.ok) timelineOpFailed('Hide refused', j.error);
+            else if (j && j.ok) {
+              shellToast(j.hidden ? 'Clip hidden.' : 'Clip shown.', true);
+              if (j.seq != null)
+                pushTlUndo(activePath, j.seq, j.hidden ? 'hide clip' : 'show clip');
+            }
+          })
+          .catch(() => shellToast('Hide failed: network error'));
+      }}
+      onReorderMove={(movedRef2, targetRef, position) => {
+        if (!activePath || activePath === SYSTEM_TAB) return;
+        // Task 6 — the magnetic drag commit: a real series MOVE (any
+        // distance), addressed by stableId pair + fingerprints.
+        const artboardId = timelineArtboardId || undefined;
+        const ccUrl = `/_api/comp-clips?canvas=${encodeURIComponent(activePath)}${artboardId ? `&artboardId=${encodeURIComponent(artboardId)}` : ''}`;
+        fetch(ccUrl)
+          .then((r) => r.json().catch(() => ({})))
+          .then((cc) => {
+            const moved = resolveClipRef(cc, movedRef2);
+            const ref = resolveClipRef(cc, targetRef);
+            if (!moved?.stableId || !ref?.stableId) return null;
+            return fetch('/_api/reorder-sequence', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({
+                canvas: activePath,
+                artboardId,
+                stableId: moved.stableId,
+                contentHash: moved.contentHash,
+                refStableId: ref.stableId,
+                refContentHash: ref.contentHash,
+                position,
+                mode: 'move',
+              }),
+            });
+          })
+          .then((r) => (r ? r.json() : null))
+          .then((j) => {
+            if (j && !j.ok) {
+              console.warn('[reorder-move]', j.error || 'failed');
+              timelineOpFailed('Reorder refused', j.error);
+            } else if (j?.ok) {
+              shellToast('Clip moved.', true);
+              if (j.seq != null) pushTlUndo(activePath, j.seq, 'move clip');
+            }
+          })
+          .catch(() => shellToast('Reorder failed: network error'));
+      }}
+      onDropMedia={(files, pos) => {
+        if (!activePath || activePath === SYSTEM_TAB) return;
+        // DDR-150 P4 + Task 6 — drop media onto the timeline. With a caret
+        // position: index-aware storyline insert / frame-anchored
+        // overlay-audio insert; multiple files insert in order. Audio
+        // files always land in the audio band. Without a position, the
+        // legacy append path.
+        const artboardId = timelineArtboardId || undefined;
+        const fps = timelineFps;
+        const canvas = activePath;
+        const list = (Array.isArray(files) ? files : [files]).filter(Boolean);
+        (async () => {
+          // Dogfood fix — dropping media on the timeline of a canvas with
+          // NO video-comp used to dead-end in "Insert refused: no
+          // video-comp for this artboard". Drop-first means drop-first:
+          // upload the files and spin up a NEW video-comp canvas cut from
+          // them (same engine as File → Assemble), then open it.
+          if (!activeComps.length) {
+            const clips = [];
+            for (const file of list) {
+              const mediaKind = file.type.startsWith('audio/')
+                ? 'audio'
+                : file.type.startsWith('video/')
+                  ? 'video'
+                  : null;
+              if (!mediaKind) continue;
+              try {
+                const r = await fetch('/_api/asset', {
+                  method: 'POST',
+                  headers: { 'Content-Type': file.type || 'application/octet-stream' },
+                  body: file,
+                });
+                const up = await r.json().catch(() => ({}));
+                if (up?.path) clips.push({ src: up.path, mediaKind });
+                else shellToast(`Upload failed: ${up?.error || `HTTP ${r.status}`}`);
+              } catch {
+                shellToast('Upload failed: network error');
+              }
+            }
+            if (!clips.length) {
+              shellToast('No video/audio files in the drop — nothing to cut.');
+              return;
+            }
+            // 1) In-place upgrade: a `kind="video"` artboard on THIS
+            // canvas gets a VideoComp injected and takes the clips as
+            // storyline beats (server-side ensure). Falls through to a
+            // fresh "New Cut" canvas only when no artboard opted in.
+            let upgraded = false;
+            for (const c of clips) {
+              const probedSec = await probeMediaDuration(c.src).catch(() => null);
+              const body = {
+                canvas,
+                lane: c.mediaKind === 'audio' && upgraded ? 'audio' : 'storyline',
+                durationInFrames: durationFramesForDrop(fps, probedSec),
+                mediaTag: c.mediaKind === 'audio' ? 'Audio' : 'Video',
+                src: c.src,
+              };
+              if (body.lane === 'audio') body.from = 0;
+              const r = await fetch('/_api/insert-sequence', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify(body),
+              }).catch(() => null);
+              const j = r ? await r.json().catch(() => null) : null;
+              if (j?.ok) {
+                upgraded = true;
+                if (j.seq != null) pushTlUndo(canvas, j.seq, 'add clip');
+              } else if (!upgraded) {
+                break; // no eligible artboard — New Cut fallback below
+              } else {
+                timelineOpFailed('Insert refused', j?.error);
+              }
+            }
+            if (upgraded) {
+              shellToast('Artboard upgraded to a video comp — clips added to the storyline.', true);
+              return;
+            }
+            for (let n = 0; n < 8; n += 1) {
+              const name = n === 0 ? 'New Cut' : `New Cut ${n + 1}`;
+              const r = await fetch('/_api/canvas', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, kind: 'video-comp', clips }),
+              }).catch(() => null);
+              const j = r ? await r.json().catch(() => ({})) : {};
+              if (r?.status === 409) continue; // name taken — try the next
+              if (!r?.ok || !j.ok) {
+                shellToast(`New cut failed: ${j.error || 'create refused'}`);
+                return;
+              }
+              await loadTree();
+              openTab(j.file);
+              shellToast(
+                `Started a new cut from ${clips.length} clip${clips.length > 1 ? 's' : ''}.`,
+                true
+              );
+              return;
+            }
+            shellToast('New cut failed: too many "New Cut" canvases — rename some.');
+            return;
+          }
+          let slot = pos?.lane === 'storyline' ? pos.index : undefined;
+          for (const file of list) {
+            const mediaTag = file.type.startsWith('video/')
+              ? 'Video'
+              : file.type.startsWith('audio/')
+                ? 'Audio'
+                : file.type.startsWith('image/')
+                  ? 'Img'
+                  : null;
+            if (!mediaTag) continue;
+            let up;
+            try {
+              const r = await fetch('/_api/asset', {
+                method: 'POST',
+                headers: { 'Content-Type': file.type || 'application/octet-stream' },
+                body: file,
+              });
+              up = await r.json().catch(() => ({}));
+            } catch {
+              up = null;
+            }
+            if (!up?.path) {
+              shellToast(`Upload failed: ${up?.error || 'server unreachable — retry in a moment'}`);
+              continue;
+            }
+            const isAudio = mediaTag === 'Audio';
+            // Video clips carry a real duration — probe it so the drop
+            // lands at the clip's own length instead of a fixed 3s that
+            // the user then has to drag out by hand. Images have no
+            // inherent duration, so they keep the fallback.
+            const probedSec =
+              mediaTag === 'Video' ? await probeMediaDuration(up.path).catch(() => null) : null;
+            const body = { canvas, artboardId, mediaTag, src: up.path };
+            if (pos && (isAudio || pos.lane === 'audio')) {
+              body.lane = 'audio';
+              body.from = Math.max(0, pos.frame ?? 0);
+              // Default: stretch toward the end of the cut.
+              body.durationInFrames = Math.max(fps, timelineTotal - body.from);
+            } else if (pos?.lane === 'storyline' && !isAudio) {
+              body.lane = 'storyline';
+              if (slot != null) {
+                body.index = slot;
+                slot += 1; // multiple files insert in order
+              }
+              body.durationInFrames = durationFramesForDrop(fps, probedSec);
+            } else if (pos?.lane === 'overlay' && !isAudio) {
+              if ((timelineSequences || []).length === 0) {
+                // First clip of a greenfield comp = the BASE layer →
+                // storyline, wherever it was dropped.
+                body.lane = 'storyline';
+              } else {
+                body.lane = 'overlay';
+                body.from = Math.max(0, pos.frame ?? 0);
+              }
+              body.durationInFrames = durationFramesForDrop(fps, probedSec);
+            } else if (!isAudio) {
+              // Default container rule: a video/image drop ANYWHERE on the
+              // timeline lands in the storyline (append = hard cut at the
+              // end; the caret gives it an index). The old lane-less
+              // append refused hard-cut series ("no transition to clone").
+              body.lane = 'storyline';
+              body.durationInFrames = durationFramesForDrop(fps, probedSec);
+            } else {
+              // Audio without a caret → audio band, from the start.
+              body.lane = 'audio';
+              body.from = 0;
+              body.durationInFrames = Math.max(fps, timelineTotal);
+            }
+            try {
+              const r = await fetch('/_api/insert-sequence', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify(body),
+              });
+              const j = await r.json().catch(() => null);
+              if (j && !j.ok) {
+                console.warn('[insert-clip]', j.error || 'failed');
+                timelineOpFailed('Insert refused', j.error);
+              } else if (j?.ok) {
+                shellToast('Clip added to the timeline.', true);
+                if (j.seq != null) pushTlUndo(canvas, j.seq, 'add clip');
+              }
+            } catch {
+              shellToast('Insert failed: network error');
+            }
+          }
+        })();
+      }}
+      height={timelineHeight}
+      onResize={setTimelineHeight}
+      onClose={() => setTimelineOpen(false)}
+      selectedClipId={timelineSelectedClip}
+      onSelect={setTimelineSelectedClip}
+      transitionClips={timelineTransClips}
+      onClipVerb={timelineClipVerb}
+      comments={(commentsByFile[activePath] || []).filter((c) => c && c.timeline)}
+      promptText={askText}
+      onAddComment={timelineAddComment}
+      onResolveComment={(id) =>
+        wsSend({ type: 'comments-patch', id, patch: { status: 'resolved' } })
+      }
+      onDeleteComment={(id) => wsSend({ type: 'comments-delete', id })}
+      onSplitAtPlayhead={() => {
+        const s = tlKeyRef.current;
+        let ref = s.selected != null ? { stableId: s.selected } : null;
+        if (!ref) {
+          const rows = s.sequences || [];
+          const under =
+            rows.find((r2) => r2.series && s.frame >= r2.from && s.frame < r2.from + r2.duration) ||
+            rows.find((r2) => s.frame >= r2.from && s.frame < r2.from + r2.duration);
+          if (under?.stableId) ref = { stableId: under.stableId };
+        }
+        if (ref) timelineClipVerb(ref, 'split', { atFrame: s.frame });
+        else shellToast('Nothing under the playhead to split.');
+      }}
+      onAddTitle={(frame) => {
+        if (!activePath || activePath === SYSTEM_TAB) return;
+        // Task 19 — "+ Title": inserts immediately with a default text —
+        // edit it via double-click → inspector → Text (the artboard's
+        // Player DOM isn't the canvas edit surface, so inline editing
+        // happens in the timeline inspector).
+        Promise.resolve('Title').then((text) => {
+          if (!text) return;
+          const fps = timelineFps;
+          fetch('/_api/insert-sequence', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              canvas: activePath,
+              artboardId: timelineArtboardId || undefined,
+              lane: 'overlay',
+              from: frame,
+              durationInFrames: Math.round(fps * 3),
+              mediaTag: 'Title',
+              src: text,
+            }),
+          })
+            .then((r) => r.json().catch(() => null))
+            .then((j) => {
+              if (j && !j.ok) timelineOpFailed('Title refused', j.error);
+              else if (j?.ok) {
+                shellToast('Title added.', true);
+                if (j.seq != null) pushTlUndo(activePath, j.seq, 'add title');
+              }
+            })
+            .catch(() => shellToast('Title failed: network error'));
+        });
+      }}
+      onAddAiClip={() => {
+        if (!activePath || activePath === SYSTEM_TAB) return;
+        // Task 22 — "+ AI clip": a prompt-carrying slate beat at the end
+        // of the storyline. NO modal (user steer 2026-07-30) — the slate
+        // lands with a starter prompt the user rewrites IN PLACE
+        // (double-click the slate text in the artboard, or Text tab).
+        (async () => {
+          const prompt = 'Describe this shot — double-click to edit';
+          const kind = 'veo';
+          const fps = timelineFps;
+          fetch('/_api/insert-sequence', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              canvas: activePath,
+              artboardId: timelineArtboardId || undefined,
+              lane: 'storyline',
+              durationInFrames: Math.round(fps * 5),
+              placeholder: { prompt, kind },
+            }),
+          })
+            .then((r) => r.json().catch(() => null))
+            .then((j) => {
+              if (j && !j.ok) timelineOpFailed('AI clip refused', j.error);
+              else if (j?.ok) {
+                shellToast(
+                  'AI placeholder added — double-click its text to write the prompt, then right-click → Generate ✨.',
+                  true
+                );
+                if (j.seq != null) pushTlUndo(activePath, j.seq, 'add AI placeholder');
+              }
+            })
+            .catch(() => shellToast('AI clip failed: network error'));
+        })();
+      }}
+      onGeneratePlaceholder={(clipRef) => {
+        if (!activePath || activePath === SYSTEM_TAB) return;
+        // Task 22 — hand the prompt to the existing generation spine
+        // (DDR-164), then poll the job and swap the slate in place. The
+        // placeholder stays fully editable while the job runs; the final
+        // swap re-resolves by stableId with a FRESH fingerprint.
+        const canvas = activePath;
+        const artboardId = timelineArtboardId || undefined;
+        const ccUrl = `/_api/comp-clips?canvas=${encodeURIComponent(canvas)}${artboardId ? `&artboardId=${encodeURIComponent(artboardId)}` : ''}`;
+        fetch(ccUrl)
+          .then((r) => r.json().catch(() => ({})))
+          .then((cc) => {
+            const clip = resolveClipRef(cc, clipRef);
+            const ph = clip?.placeholder;
+            if (!clip?.stableId || !ph?.prompt) {
+              shellToast('No AI placeholder prompt on this clip.');
+              return;
+            }
+            const modality = ph.kind === 'image' ? 'image' : 'video';
+            const prompt =
+              ph.kind === 'motion'
+                ? `Clean, minimal motion-graphics animation (flat shapes, smooth easing): ${ph.prompt}`
+                : ph.prompt;
+            fetch('/_api/generate-jobs', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ provider: 'gemini', modality, prompt }),
+            })
+              .then(async (r) => (r.ok ? r.json() : Promise.reject(new Error(await r.text()))))
+              .then((job) => {
+                const jobId = job?.id;
+                if (!jobId) throw new Error('no job id');
+                shellToast(`Generating ${ph.kind}… (runs in the background)`, true);
+                const stableId = clip.stableId;
+                const poll = () => {
+                  fetch('/_api/generate-jobs')
+                    .then((r) => r.json().catch(() => ({})))
+                    .then((d) => {
+                      const j2 = (d?.jobs || []).find((x) => x.id === jobId);
+                      if (!j2 || j2.status === 'failed') {
+                        shellToast(`Generation failed: ${j2?.error || 'job lost'}`);
+                        return;
+                      }
+                      if (j2.status !== 'done') {
+                        setTimeout(poll, 4000);
+                        return;
+                      }
+                      const asset = j2.assets?.[0];
+                      if (!asset) {
+                        shellToast('Generation finished but produced no asset.');
+                        return;
+                      }
+                      // Fresh fingerprint at swap time (the clip may have
+                      // been retimed/moved meanwhile — that's fine).
+                      fetch(ccUrl)
+                        .then((r) => r.json().catch(() => ({})))
+                        .then((cc2) => {
+                          const live = resolveClipRef(cc2, { stableId });
+                          if (!live?.stableId) {
+                            shellToast(
+                              'Placeholder clip is gone — generated asset kept in assets/.'
+                            );
+                            return;
+                          }
+                          timelineClipVerb({ stableId: live.stableId }, 'resolve-placeholder', {
+                            src: asset,
+                            mediaKind: modality === 'image' ? 'image' : 'video',
+                          });
+                        });
+                    })
+                    .catch(() => setTimeout(poll, 6000));
+                };
+                setTimeout(poll, 3000);
+              })
+              .catch((e) =>
+                shellToast(
+                  `Generate failed: ${e?.message || 'provider error'} — is a Gemini key set in Settings?`
+                )
+              );
+          })
+          .catch(() => shellToast('Generate failed: network error'));
+      }}
+      onAddImage={(frame) => {
+        if (!activePath || activePath === SYSTEM_TAB) return;
+        // Task 19 — "+ Image": picker → content-addressed upload →
+        // overlay-lane <Img> at the playhead. WKWebView can't open an
+        // HTML file input, so native goes through the Rust pick dialog.
+        const uploadPicked = (blob, type) => {
+          const fps = timelineFps;
+          fetch('/_api/asset', {
+            method: 'POST',
+            headers: { 'Content-Type': type || 'application/octet-stream' },
+            body: blob,
+          })
+            .then((r) => r.json().catch(() => ({})))
+            .then((up) => {
+              if (!up?.path) {
+                shellToast(`Upload failed: ${up?.error || 'unknown error'}`);
+                return null;
+              }
+              return fetch('/_api/insert-sequence', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                  canvas: activePath,
+                  artboardId: timelineArtboardId || undefined,
+                  lane: 'overlay',
+                  from: frame,
+                  durationInFrames: Math.round(fps * 3),
+                  mediaTag: 'Img',
+                  src: up.path,
+                }),
+              });
+            })
+            .then((r) => (r ? r.json() : null))
+            .then((j) => {
+              if (j && !j.ok) timelineOpFailed('Image refused', j.error);
+              else if (j?.ok) {
+                shellToast('Image overlay added.', true);
+                if (j.seq != null) pushTlUndo(activePath, j.seq, 'add image overlay');
+              }
+            })
+            .catch(() => shellToast('Image failed: network error'));
+        };
+        if (isNativeApp()) {
+          pickMediaFile()
+            .then(async (picked) => {
+              if (picked) uploadPicked(await readPickedMediaBlob(picked), '');
+            })
+            .catch((e2) => shellToast(`Image pick failed: ${e2?.message || 'dialog error'}`));
+          return;
+        }
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.addEventListener('change', () => {
+          const file = input.files?.[0];
+          if (file) uploadPicked(file, file.type);
+        });
+        input.click();
+      }}
+      resolveMediaUrl={(p) =>
+        `/${(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}/${p}`
+      }
+    />
+  );
+}
+
+// V2-2.3: the SettingsPanel surface reads the shell store directly instead of being drilled through ShellTree.
+function ShellSettingsPanel() {
+  const {
+    shellCore: {
+      activePath,
+      annotationsVisible,
+      autoOpenInspector,
+      cfg,
+      cpMode,
+      layersMode,
+      minimapVisible,
+      panelSide,
+      setAutoOpenInspector,
+      setCpMode,
+      setLayersMode,
+      setLayersOpen,
+      setPanelSide,
+      setSettingsOpen,
+      setTheme,
+      settingsOpen,
+      theme,
+      zoomCtlVisible,
+    },
+    photoAndTimeline: { toggleAnnotations, toggleMinimap, toggleZoomCtl },
+  } = useShellStore();
+  return (
+    <SettingsPanel
+      cloud={cfg.cloud}
+      onClose={() => setSettingsOpen(false)}
+      initialTab={typeof settingsOpen === 'string' ? settingsOpen : undefined}
+      theme={theme}
+      onSetTheme={setTheme}
+      cpMode={cpMode}
+      onSetCpMode={setCpMode}
+      minimapVisible={minimapVisible}
+      onToggleMinimap={toggleMinimap}
+      zoomCtlVisible={zoomCtlVisible}
+      onToggleZoomCtl={toggleZoomCtl}
+      annotationsVisible={annotationsVisible}
+      onToggleAnnotations={toggleAnnotations}
+      autoOpenInspector={autoOpenInspector}
+      onToggleAutoOpenInspector={() => setAutoOpenInspector((v) => !v)}
+      hasCanvas={!!activePath && activePath !== SYSTEM_TAB}
+      panelSide={panelSide}
+      onSetPanelSide={(id, side) => setPanelSide((prev) => ({ ...prev, [id]: side }))}
+      layersMode={layersMode}
+      onSetLayersMode={(m) => {
+        setLayersMode(m);
+        // Leaving separate mode retires the standalone Layers panel.
+        if (m !== 'separate') setLayersOpen(false);
+      }}
+    />
+  );
+}
+
+// V2-2.3: the Viewport surface reads the shell store directly instead of being drilled through ShellTree.
+function ShellViewport() {
+  const {
+    shellCore: {
+      activePath,
+      canvasError,
+      canvasReloadNonce,
+      cfg,
+      loadedPath,
+      loadingPath,
+      onIframeLoad,
+      previewPath,
+      project,
+      setQuickSetupOpen,
+      setupReadiness,
+      systemData,
+      tabs,
+      viewerMode,
+    },
+    projectData: { loadSystemData },
+    tabs: { openTab, retryCanvasLoad },
+    keyboardShortcuts: { registerIframe },
+  } = useShellStore();
+  return (
+    <Viewport
+      tabs={tabs}
+      activePath={activePath}
+      registerIframe={registerIframe}
+      systemData={systemData}
+      onOpenFromSystem={openTab}
+      onSelectDs={loadSystemData}
+      project={project}
+      cfg={cfg}
+      loadingPath={loadingPath}
+      onIframeLoad={onIframeLoad}
+      canvasError={canvasError}
+      canvasReloadNonce={canvasReloadNonce}
+      onRetryCanvasLoad={retryCanvasLoad}
+      loadedPath={loadedPath}
+      showQuickSetup={isNativeApp() && !viewerMode && !!setupReadiness && !setupReadiness.ready}
+      onStartQuickSetup={() => setQuickSetupOpen(true)}
+      previewPath={previewPath}
+    />
+  );
+}
+
+// V2-2.3: the render tree. It reads the shell store; it owns no state and no effects.
+function ShellTree() {
+  const {
+    shellCore: {
+      activeComps,
+      activePath,
+      bodyRef,
+      brandUploadOpen,
+      canvasActiveArtboard,
+      captureFromCanvas,
+      cfg,
+      collabNudge,
+      diffTarget,
+      dragSide,
+      exportCenter,
+      exportDialog,
+      figmaImportOpen,
+      firstRun,
+      generateOpen,
+      gitLifecycle,
+      handleAssistantAttention,
+      handleAssistantFinished,
+      helpOpen,
+      introOpen,
+      markCollabSeen,
+      markUsageSeen,
+      openPanelExclusive,
+      paletteOpen,
+      presentMode,
+      quickSetupOpen,
+      readinessOpen,
+      reportBugOpen,
+      rpSize,
+      sbSize,
+      selected,
+      setAssistantBusy,
+      setAssistantOpen,
+      setBrandUploadOpen,
+      setDiffTarget,
+      setDragSide,
+      setExportDialog,
+      setFigmaImportOpen,
+      setGenerateOpen,
+      setGitLifecycle,
+      setHelpOpen,
+      setIntroOpen,
+      setPaletteOpen,
+      setQuickSetupOpen,
+      setReadinessOpen,
+      setReportBugOpen,
+      setShareDialog,
+      setShortcutsOpen,
+      setTourSteps,
+      setUpdateReady,
+      settingsOpen,
+      shareDialog,
+      shortcutsOpen,
+      startTour,
+      syncStatus,
+      tabs,
+      theme,
+      timelineOpen,
+      togglePanel,
+      tourBus,
+      tourSteps,
+      updateReady,
+      usageNudge,
+      whatsNew,
+    },
+    local: { querySelectionFromCanvas },
+    photoAndTimeline: { exitPresent, settleShellPrompt, shellPromptState },
+    projectData: { loadTree },
     gitActions: {
       acceptedDiff,
       gitDiscard,
@@ -1644,32 +2638,18 @@ function ShellTree() {
       loadDiffLog,
       restoreProjectVersion,
     },
-    tabs: {
-      assembleVideo,
-      clearSelected,
-      closeTab,
-      openSystem,
-      openTab,
-      reloadActive,
-      replaceMediaViaPicker,
-      retryCanvasLoad,
-      shareLinksFor,
-      sharePath,
-      shareShell,
-      showShare,
-    },
+    tabs: { shareLinksFor, shareShell },
     canvasBridge: {
       assetPickerReq,
       insertGeneratedImage,
       onAssetPicked,
-      onInsertArtboard,
       onPickMany,
       onStickerPicked,
       setAssetPickerReq,
       setStickerPickerReq,
       stickerPickerReq,
     },
-    keyboardShortcuts: { onShellContextMenu, registerIframe, totalOpen },
+    keyboardShortcuts: { onShellContextMenu },
     paletteAndPanels: {
       activeCanvasFile,
       activeOpenComments,
@@ -1731,104 +2711,7 @@ function ShellTree() {
         </div>
       )}
       <div className="st-shell">
-        <Menubar
-          sharePath={sharePath}
-          onShare={() => showShare()}
-          readOnly={viewerMode}
-          // Cloud Phase 27 C2/C4 — the ONE cloud-only input the shared chrome
-          // takes. A prop, not the whole `cfg`: the Menubar needs to know it is
-          // in a browser tab on somebody else's machine, and nothing else.
-          cloud={cfg.cloud}
-          activePath={activePath}
-          project={project}
-          tabsCount={tabs.length}
-          openMenu={openMenu}
-          setOpenMenu={setOpenMenu}
-          commentsPanelOpen={commentsPanelOpen}
-          onToggleComments={() => toggleRightPanel('comments')}
-          changesOpen={changesOpen}
-          changesCount={unsavedCount}
-          onToggleChanges={() => toggleRightPanel('changes')}
-          onOpenSystem={openSystem}
-          sidebarOpen={sidebarOpen}
-          onToggleSidebar={() => togglePanel('tree')}
-          showHidden={showHidden}
-          onToggleShowHidden={() => setShowHidden((v) => !v)}
-          onOpenHelp={() => setHelpOpen(true)}
-          onOpenShortcuts={() => setShortcutsOpen(true)}
-          onReportBug={() => setReportBugOpen(true)}
-          onStartTour={() => startTour(USAGE_TOUR)}
-          onStartCollabTour={() => startTour(COLLAB_TOUR)}
-          annotationsVisible={annotationsVisible}
-          onToggleAnnotations={toggleAnnotations}
-          minimapVisible={minimapVisible}
-          onToggleMinimap={toggleMinimap}
-          zoomCtlVisible={zoomCtlVisible}
-          onToggleZoomCtl={toggleZoomCtl}
-          presentMode={presentMode}
-          onTogglePresent={togglePresent}
-          printGuidesVisible={printGuidesVisible}
-          onTogglePrintGuides={togglePrintGuides}
-          postToActiveCanvas={postToActiveCanvas}
-          onOpenReadiness={() => setReadinessOpen(true)}
-          onOpenQuickSetup={() => setQuickSetupOpen(true)}
-          onWatchIntro={() => setIntroOpen(true)}
-          onOpenWhatsNew={whatsNew.openPanel}
-          whatsNewCount={whatsNew.unseen.length}
-          exportCenter={exportCenter}
-          artboardCount={activeArtboards}
-          inspectorOpen={inspectorOpen}
-          inspectorTab={inspectorTab}
-          onToggleInspector={() => toggleRightPanel('inspector')}
-          autoOpenInspector={autoOpenInspector}
-          onToggleAutoOpenInspector={() => setAutoOpenInspector((v) => !v)}
-          onInsertArtboard={onInsertArtboard}
-          timelineOpen={timelineOpen}
-          onToggleTimeline={toggleTimeline}
-          hasComps={activeComps.length > 0}
-          assistantOpen={assistantOpen}
-          onToggleAssistant={() => toggleRightPanel('assistant')}
-          assistantBusy={assistantBusy}
-          assistantUnseen={assistantUnseen}
-          onOpenLayers={() => {
-            // feature-configurable-panel-docking — Layers is its own dockable
-            // panel when layersMode==='separate' (toggle it), else it's the
-            // Inspector's Layers tab (open the inspector on that tab).
-            if (layersMode === 'separate') {
-              togglePanel('layers');
-            } else if (inspectorOpen && inspectorTab === 'layers') {
-              setInspectorOpen(false);
-            } else {
-              setInspectorTab('layers');
-              openPanelExclusive('inspector');
-            }
-          }}
-          onNewCanvas={() => {
-            openPanelExclusive('tree');
-            setTimeout(
-              () => document.querySelector('[aria-label="New blank brief board"]')?.click(),
-              60
-            );
-          }}
-          onAssembleVideo={assembleVideo}
-          onOpenExport={(mode) => setExportDialog({ mode })}
-          onOpenSettings={() => setSettingsOpen(true)}
-          onOpenGenerate={() => setGenerateOpen(true)}
-          onReload={reloadActive}
-          onCloseCanvas={() => activePath && closeTab(activePath)}
-          presence={
-            <>
-              <StAvatar
-                initials={initialsOf(gitUser || 'you')}
-                hue="var(--accent)"
-                title={gitUser ? `${gitUser} (you)` : 'You'}
-              />
-              {agentActive && (
-                <StAvatar initials="C" hue="var(--presence-agent)" title="Claude · editing" pulse />
-              )}
-            </>
-          }
-        />
+        <ShellMenubar />
         <div className={'st-body' + (dragSide ? ' is-resizing' : '')} ref={bodyRef}>
           {/* LEFT dock slot (feature-configurable-panel-docking) — the collapsed
               rail shows when the left slot is empty; the tree's expand hooks open
@@ -1885,27 +2768,7 @@ function ShellTree() {
             />
           )}
           <div className="main">
-            <Viewport
-              tabs={tabs}
-              activePath={activePath}
-              registerIframe={registerIframe}
-              systemData={systemData}
-              onOpenFromSystem={openTab}
-              onSelectDs={loadSystemData}
-              project={project}
-              cfg={cfg}
-              loadingPath={loadingPath}
-              onIframeLoad={onIframeLoad}
-              canvasError={canvasError}
-              canvasReloadNonce={canvasReloadNonce}
-              onRetryCanvasLoad={retryCanvasLoad}
-              loadedPath={loadedPath}
-              showQuickSetup={
-                isNativeApp() && !viewerMode && !!setupReadiness && !setupReadiness.ready
-              }
-              onStartQuickSetup={() => setQuickSetupOpen(true)}
-              previewPath={previewPath}
-            />
+            <ShellViewport />
           </div>
           {rightActive && (
             <PanelGrip
@@ -1957,765 +2820,8 @@ function ShellTree() {
         </div>
         {/* DDR-148 — Timeline is a BOTTOM dock (full-width strip below the stage,
             above the status bar) — video timelines are horizontal. */}
-        {timelineOpen && (
-          <TimelinePanel
-            comps={activeComps}
-            compId={timelineCompId}
-            sequences={timelineSequences}
-            audio={timelineAudio}
-            transitions={timelineTransitions}
-            total={timelineTotal}
-            frame={timelineFrame}
-            playing={timelinePlaying}
-            loop={timelineLoop}
-            onSeek={(f) => {
-              setTimelineFrame(f);
-              setTimelinePlaying(false);
-              postToActiveCanvas({ dgn: 'timeline-seek', frame: f, id: timelineCompId });
-            }}
-            onPlay={() => {
-              setTimelinePlaying(true);
-              // Sync mute + loop to the Player, then play (the artboard has no
-              // chrome — the Timeline owns transport/sound/loop now).
-              postToActiveCanvas({
-                dgn: 'timeline-mute',
-                muted: timelineMuted,
-                id: timelineCompId,
-              });
-              postToActiveCanvas({ dgn: 'timeline-loop', loop: timelineLoop, id: timelineCompId });
-              postToActiveCanvas({ dgn: 'timeline-play', id: timelineCompId });
-            }}
-            onPause={() => {
-              setTimelinePlaying(false);
-              postToActiveCanvas({ dgn: 'timeline-pause', id: timelineCompId });
-            }}
-            onToggleLoop={() =>
-              setTimelineLoop((v) => {
-                const next = !v;
-                postToActiveCanvas({ dgn: 'timeline-loop', loop: next, id: timelineCompId });
-                return next;
-              })
-            }
-            muted={timelineMuted}
-            onToggleMute={() => {
-              setTimelineMuted((v) => {
-                const next = !v;
-                postToActiveCanvas({ dgn: 'timeline-mute', muted: next, id: timelineCompId });
-                return next;
-              });
-            }}
-            volume={timelineVolume}
-            onVolume={(v) => {
-              setTimelineVolume(v);
-              // Dragging volume implies "I want to hear it" — unmute.
-              if (v > 0 && timelineMuted) {
-                setTimelineMuted(false);
-                postToActiveCanvas({ dgn: 'timeline-mute', muted: false, id: timelineCompId });
-              }
-              postToActiveCanvas({ dgn: 'timeline-volume', volume: v, id: timelineCompId });
-            }}
-            onRetime={(clipRef, patch) => {
-              if (!activePath || activePath === SYSTEM_TAB) return;
-              // DDR-150 P2 / Task 3 — the panel hands a { stableId, index }
-              // clipRef; stableId addressing wins (multi-comp-safe), the row
-              // index stays as the legacy fallback when the enumerator is
-              // unavailable.
-              const artboardId = timelineArtboardId || undefined;
-              const ccUrl = `/_api/comp-clips?canvas=${encodeURIComponent(activePath)}${artboardId ? `&artboardId=${encodeURIComponent(artboardId)}` : ''}`;
-              fetch(ccUrl)
-                .then((r) => r.json().catch(() => ({})))
-                .then((cc) => {
-                  const clip = resolveClipRef(cc, clipRef);
-                  const legacyIndex =
-                    clipRef && typeof clipRef === 'object' ? clipRef.index : clipRef;
-                  const body = clip?.stableId
-                    ? {
-                        canvas: activePath,
-                        artboardId,
-                        stableId: clip.stableId,
-                        contentHash: clip.contentHash,
-                        ...patch,
-                      }
-                    : { canvas: activePath, index: legacyIndex, ...patch };
-                  return fetch('/_api/retime-sequence', {
-                    method: 'POST',
-                    headers: { 'content-type': 'application/json' },
-                    body: JSON.stringify(body),
-                  });
-                })
-                .then((r) => r.json())
-                .then((j) => {
-                  if (!j?.ok) {
-                    console.warn('[retime]', j?.error || 'failed');
-                    timelineOpFailed('Retime refused', j?.error);
-                  } else {
-                    shellToast(patch.from != null ? 'Clip moved.' : 'Clip trimmed.', true);
-                    if (j?.seq != null)
-                      pushTlUndo(activePath, j.seq, patch.from != null ? 'move clip' : 'trim clip');
-                  }
-                  // The file watcher reloads the canvas → re-announce → the
-                  // source-fetch effect re-parses the new timing.
-                })
-                .catch(() => {});
-            }}
-            onRemove={timelineRemoveClip}
-            onReplace={(clipRef) => {
-              if (!activePath || activePath === SYSTEM_TAB) return;
-              // DDR-150 P3 + dogfood #5 — replace a clip's media. The file picker
-              // MUST open synchronously inside the click gesture: browsers revoke
-              // the transient user-activation after an await/fetch round-trip, so
-              // the old fetch-then-click() silently no-oped ("replace neotevře
-              // žádné okno"). Picker first; resolve the target + upload in the
-              // change handler.
-              replaceMediaViaPicker({
-                accept: 'video/*,image/*',
-                resolveTarget: (cc) => {
-                  const clip = resolveClipRef(cc, clipRef);
-                  if (clip?.mediaArrayRef) return { arrayRef: clip.mediaArrayRef };
-                  if (clip?.mediaCdId) return { cdId: clip.mediaCdId };
-                  return null;
-                },
-              });
-            }}
-            onReplaceAudio={(index) => {
-              if (!activePath || activePath === SYSTEM_TAB) return;
-              // DDR-150 dogfood #5 — audio beds are addressable too: the
-              // enumerator lists loose media (an <Audio> under the reel) with a
-              // cd-id; ⇄ on the audio row swaps its src.
-              replaceMediaViaPicker({
-                accept: 'audio/*',
-                resolveTarget: (cc) => {
-                  const beds =
-                    cc?.ok && Array.isArray(cc.media)
-                      ? cc.media.filter((m) => m.tag === 'Audio')
-                      : [];
-                  return beds[index]?.cdId ? { cdId: beds[index].cdId } : null;
-                },
-              });
-            }}
-            onReplaceLayer={(clipRef, layerIndex) => {
-              if (!activePath || activePath === SYSTEM_TAB) return;
-              // DDR-150 dogfood — replace a SPECIFIC layer inside an expanded clip
-              // (the mp4 background separately from the title layer). Targets the
-              // layer's own media (array-fed or literal-src) from the enumerator.
-              const rowIndex = clipRef && typeof clipRef === 'object' ? clipRef.index : clipRef;
-              const kind =
-                timelineSequences[rowIndex]?.layers?.[layerIndex]?.kind === 'audio'
-                  ? 'audio/*'
-                  : timelineSequences[rowIndex]?.layers?.[layerIndex]?.kind === 'image'
-                    ? 'image/*'
-                    : 'video/*';
-              replaceMediaViaPicker({
-                accept: kind,
-                resolveTarget: (cc) => {
-                  const ly = resolveClipRef(cc, clipRef)?.layers?.[layerIndex];
-                  if (ly?.mediaArrayRef) return { arrayRef: ly.mediaArrayRef };
-                  if (ly?.mediaCdId) return { cdId: ly.mediaCdId };
-                  return null;
-                },
-              });
-            }}
-            onReorder={(clipRef, direction) => {
-              if (!activePath || activePath === SYSTEM_TAB) return;
-              // DDR-150 P5 — z-order reorder: move a standalone <Sequence> before/
-              // after a sibling (render stacking; later sibling paints on top).
-              // ▲ forward = move AFTER the next sibling; ▼ backward = move BEFORE
-              // the previous sibling. Both clips addressed by comp-scoped stableId +
-              // fingerprint (via /_api/comp-clips); the engine refuses a TransitionSeries
-              // clip + a stale/raced target, then reloads via the file watcher.
-              const artboardId = timelineArtboardId || undefined;
-              const ccUrl = `/_api/comp-clips?canvas=${encodeURIComponent(activePath)}${artboardId ? `&artboardId=${encodeURIComponent(artboardId)}` : ''}`;
-              fetch(ccUrl)
-                .then((r) => r.json().catch(() => ({})))
-                .then((cc) => {
-                  const seqs =
-                    cc?.ok && Array.isArray(cc.clips)
-                      ? cc.clips.filter((c) => c.kind === 'sequence')
-                      : [];
-                  const moved = resolveClipRef(cc, clipRef);
-                  const index = moved ? seqs.indexOf(moved) : -1;
-                  const refIdx = direction === 'forward' ? index + 1 : index - 1;
-                  const ref = index >= 0 ? seqs[refIdx] || null : null;
-                  const position = direction === 'forward' ? 'after' : 'before';
-                  if (!moved?.stableId || !ref?.stableId) return null;
-                  return fetch('/_api/reorder-sequence', {
-                    method: 'POST',
-                    headers: { 'content-type': 'application/json' },
-                    body: JSON.stringify({
-                      canvas: activePath,
-                      artboardId,
-                      stableId: moved.stableId,
-                      contentHash: moved.contentHash,
-                      refStableId: ref.stableId,
-                      refContentHash: ref.contentHash,
-                      position,
-                    }),
-                  });
-                })
-                .then((r) => (r ? r.json() : null))
-                .then((j) => {
-                  if (j && !j.ok) {
-                    console.warn('[reorder-clip]', j.error || 'failed');
-                    timelineOpFailed('Reorder refused', j.error);
-                  } else if (j?.seq != null) {
-                    pushTlUndo(activePath, j.seq, 'reorder clip');
-                  }
-                })
-                .catch(() => {});
-            }}
-            onToggleHide={(clipRef) => {
-              if (!activePath || activePath === SYSTEM_TAB) return;
-              // DDR-150 dogfood — hide/show a clip (gates its body behind
-              // {false && …}; the tag + time slot stay). Addressed by comp-scoped
-              // stableId + fingerprint.
-              const artboardId = timelineArtboardId || undefined;
-              const ccUrl = `/_api/comp-clips?canvas=${encodeURIComponent(activePath)}${artboardId ? `&artboardId=${encodeURIComponent(artboardId)}` : ''}`;
-              fetch(ccUrl)
-                .then((r) => r.json().catch(() => ({})))
-                .then((cc) => {
-                  const clip = resolveClipRef(cc, clipRef);
-                  if (!clip?.stableId) return null;
-                  return fetch('/_api/toggle-hide', {
-                    method: 'POST',
-                    headers: { 'content-type': 'application/json' },
-                    body: JSON.stringify({
-                      canvas: activePath,
-                      artboardId,
-                      stableId: clip.stableId,
-                      contentHash: clip.contentHash,
-                    }),
-                  });
-                })
-                .then((r) => (r ? r.json() : null))
-                .then((j) => {
-                  if (j && !j.ok) timelineOpFailed('Hide refused', j.error);
-                  else if (j && j.ok) {
-                    shellToast(j.hidden ? 'Clip hidden.' : 'Clip shown.', true);
-                    if (j.seq != null)
-                      pushTlUndo(activePath, j.seq, j.hidden ? 'hide clip' : 'show clip');
-                  }
-                })
-                .catch(() => shellToast('Hide failed: network error'));
-            }}
-            onReorderMove={(movedRef2, targetRef, position) => {
-              if (!activePath || activePath === SYSTEM_TAB) return;
-              // Task 6 — the magnetic drag commit: a real series MOVE (any
-              // distance), addressed by stableId pair + fingerprints.
-              const artboardId = timelineArtboardId || undefined;
-              const ccUrl = `/_api/comp-clips?canvas=${encodeURIComponent(activePath)}${artboardId ? `&artboardId=${encodeURIComponent(artboardId)}` : ''}`;
-              fetch(ccUrl)
-                .then((r) => r.json().catch(() => ({})))
-                .then((cc) => {
-                  const moved = resolveClipRef(cc, movedRef2);
-                  const ref = resolveClipRef(cc, targetRef);
-                  if (!moved?.stableId || !ref?.stableId) return null;
-                  return fetch('/_api/reorder-sequence', {
-                    method: 'POST',
-                    headers: { 'content-type': 'application/json' },
-                    body: JSON.stringify({
-                      canvas: activePath,
-                      artboardId,
-                      stableId: moved.stableId,
-                      contentHash: moved.contentHash,
-                      refStableId: ref.stableId,
-                      refContentHash: ref.contentHash,
-                      position,
-                      mode: 'move',
-                    }),
-                  });
-                })
-                .then((r) => (r ? r.json() : null))
-                .then((j) => {
-                  if (j && !j.ok) {
-                    console.warn('[reorder-move]', j.error || 'failed');
-                    timelineOpFailed('Reorder refused', j.error);
-                  } else if (j?.ok) {
-                    shellToast('Clip moved.', true);
-                    if (j.seq != null) pushTlUndo(activePath, j.seq, 'move clip');
-                  }
-                })
-                .catch(() => shellToast('Reorder failed: network error'));
-            }}
-            onDropMedia={(files, pos) => {
-              if (!activePath || activePath === SYSTEM_TAB) return;
-              // DDR-150 P4 + Task 6 — drop media onto the timeline. With a caret
-              // position: index-aware storyline insert / frame-anchored
-              // overlay-audio insert; multiple files insert in order. Audio
-              // files always land in the audio band. Without a position, the
-              // legacy append path.
-              const artboardId = timelineArtboardId || undefined;
-              const fps = timelineFps;
-              const canvas = activePath;
-              const list = (Array.isArray(files) ? files : [files]).filter(Boolean);
-              (async () => {
-                // Dogfood fix — dropping media on the timeline of a canvas with
-                // NO video-comp used to dead-end in "Insert refused: no
-                // video-comp for this artboard". Drop-first means drop-first:
-                // upload the files and spin up a NEW video-comp canvas cut from
-                // them (same engine as File → Assemble), then open it.
-                if (!activeComps.length) {
-                  const clips = [];
-                  for (const file of list) {
-                    const mediaKind = file.type.startsWith('audio/')
-                      ? 'audio'
-                      : file.type.startsWith('video/')
-                        ? 'video'
-                        : null;
-                    if (!mediaKind) continue;
-                    try {
-                      const r = await fetch('/_api/asset', {
-                        method: 'POST',
-                        headers: { 'Content-Type': file.type || 'application/octet-stream' },
-                        body: file,
-                      });
-                      const up = await r.json().catch(() => ({}));
-                      if (up?.path) clips.push({ src: up.path, mediaKind });
-                      else shellToast(`Upload failed: ${up?.error || `HTTP ${r.status}`}`);
-                    } catch {
-                      shellToast('Upload failed: network error');
-                    }
-                  }
-                  if (!clips.length) {
-                    shellToast('No video/audio files in the drop — nothing to cut.');
-                    return;
-                  }
-                  // 1) In-place upgrade: a `kind="video"` artboard on THIS
-                  // canvas gets a VideoComp injected and takes the clips as
-                  // storyline beats (server-side ensure). Falls through to a
-                  // fresh "New Cut" canvas only when no artboard opted in.
-                  let upgraded = false;
-                  for (const c of clips) {
-                    const probedSec = await probeMediaDuration(c.src).catch(() => null);
-                    const body = {
-                      canvas,
-                      lane: c.mediaKind === 'audio' && upgraded ? 'audio' : 'storyline',
-                      durationInFrames: durationFramesForDrop(fps, probedSec),
-                      mediaTag: c.mediaKind === 'audio' ? 'Audio' : 'Video',
-                      src: c.src,
-                    };
-                    if (body.lane === 'audio') body.from = 0;
-                    const r = await fetch('/_api/insert-sequence', {
-                      method: 'POST',
-                      headers: { 'content-type': 'application/json' },
-                      body: JSON.stringify(body),
-                    }).catch(() => null);
-                    const j = r ? await r.json().catch(() => null) : null;
-                    if (j?.ok) {
-                      upgraded = true;
-                      if (j.seq != null) pushTlUndo(canvas, j.seq, 'add clip');
-                    } else if (!upgraded) {
-                      break; // no eligible artboard — New Cut fallback below
-                    } else {
-                      timelineOpFailed('Insert refused', j?.error);
-                    }
-                  }
-                  if (upgraded) {
-                    shellToast(
-                      'Artboard upgraded to a video comp — clips added to the storyline.',
-                      true
-                    );
-                    return;
-                  }
-                  for (let n = 0; n < 8; n += 1) {
-                    const name = n === 0 ? 'New Cut' : `New Cut ${n + 1}`;
-                    const r = await fetch('/_api/canvas', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ name, kind: 'video-comp', clips }),
-                    }).catch(() => null);
-                    const j = r ? await r.json().catch(() => ({})) : {};
-                    if (r?.status === 409) continue; // name taken — try the next
-                    if (!r?.ok || !j.ok) {
-                      shellToast(`New cut failed: ${j.error || 'create refused'}`);
-                      return;
-                    }
-                    await loadTree();
-                    openTab(j.file);
-                    shellToast(
-                      `Started a new cut from ${clips.length} clip${clips.length > 1 ? 's' : ''}.`,
-                      true
-                    );
-                    return;
-                  }
-                  shellToast('New cut failed: too many "New Cut" canvases — rename some.');
-                  return;
-                }
-                let slot = pos?.lane === 'storyline' ? pos.index : undefined;
-                for (const file of list) {
-                  const mediaTag = file.type.startsWith('video/')
-                    ? 'Video'
-                    : file.type.startsWith('audio/')
-                      ? 'Audio'
-                      : file.type.startsWith('image/')
-                        ? 'Img'
-                        : null;
-                  if (!mediaTag) continue;
-                  let up;
-                  try {
-                    const r = await fetch('/_api/asset', {
-                      method: 'POST',
-                      headers: { 'Content-Type': file.type || 'application/octet-stream' },
-                      body: file,
-                    });
-                    up = await r.json().catch(() => ({}));
-                  } catch {
-                    up = null;
-                  }
-                  if (!up?.path) {
-                    shellToast(
-                      `Upload failed: ${up?.error || 'server unreachable — retry in a moment'}`
-                    );
-                    continue;
-                  }
-                  const isAudio = mediaTag === 'Audio';
-                  // Video clips carry a real duration — probe it so the drop
-                  // lands at the clip's own length instead of a fixed 3s that
-                  // the user then has to drag out by hand. Images have no
-                  // inherent duration, so they keep the fallback.
-                  const probedSec =
-                    mediaTag === 'Video'
-                      ? await probeMediaDuration(up.path).catch(() => null)
-                      : null;
-                  const body = { canvas, artboardId, mediaTag, src: up.path };
-                  if (pos && (isAudio || pos.lane === 'audio')) {
-                    body.lane = 'audio';
-                    body.from = Math.max(0, pos.frame ?? 0);
-                    // Default: stretch toward the end of the cut.
-                    body.durationInFrames = Math.max(fps, timelineTotal - body.from);
-                  } else if (pos?.lane === 'storyline' && !isAudio) {
-                    body.lane = 'storyline';
-                    if (slot != null) {
-                      body.index = slot;
-                      slot += 1; // multiple files insert in order
-                    }
-                    body.durationInFrames = durationFramesForDrop(fps, probedSec);
-                  } else if (pos?.lane === 'overlay' && !isAudio) {
-                    if ((timelineSequences || []).length === 0) {
-                      // First clip of a greenfield comp = the BASE layer →
-                      // storyline, wherever it was dropped.
-                      body.lane = 'storyline';
-                    } else {
-                      body.lane = 'overlay';
-                      body.from = Math.max(0, pos.frame ?? 0);
-                    }
-                    body.durationInFrames = durationFramesForDrop(fps, probedSec);
-                  } else if (!isAudio) {
-                    // Default container rule: a video/image drop ANYWHERE on the
-                    // timeline lands in the storyline (append = hard cut at the
-                    // end; the caret gives it an index). The old lane-less
-                    // append refused hard-cut series ("no transition to clone").
-                    body.lane = 'storyline';
-                    body.durationInFrames = durationFramesForDrop(fps, probedSec);
-                  } else {
-                    // Audio without a caret → audio band, from the start.
-                    body.lane = 'audio';
-                    body.from = 0;
-                    body.durationInFrames = Math.max(fps, timelineTotal);
-                  }
-                  try {
-                    const r = await fetch('/_api/insert-sequence', {
-                      method: 'POST',
-                      headers: { 'content-type': 'application/json' },
-                      body: JSON.stringify(body),
-                    });
-                    const j = await r.json().catch(() => null);
-                    if (j && !j.ok) {
-                      console.warn('[insert-clip]', j.error || 'failed');
-                      timelineOpFailed('Insert refused', j.error);
-                    } else if (j?.ok) {
-                      shellToast('Clip added to the timeline.', true);
-                      if (j.seq != null) pushTlUndo(canvas, j.seq, 'add clip');
-                    }
-                  } catch {
-                    shellToast('Insert failed: network error');
-                  }
-                }
-              })();
-            }}
-            height={timelineHeight}
-            onResize={setTimelineHeight}
-            onClose={() => setTimelineOpen(false)}
-            selectedClipId={timelineSelectedClip}
-            onSelect={setTimelineSelectedClip}
-            transitionClips={timelineTransClips}
-            onClipVerb={timelineClipVerb}
-            comments={(commentsByFile[activePath] || []).filter((c) => c && c.timeline)}
-            promptText={askText}
-            onAddComment={timelineAddComment}
-            onResolveComment={(id) =>
-              wsSend({ type: 'comments-patch', id, patch: { status: 'resolved' } })
-            }
-            onDeleteComment={(id) => wsSend({ type: 'comments-delete', id })}
-            onSplitAtPlayhead={() => {
-              const s = tlKeyRef.current;
-              let ref = s.selected != null ? { stableId: s.selected } : null;
-              if (!ref) {
-                const rows = s.sequences || [];
-                const under =
-                  rows.find(
-                    (r2) => r2.series && s.frame >= r2.from && s.frame < r2.from + r2.duration
-                  ) || rows.find((r2) => s.frame >= r2.from && s.frame < r2.from + r2.duration);
-                if (under?.stableId) ref = { stableId: under.stableId };
-              }
-              if (ref) timelineClipVerb(ref, 'split', { atFrame: s.frame });
-              else shellToast('Nothing under the playhead to split.');
-            }}
-            onAddTitle={(frame) => {
-              if (!activePath || activePath === SYSTEM_TAB) return;
-              // Task 19 — "+ Title": inserts immediately with a default text —
-              // edit it via double-click → inspector → Text (the artboard's
-              // Player DOM isn't the canvas edit surface, so inline editing
-              // happens in the timeline inspector).
-              Promise.resolve('Title').then((text) => {
-                if (!text) return;
-                const fps = timelineFps;
-                fetch('/_api/insert-sequence', {
-                  method: 'POST',
-                  headers: { 'content-type': 'application/json' },
-                  body: JSON.stringify({
-                    canvas: activePath,
-                    artboardId: timelineArtboardId || undefined,
-                    lane: 'overlay',
-                    from: frame,
-                    durationInFrames: Math.round(fps * 3),
-                    mediaTag: 'Title',
-                    src: text,
-                  }),
-                })
-                  .then((r) => r.json().catch(() => null))
-                  .then((j) => {
-                    if (j && !j.ok) timelineOpFailed('Title refused', j.error);
-                    else if (j?.ok) {
-                      shellToast('Title added.', true);
-                      if (j.seq != null) pushTlUndo(activePath, j.seq, 'add title');
-                    }
-                  })
-                  .catch(() => shellToast('Title failed: network error'));
-              });
-            }}
-            onAddAiClip={() => {
-              if (!activePath || activePath === SYSTEM_TAB) return;
-              // Task 22 — "+ AI clip": a prompt-carrying slate beat at the end
-              // of the storyline. NO modal (user steer 2026-07-30) — the slate
-              // lands with a starter prompt the user rewrites IN PLACE
-              // (double-click the slate text in the artboard, or Text tab).
-              (async () => {
-                const prompt = 'Describe this shot — double-click to edit';
-                const kind = 'veo';
-                const fps = timelineFps;
-                fetch('/_api/insert-sequence', {
-                  method: 'POST',
-                  headers: { 'content-type': 'application/json' },
-                  body: JSON.stringify({
-                    canvas: activePath,
-                    artboardId: timelineArtboardId || undefined,
-                    lane: 'storyline',
-                    durationInFrames: Math.round(fps * 5),
-                    placeholder: { prompt, kind },
-                  }),
-                })
-                  .then((r) => r.json().catch(() => null))
-                  .then((j) => {
-                    if (j && !j.ok) timelineOpFailed('AI clip refused', j.error);
-                    else if (j?.ok) {
-                      shellToast(
-                        'AI placeholder added — double-click its text to write the prompt, then right-click → Generate ✨.',
-                        true
-                      );
-                      if (j.seq != null) pushTlUndo(activePath, j.seq, 'add AI placeholder');
-                    }
-                  })
-                  .catch(() => shellToast('AI clip failed: network error'));
-              })();
-            }}
-            onGeneratePlaceholder={(clipRef) => {
-              if (!activePath || activePath === SYSTEM_TAB) return;
-              // Task 22 — hand the prompt to the existing generation spine
-              // (DDR-164), then poll the job and swap the slate in place. The
-              // placeholder stays fully editable while the job runs; the final
-              // swap re-resolves by stableId with a FRESH fingerprint.
-              const canvas = activePath;
-              const artboardId = timelineArtboardId || undefined;
-              const ccUrl = `/_api/comp-clips?canvas=${encodeURIComponent(canvas)}${artboardId ? `&artboardId=${encodeURIComponent(artboardId)}` : ''}`;
-              fetch(ccUrl)
-                .then((r) => r.json().catch(() => ({})))
-                .then((cc) => {
-                  const clip = resolveClipRef(cc, clipRef);
-                  const ph = clip?.placeholder;
-                  if (!clip?.stableId || !ph?.prompt) {
-                    shellToast('No AI placeholder prompt on this clip.');
-                    return;
-                  }
-                  const modality = ph.kind === 'image' ? 'image' : 'video';
-                  const prompt =
-                    ph.kind === 'motion'
-                      ? `Clean, minimal motion-graphics animation (flat shapes, smooth easing): ${ph.prompt}`
-                      : ph.prompt;
-                  fetch('/_api/generate-jobs', {
-                    method: 'POST',
-                    headers: { 'content-type': 'application/json' },
-                    body: JSON.stringify({ provider: 'gemini', modality, prompt }),
-                  })
-                    .then(async (r) =>
-                      r.ok ? r.json() : Promise.reject(new Error(await r.text()))
-                    )
-                    .then((job) => {
-                      const jobId = job?.id;
-                      if (!jobId) throw new Error('no job id');
-                      shellToast(`Generating ${ph.kind}… (runs in the background)`, true);
-                      const stableId = clip.stableId;
-                      const poll = () => {
-                        fetch('/_api/generate-jobs')
-                          .then((r) => r.json().catch(() => ({})))
-                          .then((d) => {
-                            const j2 = (d?.jobs || []).find((x) => x.id === jobId);
-                            if (!j2 || j2.status === 'failed') {
-                              shellToast(`Generation failed: ${j2?.error || 'job lost'}`);
-                              return;
-                            }
-                            if (j2.status !== 'done') {
-                              setTimeout(poll, 4000);
-                              return;
-                            }
-                            const asset = j2.assets?.[0];
-                            if (!asset) {
-                              shellToast('Generation finished but produced no asset.');
-                              return;
-                            }
-                            // Fresh fingerprint at swap time (the clip may have
-                            // been retimed/moved meanwhile — that's fine).
-                            fetch(ccUrl)
-                              .then((r) => r.json().catch(() => ({})))
-                              .then((cc2) => {
-                                const live = resolveClipRef(cc2, { stableId });
-                                if (!live?.stableId) {
-                                  shellToast(
-                                    'Placeholder clip is gone — generated asset kept in assets/.'
-                                  );
-                                  return;
-                                }
-                                timelineClipVerb(
-                                  { stableId: live.stableId },
-                                  'resolve-placeholder',
-                                  {
-                                    src: asset,
-                                    mediaKind: modality === 'image' ? 'image' : 'video',
-                                  }
-                                );
-                              });
-                          })
-                          .catch(() => setTimeout(poll, 6000));
-                      };
-                      setTimeout(poll, 3000);
-                    })
-                    .catch((e) =>
-                      shellToast(
-                        `Generate failed: ${e?.message || 'provider error'} — is a Gemini key set in Settings?`
-                      )
-                    );
-                })
-                .catch(() => shellToast('Generate failed: network error'));
-            }}
-            onAddImage={(frame) => {
-              if (!activePath || activePath === SYSTEM_TAB) return;
-              // Task 19 — "+ Image": picker → content-addressed upload →
-              // overlay-lane <Img> at the playhead. WKWebView can't open an
-              // HTML file input, so native goes through the Rust pick dialog.
-              const uploadPicked = (blob, type) => {
-                const fps = timelineFps;
-                fetch('/_api/asset', {
-                  method: 'POST',
-                  headers: { 'Content-Type': type || 'application/octet-stream' },
-                  body: blob,
-                })
-                  .then((r) => r.json().catch(() => ({})))
-                  .then((up) => {
-                    if (!up?.path) {
-                      shellToast(`Upload failed: ${up?.error || 'unknown error'}`);
-                      return null;
-                    }
-                    return fetch('/_api/insert-sequence', {
-                      method: 'POST',
-                      headers: { 'content-type': 'application/json' },
-                      body: JSON.stringify({
-                        canvas: activePath,
-                        artboardId: timelineArtboardId || undefined,
-                        lane: 'overlay',
-                        from: frame,
-                        durationInFrames: Math.round(fps * 3),
-                        mediaTag: 'Img',
-                        src: up.path,
-                      }),
-                    });
-                  })
-                  .then((r) => (r ? r.json() : null))
-                  .then((j) => {
-                    if (j && !j.ok) timelineOpFailed('Image refused', j.error);
-                    else if (j?.ok) {
-                      shellToast('Image overlay added.', true);
-                      if (j.seq != null) pushTlUndo(activePath, j.seq, 'add image overlay');
-                    }
-                  })
-                  .catch(() => shellToast('Image failed: network error'));
-              };
-              if (isNativeApp()) {
-                pickMediaFile()
-                  .then(async (picked) => {
-                    if (picked) uploadPicked(await readPickedMediaBlob(picked), '');
-                  })
-                  .catch((e2) => shellToast(`Image pick failed: ${e2?.message || 'dialog error'}`));
-                return;
-              }
-              const input = document.createElement('input');
-              input.type = 'file';
-              input.accept = 'image/*';
-              input.addEventListener('change', () => {
-                const file = input.files?.[0];
-                if (file) uploadPicked(file, file.type);
-              });
-              input.click();
-            }}
-            resolveMediaUrl={(p) =>
-              `/${(cfg?.designRel || cfg?.designRoot || '.design').replace(/^\/+|\/+$/g, '')}/${p}`
-            }
-          />
-        )}
-        <StatusBar
-          activePath={activePath}
-          selected={selected}
-          wsConnected={wsConnected}
-          openCount={totalOpen}
-          theme={theme}
-          onToggleTheme={toggleTheme}
-          onClearSelected={clearSelected}
-          syncStatus={syncStatus}
-          syncProject={cfg?.cloud?.projectName || project}
-          syncOpen={syncPanelOpen}
-          // Toggle through the dock helpers so the one-panel-per-side invariant
-          // holds (opening Sync closes whatever else the right slot shows).
-          onOpenSync={syncStatus ? () => toggleRightPanel('sync') : undefined}
-          changesCount={unsavedCount}
-          // `unpushed` is a LOCAL-git offer ("N to publish"), and the panel has
-          // withdrawn Publish under either managed posture — so the chip must
-          // not keep advertising it either.
-          unpushed={savingIsManaged ? 0 : gitStatus?.unpushed || 0}
-          savingIsManaged={savingIsManaged}
-          changesOpen={changesOpen}
-          // A REPO IS NOT THE ONLY REASON THIS PANEL HAS SOMETHING TO SHOW.
-          // Under managed saving the panel IS the project's history — every
-          // accepted action with its author, and Undo on the ones that are
-          // yours — and it comes from the hub, not from git. A managed copy on
-          // a designer's machine has no `.git`, so gating the chip on a repo
-          // left the invited designer with no visible way in at all: the View
-          // menu and ⌘⇧G worked, and nothing on screen said so. The chip's own
-          // `savingIsManaged` branch below was already written for this case
-          // and was simply unreachable here. Found running S20 against a live
-          // deployment; asserted in `team-project.e2e.ts` step 4b.
-          onOpenChanges={
-            gitStatus?.repo || savingIsManaged ? () => openRightPanel('changes') : undefined
-          }
-          version={cfg?.version}
-        />
+        {timelineOpen && <ShellTimelinePanel />}
+        <ShellStatusBar />
       </div>
       {presentMode && (
         <button
@@ -2823,34 +2929,7 @@ function ShellTree() {
           onClose={() => setExportDialog(null)}
         />
       )}
-      {settingsOpen && (
-        <SettingsPanel
-          cloud={cfg.cloud}
-          onClose={() => setSettingsOpen(false)}
-          initialTab={typeof settingsOpen === 'string' ? settingsOpen : undefined}
-          theme={theme}
-          onSetTheme={setTheme}
-          cpMode={cpMode}
-          onSetCpMode={setCpMode}
-          minimapVisible={minimapVisible}
-          onToggleMinimap={toggleMinimap}
-          zoomCtlVisible={zoomCtlVisible}
-          onToggleZoomCtl={toggleZoomCtl}
-          annotationsVisible={annotationsVisible}
-          onToggleAnnotations={toggleAnnotations}
-          autoOpenInspector={autoOpenInspector}
-          onToggleAutoOpenInspector={() => setAutoOpenInspector((v) => !v)}
-          hasCanvas={!!activePath && activePath !== SYSTEM_TAB}
-          panelSide={panelSide}
-          onSetPanelSide={(id, side) => setPanelSide((prev) => ({ ...prev, [id]: side }))}
-          layersMode={layersMode}
-          onSetLayersMode={(m) => {
-            setLayersMode(m);
-            // Leaving separate mode retires the standalone Layers panel.
-            if (m !== 'separate') setLayersOpen(false);
-          }}
-        />
-      )}
+      {settingsOpen && <ShellSettingsPanel />}
       {generateOpen && (
         <GenerateDialog onClose={() => setGenerateOpen(false)} onInsert={insertGeneratedImage} />
       )}
