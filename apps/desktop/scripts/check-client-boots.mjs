@@ -49,7 +49,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { DEAD_SHELL, PROBE, failedSteps } from '../../../scripts/boot-gate/interaction-probe.mjs';
+import { DEAD_SHELL, failedSteps, PROBE } from '../../../scripts/boot-gate/interaction-probe.mjs';
 
 const RED = '\x1b[31m';
 const GRN = '\x1b[32m';
