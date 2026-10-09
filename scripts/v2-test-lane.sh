@@ -7,7 +7,9 @@
 # clobbered apps/studio/dist/ before. This wrapper
 #   1. takes the machine-wide lock `<git common dir>/v2-test.lock` — shared by the main checkout and
 #      every lane worktree (waits up to --wait seconds, default 900; a lock whose pid is gone is stale
-#      and is taken over),
+#      and is taken over). Waiters queue first-come first-served through tickets in
+#      `<git common dir>/v2-test.queue/` (`<epoch>.<pid>`; a dead pid's ticket is dropped), so a
+#      caller that re-runs in a tight loop cannot starve everyone else,
 #   2. records `git status apps/studio/dist/` before the run,
 #   3. runs the command,
 #   4. compares dist/ after the run and reverts tracked files the run changed (unless --keep-dist),
@@ -35,8 +37,28 @@ if [[ $# -eq 0 ]]; then
   exit 2
 fi
 
+QUEUE="$COMMON/v2-test.queue"
+mkdir -p "$QUEUE"
+TICKET="$QUEUE/$(date +%s).$$"
+: >"$TICKET"
+trap 'rm -f "$TICKET"' EXIT INT TERM
+# First live ticket in arrival order (seconds, then pid); dead waiters' tickets are dropped.
+first_ticket() {
+  local t pid
+  for t in "$QUEUE"/*.*; do
+    [[ -e "$t" ]] || continue
+    pid="${t##*.}"
+    kill -0 "$pid" 2>/dev/null || rm -f "$t"
+  done
+  ls "$QUEUE" 2>/dev/null | sort -t. -k1,1n -k2,2n | head -1
+}
+take_lock() {
+  [[ "$QUEUE/$(first_ticket)" == "$TICKET" ]] || return 1
+  (set -o noclobber; printf '%s\t%s\t%s\n' "$$" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >"$LOCK") 2>/dev/null
+}
+
 waited=0
-while ! (set -o noclobber; printf '%s\t%s\t%s\n' "$$" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >"$LOCK") 2>/dev/null; do
+while ! take_lock "$@"; do
   holder_pid="$(cut -f1 "$LOCK" 2>/dev/null)"
   if [[ -n "$holder_pid" ]] && ! kill -0 "$holder_pid" 2>/dev/null; then
     echo "v2-test-lane: stale lock (pid $holder_pid gone) — taking it over" >&2
@@ -44,13 +66,14 @@ while ! (set -o noclobber; printf '%s\t%s\t%s\n' "$$" "$(date -u +%Y-%m-%dT%H:%M
     continue
   fi
   if [[ $waited -ge $WAIT ]]; then
-    echo "v2-test-lane: lane busy — $(cat "$LOCK" 2>/dev/null)" >&2
+    echo "v2-test-lane: lane busy — $(cat "$LOCK" 2>/dev/null || echo "queued behind $(first_ticket)")" >&2
     exit 75
   fi
-  [[ $waited -eq 0 ]] && echo "v2-test-lane: waiting for the lane — $(cut -f3 "$LOCK" 2>/dev/null)" >&2
-  sleep 5
-  waited=$((waited + 5))
+  [[ $waited -eq 0 ]] && echo "v2-test-lane: waiting for the lane — $(cut -f3 "$LOCK" 2>/dev/null || echo "queued")" >&2
+  sleep 1
+  waited=$((waited + 1))
 done
+rm -f "$TICKET"
 trap 'rm -f "$LOCK"' EXIT INT TERM
 
 dist_status() { git -C "$ROOT" status --porcelain -- apps/studio/dist/ | sort; }
