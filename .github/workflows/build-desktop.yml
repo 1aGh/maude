@@ -54,9 +54,22 @@ name: Build desktop app (macOS .dmg + Windows .msi + Linux .deb)
 # MAUDE_SKIP_RUNTIME_BUILD=1 is mandatory (per CLAUDE.md): embed the git-committed
 # dist/runtime/*.js verbatim instead of regenerating them.
 
+# RELEASE CANDIDATES (V2-2.0, T21′). The filter admits vX.Y.Z and
+# vX.Y.Z-rc.N only (patterns apply in order; the last match decides). An rc
+# builds every leg exactly like a stable release, then attaches to a
+# PRERELEASE GitHub release — never Latest, so the updater feed
+# (site/lib/updater-feed.mjs) offers it only to installs already on an rc. Two
+# per-kind differences, both read from scripts/release-kind.mjs:
+#   - Windows: WiX refuses a non-numeric prerelease (`-rc.N`) in the MSI
+#     ProductVersion, so the leg passes bundle.windows.wix.version = X.Y.Z.N;
+#   - the attach step passes `prerelease`, because this job can create the
+#     release record before build-binaries' create-release does.
+# A workflow_dispatch builds and gates but attaches nothing (the attach step is
+# tag-only) — that is the dry run.
+
 on:
   push:
-    tags: ['v*.*.*']
+    tags: ['v*.*.*', '!v*.*.*-*', 'v*.*.*-rc.*']
   workflow_dispatch:
 
 jobs:
@@ -93,6 +106,14 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 1
+
+      - name: Classify the release (stable | rc)
+        # First, so a refused tag (no package.json match, not vX.Y.Z[-rc.N])
+        # stops before a 40-minute build, and so the dry-run log says up front
+        # which channel this build is for.
+        id: release
+        shell: bash
+        run: node scripts/release-kind.mjs
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
@@ -404,7 +425,18 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          # '' for a stable release (WiX derives X.Y.Z itself); X.Y.Z.N for
+          # X.Y.Z-rc.N, which WiX would refuse — see the header.
+          MSI_VERSION: ${{ steps.release.outputs.msi_version }}
         run: |
+          # One --config override (JSON merge patch over tauri.conf.json) that
+          # carries whatever this build needs: the rc MSI version and/or the
+          # signing thumbprint (never committed).
+          $windows = @{}
+          if ($env:MSI_VERSION) {
+            Write-Host "Release candidate: MSI ProductVersion $env:MSI_VERSION"
+            $windows.wix = @{ version = $env:MSI_VERSION }
+          }
           if ($env:WINDOWS_CERTIFICATE) {
             Write-Host "Importing Authenticode certificate from WINDOWS_CERTIFICATE"
             $bytes = [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE)
@@ -412,16 +444,17 @@ jobs:
             $securePwd = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
             $cert = Import-PfxCertificate -FilePath "$PWD\cert.pfx" -CertStoreLocation Cert:\CurrentUser\My -Password $securePwd
             Remove-Item "$PWD\cert.pfx"
-            # Inject the thumbprint via a --config override (avoids committing it).
-            $signConf = @{ bundle = @{ windows = @{
-              certificateThumbprint = $cert.Thumbprint
-              digestAlgorithm = 'sha256'
-              timestampUrl = 'http://timestamp.digicert.com'
-            } } } | ConvertTo-Json -Depth 6
-            Set-Content -Path "apps/desktop/sign.conf.json" -Value $signConf
-            pnpm --filter @maude/desktop tauri build --config sign.conf.json
+            $windows.certificateThumbprint = $cert.Thumbprint
+            $windows.digestAlgorithm = 'sha256'
+            $windows.timestampUrl = 'http://timestamp.digicert.com'
           } else {
             Write-Host "WINDOWS_CERTIFICATE not set — producing an UNSIGNED .msi"
+          }
+          if ($windows.Count -gt 0) {
+            $conf = @{ bundle = @{ windows = $windows } } | ConvertTo-Json -Depth 6
+            Set-Content -Path "apps/desktop/sign.conf.json" -Value $conf
+            pnpm --filter @maude/desktop tauri build --config sign.conf.json
+          } else {
             pnpm --filter @maude/desktop tauri build
           }
 
@@ -491,6 +524,11 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
         with:
+          # This step can CREATE the release record when it wins the race
+          # against build-binaries' create-release — so it must say which kind
+          # it is. A release candidate is a prerelease, which GitHub never marks
+          # Latest; a stable release stays as before.
+          prerelease: ${{ steps.release.outputs.prerelease }}
           files: |
             apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
             apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz

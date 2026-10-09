@@ -13,6 +13,7 @@
 > - **npm — `@1agh/maude-<slug>` × 7** (per-platform Bun standalone binaries: `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`, `linux-x64-musl`, `linux-arm64-musl`, `win32-x64`). Published in parallel by `build-binaries.yml > build-binaries` matrix. Pulled in at install time via root's `optionalDependencies`.
 > - **GitHub Release** — created empty by `build-binaries.yml > create-release` (so matrix `gh release upload` has a target), then `publish-main` populates the body from `CHANGELOG.md` (auto-generated notes if the section is missing).
 > - **Claude Code marketplace** — both plugins (`design`, `flow`) ship via `marketplace.json` read directly from `main`. The moment the release commit is on `main`, end users can `/plugin marketplace update maude`. No separate publish step.
+> - **Release candidates (`vX.Y.Z-rc.N`)** — a separate, narrower channel: npm dist-tag `next` + a prerelease GitHub release + the rc desktop feed, and nothing in the cloud. See [§ Release candidates](#release-candidates-prerelease-channel). Every bullet below is about a STABLE `vX.Y.Z` tag.
 > - **Maude Cloud fleet** — the same `v*` tag triggers `hub-image.yml` (multi-arch `ghcr.io/1agh/maude-hub:vX.Y.Z` + `:latest`) and `cells-deploy.yml`, which waits for that hub image, builds the cell image at the tag `apps/cells/wrangler.toml` declares (`maude-cell:vX.Y.Z`, written by the bump), pushes it to the Cloudflare registry, and `wrangler deploy`s the data plane. **The tag change is what restarts every cell** — env is applied at container START and Cloudflare only rolls instances on a config change; a re-pushed image under an unchanged tag deploys nothing anywhere (the v30/v31 lesson). Rollout verification is part of the Push step below.
 > - **Render service (DDR-230)** — the same tag also triggers `render-deploy.yml`: it builds `maude-render` at the tag `apps/render/wrangler.toml` declares (written by the bump, asserted by parity), publishes it BOTH to ghcr (`ghcr.io/1agh/maude-render:vX.Y.Z` — the self-host sidecar) and the Cloudflare registry, deploys the `maude-render` Worker, and polls `https://render.cloud.maude.sh/_health` until it reports the release version. Same tag-is-the-instruction contract as the cells.
 
@@ -25,7 +26,7 @@
 - [ ] You have npm publish permission for `@1agh/maude` + all 7 `@1agh/maude-<slug>` packages, and push access to `main`
 - [ ] `NPM_TOKEN` repo secret is set (one-time, only after rotation)
 - [ ] 1Password is unlocked AND the SSH key is approved for the session (signing failures mid-tag-move leave the repo in a partial state — see "When things break")
-- [ ] **No stray local annotated tags** — `git push --follow-tags --dry-run` must show only the tag you are about to create. A stale local tag from an interrupted release rides along with `--follow-tags` and fires a SECOND release pipeline, whose concurrency group can cancel the real one's `cells-deploy` (the v1.0.12-vs-v1.2.0 incident, 2026-09-04: stray tag pushed, its create-release grabbed "Latest", and the real release's cell run was auto-cancelled). Note `git tag -l <name>` exits 0 even when nothing matches — don't gate on its exit code. If you DO have to cancel a stray tag's runs, the tag fires SIX workflows — build-binaries, build-desktop, hub-image, cells-deploy, render-deploy, self-host images — cancel ALL of them; a missed `build-desktop` run later re-created the deleted release record (its `gh release upload` re-creates the tag too) with partial Windows assets.
+- [ ] **No stray local annotated tags** — `git push --follow-tags --dry-run` must show only the tag you are about to create. A stale local tag from an interrupted release rides along with `--follow-tags` and fires a SECOND release pipeline, whose concurrency group can cancel the real one's `cells-deploy` (the v1.0.12-vs-v1.2.0 incident, 2026-09-04: stray tag pushed, its create-release grabbed "Latest", and the real release's cell run was auto-cancelled). Note `git tag -l <name>` exits 0 even when nothing matches — don't gate on its exit code. If you DO have to cancel a stray tag's runs, a stable tag fires SIX workflows — build-binaries, build-desktop, hub-image, cells-deploy, render-deploy, self-host images (an rc tag fires only the first two) — cancel ALL of them; a missed `build-desktop` run later re-created the deleted release record (its `gh release upload` re-creates the tag too) with partial Windows assets.
 
 ```bash
 git switch main && git pull --ff-only
@@ -229,6 +230,51 @@ If the GitHub Release shows `draft: true` (happens when the tag was force-moved 
 ```bash
 gh release edit "v$(node -p "require('./package.json').version")" --draft=false
 ```
+
+## Release candidates (prerelease channel)
+
+> **Skip this step for a stable release.** It is the whole runbook for a `vX.Y.Z-rc.N` tag, which goes through every step above (pre-flight, bump, smoke, commit + annotated tag, push) with the differences below. Built in V2-2.0 (T21′); the first planned use is `v2.0.0-rc.1` after the v2 branch is merged (V2-8.12).
+
+**The grammar is `X.Y.Z` or `X.Y.Z-rc.N` (N ≥ 1) — nothing else.** `-beta.1`, `-rc.0`, build metadata and leading zeros are refused by `scripts/bump-version.sh`, by `scripts/check-version-parity.sh`, and by `scripts/release-kind.mjs`, which the release workflows run. The workflows only know how to ship an rc, so a tag outside the grammar is refused rather than half-shipped.
+
+**Bump** (`pnpm run changeset:version` works too — changesets' own pre mode writes `X.Y.Z-rc.N` — but the script is the direct path):
+
+```bash
+scripts/bump-version.sh 2.0.0-rc.1     # start an rc line — explicit, because only you know whether it is a patch, minor or major
+scripts/bump-version.sh rc             # 2.0.0-rc.1 → 2.0.0-rc.2
+scripts/bump-version.sh promote        # 2.0.0-rc.2 → 2.0.0 — the STABLE release, an ordinary release from here on
+```
+
+`patch|minor|major` are refused while package.json is on an rc (ambiguous — name the version, `rc`, or `promote`). An rc bump moves every manifest in lockstep exactly like a stable one (npm, plugins, sub-packages + pins, the two app manifests, `tauri.conf.json`, `Cargo.toml` + `Cargo.lock`) and rebuilds the client bundle at the rc version, **with two deliberate exceptions**:
+
+- **`apps/cells/wrangler.toml` and `apps/render/wrangler.toml` keep their last STABLE image tags.** Those tags are the fleet instruction; an rc never rolls the fleet, so an rc-named tag there would be an instruction nothing runs — until a manual `workflow_dispatch` rolled production onto rc code. `check-version-parity.sh` accepts a stable tag beside an rc package version and **refuses an rc tag there**. `promote` rewrites both, as every stable bump does.
+- **Pending What's New entries stay pending.** rc testers see them labelled "next"; the stable release stamps them, so the release most users install still announces them.
+
+**What an rc tag runs — and what it never touches:**
+
+| Workflow | Stable `vX.Y.Z` | `vX.Y.Z-rc.N` |
+| --- | --- | --- |
+| `build-binaries.yml` | npm `latest` + GitHub release (becomes Latest) | npm **`next`** (root + 7 sub-packages) + **prerelease** GitHub release |
+| `build-desktop.yml` | installers + updater artifacts on the release | same, on the prerelease; Windows MSI ProductVersion `X.Y.Z.N` (WiX refuses `-rc.N`) |
+| `hub-image.yml` | `maude-hub:vX.Y.Z` + `:latest` | **does not run** |
+| `cells-deploy.yml` | rolls the cloud fleet | **does not run** |
+| `render-deploy.yml` | deploys render | **does not run** |
+| `selfhost-images.yml` | multi-arch gate | **does not run** |
+
+The split is the tag filters (stable workflows: `['v*.*.*', '!v*.*.*-*']`; the two rc-capable ones add `'v*.*.*-rc.*'` — GitHub applies the patterns in order and the last match decides), a step in each stable-only workflow that refuses a prerelease tag anyway, and the `classify` answer (`scripts/release-kind.mjs`: from the tag, which must equal package.json) that every publish step reads. `scripts/test/release-channel.test.mjs` asserts all three; `workflow_dispatch` on `build-binaries.yml` with `dry-run: true` from a branch whose package.json is on an rc prints the plan and runs `npm publish --dry-run --tag next` without publishing anything.
+
+**Who gets it:**
+
+- **npm:** only `npm i -g @1agh/maude@next` (or `@2.0.0-rc.1`). `npm i -g @1agh/maude` stays on `latest`, and the CLI's update notice reads `latest`, so stable users are never nudged onto an rc.
+- **Desktop:** the updater feed (`site/lib/updater-feed.mjs`, behind `maude.sh/releases/…`) follows the INSTALLED version. A stable install is offered only stable releases — by GitHub's prerelease flag and by version string, so a mis-flagged rc still cannot reach it. An install on an rc is offered the newest rc, then the stable release that supersedes it (`2.0.0` > `2.0.0-rc.N` by semver precedence), at which point it is stable again. Getting onto the rc channel is a manual download of the rc installer from the prerelease's assets.
+- **Claude Code marketplace:** the plugins ship from `main` — **an rc bump committed to `main` IS what marketplace users get.** That is the one surface this channel does not split. Cut the rc only once the plugins on `main` are fit for every user (V2-8.12 does it after the merge, which is the point at which they already are).
+- **The site:** `site/lib/stats.json` (home-page version label) regenerates from package.json, so it shows the rc while `main` is on one. Cosmetic; known.
+
+**Verify an rc:** `gh release view vX.Y.Z-rc.N --json isPrerelease` → `true`; `npm view @1agh/maude dist-tags` → `next` is the rc, `latest` unchanged; no `hub-image` / `cells-deploy` / `render-deploy` / `selfhost-images` run exists for the tag's SHA (`gh run list --workflow cells-deploy.yml --limit 3`). Nothing to verify in the fleet — it was not touched.
+
+**Promote:** `scripts/bump-version.sh promote` → the stable release, through every step above as an ordinary release (it rolls the fleet, moves `latest`, stamps What's New). rc installs pick it up through the feed; `next` can stay where it is (`npm dist-tag add @1agh/maude@X.Y.Z next` if you want `@next` to stop lagging).
+
+**Known gaps:** a Linux `.deb` built at `X.Y.Z-rc.N` sorts ABOVE `X.Y.Z` for dpkg (the part after `-` is a Debian revision) — the `.deb` does not self-update and a manual `dpkg -i` of the stable one only warns, but a future apt repo would need `X.Y.Z~rc.N`. A 1.x maintenance release while `main` is on an rc would have to be cut from a branch; there is no recipe for that yet.
 
 ## When things break
 

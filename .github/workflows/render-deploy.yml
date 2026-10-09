@@ -26,7 +26,10 @@
 
 on:
   push:
-    tags: ['v*.*.*']
+    # Stable releases only (V2-2.0): `v*.*.*` alone also matches
+    # `v2.0.0-rc.1`; the negation keeps every prerelease away from the render
+    # service. scripts/test/release-channel.test.mjs holds the split.
+    tags: ['v*.*.*', '!v*.*.*-*']
     branches: [main]
     paths:
       - 'apps/render/**'
@@ -47,6 +50,19 @@ jobs:
     name: Build maude-render + deploy
     runs-on: ubuntu-latest
     steps:
+      - name: A prerelease tag never deploys render
+        # V2-2.0 (T21'). The tag filter above already excludes prereleases;
+        # this is the same rule read at the step, so widening the filter later
+        # cannot quietly deploy rc code to the production render service.
+        # Release candidates ship through build-binaries (npm `next`) and
+        # build-desktop (prerelease) only.
+        if: github.ref_type == 'tag' && contains(github.ref_name, '-')
+        env:
+          REF: ${{ github.ref_name }}
+        run: |
+          echo "::error::$REF is a prerelease tag — the render service only ever runs a stable release"
+          exit 1
+
       - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
