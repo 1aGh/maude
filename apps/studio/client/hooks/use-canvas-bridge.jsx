@@ -808,7 +808,14 @@ export function useCanvasBridge({
         // ⌘K pressed while focus was inside the canvas iframe — the injected
         // inspector forwards the chord here since the iframe's keydown never
         // reaches the shell's window listener. Mirror that handler's toggle.
-        setPaletteOpen((v) => !v);
+        //
+        // SECURITY (V2-2.8 S3) — the same `activeWin` gate as `shell-shortcut`
+        // below: the chord is pressed inside the canvas in view, so a
+        // background/synced canvas (DDR-054) must not pop the palette on demand.
+        // `activeWin &&` closes the `null === null` path (no active canvas + a
+        // discarded source) the comment relays above document.
+        const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
+        if (activeWin && e.source === activeWin) setPaletteOpen((v) => !v);
       } else if (m.dgn === 'shell-shortcut') {
         // Same forwarding lane for the other shell chords (inspect.ts) — so
         // ⌘R / ⌘⇧I / ⌘⇧M / ⌘⇧E / ⌘⇧H behave identically wherever focus is.
