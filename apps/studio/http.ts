@@ -55,6 +55,13 @@ import { createFigmaEndpoints } from './figma/endpoints.ts';
 import { generatedClipAnalysis } from './footage/schema.ts';
 import { createFootageStore, FOOTAGE_MAX_BYTES } from './footage-store.ts';
 import {
+  formatConfigFields,
+  formatGate,
+  formatGateAllowsWrite,
+  formatRefusalResponse,
+  projectFormat,
+} from './format.ts';
+import {
   type AudioMatch,
   type Candidate,
   rankMatches,
@@ -113,15 +120,19 @@ import type { InspectRegistry } from './inspect.ts';
 import { canvasSlug, writeLocator } from './locator.ts';
 import { prepareManagedProject } from './managed-projects.ts';
 import { materializeMissing } from './materialize-client.ts';
+import { createOutbox } from './outbox/index.ts';
 import { isUnderOrEqual, resolveUrlPathUnder } from './path-containment.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
 import { createPhotoStore, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
+import { createOutboxRoutes } from './routes/outbox.ts';
+import { createProjectFormatRoutes } from './routes/project-format.ts';
+import { mountRoutes, type RouteSpec } from './routes/table.ts';
 import { getRuntimeBundle, packageForSlug } from './runtime-bundle.ts';
 import { currentSession } from './session-scope.ts';
 import { sanitizeForLog } from './sync/cell-pairing.ts';
 import { linkHub } from './sync/hub-link.ts';
-import { isHubReadOnly } from './sync/hubs-config.ts';
+import { getHubRecord, isHubReadOnly } from './sync/hubs-config.ts';
 import { isFirstAnchorMode, readSyncSettings, writeSyncSettings } from './sync/settings.ts';
 import { listTrash, pruneTrash, restoreFromTrash } from './sync/trash.ts';
 import { signInToWorkspace, workspaceDisclosure } from './sync/workspace-signin.ts';
@@ -1607,7 +1618,74 @@ export function createHttp(
     };
   }
 
+  // V2-2.16 / V2-2.14 — the lanes' route tables (V2-2.5 folds them into its
+  // one table). MAIN ORIGIN ONLY: none is in CANVAS_SAFE_API or the canvas
+  // server's routes map. The outbox has no senders yet — S5 / S8 / S9 register
+  // their doors and enqueue in-process; until then it serves the content-lane
+  // view and the (empty) intent list, and nothing is sent.
+  const outbox = createOutbox({
+    designRoot: ctx.paths.designRoot,
+    senders: {},
+    gates: () => ({
+      online: true,
+      hubReachable: true,
+      signedIn: true,
+      aiConnected: true,
+      aiReady: true,
+      allowanceResetsAt: null,
+    }),
+    target: () => ({ projectId: null, projectName: ctx.projectLabel, role: 'owner' }),
+    onChange: (seq) => ctx.bus.emit('outbox:changed', { seq }),
+  });
+  outbox.store.load();
+  outbox.store.prune();
+  // V2-1.12 §5.6 — the format gate, STAGED: `newerOnly: true` gates only a
+  // project newer than this build. Flip to `{}` (the contract's full gate: a
+  // format-1 project is view only until "Update project") once the S1/P3
+  // dialog and format-2 test sandboxes land — today the full gate makes every
+  // existing project and test sandbox view only.
+  const FORMAT_GATE_OPTS = { newerOnly: true } as const;
+  const gateNow = () => formatGate(ctx, FORMAT_GATE_OPTS);
+  // Every lane route is privileged (migrate rewrites the tree; the outbox lists queued intents):
+  // the same double gate every main-origin route carries — Origin check (reads and writes) +
+  // the DNS-rebinding guard — before the handler runs.
+  const guardLane = (spec: RouteSpec): RouteSpec => ({
+    ...spec,
+    handle: (req, params) => {
+      const sameOrigin = spec.method === 'GET' ? sameOriginRead(req) : sameOriginWrite(req);
+      if (!sameOrigin) return new Response('cross-origin rejected', { status: 403 });
+      if (!isTrustedRequestHost(req))
+        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+      return spec.handle(req, params);
+    },
+  });
+  const laneRoutes = mountRoutes(
+    [
+      ...createOutboxRoutes({ outbox }),
+      ...createProjectFormatRoutes({
+        repoRoot: ctx.paths.repoRoot,
+        designRel: ctx.paths.designRel,
+        hub: () => {
+          const url = ctx.cfg.linkedHub?.url;
+          const rec = url ? getHubRecord(url) : null;
+          return url && rec ? { url, token: rec.token, role: rec.role ?? 'member' } : null;
+        },
+        formatView: (req) => formatConfigFields(ctx, roleReadOnly(req), FORMAT_GATE_OPTS),
+        onMigrated: () => {
+          if (reloadConfig(ctx)) ctx.bus.emit('config-updated');
+        },
+      }),
+    ].map(guardLane)
+  );
+  /** What a read-only session may still write: the module allowlist plus what
+   *  the lane tables declare (`readOnly: 'allowed'`). */
+  const readOnlyAllowed = {
+    exact: new Set<string>([...READ_ONLY_ALLOWED_WRITES, ...laneRoutes.readOnlyAllowed.exact]),
+    patterns: [...READ_ONLY_ALLOWED_WRITE_PATTERNS, ...laneRoutes.readOnlyAllowed.patterns],
+  };
+
   const routes = {
+    ...laneRoutes.exact,
     '/_health': () =>
       Response.json({
         ok: true,
@@ -1977,7 +2055,14 @@ export function createHttp(
       Response.json({
         ...ctx.cfg,
         canvasOrigin: ctx.canvasOrigin,
+        // V2-1.12 §5.6 — readOnly is the role OR the format gate
+        // (projectReadOnly covers both); the client shows WHY, and
+        // `formatGate` drives the banner. Named one by one: the client
+        // projection names every computed field (config-projection.test.ts).
         readOnly: projectReadOnly(req),
+        formatVersion: projectFormat(ctx).value,
+        formatGate: gateNow(),
+        readOnlyReason: roleReadOnly(req) ? 'role' : gateNow() ? 'format' : null,
         // DDR-247 — the apps allowed to frame this studio for `?embed=1`. The
         // embed view posts its status ONLY to a parent on this list, never to
         // '*'. Public already: the same origins ride in the page's CSP header.
@@ -2296,7 +2381,7 @@ export function createHttp(
         // `.meta.json`, so a read-only session is refused here, in-handler,
         // where the two lanes are distinguishable.
         if (projectReadOnly(req) && 'layout' in body.patch) {
-          return readOnlyRefusalResponse();
+          return readOnlyRefusalFor(req);
         }
         const next = await api.patchCanvasMeta(body.file, body.patch);
         if (!next) return new Response('Not found or rejected', { status: 404 });
@@ -5902,6 +5987,8 @@ export function createHttp(
   // the `globalThis.fetch` comment on that route; RCA issue-report-a-bug-http-500).
   async function handleFallthrough(req: Request): Promise<Response> {
     try {
+      const laneResponse = laneRoutes.dynamic(req);
+      if (laneResponse) return await laneResponse;
       const url = new URL(req.url);
       const pathname = url.pathname;
 
@@ -6358,7 +6445,7 @@ export function createHttp(
   // covers all three doors at once: the main-origin `routes` table, the
   // canvas-origin `routes` allowlist in server.ts (it references these same
   // handlers), and the dynamic-path `fetch` fall-through (comment replies).
-  function projectReadOnly(req?: Request): boolean {
+  function roleReadOnly(req?: Request): boolean {
     // ---- Cloud Phase 27 A3/A4 (DDR-209): the role is PER SESSION ----------
     //
     // In a cell this process serves an owner and a viewer at the same time, so
@@ -6377,20 +6464,45 @@ export function createHttp(
     return ctx.cfg.linkedHub ? isHubReadOnly(ctx.cfg.linkedHub.url) : false;
   }
 
+  /**
+   * V2-1.12 §5.6 — read-only for the ROLE, or because this build does not
+   * edit this project's FORMAT (format.ts `formatGate`: a v2 build on a
+   * format-1 project until "Update project", a 1.x build on a format-2 one).
+   * Every in-handler `projectReadOnly` check therefore covers both.
+   */
+  function projectReadOnly(req?: Request): boolean {
+    return roleReadOnly(req) || gateNow() !== null;
+  }
+
+  /** The refusal an in-handler check answers with: the format copy when the
+   *  format is the only reason, else the role copy. */
+  function readOnlyRefusalFor(req: Request): Response {
+    const gate = roleReadOnly(req) ? null : gateNow();
+    return gate ? formatRefusalResponse(gate) : readOnlyRefusalResponse();
+  }
+
   function readOnlyRefusal(req: Request): Response | null {
     if (READ_ONLY_SAFE_METHODS.has(req.method)) return null;
-    if (!projectReadOnly(req)) return null;
+    const role = roleReadOnly(req);
+    const gate = gateNow();
+    if (!role && !gate) return null;
     let pathname: string;
     try {
       pathname = new URL(req.url).pathname;
     } catch {
-      return readOnlyRefusalResponse();
+      return readOnlyRefusalFor(req);
     }
-    if (READ_ONLY_ALLOWED_WRITES.has(pathname)) return null;
+    // The format gate: per-user runtime, export, reports and sign-in still
+    // work; comments are look-only (V2-1.12 §9 Q3); "Update project" is the
+    // one write that leads out.
+    if (gate && !formatGateAllowsWrite(pathname, readOnlyAllowed))
+      return formatRefusalResponse(gate);
+    if (!role) return null;
+    if (readOnlyAllowed.exact.has(pathname)) return null;
     // The dynamic half of the comment lane. An exact-match set cannot express
     // it, and leaving it out would mean a viewer may leave a comment but not
     // reply to one — a distinction nobody promised and nobody wants.
-    if (READ_ONLY_ALLOWED_WRITE_PATTERNS.some((re) => re.test(pathname))) return null;
+    if (readOnlyAllowed.patterns.some((re) => re.test(pathname))) return null;
     return readOnlyRefusalResponse();
   }
 
