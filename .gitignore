@@ -164,3 +164,7 @@ apps/*/.dev.vars.deploy
 # `helpers/evidence.ts` falls back here when MAUDE_E2E_RUN_DIR is unset (the
 # parity lane, which has no per-scenario run dir of its own).
 apps/desktop/e2e/_e2e-evidence/
+
+# A bun.lock at the ROOT is always a stray (the root is a pnpm workspace; apps/studio and
+# apps/hub commit their own bun.lock — DDR-009). Root only.
+/bun.lock
