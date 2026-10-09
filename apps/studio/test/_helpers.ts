@@ -105,11 +105,39 @@ export async function bootServer(
   throw new Error(`server did not start on port ${port} within 15 s`);
 }
 
-export async function killProc(proc: Subprocess) {
+/**
+ * Stop a spawned process: SIGTERM, then SIGKILL if it has not exited within
+ * `graceMs`.
+ *
+ * BOUNDED ON PURPOSE (V2-2.13). This used to await `proc.exited` with no limit,
+ * and the studio's `shutdown()` (server.ts) awaits teardown steps with no limit
+ * either — so one stuck step kept `process.exit(0)` from ever running, and the
+ * caller's `afterAll` sat until the 20 s hook timeout. That is exactly how
+ * `figma-routes.test.ts` failed in 26 CI runs of the full suite (2026-09-11 →
+ * 09-21): every test green, then "killed 1 dangling process" and
+ * `(fail) (unnamed)`. A test that is not ABOUT shutdown must not fail on it —
+ * but the hang is a real server behaviour, so the escalation is logged rather
+ * than absorbed silently (test/helpers-killproc.test.ts holds both halves).
+ */
+export async function killProc(proc: Subprocess, graceMs = 5000) {
+  const exited = proc.exited.then(
+    () => true,
+    () => true
+  );
   proc.kill();
-  try {
-    await proc.exited;
-  } catch {
-    /* ignore */
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const inTime = await Promise.race([
+    exited,
+    new Promise<boolean>((resolve) => {
+      timer = setTimeout(() => resolve(false), graceMs);
+    }),
+  ]);
+  clearTimeout(timer);
+  if (!inTime) {
+    console.warn(
+      `[killProc] pid ${proc.pid} ignored SIGTERM for ${graceMs} ms — sending SIGKILL (a shutdown that hangs: see apps/studio/server.ts shutdown())`
+    );
+    proc.kill('SIGKILL');
+    await exited;
   }
 }

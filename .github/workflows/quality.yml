@@ -196,8 +196,8 @@ jobs:
     # png/svg/pptx as the fallback path, and mp4/webm/gif).
     #
     # It is fast (~30 s of test time) and it is the only check that looks at a
-    # finished artifact, so it blocks — unlike the full studio suite below,
-    # whose clean-CI health is still unmeasured.
+    # finished artifact, so it blocked from the start — the full studio suite
+    # below only became blocking once its clean-CI health was measured (V2-2.13).
     name: Export lanes E2E (browser + worker)
     runs-on: ubuntu-latest
     # Hang guard — see the quality job.
@@ -247,23 +247,40 @@ jobs:
           }
 
   studio-suite:
-    # NON-BLOCKING ON PURPOSE. The full apps/studio suite (~337 files, ~4400
-    # tests) has never run in any workflow, so its true health on clean
-    # hardware is unmeasured — every local figure so far was taken on a laptop
-    # running other suites at the same time, which fabricates failures (a boot
-    # test that waits 10 s fails under bun's 5 s default the moment the machine
-    # is loaded). Blocking on an unmeasured suite would either stall every PR or
-    # teach everyone to ignore a red check.
+    # REQUIRED since V2-2.13 (2026-10-09). It ran non-blocking first, on
+    # purpose: the full apps/studio suite had never run in any workflow, local
+    # figures were taken on a loaded laptop (which fabricates failures), and
+    # blocking on an unmeasured suite would either stall every PR or teach
+    # everyone to ignore a red check. Its job was to produce the CLEAN data that
+    # names the quarantine list — and the data is in:
     #
-    # So it runs, it reports, and it cannot fail the merge. What it produces is
-    # the CLEAN data that decides which tests (if any) belong on a quarantine
-    # list — and once that list is empty and stable, this job's
-    # `continue-on-error` comes off and it becomes required.
-    name: Studio suite (full, non-blocking)
+    #   - 200 runs of this job, 2026-09-09 → 10-09. Every test that failed in
+    #     them is fixed: the deterministic ones (import-asset/import-brand SVG
+    #     canary without agent-browser, fs-watch, exporters/jobs, canvas-shell
+    #     TLA on Node 22, canvas-lib-graph, acp-activity-endpoint) by #135 and
+    #     the fixes before it; the fs.watch flakes (comments-fs-rebroadcast,
+    #     active-state, git-watch) and the cross-file leak in sync-autocommit by
+    #     #144 (bun 1.3.3 → 1.4.2, `--isolate`).
+    #   - Every main push since 2026-10-06 10:23 (e2bc5ce6) is green here — 16
+    #     in a row, 6641 pass / 0 fail at 6651 tests.
+    #   - The `/_api/figma/import` cluster was never the import tests (all 9
+    #     passed in every completed run): it was figma-routes.test.ts's
+    #     afterAll — `killProc` waited without a bound on a server that took
+    #     SIGTERM and never exited (26 runs, 09-11 → 09-21, dormant since).
+    #     killProc now escalates to SIGKILL after 5 s and says so in the log
+    #     (test/helpers-killproc.test.ts).
+    #
+    # So the quarantine list is EMPTY, and this job fails the run like any
+    # other. A test that starts flaking here is a defect to fix or to quarantine
+    # BY NAME in this comment — never a reason to put `continue-on-error` back.
+    #
+    # Branch protection still lists only "Quality (lint+test+links)" and
+    # "Version parity check" as required contexts; making "Studio suite (full)"
+    # a merge gate is a repo-settings change for the owner (V2-2.13 hand-back).
+    name: Studio suite (full)
     runs-on: ubuntu-latest
     # Hang guard — see the quality job.
     timeout-minutes: 45
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v7
 
@@ -288,8 +305,8 @@ jobs:
       # real browser — so this job needs the same chromium the export-lanes job
       # installs. Without it the run died with `Playwright's Chromium browser
       # isn't installed` and exit 3, which read as "the suite is red" when the
-      # suite had not finished running. An unmeasured suite is this job's whole
-      # reason to exist; a missing browser measures nothing.
+      # suite had not finished running. A missing browser measures nothing — and
+      # now that this job is required, it would block every PR for nothing.
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
@@ -305,8 +322,8 @@ jobs:
       - name: Full studio suite
         env:
           MAUDE_SYNC_IN_CI: '1' # see the required sync-lane step in the job above
-        # Same dist clobber guard as the required sync lane above — this job
-        # cannot fail the merge, but a clobbered bundle still has to be visible.
+        # Same dist clobber guard as the required sync lane above: a clobbered
+        # bundle fails the run here too.
         run: |
           git diff --quiet -- apps/studio/dist/ \
             || { echo "::error::apps/studio/dist/ was already dirty before the tests ran"; exit 1; }
