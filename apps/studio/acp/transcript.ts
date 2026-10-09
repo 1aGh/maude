@@ -81,9 +81,26 @@ export function readChatMeta(designRoot: string, chatId: string): ChatMeta {
   }
 }
 
+/** The sidecar exactly as stored (any keys), or `{}` when missing/corrupt. */
+function readRawChatMeta(designRoot: string, chatId: string): Record<string, unknown> {
+  try {
+    const raw = JSON.parse(readFileSync(metaPath(designRoot, chatId), 'utf8')) as unknown;
+    return raw && typeof raw === 'object' && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
 /** Merge `patch` into the chat's meta sidecar (creates `_chat/` if needed).
  *  `title: null` / `archived: false` clear that field rather than deleting
- *  the file — callers pass only the field(s) they're changing. */
+ *  the file — callers pass only the field(s) they're changing.
+ *
+ *  LOSSLESS (V2-1.12 P2): the patch lands on the RAW stored object, so keys
+ *  this build does not know — v2's `canvas` link, anything later — survive a
+ *  rename or an archive. The returned value is still the `{title, archived}`
+ *  view `readChatMeta` gives. */
 export function writeChatMeta(
   designRoot: string,
   chatId: string,
@@ -91,19 +108,18 @@ export function writeChatMeta(
 ): ChatMeta {
   const dir = chatDir(designRoot);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  const current = readChatMeta(designRoot, chatId);
-  const next: ChatMeta = { ...current };
+  const next: Record<string, unknown> = { ...readRawChatMeta(designRoot, chatId) };
   if ('title' in patch) {
     const t = patch.title?.trim();
     if (t) next.title = t.slice(0, 200);
-    else next.title = undefined;
+    else delete next.title;
   }
   if ('archived' in patch) {
     if (patch.archived) next.archived = true;
-    else next.archived = undefined;
+    else delete next.archived;
   }
   writeFileSync(metaPath(designRoot, chatId), JSON.stringify(next));
-  return next;
+  return readChatMeta(designRoot, chatId);
 }
 
 /** Parse raw jsonl lines, dropping unparseable ones. Callers hand this a

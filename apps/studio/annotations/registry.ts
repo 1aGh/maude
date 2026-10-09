@@ -115,10 +115,35 @@ const UNKNOWN_KEY_RE = /^[A-Za-z_][A-Za-z0-9_-]{0,63}$/;
 const MAX_UNKNOWN_KEYS = 64;
 
 /**
+ * The keys of `r` that `known` does not name, field-shaped and bounded, with
+ * their sanitized values, in sorted order. Shared by both branches below.
+ */
+function extensionFields(
+  r: Record<string, unknown>,
+  known: FieldSpecMap
+): Array<[string, unknown]> {
+  const out: Array<[string, unknown]> = [];
+  // Field-shaped keys only, and a bounded number of them: the keys become
+  // Y.Map field names on every peer (security review, low).
+  const rest = Object.keys(r)
+    .filter((k) => !Object.hasOwn(known, k) && !DANGEROUS_KEYS.has(k) && UNKNOWN_KEY_RE.test(k))
+    .sort()
+    .slice(0, MAX_UNKNOWN_KEYS);
+  for (const k of rest) {
+    const v = sanitizeJson(r[k]);
+    if (v !== undefined) out.push([k, v]);
+  }
+  return out;
+}
+
+/**
  * Validate one untrusted record into its canonical form. Never throws. A known
- * type is parsed field-by-field in spec order (unknown keys dropped, defaults
- * omitted); an unknown type keeps its head fields plus a bounded, sanitized
- * copy of the rest (keys sorted, so its bytes are deterministic too).
+ * type is parsed field-by-field in spec order (defaults omitted); an unknown
+ * type keeps its head fields. BOTH then keep a bounded, sanitized copy of the
+ * keys their spec does not name, sorted, after everything else — so a newer
+ * peer's fields survive this reader byte-for-byte (V2-1.12 P2 / R5: on a known
+ * type they land after `TAIL_FIELDS`, exactly where a v2 writer puts them).
+ * A key the spec DOES name but whose value is invalid is still dropped.
  */
 export function validateElement(raw: unknown): ElementResult {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
@@ -134,23 +159,13 @@ export function validateElement(raw: unknown): ElementResult {
   if (spec) {
     const res = parseFields(spec, r);
     if (!res.ok) return { ok: false, reason: res.reason, id: rawId };
-    el = res.value;
+    el = { ...res.value };
+    for (const [k, v] of extensionFields(r, spec)) el[k] = v;
   } else {
     const head = parseFields(HEAD_FIELDS, r);
     if (!head.ok) return { ok: false, reason: head.reason, id: rawId };
     el = { ...head.value };
-    // Field-shaped keys only, and a bounded number of them: the keys become
-    // Y.Map field names on every peer (security review, low).
-    const rest = Object.keys(r)
-      .filter(
-        (k) => !Object.hasOwn(HEAD_FIELDS, k) && !DANGEROUS_KEYS.has(k) && UNKNOWN_KEY_RE.test(k)
-      )
-      .sort()
-      .slice(0, MAX_UNKNOWN_KEYS);
-    for (const k of rest) {
-      const v = sanitizeJson(r[k]);
-      if (v !== undefined) el[k] = v;
-    }
+    for (const [k, v] of extensionFields(r, HEAD_FIELDS)) el[k] = v;
   }
   if (el.parent !== undefined && el.parent === el.id) {
     return { ok: false, reason: 'element is its own parent', id: rawId };
