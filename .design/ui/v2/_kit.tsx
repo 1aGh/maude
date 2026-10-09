@@ -9,6 +9,20 @@
  * Underscore file ⇒ hidden from the canvas tree. Canvas agents NEVER edit this file — build a
  * local piece in your canvas and list it as a "kit candidate" instead.
  *
+ * ─── Gate 0 (signed by Michal 2026-10-08; CONTRACT.md carries the full set) ─────────────────
+ * What the run builds where this kit draws more, or differently:
+ *   · Project tabs are NATIVE macOS window tabs [A1]. The tab avatar / initial / status glyphs and
+ *     the custom tab right-click menu (`Window tabMenu`) are NOT built — that state lives in the
+ *     project pill and the Share cluster; right-click is the native tab menu; "Sign in as another
+ *     account…" is in the project pill menu. Treat `Tab.initial/account/unsaved/syncing` as mock-only.
+ *   · The tool is "Stickers (E)" [C12]; "stamp" means a vote stamp only. Packs: FigJam Doodle ·
+ *     Life Style · Opposing Thoughts · Project status [C13].
+ *   · Marker tips Marker · Highlighter · Eraser; inks Ink · red · amber · green · blue + more [C14].
+ *   · Comments float on the RIGHT, like the AI chat panel [C8]; filters Open · Mine · Resolved · All [C7].
+ *   · Save status has a fifth word "Not saved" (+ Retry) only while true [C2].
+ *   · One Share sheet everywhere (10's), incl. a local project's "Move to cloud…" [C11].
+ *   · The AI chat panel header is 03's canonical one [C28]; no AI chat for Can view / Can comment [C30].
+ *
  * Every canvas imports, in this order:
  *   import "../../system/maude-v2/colors_and_type.css";
  *   import "../../system/maude-v2/preview/_components.css";

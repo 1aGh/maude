@@ -89,6 +89,7 @@
     "!apps/studio/**/.DS_Store",
     "!apps/studio/client/TESTIDS.md",
     "!apps/studio/client/testids.json",
+    "!apps/studio/client/v2/contracts",
     "plugins/design/dependencies.json",
     "plugins/design/dependencies.schema.json",
     "plugins/design/templates",
