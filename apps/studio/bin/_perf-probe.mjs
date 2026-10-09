@@ -200,7 +200,8 @@ async function main() {
     }
     if (i > 0 || total === 1) passes.push(r);
     process.stderr.write(
-      `→ pass ${i + 1}/${total}: gesture p95 ${r.gesture.p95}ms${i === 0 && total > 1 ? ' (warm-up, discarded)' : ''}\n`
+      `→ pass ${i + 1}/${total}: gesture p95 ${r.gesture.p95}ms zoom p95 ${r.zoom.p95}ms long ${r.longFrames}` +
+        `${i === 0 && total > 1 ? ' (warm-up, discarded)' : ''}\n`
     );
   }
 

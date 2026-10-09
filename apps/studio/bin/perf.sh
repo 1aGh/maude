@@ -16,7 +16,9 @@
 #   perf.sh [--root <repo>] [--canvas <rel-path>] [--fixture]
 #           [--boards N] [--strokes N | --annotations N] [--mix]
 #           [--pan N] [--zoom N] [--timeout S] [--repeat N]
-#           [--engine chromium|safari]
+#           [--engine chromium|safari] [--studio] [--fit-all]
+#           [--window WxH] [--frame today|pinned|full|WxH]
+#           [--variant <tag>] [--inject-css <css>]
 #           [--history <path>] [--json]
 #
 #   --engine safari measures WebKit through safaridriver (one-time
@@ -34,6 +36,21 @@
 #              sticky-only field. Serialized via strokesToSvg (needs bun). Warns
 #              when the v2 board exceeds the 4 MB cap (DDR-242; the v1 1 MB cap bit at ~3750 mixed elements).
 #   --json     Raw JSON (current + previous run) instead of the human report.
+#   --studio   (safari) Measure inside the real studio shell, not the bare canvas
+#              page. Makes one real WebDriver click into the canvas frame first and
+#              proves it lifted WebKit's ~30 fps throttle on an untouched
+#              cross-origin frame (idle frame p50 ≈ the studio's), else refuses.
+#   --window   (safari) Safari window size, default 1600x1000.
+#   --frame    (safari --studio) The large-viewport control: `today` (default)
+#              leaves the canvas iframe alone, `pinned` fixes it at today's rect,
+#              `full` at the window's size (v2 edge to edge), `WxH` at 0,0 with
+#              that size. Compare `full` against `pinned` at the same --window.
+#   --variant  A label for an A/B arm; keys the history row with the canvas.
+#   --inject-css  CSS injected into the canvas document before each pass, to
+#              test a rendering hypothesis against the same build.
+#
+#   Every run reports long frames (rAF deltas ≥ 50 ms) on both engines — WebKit
+#   has no longtask entries, so "long tasks" stays 0 there.
 #
 # Reads:  $DESIGN_ROOT/_server.json  (must exist — run `maude design server-up` first)
 # Writes: $DESIGN_ROOT/_smoke/perf/history.jsonl   (append-only, per-machine runtime state)
@@ -56,6 +73,10 @@ STUDIO=0
 TIMEOUT=30
 HISTORY=""
 JSON=0
+WINDOW=""
+FRAME=""
+VARIANT=""
+INJECT_CSS=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -74,8 +95,12 @@ while [ $# -gt 0 ]; do
     --studio)   STUDIO=1; shift ;;
     --history)  HISTORY="$2"; shift 2 ;;
     --json)     JSON=1; shift ;;
+    --window)   WINDOW="$2"; shift 2 ;;
+    --frame)    FRAME="$2"; shift 2 ;;
+    --variant)  VARIANT="$2"; shift 2 ;;
+    --inject-css) INJECT_CSS="$2"; shift 2 ;;
     --help|-h)
-      sed -n '2,42p' "$0" | sed 's/^# \?//'
+      sed -n '2,/^[^#]/p' "$0" | sed '$d' | sed -E 's/^# ?//'
       exit 0
       ;;
     *)
@@ -86,6 +111,17 @@ while [ $# -gt 0 ]; do
 done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Safari-only levers fail loud on the other lane rather than being ignored: a
+# Chromium row silently measured at the wrong geometry would read as a result.
+if [ "$PROBE_ENGINE" != "safari" ] && { [ -n "$WINDOW" ] || [ -n "$FRAME" ] || [ "$STUDIO" = "1" ]; }; then
+  echo "perf.sh: --window / --frame / --studio need --engine safari" >&2
+  exit 2
+fi
+if [ -n "$FRAME" ] && [ "$STUDIO" != "1" ]; then
+  echo "perf.sh: --frame needs --studio (there is no canvas iframe on the bare page)" >&2
+  exit 2
+fi
 
 # JS runtime. The packaged desktop app ships no user `node` (DDR-177) but always
 # has a `bun` on PATH (real, or the compiled-sidecar shim `maude` stages), so
@@ -223,6 +259,10 @@ if [ "$PROBE_ENGINE" = "safari" ]; then
   [ "$STUDIO" = "1" ] && ARGS+=(--studio "$SLUG")
   [ "$FIT_ALL" = "1" ] && ARGS+=(--fit-all)
   [ "$JSON" = "1" ] && ARGS+=(--json)
+  [ -n "$WINDOW" ] && ARGS+=(--window "$WINDOW")
+  [ -n "$FRAME" ] && ARGS+=(--frame "$FRAME")
+  [ -n "$VARIANT" ] && ARGS+=(--variant "$VARIANT")
+  [ -n "$INJECT_CSS" ] && ARGS+=(--inject-css "$INJECT_CSS")
   exec "$JS_RUNTIME" "$SCRIPT_DIR/_perf-probe-safari.mjs" "${ARGS[@]}"
 fi
 
@@ -238,5 +278,7 @@ ARGS=(--url "$URL" --label "$REL_FULL" --history "$HISTORY" --engine-tag "$ENGIN
       --timeout "$TIMEOUT" --pan "$PAN" --zoom "$ZOOM" --repeat "$REPEAT")
 [ "$FIT_ALL" = "1" ] && ARGS+=(--fit-all)
 [ "$JSON" = "1" ] && ARGS+=(--json)
+[ -n "$VARIANT" ] && ARGS+=(--variant "$VARIANT")
+[ -n "$INJECT_CSS" ] && ARGS+=(--inject-css "$INJECT_CSS")
 
 exec "$JS_RUNTIME" "$SCRIPT_DIR/_perf-probe.mjs" "${ARGS[@]}"
