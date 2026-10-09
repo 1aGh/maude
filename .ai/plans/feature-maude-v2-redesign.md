@@ -332,6 +332,7 @@ Default approaches the spikes start from (SHIPPER's minimal paths — keep them 
 
 | ID | Spike | Must answer | Feeds |
 | --- | --- | --- | --- |
+| V2-1.0 | **Gate 0 fold-in** (the first commit of Phase 1, described above) | `CONTRACT.md` §1/§2/§6/§7 and the `_kit.tsx` header carry every signed Gate 0 outcome; one DDR "Maude v2 decisions register" lists each row with Michal's answer | all |
 | V2-1.1 | Home window + cross-project index (C38) | How Home is served; where recents/pins/thumbnails/open-tab state live; how Home talks to project sidecars without leaking across origins | P3, S6, S1 |
 | V2-1.2 | Mode + toolbar ownership | Shell owns mode; the iframe renders the two toolbars and tools; new `dgn` messages (`set-mode`, mode echo, `occluded-insets` for floating panels); one typed message table | P4, S3, S2, S4 |
 | V2-1.3 | Action / shortcut registry | One registry (id, label, where-path, keys, visibility predicate by role/shell/mode/focus — extended by V2-1.11 with params, effect, minRole, server route and the AI path — file / CLI verb / human) feeding menus, ⌘K, "?", native menu, generated help and docs; focus-scoped key resolution (C26) | P2, everything |
