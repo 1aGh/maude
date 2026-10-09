@@ -227,7 +227,7 @@ function stop(root) {
     [
       `The v2 goal is not met: \`bash scripts/v2-done.sh\` is red (${out || `exit ${r.status}`}).`,
       next ? `Next open plan task: ${next.id} — ${next.title}.` : '',
-      'Resume from the Progress log + ledger + git log and keep going. Only if you are blocked on an owner-run step (G0-E) or a planned Michal checkpoint, write .ai/state/v2-waiting-for-michal.md with exactly what is needed, then stop.',
+      'Resume from the Progress log + ledger + git log and keep going. Owner-run steps (G0-E) are done by the run itself when existing access allows (amendment 2026-10-09). Stop only when a step really needs Michal — a new account, a key the run does not have, live money, a new OAuth client, a release/tag that reaches production, deleting data or production infra — after finishing everything else; then collect every waiting item in .ai/state/v2-waiting-for-michal.md.',
     ]
       .filter(Boolean)
       .join(' ')
