@@ -2237,8 +2237,15 @@ export function createHttp(
       );
     },
 
-    '/_index-data': async () =>
-      Response.json(await api.buildIndexData(), { headers: { 'Cache-Control': 'no-store' } }),
+    // V2-2.8 S7 — the proxy-vouched role decides whether the Runtime group
+    // (other members' session files) is listed; a desktop has no role.
+    '/_index-data': async (req: Request) =>
+      Response.json(
+        await api.buildIndexData({
+          role: isWorkspaceMode() ? req.headers.get('x-maude-role') : null,
+        }),
+        { headers: { 'Cache-Control': 'no-store' } }
+      ),
 
     '/_system-data': async (req: Request) => {
       // DDR-048 — `?ds=<name>` scopes to one design system (per-DS tokens,

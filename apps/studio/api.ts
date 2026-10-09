@@ -128,7 +128,7 @@ import { listMaterializable } from './materialize-client.ts';
 import { resolveUrlPathUnder } from './path-containment.ts';
 import { STICKERS_DIR } from './paths.ts';
 import { getPaperPreset, MAX_PRINT_MM } from './print/units.ts';
-import { sessionDir } from './session-scope.ts';
+import { currentSession, normalizeSessionKey, sessionDir } from './session-scope.ts';
 import { describeSourceOp } from './sync/source-ops.ts';
 import { normalizeTreeState, type TreeState } from './tree-state.ts';
 import { isWorkspaceMode } from './workspace-mode.ts';
@@ -902,7 +902,8 @@ export interface Api {
     dir?: unknown;
   }): Promise<ReorderRevertResult>;
   // Aggregate data
-  buildIndexData(): Promise<unknown>;
+  /** `viewer.role` — the proxy-vouched role in a cell (`null` on a desktop). */
+  buildIndexData(viewer?: { role?: string | null }): Promise<unknown>;
   buildSystemData(dsName?: string | null): Promise<unknown>;
 }
 
@@ -6842,7 +6843,7 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
 
   // ---------- Index data + System data ----------
 
-  async function buildIndexData() {
+  async function buildIndexData(viewer?: { role?: string | null }) {
     const groups = [];
 
     // DDR-093 — per-canvas design-system map (repo-relative canvas path → DS
@@ -6997,12 +6998,26 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
     // RUNTIME — gitignored state files (_active.json, _server.json) +
     // pointers to _history/ and _comments/ dirs. Visible but inert in the
     // sidebar; matches the CV-08 mock's bottom section.
+    //
+    // V2-2.8 S7 (V2-1.16 L8 "everyone-fix") — in a cell this listing named
+    // every member's session file (`_active.<session>.json`, Cloud Phase 27
+    // D3) to every member. Non-owners get no Runtime group at all; the owner's
+    // keeps the shared entries and their OWN session file, never another
+    // member's. A desktop has no roles or sessions, so its list is unchanged.
+    const workspace = isWorkspaceMode();
+    const showRuntime = !workspace || viewer?.role === 'owner';
+    const mySession = currentSession();
     const runtimeFiles: string[] = [];
     try {
-      const entries = await readdir(paths.designRoot, { withFileTypes: true });
+      const entries = showRuntime ? await readdir(paths.designRoot, { withFileTypes: true }) : [];
       entries.sort((a, b) => a.name.localeCompare(b.name));
       for (const e of entries) {
         if (!e.name.startsWith('_')) continue;
+        if (workspace) {
+          // `_<stem>.<session>.json` is one member's sibling of a singleton.
+          const keyed = /^_[^.]+\.([^.]+)\.json$/.exec(e.name)?.[1];
+          if (keyed && normalizeSessionKey(keyed) === keyed && keyed !== mySession) continue;
+        }
         runtimeFiles.push(path.posix.join(paths.designRel, e.name));
       }
     } catch {}
