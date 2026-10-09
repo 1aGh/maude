@@ -13,7 +13,13 @@ const SPECS: RouteSpec[] = [
   { method: 'GET', path: '/_api/x', origin: 'main', readOnly: 'allowed', handle: echo('list') },
   { method: 'POST', path: '/_api/x', origin: 'main', readOnly: 'refused', handle: echo('make') },
   { method: 'GET', path: '/_api/x/:id', origin: 'main', readOnly: 'allowed', handle: echo('one') },
-  { method: 'POST', path: '/_api/x/:id/cancel', origin: 'main', readOnly: 'allowed', handle: echo('cancel') },
+  {
+    method: 'POST',
+    path: '/_api/x/:id/cancel',
+    origin: 'main',
+    readOnly: 'allowed',
+    handle: echo('cancel'),
+  },
 ];
 
 const req = (method: string, p: string) => new Request(`http://localhost${p}`, { method });
@@ -22,13 +28,22 @@ describe('route tables', () => {
   test('exact paths dispatch by method, 405 otherwise', async () => {
     const m = mountRoutes(SPECS);
     expect(Object.keys(m.exact)).toEqual(['/_api/x']);
-    expect(await (await (m.exact['/_api/x'] as (r: Request) => Promise<Response>)(req('POST', '/_api/x'))).json()).toMatchObject({ tag: 'make' });
-    expect((await (m.exact['/_api/x'] as (r: Request) => Promise<Response>)(req('DELETE', '/_api/x'))).status).toBe(405);
+    expect(
+      await (
+        await (m.exact['/_api/x'] as (r: Request) => Promise<Response>)(req('POST', '/_api/x'))
+      ).json()
+    ).toMatchObject({ tag: 'make' });
+    expect(
+      (await (m.exact['/_api/x'] as (r: Request) => Promise<Response>)(req('DELETE', '/_api/x')))
+        .status
+    ).toBe(405);
   });
 
   test('param paths go through the fall-through; unknown paths are not ours', async () => {
     const m = mountRoutes(SPECS);
-    expect(await (await (m.dynamic(req('GET', '/_api/x/i_1')) as Promise<Response>)).json()).toEqual({
+    expect(
+      await (await (m.dynamic(req('GET', '/_api/x/i_1')) as Promise<Response>)).json()
+    ).toEqual({
       tag: 'one',
       params: { id: 'i_1' },
     });

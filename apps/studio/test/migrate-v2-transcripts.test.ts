@@ -18,7 +18,8 @@ afterEach(() => {
   p = null;
 });
 
-const SRT = '1\n00:00:01,000 --> 00:00:02,000\nGo Alligators go\n\n2\n00:00:03,000 --> 00:00:03,500\nGame day\n';
+const SRT =
+  '1\n00:00:01,000 --> 00:00:02,000\nGo Alligators go\n\n2\n00:00:03,000 --> 00:00:03,500\nGame day\n';
 const WHISPER = JSON.stringify({
   transcription: [
     { text: ' Go', offsets: { from: 1000, to: 1300 } },
@@ -71,10 +72,16 @@ describe('transcripts.import', () => {
     const fwd = await run(opts(p));
     expect(fwd.exitCode).toBe(EXIT.done);
     const a = path.join(p.design, 'assets');
-    expect(JSON.parse(readFileSync(path.join(a, 'aaaa1111.transcript.json'), 'utf8')).engine.id).toBe('whisper.cpp');
-    expect(JSON.parse(readFileSync(path.join(a, 'bbbb2222.transcript.json'), 'utf8')).engine.id).toBe('srt-import');
+    expect(
+      JSON.parse(readFileSync(path.join(a, 'aaaa1111.transcript.json'), 'utf8')).engine.id
+    ).toBe('whisper.cpp');
+    expect(
+      JSON.parse(readFileSync(path.join(a, 'bbbb2222.transcript.json'), 'utf8')).engine.id
+    ).toBe('srt-import');
     expect(existsSync(path.join(a, 'aaaa1111.json'))).toBe(false);
-    expect(readFileSync(path.join(p.design, '_trash', 'migrate-v2', 'assets', 'aaaa1111.json'), 'utf8')).toBe(WHISPER);
+    expect(
+      readFileSync(path.join(p.design, '_trash', 'migrate-v2', 'assets', 'aaaa1111.json'), 'utf8')
+    ).toBe(WHISPER);
     expect(readFileSync(path.join(a, 'aaaa1111.srt'), 'utf8')).toBe(SRT); // old captions stay
     const rev = await run(opts(p, { direction: 'reverse' }));
     expect(rev.exitCode).toBe(EXIT.done);
@@ -89,6 +96,8 @@ describe('transcripts.import', () => {
     const rev = await run(opts(p, { direction: 'reverse' }));
     expect(rev.exitCode).toBe(EXIT.done);
     expect(existsSync(t)).toBe(true);
-    expect(rev.steps.find((s) => s.id === 'transcripts.import')?.notes.join(' ')).toContain('changed since the update');
+    expect(rev.steps.find((s) => s.id === 'transcripts.import')?.notes.join(' ')).toContain(
+      'changed since the update'
+    );
   });
 });
