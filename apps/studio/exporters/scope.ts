@@ -13,6 +13,8 @@ import type { Dirent } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 
+import { isRuntimeStateRel } from '../sync/file-membership.ts';
+
 /** The user-facing scope choices from the export dialog. */
 export type Scope =
   | 'selection'
@@ -161,18 +163,16 @@ function readHints(options: Record<string, unknown> | undefined): ExportScopeHin
 export const MAX_SELECTION_ALL = 256;
 const MAX_SELECTOR_LEN = 1024;
 
-const RAW_EXCLUDES = new Set([
-  '_server.json',
-  '_active.json',
-  '_export-history.json',
-  '_export-jobs',
-  '_history',
-  '_comments',
-  '_canvas-state',
-  'node_modules',
-  'dist',
-  '.DS_Store',
-]);
+/**
+ * Names a `project-raw` ZIP skips that are NOT Maude runtime state — build and
+ * OS litter. Runtime state is decided by the one DDR-115 classifier below
+ * (`isRuntimeStateRel`), never by a list here: this set used to carry its own
+ * copy of the runtime names, drifted, and shipped `_chat/` (every AI
+ * conversation), `_state/`, `_untrusted/`, `_trash/`, `_draw/`, `_reports/` and
+ * each member's `_active.<session>.json` to anyone who downloaded the project
+ * (V2-2.8 S8, V2-1.16 L7).
+ */
+const RAW_EXCLUDES = new Set(['node_modules', 'dist', '.DS_Store']);
 
 /**
  * Derive a canvas slug from a repo-relative or designRoot-relative file path.
@@ -229,6 +229,9 @@ async function walkProjectRaw(root: string): Promise<string[]> {
       if (e.name.endsWith('.log')) continue;
       const abs = path.join(absDir, e.name);
       const rel = relDir ? path.posix.join(relDir, e.name) : e.name;
+      // DDR-115 runtime state, files and whole directories alike (the
+      // classifier matches a runtime dir's own path, so the walk never enters).
+      if (isRuntimeStateRel(rel)) continue;
       if (e.isDirectory()) {
         await walk(abs, rel);
       } else if (e.isFile()) {
