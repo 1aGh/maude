@@ -120,12 +120,16 @@ const CODE_MODULE_EXTS = new Set(['ts', 'tsx', 'js', 'mjs']);
  */
 // + the footage analysis, component registry, edit decision list: versioned
 // sidecars (DDR-115) the T32 scale run found never reaching a peer.
+// + V2-1.10's per-clip word timings and beat grid (`assets/<sha8>.transcript.json`,
+// `.beats.json`): new sidecars because R8 freezes `.footage.json` / `.edl.json`.
 const COMPANION_SIDECAR_SUFFIXES = [
   '.photo.json',
   '.audio.json',
   '.footage.json',
   '.registry.json',
   '.edl.json',
+  '.transcript.json',
+  '.beats.json',
 ];
 
 /**
@@ -156,15 +160,71 @@ const FILE_SEGMENT = /^[A-Za-z0-9_][A-Za-z0-9 ._-]*$/;
  */
 export function isRuntimeStateRel(p: string): boolean {
   return (
-    /(^|\/)_(?:server|active|sync|preflight|locator|export-history|generate-history)(?:\.[A-Za-z0-9_-]{1,64})?\.json$/.test(
-      p
-    ) ||
+    RUNTIME_FILE_RE.test(p) ||
     /(^|\/)_server\.(?:lock|log)$/.test(p) ||
-    /(^|\/)_(?:history|trash|draw|photo|smoke|reports|canvas-state|state|chat|comments|untrusted|export-jobs|cache)(?:\/|$)/.test(
-      p
-    ) ||
+    RUNTIME_DIR_RE.test(p) ||
     /(^|\/)\.kgai(?:\/|$)/.test(p)
   );
+}
+
+/** The DDR-115 vocabulary as data — replicated from `git/service.ts`
+ *  `RUNTIME_STATE_FILES` / `RUNTIME_STATE_DIRS` (the V2-2.16 tripwire reads all
+ *  four lists and fails naming the one that disagrees). `_<name>.json` files: */
+export const RUNTIME_STATE_FILES = [
+  'server',
+  'active',
+  'sync',
+  'preflight',
+  'locator',
+  'export-history',
+  'generate-history',
+] as const;
+
+/** `_<name>/` directories, anywhere in the path. */
+export const RUNTIME_STATE_DIRS = [
+  'history',
+  'trash',
+  'draw',
+  'photo',
+  'smoke',
+  'reports',
+  'canvas-state',
+  'state',
+  'chat',
+  'comments',
+  'untrusted',
+  'export-jobs',
+  'cache',
+  'runs',
+] as const;
+
+const RUNTIME_FILE_RE = new RegExp(
+  `(^|/)_(?:${RUNTIME_STATE_FILES.join('|')})(?:\\.[A-Za-z0-9_-]{1,64})?\\.json$`
+);
+const RUNTIME_DIR_RE = new RegExp(`(^|/)_(?:${RUNTIME_STATE_DIRS.join('|')})(?:/|$)`);
+
+/**
+ * The design-system manifests a canvas group carries (V2-1.12 C1, V2-1.6
+ * §5.15): `<group>/<ds>/tokens.json`, `<group>/<ds>/components.json`,
+ * `<group>/<ds>/revisions/head.json` and the immutable, content-addressed
+ * `<group>/<ds>/revisions/<64 lowercase hex>.json`. Versioned working files
+ * (Plane B companion text) — and the ONLY bare-`.json` names that leave the
+ * default-closed rule, each at exactly that depth below its group.
+ */
+function isDsManifest(rel: string, groups: readonly string[]): boolean {
+  for (const g of groups) {
+    if (!rel.toLowerCase().startsWith(`${g.toLowerCase()}/`)) continue;
+    const rest = rel.slice(g.length + 1).split('/');
+    if (rest.length === 2 && (rest[1] === 'tokens.json' || rest[1] === 'components.json'))
+      return true;
+    if (
+      rest.length === 3 &&
+      rest[1] === 'revisions' &&
+      (rest[2] === 'head.json' || /^[0-9a-f]{64}\.json$/.test(rest[2] ?? ''))
+    )
+      return true;
+  }
+  return false;
 }
 
 export interface ClassifyOptions {
@@ -221,9 +281,8 @@ export function classifyProjectFile(rel: string, opts: ClassifyOptions = {}): Fi
   const last = parts[parts.length - 1] ?? '';
   const lowerLast = last.toLowerCase();
   const lowerRel = rel.toLowerCase();
-  const inGroup = normalizedGroups(opts.canvasGroups).some((g) =>
-    lowerRel.startsWith(`${g.toLowerCase()}/`)
-  );
+  const groups = normalizedGroups(opts.canvasGroups);
+  const inGroup = groups.some((g) => lowerRel.startsWith(`${g.toLowerCase()}/`));
 
   if (inGroup) {
     // The canvas body and its NAMED sidecars — Plane A's, by construction.
@@ -234,6 +293,7 @@ export function classifyProjectFile(rel: string, opts: ClassifyOptions = {}): Fi
       const sibling = `${rel.slice(0, -'.css'.length)}.tsx`;
       if (opts.hasFile(sibling)) return 'canvas-owned';
     }
+    if (isDsManifest(rel, groups)) return 'companion-text';
   }
 
   // The annotations sidecar's REAL shape: flat at the design root, keyed by

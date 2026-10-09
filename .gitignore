@@ -33,6 +33,8 @@ dev-server/.cache/
 .design/_chat/
 .design/_untrusted/
 .design/_cache/
+# AI hook scratch — pre-edit snapshots + the screenshot ledger (V2-1.11).
+.design/_runs/
 # kgai knowledge-graph store. The split is LOG (durable truth) vs CACHE/IDENTITY
 # (per-machine) — kgai's own store-level .gitignore draws the same line:
 #   • log/*.ndjson  → VERSIONED. The append-only decision log IS the knowledge.

@@ -264,22 +264,65 @@ function underPrefix(filepath: string, prefix: string): boolean {
  *      transport) → NOT hidden here.
  *    - `_comments/`        → hub-sync-only (DDR-102 CRDT) → HIDDEN, so it never
  *      double-transports through git. */
+/**
+ * The DDR-115 runtime-state vocabulary AS DATA (V2-2.16). Every one of the
+ * four lists — this file, `sync/file-membership.ts` `isRuntimeStateRel` + its
+ * hub mirror, `cli/lib/gitignore-block.mjs`, the repo `.gitignore` — must name
+ * exactly these, and `test/runtime-state-classification.test.ts` reads all of
+ * them and fails naming the list that lacks (or alone carries) an entry. Adding
+ * a runtime path means adding it to all four in one commit.
+ *
+ * `_<name>.json` per-machine files (each with an optional `.<session>` segment,
+ * Cloud Phase 27 D3).
+ */
+export const RUNTIME_STATE_FILES = [
+  'server',
+  'active',
+  'sync',
+  'preflight',
+  'locator',
+  'export-history',
+  'generate-history',
+] as const;
+
+/** `_<name>/` per-machine / per-user directories (anywhere in the path). */
+export const RUNTIME_STATE_DIRS = [
+  'history',
+  'trash',
+  'draw',
+  'photo',
+  'smoke',
+  'reports',
+  'canvas-state',
+  'state',
+  'chat',
+  'comments',
+  'untrusted',
+  'export-jobs',
+  'cache',
+  // V2-1.11 — the AI hooks' per-run scratch: `_runs/<session>/snap/<tool_use_id>`
+  // (pre-edit snapshots) and `_runs/shots.jsonl` (the stop hook's screenshot
+  // ledger). Per machine, per run, never a peer's business.
+  'runs',
+] as const;
+
+const RUNTIME_FILE_RE = new RegExp(
+  // The optional `.<session>` segment is Cloud Phase 27 D3: `_active.json`
+  // becomes `_active.<sessionKey>.json` per member in a cell. Without it each
+  // member's open tabs and selection showed as untracked to EVERYONE, a
+  // "Save all" staged them, and a push published them — one person's place in
+  // the project, in the tenant's remote.
+  `(^|/)_(?:${RUNTIME_STATE_FILES.join('|')})(?:\\.[A-Za-z0-9_-]{1,64})?\\.json$`
+);
+const RUNTIME_DIR_RE = new RegExp(`(^|/)_(?:${RUNTIME_STATE_DIRS.join('|')})(?:/|$)`);
+
 /** Exported for the test that guards the D3 per-member sibling: three separate
  *  lists have to agree on what runtime state IS, and they silently did not. */
 export function isMaudeRuntimeState(p: string): boolean {
   return (
-    // The optional `.<session>` segment is Cloud Phase 27 D3: `_active.json`
-    // becomes `_active.<sessionKey>.json` per member in a cell. Without it each
-    // member's open tabs and selection showed as untracked to EVERYONE, a
-    // "Save all" staged them, and a push published them — one person's place in
-    // the project, in the tenant's remote.
-    /(^|\/)_(?:server|active|sync|preflight|locator|export-history|generate-history)(?:\.[A-Za-z0-9_-]{1,64})?\.json$/.test(
-      p
-    ) ||
+    RUNTIME_FILE_RE.test(p) ||
     /(^|\/)_server\.(?:lock|log)$/.test(p) ||
-    /(^|\/)_(?:history|trash|draw|photo|smoke|reports|canvas-state|state|chat|comments|untrusted|export-jobs|cache)(?:\/|$)/.test(
-      p
-    ) ||
+    RUNTIME_DIR_RE.test(p) ||
     // kgai per-machine graph projection (feature-kgai-ecosystem-integration,
     // DDR-115 taxonomy) — the append-only store rebuilds from the remote on sync.
     /(^|\/)\.kgai(?:\/|$)/.test(p)

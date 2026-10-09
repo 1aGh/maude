@@ -238,6 +238,11 @@ describe('file-membership — the DDR-115 replica tripwire (4th copy)', () => {
     '_cache/blobs/9f2c1d0e5b7a4e3f8c6d2b1a0e9f8d7c6b5a4e3f2d1c0b9a8f7e6d5c4b3a2f10',
     '_cache/tmp/fill-1a2b',
     '.kgai/store/log/a.ndjson',
+    // V2-2.16 — v2's runtime paths: one new class, the rest under `_state/`.
+    '_runs/sess-1/snap/toolu_01',
+    '_runs/shots.jsonl',
+    '_state/runs/run_01.json',
+    '_state/outbox/intents/1760000000000-i_abcdefghij0123456789.json',
     'nested/_history/x.png',
     'nested/.kgai/y',
     '_history',
@@ -312,6 +317,15 @@ describe('file-membership — studio ↔ hub parity (the doc-name precedent)', (
     'ui-reel.edl.json',
     'assets/47d9b6d1.vtt',
     'evil.photo.json.txt', // the suffix must END the name
+    // V2-1.12 C1 / V2-1.6 / V2-1.10 — versioned v2 companions, both copies
+    'system/ds/tokens.json',
+    'system/ds/components.json',
+    'system/ds/revisions/head.json',
+    `system/ds/revisions/${'ab'.repeat(32)}.json`,
+    'system/ds/revisions/not-hex.json',
+    'assets/ab12cd34.transcript.json',
+    'assets/ab12cd34.beats.json',
+    '_runs/shots.jsonl',
     '',
     'dir/file.png ',
     'system/_private/x.css',
