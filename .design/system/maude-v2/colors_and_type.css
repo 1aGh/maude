@@ -250,6 +250,15 @@
   --ease-in-out: cubic-bezier(0.45, 0, 0.2, 1);
   --ease-spring: linear(0, 0.24 8%, 0.62 19%, 0.93 32%, 1.045 45%, 1.03 57%, 0.997 74%, 1);
 
+  /* ─── Guides — smart guides, spacing chips, padding bands (canvas 14 › ed-*) ─
+   * One fixed magenta in both themes: not derived from the spark (AI) and distinct
+   * from the selection azure (238) and the AI vermilion (36). White chip text on it
+   * ≈ 5.4:1 in both themes (14 Editing header; verified by the a11y pass). Bands mix
+   * it in oklch at 24 % (40 % hot) — 14 Editing.css .ed-band; that ratio lives in the
+   * component, not here. */
+  --guide:      oklch(0.55 0.20 328);
+  --guide-fg:   oklch(1 0 0);
+
   /* ─── Layout — the canvas is the whole window ─────────────────────── */
   --layout-max-w:  none;
   --layout-gutter: var(--space-5);

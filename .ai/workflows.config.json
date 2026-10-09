@@ -117,7 +117,7 @@
     "build": "pnpm --filter @maude/site build",
     "parity": "bash scripts/check-version-parity.sh",
     "tarball": "bash scripts/check-tarball-shape.sh",
-    "tokens": "pnpm --filter @maude/site sync:tokens:check",
+    "tokens": "pnpm --filter @maude/site sync:tokens:check && node scripts/gen-tokens.mjs --check",
     "site-content": "pnpm --filter @maude/site gen:reference && pnpm --filter @maude/site gen:stats && pnpm --filter @maude/site gen:roadmap && pnpm --filter @maude/site gen:whatsnew && { git diff --quiet -- site/content/docs/ site/lib/stats.json site/lib/roadmap.json site/lib/whats-new.json || { echo \"site generated content stale — commit the regen diff\"; exit 1; }; }"
   }
 }

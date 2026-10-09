@@ -21,6 +21,9 @@
 /* Plan B — maude DS token ladder, scoped under `.maude[data-theme]` (additive;
    drives the rewritten `.st-*` chrome without disturbing the legacy amber tokens). */
 @import url("./1-tokens-maude.css");
+/* V2-2.6 — maude-v2 ladder, GENERATED (scripts/gen-tokens.mjs), scoped under `.maude-v2[data-theme]`
+   only: inert until the v2 chrome mounts under that wrapper (Phase 4). */
+@import url("./1-tokens-maude-v2.css");
 @import url("./2-layout.css");
 @import url("./3-shell.css");
 /* Plan B — maude DS studio chrome (.st-* ported from Studio.css), grown per slice. */

@@ -39,6 +39,7 @@ import {
 import { AiBanner } from './ai-banner.tsx';
 import { AnnotationsLayer } from './annotations-layer.tsx';
 import { ArtboardMarqueeOverlay } from './artboard-marquee.tsx';
+import { HUD_TOKENS_CSS } from './canvas-hud-tokens.gen.ts';
 import {
   type ArtboardRect,
   PhotoPreviewBridge,
@@ -156,43 +157,8 @@ import { useUndoSinks, useUndoStack } from './use-undo-stack.tsx';
 // with the rewritten outer shell. Accent-fg is the maude dark navy (NOT white):
 // maude's bright indigo accent needs a dark fg for WCAG contrast (white/indigo
 // ≈ 3:1, fails AA; navy/indigo ≈ 6.3:1). Token-only swap — no overlay logic
-// changes (DDR-054). Values lifted from `.design/system/maude/colors_and_type.css`.
-const HUD_TOKENS_CSS = `
-:root,
-:root[data-maude-theme="dark"] {
-  --maude-hud-accent:        oklch(0.680 0.180 268);
-  --maude-hud-accent-hover:  oklch(0.730 0.170 268);
-  --maude-hud-accent-active: oklch(0.630 0.180 268);
-  --maude-hud-accent-fg:     oklch(0.180 0.030 268);
-  --maude-hud-accent-tint:   color-mix(in oklab, oklch(0.680 0.180 268) 16%, transparent);
-
-  --maude-chrome-bg-0:      oklch(0.165 0.012 255);
-  --maude-chrome-bg-1:      oklch(0.198 0.012 255);
-  --maude-chrome-bg-2:      oklch(0.232 0.013 255);
-  --maude-chrome-fg-0:      oklch(0.955 0.005 250);
-  --maude-chrome-fg-1:      oklch(0.790 0.008 250);
-  --maude-chrome-border:    oklch(0.290 0.012 255);
-  --maude-chrome-dot:       oklch(0.340 0.012 255);
-  --maude-chrome-shadow:    rgba(0, 0, 0, 0.46);
-  --maude-chrome-font-mono: 'JetBrains Mono', 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-}
-:root[data-maude-theme="light"] {
-  --maude-hud-accent:        oklch(0.520 0.195 268);
-  --maude-hud-accent-hover:  oklch(0.470 0.195 268);
-  --maude-hud-accent-active: oklch(0.430 0.190 268);
-  --maude-hud-accent-fg:     oklch(0.995 0.004 268);
-  --maude-hud-accent-tint:   color-mix(in oklab, oklch(0.520 0.195 268) 12%, transparent);
-
-  --maude-chrome-bg-0:   oklch(0.975 0.004 255);
-  --maude-chrome-bg-1:   oklch(1.000 0 0);
-  --maude-chrome-bg-2:   oklch(0.987 0.003 255);
-  --maude-chrome-fg-0:   oklch(0.225 0.015 260);
-  --maude-chrome-fg-1:   oklch(0.400 0.014 260);
-  --maude-chrome-border: oklch(0.922 0.005 255);
-  --maude-chrome-dot:    oklch(0.860 0.008 255);
-  --maude-chrome-shadow: color-mix(in oklab, oklch(0.225 0.015 260) 14%, transparent);
-}
-`;
+// changes (DDR-054). V2-2.6: the block is GENERATED from the DS (scripts/gen-tokens.mjs →
+// canvas-hud-tokens.gen.ts), byte-identical to the hand-lifted copy it replaces.
 
 // DDR-046 — Three-state halo language. Each state has its own border weight,
 // color treatment, and geometric idiom so 8+ semantic states (hover / selected

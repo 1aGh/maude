@@ -162,6 +162,10 @@ jobs:
       - name: MDCC tokens drift (.design ↔ site/app)
         run: pnpm --filter @maude/site sync:tokens:check
 
+      # V2-2.6: the studio's generated token copies (maude-v2 client ladder + canvas HUD block)
+      - name: Studio token drift (scripts/gen-tokens.mjs)
+        run: node scripts/gen-tokens.mjs --check
+
       - name: Site generated content drift (reference + stats + lib mirrors)
         # The whole generated set, not a subset: site/lib/whats-new.json sat
         # outside this gate and went stale through the v1.0.0 release (the
