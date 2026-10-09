@@ -100,9 +100,16 @@ async function existingJobIds(): Promise<string[]> {
 }
 
 /** Poll the sidecar's own ledger from inside the webview until a NEW job for
- * this format finishes, then hand back its id + status. */
+ * this format finishes, then hand back its id + status (+ failure `reason`).
+ *
+ * The ledger row's `error` field is RENAMED to `reason` before it leaves the
+ * webview. A WebDriver script result whose value carries an `error` key is
+ * read by the client as a protocol ERROR response (W3C: `{value: {error, …}}`),
+ * so the moment a job failed every poll threw `WebDriverError: <the job's
+ * error text>`, `waitUntil` swallowed it as "not yet", and a failed export
+ * surfaced as mocha's bare `Timeout` minutes later instead of as its reason. */
 async function waitForJob(format: string, ignore: string[], timeoutMs = 240_000) {
-  let last: { id?: string; status?: string; error?: string } = {};
+  let last: { id?: string; status?: string; reason?: string } = {};
   await browser.waitUntil(
     async () => {
       last = await browser.execute(
@@ -111,7 +118,8 @@ async function waitForJob(format: string, ignore: string[], timeoutMs = 240_000)
           const { history } = (await r.json()) as {
             history: Array<{ id: string; format: string; status: string; error?: string }>;
           };
-          return history.find((h) => h.format === f && !seen.includes(h.id)) ?? {};
+          const row = history.find((h) => h.format === f && !seen.includes(h.id));
+          return row ? { id: row.id, status: row.status, reason: row.error } : {};
         },
         format,
         ignore
@@ -128,18 +136,26 @@ async function waitForJob(format: string, ignore: string[], timeoutMs = 240_000)
 }
 
 describe('export-formats (native-desktop)', () => {
-  before(() => startReport('export-formats (native-desktop)'));
+  // Which fixture canvas is in front — shared across the per-format tests.
+  let open: 'export' | 'video' | null = null;
 
-  it('exports every format from the bundled app, and the files are real', async () => {
+  before(async () => {
+    startReport('export-formats (native-desktop)');
     expect(await isNativeShell()).toBe(true);
     const url = await waitForSidecar();
     expect(url).toMatch(/^http:\/\/(localhost|127\.0\.0\.1):\d+/);
 
     const list = await $('[data-testid="canvas-list"]');
     await list.waitForDisplayed({ timeout: 60_000 });
+  });
 
-    let open: 'export' | 'video' | null = null;
-    for (const format of FORMATS) {
+  // One test per format. This was a single test looping over all eight under
+  // mocha's 180 s budget while each job alone may take 240 s — so one slow or
+  // failed format turned into a bare `Timeout` for the whole matrix and hid
+  // which formats were fine.
+  for (const format of FORMATS) {
+    it(`exports ${format.label} from the bundled app, and the file is real`, async function () {
+      this.timeout(300_000); // > waitForJob's 240 s, so its message is the one reported
       // The export fixture carries an image asset, so a dropped asset is
       // observable (Smoke.tsx has none); the video fixture is the smallest
       // comp the video adapters accept.
@@ -167,7 +183,7 @@ describe('export-formats (native-desktop)', () => {
       const job = await waitForJob(format.id, before);
       // Put the reason in the assertion, not in a separate log line — a bare
       // `toBe('done')` on a failed render says nothing about why.
-      expect(`${format.label}: ${job.status} ${job.error ?? ''}`.trim()).toBe(
+      expect(`${format.label}: ${job.status} ${job.reason ?? ''}`.trim()).toBe(
         `${format.label}: done`
       );
 
@@ -200,6 +216,6 @@ describe('export-formats (native-desktop)', () => {
         expect(probe.text.match(/(?:xlink:)?href="https?:\/\/[^"]+"/g) ?? []).toEqual([]);
       }
       await capture(`export-done-${format.id}`);
-    }
-  });
+    });
+  }
 });

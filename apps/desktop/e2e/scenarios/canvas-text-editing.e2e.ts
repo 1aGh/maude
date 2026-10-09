@@ -200,6 +200,27 @@ async function synthDblclickUntil(
   return false;
 }
 
+/**
+ * Text of the shell notification a canvas raised, if one mentioning `needle` is
+ * showing — else null.
+ *
+ * Canvas hints no longer render inside the canvas. Since d50954df2 ("stack
+ * notifications and contain export diagnostics", 2026-09-11) an EMBEDDED canvas
+ * posts `{dgn:'canvas-notice'}` to the shell (canvas-notifications.tsx
+ * `showCanvasToast`), and the shell renders it in its own stack through
+ * `notifyCanvasText` — ids `canvas-notice-<slot>`, so the card is
+ * `[data-testid="notice-canvas-notice-<slot>"]` in the TOP document. The old
+ * in-frame `.dc-media-toast` no longer exists, which is why probing the frame
+ * for it failed this test.
+ */
+function canvasNotice(needle: string): Promise<string | null> {
+  return browser.execute((n) => {
+    const cards = Array.from(document.querySelectorAll('[data-testid^="notice-canvas-notice-"]'));
+    const hit = cards.find((c) => (c.textContent ?? '').includes(n));
+    return hit ? (hit.textContent ?? '') : null;
+  }, needle);
+}
+
 /** Post a shell-style message INTO the canvas window (zoom ops etc. — the
  * same messages the studio shell sends; canvas-shell listens on its own
  * window). */
@@ -828,22 +849,29 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
 
     // Mixed content (`Total: {1 + 1} items` — leaf-looking in the DOM, mixed
     // in source): the build-time data-cd-editable gate refuses the editor and
-    // surfaces the hint toast instead of the DDR-150 dead end.
+    // surfaces the hint notice instead of the DDR-150 dead end. The hint is a
+    // SHELL notification now (see `canvasNotice`), not an in-frame toast.
     const mbox = await frameLocalBox(MIXED);
     if (!mbox) throw new Error('no mixed box');
+    // Start from no such notice, so the one asserted below is THIS gesture's
+    // (canvas notices auto-dismiss after 5 s).
+    await browser.waitUntil(async () => (await canvasNotice('/design:edit')) === null, {
+      timeout: 8_000,
+      timeoutMsg: 'an earlier /design:edit hint never dismissed',
+    });
     // feature-4 drill ladder: repeat until the leaf is reached and the
-    // refusal toast fires (the editor must never open on mixed content).
+    // refusal hint fires (the editor must never open on mixed content).
     await synthDblclickUntil(
       MIXED,
       mbox.cx,
       mbox.cy,
-      async () => (await probe('.dc-media-toast')).exists
+      async () => (await canvasNotice('/design:edit')) !== null
     );
     const mp = await probe(MIXED);
     expect(mp.ce).toBeNull();
-    const toast = await probe('.dc-media-toast');
-    expect(toast.exists).toBe(true);
-    expect(toast.text ?? '').toContain('/design:edit');
+    const hint = await canvasNotice('/design:edit');
+    expect(hint).not.toBeNull();
+    expect(hint ?? '').toContain('/design:edit');
     await capture('mixed-p-refused-with-hint');
 
     // Static h1: the marker admits it → edit, commit, and the write-through
@@ -864,17 +892,27 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     // The commit posts /_api/edit-text → source rewrite → file-watcher HMR
     // reload → the canvas re-renders FROM PERSISTED SOURCE (the ⌘R-equivalent
     // proof the baseline bug was about).
+    //
+    // The wait includes the DISK. The edited element shows ' P6' the moment it
+    // is typed (contenteditable), so a DOM-only condition was satisfied before
+    // the write landed; the next test then started editing while this commit
+    // was still in flight, and its own disk/undo checks raced it.
+    const smokePath = FIXTURE_FILES[0] as string;
     await browser.waitUntil(
       async () => {
         const p = await probe(H1);
-        return p.exists && (p.text ?? '').includes('P6') && p.ce === null;
+        return (
+          p.exists &&
+          (p.text ?? '').includes('P6') &&
+          p.ce === null &&
+          /<h1[^>]*>[^<]*P6<\/h1>/.test(readFileSync(smokePath, 'utf8'))
+        );
       },
       { timeout: 20_000, interval: 600, timeoutMsg: 'h1 edit never persisted through reload' }
     );
     // Disk-level proof + sibling integrity: only the h1 line ever changed
     // (P5's earlier ' K' commit lives in the same h1 line — strip it from
     // both sides and the REST must be byte-identical to the pre-run snapshot).
-    const smokePath = FIXTURE_FILES[0] as string;
     const src = readFileSync(smokePath, 'utf8');
     expect(src).toMatch(/<h1[^>]*>[^<]*P6<\/h1>/);
     const orig = fixtures.baselineOf(smokePath);
@@ -982,8 +1020,13 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     expect(editingSecond).toBe('plaintext-only');
     await typeAtEnd(' EDITED');
     await synthKey('Enter');
+    // DOM AND disk — the typed text is on screen before it is saved (see the
+    // persistence test); reading the file right after a DOM-only wait raced
+    // the write.
+    const smokePath = FIXTURE_FILES[0] as string;
     await browser.waitUntil(
       async () => {
+        if (!readFileSync(smokePath, 'utf8').includes('Second card body. EDITED')) return false;
         const texts = await browser.execute(() => {
           const iframe = document.querySelector(
             '[data-testid="canvas-frame"]'
@@ -998,7 +1041,6 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
       { timeout: 20_000, interval: 600, timeoutMsg: 'card edit never persisted through reload' }
     );
     // Disk proof: ONLY CARDS[1].body changed.
-    const smokePath = FIXTURE_FILES[0] as string;
     const src = readFileSync(smokePath, 'utf8');
     expect(src).toContain('Second card body. EDITED');
     expect(src).toContain('First card body.'); // sibling untouched
@@ -1020,23 +1062,49 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
 
     // Undo (Edit-menu bridge) — re-targets CARDS[1] via the stored occurrence
     // + the current disk value, rewriting it back to the original.
+    //
+    // Undo pops the TOP record of this canvas's stack, so post it only once the
+    // card edit's record IS the top. Neither the new text on screen nor the
+    // file on disk says the edit's record has landed (it is written when the
+    // edit is acknowledged); posting before it would undo the PREVIOUS edit
+    // instead (the persistence test's h1 commit, which now really happens
+    // before this test). Only this card edit carries "EDITED". The stack is the
+    // shell's `window.__maude_undo_stacks` Map, reachable because the e2e
+    // canvas is same-origin (MAUDE_CANVAS_ORIGIN_SPLIT=0).
+    await browser.waitUntil(
+      () =>
+        browser.execute(() => {
+          const stacks = (
+            window as unknown as { __maude_undo_stacks?: Map<string, { past: unknown[] }> }
+          ).__maude_undo_stacks;
+          if (!stacks) return false;
+          for (const st of stacks.values()) {
+            const top = st.past[st.past.length - 1];
+            if (top && JSON.stringify(top).includes('EDITED')) return true;
+          }
+          return false;
+        }),
+      { timeout: 10_000, interval: 100, timeoutMsg: 'the card edit never reached the undo stack' }
+    );
     await postToCanvas({ dgn: 'undo' });
-    await browser.waitUntil(async () => (await cardText(1)) === 'Second card body.', {
-      timeout: 20_000,
-      interval: 600,
-      timeoutMsg: 'undo never reverted the variable edit',
-    });
+    await browser.waitUntil(
+      async () =>
+        (await cardText(1)) === 'Second card body.' &&
+        !readFileSync(smokePath, 'utf8').includes('Second card body. EDITED'),
+      { timeout: 20_000, interval: 600, timeoutMsg: 'undo never reverted the variable edit' }
+    );
     expect(readFileSync(smokePath, 'utf8')).toContain('Second card body.');
     expect(readFileSync(smokePath, 'utf8')).not.toContain('Second card body. EDITED');
     await capture('var-card-undo-reverted');
 
     // Redo — re-applies to CARDS[1] only.
     await postToCanvas({ dgn: 'redo' });
-    await browser.waitUntil(async () => (await cardText(1))?.includes('EDITED') === true, {
-      timeout: 20_000,
-      interval: 600,
-      timeoutMsg: 'redo never re-applied the variable edit',
-    });
+    await browser.waitUntil(
+      async () =>
+        (await cardText(1))?.includes('EDITED') === true &&
+        readFileSync(smokePath, 'utf8').includes('Second card body. EDITED'),
+      { timeout: 20_000, interval: 600, timeoutMsg: 'redo never re-applied the variable edit' }
+    );
     const afterRedo = readFileSync(smokePath, 'utf8');
     expect(afterRedo).toContain('Second card body. EDITED');
     expect(afterRedo).toContain('First card body.'); // still untouched

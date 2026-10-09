@@ -24,6 +24,20 @@ import { waitForSidecar } from '../helpers/sidecar';
 const ENTRY_URL = 'tauri://localhost';
 const LOOPBACK = /^http:\/\/(localhost|127\.0\.0\.1):\d+/;
 
+/**
+ * The dev-server a URL points at — scheme, host and PORT.
+ *
+ * Recovery is "back on the same dev-server", and that is the origin. The rest
+ * of the URL is the studio's own address state: since 04321806 (share file
+ * links, 2026-09-14) the shell pushes `?open=<canvas>` for whatever is open,
+ * and the splash recovers to the server ROOT it gets from
+ * `resolve_dev_server_url` — it cannot know which canvas was showing. Comparing
+ * whole URLs made this spec depend on whether an earlier spec in the same app
+ * process (the default lane shares one) had left a canvas open: it failed on
+ * `http://localhost:4401/?open=ui/Export.tsx` vs `http://localhost:4401/`.
+ */
+const serverOf = (url: string) => new URL(url).origin;
+
 describe('splash-recovers-after-return-to-entry (native-desktop)', () => {
   before(() => startReport('splash-recovers-after-return-to-entry (native-desktop)'));
 
@@ -56,7 +70,7 @@ describe('splash-recovers-after-return-to-entry (native-desktop)', () => {
         timeoutMsg: `splash never recovered to the dev-server (parked at "${urlAfter}")`,
       }
     );
-    expect(urlAfter).toBe(appUrl);
+    expect(serverOf(urlAfter)).toBe(serverOf(appUrl));
     await capture('recovered-to-localhost');
 
     // The shell actually re-rendered — a URL flip alone is not recovery.
@@ -75,9 +89,11 @@ describe('splash-recovers-after-return-to-entry (native-desktop)', () => {
     await browser.execute(() => window.history.back());
     await browser.pause(2000);
 
+    // Back lands on an earlier STUDIO entry (possibly one carrying `?open=`),
+    // never on the splash: still loopback, still the same dev-server.
     const url = await browser.getUrl();
     expect(url).toMatch(LOOPBACK);
-    expect(url).toBe(appUrl);
+    expect(serverOf(url)).toBe(serverOf(appUrl));
     await capture('back-navigation-cannot-reach-splash');
 
     await (await $('[data-testid="canvas-list"]')).waitForDisplayed({ timeout: 60_000 });

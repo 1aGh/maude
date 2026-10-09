@@ -155,7 +155,24 @@ describe('timeline — manual cut (select · split · delete · undo · zoom)', 
     await capture('after-undo');
   });
 
+  /**
+   * The track is laid out on ONE px-per-frame scale: its width is the 96 px
+   * label gutter plus `totalFrames × pxPerFrame` (TimelinePanel `axisPx`). The
+   * slider is log-scaled from fit-to-width (0) to MAX_PX_PER_FRAME (100), which
+   * is 40 px/frame (panels/timeline-scale.js).
+   *
+   * This used to assert "slider 80 makes the track > 3× wider", and that ratio
+   * is a property of the WINDOW, not the zoom: fit already spans the dock, so
+   * the wider the window, the less room is left above it. Measured on a
+   * 2545 px-wide window (DPR 1): fit 2529 px → slider 80 6648 px (2.6×) →
+   * slider 100 8496 px — the zoom was fine, the threshold was not. So assert
+   * the scale itself: max zoom is exactly 40 px/frame on any window, 80 sits
+   * strictly between fit and max with a real expansion, and 0 returns to fit.
+   */
   it('zoom slider expands the scaled track (px-per-frame scale)', async () => {
+    const LABEL_GUTTER = 96;
+    const TOTAL_FRAMES = 210; // Cut.tsx: 60 + 90 + 60 frames (split/delete/undo keep the total)
+    const MAX_PX_PER_FRAME = 40;
     const widthOf = () =>
       browser.execute(
         () =>
@@ -163,18 +180,46 @@ describe('timeline — manual cut (select · split · delete · undo · zoom)', 
             document.querySelector('[data-testid="timeline-track"]') as HTMLElement
           ).getBoundingClientRect().width
       );
-    const before = await widthOf();
-    await browser.execute(() => {
-      const z = document.querySelector('[data-testid="timeline-zoom"]') as HTMLInputElement;
-      const desc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
-      desc?.set?.call(z, 80);
-      z.dispatchEvent(new Event('input', { bubbles: true }));
-      z.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    await browser.waitUntil(async () => (await widthOf()) > before * 3, {
+    const setSlider = (v: number) =>
+      browser.execute((val: number) => {
+        const z = document.querySelector('[data-testid="timeline-zoom"]') as HTMLInputElement;
+        const desc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+        desc?.set?.call(z, val);
+        z.dispatchEvent(new Event('input', { bubbles: true }));
+        z.dispatchEvent(new Event('change', { bubbles: true }));
+      }, v);
+    const sliderValue = () =>
+      browser.execute(
+        () => (document.querySelector('[data-testid="timeline-zoom"]') as HTMLInputElement).value
+      );
+
+    const fit = await widthOf();
+
+    await setSlider(80);
+    await browser.waitUntil(async () => (await widthOf()) > fit * 1.5, {
       timeout: 5000,
       timeoutMsg: 'zoom did not expand the track',
     });
+    const at80 = await widthOf();
+    expect(await sliderValue()).toBe('80');
     await capture('zoomed');
+
+    // Max zoom = exactly MAX_PX_PER_FRAME px per frame, whatever the window.
+    const atMax = LABEL_GUTTER + TOTAL_FRAMES * MAX_PX_PER_FRAME;
+    await setSlider(100);
+    await browser.waitUntil(async () => Math.abs((await widthOf()) - atMax) <= 1, {
+      timeout: 5000,
+      timeoutMsg: `max zoom did not lay the track out at ${MAX_PX_PER_FRAME} px/frame (${atMax} px)`,
+    });
+    expect(at80).toBeGreaterThan(fit);
+    expect(at80).toBeLessThan(atMax);
+    await capture('zoomed-max');
+
+    // Back to 0 = fit-to-width again.
+    await setSlider(0);
+    await browser.waitUntil(async () => Math.abs((await widthOf()) - fit) <= 1, {
+      timeout: 5000,
+      timeoutMsg: 'slider 0 did not return the track to fit-to-width',
+    });
   });
 });

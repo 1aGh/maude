@@ -34,7 +34,7 @@ Inventory taken on 2026-10-09 from the tree at `aec26e06`. Producers are named b
 | `view-only-stamp` | testid | The "View only" stamp shown in the menubar for a read-only (viewer) session. | `client/app.jsx` · `Menubar` | — | moves — map in Phase 4 |
 | `cloud-account` | testid | Signed-in cloud account control. Emitted by TWO different elements: the menubar account chip in the cloud shell (`Menubar`) and the account menu button in the sidebar cloud rail (`CloudBar`). Scenarios reach the CloudBar one. *Duplicate testid across two components.* | `client/app.jsx` · `Menubar`<br>`client/panels/CloudBar.jsx` · `CloudBar` | e2e:cloud-attach | moves — map in Phase 4 |
 | `cloud-signout` | testid | Cloud shell only: the sign-out button next to the account chip. | `client/app.jsx` · `Menubar` | — | moves — map in Phase 4 |
-| `assistant-toggle` | testid | Menubar button that opens/closes the Assistant (ACP chat) panel. Native app only. | `client/app.jsx` · `Menubar` | e2e:acp-ask-user-question, e2e:acp-capability-picker, e2e:acp-cold-start, e2e:acp-write-scope, tour:quick-setup-tour | moves — map in Phase 4 |
+| `assistant-toggle` | testid | Menubar button that opens/closes the Assistant (ACP chat) panel. Native app only. *`data-active` = panel open, `data-busy` = a chat turn or its background tools are running; `e2e-helper:assistant` reads both (open without toggling shut, turn settled).* | `client/app.jsx` · `Menubar` | e2e-helper:assistant, e2e:acp-cold-start, tour:quick-setup-tour | moves — map in Phase 4 |
 | `share-btn` | testid | Menubar Share button; opens the share dialog for the active canvas. Disabled when no canvas is open. | `client/app.jsx` · `Menubar` | e2e:share-link, whats-new | moves — map in Phase 4 |
 | `report-bug-toggle` | testid | Menubar bug icon that opens the Report-a-bug dialog. | `client/app.jsx` · `Menubar` | — | moves — map in Phase 4 |
 | `[data-tour="brand"]` | data-tour | The maude wordmark at the left of the menubar. | `client/app.jsx` · `Menubar` | whats-new | moves — map in Phase 4 |
@@ -175,7 +175,7 @@ Inventory taken on 2026-10-09 from the tree at `aec26e06`. Producers are named b
 | --- | --- | --- | --- | --- | --- |
 | `cloud-role-banner` | testid | Cloud shell banner that states what your role (owner / member / viewer) can do in this project. | `client/app.jsx` · `CloudRoleBanner` | — | moves — map in Phase 4 |
 | `cloud-role-banner-dismiss` | testid | Dismiss button on the cloud role banner. | `client/app.jsx` · `CloudRoleBanner` | — | moves — map in Phase 4 |
-| `notice-<id>` | testid (pattern) | One notification card in the shared notification stack (`<id>` = notice id). | `notifications.tsx` · `NoticeCard` | test:notifications | stable — re-emit |
+| `notice-<id>` | testid (pattern) | One notification card in the shared notification stack (`<id>` = notice id). *Canvas hints land here too: an embedded canvas posts `{dgn:'canvas-notice'}` and the shell shows it through `notifyCanvasText` as `notice-canvas-notice-<slot>` (two reused slots). `e2e:canvas-text-editing` matches that prefix for the mixed-text `/design:edit` hint (it replaced the in-frame `.dc-media-toast`, removed in `d50954df2`).* | `notifications.tsx` · `NoticeCard` | e2e:canvas-text-editing, test:notifications | stable — re-emit |
 | `.maude-notice / -action / -summary` | selector | A notification card, its action button and its summary line. | `notifications.tsx` · `NoticeCard`<br>`client/export-center.jsx` · `ExportJobNotice` | test:notifications | stable — re-emit |
 | button "Got it" / "Dismiss" | selector | Onboarding-hint and banner dismiss buttons, clicked by accessible name before timed actions. *`surface.e2e.ts` clicks every visible match; there is no single producer.* | `client/app.jsx` · `App` | e2e-mp:surface | moves — map in Phase 4 |
 
@@ -202,13 +202,13 @@ No hooks. Nothing outside the components in this region targets their DOM (`Help
 | `acp-setup-install` | testid | Readiness row action: install Claude Code. | `client/panels/ReadinessList.jsx` · `SetupAction` | e2e:acp-cold-start | stable — re-emit |
 | `acp-setup-signin` | testid | Readiness row action: sign in to Claude Code. | `client/panels/ReadinessList.jsx` · `SetupAction` | — | stable — re-emit |
 | `rdy-row-<id>` | testid (pattern) | One readiness check row (e.g. `rdy-row-claude`). Also rendered in onboarding and the readiness dialog. | `client/panels/ReadinessList.jsx` · `Row` | e2e:acp-cold-start | stable — re-emit |
-| `chat-composer` | testid | The chat composer (input area). | `client/panels/ChatPanel.jsx` · `Composer` | e2e:acp-ask-user-question, e2e:acp-capability-picker, e2e:acp-cold-start, e2e:acp-write-scope | stable — re-emit |
+| `chat-composer` | testid | The chat composer (input area). | `client/panels/ChatPanel.jsx` · `Composer` | e2e-helper:assistant, e2e:acp-ask-user-question, e2e:acp-capability-picker, e2e:acp-cold-start, e2e:acp-write-scope | stable — re-emit |
 | `chat-context-chip` | testid | The context chip in the composer (what the agent will see). | `client/panels/ChatPanel.jsx` · `Composer` | — | stable — re-emit |
-| `chat-mode-banner` | testid | Top-of-thread alert shown only while the current permission mode blocks edits (e.g. Plan). | `client/panels/ChatPanel.jsx` · `ModeBanner` | — | stable — re-emit |
+| `chat-mode-banner` | testid | Top-of-thread alert shown only while the current permission mode blocks edits (e.g. Plan). | `client/panels/ChatPanel.jsx` · `ModeBanner` | e2e:acp-capability-picker | stable — re-emit |
 | `chat-mode-banner-switch` | testid | Button on that alert that switches to the least-privilege mode that can edit. | `client/panels/ChatPanel.jsx` · `ModeBanner` | — | stable — re-emit |
 | `chat-tool-row` | testid | One tool-call row inside a tool card. | `client/panels/ChatPanel.jsx` · `ChatToolCard` | — | stable — re-emit |
 | `chat-tool-group` | testid | "Ran N tools" row that folds 2+ consecutive tool calls (expands to the individual cards). | `client/panels/ToolGroup.jsx` · `ToolGroup` | — | stable — re-emit |
-| `chat-msg-actions` | testid | The action row under a message. Emitted by both `UserMessage` and `AssistantMessage`. | `client/panels/ChatPanel.jsx` · `UserMessage`<br>`client/panels/ChatPanel.jsx` · `AssistantMessage` | e2e:acp-write-scope | stable — re-emit |
+| `chat-msg-actions` | testid | The action row under a message. Emitted by both `UserMessage` and `AssistantMessage`. *Hover/focus-revealed (`opacity: 0` otherwise), so `isDisplayed()` never reports it, and it exists on the user message the moment it is sent — not a turn-finished signal. `e2e-helper:assistant` only counts it (one per message).* | `client/panels/ChatPanel.jsx` · `UserMessage`<br>`client/panels/ChatPanel.jsx` · `AssistantMessage` | e2e-helper:assistant | stable — re-emit |
 | `chat-transcript-menu` | testid | The transcript menu button in the chat status row. | `client/panels/ChatPanel.jsx` · `StatusRow` | — | stable — re-emit |
 | `chat-foot-info-btn` | testid | "Chat info" button in the chat footer. | `client/panels/ChatPanel.jsx` · `ChatFootInfo` | — | stable — re-emit |
 | `chat-foot-popover` | testid | The chat info popover opened by `chat-foot-info-btn`. | `client/panels/ChatPanel.jsx` · `ChatFootInfo` | — | stable — re-emit |
@@ -220,7 +220,7 @@ No hooks. Nothing outside the components in this region targets their DOM (`Help
 | `chat-overflow-menu` | testid | The chat panel overflow (⋯) menu. | `client/panels/ChatPanel.jsx` · `ChatPanel` | — | stable — re-emit |
 | `chat-caps-connecting` | testid | Capability bar placeholder while the agent connects. | `client/panels/CapabilityBar.jsx` · `CapabilityBar` | — | stable — re-emit |
 | `chat-caps-bar` | testid | The capability bar (live model/mode/effort pickers). | `client/panels/CapabilityBar.jsx` · `CapabilityBar` | — | stable — re-emit |
-| `chat-mode-picker` | testid | The permission-mode picker in the capability bar. | `client/panels/CapabilityBar.jsx` · `CapabilityBar` | e2e:acp-capability-picker, whats-new | stable — re-emit |
+| `chat-mode-picker` | testid | The permission-mode picker in the capability bar. | `client/panels/CapabilityBar.jsx` · `CapabilityBar` | e2e-helper:assistant, e2e:acp-capability-picker, whats-new | stable — re-emit |
 | `chat-permission-prompt` | testid | The tool-permission prompt card. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt` | e2e:acp-write-scope | stable — re-emit |
 | `chat-perm-queue` | testid | Queue counter on the permission prompt. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt` | — | stable — re-emit |
 | `chat-perm-outside` | testid | Warning that a requested write is outside the project. | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt` | e2e:acp-write-scope, test:acp-permission-prompt | stable — re-emit |
@@ -237,8 +237,9 @@ No hooks. Nothing outside the components in this region targets their DOM (`Help
 | `chat-elicit-custom-<id>` | testid (pattern) | Free-text input behind the "Other" option. | `client/panels/ElicitationPrompt.jsx` · `Question` | — | stable — re-emit |
 | `chat-elicit-text-<id>` | testid (pattern) | Text answer input for a text question. | `client/panels/ElicitationPrompt.jsx` · `Question` | — | stable — re-emit |
 | `chat-elicit-secret-warning` | testid | Warning shown when a question asks for a secret. | `client/panels/ElicitationPrompt.jsx` · `Question` | — | stable — re-emit |
-| `.chat-input` | selector | The composer textarea. | `client/panels/ChatPanel.jsx` · `HighlightedInput` | e2e:acp-ask-user-question, e2e:acp-capability-picker, e2e:acp-write-scope | stable — re-emit |
+| `.chat-input` | selector | The composer textarea. | `client/panels/ChatPanel.jsx` · `HighlightedInput` | e2e-helper:assistant, e2e:acp-ask-user-question, e2e:acp-capability-picker, e2e:acp-write-scope | stable — re-emit |
 | `[aria-label="Send message"]` | selector | Composer send button. | `client/panels/ChatPanel.jsx` · `Composer` | e2e:acp-ask-user-question, e2e:acp-write-scope | stable — re-emit |
+| `[aria-label="Stop"]` | selector | The composer's Stop button; rendered only while the thread is running. | `client/panels/ChatPanel.jsx` · `Composer` | e2e-helper:assistant | stable — re-emit |
 | `.btn--danger (permission prompt)` | selector | The deny/destructive button on the permission prompt (`[data-testid="chat-permission-prompt"] .btn--danger`). | `client/panels/PermissionPrompt.jsx` · `PermissionPrompt` | e2e:acp-write-scope | stable — re-emit |
 | `.rdy-copy / .rdy-fix-tx / .rdy-fix-tx--err` | selector | Readiness list: copy-command button, fix transcript, and its error state. | `client/panels/ReadinessList.jsx` · `Row`<br>`client/panels/ReadinessList.jsx` · `SetupAction` | e2e:acp-cold-start | stable — re-emit |
 
@@ -662,7 +663,6 @@ Consumers that target a hook no producer emits today. Each one is a test, spec o
 | Hook | Consumer | What happened | Effect |
 | --- | --- | --- | --- |
 | `[data-tour="menubar-file"]` | whats-new `ai-media-generation` step 0 | Never emitted. The File menu trigger carries `data-testid="menu-file"` and no `data-tour`. | Spotlight shows centred, pointing at nothing. |
-| `.dc-media-toast` | `e2e:canvas-text-editing`, test "persistence: mixed <p> gets NO dead-end editor" (double-clicks a mixed text node inside the canvas frame and expects a toast containing `/design:edit`) | Removed in `d50954df2` (2026-09-11, "stack notifications and contain export diagnostics"). An embedded canvas now posts `{dgn:'canvas-notice'}` and the hint renders as a shell notice (`notice-<id>`, `.maude-notice`) in the top document, outside the frame the test is switched into. | That test fails at `expect(toast.exists).toBe(true)`. |
 | `.dc-artboard-ghost` | `spec:canvas-format-tsx/canvas-artboard-drag` (asserts it exists after a drag, and is absent otherwise) | No component renders it: `DCArtboard` drags the article itself ("no ghost placeholder" in `canvas-lib.tsx`). | The positive assertion fails; the negative ones pass vacuously. |
 | `.dc-error-overlay` | `spec:web-artboards` (asserts it is absent) | No component has ever rendered this class (it appears only in the spec). | Passes vacuously; it cannot detect a render error. |
 | `[data-canvas-row]` | `spec:canvas-format-tsx/tsx-canvas-render-and-edit` | Never emitted; tree rows use `data-testid="canvas-row-<slug>"`. | Selector check fails. |
@@ -691,8 +691,8 @@ These selectors appear in consumers but target content that is not studio UI, so
 
 ## Counts
 
-- **Producers.** 338 `data-testid` hooks (275 static, 63 patterns) from 359 emit sites, plus 15 `data-tour` anchors from 16 emit sites. 154 testids and 15 anchors have at least one consumer; the other 184 testids are emitted but nothing outside their component targets them yet.
-- **Other selectors.** 120 non-testid selector entries (classes, `aria-label`s, roles, data attributes, accessible-name locators) that consumers target.
-- **Consumers.** 136 files reference at least one hook (691 hook–file pairs); 68 of them reference a `data-testid`. By kind: test 50, e2e 22, spec 21, bin 17, runner 7, test-e2e 6, e2e-mp 4, tour 3, e2e-helper 2, app.jsx 1, skill 1, frame-probe 1, whats-new 1.
+- **Producers.** 338 `data-testid` hooks (275 static, 63 patterns) from 359 emit sites, plus 15 `data-tour` anchors from 16 emit sites. 155 testids and 15 anchors have at least one consumer; the other 183 testids are emitted but nothing outside their component targets them yet.
+- **Other selectors.** 121 non-testid selector entries (classes, `aria-label`s, roles, data attributes, accessible-name locators) that consumers target.
+- **Consumers.** 137 files reference at least one hook (694 hook–file pairs); 69 of them reference a `data-testid`. By kind: test 50, e2e 22, spec 21, bin 17, runner 7, test-e2e 6, e2e-mp 4, tour 3, e2e-helper 3, app.jsx 1, skill 1, frame-probe 1, whats-new 1.
 - **Spotlights.** 26 What's New targets: 10 live, 14 need a shell state, 1 dangling, 1 unreachable.
-- **Dangling consumers.** 7 hooks with no producer (listed above), plus the unreachable spotlight.
+- **Dangling consumers.** 6 hooks with no producer (listed above), plus the unreachable spotlight.

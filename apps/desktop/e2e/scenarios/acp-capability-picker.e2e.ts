@@ -1,5 +1,6 @@
 import { $, browser, expect } from '@wdio/globals';
 
+import { clearComposer, openAssistant, pickMode, setPermissionMode } from '../helpers/assistant';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -27,6 +28,9 @@ import { waitForSidecar } from '../helpers/sidecar';
 const tid = (s: string) => `[data-testid="${s}"]`;
 
 describe('acp-capability-picker (native-desktop)', () => {
+  // The mode this spec found the shared session in (test 2 switches it to Plan).
+  let modeBefore: string | null = null;
+
   before(async function () {
     startReport('acp-capability-picker (native-desktop) — live mode picker, no hardcoded list');
     await browser.setTimeout({ script: 60_000 });
@@ -34,8 +38,10 @@ describe('acp-capability-picker (native-desktop)', () => {
     await waitForSidecar();
     if (!(await isNativeShell())) this.skip(); // ACP panel is native-only (DDR-123)
 
-    await (await $(tid('assistant-toggle'))).waitForDisplayed({ timeout: 30_000 });
-    await (await $(tid('assistant-toggle'))).click();
+    // Open, never toggle: the default lane shares ONE app process across spec
+    // files, and acp-ask-user-question has usually left this panel open — a
+    // blind click closed it and test 1 waited for a composer that never came.
+    await openAssistant();
 
     const notConnected = await $(tid('acp-not-connected'));
     const isNotConnected = await notConnected.isDisplayed().catch(() => false);
@@ -44,10 +50,19 @@ describe('acp-capability-picker (native-desktop)', () => {
     }
   });
 
+  after(async () => {
+    // Hand the shared session back as we found it: the `/` warm-up out of the
+    // composer, and the mode test 2 changed restored.
+    if (modeBefore) await setPermissionMode(modeBefore);
+    else await clearComposer();
+  });
+
   it('1 · warming the composer establishes a session and populates the LIVE mode picker', async () => {
     const composer = await $(tid('chat-composer'));
     await composer.waitForDisplayed({ timeout: 30_000 });
 
+    // Whatever an earlier spec left in the composer would prefix the `/`.
+    await clearComposer();
     const input = await composer.$('.chat-input');
     await input.click();
     await input.addValue('/');
@@ -78,16 +93,22 @@ describe('acp-capability-picker (native-desktop)', () => {
       }
     }
     if (!planValue) return; // this session's model doesn't offer Plan mode — nothing to assert
+    modeBefore = await modePicker.getValue();
 
     const composerStillThere = await (await $(tid('chat-composer'))).isDisplayed();
     expect(composerStillThere).toBe(true); // sanity: composer survives the mode change (no teardown)
 
-    await modePicker.selectByAttribute('value', planValue);
+    // Pick via the select's own `change` — the embedded WebDriver's option
+    // click (`selectByAttribute`) does not select in WKWebView (see pickMode).
+    await pickMode(planValue);
 
     await browser.waitUntil(async () => (await modePicker.getValue()) === planValue, {
       timeout: 15_000,
       timeoutMsg: 'mode picker never reflected the live current-mode change back from the session',
     });
+    // Plan blocks edits, so the panel's own mode state raises the top-of-thread
+    // banner too — the switch reached the panel, not just the select.
+    await (await $(tid('chat-mode-banner'))).waitForDisplayed({ timeout: 10_000 });
     await capture('02-plan-mode-selected');
 
     // The composer must still be the SAME live element afterward — proves the

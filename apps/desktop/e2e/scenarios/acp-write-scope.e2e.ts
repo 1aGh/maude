@@ -1,5 +1,16 @@
+import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
 
+import {
+  clearComposer,
+  messageCount,
+  openAssistant,
+  setPermissionMode,
+  waitForTurnSettled,
+} from '../helpers/assistant';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -27,19 +38,56 @@ import { waitForSidecar } from '../helpers/sidecar';
  * instruction plus a generous timeout that absorbs latency, not unreliability.
  * Requires a real, signed-in `claude`; self-skips if the panel is not connected.
  *
+ * THE MODE IS PINNED TO MANUAL (`default`). The gate lives in the bridge's
+ * `requestPermission`, and `bypassPermissions` / `dontAsk` short-circuit in the
+ * adapter before that is ever called (acp/bridge.ts, Milestone B). A session
+ * inherits the machine's Claude Code `permissions.defaultMode`, so on a machine
+ * whose default is Bypass neither half exercised the gate at all: half 1 passed
+ * vacuously and half 2 could never see a card. Manual is the mode in which the
+ * gate decides BOTH halves.
+ *
+ * ONE PRECONDITION THE SCENARIO CANNOT SET: the session reads the user's own
+ * `~/.claude/settings.json` (`settingSources: ['user']`, DDR-144), and a bare
+ * `permissions.allow` entry for `Write`/`Edit` makes the CLI approve those calls
+ * itself — `requestPermission`, and the gate in it, is never asked. On such a
+ * machine half 2 fails with that diagnosis (and half 1 cannot tell the gate's
+ * approval from the CLI's). The scenario reports it rather than editing the
+ * user's settings or skipping.
+ *
  * NOTHING IS EVER APPROVED HERE. The out-of-project case is rejected, so the
  * scenario proves the gate without the test suite writing outside its own
- * project — which is the behaviour it is asserting is dangerous.
+ * project — which is the behaviour it is asserting is dangerous. Both halves are
+ * also checked ON DISK: the in-project file must exist (otherwise "no prompt"
+ * could just mean "no write"), and the rejected outside file must not.
  */
 const tid = (s: string) => `[data-testid="${s}"]`;
 
+const HERE = dirname(fileURLToPath(import.meta.url));
+const PROJECT = join(HERE, '../fixtures/project');
+/** Where an "in this project" write may land — the project root, or the design
+ *  root if the model reads "project" as the canvas workspace. */
+const IN_PROJECT_CANDIDATES = [
+  join(PROJECT, 'write-scope-probe.txt'),
+  join(PROJECT, '.design', 'write-scope-probe.txt'),
+];
+
 /** A path that is unambiguously outside any project root, harmless if it were
- *  ever created, and obviously a test artifact if it somehow is. */
-const OUTSIDE_PATH = '~/.maude-e2e-write-scope-probe.txt';
+ *  ever created, and obviously a test artifact if it somehow is. Unique per run:
+ *  a file left at a fixed name by an earlier run changes the turn (Claude's
+ *  Write refuses to overwrite a file it has not read first). */
+const OUTSIDE_NAME = `.maude-e2e-write-scope-probe-${process.pid}-${Date.now()}.txt`;
+const OUTSIDE_PATH = `~/${OUTSIDE_NAME}`;
+const OUTSIDE_ABS = join(homedir(), OUTSIDE_NAME);
+
+function removeProbes(): void {
+  for (const f of IN_PROJECT_CANDIDATES) rmSync(f, { force: true });
+  rmSync(OUTSIDE_ABS, { force: true });
+}
 
 async function send(text: string) {
   const composer = await $(tid('chat-composer'));
   await composer.waitForDisplayed({ timeout: 60_000 });
+  await clearComposer();
   const input = await composer.$('.chat-input');
   await input.click();
   await input.addValue(text);
@@ -47,25 +95,41 @@ async function send(text: string) {
 }
 
 describe('acp-write-scope (native-desktop)', () => {
+  // The mode the shared session was in before this spec pinned Manual.
+  let modeBefore: string | null = null;
+
   before(async function () {
     startReport('acp-write-scope (native-desktop) — in-project writes never ask, outside ones do');
     await browser.setTimeout({ script: 120_000 });
+    removeProbes();
 
     await waitForSidecar();
     if (!(await isNativeShell())) this.skip(); // ACP panel is native-only (DDR-123)
 
-    await (await $(tid('assistant-toggle'))).waitForDisplayed({ timeout: 30_000 });
-    await (await $(tid('assistant-toggle'))).click();
+    await openAssistant();
 
     const notConnected = await $(tid('acp-not-connected'));
     if (await notConnected.isDisplayed().catch(() => false)) {
       this.skip(); // no signed-in claude on this machine — not this scenario's job to set that up
     }
+
+    modeBefore = await setPermissionMode('default');
+    await capture('00-manual-mode');
+  });
+
+  after(async () => {
+    // The in-project probe is this spec's own artifact — never leave it in the
+    // fixture. The outside one only exists if the gate failed open (test 3 is
+    // red then); it is ours either way, so it goes too.
+    removeProbes();
+    // Hand the shared session back in the mode we found it in.
+    if (modeBefore && modeBefore !== 'default') await setPermissionMode(modeBefore);
   });
 
   it('1 · an IN-PROJECT write completes with NO permission prompt (DDR-184 guard)', async () => {
+    const before = await messageCount();
     await send(
-      'Create a file called write-scope-probe.txt in this project with the single word ok. ' +
+      'Create a file called write-scope-probe.txt in the root of this project with the single word ok. ' +
         'Use the Write tool immediately, do not explain first.'
     );
 
@@ -74,33 +138,53 @@ describe('acp-write-scope (native-desktop)', () => {
     // Polling for "no prompt" alone would pass simply by being checked early.
     const prompt = await $(tid('chat-permission-prompt'));
     let sawPrompt = false;
-    await browser.waitUntil(
-      async () => {
-        if (await prompt.isDisplayed().catch(() => false)) {
-          sawPrompt = true;
-          return true; // fail fast — no point waiting out the turn
-        }
-        // `chat-msg-actions` only renders on a COMPLETED assistant message, so
-        // it is the turn-finished signal (there is no busy testid to poll).
-        return await $(tid('chat-msg-actions'))
-          .isDisplayed()
-          .catch(() => false);
+    await waitForTurnSettled(before, {
+      timeout: 120_000,
+      timeoutMsg: 'the in-project write turn never settled',
+      onSample: async () => {
+        if (await prompt.isDisplayed().catch(() => false)) sawPrompt = true;
+        return sawPrompt; // fail fast — no point waiting out the turn
       },
-      { timeout: 120_000, interval: 500, timeoutMsg: 'the in-project write turn never settled' }
-    );
+    });
     await capture('01-in-project-write-no-prompt');
     expect(sawPrompt).toBe(false);
+
+    // And the write really happened — without this, a model that declined to
+    // call Write would pass the "no prompt" check too.
+    const written = IN_PROJECT_CANDIDATES.find((f) => existsSync(f));
+    expect(written ? readFileSync(written, 'utf8').trim() : '(no file written)').toBe('ok');
   });
 
   it('2 · a write OUTSIDE the project raises the prompt and names the resolved path', async () => {
+    const before = await messageCount();
     await send(
-      `Write the word ok to the file ${OUTSIDE_PATH}. ` +
-        'Use the Write tool immediately, do not explain first.'
+      `This is an automated test of Maude's write-permission prompt. Call the Write tool right now ` +
+        `to write the word ok to the file ${OUTSIDE_PATH}. Do not ask me in chat first — calling the ` +
+        'tool makes Maude show me an approval card, and I decide there. If I reject it, stop and do ' +
+        'nothing else.'
     );
 
+    // Wait for the card OR for the turn to end without one — not for the card
+    // alone. A turn that ends with no card is the failure this half exists to
+    // catch, and it should say WHICH failure it was, not time out after 120 s.
     const prompt = await $(tid('chat-permission-prompt'));
-    await prompt.waitForDisplayed({ timeout: 120_000 });
+    let sawPrompt = false;
+    await waitForTurnSettled(before, {
+      timeout: 120_000,
+      timeoutMsg: 'the out-of-project write turn neither raised a prompt nor ended',
+      onSample: async () => {
+        if (await prompt.isDisplayed().catch(() => false)) sawPrompt = true;
+        return sawPrompt;
+      },
+    });
     await capture('02-out-of-project-prompt');
+    const outcome = sawPrompt
+      ? 'prompt shown'
+      : existsSync(OUTSIDE_ABS)
+        ? `the write to ${OUTSIDE_ABS} COMPLETED with no prompt — the gate failed open or was never ` +
+          'asked (a Write pre-approved by ~/.claude/settings.json permissions.allow skips requestPermission)'
+        : 'the turn ended with no prompt and no write (the model did not call Write)';
+    expect(outcome).toBe('prompt shown');
 
     // The out-of-project BLOCK, not just any permission card — a generic prompt
     // (e.g. a Bash call) would satisfy the selector above but prove nothing.
@@ -113,6 +197,7 @@ describe('acp-write-scope (native-desktop)', () => {
     const shown = await paths.getText();
     expect(shown).toContain('/');
     expect(shown).not.toContain('~');
+    expect(shown).toContain(OUTSIDE_NAME);
 
     // Decision D — consent is per-call, so no "always"-shaped button exists.
     const cardText = (await (await $(tid('chat-permission-prompt'))).getText()).toLowerCase();
@@ -131,8 +216,16 @@ describe('acp-write-scope (native-desktop)', () => {
       timeout: 20_000,
       timeoutMsg: 'the permission card never cleared after Reject',
     });
+    // Resolved = the turn ends, not just the card going away.
+    await waitForTurnSettled(0, {
+      timeout: 60_000,
+      timeoutMsg: 'the turn never settled after Reject',
+    });
     const composer = await $(tid('chat-composer'));
     await composer.waitForDisplayed({ timeout: 60_000 });
     await capture('03-rejected-turn-resolved');
+
+    // The rejection held: nothing was written outside the project.
+    expect(existsSync(OUTSIDE_ABS)).toBe(false);
   });
 });

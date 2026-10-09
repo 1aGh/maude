@@ -1,8 +1,9 @@
-import { existsSync, renameSync, rmSync } from 'node:fs';
+import { rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
+import { createFixtureGuard } from '../helpers/fixture-guard';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 
@@ -28,27 +29,44 @@ import { canvasRow } from '../helpers/tree';
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const UI_DIR = join(HERE, '../fixtures/project/.design/ui');
+const DESIGN = join(HERE, '../fixtures/project/.design');
+const UI_DIR = join(DESIGN, 'ui');
 const ARCHIVE_DIR = join(UI_DIR, 'Archive');
+
+// The move re-keys every VERSIONED file of the canvas, not only the source:
+// `ui/Smoke.tsx` + `ui/Smoke.meta.json` move into Archive/, and the annotations
+// board `ui-smoke.annotations.json` (versioned per DDR-115) is renamed to
+// `ui-archive-smoke.annotations.json`. Restoring only the two moved files left
+// the committed board deleted and an untracked copy behind. The guard snapshots
+// all three before the run and puts them back byte-exact — also after a killed
+// run (helpers/fixture-guard.ts).
+const fixtures = createFixtureGuard('file-tree-move', [
+  join(UI_DIR, 'Smoke.tsx'),
+  join(UI_DIR, 'Smoke.meta.json'),
+  join(DESIGN, 'ui-smoke.annotations.json'),
+]);
 
 describe('file-tree-move (native-desktop / WKWebView)', () => {
   before(() => {
+    fixtures.snapshot();
     startReport('file-tree-move (native-desktop / WKWebView)');
   });
 
   after(() => {
-    // Byte-exact restore: move Smoke back to ui/ root, drop the folder we
-    // created. Slug-keyed sidecars (_history/, _canvas-state/, …) are
-    // gitignored — tidied for a clean re-run, not because they'd dirty git.
-    const movedTsx = join(ARCHIVE_DIR, 'Smoke.tsx');
-    const movedMeta = join(ARCHIVE_DIR, 'Smoke.meta.json');
-    if (existsSync(movedTsx)) renameSync(movedTsx, join(UI_DIR, 'Smoke.tsx'));
-    if (existsSync(movedMeta)) renameSync(movedMeta, join(UI_DIR, 'Smoke.meta.json'));
+    // Every re-keyed copy gone first — the folder we created, the moved board,
+    // and the slug-keyed runtime state (gitignored; tidied for a clean re-run,
+    // not because it would dirty git) — then the originals back byte-exact, so
+    // the watcher never sees two Smoke canvases at once.
     rmSync(ARCHIVE_DIR, { recursive: true, force: true });
-    rmSync(join(HERE, '../fixtures/project/.design/_history/ui-archive-smoke'), {
-      recursive: true,
-      force: true,
-    });
+    for (const rel of [
+      'ui-archive-smoke.annotations.json',
+      '_history/ui-archive-smoke',
+      '_canvas-state/ui-archive-smoke.view.json',
+      '_state/ui-archive-smoke.ydoc.bin',
+    ]) {
+      rmSync(join(DESIGN, rel), { recursive: true, force: true });
+    }
+    fixtures.restore();
   });
 
   it('new folder → drag canvas onto it → row reparents → canvas still opens', async () => {
@@ -77,20 +95,31 @@ describe('file-tree-move (native-desktop / WKWebView)', () => {
 
     // 3 — drag the canvas row onto the folder row (synthetic DragEvent
     // dispatch — see the file-level comment for why not native pointer drag).
+    //
+    // No named function inside this callback. The spec is transpiled by tsx
+    // with esbuild `keepNames`, which rewrites `const fire = (…) => …` into
+    // `const fire = __name((…) => …, "fire")`; the callback is then serialized
+    // into the webview, where `__name` does not exist — the script threw
+    // ReferenceError before dispatching a single event ("A JavaScript exception
+    // occurred when running execute/async"). A loop over [type, element] pairs
+    // has nothing for esbuild to name.
     const dragResult = await browser.execute(() => {
       const src = document.querySelector('[data-testid="canvas-row-ui-smoke"]');
       const dest = document.querySelector('[data-testid="tree-folder-ui-archive"]');
       if (!src || !dest) return { ok: false, hasSrc: !!src, hasDest: !!dest };
       const dt = new DataTransfer();
-      const fire = (type: string, el: Element) =>
+      const steps: Array<[string, Element]> = [
+        ['dragstart', src],
+        ['dragenter', dest],
+        ['dragover', dest],
+        ['drop', dest],
+        ['dragend', src],
+      ];
+      for (const [type, el] of steps) {
         el.dispatchEvent(
           new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt })
         );
-      fire('dragstart', src);
-      fire('dragenter', dest);
-      fire('dragover', dest);
-      fire('drop', dest);
-      fire('dragend', src);
+      }
       return { ok: true };
     });
     expect(dragResult.ok).toBe(true);

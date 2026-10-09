@@ -122,13 +122,12 @@
     },
     "region": "menubar",
     "consumers": [
-      "apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts",
-      "apps/desktop/e2e/scenarios/acp-capability-picker.e2e.ts",
+      "apps/desktop/e2e/helpers/assistant.ts",
       "apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts",
-      "apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts",
       "apps/studio/client/tour/quick-setup-tour.js"
     ],
-    "v2": "moves"
+    "v2": "moves",
+    "notes": "`data-active` = panel open, `data-busy` = a chat turn or its background tools are running; `e2e-helper:assistant` reads both (open without toggling shut, turn settled)."
   },
   {
     "hook": "share-btn",
@@ -1067,9 +1066,11 @@
     },
     "region": "banners",
     "consumers": [
+      "apps/desktop/e2e/scenarios/canvas-text-editing.e2e.ts",
       "apps/studio/test/notifications.test.tsx"
     ],
-    "v2": "stable"
+    "v2": "stable",
+    "notes": "Canvas hints land here too: an embedded canvas posts `{dgn:'canvas-notice'}` and the shell shows it through `notifyCanvasText` as `notice-canvas-notice-<slot>` (two reused slots). `e2e:canvas-text-editing` matches that prefix for the mixed-text `/design:edit` hint (it replaced the in-frame `.dc-media-toast`, removed in `d50954df2`)."
   },
   {
     "hook": "figma-connect-card",
@@ -1221,6 +1222,7 @@
     },
     "region": "chat/ACP",
     "consumers": [
+      "apps/desktop/e2e/helpers/assistant.ts",
       "apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts",
       "apps/desktop/e2e/scenarios/acp-capability-picker.e2e.ts",
       "apps/desktop/e2e/scenarios/acp-cold-start.e2e.ts",
@@ -1251,7 +1253,9 @@
       "symbol": "ModeBanner"
     },
     "region": "chat/ACP",
-    "consumers": [],
+    "consumers": [
+      "apps/desktop/e2e/scenarios/acp-capability-picker.e2e.ts"
+    ],
     "v2": "stable"
   },
   {
@@ -1310,9 +1314,10 @@
     ],
     "region": "chat/ACP",
     "consumers": [
-      "apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"
+      "apps/desktop/e2e/helpers/assistant.ts"
     ],
-    "v2": "stable"
+    "v2": "stable",
+    "notes": "Hover/focus-revealed (`opacity: 0` otherwise), so `isDisplayed()` never reports it, and it exists on the user message the moment it is sent — not a turn-finished signal. `e2e-helper:assistant` only counts it (one per message)."
   },
   {
     "hook": "chat-transcript-menu",
@@ -1468,6 +1473,7 @@
     },
     "region": "chat/ACP",
     "consumers": [
+      "apps/desktop/e2e/helpers/assistant.ts",
       "apps/desktop/e2e/scenarios/acp-capability-picker.e2e.ts",
       "apps/studio/whats-new.json"
     ],
@@ -6025,6 +6031,7 @@
     },
     "region": "chat/ACP",
     "consumers": [
+      "apps/desktop/e2e/helpers/assistant.ts",
       "apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts",
       "apps/desktop/e2e/scenarios/acp-capability-picker.e2e.ts",
       "apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"
@@ -6044,6 +6051,21 @@
     "consumers": [
       "apps/desktop/e2e/scenarios/acp-ask-user-question.e2e.ts",
       "apps/desktop/e2e/scenarios/acp-write-scope.e2e.ts"
+    ],
+    "v2": "stable"
+  },
+  {
+    "hook": "[aria-label=\"Stop\"]",
+    "kind": "selector",
+    "pattern": false,
+    "meaning": "The composer's Stop button; rendered only while the thread is running.",
+    "producer": {
+      "file": "apps/studio/client/panels/ChatPanel.jsx",
+      "symbol": "Composer"
+    },
+    "region": "chat/ACP",
+    "consumers": [
+      "apps/desktop/e2e/helpers/assistant.ts"
     ],
     "v2": "stable"
   },
@@ -7472,19 +7494,6 @@
       "apps/studio/test/presence-gesture-preview.test.tsx"
     ],
     "v2": "stable"
-  },
-  {
-    "hook": ".dc-media-toast",
-    "kind": "selector",
-    "pattern": false,
-    "meaning": "In-canvas hint toast (\"edit it via chat or /design:edit\") for text that cannot be edited inline. Removed in d50954df2 (2026-09-11): embedded canvases now post `{dgn:'canvas-notice'}` and the hint renders as a shell notice (`notice-<id>`) in the top document.",
-    "producer": null,
-    "region": "canvas iframe chrome",
-    "consumers": [
-      "apps/desktop/e2e/scenarios/canvas-text-editing.e2e.ts"
-    ],
-    "v2": "historical",
-    "dangling": true
   },
   {
     "hook": ".dc-artboard-ghost",

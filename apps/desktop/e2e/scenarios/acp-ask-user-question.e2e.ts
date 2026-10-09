@@ -1,5 +1,6 @@
 import { $, $$, browser, expect } from '@wdio/globals';
 
+import { clearComposer, openAssistant } from '../helpers/assistant';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
@@ -32,8 +33,9 @@ describe('acp-ask-user-question (native-desktop)', () => {
     await waitForSidecar();
     if (!(await isNativeShell())) this.skip(); // ACP panel is native-only (DDR-123)
 
-    await (await $(tid('assistant-toggle'))).waitForDisplayed({ timeout: 30_000 });
-    await (await $(tid('assistant-toggle'))).click();
+    // Open, never toggle — the default lane shares one app process across
+    // spec files, so the panel may already be open (see helpers/assistant.ts).
+    await openAssistant();
 
     const notConnected = await $(tid('acp-not-connected'));
     const isNotConnected = await notConnected.isDisplayed().catch(() => false);
@@ -46,6 +48,7 @@ describe('acp-ask-user-question (native-desktop)', () => {
     const composer = await $(tid('chat-composer'));
     await composer.waitForDisplayed({ timeout: 30_000 });
 
+    await clearComposer();
     const input = await composer.$('.chat-input');
     await input.click();
     await input.addValue(
