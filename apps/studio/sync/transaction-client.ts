@@ -73,7 +73,28 @@ interface OutboxEntry {
   action?: OutboxAction;
   /** Written before the project id was known; bound (once) before sending. */
   unbound?: boolean;
+  /**
+   * B2 (V2-1.14 §5.12b) — the project this entry was made for, recorded as
+   * soon as it is known. An entry for another project is never sent (a relink
+   * must not deliver a `doc.delete` to whatever project is linked now).
+   */
+  projectId?: string;
+  /** B2 — the link (hub) this entry was written under. An `unbound` entry
+   *  binds ONLY to that link's project. Absent on entries from older builds. */
+  link?: string;
 }
+
+/**
+ * 4xx answers that mean "not now" rather than "no". Every OTHER 4xx without a
+ * protocol `status` is final (B1): retrying a 413 resends the same bytes to
+ * the same refusal forever, and the chain behind it waits forever with it.
+ * (401 has its own rule above them: the change is kept, the sign-in is not.)
+ */
+const TRANSIENT_4XX = new Set([408, 425, 429]);
+
+/** Where a final, non-protocol refusal keeps the exact bytes (design-root
+ *  relative; runtime state under `_history/`, DDR-115). */
+export const OUTBOX_RECOVERY_REL = path.join('_history', '_outbox-recovery');
 
 export interface TransactionClientOptions {
   hubUrl: string;
@@ -97,6 +118,13 @@ export interface TransactionClientOptions {
   now?: () => number;
   /** Backoff between retries of an unacknowledged proposal. */
   retryMs?: number;
+  /**
+   * B2 — the identity of the link this client runs under. Entries record it,
+   * and an unbound entry binds only under the same link. Default: the hub URL
+   * (one hub serves one project — `hub-integration.mjs` `projectId`), so a
+   * relink to another hub never adopts the old link's unsent work.
+   */
+  linkId?: string;
 }
 
 export interface TransactionStats {
@@ -145,6 +173,8 @@ export function createTransactionClient(opts: TransactionClientOptions) {
   const deviceId = opts.deviceId ?? 'studio';
   const sessionId = randomUUID();
   const base = opts.hubUrl.replace(/\/+$/, '');
+  const linkId = opts.linkId ?? base;
+  const recoveryDir = path.join(opts.designRoot, OUTBOX_RECOVERY_REL);
 
   let projectId: string | null = null;
   let epoch = 0;
@@ -251,6 +281,47 @@ export function createTransactionClient(opts: TransactionClientOptions) {
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
   /**
+   * End an entry WITHOUT an answer from the kernel — a final refusal that is
+   * not a protocol result (B1), or an entry that belongs to another project
+   * (B2). The exact bytes move to `_history/_outbox-recovery/<name>.<code>.json`
+   * ("kept on this Mac", V2-1.14 G8/G18) so nothing made here is lost and the
+   * chain behind it moves on. If even the move fails, the entry stays where it
+   * is — unsent, re-judged next drain — rather than being deleted.
+   */
+  function park(file: string, entry: OutboxEntry, code: string): ProposalResult {
+    try {
+      mkdirSync(recoveryDir, { recursive: true });
+      const name = path.basename(file).replace(/\.json$/, `.${code}.json`);
+      renameSync(file, path.join(recoveryDir, name));
+    } catch (err) {
+      log.warn(`[sync/tx] ${entry.label}: could not keep it aside (${(err as Error).message})`);
+    }
+    return { protocol: PROTOCOL, status: 'rejected', code, transactionId: entry.transactionId };
+  }
+
+  /** B2 — the project an entry was made for: recorded, or (entries from older
+   *  builds) the id inside its own bytes. `null` = never bound. */
+  function madeFor(entry: OutboxEntry): string | null {
+    if (typeof entry.projectId === 'string') return entry.projectId;
+    try {
+      const id = (JSON.parse(entry.bytes) as { projectId?: unknown }).projectId;
+      return typeof id === 'string' ? id : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** B2 — true when this entry may go to the project this client talks to. */
+  function belongsHere(entry: OutboxEntry): boolean {
+    // Unbound: it binds only under the link it was written under. An entry
+    // from a build that did not record its link cannot be proven to belong
+    // here, so it is kept, not sent (the disk still holds the change).
+    if (entry.unbound) return entry.link === linkId;
+    const id = madeFor(entry);
+    return id === null || id === projectId;
+  }
+
+  /**
    * Deliver one outbox entry to a FINAL result. Never gives up on an unknown
    * outcome: a transport failure is resolved by asking for the transaction's
    * result before the same bytes are sent again.
@@ -291,6 +362,12 @@ export function createTransactionClient(opts: TransactionClientOptions) {
           }
           rmSync(file, { force: true });
           return result;
+        }
+        // B1 — no protocol answer, but a 4xx is still an answer: final.
+        if (status >= 400 && status < 500 && !TRANSIENT_4XX.has(status)) {
+          setCredentialRefused(false);
+          log.warn(`[sync/tx] ${entry.label}: refused (${status}); kept aside, not retried`);
+          return park(file, entry, `http-${status}`);
         }
         throw new TransactionError(`unexpected response ${status}`, 'retryable');
       } catch (err) {
@@ -339,7 +416,8 @@ export function createTransactionClient(opts: TransactionClientOptions) {
       bytes: envelope(action, transactionId),
       label: action.label,
       action,
-      ...(projectId === null ? { unbound: true } : {}),
+      link: linkId,
+      ...(projectId === null ? { unbound: true } : { projectId }),
     };
   }
 
@@ -373,14 +451,24 @@ export function createTransactionClient(opts: TransactionClientOptions) {
   }
 
   async function settle(file: string, entry: OutboxEntry): Promise<ProposalResult> {
-    if (entry.unbound || projectId === null) {
-      if (projectId === null) await bootstrapWhenReachable();
-      if (entry.unbound && entry.action) {
-        entry = { ...entry, bytes: envelope(entry.action, entry.transactionId) };
-        delete entry.unbound;
-        writeFileSync(`${file}.tmp`, JSON.stringify(entry));
-        renameSync(`${file}.tmp`, file);
-      }
+    if (projectId === null) await bootstrapWhenReachable();
+    if (!belongsHere(entry)) {
+      // B2 — never sent to a project it was not made for (G18).
+      log.warn(`[sync/tx] ${entry.label}: made for another project; kept aside, not sent`);
+      const parked = park(file, entry, 'project-changed');
+      rejectedCount++;
+      opts.onResult?.(parked, { label: entry.label, operations: entry.action?.operations ?? [] });
+      return parked;
+    }
+    if (entry.unbound && entry.action) {
+      entry = {
+        ...entry,
+        bytes: envelope(entry.action, entry.transactionId),
+        ...(projectId !== null ? { projectId } : {}),
+      };
+      delete entry.unbound;
+      writeFileSync(`${file}.tmp`, JSON.stringify(entry));
+      renameSync(`${file}.tmp`, file);
     }
     let result = await deliver(file, entry);
     if (result.status === 'rejected' && result.code === 'epoch-stale' && entry.action) {
