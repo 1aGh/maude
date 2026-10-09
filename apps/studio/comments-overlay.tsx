@@ -618,7 +618,9 @@ export function CommentsOverlay(): React.ReactNode {
 
 interface CommitterRow {
   name: string;
-  email: string;
+  /** Absent on the canvas origin: it answers a no-e-mail projection (V2-2.8
+   *  S6) — this composer runs there. The shell's own copy carries it. */
+  email?: string;
   commits: number;
 }
 
@@ -721,7 +723,7 @@ function MentionAwareTextarea({
     const list = !q
       ? committers
       : committers.filter(
-          (c) => c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q)
+          (c) => c.name.toLowerCase().includes(q) || (c.email ?? '').toLowerCase().includes(q)
         );
     return list.slice(0, 8);
   }, [token, committers]);
@@ -832,7 +834,7 @@ function MentionAwareTextarea({
             const selected = i === highlight;
             return (
               <li
-                key={`${c.name}-${c.email}`}
+                key={`${c.name}-${c.email ?? ''}`}
                 role="option"
                 aria-selected={selected}
                 className="cm-mention-popup__item"
@@ -845,7 +847,7 @@ function MentionAwareTextarea({
                 }}
               >
                 <span className="cm-mention-popup__name">@{firstNameSlug(c.name)}</span>
-                <span className="cm-mention-popup__email">{c.email}</span>
+                {c.email ? <span className="cm-mention-popup__email">{c.email}</span> : null}
               </li>
             );
           })}

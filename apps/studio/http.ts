@@ -1235,8 +1235,38 @@ async function serveMediaFile(
   return new Response(file, { headers: base });
 }
 
+/**
+ * V2-2.8 S6 — the committer list as the UNTRUSTED canvas origin (DDR-054) may
+ * see it: names and commit counts, NO e-mail field. The in-canvas comment
+ * composer only needs a name to suggest and insert `@firstname`; the trusted
+ * shell keeps the full `git shortlog -sne` rows on the main origin. A name that
+ * is itself an address keeps only the part before `@`, and rows that collapse
+ * to one name merge (git keys a committer by name AND e-mail).
+ * Decision `v2-2.8-s6-committers-projection` — a deliberate deviation from
+ * V2-1.16 L15/L17 ("remove the route"): the feature stays, the leak goes.
+ */
+export function canvasCommitters(
+  rows: ReadonlyArray<{ name: string; commits: number }>
+): Array<{ name: string; commits: number }> {
+  const byName = new Map<string, number>();
+  for (const row of rows) {
+    const name = (String(row?.name ?? '').split('@')[0] ?? '').trim();
+    if (!name) continue;
+    byName.set(name, (byName.get(name) ?? 0) + (Number(row.commits) || 0));
+  }
+  return [...byName]
+    .map(([name, commits]) => ({ name, commits }))
+    .sort((a, b) => b.commits - a.commits);
+}
+
 export interface Http {
   routes: Record<string, (req: Request) => Response | Promise<Response>>;
+  /**
+   * V2-2.8 S6 — handlers the canvas origins mount INSTEAD of the main-origin
+   * one at the same path, because they answer a narrower projection
+   * (server.ts `startCanvasServer` routes map). Same path, same allowlists.
+   */
+  canvasRoutes: Record<'/_api/git-committers', (req: Request) => Response | Promise<Response>>;
   fetch(req: Request): Promise<Response>;
   /**
    * T2 (9.1-A) — build the canvas mount-harness response. `applyCsp` adds the
@@ -6417,7 +6447,7 @@ export function createHttp(
     '/_api/asset/chunk',
     '/_api/asset/chunk-finish',
     '/_api/photo-edit', // feature-photo-editor — PhotoEdit sidecar GET/PUT (cap-stack gated). MIRROR in server.ts routes.
-    '/_api/git-committers', // @mention autocomplete
+    '/_api/git-committers', // @mention autocomplete — a no-e-mail projection here (V2-2.8 S6)
     '/_api/ai', // AI-activity banner
     '/_comments', // per-file comment list (renders pins)
   ]);
@@ -6577,5 +6607,20 @@ export function createHttp(
     return readOnlyRefusal(req) ?? handleFallthrough(req);
   }
 
-  return { routes: guardedRoutes, fetch: guardedFetch, serveCanvasShell, isCanvasSafeRoute };
+  const canvasRoutes: Http['canvasRoutes'] = {
+    // V2-2.8 S6 — the @mention feed without e-mails (see canvasCommitters).
+    '/_api/git-committers': async (req: Request) => {
+      if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
+      const committers = canvasCommitters(await api.gitCommitters());
+      return Response.json({ committers }, { headers: { 'Cache-Control': 'no-store' } });
+    },
+  };
+
+  return {
+    routes: guardedRoutes,
+    canvasRoutes,
+    fetch: guardedFetch,
+    serveCanvasShell,
+    isCanvasSafeRoute,
+  };
 }

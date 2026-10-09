@@ -555,7 +555,9 @@ function startCanvasServer(port: number): BunServer {
       // CANVAS_SAFE_API (http.ts): Bun matches `routes` before `fetch`, so a
       // one-list entry 404s from the canvas iframe (the DDR-088 rollout bug).
       '/_api/photo-edit': http.routes['/_api/photo-edit'],
-      '/_api/git-committers': http.routes['/_api/git-committers'],
+      // V2-2.8 S6 — NOT the main-origin handler: the canvas origin gets the
+      // no-e-mail projection (names + commit counts) for @mention suggestions.
+      '/_api/git-committers': http.canvasRoutes['/_api/git-committers'],
       '/_api/ai': http.routes['/_api/ai'],
       '/_comments': http.routes['/_comments'],
     },
