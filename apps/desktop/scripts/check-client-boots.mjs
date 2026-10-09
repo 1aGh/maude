@@ -34,17 +34,22 @@
 // dependency, and no engine assumption — the fault reproduces identically in
 // Chromium and WebKit, so the cheaper one is enough.
 //
-// Usage:
-//   node check-client-boots.mjs [<path-to-.app | resources-dir>]
+// V2-2.12: mounting is not enough — after mount the shared interaction probe
+// (scripts/boot-gate/interaction-probe.mjs, the same steps the per-PR source gate runs) checks
+// the shell ANSWERS: the File menu opens and closes, ⌘K opens and closes the palette, the tree
+// is there. `--plant-dead` adds a fault that swallows all input after mount (the gate's red test).
 //
-// Exit 0 = the UI mounts. Exit 1 = it does not (blank app). Exit 2 = could not
-// run the check (bad target, no server binary), so CI can tell "broken" from
-// "ran wrong".
+// Usage:
+//   node check-client-boots.mjs [<path-to-.app | resources-dir>] [--plant-dead]
+//
+// Exit 0 = the UI mounts and responds. Exit 1 = it does not (blank or dead app). Exit 2 = could
+// not run the check (bad target, no server binary), so CI can tell "broken" from "ran wrong".
 
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { DEAD_SHELL, PROBE, failedSteps } from '../../../scripts/boot-gate/interaction-probe.mjs';
 
 const RED = '\x1b[31m';
 const GRN = '\x1b[32m';
@@ -52,6 +57,7 @@ const DIM = '\x1b[2m';
 const RST = '\x1b[0m';
 
 const SESSION = 'maude-client-boot-gate';
+const PLANT_DEAD = process.argv.includes('--plant-dead');
 /** How long to wait for the sidecar to write `_server.json`. Cold start on a
  *  loaded CI box is slower than on a laptop; this is generous on purpose. */
 const SERVER_WAIT_MS = 45_000;
@@ -132,6 +138,7 @@ writeFileSync(
   event: { listen: () => Promise.resolve(() => {}) },
   window: {}, path: {}, app: {},
 };
+${PLANT_DEAD ? DEAD_SHELL : ''}
 `
 );
 
@@ -210,29 +217,29 @@ if (opened.status !== 0) {
 }
 await sleep(MOUNT_SETTLE_MS);
 
-const probe = browser([
-  'eval',
-  "JSON.stringify({ root: document.getElementById('root')?.childElementCount ?? -1, text: (document.body.innerText || '').length })",
-]);
+const probe = browser(['eval', PROBE]);
 const raw = (probe.stdout || '').trim();
-const parsed = /\{[\s\S]*\}/.exec(raw.replace(/\\"/g, '"'));
 let verdict = null;
 try {
-  verdict = JSON.parse(parsed ? parsed[0] : raw);
+  // agent-browser prints the returned JSON string, sometimes quoted and escaped
+  let text = raw;
+  if (text.startsWith('"')) text = JSON.parse(text);
+  verdict = JSON.parse(/\{[\s\S]*\}/.exec(text)?.[0] ?? text);
 } catch {
   /* fall through to the failure below */
 }
 
-if (!verdict || typeof verdict.root !== 'number') {
+if (!verdict || typeof verdict.mounted !== 'boolean') {
   console.error(`${DIM}${raw.slice(0, 600)}${RST}`);
   die('could not read the page state back from agent-browser.');
 }
+const failed = failedSteps(verdict);
 
 console.log(`\n${'='.repeat(70)}`);
-if (verdict.root > 0) {
+if (!failed.length) {
   console.log(
-    `${GRN}The packaged client mounts with a Tauri global present.${RST} ` +
-      `${DIM}(#root children: ${verdict.root}, ${verdict.text} chars of text)${RST}`
+    `${GRN}The packaged client mounts and responds with a Tauri global present.${RST} ` +
+      `${DIM}(#root children: ${verdict.rootChildren}, ${verdict.text} chars of text; menu, ⌘K palette, tree all answer)${RST}`
   );
   process.exit(0);
 }
@@ -246,9 +253,20 @@ try {
 } catch {
   errors = browser(['errors']).stdout || '';
 }
+if (verdict.mounted) {
+  console.error(`${RED}DEAD SHELL — the packaged UI mounts but does not respond${PLANT_DEAD ? ' (planted fault)' : ''}.${RST}
+
+  Failed steps: ${failed.join(', ')}
+  Verdict: ${JSON.stringify(verdict)}
+
+  Page errors:
+${DIM}${errors.trim().slice(0, 1500) || '  (none reported — check the console)'}${RST}
+`);
+  process.exit(1);
+}
 console.error(`${RED}BLANK APP — the packaged UI does not render.${RST}
 
-  #root has ${verdict.root} children after ${MOUNT_SETTLE_MS} ms with window.__TAURI__ present.
+  #root has ${verdict.rootChildren} children after ${MOUNT_SETTLE_MS} ms with window.__TAURI__ present.
   The same bundle very likely renders fine in a plain browser: this fault only
   appears in the desktop shell, which is exactly why it shipped once already.
 

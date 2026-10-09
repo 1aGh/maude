@@ -16,8 +16,13 @@
 //     (this script boots with MAUDE_NO_AUTOBUILD=1 and never builds)
 //   - playwright chromium installed (playwright is an apps/studio devDep)
 //
-// Exit 0 = the release client mounts with a Tauri global. Exit 1 = blank app.
-// Exit 2 = the harness itself could not run (server never up, browser missing).
+// V2-2.12: mounting is not enough — the shared interaction probe
+// (scripts/boot-gate/interaction-probe.mjs) then checks the shell ANSWERS: the File menu
+// opens and closes, ⌘K opens and closes the palette, the tree is there.
+// `--plant-dead` injects a fault that swallows all input after mount (the gate's own red test).
+//
+// Exit 0 = the release client mounts AND responds with a Tauri global. Exit 1 = blank or dead
+// app. Exit 2 = the harness itself could not run (server never up, browser missing).
 
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -25,12 +30,14 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { DEAD_SHELL, PROBE, failedSteps } from './boot-gate/interaction-probe.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..');
 const STUDIO = join(REPO, 'apps', 'studio');
 
 const SERVER_WAIT_MS = 45_000;
+const PLANT_DEAD = process.argv.includes('--plant-dead');
 const MOUNT_SETTLE_MS = 5_000;
 
 function die(msg, code = 2) {
@@ -143,26 +150,38 @@ page.on('console', (m) => {
   if (m.type() === 'error') pageErrors.push(m.text());
 });
 await page.addInitScript(TAURI_STUB);
+if (PLANT_DEAD) await page.addInitScript(DEAD_SHELL);
 await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
 await sleep(MOUNT_SETTLE_MS);
 
-const verdict = await page.evaluate(() => ({
-  root: document.getElementById('root')?.childElementCount ?? -1,
-  text: (document.body.innerText || '').length,
-}));
+const verdict = JSON.parse(await page.evaluate(PROBE));
+const failed = failedSteps(verdict);
 
-if (verdict.root > 0) {
+if (!failed.length) {
   console.log(
-    `OK — the release client mounts with a Tauri global present ` +
-      `(#root children: ${verdict.root}, ${verdict.text} chars of text)`
+    `OK — the release client mounts and responds with a Tauri global present ` +
+      `(#root children: ${verdict.rootChildren}, ${verdict.text} chars of text; menu, ⌘K palette, tree all answer)`
   );
   await cleanup();
   process.exit(0);
 }
 
+if (verdict.mounted) {
+  console.error(`DEAD SHELL — the release client mounts but does not respond${PLANT_DEAD ? ' (planted fault)' : ''}.
+
+  Failed steps: ${failed.join(', ')}
+  Verdict: ${JSON.stringify(verdict)}
+
+  Page errors:
+${pageErrors.map((e) => `    ${e}`).join('\n') || '    (none captured)'}
+`);
+  await cleanup();
+  process.exit(1);
+}
+
 console.error(`BLANK APP — the release client does not render with window.__TAURI__ present.
 
-  #root has ${verdict.root} children after ${MOUNT_SETTLE_MS} ms.
+  #root has ${verdict.rootChildren} children after ${MOUNT_SETTLE_MS} ms.
   The same bundle very likely renders fine in a plain browser — this fault only
   appears with a Tauri global, which is exactly why it shipped once already
   (v0.51.1).

@@ -23,6 +23,8 @@ on:
       - 'apps/studio/bun.lock'
       - 'apps/studio/package.json'
       - 'scripts/check-client-boots-source.mjs'
+      - 'scripts/boot-gate/**'
+      - 'apps/desktop/scripts/check-client-boots.mjs'
       - '.github/workflows/client-boot.yml'
 
 permissions:
@@ -72,5 +74,14 @@ jobs:
         working-directory: apps/studio
         run: bunx playwright install --with-deps chromium
 
-      - name: Boot gate (v0.51.1 class)
+      - name: Boot gate (v0.51.1 class + V2-2.12 interaction)
         run: node scripts/check-client-boots-source.mjs
+
+      # The gate must go red on a shell that mounts but does not answer (V2-2.12): the planted
+      # fault swallows every click/keydown after mount. Exit 1 is the pass condition here.
+      - name: Boot gate catches a planted dead shell
+        run: |
+          set +e
+          node scripts/check-client-boots-source.mjs --plant-dead
+          code=$?
+          if [ "$code" -ne 1 ]; then echo "expected exit 1 (dead shell), got $code"; exit 1; fi
