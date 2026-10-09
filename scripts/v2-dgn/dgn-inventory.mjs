@@ -65,7 +65,8 @@ export function sideOf(rel) {
 const stripComments = (t) =>
   t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`\\])\/\/[^\n]*/g, '$1');
 const GATE_RE = {
-  origin: /\.origin\s*(!==|===|!=|==)|expectedOrigin|acceptCanvasNotice|canvasOrigin|parentOrigin\(\)/,
+  origin:
+    /\.origin\s*(!==|===|!=|==)|expectedOrigin|acceptCanvasNotice|canvasOrigin|parentOrigin\(\)/,
   source:
     /\.source\s*(!==|===)\s*(?!window\.parent\b)[A-Za-z_$][\w.?$]*|(!==|===)\s*e\.source\b|acceptCanvasNotice\([^)]*activeWin/,
   parent: /\.source\s*(!==|===)\s*window\.parent\b|source\s*!==\s*parent\b/,
@@ -101,7 +102,8 @@ function scanSourceFile(ts, rel, sf, out, off = 0) {
     node = unwrap(node);
     if (!node) return [];
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return [node.text];
-    if (ts.isConditionalExpression(node)) return [...strLits(node.whenTrue), ...strLits(node.whenFalse)];
+    if (ts.isConditionalExpression(node))
+      return [...strLits(node.whenTrue), ...strLits(node.whenFalse)];
     return [];
   };
   const lineOf = (pos) => sf.getLineAndCharacterOfPosition(pos).line + 1 + off;
@@ -148,7 +150,8 @@ function scanSourceFile(ts, rel, sf, out, off = 0) {
         else if (ts.isObjectBindingPattern(n.name))
           for (const el of n.name.elements) keys.add((el.propertyName ?? el.name).getText(sf));
       }
-      if (ts.isPropertyAccessExpression(n) && recvs.has(baseText(n.expression))) keys.add(n.name.getText(sf));
+      if (ts.isPropertyAccessExpression(n) && recvs.has(baseText(n.expression)))
+        keys.add(n.name.getText(sf));
       if (
         ts.isElementAccessExpression(n) &&
         recvs.has(baseText(n.expression)) &&
@@ -177,8 +180,7 @@ function scanSourceFile(ts, rel, sf, out, off = 0) {
       const parts = [];
       if (/<script\b/i.test(raw)) {
         const re = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
-        let m;
-        while ((m = re.exec(raw)))
+        for (const m of raw.matchAll(re))
           parts.push([m[1], raw.slice(0, m.index + m[0].indexOf('>') + 1).split('\n').length - 1]);
       } else parts.push([raw, 0]);
       for (const [body, pre] of parts)
@@ -201,39 +203,71 @@ function scanSourceFile(ts, rel, sf, out, off = 0) {
         const keys = n.properties
           .filter((q) => q !== p)
           .map((q) =>
-            q.name ? q.name.getText(sf) : ts.isSpreadAssignment(q) ? `...${q.expression.getText(sf).slice(0, 30)}` : '?'
+            q.name
+              ? q.name.getText(sf)
+              : ts.isSpreadAssignment(q)
+                ? `...${q.expression.getText(sf).slice(0, 30)}`
+                : '?'
           );
         const dynamic = types.length === 0;
         if (dynamic) types = [`<dynamic:${p.initializer.getText(sf).slice(0, 40)}>`];
-        for (const t of types) out.sends.push({ type: t, file: rel, line: lineOf(n.getStart(sf)), side, keys, dynamic });
+        for (const t of types)
+          out.sends.push({ type: t, file: rel, line: lineOf(n.getStart(sf)), side, keys, dynamic });
       }
     }
     // Send + handle: bridgeRequest('<req>', '<res>', extra)
-    if (ts.isCallExpression(n) && n.expression.getText(sf) === 'bridgeRequest' && n.arguments.length >= 2) {
+    if (
+      ts.isCallExpression(n) &&
+      n.expression.getText(sf) === 'bridgeRequest' &&
+      n.arguments.length >= 2
+    ) {
       const extra =
         n.arguments[2] && ts.isObjectLiteralExpression(n.arguments[2])
           ? n.arguments[2].properties.map((q) => q.name?.getText(sf) ?? '...')
           : [];
       for (const t of strLits(n.arguments[0]))
-        out.sends.push({ type: t, file: rel, line: lineOf(n.getStart(sf)), side, keys: ['id', ...extra], dynamic: false });
+        out.sends.push({
+          type: t,
+          file: rel,
+          line: lineOf(n.getStart(sf)),
+          side,
+          keys: ['id', ...extra],
+          dynamic: false,
+        });
       for (const t of strLits(n.arguments[1]))
-        out.handles.push({ type: t, file: rel, line: lineOf(n.getStart(sf)), side, reads: ['id'], gates: ['parent'], how: 'bridgeRequest' });
+        out.handles.push({
+          type: t,
+          file: rel,
+          line: lineOf(n.getStart(sf)),
+          side,
+          reads: ['id'],
+          gates: ['parent'],
+          how: 'bridgeRequest',
+        });
     }
     // Alias: const t = x.dgn | const { dgn } = x
     if (ts.isVariableDeclaration(n) && n.initializer) {
       const init = unwrap(n.initializer);
-      if (ts.isIdentifier(n.name) && init && ts.isPropertyAccessExpression(init) && init.name.getText(sf) === 'dgn')
+      if (
+        ts.isIdentifier(n.name) &&
+        init &&
+        ts.isPropertyAccessExpression(init) &&
+        init.name.getText(sf) === 'dgn'
+      )
         aliases.set(n.name.getText(sf), baseText(init.expression));
       if (ts.isObjectBindingPattern(n.name))
         for (const el of n.name.elements)
-          if ((el.propertyName ?? el.name).getText(sf) === 'dgn') aliases.set(el.name.getText(sf), baseText(n.initializer));
+          if ((el.propertyName ?? el.name).getText(sf) === 'dgn')
+            aliases.set(el.name.getText(sf), baseText(n.initializer));
     }
     // Handle: x.dgn === / !== '<lit>' (either order), or alias === '<lit>'
     if (
       ts.isBinaryExpression(n) &&
-      [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken].includes(
-        n.operatorToken.kind
-      )
+      [
+        ts.SyntaxKind.EqualsEqualsEqualsToken,
+        ts.SyntaxKind.ExclamationEqualsEqualsToken,
+        ts.SyntaxKind.EqualsEqualsToken,
+      ].includes(n.operatorToken.kind)
     ) {
       const neg = n.operatorToken.kind === ts.SyntaxKind.ExclamationEqualsEqualsToken;
       for (const [a0, b] of [
@@ -242,14 +276,29 @@ function scanSourceFile(ts, rel, sf, out, off = 0) {
       ]) {
         const a = unwrap(a0);
         let recv = null;
-        if (ts.isPropertyAccessExpression(a) && a.name.getText(sf) === 'dgn') recv = baseText(a.expression);
-        else if (ts.isIdentifier(a) && aliases.has(a.getText(sf))) recv = aliases.get(a.getText(sf));
+        if (ts.isPropertyAccessExpression(a) && a.name.getText(sf) === 'dgn')
+          recv = baseText(a.expression);
+        else if (ts.isIdentifier(a) && aliases.has(a.getText(sf)))
+          recv = aliases.get(a.getText(sf));
         const lits = strLits(b);
         if (recv && lits.length) {
           const stmts = branchStmts(n, neg);
-          const gates = [...new Set([...preGates(listenerOf(n)), ...gatesOf(stmts.map((s) => s.getText(sf)).join('\n'))])];
+          const gates = [
+            ...new Set([
+              ...preGates(listenerOf(n)),
+              ...gatesOf(stmts.map((s) => s.getText(sf)).join('\n')),
+            ]),
+          ];
           for (const t of lits)
-            out.handles.push({ type: t, file: rel, line: lineOf(n.getStart(sf)), side, reads: readsOn(stmts, recv), gates, how: neg ? '!==' : '===' });
+            out.handles.push({
+              type: t,
+              file: rel,
+              line: lineOf(n.getStart(sf)),
+              side,
+              reads: readsOn(stmts, recv),
+              gates,
+              how: neg ? '!==' : '===',
+            });
         }
       }
     }
@@ -268,7 +317,12 @@ function scanSourceFile(ts, rel, sf, out, off = 0) {
                 line: lineOf(cl.getStart(sf)),
                 side,
                 reads: readsOn(cl.statements, recv),
-                gates: [...new Set([...pre, ...gatesOf(cl.statements.map((s) => s.getText(sf)).join('\n'))])],
+                gates: [
+                  ...new Set([
+                    ...pre,
+                    ...gatesOf(cl.statements.map((s) => s.getText(sf)).join('\n')),
+                  ]),
+                ],
                 how: 'case',
               });
       }
@@ -290,10 +344,15 @@ export function inventory(root = REPO, { scan = DEFAULT_SCAN } = {}) {
     if (!/dgn|bridgeRequest\(/.test(src)) continue;
     if (f.endsWith('.html')) {
       const re = /<script\b[^>]*>([\s\S]*?)<\/script>/g;
-      let m;
-      while ((m = re.exec(src))) {
+      for (const m of src.matchAll(re)) {
         const pre = src.slice(0, m.index + m[0].indexOf('>') + 1).split('\n').length - 1;
-        scanSourceFile(ts, rel, ts.createSourceFile(rel, m[1], ts.ScriptTarget.Latest, true, ts.ScriptKind.JS), out, pre);
+        scanSourceFile(
+          ts,
+          rel,
+          ts.createSourceFile(rel, m[1], ts.ScriptTarget.Latest, true, ts.ScriptKind.JS),
+          out,
+          pre
+        );
       }
       continue;
     }
@@ -320,14 +379,26 @@ export function inventory(root = REPO, { scan = DEFAULT_SCAN } = {}) {
     const dir = [];
     if (ss.has('canvas') && hs.has('shell')) dir.push('c2s');
     if (ss.has('shell') && hs.has('canvas')) dir.push('s2c');
-    if (ss.has('canvas') && hs.has('canvas') && !ss.has('shell') && !hs.has('shell')) dir.push('self');
-    if (ss.has('shell') && hs.has('shell') && !ss.has('canvas') && !hs.has('canvas')) dir.push('shell-self');
+    if (ss.has('canvas') && hs.has('canvas') && !ss.has('shell') && !hs.has('shell'))
+      dir.push('self');
+    if (ss.has('shell') && hs.has('shell') && !ss.has('canvas') && !hs.has('canvas'))
+      dir.push('shell-self');
     r.dir = dir;
     r.orphan = r.sends.length === 0 ? 'no-sender' : r.handles.length === 0 ? 'no-handler' : null;
     r.dynamic = r.type.startsWith('<dynamic:');
-    r.keys = [...new Set([...r.sends.flatMap((s) => s.keys.filter((k) => !k.startsWith('...'))), ...r.handles.flatMap((h) => h.reads)])].sort();
+    r.keys = [
+      ...new Set([
+        ...r.sends.flatMap((s) => s.keys.filter((k) => !k.startsWith('...'))),
+        ...r.handles.flatMap((h) => h.reads),
+      ]),
+    ].sort();
   }
-  return { files: files.length, sendSites: out.sends.length, handleSites: out.handles.length, rows };
+  return {
+    files: files.length,
+    sendSites: out.sends.length,
+    handleSites: out.handles.length,
+    rows,
+  };
 }
 
 function shortPath(f) {
@@ -360,11 +431,16 @@ function main(argv) {
       if (!byFile.has(k)) byFile.set(k, new Set());
       for (const g of h.gates) byFile.get(k).add(g);
     }
-    const hs = [...byFile].map(([f, g]) => `${f}${g.size ? `·${[...g].sort().join('+')}` : ''}`).join(' ');
+    const hs = [...byFile]
+      .map(([f, g]) => `${f}${g.size ? `·${[...g].sort().join('+')}` : ''}`)
+      .join(' ');
     const ss = [...new Set(r.sends.map((s) => `${shortPath(s.file)}:${s.line}`))].join(' ');
-    lines.push(`| \`${r.type}\` | ${r.dir.join('+') || r.orphan || '?'} | ${r.keys.join(', ')} | ${ss || '—'} | ${hs || '—'} |`);
+    lines.push(
+      `| \`${r.type}\` | ${r.dir.join('+') || r.orphan || '?'} | ${r.keys.join(', ')} | ${ss || '—'} | ${hs || '—'} |`
+    );
   }
   process.stdout.write(`${lines.join('\n')}\n`);
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main(process.argv.slice(2));
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url))
+  main(process.argv.slice(2));

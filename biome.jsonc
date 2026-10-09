@@ -24,7 +24,6 @@
       // bundles, compiled binaries) — never linted (was covered by the
       // plugins/**/dist glob before DDR-095 moved the runtime apps under apps/).
       "!**/apps/**/dist",
-      "!**/apps/studio/client",
       "!**/apps/studio/runtime",
       "!**/apps/studio/server.mjs",
       "!**/site/.next",
@@ -126,6 +125,46 @@
             "useFocusableInteractive": "off",
             "noStaticElementInteractions": "off",
             "useAriaPropsSupportedByRole": "off"
+          }
+        }
+      }
+    },
+    {
+      // apps/studio/client was never linted before Maude v2 (V2-2.2, T3). The rules it already
+      // broke are its v1 debt: `warn` here, and scripts/check-lint-ratchet.mjs (run by
+      // `pnpm lint`) fails when any per-file count of them rises — every other rule is an error.
+      // organizeImports is off: re-sorting imports reorders ES module evaluation, a behaviour
+      // change that needs its own checked commit, not a lint pass.
+      "includes": ["**/apps/studio/client/**"],
+      "assist": {
+        "actions": {
+          "source": {
+            "organizeImports": "off"
+          }
+        }
+      },
+      "linter": {
+        "rules": {
+          "a11y": {
+            "noAutofocus": "warn",
+            "noLabelWithoutControl": "warn",
+            "noNoninteractiveElementToInteractiveRole": "warn",
+            "noNoninteractiveTabindex": "warn",
+            "noStaticElementInteractions": "warn",
+            "noSvgWithoutTitle": "warn",
+            "useAriaPropsSupportedByRole": "warn",
+            "useButtonType": "warn",
+            "useKeyWithClickEvents": "warn",
+            "useMediaCaption": "warn",
+            "useSemanticElements": "warn"
+          },
+          "correctness": {
+            "noEmptyPattern": "warn",
+            "noSelfAssign": "warn"
+          },
+          "suspicious": {
+            "noAssignInExpressions": "warn",
+            "noControlCharactersInRegex": "warn"
           }
         }
       }

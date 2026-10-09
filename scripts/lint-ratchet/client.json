@@ -1,0 +1,192 @@
+{
+  "about": "V2-2.2 errors-only ratchet for apps/studio/client — the v1 lint debt per file and rule. Counts may only go down (node scripts/check-lint-ratchet.mjs --update).",
+  "rules": [
+    "lint/a11y/noAutofocus",
+    "lint/a11y/noLabelWithoutControl",
+    "lint/a11y/noNoninteractiveElementToInteractiveRole",
+    "lint/a11y/noNoninteractiveTabindex",
+    "lint/a11y/noStaticElementInteractions",
+    "lint/a11y/noSvgWithoutTitle",
+    "lint/a11y/useAriaPropsSupportedByRole",
+    "lint/a11y/useButtonType",
+    "lint/a11y/useKeyWithClickEvents",
+    "lint/a11y/useMediaCaption",
+    "lint/a11y/useSemanticElements",
+    "lint/correctness/noEmptyPattern",
+    "lint/correctness/noSelfAssign",
+    "lint/suspicious/noAssignInExpressions",
+    "lint/suspicious/noControlCharactersInRegex"
+  ],
+  "counts": {
+    "apps/studio/client/app.jsx": {
+      "lint/a11y/noAutofocus": 1,
+      "lint/a11y/noStaticElementInteractions": 2
+    },
+    "apps/studio/client/dialogs/asset-picker.jsx": {
+      "lint/a11y/noStaticElementInteractions": 1
+    },
+    "apps/studio/client/dialogs/command-palette.jsx": {
+      "lint/a11y/noStaticElementInteractions": 1
+    },
+    "apps/studio/client/dialogs/export-dialog.jsx": {
+      "lint/a11y/noStaticElementInteractions": 1
+    },
+    "apps/studio/client/dialogs/help-modal.jsx": {
+      "lint/a11y/noStaticElementInteractions": 1
+    },
+    "apps/studio/client/dialogs/shortcuts-overlay.jsx": {
+      "lint/a11y/noStaticElementInteractions": 1
+    },
+    "apps/studio/client/export-center.jsx": {
+      "lint/a11y/noStaticElementInteractions": 1
+    },
+    "apps/studio/client/file-tree.jsx": {
+      "lint/a11y/useSemanticElements": 1
+    },
+    "apps/studio/client/generate-dialog.jsx": {
+      "lint/a11y/noStaticElementInteractions": 1
+    },
+    "apps/studio/client/hooks/use-shell-core.jsx": {
+      "lint/correctness/noEmptyPattern": 1
+    },
+    "apps/studio/client/hooks/use-tabs.jsx": {
+      "lint/correctness/noSelfAssign": 1
+    },
+    "apps/studio/client/inspector-controls.jsx": {
+      "lint/a11y/useSemanticElements": 4
+    },
+    "apps/studio/client/inspector/css-knobs.jsx": {
+      "lint/a11y/noLabelWithoutControl": 1,
+      "lint/a11y/noStaticElementInteractions": 1,
+      "lint/a11y/useAriaPropsSupportedByRole": 5,
+      "lint/a11y/useSemanticElements": 1
+    },
+    "apps/studio/client/inspector/inspector-panel.jsx": {
+      "lint/a11y/noStaticElementInteractions": 1
+    },
+    "apps/studio/client/inspector/layers.jsx": {
+      "lint/a11y/noAutofocus": 1,
+      "lint/a11y/noStaticElementInteractions": 1
+    },
+    "apps/studio/client/menus/menubar.jsx": {
+      "lint/a11y/noNoninteractiveElementToInteractiveRole": 1,
+      "lint/a11y/useAriaPropsSupportedByRole": 1
+    },
+    "apps/studio/client/panels/BrandUploadPanel.jsx": {
+      "lint/a11y/noStaticElementInteractions": 1
+    },
+    "apps/studio/client/panels/ChatPanel.jsx": {
+      "lint/a11y/noAutofocus": 1,
+      "lint/a11y/noStaticElementInteractions": 1,
+      "lint/a11y/useKeyWithClickEvents": 3,
+      "lint/a11y/useSemanticElements": 2,
+      "lint/suspicious/noAssignInExpressions": 2
+    },
+    "apps/studio/client/panels/ClipInspector.jsx": {
+      "lint/a11y/noLabelWithoutControl": 8
+    },
+    "apps/studio/client/panels/CreateProject.jsx": {
+      "lint/a11y/useSemanticElements": 3
+    },
+    "apps/studio/client/panels/DiffView.jsx": {
+      "lint/a11y/noStaticElementInteractions": 1,
+      "lint/a11y/useSemanticElements": 3
+    },
+    "apps/studio/client/panels/ElicitationPrompt.jsx": {
+      "lint/a11y/noAutofocus": 2
+    },
+    "apps/studio/client/panels/GitPanel.jsx": {
+      "lint/a11y/useAriaPropsSupportedByRole": 1,
+      "lint/a11y/useSemanticElements": 5
+    },
+    "apps/studio/client/panels/IntroVideoDialog.jsx": {
+      "lint/a11y/noStaticElementInteractions": 1,
+      "lint/a11y/useMediaCaption": 1
+    },
+    "apps/studio/client/panels/OnboardingWizard.jsx": {
+      "lint/a11y/noSvgWithoutTitle": 1,
+      "lint/a11y/useSemanticElements": 2
+    },
+    "apps/studio/client/panels/ReadinessList.jsx": {
+      "lint/a11y/noStaticElementInteractions": 1,
+      "lint/suspicious/noAssignInExpressions": 1
+    },
+    "apps/studio/client/panels/RepoBranchSwitcher.jsx": {
+      "lint/a11y/noAutofocus": 1,
+      "lint/a11y/noStaticElementInteractions": 2
+    },
+    "apps/studio/client/panels/SettingsPanel.jsx": {
+      "lint/a11y/noStaticElementInteractions": 1,
+      "lint/a11y/useSemanticElements": 1
+    },
+    "apps/studio/client/panels/SetupChecklist.jsx": {
+      "lint/a11y/noStaticElementInteractions": 1
+    },
+    "apps/studio/client/panels/SourceConflictPanel.jsx": {
+      "lint/a11y/noNoninteractiveTabindex": 3,
+      "lint/a11y/useSemanticElements": 3
+    },
+    "apps/studio/client/panels/StickerPicker.jsx": {
+      "lint/a11y/noAutofocus": 1,
+      "lint/a11y/noStaticElementInteractions": 1
+    },
+    "apps/studio/client/panels/TimelinePanel.jsx": {
+      "lint/a11y/noAutofocus": 1,
+      "lint/a11y/noStaticElementInteractions": 11,
+      "lint/a11y/noSvgWithoutTitle": 1,
+      "lint/a11y/useAriaPropsSupportedByRole": 2,
+      "lint/a11y/useKeyWithClickEvents": 5,
+      "lint/a11y/useSemanticElements": 2
+    },
+    "apps/studio/client/panels/acp-runtime.js": {
+      "lint/suspicious/noAssignInExpressions": 2
+    },
+    "apps/studio/client/panels/file-preview.jsx": {
+      "lint/a11y/useMediaCaption": 2
+    },
+    "apps/studio/client/panels/timeline-comp-target.js": {
+      "lint/suspicious/noControlCharactersInRegex": 2
+    },
+    "apps/studio/client/panels/timeline-parse.js": {
+      "lint/suspicious/noAssignInExpressions": 1
+    },
+    "apps/studio/client/report-bug.jsx": {
+      "lint/a11y/noAutofocus": 1,
+      "lint/a11y/noStaticElementInteractions": 1,
+      "lint/a11y/useKeyWithClickEvents": 2
+    },
+    "apps/studio/client/share-dialog.jsx": {
+      "lint/a11y/noStaticElementInteractions": 1
+    },
+    "apps/studio/client/shell/comments-panel.jsx": {
+      "lint/a11y/noStaticElementInteractions": 1,
+      "lint/a11y/useKeyWithClickEvents": 1
+    },
+    "apps/studio/client/shell/dock.jsx": {
+      "lint/a11y/useSemanticElements": 1
+    },
+    "apps/studio/client/shell/icons.jsx": {
+      "lint/a11y/noSvgWithoutTitle": 1,
+      "lint/a11y/useAriaPropsSupportedByRole": 1
+    },
+    "apps/studio/client/shell/status-bar.jsx": {
+      "lint/a11y/useSemanticElements": 6
+    },
+    "apps/studio/client/shell/viewport.jsx": {
+      "lint/a11y/noNoninteractiveTabindex": 1,
+      "lint/a11y/useSemanticElements": 1
+    },
+    "apps/studio/client/system/system-view.jsx": {
+      "lint/a11y/useKeyWithClickEvents": 1
+    },
+    "apps/studio/client/tree/tree.jsx": {
+      "lint/a11y/noStaticElementInteractions": 1,
+      "lint/a11y/useAriaPropsSupportedByRole": 6,
+      "lint/a11y/useButtonType": 1,
+      "lint/a11y/useKeyWithClickEvents": 1
+    },
+    "apps/studio/client/whats-new.jsx": {
+      "lint/a11y/noStaticElementInteractions": 1
+    }
+  }
+}

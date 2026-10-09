@@ -84,7 +84,8 @@ const FIXTURE = {
   window.parent.postMessage({ dgn: 'fx-html', file: 'a' }, '*');
 </script></body></html>`,
   // Hub-injected expiry page assembled in a template string.
-  'apps/hub/src/fx-proxy.mjs': 'export const page = (t) => `parent.postMessage({dgn:\'fx-hub\'},${t});`;\n',
+  'apps/hub/src/fx-proxy.mjs':
+    "export const page = (t) => `parent.postMessage({dgn:'fx-hub'},${t});`;\n",
 };
 
 let root;
@@ -113,7 +114,10 @@ describe('dgn inventory — fixture patterns', () => {
   test('an origin-only branch reports no source gate', () => {
     const r = row('fx-any');
     assert.deepEqual(r.dir, ['c2s']);
-    assert.deepEqual(r.handles.flatMap((h) => h.gates), ['origin']);
+    assert.deepEqual(
+      r.handles.flatMap((h) => h.gates),
+      ['origin']
+    );
   });
 
   test('shell→canvas: spread keys are not payload keys; reads go through an `as` alias; parent gate', () => {

@@ -86,128 +86,148 @@ describe('structured operations on the real corpus (T23/T24)', () => {
   // (the 16 v2 canvases pushed one walk past bun's 5 s default) — same budget as the
   // lookup test below.
   const CORPUS_MS = 120_000;
-  test('the corpus is real and parses', () => {
-    expect(files.length).toBeGreaterThan(20);
-    let elements = 0;
-    for (const f of files) elements += listElements(f, readFileSync(f, 'utf8')).length;
-    expect(elements).toBeGreaterThan(1000);
-  }, CORPUS_MS);
+  test(
+    'the corpus is real and parses',
+    () => {
+      expect(files.length).toBeGreaterThan(20);
+      let elements = 0;
+      for (const f of files) elements += listElements(f, readFileSync(f, 'utf8')).length;
+      expect(elements).toBeGreaterThan(1000);
+    },
+    CORPUS_MS
+  );
 
-  test('a no-op attribute set changes no byte, anywhere in the corpus', () => {
-    const drift: string[] = [];
-    let checked = 0;
-    for (const f of files) {
-      const src = readFileSync(f, 'utf8');
-      let n = 0;
-      for (const el of listElements(f, src)) {
-        if (n >= PER_CANVAS) break;
-        const pair = literalPairs(el.print.attrs)[0];
-        if (!pair) continue;
-        n++;
-        checked++;
-        let out: string;
-        try {
-          out = applyEdit(f, src, el.id, pair[0], pair[1]).source;
-        } catch {
-          continue; // an element the op refuses is not a fidelity break
-        }
-        if (out !== src) drift.push(`${relative(DESIGN, f)} <${el.print.tag} ${pair[0]}>`);
-      }
-    }
-    expect(checked).toBeGreaterThan(100);
-    expect(drift).toEqual([]);
-  }, CORPUS_MS);
-
-  test('a change and its reversal return the original bytes; the same op is deterministic', () => {
-    const broken: string[] = [];
-    let checked = 0;
-    for (const f of files) {
-      const src = readFileSync(f, 'utf8');
-      let n = 0;
-      for (const el of listElements(f, src)) {
-        if (n >= PER_CANVAS) break;
-        const pair = literalPairs(el.print.attrs)[0];
-        if (!pair) continue;
-        n++;
-        // A number is changed to another number (the inspector's own case); a
-        // string to another string.
-        const next = /^-?\d+(\.\d+)?$/.test(pair[1])
-          ? String(Number(pair[1]) + 1)
-          : pair[1] === 'false'
-            ? 'true'
-            : `${pair[1]}-x`;
-        try {
-          const changed = applyEdit(f, src, el.id, pair[0], next).source;
-          const again = applyEdit(f, src, el.id, pair[0], next).source;
-          const back = applyEdit(f, changed, el.id, pair[0], pair[1]).source;
+  test(
+    'a no-op attribute set changes no byte, anywhere in the corpus',
+    () => {
+      const drift: string[] = [];
+      let checked = 0;
+      for (const f of files) {
+        const src = readFileSync(f, 'utf8');
+        let n = 0;
+        for (const el of listElements(f, src)) {
+          if (n >= PER_CANVAS) break;
+          const pair = literalPairs(el.print.attrs)[0];
+          if (!pair) continue;
+          n++;
           checked++;
-          if (changed === src || again !== changed || back !== src)
-            broken.push(`${relative(DESIGN, f)} <${el.print.tag} ${pair[0]}>`);
-        } catch {
-          /* refused — not a fidelity break */
+          let out: string;
+          try {
+            out = applyEdit(f, src, el.id, pair[0], pair[1]).source;
+          } catch {
+            continue; // an element the op refuses is not a fidelity break
+          }
+          if (out !== src) drift.push(`${relative(DESIGN, f)} <${el.print.tag} ${pair[0]}>`);
         }
       }
-    }
-    expect(checked).toBeGreaterThan(100);
-    expect(broken).toEqual([]);
-  }, CORPUS_MS);
+      expect(checked).toBeGreaterThan(100);
+      expect(drift).toEqual([]);
+    },
+    CORPUS_MS
+  );
 
-  test('a no-op text edit changes no byte', () => {
-    const drift: string[] = [];
-    let checked = 0;
-    for (const f of files) {
-      const src = readFileSync(f, 'utf8');
-      let n = 0;
-      for (const el of listElements(f, src)) {
-        if (n >= PER_CANVAS) break;
-        const text = el.print.text;
-        if (!text || text.length > 60 || /[{}<>&\n]/.test(text) || text !== text.trim()) continue;
-        n++;
-        let out: string;
-        try {
-          out = applyTextEdit(f, src, el.id, text).source;
-        } catch {
-          continue;
+  test(
+    'a change and its reversal return the original bytes; the same op is deterministic',
+    () => {
+      const broken: string[] = [];
+      let checked = 0;
+      for (const f of files) {
+        const src = readFileSync(f, 'utf8');
+        let n = 0;
+        for (const el of listElements(f, src)) {
+          if (n >= PER_CANVAS) break;
+          const pair = literalPairs(el.print.attrs)[0];
+          if (!pair) continue;
+          n++;
+          // A number is changed to another number (the inspector's own case); a
+          // string to another string.
+          const next = /^-?\d+(\.\d+)?$/.test(pair[1])
+            ? String(Number(pair[1]) + 1)
+            : pair[1] === 'false'
+              ? 'true'
+              : `${pair[1]}-x`;
+          try {
+            const changed = applyEdit(f, src, el.id, pair[0], next).source;
+            const again = applyEdit(f, src, el.id, pair[0], next).source;
+            const back = applyEdit(f, changed, el.id, pair[0], pair[1]).source;
+            checked++;
+            if (changed === src || again !== changed || back !== src)
+              broken.push(`${relative(DESIGN, f)} <${el.print.tag} ${pair[0]}>`);
+          } catch {
+            /* refused — not a fidelity break */
+          }
         }
-        checked++;
-        if (out !== src) drift.push(`${relative(DESIGN, f)} <${el.print.tag}>`);
       }
-    }
-    expect(checked).toBeGreaterThan(50);
-    expect(drift).toEqual([]);
-  }, CORPUS_MS);
+      expect(checked).toBeGreaterThan(100);
+      expect(broken).toEqual([]);
+    },
+    CORPUS_MS
+  );
 
-  test('every uniquely printed element is re-found by print alone — and addressing stays fast', () => {
-    const lost: string[] = [];
-    let largest = { file: '', bytes: 0, ms: 0, elements: 0 };
-    for (const f of files) {
-      const src = readFileSync(f, 'utf8');
-      const all = listElements(f, src);
-      const key = (p: (typeof all)[number]['print']) =>
-        `${p.component}|${p.tag}|${p.chain.join('>')}|${p.attrs}|${p.text ?? ''}`;
-      const counts = new Map<string, number>();
-      for (const e of all) counts.set(key(e.print), (counts.get(key(e.print)) ?? 0) + 1);
-      const t0 = performance.now();
-      let probed = 0;
-      for (const e of all) {
-        if (counts.get(key(e.print)) !== 1) continue;
-        // No hint: the positional id is deliberately wrong.
-        const found = relocateElement(f, src, 'ffffffff', e.print);
-        if (found !== e.id) lost.push(`${relative(DESIGN, f)} <${e.print.tag}>`);
-        if (++probed >= 40) break;
+  test(
+    'a no-op text edit changes no byte',
+    () => {
+      const drift: string[] = [];
+      let checked = 0;
+      for (const f of files) {
+        const src = readFileSync(f, 'utf8');
+        let n = 0;
+        for (const el of listElements(f, src)) {
+          if (n >= PER_CANVAS) break;
+          const text = el.print.text;
+          if (!text || text.length > 60 || /[{}<>&\n]/.test(text) || text !== text.trim()) continue;
+          n++;
+          let out: string;
+          try {
+            out = applyTextEdit(f, src, el.id, text).source;
+          } catch {
+            continue;
+          }
+          checked++;
+          if (out !== src) drift.push(`${relative(DESIGN, f)} <${el.print.tag}>`);
+        }
       }
-      const per = probed ? (performance.now() - t0) / probed : 0;
-      if (src.length > largest.bytes)
-        largest = { file: relative(DESIGN, f), bytes: src.length, ms: per, elements: all.length };
-      const u = printUniqueness(f, src);
-      expect(u.unique).toBeLessThanOrEqual(u.elements);
-    }
-    expect(lost).toEqual([]);
-    console.log(
-      `[t23] largest canvas ${largest.file}: ${largest.bytes} B, ${largest.elements} elements, ${largest.ms.toFixed(1)} ms per print lookup`
-    );
-    // The support matrix's limit: a lookup on the largest real canvas stays
-    // interactive (one re-apply after a lost race is a handful of lookups).
-    expect(largest.ms).toBeLessThan(250);
-  }, CORPUS_MS);
+      expect(checked).toBeGreaterThan(50);
+      expect(drift).toEqual([]);
+    },
+    CORPUS_MS
+  );
+
+  test(
+    'every uniquely printed element is re-found by print alone — and addressing stays fast',
+    () => {
+      const lost: string[] = [];
+      let largest = { file: '', bytes: 0, ms: 0, elements: 0 };
+      for (const f of files) {
+        const src = readFileSync(f, 'utf8');
+        const all = listElements(f, src);
+        const key = (p: (typeof all)[number]['print']) =>
+          `${p.component}|${p.tag}|${p.chain.join('>')}|${p.attrs}|${p.text ?? ''}`;
+        const counts = new Map<string, number>();
+        for (const e of all) counts.set(key(e.print), (counts.get(key(e.print)) ?? 0) + 1);
+        const t0 = performance.now();
+        let probed = 0;
+        for (const e of all) {
+          if (counts.get(key(e.print)) !== 1) continue;
+          // No hint: the positional id is deliberately wrong.
+          const found = relocateElement(f, src, 'ffffffff', e.print);
+          if (found !== e.id) lost.push(`${relative(DESIGN, f)} <${e.print.tag}>`);
+          if (++probed >= 40) break;
+        }
+        const per = probed ? (performance.now() - t0) / probed : 0;
+        if (src.length > largest.bytes)
+          largest = { file: relative(DESIGN, f), bytes: src.length, ms: per, elements: all.length };
+        const u = printUniqueness(f, src);
+        expect(u.unique).toBeLessThanOrEqual(u.elements);
+      }
+      expect(lost).toEqual([]);
+      console.log(
+        `[t23] largest canvas ${largest.file}: ${largest.bytes} B, ${largest.elements} elements, ${largest.ms.toFixed(1)} ms per print lookup`
+      );
+      // The support matrix's limit: a lookup on the largest real canvas stays
+      // interactive (one re-apply after a lost race is a handful of lookups).
+      expect(largest.ms).toBeLessThan(250);
+    },
+    CORPUS_MS
+  );
 });
