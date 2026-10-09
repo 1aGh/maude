@@ -265,7 +265,11 @@ export function createWs(
   // changes (queued → running → progress ticks → done/failed). Full-snapshot
   // payload per change, mirroring git-status/sync:status above. Inspector
   // clients only — same privileged-data class as the rest of this feed.
-  ctx.bus.on('export:job', (job: unknown) => broadcast({ type: 'export:job', payload: job }));
+  // V2-2.8 S5 — scoped to the job's owner (exporters/jobs.ts stamps
+  // `meta.session`); a desktop job carries none and reaches every socket.
+  ctx.bus.on('export:job', (job: unknown, meta) =>
+    broadcast({ type: 'export:job', payload: job }, meta?.session)
+  );
 
   // feature-ai-media-generation (DDR-16x) — generation job queue state changes
   // (queued → running → done/failed). Same privileged-data class + snapshot
