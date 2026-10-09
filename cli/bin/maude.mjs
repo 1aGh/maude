@@ -23,6 +23,7 @@ const COMMANDS = {
   help: () => import('../commands/help.mjs'),
   hub: () => import('../commands/hub.mjs'),
   harness: () => import('../commands/harness.mjs'),
+  migrate: () => import('../commands/migrate.mjs'),
   version: () => import('../commands/version.mjs'),
 };
 
