@@ -6152,6 +6152,12 @@ export function createHttp(
       // Query parameter ?canvas=<path-relative-to-designRoot> tells the shell
       // which canvas to import + mount. See plugins/design/templates/_shell.html.
       if (pathname === '/_canvas-shell.html' || pathname === '/_canvas-shell') {
+        // V2-2.8 S9 (V2-1.16 L21) — only the MAIN listener reaches this branch
+        // (the canvas and capture listeners answer the shell themselves, in
+        // server.ts). A canvas the canvas origin can serve is never rendered
+        // here: it goes to the read-only capture origin. See captureRedirect.
+        const toCapture = captureRedirect(url);
+        if (toCapture) return toCapture;
         // The segregated canvas origin (server.ts) calls serveCanvasShell(true)
         // directly with CSP always on; on the legacy main origin the CSP stays
         // env-gated (MAUDE_CSP_POC) for the POC / backwards-compat. A capture
@@ -6367,6 +6373,41 @@ export function createHttp(
           canvasOrigin: ctx.canvasOrigin,
         }
       ),
+    });
+  }
+
+  /**
+   * V2-2.8 S9 (V2-1.16 L21, decision `v2-2.8-read-only-capture-origin`) —
+   * headless renders (⌘E export via `canvasShellUrl`, `maude design
+   * screenshot`, smoke, perf, canvas-rects, visual-sanity, older CLIs) load the
+   * shell from the MAIN origin, where tenant canvas code (DDR-054) is
+   * same-origin with every privileged route and passes `sameOriginWrite` +
+   * `isTrustedRequestHost`. While the split is on, every such request for a
+   * canvas the canvas origin can serve gets a 307 to the read-only capture
+   * origin (server.ts `startCanvasServer(0, { capture: true })`) — same
+   * route table, GET/HEAD only, no upgrades, strict CSP. The decision runs
+   * `isCanvasSafeRoute` on the canvas's own module path, so a path traversal
+   * is normalised first and a `%` in a file name cannot dodge it.
+   *
+   * Not redirected (named residuals): Maude's own local harnesses under
+   * runtime dirs the canvas-safe table refuses (`_draw/` draw-proof,
+   * `_photo/` photo-bg-remove — generated on this machine, never synced), and
+   * everything when the split is off or in a cell (no capture listener; a
+   * cell's proxy never routes the main-origin shell).
+   */
+  function captureRedirect(url: URL): Response | null {
+    if (!ctx.captureOrigin) return null;
+    const canvas = url.searchParams.get('canvas');
+    if (!canvas) return null;
+    const designRel = ctx.paths.designRel.replace(/^\/+|\/+$/g, '');
+    const modulePath = `/${designRel}/${canvas.split('/').map(encodeURIComponent).join('/')}`;
+    if (!isCanvasSafeRoute(modulePath)) return null;
+    return new Response(null, {
+      status: 307,
+      headers: {
+        Location: `${ctx.captureOrigin}/_canvas-shell.html${url.search}`,
+        'Cache-Control': 'no-store',
+      },
     });
   }
 
