@@ -23,7 +23,7 @@
   },
   "rows": [
     {"id":"V2-0.0","kind":"task","phase":0,"title":"Run harness (see \"Memory and task discipline\"): `scripts/v2-done.sh` (red by design), the ledger skeleton `.ai/scenarios/maude-v2/ledger.json` generated from ev","status":"verified","evidence":".ai/scenarios/maude-v2/harness-smoke.md","evidenceHash":null,"commit":"b7fcbe12"},
-    {"id":"V2-0.1","kind":"task","phase":0,"title":"Characterization tests + testid contract (T6). Pin today's behaviour of every region that will move (menubar menus, status bar chips, sidebar/tree, viewport sta","status":"open","evidence":null,"evidenceHash":null,"commit":null},
+    {"id":"V2-0.1","kind":"task","phase":0,"title":"Characterization tests + testid contract (T6). Pin today's behaviour of every region that will move (menubar menus, status bar chips, sidebar/tree, viewport sta","status":"verified","evidence":"apps/studio/test/characterization/v1","evidenceHash":null,"commit":"44073eed"},
     {"id":"V2-0.2","kind":"task","phase":0,"title":"Split `app.jsx` along its regions — move-and-export only, one region per commit: `DockSlot`/`DOCK_PANELS`, `CommandPalette`, `AssetPicker`, `ExportDialog`, the ","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"V2-0.3","kind":"task","phase":0,"title":"Ship it — rebuild the committed bundle release-minified (`cd apps/studio && MAUDE_SKIP_RUNTIME_BUILD=1 bun run build.ts --release`), commit `dist/client.bundle.","status":"open","evidence":null,"evidenceHash":null,"commit":null},
     {"id":"V2-1.1","kind":"task","phase":1,"title":"Home window + cross-project index (C38)","status":"open","evidence":null,"evidenceHash":null,"commit":null},
