@@ -28,6 +28,7 @@ import { createGitLifecycle } from './collab/git-lifecycle.ts';
 import { createCollab } from './collab/index.ts';
 import { createContext, reloadConfig } from './context.ts';
 import { installLogRing } from './debug-bundle.ts';
+import { initDiagnostics, registerStatus, stopDiagnostics } from './diagnostics/store.ts';
 import { parseEmbedOrigins } from './embed-origins.ts';
 import { createExportJobQueue } from './exporters/jobs.ts';
 import { createFsWatch } from './fs-watch.ts';
@@ -59,6 +60,10 @@ installLogRing();
 await bootSelfHeal();
 
 const ctx = createContext();
+
+// V2-2.9 (T23) — persist the per-source diagnostics (server · sync · ai · export) under
+// ~/.maude/logs (or $MAUDE_LOG_DIR), scrubbed, 7 days. Local only: nothing is sent anywhere.
+await initDiagnostics({ repoRoot: ctx.paths.repoRoot });
 
 // DDR-064 cutover (Sync v2 Increment 7) — `MAUDE_SHARED_DOC` now defaults ON:
 // the collab room's Y.Doc is THE doc per canvas, everywhere. The two-doc +
@@ -811,6 +816,12 @@ ctx.bus.on('fs:json', (rel: string) => {
 // Connect starts syncing instead of printing "restart the studio server".
 const syncRuntime = createSyncSupervisor(ctx, collab ? { registry: collab.registry } : {});
 ctx.syncControl = syncRuntime;
+registerStatus('sync', () => ({
+  linked: Boolean(ctx.cfg.linkedHub),
+  hub: ctx.cfg.linkedHub?.url ?? null,
+  running: syncRuntime.current() !== null,
+  cycling: syncRuntime.busy(),
+}));
 // A linked project that had NOTHING syncable at boot asks for one cycle the
 // moment it gains its first canvas — see the zero-canvas branch in
 // `sync/index.ts`. The runtime cannot cycle itself (the supervisor owns the
@@ -864,6 +875,7 @@ if (!process.env.NO_OPEN && !WORKSPACE) {
 
 async function shutdown() {
   console.log('\n  Stopping…');
+  void stopDiagnostics();
   // DDR-166 — reap in-flight claude-provisioning grandchildren before this
   // process exits. Security-review finding: neither the SIGTERM/SIGINT path
   // here nor sidecar.rs's child.kill() on the Tauri side propagate to a

@@ -17,6 +17,7 @@
 import { homedir } from 'node:os';
 
 import { redactMaudeCredentials, SECRET_ENV_PATTERN } from './credential-grammar.ts';
+import { record as recordDiagnostic } from './diagnostics/store.ts';
 
 const RING_MAX = 500;
 const ring: string[] = [];
@@ -24,6 +25,8 @@ let tapInstalled = false;
 
 /** Append one line to the ring (public for tests + non-console callers). */
 export function recordLogLine(line: string): void {
+  // V2-2.9: the same line feeds the per-source diagnostics store (server · sync · ai · export).
+  recordDiagnostic(line);
   ring.push(line);
   if (ring.length > RING_MAX) ring.splice(0, ring.length - RING_MAX);
 }

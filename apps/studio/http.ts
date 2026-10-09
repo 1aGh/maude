@@ -45,6 +45,7 @@ import type { Context } from './context.ts';
 import { reloadConfig } from './context.ts';
 import { buildDebugBundle } from './debug-bundle.ts';
 import { probeSetupReadiness } from './design-setup-readiness.ts';
+import { diagnostics, registerStatus, report } from './diagnostics/store.ts';
 import { frameAncestors } from './embed-origins.ts';
 import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-scopes.ts';
 import { type Format, isFormat, isScope, type Scope } from './exporters/index.ts';
@@ -1258,6 +1259,27 @@ export function createHttp(
    *  captured instance would hand one member another's open canvas. */
   const inspect = () => inspects.for(currentSession());
 
+  // V2-2.9 (T23) — the Diagnostics API's status providers for the sources this layer owns
+  // (sync registers itself in server.ts). Cheap, synchronous snapshots; scrubbed on read.
+  const countBy = (items: { status?: string }[]) =>
+    items.reduce<Record<string, number>>((acc, j) => {
+      const k = j.status ?? 'unknown';
+      acc[k] = (acc[k] ?? 0) + 1;
+      return acc;
+    }, {});
+  registerStatus('server', () => ({
+    version: resolveMaudeVersion(),
+    project: ctx.cfg.name ?? null,
+    pid: process.pid,
+    uptimeSeconds: Math.round(process.uptime()),
+    rssBytes: process.memoryUsage().rss,
+  }));
+  registerStatus('ai', () => ({
+    activeCanvases: ai.list().length,
+    generation: countBy(generateJobs.list()),
+  }));
+  registerStatus('export', () => ({ jobs: countBy(exportJobs.list()) }));
+
   // Task 2.7 (approach A) — in-flight whisper-model download state (one at a
   // time), polled by the Settings "Download model" card via GET
   // /_api/generate/whisper-model. Closure-scoped: one server, one download.
@@ -2033,6 +2055,29 @@ export function createHttp(
     // the scrubber runs here, server-side): MAIN-ORIGIN ONLY — absent from
     // CANVAS_SAFE_API + startCanvasServer routes — plus the same double gate as
     // /_api/acp/status (a drive-by page must not read logs via DNS rebinding).
+    // V2-2.9 (T23) — local diagnostics: every source's status + recent lines (JSON) and the
+    // "Copy diagnostic report" text. PRIVILEGED like /_api/debug-bundle: main-origin only (absent
+    // from CANVAS_SAFE_API + startCanvasServer routes, DDR-088) + the DNS-rebinding guard.
+    '/_api/diagnostics': (req: Request) => {
+      if (!sameOriginRead(req)) return new Response('cross-origin rejected', { status: 403 });
+      if (!isTrustedRequestHost(req))
+        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+      return Response.json(diagnostics(), { headers: { 'Cache-Control': 'no-store' } });
+    },
+    '/_api/diagnostics/report': (req: Request) => {
+      if (!sameOriginRead(req)) return new Response('cross-origin rejected', { status: 403 });
+      if (!isTrustedRequestHost(req))
+        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+      const text = report({
+        maude: resolveMaudeVersion(),
+        platform: `${process.platform}-${process.arch}`,
+        project: ctx.cfg.name ?? '',
+      });
+      return new Response(text, {
+        headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+      });
+    },
+
     '/_api/debug-bundle': (req: Request) => {
       if (!sameOriginRead(req)) return new Response('cross-origin rejected', { status: 403 });
       if (!isTrustedRequestHost(req))

@@ -177,6 +177,9 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
         // CANVAS_SAFE_API + startCanvasServer's routes, so a GET from the
         // canvas origin 403s at the gate, never reaching the handler.
         '/_api/debug-bundle',
+        // V2-2.9 — the diagnostics status + log tails and the copyable report: same posture.
+        '/_api/diagnostics',
+        '/_api/diagnostics/report',
         '/_api/report',
         '/_api/report-fallback',
         // …and the shell capture SPAWNS A PROCESS (screenshot.sh → a headless
