@@ -238,7 +238,10 @@ test('build-binaries: a dispatch dry run reaches the root package dry-run publis
   const text = read('build-binaries.yml');
   const jobIf = (job) =>
     new RegExp(`\\n {2}${job}:\\n(?: {4}.*\\n|\\s*\\n)*? {4}if: (.*)\\n`).exec(text)?.[1] ?? '';
-  assert.match(jobIf('desktop-gate'), /!cancelled\(\) && needs\.build-binaries\.result == 'success'/);
+  assert.match(
+    jobIf('desktop-gate'),
+    /!cancelled\(\) && needs\.build-binaries\.result == 'success'/
+  );
   assert.match(
     jobIf('publish-main'),
     /!cancelled\(\).*needs\.build-binaries\.result == 'success'.*needs\.desktop-gate\.result == 'success'/
