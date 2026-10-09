@@ -59,14 +59,8 @@
     "usePanelSize",
     "PanelGrip"
   ],
-  "apps/studio/client/dialogs/command-palette.jsx": [
-    "CommandPalette"
-  ],
-  "apps/studio/client/dialogs/asset-picker.jsx": [
-    "EXT_MIME",
-    "mimeFromExt",
-    "AssetPicker"
-  ],
+  "apps/studio/client/dialogs/command-palette.jsx": ["CommandPalette"],
+  "apps/studio/client/dialogs/asset-picker.jsx": ["EXT_MIME", "mimeFromExt", "AssetPicker"],
   "apps/studio/client/dialogs/export-dialog.jsx": [
     "EXPORT_CARDS",
     "EXPORT_SCOPE_LABELS",
@@ -94,12 +88,8 @@
     "TreeLoading",
     "Sidebar"
   ],
-  "apps/studio/client/shell/collapsed-rail.jsx": [
-    "CollapsedRail"
-  ],
-  "apps/studio/client/dialogs/help-modal.jsx": [
-    "HelpModal"
-  ],
+  "apps/studio/client/shell/collapsed-rail.jsx": ["CollapsedRail"],
+  "apps/studio/client/dialogs/help-modal.jsx": ["HelpModal"],
   "apps/studio/client/dialogs/shortcuts-overlay.jsx": [
     "SHORTCUT_GROUPS",
     "ShortcutCombo",
@@ -117,10 +107,7 @@
     "EditDropdown",
     "Menubar"
   ],
-  "apps/studio/client/shell/viewport.jsx": [
-    "Viewport",
-    "CanvasLoading"
-  ],
+  "apps/studio/client/shell/viewport.jsx": ["Viewport", "CanvasLoading"],
   "apps/studio/client/system/system-view.jsx": [
     "TOKEN_GROUP_ORDER",
     "TOKEN_GROUP_LABELS",
@@ -132,12 +119,8 @@
     "SystemView",
     "Gallery"
   ],
-  "apps/studio/client/shell/status-bar.jsx": [
-    "StatusBar"
-  ],
-  "apps/studio/client/shell/comments-panel.jsx": [
-    "CommentsPanel"
-  ],
+  "apps/studio/client/shell/status-bar.jsx": ["StatusBar"],
+  "apps/studio/client/shell/comments-panel.jsx": ["CommentsPanel"],
   "apps/studio/client/shell/banners.jsx": [
     "ROLE_LINE",
     "CloudRoleBanner",
@@ -182,24 +165,16 @@
     "cssHint",
     "cssSplitUnit"
   ],
-  "apps/studio/client/inspector/selection.js": [
-    "mergeSelClientFields"
-  ],
+  "apps/studio/client/inspector/selection.js": ["mergeSelClientFields"],
   "apps/studio/client/inspector/ds-tokens.js": [
     "cssTokensRelFor",
     "activeDsNameFor",
     "parseTokensCss",
     "useAllDsTokens"
   ],
-  "apps/studio/client/inspector/color-picker.jsx": [
-    "ColorPicker"
-  ],
-  "apps/studio/client/inspector/token-popover.jsx": [
-    "TokenPopover"
-  ],
-  "apps/studio/client/inspector/grid-tracks-editor.jsx": [
-    "GridTracksEditor"
-  ],
+  "apps/studio/client/inspector/color-picker.jsx": ["ColorPicker"],
+  "apps/studio/client/inspector/token-popover.jsx": ["TokenPopover"],
+  "apps/studio/client/inspector/grid-tracks-editor.jsx": ["GridTracksEditor"],
   "apps/studio/client/inspector/css-knobs.jsx": [
     "recordableWrites",
     "trackRecordableWrite",
@@ -214,9 +189,7 @@
     "LAYER_VOID_TAGS",
     "LayerRow"
   ],
-  "apps/studio/client/inspector/inspect-computed.jsx": [
-    "InspectComputed"
-  ],
+  "apps/studio/client/inspector/inspect-computed.jsx": ["InspectComputed"],
   "apps/studio/client/inspector/artboard-knobs.jsx": [
     "resolveArtboardIdFromSelection",
     "ARTBOARD_LAYOUT_OPTIONS",

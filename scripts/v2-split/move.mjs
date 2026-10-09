@@ -48,20 +48,30 @@ function fail(msg) {
   console.error(`move: ${msg}`);
   process.exit(1);
 }
-if (!['top', 'hook', 'render'].includes(OP)) fail('usage: move.mjs top|hook|render --file <src> --to <module> …');
+if (!['top', 'hook', 'render'].includes(OP))
+  fail('usage: move.mjs top|hook|render --file <src> --to <module> …');
 if (!existsSync(FILE)) fail(`no such file ${FILE}`);
 if (!TO) fail('--to <module> is required');
 
 const src = readFileSync(FILE, 'utf8');
-const kindFor = (f) => (f.endsWith('.tsx') ? ts.ScriptKind.TSX : f.endsWith('.ts') ? ts.ScriptKind.TS : ts.ScriptKind.JSX);
+const kindFor = (f) =>
+  f.endsWith('.tsx') ? ts.ScriptKind.TSX : f.endsWith('.ts') ? ts.ScriptKind.TS : ts.ScriptKind.JSX;
 const sf = ts.createSourceFile(FILE, src, ts.ScriptTarget.Latest, true, kindFor(FILE));
-const opts = { allowJs: true, jsx: ts.JsxEmit.ReactJSX, noResolve: true, noLib: true, types: [], target: ts.ScriptTarget.Latest };
+const opts = {
+  allowJs: true,
+  jsx: ts.JsxEmit.ReactJSX,
+  noResolve: true,
+  noLib: true,
+  types: [],
+  target: ts.ScriptTarget.Latest,
+};
 const host = ts.createCompilerHost(opts);
 const origGet = host.getSourceFile.bind(host);
 host.getSourceFile = (f, l, e, s) => (resolve(f) === FILE ? sf : origGet(f, l, e, s));
 const program = ts.createProgram([FILE], opts, host);
 const checker = program.getTypeChecker();
-if (sf.parseDiagnostics?.length) fail(`parse errors in ${FILE}: ${sf.parseDiagnostics[0].messageText}`);
+if (sf.parseDiagnostics?.length)
+  fail(`parse errors in ${FILE}: ${sf.parseDiagnostics[0].messageText}`);
 
 const lineOf = (pos) => sf.getLineAndCharacterOfPosition(pos).line + 1;
 
@@ -79,7 +89,8 @@ const BINDING_KINDS = new Set([
 function declOf(id) {
   const p = id.parent;
   let sym;
-  if (p && ts.isShorthandPropertyAssignment(p) && p.name === id) sym = checker.getShorthandAssignmentValueSymbol(p);
+  if (p && ts.isShorthandPropertyAssignment(p) && p.name === id)
+    sym = checker.getShorthandAssignmentValueSymbol(p);
   else sym = checker.getSymbolAtLocation(id);
   const d = sym?.valueDeclaration ?? sym?.declarations?.[0];
   if (!d || !BINDING_KINDS.has(d.kind) || d.getSourceFile() !== sf) return null;
@@ -115,18 +126,30 @@ function identifiers(nodes) {
 }
 function isWrite(id) {
   const p = id.parent;
-  if (ts.isBinaryExpression(p) && p.left === id && p.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && p.operatorToken.kind <= ts.SyntaxKind.LastAssignment) return true;
-  if ((ts.isPrefixUnaryExpression(p) || ts.isPostfixUnaryExpression(p)) && (p.operator === ts.SyntaxKind.PlusPlusToken || p.operator === ts.SyntaxKind.MinusMinusToken)) return true;
+  if (
+    ts.isBinaryExpression(p) &&
+    p.left === id &&
+    p.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+    p.operatorToken.kind <= ts.SyntaxKind.LastAssignment
+  )
+    return true;
+  if (
+    (ts.isPrefixUnaryExpression(p) || ts.isPostfixUnaryExpression(p)) &&
+    (p.operator === ts.SyntaxKind.PlusPlusToken || p.operator === ts.SyntaxKind.MinusMinusToken)
+  )
+    return true;
   return false;
 }
 function declaredNames(stmt) {
   const names = [];
   const pat = (b) => {
     if (ts.isIdentifier(b)) names.push(b);
-    else if (ts.isObjectBindingPattern(b) || ts.isArrayBindingPattern(b)) for (const e of b.elements) if (!ts.isOmittedExpression(e)) pat(e.name);
+    else if (ts.isObjectBindingPattern(b) || ts.isArrayBindingPattern(b))
+      for (const e of b.elements) if (!ts.isOmittedExpression(e)) pat(e.name);
   };
   if (ts.isVariableStatement(stmt)) for (const d of stmt.declarationList.declarations) pat(d.name);
-  else if ((ts.isFunctionDeclaration(stmt) || ts.isClassDeclaration(stmt)) && stmt.name) names.push(stmt.name);
+  else if ((ts.isFunctionDeclaration(stmt) || ts.isClassDeclaration(stmt)) && stmt.name)
+    names.push(stmt.name);
   return names;
 }
 
@@ -197,16 +220,28 @@ function writeModule(target, needImports, body, header) {
   let existing = existsSync(target) ? readFileSync(target, 'utf8') : '';
   let lines = importLines(needImports, FILE, target);
   if (existing) {
-    const tsf = ts.createSourceFile(target, existing, ts.ScriptTarget.Latest, true, kindFor(target));
+    const tsf = ts.createSourceFile(
+      target,
+      existing,
+      ts.ScriptTarget.Latest,
+      true,
+      kindFor(target)
+    );
     const have = new Set();
     for (const st of tsf.statements) {
       if (!ts.isImportDeclaration(st) || !st.importClause) continue;
       const c = st.importClause;
       if (c.name) have.add(c.name.text);
-      if (c.namedBindings && ts.isNamespaceImport(c.namedBindings)) have.add(c.namedBindings.name.text);
-      if (c.namedBindings && ts.isNamedImports(c.namedBindings)) for (const e of c.namedBindings.elements) have.add(e.name.text);
+      if (c.namedBindings && ts.isNamespaceImport(c.namedBindings))
+        have.add(c.namedBindings.name.text);
+      if (c.namedBindings && ts.isNamedImports(c.namedBindings))
+        for (const e of c.namedBindings.elements) have.add(e.name.text);
     }
-    lines = importLines(needImports.filter((i) => !have.has(i.local)), FILE, target);
+    lines = importLines(
+      needImports.filter((i) => !have.has(i.local)),
+      FILE,
+      target
+    );
     const at = lastImportEnd(tsf);
     const ins = lines.length ? `${at ? '\n' : ''}${lines.join('\n')}${at ? '' : '\n'}` : '';
     existing = existing.slice(0, at) + ins + existing.slice(at);
@@ -249,7 +284,12 @@ function sourceImportEdit(names, target) {
 
 // ── op: top ───────────────────────────────────────────────────────────────────────────────
 function opTop() {
-  const want = new Set((opt('--names') ?? '').split(',').map((s) => s.trim()).filter(Boolean));
+  const want = new Set(
+    (opt('--names') ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+  );
   if (!want.size) fail('--names is required');
   const moved = [];
   const found = new Set();
@@ -258,7 +298,10 @@ function opTop() {
     if (!names.length) continue;
     const hit = names.filter((n) => want.has(n));
     if (!hit.length) continue;
-    if (hit.length !== names.length) fail(`statement at line ${lineOf(st.getStart(sf))} declares ${names.join(', ')}; name all of them`);
+    if (hit.length !== names.length)
+      fail(
+        `statement at line ${lineOf(st.getStart(sf))} declares ${names.join(', ')}; name all of them`
+      );
     for (const n of names) found.add(n);
     moved.push(st);
   }
@@ -278,7 +321,10 @@ function opTop() {
       needImports.set(info.local, info);
     } else cycle.add(id.text);
   }
-  if (cycle.size) fail(`moving these would need top-level names that stay in the source (import cycle): ${[...cycle].sort().join(', ')}`);
+  if (cycle.size)
+    fail(
+      `moving these would need top-level names that stay in the source (import cycle): ${[...cycle].sort().join(', ')}`
+    );
 
   // Names the remaining source still uses.
   const usedOutside = new Set();
@@ -298,7 +344,11 @@ function opTop() {
   if (usedOutside.size) edits.push(sourceImportEdit(usedOutside, TO));
 
   assertJsxTarget(moved, TO);
-  report({ moved: [...movedNames], imports: [...needImports.keys()], exportsBack: [...usedOutside] });
+  report({
+    moved: [...movedNames],
+    imports: [...needImports.keys()],
+    exportsBack: [...usedOutside],
+  });
   if (DRY) return;
   // Removing [st.pos, st.end] takes the statement with its own leading trivia, so the
   // spacing of what remains is untouched — never a global whitespace rewrite (strings!).
@@ -331,14 +381,20 @@ function freeLocals(fn, nodes, runStart, runEnd, { allowLaterConst = false } = {
     if (c !== fn) continue;
     if (d.pos >= runStart && d.end <= runEnd) continue; // declared inside the run
     const st = declStatement(d);
-    if (isWrite(id)) problems.push(`writes component-local "${id.text}" (line ${lineOf(id.getStart(sf))})`);
+    if (isWrite(id))
+      problems.push(`writes component-local "${id.text}" (line ${lineOf(id.getStart(sf))})`);
     if (!ts.isFunctionDeclaration(st) && st.pos >= runStart && !allowLaterConst) {
-      problems.push(`reads "${id.text}" declared after the run (line ${lineOf(st.getStart(sf))}) — TDZ at the call site`);
+      problems.push(
+        `reads "${id.text}" declared after the run (line ${lineOf(st.getStart(sf))}) — TDZ at the call site`
+      );
     }
     if (ts.isVariableDeclaration(d) || ts.isBindingElement(d)) {
       if (!isConst(d)) {
         const writes = identifiers([fn.body]).filter((x) => isWrite(x) && declOf(x) === d);
-        if (writes.length) problems.push(`reads let/var "${id.text}" which is written at line ${lineOf(writes[0].getStart(sf))}`);
+        if (writes.length)
+          problems.push(
+            `reads let/var "${id.text}" which is written at line ${lineOf(writes[0].getStart(sf))}`
+          );
       }
     }
     free.set(id.text, d);
@@ -384,21 +440,26 @@ function opHook() {
   const [from, to] = parseLines();
   const name = opt('--name');
   if (!name || !/^use[A-Z]/.test(name)) fail('--name must be a hook name (useX)');
-  const stmts = fn.body.statements.filter((s) => lineOf(s.getStart(sf)) >= from && lineOf(s.end) <= to);
+  const stmts = fn.body.statements.filter(
+    (s) => lineOf(s.getStart(sf)) >= from && lineOf(s.end) <= to
+  );
   if (!stmts.length) fail('no whole statements in that line range');
   const first = stmts[0];
   const last = stmts[stmts.length - 1];
   const all = fn.body.statements;
   const i0 = all.indexOf(first);
-  if (all.slice(i0, i0 + stmts.length).some((s, k) => s !== stmts[k])) fail('run is not contiguous');
-  if (lineOf(first.getStart(sf)) !== from) console.warn(`note: run starts at line ${lineOf(first.getStart(sf))}`);
+  if (all.slice(i0, i0 + stmts.length).some((s, k) => s !== stmts[k]))
+    fail('run is not contiguous');
+  if (lineOf(first.getStart(sf)) !== from)
+    console.warn(`note: run starts at line ${lineOf(first.getStart(sf))}`);
   if (stmts.some((s) => ts.isReturnStatement(s))) fail('run contains a top-level return');
 
   const runStart = first.pos;
   const runEnd = last.end;
   const { free, problems } = freeLocals(fn, stmts, runStart, runEnd);
   const { need, cycle } = moduleImportsFor(stmts);
-  if (cycle.size) problems.push(`needs top-level names still in the source: ${[...cycle].sort().join(', ')}`);
+  if (cycle.size)
+    problems.push(`needs top-level names still in the source: ${[...cycle].sort().join(', ')}`);
 
   // Bindings the run declares that the rest of the component uses.
   const outside = all.filter((s) => !stmts.includes(s));
@@ -407,18 +468,24 @@ function opHook() {
     const d = declOf(id);
     if (!d || containerOf(d) !== fn) continue;
     if (d.pos >= runStart && d.end <= runEnd) {
-      if (isWrite(id)) problems.push(`"${id.text}" is reassigned after the run (line ${lineOf(id.getStart(sf))})`);
+      if (isWrite(id))
+        problems.push(`"${id.text}" is reassigned after the run (line ${lineOf(id.getStart(sf))})`);
       // A hoisted function used BEFORE the run would hit the destructuring's TDZ.
-      if (id.getStart(sf) < runStart) problems.push(`"${id.text}" is used before the run (line ${lineOf(id.getStart(sf))})`);
+      if (id.getStart(sf) < runStart)
+        problems.push(`"${id.text}" is used before the run (line ${lineOf(id.getStart(sf))})`);
       // A returned let/var is a by-value copy: a later write inside the run would not reach the caller.
       if ((ts.isVariableDeclaration(d) || ts.isBindingElement(d)) && !isConst(d)) {
         const writes = identifiers(stmts).filter((x) => isWrite(x) && declOf(x) === d);
-        if (writes.length) problems.push(`returned let/var "${id.text}" is written inside the run (line ${lineOf(writes[0].getStart(sf))})`);
+        if (writes.length)
+          problems.push(
+            `returned let/var "${id.text}" is written inside the run (line ${lineOf(writes[0].getStart(sf))})`
+          );
       }
       returned.add(id.text);
     }
   }
-  if (problems.length) fail(`cannot extract lines ${from}-${to} as ${name}:\n  - ${problems.join('\n  - ')}`);
+  if (problems.length)
+    fail(`cannot extract lines ${from}-${to} as ${name}:\n  - ${problems.join('\n  - ')}`);
 
   const params = sortByDecl(free);
   const ret = [...returned].sort();
@@ -427,7 +494,13 @@ function opHook() {
   const body = `export function ${name}(${braceList(params, '')}) {\n${runText}${ret.length ? `\n${indent}return ${braceList(ret, indent)};` : ''}\n}`;
   const call = `\n${indent}${ret.length ? `const ${braceList(ret, indent)} = ` : ''}${name}(${braceList(params, indent)});`;
   assertJsxTarget(stmts, TO);
-  report({ hook: name, lines: `${from}-${to}`, params: params.length, returns: ret, imports: [...need.keys()] });
+  report({
+    hook: name,
+    lines: `${from}-${to}`,
+    params: params.length,
+    returns: ret,
+    imports: [...need.keys()],
+  });
   if (DRY) return;
   const edits = [[runStart, runEnd, call], sourceImportEdit([name], TO)];
   mkdirSync(dirname(TO), { recursive: true });
@@ -447,7 +520,10 @@ function opRender() {
   const visit = (n) => {
     if (target) return;
     const ok =
-      (ts.isJsxElement(n) || ts.isJsxSelfClosingElement(n) || ts.isJsxFragment(n) || ts.isJsxExpression(n)) &&
+      (ts.isJsxElement(n) ||
+        ts.isJsxSelfClosingElement(n) ||
+        ts.isJsxFragment(n) ||
+        ts.isJsxExpression(n)) &&
       lineOf(n.getStart(sf)) === from &&
       lineOf(n.end) === to;
     if (ok) target = n;
@@ -459,10 +535,14 @@ function opRender() {
   const inner = ts.isJsxExpression(target) ? target.expression : target;
   // Everything inside the component's return is evaluated after all locals exist: allow
   // later-declared consts (the call happens where the JSX was).
-  const { free, problems } = freeLocals(fn, [inner], target.pos, target.end, { allowLaterConst: true });
+  const { free, problems } = freeLocals(fn, [inner], target.pos, target.end, {
+    allowLaterConst: true,
+  });
   const { need, cycle } = moduleImportsFor([inner]);
-  if (cycle.size) problems.push(`needs top-level names still in the source: ${[...cycle].sort().join(', ')}`);
-  if (problems.length) fail(`cannot extract lines ${from}-${to} as ${name}:\n  - ${problems.join('\n  - ')}`);
+  if (cycle.size)
+    problems.push(`needs top-level names still in the source: ${[...cycle].sort().join(', ')}`);
+  if (problems.length)
+    fail(`cannot extract lines ${from}-${to} as ${name}:\n  - ${problems.join('\n  - ')}`);
   const params = sortByDecl(free);
   const text = src.slice(inner.getStart(sf), inner.end);
   const body = `export function ${name}(${braceList(params, '')}) {\n  return (\n    ${text}\n  );\n}`;
@@ -470,7 +550,12 @@ function opRender() {
   const parentIsJsx = ts.isJsxElement(target.parent) || ts.isJsxFragment(target.parent);
   const call = `${name}(${braceList(params, '      ')})`;
   const replacement = ts.isJsxExpression(target) || parentIsJsx ? `{${call}}` : call;
-  report({ render: name, lines: `${from}-${to}`, params: params.length, imports: [...need.keys()] });
+  report({
+    render: name,
+    lines: `${from}-${to}`,
+    params: params.length,
+    imports: [...need.keys()],
+  });
   if (DRY) return;
   const edits = [[target.getStart(sf), target.end, replacement], sourceImportEdit([name], TO)];
   mkdirSync(dirname(TO), { recursive: true });
@@ -479,7 +564,9 @@ function opRender() {
 }
 
 function report(o) {
-  console.log(JSON.stringify({ op: OP, file: relative(REPO, FILE), to: relative(REPO, TO), dry: DRY, ...o }));
+  console.log(
+    JSON.stringify({ op: OP, file: relative(REPO, FILE), to: relative(REPO, TO), dry: DRY, ...o })
+  );
 }
 
 if (OP === 'top') opTop();

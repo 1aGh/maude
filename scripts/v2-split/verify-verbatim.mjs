@@ -14,7 +14,7 @@
 // Exit 0 = proven; 1 = a difference (printed); 2 = could not run.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,11 +33,19 @@ const CLIENT = join(ROOT, 'apps/studio/client');
 const APP = 'apps/studio/client/app.jsx';
 
 const parse = (name, text) =>
-  ts.createSourceFile(name, text, ts.ScriptTarget.Latest, true, name.endsWith('.js') ? ts.ScriptKind.JS : ts.ScriptKind.JSX);
+  ts.createSourceFile(
+    name,
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    name.endsWith('.js') ? ts.ScriptKind.JS : ts.ScriptKind.JSX
+  );
 const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28 });
 
 const baseSrc = git('show', `${BASE}:${APP}`);
-const baseFiles = new Set(git('ls-tree', '-r', '--name-only', BASE, 'apps/studio/client').split('\n').filter(Boolean));
+const baseFiles = new Set(
+  git('ls-tree', '-r', '--name-only', BASE, 'apps/studio/client').split('\n').filter(Boolean)
+);
 
 function walk(dir, out = []) {
   for (const n of readdirSync(dir)) {
@@ -63,7 +71,10 @@ for (const f of files) {
   const isNew = !baseFiles.has(f.rel);
   // Every client file that existed at <base>, other than app.jsx, must be untouched.
   if (!isNew && f.rel !== APP) {
-    if (git('show', `${BASE}:${f.rel}`) !== f.src) errors.push(`${f.rel}: changed since ${BASE} (the split may only touch app.jsx and new modules)`);
+    if (git('show', `${BASE}:${f.rel}`) !== f.src)
+      errors.push(
+        `${f.rel}: changed since ${BASE} (the split may only touch app.jsx and new modules)`
+      );
     continue;
   }
   const sf = parse(f.rel, f.src);
@@ -73,7 +84,12 @@ for (const f of files) {
     if (text.startsWith('export ')) {
       const h = text.match(GEN_HOOK) || text.match(GEN_RENDER);
       if (h && isNew && !baseStmts.some((b) => stmtText(baseSf, b) === text.slice(7))) {
-        generated.set(h[1], { sf, node: st, kind: h[1].startsWith('use') ? 'hook' : 'render', file: f.rel });
+        generated.set(h[1], {
+          sf,
+          node: st,
+          kind: h[1].startsWith('use') ? 'hook' : 'render',
+          file: f.rel,
+        });
         continue;
       }
       text = text.slice(7);
@@ -81,8 +97,13 @@ for (const f of files) {
     if (!index.has(text)) index.set(text, []);
     index.get(text).push(f.rel);
     // app.jsx is held to the same rule as a new module: what is left in it must come from base.
-    if (!baseStmts.some((b) => stmtText(baseSf, b) === text) && !(f.rel === APP && ts.isFunctionDeclaration(st) && st.name?.text === 'App')) {
-      errors.push(`${f.rel}: statement not from base app.jsx: ${text.slice(0, 90).replace(/\s+/g, ' ')}…`);
+    if (
+      !baseStmts.some((b) => stmtText(baseSf, b) === text) &&
+      !(f.rel === APP && ts.isFunctionDeclaration(st) && st.name?.text === 'App')
+    ) {
+      errors.push(
+        `${f.rel}: statement not from base app.jsx: ${text.slice(0, 90).replace(/\s+/g, ' ')}…`
+      );
     }
   }
 }
@@ -90,9 +111,14 @@ let appBase = null;
 for (const st of baseStmts) {
   const text = stmtText(baseSf, st);
   if (ts.isFunctionDeclaration(st) && st.name?.text === 'App') appBase = st;
-  const where = (index.get(text) ?? []).filter((f) => f !== APP || !(ts.isFunctionDeclaration(st) && st.name?.text === 'App'));
+  const where = (index.get(text) ?? []).filter(
+    (f) => f !== APP || !(ts.isFunctionDeclaration(st) && st.name?.text === 'App')
+  );
   if (ts.isFunctionDeclaration(st) && st.name?.text === 'App') continue; // checked in 3
-  if (where.length !== 1) errors.push(`base statement found ${where.length}× (want 1): ${text.slice(0, 90).replace(/\s+/g, ' ')}…`);
+  if (where.length !== 1)
+    errors.push(
+      `base statement found ${where.length}× (want 1): ${text.slice(0, 90).replace(/\s+/g, ' ')}…`
+    );
 }
 
 // ── 3: App() equals base after inlining generated hooks / renders ──────────────────────────
@@ -104,7 +130,10 @@ function hookInline(name) {
   const g = generated.get(name);
   const body = g.node.body.statements;
   const last = body[body.length - 1];
-  const keep = ts.isReturnStatement(last) && last.expression && ts.isObjectLiteralExpression(last.expression) ? body.slice(0, -1) : body;
+  const keep =
+    ts.isReturnStatement(last) && last.expression && ts.isObjectLiteralExpression(last.expression)
+      ? body.slice(0, -1)
+      : body;
   // From the first statement's full start: the run's leading comments moved with it.
   return g.sf.text.slice(keep[0].pos, keep[keep.length - 1].end);
 }
@@ -126,11 +155,20 @@ const visit = (n) => {
       return;
     }
     const target = ts.isJsxExpression(n.parent) ? n.parent : n;
-    const parentIsJsx = ts.isJsxExpression(n.parent) && (ts.isJsxElement(n.parent.parent) || ts.isJsxFragment(n.parent.parent));
+    const parentIsJsx =
+      ts.isJsxExpression(n.parent) &&
+      (ts.isJsxElement(n.parent.parent) || ts.isJsxFragment(n.parent.parent));
     const inner = renderInline(name);
     // `{renderX()}` stood for either a JSX child element (no braces originally) or `{expr}`.
-    const isElem = /^<[\s\S]*>$/.test(inner.trim()) && !inner.trim().startsWith('<>') ? true : /^<>/.test(inner.trim());
-    edits.push([target.getStart(appSf), target.end, parentIsJsx && isElem ? inner : ts.isJsxExpression(n.parent) ? `{${inner}}` : inner]);
+    const isElem =
+      /^<[\s\S]*>$/.test(inner.trim()) && !inner.trim().startsWith('<>')
+        ? true
+        : /^<>/.test(inner.trim());
+    edits.push([
+      target.getStart(appSf),
+      target.end,
+      parentIsJsx && isElem ? inner : ts.isJsxExpression(n.parent) ? `{${inner}}` : inner,
+    ]);
     return;
   }
   ts.forEachChild(n, visit);
@@ -140,13 +178,17 @@ edits.sort((a, b) => b[0] - a[0]);
 let rebuilt = appNow.src;
 for (const [s, e, r] of edits) rebuilt = rebuilt.slice(0, s) + r + rebuilt.slice(e);
 const rebuiltSf = parse('app.jsx', rebuilt);
-const rebuiltApp = rebuiltSf.statements.find((s) => ts.isFunctionDeclaration(s) && s.name?.text === 'App');
+const rebuiltApp = rebuiltSf.statements.find(
+  (s) => ts.isFunctionDeclaration(s) && s.name?.text === 'App'
+);
 const a = norm(stmtText(baseSf, appBase));
 const b = norm(stmtText(rebuiltSf, rebuiltApp));
 if (a !== b) {
   let i = 0;
   while (i < a.length && a[i] === b[i]) i++;
-  errors.push(`App() differs after inlining at char ${i}:\n  base: …${a.slice(Math.max(0, i - 120), i + 120)}…\n  now:  …${b.slice(Math.max(0, i - 120), i + 120)}…`);
+  errors.push(
+    `App() differs after inlining at char ${i}:\n  base: …${a.slice(Math.max(0, i - 120), i + 120)}…\n  now:  …${b.slice(Math.max(0, i - 120), i + 120)}…`
+  );
 }
 
 const gen = [...generated.values()];
@@ -159,4 +201,6 @@ if (errors.length) {
   if (errors.length > 30) console.log(`… ${errors.length - 30} more`);
   process.exit(1);
 }
-console.log('move-only: proven (verbatim statements, nothing added, App() identical after inlining)');
+console.log(
+  'move-only: proven (verbatim statements, nothing added, App() identical after inlining)'
+);
