@@ -101,7 +101,9 @@ describe('degraded propagation chain (source-shape — the browser half runs man
     expect(src).toMatch(/degraded:\s*j\.degraded/);
     // The WS emit spreads the whole job, which is how `degraded` reaches
     // subscribers — assert the spread rather than a field list that could drift.
-    expect(src).toContain("bus.emit('export:job', { ...job })");
+    // (V2-2.8 S5 added the owner's audience as a third argument; the payload is
+    // still the whole job.)
+    expect(src).toContain("bus.emit('export:job', { ...job }");
   });
 
   test('status stays `done` — the file is real, the flag is what differs', () => {
