@@ -30,6 +30,7 @@ import { readBoardFile, writeBoardFileAtomic } from '../annotations/board-io.ts'
 import { MAX_BOARD_BYTES } from '../annotations/constants.ts';
 import { serializeBoard } from '../annotations/schema.ts';
 import {
+  canvasRelFromArg,
   fileSlug,
   findElementById,
   loadArtboards,
@@ -54,6 +55,10 @@ Usage:
                         [--pin <cdId|selector>] [--no-pointer]
                         [--canvas-state <path>] [--rects <path>]
                         [--root <repo>] [--dry-run]
+
+<rel-path> is the canvas: relative to the design root ("ui/Foo.tsx"), with the
+design-root prefix (".design/ui/Foo.tsx") or absolute. A path outside the design
+root exits 2 and writes nothing.
 
 Ops JSON ({ "ops": [ … ] } or a bare array; "-" or omitted = stdin). Coordinates
 are WORLD coordinates — the same ones read-annotations prints. Targets are ids
@@ -664,14 +669,18 @@ async function main() {
       ? resolve(process.env.CLAUDE_PROJECT_DIR)
       : process.cwd();
   const { designRel, designRoot } = resolveDesignRoot(repoRoot);
-  const slug = fileSlug(relPath, designRel);
   // The canvas path the server keys its board by — relative to the design
-  // root, whether the caller wrote `ui/X.tsx` or `.design/ui/X.tsx` (the slug
-  // above tolerates both; the server must get the same file, or every op is
-  // refused as `gone` against a board that doesn't exist).
-  const designPrefix = `${designRel.replace(/^\/+|\/+$/g, '')}/`;
-  let canvasRel = String(relPath).replace(/^\/+/, '');
-  if (canvasRel.startsWith(designPrefix)) canvasRel = canvasRel.slice(designPrefix.length);
+  // root, whether the caller wrote `ui/X.tsx`, `.design/ui/X.tsx` or an
+  // absolute path (V2-2.8 B3). The slug and the server must get the same file,
+  // or every op is refused as `gone` against a board that doesn't exist.
+  const canvasRel = canvasRelFromArg(relPath, repoRoot, designRel);
+  if (!canvasRel) {
+    fail(
+      `${JSON.stringify(String(relPath))} is outside ${designRoot} — give a canvas inside it; nothing written`,
+      2
+    );
+  }
+  const slug = fileSlug(canvasRel, designRel);
 
   const boardFile = readBoardFile(designRoot, slug);
   if (boardFile.tooLarge) {

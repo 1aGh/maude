@@ -9,7 +9,9 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -1074,5 +1076,92 @@ describe('annotate --help comes from the registry', () => {
     expect(help).toContain('update');
     expect(help).toContain('reparent');
     expect(help).toContain('reorder');
+  });
+});
+
+// V2-2.8 B3 — an ABSOLUTE canvas path (what Claude's own file tools hand an
+// agent) used to answer ok while writing a NEW board named after the whole
+// path, and read-annotations read an empty one: fileSlug never stripped the
+// repo root. The path now resolves against the repo; outside <designRoot> is
+// refused with exit 2 and nothing is written.
+describe('B3 — an absolute canvas path resolves to the same board', () => {
+  const read = (rel: string) => {
+    const proc = Bun.spawnSync(['bun', READER, rel, '--root', root]);
+    return {
+      code: proc.exitCode ?? 1,
+      out: new TextDecoder().decode(proc.stdout),
+      err: new TextDecoder().decode(proc.stderr),
+    };
+  };
+  const boardsOnDisk = () =>
+    readdirSync(join(root, '.design')).filter((f) => f.endsWith('.annotations.json'));
+  const texts = (out: string) =>
+    (JSON.parse(out).elements as Array<{ text?: string }>).map((e) => e.text);
+
+  test('annotate with an absolute path writes ui-abs, and the relative form reads it back', () => {
+    const before = boardsOnDisk();
+    const abs = join(root, '.design', 'ui', 'Abs.tsx');
+    const res = annotate([abs], {
+      ops: [{ op: 'create', type: 'sticky', text: 'abs', x: 0, y: 0 }],
+    });
+    expect(res.code).toBe(0);
+    expect(JSON.parse(res.out).file).toBe(pathOf('ui-abs'));
+    expect(board('ui-abs').map((e) => e.text)).toEqual(['abs']);
+    // Exactly one new board, and it is ui-abs — not a slug of the whole path.
+    expect(boardsOnDisk().filter((f) => !before.includes(f))).toEqual(['ui-abs.annotations.json']);
+    expect(texts(read('ui/Abs.tsx').out)).toEqual(['abs']);
+  });
+
+  test('read-annotations with an absolute path reads the same board', () => {
+    const res = read(join(root, '.design', 'ui', 'Abs.tsx'));
+    expect(res.code).toBe(0);
+    expect(texts(res.out)).toEqual(['abs']);
+  });
+
+  test('the realpath spelling of the repo (macOS /private/var…) is the same repo', () => {
+    const res = read(join(realpathSync(root), '.design', 'ui', 'Abs.tsx'));
+    expect(res.code).toBe(0);
+    expect(texts(res.out)).toEqual(['abs']);
+  });
+
+  test.each([
+    ['an absolute path outside the repo', () => join(tmpdir(), 'elsewhere', 'X.tsx')],
+    ['an absolute path in the repo but outside <designRoot>', () => join(root, 'src', 'X.tsx')],
+    ['a relative path that climbs out of <designRoot>', () => 'ui/../../X.tsx'],
+  ])('%s is refused with exit 2 and writes nothing', (_name, arg) => {
+    const before = boardsOnDisk();
+    const res = annotate([arg()], {
+      ops: [{ op: 'create', type: 'sticky', text: 'no', x: 0, y: 0 }],
+    });
+    expect(res.code).toBe(2);
+    expect(res.err).toContain('outside');
+    expect(boardsOnDisk()).toEqual(before);
+    const r = read(arg());
+    expect(r.code).toBe(2);
+    expect(r.err).toContain('outside');
+  });
+
+  test('with a live server, the absolute path reaches the server as the design-root path', async () => {
+    const got: Array<{ file: string }> = [];
+    const server = Bun.serve({
+      port: 0,
+      hostname: '127.0.0.1',
+      async fetch(req) {
+        got.push(await req.json());
+        return Response.json({ ok: true, changed: true, rejected: [] });
+      },
+    });
+    const serverJson = join(root, '.design', '_server.json');
+    writeFileSync(serverJson, JSON.stringify({ url: `http://127.0.0.1:${server.port}` }));
+    try {
+      const res = await annotateAsync([join(root, '.design', 'ui', 'AbsLive.tsx')], {
+        ops: [{ op: 'create', type: 'sticky', text: 'x', x: 0, y: 0 }],
+      });
+      expect(res.code).toBe(0);
+      expect(got[0]?.file).toBe('.design/ui/AbsLive.tsx');
+    } finally {
+      rmSync(serverJson, { force: true });
+      server.stop(true);
+    }
   });
 });
