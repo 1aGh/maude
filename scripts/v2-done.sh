@@ -5,8 +5,9 @@
 #   bash scripts/v2-done.sh --fast   cheap check for the Stop hook: ledger + a green full run at HEAD
 #
 # Exits 0 only when every check passes. It is RED BY DESIGN until the end of the run.
-# V2-0.0 wires the ledger, nothing-deleted, packaged-app and PR checks; V2-2.0b adds every
-# Phase 8 gate command, the kg reconciliation and the native-list / ledger / Progress-log equality.
+# V2-0.0 wired the ledger, nothing-deleted, packaged-app and PR checks; V2-2.0b added every
+# Phase 8 gate (scripts/v2-gates.mjs), the kg reconciliation and the native-list / ledger /
+# Progress-log equality (scripts/v2-reconcile.mjs).
 
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -56,12 +57,15 @@ else
   fail "nothing-deleted audit not built yet (V2-2.0c)"
 fi
 
-# 4 · Phase 8 gates — wired by V2-2.0b (quality gates, Rust, desktop e2e ×3, cross-shell scenarios,
-#     fidelity, a11y, performance, security, packaged app, AI parity, docs).
-if [[ -f scripts/v2-gates.sh ]]; then
-  if bash scripts/v2-gates.sh; then pass "Phase 8 gates green"; else fail "Phase 8 gates red"; fi
+# 4 · Phase 8 gates (V2-2.0b) — scripts/v2-gates.mjs: live checks run here; command gates
+#     (quality, Rust, desktop e2e ×3) and agent/human gates (scenarios, fidelity, a11y, perf,
+#     security, packaged app, docs, AI parity) count only with FRESH evidence under
+#     .ai/scenarios/maude-v2/gates/ (`--record` / `--attest`; stale once product files change).
+if gates_out="$(node scripts/v2-gates.mjs 2>&1)"; then
+  pass "Phase 8 gates green"
 else
-  fail "Phase 8 gate runner not wired yet (V2-2.0b)"
+  fail "$(printf '%s' "$gates_out" | tail -1)"
+  printf '%s\n' "$gates_out" | grep '^FAIL' | sed 's/^/        /'
 fi
 
 # 5 · Packaged .app built from feat/maude-v2 and verified (V2-8.10 / V2-8.11).
@@ -77,11 +81,14 @@ fi
 # 6 · PR description ready for Michal (V2-8.11; push + open = E5).
 if [[ -s .ai/scenarios/maude-v2/PR.md ]]; then pass "PR description ready"; else fail "PR description missing (.ai/scenarios/maude-v2/PR.md)"; fi
 
-# 7 · kg reconciliation + native-list equality — wired by V2-2.0b.
-if [[ -f scripts/v2-reconcile.mjs ]]; then
-  if node scripts/v2-reconcile.mjs >/dev/null 2>&1; then pass "kg + task-list reconciliation"; else fail "kg / task-list reconciliation red"; fi
+# 7 · kg reconciliation + native-list / ledger / Progress-log equality (V2-2.0b) — every `kg:`
+#     reference resolves, `maude kg doctor` is healthy, and the native task-list snapshot the lead
+#     writes at each gate (.ai/scenarios/maude-v2/tasklist.json) agrees with the ledger.
+if rec_out="$(node scripts/v2-reconcile.mjs --require-tasklist --doctor 2>&1)"; then
+  pass "kg + task-list reconciliation"
 else
-  fail "kg + task-list reconciliation not wired yet (V2-2.0b)"
+  fail "kg / task-list reconciliation: $(printf '%s' "$rec_out" | head -1)"
+  printf '%s\n' "$rec_out" | grep '^FAIL' | head -20 | sed 's/^/        /'
 fi
 
 exit_code=0

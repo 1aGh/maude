@@ -1,0 +1,6 @@
+{
+  "about": "Pre-v2 reference numbers the Phase 8 gates compare against (V2-2.0b). Taken from main @ 8482c9f6 (end of Phase 0 — the split shipped, no v2 chrome).",
+  "commit": "8482c9f6",
+  "stylesCssBytes": 301090,
+  "clientBundleBytes": 2179230
+}
