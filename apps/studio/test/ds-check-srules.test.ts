@@ -48,6 +48,7 @@ put(
       },
     ],
     activeFamilies: ['accent', 'status', 'presence'],
+    colorSpace: 'oklch', // the fixture manifests were emitted with it
   })
 );
 put('system/fx/preview/_kit.tsx', 'export const Kit = () => null;\n');

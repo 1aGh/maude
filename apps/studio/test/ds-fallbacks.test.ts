@@ -44,14 +44,17 @@ describe('fallback layer', () => {
     const cfg = fixtureConfig();
     const css = files[cfg.tokensCssRel]
       .replace(/\n {2}--scrim: [^;]*;/g, '')
-      .replace(/\n {2}--tracking-tight: [^;]*;/g, '');
+      .replace(/\n {2}--tracking-tight: [^;]*;/g, '')
+      .replace(/\n {2}--bg-2: [^;]*;/g, '');
     const m = loadSystem(memFs({ ...files, [cfg.tokensCssRel]: css }), cfg);
     const block = renderFallbacks(reg, declaredBy(m));
     const names = declaredNamesIn(block);
     expect(names).toContain('--scrim');
     for (const n of names) expect(m.declared.has(n), n).toBe(false);
-    // --tracking-tight is a DDR-043 role: no fallback, ever (a missing one lowers the level)
-    expect(names).not.toContain('--tracking-tight');
+    // --bg-2 is a DDR-043 role: never served by a fallback (a missing one lowers the level);
+    // --tracking-tight is functional (v1), so it is served, as 0
+    expect(names).toContain('--tracking-tight');
+    expect(names).not.toContain('--bg-2');
     expect(block.startsWith('@layer maude.fallback;')).toBe(true);
   });
 
