@@ -87,8 +87,22 @@ dist_print() { { dist_status; git -C "$ROOT" diff -- apps/studio/dist/; } | shas
 before_status="$(dist_status)"
 before_print="$(dist_print)"
 
+# The person's own ~/.config/maude (prefs.json, hubs.json, keys.json, cloud.json) is never a
+# job's: an ad-hoc harness that booted a studio without a sandbox rewrote the real prefs.json
+# (2026-10-10). Every job gets a throwaway config unless it names its own; a run that genuinely
+# needs the signed-in config sets V2_LANE_REAL_CONFIG=1. (~/.gitconfig lives under HOME, untouched.)
+lane_cfg=""
+if [[ -z "${V2_LANE_REAL_CONFIG:-}" ]]; then
+  lane_tmp="${TMPDIR:-/tmp}"
+  lane_cfg="$(mktemp -d "${lane_tmp%/}/v2-lane-config.XXXXXX")"
+  export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$lane_cfg}"
+  export MAUDE_UI_PREFS_PATH="${MAUDE_UI_PREFS_PATH:-$XDG_CONFIG_HOME/maude/prefs.json}"
+  export MAUDE_CLOUD_CONFIG="${MAUDE_CLOUD_CONFIG:-$XDG_CONFIG_HOME/maude/cloud.json}"
+fi
+
 "$@"
 code=$?
+[[ -n "$lane_cfg" ]] && rm -rf "$lane_cfg"
 
 if [[ "$(dist_print)" != "$before_print" ]]; then
   after_status="$(dist_status)"
