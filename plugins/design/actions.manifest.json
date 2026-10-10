@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "25d811830452",
+  "manifestVersion": "e34ce2159f4b",
   "actions": [
     {
       "id": "search.open",
@@ -1016,7 +1016,7 @@
       "id": "export.rerun-last",
       "label": "Export again",
       "kind": "command",
-      "exec": "canvas",
+      "exec": "shell",
       "effect": "project",
       "agent": {
         "path": "pending",
@@ -1908,5 +1908,61 @@
       "tier": "human"
     }
   ],
-  "schemas": []
+  "schemas": [
+    {
+      "format": "canvas-tsx",
+      "schema": "apps/studio/schema/canvas-tsx.md",
+      "source": "doc",
+      "skill": "design:design#_guide-02"
+    },
+    {
+      "format": "annotations",
+      "schema": "apps/studio/schema/annotations.v2.schema.json",
+      "id": "https://maude.sh/schema/annotations/v2",
+      "source": "generated",
+      "skill": "design:whiteboard"
+    },
+    {
+      "format": "canvas-meta",
+      "schema": "apps/studio/schema/canvas-meta.v2.schema.json",
+      "id": "https://maude.sh/schema/canvas-meta/v2",
+      "source": "hand",
+      "skill": "design:design#_guide-17"
+    },
+    {
+      "format": "edl",
+      "schema": "apps/studio/schema/edl.v1.schema.json",
+      "id": "https://maude.sh/schema/edl/v1",
+      "source": "hand",
+      "skill": "design:footage-director"
+    },
+    {
+      "format": "tokens",
+      "schema": "apps/studio/schema/ds-tokens-v1.schema.json",
+      "id": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-tokens-v1.schema.json",
+      "source": "hand",
+      "skill": "design:design-system"
+    },
+    {
+      "format": "components",
+      "schema": "apps/studio/schema/ds-components-v1.schema.json",
+      "id": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-components-v1.schema.json",
+      "source": "hand",
+      "skill": "design:design-system"
+    },
+    {
+      "format": "design-config",
+      "schema": "apps/studio/config.schema.json",
+      "source": "hand",
+      "skill": "design:design"
+    },
+    {
+      "format": "agent-handoff",
+      "schema": "cli/lib/handoff.schema.json",
+      "id": "https://maude.sh/schema/agent-handoff/1",
+      "source": "hand",
+      "skill": "design:design#_guide-08",
+      "runtime": true
+    }
+  ]
 }
