@@ -1,0 +1,1968 @@
+{
+  "generated": "scripts/gen-actions.mjs — do not edit by hand",
+  "format": "maude.actions-manifest",
+  "v": 1,
+  "manifestVersion": "e34ce2159f4b",
+  "actions": [
+    {
+      "id": "search.open",
+      "label": "Search",
+      "kind": "command",
+      "exec": "shell",
+      "fromCanvas": true,
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design index"
+      }
+    },
+    {
+      "id": "canvases.search",
+      "label": "Search canvases",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design index"
+      }
+    },
+    {
+      "id": "canvases.find",
+      "label": "Find a canvas",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design index"
+      }
+    },
+    {
+      "id": "canvases.refresh",
+      "label": "Refresh canvases",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design index"
+      }
+    },
+    {
+      "id": "canvas.new",
+      "label": "New canvas",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Write a new .tsx under the design root with a DCArtboard per screen"
+      }
+    },
+    {
+      "id": "canvas.reload",
+      "label": "Reload canvas",
+      "kind": "command",
+      "exec": "shell",
+      "fromCanvas": true,
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "reloads the user’s view; the studio reloads on every file change"
+      }
+    },
+    {
+      "id": "canvas.new-video",
+      "label": "New video",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Write a new video-comp .tsx canvas"
+      }
+    },
+    {
+      "id": "canvas.close",
+      "label": "Close canvas",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "closes the user’s tab"
+      }
+    },
+    {
+      "id": "video.assemble",
+      "label": "Assemble clips into a video",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "edl",
+        "skill": "design:footage-director",
+        "how": "Write the <slug>.edl.json cut, then the comp"
+      }
+    },
+    {
+      "id": "artboard.new-desktop",
+      "label": "New artboard: Desktop",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add a DCArtboard sized 1440×1024"
+      }
+    },
+    {
+      "id": "artboard.new-laptop",
+      "label": "New artboard: Laptop",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add a DCArtboard sized 1280×800"
+      }
+    },
+    {
+      "id": "artboard.new-tablet",
+      "label": "New artboard: Tablet",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add a DCArtboard sized 834×1194"
+      }
+    },
+    {
+      "id": "artboard.new-mobile",
+      "label": "New artboard: Mobile",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add a DCArtboard sized 390×844"
+      }
+    },
+    {
+      "id": "artboard.new-a4",
+      "label": "New artboard: A4",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add a DCArtboard kind=\"print\" sized A4"
+      }
+    },
+    {
+      "id": "artboard.new-letter",
+      "label": "New artboard: Letter",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Add a DCArtboard kind=\"print\" sized Letter"
+      }
+    },
+    {
+      "id": "edit.undo",
+      "label": "Undo",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "pending",
+        "package": "S1",
+        "want": {
+          "path": "cli",
+          "verb": "maude design history"
+        }
+      }
+    },
+    {
+      "id": "edit.redo",
+      "label": "Redo",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "pending",
+        "package": "S1",
+        "want": {
+          "path": "cli",
+          "verb": "maude design history"
+        }
+      }
+    },
+    {
+      "id": "edit.copy",
+      "label": "Copy",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "the clipboard is the user’s; read the source instead"
+      }
+    },
+    {
+      "id": "select.all",
+      "label": "Select all",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas> --select all"
+      }
+    },
+    {
+      "id": "select.none",
+      "label": "Deselect all",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas> --select none"
+      }
+    },
+    {
+      "id": "select.all-annotations",
+      "label": "Select all annotations",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas> --select annotations"
+      }
+    },
+    {
+      "id": "object.duplicate",
+      "label": "Duplicate",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Copy the element’s JSX next to it; give the copy a new element id"
+      }
+    },
+    {
+      "id": "edit.copy-properties",
+      "label": "Copy properties",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "the clipboard is the user’s; read the source instead"
+      }
+    },
+    {
+      "id": "edit.paste-properties",
+      "label": "Paste properties",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Copy the style props from one element’s JSX to another"
+      }
+    },
+    {
+      "id": "object.select-child",
+      "label": "Select first child",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>@<element>"
+      }
+    },
+    {
+      "id": "object.select-parent",
+      "label": "Select parent",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>@<element>"
+      }
+    },
+    {
+      "id": "object.select-next",
+      "label": "Select next sibling",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>@<element>"
+      }
+    },
+    {
+      "id": "object.remove",
+      "label": "Remove",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Delete the element’s JSX (a removed DCArtboard is parked in the trash)"
+      }
+    },
+    {
+      "id": "object.nudge",
+      "label": "Nudge",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:design",
+        "how": "Change the element’s position props"
+      }
+    },
+    {
+      "id": "view.panels",
+      "label": "Hide panels",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
+      }
+    },
+    {
+      "id": "view.hidden-files",
+      "label": "Hidden files",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
+      }
+    },
+    {
+      "id": "view.design-system",
+      "label": "Design system",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "read system/<ds>/ for the design system itself"
+      }
+    },
+    {
+      "id": "view.comments",
+      "label": "Comments",
+      "kind": "toggle",
+      "exec": "shell",
+      "fromCanvas": true,
+      "effect": "none",
+      "agent": {
+        "path": "pending",
+        "package": "S9",
+        "want": {
+          "path": "cli",
+          "verb": "maude design comments"
+        }
+      }
+    },
+    {
+      "id": "history.open",
+      "label": "Version history",
+      "kind": "toggle",
+      "exec": "shell",
+      "fromCanvas": true,
+      "effect": "none",
+      "agent": {
+        "path": "pending",
+        "package": "S1",
+        "want": {
+          "path": "cli",
+          "verb": "maude design history"
+        }
+      }
+    },
+    {
+      "id": "view.inspector",
+      "label": "Inspector",
+      "kind": "toggle",
+      "exec": "shell",
+      "fromCanvas": true,
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "read the element’s JSX for its properties"
+      }
+    },
+    {
+      "id": "view.timeline-keep-open",
+      "label": "Keep timeline open",
+      "kind": "toggle",
+      "exec": "shell",
+      "fromCanvas": true,
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
+      }
+    },
+    {
+      "id": "view.annotations",
+      "label": "Annotations",
+      "kind": "toggle",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
+      }
+    },
+    {
+      "id": "view.layers",
+      "label": "Layers",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "read the canvas source for its structure"
+      }
+    },
+    {
+      "id": "view.inspector-on-select",
+      "label": "Open inspector on select",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
+      }
+    },
+    {
+      "id": "view.minimap",
+      "label": "Minimap",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
+      }
+    },
+    {
+      "id": "view.zoom-controls",
+      "label": "Zoom controls",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
+      }
+    },
+    {
+      "id": "view.print-guides",
+      "label": "Print guides",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
+      }
+    },
+    {
+      "id": "present.canvas",
+      "label": "Present the canvas",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas> --mode present"
+      }
+    },
+    {
+      "id": "settings.theme",
+      "label": "Theme",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
+      }
+    },
+    {
+      "id": "view.zoom-in",
+      "label": "Zoom in",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
+      }
+    },
+    {
+      "id": "view.zoom-out",
+      "label": "Zoom out",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
+      }
+    },
+    {
+      "id": "view.zoom-fit",
+      "label": "Zoom to fit",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
+      }
+    },
+    {
+      "id": "view.zoom-actual",
+      "label": "Actual size",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
+      }
+    },
+    {
+      "id": "view.zoom-to-artboard",
+      "label": "Zoom to artboard",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>#<artboard>"
+      }
+    },
+    {
+      "id": "view.jump-artboard",
+      "label": "Go to artboard",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design open <canvas>#<artboard>"
+      }
+    },
+    {
+      "id": "tool.select",
+      "label": "Select",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "a pointer mode"
+      }
+    },
+    {
+      "id": "tool.hand",
+      "label": "Hand",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "a pointer mode"
+      }
+    },
+    {
+      "id": "tool.hand-hold",
+      "label": "Hand (hold Space)",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "a pointer mode"
+      }
+    },
+    {
+      "id": "tool.comment",
+      "label": "Comment",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "pending",
+        "package": "S9",
+        "want": {
+          "path": "cli",
+          "verb": "maude design comments"
+        }
+      }
+    },
+    {
+      "id": "tool.pen",
+      "label": "Pen",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Add a pen element to the canvas’s .annotations.json"
+      }
+    },
+    {
+      "id": "tool.highlighter",
+      "label": "Highlighter",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Add a highlighter element to the canvas’s .annotations.json"
+      }
+    },
+    {
+      "id": "tool.shape",
+      "label": "Shape",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Add a shape element to the canvas’s .annotations.json"
+      }
+    },
+    {
+      "id": "tool.arrow",
+      "label": "Arrow",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Add an arrow element (with binds) to the .annotations.json"
+      }
+    },
+    {
+      "id": "tool.sticky",
+      "label": "Sticky",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Add a sticky element to the canvas’s .annotations.json"
+      }
+    },
+    {
+      "id": "tool.text",
+      "label": "Text",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Add a text element to the canvas’s .annotations.json"
+      }
+    },
+    {
+      "id": "tool.section",
+      "label": "Section",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Add a section element to the canvas’s .annotations.json"
+      }
+    },
+    {
+      "id": "tool.eraser",
+      "label": "Eraser",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Remove the elements from the canvas’s .annotations.json"
+      }
+    },
+    {
+      "id": "tool.browse",
+      "label": "Browse",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "a pointer mode"
+      }
+    },
+    {
+      "id": "tool.rect",
+      "label": "Rectangle",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Add a rect shape element to the canvas’s .annotations.json"
+      }
+    },
+    {
+      "id": "tool.ellipse",
+      "label": "Ellipse",
+      "kind": "tool",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Add an ellipse shape element to the canvas’s .annotations.json"
+      }
+    },
+    {
+      "id": "ui.step-back",
+      "label": "Step back",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "the user’s navigation history"
+      }
+    },
+    {
+      "id": "timeline.play",
+      "label": "Play / pause",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "playback"
+      }
+    },
+    {
+      "id": "timeline.step",
+      "label": "Step a frame",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "playback"
+      }
+    },
+    {
+      "id": "timeline.to-start",
+      "label": "Go to start",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "playback"
+      }
+    },
+    {
+      "id": "timeline.to-end",
+      "label": "Go to end",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "playback"
+      }
+    },
+    {
+      "id": "timeline.prev-keyframe",
+      "label": "Previous keyframe",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "playback"
+      }
+    },
+    {
+      "id": "timeline.next-keyframe",
+      "label": "Next keyframe",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "playback"
+      }
+    },
+    {
+      "id": "timeline.undo",
+      "label": "Undo timeline edit",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "pending",
+        "package": "S1",
+        "want": {
+          "path": "cli",
+          "verb": "maude design history"
+        }
+      }
+    },
+    {
+      "id": "timeline.redo",
+      "label": "Redo timeline edit",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "pending",
+        "package": "S1",
+        "want": {
+          "path": "cli",
+          "verb": "maude design history"
+        }
+      }
+    },
+    {
+      "id": "timeline.split",
+      "label": "Split at playhead",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "canvas-tsx",
+        "skill": "design:video-comp",
+        "how": "Split the clip into two sequences at the frame"
+      }
+    },
+    {
+      "id": "timeline.zoom-in",
+      "label": "Zoom timeline in",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
+      }
+    },
+    {
+      "id": "timeline.zoom-out",
+      "label": "Zoom timeline out",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
+      }
+    },
+    {
+      "id": "timeline.zoom-fit",
+      "label": "Fit the timeline",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref"
+      }
+    },
+    {
+      "id": "timeline.comment-mode",
+      "label": "Comment on the timeline",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "pending",
+        "package": "S9",
+        "want": {
+          "path": "cli",
+          "verb": "maude design comments"
+        }
+      }
+    },
+    {
+      "id": "export.open",
+      "label": "Export…",
+      "kind": "command",
+      "exec": "shell",
+      "fromCanvas": true,
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design export"
+      }
+    },
+    {
+      "id": "handoff.open",
+      "label": "Handoff to production",
+      "kind": "command",
+      "exec": "shell",
+      "fromCanvas": true,
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design handoff"
+      }
+    },
+    {
+      "id": "export.canvas-dialog",
+      "label": "Export from the canvas",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design export"
+      }
+    },
+    {
+      "id": "export.rerun-last",
+      "label": "Export again",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "pending",
+        "package": "S8",
+        "want": {
+          "path": "cli",
+          "verb": "maude design exports again"
+        }
+      }
+    },
+    {
+      "id": "share.open",
+      "label": "Share…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "agent": {
+        "path": "human",
+        "because": "links"
+      }
+    },
+    {
+      "id": "share.copy-link",
+      "label": "Copy link",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "links"
+      }
+    },
+    {
+      "id": "settings.open",
+      "label": "Settings…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "settings are the user’s"
+      }
+    },
+    {
+      "id": "ai.chat",
+      "label": "AI chat",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "summon"
+      }
+    },
+    {
+      "id": "help.shortcuts",
+      "label": "Keyboard shortcuts",
+      "kind": "toggle",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "onboarding"
+      }
+    },
+    {
+      "id": "help.guides",
+      "label": "Help and guides",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "onboarding"
+      }
+    },
+    {
+      "id": "ai.generate",
+      "label": "Generate with AI…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design generate"
+      }
+    },
+    {
+      "id": "ai.draw-mark",
+      "label": "Draw a mark",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "external",
+      "agent": {
+        "path": "cli",
+        "verb": "maude design draw-build"
+      }
+    },
+    {
+      "id": "help.whats-new",
+      "label": "What's new",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "onboarding"
+      }
+    },
+    {
+      "id": "help.tour",
+      "label": "Take the tour",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "onboarding"
+      }
+    },
+    {
+      "id": "help.intro",
+      "label": "Watch the intro",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "onboarding"
+      }
+    },
+    {
+      "id": "help.sharing",
+      "label": "How sharing works",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "onboarding"
+      }
+    },
+    {
+      "id": "help.setup",
+      "label": "Set up Maude…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "onboarding"
+      }
+    },
+    {
+      "id": "help.ai-readiness",
+      "label": "Check AI setup again",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "onboarding"
+      }
+    },
+    {
+      "id": "help.report-bug",
+      "label": "Report a bug…",
+      "kind": "command",
+      "exec": "shell",
+      "effect": "shared",
+      "agent": {
+        "path": "human",
+        "because": "report-bug"
+      }
+    },
+    {
+      "id": "annotation.group",
+      "label": "Group",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Set a shared group id on the elements"
+      }
+    },
+    {
+      "id": "annotation.ungroup",
+      "label": "Ungroup",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Clear the elements’ group id"
+      }
+    },
+    {
+      "id": "annotation.lock",
+      "label": "Lock / unlock",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Toggle the elements’ locked field"
+      }
+    },
+    {
+      "id": "annotation.duplicate",
+      "label": "Duplicate",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Copy the elements with new ids, offset"
+      }
+    },
+    {
+      "id": "annotation.to-front",
+      "label": "Bring to front",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Move the elements to the end of the element order"
+      }
+    },
+    {
+      "id": "annotation.forward",
+      "label": "Bring forward",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Move the elements one step later in the element order"
+      }
+    },
+    {
+      "id": "annotation.to-back",
+      "label": "Send to back",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Move the elements to the start of the element order"
+      }
+    },
+    {
+      "id": "annotation.backward",
+      "label": "Send backward",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Move the elements one step earlier in the element order"
+      }
+    },
+    {
+      "id": "annotation.copy",
+      "label": "Copy",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "view-pref",
+        "note": "the clipboard is the user’s; read the board file instead"
+      }
+    },
+    {
+      "id": "annotation.cut",
+      "label": "Cut",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Remove the elements (the clipboard half is the user’s)"
+      }
+    },
+    {
+      "id": "annotation.chain",
+      "label": "Add the next one",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Add the next element bound to the selected one"
+      }
+    },
+    {
+      "id": "annotation.edit-text",
+      "label": "Edit text",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Change the element’s text field"
+      }
+    },
+    {
+      "id": "annotation.nudge",
+      "label": "Nudge",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Change the elements’ x / y"
+      }
+    },
+    {
+      "id": "annotation.remove",
+      "label": "Remove",
+      "kind": "command",
+      "exec": "canvas",
+      "effect": "project",
+      "agent": {
+        "path": "file",
+        "format": "annotations",
+        "skill": "design:whiteboard",
+        "how": "Remove the elements from the board file"
+      }
+    },
+    {
+      "id": "project.new",
+      "label": "New project…",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window"
+      }
+    },
+    {
+      "id": "project.open",
+      "label": "Open project…",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window"
+      }
+    },
+    {
+      "id": "app.check-updates",
+      "label": "Check for updates…",
+      "kind": "command",
+      "exec": "native",
+      "effect": "none",
+      "agent": {
+        "path": "human",
+        "because": "native-window"
+      }
+    }
+  ],
+  "verbs": [
+    {
+      "scope": "design",
+      "verb": "design prep",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design bootstrap-check",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design slug",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design server-up",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design runtime-health",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design screenshot",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design smoke",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design visual-sanity",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design perf",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design canvas-rects",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design read-annotations",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design svg-optimize",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design asset-sweep",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design draw-proof",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design probe-footage",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design smart-frames",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design agent-browser-safe",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design chat-open",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design serve",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design status",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design index",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design help",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design check",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design hook",
+      "effect": "project",
+      "tier": "prompt",
+      "hold": "run by Claude Code from plugins/design/hooks/hooks.json (hooks bypass Bash permissions); the model never calls it, so it stays off the auto list (decision:maude/v2-2.4b-hook-verb-held)"
+    },
+    {
+      "scope": "design",
+      "verb": "design place",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design layout-check",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design open",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design annotate",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design canvas-edit",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design handoff",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design import-asset",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design import-brand",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design import-tokens",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ingest-footage",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design photo-adjust",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design export",
+      "effect": "project",
+      "tier": "prompt",
+      "hold": "/design:export documents `--out ~/Downloads/…` — lead: keeps prompting (decision:maude/v2-2.4b-held-and-prompting-verbs)"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds-check",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design curl-local",
+      "effect": "external",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design draw-build",
+      "effect": "external",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design to-lottie",
+      "effect": "external",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design generate",
+      "effect": "external",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design audio-search",
+      "effect": "external",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design fetch-asset",
+      "effect": "external",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design ensure-browser",
+      "effect": "external",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design transcribe",
+      "effect": "external",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design import-figma",
+      "effect": "external",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design photo-bg-remove",
+      "effect": "external",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design init",
+      "effect": "destructive",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds-upgrade analyse",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds-upgrade plan",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds-upgrade validate",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds-upgrade",
+      "effect": "destructive",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design bulk-deletes",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design link",
+      "effect": "human",
+      "tier": "human"
+    },
+    {
+      "scope": "design",
+      "verb": "design adopt",
+      "effect": "human",
+      "tier": "human"
+    },
+    {
+      "scope": "design",
+      "verb": "design unlink",
+      "effect": "human",
+      "tier": "human"
+    },
+    {
+      "scope": "design",
+      "verb": "design detach",
+      "effect": "human",
+      "tier": "human"
+    },
+    {
+      "scope": "top",
+      "verb": "version",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "top",
+      "verb": "doctor",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "top",
+      "verb": "config show",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "top",
+      "verb": "config get",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "top",
+      "verb": "config set",
+      "effect": "external",
+      "tier": "prompt"
+    },
+    {
+      "scope": "top",
+      "verb": "config",
+      "effect": "external",
+      "tier": "prompt"
+    },
+    {
+      "scope": "top",
+      "verb": "kg context",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "top",
+      "verb": "kg resolve",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "top",
+      "verb": "kg doctor",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "top",
+      "verb": "kg ingest",
+      "effect": "project",
+      "tier": "prompt",
+      "hold": "writes the versioned .kgai log (repo-tracked, merge=union) — lead: keeps prompting (decision:maude/v2-2.4b-held-and-prompting-verbs)"
+    },
+    {
+      "scope": "top",
+      "verb": "kg record-log",
+      "effect": "project",
+      "tier": "prompt",
+      "hold": "writes the versioned .kgai log (repo-tracked, merge=union) — lead: keeps prompting (decision:maude/v2-2.4b-held-and-prompting-verbs)"
+    },
+    {
+      "scope": "top",
+      "verb": "kg import",
+      "effect": "project",
+      "tier": "prompt",
+      "hold": "writes the versioned .kgai log (repo-tracked, merge=union) — lead: keeps prompting (decision:maude/v2-2.4b-held-and-prompting-verbs)"
+    },
+    {
+      "scope": "top",
+      "verb": "kg sync",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "top",
+      "verb": "kg session-sync",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "top",
+      "verb": "kg check-upstream",
+      "effect": "external",
+      "tier": "prompt"
+    },
+    {
+      "scope": "top",
+      "verb": "kg",
+      "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "top",
+      "verb": "help",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "top",
+      "verb": "preflight",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "top",
+      "verb": "scenario-report",
+      "effect": "project",
+      "tier": "prompt",
+      "hold": "not tiered by the contract"
+    },
+    {
+      "scope": "top",
+      "verb": "migrate",
+      "effect": "destructive",
+      "tier": "prompt"
+    },
+    {
+      "scope": "top",
+      "verb": "hub",
+      "effect": "human",
+      "tier": "human"
+    },
+    {
+      "scope": "top",
+      "verb": "init",
+      "effect": "human",
+      "tier": "human"
+    },
+    {
+      "scope": "top",
+      "verb": "harness",
+      "effect": "human",
+      "tier": "human"
+    },
+    {
+      "scope": "top",
+      "verb": "codex",
+      "effect": "human",
+      "tier": "human"
+    },
+    {
+      "scope": "top",
+      "verb": "cache",
+      "effect": "human",
+      "tier": "human"
+    }
+  ],
+  "schemas": [
+    {
+      "format": "canvas-tsx",
+      "schema": "apps/studio/schema/canvas-tsx.md",
+      "source": "doc",
+      "skill": "design:design#_guide-02"
+    },
+    {
+      "format": "annotations",
+      "schema": "apps/studio/schema/annotations.v2.schema.json",
+      "id": "https://maude.sh/schema/annotations/v2",
+      "source": "generated",
+      "skill": "design:whiteboard"
+    },
+    {
+      "format": "canvas-meta",
+      "schema": "apps/studio/schema/canvas-meta.v2.schema.json",
+      "id": "https://maude.sh/schema/canvas-meta/v2",
+      "source": "hand",
+      "skill": "design:design#_guide-17"
+    },
+    {
+      "format": "edl",
+      "schema": "apps/studio/schema/edl.v1.schema.json",
+      "id": "https://maude.sh/schema/edl/v1",
+      "source": "hand",
+      "skill": "design:footage-director"
+    },
+    {
+      "format": "tokens",
+      "schema": "apps/studio/schema/ds-tokens-v1.schema.json",
+      "id": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-tokens-v1.schema.json",
+      "source": "hand",
+      "skill": "design:design-system"
+    },
+    {
+      "format": "components",
+      "schema": "apps/studio/schema/ds-components-v1.schema.json",
+      "id": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-components-v1.schema.json",
+      "source": "hand",
+      "skill": "design:design-system"
+    },
+    {
+      "format": "design-config",
+      "schema": "apps/studio/config.schema.json",
+      "source": "hand",
+      "skill": "design:design"
+    },
+    {
+      "format": "agent-handoff",
+      "schema": "cli/lib/handoff.schema.json",
+      "id": "https://maude.sh/schema/agent-handoff/1",
+      "source": "hand",
+      "skill": "design:design#_guide-08",
+      "runtime": true
+    }
+  ]
+}

@@ -14,6 +14,7 @@ import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { parseArgs } from '../lib/argv.mjs';
 import { outputViolation, violationMessage } from '../lib/confine-out.mjs';
+import { DESIGN_VERB_TIERS_HELP } from '../lib/design-help.gen.mjs';
 import {
   runAdopt,
   runBulkDeletes,
@@ -187,7 +188,7 @@ export async function run({ args, pkgRoot }) {
   const sub = positional[0];
 
   if (!sub || sub === 'help') {
-    process.stdout.write(usage());
+    process.stdout.write(`${usage()}\n${DESIGN_VERB_TIERS_HELP}`);
     return;
   }
 

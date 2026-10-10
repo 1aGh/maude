@@ -11,6 +11,12 @@
 
 set -euo pipefail
 
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+  # Contract V2-1.11 §5.7 rule 6: every verb a `cli` action names exits 0 on --help.
+  echo "usage: maude design handoff <canvas-abs-path> [designRoot]"
+  echo "  Emit <Slug>.registry.json (a shadcn registry handoff) next to the canvas."
+  exit 0
+fi
 if [ $# -lt 1 ]; then
   echo "usage: handoff.sh <canvas-abs-path> [designRoot]" >&2
   exit 2

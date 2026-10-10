@@ -21,7 +21,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -34,7 +34,9 @@ const { toTauriAccel } = await import('../apps/studio/actions/keys.ts');
 const { NATIVE_MENU } = await import('../apps/studio/actions/native-menu.ts');
 const { bindingInDocument } = await import('../apps/studio/actions/documents.ts');
 const { AGENT_PATHS } = await import('../apps/studio/actions/agents.ts');
-const { MAUDE_VERBS, verbTier } = await import('../apps/studio/actions/verbs.ts');
+const { MAUDE_VERBS, verbTier, autoAllowRules } = await import('../apps/studio/actions/verbs.ts');
+const { aiActionsDoc, cliHelpModule, designHelpBlock, studioActionsSkill, withHelpBlock } =
+  await import('./gen-actions-docs.mjs');
 const { FORMAT_SCHEMAS } = await import('../apps/studio/schema/formats.ts');
 const { annotationsJsonSchema } = await import('../apps/studio/annotations/board-schema.ts');
 
@@ -48,8 +50,9 @@ function die(msg) {
   process.exit(2);
 }
 
-/** Format `text` as Biome would format the file at `rel`. */
+/** Format `text` as Biome would format the file at `rel` (Markdown is written as generated). */
 function biome(rel, text) {
+  if (/\.mdx?$/.test(rel)) return text;
   const r = spawnSync(
     join(ROOT, 'node_modules/.bin/biome'),
     ['format', `--stdin-file-path=${rel}`],
@@ -195,11 +198,32 @@ function generatedSchemas() {
   });
 }
 
+// ── the docs (V2-1.11 §4 decision 1): skill index, /design:help, `maude design help`, docs page ──
+const MANIFEST_TEXT = manifest();
+const MANIFEST = JSON.parse(MANIFEST_TEXT);
+const HELP_MD = 'plugins/design/commands/help.md';
+const FORMATS = FORMAT_SCHEMAS.map((f) => ({
+  ...f,
+  schema: join('apps/studio', f.schema).split('\\').join('/'),
+}));
+
+if (process.argv.includes('--print-docs')) {
+  // The public page (site/content/docs/ai-actions.mdx) is Phase 7's to place; print it.
+  process.stdout.write(aiActionsDoc(MANIFEST, FORMATS, autoAllowRules()));
+  process.exit(0);
+}
+
 const OUTPUTS = [
   ['apps/studio/actions/keymap.gen.ts', keymap()],
   ['apps/desktop/src-tauri/menu.actions.json', nativeMenu()],
-  ['apps/studio/actions.manifest.json', manifest()],
+  ['apps/studio/actions.manifest.json', MANIFEST_TEXT],
+  // §5.6: the design plugin ships a byte copy; session-start compares its manifestVersion with
+  // /_health's, and scripts/check-version-parity.sh asserts the two files are equal.
+  ['plugins/design/actions.manifest.json', MANIFEST_TEXT],
   ...generatedSchemas(),
+  ['plugins/design/skills/studio-actions/SKILL.md', studioActionsSkill(MANIFEST, FORMATS)],
+  [HELP_MD, withHelpBlock(readFileSync(join(ROOT, HELP_MD), 'utf8'), designHelpBlock(MANIFEST))],
+  ['cli/lib/design-help.gen.mjs', cliHelpModule(MANIFEST)],
 ];
 
 let stale = 0;
@@ -217,6 +241,7 @@ for (const [rel, raw] of OUTPUTS) {
     continue;
   }
   if (have !== want) {
+    mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, want);
     console.log(`wrote ${rel}`);
   } else console.log(`same  ${rel}`);

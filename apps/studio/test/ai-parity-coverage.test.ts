@@ -152,6 +152,40 @@ describe('AI parity coverage (§5.7)', () => {
     }
   });
 
+  test('6b. … is listed by `maude design help` and exits 0 on `--help`', () => {
+    const env = {
+      ...process.env,
+      NO_OPEN: '1',
+      MAUDE_NO_AUTOBUILD: '1',
+      MAUDE_NO_UPDATE_CHECK: '1',
+    };
+    const maude = (args: string[]) =>
+      spawnSync('node', [join(ROOT, 'cli/bin/maude.mjs'), ...args], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        timeout: 30_000,
+        env,
+      });
+    const help = maude(['design', 'help']);
+    expect(help.status).toBe(0);
+    const listed = new Set(help.stdout.split(/[\s·]+/).filter(Boolean));
+    const designVerbs = new Set<string>();
+    for (const r of rows) {
+      if (r.agent?.path !== 'cli') continue;
+      const words = r.agent.verb.replace(/^maude /, '').split(' ');
+      if (words[0] === 'design' && words[1]) designVerbs.add(words[1]);
+    }
+    expect(designVerbs.size).toBeGreaterThan(0);
+    for (const v of designVerbs) {
+      const h = maude(['design', v, '--help']);
+      expect({ verb: v, listed: listed.has(v), helpExit: h.status }).toEqual({
+        verb: v,
+        listed: true,
+        helpExit: 0,
+      });
+    }
+  }, 120_000);
+
   test('fromCanvas ⇒ effect none (V2-1.3 invariant 3)', () => {
     expect(rows.filter((r) => r.fromCanvas && r.effect !== 'none').map((r) => r.id)).toEqual([]);
   });

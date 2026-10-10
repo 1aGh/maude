@@ -48,6 +48,10 @@ Close with:
 For group definitions and the canonical catalog, see `plugins/design/CATEGORIES.md`.
 ```
 
+### 5. Studio capabilities
+
+Finish with the **Studio capabilities** block at the end of this file, printed as it is. `scripts/gen-actions.mjs` generates that block from the action registry, so don't re-derive it.
+
 ## Notes
 
 - This command is **read-only**. It never edits files — it just scans frontmatter and renders the table.
@@ -86,3 +90,15 @@ A **brief board** is an annotation-only canvas you fill with intent, then have `
 3. Run `/design:new` again (no args) — Claude reads your notes **verbatim**, generates the matching artboards, and **inserts them into the same board** below your notes. The annotation layer stays floating on top.
 
 Flags on `/design:new`: `--blank` (create a board), `--from-annotations` (force ingest on any active canvas), `--fresh` (ignore a board's notes and scaffold a separate file). An identical-notes re-run short-circuits (no duplicate artboards). See DDR-085.
+
+<!-- BEGIN GENERATED: studio capabilities (scripts/gen-actions.mjs) -->
+## Studio capabilities
+
+Every studio action has one AI path: 37 by editing a file, 18 by a `maude` verb, 51 only the person can do, 9 not yet. The `studio-actions` skill has the full index, with the file or verb for each.
+
+| Tier | `maude design` verbs |
+| --- | --- |
+| auto (no prompt in the Maude chat) | prep · bootstrap-check · slug · server-up · runtime-health · screenshot · smoke · visual-sanity · perf · canvas-rects · read-annotations · svg-optimize · asset-sweep · draw-proof · probe-footage · smart-frames · agent-browser-safe · chat-open · serve · status · index · help · check · place · layout-check · open · annotate · canvas-edit · handoff · import-asset · import-brand · import-tokens · ingest-footage · photo-adjust · ds-check · ds-upgrade analyse · ds-upgrade plan · ds-upgrade validate |
+| prompt (permission card) | hook · export · curl-local · draw-build · to-lottie · generate · audio-search · fetch-asset · ensure-browser · transcribe · import-figma · photo-bg-remove · init · ds-upgrade · bulk-deletes |
+| person only | link · adopt · unlink · detach |
+<!-- END GENERATED: studio capabilities -->
