@@ -379,8 +379,15 @@ Dev-tooling (dispatch to the dev-server bash helpers — DDR-062):
          [--port N] [--out <path>] [--option key=value ...]
         Drive the same POST /_api/export endpoint the UI uses. Auto-detects
         port from .design/_server.json; requires a running dev server. The
-        response body is written to --out (default: current dir, server-
-        supplied filename). Formats: png pdf svg html pptx canva zip.
+        response body is written to --out (a file path, or a folder to put
+        the server-supplied filename in; default: current dir). Formats:
+        png pdf svg html pptx canva zip mp4 webm gif.
+        Default --scope: canvas-as-separate; artboard for mp4/webm/gif;
+        project-raw for zip (the only scope zip serves).
+        --option numbers arrive as numbers (scale=2, dpi=300, fps=30) and
+        true/false as booleans; anything else is a string. PDF print options:
+        marks=crop,registration (crop registration colorBars pageInfo) and
+        includeBleed=true|false.
 
   link <url> --token <hex> [--adopt] [--force]
         Pair this clone with a Maude hub. Writes .design/config.json's
@@ -698,10 +705,18 @@ async function runExport({ args }) {
     process.exit(2);
   }
 
-  // Video formats default to artboard scope (the only scope video supports —
-  // scope.ts resolves the artboard under the active canvas); other formats keep
-  // the canvas-as-separate default.
-  const scope = flags.scope ?? (VIDEO_FORMATS.has(format) ? 'artboard' : 'canvas-as-separate');
+  // Each format defaults to a scope it can actually serve: video → artboard (the only scope video
+  // supports — scope.ts resolves the artboard under the active canvas), zip → project-raw (the
+  // only scope exporters/zip.ts serves; the default used to be canvas-as-separate, which the
+  // server refuses for zip, so a bare `export zip` always failed). Everything else keeps
+  // canvas-as-separate. An explicit --scope is sent as given — a bad pair is the server's refusal.
+  const scope =
+    flags.scope ??
+    (VIDEO_FORMATS.has(format)
+      ? 'artboard'
+      : format === 'zip'
+        ? 'project-raw'
+        : 'canvas-as-separate');
   const VALID_SCOPES = new Set([
     'selection',
     'artboard',
@@ -733,21 +748,12 @@ async function runExport({ args }) {
   }
 
   // Collect `--option key=value` repeated flags into an object.
-  const options = {};
-  const repeated = collectRepeatedFlag(subArgs, '--option');
-  for (const item of repeated) {
-    const eq = item.indexOf('=');
-    if (eq < 0) {
-      process.stderr.write(
-        `maude design export: invalid --option "${item}" (expected key=value)\n`
-      );
-      process.exit(2);
-    }
-    const key = item.slice(0, eq);
-    const value = item.slice(eq + 1);
-    // Coerce common JSON-ish values: true/false, numbers, arrays via comma.
-    options[key] = value === 'true' ? true : value === 'false' ? false : value;
+  const parsed = parseExportOptions(collectRepeatedFlag(subArgs, '--option'));
+  if (parsed.error) {
+    process.stderr.write(`maude design export: ${parsed.error}\n`);
+    process.exit(2);
   }
+  const options = parsed.options;
 
   const url = `http://localhost:${port}/_api/export`;
   const r = await fetch(url, {
@@ -762,13 +768,77 @@ async function runExport({ args }) {
   }
 
   const disp = r.headers.get('content-disposition') ?? '';
-  const serverFilename = /filename="([^"]+)"/.exec(disp)?.[1] ?? `export.${format}`;
-  const outPath = flags.out
+  // basename(): the name comes off a response header — never let it carry a path out of the target dir.
+  const serverFilename = basename(/filename="([^"]+)"/.exec(disp)?.[1] ?? `export.${format}`);
+  let outPath = flags.out
     ? resolve(process.cwd(), flags.out)
     : resolve(process.cwd(), serverFilename);
+  // `--out ~/Downloads` (the form the export dialog prints) names a folder: the file goes inside it
+  // under the server's filename, instead of failing with EISDIR.
+  if (flags.out && (await stat(outPath).catch(() => null))?.isDirectory()) {
+    outPath = join(outPath, serverFilename);
+  }
   const bytes = new Uint8Array(await r.arrayBuffer());
   await writeFile(outPath, bytes);
   process.stdout.write(`maude design export: wrote ${outPath} (${bytes.byteLength} bytes)\n`);
+}
+
+// The marks exporters/pdf.ts `MarksOptions` reads (`colorBars` / `pageInfo` are accepted by the
+// exporter but not drawn yet — naming them here is still right, the exporter owns that gap).
+const PDF_MARKS = ['crop', 'registration', 'colorBars', 'pageInfo'];
+
+/** `true`/`false` → booleans; a string that IS a plain number (round-trips) → number; else as typed. */
+function coerceOptionValue(value) {
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  const n = Number(value);
+  // `String(n) === value` keeps "007", "1e3", "0x10", "2.50", "" and "000000" (a hex colour) as the
+  // strings they were typed as; isFinite drops "NaN" / "Infinity".
+  return Number.isFinite(n) && String(n) === value ? n : value;
+}
+
+/**
+ * Turn repeated `--option key=value` items into the request's `options` bag.
+ * Returns `{ options }`, or `{ error }` (a message without the command prefix).
+ *
+ * Print options do NOT go on the wire flat. exporters/pdf.ts reads them from one nested object,
+ * `options.pdfPrint = { includeBleed, marks: { crop, registration, colorBars, pageInfo } }`
+ * (`parsePdfPrintOptions`) and ignores a top-level `marks` / `includeBleed` — so a flat
+ * `--option marks=crop` used to be dropped without a word. `dpi` / `pageFit` / `text` stay top-level.
+ */
+export function parseExportOptions(items) {
+  const options = {};
+  const pdfPrint = {};
+  for (const item of items) {
+    const eq = item.indexOf('=');
+    if (eq < 0) return { error: `invalid --option "${item}" (expected key=value)` };
+    const key = item.slice(0, eq);
+    const value = item.slice(eq + 1);
+    if (key === 'marks') {
+      const names = value.split(',').map((n) => n.trim());
+      const marks = {};
+      for (const name of names) {
+        if (!PDF_MARKS.includes(name)) {
+          return {
+            error: name
+              ? `unknown mark "${name}" in --option marks=${value} (valid marks: ${PDF_MARKS.join(', ')})`
+              : `empty mark name in --option marks=${value} (valid marks: ${PDF_MARKS.join(', ')})`,
+          };
+        }
+        marks[name] = true;
+      }
+      pdfPrint.marks = { ...pdfPrint.marks, ...marks };
+    } else if (key === 'includeBleed') {
+      if (value !== 'true' && value !== 'false') {
+        return { error: `invalid --option includeBleed=${value} (expected true or false)` };
+      }
+      pdfPrint.includeBleed = value === 'true';
+    } else {
+      options[key] = coerceOptionValue(value);
+    }
+  }
+  if (Object.keys(pdfPrint).length > 0) options.pdfPrint = pdfPrint;
+  return { options };
 }
 
 function collectRepeatedFlag(argv, name) {
