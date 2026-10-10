@@ -5,7 +5,7 @@
 // single-file IIFE bundles cached under the OS temp dir so the playwright
 // shims can `addScriptTag({ path })` without re-bundling per request.
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -234,12 +234,31 @@ async function writeHashedBundle(code: string, stem: string): Promise<string> {
  * exports under `window[globalName]`. Caches under the OS temp dir so a long-
  * running dev server pays the build cost once.
  */
+/**
+ * The package's entry FILE on disk, found by walking up from DEV_SERVER_ROOT (V2-2.8 P1).
+ * NOT `require.resolve`: inside the `bun --compile` sidecar a runtime resolve of a package that is
+ * not embedded never reaches disk (DDR-045 class) — SVG export failed "Cannot find module
+ * 'dom-to-svg'" in the desktop app. Bun.build then bundles from this path, the way
+ * video-encode-lib.ts reaches mediabunny.
+ */
+export function packageEntry(name: string, from: string = DEV_SERVER_ROOT): string {
+  for (let dir = from; ; dir = path.dirname(dir)) {
+    const pkgDir = path.join(dir, 'node_modules', name);
+    const pj = path.join(pkgDir, 'package.json');
+    if (existsSync(pj)) {
+      const pkg = JSON.parse(readFileSync(pj, 'utf8')) as { module?: string; main?: string };
+      return path.join(pkgDir, pkg.module ?? pkg.main ?? 'index.js');
+    }
+    if (path.dirname(dir) === dir) throw new Error(`Cannot find package '${name}' from ${from}`);
+  }
+}
+
 export function getBrowserBundle(packageName: string, globalName: string): Promise<string> {
   const key = `${packageName}::${globalName}`;
   const existing = bundles.get(key);
   if (existing) return existing.ready;
 
-  const entry = require.resolve(packageName);
+  const entry = packageEntry(packageName);
   const cachePath = path.join(
     tmpdir(),
     `maude-${packageName.replace(/[^a-z0-9]/gi, '_')}-${globalName}.iife.js`

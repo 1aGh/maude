@@ -341,7 +341,17 @@ stageClosure(closure);
 // gifenc; @remotion/web-renderer). Browsers/native are NOT in these packages —
 // the Chromium binary is resolved at runtime from the ms-playwright cache or an
 // executablePath (see bin/_pw-launch.mjs). RCA: issue-desktop-export-failures.
-const RENDER_RUNTIME_PKGS = ['playwright', 'mediabunny', 'gifenc', '@remotion/web-renderer'];
+//   • `dom-to-svg` — exporters/_browser-bundles.ts Bun.build's it at export time for the SVG
+//     lane (a dynamic package name, so neither embedded in the compiled binary nor seen by the
+//     helper-deps import scrape); absent → SVG export fails "Cannot find module 'dom-to-svg'"
+//     (V2-2.8 P1).
+const RENDER_RUNTIME_PKGS = [
+  'playwright',
+  'mediabunny',
+  'gifenc',
+  '@remotion/web-renderer',
+  'dom-to-svg',
+];
 let renderPkgCount = 0;
 for (const pkg of RENDER_RUNTIME_PKGS) {
   const c = collectClosure(pkg, `${pkg} (render export)`, IS_RENDER_SKIP_DEP);
