@@ -200,6 +200,9 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/diagnostics': { class: 'read' }, // V2-2.9: this machine's logs, never written here
   '/_api/diagnostics/report': { class: 'read' },
   '/_api/index': { class: 'read' }, // V2-2.17: the in-memory index, persisted only to the user cache
+  // V2-2.17: raises picture keys in this server's render queue; GET /_api/thumb/<key> (dynamic,
+  // fetch-handled) reads the per-Mac picture cache — neither touches the project
+  '/_api/thumbs/want': { class: 'local' },
   // --- this machine only
   '/_api/acp/activity': { class: 'local' },
   '/_api/acp/attachment': { class: 'local' },

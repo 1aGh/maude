@@ -119,7 +119,9 @@ import { refuseCheckoutRewrite } from './git/accepted-guard.ts';
 import { createGitEndpoints } from './git/endpoints.ts';
 import { gitShowFile } from './git/service.ts';
 import { createGitHubEndpoints } from './github/endpoints.ts';
+import { extractCanvas } from './index/extract.ts';
 import { createIndexService } from './index/service.ts';
+import { pidOf } from './index/snapshot.ts';
 import type { InspectRegistry } from './inspect.ts';
 import { canvasSlug, writeLocator } from './locator.ts';
 import { prepareManagedProject } from './managed-projects.ts';
@@ -140,6 +142,8 @@ import { getHubRecord, isHubReadOnly } from './sync/hubs-config.ts';
 import { isFirstAnchorMode, readSyncSettings, writeSyncSettings } from './sync/settings.ts';
 import { listTrash, pruneTrash, restoreFromTrash } from './sync/trash.ts';
 import { signInToWorkspace, workspaceDisclosure } from './sync/workspace-signin.ts';
+import { thumbNotFound, thumbResponse, wantResponse } from './thumbs/routes.ts';
+import { createThumbService } from './thumbs/service.ts';
 import { normalizeTreeState } from './tree-state.ts';
 import { readUiPrefs, type UiPrefs, writeUiPrefs } from './ui-prefs.ts';
 import { loadWhatsNew, resolveMaudeVersion } from './whats-new.ts';
@@ -1757,6 +1761,52 @@ export function createHttp(
   });
   ctx.bus.on('config-updated', () => projectIndex.rebuild());
   projectIndex.on('changed', (e) => ctx.bus.emit('index-changed', e));
+  // V2-2.17 — the thumbnail service (contract V2-1.17 §5.8): renders only on the read-only capture
+  // origin (R1), pictures in the machine cache next to the index, served below on the main origin
+  // only (R4). Cells render nothing (R7). Nothing renders until a consumer asks (Home / ⌘K).
+  const thumbs = createThumbService({
+    pid: pidOf(ctx.paths.repoRoot),
+    designRoot: ctx.paths.designRoot,
+    index: projectIndex,
+    freshDepsHash: (rel) => {
+      try {
+        return extractCanvas(
+          {
+            designRoot: ctx.paths.designRoot,
+            repoRoot: ctx.paths.repoRoot,
+            groups: ctx.cfg.canvasGroups,
+            defaultDs: null,
+            designSystems: ctx.cfg.designSystems ?? [],
+          },
+          rel
+        ).depsHash;
+      } catch {
+        return null;
+      }
+    },
+    config: () => ({
+      theme: ctx.cfg.themeDefault,
+      tokensCssRel: ctx.cfg.designSystems?.[0]?.tokensCssRel ?? ctx.cfg.tokensCssRel,
+    }),
+    serverOrigin: () => ctx.mainOrigin?.split(' ')[0],
+    captureOrigin: () => ctx.captureOrigin,
+    enabled: !isWorkspaceMode(),
+    exportBusy: () => exportJobs.list().some((j) => j.status === 'running'),
+    readVersion: async (rel, at) => {
+      const repoRel = relative(ctx.paths.repoRoot, join(ctx.paths.designRoot, rel)).replace(
+        /\\/g,
+        '/'
+      );
+      if ('sha' in at) return gitShowFile(ctx.paths.repoRoot, at.sha, repoRel);
+      return (
+        (await ctx.syncControl
+          ?.current?.()
+          ?.acceptedVersion?.(repoRel, at.rev)
+          .catch(() => null)) ?? null
+      );
+    },
+    onReady: (key) => ctx.bus.emit('thumb-ready', { key }),
+  });
 
   /** What a read-only session may still write: the module allowlist plus what
    *  the lane tables declare (`readOnly: 'allowed'`). */
@@ -2268,6 +2318,15 @@ export function createHttp(
       if (Number.isFinite(since) && since > 0 && since === snap.writer.seq)
         return Response.json({ unchanged: true, seq: snap.writer.seq });
       return Response.json(snap, { headers: { 'Cache-Control': 'no-store' } });
+    },
+
+    // V2-2.17 — raise on-screen picture keys to `visible` (§5.3). Main origin only; answers
+    // nothing about any key (L14). GET /_api/thumb/<key> is dynamic: see handleFallthrough.
+    '/_api/thumbs/want': (req: Request) => {
+      if (!sameOriginWrite(req)) return new Response('cross-origin rejected', { status: 403 });
+      if (!isTrustedRequestHost(req))
+        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+      return wantResponse(thumbs, req);
     },
 
     '/_api/debug-bundle': (req: Request) => {
@@ -6110,6 +6169,19 @@ export function createHttp(
       // the fall-through instead of the static `routes` map. `<id>` is the
       // c_<hex> id of the parent comment; body is `{ body, author? }`. Bodies
       // share the same 4000-char cap as a top-level comment.
+      // V2-2.17 — GET /_api/thumb/<key> (contract V2-1.17 §5.3, R4–R6). Main origin only: absent
+      // from CANVAS_SAFE_API and the canvas routes map, so the canvas and capture origins 403 it
+      // at their door. Unreferenced and missing keys are the same 404.
+      const thumbMatch = /^\/_api\/thumb\/([^/]*)$/.exec(pathname);
+      if (thumbMatch) {
+        if (req.method !== 'GET' && req.method !== 'HEAD')
+          return new Response('Method not allowed', { status: 405 });
+        if (!sameOriginRead(req)) return new Response('cross-origin rejected', { status: 403 });
+        if (!isTrustedRequestHost(req))
+          return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+        return thumbMatch[1] ? thumbResponse(thumbs, thumbMatch[1]) : thumbNotFound();
+      }
+
       const replyMatch = pathname.match(/^\/_api\/comments\/([A-Za-z0-9_]+)\/reply$/);
       if (replyMatch) {
         if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });

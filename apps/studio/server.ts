@@ -41,6 +41,7 @@ import { startHeapWatch } from './mem.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
 import { sharedDocEnabled } from './sync/cell-pairing.ts';
 import { createSyncSupervisor } from './sync/supervisor.ts';
+import { stopAllThumbs } from './thumbs/service.ts';
 import {
   assertContainment,
   isForbiddenRoute,
@@ -962,6 +963,7 @@ async function shutdown() {
   if (process.env.MAUDE_TEST_HANG_SHUTDOWN === '1') await new Promise(() => {});
   void stopDiagnostics();
   flushAllIndexes();
+  stopAllThumbs();
   // DDR-166 — reap in-flight claude-provisioning grandchildren before this
   // process exits. Security-review finding: neither the SIGTERM/SIGINT path
   // here nor sidecar.rs's child.kill() on the Tauri side propagate to a

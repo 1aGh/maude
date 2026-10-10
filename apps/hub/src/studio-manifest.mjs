@@ -288,6 +288,9 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/diagnostics': REFUSED,
   '/_api/diagnostics/report': REFUSED,
   '/_api/index': REFUSED,
+  // V2-2.17 — cells render no pictures (contract V2-1.17 R7); GET /_api/thumb/<key> is dynamic and
+  // matches no exact route or prefix here, so it is refused default-closed as well.
+  '/_api/thumbs/want': REFUSED,
   '/_api/design/init': REFUSED,
   // Resync + the sweep cancel (v0.60.0) restart the SYNC RUNTIME of whatever
   // process serves this project. On a laptop that is the person's own studio
