@@ -7,6 +7,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { CANVAS_SAFE_API } from '../http.ts';
 import { agentRouteSpecs } from '../routes/agent.ts';
 
 const STUDIO = join(import.meta.dir, '..');
@@ -34,14 +35,14 @@ describe('agent routes — main origin only', () => {
   });
 
   test('absent from CANVAS_SAFE_API (http.ts)', () => {
-    const http = src('http.ts');
-    const m = /const CANVAS_SAFE_API = new Set\(\[([\s\S]*?)\]\);/.exec(http);
-    expect(m).not.toBeNull();
-    const body = (m?.[1] ?? '').replace(/\/\/.*$/gm, '');
+    // V2-2.5 made the allowlist a module-level export: read the live set, not the source text.
+    expect(CANVAS_SAFE_API.size).toBeGreaterThan(0);
     for (const s of specs)
-      expect({ p: s.path, safe: body.includes(`'${s.path}'`) }).toEqual({ p: s.path, safe: false });
-    expect(body).not.toContain('/_api/agent');
-    expect(body).not.toContain('/_api/ui/');
+      expect({ p: s.path, safe: CANVAS_SAFE_API.has(s.path) }).toEqual({ p: s.path, safe: false });
+    for (const p of CANVAS_SAFE_API) {
+      expect(p.startsWith('/_api/agent')).toBe(false);
+      expect(p.startsWith('/_api/ui/')).toBe(false);
+    }
   });
 
   test('absent from the startCanvasServer routes map (server.ts)', () => {

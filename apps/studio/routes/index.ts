@@ -14,6 +14,7 @@
 // `origin: 'canvas'` is the only way onto the canvas origins; http.ts and
 // routes/canvas-origin.ts derive both allowlists from it.
 
+import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-format.ts';
 import type { RouteSpec } from './table.ts';
@@ -21,9 +22,14 @@ import type { RouteSpec } from './table.ts';
 export interface RouteDeps {
   outbox: Parameters<typeof createOutboxRoutes>[0];
   projectFormat: ProjectFormatDeps;
+  agent: AgentRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
 export function allSpecs(deps: RouteDeps): RouteSpec[] {
-  return [...createOutboxRoutes(deps.outbox), ...createProjectFormatRoutes(deps.projectFormat)];
+  return [
+    ...createOutboxRoutes(deps.outbox),
+    ...createProjectFormatRoutes(deps.projectFormat),
+    ...agentRouteSpecs(deps.agent),
+  ];
 }

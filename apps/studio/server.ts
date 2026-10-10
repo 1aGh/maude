@@ -246,7 +246,9 @@ const ws = createWs(ctx, api, inspects, collab, activity, acp);
 const exportJobs = createExportJobQueue(ctx.bus, ctx.paths.designRoot);
 // feature-ai-media-generation (DDR-16x) — background AI-media generation queue.
 const generateJobs = createGenerationJobQueue(ctx.bus, ctx.paths.designRoot);
-const http = createHttp(ctx, api, inspects, aiActivity, exportJobs, generateJobs);
+const http = createHttp(ctx, api, inspects, aiActivity, exportJobs, generateJobs, {
+  shellCount: () => ws.shellCount(),
+});
 const fsWatch = createFsWatch(ctx);
 
 // Port: --port arg > $PORT > $MDCC_DEV_PORT > 4399.

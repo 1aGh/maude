@@ -1348,7 +1348,10 @@ export function createHttp(
   inspects: InspectRegistry,
   ai: AiActivity,
   exportJobs: ExportJobQueue,
-  generateJobs: GenerationJobQueue
+  generateJobs: GenerationJobQueue,
+  /** V2-2.4b — the attached shell count for `maude design open` (ws.ts owns the sockets; ws is
+   *  created first in server.ts). Lazy: read per request, never while building the table. */
+  opts: { shellCount?: () => number } = {}
 ): Http {
   /** The current request's inspector state (Cloud Phase 27 D3). Resolved per
    *  call rather than captured, because "whose" changes per request and a
@@ -1736,6 +1739,12 @@ export function createHttp(
   // `:param` paths run first in the fall-through (behind the same `guardedFetch` refusal).
   const tableSpecs = allSpecs({
     outbox: { outbox },
+    agent: {
+      repoRoot: ctx.paths.repoRoot,
+      designRel: ctx.paths.designRel,
+      shells: () => opts.shellCount?.() ?? 0,
+      emit: (e, p) => ctx.bus.emit(e, p),
+    },
     projectFormat: {
       repoRoot: ctx.paths.repoRoot,
       designRel: ctx.paths.designRel,
