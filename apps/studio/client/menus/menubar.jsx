@@ -13,7 +13,10 @@ import { V1_MENUBAR } from '../../actions/legacy.ts';
  *  (actions/legacy.ts `V1_MENUBAR`): label = the action's v1 menu label, the
  *  key chip verbatim, v1's per-menu gating (viewer, desktop-only, canvas-only,
  *  greyed without a canvas / share path). Ids are registry action ids. */
-export function v1MenuItems(menu, { readOnly = false, hasCanvas = false, hasSharePath = false } = {}) {
+export function v1MenuItems(
+  menu,
+  { readOnly = false, hasCanvas = false, hasSharePath = false } = {}
+) {
   const out = [];
   for (const r of V1_MENUBAR[menu]) {
     if (readOnly && r.viewer === false) continue;
@@ -119,26 +122,28 @@ export function ViewDropdown({ panels, onToggle, onClose, onZoom, hasCanvas }) {
       ))}
       <div className="st-dd-sep" />
       <div className="st-dd-hd">Zoom</div>
-      {v1MenuItems('zoom').map(({ id, label, shortcut }) => ({ op: ZOOM_OP[id], label, shortcut })).map((z) => (
-        <button
-          key={z.label}
-          type="button"
-          role="menuitem"
-          className="st-dd-item"
-          aria-disabled={hasCanvas ? undefined : 'true'}
-          onClick={() => {
-            if (!hasCanvas) return;
-            onZoom?.(z.op);
-            onClose();
-          }}
-        >
-          <span className="st-dd-lead">
-            <span className="st-dd-check" />
-            <span>{z.label}</span>
-          </span>
-          <Kbd>{z.shortcut}</Kbd>
-        </button>
-      ))}
+      {v1MenuItems('zoom')
+        .map(({ id, label, shortcut }) => ({ op: ZOOM_OP[id], label, shortcut }))
+        .map((z) => (
+          <button
+            key={z.label}
+            type="button"
+            role="menuitem"
+            className="st-dd-item"
+            aria-disabled={hasCanvas ? undefined : 'true'}
+            onClick={() => {
+              if (!hasCanvas) return;
+              onZoom?.(z.op);
+              onClose();
+            }}
+          >
+            <span className="st-dd-lead">
+              <span className="st-dd-check" />
+              <span>{z.label}</span>
+            </span>
+            <Kbd>{z.shortcut}</Kbd>
+          </button>
+        ))}
     </div>
   );
 }
