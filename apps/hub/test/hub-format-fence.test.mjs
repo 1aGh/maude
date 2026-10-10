@@ -177,7 +177,14 @@ describe('the format fence on a real hub', () => {
         'v1 got the unflip notice'
       );
       assert.equal(v1.notices.find((n) => n.formatVersion === 1).writable, true);
-      v1.write('v1-again;');
+      // A pre-compat client writes again. (A FRESH one: the old socket's
+      // post-flip updates were dropped by the hub, and Yjs holds anything
+      // built on them until that peer resyncs — a patched 1.x never makes
+      // them, it holds writes on `writable: false`.)
+      const again = open(ws, member, name);
+      await until(() => again.provider.synced, 8000, 'again synced');
+      assert.equal(again.provider.authorizedScope, 'read-write');
+      again.write('v1-again;');
       await until(() => watcher.text().includes('v1-again;'), 8000, 'v1 writes again on format 1');
     } finally {
       for (const p of peers) p.close();
@@ -390,5 +397,11 @@ describe('the format barrier (the setMode order)', () => {
     const raised = await acc2.seedFormat(2);
     assert.equal(raised.changed, true);
     assert.equal(acc2.projectFormat(), 2);
+    // Never above what this hub knows (a tenant's checkout could lock out
+    // every writer with a format no build writes).
+    const acc3 = coordinator({ store: fakeStore(), connections: [] });
+    await acc3.refresh();
+    assert.equal((await acc3.seedFormat(3)).changed, false);
+    assert.equal(acc3.projectFormat(), 1);
   });
 });

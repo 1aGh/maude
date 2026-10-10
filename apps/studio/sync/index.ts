@@ -882,6 +882,13 @@ export function createSyncRuntime(
   const hubFetch = withFormatHeader(undefined, declared);
   /** §5.9 — set when this run first sees the hub's format raised past the mirror. */
   let formatFirstSight = false;
+  /** Canvases whose first-sight cold start already ran (the row is one-shot). */
+  const firstSightSpent = new Set<string>();
+  const firstSightFor = (slug: string) => (): boolean => {
+    if (!formatFirstSight || firstSightSpent.has(slug)) return false;
+    firstSightSpent.add(slug);
+    return true;
+  };
   /**
    * What the hub said about the format (`/health`, `maude.mode`, bootstrap).
    * First sight is judged BEFORE the mirror is written; a change makes shells
@@ -1080,6 +1087,7 @@ export function createSyncRuntime(
         docNameFor: (slug) => docNameFor(slug),
         fetchImpl: withFormatHeader(opts.transactionFetch, declared),
         paused: outboundPaused,
+        declaredFormat: declared,
         retryMs: opts.transactionRetryMs,
         onStats: (stats) => statusStore?.updateAccepted?.(stats),
         onStage: (summary) => statusStore?.updateAiAction?.(summary),
@@ -3358,7 +3366,7 @@ export function createSyncRuntime(
             }
           },
           onConflict: (info) => store.addConflict(info),
-          formatFirstSight: () => formatFirstSight,
+          formatFirstSight: firstSightFor(canvas.slug),
           // An unmergeable local candidate: keep both, and let the projection
           // report and hold it from the shared base (T2).
           onHold: (base) => projection.adoptBase(base),
@@ -3989,7 +3997,7 @@ export function createSyncRuntime(
                   }
                 },
                 onConflict: (info) => store.addConflict(info),
-                formatFirstSight: () => formatFirstSight,
+                formatFirstSight: firstSightFor(canvas.slug),
               });
               agent.start();
               agents.set(canvas.slug, agent);

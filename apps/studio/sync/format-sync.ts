@@ -38,7 +38,13 @@ export const SYNC_FORMAT_GATE_OPTS: FormatGateOptions = STAGED_FORMAT_GATE_OPTS;
 
 /** Does this build NOT edit the project right now? (Outbound is paused.) */
 export function formatGated(ctx: FormatCtx): boolean {
-  return formatGate(ctx, SYNC_FORMAT_GATE_OPTS) !== null;
+  if (formatGate(ctx, SYNC_FORMAT_GATE_OPTS) !== null) return true;
+  // The owner moved the project back (an unflip) and this copy's config.json
+  // still says the newer format: every write would be refused by the hub, so
+  // none is made until the two agree (the copy's own `--reverse`, or git).
+  const hub = formatHubUrl(ctx);
+  const mirror = hub ? readHubFormatCache(ctx.paths.designRoot, hub) : null;
+  return mirror !== null && mirror.formatVersion < asFormat(ctx.cfg.formatVersion);
 }
 
 /**
@@ -78,7 +84,9 @@ export function withFormatHeader(
       init?.headers ??
       (typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined);
     const headers = new Headers(from);
-    headers.set('x-maude-format', String(asFormat(format())));
+    // A request that already names its format keeps it: a queued proposal
+    // declares the format it was WRITTEN in, not whatever this build is now.
+    if (!headers.has('x-maude-format')) headers.set('x-maude-format', String(asFormat(format())));
     return fn(input, { ...init, headers });
   };
   return wrapped as typeof fetch;
@@ -143,5 +151,10 @@ export function isFormatFirstSight(ctx: FormatCtx, hubFormat: number | null): bo
   const hub = formatHubUrl(ctx);
   if (!hub || hubFormat === null || hubFormat <= 1) return false;
   const cached = readHubFormatCache(ctx.paths.designRoot, hub);
-  return cached === null || cached.formatVersion < hubFormat;
+  return (
+    cached === null ||
+    cached.formatVersion < hubFormat ||
+    // A mirror an OLDER build wrote: this build has not seen the flip itself.
+    (cached.writtenBy ?? 1) < SUPPORTED_FORMAT
+  );
 }

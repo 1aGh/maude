@@ -12,7 +12,8 @@
 //     working on a format-1 project exactly as before.
 
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, describe, test } from 'node:test';
@@ -22,6 +23,7 @@ import { createStoreCore, StoreConflict } from '../src/project-transactions/stor
 import { METHODS as REMOTE_METHODS } from '../src/project-transactions/store-remote.mjs';
 import { openSqliteProjectStore } from '../src/project-transactions/store-sqlite.mjs';
 import { createHub } from '../src/server.mjs';
+import { childEnv } from '../src/studio-child.mjs';
 import { addToken } from '../src/tokens.mjs';
 
 const COPY = 'This project now uses Maude 2. Update Maude to edit it.';
@@ -54,13 +56,24 @@ describe('the store holds the format (H1)', () => {
         (e) => e instanceof StoreConflict && e.code === 'epoch-stale'
       );
       await assert.rejects(store.setFormat({ formatVersion: 1.5 }), /invalid formatVersion/);
-      // The checkout seed only raises.
+      // The checkout seed only raises — and only ONCE, before any decision:
+      // after the owner set the format, a checkout can neither undo nor redo it.
       assert.equal((await store.raiseFormat(1)).changed, false);
       assert.equal((await store.state()).formatVersion, 2);
       // A mode switch carries the format through.
       const moded = await store.setMode({ mode: 'legacy', expectEpoch: 1 });
       assert.equal(moded.formatVersion, 2);
       assert.equal((await store.setFormat({ formatVersion: 1, by: 'o@x' })).formatVersion, 1);
+      assert.equal((await store.raiseFormat(2)).changed, false, 'an owner decision stands');
+      assert.equal((await store.state()).formatVersion, 1);
+      // A fresh store takes the seed once.
+      const fresh = openSqliteProjectStore(tmp('maude-fmt-store-'));
+      try {
+        assert.equal((await fresh.raiseFormat(2)).changed, true);
+        assert.equal((await fresh.state()).formatVersion, 2);
+      } finally {
+        fresh.close();
+      }
     } finally {
       store.close();
     }
@@ -74,6 +87,15 @@ describe('the store holds the format (H1)', () => {
     assert.deepEqual([...REMOTE_METHODS].sort(), api, 'store-remote.mjs METHODS');
     assert.deepEqual([...STORE_METHODS].sort(), api, 'apps/cells/project-store.mjs STORE_METHODS');
     assert.ok(api.includes('setFormat') && api.includes('raiseFormat'));
+  });
+
+  test('the studio child is pointed at the hub-owned format file, and only when given one', () => {
+    assert.equal(
+      childEnv({ PATH: '/bin' }, { port: 1, formatFile: '/data/project-format.json' })
+        .MAUDE_HUB_FORMAT_FILE,
+      '/data/project-format.json'
+    );
+    assert.equal('MAUDE_HUB_FORMAT_FILE' in childEnv({ PATH: '/bin' }, { port: 1 }), false);
   });
 });
 
@@ -148,7 +170,7 @@ function caller(http, token, format) {
         'content-type': 'application/json',
         ...h,
       }),
-    del: (p) => go('DELETE', p),
+    del: (p, h) => go('DELETE', p, undefined, h),
     get: (p) => go('GET', p),
   };
 }
@@ -177,7 +199,9 @@ describe('the doors on a real hub (H4, H5)', () => {
       const v1 = caller(hub.http, hub.member);
       const put = await v1.put('/api/file/assets/a.png', PNG, { 'content-type': 'image/png' });
       assert.equal(put.status, 200, `v1 file write on format 1: ${put.text}`);
-      const del = await v1.del('/api/file/assets/a.png');
+      const del = await v1.del('/api/file/assets/a.png', {
+        'x-maude-expect-hash': createHash('sha256').update(PNG).digest('hex'),
+      });
       assert.notEqual(del.status, 426);
       assert.ok(del.status < 300, `v1 delete on format 1: ${del.status} ${del.text}`);
       // A v1 proposal on a legacy-mode format-1 project gets today's answer.
@@ -331,12 +355,9 @@ describe('the doors on a real hub (H4, H5)', () => {
     try {
       assert.equal((await (await fetch(`${hub.http}/health`)).json()).formatVersion, 2);
       assert.equal((await hub.built.projectStore.state()).formatVersion, 2);
-      // …and hands it to its own studio child (the cell's view-only gate).
-      const mirror = JSON.parse(
-        readFileSync(join(hub.repoDir, '.design', '_state', 'hub-format.json'), 'utf8')
-      );
-      assert.equal(mirror.hub, 'cell:self');
-      assert.equal(mirror.formatVersion, 2);
+      // The hub never writes into the tenant's checkout (DDR-054): its
+      // child's mirror lives in the hub's own data dir (studio-child env).
+      assert.equal(existsSync(join(hub.repoDir, '.design', '_state', 'hub-format.json')), false);
     } finally {
       await hub.stop();
     }

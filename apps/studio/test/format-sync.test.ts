@@ -4,7 +4,15 @@
 // the first-sight cold-start row.
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -129,19 +137,46 @@ describe('learn', () => {
 
   test('in a cell the studio reads its OWN hub’s mirror (cell:self), linked or not', () => {
     const prev = process.env.MAUDE_WORKSPACE_MODE;
+    const prevFile = process.env.MAUDE_HUB_FORMAT_FILE;
+    // The hub-owned file (server.mjs onFormat → studio-child env), OUTSIDE the
+    // checkout.
+    const hubData = mkdtempSync(join(tmpdir(), 'format-sync-hub-'));
+    const file = join(hubData, 'project-format.json');
     process.env.MAUDE_WORKSPACE_MODE = '1';
+    process.env.MAUDE_HUB_FORMAT_FILE = file;
     try {
       const cellCtx = { cfg: {}, paths: { designRoot: dir } };
       expect(formatHubUrl(cellCtx)).toBe(CELL_SELF_HUB);
       expect(formatGated(cellCtx)).toBe(false);
-      // What the hub writes for its child (server.mjs onFormat).
-      learnHubFormat(cellCtx, { formatVersion: NEWER });
+      writeFileSync(file, JSON.stringify({ hub: CELL_SELF_HUB, formatVersion: NEWER, epoch: 1 }));
       expect(readHubFormatCache(dir, CELL_SELF_HUB)?.formatVersion).toBe(NEWER);
       expect(formatGated(cellCtx)).toBe(true);
+      // The child never writes its hub's mirror, and nothing lands in the checkout.
+      expect(learnHubFormat(cellCtx, { formatVersion: 1, epoch: 9 })).toBe(false);
+      expect(existsSync(join(dir, '_state', 'hub-format.json'))).toBe(false);
     } finally {
       if (prev === undefined) delete process.env.MAUDE_WORKSPACE_MODE;
       else process.env.MAUDE_WORKSPACE_MODE = prev;
+      if (prevFile === undefined) delete process.env.MAUDE_HUB_FORMAT_FILE;
+      else process.env.MAUDE_HUB_FORMAT_FILE = prevFile;
+      rmSync(hubData, { recursive: true, force: true });
     }
+  });
+
+  test('a hub BELOW this copy’s config (an unflip not taken here yet) pauses outbound too', () => {
+    learnHubFormat(ctx(2), { formatVersion: 2, epoch: 1 });
+    expect(formatGated(ctx(2))).toBe(false);
+    learnHubFormat(ctx(2), { formatVersion: 1, epoch: 2 }); // the owner's unflip
+    expect(formatGated(ctx(2))).toBe(true);
+  });
+
+  test('a mirror an OLDER build wrote is first sight for this build', () => {
+    mkdirSync(join(dir, '_state'), { recursive: true });
+    writeFileSync(
+      join(dir, '_state', 'hub-format.json'),
+      JSON.stringify({ hub: HUB, formatVersion: 2, epoch: 1, seenAt: '' })
+    );
+    expect(isFormatFirstSight(ctx(), 2)).toBe(SUPPORTED_FORMAT > 1);
   });
 
   test('first sight = the mirror is absent or older than the hub (format 1 is never a flip)', () => {
@@ -251,6 +286,61 @@ describe('proposals while gated', () => {
       expect(h.posts).toEqual(['v1']);
       expect(outbox()).toEqual([]);
       expect(client.stats().credentialRefused ?? false).toBe(false);
+      // Final, but the person's edit is KEPT ASIDE, never deleted.
+      const kept = readdirSync(join(dir, '_history', '_outbox-recovery'));
+      expect(kept.some((n) => n.endsWith('.format.json'))).toBe(true);
+    } finally {
+      client.stop();
+    }
+  });
+});
+
+describe('a queued proposal declares the format it was WRITTEN in', () => {
+  test('an entry made under format 1 is sent as format 1, whatever the build declares later', async () => {
+    const seen: Array<string | null> = [];
+    let declared = 1;
+    let paused = true;
+    const ok = (status: number, v: unknown) =>
+      new Response(JSON.stringify(v), { status, headers: { 'content-type': 'application/json' } });
+    const fetchImpl = (async (url: string | URL, init?: RequestInit) => {
+      const route = new URL(String(url)).pathname.replace(/^\/api\/projects\/[^/]+\/v1\//, '');
+      if (route === 'bootstrap')
+        return ok(200, {
+          projectId: 'p1',
+          mode: 'transactions',
+          epoch: 1,
+          revision: 0,
+          docs: [],
+          dirs: [],
+        });
+      if (route.startsWith('transactions/')) return ok(404, { code: 'absent' });
+      const body = JSON.parse(String(init?.body)) as { transactionId: string };
+      seen.push(new Headers(init?.headers).get('x-maude-format'));
+      return ok(200, {
+        protocol: 1,
+        status: 'accepted',
+        transactionId: body.transactionId,
+        revision: 1,
+      });
+    }) as unknown as typeof fetch;
+    const client = createTransactionClient({
+      hubUrl: 'http://hub',
+      token: () => 't',
+      designRoot: dir,
+      fetchImpl: withFormatHeader(fetchImpl, () => declared),
+      paused: () => paused,
+      declaredFormat: () => declared,
+      retryMs: 2,
+      log: quiet,
+    });
+    try {
+      await client.bootstrap();
+      const p = client.propose({ label: 'old', operations: [{ op: 'dir.create', path: 'ui/O' }] });
+      await new Promise((r) => setTimeout(r, 50));
+      declared = 2; // the build was updated while it waited
+      paused = false;
+      await p;
+      expect(seen).toEqual(['1']);
     } finally {
       client.stop();
     }
@@ -280,9 +370,11 @@ describe('§5.9 — first sight of a format flip (evaluated before newest-wins)'
     expect(
       decideColdStart({ ...base, localBody: 'local', docBody: '', formatFirstSight: true }).action
     ).toBe('noop');
+    // A doubled body is still COLLAPSED (no new bytes; a hub-wins would write
+    // the unbuildable doubled body to disk).
     expect(
-      decideColdStart({ ...base, localBody: 'ab', docBody: 'abab', formatFirstSight: true })
-    ).toMatchObject({ action: 'conflict', winner: 'hub' });
+      decideColdStart({ ...base, localBody: 'ab', docBody: 'abab', formatFirstSight: true }).action
+    ).toBe('recover-seed-dup');
     // Rows that only read the hub stand.
     expect(
       decideColdStart({ ...base, localBody: null, docBody: 'hub', formatFirstSight: true }).action

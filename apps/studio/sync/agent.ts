@@ -532,6 +532,9 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
       return;
     }
 
+    // V2-1.12 §5.9 — asked ONCE per cold start (the runtime's answer is
+    // per canvas and one-shot), then used by every lane below.
+    const firstSight = opts.formatFirstSight?.() === true;
     // ---- body: cold-start decision table (DDR-102; replaces v1.1 hub-wins) --
     const decision = decideColdStart({
       localBody: localHtml,
@@ -539,7 +542,7 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
       journalHash: opts.journal?.get(slug)?.bodyHash ?? null,
       localMtimeMs: localMtimeMs(paths.html),
       docBodyEditAtMs: bodyEditAtFromDoc(doc),
-      formatFirstSight: opts.formatFirstSight?.() === true,
+      formatFirstSight: firstSight,
     });
 
     const writeBodyFromDoc = (): void => {
@@ -631,7 +634,7 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
         localMtimeMs: localMtimeMs(paths.annotations),
         docEditAtMs: annotationsEditAtFromDoc(doc),
         bodyWinner,
-        formatFirstSight: opts.formatFirstSight?.() === true,
+        formatFirstSight: firstSight,
       });
       if (annDecision.winner === 'local' && localAnnotations !== null) {
         console.warn(`[sync/${slug}] cold-start annotations: ${annDecision.reason}`);
@@ -670,7 +673,7 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
         journalHash: opts.journal?.get(slug)?.cssHash ?? null,
         hash: hashBytes,
         bodyWinner,
-        formatFirstSight: opts.formatFirstSight?.() === true,
+        formatFirstSight: firstSight,
       });
       if (cssDecision.recoveredDuplication) {
         // WARN, BUT DO NOT SNAPSHOT — symmetric with the body's

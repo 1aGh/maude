@@ -184,15 +184,18 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
   }
 
   /**
-   * RAISE-ONLY seed (V2-1.12 §5.2): a cell learns the format its checkout's
-   * `config.json` declares. A value at or below the stored one changes
-   * nothing — a checkout can raise the project, never lower it.
+   * RAISE-ONLY, ONE-TIME seed (V2-1.12 §5.2): a cell learns the format its
+   * checkout's `config.json` declares — but only while nobody has ever SET the
+   * format. Once the owner flipped (or a seed landed), the store is the
+   * authority and a checkout can never undo or redo that decision.
    */
   function raiseFormat(n, { by = 'checkout' } = {}) {
     const next = asFormat(n);
     return sql.transaction(() => {
       const cur = state();
-      if (next <= cur.formatVersion) return { ...formatRecord(cur), changed: false };
+      if (next <= cur.formatVersion || meta('formatChangedAt', null) !== null) {
+        return { ...formatRecord(cur), changed: false };
+      }
       return writeFormat(cur, next, by);
     });
   }

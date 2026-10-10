@@ -162,8 +162,11 @@ function pairingEnv(env) {
   };
 }
 
-export function childEnv(env = process.env, { port }) {
+export function childEnv(env = process.env, { port, formatFile = null }) {
   return {
+    // V2-1.12 §5.2 — where the hub keeps the project format for this child
+    // (a path in the hub's own data dir, written by the hub, read-only here).
+    ...(formatFile ? { MAUDE_HUB_FORMAT_FILE: formatFile } : {}),
     PATH: env.PATH ?? '/usr/local/bin:/usr/bin:/bin',
     HOME: env.HOME ?? '/tmp',
     NODE_ENV: env.NODE_ENV ?? 'production',
@@ -295,6 +298,8 @@ export function createStudioChild({
   setTimer = setTimeout,
   clearTimer = clearTimeout,
   log = console,
+  /** The hub-owned file carrying the project format (V2-1.12 §5.2). */
+  formatFile = null,
 } = {}) {
   let child = null;
   let stopped = false;
@@ -334,7 +339,7 @@ export function createStudioChild({
     let proc;
     try {
       proc = spawn(plan.cmd, [...plan.args, '--root', env.MAUDE_REPO_DIR ?? process.cwd()], {
-        env: childEnv(env, { port }),
+        env: childEnv(env, { port, formatFile }),
         cwd: env.MAUDE_REPO_DIR ?? process.cwd(),
         stdio: ['ignore', 'pipe', 'pipe'],
       });

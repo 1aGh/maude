@@ -611,10 +611,13 @@ export function createAcceptedRevisions({
       state = { ...state, ...stateOf(cur) };
       return { changed: false, formatVersion: asFormat(cur.formatVersion) };
     }
+    // Never above what this hub knows: a checkout is tenant content, and a
+    // format no build writes would lock out every writer.
     if (want > HUB_MAX_FORMAT) {
       log.warn?.(
-        `[transactions] the checkout declares format ${want}, newer than this hub knows (${HUB_MAX_FORMAT}) — seeding it anyway; every writer this hub admits is fenced`
+        `[transactions] the checkout declares format ${want}, newer than this hub knows (${HUB_MAX_FORMAT}) — not seeded`
       );
+      return { changed: false, formatVersion: asFormat(cur.formatVersion) };
     }
     // Through the store's own raise (raise-only at the authority too), then
     // the barrier's notice for whoever is already connected.
