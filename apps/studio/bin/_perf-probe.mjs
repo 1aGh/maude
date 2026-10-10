@@ -30,8 +30,10 @@ import { dirname } from 'node:path';
 
 import {
   buildRow,
+  emptyViewportRefusal,
   harnessSource,
   medianOf,
+  occlusionRefusal,
   parseAndValidateResult,
   readHistory,
   renderReport,
@@ -191,6 +193,11 @@ async function main() {
   const total = Math.max(1, opts.repeat);
   for (let i = 0; i < total; i++) {
     const r = await runOnce();
+    const hidden = occlusionRefusal(r, i + 1);
+    if (hidden) {
+      console.error(`_perf-probe.mjs: ${hidden}`);
+      process.exit(3);
+    }
     if (!r.panApplied || !r.zoomApplied) {
       console.error(
         `_perf-probe.mjs: gesture did not reach the canvas on pass ${i + 1} ` +
@@ -198,9 +205,14 @@ async function main() {
       );
       process.exit(1);
     }
+    const empty = emptyViewportRefusal(r, i + 1);
+    if (empty) {
+      console.error(`_perf-probe.mjs: ${empty}`);
+      process.exit(1);
+    }
     if (i > 0 || total === 1) passes.push(r);
     process.stderr.write(
-      `→ pass ${i + 1}/${total}: gesture p95 ${r.gesture.p95}ms zoom p95 ${r.zoom.p95}ms long ${r.longFrames}` +
+      `→ pass ${i + 1}/${total}: ${r.boardsOnScreen} boards on screen, gesture p95 ${r.gesture.p95}ms zoom p95 ${r.zoom.p95}ms long ${r.longFrames}` +
         `${i === 0 && total > 1 ? ' (warm-up, discarded)' : ''}\n`
     );
   }

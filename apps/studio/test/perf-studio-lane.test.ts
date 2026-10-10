@@ -9,11 +9,16 @@ import { describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import {
   clickActions,
+  emptyViewportRefusal,
   frameGeometrySource,
   frameThrottled,
   idleRafSource,
   JANK_FRAME_MS,
   LONG_FRAME_MS,
+  OCCLUDED_HZ,
+  occlusionRefusal,
+  onScreenMismatch,
+  pairedDiff,
   parseFrameMode,
   parseIdleResult,
   parseWindowSize,
@@ -120,5 +125,47 @@ describe('T6 — the large-viewport control', () => {
     );
     const f = doc.querySelector('[data-testid="canvas-frame"]') as unknown as HTMLElement;
     expect(f.getAttribute('style') || '').toBe('');
+  });
+});
+
+describe('an empty viewport is refused', () => {
+  test('0 boards on screen → refusal text; any board → null', () => {
+    expect(emptyViewportRefusal({ boardsOnScreen: 0 }, 2)).toContain('empty viewport');
+    expect(emptyViewportRefusal({ boardsOnScreen: 6 }, 2)).toBeNull();
+  });
+});
+
+describe('--compare-frame: two geometries, same content, paired per round', () => {
+  const pass = (p95: number, zoomP95: number, longFrames: number, boardsOnScreen: number) => ({
+    gesture: { p95 },
+    zoom: { p95: zoomP95 },
+    longFrames,
+    boardsOnScreen,
+  });
+  test('the paired difference is per round (B − A), with its range', () => {
+    const a = [pass(18, 17, 2, 21), pass(20, 18, 3, 21), pass(19, 17, 2, 21)];
+    const b = [pass(19, 18, 2, 21), pass(25, 30, 5, 21), pass(18, 17, 1, 21)];
+    const d = pairedDiff(a, b);
+    expect(d?.rounds).toBe(3);
+    expect(d?.zoomP95).toEqual({ median: 1, min: 0, max: 12 });
+    expect(d?.longFrames).toEqual({ median: 0, min: -1, max: 2 });
+    expect(pairedDiff([], b)).toBeNull();
+  });
+  test('different on-screen content in any round is refused — not the same measurement', () => {
+    const a = [pass(18, 17, 2, 0), pass(20, 18, 3, 0)];
+    const b = [pass(250, 260, 7, 6), pass(260, 270, 7, 6)];
+    expect(onScreenMismatch(a, b)).toContain('different content in round 1');
+    expect(onScreenMismatch(b, b)).toBeNull();
+  });
+});
+
+describe('an occluded page is refused (locked screen, hidden window)', () => {
+  test('hidden, or idle rAF under 50 Hz → a named refusal; visible at 60 Hz → null', () => {
+    expect(OCCLUDED_HZ).toBe(50);
+    expect(occlusionRefusal({ occluded: true, visibility: 'hidden', idleHz: 0 }, 1)).toContain(
+      'occluded'
+    );
+    expect(occlusionRefusal({ visibility: 'visible', idleHz: 30 }, 1)).toContain('30 Hz');
+    expect(occlusionRefusal({ visibility: 'visible', idleHz: 60 }, 1)).toBeNull();
   });
 });

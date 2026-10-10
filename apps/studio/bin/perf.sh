@@ -17,7 +17,7 @@
 #           [--boards N] [--strokes N | --annotations N] [--mix]
 #           [--pan N] [--zoom N] [--timeout S] [--repeat N]
 #           [--engine chromium|safari] [--studio] [--fit-all]
-#           [--window WxH] [--frame today|pinned|full|WxH]
+#           [--window WxH] [--frame today|pinned|full|WxH] [--compare-frame <same>]
 #           [--variant <tag>] [--inject-css <css>]
 #           [--history <path>] [--json]
 #
@@ -45,18 +45,27 @@
 #              leaves the canvas iframe alone, `pinned` fixes it at today's rect,
 #              `full` at the window's size (v2 edge to edge), `WxH` at 0,0 with
 #              that size. Compare `full` against `pinned` at the same --window.
+#   --compare-frame (safari --studio) Measure a SECOND geometry in the same
+#              session, interleaved pass by pass, and print the per-round paired
+#              difference. Refuses (exit 1) when the two geometries showed a
+#              different number of artboards on screen — not the same content.
 #   --variant  A label for an A/B arm; keys the history row with the canvas.
 #   --inject-css  CSS injected into the canvas document before each pass, to
 #              test a rendering hypothesis against the same build.
 #
 #   Every run reports long frames (rAF deltas ≥ 50 ms) on both engines — WebKit
-#   has no longtask entries, so "long tasks" stays 0 there.
+#   has no longtask entries, so "long tasks" stays 0 there — and how many
+#   artboards were on screen; a pass that saw none is refused (exit 1), because
+#   it timed an empty viewport. The pan goes out and back, so the gesture ends
+#   where the camera (or --fit-all) put it.
 #
 # Reads:  $DESIGN_ROOT/_server.json  (must exist — run `maude design server-up` first)
 # Writes: $DESIGN_ROOT/_smoke/perf/history.jsonl   (append-only, per-machine runtime state)
 #         $DESIGN_ROOT/ui/perf-fixture.tsx         (only with --fixture)
 #
-# Exit: 0 measured / 1 missing dep or capture failure / 2 bad args.
+# Exit: 0 measured / 1 missing dep, capture failure or a refused pass / 2 bad args /
+#       3 the page was occluded (locked screen, closed lid, hidden window — WebKit
+#       freezes rendering there, so nothing measured would be what a user sees).
 
 REPO=""
 CANVAS=""
@@ -75,6 +84,7 @@ HISTORY=""
 JSON=0
 WINDOW=""
 FRAME=""
+COMPARE_FRAME=""
 VARIANT=""
 INJECT_CSS=""
 
@@ -97,6 +107,7 @@ while [ $# -gt 0 ]; do
     --json)     JSON=1; shift ;;
     --window)   WINDOW="$2"; shift 2 ;;
     --frame)    FRAME="$2"; shift 2 ;;
+    --compare-frame) COMPARE_FRAME="$2"; shift 2 ;;
     --variant)  VARIANT="$2"; shift 2 ;;
     --inject-css) INJECT_CSS="$2"; shift 2 ;;
     --help|-h)
@@ -114,12 +125,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Safari-only levers fail loud on the other lane rather than being ignored: a
 # Chromium row silently measured at the wrong geometry would read as a result.
-if [ "$PROBE_ENGINE" != "safari" ] && { [ -n "$WINDOW" ] || [ -n "$FRAME" ] || [ "$STUDIO" = "1" ]; }; then
-  echo "perf.sh: --window / --frame / --studio need --engine safari" >&2
+if [ "$PROBE_ENGINE" != "safari" ] && { [ -n "$WINDOW" ] || [ -n "$FRAME" ] || [ -n "$COMPARE_FRAME" ] || [ "$STUDIO" = "1" ]; }; then
+  echo "perf.sh: --window / --frame / --compare-frame / --studio need --engine safari" >&2
   exit 2
 fi
-if [ -n "$FRAME" ] && [ "$STUDIO" != "1" ]; then
-  echo "perf.sh: --frame needs --studio (there is no canvas iframe on the bare page)" >&2
+if { [ -n "$FRAME" ] || [ -n "$COMPARE_FRAME" ]; } && [ "$STUDIO" != "1" ]; then
+  echo "perf.sh: --frame / --compare-frame need --studio (there is no canvas iframe on the bare page)" >&2
   exit 2
 fi
 
@@ -261,6 +272,7 @@ if [ "$PROBE_ENGINE" = "safari" ]; then
   [ "$JSON" = "1" ] && ARGS+=(--json)
   [ -n "$WINDOW" ] && ARGS+=(--window "$WINDOW")
   [ -n "$FRAME" ] && ARGS+=(--frame "$FRAME")
+  [ -n "$COMPARE_FRAME" ] && ARGS+=(--compare-frame "$COMPARE_FRAME")
   [ -n "$VARIANT" ] && ARGS+=(--variant "$VARIANT")
   [ -n "$INJECT_CSS" ] && ARGS+=(--inject-css "$INJECT_CSS")
   exec "$JS_RUNTIME" "$SCRIPT_DIR/_perf-probe-safari.mjs" "${ARGS[@]}"

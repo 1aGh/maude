@@ -11,6 +11,8 @@ import { existsSync, readFileSync } from 'node:fs';
 export const LONG_FRAME_MS = 50;
 /** A frame at or above this many ms counts as jank (a dropped 60 Hz frame and then some). */
 export const JANK_FRAME_MS = 25;
+/** Idle rAF rate below which the page counts as occluded / throttled (locked screen, hidden window). */
+export const OCCLUDED_HZ = 50;
 
 // ── Idle rAF probe (the WebKit cross-origin-frame throttle check) ────────────
 //
@@ -243,6 +245,29 @@ export function harnessSource({ pan, zoom, injectCss, fitAll, setFlags }) {
   const transformOf = () => (world ? win.getComputedStyle(world).transform + '|' + (world.style.zoom || '') : '');
 
   (async () => {
+    // Occlusion guard (V2-2.20). Behind a locked screen, a closed lid or another
+    // window, WebKit throttles or freezes rendering: rAF stops and the numbers
+    // describe nothing a user sees. Count rAF callbacks over 500 ms of idle
+    // (timers still run when rAF is frozen) and stop before the gesture when
+    // the page is hidden or delivers fewer than OCCLUDED_HZ frames a second.
+    const visibility = String(doc.visibilityState || 'unknown');
+    let idleFrames = 0;
+    let idleOn = true;
+    const idleTick = () => {
+      if (!idleOn) return;
+      idleFrames += 1;
+      win.requestAnimationFrame(idleTick);
+    };
+    win.requestAnimationFrame(idleTick);
+    await new Promise((r) => win.setTimeout(r, 500));
+    idleOn = false;
+    const idleHz = idleFrames * 2;
+    if (visibility === 'hidden' || idleHz < ${OCCLUDED_HZ}) {
+      running = false;
+      win.__maudePerfResult = { occluded: true, visibility, idleHz };
+      return;
+    }
+
     // Warm-up: one frame so the first measured delta isn't the install cost.
     await nextFrame();
 
@@ -269,8 +294,30 @@ export function harnessSource({ pan, zoom, injectCss, fitAll, setFlags }) {
     // where "fit + the same pan" lands, so an install-time baseline compares two
     // identical states and rejects a gesture that ran perfectly.
     const t0 = transformOf();
+    // What the gesture is measured AGAINST: artboards intersecting the canvas
+    // viewport. A one-way pan of 720 x 540 CSS px used to push a fit-all canvas
+    // completely off screen on a narrow iframe, so that "baseline" timed an
+    // empty viewport (V2-2.20). The count is part of the result, and the pan is
+    // out-and-back so the content stays where the fit put it.
+    const onScreen = () => {
+      const h = host.getBoundingClientRect();
+      let n = 0;
+      for (const a of doc.querySelectorAll('[data-dc-screen]')) {
+        const r = a.getBoundingClientRect();
+        if (r.right > h.left && r.left < h.right && r.bottom > h.top && r.top < h.bottom) n += 1;
+      }
+      return n;
+    };
+    const boardsOnScreen = onScreen();
     const panStart = frames.length;
-    for (let i = 0; i < ${pan}; i++) { wheel(-12, -9, false); await nextFrame(); }
+    const panHalf = Math.max(1, Math.floor(${pan} / 2));
+    let tPanMid = '';
+    for (let i = 0; i < ${pan}; i++) {
+      const out = i < panHalf;
+      wheel(out ? -12 : 12, out ? -9 : 9, false);
+      await nextFrame();
+      if (i === panHalf - 1) tPanMid = transformOf();
+    }
     const panEnd = frames.length;
     const tPan = transformOf();
 
@@ -333,7 +380,10 @@ export function harnessSource({ pan, zoom, injectCss, fitAll, setFlags }) {
       artboardRenders: win.__dcPerf ? win.__dcPerf.artboardRenders : null,
       annotationRenders: win.__dcPerf ? win.__dcPerf.annotationRenders : null,
       instrumented: !!(win.__dcPerf && win.__dcPerf.instrumented),
-      panApplied: tPan !== t0,
+      panApplied: tPanMid !== t0,
+      boardsOnScreen,
+      visibility,
+      idleHz,
       zoomApplied: tZoom !== tPan,
     };
   })();
@@ -372,12 +422,23 @@ export function parseAndValidateResult(raw) {
 
 function validateResult(r) {
   const num = (v) => v === null || (typeof v === 'number' && Number.isFinite(v));
+  // An occluded page parks only the guard's own reading.
+  if (r && typeof r === 'object' && r.occluded === true) {
+    if (typeof r.idleHz !== 'number' || !Number.isFinite(r.idleHz) || r.idleHz < 0) return null;
+    const visibility = ['visible', 'hidden', 'prerender', 'unknown'].includes(r.visibility)
+      ? r.visibility
+      : 'unknown';
+    return { occluded: true, visibility, idleHz: r.idleHz };
+  }
   const stat = (o) => o && typeof o === 'object' && num(o.p50) && num(o.p95) && num(o.max);
   if (!r || typeof r !== 'object') return null;
   if (!stat(r.gesture) || !stat(r.pan) || !stat(r.zoom) || !stat(r.settle)) return null;
   if (!num(r.longtasks) || !num(r.artboardRenders) || !num(r.annotationRenders)) return null;
   const count = (v) => typeof v === 'number' && Number.isInteger(v) && v >= 0;
   if (!count(r.longFrames) || !count(r.jankFrames) || !count(r.settleLongFrames)) return null;
+  if (!count(r.boardsOnScreen)) return null;
+  if (typeof r.idleHz !== 'number' || !Number.isFinite(r.idleHz)) return null;
+  if (!['visible', 'hidden', 'prerender', 'unknown'].includes(r.visibility)) return null;
   if (typeof r.panApplied !== 'boolean' || typeof r.zoomApplied !== 'boolean') return null;
   if (typeof r.instrumented !== 'boolean') return null;
   return r;
@@ -404,6 +465,7 @@ export function medianOf(passes) {
     longFrames: med((p) => p.longFrames),
     jankFrames: med((p) => p.jankFrames),
     settleLongFrames: med((p) => p.settleLongFrames),
+    boardsOnScreen: med((p) => p.boardsOnScreen),
     artboardRenders: med((p) => p.artboardRenders),
     annotationRenders: med((p) => p.annotationRenders),
     instrumented: passes.some((p) => p.instrumented),
@@ -423,8 +485,81 @@ export function medianOf(passes) {
       longFrames: p.longFrames,
       jankFrames: p.jankFrames,
       settleLongFrames: p.settleLongFrames,
+      boardsOnScreen: p.boardsOnScreen,
     })),
   };
+}
+
+/**
+ * Paired comparison of two variants measured in the SAME session, pass by pass
+ * (round i of A against round i of B). Load drift hits both sides of a pair
+ * equally, so the per-round difference is the quantity to read; its range is
+ * the noise. Returns null when no round has both sides.
+ */
+export function pairedDiff(passesA, passesB) {
+  const n = Math.min(passesA.length, passesB.length);
+  if (!n) return null;
+  const sum = (pick) => {
+    const d = [];
+    for (let i = 0; i < n; i++)
+      d.push(Math.round((pick(passesB[i]) - pick(passesA[i])) * 100) / 100);
+    const s = d.slice().sort((a, b) => a - b);
+    return { median: s[Math.floor(s.length / 2)], min: s[0], max: s[s.length - 1] };
+  };
+  return {
+    rounds: n,
+    p95: sum((p) => p.gesture.p95),
+    zoomP95: sum((p) => p.zoom.p95),
+    longFrames: sum((p) => p.longFrames),
+  };
+}
+
+/**
+ * Two frame sizes are only comparable when they show the same content: the
+ * refusal text when any round saw a different number of artboards on screen,
+ * else null.
+ */
+export function onScreenMismatch(passesA, passesB) {
+  const n = Math.min(passesA.length, passesB.length);
+  for (let i = 0; i < n; i++) {
+    if (passesA[i].boardsOnScreen !== passesB[i].boardsOnScreen) {
+      return (
+        `the two frames showed different content in round ${i + 1} ` +
+        `(${passesA[i].boardsOnScreen} vs ${passesB[i].boardsOnScreen} artboards on screen) — ` +
+        'not the same measurement; refusing to compare them.'
+      );
+    }
+  }
+  return null;
+}
+
+/**
+ * A pass on an occluded page (locked screen, closed lid, hidden window) measures
+ * nothing a user sees: WebKit throttles or freezes rendering there. Returns the
+ * refusal text, or null when the page was visible and delivering frames.
+ */
+export function occlusionRefusal(r, pass) {
+  if (r && (r.occluded === true || r.visibility === 'hidden' || r.idleHz < OCCLUDED_HZ)) {
+    return (
+      `the page was occluded during pass ${pass} (visibility ${r.visibility}, idle rAF ${r.idleHz} Hz < ${OCCLUDED_HZ}) — ` +
+      'WebKit throttles hidden pages and a locked screen; unlock the Mac, keep the browser window in front, and re-run.'
+    );
+  }
+  return null;
+}
+
+/**
+ * A pass that timed an empty viewport measures nothing. Returns the refusal
+ * text, or null when the pass saw at least one artboard.
+ */
+export function emptyViewportRefusal(r, pass) {
+  if (r && r.boardsOnScreen === 0) {
+    return (
+      `no artboard was on screen during pass ${pass} — the gesture timed an empty viewport; ` +
+      'refusing to record it (move the camera, or measure with --fit-all).'
+    );
+  }
+  return null;
 }
 
 /** max − min of one field across passes (null with fewer than two values). */
@@ -452,6 +587,7 @@ export function buildRow({ result, label, engineTag, opts, extra }) {
     longFrames: result.longFrames,
     jankFrames: result.jankFrames,
     settleLongFrames: result.settleLongFrames,
+    boardsOnScreen: result.boardsOnScreen,
     artboardRenders: result.artboardRenders,
     annotationRenders: result.annotationRenders,
     instrumented: result.instrumented,
@@ -529,6 +665,7 @@ export function renderReport({ row, prev, opts, label, engineTag }) {
   out.push(deltaLine('jank frames (≥25ms)', row.jankFrames, prev?.jankFrames, ''));
   out.push(deltaLine('settle long frames', row.settleLongFrames, prev?.settleLongFrames, ''));
   out.push(deltaLine('long tasks', row.longtasks, prev?.longtasks, ''));
+  out.push(deltaLine('boards on screen', row.boardsOnScreen, prev?.boardsOnScreen, ''));
   out.push(deltaLine('artboard renders', row.artboardRenders, prev?.artboardRenders, ''));
   out.push(deltaLine('annotation renders', row.annotationRenders, prev?.annotationRenders, ''));
   if (!row.instrumented) {

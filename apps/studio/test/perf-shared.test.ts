@@ -17,6 +17,9 @@ const result = (over: Record<string, unknown> = {}) => ({
   longFrames: 2,
   jankFrames: 4,
   settleLongFrames: 0,
+  boardsOnScreen: 21,
+  visibility: 'visible',
+  idleHz: 60,
   artboardRenders: 0,
   annotationRenders: 0,
   instrumented: true,
@@ -73,10 +76,15 @@ describe('T3 — long frames survive validation and the median', () => {
  * The canvas is a stub whose wheel listener moves `.dc-world`, so the harness's
  * own "did the gesture land" checks pass.
  */
-async function runHarness(pan: number, zoom: number) {
+async function runHarness(
+  pan: number,
+  zoom: number,
+  { idleFlushes = 30, hidden = false }: { idleFlushes?: number; hidden?: boolean } = {}
+) {
   const win = new Window({ url: 'http://localhost/' });
   const doc = win.document;
   doc.body.innerHTML = '<div class="dc-canvas"><div class="dc-world"></div></div>';
+  if (hidden) Object.defineProperty(doc, 'visibilityState', { value: 'hidden' });
   const host = doc.querySelector('.dc-canvas') as unknown as HTMLElement;
   const world = doc.querySelector('.dc-world') as unknown as HTMLElement;
 
@@ -103,6 +111,8 @@ async function runHarness(pan: number, zoom: number) {
   let scheduled = false;
   let settleLeft = -1;
   let settleDone: (() => void) | null = null;
+  let idleLeft = -1;
+  let idleDone: (() => void) | null = null;
   const flush = () => {
     scheduled = false;
     if (phase === 'pan') now += panFrame++ % 2 === 0 ? 16 : 30;
@@ -113,6 +123,7 @@ async function runHarness(pan: number, zoom: number) {
     queue = [];
     for (const cb of q) cb(now);
     if (settleLeft > 0 && --settleLeft === 0 && settleDone) settleDone();
+    if (idleLeft > 0 && --idleLeft === 0 && idleDone) idleDone();
   };
   const w = win as unknown as Record<string, unknown>;
   w.requestAnimationFrame = (cb: (t: number) => void) => {
@@ -124,6 +135,13 @@ async function runHarness(pan: number, zoom: number) {
     return queue.length;
   };
   w.setTimeout = (fn: () => void, ms: number) => {
+    if (ms === 500) {
+      // The occlusion guard's idle window: `idleFlushes` frames in 500 ms.
+      idleLeft = idleFlushes;
+      idleDone = fn;
+      if (idleFlushes === 0) setTimeout(fn, 0);
+      return 1;
+    }
     if (ms === 900) {
       // The harness's settle window: five scripted settle frames, then resolve.
       phase = 'settle';
@@ -138,8 +156,10 @@ async function runHarness(pan: number, zoom: number) {
   const started = new Function('document', `return ${src};`)(doc);
   expect(started).toBe('STARTED');
   for (let i = 0; i < 400 && !w.__maudePerfResult; i++) await new Promise((r) => setTimeout(r, 1));
+  lastPanX = x;
   return parseAndValidateResult(JSON.stringify(w.__maudePerfResult));
 }
+let lastPanX = Number.NaN;
 
 describe('T3 — the in-page harness counts long frames from rAF deltas', () => {
   test('scripted clock: every 60 ms zoom frame is long, 30 ms pan frames are jank, settle is separate', async () => {
@@ -152,5 +172,36 @@ describe('T3 — the in-page harness counts long frames from rAF deltas', () => 
     expect(r.jankFrames).toBe(8 + 5); // + the five 30 ms pan frames
     expect(r.settleLongFrames).toBe(5);
     expect(r.zoom.p95).toBe(60);
+  });
+
+  // V2-2.20 — a one-way 720 × 540 px pan pushed a fit-all canvas off screen on
+  // a narrow iframe, so that baseline timed an empty viewport. The pan goes out
+  // and back (net zero) and the result says how many artboards were on screen.
+  test('the pan is out-and-back: the camera ends where the fit put it, and the result counts boards on screen', async () => {
+    const r = await runHarness(10, 8);
+    expect(r.panApplied).toBe(true);
+    expect(lastPanX).toBe(0);
+    expect(typeof r.boardsOnScreen).toBe('number');
+  });
+
+  // V2-2.20 — behind a locked screen or a hidden window WebKit freezes rAF; a
+  // pass there describes nothing a user sees. The harness reads 500 ms of idle
+  // rAF first and parks an `occluded` result instead of running the gesture.
+  test('a visible page at 60 Hz runs the gesture and reports visibility + idle rate', async () => {
+    const r = await runHarness(10, 8);
+    expect(r.occluded).toBeUndefined();
+    expect(r.visibility).toBe('visible');
+    expect(r.idleHz).toBe(60);
+  });
+
+  test.each([
+    ['a hidden page', { hidden: true }],
+    ['a page delivering 4 frames a second', { idleFlushes: 2 }],
+    ['a page delivering no frames (rAF frozen)', { idleFlushes: 0 }],
+  ])('%s is reported occluded, without running the gesture', async (_n, o) => {
+    const r = await runHarness(10, 8, o);
+    expect(r).toMatchObject({ occluded: true });
+    // Either signal alone is enough: hidden at any rate, or visible but starved.
+    expect(r.visibility === 'hidden' || r.idleHz < 50).toBe(true);
   });
 });

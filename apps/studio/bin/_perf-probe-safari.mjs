@@ -21,6 +21,7 @@
 //        [--history <path>] [--variant <tag>] [--inject-css <css>]
 //        [--pan N] [--zoom N] [--repeat N] [--timeout S] [--driver-port N] [--json]
 //        [--studio <slug>] [--window WxH] [--frame today|pinned|full|WxH]
+//        [--compare-frame today|pinned|full|WxH]
 //
 // --studio  measures the canvas inside the real studio shell. Before the first
 //           pass it makes ONE real WebDriver click into empty canvas world and
@@ -30,6 +31,11 @@
 // --frame   (studio only) the large-viewport control: `today` leaves the canvas
 //           iframe alone; `pinned` fixes it at today's rect; `full` fixes it at the
 //           window's size (the v2 edge-to-edge geometry); `WxH` fixes it at 0,0.
+// --compare-frame (studio only) measures a SECOND geometry in the same session,
+//           interleaved pass by pass (A B, B A, …) so load drift hits both, and
+//           reports both rows plus the per-round paired difference. Refuses when
+//           a round saw different numbers of artboards on screen in the two
+//           geometries: then they are not the same measurement.
 
 import { spawn } from 'node:child_process';
 import { appendFileSync, mkdirSync } from 'node:fs';
@@ -39,11 +45,15 @@ import {
   buildRow,
   clickActions,
   EMPTY_POINT_SOURCE,
+  emptyViewportRefusal,
   frameGeometrySource,
   frameThrottled,
   harnessSource,
   idleRafSource,
   medianOf,
+  occlusionRefusal,
+  onScreenMismatch,
+  pairedDiff,
   parseAndValidateResult,
   parseFrameMode,
   parseIdleResult,
@@ -70,6 +80,7 @@ function parseArgs(argv) {
     parentCss: '',
     window: '1600x1000',
     frame: 'today',
+    compareFrame: '',
     json: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -90,6 +101,7 @@ function parseArgs(argv) {
     else if (a === '--parent-css') out.parentCss = argv[++i];
     else if (a === '--window') out.window = argv[++i];
     else if (a === '--frame') out.frame = argv[++i];
+    else if (a === '--compare-frame') out.compareFrame = argv[++i];
     else if (a === '--json') out.json = true;
     else {
       console.error(`_perf-probe-safari.mjs: unknown arg '${a}'`);
@@ -110,7 +122,12 @@ function parseArgs(argv) {
     console.error('_perf-probe-safari.mjs: --frame must be today | pinned | full | WxH');
     process.exit(2);
   }
-  if (out.frameMode.mode !== 'today' && !out.studio) {
+  out.compareMode = out.compareFrame ? parseFrameMode(out.compareFrame) : null;
+  if (out.compareFrame && !out.compareMode) {
+    console.error('_perf-probe-safari.mjs: --compare-frame must be today | pinned | full | WxH');
+    process.exit(2);
+  }
+  if ((out.frameMode.mode !== 'today' || out.compareMode) && !out.studio) {
     console.error(
       '_perf-probe-safari.mjs: --frame needs --studio (there is no canvas iframe otherwise)'
     );
@@ -194,6 +211,34 @@ class ProbeExit extends Error {
  * read with one `execute/async` call. Two tries: right after a canvas row
  * click the studio can be busy mounting the frame.
  */
+/**
+ * Reset the canvas iframe's geometry in the PARENT context, apply `mode`, and
+ * return what it measured. The reset lets --compare-frame switch between two
+ * geometries in one session.
+ */
+async function applyFrame(exec, mode) {
+  await exec(
+    `const f = document.querySelector('[data-testid="canvas-frame"]'); if (!f) return null;` +
+      ` for (const k of ['position','left','top','width','height','max-width','max-height','z-index']) f.style.removeProperty(k); return true;`
+  );
+  const geo = await exec(`return ${frameGeometrySource(mode)};`);
+  if (!geo || !isNum(geo.w) || !isNum(geo.h) || !isNum(geo.dpr)) {
+    throw new ProbeExit('_perf-probe-safari.mjs: could not read the canvas-frame geometry', 1);
+  }
+  const info = {
+    mode: mode.mode === 'size' ? `${mode.w}x${mode.h}` : mode.mode,
+    w: geo.w,
+    h: geo.h,
+    dpr: geo.dpr,
+    innerW: isNum(geo.innerW) ? geo.innerW : null,
+    innerH: isNum(geo.innerH) ? geo.innerH : null,
+  };
+  process.stderr.write(
+    `→ canvas frame: ${info.mode} ${info.w}×${info.h} @${info.dpr}x in a ${info.innerW}×${info.innerH} window\n`
+  );
+  return info;
+}
+
 let lastIdleProblem = '';
 async function readIdle(execAsync) {
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -263,6 +308,7 @@ async function main() {
   const execAsync = (script, args = []) =>
     wd(opts.driverPort, 'POST', `${base}/execute/async`, { script, args });
   let frameInfo = null;
+  let frameEl = null;
   let parentIdle = null;
   let idleInfo = null;
 
@@ -336,24 +382,7 @@ async function main() {
 
       // T6 — the large-viewport control. Applied in the parent BEFORE switching
       // into the frame; the harness's fit-all then fits the resized host.
-      const geo = await exec(`return ${frameGeometrySource(opts.frameMode)};`);
-      if (!geo || !isNum(geo.w) || !isNum(geo.h) || !isNum(geo.dpr)) {
-        throw new ProbeExit('_perf-probe-safari.mjs: could not read the canvas-frame geometry', 1);
-      }
-      frameInfo = {
-        mode:
-          opts.frameMode.mode === 'size'
-            ? `${opts.frameMode.w}x${opts.frameMode.h}`
-            : opts.frameMode.mode,
-        w: geo.w,
-        h: geo.h,
-        dpr: geo.dpr,
-        innerW: isNum(geo.innerW) ? geo.innerW : null,
-        innerH: isNum(geo.innerH) ? geo.innerH : null,
-      };
-      process.stderr.write(
-        `→ canvas frame: ${frameInfo.mode} ${frameInfo.w}×${frameInfo.h} @${frameInfo.dpr}x in a ${frameInfo.innerW}×${frameInfo.innerH} window\n`
-      );
+      frameInfo = await applyFrame(exec, opts.frameMode);
       await sleep(500);
 
       // The studio's own idle frame rate — the reference the canvas frame must
@@ -361,13 +390,17 @@ async function main() {
       // throttled (it is the top-level document the user is looking at).
       parentIdle = await readIdle(execAsync);
       if (!parentIdle) {
+        // No idle frames from the TOP-LEVEL page means the window is occluded:
+        // a locked screen, a closed lid or a hidden window freezes WebKit rAF.
         throw new ProbeExit(
-          `_perf-probe-safari.mjs: could not read the studio idle frame rate (${lastIdleProblem})`,
-          1
+          `_perf-probe-safari.mjs: the page was occluded — the studio delivered no idle frames ` +
+            `(${lastIdleProblem}); WebKit freezes rendering behind a locked screen or a hidden ` +
+            'window. Unlock the Mac, keep Safari in front, and re-run.',
+          3
         );
       }
 
-      const frameEl = await wd(opts.driverPort, 'POST', `${base}/element`, {
+      frameEl = await wd(opts.driverPort, 'POST', `${base}/element`, {
         using: 'css selector',
         value: '[data-testid="canvas-frame"]',
       });
@@ -423,9 +456,8 @@ async function main() {
       );
     }
 
-    const passes = [];
-    const total = Math.max(1, opts.repeat);
-    for (let i = 0; i < total; i++) {
+    // One gesture pass in the current frame context; validated, never trusted.
+    const runPass = async (i) => {
       const started = await exec(
         `return ${harnessSource({ pan: opts.pan, zoom: opts.zoom, injectCss: opts.injectCss, fitAll: opts.fitAll, setFlags: opts.setFlags })};`
       );
@@ -454,6 +486,10 @@ async function main() {
           1
         );
       }
+      // A locked screen / hidden window freezes WebKit rendering: refuse with
+      // its own exit code (3) so a batch can tell "not measurable now" apart.
+      const hidden = occlusionRefusal(r, i + 1);
+      if (hidden) throw new ProbeExit(`_perf-probe-safari.mjs: ${hidden}`, 3);
       if (!r.panApplied || !r.zoomApplied) {
         throw new ProbeExit(
           `_perf-probe-safari.mjs: gesture did not reach the canvas on pass ${i + 1} ` +
@@ -461,46 +497,88 @@ async function main() {
           1
         );
       }
-      if (i > 0 || total === 1) passes.push(r);
-      process.stderr.write(
-        `→ pass ${i + 1}/${total}: gesture p95 ${r.gesture.p95}ms zoom p95 ${r.zoom.p95}ms long ${r.longFrames}` +
-          `${i === 0 && total > 1 ? ' (warm-up, discarded)' : ''}\n`
-      );
+      const empty = emptyViewportRefusal(r, i + 1);
+      if (empty) throw new ProbeExit(`_perf-probe-safari.mjs: ${empty}`, 1);
+      return r;
+    };
+
+    // Variant A is --frame; B (optional) is --compare-frame, measured in the
+    // same session and interleaved pass by pass, alternating which goes first.
+    const variants = [{ mode: opts.frameMode, info: frameInfo, passes: [] }];
+    if (opts.compareMode) variants.push({ mode: opts.compareMode, info: null, passes: [] });
+    const total = Math.max(1, opts.repeat);
+    for (let i = 0; i < total; i++) {
+      const order = i % 2 === 0 ? variants : [...variants].reverse();
+      for (const v of order) {
+        if (variants.length > 1) {
+          await wd(opts.driverPort, 'POST', `${base}/frame/parent`, {});
+          v.info = await applyFrame(exec, v.mode);
+          await wd(opts.driverPort, 'POST', `${base}/frame`, { id: frameEl });
+          await sleep(700);
+        }
+        const r = await runPass(i);
+        if (i > 0 || total === 1) v.passes.push(r);
+        process.stderr.write(
+          `→ pass ${i + 1}/${total}${variants.length > 1 ? ` [${v.info.mode}]` : ''}: ` +
+            `${r.boardsOnScreen} boards on screen, gesture p95 ${r.gesture.p95}ms ` +
+            `zoom p95 ${r.zoom.p95}ms long ${r.longFrames}` +
+            `${i === 0 && total > 1 ? ' (warm-up, discarded)' : ''}\n`
+        );
+      }
+    }
+    if (variants.length > 1) {
+      const mismatch = onScreenMismatch(variants[0].passes, variants[1].passes);
+      if (mismatch) throw new ProbeExit(`_perf-probe-safari.mjs: ${mismatch}`, 1);
     }
 
-    const result = medianOf(passes);
-    // Window and frame geometry change the numbers, so a non-default one is part
-    // of the history key — a delta across two geometries is not a delta.
-    const conditions = [
-      opts.window !== '1600x1000' ? `window=${opts.window}` : '',
-      frameInfo && frameInfo.mode !== 'today' ? `frame=${frameInfo.mode}` : '',
-    ].filter(Boolean);
-    const label =
-      (opts.label || opts.url) +
-      (conditions.length ? ` {${conditions.join(' ')}}` : '') +
-      (opts.variant ? ` [${opts.variant}]` : '');
     const engineTag = 'webkit-safari';
-    const prev = readHistory(opts.history, label, engineTag);
-    const row = buildRow({
-      result,
-      label,
-      engineTag,
-      opts,
-      extra: {
-        window: opts.window,
-        ...(frameInfo ? { frame: frameInfo } : {}),
-        ...(idleInfo ? { idle: idleInfo } : {}),
-      },
+    const rows = variants.map((v) => {
+      const result = medianOf(v.passes);
+      // Window and frame geometry change the numbers, so a non-default one is
+      // part of the history key — a delta across two geometries is not a delta.
+      const conditions = [
+        opts.window !== '1600x1000' ? `window=${opts.window}` : '',
+        v.info && v.info.mode !== 'today' ? `frame=${v.info.mode}` : '',
+      ].filter(Boolean);
+      const label =
+        (opts.label || opts.url) +
+        (conditions.length ? ` {${conditions.join(' ')}}` : '') +
+        (opts.variant ? ` [${opts.variant}]` : '');
+      const prev = readHistory(opts.history, label, engineTag);
+      const row = buildRow({
+        result,
+        label,
+        engineTag,
+        opts,
+        extra: {
+          window: opts.window,
+          ...(v.info ? { frame: v.info } : {}),
+          ...(idleInfo ? { idle: idleInfo } : {}),
+        },
+      });
+      return { row, prev, label };
     });
+    const paired = variants.length > 1 ? pairedDiff(variants[0].passes, variants[1].passes) : null;
 
     if (opts.history) {
       mkdirSync(dirname(opts.history), { recursive: true });
-      appendFileSync(opts.history, `${JSON.stringify(row)}\n`, 'utf8');
+      for (const { row } of rows) appendFileSync(opts.history, `${JSON.stringify(row)}\n`, 'utf8');
     }
     if (opts.json) {
-      console.log(JSON.stringify({ current: row, previous: prev }, null, 2));
+      const out = { current: rows[0].row, previous: rows[0].prev };
+      if (paired) out.compare = { current: rows[1].row, previous: rows[1].prev, paired };
+      console.log(JSON.stringify(out, null, 2));
     } else {
-      console.log(renderReport({ row, prev, opts, label, engineTag }));
+      for (const { row, prev, label } of rows) {
+        console.log(renderReport({ row, prev, opts, label, engineTag }));
+      }
+      if (paired) {
+        const f = (d) => `${d.median} (${d.min} … ${d.max})`;
+        console.log(
+          `  paired, ${rows[1].row.frame?.mode} − ${rows[0].row.frame?.mode}, per round over ${paired.rounds} rounds:\n` +
+            `    gesture p95 ${f(paired.p95)} ms · zoom p95 ${f(paired.zoomP95)} ms · long frames ${f(paired.longFrames)}\n`
+        );
+      }
     }
   } finally {
     if (sessionId) {
