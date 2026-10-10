@@ -15,7 +15,7 @@
       "agents": 12
     },
     "maude": {
-      "subcommands": 24
+      "subcommands": 26
     }
   },
   "pageUpdated": {
@@ -103,7 +103,7 @@
     "hub/workspace.mdx": "2026-08-23",
     "index.mdx": "2026-09-13",
     "legal/dpa.mdx": "2026-08-04",
-    "legal/privacy.mdx": "2026-08-04",
+    "legal/privacy.mdx": "2026-10-09",
     "legal/terms.mdx": "2026-08-01",
     "orchestration.mdx": "2026-08-16",
     "recipes/expo.mdx": "2026-05-30",

@@ -82,10 +82,17 @@ if (existsSync(TASKLIST)) {
   const native = new Map(
     (snap.tasks ?? []).filter((t) => /^V2-\d+\.\d+[a-z]?$/.test(t.id)).map((t) => [t.id, t.status])
   );
+  // The native list is loaded phase by phase (plan: "at every phase start load that phase's
+  // tasks"): at a phase gate every task up to that phase must be there; the done script
+  // (no --phase) requires all of them.
   for (const r of tasks) {
     const st = native.get(r.id);
-    if (st === undefined) problems.push(`${r.id}: missing from the native task-list snapshot`);
-    else if ((st === 'completed') !== (r.status === 'verified'))
+    const mustAppear = phaseArg === null ? true : r.phase <= phaseArg;
+    if (st === undefined) {
+      if (mustAppear) problems.push(`${r.id}: missing from the native task-list snapshot`);
+      continue;
+    }
+    if ((st === 'completed') !== (r.status === 'verified'))
       problems.push(`${r.id}: native list says ${st}, ledger says ${r.status}`);
   }
   for (const id of native.keys())
