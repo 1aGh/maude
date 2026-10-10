@@ -156,7 +156,7 @@ describe('/_api/acp/activity — NEITHER canvas-origin allowlist (Decision D + d
   });
 
   test('is absent from CANVAS_SAFE_API', () => {
-    const start = httpSrc.indexOf('CANVAS_SAFE_API = new Set([');
+    const start = httpSrc.indexOf('CANVAS_SAFE_API: ReadonlySet<string> = new Set([');
     const end = httpSrc.indexOf(']);', start);
     expect(start).toBeGreaterThan(-1);
     const block = httpSrc.slice(start, end);
@@ -164,11 +164,15 @@ describe('/_api/acp/activity — NEITHER canvas-origin allowlist (Decision D + d
   });
 
   test("is absent from startCanvasServer's routes map", () => {
+    // V2-2.5 — the map lives in routes/canvas-origin.ts; server.ts only calls it.
     const start = serverSrc.indexOf('function startCanvasServer');
     const routesEnd = serverSrc.indexOf('async fetch(req, srv)', start);
     expect(start).toBeGreaterThan(-1);
     const block = serverSrc.slice(start, routesEnd);
-    expect(block).not.toContain('/_api/acp/activity');
+    expect(block).toContain('canvasOriginRoutes(http)');
+    const mapSrc = readFileSync(join(import.meta.dir, '..', 'routes', 'canvas-origin.ts'), 'utf8');
+    expect(mapSrc).toContain('export function canvasOriginRoutes');
+    expect(mapSrc).not.toContain('/_api/acp/activity');
   });
 
   test('the payload never carries a chat title, message text, or transcript field name', () => {

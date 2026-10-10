@@ -211,9 +211,14 @@ describe('the new network surface', () => {
   });
 
   test('it is in NEITHER canvas allowlist (DDR-088 — it proxies a credential)', () => {
-    const safe = HTTP.slice(HTTP.indexOf('const CANVAS_SAFE_API = new Set(['));
+    // V2-2.5 — both anchors are asserted present: a missing one used to slice(-1) and pass.
+    const at = HTTP.indexOf('const CANVAS_SAFE_API: ReadonlySet<string> = new Set([');
+    expect(at).toBeGreaterThan(-1);
+    const safe = HTTP.slice(at);
     expect(safe.slice(0, safe.indexOf('])')).includes('/_api/cloud/history')).toBe(false);
-    const canvasRoutes = HTTP.slice(HTTP.indexOf('function startCanvasServer'));
+    // The canvas server's routes map moved to routes/canvas-origin.ts (it was never in http.ts).
+    const canvasRoutes = readFileSync(join(STUDIO, 'routes', 'canvas-origin.ts'), 'utf8');
+    expect(canvasRoutes).toContain('export function canvasOriginRoutes');
     expect(canvasRoutes.includes("'/_api/cloud/history'")).toBe(false);
   });
 

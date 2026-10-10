@@ -132,9 +132,8 @@ import { isUnderOrEqual, resolveUrlPathUnder } from './path-containment.ts';
 import { BIN_DIR, DEV_SERVER_ROOT, MEDIA_DIR, STICKERS_DIR } from './paths.ts';
 import { createPhotoStore, PHOTO_EDIT_MAX_BYTES } from './photo-store.ts';
 import { probeReadiness } from './readiness.ts';
-import { createOutboxRoutes } from './routes/outbox.ts';
-import { createProjectFormatRoutes } from './routes/project-format.ts';
-import { mountRoutes, type RouteSpec } from './routes/table.ts';
+import { allSpecs } from './routes/index.ts';
+import { checkRouteTable, mountRoutes, type RouteSpec } from './routes/table.ts';
 import { getRuntimeBundle, packageForSlug } from './runtime-bundle.ts';
 import { currentSession } from './session-scope.ts';
 import { sanitizeForLog } from './sync/cell-pairing.ts';
@@ -467,6 +466,25 @@ export function sameOriginRead(req: Request): boolean {
   const site = req.headers.get('sec-fetch-site');
   if (!site) return true; // non-browser client (CLI / curl) → allow
   return site === 'same-origin' || site === 'none';
+}
+
+/**
+ * Every table route is privileged (migrate rewrites the tree; the outbox lists queued intents):
+ * the same double gate every main-origin route carries — Origin check (reads and writes) +
+ * the DNS-rebinding guard — before the handler runs. V2-2.5: module-level (was `guardLane`
+ * inside createHttp, verbatim) so test/csrf-write-guard.test.ts can hold every spec to it.
+ */
+export function guardTableRoute(spec: RouteSpec): RouteSpec {
+  return {
+    ...spec,
+    handle: (req, params) => {
+      const sameOrigin = spec.method === 'GET' ? sameOriginRead(req) : sameOriginWrite(req);
+      if (!sameOrigin) return new Response('cross-origin rejected', { status: 403 });
+      if (!isTrustedRequestHost(req))
+        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
+      return spec.handle(req, params);
+    },
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1291,9 +1309,14 @@ export interface Http {
   /**
    * V2-2.8 S6 — handlers the canvas origins mount INSTEAD of the main-origin
    * one at the same path, because they answer a narrower projection
-   * (server.ts `startCanvasServer` routes map). Same path, same allowlists.
+   * (routes/canvas-origin.ts, the canvas server's routes map). Same path, same allowlists.
    */
   canvasRoutes: Record<'/_api/git-committers', (req: Request) => Response | Promise<Response>>;
+  /**
+   * V2-2.5 — the exact paths of the table's `origin: 'canvas'` specs. Both canvas
+   * allowlists derive them: `CANVAS_SAFE_API` here and routes/canvas-origin.ts.
+   */
+  tableCanvasPaths: readonly string[];
   fetch(req: Request): Promise<Response>;
   /**
    * T2 (9.1-A) — build the canvas mount-harness response. `applyCsp` adds the
@@ -1708,37 +1731,26 @@ export function createHttp(
   // existing project and test sandbox view only. One constant in format.ts, so
   // the sync runtime (sync/format-sync.ts) can never disagree with this gate.
   const gateNow = () => formatGate(ctx, STAGED_FORMAT_GATE_OPTS);
-  // Every lane route is privileged (migrate rewrites the tree; the outbox lists queued intents):
-  // the same double gate every main-origin route carries — Origin check (reads and writes) +
-  // the DNS-rebinding guard — before the handler runs.
-  const guardLane = (spec: RouteSpec): RouteSpec => ({
-    ...spec,
-    handle: (req, params) => {
-      const sameOrigin = spec.method === 'GET' ? sameOriginRead(req) : sameOriginWrite(req);
-      if (!sameOrigin) return new Response('cross-origin rejected', { status: 403 });
-      if (!isTrustedRequestHost(req))
-        return new Response('local request required (DNS-rebinding guard)', { status: 403 });
-      return spec.handle(req, params);
+  // V2-2.5 — THE route table (routes/index.ts), every spec behind `guardTableRoute`. Its exact
+  // paths merge into `routes` below, so `readOnlyRefusal` wraps them like every legacy key; its
+  // `:param` paths run first in the fall-through (behind the same `guardedFetch` refusal).
+  const tableSpecs = allSpecs({
+    outbox: { outbox },
+    projectFormat: {
+      repoRoot: ctx.paths.repoRoot,
+      designRel: ctx.paths.designRel,
+      hub: () => {
+        const url = ctx.cfg.linkedHub?.url;
+        const rec = url ? getHubRecord(url) : null;
+        return url && rec ? { url, token: rec.token, role: rec.role ?? 'member' } : null;
+      },
+      formatView: (req) => formatConfigFields(ctx, roleReadOnly(req), STAGED_FORMAT_GATE_OPTS),
+      onMigrated: () => {
+        if (reloadConfig(ctx)) ctx.bus.emit('config-updated');
+      },
     },
-  });
-  const laneRoutes = mountRoutes(
-    [
-      ...createOutboxRoutes({ outbox }),
-      ...createProjectFormatRoutes({
-        repoRoot: ctx.paths.repoRoot,
-        designRel: ctx.paths.designRel,
-        hub: () => {
-          const url = ctx.cfg.linkedHub?.url;
-          const rec = url ? getHubRecord(url) : null;
-          return url && rec ? { url, token: rec.token, role: rec.role ?? 'member' } : null;
-        },
-        formatView: (req) => formatConfigFields(ctx, roleReadOnly(req), STAGED_FORMAT_GATE_OPTS),
-        onMigrated: () => {
-          if (reloadConfig(ctx)) ctx.bus.emit('config-updated');
-        },
-      }),
-    ].map(guardLane)
-  );
+  }).map(guardTableRoute);
+  const laneRoutes = mountRoutes(tableSpecs);
   // V2-2.17 — the project index (contract V2-1.17): built now, updated per fs event, persisted
   // in the machine cache (~/.maude/index/v1, outside the project). Cells write none.
   const projectIndex = createIndexService({
@@ -1819,8 +1831,10 @@ export function createHttp(
     patterns: [...READ_ONLY_ALLOWED_WRITE_PATTERNS, ...laneRoutes.readOnlyAllowed.patterns],
   };
 
-  const routes = {
-    ...laneRoutes.exact,
+  // The LEGACY route literal (V2-2.5): every key here predates the table. A NEW route is a
+  // `routes/<area>.ts` spec (routes/index.ts), not a new key — so work packages never edit the
+  // same switch. Merged with the table's exact paths into `routes` below.
+  const legacyRoutes = {
     '/_health': () =>
       Response.json({
         ok: true,
@@ -6133,6 +6147,20 @@ export function createHttp(
     '/index.html': (req: Request) => serveStudioPage(req),
   } satisfies Record<string, (req: Request) => Response | Promise<Response>>;
 
+  // V2-2.5 — one map: the table's exact paths, then the legacy keys (the order the spread had).
+  // A table path that is also a legacy key would be dropped by this spread without a word, so the
+  // table is checked here, at construction, and the server refuses to boot on a problem — the
+  // same fail-loud posture as the containment boot-assert (test/routes-table.test.ts).
+  const routeProblems = checkRouteTable({
+    specs: tableSpecs,
+    legacyKeys: Object.keys(legacyRoutes),
+    readOnlyAllowedWrites: READ_ONLY_ALLOWED_WRITES,
+    readOnlyAllowedPatterns: READ_ONLY_ALLOWED_WRITE_PATTERNS,
+  });
+  if (routeProblems.length > 0)
+    throw new Error(`[studio] the route table is unsound:\n  ${routeProblems.join('\n  ')}`);
+  const routes = { ...laneRoutes.exact, ...legacyRoutes };
+
   // Named `handleFallthrough`, not `fetch` — a same-named local function shadows
   // the global `fetch` for every call site in this module's scope, which is how
   // the `/_api/report` route ended up calling itself instead of the network (see
@@ -6582,25 +6610,10 @@ export function createHttp(
     '.ogg',
   ]);
 
-  // Exact API paths the canvas iframe needs (collab + display data). See
-  // isCanvasSafeRoute for the trust rationale. Mutations are limited to inert
-  // collab data (annotations SVG, comment replies via the dynamic route).
-  const CANVAS_SAFE_API = new Set([
-    '/_api/git-user', // presence display name
-    '/_api/canvas-meta', // layout/viewport sidecar (GET + PATCH)
-    '/_api/annotations', // annotation board (GET + whole-board PUT) — drives the collab bridge
-    '/_api/annotations/ops', // DDR-242 annotation op batches (POST). MIRROR in server.ts routes.
-    '/_api/asset', // Phase 23 — capped binary image upload (sniff+category cap+sha8 name+no-SVG)
-    // Issue #126 — chunked video/audio upload (fixed chunks, session cap, budget
-    // reserved at start, sniff on the reassembled stream). MIRROR in server.ts routes.
-    '/_api/asset/chunk-start',
-    '/_api/asset/chunk',
-    '/_api/asset/chunk-finish',
-    '/_api/photo-edit', // feature-photo-editor — PhotoEdit sidecar GET/PUT (cap-stack gated). MIRROR in server.ts routes.
-    '/_api/git-committers', // @mention autocomplete — a no-e-mail projection here (V2-2.8 S6)
-    '/_api/ai', // AI-activity banner
-    '/_comments', // per-file comment list (renders pins)
-  ]);
+  // The canvas fall-through's exact paths: the hand-listed CANVAS_SAFE_API (module level, after
+  // createHttp — V2-2.5 moved it there verbatim so a test can read it) plus the table's
+  // `origin: 'canvas'` specs. test/canvas-origin-parity.test.ts holds it to the canvas map.
+  const canvasSafeApi = new Set([...CANVAS_SAFE_API, ...laneRoutes.canvasPaths]);
 
   function isCanvasSafeRoute(pathname: string): boolean {
     // A1/A2 (DDR-060 F1 re-audit, phase-9.1-t2-f1-cross-origin-reaudit.md) —
@@ -6640,9 +6653,9 @@ export function createHttp(
     // execution, secrets, export, /_config, /_sync-status, or files outside
     // designRoot/annotations; the canvas origin's CSP `connect-src 'self'` still
     // confines the iframe so hub-pushed JSX can't reach IMDS/LAN/main-origin.
-    if (CANVAS_SAFE_API.has(safe)) return true;
+    if (canvasSafeApi.has(safe)) return true;
     // POST /_api/comments/<id>/reply — dynamic path (fetch-handled).
-    if (/^\/_api\/comments\/[A-Za-z0-9_]+\/reply$/.test(safe)) return true;
+    if (CANVAS_SAFE_DYNAMIC.some((re) => re.test(safe))) return true;
     const designPrefix = `/${ctx.paths.designRel.replace(/^\/+|\/+$/g, '')}/`;
     if (safe.startsWith(designPrefix)) {
       const rest = safe.slice(designPrefix.length);
@@ -6769,8 +6782,36 @@ export function createHttp(
   return {
     routes: guardedRoutes,
     canvasRoutes,
+    tableCanvasPaths: laneRoutes.canvasPaths,
     fetch: guardedFetch,
     serveCanvasShell,
     isCanvasSafeRoute,
   };
 }
+
+// Exact API paths the canvas iframe needs (collab + display data). See
+// isCanvasSafeRoute for the trust rationale. Mutations are limited to inert
+// collab data (annotations SVG, comment replies via the dynamic route).
+// V2-2.5 — moved verbatim out of createHttp (exported for the parity test). Each entry needs its
+// MIRROR in routes/canvas-origin.ts; a NEW canvas-safe route is an `origin: 'canvas'` table spec
+// instead, which both lists derive.
+export const CANVAS_SAFE_API: ReadonlySet<string> = new Set([
+  '/_api/git-user', // presence display name
+  '/_api/canvas-meta', // layout/viewport sidecar (GET + PATCH)
+  '/_api/annotations', // annotation board (GET + whole-board PUT) — drives the collab bridge
+  '/_api/annotations/ops', // DDR-242 annotation op batches (POST). MIRROR in routes/canvas-origin.ts.
+  '/_api/asset', // Phase 23 — capped binary image upload (sniff+category cap+sha8 name+no-SVG)
+  // Issue #126 — chunked video/audio upload (fixed chunks, session cap, budget
+  // reserved at start, sniff on the reassembled stream). MIRROR in routes/canvas-origin.ts.
+  '/_api/asset/chunk-start',
+  '/_api/asset/chunk',
+  '/_api/asset/chunk-finish',
+  '/_api/photo-edit', // feature-photo-editor — PhotoEdit sidecar GET/PUT (cap-stack gated). MIRROR in routes/canvas-origin.ts.
+  '/_api/git-committers', // @mention autocomplete — a no-e-mail projection here (V2-2.8 S6)
+  '/_api/ai', // AI-activity banner
+  '/_comments', // per-file comment list (renders pins)
+]);
+
+/** The canvas origins' ONE dynamic path (fetch-handled, in no routes map): POST
+ *  /_api/comments/<id>/reply. A new dynamic canvas route is not added here. */
+export const CANVAS_SAFE_DYNAMIC: readonly RegExp[] = [/^\/_api\/comments\/[A-Za-z0-9_]+\/reply$/];

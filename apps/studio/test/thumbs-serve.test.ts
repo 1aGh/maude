@@ -180,7 +180,7 @@ describe('picture routes answer on the main origin only (V2-2.17 R4)', () => {
 
   test('neither route is in CANVAS_SAFE_API', () => {
     const src = readFileSync(join(import.meta.dir, '..', 'http.ts'), 'utf8');
-    const start = src.indexOf('const CANVAS_SAFE_API = new Set([');
+    const start = src.indexOf('const CANVAS_SAFE_API: ReadonlySet<string> = new Set([');
     const end = src.indexOf(']);', start);
     expect(start).toBeGreaterThan(-1);
     expect(src.slice(start, end)).not.toMatch(/thumb/);
