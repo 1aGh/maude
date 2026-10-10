@@ -5,9 +5,10 @@
 //
 //   apps/studio/actions/keymap.gen.ts          the canvas iframe's slim key table (§5.7)
 //   apps/desktop/src-tauri/menu.actions.json   the native menu, which menu.rs builds from (§5.8)
+//   apps/studio/actions.manifest.json          every action's AI path + every verb's tier
+//                                              (V2-1.11 §5.1, §5.6, §5.7; V2-2.4b)
 //
-// (`actions.manifest.json` — the AI paths — is V2-2.4b; the docs page site/content/docs/
-// shortcuts.mdx lands with the v2 "?" in Phase 4 / 7.)
+// (The docs page site/content/docs/shortcuts.mdx lands with the v2 "?" in Phase 4 / 7.)
 //
 // Usage (repo root):
 //   node scripts/gen-actions.mjs           write the files
@@ -17,6 +18,7 @@
 // byte. Node 24 strips the registry's erasable TypeScript natively.
 
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,6 +31,8 @@ const { primaryBinding } = await import('../apps/studio/actions/resolve.ts');
 const { toTauriAccel } = await import('../apps/studio/actions/keys.ts');
 const { NATIVE_MENU } = await import('../apps/studio/actions/native-menu.ts');
 const { bindingInDocument } = await import('../apps/studio/actions/documents.ts');
+const { AGENT_PATHS } = await import('../apps/studio/actions/agents.ts');
+const { MAUDE_VERBS, verbTier } = await import('../apps/studio/actions/verbs.ts');
 
 function die(msg) {
   console.error(`gen-actions: ${msg}`);
@@ -102,9 +106,60 @@ function nativeMenu() {
   return `${JSON.stringify({ generated: 'scripts/gen-actions.mjs — do not edit by hand', menus }, null, 2)}\n`;
 }
 
+// ── actions.manifest.json: the AI paths (V2-1.11 §5.1) and the verb tiers (§5.3, §5.5) ─────
+function manifest() {
+  for (const id of Object.keys(AGENT_PATHS)) {
+    if (!ACTIONS_BY_ID.has(id)) die(`agents.ts names '${id}', which is not a registered action`);
+  }
+  const actions = ACTIONS.map((a) => {
+    const ai = AGENT_PATHS[a.id];
+    return {
+      id: a.id,
+      label: a.label,
+      kind: a.kind,
+      exec: a.exec,
+      ...(a.fromCanvas ? { fromCanvas: true } : {}),
+      ...(ai ? { ...ai } : {}),
+    };
+  });
+  const verbs = MAUDE_VERBS.map((v) => ({
+    scope: v.scope,
+    verb: v.scope === 'design' ? `design ${v.verb}` : v.verb,
+    effect: v.effect,
+    tier: verbTier(v),
+    ...(v.hold ? { hold: v.hold } : {}),
+  }));
+  const schemas = [];
+  // §5.6: sha256 of the ids + verbs + schemas, first 12 hex — the app↔plugin↔CLI handshake.
+  const manifestVersion = createHash('sha256')
+    .update(
+      JSON.stringify({
+        ids: actions.map((a) => a.id),
+        verbs: verbs.map((v) => `${v.verb}:${v.tier}`),
+        schemas,
+      })
+    )
+    .digest('hex')
+    .slice(0, 12);
+  return `${JSON.stringify(
+    {
+      generated: 'scripts/gen-actions.mjs — do not edit by hand',
+      format: 'maude.actions-manifest',
+      v: 1,
+      manifestVersion,
+      actions,
+      verbs,
+      schemas,
+    },
+    null,
+    2
+  )}\n`;
+}
+
 const OUTPUTS = [
   ['apps/studio/actions/keymap.gen.ts', keymap()],
   ['apps/desktop/src-tauri/menu.actions.json', nativeMenu()],
+  ['apps/studio/actions.manifest.json', manifest()],
 ];
 
 let stale = 0;

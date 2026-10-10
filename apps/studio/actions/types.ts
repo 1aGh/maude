@@ -138,7 +138,62 @@ export interface ActionDef {
   search?: { keywords?: string[]; hidden?: boolean };
   /** v1 display strings — deleted in V2-8.0. */
   legacy?: { palette?: string; menu?: string; sheet?: string };
-  // V2-1.11 / V2-2.4b add: params, effect, minRole, server, undo, agent, askAI.
+  // V2-1.11 / V2-2.4b: the AI fields (`ActionDefAI` below) live in actions/agents.ts, keyed by id.
+}
+
+// ── V2-1.11 §5.1: registry AI fields ──────────────────────────────────────────────────────────
+
+export type Effect =
+  | 'none' // reads, computes, navigates the user's window, writes only runtime `_*` state
+  | 'project' // writes versioned files of THIS project; undone by the run's undo step
+  | 'destructive' // removes/replaces content beyond the run's undo step
+  | 'shared' // changes what other people see or receive outside the file plane
+  | 'external'; // third-party network, paid providers, downloads, outside writes, model code
+
+/** Each has a schema + a skill section (§5.2). */
+export type FormatId =
+  | 'canvas-tsx'
+  | 'canvas-meta'
+  | 'annotations'
+  | 'comments'
+  | 'tokens'
+  | 'components'
+  | 'ds-config'
+  | 'photo-edit'
+  | 'footage'
+  | 'edl'
+  | 'design-config';
+export type SkillRef = `${'design' | 'flow'}:${string}`;
+/** Closed: a new value needs a lead-owned change + a decision id (§5.7 rule 4). */
+export type HumanReason =
+  | 'invite'
+  | 'roles'
+  | 'links'
+  | 'clear-trash'
+  | 'accounts'
+  | 'hub-link'
+  | 'billing'
+  | 'summon'
+  | 'report-bug'
+  | 'view-pref'
+  | 'native-window'
+  | 'onboarding';
+
+export type AgentPath =
+  | { path: 'file'; format: FormatId; skill: SkillRef; how: string }
+  | { path: 'cli'; verb: string; skill?: SkillRef }
+  | { path: 'human'; because: HumanReason; note?: string };
+
+/** `pending` is allowed only under the §5.7 ratchet; `package` names who builds the path. */
+export type AgentPending = { path: 'pending'; package: string; want: AgentPath };
+
+export interface ActionDefAI {
+  effect: Effect;
+  agent: AgentPath | AgentPending;
+  minRole?: Role;
+  undo?: 'step' | 'version' | 'none';
+  server?: { route: string; method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' };
+  askAI?: string;
 }
 
 /** What the resolver needs of an action — the full `ActionDef`, or a row of the slim generated
