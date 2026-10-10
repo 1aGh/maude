@@ -31,6 +31,7 @@ import {
   readChatMessages,
   writeChatMeta,
 } from './acp/transcript.ts';
+import { isCanvasFile } from './activity.ts';
 import { type Api, ASSET_CHUNK_BYTES, ASSET_MAX_BYTES, ASSET_MAX_VIDEO_BYTES } from './api.ts';
 import { ImportAssetError, importSvg, SVG_MAX_BYTES } from './bin/_import-asset.mjs';
 import { ImportBrandError, importBrand } from './bin/_import-brand.mjs';
@@ -1744,6 +1745,26 @@ export function createHttp(
       designRel: ctx.paths.designRel,
       shells: () => opts.shellCount?.() ?? 0,
       emit: (e, p) => ctx.bus.emit(e, p),
+      // §5.4 `read-only`: the agent routes are non-browser, so only the format gate applies here
+      // (a hub role is a browser-session property).
+      readOnly: () => gateNow() !== null,
+      // the run bracket onto today's T16 project action + the ai-activity banner, keyed like the
+      // Maude chat's (acp/index.ts keyFor): `${designRel}/${designRoot-relative canvas}`.
+      bracket: {
+        begin: (r) =>
+          ctx.syncControl?.current?.()?.beginAiAction?.(`agent:${r.session}`, 'Claude Code'),
+        touch: (_r, rel) => {
+          if (isCanvasFile(rel)) ai.start(posix.join(ctx.paths.designRel, rel), 'Claude Code');
+        },
+        end: (r, outcome) => {
+          for (const rel of Object.keys(r.touched))
+            if (isCanvasFile(rel)) ai.end(posix.join(ctx.paths.designRel, rel));
+          void ctx.syncControl
+            ?.current?.()
+            ?.endAiAction?.(`agent:${r.session}`, outcome === 'failed' ? 'failed' : 'done')
+            .catch(() => null);
+        },
+      },
     },
     projectFormat: {
       repoRoot: ctx.paths.repoRoot,
