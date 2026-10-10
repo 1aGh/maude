@@ -935,8 +935,19 @@ if (!process.env.NO_OPEN && !WORKSPACE) {
   }
 }
 
+const SHUTDOWN_WATCHDOG_MS = Number(process.env.MAUDE_SHUTDOWN_WATCHDOG_MS) || 5000;
+
 async function shutdown() {
   console.log('\n  Stopping…');
+  // V2-2.8 B4: a teardown step that never settles (syncRuntime.stop, a collab flush) must not
+  // keep the process alive after a signal — 26 CI runs hung in figma-routes this way. Logged,
+  // then out; the JSON snapshots are the ground truth anyway.
+  setTimeout(() => {
+    console.error('  Shutdown did not finish within 5 s — exiting anyway.');
+    process.exit(0);
+  }, SHUTDOWN_WATCHDOG_MS).unref();
+  // Test seam (V2-2.8 B4 regression test only): simulate a teardown that never settles.
+  if (process.env.MAUDE_TEST_HANG_SHUTDOWN === '1') await new Promise(() => {});
   // DDR-166 — reap in-flight claude-provisioning grandchildren before this
   // process exits. Security-review finding: neither the SIGTERM/SIGINT path
   // here nor sidecar.rs's child.kill() on the Tauri side propagate to a
