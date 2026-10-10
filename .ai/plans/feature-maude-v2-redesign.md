@@ -83,6 +83,8 @@ Build on what exists — the cheapest viable path per work package is listed in 
 | **Verifier** (teammate, rotating) | 1 | the single test lane, screenshots, fidelity evidence against canvas artboards, e2e runs, critics, a11y | product code (reports only) |
 | **Security pair** (spawned at gates) | 2 | `flow:security-auditor` + `flow:ethical-hacker` reports | code |
 
+**Model routing + context budget (added 2026-10-10, Michal: quality/cost compromise):** which agent type and model runs each kind of work (lane builders on Sonnet except the risk classes, spikes and the security pair on Opus, read-only sweeps on a scout), the escalation rule and the per-agent context budget live in [`.ai/scenarios/maude-v2/agent-routing.md`](../scenarios/maude-v2/agent-routing.md).
+
 Lane owners talk to each other on the team channel to agree interfaces *before* coding (AI ↔ Editing on "one AI run = one undo step"; Annotations ↔ Editing on stable element ids; DS ↔ Editing on token chips; Share ↔ hub lane on roles). An agreement is a short contract file under `apps/studio/client/v2/contracts/<topic>.md` (or the package equivalent) linked from the Progress log; the lead merges it before either side codes against it.
 
 ### Lanes (why four, not eleven)

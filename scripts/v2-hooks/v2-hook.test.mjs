@@ -116,6 +116,8 @@ describe('SubagentStart — capture rules injected', () => {
     assert.equal(r.json?.hookSpecificOutput?.hookEventName, 'SubagentStart');
     assert.match(ctx, /kg search/);
     assert.match(ctx, /## Decisions/);
+    assert.match(ctx, /Context budget/);
+    assert.match(ctx, /## Continue/);
   });
 });
 
