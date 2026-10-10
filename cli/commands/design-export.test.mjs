@@ -9,6 +9,10 @@
 //   - `marks=crop,registration` / `includeBleed=true` arrive nested as
 //     `options.pdfPrint = { includeBleed, marks: {…} }` — the ONLY place exporters/pdf.ts
 //     (`parsePdfPrintOptions`) reads them from, so a flat `options.marks` is silently dropped;
+//   - the zip exporter's string-list options (`include` tags, `exclude` globs) arrive as ARRAYS —
+//     exporters/zip.ts reads them behind `Array.isArray`, so the one comma string a flat
+//     `--option include=system` used to send was dropped without a word and the zip shipped
+//     everything;
 //   - `export zip` without --scope asks for `project-raw` (the one scope the zip exporter
 //     serves), the way video asks for `artboard`;
 //   - `--out <directory>` writes the server's filename into that directory.
@@ -147,6 +151,50 @@ test('parseExportOptions — an empty marks list, a non-boolean includeBleed, a 
   assert.match(parseExportOptions(['scale']).error, /expected key=value/);
 });
 
+test('parseExportOptions — include / exclude (the zip string lists) become arrays', () => {
+  const { options } = parseExportOptions(['include=system,canvases', 'exclude=**/*.map,tmp/']);
+  assert.deepEqual(options, {
+    include: ['system', 'canvases'],
+    exclude: ['**/*.map', 'tmp/'],
+  });
+});
+
+test('parseExportOptions — a single value is a one-item array, not a string', () => {
+  assert.deepEqual(parseExportOptions(['include=system']).options, { include: ['system'] });
+  assert.deepEqual(parseExportOptions(['exclude=drafts']).options, { exclude: ['drafts'] });
+});
+
+test('parseExportOptions — items are trimmed; a repeated key appends (like marks)', () => {
+  const { options } = parseExportOptions([
+    'include=system, assets',
+    'include=meta',
+    'include=system',
+  ]);
+  assert.deepEqual(options, { include: ['system', 'assets', 'meta'] });
+});
+
+test('parseExportOptions — list values are never number/boolean coerced', () => {
+  assert.deepEqual(parseExportOptions(['exclude=2024,true']).options, {
+    exclude: ['2024', 'true'],
+  });
+});
+
+test('parseExportOptions — an empty list (or an empty entry) is an error naming the option', () => {
+  for (const item of ['include=', 'exclude=', 'include=,', 'include=system,', 'exclude=a,,b']) {
+    const { error } = parseExportOptions([item]);
+    assert.match(error ?? '', /empty/, item);
+    assert.match(error ?? '', new RegExp(item.split('=')[0]), item);
+  }
+});
+
+test('parseExportOptions — an unknown include tag names the valid ones (zip would ship an empty archive)', () => {
+  const { error } = parseExportOptions(['include=system,fonts']);
+  assert.match(error, /unknown include tag "fonts"/);
+  for (const valid of ['system', 'canvases', 'assets', 'meta']) {
+    assert.ok(error.includes(valid), `error should list ${valid}: ${error}`);
+  }
+});
+
 // ── the commands the export dialog prints ─────────────────────────────────────────────────
 
 test('`export png --scope artboard --option scale=2` → scale is the NUMBER 2', async () => {
@@ -218,6 +266,28 @@ test('--out a plain file path still writes exactly that file', async () => {
   } finally {
     rmSync(cwd0, { recursive: true, force: true });
   }
+});
+
+test('`export zip --option include=system,assets --option exclude=**/*.map` → arrays on the wire', async () => {
+  await withExport(
+    ['zip', '--option', 'include=system,assets', '--option', 'exclude=**/*.map'],
+    ({ code, requests }) => {
+      assert.equal(code, 0);
+      assert.deepEqual(requests[0].body, {
+        format: 'zip',
+        scope: 'project-raw',
+        options: { include: ['system', 'assets'], exclude: ['**/*.map'] },
+      });
+    }
+  );
+});
+
+test('`export zip --option include=` exits 2 and sends nothing', async () => {
+  await withExport(['zip', '--option', 'include='], ({ code, stderr, requests }) => {
+    assert.equal(code, 2);
+    assert.match(stderr, /empty/);
+    assert.equal(requests.length, 0);
+  });
 });
 
 // ── zip default scope ───────────────────────────────────────────────────────────────────

@@ -440,7 +440,8 @@ Dev-tooling (dispatch to the dev-server bash helpers — DDR-062):
         --option numbers arrive as numbers (scale=2, dpi=300, fps=30) and
         true/false as booleans; anything else is a string. PDF print options:
         marks=crop,registration (crop registration colorBars pageInfo) and
-        includeBleed=true|false.
+        includeBleed=true|false. ZIP filters are lists: include=system,assets
+        (system canvases assets meta) and exclude=<glob>,<glob>.
 
   link <url> --token <hex> [--adopt] [--force]
         Pair this clone with a Maude hub. Writes .design/config.json's
@@ -840,6 +841,36 @@ async function runExport({ args }) {
 // exporter but not drawn yet — naming them here is still right, the exporter owns that gap).
 const PDF_MARKS = ['crop', 'registration', 'colorBars', 'pageInfo'];
 
+// The zip exporter's two string-list options (exporters/zip.ts `filterPaths`): `include` is a list of
+// subtree tags, `exclude` a list of gitignore-style globs. It reads both behind `Array.isArray`, so a
+// scalar — the one comma string `--option include=system` used to send — is DROPPED and the archive
+// ships everything. `include` tags are validated here too: an unknown tag matches no path, so the zip
+// would come out empty with no explanation. (Mirror of zip.ts's `IncludeTag`.)
+const ZIP_INCLUDE_TAGS = ['system', 'canvases', 'assets', 'meta'];
+const STRING_LIST_OPTIONS = new Set(['include', 'exclude']);
+
+/**
+ * `--option include=system,assets` → `['system', 'assets']`, or `{ error }` (no command prefix).
+ * Items are trimmed and never number/boolean coerced; an empty list or an empty entry is refused.
+ */
+function parseStringList(key, value) {
+  const items = value.split(',').map((n) => n.trim());
+  if (items.some((n) => !n)) {
+    return {
+      error: `empty entry in --option ${key}=${value} (expected a comma-separated list${key === 'include' ? `: ${ZIP_INCLUDE_TAGS.join(', ')}` : ''})`,
+    };
+  }
+  if (key === 'include') {
+    const bad = items.find((n) => !ZIP_INCLUDE_TAGS.includes(n));
+    if (bad !== undefined) {
+      return {
+        error: `unknown include tag "${bad}" in --option include=${value} (valid tags: ${ZIP_INCLUDE_TAGS.join(', ')})`,
+      };
+    }
+  }
+  return { list: items };
+}
+
 /** `true`/`false` → booleans; a string that IS a plain number (round-trips) → number; else as typed. */
 function coerceOptionValue(value) {
   if (value === 'true') return true;
@@ -858,6 +889,8 @@ function coerceOptionValue(value) {
  * `options.pdfPrint = { includeBleed, marks: { crop, registration, colorBars, pageInfo } }`
  * (`parsePdfPrintOptions`) and ignores a top-level `marks` / `includeBleed` — so a flat
  * `--option marks=crop` used to be dropped without a word. `dpi` / `pageFit` / `text` stay top-level.
+ *
+ * `include` / `exclude` (zip) are string LISTS and go out as arrays — see STRING_LIST_OPTIONS.
  */
 export function parseExportOptions(items) {
   const options = {};
@@ -881,6 +914,11 @@ export function parseExportOptions(items) {
         marks[name] = true;
       }
       pdfPrint.marks = { ...pdfPrint.marks, ...marks };
+    } else if (STRING_LIST_OPTIONS.has(key)) {
+      const { list, error } = parseStringList(key, value);
+      if (error) return { error };
+      // A repeated key appends (like marks) — `--option include=system --option include=assets`.
+      options[key] = [...new Set([...(options[key] ?? []), ...list])];
     } else if (key === 'includeBleed') {
       if (value !== 'true' && value !== 'false') {
         return { error: `invalid --option includeBleed=${value} (expected true or false)` };
