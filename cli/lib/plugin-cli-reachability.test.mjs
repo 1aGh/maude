@@ -55,3 +55,18 @@ test('no plugin markdown invokes a $CLAUDE_PLUGIN_ROOT/dev-server/bin/*.sh helpe
     `These plugin markdown lines INVOKE a dev-server bin helper directly — they break in marketplace installs (the dev-server is never copied beside a plugin) and in flow commands (whose $CLAUDE_PLUGIN_ROOT has no dev-server/). Route through \`maude design <verb>\` instead (DDR-062):\n  ${hits.join('\n  ')}`
   );
 });
+
+// V2-2.15 (V2-1.13 §7): the design-system schema verbs are whitelisted bin verbs with their
+// bundled .sh, so plugin markdown reaches them as `maude design <verb>`.
+test('ds-check and ds-upgrade are whitelisted `maude design` bin verbs with its bundled helper', () => {
+  const src = readFileSync('cli/commands/design.mjs', 'utf8');
+  const set = src.slice(
+    src.indexOf('const BIN_VERBS = new Set(['),
+    src.indexOf(']);', src.indexOf('const BIN_VERBS'))
+  );
+  for (const verb of ['ds-check', 'ds-upgrade']) {
+    assert.match(set, new RegExp(`'${verb}'`), `${verb} missing from BIN_VERBS`);
+    const sh = readFileSync(`apps/studio/bin/${verb}.sh`, 'utf8');
+    assert.match(sh, /exec bun run "\$SCRIPT_DIR\/_ds-/);
+  }
+});

@@ -139,6 +139,13 @@ const BIN_VERBS = new Set([
   // word-order / one-typo folding) from the running studio, or builds the static index
   // in-process when none runs. Read-only — writes nothing.
   'index',
+  // V2-2.15. `ds-check` is the design-system schema checker (contract V2-1.13 §5.8): system
+  // levels 0 / 10 / 11, canvas S-rules (12), `--json`, `--cheatsheet`, `--hook`. Read-only unless
+  // `--emit` (tokens.json) or `--fix=mechanical` (canvas autofixes; 13 = a refused write).
+  'ds-check',
+  // V2-2.15. `ds-upgrade` — the system-file steps of "bring a design system up to the schema"
+  // (V2-1.13 §5.10): analyse / plan / validate (V1–V4, V8 → 13) / stage / apply. Never implicit.
+  'ds-upgrade',
   // feature-canvas-render-performance (Task 1 + 11). `perf` drives a scripted
   // pan/zoom against a live canvas and reports frame-time percentiles plus the
   // React render count during the gesture, delta'd against the previous run of
@@ -917,9 +924,15 @@ async function runInit({ args, pkgRoot }) {
   }
 
   // Resolve the discovery payload.
-  const payload = flags['discovery-payload']
-    ? await readPayload(flags['discovery-payload'])
-    : defaultPayload({ projectName, dsName });
+  // The schema-v1 keys (27 functional roles, the icon map) default to the registry's own
+  // derivations, so a payload written before V2-2.15 still renders valid CSS (DDR-043: no new
+  // visual value — every default is built from the payload's other tokens).
+  const payload = {
+    ...schemaPayloadDefaults(pkgRoot),
+    ...(flags['discovery-payload']
+      ? await readPayload(flags['discovery-payload'])
+      : defaultPayload({ projectName, dsName })),
+  };
 
   process.stdout.write('maude design init\n');
   process.stdout.write(`  project name: ${projectName}\n`);
@@ -1011,6 +1024,11 @@ function buildCorePlan({ inspirationRoot, designDir, dsName }) {
       dest: resolve(dsRoot, 'colors_and_type.css'),
       transform: 'placeholder',
     },
+    {
+      src: src('components.json.tpl'),
+      dest: resolve(dsRoot, 'components.json'),
+      transform: 'placeholder',
+    },
   ];
 }
 
@@ -1029,6 +1047,28 @@ function substitutePlaceholders(contents, payload) {
 
 function escapeReg(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Payload defaults for the schema-v1 template keys, read from the shipped registry. */
+function schemaPayloadDefaults(pkgRoot) {
+  let reg;
+  try {
+    reg = JSON.parse(
+      readFileSync(resolve(pkgRoot, 'apps/studio/schema/ds-schema-v1.json'), 'utf8')
+    );
+  } catch {
+    return {};
+  }
+  const out = {};
+  for (const r of reg.roles) {
+    if (r.origin !== 'v1') continue;
+    out[r.name.slice(2).replace(/-/g, '_')] = r.fallbackUnsupported ?? r.fallback;
+  }
+  // every vocabulary icon declared as a gap until the system draws it (decision v2-2.15-icon-null-declared-gap)
+  out.icon_map_json = JSON.stringify(
+    Object.fromEntries(reg.icons.vocabulary.map((n) => [n, null]))
+  );
+  return out;
 }
 
 function defaultPayload({ projectName, dsName }) {
