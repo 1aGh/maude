@@ -46,11 +46,12 @@ import type { ColdStartAction, ColdStartDecision } from './cold-start.ts';
  *  hold nothing the retained one doesn't — and `pruneSnapshots` evicts
  *  oldest-first per slug, so a valueless snapshot on a hub-triggerable path is
  *  an eviction lever against the copies that carry real bytes. */
-export type ColdStartSnapshotReason = 'pre-sync-local' | 'pre-sync-hub';
+export type ColdStartSnapshotReason = 'pre-sync-local' | 'pre-sync-hub' | 'pre-format-flip-local';
 
 export interface ColdStartConflictInfo {
   slug: string;
-  kind: 'cold-start-diverged';
+  /** `format-flip-local-kept` — the V2-1.12 §5.9 first-sight row. */
+  kind: 'cold-start-diverged' | 'format-flip-local-kept';
   winner?: 'local' | 'hub';
   snapshots?: { local?: string; hub?: string };
   /** DDR-102 fail-closed (F1) — local snapshot didn't land; hub-wins refused. */
@@ -161,7 +162,10 @@ export async function applyColdStart(input: ColdStartApplyInput): Promise<ColdSt
       if (input.snapshot) {
         snapshotAttempted = true;
         try {
-          const localTs = await input.snapshot(localBody as string, 'pre-sync-local');
+          const localTs = await input.snapshot(
+            localBody as string,
+            decision.firstSight ? 'pre-format-flip-local' : 'pre-sync-local'
+          );
           if (localTs) snapshots.local = localTs;
           const hubTs = await input.snapshot(docBody, 'pre-sync-hub');
           if (hubTs) snapshots.hub = hubTs;
@@ -179,6 +183,27 @@ export async function applyColdStart(input: ColdStartApplyInput): Promise<ColdSt
       // standalone/test caller keeps plain newest-wins.
       const localSnapshotMissing = snapshotAttempted && !snapshots.local;
       let winner: 'local' | 'hub' = decision.winner ?? 'hub';
+      if (winner === 'hub' && localSnapshotMissing && decision.firstSight) {
+        // §5.9 + fail-closed: the local copy could not be kept aside, so it is
+        // NOT overwritten — and nothing is pushed either. Disk and doc stay as
+        // they are until the snapshot can land.
+        log.error(
+          `${prefix} format flip: the local snapshot FAILED — keeping local on disk untouched and pushing nothing (DDR-102 fail-closed).`
+        );
+        input.onConflict?.({
+          slug,
+          kind: 'format-flip-local-kept',
+          winner: 'local',
+          snapshotFailed: true,
+        });
+        // bodyWinner 'local': the coupled lanes keep their local bytes too
+        // (under first sight their tables never push them).
+        return {
+          action: decision.action,
+          bodyWinner: 'local',
+          conflict: { winner: 'local', snapshots, snapshotFailed: true },
+        };
+      }
       if (winner === 'hub' && localSnapshotMissing) {
         winner = 'local';
         log.error(
@@ -195,7 +220,7 @@ export async function applyColdStart(input: ColdStartApplyInput): Promise<ColdSt
       log.warn(`${prefix} cold-start divergence — ${decision.reason}`);
       input.onConflict?.({
         slug,
-        kind: 'cold-start-diverged',
+        kind: decision.firstSight ? 'format-flip-local-kept' : 'cold-start-diverged',
         winner,
         ...(snapshots.local || snapshots.hub ? { snapshots } : {}),
         ...(localSnapshotMissing ? { snapshotFailed: true } : {}),

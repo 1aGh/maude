@@ -196,6 +196,19 @@ export async function hubCapabilities(opts: {
    */
   signal?: AbortSignal;
 }): Promise<string[] | null> {
+  return (await hubHealth(opts)).capabilities;
+}
+
+/**
+ * The protocol half of `/health` in ONE request: the capabilities above plus
+ * the project's file format (V2-1.12 §5.5 — `formatVersion`, null while the
+ * hub has not read its store, absent on a hub older than `format-v2`).
+ */
+export async function hubHealth(opts: {
+  hubUrl: string;
+  fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
+}): Promise<{ capabilities: string[] | null; formatVersion: number | null }> {
   const fetchImpl = opts.fetchImpl ?? fetch;
   const base = opts.hubUrl.replace(/\/+$/, '');
   try {
@@ -203,12 +216,19 @@ export async function hubCapabilities(opts: {
     const res = await fetchImpl(`${base}/health`, {
       signal: opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout,
     });
-    if (!res.ok) return null;
-    const body = (await res.json()) as { capabilities?: unknown };
-    if (!Array.isArray(body?.capabilities)) return null;
-    return body.capabilities.filter((c): c is string => typeof c === 'string').slice(0, 32);
+    if (!res.ok) return { capabilities: null, formatVersion: null };
+    const body = (await res.json()) as { capabilities?: unknown; formatVersion?: unknown };
+    const fv = body?.formatVersion;
+    const formatVersion = typeof fv === 'number' && Number.isSafeInteger(fv) && fv >= 1 ? fv : null;
+    if (!Array.isArray(body?.capabilities)) return { capabilities: null, formatVersion };
+    return {
+      capabilities: body.capabilities
+        .filter((c): c is string => typeof c === 'string')
+        .slice(0, 32),
+      formatVersion,
+    };
   } catch {
-    return null;
+    return { capabilities: null, formatVersion: null };
   }
 }
 

@@ -145,6 +145,8 @@ export interface CanvasSyncAgentOptions {
    * recovery snapshots (test-only constructions).
    */
   snapshot?: (content: string, reason: ColdStartSnapshotReason) => Promise<string | null>;
+  /** V2-1.12 §5.9 — is this the first cold start after a format flip? */
+  formatFirstSight?: () => boolean;
   /**
    * Called when a non-adopt reconcile (cold-start / post-git-pull) found
    * divergent non-empty content on both sides (DDR-102). `winner` is the side
@@ -154,7 +156,7 @@ export interface CanvasSyncAgentOptions {
    */
   onConflict?: (info: {
     slug: string;
-    kind: 'cold-start-hub-wins' | 'cold-start-diverged';
+    kind: 'cold-start-hub-wins' | 'cold-start-diverged' | 'format-flip-local-kept';
     winner?: 'local' | 'hub';
     snapshots?: { local?: string; hub?: string };
     /** DDR-102 fail-closed (F1): the local snapshot didn't land, so the
@@ -537,6 +539,7 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
       journalHash: opts.journal?.get(slug)?.bodyHash ?? null,
       localMtimeMs: localMtimeMs(paths.html),
       docBodyEditAtMs: bodyEditAtFromDoc(doc),
+      formatFirstSight: opts.formatFirstSight?.() === true,
     });
 
     const writeBodyFromDoc = (): void => {
@@ -628,6 +631,7 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
         localMtimeMs: localMtimeMs(paths.annotations),
         docEditAtMs: annotationsEditAtFromDoc(doc),
         bodyWinner,
+        formatFirstSight: opts.formatFirstSight?.() === true,
       });
       if (annDecision.winner === 'local' && localAnnotations !== null) {
         console.warn(`[sync/${slug}] cold-start annotations: ${annDecision.reason}`);
@@ -666,6 +670,7 @@ export function createCanvasSyncAgent(opts: CanvasSyncAgentOptions): CanvasSyncA
         journalHash: opts.journal?.get(slug)?.cssHash ?? null,
         hash: hashBytes,
         bodyWinner,
+        formatFirstSight: opts.formatFirstSight?.() === true,
       });
       if (cssDecision.recoveredDuplication) {
         // WARN, BUT DO NOT SNAPSHOT — symmetric with the body's

@@ -391,6 +391,14 @@ export interface FilePlaneResult {
   /** The door refused our credential; a renewal was requested and the pass ended. */
   authRefused?: true;
   /**
+   * V2-1.12 §5.4 — the door refused our FILE FORMAT (426): the project now
+   * uses a newer format than this build writes. Not a credential failure (no
+   * renewal) and not this file's fault (no backoff); the pass ended.
+   */
+  formatRefused?: { formatVersion: number | null };
+  /** Outbound changes held this pass because the project is format-gated. */
+  heldForFormat?: number;
+  /**
    * Paths skipped this pass because they are inside their per-path backoff
    * window. NOT a failure and NOT converged — work that is deliberately
    * waiting, which is a third thing the counters had no way to say.
@@ -471,6 +479,17 @@ export interface FilePlaneOptions {
    * renewals/s storm.
    */
   onAuthFailure?: (rel: string, status: number) => void;
+  /**
+   * V2-1.12 §5.4 — a write door answered 426 (format). Called once per pass
+   * with the project format the hub named, so the runtime can mirror it and
+   * engage the gate. Never a credential renewal.
+   */
+  onFormatRefused?: (formatVersion: number | null) => void;
+  /**
+   * V2-1.12 §5.6 — while true nothing goes UP (no push, revive or delete);
+   * pulls continue. The runtime passes "this build does not edit the project".
+   */
+  outboundPaused?: () => boolean;
   /**
    * A pass delivered at least one file.
    *
@@ -710,6 +729,8 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
   let unreachableInARow = 0;
   /** The door refused our credential this pass. */
   let authRefused = false;
+  /** Set when a write door answered 426 (format) this pass. */
+  let formatRefused: { formatVersion: number | null } | null = null;
   /** Bytes this pass has successfully pushed, charged against the window. */
   let quotaSpentThisPass = 0;
   /** The door's own ceilings, learned once per boot. Null until asked. */
@@ -873,6 +894,22 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     if (res.status === 401 || res.status === 403) {
       authRefused = true;
       return { ok: false, reason: 'The workspace did not accept this connection' };
+    }
+    // V2-1.12 §5.4 — 426 is the hub's FORMAT door: this project now uses a
+    // newer format than this build writes. Deliberately NOT the branch above —
+    // the credential is fine, and renewing it would change nothing.
+    if (res.status === 426) {
+      let fv: number | null = null;
+      let message = 'This project now uses Maude 2. Update Maude to edit it.';
+      try {
+        const body = (await res.clone().json()) as { formatVersion?: unknown; error?: unknown };
+        if (typeof body?.formatVersion === 'number') fv = body.formatVersion;
+        if (typeof body?.error === 'string' && body.error.length <= 200) message = body.error;
+      } catch {
+        /* a bare 426 still means "format" */
+      }
+      formatRefused = { formatVersion: fv };
+      return { ok: false, reason: message };
     }
     const reason = await failureReason(res);
     // BACKPRESSURE, not just 429 — a cell that is starting answers 503 with a
@@ -1542,6 +1579,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     hitRateLimit = null;
     unreachableInARow = 0;
     authRefused = false;
+    formatRefused = null;
     quotaSpentThisPass = 0;
     await ensureHubLimits();
     requestsThisPass = 0;
@@ -2053,7 +2091,7 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       // it. A rate limit is excluded: that is the DOOR's state, not this
       // path's, and punishing the file for it would push a whole project into
       // backoff for something none of its files did.
-      if (hitRateLimit === null) {
+      if (hitRateLimit === null && formatRefused === null) {
         if (out.failed.length > before.failed) {
           const delay = ledger.noteAttemptFailed(item.rel, now());
           log.warn?.(
@@ -2070,6 +2108,18 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       // A RATE LIMIT ENDS THE PASS. Every other refusal is about one file and
       // the next one is worth trying; this one is about the door, and the
       // remaining requests would do nothing but hold it shut for longer.
+      // (A cast: TS cannot see the assignment inside `refusal()`.)
+      const refusedFormat = formatRefused as { formatVersion: number | null } | null;
+      if (refusedFormat !== null) {
+        // ONE notification, and the pass ends: every other write would meet
+        // the same door. No backoff is armed (the file did nothing wrong).
+        opts.onFormatRefused?.(refusedFormat.formatVersion);
+        out.formatRefused = refusedFormat;
+        log.warn?.(
+          `[sync/files] the project now uses a newer file format than this build writes; nothing more goes up until Maude is updated (${work.length - seen} path(s) still to do).`
+        );
+        break;
+      }
       if (authRefused) {
         // ONE notification for the whole pass. `renewCredentialNow()` is
         // single-flight with a 60 s floor, so 803 refused paths collapse to one
@@ -2241,6 +2291,10 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       case 'push':
       case 'revive': {
         if (!here) return false;
+        if (opts.outboundPaused?.()) {
+          out.heldForFormat = (out.heldForFormat ?? 0) + 1;
+          return false;
+        }
         ledger.setState(rel, 'pushing');
         const expect = decision.action === 'revive' ? null : remoteHash;
         const res = await push(here, expect);
@@ -2386,6 +2440,10 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
       }
 
       case 'propagate-delete': {
+        if (opts.outboundPaused?.()) {
+          out.heldForFormat = (out.heldForFormat ?? 0) + 1;
+          return false;
+        }
         // Gone here, and the hub still holds exactly what we last reconciled —
         // the Syncthing rule. The CAS carries our ancestor, so an edit that
         // landed in between wins and this comes back as a conflict instead.

@@ -214,6 +214,31 @@ export function formatGateAllowsWrite(
   );
 }
 
+/**
+ * The gate options the studio runs with today — STAGED (V2-2.14): only a
+ * project NEWER than this build is gated. `http.ts` `FORMAT_GATE_OPTS` and the
+ * sync runtime must agree (test/format-sync.test.ts pins it).
+ */
+export const STAGED_FORMAT_GATE_OPTS: FormatGateOptions = { newerOnly: true };
+
+/**
+ * A canvas build that failed because the canvas imports a `@maude/canvas-lib`
+ * export this build does not have — the shape of "this canvas uses a Maude 2
+ * feature" (V2-1.12 §5.3: v2 canvas-lib exports; 1.x maps it to a line).
+ */
+export function isMissingCanvasLibExport(message: string): boolean {
+  return /No matching export in "[^"]*canvas-lib[^"]*" for import/.test(message);
+}
+
+/**
+ * §5.8 — the line a gated project's canvas build error leads with when the
+ * canvas needs a newer canvas-lib; null otherwise (the raw error stands alone).
+ */
+export function canvasFormatLine(message: string, gate: FormatGate | null): string | null {
+  if (!gate || gate.projectFormat <= gate.supported) return null;
+  return isMissingCanvasLibExport(message) ? FORMAT_COPY.newerCanvas : null;
+}
+
 /** The `/_config` additions (§5.6). `roleReadOnly` = the existing role gate. */
 export function formatConfigFields(
   ctx: FormatCtx,

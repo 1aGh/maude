@@ -101,6 +101,12 @@ export interface TransactionClientOptions {
   token: () => string | null;
   designRoot: string;
   fetchImpl?: typeof fetch;
+  /**
+   * V2-1.12 §5.6 — while true no proposal is SENT: each stays in the durable
+   * outbox, unchanged, and goes when the gate lifts (after an update). The
+   * project now uses a format this build does not write.
+   */
+  paused?: () => boolean;
   log?: Pick<Console, 'log' | 'warn' | 'error'>;
   deviceId?: string;
   /** Status hook — how many actions are waiting for acceptance. */
@@ -324,6 +330,11 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     let attempt = 0;
     for (;;) {
       if (stopped) throw new TransactionError('client stopped', 'stopped');
+      if (opts.paused?.()) {
+        // Held, not failed: nothing is sent, no attempt is counted.
+        await sleep(Math.max(retryMs, 1000));
+        continue;
+      }
       try {
         if (attempt > 0) {
           const known = await request('GET', `transactions/${entry.transactionId}`);

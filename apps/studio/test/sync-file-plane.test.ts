@@ -2009,3 +2009,72 @@ describe('a row for a file that exists nowhere', () => {
     expect(p.doruceka()['assets/b.png']).toBe('on-hub');
   });
 });
+
+// V2-1.12 §5.4 / §5.6 (V2-2.18) — the hub's FORMAT door. A 426 says the
+// project now uses a newer file format than this build writes. It is NOT a
+// credential failure (an old plane renewed on 401/403, which is why the hub
+// answers 426) and not the file's fault (no per-path backoff).
+describe('a 426 is the format door, never a credential failure', () => {
+  const formatWire = (hub: ReturnType<typeof fakeHub>) => {
+    const calls: string[] = [];
+    const fetchImpl = (async (url: string, init?: RequestInit) => {
+      const u = new URL(String(url));
+      const method = init?.method ?? 'GET';
+      calls.push(`${method} ${u.pathname}`);
+      if (method !== 'GET' && u.pathname.startsWith('/api/file')) {
+        return new Response(
+          JSON.stringify({
+            error: 'This project now uses Maude 2. Update Maude to edit it.',
+            reason: 'format',
+            formatVersion: 2,
+          }),
+          { status: 426, headers: { 'content-type': 'application/json' } }
+        );
+      }
+      return hub.fetchImpl(url as never, init as never);
+    }) as unknown as typeof fetch;
+    return { fetchImpl, calls, writes: () => calls.filter((c) => !c.startsWith('GET ')) };
+  };
+
+  test('no renewal, ONE format notice with the format, the pass ends, no backoff', async () => {
+    const hub = fakeHub({});
+    write('system/ds/a.css', 'a');
+    write('system/ds/b.css', 'b');
+    write('system/ds/c.css', 'c');
+    const wire = formatWire(hub);
+    let renewals = 0;
+    const seen: Array<number | null> = [];
+    const result = await plane(hub, {
+      fetchImpl: wire.fetchImpl,
+      onAuthFailure: () => {
+        renewals += 1;
+      },
+      onFormatRefused: (fv: number | null) => seen.push(fv),
+    }).reconcile();
+    expect(renewals).toBe(0);
+    expect(result.authRefused).toBeUndefined();
+    expect(seen).toEqual([2]);
+    expect(result.formatRefused).toEqual({ formatVersion: 2 });
+    // One write reached the door, not three.
+    expect(wire.writes()).toHaveLength(1);
+    // The reason a person reads is the copy, and the path is not backed off.
+    const failed = result.failed[0];
+    expect(failed?.reason ?? '').toContain('Update Maude to edit');
+    expect(ledger.row(failed?.rel ?? '')?.nextAttemptAt).toBeUndefined();
+  });
+
+  test('while format-gated nothing goes up; pulls still land', async () => {
+    const hub = fakeHub({ 'system/ds/theirs.css': 'hub' });
+    write('system/ds/mine.css', 'local');
+    const wire = formatWire(hub);
+    const result = await plane(hub, {
+      fetchImpl: wire.fetchImpl,
+      outboundPaused: () => true,
+    }).reconcile();
+    expect(wire.writes()).toEqual([]);
+    expect(result.pushed).toEqual([]);
+    expect(result.heldForFormat).toBe(1);
+    expect(result.pulled).toEqual(['system/ds/theirs.css']);
+    expect(read('system/ds/theirs.css')).toBe('hub');
+  });
+});
