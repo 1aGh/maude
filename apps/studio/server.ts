@@ -674,7 +674,7 @@ function startCanvasServer(
 
       // Canvas mount harness with the strict CSP ALWAYS on (F1 gate).
       if (pathname === '/_canvas-shell.html' || pathname === '/_canvas-shell') {
-        return http.serveCanvasShell(true);
+        return http.serveCanvasShell(true, false, new URL(req.url).searchParams);
       }
 
       // Allowlist gate — runtime bundles, comment-mount, transpiled .tsx + CSS/

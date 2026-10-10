@@ -46,6 +46,7 @@ import { reloadConfig } from './context.ts';
 import { buildDebugBundle } from './debug-bundle.ts';
 import { probeSetupReadiness } from './design-setup-readiness.ts';
 import { diagnostics, registerStatus, report } from './diagnostics/store.ts';
+import { injectFallbacks } from './ds/shell-fallbacks.ts';
 import { frameAncestors } from './embed-origins.ts';
 import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-scopes.ts';
 import { type Format, isFormat, isScope, type Scope } from './exporters/index.ts';
@@ -1292,7 +1293,11 @@ export interface Http {
    * origin keeps it env-gated for the POC). Shared so both listeners produce
    * byte-identical HTML.
    */
-  serveCanvasShell(applyCsp: boolean, capture?: boolean): Promise<Response>;
+  serveCanvasShell(
+    applyCsp: boolean,
+    capture?: boolean,
+    query?: URLSearchParams
+  ): Promise<Response>;
   /**
    * T2 (9.1-A) — allowlist gate for the segregated canvas origin. Returns true
    * only for the routes the canvas runtime legitimately needs (shell, runtime
@@ -6185,7 +6190,7 @@ export function createHttp(
         // render (?hide-chrome=1) that still lands here ALWAYS gets the
         // network-locked capture CSP so it can't SSRF/exfil (attacker F1).
         const capture = url.searchParams.get('hide-chrome') === '1';
-        return serveCanvasShell(process.env.MAUDE_CSP_POC === '1', capture);
+        return serveCanvasShell(process.env.MAUDE_CSP_POC === '1', capture, url.searchParams);
       }
 
       // DDR-150 dogfood — canvas-relative assets alias. A comp's
@@ -6453,7 +6458,11 @@ export function createHttp(
     });
   }
 
-  async function serveCanvasShell(applyCsp: boolean, capture = false): Promise<Response> {
+  async function serveCanvasShell(
+    applyCsp: boolean,
+    capture = false,
+    query?: URLSearchParams
+  ): Promise<Response> {
     // `comment-mount.js` is versioned for the same reason as the studio page's
     // bundle (see `serveIndexHtml`): a fixed URL outlives a release in any
     // cache in front of the canvas origin. Replaced BEFORE the CSP hashes are
@@ -6466,8 +6475,15 @@ export function createHttp(
       "'/_client/comment-mount.js'",
       `'/_client/comment-mount.js${mountV}'`
     );
-    // Inject inspector overlay — Cmd+Click selection + add-comment flow.
-    const injected = inspect().injectInspector(shellHtml);
+    // Inject inspector overlay — Cmd+Click selection + add-comment flow, then the canvas
+    // system's schema fallbacks (V2-1.13 §5.5 P-2: only the roles/classes it never declares,
+    // inline — both canvas CSPs allow inline styles, so no new route).
+    const injected = injectFallbacks(
+      inspect().injectInspector(shellHtml),
+      ctx.paths.designRoot,
+      ctx.cfg as unknown as Record<string, unknown>,
+      query
+    );
     const headers: Record<string, string> = {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
