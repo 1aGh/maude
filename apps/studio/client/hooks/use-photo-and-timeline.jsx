@@ -13,7 +13,6 @@ import {
   THEME_STORE,
   ZOOMCTL_STORE,
 } from '../shell/constants.js';
-import { activeComp } from '../panels/timeline-comp-target.js';
 import { parseCompTimeline } from '../panels/timeline-parse.js';
 import { PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
 import {
@@ -192,12 +191,11 @@ export function usePhotoAndTimeline({
     };
   }, []);
 
-  // DDR-150 P3 Task 9 — timeline keyboard shortcuts. Read live state through a
-  // ref so the listener attaches once. Gated on: timeline open + a comp active +
-  // focus NOT in a text field. Space doesn't steal the canvas PAN chord because
-  // that keydown fires inside the focused canvas iframe, never reaching this
-  // top-document listener. Space = play/pause · ←/→ = ±1 frame (Shift = ±1s) ·
-  // Home/End = start/end · ,/. = prev/next keyframe boundary.
+  // DDR-150 P3 Task 9 — timeline keyboard shortcuts. The transport's keys are
+  // registry actions now (V2-2.4: actions/defs/timeline.ts, handled by
+  // client/actions/shell-key-handlers.js); they read the live timeline through
+  // this ref. Space doesn't steal the canvas PAN chord because that keydown
+  // fires inside the focused canvas iframe, never reaching the shell.
   const tlKeyRef = useRef({});
   tlKeyRef.current = {
     open: timelineOpen,
@@ -423,118 +421,7 @@ export function usePhotoAndTimeline({
   tlKeyRef.current.clipVerb = timelineClipVerb;
   tlKeyRef.current.addComment = timelineAddComment;
   tlKeyRef.current.askText = askText;
-
-  useEffect(() => {
-    const onKey = (e) => {
-      const s = tlKeyRef.current;
-      if (!s.open || !s.comps?.length) return;
-      const t = e.target;
-      const tag = t?.tagName;
-      // Range sliders (zoom / volume) keep focus after a drag — Space must
-      // still play/pause (the "spacebar stopped working" dogfood bug). Text
-      // inputs stay exempt.
-      if (tag === 'INPUT' && t?.type !== 'range') return;
-      if (tag === 'TEXTAREA' || tag === 'SELECT' || t?.isContentEditable) return;
-      // The timebase of the comp the transport is on, not of whichever comp
-      // announced first — Shift+arrow is "±1 second" on THIS artboard (#75).
-      const fps = activeComp(s.comps, s.compId)?.fps || 30;
-      const total = Math.max(1, s.total);
-      const doSeek = (f) => {
-        const nf = Math.max(0, Math.min(total - 1, Math.round(f)));
-        setTimelineFrame(nf);
-        setTimelinePlaying(false);
-        s.post({ dgn: 'timeline-seek', frame: nf, id: s.compId });
-      };
-      const snapFrames = () => {
-        const pts = new Set([0, total - 1]);
-        for (const seq of s.sequences || []) {
-          pts.add(seq.from);
-          for (const kf of seq.keyframes || []) {
-            pts.add(kf.from);
-            pts.add(kf.to);
-          }
-        }
-        return [...pts].filter((n) => n >= 0 && n < total).sort((a, b) => a - b);
-      };
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) {
-        // Cmd+Z / Shift+Cmd+Z — undo/redo the last timeline clip op. Only when
-        // the shell (not the canvas iframe) has focus + the timeline is active,
-        // so the canvas's own annotation undo is untouched.
-        e.preventDefault();
-        tlUndoRedo(e.shiftKey ? 'redo' : 'undo');
-        return;
-      }
-      // Task 3 — the select → act grammar: Esc deselects, Delete/Backspace
-      // removes the selection (with ripple on the server for series beats).
-      if (e.key === 'Escape') {
-        if (s.selected != null) {
-          e.preventDefault();
-          s.setSelected?.(null);
-        }
-        return;
-      }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && s.selected != null) {
-        e.preventDefault();
-        s.removeClip?.({ stableId: s.selected });
-        return;
-      }
-      // Task 23 + dogfood 2026-07-30 — `C` ARMS the panel's comment tool
-      // (click-to-place, like the artboard's C); the panel's own window
-      // keydown owns the toggle, so the shell must NOT double-handle it.
-      // Task 16 — ⌘B splits the selection at the playhead; with nothing
-      // selected, the clip under the playhead (iMovie behavior).
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'b' || e.key === 'B')) {
-        e.preventDefault();
-        let ref = s.selected != null ? { stableId: s.selected } : null;
-        if (!ref) {
-          const rows = s.sequences || [];
-          const under =
-            rows.find((r2) => r2.series && s.frame >= r2.from && s.frame < r2.from + r2.duration) ||
-            rows.find((r2) => s.frame >= r2.from && s.frame < r2.from + r2.duration);
-          if (under?.stableId) ref = { stableId: under.stableId };
-        }
-        if (ref) s.clipVerb?.(ref, 'split', { atFrame: s.frame });
-        else shellToast('Nothing under the playhead to split.');
-        return;
-      }
-      if (e.key === ' ' || e.code === 'Space') {
-        e.preventDefault();
-        if (s.playing) {
-          setTimelinePlaying(false);
-          s.post({ dgn: 'timeline-pause', id: s.compId });
-        } else {
-          setTimelinePlaying(true);
-          s.post({ dgn: 'timeline-mute', muted: s.muted, id: s.compId });
-          s.post({ dgn: 'timeline-loop', loop: s.loop, id: s.compId });
-          s.post({ dgn: 'timeline-play', id: s.compId });
-        }
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        doSeek(s.frame + (e.shiftKey ? fps : 1));
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        doSeek(s.frame - (e.shiftKey ? fps : 1));
-      } else if (e.key === 'Home') {
-        e.preventDefault();
-        doSeek(0);
-      } else if (e.key === 'End') {
-        e.preventDefault();
-        doSeek(total - 1);
-      } else if (e.key === '.') {
-        e.preventDefault();
-        const next = snapFrames().find((n) => n > s.frame);
-        if (next != null) doSeek(next);
-      } else if (e.key === ',') {
-        e.preventDefault();
-        const prev = snapFrames()
-          .reverse()
-          .find((n) => n < s.frame);
-        if (prev != null) doSeek(prev);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  tlKeyRef.current.undoRedo = tlUndoRedo;
 
   // DDR-148 — reset the Timeline's comp meta when the active canvas changes (a
   // non-comp canvas fires no announce, so stale comps would linger), then ask

@@ -2018,38 +2018,10 @@ export function useCanvasBridge({
     pasteStyle,
   ]);
 
-  // Shell-level Backspace/Delete guard. CRITICAL: in the Tauri desktop app, an
-  // unhandled Backspace triggers WKWebView back-navigation, which reloads the
-  // WHOLE app to "Starting…" (dogfood crash). When an artboard is selected, focus
-  // sits on the shell (not the canvas iframe), so the in-canvas key handler never
-  // sees the keydown — the shell must catch it. Preventing the default here stops
-  // the back-nav universally; if a single artboard is the selection, also delete
-  // it (Backspace parity with the context menu). Element delete stays in the
-  // canvas iframe (which has focus when an element is selected; its keydown never
-  // reaches this window, so there's no double-handling).
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key !== 'Backspace' && e.key !== 'Delete') return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const t = e.target;
-      const editable =
-        t &&
-        (t.tagName === 'INPUT' ||
-          t.tagName === 'TEXTAREA' ||
-          t.tagName === 'SELECT' ||
-          t.isContentEditable);
-      if (editable) return;
-      // Suppress the WKWebView back-nav unconditionally once focus isn't editable —
-      // the activePath/SYSTEM_TAB check below is app logic, not default-action gating,
-      // so it must not gate preventDefault (that gap caused the desktop "Starting…" hang).
-      e.preventDefault();
-      if (!activePath || activePath === SYSTEM_TAB) return;
-      const one = Array.isArray(selected) ? (selected.length === 1 ? selected[0] : null) : selected;
-      if (one?.artboardId && !one.id) deleteArtboardShell(one.artboardId);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [activePath, selected, deleteArtboardShell]);
+  // The shell-level Backspace/Delete guard (blocks WKWebView back-navigation;
+  // deletes a single selected artboard) is the `object.remove` registry action now
+  // (V2-2.4 — client/actions/shell-key-handlers.js); it calls deleteArtboardShell,
+  // returned below.
 
   // feature-element-editing-robustness Stage F — AssetPicker request. `req` is
   // { purpose:'insert-image', refId, position, refIndex } (Insert ▸ Image) or
@@ -2231,6 +2203,7 @@ export function useCanvasBridge({
     applyOptimisticStyle,
     assetPickerReq,
     clearActiveCanvasSelection,
+    deleteArtboardShell,
     deleteComment,
     detachInstanceShell,
     duplicateArtboardShell,

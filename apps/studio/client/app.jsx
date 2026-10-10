@@ -265,7 +265,7 @@ import { InspectComputed } from './inspector/inspect-computed.jsx';
 import { ArtboardKnobs, resolveArtboardIdFromSelection } from './inspector/artboard-knobs.jsx';
 import { InspectorPanel, PHOTO_ASSET_RE } from './inspector/inspector-panel.jsx';
 import { usePaletteAndPanels } from './hooks/use-palette-and-panels.jsx';
-import { useKeyboardShortcuts } from './hooks/use-keyboard-shortcuts.jsx';
+import { useActionKeys } from './hooks/use-action-keys.jsx';
 import { useCanvasBridge } from './hooks/use-canvas-bridge.jsx';
 import { useTabs } from './hooks/use-tabs.jsx';
 import { useGitActions } from './hooks/use-git-actions.jsx';
@@ -976,6 +976,7 @@ function ShellState({ children }) {
     applyOptimisticStyle,
     assetPickerReq,
     clearActiveCanvasSelection,
+    deleteArtboardShell,
     deleteComment,
     detachInstanceShell,
     duplicateArtboardShell,
@@ -1080,7 +1081,9 @@ function ShellState({ children }) {
     },
     [activePath]
   );
-  const { onShellContextMenu, registerIframe, totalOpen } = useKeyboardShortcuts({
+  // V2-2.4 — the shell's one key listener (action registry); replaces the global
+  // shortcuts, the timeline transport and the ⌫ guard.
+  const { onShellContextMenu, registerIframe, totalOpen } = useActionKeys({
     activePath,
     selected,
     viewerMode,
@@ -1110,6 +1113,9 @@ function ShellState({ children }) {
     reloadActive,
     refreshTree,
     clearActiveCanvasSelection,
+    deleteArtboardShell,
+    setTimelineFrame,
+    setTimelinePlaying,
   });
   const {
     activeCanvasFile,
