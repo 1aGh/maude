@@ -6168,7 +6168,7 @@ export function createHttp(
         // read-only capture origin, bar Maude's own local harnesses (see
         // captureRedirect) — so what follows serves only those, and every
         // shell when the split is OFF.
-        const toCapture = captureRedirect(url);
+        const toCapture = captureRedirect(req, url);
         if (toCapture) return toCapture;
         // The segregated canvas origin (server.ts) calls serveCanvasShell(true)
         // directly with CSP always on; on the legacy main origin the CSP stays
@@ -6411,13 +6411,19 @@ export function createHttp(
    * `photo-bg-remove` (`_photo/<slug>.bgremove.tsx`), with no parameter beyond
    * `canvas` and the server's own `designRel`. They live under DDR-115
    * runtime dirs the canvas-safe table refuses, and are generated on this
-   * machine (never synced), so they keep rendering here exactly as before.
+   * machine (never synced), so they keep rendering here exactly as before —
+   * but only when the helper itself navigated there: Fetch Metadata `none`
+   * (a browser-initiated `goto`/`open`) or absent (a non-browser client). A
+   * page — another site, or a canvas on the canvas origin (same-site) —
+   * steering a browser to a leftover harness URL is redirected like the rest.
    * Nothing is redirected when the split is off or in a cell (no capture
    * listener; a cell's proxy never routes the main-origin shell).
    */
   const LOCAL_HARNESS =
     /^_(?:draw\/[a-z0-9_][a-z0-9._-]*\.proof|photo\/[a-z0-9_][a-z0-9._-]*\.bgremove)\.tsx$/;
-  function isLocalHarness(url: URL): boolean {
+  function isLocalHarness(req: Request, url: URL): boolean {
+    const site = req.headers.get('sec-fetch-site');
+    if (site !== null && site !== 'none') return false;
     const params = [...url.searchParams.keys()];
     if (params.some((k) => k !== 'canvas' && k !== 'designRel')) return false;
     const canvases = url.searchParams.getAll('canvas');
@@ -6426,9 +6432,9 @@ export function createHttp(
     const asked = url.searchParams.getAll('designRel');
     return asked.length === 0 || (asked.length === 1 && asked[0] === own);
   }
-  function captureRedirect(url: URL): Response | null {
+  function captureRedirect(req: Request, url: URL): Response | null {
     if (!ctx.captureOrigin) return null;
-    if (isLocalHarness(url)) return null;
+    if (isLocalHarness(req, url)) return null;
     return new Response(null, {
       status: 307,
       headers: {
