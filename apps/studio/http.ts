@@ -55,11 +55,13 @@ import { createFigmaEndpoints } from './figma/endpoints.ts';
 import { generatedClipAnalysis } from './footage/schema.ts';
 import { createFootageStore, FOOTAGE_MAX_BYTES } from './footage-store.ts';
 import {
+  canvasFormatLine,
   formatConfigFields,
   formatGate,
   formatGateAllowsWrite,
   formatRefusalResponse,
   projectFormat,
+  STAGED_FORMAT_GATE_OPTS,
 } from './format.ts';
 import {
   type AudioMatch,
@@ -705,6 +707,20 @@ export interface ServeCanvasTestHooks {
   afterRead?: () => void | Promise<void>;
 }
 
+/**
+ * A canvas that failed to build. V2-1.12 §5.8: in a project newer than this
+ * build, a canvas importing a `@maude/canvas-lib` export this build lacks says
+ * so first ("This canvas uses Maude 2. Update Maude to see it.").
+ */
+function canvasBuildErrorResponse(err: unknown, ctx: Context): Response {
+  const msg = err instanceof Error ? err.message : String(err);
+  const line = canvasFormatLine(msg, formatGate(ctx, STAGED_FORMAT_GATE_OPTS));
+  return new Response(`Canvas build error: ${line ? `${line}\n\n` : ''}${msg}`, {
+    status: 500,
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  });
+}
+
 export async function serveCanvasTsx(
   absPath: string,
   req: Request,
@@ -802,11 +818,7 @@ export async function serveCanvasTsx(
           headers: { 'Content-Type': 'text/plain; charset=utf-8' },
         });
       }
-      const msg = err instanceof Error ? err.message : String(err);
-      return new Response(`Canvas build error: ${msg}`, {
-        status: 500,
-        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-      });
+      return canvasBuildErrorResponse(err, ctx);
     }
     // The signature against the freshly-parsed deps — this very edit may have
     // added or removed a `.css` import — stamped before the build (above).
@@ -1025,11 +1037,7 @@ async function serveHistoricalCanvas(
         if (oldest !== undefined) historicalCanvasCache.delete(oldest);
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return new Response(`Canvas build error: ${msg}`, {
-        status: 500,
-        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-      });
+      return canvasBuildErrorResponse(err, ctx);
     }
   }
   if (req.headers.get('if-none-match') === cached.etag) {

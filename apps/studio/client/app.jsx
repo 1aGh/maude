@@ -223,7 +223,7 @@ import { SystemView } from './system/system-view.jsx';
 import { Viewport } from './shell/viewport.jsx';
 import { StatusBar } from './shell/status-bar.jsx';
 import { CommentsPanel } from './shell/comments-panel.jsx';
-import { CloudRoleBanner, SyncBanner, UpdateBanner } from './shell/banners.jsx';
+import { CloudRoleBanner, FormatGateBanner, SyncBanner, UpdateBanner } from './shell/banners.jsx';
 import {
   CSS_ALIGN_SELF,
   CSS_ASPECT_RATIO,
@@ -2683,6 +2683,7 @@ function ShellTree() {
     >
       {firstRun && <OnboardingWizard />}
       <CloudRoleBanner cloud={cfg.cloud} />
+      <FormatGateBanner />
       <UpdateBanner update={updateReady} onDismiss={() => setUpdateReady(null)} />
       <SyncBanner status={syncStatus} />
       {/* First-upgrade consent (Task 2) — global on purpose: a consent that
