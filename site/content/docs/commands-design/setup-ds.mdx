@@ -7,7 +7,7 @@ description: "Create or re-bootstrap a named design system."
 | -------- | ----- |
 | **Command** | `/design:setup-ds` |
 | **Category** | `setup` |
-| **Argument hint** | `<name> ["<brief>"] [--force] [--quick]` |
+| **Argument hint** | `<name> ["<brief>"] [--force \| --upgrade-schema] [--allow-partial] [--quick]` |
 | **Source** | [`plugins/design/commands/setup-ds.md`](https://github.com/1aGh/maude/blob/main/plugins/design/commands/setup-ds.md) |
 
 ## Description
@@ -19,13 +19,13 @@ Create or re-bootstrap a named design system.
 **Claude Code**
 
 ```text
-/design:setup-ds <name> ["<brief>"] [--force] [--quick]
+/design:setup-ds <name> ["<brief>"] [--force | --upgrade-schema] [--allow-partial] [--quick]
 ```
 
 **Codex**
 
 ```text
-$design:source-command-setup-ds <name> ["<brief>"] [--force] [--quick]
+$design:source-command-setup-ds <name> ["<brief>"] [--force | --upgrade-schema] [--allow-partial] [--quick]
 ```
 
 Use the same arguments and flags. See [native Codex setup](/docs/codex) for

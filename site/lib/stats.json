@@ -1,12 +1,12 @@
 {
-  "version": "v1.8.1",
+  "version": "v1.9.0",
   "nodeRange": ">=20",
-  "publishedDate": "2026-10-07",
+  "publishedDate": "2026-10-10",
   "contributors": 1,
   "plugins": {
     "design": {
       "commands": 24,
-      "skills": 33,
+      "skills": 34,
       "agents": 22
     },
     "flow": {
@@ -15,7 +15,7 @@
       "agents": 12
     },
     "maude": {
-      "subcommands": 26
+      "subcommands": 27
     }
   },
   "pageUpdated": {
@@ -84,7 +84,7 @@
     "design/categories.mdx": "2026-07-28",
     "design/index.mdx": "2026-09-13",
     "design/multi-ds.mdx": "2026-07-03",
-    "design/print.mdx": "2026-09-03",
+    "design/print.mdx": "2026-10-10",
     "design/video.mdx": "2026-07-04",
     "desktop/index.mdx": "2026-08-26",
     "flow.mdx": "2026-08-16",

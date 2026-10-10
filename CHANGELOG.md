@@ -1,5 +1,24 @@
 # @1agh/maude
 
+## 1.9.0
+
+### Minor Changes
+
+- Maude 1.9 gets ready for projects made by a newer Maude. When a project was saved by a later version, it opens view-only with a banner that says why and how to update, instead of being edited in a way the newer app would not understand. Your settings file keeps fields it doesn't know about, and a damaged settings file is set aside with a backup instead of being reset.
+
+  Exports are more reliable. SVG export works in the desktop app again. Export now follows the canvas you switched to, not the previous one. A whole-project ZIP no longer includes chat history or other per-person working files.
+
+  Several security fixes:
+
+  - Screenshots and exports render a canvas on a separate, read-only origin.
+  - Export jobs are visible only to the person who started them.
+  - Committer e-mail addresses no longer reach canvas code.
+  - The project tree no longer lists other people's session files.
+  - A few local actions now check where a request came from.
+  - `maude design curl-local` refuses browser-only headers.
+
+  Offline changes waiting to sync are now tied to their project, and a server rejection no longer blocks the queue behind it.
+
 ## 1.8.0
 
 ### Minor Changes
