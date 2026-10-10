@@ -25,6 +25,8 @@ export const CHANGE_SIGNAL_PATH = '/cell/changed';
 export const STORE_METHODS = Object.freeze([
   'state',
   'setMode',
+  'setFormat',
+  'raiseFormat',
   'markImported',
   'heads',
   'blob',
