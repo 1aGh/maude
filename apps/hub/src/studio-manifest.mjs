@@ -232,6 +232,13 @@ export const STUDIO_ROUTES = Object.freeze({
   // A source conflict is a desktop checkout's (the cell's studio projects the
   // project, it holds no candidate of a person's).
   '/_api/project/conflict': REFUSED,
+  // V2-2.5 — the studio's route table (apps/studio/routes/*.ts), scraped like the literal.
+  // The format view is a read; a cell is migrated by the hub (V2-1.12 I7), never by a
+  // member's POST; the outbox records carry personal text (C27) and a cell is multi-user.
+  // The `:param` outbox paths match no exact route or prefix here: refused default-closed.
+  '/_api/project/format': { safe: 'read', unsafe: null },
+  '/_api/project/migrate': REFUSED,
+  '/_api/outbox': REFUSED,
   // Preparing a device for offline work is a desktop's; a cell IS the copy.
   '/_api/sync/offline': REFUSED,
 

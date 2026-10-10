@@ -18,7 +18,9 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { sameOriginRead, sameOriginWrite } from '../http.ts';
+import { guardTableRoute, sameOriginRead, sameOriginWrite } from '../http.ts';
+import { allSpecs } from '../routes/index.ts';
+import { samplePath, stubDeps } from './_route-stubs.ts';
 
 const SELF = 'http://localhost:4399';
 const post = (origin?: string): Request =>
@@ -138,4 +140,51 @@ describe('CSRF Origin guard — /_api/reorder source-write route (DDR-138)', () 
     const block = src.slice(start, after === -1 ? undefined : after);
     expect(block).toContain('sameOriginWrite(req)');
   });
+});
+
+// V2-2.5 — the route table (routes/*.ts). Its handlers carry no guard of their own: the guard
+// is `guardTableRoute`, applied once where http.ts mounts the table. So the test holds every
+// spec to that guard, and http.ts to mounting the table only through it.
+describe('CSRF + DNS-rebind guard — every route-table spec (V2-2.5)', () => {
+  const httpSrc = readFileSync(fileURLToPath(new URL('../http.ts', import.meta.url)), 'utf8');
+  const SELF = 'http://localhost:4399';
+
+  /** Route modules http.ts imports directly. Only the table's own entry points may be. */
+  const routeImports = (src: string) =>
+    [...src.matchAll(/'\.\/routes\/([^']+)'/g)].map((m) => m[1] as string).sort();
+
+  test('http.ts reaches routes/ only through the table (index + table), mounted once, guarded', () => {
+    expect(routeImports(httpSrc)).toEqual(['index.ts', 'table.ts']);
+    expect(httpSrc.match(/\bmountRoutes\(/g)?.length).toBe(1);
+    expect(httpSrc).toMatch(/const tableSpecs = allSpecs\(\{[\s\S]*?\}\)\.map\(guardTableRoute\);/);
+    expect(httpSrc).toContain('const laneRoutes = mountRoutes(tableSpecs);');
+    // A planted direct import of an area module is what this guard exists to catch.
+    expect(routeImports(`${httpSrc}\nimport { x } from './routes/plant.ts';`)).toContain(
+      'plant.ts'
+    );
+  });
+
+  const specs = allSpecs(stubDeps());
+  for (const spec of specs) {
+    test(`${spec.method} ${spec.path} refuses a cross-site browser and a rebound Host`, async () => {
+      const guarded = guardTableRoute(spec);
+      const url = `${SELF}${samplePath(spec.path)}`;
+      const crossSite =
+        spec.method === 'GET'
+          ? new Request(url, { headers: { 'sec-fetch-site': 'cross-site' } })
+          : new Request(url, {
+              method: 'POST',
+              headers: { origin: 'http://evil.example', 'content-type': 'text/plain' },
+              body: '{}',
+            });
+      expect((await guarded.handle(crossSite, {})).status).toBe(403);
+      // A DNS-rebound page: no Origin / Fetch Metadata to refuse, only a foreign Host.
+      const rebound = new Request(url, {
+        method: spec.method,
+        headers: { host: 'evil.example:4399' },
+        ...(spec.method === 'GET' ? {} : { body: '{}' }),
+      });
+      expect((await guarded.handle(rebound, {})).status).toBe(403);
+    });
+  }
 });

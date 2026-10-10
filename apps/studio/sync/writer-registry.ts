@@ -18,8 +18,20 @@
 //                 CAS journal (DDR-226), not the canvas kernel (DDR-241 §8).
 //   git         — operates on the checkout's Git graph; never a project action.
 //   local       — this machine only: credentials, caches, jobs, activity, UI.
+//   migration   — a whole-project format rewrite (V2-1.12): all-or-nothing, after the
+//                 hub's format flip; peers get the rewritten files like an outside edit.
+//
+// Every route in routes/*.ts (the V2-2.5 table) is listed here too: the test scrapes
+// http.ts AND routes/*.ts, so a table route cannot ship unclassified either.
 
-export type WriterClass = 'read' | 'lane' | 'structural' | 'file-plane' | 'git' | 'local';
+export type WriterClass =
+  | 'read'
+  | 'lane'
+  | 'structural'
+  | 'file-plane'
+  | 'git'
+  | 'local'
+  | 'migration';
 
 export interface WriterEntry {
   class: WriterClass;
@@ -254,4 +266,15 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/ui-prefs': { class: 'local' },
   '/_api/workspace/disclosure': { class: 'local' },
   '/_api/workspace/sign-in': { class: 'local' },
+  // --- the V2-2.5 table (routes/*.ts) — classified by the lead (decision v2-2.5 classification)
+  '/_api/outbox': { class: 'read' }, // routes/outbox.ts: the queue's view
+  '/_api/outbox/:id': { class: 'read' },
+  '/_api/outbox/:id/cancel': { class: 'local' }, // this machine's queue (_state/outbox)
+  '/_api/outbox/:id/retry': { class: 'local' },
+  '/_api/project/format': { class: 'read' }, // routes/project-format.ts
+  '/_api/project/migrate': {
+    class: 'migration',
+    via: 'the migrate engine rewrites files after the hub format flip (V2-1.12 §5.10 I7, all-or-nothing with its own snapshot); peers receive the rewritten files through the file plane / watcher import like any outside edit',
+    test: 'test/format-mixed-peer.test.ts',
+  },
 };

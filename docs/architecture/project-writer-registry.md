@@ -1,9 +1,11 @@
 # Project persistent writer registry
 
 **Executable half (2026-09-15):** [`apps/studio/sync/writer-registry.ts`](../../apps/studio/sync/writer-registry.ts)
-classifies every `/_api/*` route the studio serves as `read`, `lane`,
-`structural`, `file-plane`, `git` or `local`, naming for each lane/structural
-writer how it travels in accepted-revisions mode and the test that proves it;
+classifies every `/_api/*` route the studio serves (http.ts and the V2-2.5 route
+table, `apps/studio/routes/*.ts`) as `read`, `lane`, `structural`, `file-plane`,
+`git`, `local` or `migration` (a whole-project format rewrite, V2-1.12 — today only
+`POST /_api/project/migrate`), naming for each lane/structural/migration writer how
+it travels in accepted-revisions mode and the test that proves it;
 `test/sync-writer-registry.test.ts` fails for an unclassified or stale route.
 Runtime tripwires back it: the accepted-replica write counter
 (`acceptedWriteViolations`), the hub's per-message read-only fence, and the

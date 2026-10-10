@@ -17,7 +17,8 @@
 // below exists exactly to catch a regex that silently stops matching.
 
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -29,11 +30,21 @@ const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const HTTP_TS = join(REPO, 'apps', 'studio', 'http.ts');
 const WORKSPACE_TS = join(REPO, 'apps', 'studio', 'workspace-mode.ts');
 
-/** Route keys declared in the studio's `routes` object literal. */
-function studioRouteKeys() {
-  const src = readFileSync(HTTP_TS, 'utf8');
+/**
+ * Route keys declared in the studio's `routes` object literal, plus every EXACT spec `path:`
+ * in its route table (`apps/studio/routes/*.ts`, V2-2.5) — a route added there is served
+ * in a cell like one in http.ts. `:param` spec paths are left out: like the fall-through's
+ * dynamic routes they match no exact entry here and are refused default-closed.
+ */
+function studioRouteKeys(studioDir = join(REPO, 'apps', 'studio')) {
+  const src = readFileSync(join(studioDir, 'http.ts'), 'utf8');
   const keys = new Set();
   for (const m of src.matchAll(/^ {4}'(\/[^']*)':/gm)) keys.add(m[1]);
+  const tableDir = join(studioDir, 'routes');
+  for (const f of readdirSync(tableDir).filter((n) => n.endsWith('.ts'))) {
+    const table = readFileSync(join(tableDir, f), 'utf8');
+    for (const m of table.matchAll(/\bpath:\s*'(\/[^':]*)'/g)) keys.add(m[1]);
+  }
   return [...keys].sort();
 }
 
@@ -54,6 +65,24 @@ test('the route-key scrape still finds the studio table', () => {
   assert.ok(keys.length > 80, `expected the studio route table, scraped ${keys.length} keys`);
   assert.ok(keys.includes('/_config'), 'the scrape must see /_config');
   assert.ok(keys.includes('/_health'), 'the scrape must see /_health');
+  // V2-2.5 — and the route table beside it.
+  assert.ok(keys.includes('/_api/project/migrate'), 'the scrape must see routes/*.ts');
+});
+
+test('the route-key scrape sees a route planted in the studio route table (V2-2.5)', () => {
+  const studio = mkdtempSync(join(tmpdir(), 'studio-manifest-'));
+  mkdirSync(join(studio, 'routes'));
+  writeFileSync(
+    join(studio, 'http.ts'),
+    "  const legacyRoutes = {\n    '/_api/legacy-x': () => null,\n"
+  );
+  writeFileSync(
+    join(studio, 'routes', 'plant.ts'),
+    "[{ method: 'POST', path: '/_api/planted', origin: 'main' },\n" +
+      " { method: 'GET', path: '/_api/planted/:id', origin: 'main' }]\n"
+  );
+  // The exact path is seen; the `:param` one is default-closed, so it is not a key.
+  assert.deepEqual(studioRouteKeys(studio), ['/_api/legacy-x', '/_api/planted']);
 });
 
 test('every route a cell serves is classified', () => {
@@ -96,9 +125,24 @@ test('a write-classified route is never a GET-only handler (the edit-scope inver
   const getOnly = (b) =>
     /req\.method !== 'GET'\)?\s*return new Response\('Method not allowed'/.test(b);
 
+  // V2-2.5 — a table route (apps/studio/routes/*.ts) declares its methods: it is GET-only when
+  // every spec for its path says `method: 'GET'`.
+  const tableMethods = new Map();
+  const tableDir = join(REPO, 'apps', 'studio', 'routes');
+  for (const f of readdirSync(tableDir).filter((n) => n.endsWith('.ts'))) {
+    const t = readFileSync(join(tableDir, f), 'utf8');
+    for (const m of t.matchAll(/method:\s*'([A-Z]+)',\s*path:\s*'([^']+)'/g))
+      tableMethods.set(m[2], [...(tableMethods.get(m[2]) ?? []), m[1]]);
+  }
+
   const inverted = [];
   for (const [path, cls] of Object.entries(STUDIO_ROUTES)) {
     if (cls === null || cls === undefined) continue;
+    const methods = tableMethods.get(path);
+    if (methods) {
+      if (cls.unsafe && cls.safe === null && methods.every((m) => m === 'GET')) inverted.push(path);
+      continue;
+    }
     const body = bodyOf(path);
     if (!body) continue; // dynamic / fetch-served — not an exact route literal
     if (cls.unsafe && cls.safe === null && getOnly(body)) inverted.push(path);
