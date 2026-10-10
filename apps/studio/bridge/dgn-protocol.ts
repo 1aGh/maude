@@ -225,8 +225,6 @@ export interface ShellToCanvas {
     freeze?: boolean;
   };
   'op-toast': { message: string };
-  undo: Empty;
-  redo: Empty;
   'tool-set': { tool: ToolId };
   // annotations / media
   'insert-sticker': { path: string; follow?: boolean };
@@ -858,24 +856,6 @@ const s2c: S2C = {
     status: 'live',
     owner: CS,
     parse: p({ message: str }),
-  },
-  // The v1 lanes V2-2.4 retired for run-action. One dynamic sender is left (`{dgn: dir}`,
-  // use-palette-and-panels onUndoRedo — the inspector knobs' ⌘Z) and no canvas handler.
-  undo: {
-    gate: 'any',
-    target: 'parent',
-    status: 'legacy',
-    owner: CS,
-    orphan: 'no-handler',
-    parse: none,
-  },
-  redo: {
-    gate: 'any',
-    target: 'parent',
-    status: 'legacy',
-    owner: CS,
-    orphan: 'no-handler',
-    parse: none,
   },
   'tool-set': { gate: 'parent', status: 'live', owner: 'use-tool-mode', parse: p({ tool: str }) },
   'insert-sticker': {

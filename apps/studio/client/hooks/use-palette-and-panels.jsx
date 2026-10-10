@@ -437,7 +437,15 @@ export function usePaletteAndPanels({
           onSetArtboardPrint={setArtboardPrintShell}
           onDuplicateArtboard={duplicateArtboardShell}
           editScope={editScope}
-          onUndoRedo={(dir) => postToActiveCanvas({ dgn: dir })}
+          onUndoRedo={(dir) =>
+            // V2-2.4 retired the canvas's `undo`/`redo` lanes for run-action; the inspector
+            // knobs' ⌘Z rides the same lane (it reached no handler after step 6 — V2-2.10).
+            postToActiveCanvas({
+              dgn: 'run-action',
+              v: 1,
+              id: dir === 'redo' ? 'edit.redo' : 'edit.undo',
+            })
+          }
           photoSel={photoSel}
           photoRev={photoRev}
           onPhotoEdit={onPhotoEdit}

@@ -4,7 +4,7 @@
 // inline scripts and lists each `dgn` type with its send and handle sites. This test holds the
 // table (apps/studio/bridge/dgn-protocol.ts) to it: every literal in the sources is a table row
 // with the direction the code uses; every live row still has a sender and a handler (or declares
-// the orphan); the only dynamic send sites are the two the table resolves by hand.
+// the orphan); the only dynamic send sites are the ones the table resolves by hand.
 
 import { describe, expect, test } from 'bun:test';
 import { resolve } from 'node:path';
@@ -33,13 +33,10 @@ const C2S = DGN_TABLE.c2s as Record<string, { status: string; orphan?: string; g
 const S2C = DGN_TABLE.s2c as Record<string, { status: string; orphan?: string; gate: string }>;
 const spec = (t: string) => C2S[t] ?? S2C[t];
 
-/** Dynamic send sites the table resolves by hand: `{dgn: dir}` → undo | redo (the inspector
- *  knobs' ⌘Z), `bridgeRequest(reqDgn, resDgn)` → export(-history)-request. */
+/** Dynamic send sites the table resolves by hand: `bridgeRequest(reqDgn, resDgn)` →
+ *  export(-history)-request. (The inspector knobs' ⌘Z used to send `{dgn: dir}`; it is the
+ *  run-action lane now — a stray dynamic `undo`/`redo` send fails here.) */
 const DYNAMIC: Record<string, { file: string; resolves: string[] }> = {
-  '<dynamic:dir>': {
-    file: 'apps/studio/client/hooks/use-palette-and-panels.jsx',
-    resolves: ['undo', 'redo'],
-  },
   '<dynamic:reqDgn>': {
     file: 'apps/studio/export-dialog.tsx',
     resolves: ['export-request', 'export-history-request'],
@@ -124,7 +121,7 @@ describe('dgn table ↔ sources (T1)', () => {
     expect(sentEarly).toEqual([]);
   });
 
-  test('the only dynamic send sites are the two the table resolves by hand', () => {
+  test('the only dynamic send sites are the ones the table resolves by hand', () => {
     const dyn = inv.rows.filter((r) => r.dynamic);
     expect(dyn.map((r) => r.type).sort()).toEqual(Object.keys(DYNAMIC).sort());
     for (const r of dyn) {
