@@ -68,23 +68,35 @@ export interface HubFormatCache {
   formatVersion: number;
   epoch: number;
   seenAt: string;
+  /** SUPPORTED_FORMAT of the build that wrote the record (absent = an older build). */
+  writtenBy?: number;
 }
 
 const normHub = (u: string) => u.replace(/\/+$/, '');
 
 /** The cached hub format for THIS link, or null (absent, unreadable, or a
  *  cache left by another hub — a relink starts from nothing). */
-export function readHubFormatCache(designRoot: string, hubUrl: string): HubFormatCache | null {
+export function readHubFormatCache(
+  designRoot: string,
+  hubUrl: string,
+  env: Record<string, string | undefined> = process.env
+): HubFormatCache | null {
+  // A cell's own hub keeps the mirror in ITS data dir and points the studio
+  // child at it (MAUDE_HUB_FORMAT_FILE) — never inside the tenant's checkout.
+  const file =
+    hubUrl === CELL_SELF_HUB
+      ? env.MAUDE_HUB_FORMAT_FILE || null
+      : path.join(designRoot, HUB_FORMAT_REL);
+  if (!file) return null;
   try {
-    const raw = JSON.parse(
-      readFileSync(path.join(designRoot, HUB_FORMAT_REL), 'utf8')
-    ) as Partial<HubFormatCache>;
+    const raw = JSON.parse(readFileSync(file, 'utf8')) as Partial<HubFormatCache>;
     if (typeof raw?.hub !== 'string' || normHub(raw.hub) !== normHub(hubUrl)) return null;
     return {
       hub: raw.hub,
       formatVersion: asFormat(raw.formatVersion),
       epoch: typeof raw.epoch === 'number' ? raw.epoch : 0,
       seenAt: typeof raw.seenAt === 'string' ? raw.seenAt : '',
+      ...(typeof raw.writtenBy === 'number' ? { writtenBy: raw.writtenBy } : {}),
     };
   } catch {
     return null;
@@ -104,6 +116,8 @@ export function noteHubFormat(
   seen: { hub: string; formatVersion: number; epoch?: number },
   opts: { now?: () => Date; allowLower?: boolean } = {}
 ): boolean {
+  // The cell's mirror belongs to its hub; the child only reads it.
+  if (seen.hub === CELL_SELF_HUB) return false;
   const cur = readHubFormatCache(designRoot, seen.hub);
   const next = asFormat(seen.formatVersion);
   if (cur && !opts.allowLower && next <= cur.formatVersion) return false;
@@ -115,6 +129,9 @@ export function noteHubFormat(
     formatVersion: next,
     epoch: seen.epoch ?? cur?.epoch ?? 0,
     seenAt: (opts.now?.() ?? new Date()).toISOString(),
+    // Which build wrote it: a newer build seeing a mirror written by an older
+    // one has not seen the flip with its own eyes (§5.9 first sight).
+    writtenBy: SUPPORTED_FORMAT,
   };
   writeFileSync(`${file}.tmp`, `${JSON.stringify(rec)}\n`);
   renameSync(`${file}.tmp`, file);

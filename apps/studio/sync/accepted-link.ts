@@ -37,6 +37,8 @@ export interface AcceptedLinkOptions {
   fetchImpl?: typeof fetch;
   /** V2-1.12 §5.6 — hold proposals in the outbox while format-gated. */
   paused?: () => boolean;
+  /** V2-1.12 §5.4 — the format a proposal is WRITTEN in (recorded per entry). */
+  declaredFormat?: () => number;
   log?: Pick<Console, 'log' | 'warn' | 'error'>;
   onPending?: (count: number) => void;
   onStats?: (stats: TransactionStats) => void;
@@ -70,6 +72,7 @@ export function createAcceptedLink(opts: AcceptedLinkOptions) {
       designRoot: opts.designRoot,
       fetchImpl: opts.fetchImpl,
       ...(opts.paused ? { paused: opts.paused } : {}),
+      ...(opts.declaredFormat ? { declaredFormat: opts.declaredFormat } : {}),
       log,
       onPending: opts.onPending,
       onStats: opts.onStats,

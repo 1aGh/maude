@@ -141,7 +141,10 @@ function firstSightRow(d: ColdStartDecision): ColdStartDecision {
         'format flip, first sight — the hub holds no body; local kept on disk, nothing pushed',
     };
   }
-  if (d.action === 'conflict' || d.action === 'recover-seed-dup') {
+  // `recover-seed-dup` stands: it collapses a doubled body to the one copy the
+  // hub already holds (no new bytes), and turning it into a hub-wins would
+  // write the doubled, unbuildable body to disk (agent.ts keeps it a collapse).
+  if (d.action === 'conflict') {
     return {
       action: 'conflict',
       winner: 'hub',

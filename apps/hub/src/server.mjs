@@ -734,7 +734,14 @@ export function createHub(config = {}) {
   };
   const studioEnv =
     Object.keys(studioEnvExtra).length > 0 ? { ...process.env, ...studioEnvExtra } : undefined;
-  const studio = studioEnabled ? createStudioChild(studioEnv ? { env: studioEnv } : {}) : null;
+  /** The project format, handed to the studio child (hub-owned path). */
+  const studioFormatFile = studioEnabled ? join(dataDir, 'project-format.json') : null;
+  const studio = studioEnabled
+    ? createStudioChild({
+        ...(studioEnv ? { env: studioEnv } : {}),
+        formatFile: studioFormatFile,
+      })
+    : null;
   const studioProxy = studioEnabled
     ? createStudioProxy({
         upstream: () => studio.status(),
@@ -2262,18 +2269,19 @@ export function createHub(config = {}) {
     // V2-1.12 §5.2 — a hub with a checkout tells ITS OWN studio child the
     // project format: the child gates (view only, the banner) from
     // `_state/hub-format.json` under the `cell:self` key, paired or not.
+    // V2-1.12 §5.2 — a hub that supervises a studio child tells IT the
+    // project format, through a file in the HUB's own data dir (never the
+    // tenant's checkout, DDR-054) that the child is pointed at by env.
     onFormat: (formatVersion, epoch) => {
-      if (!workspaceMode || !journalDesignRoot) return;
-      const dir = join(journalDesignRoot, '_state');
-      const file = join(dir, 'hub-format.json');
-      const tmp = `${file}.${process.pid}.tmp`;
+      if (!studioFormatFile) return;
+      const tmp = `${studioFormatFile}.${randomBytes(8).toString('hex')}.tmp`;
       try {
-        mkdirSync(dir, { recursive: true });
         writeFileSync(
           tmp,
-          `${JSON.stringify({ hub: 'cell:self', formatVersion, epoch, seenAt: new Date().toISOString() })}\n`
+          `${JSON.stringify({ hub: 'cell:self', formatVersion, epoch, seenAt: new Date().toISOString() })}\n`,
+          { flag: 'wx', mode: 0o644 }
         );
-        renameSync(tmp, file);
+        renameSync(tmp, studioFormatFile);
       } catch (err) {
         console.warn(`[hub] could not hand the project format to the studio: ${err.message}`);
       }
@@ -2319,7 +2327,11 @@ export function createHub(config = {}) {
     // can raise the project, never lower it (only the owner's flip does).
     .then(() => {
       const fmt = checkoutFormatVersion();
-      return fmt > 1 ? accepted.seedFormat(fmt) : null;
+      return fmt > 1
+        ? accepted.seedFormat(fmt).catch((err) => {
+            console.error(`[transactions] format seed failed: ${err.message}`);
+          })
+        : null;
     })
     // A switch that died mid-import is finished before anything reconciles.
     .then(() => accepted.resumeImport())

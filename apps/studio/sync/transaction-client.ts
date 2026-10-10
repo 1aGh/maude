@@ -71,6 +71,8 @@ interface OutboxEntry {
   label: string;
   /** The action, so an epoch-stale entry can be rebased as a new transaction. */
   action?: OutboxAction;
+  /** V2-1.12 §5.4 — the file format the entry was written in (absent = undeclared). */
+  format?: number;
   /** Written before the project id was known; bound (once) before sending. */
   unbound?: boolean;
   /**
@@ -107,6 +109,12 @@ export interface TransactionClientOptions {
    * project now uses a format this build does not write.
    */
   paused?: () => boolean;
+  /**
+   * V2-1.12 §5.4 — the format a proposal is written in, RECORDED on the entry
+   * when it is made and declared when it is sent: an edit made under one build
+   * is never relabelled by the next one.
+   */
+  declaredFormat?: () => number;
   log?: Pick<Console, 'log' | 'warn' | 'error'>;
   deviceId?: string;
   /** Status hook — how many actions are waiting for acceptance. */
@@ -214,18 +222,19 @@ export function createTransactionClient(opts: TransactionClientOptions) {
     opts.onStats?.(stats());
   };
 
-  function headers(): Record<string, string> {
+  function headers(format?: number): Record<string, string> {
     const token = opts.token();
     return {
       'content-type': 'application/json',
       ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...(typeof format === 'number' ? { 'x-maude-format': String(format) } : {}),
     };
   }
 
-  async function request(method: string, route: string, body?: string) {
+  async function request(method: string, route: string, body?: string, format?: number) {
     const res = await fetchImpl(`${base}/api/projects/${projectId ?? 'current'}/v1/${route}`, {
       method,
-      headers: headers(),
+      headers: headers(format),
       ...(body !== undefined ? { body } : {}),
       signal: AbortSignal.timeout(20_000),
     });
@@ -344,7 +353,7 @@ export function createTransactionClient(opts: TransactionClientOptions) {
             return known.json as ProposalResult;
           }
         }
-        const { status, json } = await request('POST', 'proposals', entry.bytes);
+        const { status, json } = await request('POST', 'proposals', entry.bytes, entry.format);
         // Not an answer about the change — about who is asking. Kept and
         // retried (a new sign-in supplies a new token), and said out loud.
         if (status === 401) {
@@ -359,6 +368,14 @@ export function createTransactionClient(opts: TransactionClientOptions) {
           setCredentialRefused(false);
           if (result.status === 'rejected' && (result.code === 'retryable' || status >= 500)) {
             throw new TransactionError('hub asked to retry', 'retryable');
+          }
+          // V2-1.12 §5.4 — refused for its FORMAT: final, but the bytes are a
+          // person's edit, so they are kept aside (recovery), never deleted.
+          if (result.status === 'rejected' && result.code === 'format') {
+            log.warn(
+              `[sync/tx] ${entry.label}: the project now uses another file format; kept aside, not sent`
+            );
+            return park(file, entry, 'format');
           }
           rmSync(file, { force: true });
           return result;
@@ -417,6 +434,7 @@ export function createTransactionClient(opts: TransactionClientOptions) {
       label: action.label,
       action,
       link: linkId,
+      ...(opts.declaredFormat ? { format: opts.declaredFormat() } : {}),
       ...(projectId === null ? { unbound: true } : { projectId }),
     };
   }

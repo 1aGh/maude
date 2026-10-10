@@ -265,13 +265,15 @@ export async function migrateSeed(opts: MigrateSeedOptions): Promise<MigrateSeed
 
   // Body resolution via the DDR-102 decision table.
   const docHtml = doc.getText(Y_SYNC_TYPES.html).toString();
+  // V2-1.12 §5.9 — asked ONCE per cold start, used by every lane below.
+  const firstSight = opts.formatFirstSight?.() === true;
   const decision = decideColdStart({
     localBody: localHtml,
     docBody: docHtml,
     journalHash: opts.journal?.get(slug)?.bodyHash ?? null,
     localMtimeMs: localMtimeMs(paths.html),
     docBodyEditAtMs: bodyEditAtFromDoc(doc),
-    formatFirstSight: opts.formatFirstSight?.() === true,
+    formatFirstSight: firstSight,
   });
 
   /** Rebuild body (+ visually-coupled css) from local, in ONE MIGRATION
@@ -370,7 +372,7 @@ export async function migrateSeed(opts: MigrateSeedOptions): Promise<MigrateSeed
       localMtimeMs: localMtimeMs(paths.annotations),
       docEditAtMs: annotationsEditAtFromDoc(doc),
       bodyWinner: applied.bodyWinner,
-      formatFirstSight: opts.formatFirstSight?.() === true,
+      formatFirstSight: firstSight,
     });
     if (annDecision.winner === 'local' && localAnnotations !== null) {
       console.warn(`[sync/${slug}] shared-doc cold-start annotations: ${annDecision.reason}`);
@@ -402,7 +404,7 @@ export async function migrateSeed(opts: MigrateSeedOptions): Promise<MigrateSeed
       journalHash: opts.journal?.get(slug)?.cssHash ?? null,
       hash: hashBytes,
       bodyWinner: applied.bodyWinner,
-      formatFirstSight: opts.formatFirstSight?.() === true,
+      formatFirstSight: firstSight,
     });
     if (cssDecision.recoveredDuplication) {
       // Warn, don't snapshot — see the note on the same branch in agent.ts
