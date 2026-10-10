@@ -110,6 +110,7 @@ const NOT_AUTO = [
   'maude design photo-bg-remove x.png',
   'maude design init --force',
   'maude design ds-upgrade apply',
+  'maude design export png --out ~/Downloads/x.png',
   'maude design bulk-deletes',
   'maude design link https://hub.example',
   'maude design adopt',

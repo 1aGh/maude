@@ -13,6 +13,7 @@ import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { parseArgs } from '../lib/argv.mjs';
+import { outputViolation, violationMessage } from '../lib/confine-out.mjs';
 import {
   runAdopt,
   runBulkDeletes,
@@ -306,6 +307,13 @@ function runBinDispatch(verb, { args, pkgRoot }) {
     process.exit(1);
   }
   const rest = args.slice(args.indexOf(verb) + 1); // everything after the verb token
+  // V2-2.8 S4 (contract V2-1.11 §5.3): an output flag lands inside the project or the temp
+  // dir, never anywhere else. Auto-tier verbs run without a prompt in the AI chat.
+  const outside = outputViolation(rest);
+  if (outside) {
+    process.stderr.write(violationMessage(verb, outside));
+    process.exit(2);
+  }
   const childEnv = { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot };
   // For verbs that boot the dev-server, resolve the compiled platform binary the
   // SAME way `maude design serve` does and hand the path down. The binary embeds

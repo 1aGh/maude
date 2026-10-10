@@ -78,7 +78,9 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('import-tokens', 'project'),
   d('ingest-footage', 'project'),
   d('photo-adjust', 'project'),
-  d('export', 'project'),
+  d('export', 'project', {
+    hold: '--out is not confined: /design:export documents `--out ~/Downloads/…` — lead decision',
+  }),
   d('ds-check', 'project', { note: '--fix=mechanical / --emit write canvases / tokens.json' }),
   // ── `maude design`, prompt ────────────────────────────────────────────────────────────────
   d('curl-local', 'external', { note: 'any method/body against any loopback port: every route' }),
