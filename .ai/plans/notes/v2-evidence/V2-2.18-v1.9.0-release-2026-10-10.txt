@@ -22,3 +22,14 @@ v1.9.0 post-release verification, 2026-10-10 20:22 CEST
 https://alligators.cloud.maude.sh/health -> {"ok":true,"version":"1.9.0","releaseVersion":"1.9.0","uptimeMs":262053,"port":1234,"tokenCount":229,"authMode":"tokens","identity":{"mode":"hybrid","localDoor"
 https://render.cloud.maude.sh/_health -> {"ok":true,"app":"maude-render","version":"v1.9.0","configured":true,"running":0,"queued":0}
 canvas-alligators -> 401
+
+## CI (tag v1.9.0 + release commit 4c8aa55a on main) — all success
+Quality (main) · Version parity · build-binaries (7 platforms, desktop blank-window gates, publish-main: + @1agh/maude@1.9.0 with provenance) · build-desktop · hub-image · cells-deploy (verify-fleet-release: live cell at 1.9.0 + client bundle seal) · render-deploy · self-host images
+npm: dist-tags latest = 1.9.0 · GitHub Release v1.9.0: draft=false, prerelease=false, 15 assets
+render-canary (workflow_dispatch run 38075445832): Production service posture = success, Shipped image renders a PNG end-to-end = success
+
+## Compatibility (before the tag)
+team-project lane — v1.8.1 debug client (built from main 8482c9f6) vs the 1.9.0 hub fixture: 10/10 passing (wdio exit 1 = onComplete rmSync ENOTEMPTY of its temp dir, harness cleanup)
+v1.9.0 debug build: bundle completeness --smoke + client-boots green
+Default desktop lane: export-formats / report-bug-dialog / share-link fail IDENTICALLY on v1.8.1 (production) and v1.9.0 (screen unlocked, Mac idle) and pass on feat — pre-existing on 1.x, not a regression; acp-write-scope fails on 1.x for the known P3 reason (test-side fix is on feat only).
+Release-tree gates: doctor, build, format, lint, parity, site-content, tarball, tokens, typecheck, tests; pnpm test cli 413 / hub 1222 / harness 27.
