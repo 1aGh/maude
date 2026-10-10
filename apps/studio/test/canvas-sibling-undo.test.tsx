@@ -17,7 +17,7 @@ import { act, createRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { CanvasShell } from '../canvas-shell.tsx';
 import { ToolProvider, useToolMode } from '../use-tool-mode.tsx';
-import { UndoStackProvider } from '../use-undo-stack.tsx';
+import { UndoStackContext, UndoStackProvider } from '../use-undo-stack.tsx';
 
 // The standalone shell opens its unrelated AI-notice socket and export list.
 const NativeResponse = globalThis.Response;
@@ -56,7 +56,10 @@ function ToolReader() {
 const toolNow = () =>
   document.querySelector('[data-testid="tool-probe"]')?.getAttribute('data-tool') ?? null;
 
-async function withShell(run: (messages: Array<Record<string, unknown>>) => Promise<void>) {
+async function withShell(
+  run: (messages: Array<Record<string, unknown>>) => Promise<void>,
+  undo?: Record<string, unknown>
+) {
   const host = document.createElement('div');
   document.body.append(host);
   const root = createRoot(host);
@@ -70,15 +73,31 @@ async function withShell(run: (messages: Array<Record<string, unknown>>) => Prom
       root.render(
         <ToolProvider initial="move">
           <UndoStackProvider>
-            <ToolReader />
-            <div ref={canvasRef}>
-              <CanvasShell hostRef={canvasRef}>
-                <div data-dc-screen="main">
-                  <h1 data-cd-id="heading">Title</h1>
-                  <p data-cd-id="body">Body</p>
+            {undo ? (
+              <UndoStackContext.Provider value={undo as never}>
+                <ToolReader />
+                <div ref={canvasRef}>
+                  <CanvasShell hostRef={canvasRef}>
+                    <div data-dc-screen="main">
+                      <h1 data-cd-id="heading">Title</h1>
+                      <p data-cd-id="body">Body</p>
+                    </div>
+                  </CanvasShell>
                 </div>
-              </CanvasShell>
-            </div>
+              </UndoStackContext.Provider>
+            ) : (
+              <>
+                <ToolReader />
+                <div ref={canvasRef}>
+                  <CanvasShell hostRef={canvasRef}>
+                    <div data-dc-screen="main">
+                      <h1 data-cd-id="heading">Title</h1>
+                      <p data-cd-id="body">Body</p>
+                    </div>
+                  </CanvasShell>
+                </div>
+              </>
+            )}
           </UndoStackProvider>
         </ToolProvider>
       );
@@ -135,30 +154,39 @@ describe('canvas-shell honours shell→canvas lanes only from window.parent (V2-
   });
 
   test('undo / redo: no sibling path reaches the active canvas undo stack', async () => {
-    await withShell(async (messages) => {
-      const applies = () => messages.filter((m) => m.dgn === 'apply-edit').length;
-      // The shell records an applied CSS edit onto the in-canvas stack (parent-gated already).
-      await send(window.parent, {
-        dgn: 'record-edit',
-        payload: {
-          op: 'css',
-          canvas: 'ui/Gate.tsx',
-          id: 'heading',
-          key: 'color',
-          before: 'red',
-          after: 'blue',
-        },
-      });
-      // A sibling: the retired v1 lanes and the run-action lane do nothing.
+    // A counting stand-in for the in-canvas stack (a real undo re-renders through a portal that
+    // happy-dom rejects once an earlier test file in the same process has left its window behind).
+    const calls: string[] = [];
+    const stack = {
+      push: () => Promise.resolve(),
+      record: () => {},
+      undo: async () => {
+        calls.push('undo');
+      },
+      redo: async () => {
+        calls.push('redo');
+      },
+      clear: () => {},
+      canUndo: true,
+      canRedo: true,
+      lastLabel: null,
+      lastTick: 0,
+    };
+    await withShell(async () => {
+      // A sibling: the retired v1 lanes and the run-action lane reach nothing.
       await send(sibling, { dgn: 'undo' });
       await send(sibling, { dgn: 'redo' });
       await send(sibling, { dgn: 'run-action', v: 1, id: 'edit.undo' });
+      await send(sibling, { dgn: 'run-action', v: 1, id: 'edit.redo' });
+      await send(null, { dgn: 'run-action', v: 1, id: 'edit.undo' });
+      // The retired lane from the parent: no handler is left for it either.
       await send(window.parent, { dgn: 'undo' });
-      expect(applies()).toBe(0);
-      // The shell itself: the stack undoes (posts the inverse apply-edit to the shell).
+      expect(calls).toEqual([]);
+      // The shell itself, on the run-action lane: the stack undoes, then redoes.
       await send(window.parent, { dgn: 'run-action', v: 1, id: 'edit.undo' });
-      expect(applies()).toBe(1);
-    });
+      await send(window.parent, { dgn: 'run-action', v: 1, id: 'edit.redo' });
+      expect(calls).toEqual(['undo', 'redo']);
+    }, stack);
   });
 });
 

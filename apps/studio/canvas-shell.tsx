@@ -38,6 +38,7 @@ import {
 
 import { AiBanner } from './ai-banner.tsx';
 import { AnnotationsLayer } from './annotations-layer.tsx';
+import { canvasMayHandle } from './bridge/dgn-protocol.ts';
 import { ArtboardMarqueeOverlay } from './artboard-marquee.tsx';
 import { HUD_TOKENS_CSS } from './canvas-hud-tokens.gen.ts';
 import {
@@ -2717,6 +2718,9 @@ function CanvasRouter({
     const onMessage = (e: MessageEvent) => {
       const m = e.data as { dgn?: string } | null;
       if (!m || typeof m !== 'object' || !m.dgn) return;
+      // V2-2.10 — the typed table's gate for every shell→canvas type this listener
+      // handles (bridge/dgn-protocol.ts; the branches keep their own checks).
+      if (!canvasMayHandle(e, window)) return;
       if (m.dgn === 'force-clear' || m.dgn === 'select-clear') {
         selSet.clear();
         annotSel.clear();

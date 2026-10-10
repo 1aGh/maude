@@ -136,6 +136,15 @@ describe('canvas→shell messages that act on the active canvas (V2-2.8 S1, shel
     expect(calls.length).toBe(0);
   });
 
+  test('V2-2.10 — every active-gated type refuses null === null (no canvas open, discarded source)', async () => {
+    // present-enter / delete-request compared `e.source === activeWin` without `activeWin &&`:
+    // with no active canvas both sides are null. The table's one up-front gate closes it.
+    const present: unknown[] = [];
+    await mount(null, { setPresentMode: (v: unknown) => present.push(v) });
+    post(null, { dgn: 'present-enter' });
+    expect(present).toEqual([]);
+  });
+
   test('tool-cursor: only the active frame repaints the app cursor', async () => {
     await mount(ACTIVE, {});
     post(backgroundWin, { dgn: 'tool-cursor', tool: 'hand' });

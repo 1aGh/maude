@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SYSTEM_TAB, isModuleCanvasPath } from '../shell/constants.js';
 import { acceptCanvasNotice } from '../../canvas-notice-message.ts';
+import { C2S_ACTIVE } from '../../bridge/dgn-protocol.ts';
 import { notifyCanvasText } from '../../notifications.tsx';
 import { browseFirstRunHint, layersTreeSig } from '../shell/util.js';
 import { resolveToolCursor } from '../../canvas-cursors.ts';
@@ -22,17 +23,6 @@ import { downloadCapturedBlob } from '../dialogs/export-dialog.jsx';
 import { moveLayerNode } from '../inspector/layers.jsx';
 import { SCREEN_PRESETS, replacedValue } from '../inspector/css-vocab.jsx';
 import { PAPER_PRESETS, resolvePrintArtboard } from '../../print/units.ts';
-
-/** canvas→shell types honoured only from the active canvas window (V2-2.8 S1). */
-const SHELL_ACTIVE_ONLY = new Set([
-  'tool-cursor',
-  'layers-tree',
-  'open-inspector',
-  'comment-compose',
-  'comment-click',
-  'artboards',
-  'export-history-request',
-]);
 
 export function useCanvasBridge({
   activePath,
@@ -121,14 +111,15 @@ export function useCanvasBridge({
         if (notice) notifyCanvasText(notice.title, notice.kind);
         return;
       }
-      // V2-2.8 S1 (shell side, V2-1.2 §5.2 `any → active`) — these act on the
-      // canvas the user is looking at, so the origin check above (which every
-      // canvas iframe passes, DDR-054) is not enough: a background canvas must not
-      // set the selection, plant the Layers tree, open the Inspector, focus a
-      // comment, repaint the app cursor, override the artboard count or read the
-      // main-origin export history. `activeWin &&` closes `null === null` (a
+      // V2-2.10 — the typed table (bridge/dgn-protocol.ts) names every canvas→shell
+      // type gated `active`: it acts on the canvas the user is looking at, so the
+      // origin check above (which every canvas iframe passes, DDR-054) is not
+      // enough. One up-front check for all of them (V2-2.8 S1 added comment-compose,
+      // layers-tree, open-inspector, comment-click, tool-cursor, artboards and
+      // export-history-request); the branches keep their own extra conditions
+      // (modal, owns-comment, shape). `activeWin &&` closes `null === null` (a
       // discarded source with no active canvas).
-      if (SHELL_ACTIVE_ONLY.has(m.dgn)) {
+      if (C2S_ACTIVE.has(m.dgn)) {
         const activeWin =
           activePath && activePath !== SYSTEM_TAB
             ? iframesRef.current.get(activePath)?.contentWindow
