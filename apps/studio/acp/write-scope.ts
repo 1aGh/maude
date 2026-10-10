@@ -167,9 +167,10 @@ export interface WriteScopeVerdict {
  * in-project path, and prompt fatigue is itself a security failure. Equally
  * deliberately, this is a SHAPE and not a proof of completeness — the plan's own
  * recurring-enumeration warning applies here verbatim. In-project `*.sh` that the
- * helper surface executes is a known member NOT covered, because the helper
- * surface is reached via `Bash(maude:*)`, which is separately accepted as an
- * arbitrary-code-execution surface already.
+ * helper surface executes is a known member NOT covered. The helper surface used
+ * to be reached via `Bash(maude:*)`, accepted as an arbitrary-code-execution
+ * surface; since V2-2.8 S4 only auto-tier verbs are allowed (actions/verbs.ts),
+ * and the verbs that run model-authored code (`draw-build`, `to-lottie`) prompt.
  */
 export const PROTECTED_IN_PROJECT: readonly string[] = [
   '.git',

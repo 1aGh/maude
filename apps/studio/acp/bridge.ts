@@ -28,6 +28,7 @@ import {
   type SessionUpdate,
 } from '@agentclientprotocol/sdk';
 
+import { autoAllowRules } from '../actions/verbs.ts';
 import { scrubAgentEnv } from './env.ts';
 import type { SdkPluginConfig } from './plugin-bootstrap.ts';
 import {
@@ -476,13 +477,25 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | typeof TIMED_OUT
 // helper that is NOT reached via `maude design <verb>` (a brand-new top-level
 // tool) fails that test loudly instead of silently prompting the user
 // mid-workflow.
+//
+// ⚠️ SUPERSEDED (V2-2.8 S4, contract V2-1.11 §5.5). The blanket `Bash(maude:*)` the
+// bullets above describe is GONE. It auto-allowed every `maude` verb, including
+// `curl-local`, which takes any method and body against any loopback port, so one
+// auto-approved call reached every studio route: git push/discard, trash prune,
+// paid generation, sync settings. Its place is taken by one
+// `Bash(maude design <verb>:*)` rule per auto-tier verb (effect `none`/`project`)
+// plus the closed top-level read rules, generated from `actions/verbs.ts`.
+// Everything else (`curl-local`, `generate`, `draw-build`, `to-lottie`,
+// `fetch-asset`, …) falls back to Claude Code's own permission card. Maude adds
+// no ask rule (P3): a user who allows `Bash(maude:*)` in their own `~/.claude`
+// settings still gets every verb without prompts — that is their call.
 export const MAUDE_DEFAULT_ALLOWED_TOOLS: readonly string[] = [
   'Read',
   'Glob',
   'Grep',
   // NO 'Edit' / 'Write' / 'NotebookEdit' — see the comment block above. They are
   // scope-gated in `requestPermission`, not name-allowed here.
-  'Bash(maude:*)',
+  ...autoAllowRules(),
   // The read-only fs verb group (ls/cat/pwd/head/tail/wc/tree/file/stat) was
   // CUT — see the ⚠️ block above. Every one of them accepts `>`.
   'WebSearch',

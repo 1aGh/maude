@@ -76,6 +76,70 @@ describe('newSessionParams — allowedTools carrier shape (DDR-184)', () => {
   });
 });
 
+/** Claude Code's `Bash(<prefix>:*)` match: the command is the prefix, or starts with it + a space. */
+function bashRuleMatches(rule: string, cmd: string): boolean {
+  const m = /^Bash\((.*):\*\)$/.exec(rule);
+  if (!m) return rule === 'Bash' || rule === 'Bash(*)';
+  const prefix = m[1] as string;
+  return cmd === prefix || cmd.startsWith(`${prefix} `);
+}
+
+const TOP_LEVEL_READ_RULES = [
+  'Bash(maude version:*)',
+  'Bash(maude doctor:*)',
+  'Bash(maude config show:*)',
+  'Bash(maude config get:*)',
+  'Bash(maude kg context:*)',
+  'Bash(maude kg resolve:*)',
+  'Bash(maude kg doctor:*)',
+];
+
+// Prompt tier (external / shared / destructive) and human tier, contract V2-1.11 §5.3: each one
+// must show the permission card.
+const NOT_AUTO = [
+  'maude design curl-local -X POST http://127.0.0.1:4399/_api/git/push',
+  'maude design curl-local http://localhost:4399/_api/sync/trash',
+  'maude design generate --kind image --prompt x',
+  'maude design audio-search x',
+  'maude design draw-build build.ts',
+  'maude design to-lottie x.svg',
+  'maude design fetch-asset https://example.com/x.png',
+  'maude design ensure-browser',
+  'maude design transcribe x.mp4',
+  'maude design import-figma https://figma.com/file/x --explode',
+  'maude design photo-bg-remove x.png',
+  'maude design init --force',
+  'maude design ds-upgrade apply',
+  'maude design bulk-deletes',
+  'maude design link https://hub.example',
+  'maude design adopt',
+  'maude design unlink',
+  'maude design detach',
+  'maude config set quality.lint x',
+  'maude kg sync',
+  'maude hub start',
+  'maude init',
+  'maude harness',
+  'maude codex',
+  'maude cache clear',
+  'maude-safe design curl-local http://127.0.0.1:4399/_api/sync/trash',
+];
+
+const STILL_AUTO = [
+  'maude design screenshot --full',
+  'maude design prep --json',
+  'maude design server-up',
+  'maude design canvas-rects ui/x.tsx',
+  'maude design read-annotations ui/x.tsx',
+  'maude design annotate --in x',
+  'maude design ds-check --json',
+  'maude design index',
+  'maude design help',
+  'maude version',
+  'maude config get project',
+  'maude kg context --about x',
+];
+
 describe('MAUDE_DEFAULT_ALLOWED_TOOLS — source-of-truth guard (DDR-184 / DDR-062)', () => {
   const bashRules = MAUDE_DEFAULT_ALLOWED_TOOLS.filter((t) => t.startsWith('Bash'));
 
@@ -133,7 +197,38 @@ describe('MAUDE_DEFAULT_ALLOWED_TOOLS — source-of-truth guard (DDR-184 / DDR-0
     //   - the read-only fs verb group must NEVER appear — every one of them
     //     accepts `>`, making the rule an arbitrary-write grant. See the
     //     dedicated test below.
-    expect(bashRules).toEqual(['Bash(maude:*)']);
+    // V2-2.8 S4 (contract V2-1.11 §5.5): the one blanket `Bash(maude:*)` became one rule per
+    // auto-tier verb. Every Bash rule is now `Bash(maude design <verb>:*)` or one of the closed
+    // top-level read rules; nothing broader.
+    for (const r of bashRules) {
+      expect(
+        /^Bash\(maude design [a-z][a-z0-9-]*:\*\)$/.test(r) || TOP_LEVEL_READ_RULES.includes(r)
+      ).toBe(true);
+    }
+  });
+
+  // ── V2-2.8 S4: `Bash(maude:*)` let `curl-local` reach every studio route ───────────────────
+  // (the git routes, trash prune, paid generation). The blanket rule is gone; prompt and human
+  // verbs fall back to Claude Code's own permission card.
+  test('`Bash(maude:*)` is gone (V2-2.8 S4)', () => {
+    expect(MAUDE_DEFAULT_ALLOWED_TOOLS).not.toContain('Bash(maude:*)');
+    expect(MAUDE_DEFAULT_ALLOWED_TOOLS).not.toContain('Bash(maude design:*)');
+  });
+
+  test('prompt- and human-tier verbs are not auto-allowed — curl-local first (V2-2.8 S4)', () => {
+    for (const cmd of NOT_AUTO) {
+      const hit = bashRules.find((r) => bashRuleMatches(r, cmd));
+      expect({ cmd, hit }).toEqual({ cmd, hit: undefined });
+    }
+  });
+
+  test('the read-only / local design helpers stay auto-allowed (V2-2.8 S4)', () => {
+    for (const cmd of STILL_AUTO) {
+      expect({ cmd, ok: bashRules.some((r) => bashRuleMatches(r, cmd)) }).toEqual({
+        cmd,
+        ok: true,
+      });
+    }
   });
 
   test('NO redirect-capable bare-command Bash rule — `cat > file` is an arbitrary write (F1)', () => {

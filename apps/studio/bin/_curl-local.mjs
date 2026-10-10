@@ -9,8 +9,10 @@
 // "is my backend up on :3000?"). Claude Code's `Bash(prefix:*)` allowlist is a
 // plain string-prefix match with no host awareness, so a prefix-list can't
 // express "curl, but only to localhost" reliably. This verb does the real
-// check instead. Covered for free by the EXISTING `Bash(maude:*)` allow-list
-// rule — no widening of the session's Bash surface.
+// check instead. It used to be covered by the `Bash(maude:*)` allow-list rule;
+// V2-2.8 S4 made it PROMPT-tier (actions/verbs.ts) — any method and body
+// against any loopback port reaches every studio route, so it is not auto-run.
+// The loopback check below still holds for the approved call.
 //
 // SECURITY ADDENDUM, ROUND 2 — this file's FIRST hardening pass (an argv
 // allowlist over raw curl flags: reject -K/--resolve/--connect-to/etc.,
