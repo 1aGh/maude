@@ -79,7 +79,9 @@ export function useShellCore({}) {
   // over WS. The ws 'selected' broadcast is both (a) our own echo and (b) a
   // genuine cross-canvas restore; within this window it's always (a) and must
   // not overwrite fresher local state (multi-select / drill races).
-  const lastLocalSelectAtRef = useRef(0);
+  // What THIS shell last selected locally, and when — set synchronously at the select, so the
+  // server's echo is recognised even before `selectedRef` (an effect) catches up (V2-2.8 P2).
+  const lastLocalSelectRef = useRef({ at: 0, sel: null, file: null });
   const haloRestoreTimersRef = useRef([]);
   const scheduleHaloRestore = useCallback((one) => {
     if (!one?.id || !one.file) return;
@@ -1173,7 +1175,7 @@ export function useShellCore({}) {
     exportCenter, exportDialog, figmaImportOpen, firstRun, focusedCommentId, generateOpen,
     gitLifecycle, gitStatus, gitUser, groups, handleAssistantAttention, handleAssistantFinished,
     helpOpen, iframesRef, inspectorOpen, inspectorTab, introOpen, lastLayersTreeRef,
-    lastLocalSelectAtRef, layersBusyRef, layersBusyTimerRef, layersMode, layersOpen, layersTree,
+    lastLocalSelectRef, layersBusyRef, layersBusyTimerRef, layersMode, layersOpen, layersTree,
     loadServerConfig, loadedPath, loadingPath, localProjectName, markCollabSeen, markUsageSeen,
     maybeAutoOpenInspectorOnSelect, minimapVisible, onIframeLoad, onPreview, openMenu,
     openPanelExclusive, openRightPanel, paletteOpen, panelSide, pendingReorderRef, photoRev,

@@ -185,6 +185,7 @@ import { useWebSocket } from './hooks/use-web-socket.jsx';
 import { useProjectData } from './hooks/use-project-data.jsx';
 import { usePhotoAndTimeline } from './hooks/use-photo-and-timeline.jsx';
 import { useShellCore } from './hooks/use-shell-core.jsx';
+import { exportSelectionFor, isOwnSelectEcho } from './selection-scope.js';
 
 // ---------- App ----------
 
@@ -198,7 +199,7 @@ function App() {
     exportCenter, exportDialog, figmaImportOpen, firstRun, focusedCommentId, generateOpen,
     gitLifecycle, gitStatus, gitUser, groups, handleAssistantAttention, handleAssistantFinished,
     helpOpen, iframesRef, inspectorOpen, inspectorTab, introOpen, lastLayersTreeRef,
-    lastLocalSelectAtRef, layersBusyRef, layersBusyTimerRef, layersMode, layersOpen, layersTree,
+    lastLocalSelectRef, layersBusyRef, layersBusyTimerRef, layersMode, layersOpen, layersTree,
     loadServerConfig, loadedPath, loadingPath, localProjectName, markCollabSeen, markUsageSeen,
     maybeAutoOpenInspectorOnSelect, minimapVisible, onIframeLoad, onPreview, openMenu,
     openPanelExclusive, openRightPanel, paletteOpen, panelSide, pendingReorderRef, photoRev,
@@ -376,11 +377,13 @@ function App() {
             // entirely within a short window of any LOCAL selection send — a
             // genuine cross-canvas restore never follows a local select that
             // closely (it follows a canvas switch).
-            if (Date.now() - lastLocalSelectAtRef.current < 2000) return;
+            // V2-2.8 P2: the window belongs to the canvas it was opened on — a restore for ANOTHER
+            // canvas (the one we just switched to) applies, or Export targeted the old canvas.
             const incoming = m.selected;
             const one = Array.isArray(incoming) ? incoming[0] : incoming;
             const prevSel = selectedRef.current;
             const prevOne = Array.isArray(prevSel) ? prevSel[0] : prevSel;
+            if (isOwnSelectEcho(incoming, lastLocalSelectRef.current)) return;
             setSelected((prev) => mergeSelClientFields(incoming, prev));
             if (
               one?.id &&
@@ -555,7 +558,7 @@ function App() {
     setArtboardPrintShell, setArtboardStyleShell, setAssetPickerReq, setStickerPickerReq,
     stickerPickerReq
   } = useCanvasBridge({
-    activePath, selected, setSelected, selectedRef, lastLocalSelectAtRef, scheduleHaloRestore,
+    activePath, selected, setSelected, selectedRef, lastLocalSelectRef, scheduleHaloRestore,
     scheduleArtboardResync, pendingReorderRef, lastLayersTreeRef, settlePendingSelectionRef,
     reorderLayerRef, repositionElementRef, resizeElementRef, layersBusyRef, layersBusyTimerRef,
     layersTree, setLayersTree, setLoadingPath, setCanvasError, setLoadedPath, cfg, viewerMode,
@@ -1708,8 +1711,7 @@ function App() {
           // so use the tracked signals: an explicit selection wins, else the
           // viewport-active artboard canvas-lib reports on pan. Without this,
           // scope=artboard fell back to `:first-of-type` (always the first).
-          activeArtboardId={selected?.artboardId ?? canvasActiveArtboard ?? null}
-          selection={selected?.selector ? { selector: selected.selector, file: selected.file } : null}
+          {...exportSelectionFor(selected, activePath, canvasActiveArtboard)}
           exportLane={cfg.exportLane || 'local'}
           onBrowserCapture={captureFromCanvas}
           onQuerySelection={querySelectionFromCanvas}
