@@ -1,0 +1,87 @@
+{
+  "$comment": "Lead-owned (contract V2-1.11 §5.7). humanMax/pendingMax may only be lowered; raising either, or adding a humanDecisions reason, is a lead change citing a decision id.",
+  "humanMax": 51,
+  "pendingMax": 18,
+  "pending": [
+    {
+      "id": "edit.undo",
+      "package": "S1"
+    },
+    {
+      "id": "edit.redo",
+      "package": "S1"
+    },
+    {
+      "id": "select.all",
+      "package": "V2-2.4b open"
+    },
+    {
+      "id": "select.none",
+      "package": "V2-2.4b open"
+    },
+    {
+      "id": "select.all-annotations",
+      "package": "V2-2.4b open"
+    },
+    {
+      "id": "object.select-child",
+      "package": "V2-2.4b open"
+    },
+    {
+      "id": "object.select-parent",
+      "package": "V2-2.4b open"
+    },
+    {
+      "id": "object.select-next",
+      "package": "V2-2.4b open"
+    },
+    {
+      "id": "view.comments",
+      "package": "S9"
+    },
+    {
+      "id": "history.open",
+      "package": "S1"
+    },
+    {
+      "id": "present.canvas",
+      "package": "V2-2.4b open"
+    },
+    {
+      "id": "view.zoom-to-artboard",
+      "package": "V2-2.4b open"
+    },
+    {
+      "id": "view.jump-artboard",
+      "package": "V2-2.4b open"
+    },
+    {
+      "id": "tool.comment",
+      "package": "S9"
+    },
+    {
+      "id": "timeline.undo",
+      "package": "S1"
+    },
+    {
+      "id": "timeline.redo",
+      "package": "S1"
+    },
+    {
+      "id": "timeline.comment-mode",
+      "package": "S9"
+    },
+    {
+      "id": "export.rerun-last",
+      "package": "S8"
+    }
+  ],
+  "humanDecisions": {
+    "links": "decision:maude/v2-V2-1.11-ai-operability",
+    "native-window": "decision:maude/v2-V2-1.11-ai-operability",
+    "onboarding": "decision:maude/v2-V2-1.11-ai-operability",
+    "report-bug": "decision:maude/v2-V2-1.11-ai-operability",
+    "summon": "decision:maude/v2-V2-1.11-ai-operability",
+    "view-pref": "decision:maude/v2-V2-1.11-ai-operability"
+  }
+}
