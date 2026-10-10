@@ -11,14 +11,60 @@
 import { importBaseline } from './baseline.mjs';
 import { createKernel } from './kernel.mjs';
 import { applyLane, LANE_NAMES, laneHash, readLane } from './lanes.mjs';
+import { asFormat, DEFAULT_FORMAT } from './store-core.mjs';
 
 export const ACCEPTED_ORIGIN = 'maude-accepted';
 const ROUTE =
   /^\/api\/projects\/([A-Za-z0-9._-]{1,128})\/v1\/([a-z-]+)(?:\/([A-Za-z0-9_-]{1,128}))?$/;
 export const MAX_BODY_BYTES = 17 * 1024 * 1024;
+/** `POST /api/project-format` — owner-only, the format flip (V2-1.12 §5.5). */
+export const FORMAT_ROUTE = '/api/project-format';
+const FORMAT_BODY_BYTES = 4 * 1024;
 
 /** More than this many proposals waiting on a switch are told to retry. */
 const MAX_WAITING_PROPOSALS = 64;
+
+// ---- Project file format (V2-1.12 §5.4–§5.5) ------------------------------
+//
+// Writers DECLARE the format they write (`maude-format=<n>` on the WebSocket
+// URL, `X-Maude-Format: <n>` on HTTP); absent or not an integer means 1, which
+// is what every client older than the compat release is. A writer is admitted
+// only when its declared format equals the project's. This is a COMPATIBILITY
+// declaration, not a security boundary — a writer with edit rights can write
+// anything — so it narrows what an editor may do and never widens it.
+
+/** The highest format this hub knows (the route's 422 `max`). */
+export const HUB_MAX_FORMAT = 2;
+
+/** CONTRACT §4 voice — the refusal every door carries (V2-1.12 §5.8). */
+export const FORMAT_REFUSAL = 'This project now uses Maude 2. Update Maude to edit it.';
+
+/** A declaration (header value, query value, number) → a format; absent = 1. */
+export function declaredFormat(v) {
+  if (Array.isArray(v)) v = v[0];
+  if (typeof v === 'string') {
+    const t = v.trim();
+    return /^[0-9]{1,6}$/.test(t) ? asFormat(Number(t)) : DEFAULT_FORMAT;
+  }
+  return asFormat(v);
+}
+
+/** The `maude-format` param of a WebSocket upgrade URL (`/?maude-format=2`). */
+export function declaredFormatFromUrl(url) {
+  if (typeof url !== 'string' || !url.includes('?')) return DEFAULT_FORMAT;
+  try {
+    return declaredFormat(new URL(url, 'http://x').searchParams.get('maude-format') ?? undefined);
+  } catch {
+    return DEFAULT_FORMAT;
+  }
+}
+
+/** The `X-Maude-Format` header of an HTTP request (Node lower-cases names). */
+export function declaredFormatFromRequest(request) {
+  const h = request?.headers;
+  const v = typeof h?.get === 'function' ? h.get('x-maude-format') : h?.['x-maude-format'];
+  return declaredFormat(v ?? undefined);
+}
 
 export function createAcceptedRevisions({
   server,
@@ -59,7 +105,7 @@ export function createAcceptedRevisions({
   resumeAttempts = 13,
   log = console,
 }) {
-  let state = { mode: 'legacy', epoch: 0, revision: 0 };
+  let state = { mode: 'legacy', epoch: 0, revision: 0, formatVersion: DEFAULT_FORMAT };
   // T19/T29 — the coordinator's own readiness and counters, apart from the
   // renderer's: a project can accept edits while its studio child restarts,
   // and a studio can render while the store is failing.
@@ -233,6 +279,8 @@ export function createAcceptedRevisions({
       // holds a default, and reporting that default as the project's mode told
       // a fleet sweep a waking cell was in `legacy` when it was not.
       mode: known ? state.mode : 'unknown',
+      // V2-1.12 §5.5 — null while unread: an unread format is not a format.
+      formatVersion: known ? projectFormat() : null,
       protocol: 1,
       durable: !!storeDurable,
     };
@@ -257,6 +305,25 @@ export function createAcceptedRevisions({
   /** Synchronous — Hocuspocus hooks cannot wait on the store. */
   const acceptedMode = () => state.mode === 'transactions';
 
+  /** The project's file format as last read (meaningful only once `ready`). */
+  const projectFormat = () => asFormat(state.formatVersion);
+  /** Is the store's reading in yet? (The fence fails closed until it is.) */
+  const isReady = () => ready && !storeError;
+
+  /** Does this writer's declared format match the project's? */
+  const formatMatches = (context, fmt = projectFormat()) =>
+    declaredFormat(context?.user?.format) === fmt;
+
+  /**
+   * What a connection may do after a switch to `next` — the `writable` of the
+   * `maude.mode` notice. Every term of the fence except readiness (a switch IS
+   * a reading).
+   */
+  const writableAfter = (connection, next) =>
+    next.mode !== 'transactions' &&
+    connection.context?.user?.readOnly !== true &&
+    formatMatches(connection.context, asFormat(next.formatVersion));
+
   /**
    * Hocuspocus `beforeHandleMessage`: decide read-only on EVERY message, from
    * the current mode and the credential's own right — so a switch takes
@@ -278,7 +345,12 @@ export function createAcceptedRevisions({
     // that window was handed a writable socket on a project that accepts only
     // proposals — two writable authorities, which is the one thing this design
     // forbids outright. Fail closed: nobody writes until the mode is known.
-    connection.readOnly = !ready || acceptedMode() || context?.user?.readOnly === true;
+    //
+    // V2-1.12 §5.4 — and a writer whose declared format is not the project's
+    // is a reader. `ready` covers the format too: the store answers mode and
+    // format in one reading, so an unread format fences like an unread mode.
+    connection.readOnly =
+      !ready || acceptedMode() || context?.user?.readOnly === true || !formatMatches(context);
   }
 
   /** A mode switch in progress — proposals wait for it (see `setMode`). */
@@ -334,15 +406,19 @@ export function createAcceptedRevisions({
       // (F3 S17, 2026-09-23 — its legacy saves after a rollback were held
       // silently until it happened to reconnect).
       const notice = (writable) =>
-        JSON.stringify({ type: 'maude.mode', mode: next.mode, epoch: next.epoch, writable });
+        JSON.stringify({
+          type: 'maude.mode',
+          mode: next.mode,
+          epoch: next.epoch,
+          writable,
+          formatVersion: asFormat(next.formatVersion),
+        });
       let undelivered = 0;
       let lastError = null;
       for (const document of server.hocuspocus?.documents?.values?.() ?? []) {
         for (const connection of document.getConnections?.() ?? []) {
           try {
-            const writable =
-              next.mode !== 'transactions' && connection.context?.user?.readOnly !== true;
-            connection.sendStateless(notice(writable));
+            connection.sendStateless(notice(writableAfter(connection, next)));
           } catch (err) {
             // One gone peer must not keep the notice from the rest.
             undelivered += 1;
@@ -394,6 +470,201 @@ export function createAcceptedRevisions({
     // `p` rejecting before an answer (the store refused the mode itself)
     // rejects the caller; an answer given first stands.
     return Promise.race([answered, p.then(() => answered)]);
+  }
+
+  /** A format switch in flight — a second one is refused (409), not queued. */
+  let formatSwitching = false;
+
+  /**
+   * Switch the project's FILE FORMAT (V2-1.12 §5.5) — the `setMode` barrier:
+   *
+   *   1. persist the format (epoch + 1);
+   *   2. send every connection a `maude.mode` notice carrying its own
+   *      `writable` (recomputed with the new format) and `formatVersion` — the
+   *      envelope every 1.x desktop since DDR-241 already obeys;
+   *   3. wait one grace round trip, so a write sent before the notice arrived
+   *      still lands;
+   *   4. only then does the per-message fence see the new format.
+   *
+   * The same value is an answer with no epoch bump, no notice and no wait.
+   * Proposals wait on it like on a mode switch.
+   */
+  function setFormat({ formatVersion, expectEpoch, by }) {
+    if (formatSwitching) {
+      return Promise.reject(
+        Object.assign(new Error('a format switch is already in progress'), {
+          status: 409,
+          code: 'switch-in-progress',
+        })
+      );
+    }
+    formatSwitching = true;
+    const run = async () => {
+      const next = await store.setFormat({ formatVersion, expectEpoch, by });
+      const record = {
+        formatVersion: asFormat(next.formatVersion),
+        epoch: next.epoch,
+        changedAt: next.changedAt ?? null,
+        changedBy: next.changedBy ?? null,
+      };
+      if (!next.changed) {
+        state = { ...state, ...stateOf(next) };
+        ready = true;
+        return record;
+      }
+      let undelivered = 0;
+      let lastError = null;
+      for (const document of server.hocuspocus?.documents?.values?.() ?? []) {
+        for (const connection of document.getConnections?.() ?? []) {
+          try {
+            connection.sendStateless(
+              JSON.stringify({
+                type: 'maude.mode',
+                mode: next.mode,
+                epoch: next.epoch,
+                writable: writableAfter(connection, next),
+                formatVersion: record.formatVersion,
+              })
+            );
+          } catch (err) {
+            undelivered += 1;
+            lastError = err;
+          }
+        }
+      }
+      if (undelivered > 0) {
+        log.warn?.(
+          `[transactions] format notice not delivered to ${undelivered} connection(s): ${lastError?.message}`
+        );
+      }
+      if (switchGraceMs > 0) await new Promise((r) => setTimeout(r, switchGraceMs));
+      state = { ...state, ...stateOf(next) };
+      ready = true;
+      log.log?.(
+        `[transactions] project format is now ${record.formatVersion} (epoch ${record.epoch})`
+      );
+      return record;
+    };
+    const p = switching.then(run, run).finally(() => {
+      formatSwitching = false;
+    });
+    switching = p.catch(() => {});
+    return p;
+  }
+
+  /** The store fields the coordinator mirrors (never a route's extra fields). */
+  function stateOf(s) {
+    return {
+      mode: s.mode,
+      epoch: s.epoch,
+      revision: s.revision,
+      importPending: s.importPending,
+      formatVersion: asFormat(s.formatVersion),
+    };
+  }
+
+  /**
+   * RAISE-ONLY seed from the checkout's `config.json` (V2-1.12 §5.2). A raise
+   * is a real format change, so it goes through the same barrier as the
+   * owner's flip; anything at or below the stored value changes nothing.
+   */
+  async function seedFormat(n, { by = 'checkout' } = {}) {
+    const want = asFormat(n);
+    const cur = await store.state();
+    if (want <= asFormat(cur.formatVersion)) {
+      state = { ...state, ...stateOf(cur) };
+      return { changed: false, formatVersion: asFormat(cur.formatVersion) };
+    }
+    if (want > HUB_MAX_FORMAT) {
+      log.warn?.(
+        `[transactions] the checkout declares format ${want}, newer than this hub knows (${HUB_MAX_FORMAT}) — seeding it anyway; every writer this hub admits is fenced`
+      );
+    }
+    // Through the store's own raise (raise-only at the authority too), then
+    // the barrier's notice for whoever is already connected.
+    const raised = await store.raiseFormat(want, { by });
+    if (!raised.changed) {
+      state = { ...state, ...stateOf(raised) };
+      return { changed: false, formatVersion: asFormat(raised.formatVersion) };
+    }
+    for (const document of server.hocuspocus?.documents?.values?.() ?? []) {
+      for (const connection of document.getConnections?.() ?? []) {
+        try {
+          connection.sendStateless(
+            JSON.stringify({
+              type: 'maude.mode',
+              mode: raised.mode,
+              epoch: raised.epoch,
+              writable: writableAfter(connection, raised),
+              formatVersion: asFormat(raised.formatVersion),
+            })
+          );
+        } catch {
+          /* fenced on its next message either way */
+        }
+      }
+    }
+    state = { ...state, ...stateOf(raised) };
+    ready = true;
+    return { changed: true, formatVersion: asFormat(raised.formatVersion), epoch: raised.epoch };
+  }
+
+  /**
+   * `POST /api/project-format` (V2-1.12 §5.5). Owner, operator or cell secret
+   * only — the same `admin` predicate as the save-mode switch. Returns true
+   * when handled. `auth(request)` → `{ actor, readOnly, admin }` or null.
+   */
+  async function handleFormatRoute({ path, method, request, auth, respondJson }) {
+    if (path !== FORMAT_ROUTE) return false;
+    if (method !== 'POST') {
+      respondJson(405, { code: 'method-not-allowed' });
+      return true;
+    }
+    const who = auth(request);
+    if (!who) {
+      respondJson(401, { error: 'sign in to this project first', code: 'unauthenticated' });
+      return true;
+    }
+    if (!who.admin || who.readOnly) {
+      respondJson(403, {
+        error: 'only the project owner can change the project format',
+        code: 'forbidden',
+      });
+      return true;
+    }
+    let body;
+    try {
+      body = JSON.parse(await readBody(request, FORMAT_BODY_BYTES));
+    } catch (err) {
+      respondJson(err.status === 413 ? 413 : 400, { code: 'invalid' });
+      return true;
+    }
+    const fv = body?.formatVersion;
+    if (!Number.isSafeInteger(fv)) {
+      respondJson(400, { code: 'invalid', error: 'formatVersion is an integer' });
+      return true;
+    }
+    if (fv < 1 || fv > HUB_MAX_FORMAT) {
+      respondJson(422, { code: 'format-unsupported', max: HUB_MAX_FORMAT });
+      return true;
+    }
+    const expectEpoch = body.expectEpoch;
+    if (expectEpoch !== undefined && !Number.isSafeInteger(expectEpoch)) {
+      respondJson(400, { code: 'invalid', error: 'expectEpoch is an integer' });
+      return true;
+    }
+    try {
+      const out = await setFormat({ formatVersion: fv, expectEpoch, by: who.actor });
+      respondJson(200, out);
+    } catch (err) {
+      if (err.code === 'epoch-stale' || err.code === 'switch-in-progress') {
+        respondJson(409, { code: err.code });
+        return true;
+      }
+      log.error?.(`[transactions] project-format failed: ${err.message}`);
+      respondJson(503, { code: 'retryable' });
+    }
+    return true;
   }
 
   /**
@@ -615,12 +886,12 @@ export function createAcceptedRevisions({
     return out;
   }
 
-  async function readBody(request) {
+  async function readBody(request, cap = MAX_BODY_BYTES) {
     const chunks = [];
     let size = 0;
     for await (const chunk of request) {
       size += chunk.length;
-      if (size > MAX_BODY_BYTES) throw Object.assign(new Error('too large'), { status: 413 });
+      if (size > cap) throw Object.assign(new Error('too large'), { status: 413 });
       chunks.push(chunk);
     }
     return Buffer.concat(chunks).toString('utf8');
@@ -654,6 +925,9 @@ export function createAcceptedRevisions({
           canvasGroups: (typeof canvasGroups === 'function' ? canvasGroups() : null) ?? null,
           projectConfig: projectConfig() ?? null,
           ...manifest,
+          // V2-1.12 §5.5 — the project's file format (the manifest's state
+          // carries it too; named so a client need not know that).
+          formatVersion: asFormat(manifest.formatVersion ?? projectFormat()),
           capabilities: {
             lanes: LANE_NAMES,
             // DDR-242 — the annotations lane is the v2 board (JSON, '' = empty).
@@ -699,6 +973,24 @@ export function createAcceptedRevisions({
           await switching;
         } finally {
           waitingProposals -= 1;
+        }
+        // V2-1.12 §5.4 — a proposal from a writer whose declared format is not
+        // the project's is refused FINALLY: every client generation drops a
+        // JSON `{status: 'rejected'}` from its outbox (a non-final answer would
+        // be retried forever). 426, not 403 — an old client renews its
+        // credential on a 403. Decided after the switch the proposal waited on,
+        // and against a reading of the store, never the boot default.
+        if (!isReady()) await refresh();
+        if (declaredFormatFromRequest(request) !== projectFormat()) {
+          respondJson(426, {
+            protocol: 1,
+            status: 'rejected',
+            code: 'format',
+            reason: 'format',
+            formatVersion: projectFormat(),
+            error: FORMAT_REFUSAL,
+          });
+          return true;
         }
         const bytes = await readBody(request);
         const t0 = performance.now();
@@ -822,6 +1114,11 @@ export function createAcceptedRevisions({
 
   return {
     kernel,
+    setFormat,
+    seedFormat,
+    handleFormatRoute,
+    projectFormat,
+    isReady,
     reconcile,
     resumeImport,
     adoptNewProjectMode,

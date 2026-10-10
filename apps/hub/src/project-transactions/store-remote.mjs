@@ -13,9 +13,12 @@
 
 import { StoreConflict } from './store-core.mjs';
 
-const METHODS = [
+/** The whole store API a remote home serves (pinned against store-core in hub-format-store.test.mjs). */
+export const METHODS = Object.freeze([
   'state',
   'setMode',
+  'setFormat',
+  'raiseFormat',
   'markImported',
   'heads',
   'blob',
@@ -30,7 +33,7 @@ const METHODS = [
   'laneAt',
   'effectsAfter',
   'liveDocByEntry',
-];
+]);
 
 export function openRemoteProjectStore({
   url,

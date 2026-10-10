@@ -21,6 +21,18 @@ export const STORE_SCHEMA_VERSION = 1;
 /** Lanes a canvas document carries (DDR-241 §4). */
 export const LANES = Object.freeze(['html', 'css', 'meta', 'annotations', 'comments']);
 
+/**
+ * The project file format (V2-1.12 §5.2) — one integer, absent = 1. The hub's
+ * store is the authority for a linked project; desktops mirror it raise-only.
+ */
+export const DEFAULT_FORMAT = 1;
+
+/** A stored or requested format → a positive integer, else the default. */
+export function asFormat(v) {
+  const n = typeof v === 'string' && /^\d+$/.test(v) ? Number(v) : v;
+  return typeof n === 'number' && Number.isSafeInteger(n) && n >= 1 ? n : DEFAULT_FORMAT;
+}
+
 export class StoreConflict extends Error {
   /** @param {'epoch-stale'|'revision-moved'|'head-moved'} code */
   constructor(code, detail = '') {
@@ -128,7 +140,61 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
       // a process that died in between resumes it instead of serving a project
       // whose store lacks documents peers still hold.
       importPending: meta('importPending', '0') === '1',
+      // V2-1.12 §5.5 — the project's file format (absent = 1).
+      formatVersion: asFormat(meta('formatVersion', DEFAULT_FORMAT)),
     };
+  }
+
+  function formatRecord(cur) {
+    return {
+      ...cur,
+      changedAt: meta('formatChangedAt', null),
+      changedBy: meta('formatChangedBy', null),
+    };
+  }
+
+  /**
+   * Switch the project's file format (V2-1.12 §5.5, the owner's flip). A real
+   * change advances the write epoch exactly like `setMode` (every writer holding
+   * the previous epoch is fenced); the same value is a no-op with no epoch bump.
+   * Returns the state plus `changed`, `changedAt` and `changedBy`.
+   */
+  function setFormat({ formatVersion, expectEpoch, by = null } = {}) {
+    if (!Number.isSafeInteger(formatVersion) || formatVersion < 1) {
+      throw new Error(`invalid formatVersion: ${formatVersion}`);
+    }
+    return sql.transaction(() => {
+      const cur = state();
+      if (expectEpoch !== undefined && expectEpoch !== null && cur.epoch !== expectEpoch) {
+        throw new StoreConflict('epoch-stale', `expected ${expectEpoch}, at ${cur.epoch}`);
+      }
+      if (cur.formatVersion === formatVersion) return { ...formatRecord(cur), changed: false };
+      return writeFormat(cur, formatVersion, by);
+    });
+  }
+
+  /** Inside a transaction: write a CHANGED format, advancing the epoch. */
+  function writeFormat(cur, formatVersion, by) {
+    const epoch = cur.epoch + 1;
+    setMeta('formatVersion', formatVersion);
+    setMeta('epoch', epoch);
+    setMeta('formatChangedAt', new Date(now()).toISOString());
+    setMeta('formatChangedBy', String(by ?? 'unknown').slice(0, 200));
+    return { ...formatRecord({ ...cur, formatVersion, epoch }), changed: true };
+  }
+
+  /**
+   * RAISE-ONLY seed (V2-1.12 §5.2): a cell learns the format its checkout's
+   * `config.json` declares. A value at or below the stored one changes
+   * nothing — a checkout can raise the project, never lower it.
+   */
+  function raiseFormat(n, { by = 'checkout' } = {}) {
+    const next = asFormat(n);
+    return sql.transaction(() => {
+      const cur = state();
+      if (next <= cur.formatVersion) return { ...formatRecord(cur), changed: false };
+      return writeFormat(cur, next, by);
+    });
   }
 
   /**
@@ -485,6 +551,8 @@ export function createStoreCore(sql, { now = () => Date.now() } = {}) {
     migrate,
     state,
     setMode,
+    setFormat,
+    raiseFormat,
     markImported,
     heads,
     blob,

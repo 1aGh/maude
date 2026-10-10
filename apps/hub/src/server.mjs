@@ -154,7 +154,13 @@ import {
 } from './materializer.mjs';
 import { assertStrictIsSurvivable, oidcConfig } from './oidc-routes.mjs';
 import { handleProjectConfigDoor, PROJECT_CONFIG_PATH } from './project-config-door.mjs';
-import { createAcceptedRevisions } from './project-transactions/hub-integration.mjs';
+import {
+  createAcceptedRevisions,
+  declaredFormatFromRequest,
+  declaredFormatFromUrl,
+  FORMAT_REFUSAL,
+  FORMAT_ROUTE,
+} from './project-transactions/hub-integration.mjs';
 import { openRemoteProjectStore } from './project-transactions/store-remote.mjs';
 import { openSqliteProjectStore } from './project-transactions/store-sqlite.mjs';
 import { createRateStore } from './rate-store.mjs';
@@ -324,6 +330,27 @@ function readOnlyAllowedPath(path) {
     // Signing out of the browser door is ending your own session, same as
     // /auth/logout is for the desktop's.
     path === '/auth/browser/signout'
+  );
+}
+
+/**
+ * The HTTP write doors a writer of the wrong FILE FORMAT is refused at
+ * (V2-1.12 §5.4 / §5.11 F2): the file plane (single PUT/DELETE door, upload
+ * sessions, the legacy asset aliases), the project config, document deletion
+ * and revival, and comments. Proposals answer for themselves (a final
+ * rejection, hub-integration.mjs); `/api/project-format` is how the format
+ * changes and is never gated by it; `/_asset-probe` is a read sent as POST.
+ * Reads, sign-in/out and export stay open.
+ */
+export function formatGatedWritePath(path, prefixes) {
+  if (path === prefixes.projectConfig) return true;
+  if (path === '/api/studio/comments') return true;
+  return (
+    path.startsWith(prefixes.fileDoor) ||
+    path.startsWith(prefixes.uploads) ||
+    path.startsWith(prefixes.document) ||
+    path.startsWith('/assets/') ||
+    path.startsWith('/_asset-file/')
   );
 }
 
@@ -778,6 +805,42 @@ export function createHub(config = {}) {
   /** @type {ReturnType<typeof scheduleRevocationSweep>|null} */
   let revocationSweep = null;
 
+  /**
+   * Who is asking an accepted-revisions or project-format route — the ONE
+   * owner predicate both share (`admin`: an owner/admin bearer, a legacy
+   * role-less machine token, the operator, the cell secret, or a cloud owner's
+   * control-plane token). `{ actor, readOnly, scope, admin }` or null.
+   */
+  function acceptedAuth(req) {
+    const presented = (req.headers?.authorization ?? '').replace(/^Bearer\s+/i, '').trim();
+    const m = presented ? verifyToken(dataDir, presented, secret) : null;
+    if (m) {
+      return {
+        actor: m.owner || m.label,
+        readOnly: !!m.readOnly,
+        scope: m.scope ?? '*',
+        admin: !m.readOnly && (m.role === 'owner' || m.role === 'admin' || (!m.role && !m.owner)),
+      };
+    }
+    if (presentsCellSecret(req, secret)) return { actor: 'operator', readOnly: false, admin: true };
+    // A cloud cell's project OWNER, on a token the control plane minted
+    // for them (the dashboard's "switch how the project saves"): the
+    // same offline-verified token the export route takes, owner role
+    // only, never a token issued before the person was removed.
+    const tenant = process.env.MAUDE_TENANT_ID ?? '';
+    const tokenKey = projectTokenKey(process.env);
+    if (tenant && tokenKey && presented.includes('.')) {
+      const v = verifyAccessToken(presented, tokenKey, { tenantId: tenant });
+      if (v.ok && v.user.role === 'owner' && !isRevoked(dataDir, v.user.email, v.issuedAt))
+        return { actor: v.user.email, readOnly: false, scope: '*', admin: true };
+    }
+    const { tokens } = readTokens(dataDir);
+    if (tokens.length === 0 && secret === '' && !permissiveDevAuthDisabled(dataDir)) {
+      return { actor: 'anon', readOnly: false, admin: true };
+    }
+    return null;
+  }
+
   // Accepted revisions (DDR-241). Assigned right after the Server exists;
   // the hooks below read it lazily, so `null` simply means "legacy".
   /** @type {ReturnType<typeof createAcceptedRevisions>|null} */
@@ -827,6 +890,10 @@ export function createHub(config = {}) {
         throw authError('invalid documentName');
       }
       const match = verifyToken(dataDir, token, secret);
+      // V2-1.12 §5.4 — the writer's declared file format (`maude-format` on the
+      // upgrade URL; absent = 1, every pre-compat client). Carried on the
+      // connection context; the per-message fence compares it to the project's.
+      const format = declaredFormatFromUrl(request?.url);
       if (match) {
         // Sync v2 (DDR-226 §4) — the file-plane CONTROL channel.
         //
@@ -865,6 +932,7 @@ export function createHub(config = {}) {
               scope: match.scope ?? '*',
               readOnly: true,
               ctl: true,
+              format,
             },
           };
         }
@@ -896,6 +964,10 @@ export function createHub(config = {}) {
         // DDR-241 §7 — in accepted-revisions mode every content connection is
         // read-only: changes arrive as proposals, only the kernel writes.
         if (connectionConfig && accepted?.acceptedMode()) connectionConfig.readOnly = true;
+        // V2-1.12 §5.4 — a writer of another format is a reader (handshake
+        // scope `readonly`, so a patched client knows from the first message).
+        if (connectionConfig && accepted?.isReady() && format !== accepted.projectFormat())
+          connectionConfig.readOnly = true;
         return {
           user: {
             name: match.label,
@@ -903,6 +975,7 @@ export function createHub(config = {}) {
             dev: !!match.dev,
             scope: match.scope ?? '*',
             readOnly: !!match.readOnly,
+            format,
             // The address the token was minted for. Carried so the server-side
             // workspace agent can attribute a commit to the PERSON rather than
             // to their machine's token label — `git blame` on a design should
@@ -927,7 +1000,9 @@ export function createHub(config = {}) {
         }
         // DDR-241 §7 — accepted revisions: no client writes content, ever.
         if (connectionConfig && accepted?.acceptedMode()) connectionConfig.readOnly = true;
-        return { user: { name: 'anon', anon: true } };
+        if (connectionConfig && accepted?.isReady() && format !== accepted.projectFormat())
+          connectionConfig.readOnly = true;
+        return { user: { name: 'anon', anon: true, format } };
       }
       // DDR-102 — invalid-token attempts are the brute-force surface: tight
       // per-IP bucket (100/min). The old design never rate-limited these at
@@ -1002,7 +1077,15 @@ export function createHub(config = {}) {
           // A protocol marker, not customer data, so it rides the public half.
           // `annotations-v2`: boards are the DDR-242 element model (kernel lane,
           // replica, checkout `.annotations.json`).
-          capabilities: journal ? ['ledger', 'annotations-v2'] : ['annotations-v2'],
+          // `format-v2` (V2-1.12 §5.5): this hub stores and advertises the
+          // project format, fences writers by their declared format, keeps
+          // extension fields through its validators, and serves
+          // `POST /api/project-format`.
+          capabilities: journal
+            ? ['ledger', 'annotations-v2', 'format-v2']
+            : ['annotations-v2', 'format-v2'],
+          // The project's file format — null while the store is unread.
+          formatVersion: accepted?.isReady() ? accepted.projectFormat() : null,
           // T19/T29 — the project coordinator (accepted revisions) apart from
           // the renderer: posture publicly, counters to the cell secret only.
           coordinator: accepted?.health?.({ privileged }) ?? null,
@@ -1068,6 +1151,47 @@ export function createHub(config = {}) {
           respondJson(response, 403, {
             error: 'You can look at this project, comment and download it, but not change it.',
             reason: 'read-only',
+          });
+          bailFromOnRequest();
+        }
+      }
+
+      // ---- THE FORMAT GATE (V2-1.12 §5.4 / §5.11 F2) ----------------------
+      //
+      // Beside the read-only gate, and as narrow as the doors it names: a
+      // writer whose DECLARED file format (`X-Maude-Format`, absent = 1) is
+      // not the project's is refused at every write door — no journal row,
+      // nothing materialized. 426, never 401/403: a pre-compat file plane
+      // renews its credential on those, and nothing is wrong with it.
+      // Before the store has been read the format is unknown, and an unknown
+      // format is not assumed (the same fail-closed rule as the WS fence).
+      if (
+        !READ_ONLY_SAFE_METHODS.has(method) &&
+        formatGatedWritePath(authPath, {
+          projectConfig: PROJECT_CONFIG_PATH,
+          fileDoor: FILE_DOOR_PREFIX,
+          uploads: UPLOADS_PREFIX,
+          document: DOCUMENT_PATH_PREFIX,
+        }) &&
+        accepted
+      ) {
+        if (!accepted.isReady()) {
+          try {
+            await accepted.refresh();
+          } catch {
+            respondJson(response, 503, {
+              error: 'the project store is not reachable yet',
+              code: 'retryable',
+            });
+            bailFromOnRequest();
+          }
+        }
+        const projectFmt = accepted.projectFormat();
+        if (declaredFormatFromRequest(request) !== projectFmt) {
+          respondJson(response, 426, {
+            error: FORMAT_REFUSAL,
+            reason: 'format',
+            formatVersion: projectFmt,
           });
           bailFromOnRequest();
         }
@@ -1514,6 +1638,18 @@ export function createHub(config = {}) {
         });
         if (handled) bailFromOnRequest();
       }
+      // V2-1.12 §5.5 — the owner's format flip. Main origin only (in NEITHER
+      // canvas allowlist); the same owner predicate as the save-mode switch.
+      if (authPath === FORMAT_ROUTE && !(studioProxy && isCanvasHost(request))) {
+        const handled = await accepted.handleFormatRoute({
+          path: authPath,
+          method,
+          request,
+          auth: acceptedAuth,
+          respondJson: (status, payload) => respondAdminJson(response, status, payload),
+        });
+        if (handled) bailFromOnRequest();
+      }
       // Accepted revisions (DDR-241): proposals, bootstrap, replay, history.
       // In NEITHER canvas allowlist — the canvas origin never proposes.
       if (authPath.startsWith('/api/projects/') && !(studioProxy && isCanvasHost(request))) {
@@ -1522,38 +1658,7 @@ export function createHub(config = {}) {
           method,
           query: Object.fromEntries(new URL(url, 'http://x').searchParams),
           request,
-          auth: (req) => {
-            const presented = (req.headers?.authorization ?? '').replace(/^Bearer\s+/i, '').trim();
-            const m = presented ? verifyToken(dataDir, presented, secret) : null;
-            if (m) {
-              return {
-                actor: m.owner || m.label,
-                readOnly: !!m.readOnly,
-                scope: m.scope ?? '*',
-                admin:
-                  !m.readOnly &&
-                  (m.role === 'owner' || m.role === 'admin' || (!m.role && !m.owner)),
-              };
-            }
-            if (presentsCellSecret(req, secret))
-              return { actor: 'operator', readOnly: false, admin: true };
-            // A cloud cell's project OWNER, on a token the control plane minted
-            // for them (the dashboard's "switch how the project saves"): the
-            // same offline-verified token the export route takes, owner role
-            // only, never a token issued before the person was removed.
-            const tenant = process.env.MAUDE_TENANT_ID ?? '';
-            const tokenKey = projectTokenKey(process.env);
-            if (tenant && tokenKey && presented.includes('.')) {
-              const v = verifyAccessToken(presented, tokenKey, { tenantId: tenant });
-              if (v.ok && v.user.role === 'owner' && !isRevoked(dataDir, v.user.email, v.issuedAt))
-                return { actor: v.user.email, readOnly: false, scope: '*', admin: true };
-            }
-            const { tokens } = readTokens(dataDir);
-            if (tokens.length === 0 && secret === '' && !permissiveDevAuthDisabled(dataDir)) {
-              return { actor: 'anon', readOnly: false, admin: true };
-            }
-            return null;
-          },
+          auth: acceptedAuth,
           respondJson: (status, payload) => respondAdminJson(response, status, payload),
         });
         if (handled) bailFromOnRequest();
@@ -2144,8 +2249,27 @@ export function createHub(config = {}) {
   // production caller below does not await this promise, only the tests do. So
   // the fence no longer relies on the timing: an unread mode fences
   // (`hub-integration.mjs`), and this is an optimisation, not a guarantee.
+  /** The checkout's declared `formatVersion` (absent, unreadable or no checkout = 1). */
+  const checkoutFormatVersion = () => {
+    if (!journalDesignRoot) return 1;
+    try {
+      const v = JSON.parse(
+        readFileSync(join(journalDesignRoot, 'config.json'), 'utf8')
+      )?.formatVersion;
+      return Number.isSafeInteger(v) && v >= 1 ? v : 1;
+    } catch {
+      return 1;
+    }
+  };
   const acceptedReady = accepted
     .refresh()
+    // V2-1.12 §5.2 — a hub with a checkout (a cell, a workspace hub) seeds the
+    // project format from that checkout's config.json, RAISE-ONLY: a checkout
+    // can raise the project, never lower it (only the owner's flip does).
+    .then(() => {
+      const fmt = checkoutFormatVersion();
+      return fmt > 1 ? accepted.seedFormat(fmt) : null;
+    })
     // A switch that died mid-import is finished before anything reconciles.
     .then(() => accepted.resumeImport())
     // A brand-new project may start in accepted revisions (G3a).
@@ -3045,6 +3169,7 @@ function buildStatusPayload({
   render = null,
   capabilities = null,
   coordinator = null,
+  formatVersion,
   privileged = false,
 }) {
   const { tokens } = readTokens(dataDir);
@@ -3089,6 +3214,8 @@ function buildStatusPayload({
     // distinguishable from "this hub has none" — the same
     // omitted-when-unknown rule the stats block follows.
     ...(capabilities ? { capabilities } : {}),
+    // V2-1.12 §5.5 — a protocol marker like `capabilities` (null = unread).
+    ...(formatVersion !== undefined ? { formatVersion } : {}),
     ...(coordinator ? { coordinator } : {}),
     peersCount: peersCount ?? 0,
     // OMITTED when unknown, never zeroed. A cell on an older image, or one
