@@ -51,6 +51,9 @@ describe('AcpBridge — round-trip + subscription guardrail', () => {
       // `claude` (here MAUDE_CLAUDE_BIN = this bun) via CLAUDE_CODE_EXECUTABLE, so
       // it never falls back to the unshipped ~210 MB native binary.
       expect(streamed).toContain(`claudeExe=${process.execPath}`);
+      // V2-2.4b — the bridge marks its adapter (and so `claude` and every design-plugin hook it
+      // runs) as the Maude chat: `maude design hook` tells it from a terminal Claude Code by this.
+      expect(streamed).toContain('actor=maude-chat');
     } finally {
       await bridge.stop();
     }

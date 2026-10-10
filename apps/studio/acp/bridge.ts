@@ -1115,6 +1115,10 @@ export class AcpBridge {
     // AFTER scrubAgentEnv (which doesn't touch BUN_BE_BUN).
     const runtime = resolveAgentRuntime();
     if (runtime.bunBeBun) env.BUN_BE_BUN = '1';
+    // V2-2.4b (decision:maude/v2-2.4b-actor-env-marker) — the adapter hands its env to `claude`,
+    // and `claude` to every design-plugin hook: `maude design hook` reads this to tell a Maude chat
+    // run from a terminal Claude Code (the run's actor, and who brackets it — acp/index.ts does).
+    env.MAUDE_AGENT_ACTOR = 'maude-chat';
     const proc = Bun.spawn([runtime.bin, adapterEntry], {
       cwd: this.opts.repoRoot,
       windowsHide: true, // #141 — never a console window for the adapter on Windows
