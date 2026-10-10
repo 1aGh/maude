@@ -79,6 +79,23 @@ const OUTSIDE_NAME = `.maude-e2e-write-scope-probe-${process.pid}-${Date.now()}.
 const OUTSIDE_PATH = `~/${OUTSIDE_NAME}`;
 const OUTSIDE_ABS = join(homedir(), OUTSIDE_NAME);
 
+/**
+ * V2-2.8 P3 (Michal, 2026-10-09: the AI chat keeps Claude Code's default behaviour). Does the
+ * person's OWN ~/.claude/settings.json pre-approve Write? Then the CLI approves the call itself,
+ * `requestPermission` is never asked, and "no card" is the behaviour the person chose — the
+ * scenario asserts THAT instead of a card. Read-only: the scenario never edits user settings.
+ */
+function userPreApprovesWrite(): boolean {
+  try {
+    const cfg = JSON.parse(readFileSync(join(homedir(), '.claude', 'settings.json'), 'utf8'));
+    const allow: unknown[] = cfg?.permissions?.allow ?? [];
+    return allow.some((r) => typeof r === 'string' && /^(Write|Edit|MultiEdit)(\(\*?\))?$/.test(r));
+  } catch {
+    return false;
+  }
+}
+const PRE_APPROVED = userPreApprovesWrite();
+
 function removeProbes(): void {
   for (const f of IN_PROJECT_CANDIDATES) rmSync(f, { force: true });
   rmSync(OUTSIDE_ABS, { force: true });
@@ -178,6 +195,12 @@ describe('acp-write-scope (native-desktop)', () => {
       },
     });
     await capture('02-out-of-project-prompt');
+    if (PRE_APPROVED && !sawPrompt) {
+      // The person's own allow rule approved it: no card is correct, and the write landed as their
+      // settings allow (removed again in after()).
+      expect(existsSync(OUTSIDE_ABS)).toBe(true);
+      return;
+    }
     const outcome = sawPrompt
       ? 'prompt shown'
       : existsSync(OUTSIDE_ABS)
@@ -204,7 +227,9 @@ describe('acp-write-scope (native-desktop)', () => {
     expect(cardText).not.toContain('always');
   });
 
-  it('3 · rejecting it leaves the turn resolved and the composer usable', async () => {
+  it('3 · rejecting it leaves the turn resolved and the composer usable', async function () {
+    // With a user allow rule there is no card to reject (P3: the person's choice stands).
+    if (PRE_APPROVED) this.skip();
     // Deliberately REJECT — approving would have the test suite write outside
     // its own project, which is the behaviour this whole feature calls unsafe.
     const card = await $(tid('chat-permission-prompt'));
