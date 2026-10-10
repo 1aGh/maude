@@ -12,7 +12,15 @@
 // toggles. It is never versioned and never served to a canvas — the GET/POST
 // routes are MAIN-ORIGIN ONLY (privileged), like /_api/generate/prefs.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -131,24 +139,61 @@ function coerce(raw: unknown): UiPrefs {
   };
 }
 
+type RawPrefs =
+  | { kind: 'missing' }
+  | { kind: 'empty' }
+  | { kind: 'corrupt' }
+  | { kind: 'ok'; value: unknown };
+
+/**
+ * What is on disk, without judging it. `corrupt` is text that is not a JSON object (a torn write
+ * from a build that does not rename, a half-synced file, a hand edit); `empty` is whitespace only.
+ */
+function readRaw(path: string): RawPrefs {
+  if (!existsSync(path)) return { kind: 'missing' };
+  let text: string;
+  try {
+    text = readFileSync(path, 'utf8');
+  } catch {
+    return { kind: 'corrupt' };
+  }
+  if (text.trim() === '') return { kind: 'empty' };
+  try {
+    const value: unknown = JSON.parse(text);
+    if (value && typeof value === 'object' && !Array.isArray(value)) return { kind: 'ok', value };
+  } catch {
+    /* fall through */
+  }
+  return { kind: 'corrupt' };
+}
+
 /** Current UI prefs merged over the defaults (defaults when missing/unreadable). */
 export function readUiPrefs(): UiPrefs {
-  const path = uiPrefsPath();
-  if (!existsSync(path)) return { ...UI_PREFS_DEFAULTS };
-  try {
-    return coerce(JSON.parse(readFileSync(path, 'utf8')));
-  } catch {
-    return { ...UI_PREFS_DEFAULTS };
-  }
+  const raw = readRaw(uiPrefsPath());
+  return raw.kind === 'ok' ? coerce(raw.value) : { ...UI_PREFS_DEFAULTS };
 }
 
 /**
  * Persist a partial patch over the on-disk prefs (only the provided keys change;
  * every other stored value is preserved). Returns the merged result. Best-effort
  * — a write failure throws so the route can surface it.
+ *
+ * Crash-safe: the new file is written beside the old one and renamed over it, so a reader (or a
+ * second Maude process — every project window has its own server since V2-1.1) never sees a torn
+ * file. A file that cannot be parsed is copied to `prefs.json.corrupt-<ms>` first, so healing it
+ * with defaults never destroys what the person had.
  */
 export function writeUiPrefs(patch: Partial<UiPrefs>): UiPrefs {
-  const cur = readUiPrefs();
+  const path = uiPrefsPath();
+  const raw = readRaw(path);
+  if (raw.kind === 'corrupt') {
+    try {
+      copyFileSync(path, `${path}.corrupt-${Date.now()}`);
+    } catch {
+      /* best-effort: the heal below still proceeds */
+    }
+  }
+  const cur = raw.kind === 'ok' ? coerce(raw.value) : { ...UI_PREFS_DEFAULTS };
   // panelSides is deep-merged so a partial patch (one panel moved) preserves the
   // other panels' sides instead of resetting them to defaults via coerce.
   const merged: Partial<UiPrefs> = {
@@ -157,8 +202,14 @@ export function writeUiPrefs(patch: Partial<UiPrefs>): UiPrefs {
     panelSides: { ...cur.panelSides, ...(patch.panelSides ?? {}) },
   };
   const next = coerce(merged);
-  const path = uiPrefsPath();
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(next, null, 2)}\n`);
+  const tmp = `${path}.tmp-${process.pid}-${Date.now().toString(36)}`;
+  try {
+    writeFileSync(tmp, `${JSON.stringify(next, null, 2)}\n`);
+    renameSync(tmp, path);
+  } catch (err) {
+    rmSync(tmp, { force: true });
+    throw err;
+  }
   return next;
 }
