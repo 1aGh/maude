@@ -34,7 +34,8 @@
         "light"
       ],
       "newCanvasDir": "ui",
-      "newComponentDir": "system/maude/preview"
+      "newComponentDir": "system/maude/preview",
+      "schema": 1
     },
     {
       "name": "maude-v2",
@@ -48,7 +49,8 @@
         "dark"
       ],
       "newCanvasDir": "ui",
-      "newComponentDir": "system/maude-v2/preview"
+      "newComponentDir": "system/maude-v2/preview",
+      "schema": 1
     }
   ],
   "defaultDesignSystem": "maude",
