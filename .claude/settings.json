@@ -5,14 +5,7 @@
     "CLAUDE_CODE_STOP_HOOK_BLOCK_CAP": "50"
   },
   "permissions": {
-    "allow": [
-      "Read",
-      "Edit",
-      "Write",
-      "Bash",
-      "WebFetch",
-      "WebSearch"
-    ],
+    "allow": ["Read", "Edit", "Write", "Bash", "WebFetch", "WebSearch"],
     "deny": [
       "Read(.env)",
       "Read(.env.*)",
