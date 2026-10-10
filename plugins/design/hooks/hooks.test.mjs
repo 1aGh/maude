@@ -41,6 +41,28 @@ export default function C() {
 }
 `;
 
+/** A fake design plugin root: its bundled manifest copy + plugin.json version. */
+function makePlugin(manifestVersion, version) {
+  const p = realpathSync(mkdtempSync(join(tmpdir(), 'maude-hook-plugin-')));
+  mkdirSync(join(p, '.claude-plugin'), { recursive: true });
+  writeFileSync(join(p, 'actions.manifest.json'), JSON.stringify({ manifestVersion }));
+  writeFileSync(
+    join(p, '.claude-plugin', 'plugin.json'),
+    JSON.stringify({ name: 'design', version })
+  );
+  return p;
+}
+const sessionStart = (project, pluginRoot) =>
+  hook(
+    'session-start',
+    { session_id: 'ss', cwd: project, hook_event_name: 'SessionStart' },
+    {
+      CLAUDE_PLUGIN_ROOT: pluginRoot,
+      CLAUDE_ENV_FILE: '',
+    }
+  );
+const contextOf = (r) => r.json?.hookSpecificOutput?.additionalContext ?? '';
+
 function makeProject(prefix) {
   const p = realpathSync(mkdtempSync(join(tmpdir(), prefix)));
   mkdirSync(join(p, '.design', 'ui'), { recursive: true });
@@ -334,7 +356,12 @@ describe('with a studio — the run bracket and one AI per artboard', () => {
       fetch(req) {
         const url = new URL(req.url);
         if (url.pathname === '/_health')
-          return Response.json({ app: 'design', rootId: rootIdentity(project) });
+          return Response.json({
+            app: 'design',
+            rootId: rootIdentity(project),
+            manifestVersion: 'bbbbbbbbbbbb',
+            version: '2.4.0',
+          });
         const h = exact[url.pathname];
         return h ? h(req) : new Response('not found', { status: 404 });
       },
@@ -409,6 +436,34 @@ describe('with a studio — the run bracket and one AI per artboard', () => {
     expect(await hook('pre-edit', edit(project, 'sb', 'b3', 'Hello', 'Hey'))).toMatchObject({
       stdout: '',
     });
+  });
+
+  test('session-start (§5.6): warns once when the plugin is older than the app, names the active canvas', async () => {
+    const older = makePlugin('aaaaaaaaaaaa', '2.3.0');
+    const newer = makePlugin('aaaaaaaaaaaa', '2.5.0');
+    const same = makePlugin('bbbbbbbbbbbb', '2.4.0');
+    try {
+      const warn = await sessionStart(project, older);
+      expect(warn.status).toBe(0);
+      expect(warn.json.hookSpecificOutput.hookEventName).toBe('SessionStart');
+      expect(contextOf(warn)).toMatch(
+        /design plugin \(2\.3\.0\) is older than Maude \(2\.4\.0\).*update/i
+      );
+      expect(contextOf(warn).length).toBeLessThanOrEqual(400);
+      expect(warn.stdout).not.toMatch(/"(ask|allow|block|deny)"/);
+      // a newer plugin, or the same manifest → no warning
+      for (const root of [newer, same])
+        expect(contextOf(await sessionStart(project, root))).not.toMatch(/older/);
+      // the studio is up: one line naming the active canvas
+      writeFileSync(
+        join(project, '.design', '_active.json'),
+        JSON.stringify({ active: '.design/ui/C.tsx' })
+      );
+      expect(contextOf(await sessionStart(project, same))).toMatch(/ui\/C\.tsx/);
+    } finally {
+      for (const d of [older, newer, same]) rmSync(d, { recursive: true, force: true });
+      rmSync(join(project, '.design', '_active.json'), { force: true });
+    }
   });
 
   test('actor: a Maude chat session (MAUDE_AGENT_ACTOR from the ACP bridge) vs a terminal', async () => {
@@ -605,6 +660,26 @@ describe('session-start + the screenshot record (§5.4 step 2 evidence)', () => 
     expect(readFileSync(envFile, 'utf8')).toContain('export MAUDE_HOOK_SESSION=se\n');
     // no env file (an older Claude Code) → still silent and fine
     expect((await hook('session-start', { session_id: 'se', cwd: project })).status).toBe(0);
+  });
+
+  test("session-start without a studio compares the plugin with this CLI's own manifest", async () => {
+    const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+    const cli = JSON.parse(
+      readFileSync(join(ROOT, 'apps', 'studio', 'actions.manifest.json'), 'utf8')
+    );
+    const older = makePlugin('000000000000', '0.0.1');
+    const current = makePlugin(cli.manifestVersion, pkg.version);
+    try {
+      expect(contextOf(await sessionStart(project, older))).toContain(
+        `older than Maude (${pkg.version})`
+      );
+      expect(await sessionStart(project, current)).toMatchObject({ status: 0, stdout: '' });
+      // no plugin root (a plugin that isn't installed through Claude Code) → silent
+      expect(await sessionStart(project, '')).toMatchObject({ status: 0, stdout: '' });
+    } finally {
+      rmSync(older, { recursive: true, force: true });
+      rmSync(current, { recursive: true, force: true });
+    }
   });
 
   test('_record-shot.sh appends {at, canvas, artboard, all, session}; no session → _runs/shots.jsonl', () => {

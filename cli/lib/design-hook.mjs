@@ -10,7 +10,9 @@
 //   stop        Stop              stop-tier check of the run's files · run/end      → block or nothing
 //               SubagentStop      (same command) hand-off result + the files it owns → block or nothing
 //   subagent-start SubagentStart  records agent_id → {type, at, handoffs}           → nothing
-//   session-start SessionStart    exports MAUDE_HOOK_SESSION to Bash (CLAUDE_ENV_FILE) → nothing
+//   session-start SessionStart    exports MAUDE_HOOK_SESSION to Bash (CLAUDE_ENV_FILE); §5.6
+//                                 handshake: warns when the plugin's manifest is older than
+//                                 the app's; names the active canvas      → additionalContext or nothing
 //
 // DENY-ONLY and FAIL-OPEN: never `ask`, never `allow`; bad stdin, no project, a path outside
 // designRoot, any internal error → exit 0 with no output. Without a studio (no `_server.json`,
@@ -298,11 +300,31 @@ function handoffsFor(ctx, agentType) {
 const runIdOf = (ctx) => `r_${sha(ctx.session).slice(0, 16)}`;
 const repoRelOf = (ctx, abs) => relative(ctx.root, abs).split(sep).join('/');
 
+/** semver `a` < `b` (x.y.z, a prerelease before its release). Unparseable → false. */
+export function versionOlder(a, b) {
+  const parse = (v) => {
+    const m = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/.exec(String(v ?? '').trim());
+    return m ? [Number(m[1]), Number(m[2]), Number(m[3]), m[4] ?? null] : null;
+  };
+  const x = parse(a);
+  const y = parse(b);
+  if (!x || !y) return false;
+  for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] < y[i];
+  if (x[3] === y[3] || x[3] === null) return false;
+  if (y[3] === null) return true;
+  return x[3].localeCompare(y[3], 'en', { numeric: true }) < 0;
+}
+
+const SAFE_CANVAS_RE = /^[A-Za-z0-9 _./()-]{1,240}\.(?:tsx|jsx)$/;
+
 /**
  * SessionStart: export the hook session to this session's Bash commands (Claude Code's
- * CLAUDE_ENV_FILE), so `maude design screenshot` files its captures under this run.
+ * CLAUDE_ENV_FILE), so `maude design screenshot` files its captures under this run. Then the
+ * §5.6 handshake: the plugin's bundled actions.manifest.json against the app's — /_health
+ * `manifestVersion` when the studio is up, else this CLI's own manifest — and one line when the
+ * plugin is the older side. Never blocks.
  */
-function sessionStart(ctx) {
+async function sessionStart(ctx) {
   const envFile = process.env.CLAUDE_ENV_FILE;
   if (envFile && isAbsolute(envFile) && ctx.session !== 'no-session') {
     try {
@@ -311,7 +333,52 @@ function sessionStart(ctx) {
       /* no env file: captures go to _runs/shots.jsonl */
     }
   }
-  return null;
+  const lines = [];
+  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
+  const studio = await locateStudio(ctx.root, { timeoutMs: LOCATE_MS });
+  if (pluginRoot && isAbsolute(pluginRoot)) {
+    const plugin = {
+      mv: readJson(join(pluginRoot, 'actions.manifest.json'), null)?.manifestVersion,
+      version: readJson(join(pluginRoot, '.claude-plugin', 'plugin.json'), null)?.version,
+    };
+    const cli = ctx.pkgRoot
+      ? {
+          mv: readJson(join(ctx.pkgRoot, 'apps', 'studio', 'actions.manifest.json'), null)
+            ?.manifestVersion,
+          version: readJson(join(ctx.pkgRoot, 'package.json'), null)?.version,
+        }
+      : {};
+    const h = studio?.health;
+    const app =
+      typeof h?.manifestVersion === 'string'
+        ? {
+            mv: h.manifestVersion,
+            version: typeof h.version === 'string' ? h.version : cli.version,
+          }
+        : cli;
+    if (
+      typeof plugin.mv === 'string' &&
+      typeof app.mv === 'string' &&
+      plugin.mv !== app.mv &&
+      versionOlder(plugin.version, app.version)
+    )
+      lines.push(
+        `The Maude design plugin (${plugin.version}) is older than Maude (${app.version}), so its skills may not know every action. Tell the person to update the plugin: /plugin marketplace update maude, then /reload-plugins.`
+      );
+  }
+  if (studio) {
+    const active = readJson(join(ctx.designRoot, '_active.json'), null)?.active;
+    const rel = typeof active === 'string' ? active.replace(/^\.design\//, '') : null;
+    if (rel && SAFE_CANVAS_RE.test(rel) && !rel.split('/').includes('..'))
+      lines.push(`Maude is showing ${rel} (the active canvas).`);
+  }
+  if (!lines.length) return null;
+  return {
+    hookSpecificOutput: {
+      hookEventName: 'SessionStart',
+      additionalContext: lines.join(' ').slice(0, 400),
+    },
+  };
 }
 
 function subagentStart(ctx, input) {
