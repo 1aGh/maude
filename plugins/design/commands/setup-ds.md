@@ -2,7 +2,7 @@
 name: setup-ds
 category: setup
 description: "Create or re-bootstrap a named design system."
-argument-hint: "<name> [\"<brief>\"] [--force] [--quick]"
+argument-hint: "<name> [\"<brief>\"] [--force | --upgrade-schema] [--allow-partial] [--quick]"
 ---
 
 # /design:setup-ds — create / extend a design system

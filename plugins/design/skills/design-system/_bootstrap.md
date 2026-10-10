@@ -1279,6 +1279,16 @@ The seven critic agents are grouped into Pastier's three brand-quality rounds (F
 
 **The silent-pass bar is `≥ 4.0`, not `≥ 3.5`.** "Nice but not wow" *is* a 3.5–3.8 — studyfi scored 3.8/3.7 and the loop reported a silent "passed" while the user re-tuned typography + background by hand. A `3.0 ≤ score < 4.0` MUST surface the "to wow" block; a `< 3.0` is the hard "does not match the quality bar" path. Don't over-correct into nagging — the middle band still says **complete**, it just refuses to be silent. (Bar raised 3.5 → 4.0 per DDR-057.)
 
+### Schema gate (design-system schema v1 — V2-2.15, contract V2-1.13 §5.9 E4)
+
+After the post-scaffold critic rounds, and before Post-Flight:
+
+1. **LOCK writes Tier 1 plus the chosen Tier-2 slots.** Every one of the 27 functional roles in `colors_and_type.css` gets a discovery value (Stage-4 refinement asks the slot questions — display ramp? palette? texture? signature motion? — answered from research, never defaulted). A role left out still renders (the shell derives it), but the gate below will not pass.
+2. **Batch A emits both manifests:** `system/<ds>/components.json` (from `components.json.tpl`, mapped to the classes the scaffold wrote; a variant or icon the system genuinely lacks is `null` — a declared gap, never an invented class or glyph) and `tokens.json` via `maude design ds-check <ds> --emit`.
+3. **Gate:** `maude design ds-check <ds> --json` must exit **0** (exit 10 only with `--allow-partial`, and the reasons are printed). On 0, write `designSystems[].schema: 1` to `.design/config.json`; from then on the completeness critic's gated checks are blockers. Exit 11 (Private-only) is never accepted.
+
+**`--upgrade-schema` (existing systems — preferred over `--force`).** `/design:setup-ds <ds> --upgrade-schema` runs the Bring-up engine instead of re-bootstrapping: `maude design ds-upgrade <ds> --analyse` → you judge the `needs-judgement` items (new role values built only from the system's own tokens; collisions; the component map), writing them as plan items → `ds-upgrade <ds> --validate <plan>` (13 = an invariant refused, nothing written) → `--stage` → show the user the four review lines (adds roles · renames components · keeps own · updates canvases) → `--apply` only on their explicit yes. Never run it for a system the user didn't name (A16).
+
 ### Post-Flight (slim)
 
 Bootstrap-mode Post-Flight is **slim** — only DS-specific follow-ups (no environment offers; those belong to `init`):
