@@ -14,7 +14,7 @@ import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from 'node
 import path from 'node:path';
 import { parseSync } from 'oxc-parser';
 
-import { SKIP_DIRS } from '../api.ts';
+import { SKIP_DIRS } from '../skip-dirs.ts';
 import type { ArtboardKind, ArtboardRow, CanvasKind, CanvasRow, Stamp } from './types.ts';
 
 const ARTBOARD_KINDS = new Set<ArtboardKind>(['digital', 'print', 'web', 'video']);

@@ -104,6 +104,9 @@ export function collectImports(entryFile) {
       // alternative can otherwise span statements and capture junk.
       if (!spec || /[\s,]/.test(spec) || spec.startsWith('node:') || spec.startsWith('bun:'))
         continue;
+      // An interpolated specifier is code the helper GENERATES (clip-ops.ts writes
+      // `from '${specifier}'` into a canvas), never a package the helper itself loads.
+      if (spec.includes('${')) continue;
       // `@maude/*` is never an npm package here: `@maude/canvas-lib` is the
       // dev-server's VIRTUAL specifier (canvas-build resolves it to
       // apps/studio/canvas-lib.tsx — DDR-025), and it reaches this scrape only

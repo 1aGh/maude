@@ -129,25 +129,14 @@ import { resolveUrlPathUnder } from './path-containment.ts';
 import { STICKERS_DIR } from './paths.ts';
 import { getPaperPreset, MAX_PRINT_MM } from './print/units.ts';
 import { currentSession, normalizeSessionKey, sessionDir } from './session-scope.ts';
+import { SKIP_DIRS } from './skip-dirs.ts';
 import { describeSourceOp } from './sync/source-ops.ts';
 import { normalizeTreeState, type TreeState } from './tree-state.ts';
 import { isWorkspaceMode } from './workspace-mode.ts';
 
-// Directories that never hold user-facing canvases. Exported so the
-// external-canvas watcher (`canvas-list-watch.ts`) shares one source instead of
-// a hand-synced copy. (activity.ts still carries its own historical mirror.)
-export const SKIP_DIRS = new Set([
-  'node_modules',
-  '.git',
-  '.next',
-  '.turbo',
-  'dist',
-  'build',
-  '.expo',
-  'coverage',
-  'dev-server',
-  '_history',
-]);
+// Directories that never hold user-facing canvases (one source: skip-dirs.ts).
+export { SKIP_DIRS };
+
 const HIDDEN_OK = new Set(['.ai', '.claude', '.design']);
 
 // feature-studio-file-preview — binary/media extensions the tree lists so a
