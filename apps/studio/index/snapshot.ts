@@ -63,10 +63,10 @@ export function capSnapshot(snap: ProjectIndexSnapshot): ProjectIndexSnapshot {
 /** Atomic write: tmp-<pid>-<rand> → fsync → rename. */
 export function writeSnapshot(snap: ProjectIndexSnapshot): string {
   const dir = projectDir(snap.pid);
-  mkdirSync(dir, { recursive: true });
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
   const final = snapshotPath(snap.pid);
   const tmp = `${final}.tmp-${process.pid}-${randomBytes(4).toString('hex')}`;
-  const fd = openSync(tmp, 'w');
+  const fd = openSync(tmp, 'w', 0o600);
   try {
     writeSync(fd, JSON.stringify(capSnapshot(snap)));
     fsyncSync(fd);

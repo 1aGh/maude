@@ -48,7 +48,12 @@ async function boot(formatVersion?: number) {
   const send = (p: string, method: string, body?: unknown) =>
     fetch(`${base}${p}`, {
       method,
-      headers: { 'content-type': 'application/json', origin: base },
+      // what the Maude window sends — a migrate apply needs the browser-only Sec-Fetch-Site
+      headers: {
+        'content-type': 'application/json',
+        origin: base,
+        'sec-fetch-site': 'same-origin',
+      },
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
   return { base, send };

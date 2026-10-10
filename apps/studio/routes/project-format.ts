@@ -9,6 +9,7 @@
 // the way out of the gate — and it is still refused for a role-read-only
 // session (a viewer cannot update a project).
 
+import { scrub } from '../debug-bundle.ts';
 import {
   applyMigration,
   capReport,
@@ -73,6 +74,11 @@ export function createProjectFormatRoutes(deps: ProjectFormatDeps): RouteSpec[] 
         if (!direction) return json(400, { error: 'direction is forward or reverse' });
         if (body.strip === true && direction !== 'reverse')
           return json(400, { error: 'strip only goes with reverse' });
+        // Writing is a person's act in the Maude window: only a browser sends Sec-Fetch-Site, and
+        // the auto-approved loopback helper (`maude design curl-local`) refuses to forge it. A
+        // dry run stays open to every local client (security review, Phase 1 gate — M3).
+        if (body.apply === true && req.headers.get('sec-fetch-site') !== 'same-origin')
+          return json(403, { error: 'apply runs from the Maude window (Update project)' });
         const opts: MigrateOptions = {
           repoRoot: deps.repoRoot,
           designRel: deps.designRel,
@@ -91,7 +97,11 @@ export function createProjectFormatRoutes(deps: ProjectFormatDeps): RouteSpec[] 
           if (!report.dryRun && report.exitCode === EXIT.done) deps.onMigrated?.();
           return json(statusForExit(report.exitCode), capReport(report));
         } catch (err) {
-          return json(500, { error: 'migration failed', message: (err as Error).message });
+          // The detail (paths, engine internals) goes to the server log, scrubbed — never the reply.
+          console.error(
+            `[migrate] ${scrub(String((err as Error)?.stack ?? err), { repoRoot: deps.repoRoot })}`
+          );
+          return json(500, { error: 'migration failed' });
         }
       },
     },

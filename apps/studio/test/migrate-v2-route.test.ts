@@ -32,12 +32,21 @@ function routes(project: Project, onMigrated = () => {}) {
   });
 }
 
-async function post(project: Project, body: unknown, onMigrated?: () => void) {
+// what a browser sends from the Maude window; curl-local refuses to forge it
+const FROM_WINDOW = { 'sec-fetch-site': 'same-origin' };
+
+async function post(
+  project: Project,
+  body: unknown,
+  onMigrated?: () => void,
+  headers: Record<string, string> = FROM_WINDOW
+) {
   const m = matchRoute(routes(project, onMigrated), 'POST', '/_api/project/migrate');
   if (!m) throw new Error('no route');
   const res = await m.spec.handle(
     new Request('http://localhost/_api/project/migrate', {
       method: 'POST',
+      headers,
       body: typeof body === 'string' ? body : JSON.stringify(body),
     }),
     m.params
@@ -46,6 +55,15 @@ async function post(project: Project, body: unknown, onMigrated?: () => void) {
 }
 
 describe('POST /_api/project/migrate', () => {
+  test('an apply from a non-browser client is refused and writes nothing; its dry run is open', async () => {
+    p = fixtureProject();
+    const before = readFileSync(path.join(p.repo, '.design', 'config.json'), 'utf8');
+    const refused = await post(p, { direction: 'forward', apply: true }, undefined, {});
+    expect(refused.status).toBe(403);
+    expect(readFileSync(path.join(p.repo, '.design', 'config.json'), 'utf8')).toBe(before);
+    expect((await post(p, { direction: 'forward' }, undefined, {})).status).toBe(200);
+  });
+
   test('dry-run by default, apply on request, then already-there; onMigrated fires once', async () => {
     p = fixtureProject();
     let migrated = 0;

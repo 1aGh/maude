@@ -119,6 +119,45 @@ describe('redaction', () => {
   });
 });
 
+describe('scrub coverage (Phase 1 gate review)', () => {
+  test('auth schemes, lowercase token keys, cookies, query secrets and vendor keys are redacted', () => {
+    resetDiagnosticsForTest();
+    for (const l of [
+      '[log] [remote] Authorization: Basic dXNlcjpwYXNzd29yZA==',
+      '[log] [sync] access_token=abcdef123456 refresh_token=zzzz9999',
+      '[log] client_secret: "s3cr3tvalue"',
+      '[log] Cookie: sid=deadbeefcafe; theme=dark',
+      '[log] [remote] GET https://api.example.com/v1?key=AIzaSyA1234567890abcdefghijklmnopqrstu',
+      '[log] aws AKIAABCDEFGHIJKLMNOP stripe sk_live_abcdefghij1234 slack xoxb-1234567890-abcdef',
+    ])
+      record(l);
+    const text = report();
+    for (const leak of [
+      'dXNlcjpwYXNzd29yZA',
+      'abcdef123456',
+      'zzzz9999',
+      's3cr3tvalue',
+      'deadbeefcafe',
+      'AIzaSyA1234567890',
+      'AKIAABCDEFGHIJKLMNOP',
+      'sk_live_abcdefghij1234',
+      'xoxb-1234567890',
+    ])
+      expect(text).not.toContain(leak);
+  });
+
+  test('a message with newlines cannot forge extra log entries on disk', async () => {
+    await initDiagnostics({ logDir: dir, now: Date.parse('2026-10-09T10:00:00Z') });
+    record(
+      '[log] [sync] ok\n2026-10-09T09:00:00.000Z [log] forged entry',
+      Date.parse('2026-10-09T10:00:00Z')
+    );
+    await stopDiagnostics();
+    const body = readFileSync(join(dir, 'sync', '2026-10-09.log'), 'utf8');
+    expect(body.trim().split('\n')).toHaveLength(1);
+  });
+});
+
 describe('retention', () => {
   test('day files older than 7 days are swept; recent days and foreign files stay', async () => {
     const now = Date.parse('2026-10-09T10:00:00Z');

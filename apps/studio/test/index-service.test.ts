@@ -116,6 +116,21 @@ describe('static extractor', () => {
     expect(extractCanvas(ctx(), 'ui/club/wrapped.tsx').depsHash).not.toBe(before);
   });
 
+  test('a relative import that leaves the project is never read', () => {
+    const outside = path.join(path.dirname(root), `maude-outside-${path.basename(root)}.tsx`);
+    writeFileSync(outside, 'export const X = () => <DCArtboard id="o" />;\n');
+    try {
+      put(
+        'ui/escape.tsx',
+        `import { X } from '../../../${path.basename(outside).replace(/\.tsx$/, '')}';\nexport default () => <X />;\n`
+      );
+      const row = extractCanvas(ctx(), 'ui/escape.tsx');
+      expect(row.dynamic).toBe(false); // the outside module's DCArtboard was not looked at
+    } finally {
+      rmSync(outside, { force: true });
+    }
+  });
+
   test('the sidecar gives kind, design system and AI authorship; _modules are not canvases', () => {
     put('ui/a.tsx', canvas('<DCArtboard id="a" />'));
     put(

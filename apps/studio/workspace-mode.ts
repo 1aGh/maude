@@ -156,6 +156,10 @@ export const FORBIDDEN_ROUTE_PREFIXES: ReadonlyArray<{
     why: 'the diagnostic bundle reads this process’s logs, where every cell secret has had a chance to appear',
   },
   {
+    prefix: '/_api/diagnostics',
+    why: 'diagnostics read the same process logs as the debug bundle (V2-2.9)',
+  },
+  {
     prefix: '/_api/design',
     why: 'design-system init shells out to the CLI on our compute against tenant-chosen input',
   },

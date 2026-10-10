@@ -100,7 +100,11 @@ export function humanReport(r: MigrateReport): string {
   return `${out.join('\n')}\n`;
 }
 
-export async function main(argv: readonly string[], env = process.env): Promise<number> {
+export async function main(
+  argv: readonly string[],
+  env = process.env,
+  stdinIsTTY?: boolean
+): Promise<number> {
   const args = parseCliArgs(argv);
   if ('error' in args) {
     process.stderr.write(`${args.error}\n`);
@@ -119,6 +123,15 @@ export async function main(argv: readonly string[], env = process.env): Promise<
     hub: linkedHub(repoRoot),
     log: (l) => process.stderr.write(`${l}\n`),
   };
+  // An apply that changes the shared hub (every teammate's format) or strips v2 data is a
+  // person's decision: refused without a terminal, so an agent steered by canvas text cannot
+  // run it through the auto-approved `maude` verbs (security review, Phase 1 gate — M3).
+  if (args.apply && (opts.hub || opts.strip) && !(stdinIsTTY ?? process.stdin.isTTY)) {
+    process.stderr.write(
+      `maude migrate v2 --apply ${opts.strip ? 'with --strip removes v2 data' : 'changes the linked hub for everyone'}; run it in your own terminal, or use Update project in the app.\n`
+    );
+    return EXIT.usage;
+  }
   try {
     const dry = await planMigration(opts);
     const report = args.apply && dry.exitCode === EXIT.done ? await applyMigration(opts, dry) : dry;

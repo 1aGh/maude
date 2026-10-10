@@ -57,6 +57,10 @@ test('--apply writes the marker; a second run exits 10; --strip without --revers
     );
     assert.equal(maude('migrate', 'v2', '--apply', '--root', repo).status, 10);
     assert.equal(maude('migrate', 'v2', '--strip', '--root', repo).status, 2);
+    // stripping v2 data is a person's act: no terminal, no apply (security review, Phase 1 gate)
+    const strip = maude('migrate', 'v2', '--reverse', '--strip', '--apply', '--root', repo);
+    assert.equal(strip.status, 2);
+    assert.match(strip.stderr, /run it in your own terminal/);
     const rev = maude('migrate', 'v2', '--reverse', '--apply', '--root', repo);
     assert.equal(rev.status, 0, rev.stderr);
     assert.equal(

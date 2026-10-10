@@ -18,12 +18,13 @@
 // Exit 0 = every gate green; 1 = at least one red (printed); 2 = usage error.
 
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const EVIDENCE = join(ROOT, '.ai/scenarios/maude-v2/gates');
+const EVIDENCE = process.env.V2_GATES_EVIDENCE_DIR ?? join(ROOT, '.ai/scenarios/maude-v2/gates');
 const BASELINES = join(ROOT, '.ai/scenarios/maude-v2/baselines.json');
 const args = process.argv.slice(2);
 const opt = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
@@ -42,7 +43,9 @@ const quality = JSON.parse(readFileSync(join(ROOT, '.ai/workflows.config.json'),
 const E2E_LANES = Object.keys(
   JSON.parse(readFileSync(join(ROOT, 'apps/desktop/e2e/package.json'), 'utf8')).scripts
 ).filter((k) => /^e2e(:|$)/.test(k) && k !== 'e2e:build');
-const lane = (cmd) => `scripts/v2-test-lane.sh --wait 3600 -- bash -c ${JSON.stringify(cmd)}`;
+// Single-quoted for bash, so `$l`-style variables expand in the INNER shell, not the outer one.
+const lane = (cmd) =>
+  `scripts/v2-test-lane.sh --wait 3600 -- bash -c '${cmd.replace(/'/g, `'\\''`)}'`;
 
 // ── live checks ───────────────────────────────────────────────────────────────────────
 function cleanupCheck() {
@@ -158,10 +161,47 @@ function readEvidence(id) {
     return null;
   }
 }
-function fresh(ev) {
-  if (!ev?.head) return false;
-  // stale when anything outside .ai/ changed since the evidence was taken
-  return sh(`git diff --quiet ${ev.head} HEAD -- . ':!.ai'`).status === 0;
+// Evidence is a file anyone with write access to the tree can author (a lane agent, a Syncthing
+// peer), so nothing in it is ever interpolated into a shell, and every claim it makes is re-checked
+// against the repository (security review, Phase 1 gate).
+const gitArgs = (...a) => spawnSync('git', a, { cwd: ROOT, encoding: 'utf8' });
+const QUALITY_HASH = createHash('sha256').update(JSON.stringify(quality)).digest('hex');
+const fileHash = (p) =>
+  createHash('sha256')
+    .update(readFileSync(join(ROOT, p)))
+    .digest('hex');
+function fresh(ev, g) {
+  if (!/^[0-9a-f]{40}$/.test(ev?.head ?? '')) return 'head is not a full commit sha';
+  if (gitArgs('merge-base', '--is-ancestor', ev.head, 'HEAD').status !== 0)
+    return 'head is not an ancestor of HEAD';
+  // stale when anything outside .ai/ changed since — and the quality gate definitions, which live in .ai/
+  if (gitArgs('diff', '--quiet', ev.head, 'HEAD', '--', '.', ':!.ai').status !== 0)
+    return `product files changed since ${ev.head.slice(0, 8)}`;
+  if (ev.qualityHash !== QUALITY_HASH) return 'the quality gate definitions changed';
+  if (g?.kind === 'command' && ev.cmd !== g.cmd) return 'recorded for a different command';
+  if (g?.kind === 'attest') {
+    const hashes = ev.reportHashes ?? {};
+    for (const r of ev.reports ?? []) {
+      if (!existsSync(join(ROOT, r))) return `report ${r} is gone`;
+      if (hashes[r] !== fileHash(r)) return `report ${r} changed after it was attested`;
+    }
+    if (!(ev.reports ?? []).length) return 'no reports';
+  }
+  return null;
+}
+// A report's own verdict, when it carries one: the last ```json block with blockers / pass.
+function reportVerdict(p) {
+  const text = readFileSync(join(ROOT, p), 'utf8');
+  const blocks = [...text.matchAll(/```json\s*\n([\s\S]*?)```/g)];
+  for (const m of blocks.reverse()) {
+    try {
+      const v = JSON.parse(m[1]);
+      if (typeof v.blockers === 'number' && v.blockers > 0) return `${v.blockers} blocker(s)`;
+      if (v.pass === false || v.verdict === 'fail') return 'verdict fail';
+      if ('blockers' in v || 'pass' in v || 'verdict' in v) return null;
+    } catch {}
+  }
+  return null;
 }
 function writeEvidence(id, data) {
   mkdirSync(EVIDENCE, { recursive: true });
@@ -176,8 +216,10 @@ function judge(g) {
     if (!ev)
       problems.push(`no evidence (${g.kind === 'command' ? '--record' : '--attest'} ${g.id})`);
     else if (ev.pass !== true) problems.push(`evidence says fail (${ev.ts})`);
-    else if (!fresh(ev))
-      problems.push(`evidence stale — product files changed since ${ev.head.slice(0, 8)}`);
+    else {
+      const why = fresh(ev, g);
+      if (why) problems.push(`evidence stale — ${why}`);
+    }
   }
   return problems;
 }
@@ -212,6 +254,7 @@ if (opt('--record')) {
     ts: new Date().toISOString(),
     seconds: Math.round((Date.now() - t0) / 1000),
     cmd: g.cmd,
+    qualityHash: QUALITY_HASH,
     log,
   });
   console.log(`${r.status === 0 ? 'PASS' : 'FAIL'}  ${g.id} recorded → ${evidencePath(g.id)}`);
@@ -234,6 +277,11 @@ if (opt('--attest')) {
     console.error(`reports not found: ${missing.join(', ')}`);
     process.exit(2);
   }
+  const failing = reports.map((p) => [p, reportVerdict(p)]).filter(([, v]) => v);
+  if (failing.length) {
+    console.error(`reports do not say pass: ${failing.map(([p, v]) => `${p} (${v})`).join(', ')}`);
+    process.exit(1);
+  }
   if (productDirty()) {
     console.error('uncommitted product changes — commit first, evidence is tied to a commit');
     process.exit(2);
@@ -241,6 +289,8 @@ if (opt('--attest')) {
   writeEvidence(g.id, {
     gate: g.id,
     pass: true,
+    qualityHash: QUALITY_HASH,
+    reportHashes: Object.fromEntries(reports.map((p) => [p, fileHash(p)])),
     head: git('rev-parse HEAD'),
     ts: new Date().toISOString(),
     reports,

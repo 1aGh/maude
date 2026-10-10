@@ -26,6 +26,8 @@ export type Source = (typeof SOURCES)[number];
 export const RETENTION_DAYS = 7;
 const RING_MAX = 500;
 const SWEEP_EVERY_MS = 6 * 60 * 60 * 1000;
+/** At most this much per source and day (the in-memory ring was bounded too). */
+const DAY_CAP_BYTES = 8 * 1024 * 1024;
 
 // `[prefix]` → source. Anything unprefixed (or unknown) is the server's.
 const PREFIX: Record<string, Source> = {
@@ -56,6 +58,7 @@ interface State {
   repoRoot: string | undefined;
   persist: boolean;
   pending: Promise<void>;
+  bytes: Map<string, number>;
   timer: ReturnType<typeof setInterval> | null;
 }
 
@@ -66,6 +69,7 @@ const state: State = {
   repoRoot: undefined,
   persist: false,
   pending: Promise.resolve(),
+  bytes: new Map(),
   timer: null,
 };
 
@@ -102,12 +106,18 @@ export function record(line: string, now = Date.now()) {
   ring.push(line);
   if (ring.length > RING_MAX) ring.splice(0, ring.length - RING_MAX);
   if (!state.persist) return;
-  const text = `${new Date(now).toISOString()} ${scrub(line, { repoRoot: state.repoRoot })}\n`;
+  // One entry per line: a message's own newlines are escaped so it cannot forge entries.
+  const clean = scrub(line, { repoRoot: state.repoRoot }).replace(/\r?\n/g, '\\n');
+  const text = `${new Date(now).toISOString()} ${clean}\n`;
+  const key = `${source}/${day(now)}`;
+  const written = (state.bytes.get(key) ?? 0) + text.length;
+  if (written > DAY_CAP_BYTES) return; // per source and day; the ring still holds the tail
+  state.bytes.set(key, written);
   const dir = join(state.logDir, source);
   // one write chain: lines land in order, and a failed write never throws into a console call
   state.pending = state.pending
-    .then(() => mkdir(dir, { recursive: true }))
-    .then(() => appendFile(join(dir, `${day(now)}.log`), text))
+    .then(() => mkdir(dir, { recursive: true, mode: 0o700 }))
+    .then(() => appendFile(join(dir, `${day(now)}.log`), text, { mode: 0o600 }))
     .catch(() => {});
 }
 
@@ -183,6 +193,7 @@ export function report(meta: Record<string, unknown> = {}, tail = 60): string {
 export function resetDiagnosticsForTest() {
   for (const source of SOURCES) state.rings[source] = [];
   state.status.clear();
+  state.bytes.clear();
   state.persist = false;
   state.repoRoot = undefined;
   state.logDir = process.env.MAUDE_LOG_DIR || join(homedir(), '.maude', 'logs');

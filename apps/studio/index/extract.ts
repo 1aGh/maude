@@ -26,10 +26,17 @@ const CANVAS_KINDS = new Set<CanvasKind>([
   'reconstructed-experimental',
 ]);
 const HIDDEN_OK = new Set(['.ai', '.claude', '.design']);
+const MAX_DEP_BYTES = 2 * 1024 * 1024;
+const isInside = (root: string, p: string) => {
+  const rel = path.relative(root, p);
+  return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+};
 const sha = (s: string | Buffer) => createHash('sha256').update(s).digest('hex').slice(0, 16);
 
 export interface IndexContext {
   designRoot: string;
+  /** the project root relative imports may reach (default: designRoot's parent) */
+  repoRoot?: string;
   /** canvas groups from config (`{ path, label }`), relative to designRoot */
   groups: Array<{ path: string; label: string }>;
   defaultDs: string | null;
@@ -242,6 +249,7 @@ export function extractCanvas(ctx: IndexContext, rel: string): CanvasRow {
   // relative imports: their content feeds depsHash; a local module that renders artboards makes
   // this canvas dynamic (Alligators' ui/club-web/_render.tsx)
   const deps: string[] = [];
+  const projectRoot = ctx.repoRoot ?? path.dirname(ctx.designRoot);
   let importsRenderArtboards = false;
   for (const spec of [...new Set(relImports)].sort()) {
     const base = path.resolve(path.dirname(abs), spec);
@@ -253,11 +261,11 @@ export function extractCanvas(ctx: IndexContext, rel: string): CanvasRow {
       `${base}.js`,
       path.join(base, 'index.tsx'),
     ].find((p) => {
-      try {
-        return statSync(p).isFile();
-      } catch {
-        return false;
-      }
+      // only files inside the project, and of a sane size: a peer-authored canvas importing
+      // `../../../../etc/…` must not make the indexer read outside the tree (Phase 1 gate review)
+      if (!isInside(projectRoot, p)) return false;
+      const st = statSync(p, { throwIfNoEntry: false });
+      return !!st && st.isFile() && st.size <= MAX_DEP_BYTES;
     });
     if (!hit) continue;
     const text = readFileSync(hit);

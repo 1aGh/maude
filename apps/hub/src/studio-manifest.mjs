@@ -283,6 +283,11 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/github/repos': REFUSED,
   '/_api/hub/link': REFUSED,
   '/_api/debug-bundle': REFUSED,
+  // V2-2.9 / V2-2.17 — the same process logs as the debug bundle, and an index that has no
+  // per-canvas `sees` filter yet (V2-1.16): refused in a cell, explicitly, not only by default.
+  '/_api/diagnostics': REFUSED,
+  '/_api/diagnostics/report': REFUSED,
+  '/_api/index': REFUSED,
   '/_api/design/init': REFUSED,
   // Resync + the sweep cancel (v0.60.0) restart the SYNC RUNTIME of whatever
   // process serves this project. On a laptop that is the person's own studio

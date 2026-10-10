@@ -71,7 +71,11 @@ fi
 # 5 · Packaged .app built from feat/maude-v2 and verified (V2-8.10 / V2-8.11).
 if [[ -f .ai/scenarios/maude-v2/packaged-app.json ]] && node -e '
   const s = JSON.parse(require("fs").readFileSync(".ai/scenarios/maude-v2/packaged-app.json", "utf8"));
-  process.exit(s.pass === true && s.branch === "feat/maude-v2" ? 0 : 1);
+  const git = (...a) => require("child_process").spawnSync("git", a).status === 0;
+  // bound to a real commit with no product change since (never interpolated into a shell)
+  const ok = s.pass === true && s.branch === "feat/maude-v2" && /^[0-9a-f]{40}$/.test(s.head ?? "")
+    && git("merge-base", "--is-ancestor", s.head, "HEAD") && git("diff", "--quiet", s.head, "HEAD", "--", ".", ":!.ai");
+  process.exit(ok ? 0 : 1);
 '; then
   pass "packaged .app verified"
 else

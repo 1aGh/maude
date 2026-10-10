@@ -101,10 +101,16 @@ test('a stale lock (dead pid) is taken over', () => {
   assert.match(r.stderr, /stale lock/);
 });
 
+const HOST = (spawnSync('hostname', ['-s'], { encoding: 'utf8' }).stdout ?? '').replace(
+  /[^A-Za-z0-9-]/g,
+  ''
+);
+const Q = () => join(root, `.git/v2-test.queue.${HOST || 'host'}`);
+
 test('waiters are served in arrival order — an older live ticket goes first', async () => {
   const older = spawn('sleep', ['5']);
-  mkdirSync(join(root, '.git/v2-test.queue'), { recursive: true });
-  writeFileSync(join(root, `.git/v2-test.queue/1000000000.${older.pid}`), '');
+  mkdirSync(Q(), { recursive: true });
+  writeFileSync(join(Q(), `1000000000.${older.pid}`), '');
   const r = lane(['--wait', '1', '--', 'true']);
   assert.equal(r.status, 75, 'the lane is free but an older waiter is queued');
   assert.match(r.stderr, /queued behind 1000000000\./);
@@ -112,5 +118,13 @@ test('waiters are served in arrival order — an older live ticket goes first', 
   await new Promise((res) => older.on('exit', res));
   const r2 = lane(['--wait', '2', '--', 'true']);
   assert.equal(r2.status, 0, 'a dead waiter’s ticket is dropped');
-  assert.equal(existsSync(join(root, `.git/v2-test.queue/1000000000.${older.pid}`)), false);
+  assert.equal(existsSync(join(Q(), `1000000000.${older.pid}`)), false);
+});
+
+test('a forged ticket (pid 0, -1, or not <epoch>.<pid>) never stalls the lane', () => {
+  mkdirSync(Q(), { recursive: true });
+  for (const n of ['1.0', '1.1', '1.-1', 'junk']) writeFileSync(join(Q(), n), '');
+  const r = lane(['--wait', '2', '--', 'true']);
+  assert.equal(r.status, 0, r.stderr);
+  for (const n of ['1.0', '1.1', '1.-1', 'junk']) assert.equal(existsSync(join(Q(), n)), false);
 });

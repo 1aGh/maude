@@ -8,7 +8,7 @@
 #   1. takes the machine-wide lock `<git common dir>/v2-test.lock` — shared by the main checkout and
 #      every lane worktree (waits up to --wait seconds, default 900; a lock whose pid is gone is stale
 #      and is taken over). Waiters queue first-come first-served through tickets in
-#      `<git common dir>/v2-test.queue/` (`<epoch>.<pid>`; a dead pid's ticket is dropped), so a
+#      `<git common dir>/v2-test.queue.<host>/` (`<epoch>.<pid>`; a dead pid's ticket is dropped), so a
 #      caller that re-runs in a tight loop cannot starve everyone else,
 #   2. records `git status apps/studio/dist/` before the run,
 #   3. runs the command,
@@ -37,7 +37,10 @@ if [[ $# -eq 0 ]]; then
   exit 2
 fi
 
-QUEUE="$COMMON/v2-test.queue"
+# Per host: the git dir syncs between machines (Syncthing), and a peer must never see — and drop
+# as dead — this machine's waiters (security review, Phase 1 gate).
+HOST="$(hostname -s 2>/dev/null | tr -cd 'A-Za-z0-9-')"
+QUEUE="$COMMON/v2-test.queue.${HOST:-host}"
 mkdir -p "$QUEUE"
 TICKET="$QUEUE/$(date +%s).$$"
 : >"$TICKET"
@@ -45,10 +48,12 @@ trap 'rm -f "$TICKET"' EXIT INT TERM
 # First live ticket in arrival order (seconds, then pid); dead waiters' tickets are dropped.
 first_ticket() {
   local t pid
-  for t in "$QUEUE"/*.*; do
+  for t in "$QUEUE"/*; do
     [[ -e "$t" ]] || continue
+    # only `<epoch>.<pid>` with a real pid: `0` / `-1` would pass `kill -0` forever and stall the lane
+    if [[ ! "${t##*/}" =~ ^[0-9]+\.[0-9]+$ ]]; then rm -f "$t"; continue; fi
     pid="${t##*.}"
-    kill -0 "$pid" 2>/dev/null || rm -f "$t"
+    if ((pid <= 1)) || ! kill -0 "$pid" 2>/dev/null; then rm -f "$t"; fi
   done
   ls "$QUEUE" 2>/dev/null | sort -t. -k1,1n -k2,2n | head -1
 }

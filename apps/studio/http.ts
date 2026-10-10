@@ -1725,6 +1725,7 @@ export function createHttp(
     designRel: ctx.paths.designRel,
     context: () => ({
       designRoot: ctx.paths.designRoot,
+      repoRoot: ctx.paths.repoRoot,
       groups: ctx.cfg.canvasGroups,
       defaultDs: ctx.cfg.defaultDesignSystem || ctx.cfg.designSystems?.[0]?.name || null,
       designSystems: ctx.cfg.designSystems ?? [],
