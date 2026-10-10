@@ -2762,7 +2762,13 @@ function CanvasRouter({
         }
         return;
       }
+      // V2-2.8 S1 — `tool-set`, `locked-set` and `select-by-id` are honoured only
+      // from the shell itself (`e.source === window.parent`, run-action's gate): a
+      // sibling canvas frame (same canvasOrigin, reachable via `parent.frames`,
+      // DDR-054 untrusted) must not arm a tool, rewrite the locked set or move
+      // the selection (and camera) of the active canvas.
       if (m.dgn === 'tool-set') {
+        if (e.source !== window.parent) return;
         const t = (m as { tool?: string }).tool;
         if (typeof t === 'string') setTool(t as never);
         return;
@@ -2836,6 +2842,7 @@ function CanvasRouter({
       }
       // feature-4 T7b — live locked-layer set from the shell's Layers panel.
       if (m.dgn === 'locked-set') {
+        if (e.source !== window.parent) return;
         const arr = (m as { locked?: unknown }).locked;
         if (Array.isArray(arr)) {
           const s = lockedKeySet();
@@ -2849,6 +2856,7 @@ function CanvasRouter({
       // the Inspect/CSS tabs + halos); highlight shows the transient hover halo;
       // request-layers re-walks + posts the tree for an artboard.
       if (m.dgn === 'select-by-id') {
+        if (e.source !== window.parent) return; // V2-2.8 S1 (see tool-set above)
         const mm = m as { id?: string; artboardId?: string | null; index?: number };
         // Dogfood follow-up — a bare ARTBOARD selection (no data-cd-id, the
         // ArtboardKnobs panel's own case) has no `mm.id` to resolve by, so

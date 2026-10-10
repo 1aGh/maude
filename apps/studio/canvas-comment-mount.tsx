@@ -218,6 +218,9 @@ function CommentHost({ children, file }: { children: ReactNode; file: string | u
     const onMessage = (e: MessageEvent) => {
       const m = e.data as { dgn?: string; tool?: string } | null;
       if (!m || typeof m !== 'object' || m.dgn !== 'tool-set') return;
+      // V2-2.8 S1 — only the shell may arm a tool: a sibling canvas frame shares
+      // the canvasOrigin and reaches this window via `parent.frames` (DDR-054).
+      if (e.source !== window.parent) return;
       if (typeof m.tool === 'string') setTool(m.tool as never);
     };
     window.addEventListener('message', onMessage);
