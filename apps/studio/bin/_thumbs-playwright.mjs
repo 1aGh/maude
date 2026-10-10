@@ -65,6 +65,7 @@ async function getBrowser() {
     browserP = launchChromium({ headless: true }).then((b) => {
       lastLaunchMs = Math.round(performance.now() - t0);
       b.on('disconnected', () => {
+        tileHold = null;
         browserP = null;
         ctxState = null;
         freePages.length = 0;
@@ -132,6 +133,7 @@ async function context(origin) {
   if (ctxState && ctxState.origin !== origin) {
     // the capture listener moved (a restart): nothing from the old origin is reused
     const old = ctxState.ctx;
+    tileHold = null;
     ctxState = null;
     freePages.length = 0;
     openPages = 0;
@@ -177,6 +179,7 @@ function armIdle() {
 }
 
 async function closeBrowser() {
+  tileHold = null;
   const b = browserP;
   browserP = null;
   ctxState = null;
@@ -222,29 +225,20 @@ const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 /** Names and sizes only — never trusted for anything else (§5.8 step 3). */
 async function harvest(page) {
   const raw = await bounded(
+    // the DOM, not `__maudeCanvasRects()`: that manifest also measures every element, which a
+    // picture never needs (it cost version renders of large canvases hundreds of ms)
     page.evaluate(() => {
       const out = [];
-      let rects = [];
-      try {
-        const m = window.__maudeCanvasRects?.();
-        rects = Array.isArray(m?.artboards) ? m.artboards : [];
-      } catch {
-        rects = [];
-      }
-      const els = [...document.querySelectorAll('[data-dc-screen]')];
-      const byId = new Map(rects.map((r) => [r?.id, r]));
-      for (const el of els.slice(0, 2000)) {
-        const id = el.getAttribute('data-dc-screen');
-        const r = byId.get(id);
+      for (const el of [...document.querySelectorAll('[data-dc-screen]')].slice(0, 2000)) {
         const label = el.querySelector(':scope > .dc-artboard-label')?.textContent ?? null;
         out.push({
-          id,
+          id: el.getAttribute('data-dc-screen'),
           label: label ? label.trim().slice(0, 200) : null,
-          kind: r?.kind ?? el.getAttribute('data-dc-kind') ?? null,
-          x: r?.x ?? el.offsetLeft,
-          y: r?.y ?? el.offsetTop,
-          w: r?.w ?? el.offsetWidth,
-          h: r?.h ?? el.offsetHeight,
+          kind: el.getAttribute('data-dc-kind'),
+          x: el.offsetLeft,
+          y: el.offsetTop,
+          w: el.offsetWidth,
+          h: el.offsetHeight,
         });
       }
       return out;
@@ -281,6 +275,7 @@ function pickCover(rects, order) {
 }
 
 async function shoot(page, job, index, target, runtime, left) {
+  const t0 = performance.now();
   const px = Math.max(16, Math.min(2048, Math.trunc(Number(target.px) || 480)));
   let id = target.artboard == null ? null : String(target.artboard);
   const domIds = runtime.map((a) => a.id);
@@ -375,7 +370,13 @@ async function shoot(page, job, index, target, runtime, left) {
     clip: { x, y, width: w, height: h },
     timeout: Math.max(1000, Math.min(10_000, left())),
   });
-  return { target: index, artboard: id, jpeg: jpeg.toString('base64'), partial };
+  return {
+    target: index,
+    artboard: id,
+    jpeg: jpeg.toString('base64'),
+    partial,
+    ms: Math.round(performance.now() - t0),
+  };
 }
 
 async function render(msg) {
@@ -392,7 +393,7 @@ async function render(msg) {
     blocked: 0,
     page: null,
   };
-  const targets = Array.isArray(msg.targets) ? msg.targets.slice(0, 64) : [];
+  const targets = Array.isArray(msg.targets) ? msg.targets.slice(0, 1000) : [];
   const page = await takePage(job.expectOrigin);
   const launchMs = lastLaunchMs;
   lastLaunchMs = null;
@@ -406,7 +407,22 @@ async function render(msg) {
       .locator('#canvas-root > *')
       .first()
       .waitFor({ state: 'attached', timeout: Math.min(20_000, left()) });
-    if (job.hasArtboards) {
+    const named = targets.map((t) => t?.artboard).filter((a) => typeof a === 'string');
+    if (job.hasArtboards && named.length && named.length === targets.length) {
+      // every target names its artboard (a version row, an on-demand shot): wait for exactly
+      // those to mount — the count-settle below exists to pick a cover, which nothing asks for
+      const ids = [...new Set(named)].slice(0, 200);
+      await bounded(
+        page.waitForFunction(
+          (want) =>
+            want.every((id) => document.querySelector(`[data-dc-screen="${CSS.escape(id)}"]`)),
+          ids,
+          { timeout: Math.min(10_000, left()) }
+        ),
+        Math.min(10_000, left())
+      ).catch(() => {});
+      await bounded(frames(page), 1000);
+    } else if (job.hasArtboards) {
       await page
         .locator('[data-dc-screen]')
         .first()
@@ -440,28 +456,72 @@ async function render(msg) {
   }
 }
 
-/** An asset tile: a raster picture (or a video frame at 0.5 s) on a blank capture page (§5.8). */
-async function tile(msg) {
-  const t0 = Date.now();
-  const px = Math.max(16, Math.min(2048, Math.trunc(Number(msg.px) || 480)));
+/**
+ * An asset tile: a raster picture (or a video frame at 0.5 s) on a blank capture page (§5.8).
+ * The page is the shell with no canvas — no tenant code runs on it, and rasters are not
+ * scriptable — so ONE such page is held and reused across tiles (a navigation per tile costs
+ * ~100 ms); every tile still re-checks the page's origin before it is shot.
+ */
+let tileHold = null; // { page, origin, job }
+let tileChain = Promise.resolve();
+
+function dropTileHold() {
+  const held = tileHold;
+  tileHold = null;
+  if (!held) return;
+  jobsByPage.delete(held.page);
+  held.page
+    .goto('about:blank')
+    .catch(() => {})
+    .finally(() => releasePage(held.page));
+}
+
+async function tilePage(msg) {
+  const origin = String(msg.expectOrigin);
+  if (tileHold && (tileHold.page.isClosed() || tileHold.origin !== origin)) dropTileHold();
+  if (tileHold) return tileHold;
   const job = {
     url: String(msg.url),
-    expectOrigin: String(msg.expectOrigin),
+    expectOrigin: origin,
     entered: false,
     blocked: 0,
     page: null,
   };
-  const page = await takePage(job.expectOrigin);
+  const page = await takePage(origin);
   job.page = page;
   jobsByPage.set(page, job);
   try {
-    await page.setViewportSize({ width: px, height: px });
     await page.goto(job.url, { waitUntil: 'domcontentloaded', timeout: 10_000 });
     assertOrigin(page, job);
+  } catch (e) {
+    jobsByPage.delete(page);
+    await page.goto('about:blank').catch(() => {});
+    releasePage(page);
+    throw e;
+  }
+  tileHold = { page, origin, job };
+  return tileHold;
+}
+
+function tile(msg) {
+  const run = tileChain.then(() => tileOnce(msg));
+  tileChain = run.catch(() => {});
+  return run;
+}
+
+async function tileOnce(msg) {
+  const t0 = Date.now();
+  const px = Math.max(16, Math.min(2048, Math.trunc(Number(msg.px) || 480)));
+  const { page, job } = await tilePage(msg);
+  try {
+    assertOrigin(page, job);
+    await page.setViewportSize({ width: px, height: px });
     const box = await bounded(
       page.evaluate(
         async ([src, size, video]) => {
+          document.getElementById('__maude_tile')?.remove();
           const host = document.createElement('div');
+          host.id = '__maude_tile';
           host.style.cssText =
             'position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483647;margin:0;background:#fff';
           document.body.appendChild(host);
@@ -505,7 +565,8 @@ async function tile(msg) {
       ),
       3000
     ).catch(() => null);
-    if (!box || box === '__timeout__') return { ok: true, shots: [{ target: 0, missing: true }] };
+    if (!box || box === '__timeout__')
+      return { ok: true, shots: [{ target: 0, missing: true }], ms: Date.now() - t0 };
     assertOrigin(page, job);
     const w = Math.max(1, Math.min(px, Math.floor(box.w)));
     const h = Math.max(1, Math.min(px, Math.floor(box.h)));
@@ -521,10 +582,9 @@ async function tile(msg) {
       blocked: job.blocked,
       ms: Date.now() - t0,
     };
-  } finally {
-    jobsByPage.delete(page);
-    await page.goto('about:blank').catch(() => {});
-    releasePage(page);
+  } catch (e) {
+    dropTileHold();
+    throw e;
   }
 }
 

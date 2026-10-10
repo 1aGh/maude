@@ -92,7 +92,7 @@ export interface ThumbService {
   /** POST /_api/thumbs/want — raise these keys to `visible` (unknown keys are ignored) */
   want(keys: string[]): void;
   /** queue every canvas's cover in the background (Home / ⌘K call this; nothing does at boot) */
-  startBackground(): void;
+  startBackground(): Promise<void>;
   /** R6: is this key one the snapshot (a cover) or a caller's request references? */
   serves(key: string): boolean;
   read(key: string): Uint8Array | null;
@@ -148,7 +148,8 @@ export const unavailable = (reason: UnavailableReason): ThumbResult => ({
   reason,
 });
 
-function defaultShim(): ShimHandle {
+/** The real renderer process (exported for the budget bench, which wraps it to read timings). */
+export function spawnRendererShim(): ShimHandle {
   const proc = Bun.spawn([resolveExportRuntime(), exportShimPath('_thumbs-playwright.mjs')], {
     cwd: path.dirname(exportShimPath('_thumbs-playwright.mjs')),
     env: { ...process.env },
@@ -315,9 +316,13 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
   };
 
   function readyDims(key: string) {
+    // the file is the truth (retention prunes it): the memo only saves re-reading its header
+    if (!hasThumb(o.pid, key)) {
+      dims.delete(key);
+      return null;
+    }
     const d = dims.get(key);
     if (d) return d;
-    if (!hasThumb(o.pid, key)) return null;
     const bytes = readThumb(o.pid, key);
     const size = bytes ? jpegSize(bytes) : null;
     if (size) dims.set(key, size);
@@ -328,7 +333,7 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
     if (shim) return shim;
     if (engineMissing) return null;
     try {
-      shim = (o.spawnShim ?? defaultShim)();
+      shim = (o.spawnShim ?? spawnRendererShim)();
     } catch {
       engineMissing = true; // no node/bun to run it (resolveExportRuntime threw)
       return null;
@@ -519,7 +524,8 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
           ...metaHints(o.designRoot, job.rel),
           targets: job.targets.map((t) => ({ artboard: t.artboard, px: t.px })),
         },
-        45_000
+        // readiness ≤ 20 s, then each shot (≤ 3 s images, ≤ 3 s poster, ≤ 10 s screenshot)
+        30_000 + 1000 * job.targets.length
       );
     }
     if (reply.error === 'no-engine') engineMissing = true;
@@ -681,15 +687,19 @@ export function createThumbService(o: ThumbServiceOptions): ThumbService {
       if (raised) pump();
     },
 
-    startBackground() {
+    async startBackground() {
       if (background || !enabled) return;
       background = true;
       const recent = readRecent(o.designRoot);
       const rows = [...o.index.snapshot().canvases].sort(
         (a, b) => (recent.get(b.rel) ?? 0) - (recent.get(a.rel) ?? 0)
       );
-      for (const r of rows)
-        void svc.thumb({ canvas: r.rel, artboard: null, size: 'card', priority: 'background' });
+      // resolves once every cover is queued (or answered from disk), not when they are rendered
+      await Promise.all(
+        rows.map((r) =>
+          svc.thumb({ canvas: r.rel, artboard: null, size: 'card', priority: 'background' })
+        )
+      );
     },
 
     serves(key) {
