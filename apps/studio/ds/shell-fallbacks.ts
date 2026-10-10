@@ -1,7 +1,8 @@
 // The canvas shell's per-system fallback block (V2-1.13 §5.5, patch requests P-1/P-2): the
 // roles and classes the canvas's system never declares, inside `@layer maude.fallback`,
 // injected inline before the tokens stylesheet. Cached by the digest of the system's tokens
-// and components files, so an edit to either refreshes it on the next shell load.
+// and components files plus its config entry (rootClass is in the scope selector), so an edit
+// to any of them refreshes it on the next shell load.
 
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -37,7 +38,7 @@ export function fallbacksFor(
   const sys = systemConfigsFrom(config).find((s) => s.tokensCssRel === tokensRel);
   if (!sys) return '';
   const rels = [sys.tokensCssRel, `${sys.path}/preview/_components.css`];
-  const digest = digestOf(designRoot, rels);
+  const digest = `${digestOf(designRoot, rels)}:${JSON.stringify(sys)}`;
   const hit = cache.get(sys.name);
   if (hit?.digest === digest) return hit.css;
   const css = renderFallbacks(loadRegistry(), declaredBy(loadSystem(diskFs(designRoot), sys)));

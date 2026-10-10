@@ -1,9 +1,10 @@
 // V2-2.15 (V2-1.13 §5.5, §7): the generated fallbacks are drift-free, the per-system block
 // never names anything the system declares (F2), and the shell slot is filled per system.
-import { describe, expect, test } from 'bun:test';
+import { afterAll, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { declaredBy, renderFallbacks } from '../ds/fallbacks.ts';
 import { loadRegistry } from '../ds/registry.ts';
 import { FALLBACKS_SLOT, fallbacksFor, injectFallbacks } from '../ds/shell-fallbacks.ts';
@@ -86,5 +87,45 @@ describe('fallback layer', () => {
       injectFallbacks(html, designRoot, config, new URLSearchParams({ tokens: 'nope.css' }))
     ).toBe(html);
     expect(injectFallbacks(html, designRoot, config, null)).toBe(html);
+  });
+
+  // config.json's rootClass is unvalidated locally and lands in the scope selector of the inline
+  // block whenever the system lacks a role: `</` must never close the <style> early, and a
+  // rootClass change must re-render the cached block.
+  const lacking = (() => {
+    const dir = mkdtempSync(join(tmpdir(), 'ds-fallbacks-'));
+    for (const [rel, text] of Object.entries(conformantFiles())) {
+      mkdirSync(dirname(join(dir, rel)), { recursive: true });
+      writeFileSync(join(dir, rel), text.replace(/\n {2}--scrim: [^;]*;/g, ''));
+    }
+    return dir;
+  })();
+  afterAll(() => rmSync(lacking, { recursive: true, force: true }));
+  const withRoot = (name: string, rootClass: string) => ({
+    designSystems: [
+      { name, path: 'system/fx', rootClass, themes: ['light', 'dark'], themeDefault: 'light' },
+    ],
+  });
+  test('the inline block escapes </ (a hostile rootClass cannot close the <style>)', () => {
+    const html = `<head>${FALLBACKS_SLOT}</head>`;
+    const cfg = withRoot('xss-probe', 'fx</style><script>alert(1)</script>');
+    const s = systemConfigsFrom(cfg)[0];
+    const filled = injectFallbacks(
+      html,
+      lacking,
+      cfg,
+      new URLSearchParams({ tokens: s.tokensCssRel })
+    );
+    expect(filled).toContain('--scrim:');
+    expect(filled).toContain('<\\/style><script>');
+    expect(filled).not.toContain('</style><script>');
+    expect(filled.match(/<\/style>/g)?.length).toBe(1);
+  });
+
+  test('the cache follows the config: a rootClass change re-renders the block', () => {
+    const a = withRoot('cache-probe', 'probe-a');
+    const rel = systemConfigsFrom(a)[0].tokensCssRel;
+    expect(fallbacksFor(lacking, a, rel)).toContain('.probe-a');
+    expect(fallbacksFor(lacking, withRoot('cache-probe', 'probe-b'), rel)).toContain('.probe-b');
   });
 });
