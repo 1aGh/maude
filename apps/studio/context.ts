@@ -355,9 +355,45 @@ function resolveRepoRoot(): string {
 /** Where the sync runtime keeps what the linked project says about itself. */
 export const PROJECT_CONFIG_CACHE_REL = '_state/project-config.json';
 
+/** P-5 (V2-1.13 §5.12): a system's schema fields as they cross a sync hop. */
+export interface SystemSchemaFields {
+  schema?: 1;
+  rootClass?: string;
+  themes?: string[];
+  themeDefault?: string;
+}
+
 export interface ProjectConfig {
   canvasGroups: { label: string; path: string }[];
-  designSystems: { name: string; path: string; tokensCssRel?: string }[];
+  designSystems: ({ name: string; path: string; tokensCssRel?: string } & SystemSchemaFields)[];
+}
+
+const CLASS_NAME = /^[a-z][a-z0-9-]{0,63}$/;
+
+/**
+ * The hub door's own rule (apps/hub/src/project-config-door.mjs `schemaFields`): `schema` is 1
+ * only; `rootClass` and theme names keep to the class charset (they land in selectors and an
+ * inline <style>); `themeDefault` must be one of `themes` when `themes` is given.
+ */
+export function sanitizeSchemaFields(d: unknown): SystemSchemaFields {
+  const r = (d ?? {}) as Record<string, unknown>;
+  const out: SystemSchemaFields = {};
+  if (r.schema === 1) out.schema = 1;
+  if (typeof r.rootClass === 'string' && CLASS_NAME.test(r.rootClass)) out.rootClass = r.rootClass;
+  if (Array.isArray(r.themes)) {
+    const themes = [
+      ...new Set(r.themes.filter((x): x is string => typeof x === 'string' && CLASS_NAME.test(x))),
+    ].slice(0, 8);
+    if (themes.length) out.themes = themes;
+  }
+  if (
+    typeof r.themeDefault === 'string' &&
+    CLASS_NAME.test(r.themeDefault) &&
+    (!out.themes || out.themes.includes(r.themeDefault))
+  ) {
+    out.themeDefault = r.themeDefault;
+  }
+  return out;
 }
 
 /**
@@ -397,6 +433,7 @@ export function sanitizeProjectConfig(raw: unknown): ProjectConfig | null {
       name: d.name,
       path: d.path.replace(/^\/+|\/+$/g, ''),
       ...(typeof d.tokensCssRel === 'string' ? { tokensCssRel: d.tokensCssRel } : {}),
+      ...sanitizeSchemaFields(d),
     }));
   return { canvasGroups, designSystems };
 }
@@ -430,10 +467,16 @@ function withProjectConfig(cfg: DevServerConfig, repoRoot: string): DevServerCon
   });
   const declared = new Set((cfg.designSystems ?? []).map((d) => d.name));
   const groupPaths = canvasGroups.map((g) => String(g.path).replace(/^\/+|\/+$/g, ''));
-  const adopted = project.designSystems.filter(
-    (d) =>
-      !declared.has(d.name) && groupPaths.some((g) => d.path === g || d.path.startsWith(`${g}/`))
-  );
+  const adopted: DesignSystemEntry[] = project.designSystems
+    .filter(
+      (d) =>
+        !declared.has(d.name) && groupPaths.some((g) => d.path === g || d.path.startsWith(`${g}/`))
+    )
+    // DesignSystemEntry types themeDefault as the studio's two app themes; a system default
+    // outside them is dropped here, as a local entry could not declare one either
+    .map(({ themeDefault, ...d }) =>
+      themeDefault === 'dark' || themeDefault === 'light' ? { ...d, themeDefault } : d
+    );
   if (adopted.length === 0 && canvasGroups.every((g, i) => g === cfg.canvasGroups[i])) return cfg;
   return {
     ...cfg,

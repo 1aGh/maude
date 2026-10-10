@@ -74,6 +74,31 @@ const containedRel = (p) =>
 const label = (s, max = 64) =>
   typeof s === 'string' && s.trim().length > 0 && s.length <= max && !/[\0\r\n]/.test(s);
 
+// P-5 (V2-1.13 §5.12): a system's design-system schema fields. `rootClass` and theme names land
+// in CSS selectors (`.<rootClass>[data-theme="<t>"]`) and in an inline <style>, so they keep to
+// the class charset; `schema` is the one version that exists. FILLED, NEVER CHANGED (see the merge).
+const CLASS_NAME = /^[a-z][a-z0-9-]{0,63}$/;
+const SCHEMA_FIELDS = ['schema', 'rootClass', 'themes', 'themeDefault'];
+function schemaFields(d) {
+  const out = {};
+  if (d.schema === 1) out.schema = 1;
+  if (typeof d.rootClass === 'string' && CLASS_NAME.test(d.rootClass)) out.rootClass = d.rootClass;
+  if (Array.isArray(d.themes)) {
+    const themes = [
+      ...new Set(d.themes.filter((x) => typeof x === 'string' && CLASS_NAME.test(x))),
+    ].slice(0, 8);
+    if (themes.length) out.themes = themes;
+  }
+  if (
+    typeof d.themeDefault === 'string' &&
+    CLASS_NAME.test(d.themeDefault) &&
+    (!out.themes || out.themes.includes(d.themeDefault))
+  ) {
+    out.themeDefault = d.themeDefault;
+  }
+  return out;
+}
+
 /**
  * The part of a project config that may cross from an owner to a cell, or
  * `null` when there is nothing usable in it. Keys absent from the input are
@@ -110,6 +135,7 @@ export function sanitizeProjectConfigSubset(raw) {
         name: d.name,
         path: d.path.replace(/\/+$/, ''),
         ...(typeof d.tokensCssRel === 'string' ? { tokensCssRel: d.tokensCssRel } : {}),
+        ...schemaFields(d),
       }));
   }
   if (
@@ -120,6 +146,26 @@ export function sanitizeProjectConfigSubset(raw) {
     out.defaultDesignSystem = raw.defaultDesignSystem;
   }
   return Object.keys(out).length > 0 ? out : null;
+}
+
+/**
+ * A door-created config's systems follow the owner, but a schema field a system already has is
+ * never changed (P-5): `schema` gates the critic's blockers and `rootClass` / `themes` decide what
+ * a canvas wrapper matches, so two owners' desktops must not flip them on every reconnect.
+ */
+function keepSchemaFields(before, after) {
+  const prev = new Map(
+    (Array.isArray(before) ? before : [])
+      .filter((d) => d && typeof d === 'object' && typeof d.name === 'string')
+      .map((d) => [d.name, d])
+  );
+  return after.map((d) => {
+    const old = prev.get(d.name);
+    if (!old) return d;
+    const kept = schemaFields(old);
+    for (const f of SCHEMA_FIELDS) if (f in kept) d = { ...d, [f]: kept[f] };
+    return d;
+  });
 }
 
 /** The subset as it stands in `config.json` now (`null` when unreadable). */
@@ -285,6 +331,7 @@ export async function handleProjectConfigDoor(ctx) {
   const next = { ...existing };
   for (const [k, v] of Object.entries(subset)) {
     if (!(k in existing)) next[k] = v;
+    else if (ours && k === 'designSystems') next[k] = keepSchemaFields(existing[k], v);
     else if (ours && k !== 'canvasGroups') next[k] = v;
   }
   const before = JSON.stringify(existing);
