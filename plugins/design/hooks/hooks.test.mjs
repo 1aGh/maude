@@ -25,6 +25,7 @@ import { rootIdentity } from '../../../cli/lib/studio-locate.mjs';
 
 const ROOT = join(import.meta.dir, '..', '..', '..');
 const MAUDE = join(ROOT, 'cli', 'bin', 'maude.mjs');
+const RECORD_SHOT = join(ROOT, 'apps', 'studio', 'bin', '_record-shot.sh');
 const HOOKS = JSON.parse(readFileSync(join(import.meta.dir, 'hooks.json'), 'utf8')).hooks;
 
 const PAD = Array.from({ length: 45 }, (_, i) => `// line ${i}`).join('\n');
@@ -108,6 +109,7 @@ describe('hooks.json wires `maude design hook <event>` (§5.4 table)', () => {
     ['PostToolUse', 'Bash', 'post-bash', 3],
     ['Stop', undefined, 'stop', 60],
     ['SubagentStart', undefined, 'subagent-start', 3],
+    ['SessionStart', '', 'session-start', 8],
     ['SubagentStop', undefined, 'stop', 60],
   ])('%s → hook %s', (event, matcher, verb, timeout) => {
     const h = cmd(event, matcher).find((x) => x.command.includes(`design hook ${verb}`));
@@ -379,11 +381,29 @@ describe('with a studio — the run bracket and one AI per artboard', () => {
     expect(r).toMatchObject({ status: 0, stdout: '' });
     expect(r.ms).toBeLessThan(1500);
     expect(bracket).toContain('touch sa ui/C.tsx');
-    expect(
-      await hook('stop', { session_id: 'sa', cwd: project, stop_hook_active: false })
-    ).toMatchObject({
-      stdout: '',
-    });
+    // Stop's screenshot gate (§5.4 step 2): hero changed, nothing captured it yet → block once
+    const stop = { session_id: 'sa', cwd: project, stop_hook_active: false };
+    const blocked = await hook('stop', stop);
+    expect(blocked.json.decision).toBe('block');
+    expect(blocked.json.reason).toContain('ui/C.tsx › hero');
+    expect(blocked.json.reason).toContain('maude design screenshot');
+    expect(bracket).not.toContain('end sa done');
+    // `maude design screenshot --screen hero` under this session records the capture
+    const rec = Bun.spawnSync(
+      [
+        'bash',
+        RECORD_SHOT,
+        '--root',
+        project,
+        '--canvas',
+        '.design/ui/C.tsx',
+        '--artboard',
+        'hero',
+      ],
+      { env: { ...process.env, MAUDE_HOOK_SESSION: 'sa' } }
+    );
+    expect(rec.exitCode).toBe(0);
+    expect(await hook('stop', stop)).toMatchObject({ stdout: '' });
     expect(bracket).toContain('end sa done');
     // sa's claim is released: sb may now edit hero
     expect(await hook('pre-edit', edit(project, 'sb', 'b3', 'Hello', 'Hey'))).toMatchObject({
@@ -560,5 +580,62 @@ describe('sub-agents — SubagentStart / pre-edit `owns` / SubagentStop (V2-1.18
     expect(await subStop()).toMatchObject({ status: 0, stdout: '' });
     // the main agent's run is untouched by a sub-agent's stop
     expect(existsSync(join(run(), 'touched.json'))).toBe(true);
+  });
+});
+
+describe('session-start + the screenshot record (§5.4 step 2 evidence)', () => {
+  let project;
+  beforeAll(() => {
+    project = makeProject('maude-hook-shots-');
+  });
+  afterAll(() => rmSync(project, { recursive: true, force: true }));
+
+  test('session-start exports the hook session to Bash through CLAUDE_ENV_FILE', async () => {
+    const envFile = join(project, 'claude-env.sh');
+    writeFileSync(envFile, '');
+    const r = await hook(
+      'session-start',
+      { session_id: 'se', cwd: project, hook_event_name: 'SessionStart' },
+      {
+        CLAUDE_ENV_FILE: envFile,
+      }
+    );
+    expect(r.status).toBe(0);
+    expect(r.stdout).not.toMatch(/"(ask|allow)"/);
+    expect(readFileSync(envFile, 'utf8')).toContain('export MAUDE_HOOK_SESSION=se\n');
+    // no env file (an older Claude Code) → still silent and fine
+    expect((await hook('session-start', { session_id: 'se', cwd: project })).status).toBe(0);
+  });
+
+  test('_record-shot.sh appends {at, canvas, artboard, all, session}; no session → _runs/shots.jsonl', () => {
+    const run = (args, env = {}) =>
+      Bun.spawnSync(['bash', RECORD_SHOT, '--root', project, ...args], {
+        env: { ...process.env, MAUDE_HOOK_SESSION: '', ...env },
+      });
+    const t0 = Date.now();
+    expect(
+      run(['--canvas', '.design/ui/C.tsx', '--artboard', 'hero'], { MAUDE_HOOK_SESSION: 'sx' })
+        .exitCode
+    ).toBe(0);
+    expect(run(['--canvas', 'ui/C.tsx', '--all']).exitCode).toBe(0);
+    const mine = readFileSync(join(project, '.design', '_runs', 'sx', 'shots.jsonl'), 'utf8')
+      .trim()
+      .split('\n')
+      .map((l) => JSON.parse(l));
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toMatchObject({
+      canvas: 'ui/C.tsx',
+      artboard: 'hero',
+      all: false,
+      session: 'sx',
+    });
+    expect(mine[0].at).toBeGreaterThanOrEqual(t0 - 1);
+    const loose = JSON.parse(
+      readFileSync(join(project, '.design', '_runs', 'shots.jsonl'), 'utf8').trim()
+    );
+    expect(loose).toMatchObject({ canvas: 'ui/C.tsx', artboard: null, all: true, session: null });
+    // a session id that is not a hook key is not used as a path
+    expect(run(['--canvas', 'ui/C.tsx', '--all'], { MAUDE_HOOK_SESSION: '../x' }).exitCode).toBe(0);
+    expect(existsSync(join(project, '.design', 'x'))).toBe(false);
   });
 });

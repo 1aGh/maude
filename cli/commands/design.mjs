@@ -391,7 +391,7 @@ Lifecycle:
 Studio (talk to the running Maude window — contract V2-1.11 §5.3):
   open <canvas>[#artboard][@element] [--mode edit|preview|present] [--select all|none|annotations]
         Show it in the user's Maude window. Exit 3 when no window shows this project.
-  hook prompt|pre-edit|post-edit|pre-bash|post-bash|stop|subagent-start
+  hook prompt|pre-edit|post-edit|pre-bash|post-bash|stop|subagent-start|session-start
         The design plugin's Claude Code hooks (hook JSON on stdin). Deny-only, fail-open: exit 0.
 
 Dev-tooling (dispatch to the dev-server bash helpers — DDR-062):

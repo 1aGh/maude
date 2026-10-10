@@ -10,6 +10,7 @@
 //   stop        Stop              stop-tier check of the run's files · run/end      → block or nothing
 //               SubagentStop      (same command) hand-off result + the files it owns → block or nothing
 //   subagent-start SubagentStart  records agent_id → {type, at, handoffs}           → nothing
+//   session-start SessionStart    exports MAUDE_HOOK_SESSION to Bash (CLAUDE_ENV_FILE) → nothing
 //
 // DENY-ONLY and FAIL-OPEN: never `ask`, never `allow`; bad stdin, no project, a path outside
 // designRoot, any internal error → exit 0 with no output. Without a studio (no `_server.json`,
@@ -18,7 +19,10 @@
 // State per Claude Code session in <designRoot>/_runs/<session>/ (runtime, DDR-115):
 //   snap/<tool_use_id>       bytes before that edit (`.new` marker: the file did not exist)
 //   base/<sha(path)>         bytes before the run first touched the file (stop-tier `against`)
-//   touched.json             files this run changed ({at, by, via: tool|bash})
+//   touched.json             files this run changed ({at, by, via, artboards}: artboards the
+//                            studio mapped the edits to; null = unknown → any capture of the canvas)
+//   shots.jsonl              captures `maude design screenshot` made under this session (Stop's
+//                            screenshot gate; <designRoot>/_runs/shots.jsonl when no session is known)
 //   bash/<tool_use_id>.json  a write verb's start ({at, snaps}) — post-bash binds what changed since
 //   stop-last.json           the last Stop block (so a re-stop with the same list lets it end)
 //   agents.json              sub-agent starts: agent_id → {type, at, handoffs} (SubagentStart)
@@ -31,6 +35,7 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  appendFileSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -53,6 +58,7 @@ export const HOOK_EVENTS = [
   'post-bash',
   'stop',
   'subagent-start',
+  'session-start',
 ];
 const KEY_RE = /^[A-Za-z0-9_-]{1,128}$/;
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
@@ -292,6 +298,22 @@ function handoffsFor(ctx, agentType) {
 const runIdOf = (ctx) => `r_${sha(ctx.session).slice(0, 16)}`;
 const repoRelOf = (ctx, abs) => relative(ctx.root, abs).split(sep).join('/');
 
+/**
+ * SessionStart: export the hook session to this session's Bash commands (Claude Code's
+ * CLAUDE_ENV_FILE), so `maude design screenshot` files its captures under this run.
+ */
+function sessionStart(ctx) {
+  const envFile = process.env.CLAUDE_ENV_FILE;
+  if (envFile && isAbsolute(envFile) && ctx.session !== 'no-session') {
+    try {
+      appendFileSync(envFile, `export MAUDE_HOOK_SESSION=${ctx.session}\n`);
+    } catch {
+      /* no env file: captures go to _runs/shots.jsonl */
+    }
+  }
+  return null;
+}
+
 function subagentStart(ctx, input) {
   const id = hookKey(input.agent_id);
   if (!id) return null;
@@ -507,6 +529,64 @@ async function preEdit(ctx, input) {
   return null;
 }
 
+/** touched.json: the latest touch of `rel`, its artboards unioned (null = unknown, sticky). */
+function recordTouch(ctx, rel, { by, via, artboards }) {
+  const p = join(ctx.run, 'touched.json');
+  const touched = readJson(p, {});
+  const prev = touched[rel];
+  const known = prev && prev.artboards === null ? null : artboards;
+  touched[rel] = {
+    at: Date.now(),
+    by,
+    via,
+    artboards: known === null ? null : [...new Set([...(prev?.artboards ?? []), ...(known ?? [])])],
+  };
+  writeAt(p, JSON.stringify(touched));
+}
+
+/** Captures of `rel` at or after `since`: this session's shots, plus session-less ones. */
+function shotsOf(ctx, rel, since) {
+  const out = [];
+  for (const p of [join(ctx.run, 'shots.jsonl'), join(ctx.designRoot, '_runs', 'shots.jsonl')]) {
+    const text = readOr(p);
+    if (!text) continue;
+    for (const line of text.split('\n')) {
+      try {
+        const s = JSON.parse(line);
+        if (s?.canvas === rel && typeof s.at === 'number' && s.at >= since) out.push(s);
+      } catch {
+        /* a torn line */
+      }
+    }
+  }
+  return out;
+}
+
+const ARTBOARD_ID_RE = /<DCArtboard\b[^>]*?\bid=["']([^"']+)["']/g;
+
+/**
+ * §5.4 stop step 2 — touched artboards without a capture newer than their last edit, as
+ * `canvas › artboard` (or `canvas` when its artboards are unknown). A removed artboard needs none.
+ */
+function missingShots(ctx, touched) {
+  const missing = [];
+  for (const [rel, t] of Object.entries(touched)) {
+    if (!CANVAS_RE.test(rel)) continue;
+    const src = readOr(join(ctx.designRoot, rel));
+    if (src === null) continue;
+    const shots = shotsOf(ctx, rel, t.at ?? 0);
+    if (shots.some((s) => s.all === true)) continue;
+    if (!Array.isArray(t.artboards)) {
+      if (!shots.length) missing.push(rel);
+      continue;
+    }
+    const exist = new Set([...src.matchAll(ARTBOARD_ID_RE)].map((m) => m[1]));
+    for (const id of t.artboards)
+      if (exist.has(id) && !shots.some((s) => s.artboard === id)) missing.push(`${rel} › ${id}`);
+  }
+  return missing;
+}
+
 async function postEdit(ctx, input, self) {
   if (!EDIT_TOOLS.has(input.tool_name)) return null;
   const t = targetOf(ctx, input);
@@ -539,17 +619,17 @@ async function postEdit(ctx, input, self) {
       }`,
     };
   }
-  const touchedP = join(ctx.run, 'touched.json');
-  const touched = readJson(touchedP, {});
-  touched[t.rel] = { at: Date.now(), by: input.agent_type ?? 'main' };
-  writeAt(touchedP, JSON.stringify(touched));
-  if (studio && toolUseId)
-    await postStudio(
+  let artboards = null; // unknown without the studio's map
+  if (studio && toolUseId) {
+    const r = await postStudio(
       studio,
       '/_api/agent/edit/touched',
       { session: ctx.session, toolUseId, path: t.rel, via: 'tool' },
       { timeoutMs: 300 }
     );
+    if (r?.status === 200 && Array.isArray(r.body?.artboards)) artboards = r.body.artboards;
+  }
+  recordTouch(ctx, t.rel, { by: input.agent_type ?? 'main', via: 'tool', artboards });
   return syncedBoardHint(ctx, t.rel);
 }
 
@@ -617,11 +697,8 @@ async function postBash(ctx, input) {
   if (!mark || typeof mark.at !== 'number') return null; // not a write verb
   const files = designWritesSince(ctx.designRoot, mark.at);
   if (files.length) {
-    const touchedP = join(ctx.run, 'touched.json');
-    const touched = readJson(touchedP, {});
     for (const rel of files)
-      touched[rel] = { at: Date.now(), by: input.agent_type ?? 'main', via: 'bash' };
-    writeAt(touchedP, JSON.stringify(touched));
+      recordTouch(ctx, rel, { by: input.agent_type ?? 'main', via: 'bash', artboards: null });
     const studio = await locateStudio(ctx.root, { timeoutMs: LOCATE_MS });
     if (studio)
       await postStudio(
@@ -688,15 +765,20 @@ async function stop(ctx, input, self) {
     const res = await check(ctx, studio, rel, 'stop', loadSnapshot(ctx, baseRel(ctx, rel)), self);
     if (res && !res.ok) problems.push(...res.errors.map(findingLine));
   }
-  if (problems.length) {
-    const sig = sha(problems.join('\n'));
+  // 2. the screenshot gate — only with a studio: `maude design screenshot` needs one to render
+  const missing = studio ? missingShots(ctx, touched) : [];
+  if (problems.length || missing.length) {
+    const sig = sha(JSON.stringify({ problems, missing }));
     const lastP = join(ctx.run, 'stop-last.json');
     if (!(input.stop_hook_active === true && readJson(lastP, null)?.sig === sig)) {
       writeAt(lastP, JSON.stringify({ sig, at: Date.now() }));
-      return {
-        decision: 'block',
-        reason: `These files don't pass the check:\n${problems.join('\n')}`,
-      };
+      const parts = [];
+      if (problems.length) parts.push(`These files don't pass the check:\n${problems.join('\n')}`);
+      if (missing.length)
+        parts.push(
+          `Screenshot each artboard you changed and look at it before you finish (\`maude design screenshot --canvas "<path>" --screen <artboard id> --out <png>\`, or --full for every artboard). Missing: ${missing.slice(0, 20).join(', ')}${missing.length > 20 ? ` (+${missing.length - 20})` : ''}`
+        );
+      return { decision: 'block', reason: parts.join('\n\n') };
     }
   }
   // the run ends (with warnings when the same problems are still there)
@@ -704,7 +786,7 @@ async function stop(ctx, input, self) {
     await postStudio(
       studio,
       '/_api/agent/run/end',
-      { session: ctx.session, outcome: problems.length ? 'warnings' : 'done' },
+      { session: ctx.session, outcome: problems.length || missing.length ? 'warnings' : 'done' },
       { timeoutMs: 600 }
     );
   rmSync(ctx.run, { recursive: true, force: true });
@@ -730,6 +812,7 @@ export async function runHook({ event, stdinText, self = null, pkgRoot = null })
       'post-bash': postBash,
       stop,
       'subagent-start': subagentStart,
+      'session-start': sessionStart,
     }[event];
     const out = await fn(ctx, input, self);
     return out ? JSON.stringify(out) : '';

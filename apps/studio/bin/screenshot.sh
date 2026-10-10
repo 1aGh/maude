@@ -484,6 +484,16 @@ capture_resilient() {
   return 1
 }
 
+# ---------- Stop-gate evidence (V2-1.11 §5.4 step 2) ----------
+# One line per successful capture of a canvas → <designRoot>/_runs/…/shots.jsonl (_record-shot.sh).
+# The design plugin's Stop hook asks for a capture of every artboard the AI changed. Best effort.
+record_shot() {
+  [ "$MODE" = "shell" ] && return 0
+  [ -n "$ACTIVE" ] || return 0
+  local repo="${REPO:-${ROOT:-${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}}"
+  bash "$(cd "$(dirname "$0")" && pwd)/_record-shot.sh" --root "$repo" --canvas "$ACTIVE" "$@" >/dev/null 2>&1 || true
+}
+
 # ---------- --all-screens loop ----------
 if [ $ALL_SCREENS -eq 1 ]; then
   mkdir -p "$OUT_DIR"
@@ -525,12 +535,14 @@ if [ $ALL_SCREENS -eq 1 ]; then
     fi
     if capture_resilient "[data-dc-screen=\"$ID\"], [data-dc-slot=\"$ID\"]" "$OUT_FILE"; then
       echo "$OUT_FILE"
+      record_shot --artboard "$ID"
     else
       echo "✗ failed: $ID" >&2
       FAILED=$((FAILED + 1))
     fi
   done
   [ $FAILED -gt 0 ] && exit 3
+  record_shot --all
   exit 0
 fi
 
@@ -546,6 +558,10 @@ if ! navigate_once; then
 fi
 if capture_resilient "$CSS_SEL" "$OUT"; then
   echo "$OUT"
+  case "$MODE" in
+    full) record_shot --all ;;
+    screen) record_shot --artboard "$SEL" ;;
+  esac
   exit 0
 fi
 exit 3

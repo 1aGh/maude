@@ -8,6 +8,11 @@
             "type": "command",
             "command": "PKG=\"${CLAUDE_PLUGIN_ROOT}/../..\"; if [ -f \"$PKG/cli/lib/preflight.mjs\" ]; then (cd \"$PKG\" && node cli/lib/preflight.mjs --plugin design --warn-only); elif command -v maude >/dev/null 2>&1; then maude preflight --plugin design --warn-only; fi",
             "timeout": 8
+          },
+          {
+            "type": "command",
+            "command": "PKG=\"${CLAUDE_PLUGIN_ROOT}/../..\"; if [ -f \"$PKG/cli/bin/maude.mjs\" ] && command -v node >/dev/null 2>&1; then node \"$PKG/cli/bin/maude.mjs\" design hook session-start; elif command -v maude >/dev/null 2>&1; then maude design hook session-start; fi; exit 0",
+            "timeout": 8
           }
         ]
       }
