@@ -250,6 +250,12 @@ async function serializeOne(locator, widenToArtboard) {
               el.removeAttribute(attr.name);
               continue;
             }
+            // V2-2.19 (contract V2-1.4 §5.5, element-ids.ts isCanvasOnlyAttr): canvas-only
+            // state — ids, lock, hide marker — never reaches an exported page.
+            if (name.startsWith('data-cd-')) {
+              el.removeAttribute(attr.name);
+              continue;
+            }
             if (
               (name === 'href' || name === 'xlink:href' || name === 'src') &&
               /^\s*javascript:/i.test(attr.value)

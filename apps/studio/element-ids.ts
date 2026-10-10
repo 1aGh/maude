@@ -111,6 +111,7 @@ export interface IdElement {
   locked: boolean;
   lockAttr: Span | null;
   hiddenPrevDisplay: string | null;
+  hiddenAttr: Span | null;
   /** Own JSXText, whitespace collapsed, ≤ 80 chars (canvas-edit `ownText`). */
   text: string;
   className: string;
@@ -203,6 +204,7 @@ export function walkIdElements(source: string, path = 'canvas.tsx'): WalkResult 
     let idAttr: Span | null = null;
     let lockAttr: Span | null = null;
     let hidden: string | null = null;
+    let hiddenAttr: Span | null = null;
     let className = '';
     let dcElement: string | null = null;
     let aria: string | null = null;
@@ -227,7 +229,10 @@ export function walkIdElements(source: string, path = 'canvas.tsx'): WalkResult 
         continue;
       }
       if (name.startsWith(CANVAS_ONLY_PREFIX)) {
-        if (name === 'data-cd-hidden') hidden = lit ?? '';
+        if (name === 'data-cd-hidden') {
+          hidden = lit ?? '';
+          hiddenAttr = { start: a.start, end: a.end };
+        }
         cd.push([name, v ? source.slice(v.start, v.end) : 'true']);
         continue;
       }
@@ -263,6 +268,7 @@ export function walkIdElements(source: string, path = 'canvas.tsx'): WalkResult 
       locked: lockAttr !== null,
       lockAttr,
       hiddenPrevDisplay: hidden,
+      hiddenAttr,
       text,
       className,
       dcElement,
@@ -419,6 +425,81 @@ export function insertIds(
   const s = new MagicString(source);
   for (const st of stamps) s.appendLeft(st.nameEnd, ` data-cd-id="${st.id}"`);
   return s.toString();
+}
+
+// ── §5.5 canvas-only metadata: read + strip ───────────────────────────────────────────────
+
+/** True for an attribute only the canvas may carry (`data-cd-*`). */
+export function isCanvasOnlyAttr(name: string): boolean {
+  return name.toLowerCase().startsWith(CANVAS_ONLY_PREFIX);
+}
+
+/** The canvas-only metadata of the element with authored id `id`, or null when there is none. */
+export function readCanvasOnly(source: string, id: string, path = 'canvas.tsx'): CanvasOnly | null {
+  const w = walkIdElements(source, path);
+  const el = w.ok ? w.elements.find((e) => e.id === id) : undefined;
+  return el ? { locked: el.locked, hiddenPrevDisplay: el.hiddenPrevDisplay } : null;
+}
+
+/**
+ * Canvas source with every `data-cd-*` attribute removed — what every code exporter emits
+ * (handoff, copy-as-code, to-rn, a Canva prompt that embeds source). A hidden object keeps its
+ * `display: none` (contract §9 Q6); only the marker goes. Throws on a parse error.
+ */
+export function stripCanvasOnly(source: string, path = 'canvas.tsx'): string {
+  const parsed = parseSync(path.endsWith('.tsx') ? path : `${path}.tsx`, source, {
+    sourceType: 'module',
+  });
+  if (parsed.errors?.length) {
+    throw new Error(
+      `oxc-parser failed on ${path} (${parsed.errors.length} errors). First: ${parsed.errors[0]?.message ?? 'unknown'}`
+    );
+  }
+  const s = new MagicString(source);
+  const visit = (node: AnyNode): void => {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      for (const c of node) visit(c);
+      return;
+    }
+    if (typeof node.type !== 'string') return;
+    if (node.type === 'JSXOpeningElement' && Array.isArray(node.attributes)) {
+      for (const a of node.attributes) {
+        if (
+          a?.type === 'JSXAttribute' &&
+          a.name?.type === 'JSXIdentifier' &&
+          isCanvasOnlyAttr(String(a.name.name))
+        ) {
+          const sp = attrRemovalSpan(source, a);
+          s.remove(sp.start, sp.end);
+        }
+      }
+    }
+    for (const k of Object.keys(node)) {
+      if (k === 'loc' || k === 'range' || k === 'start' || k === 'end' || k === 'type') continue;
+      visit(node[k]);
+    }
+  };
+  visit(parsed.program);
+  return s.toString();
+}
+
+const TAG_RE =
+  /<([A-Za-z][^\s/>]*)((?:\s+[^\s=>/]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>"']+))?)*)(\s*\/?)>/g;
+const ATTR_RE = /(\s+)([^\s=>/]+)(\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>"']+))?/g;
+
+/**
+ * Serialized HTML / SVG markup with every `data-cd-*` attribute removed from every tag — attribute
+ * values and text content are left alone (the SVG export, Copy as HTML, any S8 markup exporter).
+ */
+export function stripCanvasOnlyMarkup(markup: string): string {
+  return markup.replace(TAG_RE, (whole, name: string, attrs: string, close: string) => {
+    if (!attrs.toLowerCase().includes(CANVAS_ONLY_PREFIX)) return whole;
+    const kept = attrs.replace(ATTR_RE, (a, _ws, attrName: string) =>
+      isCanvasOnlyAttr(attrName) ? '' : a
+    );
+    return `<${name}${kept}${close}>`;
+  });
 }
 
 // ── §5.4 re-attach (the `safe` matcher) ───────────────────────────────────────────────────

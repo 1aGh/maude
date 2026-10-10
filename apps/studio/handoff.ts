@@ -141,8 +141,9 @@ export function resolveCanvasKind(rawSource: string): string {
 // Strip data-cd-id from source — the inverse of canvas-pipeline.ts pass 1.
 
 /**
- * Remove every pipeline-emitted attribute — ` data-cd-id="<hex>"` and the
- * Phase-6 ` data-cd-editable="text"` marker — from a TSX source string.
+ * Remove every canvas-only `data-cd-*` attribute — the pipeline's ` data-cd-id`
+ * / ` data-cd-editable` and the authored id, lock and hide marker (V2-2.19) —
+ * from a TSX source string. Same result as element-ids.ts `stripCanvasOnly`.
  * Pure: caller persists. Uses the same oxc-parser + magic-string toolchain as
  * the pipeline that emitted them.
  */
@@ -171,7 +172,9 @@ export function stripDataCdId(canvasAbsPath: string, source: string): string {
           if (
             a?.type === 'JSXAttribute' &&
             a.name?.type === 'JSXIdentifier' &&
-            (a.name.name === 'data-cd-id' || a.name.name === 'data-cd-editable') &&
+            // V2-2.19 (contract V2-1.4 §5.5): the whole canvas-only namespace — the id, the
+            // pipeline's editable marker, the lock and the hide marker — never reaches a handoff.
+            String(a.name.name).startsWith('data-cd-') &&
             typeof a.start === 'number' &&
             typeof a.end === 'number'
           ) {

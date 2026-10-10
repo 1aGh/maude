@@ -34,6 +34,7 @@ import path from 'node:path';
 import MagicString from 'magic-string';
 import { parseSync } from 'oxc-parser';
 import {
+  attrRemovalSpan,
   copyWithoutIds,
   type ElementId,
   generateElementId,
@@ -487,6 +488,19 @@ function checkPrecondition(
   });
 }
 
+/**
+ * V2-2.19 (contract V2-1.4 §5.2 / §4.6): every `data-cd-*` attribute is canvas-only — written by its
+ * own gesture (stamp, lock, hide), never by the generic attribute writer or a D18 raw row.
+ */
+function refuseCanvasOnlyAttr(canvasAbsPath: string, id: string, attr: string): void {
+  if (attr.startsWith('data-cd-')) {
+    throw new CanvasEditError(
+      `"${attr}" is canvas-only — it is written by its own gesture (lock, hide, element id), not as an attribute`,
+      { canvas: canvasAbsPath, id }
+    );
+  }
+}
+
 /** Pure variant of `removeAttribute` — exposed for tests. */
 export function applyRemove(
   canvasAbsPath: string,
@@ -495,6 +509,7 @@ export function applyRemove(
   attr: string,
   occurrence?: number
 ): EditResult {
+  refuseCanvasOnlyAttr(canvasAbsPath, id, attr);
   const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
   if (parsed.errors && parsed.errors.length > 0) {
     const first = parsed.errors[0];
@@ -589,6 +604,7 @@ export function applyEdit(
   value: string,
   occurrence?: number
 ): EditResult {
+  refuseCanvasOnlyAttr(canvasAbsPath, id, attr);
   const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
   if (parsed.errors && parsed.errors.length > 0) {
     const first = parsed.errors[0];
@@ -5951,4 +5967,155 @@ export function stampIds(
     );
   }
   return { source: out, ids };
+}
+
+// ---------------------------------------------------------------------------
+// V2-2.19 — canvas-only metadata (contract V2-1.4 §5.5). Lock and the Hide marker are `data-cd-*`
+// attributes on the element in the VERSIONED TSX (no sidecar, no runtime path): shared, visible to
+// Claude where it edits, and stripped by every markup / code exporter (`stripCanvasOnly`). Each
+// gesture stamps the element first (a gesture is a studio write, §4.3) and returns its stable id.
+
+/** The element `id` (+ `occurrence`) addresses, stamped if it has no authored id yet. */
+function ensureStamped(
+  canvasAbsPath: string,
+  source: string,
+  id: string,
+  occurrence?: number,
+  reserved?: Iterable<string>
+): { source: string; id: ElementId } {
+  const parsed = parseSync(canvasAbsPath, source, { sourceType: 'module' });
+  if (parsed.errors && parsed.errors.length > 0) {
+    throw new CanvasEditError(
+      `oxc-parser failed on ${canvasAbsPath}: ${parsed.errors[0]?.message ?? 'unknown'}`,
+      { canvas: canvasAbsPath, id }
+    );
+  }
+  const targetId =
+    typeof occurrence === 'number' ? resolveUsageId(parsed.program, id, occurrence) : id;
+  const hit = findOpening(parsed.program, targetId);
+  const walk = walkIdElements(source, canvasAbsPath);
+  const el = hit && walk.ok ? walk.elements.find((e) => e.start === hit.element.start) : undefined;
+  if (!el) {
+    throw new CanvasEditError(`data-cd-id "${targetId}" not found in ${canvasAbsPath}`, {
+      canvas: canvasAbsPath,
+      id: targetId,
+    });
+  }
+  if (el.idKind === 'expression') {
+    throw new CanvasEditError(
+      `data-cd-id must be a plain string ("…"), line ${el.line} — an expression can't be a stable id`,
+      { canvas: canvasAbsPath, id: targetId }
+    );
+  }
+  if (el.id !== null) {
+    if (!isValidElementId(el.id)) {
+      throw new CanvasEditError(
+        `data-cd-id="${el.id}" (line ${el.line}) is not a valid element id — use lowercase words joined by "-"`,
+        { canvas: canvasAbsPath, id: targetId }
+      );
+    }
+    return { source, id: el.id };
+  }
+  const used = usedIds((walk as { elements: Parameters<typeof usedIds>[0] }).elements);
+  for (const r of reserved ?? []) used.add(r);
+  const sid = generateElementId(seedOf(el), used);
+  return { source: insertIds(source, [{ nameEnd: el.nameEnd, id: sid }]), id: sid };
+}
+
+/** The walked element carrying the authored id `id` (it exists — callers stamp first). */
+function stampedElement(canvasAbsPath: string, source: string, id: ElementId) {
+  const walk = walkIdElements(source, canvasAbsPath);
+  const el = walk.ok ? walk.elements.find((e) => e.id === id) : undefined;
+  if (!el) {
+    throw new CanvasEditError(`data-cd-id "${id}" not found in ${canvasAbsPath}`, {
+      canvas: canvasAbsPath,
+      id,
+    });
+  }
+  return el;
+}
+
+/** A single-quoted JS string literal (the style writer takes raw JS source). */
+function jsString(v: string): string {
+  return `'${v.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+}
+
+/** Insert ` <attr>` right after the element's `data-cd-id` attribute (or its tag name). */
+function addCdAttr(
+  source: string,
+  el: { idAttr: { end: number } | null; nameEnd: number },
+  attr: string
+): string {
+  const s = new MagicString(source);
+  s.appendLeft(el.idAttr ? el.idAttr.end : el.nameEnd, ` ${attr}`);
+  return s.toString();
+}
+
+function removeSpan(source: string, span: { start: number; end: number }): string {
+  return source.slice(0, span.start) + source.slice(span.end);
+}
+
+/**
+ * Lock ⇧⌘L / Layers lock (`locked: true`): stamp + `data-cd-locked`. Unlock: remove it (anyone with
+ * edit rights; never Claude — the id check blocks it). Idempotent. A copy of a locked element
+ * starts unlocked (`applyDuplicateElement`).
+ */
+export function applySetLocked(
+  canvasAbsPath: string,
+  source: string,
+  id: string,
+  locked: boolean,
+  opts: { occurrence?: number; reserved?: Iterable<string> } = {}
+): { source: string; id: ElementId } {
+  const st = ensureStamped(canvasAbsPath, source, id, opts.occurrence, opts.reserved);
+  const el = stampedElement(canvasAbsPath, st.source, st.id);
+  if (el.locked === locked) return st;
+  const out = locked
+    ? addCdAttr(st.source, el, 'data-cd-locked')
+    : removeSpan(
+        st.source,
+        attrRemovalSpan(st.source, el.lockAttr as { start: number; end: number })
+      );
+  return { source: out, id: st.id };
+}
+
+/**
+ * Hide (Layers eye, object menu): stamp + `style.display = "none"` + `data-cd-hidden="<previous
+ * inline display, or empty>"`. Show: restore the inline display from the marker (remove it when
+ * the marker is empty) and drop the marker — so an element that had `display: flex` inline keeps
+ * it. Idempotent; Show on an element the eye did not hide is a no-op.
+ */
+export function applySetHidden(
+  canvasAbsPath: string,
+  source: string,
+  id: string,
+  hidden: boolean,
+  opts: { occurrence?: number; reserved?: Iterable<string> } = {}
+): { source: string; id: ElementId } {
+  const st = ensureStamped(canvasAbsPath, source, id, opts.occurrence, opts.reserved);
+  const el = stampedElement(canvasAbsPath, st.source, st.id);
+  const isHidden = el.hiddenPrevDisplay !== null;
+  if (isHidden === hidden) return st;
+  if (hidden) {
+    const display = readAttributeState(canvasAbsPath, st.source, st.id, 'style.display');
+    if (display.kind === 'expression') {
+      throw new CanvasEditError(
+        `"${st.id}" sets display from an expression — hiding it would lose that; edit the code instead`,
+        { canvas: canvasAbsPath, id: st.id }
+      );
+    }
+    const prev = display.kind === 'literal' ? display.value : '';
+    const styled = applyEdit(canvasAbsPath, st.source, st.id, 'style.display', "'none'").source;
+    const after = stampedElement(canvasAbsPath, styled, st.id);
+    return { source: addCdAttr(styled, after, `data-cd-hidden="${escapeAttr(prev)}"`), id: st.id };
+  }
+  const prev = el.hiddenPrevDisplay as string;
+  const restored = prev
+    ? applyEdit(canvasAbsPath, st.source, st.id, 'style.display', jsString(prev)).source
+    : applyRemove(canvasAbsPath, st.source, st.id, 'style.display').source;
+  const marker = stampedElement(canvasAbsPath, restored, st.id).hiddenAttr;
+  return {
+    source: marker ? removeSpan(restored, attrRemovalSpan(restored, marker)) : restored,
+    id: st.id,
+  };
 }
