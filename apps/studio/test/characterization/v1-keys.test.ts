@@ -841,6 +841,14 @@ async function runCase(browser: Browser, lane: Lane, c: Case): Promise<string> {
   let recording = false;
   try {
     await context.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+    // Pending What's New entries are dev-only and always unseen — v1 is the released feed
+    // (same filter as scripts/check-v1-characterization.mjs).
+    await context.route(`${lane.origin}/_api/whats-new`, async (route) => {
+      const res = await route.fetch();
+      const body = (await res.json()) as { entries?: Array<{ version?: string | null }> };
+      const entries = (body.entries ?? []).filter((e) => e?.version != null);
+      await route.fulfill({ response: res, json: { ...body, entries } });
+    });
     if (c.shell === 'viewer' || c.shell === 'tauri-viewer') {
       await context.route(`${lane.origin}/_config`, async (route) => {
         const res = await route.fetch();

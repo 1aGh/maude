@@ -469,6 +469,14 @@ async function openShell(ctx, shell) {
   page.on('pageerror', (e) => errors.push(String(e).split('\n')[0]));
   // Network fonts make screenshots depend on the network: block them.
   await page.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+  // Pending What's New entries (`version: null`) are dev-only and always unseen, so every one the
+  // v2 run adds would light the badge + toast in all 30 states. v1 behaviour is the RELEASED feed.
+  await page.route(`${ctx.origin}/_api/whats-new`, async (route) => {
+    const res = await route.fetch();
+    const body = await res.json();
+    const entries = (body.entries ?? []).filter((e) => e?.version != null);
+    await route.fulfill({ response: res, json: { ...body, entries } });
+  });
   const patch = CONFIG_PATCH[shell];
   if (patch) {
     await page.route(`${ctx.origin}/_config`, async (route) => {
