@@ -249,8 +249,8 @@ export function formatGateAllowsWrite(
 
 /**
  * The gate options the studio runs with today — STAGED (V2-2.14): only a
- * project NEWER than this build is gated. `http.ts` `FORMAT_GATE_OPTS` and the
- * sync runtime must agree (test/format-sync.test.ts pins it).
+ * project NEWER than this build is gated. `http.ts` and the sync runtime both
+ * pass this constant (test/format-sync.test.ts pins it).
  */
 export const STAGED_FORMAT_GATE_OPTS: FormatGateOptions = { newerOnly: true };
 

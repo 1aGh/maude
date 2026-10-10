@@ -1692,9 +1692,9 @@ export function createHttp(
   // project newer than this build. Flip to `{}` (the contract's full gate: a
   // format-1 project is view only until "Update project") once the S1/P3
   // dialog and format-2 test sandboxes land — today the full gate makes every
-  // existing project and test sandbox view only.
-  const FORMAT_GATE_OPTS = { newerOnly: true } as const;
-  const gateNow = () => formatGate(ctx, FORMAT_GATE_OPTS);
+  // existing project and test sandbox view only. One constant in format.ts, so
+  // the sync runtime (sync/format-sync.ts) can never disagree with this gate.
+  const gateNow = () => formatGate(ctx, STAGED_FORMAT_GATE_OPTS);
   // Every lane route is privileged (migrate rewrites the tree; the outbox lists queued intents):
   // the same double gate every main-origin route carries — Origin check (reads and writes) +
   // the DNS-rebinding guard — before the handler runs.
@@ -1719,7 +1719,7 @@ export function createHttp(
           const rec = url ? getHubRecord(url) : null;
           return url && rec ? { url, token: rec.token, role: rec.role ?? 'member' } : null;
         },
-        formatView: (req) => formatConfigFields(ctx, roleReadOnly(req), FORMAT_GATE_OPTS),
+        formatView: (req) => formatConfigFields(ctx, roleReadOnly(req), STAGED_FORMAT_GATE_OPTS),
         onMigrated: () => {
           if (reloadConfig(ctx)) ctx.bus.emit('config-updated');
         },
