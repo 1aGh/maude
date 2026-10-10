@@ -1,0 +1,24 @@
+v1.9.0 post-release verification, 2026-10-10 20:22 CEST
+
+## scripts/verify-cloud-production.sh (with the navigation Accept fix)
+── the platform is up ─────────────────────────────────────────────
+  PASS  the control plane answers
+  PASS  the project's cell answers
+── A-1: the fleet-wide R2 key is not what cells use ───────────────
+  PASS  storage posture is per-tenant
+── C5: the read-only gallery is gone, address and all ─────────────
+  PASS  view-<project> no longer serves
+── A4: the canvas origin is its own origin ────────────────────────
+  PASS  canvas origin with no project refuses
+  PASS  a bad render token is refused
+── B1/B2: signed out lands on the Maude sign-in, never in the project ──
+  PASS  signed out ends at the control plane sign-in
+  PASS  the sign-in page actually renders
+  PASS  no internal tunnel hostname leaks to the user
+        (landed on: https://cloud.maude.sh/login?next=%2Fprojects%2Falligators%2Fbrowser%3Freturn%3Dhttps%253A%252F%252Falligators.cloud.maude.sh%252Fauth%252Fbrowser)
+───────────────────────────────────────────────────────────────────
+
+## health
+https://alligators.cloud.maude.sh/health -> {"ok":true,"version":"1.9.0","releaseVersion":"1.9.0","uptimeMs":262053,"port":1234,"tokenCount":229,"authMode":"tokens","identity":{"mode":"hybrid","localDoor"
+https://render.cloud.maude.sh/_health -> {"ok":true,"app":"maude-render","version":"v1.9.0","configured":true,"running":0,"queued":0}
+canvas-alligators -> 401
