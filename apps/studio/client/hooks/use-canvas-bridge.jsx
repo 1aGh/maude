@@ -23,6 +23,17 @@ import { moveLayerNode } from '../inspector/layers.jsx';
 import { SCREEN_PRESETS, replacedValue } from '../inspector/css-vocab.jsx';
 import { PAPER_PRESETS, resolvePrintArtboard } from '../../print/units.ts';
 
+/** canvas→shell types honoured only from the active canvas window (V2-2.8 S1). */
+const SHELL_ACTIVE_ONLY = new Set([
+  'tool-cursor',
+  'layers-tree',
+  'open-inspector',
+  'comment-compose',
+  'comment-click',
+  'artboards',
+  'export-history-request',
+]);
+
 export function useCanvasBridge({
   activePath,
   selected,
@@ -109,6 +120,20 @@ export function useCanvasBridge({
         const notice = acceptCanvasNotice(e, expectedOrigin, activeWin);
         if (notice) notifyCanvasText(notice.title, notice.kind);
         return;
+      }
+      // V2-2.8 S1 (shell side, V2-1.2 §5.2 `any → active`) — these act on the
+      // canvas the user is looking at, so the origin check above (which every
+      // canvas iframe passes, DDR-054) is not enough: a background canvas must not
+      // set the selection, plant the Layers tree, open the Inspector, focus a
+      // comment, repaint the app cursor, override the artboard count or read the
+      // main-origin export history. `activeWin &&` closes `null === null` (a
+      // discarded source with no active canvas).
+      if (SHELL_ACTIVE_ONLY.has(m.dgn)) {
+        const activeWin =
+          activePath && activePath !== SYSTEM_TAB
+            ? iframesRef.current.get(activePath)?.contentWindow
+            : null;
+        if (!activeWin || e.source !== activeWin) return;
       }
       if (m.dgn === 'tool-cursor') {
         // Phase 24 — show the active canvas tool's cursor across the WHOLE app

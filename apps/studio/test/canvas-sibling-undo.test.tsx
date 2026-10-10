@@ -98,7 +98,12 @@ describe('canvas-shell honours shell→canvas lanes only from window.parent (V2-
       await send(sibling, { dgn: 'select-by-id', id: 'heading', artboardId: 'main', index: 0 });
       await send(null, { dgn: 'select-by-id', id: 'heading', artboardId: 'main', index: 0 });
       expect(selects()).toBe(0);
-      await send(window.parent, { dgn: 'select-by-id', id: 'heading', artboardId: 'main', index: 0 });
+      await send(window.parent, {
+        dgn: 'select-by-id',
+        id: 'heading',
+        artboardId: 'main',
+        index: 0,
+      });
       expect(selects()).toBe(1);
     });
   });
@@ -135,7 +140,14 @@ describe('canvas-shell honours shell→canvas lanes only from window.parent (V2-
       // The shell records an applied CSS edit onto the in-canvas stack (parent-gated already).
       await send(window.parent, {
         dgn: 'record-edit',
-        payload: { op: 'css', canvas: 'ui/Gate.tsx', id: 'heading', key: 'color', before: 'red', after: 'blue' },
+        payload: {
+          op: 'css',
+          canvas: 'ui/Gate.tsx',
+          id: 'heading',
+          key: 'color',
+          before: 'red',
+          after: 'blue',
+        },
       });
       // A sibling: the retired v1 lanes and the run-action lane do nothing.
       await send(sibling, { dgn: 'undo' });
@@ -158,7 +170,11 @@ describe('comment-mount honours tool-set only from window.parent (V2-2.8 S1)', (
     const post = spyOn(window.parent, 'postMessage').mockImplementation(() => {});
     try {
       await act(async () => {
-        mountCanvas(() => <ToolReader />, { rootEl, file: '.design/ui/Specimen.tsx', commentsEnabled: true });
+        mountCanvas(() => <ToolReader />, {
+          rootEl,
+          file: '.design/ui/Specimen.tsx',
+          commentsEnabled: true,
+        });
         await settle();
       });
       expect(toolNow()).toBe('browse');
