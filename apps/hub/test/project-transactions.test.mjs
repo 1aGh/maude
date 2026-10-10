@@ -905,6 +905,8 @@ describe('accepted revisions on a real hub', () => {
       assert.deepEqual(pub0.coordinator, {
         ready: true,
         mode: 'legacy',
+        // V2-1.12 §5.5 — the project format, public like `mode` (additive).
+        formatVersion: 1,
         protocol: 1,
         durable: true,
       });
