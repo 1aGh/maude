@@ -24,6 +24,7 @@ import {
 } from '../lib/design-link.mjs';
 import { writeGitignoreBlock } from '../lib/gitignore-block.mjs';
 import { isCompiledBinary } from '../lib/pkg-root.mjs';
+import { subVerbArgs } from '../lib/sub-verbs.mjs';
 
 const SUBCOMMANDS = new Set([
   'serve',
@@ -306,7 +307,14 @@ function runBinDispatch(verb, { args, pkgRoot }) {
     );
     process.exit(1);
   }
-  const rest = args.slice(args.indexOf(verb) + 1); // everything after the verb token
+  // A read-only step that is a flag gets a sub-verb (`ds-upgrade analyse <ds>`) so the AI chat can
+  // auto-allow exactly it; a step flag after one is refused (lead c, cli/lib/sub-verbs.mjs).
+  const sv = subVerbArgs(verb, args.slice(args.indexOf(verb) + 1)); // everything after the verb
+  if (sv.error) {
+    process.stderr.write(`${sv.error}\n`);
+    process.exit(2);
+  }
+  const rest = sv.args;
   // V2-2.8 S4 (contract V2-1.11 §5.3): an output flag lands inside the project or the temp
   // dir, never anywhere else. Auto-tier verbs run without a prompt in the AI chat.
   const outside = outputViolation(rest);

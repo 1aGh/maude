@@ -92,6 +92,9 @@ const TOP_LEVEL_READ_RULES = [
   'Bash(maude kg context:*)',
   'Bash(maude kg resolve:*)',
   'Bash(maude kg doctor:*)',
+  // lead answer (a), decision:maude/v2-2.4b-held-and-prompting-verbs
+  'Bash(maude help:*)',
+  'Bash(maude preflight:*)',
 ];
 
 // Prompt tier (external / shared / destructive) and human tier, contract V2-1.11 §5.3: each one
@@ -110,6 +113,10 @@ const NOT_AUTO = [
   'maude design photo-bg-remove x.png',
   'maude design init --force',
   'maude design ds-upgrade apply',
+  'maude design ds-upgrade acme --apply plan.json',
+  'maude design ds-upgrade acme --stage plan.json',
+  'maude kg ingest',
+  'maude kg import',
   'maude design export png --out ~/Downloads/x.png',
   'maude design bulk-deletes',
   'maude design link https://hub.example',
@@ -136,6 +143,11 @@ const STILL_AUTO = [
   'maude design ds-check --json',
   'maude design index',
   'maude design help',
+  'maude design ds-upgrade analyse acme',
+  'maude design ds-upgrade plan acme',
+  'maude design ds-upgrade validate acme plan.json',
+  'maude help',
+  'maude preflight',
   'maude version',
   'maude config get project',
   'maude kg context --about x',
@@ -203,7 +215,8 @@ describe('MAUDE_DEFAULT_ALLOWED_TOOLS — source-of-truth guard (DDR-184 / DDR-0
     // top-level read rules; nothing broader.
     for (const r of bashRules) {
       expect(
-        /^Bash\(maude design [a-z][a-z0-9-]*:\*\)$/.test(r) || TOP_LEVEL_READ_RULES.includes(r)
+        /^Bash\(maude design [a-z][a-z0-9-]*( [a-z][a-z0-9-]*)?:\*\)$/.test(r) ||
+          TOP_LEVEL_READ_RULES.includes(r)
       ).toBe(true);
     }
   });

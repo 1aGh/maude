@@ -20,11 +20,12 @@ export type VerbEffect = 'none' | 'project' | 'destructive' | 'shared' | 'extern
 export type VerbTier = 'auto' | 'prompt' | 'human';
 
 export interface VerbDef {
-  /** `scope:'design'` → `maude design <verb>`; `scope:'top'` → `maude <verb>` (may be two words). */
+  /** `scope:'design'` → `maude design <verb>`; `scope:'top'` → `maude <verb>`. Either may be two
+   *  words: a sub-verb entry (`ds-upgrade analyse`) is matched before its verb's own entry. */
   scope: 'design' | 'top';
   verb: string;
   effect: VerbEffect;
-  /** Effect none/project, but kept off the auto list until the lead decides. Names the question. */
+  /** Effect none/project, but kept off the auto list by a lead decision. Names it. */
   hold?: string;
   /** Why the effect is what it is, when the name doesn't say it. */
   note?: string;
@@ -43,7 +44,9 @@ const t = (verb: string, effect: VerbEffect, extra: Partial<VerbDef> = {}): Verb
   ...extra,
 });
 
-const HOLD_55 = 'not in §5.5 top-level list (§5.3 tiers it auto) — lead decision';
+// Lead answers on the held verbs: decision:maude/v2-2.4b-held-and-prompting-verbs.
+const KG_LOG =
+  'writes the versioned .kgai log (repo-tracked, merge=union) — lead: keeps prompting (decision:maude/v2-2.4b-held-and-prompting-verbs)';
 
 export const MAUDE_VERBS: readonly VerbDef[] = [
   // ── `maude design`, effect none (reads, computes, runtime `_*` state) ────────────────────
@@ -79,7 +82,7 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('ingest-footage', 'project'),
   d('photo-adjust', 'project'),
   d('export', 'project', {
-    hold: '--out is not confined: /design:export documents `--out ~/Downloads/…` — lead decision',
+    hold: '/design:export documents `--out ~/Downloads/…` — lead: keeps prompting (decision:maude/v2-2.4b-held-and-prompting-verbs)',
   }),
   d('ds-check', 'project', { note: '--fix=mechanical / --emit write canvases / tokens.json' }),
   // ── `maude design`, prompt ────────────────────────────────────────────────────────────────
@@ -94,7 +97,14 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('import-figma', 'external', { note: 'network; --explode' }),
   d('photo-bg-remove', 'external', { note: 'first-use ~40 MB model-weight fetch (§5.3 †)' }),
   d('init', 'destructive', { note: '--force overwrites (§5.3 †)' }),
-  d('ds-upgrade', 'destructive', { note: '`apply` rewrites system files (V2-1.13 §5.10)' }),
+  // ds-upgrade: the read-only steps are their own sub-verbs, so a prefix rule can name them; the
+  // dispatcher refuses a step flag after a sub-verb, so `analyse x --apply p` can't escalate.
+  d('ds-upgrade analyse', 'none'),
+  d('ds-upgrade plan', 'none'),
+  d('ds-upgrade validate', 'none'),
+  d('ds-upgrade', 'destructive', {
+    note: '`apply` rewrites system files (V2-1.13 §5.10); `stage` and the flag forms prompt too',
+  }),
   d('bulk-deletes', 'shared'),
   // ── `maude design`, human ─────────────────────────────────────────────────────────────────
   d('link', 'human'),
@@ -112,15 +122,15 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   t('kg context', 'none'),
   t('kg resolve', 'none'),
   t('kg doctor', 'none'),
-  t('kg ingest', 'project', { hold: HOLD_55 }),
-  t('kg record-log', 'project', { hold: HOLD_55 }),
-  t('kg import', 'project', { hold: HOLD_55 }),
+  t('kg ingest', 'project', { hold: KG_LOG }),
+  t('kg record-log', 'project', { hold: KG_LOG }),
+  t('kg import', 'project', { hold: KG_LOG }),
   t('kg sync', 'shared'),
   t('kg session-sync', 'shared'),
   t('kg check-upstream', 'external'),
   t('kg', 'shared', { note: 'any other kg sub-verb (scope, help, …)' }),
-  t('help', 'none', { hold: HOLD_55 }),
-  t('preflight', 'none', { hold: HOLD_55 }),
+  t('help', 'none'),
+  t('preflight', 'none'),
   t('scenario-report', 'project', { hold: 'not tiered by the contract' }),
   t('migrate', 'destructive'),
   t('hub', 'human'),

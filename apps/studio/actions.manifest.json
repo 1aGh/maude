@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "75699285906d",
+  "manifestVersion": "01c653d6127e",
   "actions": [
     {
       "id": "search.open",
@@ -1630,7 +1630,7 @@
       "verb": "design export",
       "effect": "project",
       "tier": "prompt",
-      "hold": "--out is not confined: /design:export documents `--out ~/Downloads/…` — lead decision"
+      "hold": "/design:export documents `--out ~/Downloads/…` — lead: keeps prompting (decision:maude/v2-2.4b-held-and-prompting-verbs)"
     },
     {
       "scope": "design",
@@ -1703,6 +1703,24 @@
       "verb": "design init",
       "effect": "destructive",
       "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds-upgrade analyse",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds-upgrade plan",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design ds-upgrade validate",
+      "effect": "none",
+      "tier": "auto"
     },
     {
       "scope": "design",
@@ -1799,21 +1817,21 @@
       "verb": "kg ingest",
       "effect": "project",
       "tier": "prompt",
-      "hold": "not in §5.5 top-level list (§5.3 tiers it auto) — lead decision"
+      "hold": "writes the versioned .kgai log (repo-tracked, merge=union) — lead: keeps prompting (decision:maude/v2-2.4b-held-and-prompting-verbs)"
     },
     {
       "scope": "top",
       "verb": "kg record-log",
       "effect": "project",
       "tier": "prompt",
-      "hold": "not in §5.5 top-level list (§5.3 tiers it auto) — lead decision"
+      "hold": "writes the versioned .kgai log (repo-tracked, merge=union) — lead: keeps prompting (decision:maude/v2-2.4b-held-and-prompting-verbs)"
     },
     {
       "scope": "top",
       "verb": "kg import",
       "effect": "project",
       "tier": "prompt",
-      "hold": "not in §5.5 top-level list (§5.3 tiers it auto) — lead decision"
+      "hold": "writes the versioned .kgai log (repo-tracked, merge=union) — lead: keeps prompting (decision:maude/v2-2.4b-held-and-prompting-verbs)"
     },
     {
       "scope": "top",
@@ -1843,15 +1861,13 @@
       "scope": "top",
       "verb": "help",
       "effect": "none",
-      "tier": "prompt",
-      "hold": "not in §5.5 top-level list (§5.3 tiers it auto) — lead decision"
+      "tier": "auto"
     },
     {
       "scope": "top",
       "verb": "preflight",
       "effect": "none",
-      "tier": "prompt",
-      "hold": "not in §5.5 top-level list (§5.3 tiers it auto) — lead decision"
+      "tier": "auto"
     },
     {
       "scope": "top",
