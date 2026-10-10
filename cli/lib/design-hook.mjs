@@ -57,6 +57,7 @@ export const HOOK_EVENTS = [
 const KEY_RE = /^[A-Za-z0-9_-]{1,128}$/;
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const CANVAS_RE = /\.(?:tsx|jsx)$/;
+const BOARD_RE = /\.annotations\.json$/;
 /** V2-1.11 §9 Q5: a Write over an existing canvas longer than this is a lazy rewrite. */
 export const LAZY_WRITE_LINES = 40;
 const LOCATE_MS = 300;
@@ -541,7 +542,23 @@ async function postEdit(ctx, input, self) {
       { session: ctx.session, toolUseId, path: t.rel, via: 'tool' },
       { timeoutMs: 300 }
     );
-  return null;
+  return syncedBoardHint(ctx, t.rel);
+}
+
+/** §5.4 post-edit 4: a synced board edited directly gets one hint a run (no studio needed). */
+function syncedBoardHint(ctx, rel) {
+  if (!BOARD_RE.test(rel)) return null;
+  const cfg = readJson(join(ctx.designRoot, 'config.json'), {});
+  if (!cfg?.linkedHub && !existsSync(join(ctx.designRoot, '_sync.json'))) return null;
+  const marker = join(ctx.run, 'board-hint');
+  if (existsSync(marker)) return null;
+  writeAt(marker, '');
+  return {
+    hookSpecificOutput: {
+      hookEventName: 'PostToolUse',
+      additionalContext: `${rel} is a board this project syncs with collaborators. For board changes prefer \`maude design annotate <canvas> --ops <ops.json>\`: it applies them as element ops that merge with other people's edits.`,
+    },
+  };
 }
 
 function preBash(ctx, input) {

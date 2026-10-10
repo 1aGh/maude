@@ -6,7 +6,15 @@
 // injected bracket, and claims live in this process: "one AI per artboard" (A4) is run vs run.
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { changedArtboards, createAgentRuns } from '../agent-runs.ts';
@@ -369,6 +377,42 @@ describe('POST /_api/agent/* (routes/agent.ts)', () => {
         (await post('/_api/agent/run/begin', { session: 'sr', actor: 'maude-chat', scope })).status
       ).toBe(400);
     await post('/_api/agent/run/end', { session: 'sq', outcome: 'done' });
+  });
+
+  test('edit/touched parks an artboard the edit removed in the trash, with its position (C17)', async () => {
+    writeFileSync(join(project, '.design', 'ui', 'T.tsx'), CANVAS);
+    writeFileSync(
+      join(project, '.design', 'ui', 'T.meta.json'),
+      JSON.stringify({ layout: { artboards: [{ id: 'pricing', x: 900, y: 40 }] } })
+    );
+    const snapDir = join(project, '.design', '_runs', 'sa', 'snap');
+    mkdirSync(snapDir, { recursive: true });
+    writeFileSync(join(snapDir, 'k1'), CANVAS);
+    const gone = CANVAS.replace(/\n {6}<DCArtboard id="pricing".*<\/DCArtboard>/, '');
+    writeFileSync(join(project, '.design', 'ui', 'T.tsx'), gone);
+    const r = await post('/_api/agent/edit/touched', {
+      session: 'sa',
+      toolUseId: 'k1',
+      path: 'ui/T.tsx',
+      via: 'tool',
+    });
+    expect(r.body).toEqual({ artboards: ['pricing'], lostIds: [], trashed: ['pricing'] });
+    const trash = join(project, '.design', '_trash');
+    const dir = readdirSync(trash).find((d) => d.endsWith('__ui__T__pricing'));
+    expect(dir).toBeTruthy();
+    const manifest = JSON.parse(
+      readFileSync(join(trash, String(dir), '_trash-manifest.json'), 'utf8')
+    );
+    expect(manifest).toMatchObject({
+      kind: 'artboard',
+      canvas: 'ui/T.tsx',
+      artboard: 'pricing',
+      position: { x: 900, y: 40 },
+      by: 'ai',
+    });
+    expect(readFileSync(join(trash, String(dir), 'pricing.artboard.tsx'), 'utf8')).toBe(
+      '<DCArtboard id="pricing" width={800} height={600}><p>x</p></DCArtboard>'
+    );
   });
 
   test('run/end closes the run and releases its claims', async () => {

@@ -10,7 +10,7 @@
 // MAIN ORIGIN ONLY (DDR-088): never in `CANVAS_SAFE_API`, never in the `startCanvasServer` routes
 // map — test/agent-routes-origin.test.ts pins both lists.
 
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { designWritesSince } from '../../../cli/lib/bash-guard.mjs';
 import {
@@ -246,17 +246,81 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
       return b instanceof Response ? b : handle(b);
     },
   });
+  /**
+   * C17: park every DCArtboard block `before` had and `after` lost in the trash, with its
+   * position — `_trash/<stamp>__<canvas>__<artboard>/` holds `<artboard>.artboard.tsx` (the block,
+   * verbatim) + `_trash-manifest.json` {kind:'artboard', canvas, artboard, position, by:'ai'}.
+   * Runtime state (DDR-115), never synced. Returns the parked ids; never throws.
+   */
+  function parkRemovedArtboards(rel: string, before: string, after: string, session: string) {
+    const was = artboardSpans(before);
+    const now = artboardSpans(after);
+    if (!was || !now) return [];
+    const left = new Set(now.map((s) => s.id));
+    const removed = was.filter((s) => !left.has(s.id));
+    if (!removed.length) return [];
+    const designRoot = path.join(deps.repoRoot, deps.designRel);
+    let layout: Array<{ id?: unknown; x?: unknown; y?: unknown }> = [];
+    try {
+      const meta = JSON.parse(
+        readDesignFile(deps, rel.replace(/\.(?:tsx|jsx)$/, '.meta.json')) ?? '{}'
+      );
+      if (Array.isArray(meta?.layout?.artboards)) layout = meta.layout.artboards;
+    } catch {
+      /* no position */
+    }
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const slug = rel.replace(/\.(?:tsx|jsx)$/, '').replace(/[^A-Za-z0-9_.-]/g, '__');
+    const parked: string[] = [];
+    for (const s of removed) {
+      const safeId = s.id.replace(/[^A-Za-z0-9_.-]/g, '_').slice(0, 64) || 'artboard';
+      const at = layout.find((a) => a?.id === s.id);
+      const position =
+        at && typeof at.x === 'number' && typeof at.y === 'number' ? { x: at.x, y: at.y } : null;
+      try {
+        const dir = path.join(designRoot, '_trash', `${stamp}__${slug}__${safeId}`);
+        mkdirSync(dir, { recursive: true });
+        writeFileSync(path.join(dir, `${safeId}.artboard.tsx`), before.slice(s.start, s.end));
+        writeFileSync(
+          path.join(dir, '_trash-manifest.json'),
+          `${JSON.stringify(
+            {
+              kind: 'artboard',
+              canvas: rel,
+              artboard: s.id,
+              position,
+              deletedAt: new Date().toISOString(),
+              by: 'ai',
+              session,
+            },
+            null,
+            2
+          )}\n`
+        );
+        parked.push(s.id);
+      } catch {
+        /* parking is best effort: the snapshot still holds the bytes */
+      }
+    }
+    return parked;
+  }
+
   /** Artboards + lost ids of one changed canvas, from a snapshot when there is one. */
-  function canvasChange(rel: string, snapRel: string | null) {
+  function canvasChange(
+    rel: string,
+    snapRel: string | null,
+    session = ''
+  ): { artboards: string[]; lostIds: string[]; trashed: string[] } {
     const after = readDesignFile(deps, rel) ?? '';
     const before = snapRel ? readDesignFile(deps, snapRel) : null;
     const isNew =
       snapRel !== null && before === null && readDesignFile(deps, `${snapRel}.new`) !== null;
     if (before === null && !isNew)
-      return { artboards: (artboardSpans(after) ?? []).map((s) => s.id), lostIds: [] };
+      return { artboards: (artboardSpans(after) ?? []).map((s) => s.id), lostIds: [], trashed: [] };
     return {
       artboards: changedArtboards(before, after).artboards,
       lostIds: before !== null ? checkIds(after, { against: before, path: rel }).lostIds : [],
+      trashed: before !== null ? parkRemovedArtboards(rel, before, after, session) : [],
     };
   }
 
@@ -293,9 +357,10 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
           typeof name === 'string' && /^[A-Za-z0-9_.-]{1,160}$/.test(name)
             ? `_runs/${session}/snap/${name}`
             : null;
-        const c = canvasChange(rel, snap);
+        const c = canvasChange(rel, snap, session);
         artboards = c.artboards;
         out.lostIds.push(...c.lostIds);
+        out.trashed.push(...c.trashed);
       }
       for (const a of artboards) if (!out.artboards.includes(a)) out.artboards.push(a);
       if (run) runs.touch(run.session, rel, artboards);
@@ -437,11 +502,11 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
       const rel = designPathRel(b.path);
       if (!rel) return bad('path is a file inside the design root');
       if (isRuntimeRel(rel)) return json(200, empty);
-      const { artboards, lostIds } = CANVAS_RE.test(rel)
-        ? canvasChange(rel, `_runs/${session}/snap/${toolUseId}`)
-        : { artboards: [] as string[], lostIds: [] as string[] };
+      const { artboards, lostIds, trashed } = CANVAS_RE.test(rel)
+        ? canvasChange(rel, `_runs/${session}/snap/${toolUseId}`, session)
+        : empty;
       runs.touch(session, rel, artboards);
-      return json(200, { ...empty, artboards, lostIds });
+      return json(200, { artboards, lostIds, trashed });
     }),
     spec({ path: '/_api/agent/run/end' }, (b) => {
       const session = key(b, 'session');

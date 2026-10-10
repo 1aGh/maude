@@ -82,6 +82,7 @@ const edit = (project, session, toolUseId, old, neu) => ({
   },
 });
 const canvasPath = (project) => join(project, '.design', 'ui', 'C.tsx');
+const BOARD = '{"format":"maude.annotations","v":2,"elements":[]}\n';
 const bash = (project, session, toolUseId, command) => ({
   session_id: session,
   tool_use_id: toolUseId,
@@ -239,6 +240,41 @@ describe('no studio — fail-open, snapshot + check + rollback still run', () =>
     await hook('post-bash', r);
     expect(existsSync(join(project, '.design', '_runs', 's5', 'touched.json'))).toBe(false);
     rmSync(join(project, '.design', '_runs', 's4'), { recursive: true, force: true });
+  });
+
+  test('post-edit on a synced board: one hint to prefer `annotate --ops`', async () => {
+    const boardP = join(project, '.design', 'ui', 'C.annotations.json');
+    const editBoard = (id) => ({
+      session_id: 's8',
+      tool_use_id: id,
+      cwd: project,
+      tool_name: 'Write',
+      tool_input: { file_path: boardP, content: BOARD },
+    });
+    writeFileSync(boardP, BOARD);
+    // not synced → silent
+    await hook('pre-edit', editBoard('h0'));
+    const quiet = await hook('post-edit', editBoard('h0'));
+    expect(quiet.stdout).not.toContain('maude design annotate');
+    writeFileSync(
+      join(project, '.design', 'config.json'),
+      JSON.stringify({ linkedHub: { url: 'https://hub.example' } })
+    );
+    try {
+      await hook('pre-edit', editBoard('h1'));
+      const r = await hook('post-edit', editBoard('h1'));
+      expect(r.json?.decision).toBeUndefined(); // an empty v2 board passes the check
+      expect(r.json.hookSpecificOutput).toMatchObject({ hookEventName: 'PostToolUse' });
+      expect(r.json.hookSpecificOutput.additionalContext).toContain('maude design annotate');
+      // once a run
+      await hook('pre-edit', editBoard('h2'));
+      expect((await hook('post-edit', editBoard('h2'))).stdout).not.toContain('maude design annotate');
+      expect(r.stdout).not.toMatch(/"(ask|allow)"/);
+    } finally {
+      writeFileSync(join(project, '.design', 'config.json'), '{}');
+      rmSync(boardP, { force: true });
+      rmSync(join(project, '.design', '_runs', 's8'), { recursive: true, force: true });
+    }
   });
 
   test('a good edit passes silently and is recorded; Stop checks the run, then lets it end', async () => {
