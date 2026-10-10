@@ -19,6 +19,7 @@ import {
   type FormatCtx,
   type FormatGateOptions,
   formatGate,
+  formatHubUrl,
   noteHubFormat,
   projectFormat,
   readHubFormatCache,
@@ -108,21 +109,26 @@ export function learnHubFormat(
   ctx: FormatCtx,
   seen: { formatVersion: number | null; epoch?: number }
 ): boolean {
-  const hub = ctx.cfg.linkedHub?.url;
+  const hub = formatHubUrl(ctx);
   if (!hub || seen.formatVersion === null) return false;
+  // An epoch is a non-negative safe integer or it is not one: a hostile hub
+  // sending 1e308 must not freeze this mirror against every later unflip.
+  const epoch =
+    typeof seen.epoch === 'number' && Number.isSafeInteger(seen.epoch) && seen.epoch >= 0
+      ? seen.epoch
+      : undefined;
   // RAISE-ONLY, with one exception: the owner's unflip (`--reverse`) reaches
   // peers as a `maude.mode` notice carrying a NEWER epoch than the one this
   // mirror recorded — a later decision by the authority, not a stale hub.
   // `/health` carries no public epoch, so it can only ever raise.
   const cached = readHubFormatCache(ctx.paths.designRoot, hub);
-  const newerDecision =
-    typeof seen.epoch === 'number' && cached !== null && seen.epoch > cached.epoch;
+  const newerDecision = epoch !== undefined && cached !== null && epoch > cached.epoch;
   return noteHubFormat(
     ctx.paths.designRoot,
     {
       hub,
       formatVersion: seen.formatVersion,
-      ...(typeof seen.epoch === 'number' ? { epoch: seen.epoch } : {}),
+      ...(epoch !== undefined ? { epoch } : {}),
     },
     { allowLower: newerDecision }
   );
@@ -134,7 +140,7 @@ export function learnHubFormat(
  * format-1 hub is never a flip (nothing to have missed).
  */
 export function isFormatFirstSight(ctx: FormatCtx, hubFormat: number | null): boolean {
-  const hub = ctx.cfg.linkedHub?.url;
+  const hub = formatHubUrl(ctx);
   if (!hub || hubFormat === null || hubFormat <= 1) return false;
   const cached = readHubFormatCache(ctx.paths.designRoot, hub);
   return cached === null || cached.formatVersion < hubFormat;

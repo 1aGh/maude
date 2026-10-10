@@ -28,6 +28,22 @@ export const SUPPORTED_FORMAT = 2;
 /** The highest format any build knows of (the hub's 422 `max`). */
 export const MAX_KNOWN_FORMAT = 2;
 
+/**
+ * In a cloud cell the studio is the hub's own child: the hub writes the mirror
+ * itself under this key (V2-1.12 §5.2 — "studio child reads its paired hub"),
+ * whether or not the child also runs a paired sync link.
+ */
+export const CELL_SELF_HUB = 'cell:self';
+
+/** Which hub's mirror applies to this studio: its own cell hub, the linked hub, or none. */
+export function formatHubUrl(
+  ctx: FormatCtx,
+  env: Record<string, string | undefined> = process.env
+): string | null {
+  if (env.MAUDE_WORKSPACE_MODE === '1') return CELL_SELF_HUB;
+  return ctx.cfg.linkedHub?.url ?? null;
+}
+
 /** Design-root-relative cache of the linked hub's format (runtime, DDR-115). */
 export const HUB_FORMAT_REL = path.join('_state', 'hub-format.json');
 
@@ -111,7 +127,7 @@ export function projectFormat(
   live: { hubFormat?: number | null } = {}
 ): { value: number; source: 'config' | 'hub' } {
   const fromConfig = asFormat(ctx.cfg.formatVersion);
-  const hub = ctx.cfg.linkedHub?.url;
+  const hub = formatHubUrl(ctx);
   if (!hub) return { value: fromConfig, source: 'config' };
   const hubValue =
     typeof live.hubFormat === 'number'

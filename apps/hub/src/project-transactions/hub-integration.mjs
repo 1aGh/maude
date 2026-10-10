@@ -104,6 +104,11 @@ export function createAcceptedRevisions({
   /** …and how many (≈ 10 minutes with the default waits). */
   resumeAttempts = 13,
   log = console,
+  /**
+   * The project's format became known or changed (a store reading, a flip, a
+   * seed) — `(formatVersion, epoch)`. A cell hands it to its own studio child.
+   */
+  onFormat = () => {},
 }) {
   let state = { mode: 'legacy', epoch: 0, revision: 0, formatVersion: DEFAULT_FORMAT };
   // T19/T29 — the coordinator's own readiness and counters, apart from the
@@ -252,11 +257,41 @@ export function createAcceptedRevisions({
   }
 
   let warnedUnpaired = false;
+  /** One store read in flight at a time, and a failure answered from memory
+   *  for a moment — a door that waits on an unready store must not turn every
+   *  request (signed in or not) into a store round trip. */
+  let refreshing = null;
+  let refreshFailedAt = 0;
+  const REFRESH_FAILURE_MEMO_MS = 2000;
+  function refreshOnce() {
+    if (refreshing) return refreshing;
+    if (Date.now() - refreshFailedAt < REFRESH_FAILURE_MEMO_MS) {
+      return Promise.reject(new Error(storeError ?? 'the project store is not reachable'));
+    }
+    refreshing = refresh()
+      .catch((err) => {
+        refreshFailedAt = Date.now();
+        throw err;
+      })
+      .finally(() => {
+        refreshing = null;
+      });
+    return refreshing;
+  }
+  /** Tell `onFormat` — never let a listener break a store reading. */
+  function noteFormat() {
+    try {
+      onFormat(asFormat(state.formatVersion), state.epoch);
+    } catch (err) {
+      log.warn?.(`[transactions] onFormat failed: ${err.message}`);
+    }
+  }
   async function refresh() {
     try {
       state = await store.state();
       ready = true;
       storeError = null;
+      noteFormat();
       if (browserUnpaired && state.mode === 'transactions' && !warnedUnpaired) {
         warnedUnpaired = true;
         log.error?.(
@@ -540,6 +575,7 @@ export function createAcceptedRevisions({
       if (switchGraceMs > 0) await new Promise((r) => setTimeout(r, switchGraceMs));
       state = { ...state, ...stateOf(next) };
       ready = true;
+      noteFormat();
       log.log?.(
         `[transactions] project format is now ${record.formatVersion} (epoch ${record.epoch})`
       );
@@ -606,6 +642,7 @@ export function createAcceptedRevisions({
     }
     state = { ...state, ...stateOf(raised) };
     ready = true;
+    noteFormat();
     return { changed: true, formatVersion: asFormat(raised.formatVersion), epoch: raised.epoch };
   }
 
@@ -625,11 +662,18 @@ export function createAcceptedRevisions({
       respondJson(401, { error: 'sign in to this project first', code: 'unauthenticated' });
       return true;
     }
-    if (!who.admin || who.readOnly) {
+    if (!who.owner || who.readOnly) {
       respondJson(403, {
         error: 'only the project owner can change the project format',
         code: 'forbidden',
       });
+      return true;
+    }
+    // Not a form post: a cross-site no-cors request cannot send this type, so
+    // a permissive dev hub on localhost cannot be flipped from a web page.
+    const type = String(request?.headers?.['content-type'] ?? '').toLowerCase();
+    if (!type.startsWith('application/json')) {
+      respondJson(415, { code: 'invalid', error: 'send application/json' });
       return true;
     }
     let body;
@@ -980,7 +1024,7 @@ export function createAcceptedRevisions({
         // be retried forever). 426, not 403 — an old client renews its
         // credential on a 403. Decided after the switch the proposal waited on,
         // and against a reading of the store, never the boot default.
-        if (!isReady()) await refresh();
+        if (!isReady()) await refreshOnce();
         if (declaredFormatFromRequest(request) !== projectFormat()) {
           respondJson(426, {
             protocol: 1,
@@ -1114,6 +1158,7 @@ export function createAcceptedRevisions({
 
   return {
     kernel,
+    refreshOnce,
     setFormat,
     seedFormat,
     handleFormatRoute,

@@ -899,17 +899,19 @@ export function createFilePlane(opts: FilePlaneOptions): FilePlane {
     // newer format than this build writes. Deliberately NOT the branch above —
     // the credential is fine, and renewing it would change nothing.
     if (res.status === 426) {
+      // The CONTRACT's words (§5.8), never the hub's text — the hub is
+      // untrusted to peers (DDR-054), and this line reaches the Sync panel.
       let fv: number | null = null;
-      let message = 'This project now uses Maude 2. Update Maude to edit it.';
       try {
-        const body = (await res.clone().json()) as { formatVersion?: unknown; error?: unknown };
-        if (typeof body?.formatVersion === 'number') fv = body.formatVersion;
-        if (typeof body?.error === 'string' && body.error.length <= 200) message = body.error;
+        const text = await res.clone().text();
+        const body = text.length <= 4096 ? (JSON.parse(text) as { formatVersion?: unknown }) : null;
+        const v = body?.formatVersion;
+        if (typeof v === 'number' && Number.isSafeInteger(v) && v >= 1) fv = v;
       } catch {
         /* a bare 426 still means "format" */
       }
       formatRefused = { formatVersion: fv };
-      return { ok: false, reason: message };
+      return { ok: false, reason: 'This project now uses Maude 2. Update Maude to edit it.' };
     }
     const reason = await failureReason(res);
     // BACKPRESSURE, not just 429 — a cell that is starting answers 503 with a

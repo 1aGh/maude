@@ -40,7 +40,19 @@ import { rememberReturnTo } from './return-to.mjs';
 
 import { Buffer } from 'node:buffer';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  constants as fsConstants,
+  fstatSync,
+  mkdirSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 
@@ -820,9 +832,20 @@ export function createHub(config = {}) {
         readOnly: !!m.readOnly,
         scope: m.scope ?? '*',
         admin: !m.readOnly && (m.role === 'owner' || m.role === 'admin' || (!m.role && !m.owner)),
+        // THE PROJECT OWNER, strictly (V2-1.12 §5.5 — the format flip): an
+        // owner/admin-role token over the WHOLE project, or the operator's env
+        // secret. Not `admin`'s role-less case — the admin console's invites
+        // are role-less (and may be scoped to one canvas), and an invitee must
+        // not be able to make every Maude 1 peer read-only. Same bar as the
+        // project-config door.
+        owner:
+          !m.readOnly &&
+          (m.source === 'env' ||
+            ((m.role === 'owner' || m.role === 'admin') && (m.scope ?? '*') === '*')),
       };
     }
-    if (presentsCellSecret(req, secret)) return { actor: 'operator', readOnly: false, admin: true };
+    if (presentsCellSecret(req, secret))
+      return { actor: 'operator', readOnly: false, admin: true, owner: true };
     // A cloud cell's project OWNER, on a token the control plane minted
     // for them (the dashboard's "switch how the project saves"): the
     // same offline-verified token the export route takes, owner role
@@ -832,11 +855,11 @@ export function createHub(config = {}) {
     if (tenant && tokenKey && presented.includes('.')) {
       const v = verifyAccessToken(presented, tokenKey, { tenantId: tenant });
       if (v.ok && v.user.role === 'owner' && !isRevoked(dataDir, v.user.email, v.issuedAt))
-        return { actor: v.user.email, readOnly: false, scope: '*', admin: true };
+        return { actor: v.user.email, readOnly: false, scope: '*', admin: true, owner: true };
     }
     const { tokens } = readTokens(dataDir);
     if (tokens.length === 0 && secret === '' && !permissiveDevAuthDisabled(dataDir)) {
-      return { actor: 'anon', readOnly: false, admin: true };
+      return { actor: 'anon', readOnly: false, admin: true, owner: true };
     }
     return null;
   }
@@ -1177,7 +1200,7 @@ export function createHub(config = {}) {
       ) {
         if (!accepted.isReady()) {
           try {
-            await accepted.refresh();
+            await accepted.refreshOnce();
           } catch {
             respondJson(response, 503, {
               error: 'the project store is not reachable yet',
@@ -2236,6 +2259,25 @@ export function createHub(config = {}) {
     },
     checkoutDirs: () => checkoutFolders(),
     storeDurable,
+    // V2-1.12 §5.2 — a hub with a checkout tells ITS OWN studio child the
+    // project format: the child gates (view only, the banner) from
+    // `_state/hub-format.json` under the `cell:self` key, paired or not.
+    onFormat: (formatVersion, epoch) => {
+      if (!workspaceMode || !journalDesignRoot) return;
+      const dir = join(journalDesignRoot, '_state');
+      const file = join(dir, 'hub-format.json');
+      const tmp = `${file}.${process.pid}.tmp`;
+      try {
+        mkdirSync(dir, { recursive: true });
+        writeFileSync(
+          tmp,
+          `${JSON.stringify({ hub: 'cell:self', formatVersion, epoch, seenAt: new Date().toISOString() })}\n`
+        );
+        renameSync(tmp, file);
+      } catch (err) {
+        console.warn(`[hub] could not hand the project format to the studio: ${err.message}`);
+      }
+    },
     browserUnpaired: studioEnabled && !studioPairingToken,
     checkoutHasCanvases: () => checkoutCanvasPaths().size > 0,
   });
@@ -2252,13 +2294,22 @@ export function createHub(config = {}) {
   /** The checkout's declared `formatVersion` (absent, unreadable or no checkout = 1). */
   const checkoutFormatVersion = () => {
     if (!journalDesignRoot) return 1;
+    // The checkout is TENANT content: never follow a link, never block on a
+    // FIFO or a device (a boot that hangs), never read more than a config is.
+    let fd = -1;
     try {
-      const v = JSON.parse(
-        readFileSync(join(journalDesignRoot, 'config.json'), 'utf8')
-      )?.formatVersion;
+      fd = openSync(
+        join(journalDesignRoot, 'config.json'),
+        fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW | fsConstants.O_NONBLOCK
+      );
+      const st = fstatSync(fd);
+      if (!st.isFile() || st.size > 1024 * 1024) return 1;
+      const v = JSON.parse(readFileSync(fd, 'utf8'))?.formatVersion;
       return Number.isSafeInteger(v) && v >= 1 ? v : 1;
     } catch {
       return 1;
+    } finally {
+      if (fd >= 0) closeSync(fd);
     }
   };
   const acceptedReady = accepted
