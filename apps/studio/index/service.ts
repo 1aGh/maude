@@ -55,6 +55,9 @@ export interface IndexService {
   update(rels: string[]): number;
   rebuild(): void;
   mergeRuntime(rel: string, srcHash: string, artboards: ArtboardRow[]): void;
+  /** the thumbnail renderer's last card-size cover for this source (§5.2 `cover`); ignored when
+   *  the canvas changed since the render started */
+  setCover(rel: string, cover: NonNullable<CanvasRow['cover']>): void;
   on(event: 'changed', cb: (e: { seq: number; rels: string[] }) => void): () => void;
   /** write now (shutdown) */
   flush(): void;
@@ -246,6 +249,14 @@ export function createIndexService(o: IndexServiceOptions): IndexService {
       if (!row || row.srcHash !== srcHash) return;
       row.artboards = artboards;
       row.artboardsFrom = 'runtime';
+      emit([rel]);
+    },
+    setCover(rel, cover) {
+      const row = rows.get(rel);
+      if (!row || row.srcHash !== cover.ofSrc) return;
+      const was = row.cover;
+      if (was && was.key === cover.key && was.w === cover.w && was.h === cover.h) return;
+      row.cover = { key: cover.key, w: cover.w, h: cover.h, ofSrc: cover.ofSrc };
       emit([rel]);
     },
     on(_event, cb) {
