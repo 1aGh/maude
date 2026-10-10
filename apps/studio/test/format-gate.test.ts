@@ -75,24 +75,32 @@ describe('project format', () => {
 
 describe('the gate', () => {
   test(`this build edits only format ${SUPPORTED_FORMAT}`, () => {
-    expect(formatGate(ctx({ formatVersion: 2 }))).toBe(null);
-    expect(formatGate(ctx({}))).toEqual({ projectFormat: 1, supported: 2, source: 'config' });
-    // the 1.x compat build is the same module with supported = 1
-    expect(formatGate(ctx({ formatVersion: 2 }), { supported: 1 })).toEqual({
+    // the 1.x compat cut (V2-2.18): format 1 is edited, format 2 is not
+    expect(SUPPORTED_FORMAT).toBe(1);
+    expect(formatGate(ctx({}))).toBe(null);
+    expect(formatGate(ctx({ formatVersion: 2 }))).toEqual({
       projectFormat: 2,
       supported: 1,
       source: 'config',
     });
-    expect(formatGate(ctx({}), { supported: 1 })).toBe(null);
+    // the v2 build is the same module with supported = 2
+    expect(formatGate(ctx({}), { supported: 2 })).toEqual({
+      projectFormat: 1,
+      supported: 2,
+      source: 'config',
+    });
+    expect(formatGate(ctx({ formatVersion: 2 }), { supported: 2 })).toBe(null);
   });
 
   test('newerOnly (the staged wiring): only a NEWER project is gated', () => {
     expect(formatGate(ctx({}), { newerOnly: true })).toBe(null);
-    expect(formatGate(ctx({ formatVersion: 3 }), { newerOnly: true })).toEqual({
-      projectFormat: 3,
-      supported: 2,
+    expect(formatGate(ctx({ formatVersion: 2 }), { newerOnly: true })).toEqual({
+      projectFormat: 2,
+      supported: 1,
       source: 'config',
     });
+    // newerOnly leaves an OLDER project editable (the v2 build's staged gate)
+    expect(formatGate(ctx({}), { supported: 2, newerOnly: true })).toBe(null);
     expect(formatConfigFields(ctx({}), false, { newerOnly: true })).toMatchObject({
       readOnly: false,
       formatGate: null,
@@ -139,21 +147,21 @@ describe('the gate', () => {
   });
 
   test('/_config fields: readOnly when gated, the reason names role over format', () => {
-    expect(formatConfigFields(ctx({ formatVersion: 2 }), false)).toEqual({
-      formatVersion: 2,
+    expect(formatConfigFields(ctx({}), false)).toEqual({
+      formatVersion: 1,
       formatGate: null,
       readOnly: false,
       readOnlyReason: null,
     });
-    expect(formatConfigFields(ctx({}), false)).toMatchObject({
+    expect(formatConfigFields(ctx({ formatVersion: 2 }), false)).toMatchObject({
       readOnly: true,
       readOnlyReason: 'format',
     });
-    expect(formatConfigFields(ctx({}), true)).toMatchObject({
+    expect(formatConfigFields(ctx({ formatVersion: 2 }), true)).toMatchObject({
       readOnly: true,
       readOnlyReason: 'role',
     });
-    expect(formatConfigFields(ctx({ formatVersion: 2 }), true)).toMatchObject({
+    expect(formatConfigFields(ctx({}), true)).toMatchObject({
       readOnlyReason: 'role',
     });
   });

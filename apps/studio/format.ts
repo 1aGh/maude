@@ -21,9 +21,10 @@ import path from 'node:path';
 /**
  * The format THIS build edits. The v2 branch is 2. The 1.x compatibility
  * release (V2-2.18) cuts this module with 1 — the one-line difference between
- * the two builds' gates.
+ * the two builds' gates. THIS is the 1.x cut: a format-2 project opens view
+ * only here ("Update Maude to edit"); a format-1 project stays fully editable.
  */
-export const SUPPORTED_FORMAT = 2;
+export const SUPPORTED_FORMAT = 1;
 
 /** The highest format any build knows of (the hub's 422 `max`). */
 export const MAX_KNOWN_FORMAT = 2;

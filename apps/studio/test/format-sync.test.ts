@@ -181,7 +181,8 @@ describe('learn', () => {
 
   test('a hub BELOW this copy’s config (an unflip not taken here yet) pauses outbound too', () => {
     learnHubFormat(ctx(2), { formatVersion: 2, epoch: 1 });
-    expect(formatGated(ctx(2))).toBe(false);
+    // v2: editable. The 1.x cut: already paused — format 2 is newer than it.
+    expect(formatGated(ctx(2))).toBe(SUPPORTED_FORMAT < 2);
     learnHubFormat(ctx(2), { formatVersion: 1, epoch: 2 }); // the owner's unflip
     expect(formatGated(ctx(2))).toBe(true);
   });
