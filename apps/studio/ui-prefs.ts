@@ -39,6 +39,16 @@ export interface UiPrefs {
   panelSides: PanelSides;
   /** Whether Layers is its own dockable panel or a tab inside the Inspector. */
   layersMode: 'separate' | 'in-inspector';
+  /**
+   * Schema version of the file (absent = 1, the seven fields above). Carried, never invented by the
+   * reader: a file written by a newer build keeps its version when an older build rewrites it.
+   */
+  version?: number;
+  /**
+   * Lossless reader (V2-1.12): any top-level field this build does not know round-trips untouched
+   * through read and write, so a build that predates a field never strips it.
+   */
+  [extra: string]: unknown;
 }
 
 // Defaults MUST agree with app.jsx's initial state (THEME default 'dark',
@@ -82,11 +92,35 @@ function coercePanelSides(raw: unknown): PanelSides {
   return out;
 }
 
+// Own keys that must never be copied off disk: a spread would define them as plain data
+// properties, and the next consumer that assigns through one would be assigning into a prototype.
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const KNOWN_KEYS = new Set([
+  'theme',
+  'minimap',
+  'zoom',
+  'annotations',
+  'autoOpenInspector',
+  'panelSides',
+  'layersMode',
+  'version',
+]);
+
 function coerce(raw: unknown): UiPrefs {
   const o =
     raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
   const bool = (v: unknown, d: boolean) => (typeof v === 'boolean' ? v : d);
+  const extra: Record<string, unknown> = {};
+  for (const k of Object.keys(o)) {
+    if (!KNOWN_KEYS.has(k) && !UNSAFE_KEYS.has(k)) extra[k] = o[k];
+  }
+  const version =
+    typeof o.version === 'number' && Number.isInteger(o.version) && o.version >= 1
+      ? { version: o.version }
+      : {};
   return {
+    ...extra,
+    ...version,
     theme: o.theme === 'light' || o.theme === 'dark' ? o.theme : UI_PREFS_DEFAULTS.theme,
     minimap: bool(o.minimap, UI_PREFS_DEFAULTS.minimap),
     zoom: bool(o.zoom, UI_PREFS_DEFAULTS.zoom),
