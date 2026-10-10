@@ -1,0 +1,7 @@
+{
+  "name": "maude-eval-harness",
+  "version": "0.0.0",
+  "description": "Agent-eval only: the prototype v2 edit-safety hooks (V2-1.18). Never shipped.",
+  "author": { "name": "1aGh" },
+  "license": "MIT"
+}

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# agent-evals PATH shim: `maude` → THIS worktree's CLI (cli/bin/maude.mjs, source dev-server), plus
+# the v2 verbs the eval stands in for (harness/verbs.mjs). Every boot is NO_OPEN + no autobuild
+# (memory: servers boot with NO_OPEN=1; CLAUDE.md: MAUDE_NO_AUTOBUILD=1 for in-tree boots).
+H="$(cd "$(dirname "$0")/.." && pwd)"          # apps/studio/test/agent-evals
+WT="$(cd "$H/../../../.." && pwd)"               # worktree root
+export NO_OPEN=1 MAUDE_NO_AUTOBUILD=1 MAUDE_FORCE_SOURCE=1
+if [ "${1:-}" = "design" ]; then
+  case "${2:-}" in
+    check|trash|runs)
+      shift
+      exec bun "$H/harness/verbs.mjs" "$@" ;;
+    screenshot)
+      node "$WT/cli/bin/maude.mjs" "$@"
+      code=$?
+      shift 2
+      bun "$H/harness/verbs.mjs" shot-log "$code" "$@" >/dev/null 2>&1
+      exit $code ;;
+  esac
+fi
+exec node "$WT/cli/bin/maude.mjs" "$@"

@@ -1,0 +1,7 @@
+{
+  "name": "maude-b",
+  "version": "0.0.0",
+  "description": "Agent-eval only: topology B's prototype helper agents (board-reader, artboard-drafter, ds-switcher) per K-agent-architecture §2.2. Never shipped — V2-1.18 decides whether S12 builds them.",
+  "author": { "name": "1aGh" },
+  "license": "MIT"
+}

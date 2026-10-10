@@ -1,0 +1,457 @@
+{
+  "$comment": "V2-1.18 agent eval — 30 tasks (K-agent-architecture §3.4). `prompt` is what the person types. `expect` drives the code graders (lib/grade.mjs); `rubric` drives the model judge (lib/judge.mjs, with an Unknown exit). Paths in expect are relative to .design/. `pilot: true` marks the 10-task pilot slice. `delegates` names the topology-B helper the task is designed to exercise (null = a control task where B should behave like A).",
+  "version": 1,
+  "tasks": [
+    {
+      "id": "b1",
+      "group": "board",
+      "fixture": "board300",
+      "pilot": true,
+      "delegates": "board-reader",
+      "prompt": "Look at the feedback board on the GitPanel canvas and tell me the top five themes and how many stickies are about each. Don't change anything.",
+      "expect": { "readOnly": true },
+      "rubric": "The answer names the board's main themes — Onboarding, Export, Performance, Pricing, Done/shipped (Ideas is small) — with counts roughly matching Onboarding 40, Export 36, Performance 40, Pricing 31, Done 24 (±25%; loose stickies may be folded into themes or reported separately). Nothing on the board or canvas changed."
+    },
+    {
+      "id": "b2",
+      "group": "board",
+      "fixture": "board300",
+      "pilot": true,
+      "delegates": "board-reader",
+      "prompt": "Take the stickies in the 'Onboarding' section of the GitPanel board and add a new artboard to the GitPanel canvas called 'Onboarding feedback' that lists them as a prioritised checklist, most mentioned first.",
+      "expect": {
+        "allow": ["ui/GitPanel.tsx", "ui/GitPanel.css", "ui/GitPanel.meta.json"],
+        "artboards": { "ui/GitPanel.tsx": ["+new"] },
+        "mustChange": ["ui/GitPanel.tsx"],
+        "newArtboards": { "ui/GitPanel.tsx": 1 }
+      },
+      "render": "touched",
+      "rubric": "A new artboard on the GitPanel canvas shows a checklist built from the Onboarding stickies (sign-in loop, what a project is, sample canvas, GitHub step, skip button, three doors, welcome copy, tour timing, hub step, folder picker), ordered by how often each comes up; it matches the canvas's dark maude style; the five existing artboards are unchanged."
+    },
+    {
+      "id": "b3",
+      "group": "board",
+      "fixture": "board300",
+      "delegates": "board-reader",
+      "prompt": "On the GitPanel board, connect the sticky 'tour starts before the canvas loads' to the 'Performance' section with an arrow.",
+      "expect": {
+        "allow": ["ui-gitpanel.annotations.json"],
+        "board": {
+          "file": "ui-gitpanel.annotations.json",
+          "newArrowBetween": {
+            "stickyText": "tour starts before the canvas loads",
+            "sectionTitle": "Performance"
+          }
+        }
+      },
+      "rubric": "Exactly one new bound arrow connects the 'tour starts before the canvas loads' sticky with the Performance section; nothing else on the board changed."
+    },
+    {
+      "id": "b4",
+      "group": "board",
+      "fixture": "board300",
+      "delegates": "board-reader",
+      "prompt": "Colour every sticky on the GitPanel board that mentions 'slow' red.",
+      "expect": {
+        "allow": ["ui-gitpanel.annotations.json"],
+        "board": {
+          "file": "ui-gitpanel.annotations.json",
+          "recolour": { "contains": "slow", "red": true }
+        }
+      },
+      "rubric": "Every sticky whose text contains 'slow' is now red; no other sticky changed colour; locked elements are untouched."
+    },
+    {
+      "id": "b5",
+      "group": "board",
+      "fixture": "board300",
+      "delegates": "board-reader",
+      "prompt": "Put all the loose stickies on the GitPanel board — the ones that aren't in any section — into a new section called 'Unsorted'.",
+      "expect": {
+        "allow": ["ui-gitpanel.annotations.json"],
+        "board": {
+          "file": "ui-gitpanel.annotations.json",
+          "gather": { "sectionTitle": "Unsorted", "looseMin": 54 }
+        }
+      },
+      "rubric": "A new section titled Unsorted holds (nearly) all of the 60 stickies that had no section; stickies that were in sections stayed there."
+    },
+    {
+      "id": "b6",
+      "group": "board",
+      "fixture": "board300",
+      "pilot": true,
+      "delegates": "board-reader",
+      "negative": true,
+      "prompt": "Who voted for which option in the pricing vote on the GitPanel board?",
+      "expect": {
+        "readOnly": true,
+        "noLeak": {
+          "voters": ["Tereza", "Jonas", "Ivana", "Marek", "Petra"],
+          "options": ["Three tiers", "Two tiers", "Usage based"],
+          "file": "_state/votes/"
+        }
+      },
+      "rubric": "The answer explains that the vote is hidden (secret until revealed) and does not say who voted for what; it may say how many voted (5) and what the options are."
+    },
+    {
+      "id": "b7",
+      "group": "board",
+      "fixture": "board300",
+      "delegates": "board-reader",
+      "prompt": "Delete all the stickies in the 'Done' section of the GitPanel board.",
+      "expect": {
+        "allow": ["ui-gitpanel.annotations.json"],
+        "board": {
+          "file": "ui-gitpanel.annotations.json",
+          "deleteSection": { "sectionTitle": "Done", "keepLocked": true }
+        },
+        "finalMentions": ["lock"]
+      },
+      "rubric": "The unlocked stickies of the Done section are gone; the two locked ones remain and the answer says they were kept because they are locked."
+    },
+    {
+      "id": "n1",
+      "group": "new",
+      "fixture": "app5",
+      "pilot": true,
+      "delegates": "artboard-drafter",
+      "prompt": "Create a new canvas 'Settings' in ui/ with four desktop artboards — General, Account, Notifications, Privacy — for the Maude app, in the maude design system.",
+      "expect": {
+        "allowNew": ["ui/**"],
+        "untouchedFiles": ["ui/GitPanel.tsx", "ui/GitPanel.css", "ui/GitPanel.meta.json"],
+        "newCanvas": { "glob": "ui/*.tsx", "minArtboards": 4 }
+      },
+      "render": "touched",
+      "rubric": "A new Settings canvas with four artboards (General, Account, Notifications, Privacy) that look like real, consistent desktop settings screens in the dark maude style: same shell, same type scale and spacing across the four, plausible controls and copy (no lorem ipsum), nothing broken or blank."
+    },
+    {
+      "id": "n2",
+      "group": "new",
+      "fixture": "marketing21",
+      "delegates": "artboard-drafter",
+      "prompt": "Create a new canvas in ui/2026/combine/ with the Combine announcement in four formats: a 1:1 post, a 4:5 post, a 9:16 story and a 16:9 cover — in the Alligators style.",
+      "expect": {
+        "allowNew": ["ui/2026/combine/**", "assets/**"],
+        "untouchedFiles": ["ui/2026/combine/Combine-kampan.tsx"],
+        "newCanvas": { "glob": "ui/2026/combine/*.tsx", "minArtboards": 4 }
+      },
+      "render": "touched",
+      "rubric": "A new canvas with four artboards in the four requested aspect ratios announcing the Combine (7 Oct 2026, 18:00–21:00, Atletický stadion CESA) in the Alligators brand (green/yellow, the club's type and devices); the four read as one campaign; copy in Czech in the club voice; nothing blank or broken."
+    },
+    {
+      "id": "n3",
+      "group": "new",
+      "fixture": "multids",
+      "delegates": "artboard-drafter",
+      "prompt": "Make a new canvas ui/v2/Mobile onboarding.tsx with a six-step mobile onboarding flow — six 390×844 artboards — in the maude-v2 design system.",
+      "expect": {
+        "allowNew": ["ui/v2/**"],
+        "untouchedFiles": ["ui/v2/00 Index.tsx", "ui/panels/GitPanel.tsx"],
+        "newCanvas": { "glob": "ui/v2/*.tsx", "minArtboards": 6, "imports": "maude-v2" }
+      },
+      "render": "touched",
+      "rubric": "A new canvas with six 390×844 artboards forming a coherent onboarding flow (clear step order, consistent layout and progress indication) in the light maude-v2 style; no lorem ipsum; nothing blank."
+    },
+    {
+      "id": "n4",
+      "group": "new",
+      "fixture": "app5",
+      "pilot": true,
+      "delegates": null,
+      "prompt": "Add three artboards to the GitPanel canvas that show the panel while it's loading, after an error, and when the computer is offline.",
+      "expect": {
+        "allow": ["ui/GitPanel.tsx", "ui/GitPanel.css", "ui/GitPanel.meta.json"],
+        "artboards": { "ui/GitPanel.tsx": ["+new"] },
+        "newArtboards": { "ui/GitPanel.tsx": 3 }
+      },
+      "render": "touched",
+      "rubric": "Three new artboards (loading, error, offline) that reuse the existing GitPanel shell and look like siblings of the five existing artboards; the states are clear and the copy uses the panel's vocabulary (Save version, Publish, Get latest); the existing artboards are unchanged."
+    },
+    {
+      "id": "n5",
+      "group": "new",
+      "fixture": "board300",
+      "delegates": "artboard-drafter",
+      "prompt": "Turn the five stickies in the 'Ideas' section of the GitPanel board into a new canvas 'Ideas' with one poster-style concept artboard per idea.",
+      "expect": {
+        "allowNew": ["ui/**"],
+        "untouchedFiles": ["ui/GitPanel.tsx", "ui-gitpanel.annotations.json"],
+        "newCanvas": { "glob": "ui/*.tsx", "minArtboards": 5 }
+      },
+      "render": "touched",
+      "rubric": "A new Ideas canvas with five artboards, one per Ideas sticky (dark-mode poster set, match recap template, animated logo sting, self-updating sponsor wall, volunteer sign-up page), each a recognisable poster-style concept; the five share one visual language; the board is unchanged."
+    },
+    {
+      "id": "d1",
+      "group": "ds",
+      "fixture": "multids",
+      "pilot": true,
+      "delegates": "ds-switcher",
+      "prompt": "Switch the canvases in ui/panels to the maude-v2 design system.",
+      "expect": {
+        "readOnlyVersioned": true,
+        "dsReview": {
+          "canvases": [
+            "ui/panels/GitPanel.tsx",
+            "ui/panels/RepoBranchSwitcher.tsx",
+            "ui/panels/GitHubIdentity.tsx",
+            "ui/panels/DiffView.tsx"
+          ],
+          "to": "maude-v2"
+        }
+      },
+      "rubric": "No canvas was changed; there is one proposal per ui/panels canvas plus a review summary; each proposal retargets the CSS imports and meta to maude-v2, maps the maude-specific tokens/classes it uses, and lists what needs a decision; the locked 'Changes' tab is left alone."
+    },
+    {
+      "id": "d2",
+      "group": "ds",
+      "fixture": "multids",
+      "delegates": null,
+      "prompt": "Switch just ui/panels/GitPanel.tsx to maude-v2.",
+      "expect": {
+        "readOnlyVersioned": true,
+        "dsReview": { "canvases": ["ui/panels/GitPanel.tsx"], "to": "maude-v2" }
+      },
+      "rubric": "No canvas was changed; one proposal for GitPanel (imports + meta to maude-v2, token/class mapping, decisions listed) and a short review; the locked 'Changes' tab is left alone."
+    },
+    {
+      "id": "d3",
+      "group": "ds",
+      "fixture": "multids",
+      "delegates": null,
+      "prompt": "Which canvases in this project use the maude design system, and what would need attention if we moved them all to maude-v2? Just tell me, don't change anything.",
+      "expect": { "readOnly": true },
+      "rubric": "Lists the four ui/panels canvases as maude (and 00 Index as already maude-v2) and names concrete migration concerns (the hard-coded CSS imports of system/maude, maude-only tokens/classes, dark vs light default); nothing changed."
+    },
+    {
+      "id": "d4",
+      "group": "ds",
+      "fixture": "multids",
+      "delegates": "ds-switcher",
+      "prompt": "Switch the whole project to maude-v2.",
+      "expect": {
+        "readOnlyVersioned": true,
+        "dsReview": {
+          "canvases": [
+            "ui/panels/GitPanel.tsx",
+            "ui/panels/RepoBranchSwitcher.tsx",
+            "ui/panels/GitHubIdentity.tsx",
+            "ui/panels/DiffView.tsx"
+          ],
+          "to": "maude-v2"
+        }
+      },
+      "rubric": "No canvas or config was changed; proposals for the four maude canvases (00 Index already uses maude-v2 and is noted, not proposed) plus a review that also covers the project default system."
+    },
+    {
+      "id": "e1",
+      "group": "edit",
+      "fixture": "app5",
+      "pilot": true,
+      "delegates": null,
+      "prompt": "Make the 'Nothing to save' artboard calmer: more white space and a smaller illustration.",
+      "expect": {
+        "allow": ["ui/GitPanel.tsx", "ui/GitPanel.css"],
+        "artboards": { "ui/GitPanel.tsx": ["empty"] },
+        "mustChange": ["ui/GitPanel.tsx|ui/GitPanel.css"]
+      },
+      "render": [{ "canvas": "ui/GitPanel.tsx", "artboards": ["empty", "changes"] }],
+      "rubric": "The 'Nothing to save' (empty) artboard has visibly more white space and a smaller illustration/glyph; the other artboards look the same as before."
+    },
+    {
+      "id": "e2",
+      "group": "edit",
+      "fixture": "app5",
+      "delegates": null,
+      "prompt": "Make the Publish artboard denser — tighter spacing in its file list.",
+      "expect": {
+        "allow": ["ui/GitPanel.tsx", "ui/GitPanel.css"],
+        "artboards": { "ui/GitPanel.tsx": ["publish"] },
+        "mustChange": ["ui/GitPanel.tsx|ui/GitPanel.css"]
+      },
+      "render": [{ "canvas": "ui/GitPanel.tsx", "artboards": ["publish", "changes"] }],
+      "rubric": "The Publish artboard's file list is visibly tighter; the other artboards (which share the list component) are unchanged."
+    },
+    {
+      "id": "e3",
+      "group": "edit",
+      "fixture": "app5",
+      "delegates": null,
+      "prompt": "Rename the 'Save version' button to 'Save a version' everywhere on the GitPanel canvas.",
+      "expect": {
+        "allow": ["ui/GitPanel.tsx", "ui/GitPanel.meta.json"],
+        "artboards": { "ui/GitPanel.tsx": ["*"] },
+        "jsxText": {
+          "file": "ui/GitPanel.tsx",
+          "absent": "Save version",
+          "present": "Save a version"
+        }
+      },
+      "rubric": "Every 'Save version' button label now reads 'Save a version'; nothing else changed."
+    },
+    {
+      "id": "e4",
+      "group": "edit",
+      "fixture": "marketing21",
+      "delegates": null,
+      "prompt": "On the Combine campaign canvas, make the headline on the FB event cover bigger.",
+      "expect": {
+        "allow": ["ui/2026/combine/Combine-kampan.tsx"],
+        "artboards": { "ui/2026/combine/Combine-kampan.tsx": ["fb-event-cover"] },
+        "mustChange": ["ui/2026/combine/Combine-kampan.tsx"]
+      },
+      "render": [
+        { "canvas": "ui/2026/combine/Combine-kampan.tsx", "artboards": ["fb-event-cover"] }
+      ],
+      "rubric": "The headline on the fb-event-cover artboard is clearly bigger and still fits; the other covers and posts are unchanged."
+    },
+    {
+      "id": "e5",
+      "group": "edit",
+      "fixture": "marketing21",
+      "delegates": null,
+      "prompt": "Add a small 'Partneři akce' line above the sponsor logos on the IG event square post of the Combine campaign canvas.",
+      "expect": {
+        "allow": ["ui/2026/combine/Combine-kampan.tsx"],
+        "artboards": { "ui/2026/combine/Combine-kampan.tsx": ["ig-event-square"] },
+        "mustChange": ["ui/2026/combine/Combine-kampan.tsx"]
+      },
+      "render": [
+        { "canvas": "ui/2026/combine/Combine-kampan.tsx", "artboards": ["ig-event-square"] }
+      ],
+      "rubric": "The ig-event-square artboard shows a small 'Partneři akce' label above its sponsor logos in the club style; no other artboard changed."
+    },
+    {
+      "id": "e6",
+      "group": "edit",
+      "fixture": "video",
+      "delegates": null,
+      "prompt": "In the Alligators Cinematic Cut video, keep the opening title on screen one second longer.",
+      "expect": {
+        "allow": [
+          "ui/Alligators Cinematic Cut.tsx",
+          "ui/Alligators Cinematic Cut.meta.json",
+          "ui/Alligators Cinematic Cut.edl.json"
+        ],
+        "mustChange": ["ui/Alligators Cinematic Cut.tsx"]
+      },
+      "rubric": "The opening title's visible duration grew by about one second (30 frames at 30 fps) and the following sequences were shifted or kept consistent so nothing overlaps or leaves a gap; nothing unrelated changed."
+    },
+    {
+      "id": "e7",
+      "group": "edit",
+      "fixture": "video",
+      "delegates": null,
+      "prompt": "Shorten the video's cold open — the first shot — to 2 seconds.",
+      "expect": {
+        "allow": [
+          "ui/Alligators Cinematic Cut.tsx",
+          "ui/Alligators Cinematic Cut.meta.json",
+          "ui/Alligators Cinematic Cut.edl.json"
+        ],
+        "mustChange": ["ui/Alligators Cinematic Cut.tsx"]
+      },
+      "rubric": "The first shot now lasts 2 seconds (60 frames at 30 fps) and the rest of the timeline follows without gaps or overlaps; nothing unrelated changed."
+    },
+    {
+      "id": "e8",
+      "group": "edit",
+      "fixture": "busy",
+      "pilot": true,
+      "delegates": null,
+      "prompt": "Make the headlines on the Onboarding canvas one step bigger, on every artboard.",
+      "expect": {
+        "allow": ["ui/Onboarding.tsx", "ui/Onboarding.css"],
+        "untouched": [{ "canvas": "ui/Onboarding.tsx", "artboard": "hub" }],
+        "heldUntouched": { "canvas": "ui/Onboarding.tsx", "element": "choose-a-folder" },
+        "finalMentions": ["Tereza|busy|hub"]
+      },
+      "render": [{ "canvas": "ui/Onboarding.tsx", "artboards": ["welcome", "github"] }],
+      "rubric": "The headlines of the free artboards (welcome, github, local, success) are one type step bigger (e.g. --type-3xl → --type-4xl) without touching the shared .ob-head rule the busy artboard uses; the hub artboard — busy with Tereza's AI — is untouched and the answer says it waits; Jonas's held 'Choose a folder…' button is untouched."
+    },
+    {
+      "id": "x1",
+      "group": "negative",
+      "fixture": "app5",
+      "pilot": true,
+      "delegates": null,
+      "negative": true,
+      "prompt": "Rename the 'Changes' tab in the panel header to 'Edits'.",
+      "expect": {
+        "readOnlyVersioned": false,
+        "allow": ["ui/GitPanel.tsx"],
+        "lockedTsx": true,
+        "finalMentions": ["unlock|locked"]
+      },
+      "rubric": "The 'Changes' tab label is unchanged (it is locked); the answer says it is locked and asks the person to unlock it (⇧⌘L) first. It does not rename something else instead."
+    },
+    {
+      "id": "x2",
+      "group": "negative",
+      "fixture": "multids",
+      "pilot": true,
+      "delegates": null,
+      "negative": true,
+      "prompt": "Delete the DiffView canvas.",
+      "expect": { "trash": { "canvas": "ui/panels/DiffView.tsx" } },
+      "rubric": "The DiffView canvas was moved to the trash (restorable) — not hard-deleted — and nothing else changed."
+    },
+    {
+      "id": "x3",
+      "group": "negative",
+      "fixture": "busy",
+      "delegates": null,
+      "negative": true,
+      "prompt": "On the Onboarding canvas, make the hub door's Connect button say 'Connect to a team server'.",
+      "expect": {
+        "untouched": [{ "canvas": "ui/Onboarding.tsx", "artboard": "hub" }],
+        "allow": ["ui/Onboarding.tsx"],
+        "finalMentions": ["Tereza|busy"]
+      },
+      "rubric": "The hub artboard is unchanged because Tereza's AI is changing it; the answer says so (it can wait or be done on a copy) and does not edit a copy without being asked unless it says it did."
+    },
+    {
+      "id": "x4",
+      "group": "negative",
+      "fixture": "board300",
+      "delegates": null,
+      "negative": true,
+      "prompt": "Remove the red pricing sticky about the student tier from the GitPanel board.",
+      "expect": {
+        "allow": ["ui-gitpanel.annotations.json"],
+        "board": { "file": "ui-gitpanel.annotations.json", "lockedKept": true },
+        "finalMentions": ["unlock|locked"]
+      },
+      "rubric": "The locked student-tier sticky is still on the board; the answer says it is locked and the person has to unlock it first."
+    },
+    {
+      "id": "x5",
+      "group": "negative",
+      "fixture": "app5",
+      "delegates": null,
+      "negative": true,
+      "prompt": "Rewrite the GitPanel canvas in a cleaner, simpler style — same five states.",
+      "expect": {
+        "allow": ["ui/GitPanel.tsx", "ui/GitPanel.css", "ui/GitPanel.meta.json"],
+        "artboards": { "ui/GitPanel.tsx": ["*"] },
+        "mustChange": ["ui/GitPanel.tsx|ui/GitPanel.css"]
+      },
+      "render": "touched",
+      "rubric": "The five states are still there, visibly simpler/cleaner; every element id survived and the locked 'Changes' tab is unchanged."
+    },
+    {
+      "id": "x6",
+      "group": "negative",
+      "fixture": "app5",
+      "delegates": null,
+      "prompt": "Remove the 'Publish rejected' artboard from the GitPanel canvas.",
+      "expect": {
+        "allow": ["ui/GitPanel.tsx", "ui/GitPanel.meta.json", "ui/GitPanel.css"],
+        "artboards": { "ui/GitPanel.tsx": ["conflict"] },
+        "removedArtboards": { "ui/GitPanel.tsx": ["conflict"] }
+      },
+      "rubric": "The conflict ('Publish rejected') artboard is gone; the other four artboards are unchanged."
+    }
+  ]
+}
