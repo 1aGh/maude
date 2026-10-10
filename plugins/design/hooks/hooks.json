@@ -87,6 +87,28 @@
           }
         ]
       }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PKG=\"${CLAUDE_PLUGIN_ROOT}/../..\"; if [ -f \"$PKG/cli/bin/maude.mjs\" ] && command -v node >/dev/null 2>&1; then node \"$PKG/cli/bin/maude.mjs\" design hook subagent-start; elif command -v maude >/dev/null 2>&1; then maude design hook subagent-start; fi; exit 0",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PKG=\"${CLAUDE_PLUGIN_ROOT}/../..\"; if [ -f \"$PKG/cli/bin/maude.mjs\" ] && command -v node >/dev/null 2>&1; then node \"$PKG/cli/bin/maude.mjs\" design hook stop; elif command -v maude >/dev/null 2>&1; then maude design hook stop; fi; exit 0",
+            "timeout": 60
+          }
+        ]
+      }
     ]
   }
 }

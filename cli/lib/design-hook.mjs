@@ -1,12 +1,15 @@
 // design-hook.mjs — `maude design hook <event>`, the design plugin's hooks (contract V2-1.11 §5.4;
 // lifted from apps/studio/test/agent-evals/harness/hook.mjs, the prototype V2-1.18 measured).
 //
-//   prompt      UserPromptSubmit  POST /_api/agent/run/begin                       → nothing
+//   prompt      UserPromptSubmit  POST /_api/agent/run/begin; names the run folder once per session
+//                                                                                 → additionalContext or nothing
 //   pre-edit    PreToolUse        snapshot · whole-file-rewrite · POST edit/check   → deny or nothing
 //   post-edit   PostToolUse       check (studio, else local) · rollback · touched   → block or nothing
 //   pre-bash    PreToolUse Bash   use-trash · use-verb · not-a-writer (bash-guard)   → deny or nothing
 //   post-bash   PostToolUse Bash  a `maude design` write verb's writes → touched     → nothing
 //   stop        Stop              stop-tier check of the run's files · run/end      → block or nothing
+//               SubagentStop      (same command) hand-off result + the files it owns → block or nothing
+//   subagent-start SubagentStart  records agent_id → {type, at, handoffs}           → nothing
 //
 // DENY-ONLY and FAIL-OPEN: never `ask`, never `allow`; bad stdin, no project, a path outside
 // designRoot, any internal error → exit 0 with no output. Without a studio (no `_server.json`,
@@ -18,18 +21,39 @@
 //   touched.json             files this run changed ({at, by, via: tool|bash})
 //   bash/<tool_use_id>.json  a write verb's start ({at, snaps}) — post-bash binds what changed since
 //   stop-last.json           the last Stop block (so a re-stop with the same list lets it end)
+//   agents.json              sub-agent starts: agent_id → {type, at, handoffs} (SubagentStart)
+//   handoff/*.in.json        maude.agent-handoff/1 role "in", written by the main agent before a
+//                            spawn: a sub-agent of that type writes ONLY its `owns` (V2-1.18)
+// and <designRoot>/_runs/sessions/<session>.json marks a session whose run folder was named.
 //
 // Leaf module: node built-ins + studio-locate.mjs + bash-guard.mjs.
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import { classifyBash, designVerbOf, designWritesSince, parseBash } from './bash-guard.mjs';
 import { DESIGN_REL, findProjectRoot, locateStudio, postStudio } from './studio-locate.mjs';
 
-export const HOOK_EVENTS = ['prompt', 'pre-edit', 'post-edit', 'pre-bash', 'post-bash', 'stop'];
+export const HOOK_EVENTS = [
+  'prompt',
+  'pre-edit',
+  'post-edit',
+  'pre-bash',
+  'post-bash',
+  'stop',
+  'subagent-start',
+];
 const KEY_RE = /^[A-Za-z0-9_-]{1,128}$/;
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const CANVAS_RE = /\.(?:tsx|jsx)$/;
@@ -85,6 +109,199 @@ export function replayEdit(tool, ti, cur) {
     for (const e of ti.edits) s = one(s, e);
     return s;
   }
+  return null;
+}
+
+// ── hand-offs (maude.agent-handoff/1, V2-1.18 §5.2) ──────────────────────────────────────────
+// A structural check of the shape until cli/lib/handoff.mjs (p2-ai-paths-4b, the JSON Schema)
+// lands; validateHandoff / ownsPath keep that module's signatures so the swap is an import.
+
+export const HANDOFF_CONTRACT = 'maude.agent-handoff/1';
+const REL_PATH_RE = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[^\0\\]{1,512}$/;
+const OUT_STATUS = ['done', 'partial', 'blocked', 'refused'];
+const CHANGE_KINDS = ['new-file', 'edit', 'proposal', 'draft', 'brief', 'report'];
+const SEVERITIES = ['blocker', 'warning', 'info'];
+const IN_KEYS = [
+  'contract',
+  'role',
+  'runId',
+  'agent',
+  'n',
+  'task',
+  'scope',
+  'owns',
+  'reads',
+  'context',
+  'checks',
+  'budget',
+  'output',
+];
+const OUT_KEYS = [
+  'contract',
+  'role',
+  'runId',
+  'agent',
+  'n',
+  'status',
+  'summary',
+  'changed',
+  'evidence',
+  'decisions',
+  'findings',
+  'open_questions',
+  'result',
+  'next',
+];
+const bareAgent = (a) => String(a ?? '').replace(/^.*:/, '');
+
+/** `{ ok, role, errors: [{where, what, fix}] }` — never throws, ≤ 20 errors. */
+export function validateHandoff(doc, { role } = {}) {
+  const errors = [];
+  const err = (where, what, fix) => errors.length < 20 && errors.push({ where, what, fix });
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc)) {
+    err('$', 'is not a JSON object', `Write a ${HANDOFF_CONTRACT} object.`);
+    return { ok: false, role: null, errors };
+  }
+  const r = doc.role === 'in' || doc.role === 'out' ? doc.role : null;
+  if (doc.contract !== HANDOFF_CONTRACT)
+    err('contract', `is not "${HANDOFF_CONTRACT}"`, `Set "contract": "${HANDOFF_CONTRACT}".`);
+  if (!r) err('role', 'is not "in" or "out"', 'Set "role".');
+  if (role && r && r !== role)
+    err('role', `is "${r}", this file must be "${role}"`, `Set "role": "${role}".`);
+  const str = (k, max, req = true) => {
+    if (doc[k] === undefined) return req && err(k, 'is missing', `Add "${k}".`);
+    if (typeof doc[k] !== 'string' || !doc[k] || doc[k].length > max)
+      err(k, `is not a string of 1–${max} chars`, `Fix "${k}".`);
+  };
+  const arr = (k, req = true) => {
+    if (doc[k] === undefined) return req && err(k, 'is missing', `Add "${k}" (an array).`);
+    if (!Array.isArray(doc[k])) err(k, 'is not an array', `Make "${k}" an array.`);
+  };
+  str('agent', 200);
+  if (
+    (r === 'in' || doc.runId !== undefined) &&
+    (typeof doc.runId !== 'string' || !/^r_[A-Za-z0-9_-]{4,64}$/.test(doc.runId))
+  )
+    err('runId', 'is not r_<4–64 id chars>', 'Use the run id from the run folder line.');
+  if (r === 'in') {
+    str('task', 4000);
+    if (
+      !Array.isArray(doc.owns) ||
+      !doc.owns.length ||
+      !doc.owns.every((g) => typeof g === 'string' && REL_PATH_RE.test(g))
+    )
+      err(
+        'owns',
+        'is not a non-empty array of repo-relative paths',
+        'List the paths this agent may write.'
+      );
+    if (typeof doc.output !== 'string' || !REL_PATH_RE.test(doc.output))
+      err('output', 'is not a repo-relative path', 'Name where the agent writes its result.');
+  }
+  if (r === 'out') {
+    if (!OUT_STATUS.includes(doc.status))
+      err('status', `is not one of ${OUT_STATUS.join(' | ')}`, 'Set "status".');
+    str('summary', 2000);
+    arr('changed');
+    if (Array.isArray(doc.changed))
+      doc.changed.forEach((c, i) => {
+        if (
+          !c ||
+          typeof c.file !== 'string' ||
+          !REL_PATH_RE.test(c.file) ||
+          !CHANGE_KINDS.includes(c.kind)
+        )
+          err(
+            `changed[${i}]`,
+            `needs a repo-relative "file" and "kind" ${CHANGE_KINDS.join(' | ')}`,
+            'Fix the entry.'
+          );
+      });
+    arr('decisions');
+    arr('findings');
+    if (Array.isArray(doc.findings))
+      doc.findings.forEach((f, i) => {
+        if (!f || !SEVERITIES.includes(f.severity) || typeof f.what !== 'string')
+          err(
+            `findings[${i}]`,
+            `needs "severity" (${SEVERITIES.join(' | ')}) and "what"`,
+            'Fix the entry.'
+          );
+      });
+    arr('open_questions');
+    if (Array.isArray(doc.open_questions) && doc.open_questions.length > 20)
+      err('open_questions', 'has more than 20 entries', 'Keep the 20 that matter.');
+    if (doc.result !== undefined && JSON.stringify(doc.result).length > 64 * 1024)
+      err('result', 'is over 64 KB', 'Put the bulk in a file and name it.');
+  }
+  if (r) {
+    const known = r === 'in' ? IN_KEYS : OUT_KEYS;
+    for (const k of Object.keys(doc))
+      if (!known.includes(k)) err(k, 'is not a field of this role', `Remove "${k}".`);
+  }
+  return { ok: errors.length === 0, role: r, errors };
+}
+
+const globRe = (glob) =>
+  new RegExp(
+    `^${glob
+      .split(/(\*\*\/|\*\*|\*|\?)/)
+      .map((t) =>
+        t === '**/'
+          ? '(?:.*/)?'
+          : t === '**'
+            ? '.*'
+            : t === '*'
+              ? '[^/]*'
+              : t === '?'
+                ? '[^/]'
+                : t.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+      )
+      .join('')}$`
+  );
+/** Does the hand-off's `owns` cover `repoRel` (POSIX, repo-relative)? `*` one segment, `**` across. */
+export function ownsPath(doc, repoRel) {
+  return (
+    Array.isArray(doc?.owns) &&
+    doc.owns.some((g) => typeof g === 'string' && globRe(g).test(repoRel))
+  );
+}
+
+/** The run's role-"in" hand-offs for a sub-agent of `agentType` (bare names compared). */
+function handoffsFor(ctx, agentType) {
+  const dir = join(ctx.run, 'handoff');
+  let names = [];
+  try {
+    names = readdirSync(dir).filter((f) => f.endsWith('.in.json'));
+  } catch {
+    return [];
+  }
+  const want = bareAgent(agentType);
+  const out = [];
+  for (const f of names) {
+    const doc = readJson(join(dir, f), null);
+    if (doc?.role !== 'in' || bareAgent(doc.agent) !== want) continue;
+    if (!validateHandoff(doc, { role: 'in' }).ok) continue;
+    out.push({ rel: `_runs/${ctx.session}/handoff/${f}`, doc });
+  }
+  return out;
+}
+
+/** The run id the hand-offs carry: stable per session, no studio needed (V2-1.18 §5.1 shape). */
+const runIdOf = (ctx) => `r_${sha(ctx.session).slice(0, 16)}`;
+const repoRelOf = (ctx, abs) => relative(ctx.root, abs).split(sep).join('/');
+
+function subagentStart(ctx, input) {
+  const id = hookKey(input.agent_id);
+  if (!id) return null;
+  const p = join(ctx.run, 'agents.json');
+  const agents = readJson(p, {});
+  agents[id] = {
+    type: typeof input.agent_type === 'string' ? input.agent_type : null,
+    at: Date.now(),
+    handoffs: handoffsFor(ctx, input.agent_type).map((h) => h.rel),
+  };
+  writeAt(p, JSON.stringify(agents));
   return null;
 }
 
@@ -195,8 +412,20 @@ async function check(ctx, studio, rel, tier, snapshot, self) {
 }
 
 async function prompt(ctx, input) {
+  // V2-1.18 §5.4: the main agent needs its run folder to write hand-offs — named once a session
+  const marker = join(ctx.designRoot, '_runs', 'sessions', `${ctx.session}.json`);
+  let out = null;
+  if (ctx.session !== 'no-session' && !existsSync(marker)) {
+    writeAt(marker, JSON.stringify({ at: Date.now() }));
+    out = {
+      hookSpecificOutput: {
+        hookEventName: 'UserPromptSubmit',
+        additionalContext: `Maude run folder for this conversation: ${DESIGN_REL}/_runs/${ctx.session}/ (run id ${runIdOf(ctx)}; sub-agent hand-offs go in its handoff/).`,
+      },
+    };
+  }
   const studio = await locateStudio(ctx.root, { timeoutMs: LOCATE_MS });
-  if (!studio) return null;
+  if (!studio) return out;
   const promptId = hookKey(input.prompt_id);
   // No label: the prompt text stays on this machine (a run label is shown to collaborators).
   await postStudio(
@@ -205,13 +434,24 @@ async function prompt(ctx, input) {
     { session: ctx.session, ...(promptId ? { promptId } : {}), actor: 'claude-code' },
     { timeoutMs: 600 }
   );
-  return null;
+  return out;
 }
 
 async function preEdit(ctx, input) {
   if (!EDIT_TOOLS.has(input.tool_name)) return null;
   const t = targetOf(ctx, input);
   if (!t) return null;
+  // 0. a sub-agent spawned with a hand-off writes only what it `owns` (V2-1.18 §5.4 (a))
+  if (input.agent_id || input.agent_type) {
+    const hs = handoffsFor(ctx, input.agent_type);
+    const repoRel = repoRelOf(ctx, t.abs);
+    if (hs.length && !hs.some((h) => ownsPath(h.doc, repoRel))) {
+      const owns = [...new Set(hs.flatMap((h) => h.doc.owns))].slice(0, 6).join(', ');
+      return deny(
+        `out-of-scope: ${input.agent_type ?? 'this agent'} writes only what its hand-off owns (${owns}) — ${repoRel} is not in it. Put the change in your hand-off result and let the main agent apply it.`
+      );
+    }
+  }
   const ti = input.tool_input ?? {};
   const cur = readOr(t.abs);
   const toolUseId = hookKey(input.tool_use_id);
@@ -370,7 +610,51 @@ async function postBash(ctx, input) {
   return null;
 }
 
+/** SubagentStop: the hand-off result, then the stop-tier check of the run's files it owns. */
+async function subagentStop(ctx, input, self) {
+  const hs = handoffsFor(ctx, input.agent_type);
+  if (!hs.length) return null; // spawned without a hand-off: nothing to hold it to
+  const id = hookKey(input.agent_id);
+  const started = (id && readJson(join(ctx.run, 'agents.json'), {})[id]?.at) || 0;
+  const problems = [];
+  // its result: one of its hand-offs' `output` files, written after it started, valid as "out"
+  const outs = hs
+    .map((h) => ({ rel: h.doc.output, abs: resolve(ctx.root, h.doc.output) }))
+    .filter((o) => !relative(ctx.root, o.abs).startsWith('..'));
+  const fresh = outs.filter((o) => {
+    try {
+      return statSync(o.abs).mtimeMs >= started - 1000;
+    } catch {
+      return false;
+    }
+  });
+  if (!fresh.length)
+    problems.push(
+      `handoff-missing: write your result (${HANDOFF_CONTRACT}, role "out") to ${outs.map((o) => o.rel).join(' or ')} before you finish.`
+    );
+  for (const o of fresh) {
+    const v = validateHandoff(readJson(o.abs, null), { role: 'out' });
+    for (const e of v.errors)
+      problems.push(`handoff-invalid ${o.rel} · ${e.where} ${e.what} · ${e.fix}`);
+  }
+  const touched = readJson(join(ctx.run, 'touched.json'), {});
+  const studio = await locateStudio(ctx.root, { timeoutMs: LOCATE_MS });
+  for (const rel of Object.keys(touched)) {
+    if (!hs.some((h) => ownsPath(h.doc, `${DESIGN_REL}/${rel}`))) continue;
+    if (!existsSync(join(ctx.designRoot, rel))) continue;
+    const res = await check(ctx, studio, rel, 'stop', loadSnapshot(ctx, baseRel(ctx, rel)), self);
+    if (res && !res.ok) problems.push(...res.errors.map(findingLine));
+  }
+  if (!problems.length) return null;
+  const sig = sha(problems.join('\n'));
+  const lastP = join(ctx.run, `stop-last.${id ?? 'agent'}.json`);
+  if (input.stop_hook_active === true && readJson(lastP, null)?.sig === sig) return null; // let it end
+  writeAt(lastP, JSON.stringify({ sig, at: Date.now() }));
+  return { decision: 'block', reason: `Before you finish:\n${problems.join('\n')}` };
+}
+
 async function stop(ctx, input, self) {
+  if (input.hook_event_name === 'SubagentStop') return subagentStop(ctx, input, self);
   const touched = readJson(join(ctx.run, 'touched.json'), {});
   const studio = await locateStudio(ctx.root, { timeoutMs: LOCATE_MS });
   const problems = [];
@@ -420,6 +704,7 @@ export async function runHook({ event, stdinText, self = null, pkgRoot = null })
       'pre-bash': preBash,
       'post-bash': postBash,
       stop,
+      'subagent-start': subagentStart,
     }[event];
     const out = await fn(ctx, input, self);
     return out ? JSON.stringify(out) : '';

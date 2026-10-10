@@ -105,6 +105,8 @@ describe('hooks.json wires `maude design hook <event>` (§5.4 table)', () => {
     ['PreToolUse', 'Bash', 'pre-bash', 3],
     ['PostToolUse', 'Bash', 'post-bash', 3],
     ['Stop', undefined, 'stop', 60],
+    ['SubagentStart', undefined, 'subagent-start', 3],
+    ['SubagentStop', undefined, 'stop', 60],
   ])('%s → hook %s', (event, matcher, verb, timeout) => {
     const h = cmd(event, matcher).find((x) => x.command.includes(`design hook ${verb}`));
     expect(h?.type).toBe('command');
@@ -311,12 +313,14 @@ describe('with a studio — the run bracket and one AI per artboard', () => {
   });
 
   test('prompt opens the run; a second session editing the same artboard is denied', async () => {
-    expect(
-      await hook('prompt', { session_id: 'sa', prompt_id: 'p1', cwd: project, prompt: 'x' })
-    ).toMatchObject({
-      status: 0,
-      stdout: '',
+    const first = await hook('prompt', {
+      session_id: 'sa',
+      prompt_id: 'p1',
+      cwd: project,
+      prompt: 'x',
     });
+    expect(first.status).toBe(0);
+    expect(first.json.hookSpecificOutput.additionalContext).toContain('.design/_runs/sa/');
     expect(bracket).toContain('begin sa');
     expect(await hook('pre-edit', edit(project, 'sa', 'a1', 'Hi', 'Hello'))).toMatchObject({
       stdout: '',
@@ -357,5 +361,125 @@ describe('with a studio — the run bracket and one AI per artboard', () => {
     expect(r).toMatchObject({ status: 0, stdout: '' });
     expect(r.ms).toBeLessThan(1500);
     expect(bracket).toContain('touch sc ui/C.tsx');
+  });
+});
+
+describe('sub-agents — SubagentStart / pre-edit `owns` / SubagentStop (V2-1.18 §5.4)', () => {
+  let project;
+  const run = () => join(project, '.design', '_runs', 's6');
+  const IN = {
+    contract: 'maude.agent-handoff/1',
+    role: 'in',
+    runId: 'r_s6s6',
+    agent: 'board-reader',
+    task: 'Read the board.',
+    owns: ['.design/_runs/s6/brief.json', '.design/ui/Draft-*.tsx'],
+    output: '.design/_runs/s6/handoff/board-reader-0.out.json',
+  };
+  const OUT = {
+    contract: 'maude.agent-handoff/1',
+    role: 'out',
+    agent: 'board-reader',
+    status: 'done',
+    summary: 'Read it.',
+    changed: [],
+    decisions: [],
+    findings: [],
+    open_questions: [],
+  };
+  const sub = { session_id: 's6', agent_id: 'a1', agent_type: 'design:board-reader' };
+  const subStop = (extra = {}) =>
+    hook('stop', {
+      ...sub,
+      cwd: project,
+      hook_event_name: 'SubagentStop',
+      stop_hook_active: false,
+      ...extra,
+    });
+  beforeAll(() => {
+    project = makeProject('maude-hook-sub-');
+    mkdirSync(join(run(), 'handoff'), { recursive: true });
+    writeFileSync(join(run(), 'handoff', 'board-reader-0.in.json'), JSON.stringify(IN));
+    writeFileSync(
+      join(run(), 'touched.json'),
+      JSON.stringify({ 'ui/C.tsx': { at: 1, by: 'main' } })
+    );
+  });
+  afterAll(() => rmSync(project, { recursive: true, force: true }));
+
+  test('the first prompt of a session names its run folder once', async () => {
+    const a = await hook('prompt', {
+      session_id: 's7',
+      prompt_id: 'p1',
+      cwd: project,
+      prompt: 'x',
+    });
+    expect(a.json.hookSpecificOutput).toMatchObject({ hookEventName: 'UserPromptSubmit' });
+    expect(a.json.hookSpecificOutput.additionalContext).toMatch(
+      /\.design\/_runs\/s7\/ \(run id r_[0-9a-f]{16}; .*handoff\//
+    );
+    expect(a.json.hookSpecificOutput.additionalContext.length).toBeLessThanOrEqual(200);
+    expect(
+      await hook('prompt', { session_id: 's7', prompt_id: 'p2', cwd: project, prompt: 'y' })
+    ).toMatchObject({
+      status: 0,
+      stdout: '',
+    });
+  });
+
+  test('SubagentStart records the agent; outside its hand-off `owns` → deny out-of-scope', async () => {
+    expect(
+      await hook('subagent-start', { ...sub, cwd: project, hook_event_name: 'SubagentStart' })
+    ).toMatchObject({
+      status: 0,
+      stdout: '',
+    });
+    expect(JSON.parse(readFileSync(join(run(), 'agents.json'), 'utf8')).a1).toMatchObject({
+      type: 'design:board-reader',
+    });
+    const r = await hook('pre-edit', { ...edit(project, 's6', 'x1', 'Hi', 'Yo'), ...sub });
+    expect(isDeny(r, 'out-of-scope')).toBe(true);
+    expect(r.json.hookSpecificOutput.permissionDecisionReason).toContain('.design/ui/Draft-*.tsx');
+    // what it owns (and any runtime path) is free
+    const own = await hook('pre-edit', {
+      ...sub,
+      session_id: 's6',
+      tool_use_id: 'x2',
+      cwd: project,
+      tool_name: 'Write',
+      tool_input: { file_path: join(project, '.design', 'ui', 'Draft-1.tsx'), content: 'x' },
+    });
+    expect(own).toMatchObject({ status: 0, stdout: '' });
+    // the main agent (no agent_id) is not scoped
+    expect(await hook('pre-edit', edit(project, 's6', 'x3', 'Hi', 'Yo'))).toMatchObject({
+      stdout: '',
+    });
+  });
+
+  test('a sub-agent with no hand-off is not scoped (V2-1.18 Q6 is a lead question)', async () => {
+    const r = await hook('pre-edit', {
+      ...edit(project, 's6', 'x4', 'Hi', 'Yo'),
+      agent_id: 'g1',
+      agent_type: 'general-purpose',
+    });
+    expect(r).toMatchObject({ status: 0, stdout: '' });
+  });
+
+  test('SubagentStop blocks once without a valid hand-off result, never ends the run', async () => {
+    const r1 = await subStop();
+    expect(r1.json.decision).toBe('block');
+    expect(r1.json.reason).toContain('board-reader-0.out.json');
+    expect(await subStop({ stop_hook_active: true })).toMatchObject({ status: 0, stdout: '' });
+    // an invalid result → blocked with the schema problem
+    const outP = join(run(), 'handoff', 'board-reader-0.out.json');
+    writeFileSync(outP, JSON.stringify({ ...OUT, summary: undefined, status: 'meh' }));
+    const r2 = await subStop();
+    expect(r2.json.decision).toBe('block');
+    expect(r2.json.reason).toMatch(/summary/);
+    expect(r2.json.reason).toMatch(/status/);
+    writeFileSync(outP, JSON.stringify(OUT));
+    expect(await subStop()).toMatchObject({ status: 0, stdout: '' });
+    // the main agent's run is untouched by a sub-agent's stop
+    expect(existsSync(join(run(), 'touched.json'))).toBe(true);
   });
 });
