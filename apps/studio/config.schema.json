@@ -134,6 +134,12 @@
       "description": "How chromatically/decoratively expressive the DS is. Inferred by ux-research-agent from brand character during /design:setup-ds (NOT a picker), then anchors the structural knobs (accentStrategy, shadow/decor) and sets the default opt_out_scope for canvases under this DS (restrained|confident → palette, expressive → aesthetic, maximalist → full). Default 'restrained' is the legacy/no-bootstrap fallback only — a bootstrapped DS always writes the inferred value. Per DDR-073.",
       "default": "restrained"
     },
+    "schemaLint": {
+      "type": "string",
+      "enum": ["on", "off"],
+      "description": "V2-1.13 §5.4 / E11: the design plugin's PostToolUse hook runs `maude design ds-check --hook` after every Write/Edit of a canvas or system file under the design root and hands the findings to the agent as context (never blocking). 'off' silences it.",
+      "default": "on"
+    },
     "dsFidelity": {
       "type": "string",
       "enum": ["advisory", "strict"],
@@ -196,6 +202,10 @@
           "newComponentDir": {
             "type": "string",
             "description": "Override of the project-wide newComponentDir for components scaffolded inside this DS."
+          },
+          "schema": {
+            "const": 1,
+            "description": "V2-1.13 §5.4: this system conforms to design-system schema v1. Written only by `maude design ds-upgrade --apply` and the /design:setup-ds post-scaffold gate, and only when `maude design ds-check` exits 0. Once set, the completeness critic's gated checks (C6 rest of Tier 1, C10–C13) are blockers, so a regression is caught. Nothing removes it automatically."
           }
         },
         "additionalProperties": false

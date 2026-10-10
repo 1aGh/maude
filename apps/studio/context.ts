@@ -23,6 +23,8 @@ export interface DesignSystemEntry {
   themes?: string[];
   newCanvasDir?: string;
   newComponentDir?: string;
+  /** V2-1.13 §5.4 — conforms to design-system schema v1 (written only when ds-check exits 0). */
+  schema?: 1;
 }
 
 export interface LinkedHub {
