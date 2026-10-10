@@ -56,6 +56,16 @@ describe('maude verb tiers — the generated allow list', () => {
     expect(bash).toEqual(autoAllowRules());
   });
 
+  test('the allow list equals the manifest’s auto verbs (§5.5)', () => {
+    const m = JSON.parse(readFileSync(join(ROOT, 'apps/studio/actions.manifest.json'), 'utf8')) as {
+      verbs: { verb: string; tier: string }[];
+    };
+    const fromManifest = m.verbs
+      .filter((v) => v.tier === 'auto')
+      .map((v) => `Bash(maude ${v.verb}:*)`);
+    expect(MAUDE_DEFAULT_ALLOWED_TOOLS.filter((t) => t.startsWith('Bash'))).toEqual(fromManifest);
+  });
+
   test('auto iff effect none/project and not held; prompt for the rest; human stays human', () => {
     for (const v of MAUDE_VERBS) {
       const want =
