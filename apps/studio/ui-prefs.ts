@@ -8,9 +8,10 @@
 // `~/.config/maude/prefs.json` (XDG-aware, same location discipline as
 // generation/keys.ts's keys.json and sync/hubs-config.ts's hubs.json).
 //
-// NON-SECRET by construction: this file only ever holds boolean/enum view
-// toggles. It is never versioned and never served to a canvas — the GET/POST
-// routes are MAIN-ORIGIN ONLY (privileged), like /_api/generate/prefs.
+// NON-SECRET by construction: this file only ever holds view toggles and small
+// id -> boolean maps (v2: fold state, tour "seen" ids, pinned-panel widths). It is
+// never versioned and never served to a canvas — the GET/POST routes are
+// MAIN-ORIGIN ONLY (privileged), like /_api/generate/prefs.
 
 import {
   copyFileSync,
@@ -23,6 +24,8 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
+
+import { PREFS_VERSION } from './ui-prefs-migrate.ts';
 
 /** The dockable shell panels the Layout tab can move between the two sides. */
 export const DOCK_PANEL_IDS = [
@@ -52,6 +55,13 @@ export interface UiPrefs {
    * reader: a file written by a newer build keeps its version when an older build rewrites it.
    */
   version?: number;
+  /** v2 homes (V2-2.7). Optional: a 1.x file has none of them, and a 1.x writer carries them untouched. */
+  pin?: { on?: boolean; widths?: { left?: number; right?: number } };
+  fold?: Record<string, boolean>;
+  seen?: Record<string, true>;
+  canvases?: { showHidden?: boolean };
+  panelsHidden?: boolean;
+  migratedFrom?: number;
   /**
    * Lossless reader (V2-1.12): any top-level field this build does not know round-trips untouched
    * through read and write, so a build that predates a field never strips it.
@@ -139,6 +149,145 @@ function coerce(raw: unknown): UiPrefs {
   };
 }
 
+const plain = (v: unknown): Record<string, unknown> =>
+  v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+
+export type UiPrefsPatchResult =
+  | { ok: true; patch: Partial<UiPrefs> }
+  | { ok: false; error: string };
+
+const MAP_KEY = /^[A-Za-z0-9._:/-]{1,128}$/;
+const MAP_MAX = 256;
+const WIDTH_MAX = 4000;
+
+/** A fold / seen map: {id: boolean} (or {id: true}); ids are plain, short, and never prototype keys. */
+function checkMap(
+  name: string,
+  v: unknown,
+  only: 'boolean' | 'true'
+): string | Record<string, boolean> {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return `${name} must be an object`;
+  const out: Record<string, boolean> = {};
+  const keys = Object.keys(v);
+  if (keys.length > MAP_MAX) return `${name} has more than ${MAP_MAX} entries`;
+  for (const k of keys) {
+    const x = (v as Record<string, unknown>)[k];
+    if (UNSAFE_KEYS.has(k) || !MAP_KEY.test(k)) return `${name} has an invalid id`;
+    if (only === 'true' ? x !== true : typeof x !== 'boolean') {
+      return only === 'true' ? `${name} values must be true` : `${name} values must be booleans`;
+    }
+    out[k] = x as boolean;
+  }
+  return out;
+}
+
+/**
+ * The /_api/ui-prefs body whitelist, lifted out of http.ts so it can be tested without a server.
+ * Only well-typed known keys pass through — a bad field is rejected rather than silently resetting a
+ * stored value — and unknown top-level keys are ignored, exactly as the route always did. The seven
+ * 1.x fields keep their original messages byte for byte; the v2 homes (V2-2.7) are accepted only in
+ * their exact shape.
+ */
+export function validateUiPrefsPatch(body: Record<string, unknown>): UiPrefsPatchResult {
+  const patch: Partial<UiPrefs> = {};
+  const fail = (error: string): UiPrefsPatchResult => ({ ok: false, error });
+
+  if ('theme' in body) {
+    if (body.theme !== 'light' && body.theme !== 'dark') return fail('theme must be light|dark');
+    patch.theme = body.theme;
+  }
+  for (const k of ['minimap', 'zoom', 'annotations', 'autoOpenInspector'] as const) {
+    if (k in body) {
+      if (typeof body[k] !== 'boolean') return fail(`${k} must be a boolean`);
+      patch[k] = body[k] as boolean;
+    }
+  }
+  if ('layersMode' in body) {
+    if (body.layersMode !== 'separate' && body.layersMode !== 'in-inspector')
+      return fail('layersMode must be separate|in-inspector');
+    patch.layersMode = body.layersMode;
+  }
+  if ('panelSides' in body) {
+    const ps = body.panelSides;
+    if (!ps || typeof ps !== 'object' || Array.isArray(ps))
+      return fail('panelSides must be an object');
+    for (const v of Object.values(ps as Record<string, unknown>)) {
+      if (v !== 'left' && v !== 'right') return fail('panelSides values must be left|right');
+    }
+    // writeUiPrefs → coerce keeps only known ids, so unknown keys are dropped.
+    patch.panelSides = ps as UiPrefs['panelSides'];
+  }
+
+  // ── v2 homes ────────────────────────────────────────────────────────────────────────────────
+  if ('version' in body) {
+    const v = body.version;
+    if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > PREFS_VERSION)
+      return fail(`version must be an integer from 1 to ${PREFS_VERSION}`);
+    patch.version = v;
+  }
+  if ('migratedFrom' in body) {
+    const v = body.migratedFrom;
+    if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v >= PREFS_VERSION)
+      return fail(`migratedFrom must be an integer from 1 to ${PREFS_VERSION - 1}`);
+    patch.migratedFrom = v;
+  }
+  if ('panelsHidden' in body) {
+    if (typeof body.panelsHidden !== 'boolean') return fail('panelsHidden must be a boolean');
+    patch.panelsHidden = body.panelsHidden;
+  }
+  if ('canvases' in body) {
+    const c = body.canvases;
+    if (!c || typeof c !== 'object' || Array.isArray(c)) return fail('canvases must be an object');
+    const o = c as Record<string, unknown>;
+    for (const k of Object.keys(o))
+      if (k !== 'showHidden') return fail('canvases has an unknown key');
+    if ('showHidden' in o && typeof o.showHidden !== 'boolean')
+      return fail('canvases.showHidden must be a boolean');
+    patch.canvases = 'showHidden' in o ? { showHidden: o.showHidden as boolean } : {};
+  }
+  if ('pin' in body) {
+    const pin = body.pin;
+    if (!pin || typeof pin !== 'object' || Array.isArray(pin)) return fail('pin must be an object');
+    const o = pin as Record<string, unknown>;
+    for (const k of Object.keys(o))
+      if (k !== 'on' && k !== 'widths') return fail('pin has an unknown key');
+    const out: NonNullable<UiPrefs['pin']> = {};
+    if ('on' in o) {
+      if (typeof o.on !== 'boolean') return fail('pin.on must be a boolean');
+      out.on = o.on;
+    }
+    if ('widths' in o) {
+      const w = o.widths;
+      if (!w || typeof w !== 'object' || Array.isArray(w))
+        return fail('pin.widths must be an object');
+      const wo = w as Record<string, unknown>;
+      for (const k of Object.keys(wo))
+        if (k !== 'left' && k !== 'right') return fail('pin.widths has an unknown key');
+      out.widths = {};
+      for (const side of ['left', 'right'] as const) {
+        if (side in wo) {
+          const n = wo[side];
+          if (typeof n !== 'number' || !Number.isFinite(n) || n < 0 || n > WIDTH_MAX)
+            return fail(`pin.widths.${side} must be a number from 0 to ${WIDTH_MAX}`);
+          out.widths[side] = n;
+        }
+      }
+    }
+    patch.pin = out;
+  }
+  if ('fold' in body) {
+    const m = checkMap('fold', body.fold, 'boolean');
+    if (typeof m === 'string') return fail(m);
+    patch.fold = m;
+  }
+  if ('seen' in body) {
+    const m = checkMap('seen', body.seen, 'true');
+    if (typeof m === 'string') return fail(m);
+    patch.seen = m as Record<string, true>;
+  }
+  return { ok: true, patch };
+}
+
 type RawPrefs =
   | { kind: 'missing' }
   | { kind: 'empty' }
@@ -201,6 +350,23 @@ export function writeUiPrefs(patch: Partial<UiPrefs>): UiPrefs {
     ...patch,
     panelSides: { ...cur.panelSides, ...(patch.panelSides ?? {}) },
   };
+  // v2 homes are maps: a patch adds or changes keys, it never replaces the whole map (so a closed
+  // fold or a second tour id cannot wipe its siblings). `version` only moves forward.
+  for (const k of ['fold', 'seen', 'canvases'] as const) {
+    if (patch[k] !== undefined) merged[k] = { ...plain(cur[k]), ...plain(patch[k]) } as never;
+  }
+  if (patch.pin !== undefined) {
+    const c = plain(cur.pin);
+    const p = plain(patch.pin);
+    const pin: Record<string, unknown> = { ...c, ...p };
+    if (c.widths !== undefined || p.widths !== undefined) {
+      pin.widths = { ...plain(c.widths), ...plain(p.widths) };
+    }
+    merged.pin = pin as never;
+  }
+  if (typeof patch.version === 'number') {
+    merged.version = Math.max(patch.version, typeof cur.version === 'number' ? cur.version : 0);
+  }
   const next = coerce(merged);
   mkdirSync(dirname(path), { recursive: true });
   const tmp = `${path}.tmp-${process.pid}-${Date.now().toString(36)}`;
