@@ -46,6 +46,7 @@ import { reloadConfig } from './context.ts';
 import { buildDebugBundle } from './debug-bundle.ts';
 import { probeSetupReadiness } from './design-setup-readiness.ts';
 import { diagnostics, registerStatus, report } from './diagnostics/store.ts';
+import { dsDepsFor } from './ds/ds-resolver.ts';
 import { injectFallbacks } from './ds/shell-fallbacks.ts';
 import { frameAncestors } from './embed-origins.ts';
 import { isScopeValidForFormat, scopeRefusalMessage } from './exporters/format-scopes.ts';
@@ -692,6 +693,9 @@ export function localDepsFromSource(
       }
     }
   }
+  // P-11 (V2-1.13 §5.11): `@maude/ds` is generated from the canvas's system, so its meta,
+  // config.json and the system's preview/_ds.tsx override are deps too — a system change rebuilds.
+  for (const p of dsDepsFor(source, canvasAbsPath, designRoot)) push(p);
   return deps;
 }
 
