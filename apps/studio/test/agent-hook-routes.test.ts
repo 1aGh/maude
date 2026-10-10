@@ -305,6 +305,72 @@ describe('POST /_api/agent/* (routes/agent.ts)', () => {
     expect(bracket).toEqual([]);
   });
 
+  test('edit/check: an edit that changes a locked element → deny soft-locked (A10, V2-2.19)', async () => {
+    const locked = CANVAS.replace('<p>x</p>', '<p data-cd-id="lead" data-cd-locked>x</p>');
+    writeFileSync(join(project, '.design', 'ui', 'L.tsx'), locked);
+    const r = await post('/_api/agent/edit/check', {
+      session: 'sl',
+      toolUseId: 'l1',
+      tool: 'Edit',
+      path: 'ui/L.tsx',
+      edit: { old: 'data-cd-locked>x</p>', new: 'data-cd-locked>changed</p>' },
+    });
+    expect(r.body.decision).toBe('deny');
+    expect(r.body.code).toBe('soft-locked');
+    expect(r.body.artboards).toEqual(['pricing']);
+    expect(String(r.body.reason)).toMatch(/^soft-locked: .*lead/);
+    // removing the lock is the same refusal; an edit elsewhere is fine
+    const unlock = await post('/_api/agent/edit/check', {
+      session: 'sl',
+      toolUseId: 'l2',
+      tool: 'Edit',
+      path: 'ui/L.tsx',
+      edit: { old: ' data-cd-locked>', new: '>' },
+    });
+    expect(unlock.body.code).toBe('soft-locked');
+    const free = await post('/_api/agent/edit/check', {
+      session: 'sl',
+      toolUseId: 'l3',
+      tool: 'Edit',
+      path: 'ui/L.tsx',
+      edit: { old: '>Hi<', new: '>Hey<' },
+    });
+    expect(free.body).toEqual({ decision: 'none' });
+    await post('/_api/agent/run/end', { session: 'sl', outcome: 'done' });
+  });
+
+  test('edit/check: a selection-scoped run (⌘/, G-AI-6) outside its scope → deny out-of-scope', async () => {
+    writeFileSync(join(project, '.design', 'ui', 'S.tsx'), CANVAS);
+    const begun = await post('/_api/agent/run/begin', {
+      session: 'sq',
+      actor: 'maude-chat',
+      scope: { canvas: 'ui/S.tsx', artboards: ['hero'] },
+    });
+    expect(begun.status).toBe(200);
+    const ask = (toolUseId: string, path: string, edit: unknown) =>
+      post('/_api/agent/edit/check', { session: 'sq', toolUseId, tool: 'Edit', path, edit });
+    const inside = await ask('q1', 'ui/S.tsx', { old: 'Hi', new: 'Hello' });
+    expect(inside.body).toEqual({ decision: 'none' });
+    const other = await ask('q2', 'ui/S.tsx', { old: '<p>x</p>', new: '<p>y</p>' });
+    expect(other.body.code).toBe('out-of-scope');
+    expect(other.body.artboards).toEqual(['pricing']);
+    expect(String(other.body.reason)).toMatch(/^out-of-scope: .*hero/);
+    const shared = await ask('q3', 'ui/S.tsx', { old: "'warm'", new: "'cool'" });
+    expect(shared.body.code).toBe('out-of-scope');
+    const elsewhere = await ask('q4', 'ui/L.tsx', { old: '>Hi<', new: '>Yo<' });
+    expect(elsewhere.body.code).toBe('out-of-scope');
+    // a bad scope is a usage error
+    for (const scope of [
+      { canvas: '../x.tsx' },
+      { canvas: 'ui/S.tsx', artboards: ['a b'] },
+      'ui/S.tsx',
+    ])
+      expect(
+        (await post('/_api/agent/run/begin', { session: 'sr', actor: 'maude-chat', scope })).status
+      ).toBe(400);
+    await post('/_api/agent/run/end', { session: 'sq', outcome: 'done' });
+  });
+
   test('run/end closes the run and releases its claims', async () => {
     const r = await post('/_api/agent/run/end', { session: 'sa', outcome: 'done' });
     expect(r.status).toBe(200);

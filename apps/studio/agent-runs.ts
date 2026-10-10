@@ -18,6 +18,14 @@ export const RUN_OUTCOMES = ['done', 'stopped', 'failed', 'warnings'] as const;
 export type RunActor = (typeof RUN_ACTORS)[number];
 export type RunOutcome = (typeof RUN_OUTCOMES)[number];
 
+/** A ⌘/ selection-scoped run (G-AI-6): it may change only these artboards of this canvas. */
+export interface RunScope {
+  /** designRoot-relative canvas */
+  canvas: string;
+  /** empty = the whole canvas */
+  artboards: string[];
+}
+
 export interface AgentRun {
   run: string;
   session: string;
@@ -32,6 +40,8 @@ export interface AgentRun {
   touched: Record<string, { artboards: string[]; at: number }>;
   /** `${canvas}#${artboard}`, or `${canvas}#*` for a change at module scope */
   claims: Set<string>;
+  /** set by a ⌘/ chat (G-AI-6); edit/check denies `out-of-scope` outside it */
+  scope: RunScope | null;
 }
 
 /** Side effects of the run lifecycle (http.ts wires them; all optional). */
@@ -69,10 +79,12 @@ export function createAgentRuns(bracket: RunBracket = {}, now: () => number = Da
     promptId?: string;
     actor: RunActor;
     label?: string;
+    scope?: RunScope | null;
   }): AgentRun {
     const cur = open(b.session);
     if (cur) {
       if (b.promptId && !cur.promptIds.includes(b.promptId)) cur.promptIds.push(b.promptId);
+      if (b.scope !== undefined) cur.scope = b.scope;
       return cur;
     }
     const run: AgentRun = {
@@ -85,6 +97,7 @@ export function createAgentRuns(bracket: RunBracket = {}, now: () => number = Da
       promptIds: b.promptId ? [b.promptId] : [],
       touched: {},
       claims: new Set(),
+      scope: b.scope ?? null,
     };
     bySession.set(b.session, run);
     safe(() => bracket.begin?.(run));

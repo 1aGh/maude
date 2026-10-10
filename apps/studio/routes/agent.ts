@@ -23,6 +23,7 @@ import {
   type RunActor,
   type RunBracket,
   type RunOutcome,
+  type RunScope,
 } from '../agent-runs.ts';
 import { checkFile } from '../check/index.ts';
 import { checkIds } from '../element-ids.ts';
@@ -178,6 +179,22 @@ export function designPathRel(raw: unknown): string | null {
 }
 
 const isRuntimeRel = (rel: string) => rel.startsWith('_');
+
+/** A run/begin `scope` → RunScope, or null when it is malformed. Pure. */
+export function parseRunScope(raw: unknown): RunScope | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const r = raw as { canvas?: unknown; artboards?: unknown };
+  const canvas = canvasRel(r.canvas);
+  if (!canvas) return null;
+  if (r.artboards === undefined) return { canvas, artboards: [] };
+  if (
+    !Array.isArray(r.artboards) ||
+    r.artboards.length > 64 ||
+    !r.artboards.every((a) => typeof a === 'string' && AGENT_ID_RE.test(a))
+  )
+    return null;
+  return { canvas, artboards: [...new Set(r.artboards as string[])] };
+}
 const whoName = (a: RunActor) => (a === 'maude-chat' ? 'the Maude chat' : 'a Claude Code session');
 
 /** The bytes of a designRoot file (realpath-contained), or null when absent / outside. */
@@ -295,11 +312,15 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
         return bad(`actor is ${RUN_ACTORS.join(' | ')}`);
       if (b.label !== undefined && (typeof b.label !== 'string' || b.label.length > 80))
         return bad('label is a string ≤ 80');
+      const scope = b.scope === undefined ? undefined : parseRunScope(b.scope);
+      if (scope === null)
+        return bad('scope is {canvas: a .tsx in the design root, artboards?: id[] ≤ 64}');
       const r = runs.begin({
         session,
         promptId: b.promptId as string | undefined,
         actor: b.actor as RunActor,
         label: b.label as string | undefined,
+        ...(scope ? { scope } : {}),
       });
       return json(200, { run: r.run, state: r.state });
     }),
@@ -330,6 +351,45 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
             : null;
       if (!reach) return json(200, NONE);
       const target = reach.scope === 'file' ? ('*' as const) : reach.artboards;
+      // G-AI-6: a ⌘/ selection-scoped run changes only its selection
+      const sc = runs.get(session)?.scope;
+      if (sc) {
+        const offCanvas = rel !== sc.canvas;
+        const allowed = sc.artboards.length ? sc.artboards : null;
+        const outside = offCanvas
+          ? reach.artboards
+          : allowed
+            ? reach.artboards.filter((a) => !allowed.includes(a))
+            : [];
+        if (offCanvas || outside.length || (target === '*' && allowed))
+          return json(200, {
+            decision: 'deny',
+            code: 'out-of-scope',
+            artboards: outside,
+            reason:
+              `out-of-scope: this chat is about ${sc.canvas}${allowed ? ` › ${allowed.join(', ')}` : ''} (the selection it started from) — ` +
+              `${offCanvas ? `${rel} is outside it` : `this change reaches ${outside.length ? outside.join(', ') : 'code every artboard shares'}`}. ` +
+              'Change only what is in the selection, or ask the person to widen it.',
+          });
+      }
+      // A10 / V2-2.19: a locked element (data-cd-locked) is the person's — never the AI's
+      if (before !== null && after !== null) {
+        const locked = checkIds(after, { against: before, path: rel }).findings.filter(
+          (f) => f.code === 'locked-changed'
+        );
+        if (locked.length) {
+          const f = locked[0];
+          const where = f.element.artboard ? ` in ${f.element.artboard}` : '';
+          return json(200, {
+            decision: 'deny',
+            code: 'soft-locked',
+            artboards: [
+              ...new Set(locked.map((x) => x.element.artboard).filter((a): a is string => !!a)),
+            ],
+            reason: `soft-locked: ${f.id ?? f.element.label}${where} is locked — ${f.what} ${f.fix} Change the rest without touching it.`,
+          });
+        }
+      }
       if (target !== '*' && target.length === 0) return json(200, NONE);
       const c = runs.conflict(session, rel, target);
       if (c)

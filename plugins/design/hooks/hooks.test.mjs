@@ -352,6 +352,27 @@ describe('with a studio — the run bracket and one AI per artboard', () => {
     });
   });
 
+  test('pre-edit denies an edit of a locked element (soft-locked, A10)', async () => {
+    const lockedPath = join(project, '.design', 'ui', 'L.tsx');
+    writeFileSync(
+      lockedPath,
+      CANVAS.replace('<p>x</p>', '<p data-cd-id="lead" data-cd-locked>x</p>')
+    );
+    const r = await hook('pre-edit', {
+      session_id: 'sd',
+      tool_use_id: 'd1',
+      cwd: project,
+      tool_name: 'Edit',
+      tool_input: {
+        file_path: lockedPath,
+        old_string: 'data-cd-locked>x',
+        new_string: 'data-cd-locked>y',
+      },
+    });
+    expect(isDeny(r, 'soft-locked')).toBe(true);
+    expect(readFileSync(lockedPath, 'utf8')).toContain('data-cd-locked>x');
+  });
+
   test("post-bash binds a write verb's writes in the tool window to the run", async () => {
     await hook('prompt', { session_id: 'sc', prompt_id: 'p1', cwd: project, prompt: 'z' });
     const e = bash(project, 'sc', 'c1', 'maude design canvas-edit ui/C.tsx --set y');
