@@ -4,8 +4,8 @@
 // these). Structure only — no value lives here; every look comes from the system's CSS or the
 // shell's fallback layer (DDR-043).
 //
-// NOT wired yet: the per-canvas `@maude/ds` resolver (canvas-build.ts) and `<DSRoot>` in
-// canvas-lib land in a separate, ordered commit (lane L1 owns canvas-lib).
+// Reached through `@maude/ds` (ds/ds-resolver.ts): the per-canvas generated module re-exports
+// this file (or the system's override) and registers the canvas's system for `<DSRoot>`.
 
 import type { ButtonHTMLAttributes, HTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
 

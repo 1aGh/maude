@@ -33,7 +33,7 @@ import path from 'node:path';
 import MagicString from 'magic-string';
 import { parseSync } from 'oxc-parser';
 
-import { buildLibMap, inlineUsedExports } from './canvas-lib-inline.ts';
+import { buildLibMap, inlineDsImport } from './canvas-lib-inline.ts';
 import { canvasLibPath } from './canvas-lib-resolver.ts';
 
 // biome-ignore lint/suspicious/noExplicitAny: oxc AST nodes are heterogeneous.
@@ -606,7 +606,8 @@ export async function emitRegistryItem(opts: EmitOptions): Promise<RegistryItem>
       const libSource = await libFile.text();
       const libMap = buildLibMap(libPath, libSource);
       applyHandoffStaticOverrides(libMap);
-      const inlined = inlineUsedExports(tsx, libMap);
+      // `@maude/ds` too (V2-1.13 §5.11): its names + the system registration, same as the canvas
+      const inlined = inlineDsImport(tsx, opts.designRoot, opts.canvasAbsPath, libMap);
       tsx = inlined.content;
       // Detect motion-helper usage from the inlined surface (the body refs
       // _motionImpl / _useReducedMotion / _MotionAnimatePresence). We probe

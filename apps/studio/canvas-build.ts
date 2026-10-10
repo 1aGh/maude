@@ -27,6 +27,7 @@ import path from 'node:path';
 
 import { canvasLibPath, canvasLibResolver } from './canvas-lib-resolver.ts';
 import { transpileCanvasSource } from './canvas-pipeline.ts';
+import { dsResolver, importsDs } from './ds/ds-resolver.ts';
 import type { LocatorMap } from './locator.ts';
 import { isUnderOrEqual } from './path-containment.ts';
 import { DEV_SERVER_ROOT } from './paths.ts';
@@ -249,6 +250,10 @@ export async function buildCanvasModule(
       // Resolve `@maude/canvas-lib` BEFORE exact-externals — we want the bare
       // specifier to map to the dev-server-bundled lib, not get marked external.
       canvasLibResolver(),
+      // `@maude/ds` — per canvas: the system's override or the defaults, and the system registered
+      ...(options.designRoot && importsDs(source)
+        ? [dsResolver(options.designRoot, canvasAbsPath)]
+        : []),
       {
         name: 'canvas-virtual-source',
         setup(builder) {
