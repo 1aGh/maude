@@ -73,6 +73,10 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('index', 'none'),
   d('help', 'none'),
   d('check', 'none', { note: 'validates bytes; writes nothing' }),
+  d('hook', 'project', {
+    note: 'writes _runs/ snapshots; post-edit can restore a canvas it can replay',
+    hold: 'run by Claude Code from plugins/design/hooks/hooks.json (hooks bypass Bash permissions); the model never calls it, so it stays off the auto list (decision:maude/v2-2.4b-hook-verb-held)',
+  }),
   d('place', 'none'),
   d('layout-check', 'none'),
   d('open', 'none', { note: 'moves the user’s view (POST /_api/ui/open), never a file' }),

@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "ea2bae794600",
+  "manifestVersion": "25d811830452",
   "actions": [
     {
       "id": "search.open",
@@ -1546,6 +1546,13 @@
       "verb": "design check",
       "effect": "none",
       "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design hook",
+      "effect": "project",
+      "tier": "prompt",
+      "hold": "run by Claude Code from plugins/design/hooks/hooks.json (hooks bypass Bash permissions); the model never calls it, so it stays off the auto list (decision:maude/v2-2.4b-hook-verb-held)"
     },
     {
       "scope": "design",
