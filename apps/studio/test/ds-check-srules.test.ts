@@ -196,6 +196,62 @@ describe('S-rules', () => {
     expect(runDsCheck(['--canvas', '.design/ui/s5.tsx', '--root', root], {}).code).toBe(12);
     expect(runDsCheck(['--canvas', '.design/ui/clean.tsx', '--root', root], {}).code).toBe(0);
   });
+
+  test('S1 + S7 exemption: nothing inside <DrawProof> is a literal or an identity', () => {
+    const c = canvas(
+      'drawproof',
+      'export default () => (<div>\n  <DrawProof><svg><path d="M0 0h4" fill="#00ff00" /></svg></DrawProof>\n</div>);\n'
+    );
+    expect(kinds(c)).toEqual([]);
+  });
+
+  test('S2: an undefined name with a fallback argument is its own kind and does not block', () => {
+    const c = canvas('s2fb', 'export default () => <p style={{ top: "var(--nope-fb, 0)" }} />;\n');
+    const r = run(c);
+    expect(r.findings.map((f) => `${f.rule}:${f.kind}:${f.severity}`)).toEqual([
+      'S2:undefined-fallback:warning',
+    ]);
+    expect(r.state).not.toBe('blocked');
+  });
+
+  test('S7 identity: inline svg path data outside <Icon> / <Logo> while the system ships a brand', () => {
+    const c = canvas(
+      's7',
+      'export default () => (<div>\n  <svg><path d="M0 0h4" /></svg>\n  <Logo><svg><path d="M0 0h4" /></svg></Logo>\n</div>);\n'
+    );
+    const r = run(c);
+    expect(r.findings.map((f) => `${f.rule}:${f.kind}:${f.line}`)).toEqual(['S7:identity:2']);
+  });
+
+  test('S7 icon-gap: an <Icon name> the system declares missing (null) is a finding', () => {
+    const rel = 'system/fx/components.json';
+    const orig = readFileSync(join(D, rel), 'utf8');
+    const cj = JSON.parse(orig);
+    const [gap, ok] = Object.keys(cj.icons.map);
+    cj.icons.map[gap] = null;
+    put(rel, `${JSON.stringify(cj, null, 2)}\n`);
+    try {
+      const c = canvas(
+        's7icon',
+        `export default () => (<div>\n  <Icon name="${gap}" />\n  <Icon name="${ok}" />\n</div>);\n`
+      );
+      expect(run(c).findings.map((f) => `${f.rule}:${f.kind}:${f.name}`)).toEqual([
+        `S7:icon-gap:${gap}`,
+      ]);
+    } finally {
+      put(rel, orig);
+    }
+  });
+
+  test('pinned also by opt_out_scope: full', () => {
+    const c = canvas(
+      'pinned-oos',
+      'export default () => <p style={{ color: "red" }} />;\n',
+      undefined,
+      meta('fx', { opt_out_scope: 'full' })
+    );
+    expect(run(c).state).toBe('pinned');
+  });
 });
 
 describe('--fix=mechanical', () => {
