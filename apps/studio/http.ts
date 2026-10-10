@@ -1751,13 +1751,20 @@ export function createHttp(
       readOnly: () => gateNow() !== null,
       // the run bracket onto today's T16 project action + the ai-activity banner, keyed like the
       // Maude chat's (acp/index.ts keyFor): `${designRel}/${designRoot-relative canvas}`.
+      // A Maude chat run (actor maude-chat, MAUDE_AGENT_ACTOR from acp/bridge.ts) is bracketed by
+      // acp/index.ts already — its T16 action + banner; the hook routes skip it, so it is never
+      // bracketed twice. Every other run is a terminal Claude Code.
       bracket: {
-        begin: (r) =>
-          ctx.syncControl?.current?.()?.beginAiAction?.(`agent:${r.session}`, 'Claude Code'),
-        touch: (_r, rel) => {
+        begin: (r) => {
+          if (r.actor === 'maude-chat') return;
+          ctx.syncControl?.current?.()?.beginAiAction?.(`agent:${r.session}`, 'Claude Code');
+        },
+        touch: (r, rel) => {
+          if (r.actor === 'maude-chat') return;
           if (isCanvasFile(rel)) ai.start(posix.join(ctx.paths.designRel, rel), 'Claude Code');
         },
         end: (r, outcome) => {
+          if (r.actor === 'maude-chat') return;
           for (const rel of Object.keys(r.touched))
             if (isCanvasFile(rel)) ai.end(posix.join(ctx.paths.designRel, rel));
           void ctx.syncControl

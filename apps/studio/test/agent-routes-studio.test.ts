@@ -93,4 +93,19 @@ describe('agent routes — the http.ts deps in a running studio', () => {
     );
     expect(await aiFiles()).toEqual([]);
   });
+
+  test('a Maude chat run is not bracketed by the hook routes (acp/index.ts brackets it)', async () => {
+    const { hook, aiFiles } = await boot();
+    expect(
+      (await hook('/_api/agent/run/begin', { session: 's2', actor: 'maude-chat' })).status
+    ).toBe(200);
+    const t = await hook('/_api/agent/edit/touched', {
+      session: 's2',
+      toolUseId: 't1',
+      via: 'tool',
+      path: 'ui/card.tsx',
+    });
+    expect(t.status).toBe(200);
+    expect(await aiFiles()).toEqual([]);
+  });
 });
