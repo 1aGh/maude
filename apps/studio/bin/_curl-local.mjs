@@ -216,6 +216,13 @@ export function parseRequestArgv(argv) {
         if (!/^[\w-]+:.*/.test(value)) {
           throw new CurlLocalArgvError(`--header must look like "Name: value" (got "${value}")`);
         }
+        // A loopback helper never speaks for a browser: the headers a browser alone sends are
+        // what the studio's privileged writes check (migrate apply — security review, Phase 1 gate).
+        if (/^(origin|sec-fetch-[\w-]+|referer)\s*:/i.test(value)) {
+          throw new CurlLocalArgvError(
+            `--header ${value.split(':')[0]} is a browser header; refused`
+          );
+        }
         out.headers.push(value);
       } else if (a === '--data') {
         out.data = value;
