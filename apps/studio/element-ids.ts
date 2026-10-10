@@ -420,3 +420,417 @@ export function insertIds(
   for (const st of stamps) s.appendLeft(st.nameEnd, ` data-cd-id="${st.id}"`);
   return s.toString();
 }
+
+// ── §5.4 re-attach (the `safe` matcher) ───────────────────────────────────────────────────
+//
+// Anchors: elements whose id exists on both sides. Candidates: for each new element WITHOUT a
+// `data-cd-id`, the old elements whose id is missing, with the same tag, component and artboard.
+// Score: same own text +3 (word overlap ≥ 0.5: +2) · same class list +3 (overlap ≥ 0.5: +2) · each
+// equal literal attribute +1 (max 3) · parent is the anchor of the old parent +2 · each child
+// anchored under the old element +2 (max 4). Accept only a MUTUAL best pair with score ≥ 5 and a
+// margin ≥ 2 over the runner-up on both sides; repeat (new matches become anchors). Everything
+// else gets no old id — a new element (an insert, a new wrapper) must never inherit one.
+// Measured on the corpus simulation of V2-1.4 §6: 0 wrong attachments in 4,800+ dropped ids.
+
+const MIN_SCORE = 5;
+const MIN_MARGIN = 2;
+const MAX_ROUNDS = 8;
+
+interface Feat {
+  words: Set<string>;
+  cls: Set<string>;
+  lit: Map<string, string>;
+}
+function words(t: string): Set<string> {
+  return new Set(
+    t
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter(Boolean)
+  );
+}
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (!a.size && !b.size) return 1;
+  let n = 0;
+  for (const x of a) if (b.has(x)) n++;
+  return n / (a.size + b.size - n);
+}
+
+/**
+ * The safe re-attach plan: new-element index → the old id it provably is. `oldEls` / `newEls` are
+ * walks of the two sides. Pure; never guesses.
+ */
+export function reattachIds(oldEls: IdElement[], newEls: IdElement[]): Map<number, ElementId> {
+  const feats = new Map<IdElement, Feat>();
+  const feat = (e: IdElement): Feat => {
+    let f = feats.get(e);
+    if (!f) {
+      const lit = new Map<string, string>();
+      for (const [k, v] of e.attrs) if (k !== 'className' && v !== '{expr}') lit.set(k, v);
+      f = { words: words(e.text), cls: new Set(e.className.split(/\s+/).filter(Boolean)), lit };
+      feats.set(e, f);
+    }
+    return f;
+  };
+  const oldById = new Map<string, IdElement>();
+  for (const e of oldEls) if (e.id && !oldById.has(e.id)) oldById.set(e.id, e);
+  const seen = new Set<string>();
+  const n2o = new Map<number, number>();
+  for (const e of newEls) {
+    const o = e.id ? oldById.get(e.id) : undefined;
+    if (o && !seen.has(e.id as string)) {
+      seen.add(e.id as string);
+      n2o.set(e.i, o.i);
+    }
+  }
+  const out = new Map<number, ElementId>();
+  const missing = new Set<number>();
+  for (const e of oldEls) if (e.id && !seen.has(e.id) && oldById.get(e.id) === e) missing.add(e.i);
+  if (!missing.size) return out;
+  const loose = new Set<number>();
+  for (const e of newEls) if (e.idKind === null && !n2o.has(e.i)) loose.add(e.i);
+
+  const score = (n: IdElement, o: IdElement): number => {
+    let s = 0;
+    const fn = feat(n);
+    const fo = feat(o);
+    if (n.text && n.text === o.text) s += 3;
+    else if ((n.text || o.text) && jaccard(fn.words, fo.words) >= 0.5) s += 2;
+    if (n.className && n.className === o.className) s += 3;
+    else if (jaccard(fn.cls, fo.cls) >= 0.5) s += 2;
+    let same = 0;
+    for (const [k, v] of fn.lit) if (fo.lit.get(k) === v) same++;
+    s += Math.min(3, same);
+    if (n.parent >= 0 && o.parent >= 0 && n2o.get(n.parent) === o.parent) s += 2;
+    let kidHits = 0;
+    for (const k of n.kids) {
+      const ok = n2o.get(k);
+      if (ok !== undefined && (oldEls[ok] as IdElement).parent === o.i) kidHits++;
+    }
+    return s + Math.min(4, kidHits * 2);
+  };
+  const keyOf = (e: IdElement) => `${e.artboard ?? ''}|${e.tag}|${e.component}`;
+
+  for (let round = 0; round < MAX_ROUNDS; round++) {
+    const byKey = new Map<string, number[]>();
+    for (const oi of missing) {
+      const k = keyOf(oldEls[oi] as IdElement);
+      const list = byKey.get(k);
+      if (list) list.push(oi);
+      else byKey.set(k, [oi]);
+    }
+    const best = new Map<number, { o: number; s: number; second: number }>();
+    for (const ni of loose) {
+      const n = newEls[ni] as IdElement;
+      let b = -1;
+      let bs = -1;
+      let sec = -1;
+      for (const oi of byKey.get(keyOf(n)) ?? []) {
+        const sc = score(n, oldEls[oi] as IdElement);
+        if (sc > bs) {
+          sec = bs;
+          bs = sc;
+          b = oi;
+        } else if (sc > sec) sec = sc;
+      }
+      if (b >= 0) best.set(ni, { o: b, s: bs, second: sec });
+    }
+    const bestForOld = new Map<number, { n: number; s: number; second: number }>();
+    for (const [ni, v] of best) {
+      const cur = bestForOld.get(v.o);
+      if (!cur || v.s > cur.s) bestForOld.set(v.o, { n: ni, s: v.s, second: cur ? cur.s : -1 });
+      else if (v.s > cur.second) cur.second = v.s;
+    }
+    let added = 0;
+    for (const [oi, v] of bestForOld) {
+      const nb = best.get(v.n);
+      if (!nb || nb.o !== oi) continue;
+      const margin = Math.min(v.s - v.second, nb.s - nb.second);
+      if (v.s >= MIN_SCORE && margin >= MIN_MARGIN) {
+        n2o.set(v.n, oi);
+        out.set(v.n, (oldEls[oi] as IdElement).id as string);
+        missing.delete(oi);
+        loose.delete(v.n);
+        added++;
+      }
+    }
+    if (!added) break;
+  }
+  return out;
+}
+
+// ── §5.3 checkIds — the id part of `maude design check` ───────────────────────────────────
+
+export type IdFindingCode =
+  | 'id-lost'
+  | 'id-removed'
+  | 'id-duplicate'
+  | 'id-expression'
+  | 'id-format'
+  | 'locked-changed'
+  | 'cd-attr-changed';
+
+export interface IdFinding {
+  code: IdFindingCode;
+  /** `id-removed` is `info` (reported in the run result); everything else blocks. */
+  severity: 'error' | 'info';
+  /** `<path>:<line>:<col>`, or `<path>#<artboard>` for an element that is gone. */
+  where: string;
+  /** One line, plain words. */
+  what: string;
+  /** One line: what to do. */
+  fix: string;
+  id?: string;
+  line: number;
+  col: number;
+  element: { tag: string; label: string; artboard: string | null };
+}
+
+export interface CheckIdsOptions {
+  /** The snapshot to diff against (the run's start snapshot, or the last accepted content). */
+  against?: string;
+  /** Apply the safe re-attach plan. Never from the PostToolUse hook (it would fail Claude's next Edit). */
+  fix?: boolean;
+  /** Repo-relative path, for `where` and the parser. */
+  path?: string;
+}
+
+export interface CheckIdsResult {
+  findings: IdFinding[];
+  /** Ids in `against` absent from `source` (pre-fix): `id-lost` + `id-removed`. */
+  lostIds: string[];
+  /** The safe re-attach plan: provable matches only, by line. */
+  reattach: Array<{ id: ElementId; line: number }>;
+  /** Only with `fix: true`: `source` with `reattach` applied (=== source when it is empty). */
+  fixed?: string;
+  /** `source` does not parse. Findings are empty then. (An unparseable `against` only skips the two-sided checks.) */
+  parseError?: string;
+}
+
+const ROLE: Record<string, string> = {
+  a: 'Link',
+  article: 'Article',
+  aside: 'Sidebar',
+  audio: 'Audio',
+  button: 'Button',
+  details: 'Details',
+  div: 'Box',
+  figure: 'Figure',
+  footer: 'Footer',
+  form: 'Form',
+  h1: 'Heading',
+  h2: 'Heading',
+  h3: 'Heading',
+  h4: 'Heading',
+  h5: 'Heading',
+  h6: 'Heading',
+  header: 'Header',
+  img: 'Image',
+  input: 'Input',
+  label: 'Label',
+  li: 'List item',
+  main: 'Main',
+  nav: 'Navigation',
+  ol: 'List',
+  p: 'Text',
+  section: 'Section',
+  select: 'Select',
+  span: 'Text',
+  summary: 'Summary',
+  svg: 'Icon',
+  table: 'Table',
+  td: 'Cell',
+  textarea: 'Text field',
+  th: 'Cell',
+  tr: 'Row',
+  ul: 'List',
+  video: 'Video',
+  DCArtboard: 'Artboard',
+};
+function roleOf(tag: string): string {
+  const last = tag.includes('.') ? (tag.split('.').pop() as string) : tag;
+  return ROLE[tag] ?? ROLE[last] ?? (/^[A-Z]/.test(tag) ? tag : 'Element');
+}
+function labelOf(e: IdElement): string {
+  const l = e.dcElement || e.text || e.aria || e.className.split(/\s+/)[0] || '';
+  return l.length > 40 ? `${l.slice(0, 39)}…` : l;
+}
+function nameOf(e: IdElement): string {
+  const l = labelOf(e);
+  return l ? `${roleOf(e.tag)} "${l}"` : roleOf(e.tag);
+}
+function printKey(e: IdElement): string {
+  return `${e.component}|${e.tag}|${e.chain.join('>')}|${e.attrs.map(([k, v]) => `${k}=${v}`).join('|')}|${e.text}`;
+}
+function cdKey(e: IdElement): string {
+  return e.cd
+    .map(([k, v]) => `${k}=${v}`)
+    .sort()
+    .join(' ');
+}
+
+/**
+ * The id check (contract V2-1.4 §5.3). Without `against`: `id-duplicate`, `id-expression`,
+ * `id-format`. With it, also `id-lost` (an id is gone and re-attach finds its element — error),
+ * `id-removed` (gone, no provable match — info), `locked-changed` (a locked element's print
+ * changed, it lost its lock, or it was removed) and `cd-attr-changed` (any other `data-cd-*` on a
+ * kept element changed). Synchronous and pure; `fix` only computes `fixed`, it never writes.
+ */
+export function checkIds(source: string, opts: CheckIdsOptions = {}): CheckIdsResult {
+  const path = opts.path ?? '<source>';
+  const parsePath = opts.path && /\.[cm]?[jt]sx?$/.test(opts.path) ? opts.path : 'canvas.tsx';
+  const nw = walkIdElements(source, parsePath);
+  if (!nw.ok) return { findings: [], lostIds: [], reattach: [], parseError: nw.error };
+  const newEls = nw.elements;
+  const findings: IdFinding[] = [];
+  const at = (e: IdElement) => `${path}:${e.line}:${e.col}`;
+  const element = (e: IdElement) => ({ tag: e.tag, label: labelOf(e), artboard: e.artboard });
+  const push = (
+    code: IdFindingCode,
+    e: IdElement,
+    what: string,
+    fix: string,
+    id?: string,
+    where = at(e),
+    severity: IdFinding['severity'] = 'error'
+  ) =>
+    findings.push({
+      code,
+      severity,
+      where,
+      what,
+      fix,
+      ...(id !== undefined ? { id } : {}),
+      line: e.line,
+      col: e.col,
+      element: element(e),
+    });
+
+  // one-sided: expression, format, duplicate
+  const byId = new Map<string, IdElement[]>();
+  for (const e of newEls) {
+    if (e.idKind === 'expression') {
+      push(
+        'id-expression',
+        e,
+        `data-cd-id must be a plain string ("…"), line ${e.line}.`,
+        'Write the id as a quoted string literal, or remove the attribute.'
+      );
+      continue;
+    }
+    if (e.id === null) continue;
+    if (!isValidElementId(e.id)) {
+      push(
+        'id-format',
+        e,
+        `data-cd-id="${e.id}" (line ${e.line}) is not a valid element id.`,
+        'Use lowercase words joined by "-" (at most 48 characters, never 8 hex characters).',
+        e.id
+      );
+    }
+    const list = byId.get(e.id);
+    if (list) list.push(e);
+    else byId.set(e.id, [e]);
+  }
+  for (const [id, list] of byId) {
+    if (list.length < 2) continue;
+    const first = list[0] as IdElement;
+    const n = list.length === 2 ? 'two' : String(list.length);
+    push(
+      'id-duplicate',
+      first,
+      `data-cd-id="${id}" is on ${n} elements (lines ${list.map((e) => e.line).join(', ')}).`,
+      'Give the copy a new id or drop it — an id names one element.',
+      id
+    );
+  }
+
+  const ow = opts.against !== undefined ? walkIdElements(opts.against, parsePath) : null;
+  const lostIds: string[] = [];
+  const plan: Array<{ el: IdElement; id: ElementId }> = [];
+  if (ow?.ok) {
+    const oldEls = ow.elements;
+    const newFirst = new Map<string, IdElement>();
+    for (const e of newEls) if (e.id && !newFirst.has(e.id)) newFirst.set(e.id, e);
+    const oldFirst = new Map<string, IdElement>();
+    for (const e of oldEls) if (e.id && !oldFirst.has(e.id)) oldFirst.set(e.id, e);
+    for (const id of oldFirst.keys()) if (!newFirst.has(id)) lostIds.push(id);
+    const matched = lostIds.length ? reattachIds(oldEls, newEls) : new Map<number, ElementId>();
+    const reattachedTo = new Map<string, IdElement>();
+    for (const [ni, id] of matched) {
+      const el = newEls[ni] as IdElement;
+      reattachedTo.set(id, el);
+      plan.push({ el, id });
+    }
+    for (const id of lostIds) {
+      const o = oldFirst.get(id) as IdElement;
+      const n = reattachedTo.get(id);
+      if (n) {
+        push(
+          'id-lost',
+          n,
+          `${nameOf(n)} (line ${n.line}) lost data-cd-id="${id}".`,
+          `Put data-cd-id="${id}" back on it — comments, locks and arrows point at it.`,
+          id
+        );
+      } else {
+        push(
+          'id-removed',
+          o,
+          `Removed ${nameOf(o)} (${id}). Anything that pointed at it detaches.`,
+          'Nothing to do if the removal was intended.',
+          id,
+          o.artboard ? `${path}#${o.artboard}` : `${path}:${o.line}:${o.col}`,
+          'info'
+        );
+      }
+    }
+    for (const o of oldEls) {
+      if (!o.id || oldFirst.get(o.id) !== o) continue;
+      const n = newFirst.get(o.id) ?? reattachedTo.get(o.id);
+      if (o.locked) {
+        const unlock = 'Undo the change to it, or ask the person to unlock it (⇧⌘L).';
+        if (!n) {
+          push(
+            'locked-changed',
+            o,
+            `${nameOf(o)} is locked and was removed — put it back.`,
+            'Restore it as it was, or ask the person to unlock it (⇧⌘L) first.',
+            o.id,
+            o.artboard ? `${path}#${o.artboard}` : `${path}:${o.line}:${o.col}`
+          );
+        } else if (!n.locked) {
+          push(
+            'locked-changed',
+            n,
+            `${nameOf(n)} (line ${n.line}) lost its lock (data-cd-locked).`,
+            'Put data-cd-locked back — only the person unlocks (⇧⌘L).',
+            o.id
+          );
+        } else if (printKey(n) !== printKey(o)) {
+          push('locked-changed', n, `${nameOf(n)} is locked — leave it as it is.`, unlock, o.id);
+        }
+      }
+      if (n && newFirst.get(o.id) === n && cdKey(n) !== cdKey(o)) {
+        const before = cdKey(o) || 'none';
+        push(
+          'cd-attr-changed',
+          n,
+          `${nameOf(n)} (line ${n.line}) changed its canvas-only attributes (${before} → ${cdKey(n) || 'none'}).`,
+          `Keep every data-cd-* attribute exactly as it was: ${before}.`,
+          o.id
+        );
+      }
+    }
+  }
+  plan.sort((a, b) => a.el.start - b.el.start);
+  const reattach = plan.map(({ el, id }) => ({ id, line: el.line }));
+  const result: CheckIdsResult = { findings, lostIds, reattach };
+  if (opts.fix) {
+    result.fixed = insertIds(
+      source,
+      plan.map(({ el, id }) => ({ nameEnd: el.nameEnd, id }))
+    );
+  }
+  return result;
+}
