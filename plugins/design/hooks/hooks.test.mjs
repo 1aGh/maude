@@ -48,13 +48,14 @@ function makeProject(prefix) {
   return p;
 }
 
-async function hook(event, input) {
+async function hook(event, input, env = {}) {
   const t0 = performance.now();
+  const { MAUDE_AGENT_ACTOR: _unset, ...base } = process.env;
   const p = Bun.spawn(['node', MAUDE, 'design', 'hook', event], {
     stdin: new Blob([typeof input === 'string' ? input : JSON.stringify(input)]),
     stdout: 'pipe',
     stderr: 'pipe',
-    env: { ...process.env, MAUDE_NO_UPDATE_CHECK: '1', CLAUDE_PROJECT_DIR: '' },
+    env: { ...base, MAUDE_NO_UPDATE_CHECK: '1', CLAUDE_PROJECT_DIR: '', ...env },
   });
   const [stdout, stderr, status] = await Promise.all([
     new Response(p.stdout).text(),
@@ -268,7 +269,9 @@ describe('no studio — fail-open, snapshot + check + rollback still run', () =>
       expect(r.json.hookSpecificOutput.additionalContext).toContain('maude design annotate');
       // once a run
       await hook('pre-edit', editBoard('h2'));
-      expect((await hook('post-edit', editBoard('h2'))).stdout).not.toContain('maude design annotate');
+      expect((await hook('post-edit', editBoard('h2'))).stdout).not.toContain(
+        'maude design annotate'
+      );
       expect(r.stdout).not.toMatch(/"(ask|allow)"/);
     } finally {
       writeFileSync(join(project, '.design', 'config.json'), '{}');
@@ -318,7 +321,7 @@ describe('with a studio — the run bracket and one AI per artboard', () => {
         shells: () => 1,
         emit: () => {},
         bracket: {
-          begin: (r) => bracket.push(`begin ${r.session}`),
+          begin: (r) => bracket.push(`begin ${r.session}`, `actor ${r.session} ${r.actor}`),
           touch: (r, p) => bracket.push(`touch ${r.session} ${p}`),
           end: (r, o) => bracket.push(`end ${r.session} ${o}`),
         },
@@ -386,6 +389,25 @@ describe('with a studio — the run bracket and one AI per artboard', () => {
     expect(await hook('pre-edit', edit(project, 'sb', 'b3', 'Hello', 'Hey'))).toMatchObject({
       stdout: '',
     });
+  });
+
+  test('actor: a Maude chat session (MAUDE_AGENT_ACTOR from the ACP bridge) vs a terminal', async () => {
+    expect(bracket).toContain('actor sa claude-code');
+    await hook(
+      'prompt',
+      { session_id: 'sm', cwd: project, prompt: 'x' },
+      { MAUDE_AGENT_ACTOR: 'maude-chat' }
+    );
+    expect(bracket).toContain('actor sm maude-chat');
+    // any other value is a terminal session
+    await hook(
+      'prompt',
+      { session_id: 'sn', cwd: project, prompt: 'x' },
+      { MAUDE_AGENT_ACTOR: 'robot' }
+    );
+    expect(bracket).toContain('actor sn claude-code');
+    await hook('stop', { session_id: 'sm', cwd: project, stop_hook_active: false });
+    await hook('stop', { session_id: 'sn', cwd: project, stop_hook_active: false });
   });
 
   test('pre-edit denies an edit of a locked element (soft-locked, A10)', async () => {

@@ -412,6 +412,14 @@ async function check(ctx, studio, rel, tier, snapshot, self) {
   }
 }
 
+/**
+ * Who is driving this session: the Maude chat's ACP bridge marks the adapter it spawns with
+ * MAUDE_AGENT_ACTOR=maude-chat (the adapter hands its env to `claude`, and `claude` to every hook);
+ * anything else is a terminal Claude Code. Attribution only, never a permission.
+ */
+export const hookActor = (env = process.env) =>
+  env.MAUDE_AGENT_ACTOR === 'maude-chat' ? 'maude-chat' : 'claude-code';
+
 async function prompt(ctx, input) {
   // V2-1.18 §5.4: the main agent needs its run folder to write hand-offs — named once a session
   const marker = join(ctx.designRoot, '_runs', 'sessions', `${ctx.session}.json`);
@@ -432,7 +440,7 @@ async function prompt(ctx, input) {
   await postStudio(
     studio,
     '/_api/agent/run/begin',
-    { session: ctx.session, ...(promptId ? { promptId } : {}), actor: 'claude-code' },
+    { session: ctx.session, ...(promptId ? { promptId } : {}), actor: hookActor() },
     { timeoutMs: 600 }
   );
   return out;
