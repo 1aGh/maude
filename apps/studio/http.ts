@@ -31,6 +31,7 @@ import {
   readChatMessages,
   writeChatMeta,
 } from './acp/transcript.ts';
+import { actionsManifestVersion } from './actions/manifest-version.ts';
 import { isCanvasFile } from './activity.ts';
 import { type Api, ASSET_CHUNK_BYTES, ASSET_MAX_BYTES, ASSET_MAX_VIDEO_BYTES } from './api.ts';
 import { ImportAssetError, importSvg, SVG_MAX_BYTES } from './bin/_import-asset.mjs';
@@ -1883,6 +1884,10 @@ export function createHttp(
         // server filesystem path is not something it should learn. The
         // supervisor hashes its own expected root and compares.
         rootId: rootIdentity(ctx.paths.repoRoot),
+        // V2-1.11 §5.6 — the app↔plugin↔CLI handshake: the design plugin's session-start hook
+        // compares its bundled actions.manifest.json with these. Public data (action ids, tiers).
+        manifestVersion: actionsManifestVersion(),
+        version: resolveMaudeVersion(),
         pid: process.pid,
         // Cloud Phase 26 Stage 4 — the build sandbox's own counters, so the
         // €3/cell model finally has figures instead of a prediction. Counts and

@@ -3,6 +3,7 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 
+import { actionsManifestVersion } from '../actions/manifest-version.ts';
 import { rootIdentity } from '../http.ts';
 import { bootServer, killProc, makeSandbox, nextPort } from './_helpers.ts';
 
@@ -26,6 +27,11 @@ describe('server lifecycle', () => {
       // untrusted canvas origin's allowlist.
       expect(body.rootId).toBe(rootIdentity(root));
       expect(body.rootId).not.toContain('/');
+      // V2-1.11 §5.6 — the app side of the app↔plugin↔CLI handshake: the design plugin's
+      // session-start hook compares its bundled manifest copy with these two.
+      const hs = body as unknown as { manifestVersion?: unknown; version?: unknown };
+      expect(hs.manifestVersion).toBe(actionsManifestVersion());
+      expect(typeof hs.version).toBe('string');
 
       const info = await Bun.file(join(designRoot, '_server.json')).json();
       expect(info.port).toBe(port);
