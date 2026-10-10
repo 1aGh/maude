@@ -69,11 +69,20 @@ import { createEchoGuard, hashBytes } from './echo-guard.ts';
 import { createFileLedger } from './file-ledger.ts';
 import { createFilePlane, MAX_DORUCEKA_ROWS } from './file-plane.ts';
 import { type FilePullResult, pullFiles } from './file-pull.ts';
+import {
+  declaredFormat,
+  formatFromHub,
+  formatGated,
+  isFormatFirstSight,
+  learnHubFormat,
+  withFormatHeader,
+  withFormatParam,
+} from './format-sync.ts';
 import { createFsReader, type FsReader } from './fs-mirror.ts';
 import { type HubDocRow, hubHolds, indexHubDocs } from './hub-listing.ts';
 import { getHubRecord } from './hubs-config.ts';
 import { loadJournal, type SyncJournal } from './journal.ts';
-import { hasAnnotationsV2, hasLedger, hubCapabilities } from './journal-client.ts';
+import { hasAnnotationsV2, hasLedger, hubHealth } from './journal-client.ts';
 import { isLoopbackHost } from './loopback.ts';
 import { migrateFlatFallback } from './migrate-flat-fallback.ts';
 import { migrateSeed } from './migrate-seed.ts';
@@ -478,6 +487,8 @@ export type ProviderFactory = (args: {
    * `getDoc`. Default factory: `args.document ?? new Y.Doc()`.
    */
   document?: Y.Doc;
+  /** V2-1.12 §5.4 — the file format this studio writes (`maude-format`). */
+  format?: number;
 }) => SyncProvider | Promise<SyncProvider>;
 
 export interface SyncRuntime {
@@ -851,6 +862,53 @@ export function createSyncRuntime(
     return null;
   }
 
+  // ---- PROJECT FILE FORMAT (V2-1.12 §5.4 / §5.6, V2-2.18) ------------------
+  //
+  // The format view the sync side reasons about names THIS link's hub (a cell's
+  // pairing link is not in the tenant's config.json, but it is still the hub).
+  // A getter: `config.json` hot-reloads (fs:json → reloadConfig), and a
+  // marker written there must reach this view without a restart.
+  const formatCtx = {
+    get cfg() {
+      return { formatVersion: ctx.cfg.formatVersion, linkedHub: { url: linkedHub.url } };
+    },
+    paths: { designRoot: ctx.paths.designRoot },
+  };
+  /** The format this studio writes in — declared on every request + socket. */
+  const declared = (): number => declaredFormat(formatCtx);
+  /** True while this build does not edit the project: nothing goes up. */
+  const outboundPaused = (): boolean => formatGated(formatCtx);
+  /** Every studio → hub HTTP call declares the format (one wrapper). */
+  const hubFetch = withFormatHeader(undefined, declared);
+  /** §5.9 — set when this run first sees the hub's format raised past the mirror. */
+  let formatFirstSight = false;
+  /**
+   * What the hub said about the format (`/health`, `maude.mode`, bootstrap).
+   * First sight is judged BEFORE the mirror is written; a change makes shells
+   * refetch `/_config`, so the gate and the banner engage.
+   */
+  const noteHubFormatSeen = (formatVersion: number | null, epoch?: number): void => {
+    if (formatVersion === null) return;
+    if (isFormatFirstSight(formatCtx, formatVersion)) formatFirstSight = true;
+    let changed = false;
+    try {
+      changed = learnHubFormat(formatCtx, {
+        formatVersion,
+        ...(typeof epoch === 'number' ? { epoch } : {}),
+      });
+    } catch (err) {
+      console.warn(
+        `[sync] could not record the project format: ${String((err as Error)?.message ?? err).slice(0, 200)}`
+      );
+    }
+    if (changed) {
+      console.log(
+        `[sync] the project format is ${formatVersion}${outboundPaused() ? ' — newer than this build writes; open to look at, nothing goes up until Maude is updated' : ''}`
+      );
+      ctx.bus.emit('config-updated');
+    }
+  };
+
   // DDR-192 §5 — slug → wire documentName. Only the WIRE name is namespaced;
   // every local map (providers, agents, projections, _history/) stays keyed by
   // the flat slug. Opt-in for now (see createDocNameResolver's rollout rule);
@@ -951,10 +1009,13 @@ export function createSyncRuntime(
           designRoot: ctx.paths.designRoot,
           hubUrl: linkedHub.url,
           token: () => token,
+          fetchImpl: hubFetch,
         })
       : null;
   const projectConfigUnsub = projectConfigPusher
-    ? ctx.bus.on('config-updated', () => void projectConfigPusher.push())
+    ? ctx.bus.on('config-updated', () => {
+        if (!outboundPaused()) void projectConfigPusher.push();
+      })
     : null;
 
   // DDR-102 — the default factory multiplexes every provider over ONE shared
@@ -1017,13 +1078,20 @@ export function createSyncRuntime(
         token: () => token,
         designRoot: ctx.paths.designRoot,
         docNameFor: (slug) => docNameFor(slug),
-        fetchImpl: opts.transactionFetch,
+        fetchImpl: withFormatHeader(opts.transactionFetch, declared),
+        paused: outboundPaused,
         retryMs: opts.transactionRetryMs,
         onStats: (stats) => statusStore?.updateAccepted?.(stats),
         onStage: (summary) => statusStore?.updateAiAction?.(summary),
         onBootstrap: (b) => {
+          noteHubFormatSeen(
+            formatFromHub(b),
+            typeof (b as { epoch?: unknown }).epoch === 'number'
+              ? (b as { epoch: number }).epoch
+              : undefined
+          );
           noteProjectConfig(b.projectConfig);
-          void projectConfigPusher?.push();
+          if (!outboundPaused()) void projectConfigPusher?.push();
           // F3 S17 — a save made as the socket died is held (the connection
           // was not writable). After the reconnect the handshake re-admits the
           // socket read-only BEFORE this peer learns the project now takes
@@ -1147,11 +1215,13 @@ export function createSyncRuntime(
       legacyPushAgain = true;
       return;
     }
+    if (outboundPaused()) return; // V2-1.12 §5.6 — nothing goes up while gated
     legacyPushRunning = true;
     legacyPushCancel = false;
     pushAssets({
       designRoot: ctx.paths.designRoot,
       hubUrl,
+      fetchImpl: hubFetch,
       // Read at call time — silent renewal swaps the credential in place.
       token: () => token,
       canvasGroups: ctx.cfg.canvasGroups,
@@ -3288,6 +3358,7 @@ export function createSyncRuntime(
             }
           },
           onConflict: (info) => store.addConflict(info),
+          formatFirstSight: () => formatFirstSight,
           // An unmergeable local candidate: keep both, and let the projection
           // report and hold it from the shared base (T2).
           onHold: (base) => projection.adoptBase(base),
@@ -3636,6 +3707,7 @@ export function createSyncRuntime(
         token,
         documentName: docNameFor(canvas.slug),
         document,
+        format: declared(),
       });
       providers.set(canvas.slug, provider);
       // ANY change to a synced document is activity — a local edit unparks a
@@ -3848,12 +3920,14 @@ export function createSyncRuntime(
                     }
                   : {}),
                 // A write the hub would drop is held, never made (see isWritable).
+                // V2-1.12 §5.6 — and nothing goes up while the project uses a
+                // format this build does not write (pulls continue).
                 ...(provider.isWritable
                   ? {
-                      canWriteDoc: () => provider.isWritable?.() !== false,
+                      canWriteDoc: () => provider.isWritable?.() !== false && !outboundPaused(),
                       onWriteBlocked: () => void refreshAcceptedMode(),
                     }
-                  : {}),
+                  : { canWriteDoc: () => !outboundPaused() }),
                 onRecovered: () => store.clearSourceConflict(canvas.slug),
                 onConflict: (info) => {
                   store.addConflict(info);
@@ -3915,6 +3989,7 @@ export function createSyncRuntime(
                   }
                 },
                 onConflict: (info) => store.addConflict(info),
+                formatFirstSight: () => formatFirstSight,
               });
               agent.start();
               agents.set(canvas.slug, agent);
@@ -3929,6 +4004,28 @@ export function createSyncRuntime(
             // THE HUB SAYS THE SAVE MODE CHANGED — on this document's own
             // socket, ahead of closing it, so the switch is learned before any
             // further local change is made (DDR-241 §7 switch ordering).
+            // V2-1.12 §5.5 — the same envelope carries the project FORMAT.
+            // Heard on every link (legacy and accepted), since a flip is
+            // independent of the save mode.
+            if (provider.onStateless) {
+              noteDetach(
+                statusDetaches,
+                canvas.slug,
+                provider.onStateless((payload) => {
+                  let msg: { type?: unknown; formatVersion?: unknown; epoch?: unknown } | null =
+                    null;
+                  try {
+                    msg = JSON.parse(payload);
+                  } catch {
+                    return;
+                  }
+                  if (msg?.type !== 'maude.mode') return;
+                  const fv = formatFromHub(msg);
+                  if (fv !== null)
+                    noteHubFormatSeen(fv, typeof msg.epoch === 'number' ? msg.epoch : undefined);
+                })
+              );
+            }
             if (acceptedLink && provider.onStateless) {
               noteDetach(
                 statusDetaches,
@@ -4217,7 +4314,16 @@ export function createSyncRuntime(
         });
         return;
       }
-      void stateDocumentGone(linkedHub.url, token, docNameFor(slug), { revive }).then((ok) => {
+      if (outboundPaused()) {
+        console.warn(
+          `[sync] not telling the project that ${slug} was ${revive ? 're-created' : 'deleted'}: it now uses a newer file format than this build writes.`
+        );
+        return;
+      }
+      void stateDocumentGone(linkedHub.url, token, docNameFor(slug), {
+        revive,
+        fetchImpl: hubFetch,
+      }).then((ok) => {
         if (!ok) {
           console.warn(
             `[sync] could not tell the project that ${slug} was ${revive ? 're-created' : 'deleted'} — it stays ${revive ? 'buried' : 'in the project'} for other peers until this succeeds.`
@@ -4982,9 +5088,11 @@ export function createSyncRuntime(
     // its job is healing the UI rather than triggering pulls.
     if (!cellPairing && ctx.cfg.linkedHub?.fileEvents !== false) {
       fileEventsProbe = new AbortController();
-      void hubCapabilities({ hubUrl: linkedHub.url, signal: fileEventsProbe.signal })
-        .then((caps) => {
+      void hubHealth({ hubUrl: linkedHub.url, signal: fileEventsProbe.signal })
+        .then(({ capabilities: caps, formatVersion: hubFormat }) => {
           if (stopped) return;
+          // V2-1.12 §5.5 — `/health` names the project's format.
+          noteHubFormatSeen(hubFormat);
           // DDR-242 — a hub that predates the annotations-v2 model still keeps
           // boards as SVG: its workspace checkout and kernel would not carry
           // this studio's `.annotations.json` edits. Say so loudly; the
@@ -5024,6 +5132,11 @@ export function createSyncRuntime(
               onAuthFailure: () => {
                 void renewCredentialNow();
               },
+              // V2-1.12 §5.4 — a 426 is the FORMAT door, never a credential
+              // failure: mirror what the hub named; nothing is renewed.
+              onFormatRefused: (fv) => noteHubFormatSeen(fv),
+              outboundPaused,
+              fetchImpl: hubFetch,
               // A DELIVERED FILE IS PROGRESS. `renewalsSinceProgress` counted
               // only doc handshakes, and a converged doc lane has none left to
               // land — so during a long seed the cap was reached and the
@@ -6080,6 +6193,7 @@ export function createDefaultProviderFactory(
     token: string;
     documentName: string;
     document?: Y.Doc;
+    format?: number;
   }): Promise<SyncProvider> => {
     if (!mod) {
       try {
@@ -6093,7 +6207,9 @@ export function createDefaultProviderFactory(
     // Hocuspocus accepts ws:// or wss://; the linked URL is http(s)://, so swap
     // the scheme. The provider also accepts http(s):// and upgrades internally
     // in newer versions, but ws:// is explicit + portable.
-    const wsUrl = toWsUrl(args.url);
+    // V2-1.12 §5.4 — the socket declares the writer's file format; the hub
+    // fences a writer of another format read-only.
+    const wsUrl = withFormatParam(toWsUrl(args.url), args.format);
     // A DOCUMENT KEEPS ITS SOCKET; A FULL SOCKET TAKES NO NEW ONES.
     //
     // Hocuspocus (4.3+) closes a socket that has more than 100 documents

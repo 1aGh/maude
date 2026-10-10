@@ -117,10 +117,12 @@ export interface MigrateSeedOptions {
    * conflict until a later save resolves it (audit 2026-09-13 P0 #1 / T2).
    */
   onHold?: (base: string) => void;
+  /** V2-1.12 §5.9 — is this the first cold start after a format flip? */
+  formatFirstSight?: () => boolean;
   /** DDR-102 — divergence notification, same contract as the agent's. */
   onConflict?: (info: {
     slug: string;
-    kind: 'cold-start-diverged';
+    kind: 'cold-start-diverged' | 'format-flip-local-kept';
     winner?: 'local' | 'hub';
     snapshots?: { local?: string; hub?: string };
     /** DDR-102 fail-closed (F1) — local snapshot didn't land; hub-wins refused. */
@@ -269,6 +271,7 @@ export async function migrateSeed(opts: MigrateSeedOptions): Promise<MigrateSeed
     journalHash: opts.journal?.get(slug)?.bodyHash ?? null,
     localMtimeMs: localMtimeMs(paths.html),
     docBodyEditAtMs: bodyEditAtFromDoc(doc),
+    formatFirstSight: opts.formatFirstSight?.() === true,
   });
 
   /** Rebuild body (+ visually-coupled css) from local, in ONE MIGRATION
@@ -367,6 +370,7 @@ export async function migrateSeed(opts: MigrateSeedOptions): Promise<MigrateSeed
       localMtimeMs: localMtimeMs(paths.annotations),
       docEditAtMs: annotationsEditAtFromDoc(doc),
       bodyWinner: applied.bodyWinner,
+      formatFirstSight: opts.formatFirstSight?.() === true,
     });
     if (annDecision.winner === 'local' && localAnnotations !== null) {
       console.warn(`[sync/${slug}] shared-doc cold-start annotations: ${annDecision.reason}`);
@@ -398,6 +402,7 @@ export async function migrateSeed(opts: MigrateSeedOptions): Promise<MigrateSeed
       journalHash: opts.journal?.get(slug)?.cssHash ?? null,
       hash: hashBytes,
       bodyWinner: applied.bodyWinner,
+      formatFirstSight: opts.formatFirstSight?.() === true,
     });
     if (cssDecision.recoveredDuplication) {
       // Warn, don't snapshot — see the note on the same branch in agent.ts

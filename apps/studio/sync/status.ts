@@ -22,6 +22,8 @@ import type { SeedProgress } from './seed-progress.ts';
 export type ConflictKind =
   | 'cold-start-hub-wins'
   | 'cold-start-diverged'
+  /** V2-1.12 §5.9 — first sight of a format flip: hub won, local kept aside. */
+  | 'format-flip-local-kept'
   | 'git-pull'
   | 'body-rejected';
 

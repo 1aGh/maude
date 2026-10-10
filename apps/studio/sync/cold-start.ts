@@ -42,12 +42,21 @@ export interface ColdStartInput {
   /** Doc-side syncMeta.bodyEditAt stamp (ms epoch), or null when no peer ever
    *  stamped (older peer interop) — falls back to hub-wins. */
   docBodyEditAtMs: number | null;
+  /**
+   * V2-1.12 §5.9 — the FIRST cold start after this Mac learns the project's
+   * format was raised (its `_state/hub-format.json` was absent or older than
+   * the hub's value). Evaluated before newest-wins: the hub wins, a divergent
+   * local copy is kept aside, and nothing is pushed.
+   */
+  formatFirstSight?: boolean;
 }
 
 export interface ColdStartDecision {
   action: ColdStartAction;
   /** Set only for `conflict`. */
   winner?: 'local' | 'hub';
+  /** V2-1.12 §5.9 — the conflict is the format-flip first-sight row. */
+  firstSight?: true;
   /** Human-readable, logged + recorded in the conflict entry. */
   reason: string;
 }
@@ -112,6 +121,38 @@ export function unionCommentsById(docList: unknown[], localList: unknown[]): unk
 }
 
 export function decideColdStart(input: ColdStartInput): ColdStartDecision {
+  const base = decideColdStartNewestWins(input);
+  return input.formatFirstSight ? firstSightRow(base) : base;
+}
+
+/**
+ * The §5.9 row over the DDR-102 table: on first sight of a format flip every
+ * canvas-owned lane is hub-wins and NOTHING is pushed. Rows that only read the
+ * hub (materialize, fast-forward, noop) stand; every row that would push local
+ * becomes a hub-wins conflict (the local copy snapshotted and reported), except
+ * an EMPTY hub body — there "hub wins" would be a blank canvas, so local stays
+ * on disk untouched and unpushed (emptiness never beats content, DDR-223).
+ */
+function firstSightRow(d: ColdStartDecision): ColdStartDecision {
+  if (d.action === 'seed-local-up') {
+    return {
+      action: 'noop',
+      reason:
+        'format flip, first sight — the hub holds no body; local kept on disk, nothing pushed',
+    };
+  }
+  if (d.action === 'conflict' || d.action === 'recover-seed-dup') {
+    return {
+      action: 'conflict',
+      winner: 'hub',
+      firstSight: true,
+      reason: `format flip, first sight — hub wins, the local copy is kept aside (${d.reason})`,
+    };
+  }
+  return d;
+}
+
+function decideColdStartNewestWins(input: ColdStartInput): ColdStartDecision {
   const localEmpty = isEmptyBody(input.localBody);
   const docEmpty = isEmptyBody(input.docBody);
 
@@ -217,6 +258,8 @@ export interface AnnotationsColdStartInput {
   /** The body lane's resolved winner — the legacy coupling, used only as the
    *  fallback when both sides are non-empty and neither is stamped. */
   bodyWinner: 'local' | 'hub';
+  /** V2-1.12 §5.9 — first sight of a format flip: never push local. */
+  formatFirstSight?: boolean;
 }
 
 export interface AnnotationsColdStartDecision {
@@ -237,6 +280,31 @@ export interface AnnotationsColdStartDecision {
  * delete-all and is honored; everything else prefers the side with strokes.
  */
 export function decideAnnotationsColdStart(
+  input: AnnotationsColdStartInput
+): AnnotationsColdStartDecision {
+  const d = decideAnnotationsNewestWins(input);
+  return input.formatFirstSight ? neverPushLocal(d, 'annotations') : d;
+}
+
+/**
+ * §5.9 for the per-lane tables: on first sight nothing is pushed, so a lane
+ * that would seed local up keeps it on disk instead ('none'). It never becomes
+ * a hub overwrite here — these lanes take no snapshot, and the body row is the
+ * one that keeps a divergent copy aside.
+ */
+function neverPushLocal<T extends { winner: 'local' | 'hub' | 'none'; reason: string }>(
+  d: T,
+  lane: string
+): T {
+  if (d.winner !== 'local') return d;
+  return {
+    ...d,
+    winner: 'none',
+    reason: `format flip, first sight — local ${lane} kept on disk, nothing pushed (${d.reason})`,
+  };
+}
+
+function decideAnnotationsNewestWins(
   input: AnnotationsColdStartInput
 ): AnnotationsColdStartDecision {
   const { local, doc, isEmpty, localMtimeMs, docEditAtMs, bodyWinner } = input;
@@ -308,6 +376,8 @@ export interface CssColdStartInput {
   hash: (s: string) => string;
   /** How the body lane resolved; the tie-break for a genuine divergence. */
   bodyWinner: 'local' | 'hub';
+  /** V2-1.12 §5.9 — first sight of a format flip: never push local. */
+  formatFirstSight?: boolean;
 }
 
 export interface CssColdStartDecision {
@@ -342,6 +412,11 @@ export interface CssColdStartDecision {
  * exact repeat, so this cannot clobber an edit.
  */
 export function decideCssColdStart(input: CssColdStartInput): CssColdStartDecision {
+  const d = decideCssNewestWins(input);
+  return input.formatFirstSight ? neverPushLocal(d, 'css') : d;
+}
+
+function decideCssNewestWins(input: CssColdStartInput): CssColdStartDecision {
   const { local, doc, journalHash, hash, bodyWinner } = input;
   const localEmpty = local === null || local === '';
   const docEmpty = doc === null || doc === '';
