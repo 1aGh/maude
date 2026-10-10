@@ -290,6 +290,9 @@ describe('the switch barrier needs no answer', () => {
       mode: 'transactions',
       epoch: 1,
       writable: false,
+      // V2-1.12 §5.6 — the notice carries the project format (additive: a 1.x
+      // studio reads only `type` / `mode` / `writable`).
+      formatVersion: 1,
     });
   });
 
