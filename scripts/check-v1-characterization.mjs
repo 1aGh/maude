@@ -866,7 +866,8 @@ for (const [i, state] of selected.entries()) {
 if (!UPDATE && !ONLY) {
   const known = new Set(selected.map(([n]) => `${n.replace('/', '__')}.txt`));
   for (const f of existsSync(GOLDEN) ? readdirSync(GOLDEN) : []) {
-    if (!known.has(f)) {
+    // keys.txt is the v1 KEY characterization's golden (test/characterization/v1-keys.test.ts).
+    if (!known.has(f) && f !== 'keys.txt') {
       console.log(`GONE  ${f} — golden without a state`);
       changed++;
     }

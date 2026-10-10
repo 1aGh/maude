@@ -1,0 +1,2843 @@
+# v1 key characterization — 239 cases (V2-2.4)
+## browser/canvas/chrome Meta+k
+  keydown: shell ⌘key="Meta" default · shell ⌘key="k" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +100 -1 #5dd9e03ac5
+    - @focus body
+    + @focus input[aria-label="Command search"][placeholder="Type a command or search…"]
+    + div .st-palette [role="dialog"] [aria-label="Command palette"] [aria-modal="true"]
+    + div .st-scrim [role="presentation"]
+    + input [aria-label="Command search"] [placeholder="Type a command or search…"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + … 14 more
+  canvas: =
+## browser/canvas/chrome Meta+Shift+K
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="K" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +100 -1 #5dd9e03ac5
+    - @focus body
+    + @focus input[aria-label="Command search"][placeholder="Type a command or search…"]
+    + div .st-palette [role="dialog"] [aria-label="Command palette"] [aria-modal="true"]
+    + div .st-scrim [role="presentation"]
+    + input [aria-label="Command search"] [placeholder="Type a command or search…"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + … 14 more
+  canvas: =
+## browser/canvas/chrome Meta+z
+  keydown: shell ⌘key="Meta" default · shell ⌘key="z" PREVENTED
+  to-shell: child undo-barrier
+  to-canvas: parent undo · parent undo-barrier-ok
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome Meta+Shift+Z
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="Z" PREVENTED
+  to-shell: child undo-barrier
+  to-canvas: parent redo · parent undo-barrier-ok
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome Meta+y
+  keydown: shell ⌘key="Meta" default · shell ⌘key="y" PREVENTED
+  to-shell: child undo-barrier
+  to-canvas: parent redo · parent undo-barrier-ok
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome Meta+Shift+Y
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="Y" PREVENTED
+  to-shell: child undo-barrier
+  to-canvas: parent redo · parent undo-barrier-ok
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome Meta+Shift+R
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="R" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome Meta+r
+  keydown: shell ⌘key="Meta" default · shell ⌘key="r" PREVENTED
+  to-shell: child loaded · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child canvas-rendered · child canvas-mounted
+  to-canvas: parent comments-set · parent theme · parent view-chrome
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome Meta+Shift+M
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="M" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +20 -0 #53a1e2cbc0
+    + aside .st-rpanel [aria-label="Comments"]
+    + button .is-active.st-cm-filter [data-testid="comment-filter-open"] [role="tab"] [aria-selected="true"] [type="button"] "Open · 0"
+    + button .is-active.st-docktab [data-testid="dock-tab-comments"] [role="tab"] [aria-selected="true"] [type="button"] "Comments"
+    + button .st-cm-filter [data-testid="comment-filter-all"] [role="tab"] [aria-selected="false"] [type="button"] "All · 0"
+    + button .st-cm-filter [data-testid="comment-filter-resolved"] [role="tab"] [aria-selected="false"] [type="button"] "Resolved · 0"
+    + button .st-docktab [data-testid="dock-tab-changes"] [role="tab"] [aria-selected="false"] [type="button"] "Changes"
+    + button .st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="false"] [type="button"] "Inspector"
+    + div .st-cm-filters [role="tablist"]
+    + … 3 more
+  canvas: =
+## browser/canvas/chrome Meta+Shift+G
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="G" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +25 -0 #b3bcfd9d2e
+    + aside .gp-panel.st-rpanel [data-testid="git-panel"] [aria-label="Changes"]
+    + button .gp-tab [role="tab"] [aria-selected="false"] [type="button"] "History"
+    + button .gp-tab.is-active [role="tab"] [aria-selected="true"] [type="button"] "Changes"
+    + button .gp-x [aria-label="Close"] [type="button"] "×"
+    + button .is-active.st-docktab [data-testid="dock-tab-changes"] [role="tab"] [aria-selected="true"] [type="button"] "Changes"
+    + button .st-docktab [data-testid="dock-tab-comments"] [role="tab"] [aria-selected="false"] [type="button"] "Comments"
+    + button .st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="false"] [type="button"] "Inspector"
+    + div .gp-tabs [role="tablist"] [aria-label="Changes and history"]
+    + … 6 more
+  canvas: =
+## browser/canvas/chrome Meta+Shift+I
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="I" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +20 -0 #46eba78361
+    + aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
+    + button .is-active.st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="true"] [type="button"] "Inspector"
+    + button .st-docktab [data-testid="dock-tab-changes"] [role="tab"] [aria-selected="false"] [type="button"] "Changes"
+    + button .st-docktab [data-testid="dock-tab-comments"] [role="tab"] [aria-selected="false"] [type="button"] "Comments"
+    + button .st-iconbtn [aria-label="Close inspector"] [type="button"]
+    + div .st-docktabs [role="tablist"] [aria-label="right panels"]
+    + div .st-grip [role="separator"] [aria-label="Resize right panel"] [tabindex="0"]
+    + svg .st-grip-dots [aria-hidden="true"]
+    + … 3 more
+  canvas: =
+## browser/canvas/chrome Meta+Shift+A
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="A" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome Meta+Shift+E
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="E" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +63 -0 #c5f1eabd57
+    + button .btn.btn--primary [data-testid="export-submit"] [type="button"] "Export PNG"
+    + button .is-on.st-fmt [data-testid="export-format-png"] [type="button"]
+    + button .st-fmt [data-testid="export-format-canva"] [type="button"]
+    + button .st-fmt [data-testid="export-format-html"] [type="button"]
+    + button .st-fmt [data-testid="export-format-pdf"] [type="button"]
+    + button .st-fmt [data-testid="export-format-pptx"] [type="button"]
+    + button .st-fmt [data-testid="export-format-shadcn"] [type="button"]
+    + button .st-fmt [data-testid="export-format-svg"] [type="button"]
+    + … 15 more
+  canvas: =
+## browser/canvas/chrome Meta+Shift+H
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="H" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +47 -0 #48f9441cae
+    + button .btn.btn--primary [data-testid="export-submit"] [type="button"] "Copy handoff command"
+    + button .is-on.st-fmt [data-testid="export-format-shadcn"] [type="button"]
+    + button .st-fmt [data-testid="export-format-canva"] [type="button"]
+    + button .st-fmt [data-testid="export-format-html"] [type="button"]
+    + button .st-fmt [data-testid="export-format-pdf"] [type="button"]
+    + button .st-fmt [data-testid="export-format-png"] [type="button"]
+    + button .st-fmt [data-testid="export-format-pptx"] [type="button"]
+    + button .st-fmt [data-testid="export-format-svg"] [type="button"]
+    + … 14 more
+  canvas: =
+## browser/canvas/chrome Meta+Comma
+  keydown: shell ⌘key="Meta" default · shell ⌘key="," PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +359 -0 #3131081744
+    + button .is-active.st-settings-tab [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Appearance"
+    + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+    + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+    + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+    + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+    + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+    + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+    + button .rdy-copy [aria-label="Copy the install command"] [type="button"] "Copy"
+    + … 57 more
+  canvas: =
+## browser/canvas/chrome Meta+Shift+T
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="T" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +11 -1 #7c2dc6778d
+    - @focus body
+    + @focus aside[data-testid="timeline-panel"][aria-label="Timeline"]
+    + aside .tl-panel [data-testid="timeline-panel"] [aria-label="Timeline"] [tabindex="-1"]
+    + button .tl-x [aria-label="Close timeline"] [type="button"] "×"
+    + div .tl-empty [data-testid="timeline-empty"] "No video-comp on this canvas. to start a new cut, use for an empty one, or make an artboard a yourself."
+    + div .tl-resize-handle [data-testid="timeline-resize-handle"] [title="Drag to resize"]
+  canvas: =
+## browser/canvas/chrome Slash
+  keydown: shell key="/" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +1 -1 #bb199f5c22
+    - @focus body
+    + @focus input[data-testid="canvas-search"][aria-label="Filter files"][type="search"][placeholder="Search canvases…"]
+  canvas: =
+## browser/canvas/chrome Meta+Slash
+  keydown: shell ⌘key="Meta" default · shell ⌘key="/" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +1 -1 #bb199f5c22
+    - @focus body
+    + @focus input[data-testid="canvas-search"][aria-label="Filter files"][type="search"][placeholder="Search canvases…"]
+  canvas: =
+## browser/canvas/chrome Meta+f
+  keydown: shell ⌘key="Meta" default · shell ⌘key="f" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +1 -1 #bb199f5c22
+    - @focus body
+    + @focus input[data-testid="canvas-search"][aria-label="Filter files"][type="search"][placeholder="Search canvases…"]
+  canvas: =
+## browser/canvas/chrome Meta+Shift+F
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="F" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +1 -1 #bb199f5c22
+    - @focus body
+    + @focus input[data-testid="canvas-search"][aria-label="Filter files"][type="search"][placeholder="Search canvases…"]
+  canvas: =
+## browser/canvas/chrome t
+  keydown: shell key="t" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +2 -64 #ec907418a3
+    - @focus body
+    - button .btn.btn--ghost.btn--sm.gi-rail-signin [data-testid="cloud-signin"] [type="button"] "Sign in to Maude Cloud"
+    - button .has-delete-sibling.st-row-menu-btn [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
+    - button .is-active.st-docktab [data-testid="dock-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Files"
+    - button .is-sel.st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+    - button .st-docktab [data-testid="dock-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
+    - button .st-ds-chev [aria-label="Expand design system"] [title="Expand"] [type="button"]
+    - button .st-ds-open [aria-label="Open demo design system view"] [title="Open the design system view"] [type="button"] [tabindex="-1"]
+    - … 32 more
+    + @focus iframe[data-testid="canvas-frame"]
+  canvas: +1 -1 #eb2ecfc69e
+    - @focus body
+    + @focus div.dc-canvas
+## browser/canvas/chrome Shift+T
+  keydown: shell ⇧key="Shift" default · shell ⇧key="T" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome h
+  keydown: shell key="h" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +11 -0 #eeb65746ee
+    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="false"] [title="Expand section"] [type="button"] [tabindex="-1"]
+    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="false"] [title="Expand section"] [type="button"] [tabindex="-1"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="PROJECT"] [aria-expanded="false"] [tabindex="-1"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="RUNTIME · GITIGNORED"] [aria-expanded="false"] [tabindex="-1"]
+    + svg .st-chev [aria-hidden="true"]
+    + svg .st-chev [aria-hidden="true"]
+  canvas: =
+## browser/canvas/chrome s
+  keydown: shell key="s" PREVENTED
+  to-shell: (none)
+  to-canvas: (canvas reloaded)
+  writes: (none)
+  shell: +55 -10 #6570af30bd
+    - button .is-sel.st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+    - button .st-mb-icon.st-share-btn [data-testid="share-btn"] [aria-label="Share link"] [type="button"]
+    - div .st-tree-item [role="treeitem"] [aria-label="Home"] [aria-selected="true"] [tabindex="0"]
+    - div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="false"] [aria-selected="false"] [tabindex="-1"]
+    - iframe .active [data-testid="canvas-frame"] [data-path=".design/ui/Home.tsx"] [title="Canvas: .design/ui/Home.tsx"]
+    + button .st-mb-icon.st-share-btn [data-testid="share-btn"] [aria-label="Share link"] [type="button"] [disabled]
+    + button .st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+    + div .st-tree-item [role="treeitem"] [aria-label="Home"] [aria-selected="false"] [tabindex="0"]
+    + div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="false"] [aria-selected="true"] [tabindex="-1"]
+  canvas: document gone
+## browser/canvas/chrome n
+  keydown: shell key="n" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +5 -2 #eddf68b64d
+    - @focus body
+    - button .st-iconbtn [aria-label="New blank brief board"] [aria-expanded="false"] [type="button"]
+    + @focus input[aria-label="New brief board name"][type="text"][placeholder="brief board name…"]
+    + button .st-iconbtn [aria-label="New blank brief board"] [aria-expanded="true"] [type="button"]
+    + button .st-newboard-go [aria-label="Create brief board"] [type="button"] [disabled] "↵"
+    + input [aria-label="New brief board name"] [type="text"] [placeholder="brief board name…"]
+  canvas: =
+## browser/canvas/chrome Shift+Slash
+  keydown: shell ⇧key="Shift" default · shell ⇧key="?" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +226 -0 #ab125656a0
+    + div .so-overlay [role="dialog"] [aria-label="Keyboard shortcuts"] [aria-modal="true"]
+    + div .st-scrim [role="presentation"]
+  canvas: =
+## browser/canvas/chrome Meta+Shift+Slash
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="?" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +226 -0 #ab125656a0
+    + div .so-overlay [role="dialog"] [aria-label="Keyboard shortcuts"] [aria-modal="true"]
+    + div .st-scrim [role="presentation"]
+  canvas: =
+## browser/canvas/chrome F1
+  keydown: shell key="F1" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +209 -0 #96bf7b513b
+    + button .help-modal-close [aria-label="Close (Esc)"] [type="button"] "×"
+    + div .help-modal [role="dialog"] [aria-modal="true"]
+    + div .help-modal-backdrop [role="presentation"]
+  canvas: =
+## browser/canvas/chrome Shift+F1
+  keydown: shell ⇧key="Shift" default · shell ⇧key="F1" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +209 -0 #96bf7b513b
+    + button .help-modal-close [aria-label="Close (Esc)"] [type="button"] "×"
+    + div .help-modal [role="dialog"] [aria-modal="true"]
+    + div .help-modal-backdrop [role="presentation"]
+  canvas: =
+## browser/canvas/chrome Escape
+  keydown: shell key="Escape" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome Backspace
+  keydown: shell key="Backspace" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome Delete
+  keydown: shell key="Delete" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome Shift+Backspace
+  keydown: shell ⇧key="Shift" default · shell ⇧key="Backspace" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome Meta+Backspace
+  keydown: shell ⌘key="Meta" default · shell ⌘key="Backspace" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome Space
+  keydown: shell key=" " default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome ArrowRight
+  keydown: shell key="ArrowRight" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome Meta+b
+  keydown: shell ⌘key="Meta" default · shell ⌘key="b" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome Meta+Equal
+  keydown: shell ⌘key="Meta" default · shell ⌘key="=" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome c
+  keydown: shell key="c" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome Digit0
+  keydown: shell key="0" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome Meta+n
+  keydown: shell ⌘key="Meta" default · shell ⌘key="n" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/chrome Meta+c
+  keydown: shell ⌘key="Meta" default · shell ⌘key="c" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text Meta+k
+  keydown: shell ⌘key="Meta" default · shell ⌘key="k" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +100 -1 #417c503e9e
+    - @focus input[data-testid="canvas-search"][aria-label="Filter files"][type="search"][placeholder="Search canvases…"]
+    + @focus input[aria-label="Command search"][placeholder="Type a command or search…"]
+    + div .st-palette [role="dialog"] [aria-label="Command palette"] [aria-modal="true"]
+    + div .st-scrim [role="presentation"]
+    + input [aria-label="Command search"] [placeholder="Type a command or search…"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + … 14 more
+  canvas: =
+## browser/canvas/text Meta+Shift+K
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="K" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +100 -1 #417c503e9e
+    - @focus input[data-testid="canvas-search"][aria-label="Filter files"][type="search"][placeholder="Search canvases…"]
+    + @focus input[aria-label="Command search"][placeholder="Type a command or search…"]
+    + div .st-palette [role="dialog"] [aria-label="Command palette"] [aria-modal="true"]
+    + div .st-scrim [role="presentation"]
+    + input [aria-label="Command search"] [placeholder="Type a command or search…"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + … 14 more
+  canvas: =
+## browser/canvas/text Meta+z
+  keydown: shell ⌘key="Meta" default · shell ⌘key="z" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text Meta+Shift+Z
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="Z" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text Meta+y
+  keydown: shell ⌘key="Meta" default · shell ⌘key="y" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text Meta+Shift+Y
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="Y" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text Meta+Shift+R
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="R" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text Meta+r
+  keydown: shell ⌘key="Meta" default · shell ⌘key="r" PREVENTED
+  to-shell: child loaded · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child canvas-rendered · child canvas-mounted
+  to-canvas: parent comments-set · parent theme · parent view-chrome
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text Meta+Shift+M
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="M" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +20 -0 #53a1e2cbc0
+    + aside .st-rpanel [aria-label="Comments"]
+    + button .is-active.st-cm-filter [data-testid="comment-filter-open"] [role="tab"] [aria-selected="true"] [type="button"] "Open · 0"
+    + button .is-active.st-docktab [data-testid="dock-tab-comments"] [role="tab"] [aria-selected="true"] [type="button"] "Comments"
+    + button .st-cm-filter [data-testid="comment-filter-all"] [role="tab"] [aria-selected="false"] [type="button"] "All · 0"
+    + button .st-cm-filter [data-testid="comment-filter-resolved"] [role="tab"] [aria-selected="false"] [type="button"] "Resolved · 0"
+    + button .st-docktab [data-testid="dock-tab-changes"] [role="tab"] [aria-selected="false"] [type="button"] "Changes"
+    + button .st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="false"] [type="button"] "Inspector"
+    + div .st-cm-filters [role="tablist"]
+    + … 3 more
+  canvas: =
+## browser/canvas/text Meta+Shift+G
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="G" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +25 -0 #b3bcfd9d2e
+    + aside .gp-panel.st-rpanel [data-testid="git-panel"] [aria-label="Changes"]
+    + button .gp-tab [role="tab"] [aria-selected="false"] [type="button"] "History"
+    + button .gp-tab.is-active [role="tab"] [aria-selected="true"] [type="button"] "Changes"
+    + button .gp-x [aria-label="Close"] [type="button"] "×"
+    + button .is-active.st-docktab [data-testid="dock-tab-changes"] [role="tab"] [aria-selected="true"] [type="button"] "Changes"
+    + button .st-docktab [data-testid="dock-tab-comments"] [role="tab"] [aria-selected="false"] [type="button"] "Comments"
+    + button .st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="false"] [type="button"] "Inspector"
+    + div .gp-tabs [role="tablist"] [aria-label="Changes and history"]
+    + … 6 more
+  canvas: =
+## browser/canvas/text Meta+Shift+I
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="I" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +20 -0 #46eba78361
+    + aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
+    + button .is-active.st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="true"] [type="button"] "Inspector"
+    + button .st-docktab [data-testid="dock-tab-changes"] [role="tab"] [aria-selected="false"] [type="button"] "Changes"
+    + button .st-docktab [data-testid="dock-tab-comments"] [role="tab"] [aria-selected="false"] [type="button"] "Comments"
+    + button .st-iconbtn [aria-label="Close inspector"] [type="button"]
+    + div .st-docktabs [role="tablist"] [aria-label="right panels"]
+    + div .st-grip [role="separator"] [aria-label="Resize right panel"] [tabindex="0"]
+    + svg .st-grip-dots [aria-hidden="true"]
+    + … 3 more
+  canvas: =
+## browser/canvas/text Meta+Shift+A
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="A" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text Meta+Shift+E
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="E" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +63 -0 #c5f1eabd57
+    + button .btn.btn--primary [data-testid="export-submit"] [type="button"] "Export PNG"
+    + button .is-on.st-fmt [data-testid="export-format-png"] [type="button"]
+    + button .st-fmt [data-testid="export-format-canva"] [type="button"]
+    + button .st-fmt [data-testid="export-format-html"] [type="button"]
+    + button .st-fmt [data-testid="export-format-pdf"] [type="button"]
+    + button .st-fmt [data-testid="export-format-pptx"] [type="button"]
+    + button .st-fmt [data-testid="export-format-shadcn"] [type="button"]
+    + button .st-fmt [data-testid="export-format-svg"] [type="button"]
+    + … 15 more
+  canvas: =
+## browser/canvas/text Meta+Shift+H
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="H" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +47 -0 #48f9441cae
+    + button .btn.btn--primary [data-testid="export-submit"] [type="button"] "Copy handoff command"
+    + button .is-on.st-fmt [data-testid="export-format-shadcn"] [type="button"]
+    + button .st-fmt [data-testid="export-format-canva"] [type="button"]
+    + button .st-fmt [data-testid="export-format-html"] [type="button"]
+    + button .st-fmt [data-testid="export-format-pdf"] [type="button"]
+    + button .st-fmt [data-testid="export-format-png"] [type="button"]
+    + button .st-fmt [data-testid="export-format-pptx"] [type="button"]
+    + button .st-fmt [data-testid="export-format-svg"] [type="button"]
+    + … 14 more
+  canvas: =
+## browser/canvas/text Meta+Comma
+  keydown: shell ⌘key="Meta" default · shell ⌘key="," PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +359 -0 #3131081744
+    + button .is-active.st-settings-tab [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Appearance"
+    + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+    + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+    + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+    + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+    + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+    + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+    + button .rdy-copy [aria-label="Copy the install command"] [type="button"] "Copy"
+    + … 57 more
+  canvas: =
+## browser/canvas/text Meta+Shift+T
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="T" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +11 -1 #ab00b71776
+    - @focus input[data-testid="canvas-search"][aria-label="Filter files"][type="search"][placeholder="Search canvases…"]
+    + @focus aside[data-testid="timeline-panel"][aria-label="Timeline"]
+    + aside .tl-panel [data-testid="timeline-panel"] [aria-label="Timeline"] [tabindex="-1"]
+    + button .tl-x [aria-label="Close timeline"] [type="button"] "×"
+    + div .tl-empty [data-testid="timeline-empty"] "No video-comp on this canvas. to start a new cut, use for an empty one, or make an artboard a yourself."
+    + div .tl-resize-handle [data-testid="timeline-resize-handle"] [title="Drag to resize"]
+  canvas: =
+## browser/canvas/text Slash
+  keydown: shell key="/" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +19 -5 #b83ec8b9ba
+    - button .st-ds-chev [aria-label="Expand design system"] [title="Expand"] [type="button"]
+    - div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="false"] [aria-selected="false"] [tabindex="-1"]
+    - input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"]
+    - svg .st-chev [aria-hidden="true"]
+    + button .st-ds-chev [aria-label="Collapse design system"] [title="Collapse"] [type="button"]
+    + button .st-search-clear [aria-label="Clear search"] "×"
+    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="true"] [aria-selected="false"] [tabindex="-1"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="PROJECT"] [aria-expanded="true"] [tabindex="-1"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="RUNTIME · GITIGNORED"] [aria-expanded="true"] [tabindex="-1"]
+    + div [role="group"]
+    + … 6 more
+  canvas: =
+## browser/canvas/text Meta+Slash
+  keydown: shell ⌘key="Meta" default · shell ⌘key="/" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text Meta+f
+  keydown: shell ⌘key="Meta" default · shell ⌘key="f" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text Meta+Shift+F
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="F" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text t
+  keydown: shell key="t" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +20 -5 #cf619acaed
+    - button .st-ds-chev [aria-label="Expand design system"] [title="Expand"] [type="button"]
+    - div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="false"] [aria-selected="false"] [tabindex="-1"]
+    - input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"]
+    - svg .st-chev [aria-hidden="true"]
+    + button .st-ds-chev [aria-label="Collapse design system"] [title="Collapse"] [type="button"]
+    + button .st-search-clear [aria-label="Clear search"] "×"
+    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="true"] [aria-selected="false"] [tabindex="-1"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="PROJECT"] [aria-expanded="true"] [tabindex="-1"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="RUNTIME · GITIGNORED"] [aria-expanded="true"] [tabindex="-1"]
+    + div [role="group"]
+    + … 6 more
+  canvas: =
+## browser/canvas/text Shift+T
+  keydown: shell ⇧key="Shift" default · shell ⇧key="T" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +20 -5 #c5ea696505
+    - button .st-ds-chev [aria-label="Expand design system"] [title="Expand"] [type="button"]
+    - div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="false"] [aria-selected="false"] [tabindex="-1"]
+    - input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"]
+    - svg .st-chev [aria-hidden="true"]
+    + button .st-ds-chev [aria-label="Collapse design system"] [title="Collapse"] [type="button"]
+    + button .st-search-clear [aria-label="Clear search"] "×"
+    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="true"] [aria-selected="false"] [tabindex="-1"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="PROJECT"] [aria-expanded="true"] [tabindex="-1"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="RUNTIME · GITIGNORED"] [aria-expanded="true"] [tabindex="-1"]
+    + div [role="group"]
+    + … 6 more
+  canvas: =
+## browser/canvas/text h
+  keydown: shell key="h" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +17 -10 #e2e7522922
+    - button .st-ds-chev [aria-label="Expand design system"] [title="Expand"] [type="button"]
+    - button .st-ds-open [aria-label="Open demo design system view"] [title="Open the design system view"] [type="button"] [tabindex="-1"]
+    - div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="false"] [aria-selected="false"] [tabindex="-1"]
+    - input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"]
+    - svg .st-chev [aria-hidden="true"]
+    - svg [aria-hidden="true"]
+    + button .st-search-clear [aria-label="Clear search"] "×"
+    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="PROJECT"] [aria-expanded="true"] [tabindex="-1"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="RUNTIME · GITIGNORED"] [aria-expanded="true"] [tabindex="-1"]
+    + div [role="group"]
+    + div [role="group"]
+    + input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"] {value="h"}
+    + … 2 more
+  canvas: =
+## browser/canvas/text s
+  keydown: shell key="s" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +19 -5 #26d8863341
+    - button .st-ds-chev [aria-label="Expand design system"] [title="Expand"] [type="button"]
+    - div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="false"] [aria-selected="false"] [tabindex="-1"]
+    - input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"]
+    - svg .st-chev [aria-hidden="true"]
+    + button .st-ds-chev [aria-label="Collapse design system"] [title="Collapse"] [type="button"]
+    + button .st-search-clear [aria-label="Clear search"] "×"
+    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="true"] [aria-selected="false"] [tabindex="-1"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="PROJECT"] [aria-expanded="true"] [tabindex="-1"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="RUNTIME · GITIGNORED"] [aria-expanded="true"] [tabindex="-1"]
+    + div [role="group"]
+    + … 6 more
+  canvas: =
+## browser/canvas/text n
+  keydown: shell key="n" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +19 -5 #e9dd4b9eb7
+    - button .st-ds-chev [aria-label="Expand design system"] [title="Expand"] [type="button"]
+    - div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="false"] [aria-selected="false"] [tabindex="-1"]
+    - input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"]
+    - svg .st-chev [aria-hidden="true"]
+    + button .st-ds-chev [aria-label="Collapse design system"] [title="Collapse"] [type="button"]
+    + button .st-search-clear [aria-label="Clear search"] "×"
+    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="true"] [aria-selected="false"] [tabindex="-1"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="PROJECT"] [aria-expanded="true"] [tabindex="-1"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="RUNTIME · GITIGNORED"] [aria-expanded="true"] [tabindex="-1"]
+    + div [role="group"]
+    + … 6 more
+  canvas: =
+## browser/canvas/text Shift+Slash
+  keydown: shell ⇧key="Shift" default · shell ⇧key="?" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +17 -19 #9ce99aac5a
+    - button .has-delete-sibling.st-row-menu-btn [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
+    - button .is-sel.st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+    - button .st-ds-chev [aria-label="Expand design system"] [title="Expand"] [type="button"]
+    - button .st-ds-open [aria-label="Open demo design system view"] [title="Open the design system view"] [type="button"] [tabindex="-1"]
+    - button .st-row-del [aria-label="Delete canvas Home"] [title="Delete Home"] [type="button"]
+    - div .st-tree-item [role="treeitem"] [aria-label="Home"] [aria-selected="true"] [tabindex="0"]
+    - div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="false"] [aria-selected="false"] [tabindex="-1"]
+    - input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"]
+    - … 3 more
+    + button .st-search-clear [aria-label="Clear search"] "×"
+    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="PROJECT"] [aria-expanded="true"] [tabindex="0"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="RUNTIME · GITIGNORED"] [aria-expanded="true"] [tabindex="-1"]
+    + div [role="group"]
+    + div [role="group"]
+    + input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"] {value="?"}
+    + … 2 more
+  canvas: =
+## browser/canvas/text Meta+Shift+Slash
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="?" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text F1
+  keydown: shell key="F1" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text Shift+F1
+  keydown: shell ⇧key="Shift" default · shell ⇧key="F1" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text Escape
+  keydown: shell key="Escape" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +1 -1 #524c547090
+    - @focus input[data-testid="canvas-search"][aria-label="Filter files"][type="search"][placeholder="Search canvases…"]
+    + @focus body
+  canvas: =
+## browser/canvas/text Backspace
+  keydown: shell key="Backspace" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text Delete
+  keydown: shell key="Delete" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text Shift+Backspace
+  keydown: shell ⇧key="Shift" default · shell ⇧key="Backspace" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text Meta+Backspace
+  keydown: shell ⌘key="Meta" default · shell ⌘key="Backspace" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text Space
+  keydown: shell key=" " default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +17 -19 #d9fab974d8
+    - button .has-delete-sibling.st-row-menu-btn [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
+    - button .is-sel.st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+    - button .st-ds-chev [aria-label="Expand design system"] [title="Expand"] [type="button"]
+    - button .st-ds-open [aria-label="Open demo design system view"] [title="Open the design system view"] [type="button"] [tabindex="-1"]
+    - button .st-row-del [aria-label="Delete canvas Home"] [title="Delete Home"] [type="button"]
+    - div .st-tree-item [role="treeitem"] [aria-label="Home"] [aria-selected="true"] [tabindex="0"]
+    - div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="false"] [aria-selected="false"] [tabindex="-1"]
+    - input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"]
+    - … 3 more
+    + button .st-search-clear [aria-label="Clear search"] "×"
+    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="PROJECT"] [aria-expanded="true"] [tabindex="0"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="RUNTIME · GITIGNORED"] [aria-expanded="true"] [tabindex="-1"]
+    + div [role="group"]
+    + div [role="group"]
+    + input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"] {value=""}
+    + … 2 more
+  canvas: =
+## browser/canvas/text ArrowRight
+  keydown: shell key="ArrowRight" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text Meta+b
+  keydown: shell ⌘key="Meta" default · shell ⌘key="b" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text Meta+Equal
+  keydown: shell ⌘key="Meta" default · shell ⌘key="=" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text c
+  keydown: shell key="c" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +19 -14 #1ac3552019
+    - button .has-delete-sibling.st-row-menu-btn [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
+    - button .is-sel.st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+    - button .st-ds-chev [aria-label="Expand design system"] [title="Expand"] [type="button"]
+    - button .st-row-del [aria-label="Delete canvas Home"] [title="Delete Home"] [type="button"]
+    - div .st-tree-item [role="treeitem"] [aria-label="Home"] [aria-selected="true"] [tabindex="0"]
+    - div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="false"] [aria-selected="false"] [tabindex="-1"]
+    - input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"]
+    - svg .st-chev [aria-hidden="true"]
+    - … 1 more
+    + button .st-ds-chev [aria-label="Collapse design system"] [title="Collapse"] [type="button"]
+    + button .st-search-clear [aria-label="Clear search"] "×"
+    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="true"] [aria-selected="false"] [tabindex="-1"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="PROJECT"] [aria-expanded="true"] [tabindex="0"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="RUNTIME · GITIGNORED"] [aria-expanded="true"] [tabindex="-1"]
+    + div [role="group"]
+    + … 6 more
+  canvas: =
+## browser/canvas/text Digit0
+  keydown: shell key="0" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +17 -19 #f2299e3405
+    - button .has-delete-sibling.st-row-menu-btn [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
+    - button .is-sel.st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+    - button .st-ds-chev [aria-label="Expand design system"] [title="Expand"] [type="button"]
+    - button .st-ds-open [aria-label="Open demo design system view"] [title="Open the design system view"] [type="button"] [tabindex="-1"]
+    - button .st-row-del [aria-label="Delete canvas Home"] [title="Delete Home"] [type="button"]
+    - div .st-tree-item [role="treeitem"] [aria-label="Home"] [aria-selected="true"] [tabindex="0"]
+    - div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="false"] [aria-selected="false"] [tabindex="-1"]
+    - input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"]
+    - … 3 more
+    + button .st-search-clear [aria-label="Clear search"] "×"
+    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="PROJECT"] [aria-expanded="true"] [tabindex="0"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="RUNTIME · GITIGNORED"] [aria-expanded="true"] [tabindex="-1"]
+    + div [role="group"]
+    + div [role="group"]
+    + input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"] {value="0"}
+    + … 2 more
+  canvas: =
+## browser/canvas/text Meta+n
+  keydown: shell ⌘key="Meta" default · shell ⌘key="n" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/text Meta+c
+  keydown: shell ⌘key="Meta" default · shell ⌘key="c" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/shell/chrome Meta+z
+  keydown: shell ⌘key="Meta" default · shell ⌘key="z" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: (no document)
+## browser/shell/chrome Meta+Shift+Z
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="Z" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: (no document)
+## browser/shell/chrome Meta+y
+  keydown: shell ⌘key="Meta" default · shell ⌘key="y" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: (no document)
+## browser/shell/chrome Backspace
+  keydown: shell key="Backspace" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: (no document)
+## browser/shell/chrome s
+  keydown: shell key="s" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +50 -18 #daed14a778
+    - svg [aria-hidden="true"]
+  canvas: (no document)
+## browser/shell/chrome Meta+r
+  keydown: shell ⌘key="Meta" default · shell ⌘key="r" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: (no document)
+## browser/shell/chrome Meta+Shift+I
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="I" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +20 -0 #46eba78361
+    + aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
+    + button .is-active.st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="true"] [type="button"] "Inspector"
+    + button .st-docktab [data-testid="dock-tab-changes"] [role="tab"] [aria-selected="false"] [type="button"] "Changes"
+    + button .st-docktab [data-testid="dock-tab-comments"] [role="tab"] [aria-selected="false"] [type="button"] "Comments"
+    + button .st-iconbtn [aria-label="Close inspector"] [type="button"]
+    + div .st-docktabs [role="tablist"] [aria-label="right panels"]
+    + div .st-grip [role="separator"] [aria-label="Resize right panel"] [tabindex="0"]
+    + svg .st-grip-dots [aria-hidden="true"]
+    + … 3 more
+  canvas: (no document)
+## browser/canvas/select t
+  keydown: shell key="t" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +2 -64 #3571d53db6
+    - @focus select
+    - button .btn.btn--ghost.btn--sm.gi-rail-signin [data-testid="cloud-signin"] [type="button"] "Sign in to Maude Cloud"
+    - button .has-delete-sibling.st-row-menu-btn [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
+    - button .is-active.st-docktab [data-testid="dock-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Files"
+    - button .is-sel.st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+    - button .st-docktab [data-testid="dock-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
+    - button .st-ds-chev [aria-label="Expand design system"] [title="Expand"] [type="button"]
+    - button .st-ds-open [aria-label="Open demo design system view"] [title="Open the design system view"] [type="button"] [tabindex="-1"]
+    - … 32 more
+    + @focus iframe[data-testid="canvas-frame"]
+  canvas: +1 -1 #eb2ecfc69e
+    - @focus body
+    + @focus div.dc-canvas
+## browser/canvas/select Shift+Slash
+  keydown: shell ⇧key="Shift" default · shell ⇧key="?" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +226 -0 #ab125656a0
+    + div .so-overlay [role="dialog"] [aria-label="Keyboard shortcuts"] [aria-modal="true"]
+    + div .st-scrim [role="presentation"]
+  canvas: =
+## browser/canvas/select Meta+z
+  keydown: shell ⌘key="Meta" default · shell ⌘key="z" PREVENTED
+  to-shell: child undo-barrier
+  to-canvas: parent undo · parent undo-barrier-ok
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/select Backspace
+  keydown: shell key="Backspace" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/select Escape
+  keydown: shell key="Escape" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/select Meta+k
+  keydown: shell ⌘key="Meta" default · shell ⌘key="k" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +100 -1 #1133a808cc
+    - @focus select
+    + @focus input[aria-label="Command search"][placeholder="Type a command or search…"]
+    + div .st-palette [role="dialog"] [aria-label="Command palette"] [aria-modal="true"]
+    + div .st-scrim [role="presentation"]
+    + input [aria-label="Command search"] [placeholder="Type a command or search…"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + … 14 more
+  canvas: =
+## browser/canvas/range t
+  keydown: shell key="t" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/range Shift+Slash
+  keydown: shell ⇧key="Shift" default · shell ⇧key="?" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/range Meta+z
+  keydown: shell ⌘key="Meta" default · shell ⌘key="z" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/range Backspace
+  keydown: shell key="Backspace" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/range Escape
+  keydown: shell key="Escape" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/canvas/range Meta+k
+  keydown: shell ⌘key="Meta" default · shell ⌘key="k" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +100 -1 #49896aff58
+    - @focus input[type="range"]
+    + @focus input[aria-label="Command search"][placeholder="Type a command or search…"]
+    + div .st-palette [role="dialog"] [aria-label="Command palette"] [aria-modal="true"]
+    + div .st-scrim [role="presentation"]
+    + input [aria-label="Command search"] [placeholder="Type a command or search…"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + … 14 more
+  canvas: =
+## browser/in-canvas/canvas v
+  keydown: canvas key="v" PREVENTED
+  to-shell: child tool-cursor tool=move
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +2 -2 #3bfec5764e
+    - body [data-active-tool="browse"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="move"]
+    + div [data-active-tool="move"]
+## browser/in-canvas/canvas Shift+V
+  keydown: canvas ⇧key="Shift" default · canvas ⇧key="V" PREVENTED
+  to-shell: child tool-cursor tool=move
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +2 -2 #3bfec5764e
+    - body [data-active-tool="browse"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="move"]
+    + div [data-active-tool="move"]
+## browser/in-canvas/canvas h
+  keydown: canvas key="h" PREVENTED
+  to-shell: child tool-cursor tool=hand · child tool-cursor tool=hand
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +4 -5 #7b891684de
+    - body [data-active-tool="browse"]
+    - button [aria-label="Hand (H)"] [aria-pressed="false"] [title="Hand (H)"] [type="button"]
+    - div .dc-canvas [data-active-tool="move"] [tabindex="0"]
+    - div .dc-cv-halo.dc-cv-halo--hover [aria-hidden="true"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="hand"]
+    + button [aria-label="Hand (H)"] [aria-pressed="true"] [title="Hand (H)"] [type="button"]
+    + div .dc-canvas [data-active-tool="hand"] [tabindex="0"]
+    + div [data-active-tool="hand"]
+## browser/in-canvas/canvas c
+  keydown: canvas key="c" PREVENTED
+  to-shell: child tool-cursor tool=comment · child tool-cursor tool=comment
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +4 -4 #c73c55a8dc
+    - body [data-active-tool="browse"]
+    - button [aria-label="Comment (C)"] [aria-pressed="false"] [title="Comment (C)"] [type="button"]
+    - div .dc-canvas [data-active-tool="move"] [tabindex="0"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="comment"]
+    + button [aria-label="Comment (C)"] [aria-pressed="true"] [title="Comment (C)"] [type="button"]
+    + div .dc-canvas [data-active-tool="comment"] [tabindex="0"]
+    + div [data-active-tool="comment"]
+## browser/in-canvas/canvas b
+  keydown: canvas key="b" PREVENTED
+  to-shell: child tool-cursor tool=pen · child tool-cursor tool=pen
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +20 -4 #3e31e5698e
+    - body [data-active-tool="browse"]
+    - button [aria-label="Pen (B) · double-click to lock"] [aria-pressed="false"] [title="Pen (B) · double-click to lock"] [type="button"]
+    - div .dc-canvas [data-active-tool="move"] [tabindex="0"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="pen"]
+    + button .dc-annot-ibtn [aria-label="Thick stroke"] [aria-pressed="false"] [title="Thick (6px)"] [type="button"]
+    + button .dc-annot-ibtn [aria-label="Thin stroke"] [aria-pressed="true"] [title="Thin (3px)"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #30a46c"] [aria-pressed="false"] [title="Color #30a46c"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #3b82f6"] [aria-pressed="false"] [title="Color #3b82f6"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #7c7c7c"] [aria-pressed="false"] [title="Color #7c7c7c"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #8b5cf6"] [aria-pressed="false"] [title="Color #8b5cf6"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #e0a500"] [aria-pressed="false"] [title="Color #e0a500"] [type="button"]
+    + … 11 more
+## browser/in-canvas/canvas i
+  keydown: canvas key="i" PREVENTED
+  to-shell: child tool-cursor tool=highlighter · child tool-cursor tool=highlighter
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +18 -4 #03be9dff1b
+    - body [data-active-tool="browse"]
+    - button [aria-label="Highlighter (I) · double-click to lock"] [aria-pressed="false"] [title="Highlighter (I) · double-click to lock"] [type="button"]
+    - div .dc-canvas [data-active-tool="move"] [tabindex="0"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="highlighter"]
+    + button .dc-annot-ibtn [aria-label="Highlighter width 10"] [aria-pressed="false"] [title="Width 10px"] [type="button"]
+    + button .dc-annot-ibtn [aria-label="Highlighter width 18"] [aria-pressed="true"] [title="Width 18px"] [type="button"]
+    + button .dc-annot-ibtn [aria-label="Highlighter width 28"] [aria-pressed="false"] [title="Width 28px"] [type="button"]
+    + button .dc-annot-sw [aria-label="Highlighter color #7ce8a080"] [aria-pressed="false"] [title="Highlighter color #7ce8a080"] [type="button"]
+    + button .dc-annot-sw [aria-label="Highlighter color #7ec5ff80"] [aria-pressed="false"] [title="Highlighter color #7ec5ff80"] [type="button"]
+    + button .dc-annot-sw [aria-label="Highlighter color #ff9ed180"] [aria-pressed="false"] [title="Highlighter color #ff9ed180"] [type="button"]
+    + button .dc-annot-sw [aria-label="Highlighter color #ffe24d80"] [aria-pressed="true"] [title="Highlighter color #ffe24d80"] [type="button"]
+    + … 9 more
+## browser/in-canvas/canvas r
+  keydown: canvas key="r" PREVENTED
+  to-shell: child tool-cursor tool=shape · child tool-cursor tool=shape
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +32 -4 #0a135efaa5
+    - body [data-active-tool="browse"]
+    - button [aria-label="Shape (R) — rounded, click again for shape types"] [aria-pressed="false"] [aria-expanded="false"] [title="Shape (R) · double-click to lock"]
+    - div .dc-canvas [data-active-tool="move"] [tabindex="0"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="shape"]
+    + button .dc-annot-fill [aria-label="Fill #d9f1e2"] [aria-pressed="false"] [title="Fill #d9f1e2"] [type="button"]
+    + button .dc-annot-fill [aria-label="Fill #e0ebfd"] [aria-pressed="false"] [title="Fill #e0ebfd"] [type="button"]
+    + button .dc-annot-fill [aria-label="Fill #e7e7e7"] [aria-pressed="false"] [title="Fill #e7e7e7"] [type="button"]
+    + button .dc-annot-fill [aria-label="Fill #ebe3fc"] [aria-pressed="false"] [title="Fill #ebe3fc"] [type="button"]
+    + button .dc-annot-fill [aria-label="Fill #ededed"] [aria-pressed="false"] [title="Fill #ededed"] [type="button"]
+    + button .dc-annot-fill [aria-label="Fill #fbdfeb"] [aria-pressed="false"] [title="Fill #fbdfeb"] [type="button"]
+    + button .dc-annot-fill [aria-label="Fill #fbe0e1"] [aria-pressed="false"] [title="Fill #fbe0e1"] [type="button"]
+    + … 22 more
+## browser/in-canvas/canvas o
+  keydown: canvas key="o" PREVENTED
+  to-shell: child tool-cursor tool=shape · child tool-cursor tool=shape
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +32 -4 #0a135efaa5
+    - body [data-active-tool="browse"]
+    - button [aria-label="Shape (R) — rounded, click again for shape types"] [aria-pressed="false"] [aria-expanded="false"] [title="Shape (R) · double-click to lock"]
+    - div .dc-canvas [data-active-tool="move"] [tabindex="0"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="shape"]
+    + button .dc-annot-fill [aria-label="Fill #d9f1e2"] [aria-pressed="false"] [title="Fill #d9f1e2"] [type="button"]
+    + button .dc-annot-fill [aria-label="Fill #e0ebfd"] [aria-pressed="false"] [title="Fill #e0ebfd"] [type="button"]
+    + button .dc-annot-fill [aria-label="Fill #e7e7e7"] [aria-pressed="false"] [title="Fill #e7e7e7"] [type="button"]
+    + button .dc-annot-fill [aria-label="Fill #ebe3fc"] [aria-pressed="false"] [title="Fill #ebe3fc"] [type="button"]
+    + button .dc-annot-fill [aria-label="Fill #ededed"] [aria-pressed="false"] [title="Fill #ededed"] [type="button"]
+    + button .dc-annot-fill [aria-label="Fill #fbdfeb"] [aria-pressed="false"] [title="Fill #fbdfeb"] [type="button"]
+    + button .dc-annot-fill [aria-label="Fill #fbe0e1"] [aria-pressed="false"] [title="Fill #fbe0e1"] [type="button"]
+    + … 22 more
+## browser/in-canvas/canvas a
+  keydown: canvas key="a" PREVENTED
+  to-shell: child tool-cursor tool=arrow · child tool-cursor tool=arrow
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +20 -4 #4c04136512
+    - body [data-active-tool="browse"]
+    - button [aria-label="Arrow (A) · double-click to lock"] [aria-pressed="false"] [title="Arrow (A) · double-click to lock"] [type="button"]
+    - div .dc-canvas [data-active-tool="move"] [tabindex="0"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="arrow"]
+    + button .dc-annot-ibtn [aria-label="Thick stroke"] [aria-pressed="false"] [title="Thick (6px)"] [type="button"]
+    + button .dc-annot-ibtn [aria-label="Thin stroke"] [aria-pressed="true"] [title="Thin (3px)"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #30a46c"] [aria-pressed="false"] [title="Color #30a46c"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #3b82f6"] [aria-pressed="false"] [title="Color #3b82f6"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #7c7c7c"] [aria-pressed="false"] [title="Color #7c7c7c"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #8b5cf6"] [aria-pressed="false"] [title="Color #8b5cf6"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #e0a500"] [aria-pressed="false"] [title="Color #e0a500"] [type="button"]
+    + … 11 more
+## browser/in-canvas/canvas n
+  keydown: canvas key="n" PREVENTED
+  to-shell: child tool-cursor tool=sticky · child tool-cursor tool=sticky
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +16 -4 #b6204e10d8
+    - body [data-active-tool="browse"]
+    - button [aria-label="Sticky (N) · double-click to lock"] [aria-pressed="false"] [title="Sticky (N) · double-click to lock"] [type="button"]
+    - div .dc-canvas [data-active-tool="move"] [tabindex="0"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="sticky"]
+    + button .dc-annot-sw [aria-label="Sticky color #a9dbdb"] [aria-pressed="false"] [title="Sticky color #a9dbdb"] [type="button"]
+    + button .dc-annot-sw [aria-label="Sticky color #bcd2f0"] [aria-pressed="false"] [title="Sticky color #bcd2f0"] [type="button"]
+    + button .dc-annot-sw [aria-label="Sticky color #bfe3c0"] [aria-pressed="false"] [title="Sticky color #bfe3c0"] [type="button"]
+    + button .dc-annot-sw [aria-label="Sticky color #cfc4ec"] [aria-pressed="false"] [title="Sticky color #cfc4ec"] [type="button"]
+    + button .dc-annot-sw [aria-label="Sticky color #e6e4e0"] [aria-pressed="false"] [title="Sticky color #e6e4e0"] [type="button"]
+    + button .dc-annot-sw [aria-label="Sticky color #f3c4dd"] [aria-pressed="false"] [title="Sticky color #f3c4dd"] [type="button"]
+    + button .dc-annot-sw [aria-label="Sticky color #f7c5c0"] [aria-pressed="false"] [title="Sticky color #f7c5c0"] [type="button"]
+    + … 8 more
+## browser/in-canvas/canvas t
+  keydown: canvas key="t" PREVENTED
+  to-shell: child tool-cursor tool=text · child tool-cursor tool=text
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +15 -4 #4729bbdb4c
+    - body [data-active-tool="browse"]
+    - button [aria-label="Text (T) · double-click to lock"] [aria-pressed="false"] [title="Text (T) · double-click to lock"] [type="button"]
+    - div .dc-canvas [data-active-tool="move"] [tabindex="0"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="text"]
+    + button .dc-annot-sw [aria-label="Color #30a46c"] [aria-pressed="false"] [title="Color #30a46c"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #3b82f6"] [aria-pressed="false"] [title="Color #3b82f6"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #7c7c7c"] [aria-pressed="false"] [title="Color #7c7c7c"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #8b5cf6"] [aria-pressed="false"] [title="Color #8b5cf6"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #e0a500"] [aria-pressed="false"] [title="Color #e0a500"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #e5484d"] [aria-pressed="false"] [title="Color #e5484d"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #e93d82"] [aria-pressed="false"] [title="Color #e93d82"] [type="button"]
+    + … 7 more
+## browser/in-canvas/canvas Shift+S
+  keydown: canvas ⇧key="Shift" default · canvas ⇧key="S" PREVENTED
+  to-shell: child tool-cursor tool=section · child tool-cursor tool=section
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +15 -4 #998925ecbd
+    - body [data-active-tool="browse"]
+    - button [aria-label="Section (⇧S) · double-click to lock"] [aria-pressed="false"] [title="Section (⇧S) · double-click to lock"] [type="button"]
+    - div .dc-canvas [data-active-tool="move"] [tabindex="0"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="section"]
+    + button .dc-annot-sw [aria-label="Color #30a46c"] [aria-pressed="false"] [title="Color #30a46c"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #3b82f6"] [aria-pressed="false"] [title="Color #3b82f6"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #7c7c7c"] [aria-pressed="false"] [title="Color #7c7c7c"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #8b5cf6"] [aria-pressed="false"] [title="Color #8b5cf6"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #e0a500"] [aria-pressed="false"] [title="Color #e0a500"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #e5484d"] [aria-pressed="false"] [title="Color #e5484d"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #e93d82"] [aria-pressed="false"] [title="Color #e93d82"] [type="button"]
+    + … 7 more
+## browser/in-canvas/canvas s
+  keydown: canvas key="s" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas/canvas e
+  keydown: canvas key="e" PREVENTED
+  to-shell: child tool-cursor tool=eraser · child tool-cursor tool=eraser
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +15 -4 #978ba7ab5d
+    - body [data-active-tool="browse"]
+    - button [aria-label="Eraser (E) · double-click to lock"] [aria-pressed="false"] [title="Eraser (E) · double-click to lock"] [type="button"]
+    - div .dc-canvas [data-active-tool="move"] [tabindex="0"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="eraser"]
+    + button .dc-annot-sw [aria-label="Color #30a46c"] [aria-pressed="false"] [title="Color #30a46c"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #3b82f6"] [aria-pressed="false"] [title="Color #3b82f6"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #7c7c7c"] [aria-pressed="false"] [title="Color #7c7c7c"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #8b5cf6"] [aria-pressed="false"] [title="Color #8b5cf6"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #e0a500"] [aria-pressed="false"] [title="Color #e0a500"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #e5484d"] [aria-pressed="false"] [title="Color #e5484d"] [type="button"]
+    + button .dc-annot-sw [aria-label="Color #e93d82"] [aria-pressed="false"] [title="Color #e93d82"] [type="button"]
+    + … 7 more
+## browser/in-canvas/canvas Escape
+  keydown: canvas key="Escape" PREVENTED
+  to-shell: child force-clear · child tool-cursor tool=move
+  to-canvas: (none)
+  writes: (none)
+  shell: +4 -530 #4fe409d73a
+    - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+    - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Position section to original"] [title="reset Position"] [type="button"] [disabled]
+    - … 206 more
+  canvas: +3 -14 #b03267ac77
+    - body [data-active-tool="browse"]
+    - div .dc-cv-halo.dc-cv-halo--hover [aria-hidden="true"]
+    - div .dc-cv-halo.dc-cv-halo--selected [aria-hidden="true"]
+    - div .dc-elem-ctx-tb [role="toolbar"] [aria-label="Element actions"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="move"]
+    + div .dc-elem-ctx-tb [aria-hidden="true"]
+    + div [data-active-tool="move"]
+## browser/in-canvas/canvas Shift+Escape
+  keydown: canvas ⇧key="Shift" default · canvas ⇧key="Escape" PREVENTED
+  to-shell: child force-clear · child tool-cursor tool=move
+  to-canvas: (none)
+  writes: (none)
+  shell: +4 -530 #4fe409d73a
+    - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+    - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Position section to original"] [title="reset Position"] [type="button"] [disabled]
+    - … 206 more
+  canvas: +3 -14 #b03267ac77
+    - body [data-active-tool="browse"]
+    - div .dc-cv-halo.dc-cv-halo--hover [aria-hidden="true"]
+    - div .dc-cv-halo.dc-cv-halo--selected [aria-hidden="true"]
+    - div .dc-elem-ctx-tb [role="toolbar"] [aria-label="Element actions"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="move"]
+    + div .dc-elem-ctx-tb [aria-hidden="true"]
+    + div [data-active-tool="move"]
+## browser/in-canvas/canvas Meta+Escape
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="Escape" PREVENTED
+  to-shell: child force-clear · child tool-cursor tool=move
+  to-canvas: (none)
+  writes: (none)
+  shell: +4 -530 #4fe409d73a
+    - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+    - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Position section to original"] [title="reset Position"] [type="button"] [disabled]
+    - … 206 more
+  canvas: +3 -14 #b03267ac77
+    - body [data-active-tool="browse"]
+    - div .dc-cv-halo.dc-cv-halo--hover [aria-hidden="true"]
+    - div .dc-cv-halo.dc-cv-halo--selected [aria-hidden="true"]
+    - div .dc-elem-ctx-tb [role="toolbar"] [aria-label="Element actions"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="move"]
+    + div .dc-elem-ctx-tb [aria-hidden="true"]
+    + div [data-active-tool="move"]
+## browser/in-canvas/canvas Meta+z
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="z" PREVENTED
+  to-shell: child undo-barrier
+  to-canvas: parent undo-barrier-ok
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas/canvas Meta+Shift+Z
+  keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="Z" PREVENTED
+  to-shell: child undo-barrier
+  to-canvas: parent undo-barrier-ok
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas/canvas Meta+y
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="y" PREVENTED
+  to-shell: child undo-barrier
+  to-canvas: parent undo-barrier-ok
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas/canvas Meta+Shift+Y
+  keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="Y" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas/canvas Meta+k
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="k" PREVENTED
+  to-shell: child toggle-palette
+  to-canvas: (none)
+  writes: (none)
+  shell: +100 -1 #e8ac59c0b8
+    - @focus iframe[data-testid="canvas-frame"]
+    + @focus input[aria-label="Command search"][placeholder="Type a command or search…"]
+    + div .st-palette [role="dialog"] [aria-label="Command palette"] [aria-modal="true"]
+    + div .st-scrim [role="presentation"]
+    + input [aria-label="Command search"] [placeholder="Type a command or search…"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + … 14 more
+  canvas: +1 -1 #b1cbc9e41f
+    - @focus div.dc-canvas
+    + @focus body
+## browser/in-canvas/canvas Meta+Shift+K
+  keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="K" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas/canvas Meta+r
+  keydown: (none)
+  to-shell: child shell-shortcut id=reload · child loaded · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child canvas-rendered · child canvas-mounted
+  to-canvas: parent comments-set · parent theme · parent view-chrome
+  writes: (none)
+  shell: =
+  canvas: +0 -1 #57fc8cbb43
+    - div .dc-cv-halo.dc-cv-halo--hover [aria-hidden="true"]
+## browser/in-canvas/canvas Meta+Shift+R
+  keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="R" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas/canvas Meta+Shift+I
+  keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="I" PREVENTED
+  to-shell: child shell-shortcut id=inspector
+  to-canvas: (none)
+  writes: (none)
+  shell: +0 -542 #585932fa0a
+    - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
+    - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+    - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-active.st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="true"] [type="button"] "Inspector"
+    - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+    - … 215 more
+  canvas: =
+## browser/in-canvas/canvas Meta+Shift+M
+  keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="M" PREVENTED
+  to-shell: child shell-shortcut id=comments
+  to-canvas: (none)
+  writes: (none)
+  shell: +14 -536 #aeaa278242
+    - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
+    - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+    - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-active.st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="true"] [type="button"] "Inspector"
+    - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+    - … 211 more
+    + aside .st-rpanel [aria-label="Comments"]
+    + button .is-active.st-cm-filter [data-testid="comment-filter-open"] [role="tab"] [aria-selected="true"] [type="button"] "Open · 0"
+    + button .is-active.st-docktab [data-testid="dock-tab-comments"] [role="tab"] [aria-selected="true"] [type="button"] "Comments"
+    + button .st-cm-filter [data-testid="comment-filter-all"] [role="tab"] [aria-selected="false"] [type="button"] "All · 0"
+    + button .st-cm-filter [data-testid="comment-filter-resolved"] [role="tab"] [aria-selected="false"] [type="button"] "Resolved · 0"
+    + button .st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="false"] [type="button"] "Inspector"
+    + div .st-cm-filters [role="tablist"]
+  canvas: =
+## browser/in-canvas/canvas Meta+Shift+E
+  keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="E" PREVENTED
+  to-shell: child shell-shortcut id=export · child export-history-request id=exp-1
+  to-canvas: parent export-history-result id=exp-1
+  writes: (none)
+  shell: +63 -0 #c5f1eabd57
+    + button .btn.btn--primary [data-testid="export-submit"] [type="button"] "Export PNG"
+    + button .is-on.st-fmt [data-testid="export-format-png"] [type="button"]
+    + button .st-fmt [data-testid="export-format-canva"] [type="button"]
+    + button .st-fmt [data-testid="export-format-html"] [type="button"]
+    + button .st-fmt [data-testid="export-format-pdf"] [type="button"]
+    + button .st-fmt [data-testid="export-format-pptx"] [type="button"]
+    + button .st-fmt [data-testid="export-format-shadcn"] [type="button"]
+    + button .st-fmt [data-testid="export-format-svg"] [type="button"]
+    + … 15 more
+  canvas: =
+## browser/in-canvas/canvas Meta+Shift+H
+  keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="H" PREVENTED
+  to-shell: child shell-shortcut id=handoff
+  to-canvas: (none)
+  writes: (none)
+  shell: +47 -0 #48f9441cae
+    + button .btn.btn--primary [data-testid="export-submit"] [type="button"] "Copy handoff command"
+    + button .is-on.st-fmt [data-testid="export-format-shadcn"] [type="button"]
+    + button .st-fmt [data-testid="export-format-canva"] [type="button"]
+    + button .st-fmt [data-testid="export-format-html"] [type="button"]
+    + button .st-fmt [data-testid="export-format-pdf"] [type="button"]
+    + button .st-fmt [data-testid="export-format-png"] [type="button"]
+    + button .st-fmt [data-testid="export-format-pptx"] [type="button"]
+    + button .st-fmt [data-testid="export-format-svg"] [type="button"]
+    + … 14 more
+  canvas: =
+## browser/in-canvas/canvas Meta+Shift+T
+  keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="T" PREVENTED
+  to-shell: child shell-shortcut id=timeline
+  to-canvas: (none)
+  writes: (none)
+  shell: +11 -1 #365cb0780d
+    - @focus iframe[data-testid="canvas-frame"]
+    + @focus aside[data-testid="timeline-panel"][aria-label="Timeline"]
+    + aside .tl-panel [data-testid="timeline-panel"] [aria-label="Timeline"] [tabindex="-1"]
+    + button .tl-x [aria-label="Close timeline"] [type="button"] "×"
+    + div .tl-empty [data-testid="timeline-empty"] "No video-comp on this canvas. to start a new cut, use for an empty one, or make an artboard a yourself."
+    + div .tl-resize-handle [data-testid="timeline-resize-handle"] [title="Drag to resize"]
+  canvas: +1 -1 #b1cbc9e41f
+    - @focus div.dc-canvas
+    + @focus body
+## browser/in-canvas/canvas Meta+Shift+G
+  keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="G" PREVENTED
+  to-shell: child shell-shortcut id=changes
+  to-canvas: (none)
+  writes: (none)
+  shell: +18 -535 #c17bdcc4aa
+    - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
+    - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+    - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-active.st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="true"] [type="button"] "Inspector"
+    - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+    - … 209 more
+    + aside .gp-panel.st-rpanel [data-testid="git-panel"] [aria-label="Changes"]
+    + button .gp-tab [role="tab"] [aria-selected="false"] [type="button"] "History"
+    + button .gp-tab.is-active [role="tab"] [aria-selected="true"] [type="button"] "Changes"
+    + button .gp-x [aria-label="Close"] [type="button"] "×"
+    + button .is-active.st-docktab [data-testid="dock-tab-changes"] [role="tab"] [aria-selected="true"] [type="button"] "Changes"
+    + button .st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="false"] [type="button"] "Inspector"
+    + div .gp-tabs [role="tablist"] [aria-label="Changes and history"]
+    + span .gp-draft [data-testid="git-panel-repo"] [title="Your project and shared draft"] "main"
+  canvas: =
+## browser/in-canvas/canvas Meta+Shift+A
+  keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="A" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +25 -25 #98c75889ed
+    - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
+    - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
+    - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
+    - button [role="radio"] [aria-label="Left"] [aria-checked="false"] [title="Left"] [type="button"]
+    - input .st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - … 8 more
+    + button .is-active [role="radio"] [aria-label="Left"] [aria-checked="true"] [title="Left"] [type="button"]
+    + button .is-quiet.st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"] [disabled]
+    + button .is-quiet.st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"] [disabled]
+    + button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + … 8 more
+  canvas: +63 -3 #f06bee8f24
+    - div .dc-cv-halo.dc-cv-halo--selected [aria-hidden="true"]
+    - div .dc-multi-artboard-tb [aria-hidden="true"]
+    + button [aria-label="Align bottom"] [title="Align bottom"] [type="button"]
+    + button [aria-label="Align bottom"] [title="Align bottom"] [type="button"]
+    + button [aria-label="Align center horizontally"] [title="Align center (horizontal)"] [type="button"]
+    + button [aria-label="Align center horizontally"] [title="Align center (horizontal)"] [type="button"]
+    + button [aria-label="Align center vertically"] [title="Align center (vertical)"] [type="button"]
+    + button [aria-label="Align center vertically"] [title="Align center (vertical)"] [type="button"]
+    + button [aria-label="Align left"] [title="Align left"] [type="button"]
+    + button [aria-label="Align left"] [title="Align left"] [type="button"]
+    + … 53 more
+## browser/in-canvas/canvas Meta+Comma
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="," default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas/canvas Shift+Slash
+  keydown: canvas ⇧key="Shift" default · canvas ⇧key="?" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas/canvas F1
+  keydown: canvas key="F1" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas/canvas Slash
+  keydown: canvas key="/" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas/canvas Meta+f
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="f" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas/canvas Meta+e
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="e" PREVENTED
+  to-shell: child export-history-request id=exp-1
+  to-canvas: parent export-history-result id=exp-1
+  writes: (none)
+  shell: =
+  canvas: +38 -1 #c4be788e87
+    - @focus div.dc-canvas
+    + @focus button[type="button"]
+## browser/in-canvas/canvas Meta+0
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="0" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: PATCH (canvas)/_api/canvas-meta
+  shell: =
+  canvas: +1 -1 #aef82e1407
+    - @world translate(57.5241px, 362.116px)
+    + @world translate(48.2874px, 584.97px)
+## browser/in-canvas/canvas Meta+1
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="1" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: PATCH (canvas)/_api/canvas-meta
+  shell: =
+  canvas: +1 -1 #411f91cf5d
+    - @world translate(57.5241px, 362.116px)
+    + @world translate(-152.179px, 165px)
+## browser/in-canvas/canvas Meta+Equal
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="=" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: PATCH (canvas)/_api/canvas-meta
+  shell: =
+  canvas: +1 -1 #aa1c562f89
+    - @world translate(57.5241px, 362.116px)
+    + @world translate(-51.0097px, 260.097px)
+## browser/in-canvas/canvas Meta+Minus
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="-" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: PATCH (canvas)/_api/canvas-meta
+  shell: =
+  canvas: +1 -1 #394cce464f
+    - @world translate(57.5241px, 362.116px)
+    + @world translate(187.765px, 484.539px)
+## browser/in-canvas/canvas Shift+P
+  keydown: canvas ⇧key="Shift" default · canvas ⇧key="P" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +0 -2 #879c5f6812
+    - svg .dc-annot-svg [aria-hidden="true"]
+## browser/in-canvas/canvas Meta+a
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="a" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +25 -25 #0c5fb59671
+    - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
+    - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
+    - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
+    - button [role="radio"] [aria-label="Left"] [aria-checked="false"] [title="Left"] [type="button"]
+    - input .st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - … 8 more
+    + button .is-active [role="radio"] [aria-label="Left"] [aria-checked="true"] [title="Left"] [type="button"]
+    + button .is-quiet.st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"] [disabled]
+    + button .is-quiet.st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"] [disabled]
+    + button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + … 8 more
+  canvas: +63 -3 #f06bee8f24
+    - div .dc-cv-halo.dc-cv-halo--selected [aria-hidden="true"]
+    - div .dc-multi-artboard-tb [aria-hidden="true"]
+    + button [aria-label="Align bottom"] [title="Align bottom"] [type="button"]
+    + button [aria-label="Align bottom"] [title="Align bottom"] [type="button"]
+    + button [aria-label="Align center horizontally"] [title="Align center (horizontal)"] [type="button"]
+    + button [aria-label="Align center horizontally"] [title="Align center (horizontal)"] [type="button"]
+    + button [aria-label="Align center vertically"] [title="Align center (vertical)"] [type="button"]
+    + button [aria-label="Align center vertically"] [title="Align center (vertical)"] [type="button"]
+    + button [aria-label="Align left"] [title="Align left"] [type="button"]
+    + button [aria-label="Align left"] [title="Align left"] [type="button"]
+    + … 53 more
+## browser/in-canvas/canvas Meta+d
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="d" PREVENTED
+  to-shell: child duplicate-request id=3807c330 · child canvas-notice kind=undo · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded
+  to-canvas: parent record-edit · parent comments-set · parent theme · parent view-chrome
+  writes: PATCH (canvas)/_api/canvas-meta · POST /_api/duplicate-element
+  shell: +10 -4 #e7dd7fd789
+    - input .st-cp-fin [aria-label="transform-origin"] [placeholder="399.996px 107.524px"]
+    - input .st-cp-numin [role="spinbutton"] [aria-label="height"] {value="135"}
+    + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
+    + div .maude-notice [data-testid="notice-canvas-notice-0"]
+    + input .st-cp-fin [aria-label="transform-origin"] [placeholder="399.99px 108.097px"]
+    + input .st-cp-numin [role="spinbutton"] [aria-label="height"] {value="136"}
+  canvas: +6 -2 #75ed58c676
+    - @world translate(35.3995px, 362.116px)
+    - div .dc-cv-halo.dc-cv-halo--hover [aria-hidden="true"]
+    + @world translate(78.4671px, 584.97px)
+    + input [aria-label="Name"] [placeholder="Name"]
+## browser/in-canvas/canvas Meta+g
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="g" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas/canvas Backspace
+  keydown: canvas key="Backspace" PREVENTED
+  to-shell: child delete-request id=3807c330 · child canvas-notice kind=undo · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded
+  to-canvas: parent record-edit · parent selection-clear · parent comments-set · parent theme · parent view-chrome
+  writes: POST /_api/delete-element
+  shell: +10 -530 #83206e2caa
+    - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+    - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Position section to original"] [title="reset Position"] [type="button"] [disabled]
+    - … 206 more
+    + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
+    + div .maude-notice [data-testid="notice-canvas-notice-0"]
+  canvas: +1 -34 #86f3a5424a
+    - div .dc-cv-halo.dc-cv-halo--hover [aria-hidden="true"]
+    - div .dc-cv-halo.dc-cv-halo--selected [aria-hidden="true"]
+    - div .dc-elem-ctx-tb [role="toolbar"] [aria-label="Element actions"]
+    - input [aria-label="Name"] [placeholder="Name"]
+    + div .dc-elem-ctx-tb [aria-hidden="true"]
+## browser/in-canvas/canvas ArrowLeft
+  keydown: canvas key="ArrowLeft" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas/canvas BracketRight
+  keydown: canvas key="]" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas/canvas Enter
+  keydown: canvas key="Enter" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +26 -26 #5c5f811c6f
+    - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
+    - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
+    - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
+    - button [role="radio"] [aria-label="Left"] [aria-checked="false"] [title="Left"] [type="button"]
+    - input .st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - … 8 more
+    + button .is-active [role="radio"] [aria-label="Left"] [aria-checked="true"] [title="Left"] [type="button"]
+    + button .is-quiet.st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"] [disabled]
+    + button .is-quiet.st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"] [disabled]
+    + button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + … 8 more
+  canvas: =
+## browser/in-canvas/canvas Tab
+  keydown: canvas key="Tab" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas-text/canvas v
+  keydown: canvas key="v" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +1 -1 #4c8ff99a0b
+    - input [aria-label="Name"] [placeholder="Name"]
+    + input [aria-label="Name"] [placeholder="Name"] {value="v"}
+## browser/in-canvas-text/canvas h
+  keydown: canvas key="h" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +1 -1 #58490fca0e
+    - input [aria-label="Name"] [placeholder="Name"]
+    + input [aria-label="Name"] [placeholder="Name"] {value="h"}
+## browser/in-canvas-text/canvas n
+  keydown: canvas key="n" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +1 -1 #103517485b
+    - input [aria-label="Name"] [placeholder="Name"]
+    + input [aria-label="Name"] [placeholder="Name"] {value="n"}
+## browser/in-canvas-text/canvas t
+  keydown: canvas key="t" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +1 -1 #267c72f7ee
+    - input [aria-label="Name"] [placeholder="Name"]
+    + input [aria-label="Name"] [placeholder="Name"] {value="t"}
+## browser/in-canvas-text/canvas Shift+S
+  keydown: canvas ⇧key="Shift" default · canvas ⇧key="S" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +1 -1 #d13329fb23
+    - input [aria-label="Name"] [placeholder="Name"]
+    + input [aria-label="Name"] [placeholder="Name"] {value="S"}
+## browser/in-canvas-text/canvas Escape
+  keydown: canvas key="Escape" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas-text/canvas Meta+z
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="z" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas-text/canvas Meta+k
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="k" PREVENTED
+  to-shell: child toggle-palette
+  to-canvas: (none)
+  writes: (none)
+  shell: +100 -1 #e8ac59c0b8
+    - @focus iframe[data-testid="canvas-frame"]
+    + @focus input[aria-label="Command search"][placeholder="Type a command or search…"]
+    + div .st-palette [role="dialog"] [aria-label="Command palette"] [aria-modal="true"]
+    + div .st-scrim [role="presentation"]
+    + input [aria-label="Command search"] [placeholder="Type a command or search…"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + svg [aria-hidden="true"]
+    + … 14 more
+  canvas: +1 -1 #bdecb2bf78
+    - @focus input[aria-label="Name"][placeholder="Name"][data-cd-id="home-hero-input"]
+    + @focus body
+## browser/in-canvas-text/canvas Meta+r
+  keydown: (none)
+  to-shell: child shell-shortcut id=reload · child loaded · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child canvas-rendered · child canvas-mounted
+  to-canvas: parent comments-set · parent theme · parent view-chrome
+  writes: (none)
+  shell: =
+  canvas: +1 -2 #f4fa5be56e
+    - @focus input[aria-label="Name"][placeholder="Name"][data-cd-id="home-hero-input"]
+    - div .dc-cv-halo.dc-cv-halo--hover [aria-hidden="true"]
+    + @focus div.dc-canvas
+## browser/in-canvas-text/canvas Meta+Shift+E
+  keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="E" PREVENTED
+  to-shell: child shell-shortcut id=export · child export-history-request id=exp-1
+  to-canvas: parent export-history-result id=exp-1
+  writes: (none)
+  shell: +63 -0 #c5f1eabd57
+    + button .btn.btn--primary [data-testid="export-submit"] [type="button"] "Export PNG"
+    + button .is-on.st-fmt [data-testid="export-format-png"] [type="button"]
+    + button .st-fmt [data-testid="export-format-canva"] [type="button"]
+    + button .st-fmt [data-testid="export-format-html"] [type="button"]
+    + button .st-fmt [data-testid="export-format-pdf"] [type="button"]
+    + button .st-fmt [data-testid="export-format-pptx"] [type="button"]
+    + button .st-fmt [data-testid="export-format-shadcn"] [type="button"]
+    + button .st-fmt [data-testid="export-format-svg"] [type="button"]
+    + … 15 more
+  canvas: =
+## browser/in-canvas-text/canvas Meta+Shift+I
+  keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="I" PREVENTED
+  to-shell: child shell-shortcut id=inspector
+  to-canvas: (none)
+  writes: (none)
+  shell: +0 -548 #b4c6031296
+    - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
+    - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+    - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-active.st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="true"] [type="button"] "Inspector"
+    - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+    - … 219 more
+  canvas: =
+## browser/in-canvas-text/canvas Meta+a
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="a" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas-text/canvas Backspace
+  keydown: canvas key="Backspace" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas-text/canvas ArrowLeft
+  keydown: canvas key="ArrowLeft" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas-selected/canvas Escape
+  keydown: canvas key="Escape" PREVENTED
+  to-shell: child force-clear
+  to-canvas: (none)
+  writes: (none)
+  shell: +4 -530 #e14718e484
+    - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+    - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Position section to original"] [title="reset Position"] [type="button"] [disabled]
+    - … 206 more
+  canvas: +1 -12 #1b909e424a
+    - div .dc-cv-halo.dc-cv-halo--hover [aria-hidden="true"]
+    - div .dc-cv-halo.dc-cv-halo--selected [aria-hidden="true"]
+    - div .dc-elem-ctx-tb [role="toolbar"] [aria-label="Element actions"]
+    + div .dc-elem-ctx-tb [aria-hidden="true"]
+## browser/in-canvas-selected/canvas ArrowLeft
+  keydown: canvas key="ArrowLeft" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas-selected/canvas Shift+ArrowRight
+  keydown: canvas ⇧key="Shift" default · canvas ⇧key="ArrowRight" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas-selected/canvas Meta+d
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="d" PREVENTED
+  to-shell: child duplicate-request id=3807c330 · child canvas-notice kind=undo · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded
+  to-canvas: parent record-edit · parent comments-set · parent theme · parent view-chrome
+  writes: POST /_api/duplicate-element
+  shell: +7 -1 #750e6a9d6d
+    + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
+    + div .maude-notice [data-testid="notice-canvas-notice-0"]
+  canvas: +7 -3 #97e77cb6d8
+    - body [data-active-tool="move"]
+    - div .dc-cv-halo.dc-cv-halo--hover [aria-hidden="true"]
+    - div [data-active-tool="move"]
+    + body [data-active-tool="browse"]
+    + div [data-active-tool="browse"]
+    + input [aria-label="Name"] [placeholder="Name"]
+## browser/in-canvas-selected/canvas Meta+Alt+c
+  keydown: canvas ⌘key="Meta" default · canvas ⌥⌘key="Alt" default · canvas ⌥⌘key="c" PREVENTED
+  to-shell: child copy-style
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas-selected/canvas Backspace
+  keydown: canvas key="Backspace" PREVENTED
+  to-shell: child delete-request id=3807c330 · child canvas-notice kind=undo · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded
+  to-canvas: parent record-edit · parent selection-clear · parent comments-set · parent theme · parent view-chrome
+  writes: POST /_api/delete-element
+  shell: +10 -530 #83206e2caa
+    - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+    - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Position section to original"] [title="reset Position"] [type="button"] [disabled]
+    - … 206 more
+    + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
+    + div .maude-notice [data-testid="notice-canvas-notice-0"]
+  canvas: +3 -36 #0353d55e4f
+    - body [data-active-tool="move"]
+    - div .dc-cv-halo.dc-cv-halo--hover [aria-hidden="true"]
+    - div .dc-cv-halo.dc-cv-halo--selected [aria-hidden="true"]
+    - div .dc-elem-ctx-tb [role="toolbar"] [aria-label="Element actions"]
+    - div [data-active-tool="move"]
+    - input [aria-label="Name"] [placeholder="Name"]
+    + body [data-active-tool="browse"]
+    + div .dc-elem-ctx-tb [aria-hidden="true"]
+    + div [data-active-tool="browse"]
+## browser/in-canvas-selected/canvas Enter
+  keydown: canvas key="Enter" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +26 -26 #5c5f811c6f
+    - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
+    - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
+    - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
+    - button [role="radio"] [aria-label="Left"] [aria-checked="false"] [title="Left"] [type="button"]
+    - input .st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - … 8 more
+    + button .is-active [role="radio"] [aria-label="Left"] [aria-checked="true"] [title="Left"] [type="button"]
+    + button .is-quiet.st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"] [disabled]
+    + button .is-quiet.st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"] [disabled]
+    + button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + … 8 more
+  canvas: =
+## browser/in-canvas-selected/canvas Shift+Enter
+  keydown: canvas ⇧key="Shift" default · canvas ⇧key="Enter" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas-selected/canvas Tab
+  keydown: canvas key="Tab" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas-selected/canvas Meta+a
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="a" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +25 -25 #0c5fb59671
+    - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
+    - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
+    - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
+    - button [role="radio"] [aria-label="Left"] [aria-checked="false"] [title="Left"] [type="button"]
+    - input .st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - … 8 more
+    + button .is-active [role="radio"] [aria-label="Left"] [aria-checked="true"] [title="Left"] [type="button"]
+    + button .is-quiet.st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"] [disabled]
+    + button .is-quiet.st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"] [disabled]
+    + button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + … 8 more
+  canvas: +63 -3 #f06bee8f24
+    - div .dc-cv-halo.dc-cv-halo--selected [aria-hidden="true"]
+    - div .dc-multi-artboard-tb [aria-hidden="true"]
+    + button [aria-label="Align bottom"] [title="Align bottom"] [type="button"]
+    + button [aria-label="Align bottom"] [title="Align bottom"] [type="button"]
+    + button [aria-label="Align center horizontally"] [title="Align center (horizontal)"] [type="button"]
+    + button [aria-label="Align center horizontally"] [title="Align center (horizontal)"] [type="button"]
+    + button [aria-label="Align center vertically"] [title="Align center (vertical)"] [type="button"]
+    + button [aria-label="Align center vertically"] [title="Align center (vertical)"] [type="button"]
+    + button [aria-label="Align left"] [title="Align left"] [type="button"]
+    + button [aria-label="Align left"] [title="Align left"] [type="button"]
+    + … 53 more
+## browser/in-canvas-selected/canvas Meta+Shift+A
+  keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="A" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +25 -25 #0c5fb59671
+    - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
+    - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
+    - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
+    - button [role="radio"] [aria-label="Left"] [aria-checked="false"] [title="Left"] [type="button"]
+    - input .st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - … 8 more
+    + button .is-active [role="radio"] [aria-label="Left"] [aria-checked="true"] [title="Left"] [type="button"]
+    + button .is-quiet.st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"] [disabled]
+    + button .is-quiet.st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"] [disabled]
+    + button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + … 8 more
+  canvas: +63 -3 #f06bee8f24
+    - div .dc-cv-halo.dc-cv-halo--selected [aria-hidden="true"]
+    - div .dc-multi-artboard-tb [aria-hidden="true"]
+    + button [aria-label="Align bottom"] [title="Align bottom"] [type="button"]
+    + button [aria-label="Align bottom"] [title="Align bottom"] [type="button"]
+    + button [aria-label="Align center horizontally"] [title="Align center (horizontal)"] [type="button"]
+    + button [aria-label="Align center horizontally"] [title="Align center (horizontal)"] [type="button"]
+    + button [aria-label="Align center vertically"] [title="Align center (vertical)"] [type="button"]
+    + button [aria-label="Align center vertically"] [title="Align center (vertical)"] [type="button"]
+    + button [aria-label="Align left"] [title="Align left"] [type="button"]
+    + button [aria-label="Align left"] [title="Align left"] [type="button"]
+    + … 53 more
+## browser/in-canvas-selected/canvas Meta+z
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="z" PREVENTED
+  to-shell: child undo-barrier
+  to-canvas: parent undo-barrier-ok
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/in-canvas-selected/canvas h
+  keydown: canvas key="h" PREVENTED
+  to-shell: child tool-cursor tool=hand · child tool-cursor tool=hand
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +4 -5 #6c579041e9
+    - body [data-active-tool="move"]
+    - button [aria-label="Hand (H)"] [aria-pressed="false"] [title="Hand (H)"] [type="button"]
+    - div .dc-canvas [data-active-tool="move"] [tabindex="0"]
+    - div .dc-cv-halo.dc-cv-halo--hover [aria-hidden="true"]
+    - div [data-active-tool="move"]
+    + body [data-active-tool="hand"]
+    + button [aria-label="Hand (H)"] [aria-pressed="true"] [title="Hand (H)"] [type="button"]
+    + div .dc-canvas [data-active-tool="hand"] [tabindex="0"]
+    + div [data-active-tool="hand"]
+## browser/timeline/chrome Space
+  keydown: shell key=" " PREVENTED
+  to-shell: (none)
+  to-canvas: parent timeline-mute id=comp-hero muted=false · parent timeline-loop id=comp-hero loop=false · parent timeline-play id=comp-hero
+  writes: (none)
+  shell: +1 -1 #81175d210f
+    - button .tl-btn.tl-btn-primary [data-testid="timeline-playpause"] [aria-label="Play"] [aria-pressed="false"] [type="button"]
+    + button .tl-btn.tl-btn-primary [data-testid="timeline-playpause"] [aria-label="Pause"] [aria-pressed="true"] [type="button"]
+  canvas: =
+## browser/timeline/chrome ArrowRight
+  keydown: shell key="ArrowRight" PREVENTED
+  to-shell: (none)
+  to-canvas: parent timeline-seek id=comp-hero frame=1
+  writes: (none)
+  shell: +3 -3 #d63553605e
+  canvas: =
+## browser/timeline/chrome ArrowLeft
+  keydown: shell key="ArrowLeft" PREVENTED
+  to-shell: (none)
+  to-canvas: parent timeline-seek id=comp-hero frame=0
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/timeline/chrome Shift+ArrowRight
+  keydown: shell ⇧key="Shift" default · shell ⇧key="ArrowRight" PREVENTED
+  to-shell: (none)
+  to-canvas: parent timeline-seek id=comp-hero frame=30
+  writes: (none)
+  shell: +3 -3 #2b8364f5d0
+  canvas: =
+## browser/timeline/chrome Home
+  keydown: shell key="Home" PREVENTED
+  to-shell: (none)
+  to-canvas: parent timeline-seek id=comp-hero frame=0
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/timeline/chrome End
+  keydown: shell key="End" PREVENTED
+  to-shell: (none)
+  to-canvas: parent timeline-seek id=comp-hero frame=89
+  writes: (none)
+  shell: +3 -3 #e4fe0bac71
+  canvas: =
+## browser/timeline/chrome Period
+  keydown: shell key="." PREVENTED
+  to-shell: (none)
+  to-canvas: parent timeline-seek id=comp-hero frame=89
+  writes: (none)
+  shell: +3 -3 #e4fe0bac71
+  canvas: =
+## browser/timeline/chrome Comma
+  keydown: shell key="," PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/timeline/chrome Meta+z
+  keydown: shell ⌘key="Meta" default · shell ⌘key="z" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +6 -0 #5cab20c7a2
+    + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
+    + div .maude-notice [data-testid="notice-notice-2"]
+  canvas: =
+## browser/timeline/chrome Meta+Shift+Z
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="Z" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +6 -0 #2c11235b19
+    + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
+    + div .maude-notice [data-testid="notice-notice-2"]
+  canvas: =
+## browser/timeline/chrome Meta+y
+  keydown: shell ⌘key="Meta" default · shell ⌘key="y" PREVENTED
+  to-shell: child undo-barrier
+  to-canvas: parent redo · parent undo-barrier-ok
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/timeline/chrome Meta+b
+  keydown: shell ⌘key="Meta" default · shell ⌘key="b" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +6 -0 #a27da6a95a
+    + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
+    + div .maude-notice [data-testid="notice-notice-2"]
+  canvas: =
+## browser/timeline/chrome Escape
+  keydown: shell key="Escape" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/timeline/chrome Backspace
+  keydown: shell key="Backspace" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/timeline/chrome c
+  keydown: shell key="c" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +2 -2 #65eb8ba359
+    - aside .tl-panel [data-testid="timeline-panel"] [aria-label="Timeline"] [tabindex="-1"]
+    - button .tl-btn [data-testid="timeline-comment-tool"] [aria-label="Comment tool"] [aria-pressed="false"] [title="Comment tool — click anywhere on the timeline to
+    + aside .is-commenting.tl-panel [data-testid="timeline-panel"] [aria-label="Timeline"] [tabindex="-1"]
+    + button .is-on.tl-btn [data-testid="timeline-comment-tool"] [aria-label="Comment tool"] [aria-pressed="true"] [title="Comment tool — click anywhere on the timeli
+  canvas: =
+## browser/timeline/chrome Digit0
+  keydown: shell key="0" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/timeline/chrome Meta+Equal
+  keydown: shell ⌘key="Meta" default · shell ⌘key="=" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +1 -1 #3190740d70
+    - input .tl-zoom [data-testid="timeline-zoom"] [aria-label="Timeline zoom"] [title="Zoom (⌘+/⌘−, 0 = fit)"] [type="range"] {value="0"}
+    + input .tl-zoom [data-testid="timeline-zoom"] [aria-label="Timeline zoom"] [title="Zoom (⌘+/⌘−, 0 = fit)"] [type="range"] {value="40"}
+  canvas: =
+## browser/timeline/chrome Meta+Minus
+  keydown: shell ⌘key="Meta" default · shell ⌘key="-" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/timeline/chrome t
+  keydown: shell key="t" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +2 -64 #ec907418a3
+    - @focus body
+    - button .btn.btn--ghost.btn--sm.gi-rail-signin [data-testid="cloud-signin"] [type="button"] "Sign in to Maude Cloud"
+    - button .has-delete-sibling.st-row-menu-btn [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
+    - button .is-active.st-docktab [data-testid="dock-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Files"
+    - button .is-sel.st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+    - button .st-docktab [data-testid="dock-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
+    - button .st-ds-chev [aria-label="Expand design system"] [title="Expand"] [type="button"]
+    - button .st-ds-open [aria-label="Open demo design system view"] [title="Open the design system view"] [type="button"] [tabindex="-1"]
+    - … 32 more
+    + @focus iframe[data-testid="canvas-frame"]
+  canvas: +1 -1 #eb2ecfc69e
+    - @focus body
+    + @focus div.dc-canvas
+## browser/timeline/chrome Meta+Shift+T
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="T" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +0 -77 #66d83c47eb
+    - aside .tl-panel [data-testid="timeline-panel"] [aria-label="Timeline"] [tabindex="-1"]
+    - button .is-on.tl-btn [data-testid="timeline-mute"] [aria-label="Mute"] [aria-pressed="true"] [title="Mute audio"] [type="button"]
+    - button .tl-btn [aria-label="Jump to start"] [type="button"]
+    - button .tl-btn [data-testid="timeline-add-image"] [aria-label="Add image overlay"] [title="Add an image overlay at the playhead"] [type="button"]
+    - button .tl-btn [data-testid="timeline-add-title"] [aria-label="Add title overlay"] [title="Add a title overlay at the playhead"] [type="button"]
+    - button .tl-btn [data-testid="timeline-comment-tool"] [aria-label="Comment tool"] [aria-pressed="false"] [title="Comment tool — click anywhere on the timeline to
+    - button .tl-btn [data-testid="timeline-loop"] [aria-label="Loop"] [aria-pressed="false"] [type="button"]
+    - button .tl-btn [data-testid="timeline-placeholder-add"] [aria-label="Add AI placeholder clip"] [title="Add an AI placeholder clip at the end of the storyline"] 
+    - … 18 more
+  canvas: =
+## browser/timeline/text Space
+  keydown: shell key=" " default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +17 -19 #d9fab974d8
+    - button .has-delete-sibling.st-row-menu-btn [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
+    - button .is-sel.st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+    - button .st-ds-chev [aria-label="Expand design system"] [title="Expand"] [type="button"]
+    - button .st-ds-open [aria-label="Open demo design system view"] [title="Open the design system view"] [type="button"] [tabindex="-1"]
+    - button .st-row-del [aria-label="Delete canvas Home"] [title="Delete Home"] [type="button"]
+    - div .st-tree-item [role="treeitem"] [aria-label="Home"] [aria-selected="true"] [tabindex="0"]
+    - div .st-tree-item [role="treeitem"] [aria-label="demo"] [aria-expanded="false"] [aria-selected="false"] [tabindex="-1"]
+    - input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"]
+    - … 3 more
+    + button .st-search-clear [aria-label="Clear search"] "×"
+    + button .st-tree-sec-hd [data-testid="tree-section-project"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + button .st-tree-sec-hd [data-testid="tree-section-runtime"] [aria-expanded="true"] [title="Collapse section"] [type="button"] [tabindex="-1"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="PROJECT"] [aria-expanded="true"] [tabindex="0"]
+    + div .st-tree-item.st-tree-section [role="treeitem"] [aria-label="RUNTIME · GITIGNORED"] [aria-expanded="true"] [tabindex="-1"]
+    + div [role="group"]
+    + div [role="group"]
+    + input [data-testid="canvas-search"] [aria-label="Filter files"] [type="search"] [placeholder="Search canvases…"] {value=""}
+    + … 2 more
+  canvas: =
+## browser/timeline/text ArrowRight
+  keydown: shell key="ArrowRight" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/timeline/text Meta+z
+  keydown: shell ⌘key="Meta" default · shell ⌘key="z" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/timeline/text Meta+b
+  keydown: shell ⌘key="Meta" default · shell ⌘key="b" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/timeline/text Escape
+  keydown: shell key="Escape" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +1 -1 #524c547090
+    - @focus input[data-testid="canvas-search"][aria-label="Filter files"][type="search"][placeholder="Search canvases…"]
+    + @focus body
+  canvas: =
+## browser/timeline/text Backspace
+  keydown: shell key="Backspace" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/timeline/select Space
+  keydown: shell key=" " default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/timeline/select ArrowRight
+  keydown: shell key="ArrowRight" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/timeline/select Meta+z
+  keydown: shell ⌘key="Meta" default · shell ⌘key="z" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/timeline/select Backspace
+  keydown: shell key="Backspace" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/timeline/range Space
+  keydown: shell key=" " PREVENTED
+  to-shell: (none)
+  to-canvas: parent timeline-mute id=comp-hero muted=false · parent timeline-loop id=comp-hero loop=false · parent timeline-play id=comp-hero
+  writes: (none)
+  shell: +1 -1 #81175d210f
+    - button .tl-btn.tl-btn-primary [data-testid="timeline-playpause"] [aria-label="Play"] [aria-pressed="false"] [type="button"]
+    + button .tl-btn.tl-btn-primary [data-testid="timeline-playpause"] [aria-label="Pause"] [aria-pressed="true"] [type="button"]
+  canvas: =
+## browser/timeline/range ArrowRight
+  keydown: shell key="ArrowRight" PREVENTED
+  to-shell: (none)
+  to-canvas: parent timeline-seek id=comp-hero frame=1
+  writes: (none)
+  shell: +3 -3 #d63553605e
+  canvas: =
+## browser/timeline/range Meta+z
+  keydown: shell ⌘key="Meta" default · shell ⌘key="z" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +6 -0 #5cab20c7a2
+    + button .maude-notice-close [aria-label="Dismiss notification"] [type="button"] "×"
+    + div .maude-notice [data-testid="notice-notice-2"]
+  canvas: =
+## browser/timeline/range Backspace
+  keydown: shell key="Backspace" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/timeline/range t
+  keydown: shell key="t" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## browser/presenting/chrome Escape
+  keydown: shell key="Escape" PREVENTED
+  to-shell: (none)
+  to-canvas: parent view-chrome · parent comments-set
+  writes: (none)
+  shell: +1 -5 #21a4d5302c
+    - button .st-present-exit [aria-label="Exit presentation mode"] [title="Exit presentation mode (Esc)"] [type="button"]
+    - svg [aria-hidden="true"]
+  canvas: +46 -0 #c12e232389
+    + button [aria-label="Arrow (A) · double-click to lock"] [aria-pressed="false"] [title="Arrow (A) · double-click to lock"] [type="button"]
+    + button [aria-label="Comment (C)"] [aria-pressed="false"] [title="Comment (C)"] [type="button"]
+    + button [aria-label="Eraser (E) · double-click to lock"] [aria-pressed="false"] [title="Eraser (E) · double-click to lock"] [type="button"]
+    + button [aria-label="Export (⌘E)"] [title="Export (⌘E)"] [type="button"]
+    + button [aria-label="Hand (H)"] [aria-pressed="false"] [title="Hand (H)"] [type="button"]
+    + button [aria-label="Highlighter (I) · double-click to lock"] [aria-pressed="false"] [title="Highlighter (I) · double-click to lock"] [type="button"]
+    + button [aria-label="Insert element — Div, Text, or Image"] [aria-expanded="false"] [title="Insert element (appends to the active artboard)"] [type="button"]
+    + button [aria-label="Pen (B) · double-click to lock"] [aria-pressed="false"] [title="Pen (B) · double-click to lock"] [type="button"]
+    + … 29 more
+## browser/presenting/chrome Shift+Escape
+  keydown: shell ⇧key="Shift" default · shell ⇧key="Escape" PREVENTED
+  to-shell: (none)
+  to-canvas: parent view-chrome · parent comments-set
+  writes: (none)
+  shell: +1 -5 #21a4d5302c
+    - button .st-present-exit [aria-label="Exit presentation mode"] [title="Exit presentation mode (Esc)"] [type="button"]
+    - svg [aria-hidden="true"]
+  canvas: +46 -0 #c12e232389
+    + button [aria-label="Arrow (A) · double-click to lock"] [aria-pressed="false"] [title="Arrow (A) · double-click to lock"] [type="button"]
+    + button [aria-label="Comment (C)"] [aria-pressed="false"] [title="Comment (C)"] [type="button"]
+    + button [aria-label="Eraser (E) · double-click to lock"] [aria-pressed="false"] [title="Eraser (E) · double-click to lock"] [type="button"]
+    + button [aria-label="Export (⌘E)"] [title="Export (⌘E)"] [type="button"]
+    + button [aria-label="Hand (H)"] [aria-pressed="false"] [title="Hand (H)"] [type="button"]
+    + button [aria-label="Highlighter (I) · double-click to lock"] [aria-pressed="false"] [title="Highlighter (I) · double-click to lock"] [type="button"]
+    + button [aria-label="Insert element — Div, Text, or Image"] [aria-expanded="false"] [title="Insert element (appends to the active artboard)"] [type="button"]
+    + button [aria-label="Pen (B) · double-click to lock"] [aria-pressed="false"] [title="Pen (B) · double-click to lock"] [type="button"]
+    + … 29 more
+## browser/presenting/chrome t
+  keydown: shell key="t" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +1 -63 #44bb75fcc1
+    - button .btn.btn--ghost.btn--sm.gi-rail-signin [data-testid="cloud-signin"] [type="button"] "Sign in to Maude Cloud"
+    - button .has-delete-sibling.st-row-menu-btn [data-testid="tree-row-menu-ui-home"] [aria-label="Actions for Home"] [title="Actions for Home"] [type="button"]
+    - button .is-active.st-docktab [data-testid="dock-tab-tree"] [role="tab"] [aria-selected="true"] [type="button"] "Files"
+    - button .is-sel.st-row [data-testid="canvas-row-ui-home"] [title=".design/ui/Home.tsx"] [type="button"] [tabindex="-1"]
+    - button .st-docktab [data-testid="dock-tab-layers"] [role="tab"] [aria-selected="false"] [type="button"] "Layers"
+    - button .st-ds-chev [aria-label="Expand design system"] [title="Expand"] [type="button"]
+    - button .st-ds-open [aria-label="Open demo design system view"] [title="Open the design system view"] [type="button"] [tabindex="-1"]
+    - button .st-iconbtn [aria-label="Collapse sidebar"] [type="button"]
+    - … 31 more
+  canvas: =
+## browser/presenting/text Escape
+  keydown: canvas key="Escape" PREVENTED
+  to-shell: child force-clear · child tool-cursor tool=move
+  to-canvas: (none)
+  writes: (none)
+  shell: +4 -530 #4fe409d73a
+    - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+    - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Position section to original"] [title="reset Position"] [type="button"] [disabled]
+    - … 206 more
+  canvas: +3 -13 #ac75214097
+    - body [data-active-tool="browse"]
+    - div .dc-cv-halo.dc-cv-halo--selected [aria-hidden="true"]
+    - div .dc-elem-ctx-tb [role="toolbar"] [aria-label="Element actions"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="move"]
+    + div .dc-elem-ctx-tb [aria-hidden="true"]
+    + div [data-active-tool="move"]
+## browser/presenting/canvas Escape
+  keydown: canvas key="Escape" PREVENTED
+  to-shell: child force-clear · child tool-cursor tool=move
+  to-canvas: (none)
+  writes: (none)
+  shell: +4 -530 #4fe409d73a
+    - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+    - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Appearance section to original"] [title="reset Appearance"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Layout section to original"] [title="reset Layout"] [type="button"] [disabled]
+    - button .is-quiet.st-cp-secreset [aria-label="reset Position section to original"] [title="reset Position"] [type="button"] [disabled]
+    - … 206 more
+  canvas: +3 -14 #b03267ac77
+    - body [data-active-tool="browse"]
+    - div .dc-cv-halo.dc-cv-halo--hover [aria-hidden="true"]
+    - div .dc-cv-halo.dc-cv-halo--selected [aria-hidden="true"]
+    - div .dc-elem-ctx-tb [role="toolbar"] [aria-label="Element actions"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="move"]
+    + div .dc-elem-ctx-tb [aria-hidden="true"]
+    + div [data-active-tool="move"]
+## tauri/canvas/chrome Meta+Shift+A
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="A" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +4 -539 #aa89670780
+    - aside .st-rpanel [aria-label="Assistant"] [aria-hidden="true"]
+    - aside .st-rpanel [data-testid="inspector-panel"] [aria-label="Inspector"] [data-tour="inspector"]
+    - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
+    - button .is-active [role="radio"] [aria-label="Visible"] [aria-checked="true"] [title="Visible"] [type="button"]
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-active.st-cp-segbtn [role="radio"] [aria-checked="true"] [type="button"] "fixed"
+    - button .is-active.st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="true"] [type="button"] "Inspector"
+    - button .is-quiet.st-cp-secreset [aria-label="reset Advanced section to original"] [title="reset Advanced"] [type="button"] [disabled]
+    - … 213 more
+    + aside .st-rpanel [aria-label="Assistant"]
+    + button .is-active.st-docktab [data-testid="dock-tab-assistant"] [role="tab"] [aria-selected="true"] [type="button"] "Assistant"
+    + button .st-assistant [data-testid="assistant-toggle"] [aria-label="Assistant"] [data-active="true"] [data-unseen="false"] [data-busy="false"] [type="button"]
+    + button .st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="false"] [type="button"] "Inspector"
+  canvas: =
+## tauri/canvas/chrome Meta+n
+  keydown: shell ⌘key="Meta" default · shell ⌘key="n" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## tauri/canvas/chrome Meta+Comma
+  keydown: shell ⌘key="Meta" default · shell ⌘key="," PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +359 -0 #3131081744
+    + button .is-active.st-settings-tab [role="tab"] [aria-selected="true"] [type="button"] [tabindex="0"] "Appearance"
+    + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+    + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Left"
+    + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+    + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+    + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+    + button .is-active.st-sidebtn [role="radio"] [aria-checked="true"] [type="button"] "Right"
+    + button .rdy-copy [aria-label="Copy the install command"] [type="button"] "Copy"
+    + … 57 more
+  canvas: =
+## tauri/canvas/text Meta+Shift+A
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="A" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +10 -3 #48447abfee
+    - aside .st-rpanel [aria-label="Assistant"] [aria-hidden="true"]
+    - button .st-assistant [data-testid="assistant-toggle"] [aria-label="Assistant — new reply"] [data-active="false"] [data-unseen="true"] [data-busy="false"] [type=
+    + aside .st-rpanel [aria-label="Assistant"]
+    + button .is-active.st-docktab [data-testid="dock-tab-assistant"] [role="tab"] [aria-selected="true"] [type="button"] "Assistant"
+    + button .st-assistant [data-testid="assistant-toggle"] [aria-label="Assistant"] [data-active="true"] [data-unseen="false"] [data-busy="false"] [type="button"]
+    + button .st-docktab [data-testid="dock-tab-changes"] [role="tab"] [aria-selected="false"] [type="button"] "Changes"
+    + button .st-docktab [data-testid="dock-tab-comments"] [role="tab"] [aria-selected="false"] [type="button"] "Comments"
+    + button .st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="false"] [type="button"] "Inspector"
+    + div .st-docktabs [role="tablist"] [aria-label="right panels"]
+    + div .st-grip [role="separator"] [aria-label="Resize right panel"] [tabindex="0"]
+    + … 1 more
+  canvas: =
+## tauri/in-canvas/canvas Meta+Shift+A
+  keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="A" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +25 -25 #98c75889ed
+    - button .is-resettable.st-cp-prov.st-cp-prov--raw [aria-label="raw override · double-click to reset"] [title="raw override · double-click to reset"] [type="butto
+    - button .st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"]
+    - button .st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"]
+    - button [role="radio"] [aria-label="Left"] [aria-checked="false"] [title="Left"] [type="button"]
+    - input .st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - input .st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="40"}
+    - … 8 more
+    + button .is-active [role="radio"] [aria-label="Left"] [aria-checked="true"] [title="Left"] [type="button"]
+    + button .is-quiet.st-cp-secreset [aria-label="reset Spacing section to original"] [title="reset Spacing"] [type="button"] [disabled]
+    + button .is-quiet.st-cp-secreset [aria-label="reset Typography section to original"] [title="reset Typography"] [type="button"] [disabled]
+    + button .st-cp-prov.st-cp-prov--inherit [aria-label="inherited"] [title="inherited"] [type="button"] [tabindex="-1"]
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pb.st-cp-scrub [aria-label="padding-bottom"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pl.st-cp-scrub [aria-label="padding-left"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pr.st-cp-scrub [aria-label="padding-right"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + input .is-zero.st-cp-boxv.st-cp-boxv--pt.st-cp-scrub [aria-label="padding-top"] [title="drag to scrub · alt = symmetric · alt+shift = all sides"] {value="0"}
+    + … 8 more
+  canvas: +63 -3 #f06bee8f24
+    - div .dc-cv-halo.dc-cv-halo--selected [aria-hidden="true"]
+    - div .dc-multi-artboard-tb [aria-hidden="true"]
+    + button [aria-label="Align bottom"] [title="Align bottom"] [type="button"]
+    + button [aria-label="Align bottom"] [title="Align bottom"] [type="button"]
+    + button [aria-label="Align center horizontally"] [title="Align center (horizontal)"] [type="button"]
+    + button [aria-label="Align center horizontally"] [title="Align center (horizontal)"] [type="button"]
+    + button [aria-label="Align center vertically"] [title="Align center (vertical)"] [type="button"]
+    + button [aria-label="Align center vertically"] [title="Align center (vertical)"] [type="button"]
+    + button [aria-label="Align left"] [title="Align left"] [type="button"]
+    + button [aria-label="Align left"] [title="Align left"] [type="button"]
+    + … 53 more
+## tauri/in-canvas/canvas Meta+n
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="n" default
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## viewer/canvas/chrome Meta+Comma
+  keydown: shell ⌘key="Meta" default · shell ⌘key="," PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## viewer/canvas/chrome Meta+z
+  keydown: shell ⌘key="Meta" default · shell ⌘key="z" PREVENTED
+  to-shell: child undo-barrier
+  to-canvas: parent undo · parent undo-barrier-ok
+  writes: (none)
+  shell: =
+  canvas: =
+## viewer/canvas/chrome n
+  keydown: shell key="n" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## viewer/canvas/chrome Meta+Shift+E
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="E" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: +63 -0 #c5f1eabd57
+    + button .btn.btn--primary [data-testid="export-submit"] [type="button"] "Export PNG"
+    + button .is-on.st-fmt [data-testid="export-format-png"] [type="button"]
+    + button .st-fmt [data-testid="export-format-canva"] [type="button"]
+    + button .st-fmt [data-testid="export-format-html"] [type="button"]
+    + button .st-fmt [data-testid="export-format-pdf"] [type="button"]
+    + button .st-fmt [data-testid="export-format-pptx"] [type="button"]
+    + button .st-fmt [data-testid="export-format-shadcn"] [type="button"]
+    + button .st-fmt [data-testid="export-format-svg"] [type="button"]
+    + … 15 more
+  canvas: =
+## viewer/canvas/chrome Backspace
+  keydown: shell key="Backspace" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## viewer/in-canvas/canvas c
+  keydown: canvas key="c" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## viewer/in-canvas/canvas b
+  keydown: canvas key="b" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## viewer/in-canvas/canvas n
+  keydown: canvas key="n" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## viewer/in-canvas/canvas v
+  keydown: canvas key="v" PREVENTED
+  to-shell: child tool-cursor tool=move · child tool-cursor tool=move
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: +5 -5 #105519627c
+    - body [data-active-tool="browse"]
+    - button [data-testid="palette-mode-edit"] [aria-label="Edit mode — click selects & edits, like Figma (V)"] [aria-pressed="false"] [title="Edit — click selects & 
+    - button [data-testid="palette-mode-preview"] [aria-label="Preview mode — the mock is live; annotation tools stay on"] [aria-pressed="true"] [title="Preview — the
+    - div .dc-canvas [data-active-tool="browse"] [tabindex="0"]
+    - div [data-active-tool="browse"]
+    + body [data-active-tool="move"]
+    + button [data-testid="palette-mode-edit"] [aria-label="Edit mode — click selects & edits, like Figma (V)"] [aria-pressed="true"] [title="Edit — click selects & e
+    + button [data-testid="palette-mode-preview"] [aria-label="Preview mode — the mock is live; annotation tools stay on"] [aria-pressed="false"] [title="Preview — th
+    + div .dc-canvas [data-active-tool="move"] [tabindex="0"]
+    + div [data-active-tool="move"]
+## viewer/in-canvas/canvas Meta+z
+  keydown: canvas ⌘key="Meta" default · canvas ⌘key="z" PREVENTED
+  to-shell: child undo-barrier
+  to-canvas: parent undo-barrier-ok
+  writes: (none)
+  shell: =
+  canvas: =
+## tauri-viewer/canvas/chrome Meta+Shift+A
+  keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="A" PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
+## tauri-viewer/canvas/chrome Meta+Comma
+  keydown: shell ⌘key="Meta" default · shell ⌘key="," PREVENTED
+  to-shell: (none)
+  to-canvas: (none)
+  writes: (none)
+  shell: =
+  canvas: =
