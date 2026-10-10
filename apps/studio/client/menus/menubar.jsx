@@ -6,6 +6,50 @@ import { isNativeApp } from '../github.js';
 import { SYSTEM_TAB } from '../shell/constants.js';
 import { basename, displayName } from '../shell/util.js';
 import { ExportBadge } from '../export-center.jsx';
+import { ACTIONS_BY_ID } from '../../actions/index.ts';
+import { V1_MENUBAR } from '../../actions/legacy.ts';
+
+/** V2-2.4 — a dropdown's rows, rendered from the action registry's v1 layout
+ *  (actions/legacy.ts `V1_MENUBAR`): label = the action's v1 menu label, the
+ *  key chip verbatim, v1's per-menu gating (viewer, desktop-only, canvas-only,
+ *  greyed without a canvas / share path). Ids are registry action ids. */
+export function v1MenuItems(menu, { readOnly = false, hasCanvas = false, hasSharePath = false } = {}) {
+  const out = [];
+  for (const r of V1_MENUBAR[menu]) {
+    if (readOnly && r.viewer === false) continue;
+    if (r.canvas && !hasCanvas) continue;
+    if (r.native && !isNativeApp()) continue;
+    if (r.sep) {
+      out.push({ sep: true });
+      continue;
+    }
+    const item = { id: r.id, label: r.label ?? ACTIONS_BY_ID.get(r.id)?.legacy?.menu ?? r.id };
+    if (r.kbd !== undefined) item.shortcut = r.kbd;
+    if (r.needs === 'canvas') item.disabled = !hasCanvas;
+    else if (r.needs === 'share-path') item.disabled = !hasSharePath;
+    if (r.tool) item.tool = r.tool;
+    out.push(item);
+  }
+  return out;
+}
+
+/** Edit ▸ New artboard rows → the preset `onInsertArtboard` takes. */
+const ARTBOARD_PRESET = {
+  'artboard.new-desktop': 'desktop',
+  'artboard.new-laptop': 'laptop',
+  'artboard.new-tablet': 'tablet',
+  'artboard.new-mobile': 'mobile',
+  'artboard.new-a4': 'print-a4',
+  'artboard.new-letter': 'print-letter',
+};
+
+/** View ▸ Zoom rows → the op the canvas's zoom lane takes. */
+const ZOOM_OP = {
+  'view.zoom-in': 'in',
+  'view.zoom-out': 'out',
+  'view.zoom-fit': 'fit',
+  'view.zoom-actual': 'actual',
+};
 
 // ───────── Menubar (CV-01/CV-08 top chrome) ─────────
 //
@@ -75,12 +119,7 @@ export function ViewDropdown({ panels, onToggle, onClose, onZoom, hasCanvas }) {
       ))}
       <div className="st-dd-sep" />
       <div className="st-dd-hd">Zoom</div>
-      {[
-        { op: 'in', label: 'Zoom In', shortcut: '⌘ +' },
-        { op: 'out', label: 'Zoom Out', shortcut: '⌘ −' },
-        { op: 'fit', label: 'Fit to Screen', shortcut: '⌘ 0' },
-        { op: 'actual', label: 'Actual Size · 100 %', shortcut: '⌘ 1' },
-      ].map((z) => (
+      {v1MenuItems('zoom').map(({ id, label, shortcut }) => ({ op: ZOOM_OP[id], label, shortcut })).map((z) => (
         <button
           key={z.label}
           type="button"
@@ -150,24 +189,10 @@ export function HelpDropdown({ onAction, onClose }) {
       left={320}
       onAction={onAction}
       onClose={onClose}
-      items={[
-        { id: 'shortcuts', label: 'Keyboard shortcuts', shortcut: '?' },
-        { id: 'help', label: 'Help · commands & flows', shortcut: 'F1' },
-        { id: 'report-bug', label: 'Report a bug…' },
-        { sep: true },
-        { id: 'tour', label: 'Take the tour' },
-        { id: 'watch-intro', label: 'Watch the intro' },
-        // The collab "how sharing works" course teaches the plain-words Save →
-        // Publish → Pull cycle — a non-technical, native-app concern. A web-studio
-        // dev already knows git, so it's hidden there (DDR-119).
-        ...(isNativeApp() ? [{ id: 'collab-tour', label: 'How sharing works' }] : []),
-        // DDR-166 plan, Phase 2 (T7) — the quick-setup journey (design system →
-        // first canvas → first AI edit) is a native, no-terminal concern same as
-        // the two tours above.
-        ...(isNativeApp() ? [{ id: 'quick-setup', label: 'Quick setup' }] : []),
-        ...(isNativeApp() ? [{ id: 'readiness', label: 'Check AI editing readiness…' }] : []),
-        { id: 'whatsnew', label: "What's new" },
-      ]}
+      // The collab "how sharing works" course (DDR-119), the quick-setup journey
+      // and the readiness check (DDR-166 T7) are native, no-terminal concerns —
+      // desktop-only rows in the layout.
+      items={v1MenuItems('help')}
     />
   );
 }
@@ -179,48 +204,26 @@ export function SelectionDropdown({ onAction, onClose, readOnly = false }) {
       left={214}
       onAction={onAction}
       onClose={onClose}
-      items={[
-        { id: 'deselect-all', label: 'Deselect all', shortcut: 'Esc' },
-        // Cloud Phase 25 C2 — annotation selection exists to edit/delete
-        // annotations; absent for a viewer.
-        ...(readOnly
-          ? []
-          : [{ id: 'select-all-annotations', label: 'Select all annotations', shortcut: '⌘ ⇧ A' }]),
-      ]}
+      // Cloud Phase 25 C2 — annotation selection exists to edit/delete
+      // annotations; absent for a viewer.
+      items={v1MenuItems('selection', { readOnly })}
     />
   );
 }
 
 export function ToolsDropdown({ onAction, onClose, readOnly = false }) {
-  // Mirrors DEFAULT_TOOLS in apps/studio/use-tool-mode.tsx — kept in sync by
-  // hand because the menubar lives in the dev-server shell (no shared bundle
-  // with the canvas iframes). Cloud Phase 25 C2 — a viewer keeps only the
-  // navigate/inspect tools (same READ_ONLY_TOOL_IDS the canvas enforces).
-  const items = [
-    // feature-4 (browse/move split) — Browse is the boot default (mock is
-    // alive); Move (V) is the select tool.
-    { id: 'browse', label: 'Browse (interact)', shortcut: '' },
-    { id: 'move', label: 'Select', shortcut: 'V' },
-    { id: 'hand', label: 'Hand', shortcut: 'H' },
-    ...(readOnly
-      ? []
-      : [
-          { id: 'comment', label: 'Comment', shortcut: 'C' },
-          { id: 'pen', label: 'Pen', shortcut: 'B' },
-          { id: 'rect', label: 'Rect', shortcut: 'R' },
-          { id: 'ellipse', label: 'Ellipse', shortcut: 'O' },
-          { id: 'sticky', label: 'Sticky', shortcut: 'N' },
-          { id: 'arrow', label: 'Arrow', shortcut: 'A' },
-          { id: 'text', label: 'Text', shortcut: 'T' },
-          { id: 'eraser', label: 'Eraser', shortcut: 'E' },
-        ]),
-  ];
+  // Mirrors DEFAULT_TOOLS in apps/studio/use-tool-mode.tsx (the layout row
+  // carries the v1 tool id the menu posts). Cloud Phase 25 C2 — a viewer keeps
+  // only the navigate/inspect tools (same READ_ONLY_TOOL_IDS the canvas enforces).
+  // feature-4 (browse/move split) — Browse is the boot default (mock is alive);
+  // Move (V) is the select tool.
+  const items = v1MenuItems('tools', { readOnly });
   return (
     <DropdownMenu
       label="Tools"
       left={290}
       header="Tool palette"
-      onAction={onAction}
+      onAction={(id) => onAction(items.find((it) => it.id === id)?.tool)}
       onClose={onClose}
       items={items}
     />
@@ -231,33 +234,9 @@ export function ToolsDropdown({ onAction, onClose, readOnly = false }) {
 // shell flows (File) or the in-canvas undo stack / selection bridges (Edit).
 export function FileDropdown({ onAction, onClose, hasCanvas, hasSharePath, readOnly = false }) {
   // Cloud Phase 25 C2 — a viewer keeps the reads (export, handoff, reload,
-  // close); create / assemble / generate / settings are absent.
-  const items = readOnly
-    ? [
-        { id: 'export', label: 'Export…', shortcut: '⇧⌘E' },
-        { id: 'share', label: 'Share link…', disabled: !hasSharePath },
-        { id: 'handoff', label: 'Handoff to production', shortcut: '⇧⌘H' },
-        { sep: true },
-        { id: 'reload', label: 'Reload canvas', shortcut: '⌘R', disabled: !hasCanvas },
-        { id: 'close', label: 'Close canvas', disabled: !hasCanvas },
-      ]
-    : [
-        // Bare N — the browser reserves ⌘N (New Window) and never delivers it.
-        { id: 'new', label: 'New canvas…', shortcut: 'N' },
-        // DDR-150 P4 Task 12 — one-click "udělej z toho video" from the clips
-        // dropped as reference chips on the active canvas.
-        { id: 'assemble', label: 'Assemble dropped clips → video', disabled: !hasCanvas },
-        { id: 'export', label: 'Export…', shortcut: '⇧⌘E' },
-        { id: 'share', label: 'Share link…', disabled: !hasSharePath },
-        { id: 'handoff', label: 'Handoff to production', shortcut: '⇧⌘H' },
-        { sep: true },
-        // feature-ai-media-generation (DDR-16x) — BYOK generate action + settings.
-        { id: 'generate', label: 'Generate with AI…' },
-        { id: 'settings', label: 'Settings…', shortcut: '⌘,' },
-        { sep: true },
-        { id: 'reload', label: 'Reload canvas', shortcut: '⌘R', disabled: !hasCanvas },
-        { id: 'close', label: 'Close canvas', disabled: !hasCanvas },
-      ];
+  // close); create / assemble / generate / settings are absent. Bare N — the
+  // browser reserves ⌘N (New Window) and never delivers it.
+  const items = v1MenuItems('file', { readOnly, hasCanvas, hasSharePath });
   return (
     <DropdownMenu label="File" left={40} onAction={onAction} onClose={onClose} items={items} />
   );
@@ -265,47 +244,15 @@ export function FileDropdown({ onAction, onClose, hasCanvas, hasSharePath, readO
 
 export function EditDropdown({ onAction, onClose, hasCanvas, readOnly = false }) {
   // Cloud Phase 25 C2 — a viewer's Edit menu is selection only; undo/redo,
-  // artboard insert and annotation ops are writes.
-  if (readOnly) {
-    return (
-      <DropdownMenu
-        label="Edit"
-        left={90}
-        onAction={onAction}
-        onClose={onClose}
-        items={[{ id: 'deselect-all', label: 'Deselect all', shortcut: 'Esc' }]}
-      />
-    );
-  }
+  // artboard insert and annotation ops are writes. Stage I4 / feature-2-print-
+  // artboards T2 — the New artboard rows need an open canvas.
   return (
     <DropdownMenu
       label="Edit"
       left={90}
       onAction={onAction}
       onClose={onClose}
-      items={[
-        { id: 'undo', label: 'Undo', shortcut: '⌘Z' },
-        { id: 'redo', label: 'Redo', shortcut: '⇧⌘Z' },
-        { sep: true },
-        { id: 'deselect-all', label: 'Deselect all', shortcut: 'Esc' },
-        { id: 'select-all-annotations', label: 'Select all annotations', shortcut: '⇧⌘A' },
-        // Stage I4 — insert an empty artboard from a device-size preset into the
-        // active canvas. Only meaningful with a canvas open.
-        ...(hasCanvas
-          ? [
-              { sep: true },
-              { id: 'new-artboard:desktop', label: 'New artboard: Desktop' },
-              { id: 'new-artboard:laptop', label: 'New artboard: Laptop' },
-              { id: 'new-artboard:tablet', label: 'New artboard: Tablet' },
-              { id: 'new-artboard:mobile', label: 'New artboard: Mobile' },
-              // feature-2-print-artboards T2 — "+ Artboard" quick-insert must
-              // set kind="print" + the print prop together (the plan's own
-              // gotcha for this task), not just a plain digital-sized board.
-              { id: 'new-artboard:print-a4', label: 'New artboard: A4 (print)' },
-              { id: 'new-artboard:print-letter', label: 'New artboard: Letter (print)' },
-            ]
-          : []),
-      ]}
+      items={v1MenuItems('edit', { readOnly, hasCanvas })}
     />
   );
 }
@@ -408,75 +355,32 @@ export function Menubar({
   // In the cloud the `assistant` row is the stated-absence row above, so it must
   // NOT be filtered away here — a viewer would then get silence, which is the
   // exact thing C2 forbids.
-  const viewerHiddenPanels = new Set(cloud ? ['autoopen'] : ['assistant', 'autoopen']);
-  const panels = [
-    { id: 'tree', label: 'Project Tree', shortcut: 'T', checked: sidebarOpen, disabled: false },
-    {
-      id: 'changes',
-      // In a cell this panel is History (the hub already committed the work),
-      // so the menu names what it opens rather than an unsaved count there is
-      // no way — and no reason — to act on.
+  const viewerHiddenPanels = new Set(
+    cloud ? ['view.inspector-on-select'] : ['ai.chat', 'view.inspector-on-select']
+  );
+  // V2-2.4 — the rows render from the registry's v1 layout (V1_MENUBAR.view);
+  // this map adds each row's live state.
+  const noCanvas = !activePath || isSystem;
+  const panelState = {
+    'view.panels': { checked: sidebarOpen },
+    // In a cell this panel is History (the hub already committed the work),
+    // so the menu names what it opens rather than an unsaved count there is
+    // no way — and no reason — to act on.
+    'history.open': {
       label: cloud ? 'History' : changesCount > 0 ? `Changes · ${changesCount} unsaved` : 'Changes',
-      shortcut: '⌘ ⇧ G',
       checked: changesOpen,
-      disabled: false,
     },
-    {
-      id: 'comments',
-      label: 'Comments Sidebar',
-      shortcut: '⌘ ⇧ M',
-      checked: commentsPanelOpen,
-      disabled: false,
-    },
-    {
-      id: 'hidden',
-      label: 'Show hidden files',
-      shortcut: 'H',
-      checked: showHidden,
-      disabled: false,
-    },
-    {
-      id: 'layers',
-      label: 'Layers',
-      shortcut: '',
-      checked: inspectorOpen && inspectorTab === 'layers',
-      disabled: false,
-    },
-    {
-      id: 'inspector',
-      label: 'Inspector',
-      shortcut: '⌘ ⇧ I',
-      checked: inspectorOpen,
-      disabled: false,
-    },
-    {
-      id: 'autoopen',
-      label: 'Auto-open Inspector on select',
-      shortcut: '',
-      checked: !!autoOpenInspector,
-      disabled: false,
-    },
+    'view.comments': { checked: commentsPanelOpen },
+    'view.hidden-files': { checked: showHidden },
+    'view.layers': { checked: inspectorOpen && inspectorTab === 'layers' },
+    'view.inspector': { checked: inspectorOpen },
+    'view.inspector-on-select': { checked: !!autoOpenInspector },
     // DDR-148 — Timeline (video-comp scrub). Phase-tag hints when the active
     // canvas actually has a comp; the panel itself shows an empty state otherwise.
-    {
-      id: 'timeline',
-      label: 'Timeline',
-      shortcut: '⌘ ⇧ T',
-      phase: hasComps ? 'video' : undefined,
-      checked: timelineOpen,
-      disabled: false,
-    },
+    'view.timeline-keep-open': { phase: hasComps ? 'video' : undefined, checked: timelineOpen },
     // Phase 31 (DDR-123) — native-only ACP chat sidepanel.
-    ...(isNativeApp()
-      ? [
-          {
-            id: 'assistant',
-            label: 'Assistant',
-            shortcut: '⌘ ⇧ A',
-            checked: assistantOpen,
-            disabled: false,
-          },
-        ]
+    'ai.chat': isNativeApp()
+      ? { checked: assistantOpen }
       : // Cloud Phase 27 C2 — THE AGENT'S ABSENCE IS STATED WHERE THE AGENT
         // WOULD BE. It runs on YOUR `claude` subscription, on YOUR machine
         // (DDR-123), so a browser tab genuinely cannot have it. That is a
@@ -485,59 +389,30 @@ export function Menubar({
         // the row stays, disabled, saying where to find it. Never a hidden
         // item, never a dead button, never silence.
         cloud
-        ? [
-            {
-              id: 'assistant',
-              label: 'Assistant — in the desktop app',
-              shortcut: '',
-              checked: false,
-              disabled: true,
-              href: 'https://maude.sh/download',
-              hint: 'The agent runs on your own Claude subscription, on your own machine.',
-            },
-          ]
-        : []),
-    {
-      id: 'annotate',
-      label: 'Annotations',
-      shortcut: '⇧ P',
-      checked: annotationsVisible,
-      disabled: false,
-    },
-    {
-      id: 'minimap',
-      label: 'Minimap',
-      shortcut: '',
-      checked: minimapVisible,
-      disabled: !activePath || isSystem,
-    },
-    {
-      id: 'zoomctl',
-      label: 'Zoom controls',
-      shortcut: '',
-      checked: zoomCtlVisible,
-      disabled: !activePath || isSystem,
-    },
-    {
-      id: 'present',
-      label: 'Presentation Mode',
-      shortcut: '',
-      checked: presentMode,
-      disabled: !activePath || isSystem,
-    },
+        ? {
+            label: 'Assistant — in the desktop app',
+            shortcut: '',
+            checked: false,
+            disabled: true,
+            href: 'https://maude.sh/download',
+            hint: 'The agent runs on your own Claude subscription, on your own machine.',
+          }
+        : null,
+    'view.annotations': { checked: annotationsVisible },
+    'view.minimap': { checked: minimapVisible, disabled: noCanvas },
+    'view.zoom-controls': { checked: zoomCtlVisible, disabled: noCanvas },
+    'present.canvas': { checked: presentMode, disabled: noCanvas },
     // feature-2-print-artboards T3 — per-canvas persisted (overlays.print in
     // view.json), same lane as the foundation's `guides` key; NOT gated on the
     // active artboard actually being kind="print" (mirrors minimap/zoomctl,
     // which aren't content-gated either — the overlay itself renders nothing
     // for a non-print artboard regardless of this flag).
-    {
-      id: 'print-guides',
-      label: 'Show print guides',
-      shortcut: '',
-      checked: printGuidesVisible,
-      disabled: !activePath || isSystem,
-    },
-  ].filter((p) => !readOnly || !viewerHiddenPanels.has(p.id));
+    'view.print-guides': { checked: printGuidesVisible, disabled: noCanvas },
+  };
+  const panels = v1MenuItems('view')
+    .filter((row) => panelState[row.id] !== null)
+    .map((row) => ({ ...row, disabled: false, ...panelState[row.id] }))
+    .filter((p) => !readOnly || !viewerHiddenPanels.has(p.id));
 
   const DROPDOWN_MENUS = ['file', 'edit', 'view', 'selection', 'tools', 'help'];
   function onMenuClick(key) {
@@ -668,17 +543,17 @@ export function Menubar({
           hasCanvas={!!activePath}
           hasSharePath={!!sharePath}
           onAction={(id) => {
-            if (id === 'new') onNewCanvas?.();
-            else if (id === 'assemble') onAssembleVideo?.();
-            else if (id === 'export') onOpenExport?.('export');
-            else if (id === 'share') {
+            if (id === 'canvas.new') onNewCanvas?.();
+            else if (id === 'video.assemble') onAssembleVideo?.();
+            else if (id === 'export.open') onOpenExport?.('export');
+            else if (id === 'share.open') {
               document.querySelector('[data-testid="menu-file"]')?.focus();
               onShare?.();
-            } else if (id === 'handoff') onOpenExport?.('handoff');
-            else if (id === 'generate') onOpenGenerate?.();
-            else if (id === 'settings') onOpenSettings?.();
-            else if (id === 'reload') onReload?.();
-            else if (id === 'close') onCloseCanvas?.();
+            } else if (id === 'handoff.open') onOpenExport?.('handoff');
+            else if (id === 'ai.generate') onOpenGenerate?.();
+            else if (id === 'settings.open') onOpenSettings?.();
+            else if (id === 'canvas.reload') onReload?.();
+            else if (id === 'canvas.close') onCloseCanvas?.();
           }}
           onClose={() => setOpenMenu(null)}
         />
@@ -688,13 +563,12 @@ export function Menubar({
           readOnly={readOnly}
           hasCanvas={!!activePath && !isSystem}
           onAction={(id) => {
-            if (id === 'undo') postToActiveCanvas({ dgn: 'undo' });
-            else if (id === 'redo') postToActiveCanvas({ dgn: 'redo' });
-            else if (id === 'deselect-all') postToActiveCanvas({ dgn: 'selection-clear' });
-            else if (id === 'select-all-annotations')
+            if (id === 'edit.undo') postToActiveCanvas({ dgn: 'undo' });
+            else if (id === 'edit.redo') postToActiveCanvas({ dgn: 'redo' });
+            else if (id === 'select.none') postToActiveCanvas({ dgn: 'selection-clear' });
+            else if (id === 'select.all-annotations')
               postToActiveCanvas({ dgn: 'annotation-select-all' });
-            else if (id.startsWith('new-artboard:'))
-              onInsertArtboard?.(id.slice('new-artboard:'.length));
+            else if (id.startsWith('artboard.new-')) onInsertArtboard?.(ARTBOARD_PRESET[id]);
           }}
           onClose={() => setOpenMenu(null)}
         />
@@ -703,20 +577,20 @@ export function Menubar({
         <ViewDropdown
           panels={panels}
           onToggle={(id) => {
-            if (id === 'tree') onToggleSidebar();
-            else if (id === 'changes') onToggleChanges();
-            else if (id === 'comments') onToggleComments();
-            else if (id === 'hidden') onToggleShowHidden();
-            else if (id === 'annotate') onToggleAnnotations();
-            else if (id === 'inspector') onToggleInspector();
-            else if (id === 'autoopen') onToggleAutoOpenInspector?.();
-            else if (id === 'timeline') onToggleTimeline?.();
-            else if (id === 'assistant') onToggleAssistant?.();
-            else if (id === 'layers') onOpenLayers?.();
-            else if (id === 'minimap') onToggleMinimap?.();
-            else if (id === 'zoomctl') onToggleZoomCtl?.();
-            else if (id === 'present') onTogglePresent?.();
-            else if (id === 'print-guides') onTogglePrintGuides?.();
+            if (id === 'view.panels') onToggleSidebar();
+            else if (id === 'history.open') onToggleChanges();
+            else if (id === 'view.comments') onToggleComments();
+            else if (id === 'view.hidden-files') onToggleShowHidden();
+            else if (id === 'view.annotations') onToggleAnnotations();
+            else if (id === 'view.inspector') onToggleInspector();
+            else if (id === 'view.inspector-on-select') onToggleAutoOpenInspector?.();
+            else if (id === 'view.timeline-keep-open') onToggleTimeline?.();
+            else if (id === 'ai.chat') onToggleAssistant?.();
+            else if (id === 'view.layers') onOpenLayers?.();
+            else if (id === 'view.minimap') onToggleMinimap?.();
+            else if (id === 'view.zoom-controls') onToggleZoomCtl?.();
+            else if (id === 'present.canvas') onTogglePresent?.();
+            else if (id === 'view.print-guides') onTogglePrintGuides?.();
           }}
           onZoom={(op) => postToActiveCanvas({ dgn: 'zoom', op })}
           hasCanvas={!!activePath && !isSystem}
@@ -727,8 +601,8 @@ export function Menubar({
         <SelectionDropdown
           readOnly={readOnly}
           onAction={(id) => {
-            if (id === 'deselect-all') postToActiveCanvas({ dgn: 'selection-clear' });
-            else if (id === 'select-all-annotations')
+            if (id === 'select.none') postToActiveCanvas({ dgn: 'selection-clear' });
+            else if (id === 'select.all-annotations')
               postToActiveCanvas({ dgn: 'annotation-select-all' });
           }}
           onClose={() => setOpenMenu(null)}
@@ -744,15 +618,15 @@ export function Menubar({
       {openMenu === 'help' && (
         <HelpDropdown
           onAction={(id) => {
-            if (id === 'shortcuts') onOpenShortcuts?.();
-            else if (id === 'help') onOpenHelp?.();
-            else if (id === 'report-bug') onReportBug?.();
-            else if (id === 'tour') onStartTour?.();
-            else if (id === 'collab-tour') onStartCollabTour?.();
-            else if (id === 'quick-setup') onOpenQuickSetup?.();
-            else if (id === 'readiness') onOpenReadiness?.();
-            else if (id === 'whatsnew') onOpenWhatsNew?.();
-            else if (id === 'watch-intro') onWatchIntro?.();
+            if (id === 'help.shortcuts') onOpenShortcuts?.();
+            else if (id === 'help.guides') onOpenHelp?.();
+            else if (id === 'help.report-bug') onReportBug?.();
+            else if (id === 'help.tour') onStartTour?.();
+            else if (id === 'help.sharing') onStartCollabTour?.();
+            else if (id === 'help.setup') onOpenQuickSetup?.();
+            else if (id === 'help.ai-readiness') onOpenReadiness?.();
+            else if (id === 'help.whats-new') onOpenWhatsNew?.();
+            else if (id === 'help.intro') onWatchIntro?.();
           }}
           onClose={() => setOpenMenu(null)}
         />

@@ -1,6 +1,8 @@
 // hooks/use-palette-and-panels.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
 import { useMemo } from 'react';
+import { ACTIONS_BY_ID } from '../../actions/index.ts';
+import { V1_PALETTE } from '../../actions/legacy.ts';
 import { copyShareLink } from '../share-dialog.jsx';
 import { isNativeApp } from '../github.js';
 import { DOCK_PANELS, PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
@@ -142,172 +144,66 @@ export function usePaletteAndPanels({
   // ⌘K palette actions — shell-doable only (in-canvas export lives in the iframe).
   // T4 (Plan C) — grouped command set per `.design/ui/Studio.tsx` AB-D.
   // `group` drives the section headers; the list stays a flat array so keyboard
-  // nav indexes straight across groups.
-  const paletteActions = useMemo(
-    () => [
-      // ── Canvas ──────────────────────────────────────────────────────────
-      {
-        id: 'new',
-        group: 'Canvas',
-        label: 'New canvas…',
-        icon: 'plus',
-        kbd: 'N',
-        run: () => {
-          openPanelExclusive('tree');
-          setTimeout(
-            () => document.querySelector('[aria-label="New blank brief board"]')?.click(),
-            60
-          );
-        },
+  // nav indexes straight across groups. V2-2.4 — the rows (which actions, order,
+  // group, label, icon, key) render from the action registry's v1 layout
+  // (actions/legacy.ts `V1_PALETTE`); what each row RUNS stays v1's, keyed by
+  // action id (the palette opened what the key toggles — Phase 4 unifies them).
+  const paletteActions = useMemo(() => {
+    const run = {
+      'canvas.new': () => {
+        openPanelExclusive('tree');
+        setTimeout(
+          () => document.querySelector('[aria-label="New blank brief board"]')?.click(),
+          60
+        );
       },
-      {
-        id: 'new-video',
-        group: 'Canvas',
-        label: 'New video…',
-        icon: 'plus',
-        run: () => createVideo(),
+      'canvas.new-video': () => createVideo(),
+      'export.open': () => setExportDialog({ mode: 'export' }),
+      'share.copy-link': () => {
+        const links = shareLinksFor(sharePath);
+        const link = links.web ?? links.app ?? links.local;
+        if (link) copyShareLink(link);
       },
-      {
-        id: 'export',
-        group: 'Canvas',
-        label: 'Export…',
-        icon: 'download',
-        kbd: '⇧⌘E',
-        run: () => setExportDialog({ mode: 'export' }),
+      'handoff.open': () => setExportDialog({ mode: 'handoff' }),
+      'ai.generate': () => setGenerateOpen(true),
+      'settings.open': () => setSettingsOpen(true),
+      'view.design-system': () => openSystem(),
+      'view.comments': () => toggleRightPanel('comments'),
+      'view.inspector': () => openRightPanel('inspector'),
+      'canvas.reload': () => reloadActive(),
+      'ai.draw-mark': () => {
+        // The shell can't invoke Claude — surface the command for the user to
+        // paste into Claude Code (clipboard is the honest, useful affordance).
+        try {
+          navigator.clipboard?.writeText('/design:draw ');
+        } catch {}
       },
-      {
-        id: 'share-link',
-        group: 'Canvas',
-        label: 'Copy share link',
-        icon: 'link',
-        run: () => {
-          const links = shareLinksFor(sharePath);
-          const link = links.web ?? links.app ?? links.local;
-          if (link) copyShareLink(link);
-        },
-      },
-      {
-        id: 'handoff',
-        group: 'Canvas',
-        label: 'Handoff to production',
-        icon: 'external',
-        kbd: '⇧⌘H',
-        run: () => setExportDialog({ mode: 'handoff' }),
-      },
-      {
-        id: 'generate',
-        group: 'Canvas',
-        label: 'Generate with AI…',
-        icon: 'sparkle',
-        run: () => setGenerateOpen(true),
-      },
-      {
-        id: 'settings',
-        group: 'Canvas',
-        label: 'Settings…',
-        icon: 'sliders',
-        kbd: '⌘,',
-        run: () => setSettingsOpen(true),
-      },
-      // ── View ────────────────────────────────────────────────────────────
-      {
-        id: 'system',
-        group: 'View',
-        label: 'Open design system view',
-        icon: 'sliders',
-        kbd: 'S',
-        run: () => openSystem(),
-      },
-      {
-        id: 'comments',
-        group: 'View',
-        label: 'Toggle comments panel',
-        icon: 'resolve',
-        kbd: '⌘⇧M',
-        run: () => toggleRightPanel('comments'),
-      },
-      {
-        id: 'inspector',
-        group: 'View',
-        label: 'Open inspector',
-        icon: 'sliders',
-        kbd: '⌘⇧I',
-        run: () => openRightPanel('inspector'),
-      },
-      {
-        id: 'reload',
-        group: 'View',
-        label: 'Reload active canvas',
-        icon: 'reload',
-        kbd: '⌘R',
-        run: () => reloadActive(),
-      },
-      // ── Tools ───────────────────────────────────────────────────────────
-      {
-        id: 'draw',
-        group: 'Tools',
-        label: 'Draw a mark with the SVG agent',
-        icon: 'pen',
-        run: () => {
-          // The shell can't invoke Claude — surface the command for the user to
-          // paste into Claude Code (clipboard is the honest, useful affordance).
-          try {
-            navigator.clipboard?.writeText('/design:draw ');
-          } catch {}
-        },
-      },
-      {
-        id: 'theme',
-        group: 'Tools',
-        label: 'Toggle light / dark theme',
-        icon: 'sun',
-        run: () => toggleTheme(),
-      },
-      // ── Help ────────────────────────────────────────────────────────────
-      {
-        id: 'whatsnew',
-        group: 'Help',
-        label: "What's new in maude",
-        icon: 'sparkle',
-        run: () => whatsNew.openPanel(),
-      },
-      {
-        id: 'shortcuts',
-        group: 'Help',
-        label: 'Keyboard shortcuts',
-        icon: 'help',
-        kbd: '?',
-        run: () => setShortcutsOpen(true),
-      },
-      {
-        id: 'help',
-        group: 'Help',
-        label: 'Help · commands & flows',
-        icon: 'help',
-        kbd: 'F1',
-        run: () => setHelpOpen(true),
-      },
-      {
-        id: 'report-bug',
-        group: 'Help',
-        label: 'Report a bug…',
-        icon: 'help',
-        run: () => setReportBugOpen(true),
-      },
-    ],
-    [
-      openSystem,
-      toggleTheme,
-      reloadActive,
-      whatsNew,
-      createVideo,
-      sharePath,
-      shareShell,
-      cloudLinkedHub,
-      localProjectName,
-      cfg.designRel,
-    ]
-  );
+      'settings.theme': () => toggleTheme(),
+      'help.whats-new': () => whatsNew.openPanel(),
+      'help.shortcuts': () => setShortcutsOpen(true),
+      'help.guides': () => setHelpOpen(true),
+      'help.report-bug': () => setReportBugOpen(true),
+    };
+    return V1_PALETTE.map((r) => ({
+      id: r.id,
+      group: r.group,
+      label: ACTIONS_BY_ID.get(r.id).legacy.palette,
+      icon: r.icon,
+      ...(r.kbd ? { kbd: r.kbd } : {}),
+      run: run[r.id],
+    }));
+  }, [
+    openSystem,
+    toggleTheme,
+    reloadActive,
+    whatsNew,
+    createVideo,
+    sharePath,
+    shareShell,
+    cloudLinkedHub,
+    localProjectName,
+    cfg.designRel,
+  ]);
 
   // feature-configurable-panel-docking — resolve, for each slot, the panels
   // assigned to it and which one is active (the open one). Layers is only a

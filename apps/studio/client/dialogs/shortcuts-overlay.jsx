@@ -2,64 +2,21 @@
 
 import { Kbd } from '../shell/icons.jsx';
 import { Fragment, useEffect } from 'react';
+import { V1_SHEET } from '../../actions/legacy.ts';
 
 // ───────── Keyboard-shortcuts overlay (DS components-shortcuts-overlay) ─────
 //
 // The ? cheat-sheet: dim scrim, shared panel material, four dense mono-headed
-// columns, Esc chip in the footer. REAL bindings only — every row here is
-// wired in the shell handler, the canvas input-router, or canvas-lib's
-// viewport controller. Scope chips mark the rows that need canvas focus.
+// columns, Esc chip in the footer. REAL bindings only — the rows render from
+// the action registry's v1 layout (V2-2.4: actions/legacy.ts `V1_SHEET`), and
+// actions-legacy.test.ts proves every key a row shows is a binding of the
+// action it names. Scope chips mark the rows that need canvas focus.
 
-export const SHORTCUT_GROUPS = [
-  {
-    id: 'canvas',
-    label: 'Canvas',
-    items: [
-      { label: 'Command palette', kbd: '⌘ K' },
-      { label: 'New brief board', kbd: 'N' },
-      { label: 'Export…', kbd: '⇧ ⌘ E' },
-      { label: 'Handoff to production', kbd: '⇧ ⌘ H' },
-      { label: 'Reload canvas', kbd: '⌘ R' },
-      { label: 'Search files', kbd: '/', alt: '⌘ F' },
-    ],
-  },
-  {
-    id: 'tools',
-    label: 'Tools · canvas focus',
-    items: [
-      { label: 'Move · Hand · Comment', kbd: 'V', alt: 'H / C' },
-      { label: 'Pen · Highlighter · Eraser', kbd: 'B', alt: 'I / E' },
-      { label: 'Shape · Arrow', kbd: 'R', alt: 'A' },
-      { label: 'Sticky · Text · Section', kbd: 'N', alt: 'T / ⇧S' },
-      { label: 'Undo / redo', kbd: '⌘ Z', alt: '⇧ ⌘ Z' },
-    ],
-  },
-  {
-    id: 'selection',
-    label: 'Selection & zoom',
-    items: [
-      { label: 'Select element', kbd: '⌘ click' },
-      { label: 'Add to selection', kbd: '⌘ ⇧ click' },
-      { label: 'Preview deepest', kbd: '⌘ hover' },
-      { label: 'Deselect · close menu', kbd: 'Esc' },
-      { label: 'Zoom in / out', kbd: '⌘ +', alt: '⌘ −' },
-      { label: 'Fit · actual size', kbd: '⌘ 0', alt: '⌘ 1' },
-    ],
-  },
-  {
-    id: 'view',
-    label: 'View',
-    items: [
-      { label: 'Project tree', kbd: 'T' },
-      { label: 'Design system view', kbd: 'S' },
-      { label: 'Inspector', kbd: '⌘ ⇧ I' },
-      { label: 'Comments sidebar', kbd: '⌘ ⇧ M' },
-      { label: 'Annotations', kbd: '⇧ P' },
-      { label: 'Hidden files', kbd: 'H' },
-      { label: 'This cheat sheet · help', kbd: '?', alt: 'F1' },
-    ],
-  },
-];
+export const SHORTCUT_GROUPS = V1_SHEET.map((g) => ({
+  id: g.id,
+  label: g.label,
+  items: g.items.map(({ label, kbd, alt }) => (alt ? { label, kbd, alt } : { label, kbd })),
+}));
 
 export function ShortcutCombo({ kbd, alt }) {
   const combo = (s, key) => (
