@@ -120,10 +120,19 @@ describe('checkFile', () => {
     );
   });
 
-  // V2-2.19 (p2-element-ids, branch v2-2.19-element-ids): the V2-1.4 id checks (id-lost,
-  // locked-changed …) come from its checkIds. check/ids.ts is a stub until it lands on feat.
-  test.todo('the id check is V2-2.19 checkIds — lands with branch v2-2.19-element-ids', () => {
+  // V2-2.19's checkIds (element-ids.ts) is the V2-1.4 id check: id-lost vs the pre-edit snapshot
+  // blocks, id-duplicate blocks one-sided, and without a snapshot nothing is diffed.
+  test('the id check is V2-2.19 checkIds (element-ids.ts)', () => {
     expect(ID_CHECK_SOURCE).toBe('element-ids');
+    const codes = (r: ReturnType<typeof checkFile>) => [...new Set(r.errors.map((e) => e.code))];
+    const lost = CANVAS.replace('<h1 data-cd-id="title">', '<h1>');
+    const r = checkFile('ui/C.tsx', lost, { against: CANVAS });
+    expect(codes(r)).toEqual(['id-lost']);
+    expect(r.ok).toBe(false);
+    expect(r.errors[0]?.element).toMatchObject({ tag: 'h1', artboard: 'hero' });
+    expect(checkFile('ui/C.tsx', lost).ok).toBe(true);
+    const dup = CANVAS.replace('<p>x</p>', '<p data-cd-id="title">x</p>');
+    expect(codes(checkFile('ui/C.tsx', dup))).toEqual(['id-duplicate']);
   });
 });
 
