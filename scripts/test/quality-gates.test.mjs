@@ -11,6 +11,7 @@
 // red-first run proved it fails on the pre-V2-2.13 workflow).
 
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
@@ -40,4 +41,25 @@ test('the studio-suite job runs the FULL suite', () => {
   assert.match(text, /^ {2}studio-suite:\n/m, 'the studio-suite job is gone');
   assert.match(text, /bun test --isolate --timeout 20000\)/, 'the full-suite invocation changed');
   assert.match(text, /name: Studio suite \(full\)\n/);
+});
+
+// V2-2.4b — a test under plugins/ is reached by neither `cli/**/*.test.mjs` (pnpm test) nor the
+// studio suite (apps/studio). Each such file needs its own `bun test <dir>` step here, or it
+// guards nothing in CI (the design plugin's hooks.test.mjs sat unrun until this).
+test('every plugins/ test file is run by a quality.yml step', () => {
+  const files = execFileSync('git', ['ls-files', 'plugins/**/*.test.mjs', 'plugins/**/*.test.ts'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  })
+    .split('\n')
+    .filter(Boolean);
+  assert.ok(files.length > 0, 'no plugins/ test files found — the glob is stale');
+  const runs = [...text.matchAll(/bun test ([^\n)&|;]+)/g)].flatMap((m) =>
+    m[1].trim().split(/\s+/)
+  );
+  const unrun = files.filter(
+    (f) =>
+      !runs.some((r) => !r.startsWith('-') && (f === r || f.startsWith(`${r.replace(/\/$/, '')}/`)))
+  );
+  assert.deepEqual(unrun, [], 'add a `bun test <dir>` step to quality.yml for these');
 });

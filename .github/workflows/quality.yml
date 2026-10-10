@@ -339,3 +339,10 @@ jobs:
             git --no-pager diff --stat -- apps/studio/dist/
             exit 1
           }
+
+      - name: Design plugin hooks (bun test)
+        # V2-2.4b — `maude design hook <event>` against a fixture studio over the real agent
+        # RouteSpecs, so it needs apps/studio installed (this job). Neither `pnpm test`
+        # (cli/**) nor the studio suite reaches plugins/ — scripts/test/quality-gates.test.mjs
+        # fails when a plugins/ test file has no `bun test` step here.
+        run: bun test plugins/design/hooks
