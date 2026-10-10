@@ -19,6 +19,12 @@
 //     V1_KEYS_UPDATE=1   rewrite the golden
 //     V1_KEYS_ONLY=<p>   only cases whose id starts with <p> (comma list; no golden check)
 //     V1_KEYS_LANES=<n>  parallel servers (default 4)
+//   Diagnostics (a body with any of these never matches the golden):
+//     V1_KEYS_DUMP=1        list every hashed shell/canvas line, not only the salient ones
+//     V1_KEYS_BODY_OUT=<f>  also write the whole body to <f>
+//     V1_KEYS_LATE=1        re-snapshot the shell 1.5 s before the key and 2 s after it, and list
+//                           any late change. It shifts the key's timing, so other cases can move
+//                           too: use it to look for late DOM, not to compare against the golden.
 //
 // The server serves whatever apps/studio/dist/client.bundle.js holds: to test the SOURCE client,
 // build it first (`MAUDE_SKIP_RUNTIME_BUILD=1 bun run build.ts --release`) and restore dist/ after.
@@ -758,6 +764,10 @@ function summarise(label: string, before: DocSnap | null, after: DocSnap | null)
     .digest('hex')
     .slice(0, 10);
   const out = [`  ${label}: +${added.length} -${removed.length} #${digest}`];
+  if (process.env.V1_KEYS_DUMP === '1') {
+    for (const l of removed) out.push(`    DUMP- ${l}`);
+    for (const l of added) out.push(`    DUMP+ ${l}`);
+  }
   const pick = (ls: string[], sign: string) => {
     const sal = ls.filter((l) => SALIENT.test(l));
     for (const l of sal.slice(0, 8)) out.push(`    ${sign} ${l.slice(0, 160)}`);
@@ -888,6 +898,16 @@ async function runCase(browser: Browser, lane: Lane, c: Case): Promise<string> {
     await quiet(page, canvasFrame(page, lane));
     const frame0 = canvasFrame(page, lane);
     const shellBefore = await stable(page, lane);
+    const LATE: string[] = [];
+    if (process.env.V1_KEYS_LATE === '1') {
+      await sleep(1500);
+      const again = await snapDoc(page, lane);
+      if (again && shellBefore && again.lines.join('\n') !== shellBefore.lines.join('\n')) {
+        const d = lineDiff(shellBefore.lines, again.lines);
+        for (const l of d.removed) LATE.push(`    LATE-before- ${l}`);
+        for (const l of d.added) LATE.push(`    LATE-before+ ${l}`);
+      }
+    }
     const canvasBefore = frame0 ? await stable(frame0, lane) : null;
     await clearRec(page);
     await clearRec(frame0);
@@ -896,6 +916,15 @@ async function runCase(browser: Browser, lane: Lane, c: Case): Promise<string> {
     await settle(page, 400);
     // Let async effects land: wait until two snapshots in a row agree (bounded).
     const shellAfter = await stable(page, lane);
+    if (process.env.V1_KEYS_LATE === '1') {
+      await sleep(2000);
+      const again = await snapDoc(page, lane);
+      if (again && shellAfter && again.lines.join('\n') !== shellAfter.lines.join('\n')) {
+        const d = lineDiff(shellAfter.lines, again.lines);
+        for (const l of d.removed) LATE.push(`    LATE-after- ${l}`);
+        for (const l of d.added) LATE.push(`    LATE-after+ ${l}`);
+      }
+    }
     const frame1 = canvasFrame(page, lane);
     const canvasAfter = frame1 ? await stable(frame1, lane) : null;
     recording = false;
@@ -916,6 +945,7 @@ async function runCase(browser: Browser, lane: Lane, c: Case): Promise<string> {
     );
     lines.push(`  writes: ${writes.length ? [...new Set(writes)].sort().join(' · ') : '(none)'}`);
     lines.push(...summarise('shell', shellBefore, shellAfter));
+    lines.push(...LATE);
     lines.push(
       ...(frame1 !== frame0 && frame0 && frame1
         ? ['  canvas: (reloaded)']
@@ -974,6 +1004,7 @@ test(
         })
       );
       const body = `# v1 key characterization — ${cases.length} cases (V2-2.4)\n${results.join('\n')}\n`;
+      if (process.env.V1_KEYS_BODY_OUT) writeFileSync(process.env.V1_KEYS_BODY_OUT, body);
       if (UPDATE) {
         mkdirSync(dirname(GOLDEN), { recursive: true });
         writeFileSync(GOLDEN, body);
@@ -995,6 +1026,21 @@ test(
         console.log(
           `v1-keys: first difference at line ${i + 1}\n--- golden\n${g.slice(start, i + 8).join('\n')}\n+++ now\n${b.slice(start, i + 8).join('\n')}`
         );
+        // V2-2.4 open item: this case's shell summary came out once (one capture run) with a
+        // hash no later run reproduced (3 full runs and 5 lane replays matched the golden, no late
+        // DOM change in any case, no observed line explains it). Name it, never pass it: a mismatch
+        // stays red.
+        const block = (lines: string[], id: string) => {
+          const at = lines.indexOf(`## ${id}`);
+          if (at < 0) return '';
+          const end = lines.findIndex((l, k) => k > at && l.startsWith('## '));
+          return lines.slice(at, end < 0 ? undefined : end).join('\n');
+        };
+        const META_D = 'browser/in-canvas-selected/canvas Meta+d';
+        if (block(g, META_D) !== block(b, META_D))
+          console.log(
+            `v1-keys: ${META_D}: known one-off variant, rerun with V1_KEYS_DUMP=1 and attach the dump (V1_KEYS_BODY_OUT=<file> writes it)`
+          );
       }
       expect(body).toBe(golden);
     } finally {
