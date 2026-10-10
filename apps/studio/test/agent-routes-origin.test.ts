@@ -68,7 +68,13 @@ describe('agent routes — main origin only', () => {
     }
   });
 
-  // The canvas-origin 403 against the LIVE server needs the routes wired (lead patch, after
-  // V2-2.5's routes/index.ts): then extend test/canvas-origin-gate.test.ts with these paths.
-  test.todo('canvas origin → 403 for /_api/ui/open and /_api/agent/* on a booted studio');
+  // The canvas-origin 403 against the LIVE server: test/canvas-origin-gate.test.ts lists these paths.
+  test('canvas-origin-gate.test.ts probes every agent route on a booted studio', () => {
+    const gate = src('test/canvas-origin-gate.test.ts');
+    for (const s of specs)
+      expect({ p: s.path, probed: gate.includes(`'${s.path}'`) }).toEqual({
+        p: s.path,
+        probed: true,
+      });
+  });
 });

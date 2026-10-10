@@ -41,6 +41,7 @@ import {
 } from './canvas-url.js';
 import { applyEditRequest } from './apply-edit-request.ts';
 import { createIndexLoader } from './index-loader.ts';
+import { applyUiOpen } from './ui-open.js';
 import {
   BROWSER_CAPTURE_FORMATS,
   BROWSER_SERVABLE_FORMATS,
@@ -661,6 +662,10 @@ function ShellState({ children }) {
     }
   }, []);
   const { canvasListChangeRef } = useWebSocket({ loadAllComments });
+  // V2-2.4b — `maude design open` (ws `ui-open`, client/ui-open.js). The socket handler below is
+  // installed once, so it reads the tab opener + present toggle through this ref (assigned after
+  // useTabs), never through a captured closure.
+  const uiOpenRef = useRef(null);
   useEffect(() => {
     // KEEPALIVE. The inspector feed only pushes on events (a comment, a
     // selection, sync:status), so an idle designer's socket exchanges nothing
@@ -786,6 +791,10 @@ function ShellState({ children }) {
             // surface the native ACP chat sidepanel. Native-only (the panel
             // doesn't exist on the web surface).
             if (isNativeApp()) openRightPanel('assistant');
+          } else if (m.type === 'ui-open') {
+            // V2-2.4b (contract V2-1.11 §5.3) — `maude design open <canvas>[#ab][@el]`: open the
+            // tab, then run the same registry actions the UI runs (zoom / select / present).
+            if (uiOpenRef.current) applyUiOpen(m.open, uiOpenRef.current);
           } else if (m.type === 'git-status' && m.payload) {
             // Phase 27 (E2) Task 5 — live dirty-state. Updates the Changes-panel
             // count + tree M/A/D badges reactively, no polling.
@@ -959,6 +968,14 @@ function ShellState({ children }) {
     canvasListChangeRef,
     wsSend,
   });
+  uiOpenRef.current = {
+    openTab,
+    frameFor: (f) => iframesRef.current.get(f),
+    setPresent: (on) => {
+      setPresentMode(on);
+      broadcastChrome({ present: on });
+    },
+  };
 
   // ----- Push comments to iframe whenever they change for active file -----
   // Presentation Mode hides comment pins: post an empty list while present

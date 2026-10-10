@@ -333,6 +333,10 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
         // file-write surface (writes assets/logos/*), same privileged
         // posture as /_api/import-asset above; MAIN-ORIGIN ONLY.
         '/_api/import-brand',
+        // V2-2.4b (contract V2-1.11 §5.4, §5.8 invariant 5) — the agent routes drive the user's
+        // window (`maude design open`) and the run bracket; MAIN-ORIGIN ONLY, in neither allowlist
+        // (test/agent-routes-origin.test.ts pins the tables). A GET here 403s at the gate.
+        '/_api/ui/open',
         '/package.json',
       ]) {
         expect(await code(p)).toBe(403);

@@ -7,7 +7,7 @@
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { rootIdentity } from '../../../cli/lib/studio-locate.mjs';
@@ -263,5 +263,57 @@ describe('the shell side (client/ui-open.js) runs the registry actions', () => {
     ]);
     expect(timers).toEqual(OPEN_LADDER_MS);
     expect(posted.length).toBe(OPEN_LADDER_MS.length);
+  });
+
+  test('apply: @element selects in that frame, --select runs select.*, edit turns present off', () => {
+    const run = (open: Record<string, unknown>, mounted = true) => {
+      const calls: unknown[] = [];
+      const posted: unknown[] = [];
+      const win = { contentWindow: { postMessage: (m: unknown) => posted.push(m) } };
+      const plan = applyUiOpen(open, {
+        openTab: (f: string) => calls.push(['openTab', f]),
+        setPresent: (on: boolean) => calls.push(['present', on]),
+        frameFor: () => (mounted ? win : null),
+        schedule: (fn: () => void) => fn(),
+      });
+      return { plan, calls, posted };
+    };
+    const sel = run({ file: '.design/ui/P.tsx', artboard: 'ab', element: 'cta', mode: 'edit' });
+    expect(sel.calls).toEqual([
+      ['openTab', '.design/ui/P.tsx'],
+      ['present', false],
+    ]);
+    // every rung re-posts the same two idempotent messages: zoom to the artboard, then select
+    expect(sel.posted.slice(0, 2)).toEqual([
+      { dgn: 'run-action', v: 1, id: 'view.zoom-to-artboard', params: { id: 'ab' } },
+      { dgn: 'select-by-id', id: 'cta', artboardId: 'ab', index: 0 },
+    ]);
+    expect(sel.posted.length).toBe(2 * OPEN_LADDER_MS.length);
+    const all = run({ file: '.design/ui/P.tsx', select: 'all' });
+    expect(all.calls).toEqual([['openTab', '.design/ui/P.tsx']]); // no mode → present untouched
+    expect(all.posted[0]).toEqual({ dgn: 'run-action', v: 1, id: 'select.all' });
+    // the frame not mounted yet → nothing posted, nothing thrown (the next rung retries)
+    expect(run({ file: 'f', element: 'x' }, false).posted).toEqual([]);
+    // not a ui-open payload → nothing at all
+    const none = run({ nope: 1 });
+    expect([none.plan, none.calls, none.posted]).toEqual([null, [], []]);
+  });
+
+  test('app.jsx routes the ws `ui-open` frame to applyUiOpen through a ref', () => {
+    // The socket handler is installed once (an effect that must not re-subscribe), so the tab
+    // opener — which changes with activePath — is read through a ref refreshed every render.
+    const app = readFileSync(join(import.meta.dir, '..', 'client', 'app.jsx'), 'utf8');
+    const has = (needle: string) => ({ needle, present: app.includes(needle) });
+    expect(has("import { applyUiOpen } from './ui-open.js';").present).toBe(true);
+    const at = app.indexOf("m.type === 'ui-open'");
+    expect(at).toBeGreaterThan(0);
+    const arm = app.slice(at, app.indexOf('} else if', at));
+    expect(arm.includes('applyUiOpen(m.open, uiOpenRef.current)')).toBe(true);
+    expect(has('const uiOpenRef = useRef(null);').present).toBe(true);
+    const assign = app.indexOf('uiOpenRef.current = {');
+    expect(assign).toBeGreaterThan(app.indexOf('} = useTabs({')); // after openTab exists
+    const deps = app.slice(assign, app.indexOf('};', assign));
+    for (const k of ['openTab,', 'frameFor:', 'iframesRef.current.get', 'setPresent:'])
+      expect({ k, present: deps.includes(k) }).toEqual({ k, present: true });
   });
 });
