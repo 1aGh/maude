@@ -72,6 +72,7 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('status', 'none'),
   d('index', 'none'),
   d('help', 'none'),
+  d('open', 'none', { note: 'moves the user’s view (POST /_api/ui/open), never a file' }),
   // ── `maude design`, effect project (writes versioned files of this project) ──────────────
   d('annotate', 'project'),
   d('canvas-edit', 'project'),

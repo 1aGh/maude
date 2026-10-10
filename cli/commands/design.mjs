@@ -37,6 +37,9 @@ const SUBCOMMANDS = new Set([
   'adopt',
   'bulk-deletes',
   'help',
+  // V2-2.4b (contract V2-1.11 §5.3). In-process node verbs that talk to the studio: `open` shows a
+  // canvas / artboard / element in the user's window (cli/lib/design-open.mjs).
+  'open',
 ]);
 
 // Dev-tooling verbs that dispatch to the dev-server's bundled bash helpers
@@ -197,6 +200,10 @@ export async function run({ args, pkgRoot }) {
   if (sub === 'status') return runStatus({ args });
   if (sub === 'adopt') return runAdopt({ args });
   if (sub === 'bulk-deletes') return runBulkDeletes({ args });
+  if (sub === 'open') {
+    const { runOpen } = await import('../lib/design-open.mjs');
+    process.exit(await runOpen({ words: args.slice(args.indexOf('open') + 1) }));
+  }
 }
 
 // Run a whitelisted dev-server bash helper, resolving it from maude's OWN
@@ -362,6 +369,10 @@ function usage() {
 
 Lifecycle:
   serve · init · export · link · adopt · detach · unlink · status · bulk-deletes
+
+Studio (talk to the running Maude window — contract V2-1.11 §5.3):
+  open <canvas>[#artboard][@element] [--mode edit|preview|present] [--select all|none|annotations]
+        Show it in the user's Maude window. Exit 3 when no window shows this project.
 
 Dev-tooling (dispatch to the dev-server bash helpers — DDR-062):
   screenshot · server-up · prep · slug · bootstrap-check · runtime-health

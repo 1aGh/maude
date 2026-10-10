@@ -70,3 +70,30 @@ test('ds-check and ds-upgrade are whitelisted `maude design` bin verbs with its 
     assert.match(sh, /exec bun run "\$SCRIPT_DIR\/_ds-/);
   }
 });
+
+// V2-2.4b (contract V2-1.11 §5.3): the AI-path verbs. In-process node verbs sit in SUBCOMMANDS
+// (they talk to the studio and need no helper); the rest are whitelisted bin verbs with a .sh.
+// Each answers `--help` with exit 0 (§5.7 rule 6).
+const V2_24B_SUBCOMMANDS = ['open'];
+const V2_24B_BIN_VERBS = [];
+test('the V2-2.4b verbs are reachable as `maude design <verb>` and answer --help', () => {
+  const src = readFileSync('cli/commands/design.mjs', 'utf8');
+  const slice = (name) =>
+    src.slice(
+      src.indexOf(`const ${name} = new Set([`),
+      src.indexOf(']);', src.indexOf(`const ${name}`))
+    );
+  for (const verb of V2_24B_SUBCOMMANDS)
+    assert.match(slice('SUBCOMMANDS'), new RegExp(`'${verb}'`), `${verb} missing from SUBCOMMANDS`);
+  for (const verb of V2_24B_BIN_VERBS) {
+    assert.match(slice('BIN_VERBS'), new RegExp(`'${verb}'`), `${verb} missing from BIN_VERBS`);
+    readFileSync(`apps/studio/bin/${verb}.sh`, 'utf8');
+  }
+  for (const verb of [...V2_24B_SUBCOMMANDS, ...V2_24B_BIN_VERBS]) {
+    const out = execSync(`node cli/bin/maude.mjs design ${verb} --help`, {
+      encoding: 'utf8',
+      env: { ...process.env, MAUDE_NO_UPDATE_CHECK: '1' },
+    });
+    assert.match(out, new RegExp(`maude design ${verb}`), `${verb} --help prints its usage`);
+  }
+});

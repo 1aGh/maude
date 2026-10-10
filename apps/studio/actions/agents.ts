@@ -29,9 +29,10 @@ const pending = (pkg: string, want: AgentPath): ActionDefAI['agent'] => ({
   want,
 });
 
+// `maude design open` moves the user's view through the same registry actions (client/ui-open.js).
 const NAV = (note: string): ActionDefAI => ({
   effect: 'none',
-  agent: pending('V2-2.4b open', { path: 'cli', verb: `maude design open ${note}` }),
+  agent: cli(`maude design open ${note}`),
 });
 const PREF = (note?: string): ActionDefAI => ({ effect: 'none', agent: human('view-pref', note) });
 const TSX = (how: string, skill: `design:${string}` = 'design:design'): ActionDefAI => ({
@@ -77,9 +78,9 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'edit.undo': HISTORY,
   'edit.redo': HISTORY,
   'edit.copy': PREF('the clipboard is the user’s; read the source instead'),
-  'select.all': NAV('<canvas>'),
-  'select.none': NAV('<canvas>'),
-  'select.all-annotations': NAV('<canvas>'),
+  'select.all': NAV('<canvas> --select all'),
+  'select.none': NAV('<canvas> --select none'),
+  'select.all-annotations': NAV('<canvas> --select annotations'),
   'object.duplicate': TSX('Copy the element’s JSX next to it; give the copy a new element id'),
   'edit.copy-properties': PREF('the clipboard is the user’s; read the source instead'),
   'edit.paste-properties': TSX('Copy the style props from one element’s JSX to another'),

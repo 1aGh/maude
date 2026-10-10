@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "01c653d6127e",
+  "manifestVersion": "c2c02f6fa667",
   "actions": [
     {
       "id": "search.open",
@@ -240,12 +240,8 @@
       "exec": "canvas",
       "effect": "none",
       "agent": {
-        "path": "pending",
-        "package": "V2-2.4b open",
-        "want": {
-          "path": "cli",
-          "verb": "maude design open <canvas>"
-        }
+        "path": "cli",
+        "verb": "maude design open <canvas> --select all"
       }
     },
     {
@@ -255,12 +251,8 @@
       "exec": "canvas",
       "effect": "none",
       "agent": {
-        "path": "pending",
-        "package": "V2-2.4b open",
-        "want": {
-          "path": "cli",
-          "verb": "maude design open <canvas>"
-        }
+        "path": "cli",
+        "verb": "maude design open <canvas> --select none"
       }
     },
     {
@@ -270,12 +262,8 @@
       "exec": "canvas",
       "effect": "none",
       "agent": {
-        "path": "pending",
-        "package": "V2-2.4b open",
-        "want": {
-          "path": "cli",
-          "verb": "maude design open <canvas>"
-        }
+        "path": "cli",
+        "verb": "maude design open <canvas> --select annotations"
       }
     },
     {
@@ -323,12 +311,8 @@
       "exec": "canvas",
       "effect": "none",
       "agent": {
-        "path": "pending",
-        "package": "V2-2.4b open",
-        "want": {
-          "path": "cli",
-          "verb": "maude design open <canvas>@<element>"
-        }
+        "path": "cli",
+        "verb": "maude design open <canvas>@<element>"
       }
     },
     {
@@ -338,12 +322,8 @@
       "exec": "canvas",
       "effect": "none",
       "agent": {
-        "path": "pending",
-        "package": "V2-2.4b open",
-        "want": {
-          "path": "cli",
-          "verb": "maude design open <canvas>@<element>"
-        }
+        "path": "cli",
+        "verb": "maude design open <canvas>@<element>"
       }
     },
     {
@@ -353,12 +333,8 @@
       "exec": "canvas",
       "effect": "none",
       "agent": {
-        "path": "pending",
-        "package": "V2-2.4b open",
-        "want": {
-          "path": "cli",
-          "verb": "maude design open <canvas>@<element>"
-        }
+        "path": "cli",
+        "verb": "maude design open <canvas>@<element>"
       }
     },
     {
@@ -552,12 +528,8 @@
       "exec": "shell",
       "effect": "none",
       "agent": {
-        "path": "pending",
-        "package": "V2-2.4b open",
-        "want": {
-          "path": "cli",
-          "verb": "maude design open <canvas> --mode present"
-        }
+        "path": "cli",
+        "verb": "maude design open <canvas> --mode present"
       }
     },
     {
@@ -622,12 +594,8 @@
       "exec": "canvas",
       "effect": "none",
       "agent": {
-        "path": "pending",
-        "package": "V2-2.4b open",
-        "want": {
-          "path": "cli",
-          "verb": "maude design open <canvas>#<artboard>"
-        }
+        "path": "cli",
+        "verb": "maude design open <canvas>#<artboard>"
       }
     },
     {
@@ -637,12 +605,8 @@
       "exec": "canvas",
       "effect": "none",
       "agent": {
-        "path": "pending",
-        "package": "V2-2.4b open",
-        "want": {
-          "path": "cli",
-          "verb": "maude design open <canvas>#<artboard>"
-        }
+        "path": "cli",
+        "verb": "maude design open <canvas>#<artboard>"
       }
     },
     {
@@ -1574,6 +1538,12 @@
     {
       "scope": "design",
       "verb": "design help",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design open",
       "effect": "none",
       "tier": "auto"
     },

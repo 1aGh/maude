@@ -153,6 +153,8 @@ export interface Ws {
   handler: WebSocketHandler<WsData>;
   broadcast(payload: unknown): void;
   clientCount(): number;
+  /** V2-2.4b — the shells `maude design open` can reach (see `ui-open` below). */
+  shellCount(): number;
 }
 
 export function createWs(
@@ -273,6 +275,17 @@ export function createWs(
   // /_api/acp/focus emits this; the shell (app.jsx, native-only) opens the
   // Assistant panel. Inspector clients only — same-origin shell, like the rest.
   ctx.bus.on('acp-focus', () => broadcast({ type: 'acp-focus' }));
+
+  // V2-2.4b (contract V2-1.11 §5.3) — `maude design open` → POST /_api/ui/open (routes/agent.ts)
+  // emits this; the shell (client/ui-open.js) opens the canvas and runs the registry actions.
+  // Only a desktop-shaped shell (session '') is a target: in a cell every socket belongs to one
+  // member and a local CLI call names none of them, so `open` answers "no window" there.
+  const isOpenTarget = (ws: ServerWebSocket<WsData>) =>
+    ws.data.kind === 'inspector' && ws.data.session === '';
+  ctx.bus.on('ui-open', (open: unknown) => {
+    const msg = JSON.stringify({ type: 'ui-open', open });
+    for (const ws of clients) if (isOpenTarget(ws)) send(ws, msg);
+  });
 
   // feature-background-export-notification-center — export job queue state
   // changes (queued → running → progress ticks → done/failed). Full-snapshot
@@ -492,5 +505,10 @@ export function createWs(
     },
   };
 
-  return { handler, broadcast, clientCount: () => clients.size };
+  return {
+    handler,
+    broadcast,
+    clientCount: () => clients.size,
+    shellCount: () => [...clients].filter(isOpenTarget).length,
+  };
 }
