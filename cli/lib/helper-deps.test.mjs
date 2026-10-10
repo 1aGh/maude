@@ -4,7 +4,7 @@
 // must never read as an import: the V2-2.17 index helper reached clip-ops.ts through api.ts and
 // the desktop build died on "missing ${specifier} (design helper)".
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -39,5 +39,21 @@ test('no helper in apps/studio/bin stages an interpolated package name', () => {
   assert.deepEqual(
     deps.filter((d) => d.includes('${') || d.includes('`')),
     []
+  );
+});
+
+// DDR-177's npm channel: `npm i -g @1agh/maude` installs only the ROOT package.json's
+// dependencies, and `maude design <verb>` runs the bundled `.sh` → `bun run _<verb>.mjs` from
+// that install. A helper dep missing there resolves in this checkout (apps/studio has its own
+// node_modules) and breaks for every npm user (V2-2.4b: `check` imports oxc-parser, magic-string).
+test('the root package.json ships every standalone helper npm dep (npm channel)', () => {
+  const root = JSON.parse(
+    readFileSync(fileURLToPath(new URL('../../package.json', import.meta.url)), 'utf8')
+  );
+  const shipped = new Set(Object.keys(root.dependencies ?? {}));
+  assert.deepEqual(
+    standaloneHelperNpmDeps(BIN).filter((d) => !shipped.has(d)),
+    [],
+    'add these to the root package.json dependencies (same range as apps/studio/package.json)'
   );
 });

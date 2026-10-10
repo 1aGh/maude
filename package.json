@@ -138,6 +138,8 @@
     "ajv-formats": "^3.0.1",
     "diff": "8.0.4",
     "happy-dom": "20.10.6",
+    "magic-string": "^0.30.21",
+    "oxc-parser": "^0.139.0",
     "svgo": "^4.0.1",
     "yaml": "2.9.0"
   }

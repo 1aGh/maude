@@ -28,6 +28,12 @@ importers:
       happy-dom:
         specifier: 20.10.6
         version: 20.10.6
+      magic-string:
+        specifier: ^0.30.21
+        version: 0.30.21
+      oxc-parser:
+        specifier: ^0.139.0
+        version: 0.139.0
       svgo:
         specifier: ^4.0.1
         version: 4.0.1
@@ -6431,6 +6437,15 @@ packages:
 
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
+
+ignoredOptionalDependencies:
+  - '@1agh/maude-darwin-arm64'
+  - '@1agh/maude-darwin-x64'
+  - '@1agh/maude-linux-arm64'
+  - '@1agh/maude-linux-arm64-musl'
+  - '@1agh/maude-linux-x64'
+  - '@1agh/maude-linux-x64-musl'
+  - '@1agh/maude-win32-x64'
 
 snapshots:
 
