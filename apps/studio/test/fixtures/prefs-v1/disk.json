@@ -1,0 +1,13 @@
+{
+  "theme": "dark",
+  "minimap": false,
+  "panelSides": {
+    "tree": "left",
+    "layers": "left",
+    "inspector": "right",
+    "comments": "right",
+    "changes": "right",
+    "assistant": "right"
+  },
+  "future": { "kept": [1, 2, 3] }
+}
