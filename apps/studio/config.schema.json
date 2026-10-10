@@ -207,6 +207,11 @@
       "description": "Name of the DS used when a canvas's .meta.json has no 'designSystem' field. For single-DS projects, this is the only DS. For multi-DS, pick the most common.",
       "default": null
     },
+    "formatVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The project's file format (V2-1.12, Gate 0 A17). Absent = 1 (Maude 1). Written as 2 by `maude migrate v2` / Update project; a build edits only the format it supports and opens any other format view only. Never hand-edit — use `maude migrate v2 [--reverse]`."
+    },
     "linkedHub": {
       "type": "object",
       "description": "Pairs this repo with a Maude hub for cross-machine file sync (Phase 9 Task 3+4). Written by 'maude design link <url> --token <hex>'. Token NEVER lives in this committed config — it's stored per-machine in ~/.config/maude/hubs.json. When present, 'maude design serve' starts the bidirectional Yjs↔fs sync agent (Task 4).",
