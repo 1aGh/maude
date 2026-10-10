@@ -38,8 +38,10 @@ import {
 
 import { AiBanner } from './ai-banner.tsx';
 import { AnnotationsLayer } from './annotations-layer.tsx';
-import { canvasMayHandle } from './bridge/dgn-protocol.ts';
 import { ArtboardMarqueeOverlay } from './artboard-marquee.tsx';
+import { canvasInsets } from './bridge/canvas-mode-store.ts';
+import { canvasMayHandle } from './bridge/dgn-protocol.ts';
+import { type Insets, revealViewBox } from './bridge/occlusion.ts';
 import { HUD_TOKENS_CSS } from './canvas-hud-tokens.gen.ts';
 import {
   type ArtboardRect,
@@ -2399,9 +2401,12 @@ export function revealAxisDelta(
 export function revealElementViaCamera(
   host: HTMLElement,
   target: HTMLElement,
-  controller: ViewportControllerHandle
+  controller: ViewportControllerHandle,
+  // V2-2.10 (V2-1.2 §5.6) — the view a reveal targets is the host minus the shell's occluded
+  // insets; zero insets keep the whole host, exactly as before.
+  insets: Readonly<Insets> = canvasInsets()
 ): void {
-  const hostRect = host.getBoundingClientRect();
+  const hostRect = revealViewBox(host.getBoundingClientRect(), insets);
   const r = target.getBoundingClientRect();
   if (r.width <= 0 && r.height <= 0) return; // detached / display:none — nothing to reveal
   const dx = revealAxisDelta(r.left, r.right, hostRect.left, hostRect.right, REVEAL_MARGIN_PX);

@@ -120,6 +120,8 @@ import './print-overlay-content.tsx';
 // feature-3-web-artboards T2 — same side-effect-import contract as the print
 // registration above, for the 'web' kind's breakpoint-band chip.
 import './web-overlay-content.tsx';
+import { canvasInsets } from './bridge/canvas-mode-store.ts';
+import { type Insets, visibleRect, ZERO_INSETS } from './bridge/occlusion.ts';
 import {
   buildMoveArtboardsRecord,
   diffLayoutPositions,
@@ -725,7 +727,15 @@ function synthDefaultGrid(seeds: ArtboardSeed[]): ArtboardRect[] {
 
 // Exported for the same reason as `clampZoom` above — lets a unit test prove
 // the raw fit computation for a wide board isn't what's clamping the zoom.
-export function computeFit(rects: ArtboardRect[], hostEl: HTMLElement, pad = 24): ViewportState {
+// V2-2.10 (V2-1.2 §5.6) — `insets`: the shell's occluded insets. The fit centres the union in the
+// VISIBLE rect (bridge/occlusion.ts visibleRect); all-zero / absent insets are byte-identical to
+// the whole-host fit (I3, test/occlusion-geometry.test.ts).
+export function computeFit(
+  rects: ArtboardRect[],
+  hostEl: HTMLElement,
+  pad = 24,
+  insets: Readonly<Insets> = ZERO_INSETS
+): ViewportState {
   if (rects.length === 0) return { x: 0, y: 0, zoom: 1 };
   let xMin = Number.POSITIVE_INFINITY;
   let yMin = Number.POSITIVE_INFINITY;
@@ -742,9 +752,10 @@ export function computeFit(rects: ArtboardRect[], hostEl: HTMLElement, pad = 24)
   const vw = hostEl.clientWidth;
   const vh = hostEl.clientHeight;
   if (!vw || !vh || bw <= 0 || bh <= 0) return { x: 0, y: 0, zoom: 1 };
-  const zoom = Math.min((vw - pad * 2) / bw, (vh - pad * 2) / bh, 1.0);
-  const x = (vw - bw * zoom) / 2 - xMin * zoom;
-  const y = (vh - bh * zoom) / 2 - yMin * zoom;
+  const v = visibleRect(vw, vh, insets);
+  const zoom = Math.min((v.w - pad * 2) / bw, (v.h - pad * 2) / bh, 1.0);
+  const x = v.x + (v.w - bw * zoom) / 2 - xMin * zoom;
+  const y = v.y + (v.h - bh * zoom) / 2 - yMin * zoom;
   return { x, y, zoom };
 }
 
@@ -984,7 +995,7 @@ function prefersReducedMotion(): boolean {
 }
 
 function fitRectIntoHost(rect: ArtboardRect, hostEl: HTMLElement, pad = 24): ViewportState {
-  return computeFit([rect], hostEl, pad);
+  return computeFit([rect], hostEl, pad, canvasInsets());
 }
 
 // RC3 (rca/issue-canvas-hmr-optimistic-update-consistency) — the LIVE camera,
@@ -2084,7 +2095,7 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
   const computeFitForArtboards = useCallback((): ViewportState => {
     const host = hostRef.current;
     if (!host) return { x: 0, y: 0, zoom: 1 };
-    return computeFit(artboardsRef.current, host);
+    return computeFit(artboardsRef.current, host, 24, canvasInsets());
   }, []);
 
   const getInitial = useCallback((): ViewportState | null => {
@@ -2099,7 +2110,7 @@ function DesignCanvasInner({ children, controls }: DesignCanvasProps) {
     }
     const host = hostRef.current;
     if (!host) return null;
-    return computeFit(artboardsRef.current, host);
+    return computeFit(artboardsRef.current, host, 24, canvasInsets());
   }, []);
 
   const onSettle = useCallback((v: ViewportState) => {
