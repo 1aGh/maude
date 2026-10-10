@@ -12,6 +12,29 @@
         ]
       }
     ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PKG=\"${CLAUDE_PLUGIN_ROOT}/../..\"; if [ -f \"$PKG/cli/bin/maude.mjs\" ] && command -v node >/dev/null 2>&1; then node \"$PKG/cli/bin/maude.mjs\" design hook prompt; elif command -v maude >/dev/null 2>&1; then maude design hook prompt; fi; exit 0",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PKG=\"${CLAUDE_PLUGIN_ROOT}/../..\"; if [ -f \"$PKG/cli/bin/maude.mjs\" ] && command -v node >/dev/null 2>&1; then node \"$PKG/cli/bin/maude.mjs\" design hook pre-edit; elif command -v maude >/dev/null 2>&1; then maude design hook pre-edit; fi; exit 0",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Write|Edit|MultiEdit",
@@ -20,6 +43,27 @@
             "type": "command",
             "command": "INPUT=$(cat); case \"$INPUT\" in *'.design/'*'.tsx'*|*'.design/'*'.css'*|*'.design/'*'components.json'*) ;; *) exit 0 ;; esac; command -v maude >/dev/null 2>&1 || exit 0; printf '%s' \"$INPUT\" | maude design ds-check --hook --root \"${CLAUDE_PROJECT_DIR:-.}\" 2>/dev/null; exit 0",
             "timeout": 8
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PKG=\"${CLAUDE_PLUGIN_ROOT}/../..\"; if [ -f \"$PKG/cli/bin/maude.mjs\" ] && command -v node >/dev/null 2>&1; then node \"$PKG/cli/bin/maude.mjs\" design hook post-edit; elif command -v maude >/dev/null 2>&1; then maude design hook post-edit; fi; exit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PKG=\"${CLAUDE_PLUGIN_ROOT}/../..\"; if [ -f \"$PKG/cli/bin/maude.mjs\" ] && command -v node >/dev/null 2>&1; then node \"$PKG/cli/bin/maude.mjs\" design hook stop; elif command -v maude >/dev/null 2>&1; then maude design hook stop; fi; exit 0",
+            "timeout": 60
           }
         ]
       }

@@ -216,6 +216,11 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   // fetch-handled) reads the per-Mac picture cache — neither touches the project
   '/_api/thumbs/want': { class: 'local' },
   '/_api/ui/open': { class: 'local' }, // V2-2.4b `maude design open` → the shells (ws relay)
+  '/_api/agent/run/begin': { class: 'local' }, // V2-2.4b the design plugin's hooks (V2-1.11 §5.4)
+  '/_api/agent/edit/check': { class: 'local' }, // V2-2.4b the design plugin's hooks (V2-1.11 §5.4)
+  '/_api/agent/check': { class: 'local' }, // V2-2.4b the design plugin's hooks (V2-1.11 §5.4)
+  '/_api/agent/edit/touched': { class: 'local' }, // V2-2.4b the design plugin's hooks (V2-1.11 §5.4)
+  '/_api/agent/run/end': { class: 'local' }, // V2-2.4b the design plugin's hooks (V2-1.11 §5.4)
   // --- this machine only
   '/_api/acp/activity': { class: 'local' },
   '/_api/acp/attachment': { class: 'local' },

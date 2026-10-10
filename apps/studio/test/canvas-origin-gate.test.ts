@@ -337,6 +337,11 @@ describe('canvas-origin gate — A1/A2 traversal + privilege containment', () =>
         // window (`maude design open`) and the run bracket; MAIN-ORIGIN ONLY, in neither allowlist
         // (test/agent-routes-origin.test.ts pins the tables). A GET here 403s at the gate.
         '/_api/ui/open',
+        '/_api/agent/run/begin',
+        '/_api/agent/edit/check',
+        '/_api/agent/check',
+        '/_api/agent/edit/touched',
+        '/_api/agent/run/end',
         '/package.json',
       ]) {
         expect(await code(p)).toBe(403);

@@ -38,8 +38,10 @@ const SUBCOMMANDS = new Set([
   'bulk-deletes',
   'help',
   // V2-2.4b (contract V2-1.11 §5.3). In-process node verbs that talk to the studio: `open` shows a
-  // canvas / artboard / element in the user's window (cli/lib/design-open.mjs).
+  // canvas / artboard / element in the user's window (cli/lib/design-open.mjs). `hook` is the design
+  // plugin's hook dispatcher (§5.4, cli/lib/design-hook.mjs): deny-only, fail-open, always exit 0.
   'open',
+  'hook',
 ]);
 
 // Dev-tooling verbs that dispatch to the dev-server's bundled bash helpers
@@ -211,6 +213,14 @@ export async function run({ args, pkgRoot }) {
     const { runOpen } = await import('../lib/design-open.mjs');
     process.exit(await runOpen({ words: args.slice(args.indexOf('open') + 1) }));
   }
+  if (sub === 'hook') {
+    const { runHookCli } = await import('../lib/design-hook.mjs');
+    // the local `maude design check` fallback re-runs THIS maude (compiled binary or node + bin)
+    const self = isCompiledBinary()
+      ? [process.execPath]
+      : [process.execPath, join(pkgRoot, 'cli', 'bin', 'maude.mjs')];
+    process.exit(await runHookCli({ words: args.slice(args.indexOf('hook') + 1), self }));
+  }
 }
 
 // Run a whitelisted dev-server bash helper, resolving it from maude's OWN
@@ -380,6 +390,8 @@ Lifecycle:
 Studio (talk to the running Maude window — contract V2-1.11 §5.3):
   open <canvas>[#artboard][@element] [--mode edit|preview|present] [--select all|none|annotations]
         Show it in the user's Maude window. Exit 3 when no window shows this project.
+  hook prompt|pre-edit|post-edit|stop
+        The design plugin's Claude Code hooks (hook JSON on stdin). Deny-only, fail-open: exit 0.
 
 Dev-tooling (dispatch to the dev-server bash helpers — DDR-062):
   screenshot · server-up · prep · slug · bootstrap-check · runtime-health

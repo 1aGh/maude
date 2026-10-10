@@ -299,6 +299,12 @@ export const STUDIO_ROUTES = Object.freeze({
   // matches no exact route or prefix here, so it is refused default-closed as well.
   '/_api/thumbs/want': REFUSED,
   '/_api/ui/open': REFUSED, // V2-2.4b: desktop shells only (a cell answers "no window")
+  // V2-2.4b: the hook routes serve a LOCAL Claude Code's hooks against the person's own studio
+  '/_api/agent/run/begin': REFUSED,
+  '/_api/agent/edit/check': REFUSED,
+  '/_api/agent/check': REFUSED,
+  '/_api/agent/edit/touched': REFUSED,
+  '/_api/agent/run/end': REFUSED,
   '/_api/design/init': REFUSED,
   // Resync + the sweep cancel (v0.60.0) restart the SYNC RUNTIME of whatever
   // process serves this project. On a laptop that is the person's own studio
