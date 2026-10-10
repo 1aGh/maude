@@ -31,6 +31,7 @@ import {
   isScopeValidForFormat,
   validScopesForFormat,
 } from './exporters/format-scopes.ts';
+import { useCanvasKeys } from './use-canvas-keys.ts';
 import { useSelectionSetOptional } from './use-selection-set.tsx';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -411,19 +412,20 @@ export function ExportDialogProvider({ children }: { children: ReactNode }): Rea
     dialogRef.current?.showModal();
   }, [openState, loadHistory]);
 
-  // ⌘E / Ctrl+E to open; ⌘⇧E / Ctrl+Shift+E to re-run last.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-bind on `open` only — rerunLast is stable per render; re-running on it would tear down the global hotkey listener needlessly.
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      const mod = e.metaKey || e.ctrlKey;
-      if (!mod || e.key.toLowerCase() !== 'e') return;
+  // ⌘E / Ctrl+E to open; ⌘⇧E / Ctrl+Shift+E to re-run last — registry actions
+  // `export.canvas-dialog` / `export.rerun-last` (V2-2.4; the window listener v1 had,
+  // through the canvas keymap). v2 unbinds ⌘E and gives ⇧⌘E to the one export
+  // sheet (D3) — Phase 4.
+  useCanvasKeys({
+    'export.canvas-dialog': (e) => {
       e.preventDefault();
-      if (e.shiftKey) void rerunLast();
-      else open();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
+      open();
+    },
+    'export.rerun-last': (e) => {
+      e.preventDefault();
+      void rerunLast();
+    },
+  });
 
   // Phase 6.5 T9 — context-menu entries dispatch `maude:open-export` so they
   // don't have to prop-drill the dialog handle through every consumer.

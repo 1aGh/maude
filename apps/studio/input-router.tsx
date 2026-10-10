@@ -29,6 +29,7 @@
 
 import { type RefObject, useEffect } from 'react';
 
+import { canvasKeyIndex, resolveCanvasKey } from './actions/canvas-keys.ts';
 import { isEmbedCanvas } from './read-only-mode.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -148,6 +149,8 @@ export interface ClassifyInput {
   shiftKey?: boolean;
   altKey?: boolean;
   key?: string;
+  /** KeyboardEvent.code — the physical key (chordFromEvent's layout fallback, V2-1.3 §5.4). */
+  code?: string;
   clientX?: number;
   clientY?: number;
   /** Spacebar held — shared signal with `useViewportController`'s pan-drag. */
@@ -158,53 +161,52 @@ export interface ClassifyInput {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Keys (V2-2.4 step 5) — the router's keys are registry actions (actions/defs/tool.ts, ui.ts,
+// edit.ts), resolved against the canvas keymap instead of matched by hand: the bare tool letters
+// (⇧ ignored except ⇧S; no ⌘ ⌃ ⌥; never in a text field), esc with any modifier, ⌘Z / ⇧⌘Z / ⌘Y.
+
+const ROUTER_KEY_ACTIONS: Readonly<Record<string, RouterAction>> = {
+  'tool.select': { kind: 'tool', tool: 'move' },
+  'tool.hand': { kind: 'tool', tool: 'hand' },
+  'tool.comment': { kind: 'tool', tool: 'comment' },
+  'tool.pen': { kind: 'tool', tool: 'pen' },
+  'tool.highlighter': { kind: 'tool', tool: 'highlighter' },
+  'tool.shape': { kind: 'tool', tool: 'shape' },
+  'tool.arrow': { kind: 'tool', tool: 'arrow' },
+  'tool.sticky': { kind: 'tool', tool: 'sticky' },
+  'tool.text': { kind: 'tool', tool: 'text' },
+  'tool.section': { kind: 'tool', tool: 'section' },
+  'tool.eraser': { kind: 'tool', tool: 'eraser' },
+  'ui.step-back': { kind: 'escape' },
+  'edit.undo': { kind: 'undo' },
+  'edit.redo': { kind: 'redo' },
+};
+const ROUTER_KEYS = canvasKeyIndex(Object.keys(ROUTER_KEY_ACTIONS));
+
+function classifyKey(input: ClassifyInput): RouterAction {
+  const id = resolveCanvasKey(
+    ROUTER_KEYS,
+    {
+      key: input.key ?? '',
+      code: input.code,
+      metaKey: input.metaKey,
+      ctrlKey: input.ctrlKey,
+      altKey: input.altKey,
+      shiftKey: input.shiftKey,
+    },
+    !!input.isEditable
+  );
+  return id ? { ...ROUTER_KEY_ACTIONS[id] } : { kind: 'no-op' };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // classify — pure function. All branching lives here so unit tests cover every
 // row of the dispatch table without spinning up a DOM.
 
 const metaOrCtrl = (i: ClassifyInput): boolean => !!(i.metaKey || i.ctrlKey);
 
 export function classify(input: ClassifyInput): RouterAction {
-  if (input.type === 'keydown') {
-    if (input.isEditable) return { kind: 'no-op' };
-    // Tool letters are bare keys — Cmd/Ctrl/Alt+letter belongs to shell / browser.
-    if (input.metaKey || input.ctrlKey || input.altKey) {
-      // Esc with modifiers still dismisses.
-      if (input.key === 'Escape') return { kind: 'escape' };
-      // Undo / redo (Phase 20). Alt is reserved — Cmd+Opt+Z is a browser
-      // text-input gesture we don't claim. `metaKey || ctrlKey` covers both
-      // mac and Windows / Linux without a platform sniff.
-      const k = (input.key || '').toLowerCase();
-      if (!input.altKey && (input.metaKey || input.ctrlKey)) {
-        if (k === 'z' && input.shiftKey) return { kind: 'redo' };
-        if (k === 'z') return { kind: 'undo' };
-        if (k === 'y' && !input.shiftKey) return { kind: 'redo' };
-      }
-      return { kind: 'no-op' };
-    }
-    const k = (input.key || '').toLowerCase();
-    if (k === 'v') return { kind: 'tool', tool: 'move' };
-    if (k === 'h') return { kind: 'tool', tool: 'hand' };
-    if (k === 'c') return { kind: 'tool', tool: 'comment' };
-    if (k === 'b') return { kind: 'tool', tool: 'pen' };
-    // I = hIghlighter (a free bare letter; 'H' is taken by Hand).
-    if (k === 'i') return { kind: 'tool', tool: 'highlighter' };
-    // Phase 24 — R (and legacy O) both arm the single Shape tool; the specific
-    // primitive is picked from the palette's shape-kind popover.
-    if (k === 'r' || k === 'o') return { kind: 'tool', tool: 'shape' };
-    if (k === 'a') return { kind: 'tool', tool: 'arrow' };
-    // Phase 21 — N = sticky Note ('S' is taken by the shell Design-system view
-    // + Shift-marquee); T = standalone Text. Both are bare letters the shell
-    // yields when focus is inside the canvas iframe (app.jsx onKey bail).
-    if (k === 'n') return { kind: 'tool', tool: 'sticky' };
-    if (k === 't') return { kind: 'tool', tool: 'text' };
-    // FigJam v3 — Shift+S arms the Section tool (FigJam's own binding; bare S
-    // stays with the shell's Design-system view). Checked here because the
-    // modifier guard above only filters Cmd/Ctrl/Alt.
-    if (k === 's' && input.shiftKey) return { kind: 'tool', tool: 'section' };
-    if (k === 'e') return { kind: 'tool', tool: 'eraser' };
-    if (input.key === 'Escape') return { kind: 'escape' };
-    return { kind: 'no-op' };
-  }
+  if (input.type === 'keydown') return classifyKey(input);
 
   if (input.type === 'contextmenu') {
     return {
@@ -724,6 +726,7 @@ export function useInputRouter(opts: UseInputRouterOptions): void {
         classify({
           type: 'keydown',
           key: e.key,
+          code: e.code,
           metaKey: e.metaKey,
           ctrlKey: e.ctrlKey,
           shiftKey: e.shiftKey,

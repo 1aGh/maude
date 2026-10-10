@@ -3,6 +3,7 @@
 
 import path from 'node:path';
 
+import { CHORD_OF_EVENT_JS, canvasForwards } from './actions/forward.ts';
 import type { Context } from './context.ts';
 import { normalizeSessionKey, sessionFile } from './session-scope.ts';
 
@@ -471,6 +472,26 @@ export function createInspectRegistry(
 
 // ---------- Inspector script injection ----------
 
+// V2-2.4 step 5 — the chords the canvas forwards (actions/forward.ts) still travel on v1's
+// message lanes until step 6 swaps them for `{dgn:'key'}` (V2-1.3 §5.7).
+const V1_FORWARD_LANE: Readonly<Record<string, { dgn: string; id?: string }>> = {
+  'search.open': { dgn: 'toggle-palette' },
+  'canvas.reload': { dgn: 'shell-shortcut', id: 'reload' },
+  'view.inspector': { dgn: 'shell-shortcut', id: 'inspector' },
+  'view.comments': { dgn: 'shell-shortcut', id: 'comments' },
+  'export.open': { dgn: 'shell-shortcut', id: 'export' },
+  'handoff.open': { dgn: 'shell-shortcut', id: 'handoff' },
+  'view.timeline-keep-open': { dgn: 'shell-shortcut', id: 'timeline' },
+  'history.open': { dgn: 'shell-shortcut', id: 'changes' },
+};
+const V1_FORWARD_MESSAGES = Object.fromEntries(
+  Object.entries(canvasForwards()).map(([chord, id]) => {
+    const lane = V1_FORWARD_LANE[id];
+    if (!lane) throw new Error(`inspect.ts: no v1 message lane for the forwarded action ${id}`);
+    return [chord, lane];
+  })
+);
+
 function injectInspector(html: string): string {
   const idx = html.lastIndexOf('</body>');
   if (idx === -1) return html + INSPECTOR_SCRIPT;
@@ -640,34 +661,19 @@ const INSPECTOR_SCRIPT = `
   // shell's window-scoped listener (iframe keyboard isolation), so each shell
   // chord must be forwarded to the parent. preventDefault is load-bearing for
   // ⌘R: without it the BROWSER reloads the whole shell while focus is in the
-  // canvas (the advertised behavior is "reload the active canvas"). Capture
-  // phase so canvas-lib's pan/zoom keydown handler can't swallow them first.
+  // canvas (the advertised behavior is "reload the active canvas"), and ⌘⇧T is
+  // the browser's "reopen closed tab". Capture phase so canvas-lib's pan/zoom
+  // keydown handler can't swallow them first. The chord table is generated from
+  // the action registry (V2-2.4 — actions/forward.ts: every \`fromCanvas\` action's
+  // canvas binding), so it can no longer miss a chord the shell answers.
+  var FORWARD = ${JSON.stringify(V1_FORWARD_MESSAGES)};
+  var chordOf = ${CHORD_OF_EVENT_JS};
   document.addEventListener('keydown', function(e) {
     if (!(e.metaKey || e.ctrlKey)) return;
-    var k = (e.key || '').toLowerCase();
-    if (k === 'k' && !e.shiftKey) {
-      e.preventDefault();
-      try { window.parent.postMessage({ dgn: 'toggle-palette' }, '*'); } catch (err) {}
-      return;
-    }
-    if (k === 'r' && !e.shiftKey) {
-      e.preventDefault();
-      try { window.parent.postMessage({ dgn: 'shell-shortcut', id: 'reload' }, '*'); } catch (err) {}
-      return;
-    }
-    if (e.shiftKey) {
-      // ⌘⇧T (timeline) + ⌘⇧G (changes) were missing here, so with focus inside
-      // the canvas iframe they never reached the shell — opening the Timeline
-      // (and its Space/arrow transport, which needs the dock focused) silently
-      // stopped working after a canvas interaction moved focus into the iframe.
-      // ⌘⇧T is also the browser "reopen closed tab" chord, so the preventDefault
-      // below is doubly load-bearing.
-      var id = k === 'i' ? 'inspector' : k === 'm' ? 'comments' : k === 'e' ? 'export' : k === 'h' ? 'handoff' : k === 't' ? 'timeline' : k === 'g' ? 'changes' : null;
-      if (id) {
-        e.preventDefault();
-        try { window.parent.postMessage({ dgn: 'shell-shortcut', id: id }, '*'); } catch (err) {}
-      }
-    }
+    var m = FORWARD[chordOf(e)];
+    if (!m) return;
+    e.preventDefault();
+    try { window.parent.postMessage(m, '*'); } catch (err) {}
   }, true);
 
   window.addEventListener('message', function(e) {
