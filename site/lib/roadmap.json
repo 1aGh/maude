@@ -3,17 +3,6 @@
   "currentPhase": null,
   "phases": [
     {
-      "id": "feature-desktop-project-tabs-and-identity-profiles",
-      "title": "Feature: Desktop project tabs + per-project identity profiles",
-      "status": "done",
-      "shipTarget": null,
-      "date": null,
-      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. The Rust shell is the centre of gravity here — read apps/desktop/src-tauri/src/sidecar...",
-      "planPath": ".ai/plans/archive/feature-desktop-project-tabs-and-identity-profiles.md",
-      "archived": true,
-      "phaseKey": null
-    },
-    {
       "id": "phase-1-contribute-infra-changesets",
       "title": "Phase 1: Contribute infrastructure + Changesets bootstrap",
       "status": "done",
@@ -2364,6 +2353,17 @@
       "date": "2026-10-08",
       "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils and imports. Read the comments in apps/studio/sync/index.ts around every timer you touch. Almost eve...",
       "planPath": ".ai/plans/archive/feature-cells-idle-desktop-lets-cell-sleep.md",
+      "archived": true,
+      "phaseKey": null
+    },
+    {
+      "id": "feature-desktop-project-tabs-and-identity-profiles",
+      "title": "Feature: Desktop project tabs + per-project identity profiles",
+      "status": "done",
+      "shipTarget": null,
+      "date": "2026-10-08",
+      "summary": "Validate docs and codebase patterns before implementing. Pay attention to existing naming, utils, and imports. The Rust shell is the centre of gravity here — read apps/desktop/src-tauri/src/sidecar...",
+      "planPath": ".ai/plans/archive/feature-desktop-project-tabs-and-identity-profiles.md",
       "archived": true,
       "phaseKey": null
     },
