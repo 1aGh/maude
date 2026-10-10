@@ -1551,8 +1551,8 @@
   canvas: =
 ## browser/in-canvas/canvas Meta+Shift+E
   keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="E" PREVENTED
-  to-shell: child key · child export-history-request id=exp-1
-  to-canvas: parent export-history-result id=exp-1
+  to-shell: child key
+  to-canvas: (none)
   writes: (none)
   shell: +63 -0 #c5f1eabd57
     + button .btn.btn--primary [data-testid="export-submit"] [type="button"] "Export PNG"
@@ -1963,8 +1963,8 @@
     + @focus div.dc-canvas
 ## browser/in-canvas-text/canvas Meta+Shift+E
   keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="E" PREVENTED
-  to-shell: child key · child export-history-request id=exp-1
-  to-canvas: parent export-history-result id=exp-1
+  to-shell: child key
+  to-canvas: (none)
   writes: (none)
   shell: +63 -0 #c5f1eabd57
     + button .btn.btn--primary [data-testid="export-submit"] [type="button"] "Export PNG"

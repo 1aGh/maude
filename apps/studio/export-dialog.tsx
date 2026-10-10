@@ -320,8 +320,6 @@ interface OpenOptions {
 interface ExportDialogValue {
   open(opts?: OpenOptions): void;
   close(): void;
-  /** Re-run the most recent export without opening the dialog. */
-  rerunLast(): Promise<void>;
 }
 
 const ExportDialogContext = createContext<ExportDialogValue | null>(null);
@@ -412,18 +410,15 @@ export function ExportDialogProvider({ children }: { children: ReactNode }): Rea
     dialogRef.current?.showModal();
   }, [openState, loadHistory]);
 
-  // ⌘E / Ctrl+E to open; ⌘⇧E / Ctrl+Shift+E to re-run last — registry actions
-  // `export.canvas-dialog` / `export.rerun-last` (V2-2.4; the window listener v1 had,
-  // through the canvas keymap). v2 unbinds ⌘E and gives ⇧⌘E to the one export
-  // sheet (D3) — Phase 4.
+  // ⌘E / Ctrl+E to open — registry action `export.canvas-dialog` (V2-2.4; the window listener v1
+  // had, through the canvas keymap). ⇧⌘E is NOT bound here: it opens the shell's one Export sheet
+  // (forwarded by inspect.ts), and "Export again" moved onto that sheet's Recent rows (V2-2.8, D3,
+  // decision:maude/v2-2.8-shift-cmd-e-one-sheet). v1 also ran `rerunLast()` on ⇧⌘E and so
+  // re-submitted the last export next to the sheet opening. ⌘E goes in Phase 4 with this dialog.
   useCanvasKeys({
     'export.canvas-dialog': (e) => {
       e.preventDefault();
       open();
-    },
-    'export.rerun-last': (e) => {
-      e.preventDefault();
-      void rerunLast();
     },
   });
 
@@ -496,23 +491,7 @@ export function ExportDialogProvider({ children }: { children: ReactNode }): Rea
     [close]
   );
 
-  const rerunLast = useCallback(async () => {
-    await loadHistory();
-    const last = history[0];
-    if (!last) return;
-    // ⌘⇧E replays a history entry verbatim. An entry whose (format, scope)
-    // pair is no longer legal — or never was — would otherwise be re-sent as
-    // an unrenderable job; fall back to that format's default scope.
-    const scope = isScopeValidForFormat(last.format, last.scope)
-      ? last.scope
-      : defaultScopeForFormat(last.format);
-    await submit(last.format, scope, last.options ?? {});
-  }, [history, loadHistory, submit]);
-
-  const ctxValue = useMemo<ExportDialogValue>(
-    () => ({ open, close, rerunLast }),
-    [open, close, rerunLast]
-  );
+  const ctxValue = useMemo<ExportDialogValue>(() => ({ open, close }), [open, close]);
 
   return (
     <ExportDialogContext.Provider value={ctxValue}>

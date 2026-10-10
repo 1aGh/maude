@@ -467,11 +467,6 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     keys: [{ chord: '⌘E', layer: 'tools', inText: true, when: { focus: ['canvas', 'text'] } }],
   },
   {
-    id: 'export.rerun-last',
-    exec: 'canvas',
-    keys: [{ chord: '⇧⌘E', layer: 'tools', inText: true, when: { focus: ['canvas', 'text'] } }],
-  },
-  {
     id: 'annotation.group',
     exec: 'canvas',
     keys: [

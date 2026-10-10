@@ -14,6 +14,10 @@
 // case. Refresh deliberately with V1_KEYS_UPDATE=1, and only in Phase 4, or for a lead-approved
 // transport-only delta (lane renames with identical keydown / writes / DOM), recorded in kg
 // (decision:maude/v2-2.4-golden-transport-delta — V2-2.4 step 6's `key` / `run-action` lanes).
+// Approved delta (V2-2.8, decision:maude/v2-2.8-shift-cmd-e-one-sheet — V2-1.3 defect 2): ⇧⌘E with
+// canvas focus no longer also runs the iframe's `rerunLast()`, so `browser/in-canvas/canvas` and
+// `browser/in-canvas-text/canvas` Meta+Shift+E lose the `export-history-request` / `-result`
+// messages; the keydown, the writes and the shell's Export sheet are byte-identical.
 //
 //   cd apps/studio && bun test test/characterization/v1-keys.test.ts
 //     V1_KEYS_UPDATE=1   rewrite the golden

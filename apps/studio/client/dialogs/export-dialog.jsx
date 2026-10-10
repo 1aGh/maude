@@ -283,27 +283,9 @@ export function ExportDialog({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  async function doExport() {
-    if (card.handoff) {
-      const p = activePath && activePath !== SYSTEM_TAB ? activePath : '<canvas>.tsx';
-      const cmd = `/design:handoff ${p}`;
-      try {
-        await navigator.clipboard?.writeText(cmd);
-      } catch {}
-      setStatus({ ok: true, msg: `Copied: ${cmd} — run it in Claude Code.` });
-      return;
-    }
-    if (laneBlocked(card)) {
-      // Belt to the disabled-card braces — a stale selection can't submit a
-      // format this workspace cannot render.
-      setStatus({
-        ok: false,
-        msg: 'This format needs the render service, which this workspace doesn’t have configured.',
-      });
-      return;
-    }
-    setBusy(true);
-    setStatus(null);
+  // The sheet's controls → the options bag for the card being exported. Pulled out of the submit so
+  // a history replay (below) can skip it: a replay carries the entry's own options.
+  async function sheetOptions(card, scope) {
     // `scale` drives video resolution (deviceScaleFactor → encoder dims);
     // temporal formats were previously fixed at the tiny native size. PNG's
     // resolution now comes from pngResId (T4/T6 — scale OR dpi).
@@ -350,6 +332,35 @@ export function ExportDialog({
     // lags a tab switch, and a job resolved against the stale file renders the
     // wrong canvas (with this dialog's artboardId, which then never matches).
     if (activePath && activePath !== SYSTEM_TAB) options.canvasFile = activePath;
+    return options;
+  }
+
+  // V2-2.8 (decision:maude/v2-2.8-shift-cmd-e-one-sheet, Gate 0 D3) — ONE submit path for the
+  // Export button and for the Recent rows' "Export again". `card` / `scope` are what is exported:
+  // the sheet's own selection, or the history entry's. `replay` is that history entry; its options
+  // go out verbatim instead of being built from the sheet's controls.
+  async function runExport(card, scope, replay) {
+    if (card.handoff) {
+      const p = activePath && activePath !== SYSTEM_TAB ? activePath : '<canvas>.tsx';
+      const cmd = `/design:handoff ${p}`;
+      try {
+        await navigator.clipboard?.writeText(cmd);
+      } catch {}
+      setStatus({ ok: true, msg: `Copied: ${cmd} — run it in Claude Code.` });
+      return;
+    }
+    if (laneBlocked(card)) {
+      // Belt to the disabled-card braces — a stale selection can't submit a
+      // format this workspace cannot render.
+      setStatus({
+        ok: false,
+        msg: 'This format needs the render service, which this workspace doesn’t have configured.',
+      });
+      return;
+    }
+    setBusy(true);
+    setStatus(null);
+    const options = replay ? { ...(replay.options ?? {}) } : await sheetOptions(card, scope);
     // DDR-231 — the browser lane: in a workspace, png/svg of the active
     // artboard is captured by the member's OWN browser (the canvas already
     // renders here) — instant, no fleet wake. Everything else continues to
@@ -478,6 +489,25 @@ export function ExportDialog({
       setStatus({ ok: false, msg: err && err.message ? err.message : String(err) });
       setBusy(false);
     }
+  }
+
+  const doExport = () => runExport(card, scope, null);
+
+  // "Export again" on a Recent row (D3). A (format, scope) pair that is not legal — or never was —
+  // would otherwise go out as an unrenderable job: fall back to that format's default scope, the
+  // rule the in-canvas dialog's rerunLast() had. A format with no card (webm, from the CLI) still
+  // replays — the lane gate and the server judge it.
+  function exportAgain(h) {
+    const format = String(h.format || '');
+    const replayCard = EXPORT_CARDS.find((c) => c.format === format && !c.handoff) || {
+      id: format,
+      label: format.toUpperCase(),
+      format,
+    };
+    const replayScope = isScopeValidForFormat(format, h.scope)
+      ? h.scope
+      : defaultScopeForFormat(format);
+    return runExport(replayCard, replayScope, h);
   }
 
   return (
@@ -805,6 +835,15 @@ export function ExportDialog({
                     {EXPORT_SCOPE_LABELS[h.scope] || h.scope}
                   </span>
                   <span className="st-mono">{h.filename}</span>
+                  <button
+                    type="button"
+                    className="btn btn--ghost"
+                    data-testid={`export-recent-again-${i}`}
+                    disabled={busy}
+                    onClick={() => exportAgain(h)}
+                  >
+                    Export again
+                  </button>
                 </div>
               ))}
             </div>
