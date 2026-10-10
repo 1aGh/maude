@@ -198,3 +198,20 @@ EOF
 After step 6, append the chosen generation path (Skill vs orchestrator-direct) to the file's "Generation path:" line.
 
 **Why mandatory:** scooter retro (2026-05-09) flagged that without an envelope artifact, future retros can't see what brief drove generation — the orchestrator's mental model of the brief disappears with the conversation. The envelope being on disk also surfaces over-prescriptive briefs (wireframe-spec smell) for review independent of the canvas itself.
+
+#### 5x. Schema cheat-sheet (V2-2.15, design-system schema v1)
+
+Add the system's role cheat-sheet to the envelope — names, not a file list (≤ 60 lines):
+
+```bash
+DS_CHEATSHEET=$(maude design ds-check --cheatsheet "$DS_NAME" --root "$PROJECT_ROOT")
+```
+
+It lists every Tier-1 role by group with its meaning, this system's Tier-2 / `--x-*` names, the
+`@maude/ds` component names, the `.t-*` type roles and the icon vocabulary (names the system has
+no glyph for are listed as gaps — don't use them). The generator writes **only** those names:
+wrap artboard content in a theme wrapper whose class is `ds` (`<DSRoot>` from `@maude/canvas-lib`
+where the installed canvas-lib exports it, else `<div className="ds" data-theme="…">` — never the
+system's own root class), use the system's component classes (or `@maude/ds` components where
+available), and never import `system/<ds>/preview/*.tsx`. A palette opt-out (`--opt-out=palette`) puts its colours in a
+`--c-*` block on the canvas root instead of inline literals.

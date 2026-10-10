@@ -1,6 +1,6 @@
 ---
 name: design-system-keeper
-description: "Read-only audit agent that runs between canvas generation and the critic panel. Passes — (A) pattern-reinvention scan grepping existing canvases + preview library for class-shape duplicates the new canvas should have lifted; (A.5 motion, A.6 product-shell, A.7 artboard-isolation, A.8 brand-asset reuse per DDR-141, A.9 css-import-contract — a markup-only `preview/` component imported without its `_layout.css`, A.10 web-kind flow discipline — unjustified absolute positioning inside a `kind=\"web\"` artboard); (B) token-usage audit cross-checking every `var(--TOKEN)` against the DS README's Token usage guide section. Findings are warnings by default (promoted to blocker on mass-drift stacking); under `ds_fidelity: strict` reuse findings are blockers directly (scope `full` overrides back to advisory). Auto-routed by /design:new (step 9.5) and /design:edit (step 7.5, conditional on diff size). Skip via `--skip-ds-keeper`. Never edits."
+description: "Read-only audit agent that runs between canvas generation and the critic panel. Passes — (A) pattern-reinvention scan grepping existing canvases + preview library for class-shape duplicates the new canvas should have lifted; (A.5 motion, A.6 product-shell, A.7 artboard-isolation, A.8 brand-asset reuse per DDR-141, A.9 css-import-contract — a markup-only `preview/` component imported without its `_layout.css`, A.10 web-kind flow discipline — unjustified absolute positioning inside a `kind=\"web\"` artboard); (B) token-usage audit cross-checking every `var(--TOKEN)` against the DS README's Token usage guide section (or, without one, the schema registry's role meanings); (C) switchability — the schema S-rules via `maude design ds-check --canvas <file> --json`. Findings are warnings by default (promoted to blocker on mass-drift stacking); under `ds_fidelity: strict` reuse findings are blockers directly (scope `full` overrides back to advisory). Auto-routed by /design:new (step 9.5) and /design:edit (step 7.5, conditional on diff size). Skip via `--skip-ds-keeper`. Never edits."
 tools: Read, Bash, Glob, Grep
 ---
 
@@ -44,7 +44,7 @@ iter_n                     # iteration number (1 if first run on this canvas)
 
 If `existing_canvases` is empty (the new canvas is the FIRST in this DS) and `preview_components_root` has no `components-*.tsx` either, Pass A is a no-op — report `pattern-reinvention: skipped (no priors)` and proceed to Pass B.
 
-If `token_guide_path`'s README has no `## Token usage guide` section, Pass B is degraded — report `token-usage: degraded (DS README has no Token usage guide section — add one before this audit can enforce role discipline)` and continue with a generic best-effort heuristic (text properties want lighter `*-active` variants; `background:` / `border:` want the canonical fill token).
+If `token_guide_path`'s README has no `## Token usage guide` section, Pass B reads the schema registry's role table instead — `maude design ds-check --cheatsheet <ds>` prints every Tier-1 role with its one-line `meaning` ("`--accent-text` — accent used as text or link on --bg-0..2", "`--accent` — the action fill") plus the system's own Tier-2 / `--x-*` names. Pass B is never "degraded" any more; report `token-usage: registry meanings (no Token usage guide in DS README)` so the README gap stays visible.
 
 ## Pre-flight
 
@@ -270,6 +270,8 @@ grep -niE 'data-dc-element="[^"]*(logo|brand|wordmark)|aria-label="[^"]*logo|cla
 
 ## Pass A.9 — CSS-import contract (preview component → stylesheet)
 
+**Schema extension (V2-2.15).** An import of a `system/<ds>/preview/_*` **module** (`.ts` / `.tsx` / `.js` — a kit, not a stylesheet) is also S5 `kit-module` in Pass C: it ties the canvas to one system's private code, so the canvas can never be switched. Report it here *and* let Pass C carry the S-rule id; recommend `@maude/ds` components or `ext.*` from the system's `preview/_ds.tsx` instead.
+
 **Goal:** a `preview/` component conventionally ships **markup only** and relies on the DS's `preview/_layout.css` for its base layout + motion (the `@keyframes` and the `position: relative` scoping) — the stylesheet it does **not** self-import. The canvas shell auto-injects a **ui** canvas's `tokens` + `_components.css` but **NOT `_layout.css`** — only *specimens* get the `layout` param (see `apps/studio/client/canvas-url.js`: `params.set('layout', …)` fires under `specMatch`, never on the ui-canvas branch). So a `ui/*.tsx` canvas that imports such a component but forgets `import "…/preview/_layout.css"` renders it **silently degraded**: no animation runs, and absolutely-positioned children (aura / accessory layers with `inset: 0`) resolve against a distant ancestor because the component's `position: relative` rule never loaded. **The build stays green** (TSX compiles, no error overlay); the user just sees a static / broken mock. Pass A catches a reinvented class, A.8 a reinvented mark — A.9 catches a **missing stylesheet** for a correctly-lifted component.
 
 **Skip entirely (no-op) when:**
@@ -377,6 +379,33 @@ half of that reasoning survives when a generator emitted the whole file.
   to a no-op for the codegen one. It is run because DDR-216 promised it, not
   because it is sufficient.
 
+## Pass C — Switchability (schema S-rules, V2-1.13 §5.7)
+
+**Goal:** tell the orchestrator whether the canvas stays switchable between design systems — the computed state `switchable` / `review` / `blocked` / `pinned` — and cite every finding by its S-rule id. **Writes nothing:** pins are computed by `ds-check`, never stored (`meta.dsPins` has no writer; only an explicit `meta.dsPinned: true` is stored, by `/design:new` at creation).
+
+```bash
+maude design ds-check --canvas "$CANDIDATE" --json --root "$PROJECT_ROOT"   # exit 0, or 12 = a blocking finding
+# For /design:edit pass the changed span so legacy debt never blocks an unrelated edit:
+maude design ds-check --changed "$CANDIDATE:$FROM-$TO" --json --root "$PROJECT_ROOT"
+```
+
+Read `.canvases[0]`: `state`, `findings[]` (`rule`, `kind`, `name`, `file`, `line`, `severity`, `fix`) and `pins`.
+
+| Rule | Finding | Severity (default / `dsFidelity: strict`) |
+| --- | --- | --- |
+| S1 | colour literal outside `--c-*` / `data-ds-exempt` / `<DrawProof>` | warning / **blocker** |
+| S2 | `var()` name: `alias` (autofix → v1 name), `foreign` (another system's name), `undefined` | alias autofix; foreign / undefined **blocker** |
+| S3 / S4 | type / box literal not built from tokens | warning |
+| S5 | system import: `own-css` (autofix — the shell injects it), `kit-module`, `other-system` | own-css autofix; kit-module / other-system **blocker** (strict: always) |
+| S6 | a wrapper with a system `rootClass` + `data-theme` instead of `<DSRoot>` / `class="ds"` | warning (autofix) |
+| S7 | inline `<svg>` path data outside `<Icon>` / `<Logo>` | delegated to A.8 (DDR-141) |
+| S8 | `@font-face`, a font-service `<link>`, a family outside the system's `--font-*` | warning |
+| S9 | no `.meta.json`, or `meta.designSystem` missing / not a configured system | **blocker** |
+
+- **Declared gaps are not glyphs.** An `<Icon name>` whose name the system maps to `null` (`components.declaredMissing.icons`) renders an empty box (`data-ds-missing`): report it as an S7 warning — a null clears the system's brand check at level 0 and nothing else.
+- **Mechanical fixes** (`alias`, `own-css`, `wrapper`) are offered to the orchestrator as `fix:` lines; it applies them with `maude design ds-check --fix=mechanical --canvas <file>` and reports them — never silently, and never from this agent.
+- A `pinned` canvas (`meta.dsPinned` or `opt_out_scope: full`) is reported as such and audited no further.
+
 ## Pass B — Token-usage audit
 
 **Goal:** for every `var(--TOKEN)` usage in the candidate canvas, check that the property it sits on matches the role the DS Token usage guide assigns to that token. Surface mismatches as warnings.
@@ -475,6 +504,10 @@ _<ISO ts> · canvas: `{canvas_path}` · ds: `{ds_name}`_
 
 {Per-finding entries in the Step 4 format. If skipped: "Pass A.10 skipped (candidate declares no kind=\"web\" artboard)." If clean: "No unjustified absolute positioning inside web-kind artboards — flow-first discipline holds."}
 
+## Pass C — Switchability
+
+{state (switchable | review | blocked | pinned), then each finding as `S<n> <kind> <name> — <file>:<line>` with its severity and `fix:` when mechanical. If clean: "Switchable — every var() is a schema name, no literal pins."}
+
 ## Pass B — Token-usage audit
 
 {Per-finding entries in the format from Step 4 of Pass B. If no findings: "All `var(--*)` usages align with the Token usage guide."}
@@ -539,7 +572,7 @@ Do not paste the full report.
 |---|---|
 | Candidate canvas unreadable | Fail loud — orchestrator will surface and ask user. |
 | `existing_canvases` empty AND `preview_components_root` has no components | Pass A no-op; emit `Pass A skipped (no priors)` in report; continue to Pass B. |
-| DS README has no `## Token usage guide` section | Pass B degraded — emit `Pass B degraded (no Token usage guide in DS README)` in report; run with generic text-vs-fill heuristic; warn in tail print. |
+| DS README has no `## Token usage guide` section | Pass B reads the registry role meanings (`maude design ds-check --cheatsheet <ds>`); note `no Token usage guide in DS README` in the report. |
 | `output_path` parent dir doesn't exist | `mkdir -p $(dirname "$OUTPUT_PATH")` before heredoc — orchestrator usually pre-creates `_history/<slug>/` but be defensive. |
 | `grep` returns 0 hits across all priors | Normal case for a first canvas — emit a single info note "No prior canvases in this DS — nothing to lift from yet." Don't fail. |
 

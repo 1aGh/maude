@@ -11,6 +11,18 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); case \"$INPUT\" in *'.design/'*'.tsx'*|*'.design/'*'.css'*|*'.design/'*'components.json'*) ;; *) exit 0 ;; esac; command -v maude >/dev/null 2>&1 || exit 0; printf '%s' \"$INPUT\" | maude design ds-check --hook --root \"${CLAUDE_PROJECT_DIR:-.}\" 2>/dev/null; exit 0",
+            "timeout": 8
+          }
+        ]
+      }
     ]
   }
 }

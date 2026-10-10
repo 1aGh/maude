@@ -17,3 +17,13 @@ curl -s -m 2 -X POST -H 'content-type: application/json' \
   -d "{\"file\":\"$ACTIVE\"}" \
   "http://127.0.0.1:$PORT/_api/ai/heartbeat" >/dev/null 2>&1 || true
 ```
+
+#### Schema lint on the changed lines (V2-2.15)
+
+Lint only what this edit touched, so legacy debt never blocks an unrelated change:
+
+```bash
+maude design ds-check --changed "$ACTIVE:$FROM-$TO" --json --root "$PROJECT_ROOT"   # repeat --changed per edited span / sibling .css
+```
+
+The same severities as `/design:new` stage 7: S2 `undefined`/`foreign`, S5 `kit-module`/`other-system`, S9 block; the rest warn. Mechanical fixes (`alias` → v1 name, own-css import removal, wrapper → `ds`) are **offered** to the user and reported when applied (`maude design ds-check --fix=mechanical --canvas "$ACTIVE"`), never silent. `--ds=<name>` on an existing canvas is a **switch**: rewrite `meta.designSystem` (and delete `meta.dsRev`) — the canvas source is not touched; restyling the pinned literals is a separate AI pass.
