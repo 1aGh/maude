@@ -203,6 +203,22 @@ describe('captures render on the read-only capture origin (V2-2.8 S9, V2-1.16 L2
       ]) {
         expect(`${q} ${await status(q)}`).toBe(`${q} 200`);
       }
+      // …and only when the helper itself navigated there (Fetch Metadata
+      // `none`, or no header from a non-browser client). A page — another
+      // site, or a canvas on the canvas origin (same-site) — navigating a
+      // browser to a leftover harness URL is redirected like everything else.
+      for (const site of ['cross-site', 'same-site', 'same-origin']) {
+        const r = await fetch(
+          `http://localhost:${port}/_canvas-shell.html?canvas=_draw/mark.proof.tsx`,
+          { redirect: 'manual', headers: { 'sec-fetch-site': site } }
+        );
+        expect(`${site} ${r.status}`).toBe(`${site} 307`);
+      }
+      const direct = await fetch(
+        `http://localhost:${port}/_canvas-shell.html?canvas=_draw/mark.proof.tsx`,
+        { redirect: 'manual', headers: { 'sec-fetch-site': 'none' } }
+      );
+      expect(direct.status).toBe(200);
     } finally {
       await killProc(proc);
     }
