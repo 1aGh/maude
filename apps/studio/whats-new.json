@@ -2,6 +2,15 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "format-gate-update-maude-to-edit",
+      "version": null,
+      "date": null,
+      "kind": "improvement",
+      "title": "Projects from a newer Maude open safely",
+      "summary": "A project that someone has moved to a newer Maude now opens here to look at, with an “Update Maude to edit” banner, instead of being changed by an older app. Nothing in it is lost, and every project made with this Maude keeps working as before.",
+      "surface": "design-ui"
+    },
+    {
       "id": "large-video-drops",
       "version": "1.8.0",
       "date": "2026-10-07",
