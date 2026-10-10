@@ -10,7 +10,6 @@ import {
   FormatGateBanner,
   formatGateBannerState,
 } from '../client/shell/banners.jsx';
-import { ShellStoreContext } from '../client/stores/shell-store.jsx';
 import { FORMAT_COPY } from '../format.ts';
 
 const NEWER = { projectFormat: 2, supported: 1, source: 'hub' };
@@ -64,14 +63,9 @@ describe('which variant', () => {
 });
 
 describe('the component', () => {
+  // 1.x: ShellTree passes the two fields as props (no V2-2.3 shell store).
   const render = (shellCore: Record<string, unknown>) =>
-    renderToStaticMarkup(
-      createElement(
-        ShellStoreContext.Provider,
-        { value: { shellCore } },
-        createElement(FormatGateBanner)
-      )
-    );
+    renderToStaticMarkup(createElement(FormatGateBanner, shellCore));
 
   test('gated: the banner + its action, by testid; NO dismiss control', () => {
     const html = render({

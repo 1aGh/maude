@@ -636,7 +636,7 @@ function App() {
     >
       {firstRun && <OnboardingWizard />}
       <CloudRoleBanner cloud={cfg.cloud} />
-      <FormatGateBanner />
+      <FormatGateBanner cfg={cfg} updateReady={updateReady} />
       <UpdateBanner update={updateReady} onDismiss={() => setUpdateReady(null)} />
       <SyncBanner status={syncStatus} />
       {/* First-upgrade consent (Task 2) — global on purpose: a consent that

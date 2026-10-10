@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { isNativeApp, restartToUpdate } from '../github.js';
-import { useShellStore } from '../stores/shell-store.jsx';
 
 // ---------- Sync banner (Phase 9 Task 8 — hub-down offline mode) ----------
 
@@ -117,12 +116,11 @@ export function formatGateBannerState({ cfg, native, updateReady, askedForUpdate
 /**
  * Not dismissible while gated: the project stays view only for as long as this
  * build is older than it, and a banner that can be closed makes every refused
- * edit after it look like a bug. A ShellTree child — reads the shell store.
+ * edit after it look like a bug. A ShellTree child; ShellTree passes `cfg` and
+ * `updateReady` (1.x has no shell store — on feat/maude-v2 it reads the V2-2.3
+ * store instead).
  */
-export function FormatGateBanner() {
-  const {
-    shellCore: { cfg, updateReady },
-  } = useShellStore();
+export function FormatGateBanner({ cfg, updateReady }) {
   const [askedForUpdate, setAskedForUpdate] = useState(false);
   const [restarting, setRestarting] = useState(false);
   const state = formatGateBannerState({
