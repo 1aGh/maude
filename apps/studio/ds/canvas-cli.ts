@@ -130,6 +130,41 @@ function hookJson(context: string): string {
   return `${JSON.stringify({ hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: context } })}\n`;
 }
 
+/** The 1-based line span an Edit / MultiEdit wrote, located in the file as it is now. */
+function editedRange(
+  project: Project,
+  file: string,
+  hookInput: string | null
+): { file: string; from: number; to: number } | null {
+  try {
+    const j = JSON.parse(hookInput ?? '');
+    const ti = j?.tool_input ?? {};
+    const news: string[] =
+      typeof ti.new_string === 'string'
+        ? [ti.new_string]
+        : Array.isArray(ti.edits)
+          ? ti.edits
+              .map((e: { new_string?: string }) => e?.new_string)
+              .filter((s: unknown) => typeof s === 'string')
+          : [];
+    if (!news.length || news.some((s) => !s)) return null;
+    const rel = canvasRelOf(project.designRoot, project.root, file);
+    const text = readFileSync(join(project.designRoot, rel), 'utf8');
+    let from = Number.POSITIVE_INFINITY;
+    let to = 0;
+    for (const s of news) {
+      const at = text.indexOf(s);
+      if (at < 0) return null;
+      const a = text.slice(0, at).split('\n').length;
+      from = Math.min(from, a);
+      to = Math.max(to, a + s.split('\n').length - 1);
+    }
+    return { file: rel, from, to };
+  } catch {
+    return null;
+  }
+}
+
 function fileFromHookInput(hookInput: string | null): string | null {
   if (!hookInput) return null;
   try {
@@ -174,9 +209,15 @@ export function runCanvasModes(
   let targets: string[] = [];
   const hookSystems: string[] = [];
   const inputs = [...args.canvases, ...args.changed.map((c) => c.file)];
+  // An Edit hook names the text it wrote: lint those lines only (like /design:edit), so the
+  // agent hears about what it just did, not the canvas's legacy debt. A Write lints the file.
+  let hookRange: { file: string; from: number; to: number } | null = null;
   if (args.hook && !inputs.length) {
     const f = fileFromHookInput(hookInput);
-    if (f) inputs.push(f);
+    if (f) {
+      inputs.push(f);
+      hookRange = editedRange(project, f, hookInput);
+    }
   }
   for (const input of inputs) {
     const rel = canvasRelOf(project.designRoot, project.root, input);
@@ -197,6 +238,10 @@ export function runCanvasModes(
   }
   targets = [...new Set(targets)];
   let reports = targets.map((c) => checkCanvas(ctx, c));
+  if (hookRange)
+    reports = reports.map((r) =>
+      scopeToChanged(r, [hookRange as { file: string; from: number; to: number }])
+    );
   if (args.changed.length) {
     const ranges = args.changed.map((g) => ({
       ...g,

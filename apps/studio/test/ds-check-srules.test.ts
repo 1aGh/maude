@@ -270,3 +270,21 @@ describe('--hook', () => {
     expect(r.stdout).toBe('');
   });
 });
+
+describe('--hook on an Edit', () => {
+  test('lints only the lines the edit wrote (legacy debt elsewhere stays out of the context)', () => {
+    const added = '  <p style={{ color: "#ff3366" }} />';
+    const c = canvas(
+      'hook-edit',
+      `export default () => (<div>\n  <p style={{ color: "red" }} />\n${added}\n</div>);\n`
+    );
+    const input = {
+      tool_name: 'Edit',
+      tool_input: { file_path: join(D, c), old_string: 'x', new_string: added },
+    };
+    const r = runDsCheck(['--hook', '--root', root], {}, JSON.stringify(input));
+    const ctx = JSON.parse(r.stdout).hookSpecificOutput.additionalContext as string;
+    expect(ctx).toContain('#ff3366');
+    expect(ctx).not.toContain('S1 literal red');
+  });
+});
