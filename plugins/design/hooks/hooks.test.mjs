@@ -82,6 +82,17 @@ const edit = (project, session, toolUseId, old, neu) => ({
   },
 });
 const canvasPath = (project) => join(project, '.design', 'ui', 'C.tsx');
+const bash = (project, session, toolUseId, command) => ({
+  session_id: session,
+  tool_use_id: toolUseId,
+  cwd: project,
+  tool_name: 'Bash',
+  tool_input: { command },
+});
+const isDeny = (r, code) =>
+  r.status === 0 &&
+  r.json?.hookSpecificOutput?.permissionDecision === 'deny' &&
+  r.json.hookSpecificOutput.permissionDecisionReason.startsWith(`${code}: `);
 
 describe('hooks.json wires `maude design hook <event>` (§5.4 table)', () => {
   const cmd = (event, matcher) =>
@@ -91,6 +102,8 @@ describe('hooks.json wires `maude design hook <event>` (§5.4 table)', () => {
     ['UserPromptSubmit', undefined, 'prompt', 3],
     ['PreToolUse', 'Edit|Write|MultiEdit|NotebookEdit', 'pre-edit', 3],
     ['PostToolUse', 'Edit|Write|MultiEdit|NotebookEdit', 'post-edit', 5],
+    ['PreToolUse', 'Bash', 'pre-bash', 3],
+    ['PostToolUse', 'Bash', 'post-bash', 3],
     ['Stop', undefined, 'stop', 60],
   ])('%s → hook %s', (event, matcher, verb, timeout) => {
     const h = cmd(event, matcher).find((x) => x.command.includes(`design hook ${verb}`));
@@ -172,6 +185,58 @@ describe('no studio — fail-open, snapshot + check + rollback still run', () =>
     expect(r.json.reason).not.toContain('restored to before this edit');
     expect(readFileSync(canvasPath(project), 'utf8')).toBe(later);
     writeFileSync(canvasPath(project), CANVAS);
+  });
+
+  test('pre-bash: rm of a canvas → use-trash, sed -i into .design → not-a-writer, reads pass', async () => {
+    expect(
+      isDeny(await hook('pre-bash', bash(project, 's3', 'b1', 'rm .design/ui/C.tsx')), 'use-trash')
+    ).toBe(true);
+    expect(
+      isDeny(
+        await hook('pre-bash', bash(project, 's3', 'b2', "sed -i '' 's/Hi/Yo/' .design/ui/C.tsx")),
+        'not-a-writer'
+      )
+    ).toBe(true);
+    expect(
+      isDeny(
+        await hook('pre-bash', bash(project, 's3', 'b3', 'mv .design/ui/C.tsx /tmp/')),
+        'use-verb'
+      )
+    ).toBe(true);
+    for (const read of [
+      'maude design read-annotations ui/C.tsx | python3 -c "import json,sys; json.load(sys.stdin)"',
+      'cp .design/ui/C.tsx /tmp/',
+      'PORT=$(maude design server-up) && maude design screenshot --canvas ui/C.tsx --out /tmp/x.png',
+      'rm "unterminated',
+    ])
+      expect(await hook('pre-bash', bash(project, 's3', 'b4', read))).toMatchObject({
+        status: 0,
+        stdout: '',
+      });
+    expect(readFileSync(canvasPath(project), 'utf8')).toBe(CANVAS);
+  });
+
+  test("post-bash records a write verb's writes (via bash) so Stop checks them", async () => {
+    const e = bash(project, 's4', 'v1', 'maude design canvas-edit ui/C.tsx --set x');
+    expect(await hook('pre-bash', e)).toMatchObject({ status: 0, stdout: '' });
+    writeFileSync(canvasPath(project), CANVAS.replace('<p>x</p>', '<p>z</p>')); // the verb ran
+    expect(await hook('post-bash', e)).toMatchObject({ status: 0, stdout: '' });
+    const touched = JSON.parse(
+      readFileSync(join(project, '.design', '_runs', 's4', 'touched.json'), 'utf8')
+    );
+    expect(touched['ui/C.tsx']).toMatchObject({ by: 'main', via: 'bash' });
+    // a read verb binds nothing
+    const r = bash(
+      project,
+      's5',
+      'v2',
+      'maude design screenshot --canvas ui/C.tsx --out /tmp/x.png'
+    );
+    await hook('pre-bash', r);
+    writeFileSync(canvasPath(project), CANVAS);
+    await hook('post-bash', r);
+    expect(existsSync(join(project, '.design', '_runs', 's5', 'touched.json'))).toBe(false);
+    rmSync(join(project, '.design', '_runs', 's4'), { recursive: true, force: true });
   });
 
   test('a good edit passes silently and is recorded; Stop checks the run, then lets it end', async () => {
@@ -281,5 +346,16 @@ describe('with a studio — the run bracket and one AI per artboard', () => {
     expect(await hook('pre-edit', edit(project, 'sb', 'b3', 'Hello', 'Hey'))).toMatchObject({
       stdout: '',
     });
+  });
+
+  test("post-bash binds a write verb's writes in the tool window to the run", async () => {
+    await hook('prompt', { session_id: 'sc', prompt_id: 'p1', cwd: project, prompt: 'z' });
+    const e = bash(project, 'sc', 'c1', 'maude design canvas-edit ui/C.tsx --set y');
+    await hook('pre-bash', e);
+    writeFileSync(canvasPath(project), CANVAS.replace('<p>x</p>', '<p>w</p>'));
+    const r = await hook('post-bash', e);
+    expect(r).toMatchObject({ status: 0, stdout: '' });
+    expect(r.ms).toBeLessThan(1500);
+    expect(bracket).toContain('touch sc ui/C.tsx');
   });
 });

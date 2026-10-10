@@ -260,6 +260,51 @@ describe('POST /_api/agent/* (routes/agent.ts)', () => {
     expect(bracket).toContain('touch sa ui/C.tsx');
   });
 
+  test('edit/touched {via:bash} binds the files a write verb changed since `since` to the run', async () => {
+    const snapDir = join(project, '.design', '_runs', 'sa', 'snap');
+    const bashDir = join(project, '.design', '_runs', 'sa', 'bash');
+    mkdirSync(bashDir, { recursive: true });
+    const before = CANVAS.replace('<h1 data-cd-id="title">Hi</h1>', '<h1>Hello</h1>');
+    writeFileSync(join(snapDir, 'v1.abc'), before);
+    await Bun.sleep(5); // every earlier write is outside the window
+    const since = Date.now();
+    writeFileSync(
+      join(bashDir, 'v1.json'),
+      JSON.stringify({ at: since, snaps: { 'ui/C.tsx': 'v1.abc' } })
+    );
+    writeFileSync(join(project, '.design', 'ui', 'C.tsx'), before.replace('<p>x</p>', '<p>v</p>'));
+    bracket.length = 0;
+    const r = await post('/_api/agent/edit/touched', {
+      session: 'sa',
+      toolUseId: 'v1',
+      via: 'bash',
+      since,
+    });
+    expect(r.body).toEqual({ artboards: ['pricing'], lostIds: [], trashed: [] });
+    expect(bracket).toEqual(['touch sa ui/C.tsx']);
+    // two runs open and an unknown session → reported, bound to none
+    bracket.length = 0;
+    const loose = await post('/_api/agent/edit/touched', {
+      session: 'sz',
+      toolUseId: 'v2',
+      via: 'bash',
+      since,
+    });
+    expect(loose.body.artboards).toEqual(['hero', 'pricing']);
+    expect(bracket).toEqual([]);
+    // a window older than BASH_WINDOW_MS (or missing / in the future) binds nothing
+    for (const bad of [0, Date.now() + 60_000, undefined, 'x']) {
+      const z = await post('/_api/agent/edit/touched', {
+        session: 'sa',
+        toolUseId: 'v3',
+        via: 'bash',
+        since: bad,
+      });
+      expect(z.body).toEqual({ artboards: [], lostIds: [], trashed: [] });
+    }
+    expect(bracket).toEqual([]);
+  });
+
   test('run/end closes the run and releases its claims', async () => {
     const r = await post('/_api/agent/run/end', { session: 'sa', outcome: 'done' });
     expect(r.status).toBe(200);

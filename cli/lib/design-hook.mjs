@@ -4,6 +4,8 @@
 //   prompt      UserPromptSubmit  POST /_api/agent/run/begin                       → nothing
 //   pre-edit    PreToolUse        snapshot · whole-file-rewrite · POST edit/check   → deny or nothing
 //   post-edit   PostToolUse       check (studio, else local) · rollback · touched   → block or nothing
+//   pre-bash    PreToolUse Bash   use-trash · use-verb · not-a-writer (bash-guard)   → deny or nothing
+//   post-bash   PostToolUse Bash  a `maude design` write verb's writes → touched     → nothing
 //   stop        Stop              stop-tier check of the run's files · run/end      → block or nothing
 //
 // DENY-ONLY and FAIL-OPEN: never `ask`, never `allow`; bad stdin, no project, a path outside
@@ -13,25 +15,29 @@
 // State per Claude Code session in <designRoot>/_runs/<session>/ (runtime, DDR-115):
 //   snap/<tool_use_id>       bytes before that edit (`.new` marker: the file did not exist)
 //   base/<sha(path)>         bytes before the run first touched the file (stop-tier `against`)
-//   touched.json             files this run changed
+//   touched.json             files this run changed ({at, by, via: tool|bash})
+//   bash/<tool_use_id>.json  a write verb's start ({at, snaps}) — post-bash binds what changed since
 //   stop-last.json           the last Stop block (so a re-stop with the same list lets it end)
 //
-// Leaf module: node built-ins + studio-locate.mjs.
+// Leaf module: node built-ins + studio-locate.mjs + bash-guard.mjs.
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
+import { classifyBash, designVerbOf, designWritesSince, parseBash } from './bash-guard.mjs';
 import { DESIGN_REL, findProjectRoot, locateStudio, postStudio } from './studio-locate.mjs';
 
-export const HOOK_EVENTS = ['prompt', 'pre-edit', 'post-edit', 'stop'];
+export const HOOK_EVENTS = ['prompt', 'pre-edit', 'post-edit', 'pre-bash', 'post-bash', 'stop'];
 const KEY_RE = /^[A-Za-z0-9_-]{1,128}$/;
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const CANVAS_RE = /\.(?:tsx|jsx)$/;
 /** V2-1.11 §9 Q5: a Write over an existing canvas longer than this is a lazy rewrite. */
 export const LAZY_WRITE_LINES = 40;
 const LOCATE_MS = 300;
+/** A bash snapshot is skipped above this (no exact artboard map for it — fail-open). */
+const SNAP_MAX_BYTES = 4 * 1024 * 1024;
 
 const sha = (s) => createHash('sha256').update(s, 'utf8').digest('hex');
 /** Claude Code's ids are safe segments; anything else is hashed into one. */
@@ -82,12 +88,37 @@ export function replayEdit(tool, ti, cur) {
   return null;
 }
 
-function context(input) {
-  const root = findProjectRoot(typeof input.cwd === 'string' ? input.cwd : process.cwd());
+function context(input, pkgRoot) {
+  const cwd = typeof input.cwd === 'string' ? input.cwd : process.cwd();
+  const root = findProjectRoot(cwd);
   if (!root) return null;
   const designRoot = join(root, DESIGN_REL);
   const session = hookKey(input.session_id) ?? 'no-session';
-  return { root, designRoot, session, run: join(designRoot, '_runs', session) };
+  return { root, designRoot, session, cwd, pkgRoot, run: join(designRoot, '_runs', session) };
+}
+
+/** The generated manifest's verb table (`{verb, effect}` rows), or null when it can't be read. */
+function manifestVerbs(ctx) {
+  if (!ctx.pkgRoot) return null;
+  const m = readJson(join(ctx.pkgRoot, 'apps', 'studio', 'actions.manifest.json'), null);
+  return Array.isArray(m?.verbs) ? m.verbs : null;
+}
+
+/**
+ * The `maude design` verbs in `command` that write (effect other than `none`). An unknown table
+ * counts every design verb as a writer: binding finds nothing when nothing changed.
+ */
+function writeVerbs(ctx, command) {
+  if (typeof command !== 'string' || !command.includes('maude')) return [];
+  const cmds = parseBash(command);
+  if (!cmds) return [];
+  const verbs = manifestVerbs(ctx);
+  const out = [];
+  for (const c of cmds) {
+    const v = designVerbOf(c, verbs);
+    if (v && v.verb !== 'hook' && v.effect !== 'none') out.push({ ...v, cmd: c });
+  }
+  return out;
 }
 
 /** The designRoot-relative POSIX path of the tool's target, or null (outside / runtime). */
@@ -273,6 +304,72 @@ async function postEdit(ctx, input, self) {
   return null;
 }
 
+function preBash(ctx, input) {
+  if (input.tool_name !== 'Bash') return null;
+  const command = input.tool_input?.command;
+  const verdict = classifyBash(command, { cwd: ctx.cwd, designRoot: ctx.designRoot });
+  if (verdict) return deny(verdict.reason);
+  // a `maude design` write verb: remember when it started, and snapshot the design files it names
+  // (post-bash and edit/touched {via:'bash'} bind what changed in this tool call's window)
+  const toolUseId = hookKey(input.tool_use_id);
+  const writers = toolUseId ? writeVerbs(ctx, command) : [];
+  if (!writers.length) return null;
+  const snaps = {};
+  for (const w of writers) {
+    for (const word of w.cmd.words) {
+      if (Object.keys(snaps).length >= 8) break;
+      const t = word.literal
+        ? targetOf(ctx, { cwd: ctx.cwd, tool_input: { file_path: word.text } })
+        : null;
+      const rel = t ? t.rel : designRel(ctx, word);
+      if (!rel || snaps[rel] || !CANVAS_RE.test(rel)) continue;
+      const cur = readOr(join(ctx.designRoot, rel));
+      if (cur === null || cur.length > SNAP_MAX_BYTES) continue;
+      const name = `${toolUseId}.${sha(rel).slice(0, 16)}`;
+      saveSnapshot(ctx, `_runs/${ctx.session}/snap/${name}`, cur);
+      const base = baseRel(ctx, rel);
+      if (!loadSnapshot(ctx, base)) saveSnapshot(ctx, base, cur);
+      snaps[rel] = name;
+    }
+  }
+  writeAt(join(ctx.run, 'bash', `${toolUseId}.json`), JSON.stringify({ at: Date.now(), snaps }));
+  return null;
+}
+
+/** A verb argument written designRoot-relative (`ui/C.tsx`, as the verbs take it) → that rel. */
+function designRel(ctx, word) {
+  if (!word.literal || !word.text || word.text.startsWith('-')) return null;
+  const t = targetOf(ctx, { cwd: ctx.designRoot, tool_input: { file_path: word.text } });
+  return t && existsSync(t.abs) ? t.rel : null;
+}
+
+async function postBash(ctx, input) {
+  if (input.tool_name !== 'Bash') return null;
+  const toolUseId = hookKey(input.tool_use_id);
+  if (!toolUseId) return null;
+  const markP = join(ctx.run, 'bash', `${toolUseId}.json`);
+  const mark = readJson(markP, null);
+  if (!mark || typeof mark.at !== 'number') return null; // not a write verb
+  const files = designWritesSince(ctx.designRoot, mark.at);
+  if (files.length) {
+    const touchedP = join(ctx.run, 'touched.json');
+    const touched = readJson(touchedP, {});
+    for (const rel of files)
+      touched[rel] = { at: Date.now(), by: input.agent_type ?? 'main', via: 'bash' };
+    writeAt(touchedP, JSON.stringify(touched));
+    const studio = await locateStudio(ctx.root, { timeoutMs: LOCATE_MS });
+    if (studio)
+      await postStudio(
+        studio,
+        '/_api/agent/edit/touched',
+        { session: ctx.session, toolUseId, via: 'bash', since: mark.at },
+        { timeoutMs: 300 }
+      );
+  }
+  rmSync(markP, { force: true });
+  return null;
+}
+
 async function stop(ctx, input, self) {
   const touched = readJson(join(ctx.run, 'touched.json'), {});
   const studio = await locateStudio(ctx.root, { timeoutMs: LOCATE_MS });
@@ -309,14 +406,21 @@ async function stop(ctx, input, self) {
  * Run one hook event. `self` = argv prefix that runs this `maude` (for the local check), or null.
  * Returns the stdout text ('' = no decision). Never throws.
  */
-export async function runHook({ event, stdinText, self = null }) {
+export async function runHook({ event, stdinText, self = null, pkgRoot = null }) {
   try {
     if (!HOOK_EVENTS.includes(event)) return '';
     const input = JSON.parse(stdinText || '{}');
     if (!input || typeof input !== 'object') return '';
-    const ctx = context(input);
+    const ctx = context(input, pkgRoot);
     if (!ctx) return '';
-    const fn = { prompt, 'pre-edit': preEdit, 'post-edit': postEdit, stop }[event];
+    const fn = {
+      prompt,
+      'pre-edit': preEdit,
+      'post-edit': postEdit,
+      'pre-bash': preBash,
+      'post-bash': postBash,
+      stop,
+    }[event];
     const out = await fn(ctx, input, self);
     return out ? JSON.stringify(out) : '';
   } catch {
@@ -325,14 +429,14 @@ export async function runHook({ event, stdinText, self = null }) {
 }
 
 /** The CLI entry: stdin → runHook → stdout. Always exit 0 (fail-open). */
-export async function runHookCli({ words, self }) {
+export async function runHookCli({ words, self, pkgRoot = null }) {
   let stdinText = '';
   try {
     if (!process.stdin.isTTY) stdinText = readFileSync(0, 'utf8');
   } catch {
     /* no stdin */
   }
-  const out = await runHook({ event: words[0], stdinText, self });
+  const out = await runHook({ event: words[0], stdinText, self, pkgRoot });
   if (out) process.stdout.write(out);
   return 0;
 }

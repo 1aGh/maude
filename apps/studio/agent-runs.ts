@@ -145,7 +145,18 @@ export function createAgentRuns(bracket: RunBracket = {}, now: () => number = Da
     return r;
   }
 
-  return { begin, ensure, conflict, claim, touch, end, get: open };
+  /** The one open run on this project, or null when there are none or several. */
+  function soleOpen(): AgentRun | null {
+    let only: AgentRun | null = null;
+    for (const r of bySession.values()) {
+      if (r.state !== 'open') continue;
+      if (only) return null;
+      only = r;
+    }
+    return only;
+  }
+
+  return { begin, ensure, conflict, claim, touch, end, get: open, soleOpen };
 }
 
 // ── which artboards an edit reaches ──────────────────────────────────────────────────────────

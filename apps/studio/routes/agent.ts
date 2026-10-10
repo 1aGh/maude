@@ -12,7 +12,7 @@
 
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
-
+import { designWritesSince } from '../../../cli/lib/bash-guard.mjs';
 import {
   type AgentRuns,
   artboardSpans,
@@ -165,6 +165,8 @@ const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'] as const;
 const SNAPSHOT_RE = /^_runs\/[A-Za-z0-9_-]{1,128}\/(?:snap|base)\/[A-Za-z0-9_.-]{1,160}$/;
 const CANVAS_RE = /\.(?:tsx|jsx)$/;
 const NONE = { decision: 'none' } as const;
+/** edit/touched {via:'bash'}: a `since` older than this is refused (a planted 0 would bind every file). */
+export const BASH_WINDOW_MS = 15 * 60 * 1000;
 
 /** A designRoot-relative POSIX file path (any kind), or null. No `..`, absolute, or hidden segment. */
 export function designPathRel(raw: unknown): string | null {
@@ -227,6 +229,63 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
       return b instanceof Response ? b : handle(b);
     },
   });
+  /** Artboards + lost ids of one changed canvas, from a snapshot when there is one. */
+  function canvasChange(rel: string, snapRel: string | null) {
+    const after = readDesignFile(deps, rel) ?? '';
+    const before = snapRel ? readDesignFile(deps, snapRel) : null;
+    const isNew =
+      snapRel !== null && before === null && readDesignFile(deps, `${snapRel}.new`) !== null;
+    if (before === null && !isNew)
+      return { artboards: (artboardSpans(after) ?? []).map((s) => s.id), lostIds: [] };
+    return {
+      artboards: changedArtboards(before, after).artboards,
+      lostIds: before !== null ? checkIds(after, { against: before, path: rel }).lostIds : [],
+    };
+  }
+
+  /**
+   * §5.4 post-bash: bind the versioned files a `maude design` write verb changed in this tool
+   * call's window (mtime ≥ `since`, which pre-bash recorded) to the session's run — else to the
+   * single open AI run on the project, else to no run (the artboards are still reported).
+   */
+  function bindBashWrites(session: string, toolUseId: string, since: unknown) {
+    const out = { artboards: [] as string[], lostIds: [] as string[], trashed: [] as string[] };
+    const now = Date.now();
+    if (
+      typeof since !== 'number' ||
+      !Number.isFinite(since) ||
+      since > now ||
+      now - since > BASH_WINDOW_MS
+    )
+      return out;
+    const run = runs.get(session) ?? runs.soleOpen();
+    const designRoot = path.join(deps.repoRoot, deps.designRel);
+    const mark = readDesignFile(deps, `_runs/${session}/bash/${toolUseId}.json`);
+    let snaps: Record<string, unknown> = {};
+    try {
+      const m = mark ? JSON.parse(mark) : null;
+      if (m && typeof m.snaps === 'object' && m.snaps) snaps = m.snaps;
+    } catch {
+      /* no snapshots: every artboard of a changed canvas */
+    }
+    for (const rel of designWritesSince(designRoot, since)) {
+      let artboards: string[] = [];
+      if (CANVAS_RE.test(rel)) {
+        const name = snaps[rel];
+        const snap =
+          typeof name === 'string' && /^[A-Za-z0-9_.-]{1,160}$/.test(name)
+            ? `_runs/${session}/snap/${name}`
+            : null;
+        const c = canvasChange(rel, snap);
+        artboards = c.artboards;
+        out.lostIds.push(...c.lostIds);
+      }
+      for (const a of artboards) if (!out.artboards.includes(a)) out.artboards.push(a);
+      if (run) runs.touch(run.session, rel, artboards);
+    }
+    return out;
+  }
+
   return [
     spec({ path: '/_api/agent/run/begin' }, (b) => {
       const session = key(b, 'session');
@@ -314,22 +373,13 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
       if (!session || !toolUseId) return bad('session and toolUseId are hook keys');
       if (b.via !== 'tool' && b.via !== 'bash') return bad('via is tool | bash');
       const empty = { artboards: [] as string[], lostIds: [] as string[], trashed: [] as string[] };
-      // via:'bash' binds a `maude design` write verb's writes to the run — lands with post-bash.
-      if (b.via === 'bash') return json(200, empty);
+      if (b.via === 'bash') return json(200, bindBashWrites(session, toolUseId, b.since));
       const rel = designPathRel(b.path);
       if (!rel) return bad('path is a file inside the design root');
       if (isRuntimeRel(rel)) return json(200, empty);
-      let artboards: string[] = [];
-      let lostIds: string[] = [];
-      if (CANVAS_RE.test(rel)) {
-        const after = readDesignFile(deps, rel) ?? '';
-        const snap = `_runs/${session}/snap/${toolUseId}`;
-        const before = readDesignFile(deps, snap);
-        const isNew = before === null && readDesignFile(deps, `${snap}.new`) !== null;
-        if (before === null && !isNew) artboards = (artboardSpans(after) ?? []).map((s) => s.id);
-        else artboards = changedArtboards(before, after).artboards;
-        if (before !== null) lostIds = checkIds(after, { against: before, path: rel }).lostIds;
-      }
+      const { artboards, lostIds } = CANVAS_RE.test(rel)
+        ? canvasChange(rel, `_runs/${session}/snap/${toolUseId}`)
+        : { artboards: [] as string[], lostIds: [] as string[] };
       runs.touch(session, rel, artboards);
       return json(200, { ...empty, artboards, lostIds });
     }),
