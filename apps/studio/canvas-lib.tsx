@@ -41,6 +41,7 @@
  *   ColorSwatch        Square + label for a color token.
  *   TypeScaleRow       One row of a type-ladder specimen.
  *   ThemeToggle        Light/dark <button> group writing data-theme on <html>.
+ *   DSRoot             <div class="ds" data-theme> — the system-agnostic theme wrapper (V2-1.13 §5.11).
  *
  *   Hooks ──────────────────────────────────────────────────────────────────
  *   useTokens(prefix?) Resolves CSS custom properties from <html> computed style.
@@ -4143,6 +4144,55 @@ export function TypeScaleRow({
         {sample ?? 'The quick brown fox jumps over the lazy dog'}
       </span>
     </div>
+  );
+}
+
+// ── <DSRoot> + the canvas's design system (V2-1.13 §5.11) ─────────────────
+// The generated `@maude/ds` module (canvas-build.ts) calls `__registerDesignSystem` on import
+// with the canvas's system, so the default theme travels with the canvas code into every render
+// path — the shell, exports and the handoff inline alike. A canvas that never imports
+// `@maude/ds` registers nothing, and `<DSRoot>` then writes no data-theme.
+
+let registeredDesignSystem: { name: string; themeDefault: string | null } | null = null;
+
+/** Called by the generated `@maude/ds` module. Idempotent; the last import wins. */
+export function __registerDesignSystem(ds: { name: string; themeDefault?: string | null }): void {
+  const next = { name: ds.name, themeDefault: ds.themeDefault ?? null };
+  const prev = registeredDesignSystem;
+  if (
+    prev &&
+    prev.name !== next.name &&
+    !(typeof process !== 'undefined' && process.env?.NODE_ENV === 'production')
+  ) {
+    console.warn(
+      `[@maude/ds] two design systems registered in one canvas bundle ("${prev.name}", then "${next.name}"); the last one wins.`
+    );
+  }
+  registeredDesignSystem = next;
+}
+
+/**
+ * The theme wrapper a canvas can switch systems under: `class="ds"` plus `data-theme` from the
+ * `theme` prop, else the registered system's default, else none (S6-clean, unlike a wrapper
+ * carrying a system's rootClass).
+ */
+export function DSRoot({
+  theme,
+  as: Tag = 'div',
+  className,
+  children,
+  ...rest
+}: {
+  theme?: string;
+  as?: 'div' | 'section' | 'main' | 'article' | 'span';
+  className?: string;
+  children?: ReactNode;
+} & Record<string, unknown>) {
+  const dataTheme = theme ?? registeredDesignSystem?.themeDefault ?? undefined;
+  return (
+    <Tag {...rest} className={className ? `ds ${className}` : 'ds'} data-theme={dataTheme}>
+      {children}
+    </Tag>
   );
 }
 
