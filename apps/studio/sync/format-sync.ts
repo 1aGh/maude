@@ -29,7 +29,7 @@ import {
 
 /**
  * The gate the studio enforces — the SAME options `http.ts` passes
- * (`FORMAT_GATE_OPTS`, staged: only a project newer than this build is
+ * (`STAGED_FORMAT_GATE_OPTS`: only a project newer than this build is
  * gated). Pinned against http.ts by test/format-sync.test.ts so the sync
  * runtime and the HTTP gate can never disagree about whether a project is
  * editable here.

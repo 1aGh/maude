@@ -1600,11 +1600,12 @@ export function createHttp(
   }
 
   // V2-1.12 §5.6 — the format gate, STAGED: `newerOnly: true` gates only a
-  // project newer than this build. (V2-2.18 1.x compat cut: the outbox and
-  // `maude migrate v2` route tables of V2-2.14/V2-2.16 are v2-only and are
-  // not mounted here — a 1.x build has no "Update project".)
-  const FORMAT_GATE_OPTS = { newerOnly: true } as const;
-  const gateNow = () => formatGate(ctx, FORMAT_GATE_OPTS);
+  // project newer than this build. One constant in format.ts, so the sync
+  // runtime (sync/format-sync.ts) can never disagree with this gate.
+  // (V2-2.18 1.x compat cut: the outbox and `maude migrate v2` route tables
+  // of V2-2.14/V2-2.16 are v2-only and are not mounted here — a 1.x build
+  // has no "Update project".)
+  const gateNow = () => formatGate(ctx, STAGED_FORMAT_GATE_OPTS);
   /** What a read-only session may still write (the module allowlist). */
   const readOnlyAllowed = {
     exact: READ_ONLY_ALLOWED_WRITES as ReadonlySet<string>,

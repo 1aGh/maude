@@ -16,7 +16,13 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { CELL_SELF_HUB, formatHubUrl, readHubFormatCache, SUPPORTED_FORMAT } from '../format.ts';
+import {
+  CELL_SELF_HUB,
+  formatHubUrl,
+  readHubFormatCache,
+  STAGED_FORMAT_GATE_OPTS,
+  SUPPORTED_FORMAT,
+} from '../format.ts';
 import {
   decideAnnotationsColdStart,
   decideColdStart,
@@ -84,12 +90,22 @@ describe('declare', () => {
     expect(declaredFormat(ctx())).toBe(SUPPORTED_FORMAT);
   });
 
-  test('the sync gate uses the SAME options as the HTTP gate (http.ts FORMAT_GATE_OPTS)', () => {
+  test('the sync gate uses the SAME options as the HTTP gate (one constant: STAGED_FORMAT_GATE_OPTS)', () => {
+    // One object, not two equal literals: the sync runtime IS the staged constant…
+    expect(SYNC_FORMAT_GATE_OPTS).toBe(STAGED_FORMAT_GATE_OPTS);
+    // …and every gate call in http.ts passes that constant, never a local copy.
     const http = readFileSync(join(import.meta.dir, '..', 'http.ts'), 'utf8');
-    const m = /const FORMAT_GATE_OPTS = (\{[^}]*\})/.exec(http);
-    expect(m).not.toBeNull();
-    const opts = Function(`return (${(m as RegExpExecArray)[1]})`)();
-    expect(opts).toEqual(SYNC_FORMAT_GATE_OPTS);
+    expect(http).not.toMatch(/FORMAT_GATE_OPTS\s*=/);
+    const calls = [
+      ...http.matchAll(/\b(formatGate|formatConfigFields)\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g),
+    ];
+    expect(calls.length).toBeGreaterThan(0);
+    for (const [call, , args] of calls) {
+      expect({ call, staged: args.trimEnd().endsWith('STAGED_FORMAT_GATE_OPTS') }).toEqual({
+        call,
+        staged: true,
+      });
+    }
   });
 });
 
