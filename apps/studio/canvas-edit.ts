@@ -3713,16 +3713,18 @@ export function applyDuplicateElement(
   const elEnd = el.end as number;
   // The clone is the element's own source, placed at the same indent as the next
   // sibling (its internal lines are already indented relative to that level).
-  // V2-2.19 (contract V2-1.4 §5.2): a copy always gets a new id and starts unlocked
-  // — every `data-cd-id` / `data-cd-locked` inside it is dropped, and an intrinsic
-  // root gets a fresh readable id (a component usage never renders the attribute,
-  // so it stays unstamped). Descendants stay lazy.
+  // V2-2.19 (contract V2-1.4 §5.2): a copy never inherits an id or a lock — every
+  // `data-cd-id` / `data-cd-locked` inside it is dropped. A root that carried an
+  // authored id gets a fresh readable one (by the §4.2 rule, never its own); an
+  // unstamped root stays lazy like its original (its copy keeps the positional
+  // newId — the v1 key golden pins that id in the inspector). A component usage
+  // never renders the attribute, so it is never stamped. Descendants stay lazy.
   const walk = walkIdElements(source, canvasAbsPath);
   let cloneText = walk.ok
     ? copyWithoutIds(source, walk.elements, elStart, elEnd)
     : source.slice(elStart, elEnd);
   const root = walk.ok ? walk.elements.find((e) => e.start === elStart) : undefined;
-  if (walk.ok && root && /^[a-z]/.test(root.tag)) {
+  if (walk.ok && root && root.id !== null && /^[a-z]/.test(root.tag)) {
     cloneText = withIdAttr(cloneText, generateElementId(seedOf(root), usedIds(walk.elements)));
   }
   const targetIndent = lineStartInfo(source, elStart).indent;

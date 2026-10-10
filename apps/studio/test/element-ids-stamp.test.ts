@@ -147,29 +147,34 @@ describe('stampIds (lazy stamping)', () => {
 });
 
 describe('writers that create elements stamp them; a copy never inherits an id or a lock', () => {
-  test('duplicate: descendants lose their ids and locks, the root copy gets a new readable id', () => {
+  test('duplicate: descendants lose their ids and locks; an unstamped root copy stays lazy', () => {
     const src = HOME.replace(
       '<h1 data-cd-id="hero-title">Hero</h1>',
       '<h1 data-cd-id="hero-title" data-cd-locked>Hero</h1>'
     );
     const main = listElements(CANVAS, src).find((e) => e.print.tag === 'main')?.id as string;
     const out = applyDuplicateElement(CANVAS, src, main);
-    expect(out.newId).toBe('page');
+    expect(out.newId).toMatch(/^[0-9a-f]{8}$/); // positional, as in v1 (the v1 key golden pins it)
     const w = walkIdElements(out.source, CANVAS);
     if (!w.ok) throw new Error(w.error);
-    const mains = w.elements.filter((e) => e.tag === 'main');
-    expect(mains.map((m) => m.id)).toEqual([null, 'page']);
+    expect(w.elements.filter((e) => e.tag === 'main').map((m) => m.id)).toEqual([null, null]);
     const h1s = w.elements.filter((e) => e.tag === 'h1');
     expect(h1s.map((h) => [h.id, h.locked])).toEqual([
       ['hero-title', true],
       [null, false],
     ]);
     // the original is byte-identical
-    expect(out.source.slice(0, src.indexOf('</main>') + 7)).toBe(
-      src.slice(0, src.indexOf('</main>') + 7)
-    );
-    // a second copy gets the next suffix
-    expect(applyDuplicateElement(CANVAS, out.source, 'page').newId).toBe('page-2');
+    const end = src.indexOf('</main>') + 7;
+    expect(out.source.slice(0, end)).toBe(src.slice(0, end));
+  });
+
+  test('duplicate: a stamped root copy gets a fresh readable id, never the original one', () => {
+    const once = applyDuplicateElement(CANVAS, HOME, 'hero-title');
+    // the readable rule (§4.2) names the copy from its own text
+    expect(once.newId).toBe('hero');
+    expect(once.source).toContain('<h1 data-cd-id="hero-title">Hero</h1>');
+    expect(once.source).toContain('<h1 data-cd-id="hero">Hero</h1>');
+    expect(applyDuplicateElement(CANVAS, once.source, 'hero-title').newId).toBe('hero-2');
   });
 
   test('insert: the new element carries a readable id, which is the returned newId', () => {
