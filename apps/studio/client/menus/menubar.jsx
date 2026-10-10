@@ -8,6 +8,7 @@ import { basename, displayName } from '../shell/util.js';
 import { ExportBadge } from '../export-center.jsx';
 import { ACTIONS_BY_ID } from '../../actions/index.ts';
 import { V1_MENUBAR } from '../../actions/legacy.ts';
+import { runActionMessage } from '../actions/shell-key-handlers.js';
 
 /** V2-2.4 — a dropdown's rows, rendered from the action registry's v1 layout
  *  (actions/legacy.ts `V1_MENUBAR`): label = the action's v1 menu label, the
@@ -44,14 +45,6 @@ const ARTBOARD_PRESET = {
   'artboard.new-mobile': 'mobile',
   'artboard.new-a4': 'print-a4',
   'artboard.new-letter': 'print-letter',
-};
-
-/** View ▸ Zoom rows → the op the canvas's zoom lane takes. */
-const ZOOM_OP = {
-  'view.zoom-in': 'in',
-  'view.zoom-out': 'out',
-  'view.zoom-fit': 'fit',
-  'view.zoom-actual': 'actual',
 };
 
 // ───────── Menubar (CV-01/CV-08 top chrome) ─────────
@@ -122,28 +115,26 @@ export function ViewDropdown({ panels, onToggle, onClose, onZoom, hasCanvas }) {
       ))}
       <div className="st-dd-sep" />
       <div className="st-dd-hd">Zoom</div>
-      {v1MenuItems('zoom')
-        .map(({ id, label, shortcut }) => ({ op: ZOOM_OP[id], label, shortcut }))
-        .map((z) => (
-          <button
-            key={z.label}
-            type="button"
-            role="menuitem"
-            className="st-dd-item"
-            aria-disabled={hasCanvas ? undefined : 'true'}
-            onClick={() => {
-              if (!hasCanvas) return;
-              onZoom?.(z.op);
-              onClose();
-            }}
-          >
-            <span className="st-dd-lead">
-              <span className="st-dd-check" />
-              <span>{z.label}</span>
-            </span>
-            <Kbd>{z.shortcut}</Kbd>
-          </button>
-        ))}
+      {v1MenuItems('zoom').map((z) => (
+        <button
+          key={z.label}
+          type="button"
+          role="menuitem"
+          className="st-dd-item"
+          aria-disabled={hasCanvas ? undefined : 'true'}
+          onClick={() => {
+            if (!hasCanvas) return;
+            onZoom?.(z.id);
+            onClose();
+          }}
+        >
+          <span className="st-dd-lead">
+            <span className="st-dd-check" />
+            <span>{z.label}</span>
+          </span>
+          <Kbd>{z.shortcut}</Kbd>
+        </button>
+      ))}
     </div>
   );
 }
@@ -568,11 +559,10 @@ export function Menubar({
           readOnly={readOnly}
           hasCanvas={!!activePath && !isSystem}
           onAction={(id) => {
-            if (id === 'edit.undo') postToActiveCanvas({ dgn: 'undo' });
-            else if (id === 'edit.redo') postToActiveCanvas({ dgn: 'redo' });
-            else if (id === 'select.none') postToActiveCanvas({ dgn: 'selection-clear' });
-            else if (id === 'select.all-annotations')
-              postToActiveCanvas({ dgn: 'annotation-select-all' });
+            // V2-2.4 — the canvas runs these on the `run-action` lane (V2-1.3 §5.7).
+            if (id === 'edit.undo' || id === 'edit.redo' || id === 'select.none')
+              postToActiveCanvas(runActionMessage(id));
+            else if (id === 'select.all-annotations') postToActiveCanvas(runActionMessage(id));
             else if (id.startsWith('artboard.new-')) onInsertArtboard?.(ARTBOARD_PRESET[id]);
           }}
           onClose={() => setOpenMenu(null)}
@@ -597,7 +587,7 @@ export function Menubar({
             else if (id === 'present.canvas') onTogglePresent?.();
             else if (id === 'view.print-guides') onTogglePrintGuides?.();
           }}
-          onZoom={(op) => postToActiveCanvas({ dgn: 'zoom', op })}
+          onZoom={(id) => postToActiveCanvas(runActionMessage(id))}
           hasCanvas={!!activePath && !isSystem}
           onClose={() => setOpenMenu(null)}
         />
@@ -606,9 +596,8 @@ export function Menubar({
         <SelectionDropdown
           readOnly={readOnly}
           onAction={(id) => {
-            if (id === 'select.none') postToActiveCanvas({ dgn: 'selection-clear' });
-            else if (id === 'select.all-annotations')
-              postToActiveCanvas({ dgn: 'annotation-select-all' });
+            if (id === 'select.none' || id === 'select.all-annotations')
+              postToActiveCanvas(runActionMessage(id));
           }}
           onClose={() => setOpenMenu(null)}
         />

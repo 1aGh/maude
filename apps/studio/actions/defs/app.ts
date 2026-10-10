@@ -123,6 +123,9 @@ export const APP_ACTIONS: ActionDef[] = [
     kind: 'command',
     icon: 'help',
     exec: 'shell',
+    // Also the desktop app's Help ▸ Report a Bug… (native-menu.ts; the webview opens the dialog
+    // on `menu://report-bug`).
+    native: { menu: 'Help', order: 1 },
     legacy: { palette: 'Report a bug…', menu: 'Report a bug…' },
   },
 ];

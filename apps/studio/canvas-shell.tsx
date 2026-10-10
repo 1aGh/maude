@@ -2717,10 +2717,49 @@ function CanvasRouter({
     const onMessage = (e: MessageEvent) => {
       const m = e.data as { dgn?: string } | null;
       if (!m || typeof m !== 'object' || !m.dgn) return;
-      if (m.dgn === 'force-clear' || m.dgn === 'select-clear' || m.dgn === 'selection-clear') {
+      if (m.dgn === 'force-clear' || m.dgn === 'select-clear') {
         selSet.clear();
         annotSel.clear();
         setHoverEl(null);
+        return;
+      }
+      // V2-1.3 §5.7 — the shell runs one of this listener's canvas actions:
+      // `{dgn:'run-action', v:1, id, params?}`, only from the shell itself
+      // (`e.source === window.parent` — a sibling canvas must not undo or move the
+      // active one, V2-2.8 S1). Replaces the `undo` / `redo` / `zoom` /
+      // `selection-clear` lanes (V2-2.4); `select.all-annotations` is
+      // annotations-layer's.
+      if (m.dgn === 'run-action') {
+        if (e.source !== window.parent || (m as { v?: unknown }).v !== 1) return;
+        const { id, params } = m as { id?: unknown; params?: { id?: unknown } };
+        if (id === 'select.none') {
+          selSet.clear();
+          annotSel.clear();
+          setHoverEl(null);
+        } else if (id === 'edit.undo') {
+          // Plan C — Edit menu (shell) bridges to the in-canvas undo stack.
+          void afterShellRecords().then(() => undoStackRef.current.undo());
+        } else if (id === 'edit.redo') {
+          void afterShellRecords().then(() => undoStackRef.current.redo());
+        } else if (zoomController) {
+          // Shell View-menu zoom items — route to the live viewport controller
+          // (the same methods the in-canvas zoom pill calls).
+          if (id === 'view.zoom-in') zoomController.zoomIn();
+          else if (id === 'view.zoom-out') zoomController.zoomOut();
+          else if (id === 'view.zoom-fit') zoomController.fit();
+          else if (id === 'view.zoom-actual') zoomController.reset();
+          else if (id === 'view.zoom-to-artboard') {
+            // DDR-247 — the embed view's `&artboard=<id>`: frame one artboard,
+            // found by its `data-dc-screen` id through the same world-coordinate
+            // manifest the whiteboard toolkit reads. Unknown id ⇒ nothing moves.
+            const aid = params?.id;
+            const rect =
+              typeof aid === 'string'
+                ? window.__maudeCanvasRects?.().artboards.find((a) => a.id === aid)
+                : undefined;
+            if (rect) zoomController.jumpTo(rect);
+          }
+        }
         return;
       }
       if (m.dgn === 'tool-set') {
@@ -2803,15 +2842,6 @@ function CanvasRouter({
           s.clear();
           for (const k of arr) if (typeof k === 'string') s.add(k);
         }
-        return;
-      }
-      // Plan C — Edit menu (shell) bridges to the in-canvas undo stack.
-      if (m.dgn === 'undo') {
-        void afterShellRecords().then(() => undoStackRef.current.undo());
-        return;
-      }
-      if (m.dgn === 'redo') {
-        void afterShellRecords().then(() => undoStackRef.current.redo());
         return;
       }
       // Phase 12 Task 4 (DDR-103) — Layers-tree round-trip. select-by-id resolves
@@ -2979,27 +3009,6 @@ function CanvasRouter({
         const t = (m as { theme?: string }).theme;
         if (t === 'light' || t === 'dark') {
           document.documentElement.dataset.maudeTheme = t;
-        }
-        return;
-      }
-      // Shell View-menu zoom items — route to the live viewport controller
-      // (the same methods the in-canvas zoom pill calls).
-      if (m.dgn === 'zoom' && zoomController) {
-        const op = (m as { op?: string }).op;
-        if (op === 'in') zoomController.zoomIn();
-        else if (op === 'out') zoomController.zoomOut();
-        else if (op === 'fit') zoomController.fit();
-        else if (op === 'actual') zoomController.reset();
-        else if (op === 'artboard') {
-          // DDR-247 — the embed view's `&artboard=<id>`: frame one artboard,
-          // found by its `data-dc-screen` id through the same world-coordinate
-          // manifest the whiteboard toolkit reads. Unknown id ⇒ nothing moves.
-          const id = (m as { id?: unknown }).id;
-          const rect =
-            typeof id === 'string'
-              ? window.__maudeCanvasRects?.().artboards.find((a) => a.id === id)
-              : undefined;
-          if (rect) zoomController.jumpTo(rect);
         }
         return;
       }

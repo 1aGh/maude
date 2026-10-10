@@ -178,6 +178,8 @@ jobs:
           pnpm --filter @maude/site gen:stats
           pnpm --filter @maude/site gen:roadmap
           pnpm --filter @maude/site gen:whatsnew
+          # V2-2.4 — the action registry's generated files (canvas keymap, native menu slice).
+          node scripts/gen-actions.mjs --check
           DRIFT_PATHS="site/content/docs/commands-design site/content/docs/commands-flow site/content/docs/config-schema.mdx site/lib/stats.json site/lib/roadmap.json site/lib/whats-new.json"
           if ! git diff --quiet -- $DRIFT_PATHS; then
             echo "::error::Generated site content is stale. Run \`pnpm --filter @maude/site gen:reference && pnpm --filter @maude/site gen:stats && pnpm --filter @maude/site gen:roadmap && pnpm --filter @maude/site gen:whatsnew\` locally and commit the diff."

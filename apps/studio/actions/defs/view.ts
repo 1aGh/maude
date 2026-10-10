@@ -171,6 +171,14 @@ export const VIEW_ACTIONS: ActionDef[] = [
     legacy: { menu: 'Actual Size · 100 %', sheet: 'Fit · actual size' },
   },
   {
+    // No key: the embed view frames one artboard on load (DDR-247, `&artboard=<id>`) over the
+    // `run-action` lane, `params: { id }`.
+    id: 'view.zoom-to-artboard',
+    label: 'Zoom to artboard',
+    kind: 'command',
+    exec: 'canvas',
+  },
+  {
     id: 'view.jump-artboard',
     label: 'Go to artboard',
     kind: 'command',

@@ -3,7 +3,11 @@
 // V2-2.4). The registry (apps/studio/actions/) is the source; these are derived and committed,
 // drift-gated like site/lib/roadmap.json:
 //
-//   apps/studio/actions/keymap.gen.ts   the canvas iframe's slim key table (§5.7)
+//   apps/studio/actions/keymap.gen.ts          the canvas iframe's slim key table (§5.7)
+//   apps/desktop/src-tauri/menu.actions.json   the native menu, which menu.rs builds from (§5.8)
+//
+// (`actions.manifest.json` — the AI paths — is V2-2.4b; the docs page site/content/docs/
+// shortcuts.mdx lands with the v2 "?" in Phase 4 / 7.)
 //
 // Usage (repo root):
 //   node scripts/gen-actions.mjs           write the files
@@ -20,7 +24,10 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CHECK = process.argv.includes('--check');
 
-const { ACTIONS } = await import('../apps/studio/actions/index.ts');
+const { ACTIONS, ACTIONS_BY_ID } = await import('../apps/studio/actions/index.ts');
+const { primaryBinding } = await import('../apps/studio/actions/resolve.ts');
+const { toTauriAccel } = await import('../apps/studio/actions/keys.ts');
+const { NATIVE_MENU } = await import('../apps/studio/actions/native-menu.ts');
 const { bindingInDocument } = await import('../apps/studio/actions/documents.ts');
 
 function die(msg) {
@@ -67,7 +74,34 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = ${JSON.stringify(rows)};
 `;
 }
 
-const OUTPUTS = [['apps/studio/actions/keymap.gen.ts', keymap()]];
+// ── menu.actions.json: the native menu, item by item ────────────────────────────────────────
+function nativeMenu() {
+  const menus = NATIVE_MENU.map((m) => ({
+    title: m.title,
+    items: m.items.map((n) => {
+      if ('predefined' in n)
+        return { kind: 'predefined', name: n.predefined, ...(n.macos ? { macos: true } : {}) };
+      if ('separator' in n) return { kind: 'separator', ...(n.macos ? { macos: true } : {}) };
+      const a = ACTIONS_BY_ID.get(n.action);
+      if (!a) die(`native-menu.ts names '${n.action}', which is not a registered action`);
+      const key = primaryBinding(a);
+      return {
+        kind: 'item',
+        id: n.nativeId,
+        action: a.id,
+        label: n.label,
+        exec: a.exec,
+        ...(key ? { accel: toTauriAccel(key.chord) } : {}),
+      };
+    }),
+  }));
+  return `${JSON.stringify({ generated: 'scripts/gen-actions.mjs — do not edit by hand', menus }, null, 2)}\n`;
+}
+
+const OUTPUTS = [
+  ['apps/studio/actions/keymap.gen.ts', keymap()],
+  ['apps/desktop/src-tauri/menu.actions.json', nativeMenu()],
+];
 
 let stale = 0;
 for (const [rel, raw] of OUTPUTS) {

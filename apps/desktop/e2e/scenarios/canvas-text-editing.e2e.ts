@@ -445,7 +445,7 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     expect((await probe(TEXT_STROKE)).exists).toBe(true);
     // Deterministic camera: fit + settle, so every hit-test target below is
     // on-screen at known coordinates.
-    await postToCanvas({ dgn: 'zoom', op: 'fit' });
+    await postToCanvas({ dgn: 'run-action', v: 1, id: 'view.zoom-fit' });
     await waitForStableRect(H1);
     await capture('canvas-rendered-with-seeded-annotations');
     // feature-4 (browse/move split, DDR-187) — the canvas now BOOTS in the
@@ -620,8 +620,8 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
       if (level === 'zoom-in') {
         // Zoom via the same message the shell View menu sends — two steps so
         // the transform is clearly different from the fitted baseline.
-        await postToCanvas({ dgn: 'zoom', op: 'in' });
-        await postToCanvas({ dgn: 'zoom', op: 'in' });
+        await postToCanvas({ dgn: 'run-action', v: 1, id: 'view.zoom-in' });
+        await postToCanvas({ dgn: 'run-action', v: 1, id: 'view.zoom-in' });
         await waitForStableRect(STICKY);
       }
       // Sticky: rect measured BEFORE the editor opens (the read body hides).
@@ -670,7 +670,7 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
       expect((await probe(`${TEXT_STROKE} div.dc-annot-text`)).exists).toBe(true);
     }
     // Restore the viewport for the phases below.
-    await postToCanvas({ dgn: 'zoom', op: 'fit' });
+    await postToCanvas({ dgn: 'run-action', v: 1, id: 'view.zoom-fit' });
     await waitForStableRect(STICKY);
   });
 
@@ -1086,7 +1086,7 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
         }),
       { timeout: 10_000, interval: 100, timeoutMsg: 'the card edit never reached the undo stack' }
     );
-    await postToCanvas({ dgn: 'undo' });
+    await postToCanvas({ dgn: 'run-action', v: 1, id: 'edit.undo' });
     await browser.waitUntil(
       async () =>
         (await cardText(1)) === 'Second card body.' &&
@@ -1098,7 +1098,7 @@ describe('canvas-text-editing (native-desktop / WKWebView)', () => {
     await capture('var-card-undo-reverted');
 
     // Redo — re-applies to CARDS[1] only.
-    await postToCanvas({ dgn: 'redo' });
+    await postToCanvas({ dgn: 'run-action', v: 1, id: 'edit.redo' });
     await browser.waitUntil(
       async () =>
         (await cardText(1))?.includes('EDITED') === true &&

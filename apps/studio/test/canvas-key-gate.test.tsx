@@ -1,20 +1,17 @@
-// V2-2.8 S3 — `toggle-palette` is honoured only from the ACTIVE canvas frame.
+// V2-1.3 §5.7 / V2-2.4 step 6 — the canvas → shell `key` lane is honoured only from the ACTIVE
+// canvas frame, and only for `fromCanvas` actions. Carries over V2-2.8 S3's `toggle-palette` cases
+// (48e53253): that lane is retired for `{dgn:'key', v:1, chord}` (rule 13 — the old lane dies with
+// the new one).
 //
-// The shell's inbound postMessage handler (client/hooks/use-canvas-bridge.jsx)
-// first checks the message ORIGIN, but every open canvas iframe shares the one
-// `canvasOrigin`, so that check proves only "a canvas said this". The other
-// shell-bound chords a canvas forwards (`shell-shortcut`, `open-export`, …)
-// therefore also require `e.source === activeWin`. `toggle-palette` (⌘K pressed
-// inside the canvas) did not: a background or synced (untrusted, DDR-054)
-// canvas could pop the command palette over whatever the user was doing, on
-// demand and with no gesture — a modal-timing primitive.
+// The shell's inbound postMessage handler (client/hooks/use-canvas-bridge.jsx) first checks the
+// message ORIGIN, but every open canvas iframe shares the one `canvasOrigin`, so that check proves
+// only "a canvas said this". A forwarded chord is something the user pressed inside the canvas in
+// view; a background or synced (untrusted, DDR-054) canvas must not pop the palette, reload the
+// active canvas or open the Export dialog on demand — a modal-timing primitive.
 //
-// Behavioural, not a source grep: the real hook is mounted (happy-dom + React)
-// with stub dependencies, and real `message` events are dispatched at it from
-// the active frame, a background frame, and a discarded (null) source.
-//
-// The V2-1.3 contract names this file for the v2 canvas key gate (`key` /
-// `request-action` from a background frame do nothing); this is its first case.
+// Behavioural, not a source grep: the real hook is mounted (happy-dom + React) with stub
+// dependencies, and real `message` events are dispatched at it from the active frame, a background
+// frame, and a discarded (null) source.
 
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
@@ -40,8 +37,8 @@ const backgroundWin = { name: 'background-frame' };
 
 type Props = Record<string, unknown>;
 
-/** Every prop the hook destructures, with inert defaults: refs are refs, the
- *  value props carry neutral values, everything else is a no-op function. */
+/** Every prop the hook destructures, with inert defaults: refs are refs, the value props carry
+ *  neutral values, everything else is a no-op function. */
 function bridgeProps(overrides: Props): Props {
   const values: Props = {
     selected: null,
@@ -82,10 +79,10 @@ afterEach(() => {
   root = null;
 });
 
-async function mount(activePath: string | null, setPaletteOpen: (v: unknown) => void) {
+async function mount(activePath: string | null, spies: Props) {
   const { useCanvasBridge } = await import('../client/hooks/use-canvas-bridge.jsx');
   function Harness() {
-    useCanvasBridge(bridgeProps({ activePath, setPaletteOpen }) as never);
+    useCanvasBridge(bridgeProps({ activePath, ...spies }) as never);
     return null;
   }
   host = document.createElement('div');
@@ -107,35 +104,77 @@ function post(source: unknown, data: unknown, origin = CANVAS_ORIGIN) {
   });
 }
 
-describe('toggle-palette from a canvas frame (V2-2.8 S3)', () => {
+const key = (chord: string) => ({ dgn: 'key', v: 1, chord });
+
+describe('⌘K forwarded from a canvas frame (V2-2.8 S3, now on the `key` lane)', () => {
   test('the ACTIVE canvas frame toggles the palette', async () => {
     const calls: unknown[] = [];
-    await mount(ACTIVE, (v) => calls.push(v));
-    post(activeWin, { dgn: 'toggle-palette' });
+    await mount(ACTIVE, { setPaletteOpen: (v: unknown) => calls.push(v) });
+    post(activeWin, key('⌘K'));
     expect(calls.length).toBe(1);
   });
 
   test('a BACKGROUND canvas frame cannot toggle it', async () => {
     const calls: unknown[] = [];
-    await mount(ACTIVE, (v) => calls.push(v));
-    post(backgroundWin, { dgn: 'toggle-palette' });
+    await mount(ACTIVE, { setPaletteOpen: (v: unknown) => calls.push(v) });
+    post(backgroundWin, key('⌘K'));
     expect(calls.length).toBe(0);
   });
 
   test('a discarded source (null) cannot toggle it, even with no canvas open', async () => {
-    // With no active canvas `activeWin` is null, and a message whose source
-    // context was discarded before dispatch also carries `source: null` — the
-    // `null === null` hole the comment relays already document.
+    // With no active canvas `activeWin` is null, and a message whose source context was
+    // discarded before dispatch also carries `source: null` — the `null === null` hole.
     const calls: unknown[] = [];
-    await mount(null, (v) => calls.push(v));
-    post(null, { dgn: 'toggle-palette' });
+    await mount(null, { setPaletteOpen: (v: unknown) => calls.push(v) });
+    post(null, key('⌘K'));
     expect(calls.length).toBe(0);
   });
 
   test('the origin check still runs first (a foreign origin is ignored)', async () => {
     const calls: unknown[] = [];
-    await mount(ACTIVE, (v) => calls.push(v));
-    post(activeWin, { dgn: 'toggle-palette' }, 'http://evil.example');
+    await mount(ACTIVE, { setPaletteOpen: (v: unknown) => calls.push(v) });
+    post(activeWin, key('⌘K'), 'http://evil.example');
+    expect(calls.length).toBe(0);
+  });
+
+  test('the retired `toggle-palette` lane does nothing any more (rule 13)', async () => {
+    const calls: unknown[] = [];
+    await mount(ACTIVE, { setPaletteOpen: (v: unknown) => calls.push(v) });
+    post(activeWin, { dgn: 'toggle-palette' });
+    expect(calls.length).toBe(0);
+  });
+});
+
+describe('the `key` lane runs only fromCanvas actions (V2-1.3 §5.7)', () => {
+  test('⇧⌘E from the active frame opens Export; ⌘R reloads', async () => {
+    const dialogs: unknown[] = [];
+    const reloads: unknown[] = [];
+    await mount(ACTIVE, {
+      setExportDialog: (v: unknown) => dialogs.push(v),
+      reloadActive: () => reloads.push(1),
+    });
+    post(activeWin, key('⇧⌘E'));
+    post(activeWin, key('⌘R'));
+    expect(dialogs).toEqual([{ mode: 'export' }]);
+    expect(reloads.length).toBe(1);
+  });
+
+  test('a chord whose action is not fromCanvas does nothing (⌘, Settings, ⇧⌘R refresh)', async () => {
+    const opened: unknown[] = [];
+    await mount(ACTIVE, {
+      setSettingsOpen: (v: unknown) => opened.push(v),
+      refreshTree: () => opened.push('refresh'),
+    });
+    post(activeWin, key('⌘,'));
+    post(activeWin, key('⇧⌘R'));
+    expect(opened).toEqual([]);
+  });
+
+  test('a malformed message is ignored (no v, a non-string chord)', async () => {
+    const calls: unknown[] = [];
+    await mount(ACTIVE, { setPaletteOpen: (v: unknown) => calls.push(v) });
+    post(activeWin, { dgn: 'key', chord: '⌘K' });
+    post(activeWin, { dgn: 'key', v: 1, chord: 42 });
     expect(calls.length).toBe(0);
   });
 });

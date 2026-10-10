@@ -472,25 +472,10 @@ export function createInspectRegistry(
 
 // ---------- Inspector script injection ----------
 
-// V2-2.4 step 5 — the chords the canvas forwards (actions/forward.ts) still travel on v1's
-// message lanes until step 6 swaps them for `{dgn:'key'}` (V2-1.3 §5.7).
-const V1_FORWARD_LANE: Readonly<Record<string, { dgn: string; id?: string }>> = {
-  'search.open': { dgn: 'toggle-palette' },
-  'canvas.reload': { dgn: 'shell-shortcut', id: 'reload' },
-  'view.inspector': { dgn: 'shell-shortcut', id: 'inspector' },
-  'view.comments': { dgn: 'shell-shortcut', id: 'comments' },
-  'export.open': { dgn: 'shell-shortcut', id: 'export' },
-  'handoff.open': { dgn: 'shell-shortcut', id: 'handoff' },
-  'view.timeline-keep-open': { dgn: 'shell-shortcut', id: 'timeline' },
-  'history.open': { dgn: 'shell-shortcut', id: 'changes' },
-};
-const V1_FORWARD_MESSAGES = Object.fromEntries(
-  Object.entries(canvasForwards()).map(([chord, id]) => {
-    const lane = V1_FORWARD_LANE[id];
-    if (!lane) throw new Error(`inspect.ts: no v1 message lane for the forwarded action ${id}`);
-    return [chord, lane];
-  })
-);
+// V2-2.4 — the chords the canvas forwards to the shell (actions/forward.ts, generated from the
+// registry). The canvas sends the CHORD (`{dgn:'key', v:1, chord}`); the shell re-resolves it and
+// runs only a `fromCanvas` action from the active frame (V2-1.3 §5.7).
+const FORWARDED_CHORDS = Object.keys(canvasForwards());
 
 function injectInspector(html: string): string {
   const idx = html.lastIndexOf('</body>');
@@ -666,14 +651,14 @@ const INSPECTOR_SCRIPT = `
   // keydown handler can't swallow them first. The chord table is generated from
   // the action registry (V2-2.4 — actions/forward.ts: every \`fromCanvas\` action's
   // canvas binding), so it can no longer miss a chord the shell answers.
-  var FORWARD = ${JSON.stringify(V1_FORWARD_MESSAGES)};
+  var FORWARD = ${JSON.stringify(FORWARDED_CHORDS)};
   var chordOf = ${CHORD_OF_EVENT_JS};
   document.addEventListener('keydown', function(e) {
     if (!(e.metaKey || e.ctrlKey)) return;
-    var m = FORWARD[chordOf(e)];
-    if (!m) return;
+    var chord = chordOf(e);
+    if (FORWARD.indexOf(chord) < 0) return;
     e.preventDefault();
-    try { window.parent.postMessage(m, '*'); } catch (err) {}
+    try { window.parent.postMessage({ dgn: 'key', v: 1, chord: chord }, '*'); } catch (err) {}
   }, true);
 
   window.addEventListener('message', function(e) {

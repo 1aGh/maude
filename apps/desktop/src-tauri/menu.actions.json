@@ -1,0 +1,99 @@
+{
+  "generated": "scripts/gen-actions.mjs — do not edit by hand",
+  "menus": [
+    {
+      "title": "Maude",
+      "items": [
+        {
+          "kind": "predefined",
+          "name": "about"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "id": "check_updates",
+          "action": "app.check-updates",
+          "label": "Check for Updates…",
+          "exec": "native"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "predefined",
+          "name": "quit"
+        }
+      ]
+    },
+    {
+      "title": "File",
+      "items": [
+        {
+          "kind": "item",
+          "id": "new_project",
+          "action": "project.new",
+          "label": "New Project…",
+          "exec": "native",
+          "accel": "CmdOrCtrl+N"
+        },
+        {
+          "kind": "item",
+          "id": "open_project",
+          "action": "project.open",
+          "label": "Open Project…",
+          "exec": "native",
+          "accel": "CmdOrCtrl+O"
+        }
+      ]
+    },
+    {
+      "title": "Edit",
+      "items": [
+        {
+          "kind": "predefined",
+          "name": "undo",
+          "macos": true
+        },
+        {
+          "kind": "predefined",
+          "name": "redo",
+          "macos": true
+        },
+        {
+          "kind": "separator",
+          "macos": true
+        },
+        {
+          "kind": "predefined",
+          "name": "cut"
+        },
+        {
+          "kind": "predefined",
+          "name": "copy"
+        },
+        {
+          "kind": "predefined",
+          "name": "paste"
+        },
+        {
+          "kind": "predefined",
+          "name": "select_all"
+        }
+      ]
+    },
+    {
+      "title": "Help",
+      "items": [
+        {
+          "kind": "item",
+          "id": "report_bug",
+          "action": "help.report-bug",
+          "label": "Report a Bug…",
+          "exec": "shell"
+        }
+      ]
+    }
+  ]
+}

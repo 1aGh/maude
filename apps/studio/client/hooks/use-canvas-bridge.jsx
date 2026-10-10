@@ -11,7 +11,7 @@ import { applyEditRequest } from '../apply-edit-request.ts';
 import { localSelectRecord } from '../selection-scope.js';
 import { PHOTO_ASSET_RE } from '../inspector/inspector-panel.jsx';
 import { sanitizeArtboardText } from '../panels/timeline-comp-target.js';
-import { isNativeApp } from '../github.js';
+import { runActionMessage, runForwardedKey } from '../actions/shell-key-handlers.js';
 import {
   browserCaptureEligible,
   captureDeckViaBrowser,
@@ -571,7 +571,7 @@ export function useCanvasBridge({
               // surface server refusals (.map children etc.) as a toast
               // instead of a console.warn nobody sees.
               onOk: () => {
-                postToActiveCanvas({ dgn: 'selection-clear' });
+                postToActiveCanvas(runActionMessage('select.none'));
                 postToActiveCanvas({
                   dgn: 'op-toast',
                   message: `Converted ${count} element${count === 1 ? '' : 's'} to absolute — press V and drag them freely (⌘Z to undo).`,
@@ -871,45 +871,35 @@ export function useCanvasBridge({
         if (e.source !== activeWin) return;
         if (m.id && timelineCompIdRef.current && m.id !== timelineCompIdRef.current) return;
         setTimelinePlaying(false);
-      } else if (m.dgn === 'toggle-palette') {
-        // ⌘K pressed while focus was inside the canvas iframe — the injected
-        // inspector forwards the chord here since the iframe's keydown never
-        // reaches the shell's window listener. Mirror that handler's toggle.
+      } else if (m.dgn === 'key' && m.v === 1 && typeof m.chord === 'string') {
+        // V2-1.3 §5.7 — a chord pressed while focus was inside the canvas iframe:
+        // its keydown never reaches the shell's window listener, so the injected
+        // inspector forwards it (inspect.ts, generated from the registry). The shell
+        // re-resolves the chord itself and runs only a `fromCanvas` action (⌘K ⌘R
+        // ⇧⌘I/M/E/H/T/G) — the canvas names a chord, never an action. Replaces the
+        // `toggle-palette` + `shell-shortcut` lanes (V2-2.4).
         //
-        // SECURITY (V2-2.8 S3) — the same `activeWin` gate as `shell-shortcut`
-        // below: the chord is pressed inside the canvas in view, so a
-        // background/synced canvas (DDR-054) must not pop the palette on demand.
-        // `activeWin &&` closes the `null === null` path (no active canvas + a
-        // discarded source) the comment relays above document.
+        // SECURITY — a chord the user pressed INSIDE the canvas they are looking
+        // at: only the active frame. Ungated, a background canvas could reload the
+        // active file out from under an edit or pop the palette / Export dialog on
+        // demand — a modal-timing primitive (V2-2.8 S3). `activeWin &&` closes the
+        // `null === null` path (no active canvas + a discarded source).
         const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
-        if (activeWin && e.source === activeWin) setPaletteOpen((v) => !v);
-      } else if (m.dgn === 'shell-shortcut') {
-        // Same forwarding lane for the other shell chords (inspect.ts) — so
-        // ⌘R / ⌘⇧I / ⌘⇧M / ⌘⇧E / ⌘⇧H behave identically wherever focus is.
-        //
-        // SECURITY — every one of these is a chord the user pressed INSIDE the
-        // canvas they are looking at, so it gets the same `activeWin` gate as
-        // its siblings. Ungated, a background canvas could reload the active
-        // file out from under an edit or pop the Export/Handoff dialog on
-        // demand — a modal-timing primitive, and the mirror image of the
-        // present-enter branch that was already hardened against modal HIDING.
-        const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
-        if (e.source === activeWin) {
-          if (m.id === 'reload') reloadActive();
-          else if (m.id === 'inspector') toggleRightPanel('inspector');
-          else if (m.id === 'assistant' && isNativeApp()) toggleRightPanel('assistant');
-          else if (m.id === 'comments') toggleRightPanel('comments');
-          else if (m.id === 'changes') toggleRightPanel('changes');
-          else if (m.id === 'timeline') toggleTimeline();
-          else if (m.id === 'export') setExportDialog({ mode: 'export' });
-          else if (m.id === 'handoff') setExportDialog({ mode: 'handoff' });
+        if (activeWin && e.source === activeWin) {
+          runForwardedKey(m.chord.slice(0, 32), {
+            setPaletteOpen,
+            reloadActive,
+            toggleRightPanel,
+            toggleTimeline,
+            setExportDialog,
+          });
         }
       } else if (m.dgn === 'open-export') {
         // Plan C — the in-canvas toolbar / context menu route here so they open
         // the SAME shell Export dialog as the menubar (one look, all settings).
         // Carry the context-menu's scope hint (e.g. "Export selection").
         //
-        // SECURITY — gated with `shell-shortcut` above rather than separately:
+        // SECURITY — gated like the `key` lane above rather than separately:
         // both reach the same `setExportDialog`, so leaving this one open would
         // hand back the capability the other now refuses.
         const activeWin = activePath ? iframesRef.current.get(activePath)?.contentWindow : null;
@@ -1569,7 +1559,7 @@ export function useCanvasBridge({
       structuralWrite(
         '/_api/delete-element',
         { id, idIndex: Number.isInteger(idIndex) ? idIndex : undefined },
-        { label: 'delete element', onOk: () => postToActiveCanvas({ dgn: 'selection-clear' }) }
+        { label: 'delete element', onOk: () => postToActiveCanvas(runActionMessage('select.none')) }
       );
     },
     [structuralWrite, postToActiveCanvas]
@@ -1646,7 +1636,7 @@ export function useCanvasBridge({
         {
           label: 'detach instance',
           onOk: (j) => {
-            postToActiveCanvas({ dgn: 'selection-clear' });
+            postToActiveCanvas(runActionMessage('select.none'));
             postToActiveCanvas({
               dgn: 'op-toast',
               message: `Detached — this instance is now ${j.detachedName || 'its own component'}; edits stay local (⌘Z to undo).`,

@@ -40,7 +40,7 @@ function branch(name: string): string {
 
 describe('canvas → shell comment relays are scoped to the active canvas', () => {
   // The comment relays, plus the three shell-control branches that were
-  // ungated alongside them: `shell-shortcut` (reload / panel toggles /
+  // ungated alongside them: `key` (V2-2.4's forwarded chords — reload / panel toggles /
   // Export + Handoff dialogs), and `open-export` / `open-timeline-request`,
   // which reach the same dialogs from the in-canvas toolbar and context menu.
   // All five are actions a user takes INSIDE the canvas in view; none has a
@@ -49,7 +49,7 @@ describe('canvas → shell comment relays are scoped to the active canvas', () =
     'comment-submit',
     'comment-patch',
     'comment-delete',
-    'shell-shortcut',
+    'key',
     'open-export',
     'open-timeline-request',
   ]) {

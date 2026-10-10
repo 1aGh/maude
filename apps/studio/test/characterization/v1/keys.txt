@@ -36,28 +36,28 @@
 ## browser/canvas/chrome Meta+z
   keydown: shell ⌘key="Meta" default · shell ⌘key="z" PREVENTED
   to-shell: child undo-barrier
-  to-canvas: parent undo · parent undo-barrier-ok
+  to-canvas: parent run-action id=edit.undo · parent undo-barrier-ok
   writes: (none)
   shell: =
   canvas: =
 ## browser/canvas/chrome Meta+Shift+Z
   keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="Z" PREVENTED
   to-shell: child undo-barrier
-  to-canvas: parent redo · parent undo-barrier-ok
+  to-canvas: parent run-action id=edit.redo · parent undo-barrier-ok
   writes: (none)
   shell: =
   canvas: =
 ## browser/canvas/chrome Meta+y
   keydown: shell ⌘key="Meta" default · shell ⌘key="y" PREVENTED
   to-shell: child undo-barrier
-  to-canvas: parent redo · parent undo-barrier-ok
+  to-canvas: parent run-action id=edit.redo · parent undo-barrier-ok
   writes: (none)
   shell: =
   canvas: =
 ## browser/canvas/chrome Meta+Shift+Y
   keydown: shell ⌘key="Meta" default · shell ⇧⌘key="Shift" default · shell ⇧⌘key="Y" PREVENTED
   to-shell: child undo-barrier
-  to-canvas: parent redo · parent undo-barrier-ok
+  to-canvas: parent run-action id=edit.redo · parent undo-barrier-ok
   writes: (none)
   shell: =
   canvas: =
@@ -1042,7 +1042,7 @@
 ## browser/canvas/select Meta+z
   keydown: shell ⌘key="Meta" default · shell ⌘key="z" PREVENTED
   to-shell: child undo-barrier
-  to-canvas: parent undo · parent undo-barrier-ok
+  to-canvas: parent run-action id=edit.undo · parent undo-barrier-ok
   writes: (none)
   shell: =
   canvas: =
@@ -1471,7 +1471,7 @@
   canvas: =
 ## browser/in-canvas/canvas Meta+k
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="k" PREVENTED
-  to-shell: child toggle-palette
+  to-shell: child key
   to-canvas: (none)
   writes: (none)
   shell: +100 -1 #e8ac59c0b8
@@ -1497,7 +1497,7 @@
   canvas: =
 ## browser/in-canvas/canvas Meta+r
   keydown: (none)
-  to-shell: child shell-shortcut id=reload · child loaded · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child canvas-rendered · child canvas-mounted
+  to-shell: child key · child loaded · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child canvas-rendered · child canvas-mounted
   to-canvas: parent comments-set · parent theme · parent view-chrome
   writes: (none)
   shell: =
@@ -1512,7 +1512,7 @@
   canvas: =
 ## browser/in-canvas/canvas Meta+Shift+I
   keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="I" PREVENTED
-  to-shell: child shell-shortcut id=inspector
+  to-shell: child key
   to-canvas: (none)
   writes: (none)
   shell: +0 -542 #585932fa0a
@@ -1528,7 +1528,7 @@
   canvas: =
 ## browser/in-canvas/canvas Meta+Shift+M
   keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="M" PREVENTED
-  to-shell: child shell-shortcut id=comments
+  to-shell: child key
   to-canvas: (none)
   writes: (none)
   shell: +14 -536 #aeaa278242
@@ -1551,7 +1551,7 @@
   canvas: =
 ## browser/in-canvas/canvas Meta+Shift+E
   keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="E" PREVENTED
-  to-shell: child shell-shortcut id=export · child export-history-request id=exp-1
+  to-shell: child key · child export-history-request id=exp-1
   to-canvas: parent export-history-result id=exp-1
   writes: (none)
   shell: +63 -0 #c5f1eabd57
@@ -1567,7 +1567,7 @@
   canvas: =
 ## browser/in-canvas/canvas Meta+Shift+H
   keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="H" PREVENTED
-  to-shell: child shell-shortcut id=handoff
+  to-shell: child key
   to-canvas: (none)
   writes: (none)
   shell: +47 -0 #48f9441cae
@@ -1583,7 +1583,7 @@
   canvas: =
 ## browser/in-canvas/canvas Meta+Shift+T
   keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="T" PREVENTED
-  to-shell: child shell-shortcut id=timeline
+  to-shell: child key
   to-canvas: (none)
   writes: (none)
   shell: +11 -1 #365cb0780d
@@ -1598,7 +1598,7 @@
     + @focus body
 ## browser/in-canvas/canvas Meta+Shift+G
   keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="G" PREVENTED
-  to-shell: child shell-shortcut id=changes
+  to-shell: child key
   to-canvas: (none)
   writes: (none)
   shell: +18 -535 #c17bdcc4aa
@@ -1807,7 +1807,7 @@
 ## browser/in-canvas/canvas Backspace
   keydown: canvas key="Backspace" PREVENTED
   to-shell: child delete-request id=3807c330 · child canvas-notice kind=undo · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded
-  to-canvas: parent record-edit · parent selection-clear · parent comments-set · parent theme · parent view-chrome
+  to-canvas: parent record-edit · parent run-action id=select.none · parent comments-set · parent theme · parent view-chrome
   writes: POST /_api/delete-element
   shell: +10 -530 #83206e2caa
     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
@@ -1934,7 +1934,7 @@
   canvas: =
 ## browser/in-canvas-text/canvas Meta+k
   keydown: canvas ⌘key="Meta" default · canvas ⌘key="k" PREVENTED
-  to-shell: child toggle-palette
+  to-shell: child key
   to-canvas: (none)
   writes: (none)
   shell: +100 -1 #e8ac59c0b8
@@ -1953,7 +1953,7 @@
     + @focus body
 ## browser/in-canvas-text/canvas Meta+r
   keydown: (none)
-  to-shell: child shell-shortcut id=reload · child loaded · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child canvas-rendered · child canvas-mounted
+  to-shell: child key · child loaded · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child canvas-rendered · child canvas-mounted
   to-canvas: parent comments-set · parent theme · parent view-chrome
   writes: (none)
   shell: =
@@ -1963,7 +1963,7 @@
     + @focus div.dc-canvas
 ## browser/in-canvas-text/canvas Meta+Shift+E
   keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="E" PREVENTED
-  to-shell: child shell-shortcut id=export · child export-history-request id=exp-1
+  to-shell: child key · child export-history-request id=exp-1
   to-canvas: parent export-history-result id=exp-1
   writes: (none)
   shell: +63 -0 #c5f1eabd57
@@ -1979,7 +1979,7 @@
   canvas: =
 ## browser/in-canvas-text/canvas Meta+Shift+I
   keydown: canvas ⌘key="Meta" default · canvas ⇧⌘key="Shift" default · canvas ⇧⌘key="I" PREVENTED
-  to-shell: child shell-shortcut id=inspector
+  to-shell: child key
   to-canvas: (none)
   writes: (none)
   shell: +0 -548 #b4c6031296
@@ -2073,7 +2073,7 @@
 ## browser/in-canvas-selected/canvas Backspace
   keydown: canvas key="Backspace" PREVENTED
   to-shell: child delete-request id=3807c330 · child canvas-notice kind=undo · child active-artboard id=home-hero · child tool-cursor tool=move · child tool-cursor tool=browse · child loaded
-  to-canvas: parent record-edit · parent selection-clear · parent comments-set · parent theme · parent view-chrome
+  to-canvas: parent record-edit · parent run-action id=select.none · parent comments-set · parent theme · parent view-chrome
   writes: POST /_api/delete-element
   shell: +10 -530 #83206e2caa
     - button .is-active [role="radio"] [aria-label="Advanced — raw CSS"] [aria-checked="true"] [title="Advanced — raw CSS"] [type="button"]
@@ -2310,7 +2310,7 @@
 ## browser/timeline/chrome Meta+y
   keydown: shell ⌘key="Meta" default · shell ⌘key="y" PREVENTED
   to-shell: child undo-barrier
-  to-canvas: parent redo · parent undo-barrier-ok
+  to-canvas: parent run-action id=edit.redo · parent undo-barrier-ok
   writes: (none)
   shell: =
   canvas: =
@@ -2748,7 +2748,7 @@
 ## viewer/canvas/chrome Meta+z
   keydown: shell ⌘key="Meta" default · shell ⌘key="z" PREVENTED
   to-shell: child undo-barrier
-  to-canvas: parent undo · parent undo-barrier-ok
+  to-canvas: parent run-action id=edit.undo · parent undo-barrier-ok
   writes: (none)
   shell: =
   canvas: =

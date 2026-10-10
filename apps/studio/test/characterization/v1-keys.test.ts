@@ -11,7 +11,9 @@
 //   · the structural change of each document (a line diff of a normalised DOM snapshot, plus the
 //     focused element), summarised and hashed.
 // Golden: apps/studio/test/characterization/v1/keys.txt. Any diff fails with the first differing
-// case. Refresh deliberately (Phase 4 only) with V1_KEYS_UPDATE=1.
+// case. Refresh deliberately with V1_KEYS_UPDATE=1, and only in Phase 4, or for a lead-approved
+// transport-only delta (lane renames with identical keydown / writes / DOM), recorded in kg
+// (decision:maude/v2-2.4-golden-transport-delta — V2-2.4 step 6's `key` / `run-action` lanes).
 //
 //   cd apps/studio && bun test test/characterization/v1-keys.test.ts
 //     V1_KEYS_UPDATE=1   rewrite the golden

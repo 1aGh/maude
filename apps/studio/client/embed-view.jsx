@@ -170,9 +170,10 @@ export default function EmbedView() {
         { dgn: 'comments-set', comments: [] },
         { dgn: 'theme', theme },
         { dgn: 'view-chrome', minimap: false, zoom: false, present: true },
+        // V2-2.4 — the canvas zoom rides the `run-action` lane (V2-1.3 §5.7).
         view.artboard
-          ? { dgn: 'zoom', op: 'artboard', id: view.artboard }
-          : { dgn: 'zoom', op: 'fit' },
+          ? { dgn: 'run-action', v: 1, id: 'view.zoom-to-artboard', params: { id: view.artboard } }
+          : { dgn: 'run-action', v: 1, id: 'view.zoom-fit' },
       ];
       for (const m of messages) {
         try {

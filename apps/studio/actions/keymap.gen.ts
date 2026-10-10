@@ -609,4 +609,14 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
       },
     ],
   },
+  {
+    id: 'project.new',
+    exec: 'native',
+    keys: [{ chord: '⌘N', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+  },
+  {
+    id: 'project.open',
+    exec: 'native',
+    keys: [{ chord: '⌘O', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+  },
 ];

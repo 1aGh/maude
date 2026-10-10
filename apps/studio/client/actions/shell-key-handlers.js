@@ -14,6 +14,9 @@
 // `useActionKeys` (read through a ref, so it is always the current render's), `ctx` the KeyCtx the
 // press resolved with.
 
+import { documentIndex } from '../../actions/documents.ts';
+import { ACTIONS, ACTIONS_BY_ID } from '../../actions/index.ts';
+import { resolveChord } from '../../actions/resolve.ts';
 import { activeComp } from '../panels/timeline-comp-target.js';
 import { SYSTEM_TAB } from '../shell/constants.js';
 import { shellToast } from '../shell/util.js';
@@ -74,7 +77,7 @@ function undoRedo(d, e, redo) {
     return;
   }
   e.preventDefault();
-  d.postToActiveCanvas({ dgn: redo ? 'redo' : 'undo' });
+  d.postToActiveCanvas(runActionMessage(redo ? 'edit.redo' : 'edit.undo'));
 }
 
 const focusSearch = () => {
@@ -302,3 +305,42 @@ export const SHELL_KEY_HANDLERS = {
   },
   'timeline.prev-keyframe': (d, { event: e }) => prevKeyframe(d, e),
 };
+
+// ── the message lanes (V2-1.3 §5.7; V2-2.4 step 6) ─────────────────────────────────────────
+
+/** Shell → canvas: run one of the iframe's canvas actions. The canvas honours it only from
+ *  its parent (canvas-shell.tsx / annotations-layer.tsx). */
+export function runActionMessage(id, params) {
+  return params ? { dgn: 'run-action', v: 1, id, params } : { dgn: 'run-action', v: 1, id };
+}
+
+/** The `fromCanvas` actions the shell runs for a chord the canvas forwarded. */
+const FORWARDED_KEYS = documentIndex(
+  ACTIONS,
+  'shell',
+  (id) => !!ACTIONS_BY_ID.get(id)?.fromCanvas && id in SHELL_KEY_HANDLERS
+);
+// A forwarded chord carries no keyboard event: the canvas already prevented the default.
+const FORWARDED_EVENT = { preventDefault() {} };
+
+/**
+ * Canvas → shell: a chord pressed inside the active canvas (`{dgn:'key', v:1, chord}`). The shell
+ * re-resolves it with focus 'canvas' and runs it only when the winner is a `fromCanvas` action —
+ * the canvas names a chord, never an action (V2-1.3 §5.7). `d` holds what those handlers need
+ * (setPaletteOpen, reloadActive, toggleRightPanel, toggleTimeline, setExportDialog). The caller
+ * gates the message on the active frame.
+ */
+export function runForwardedKey(chord, d) {
+  const ctx = {
+    role: 'owner',
+    shell: 'browser',
+    mode: 'edit',
+    focus: 'canvas',
+    selection: 'none',
+    facts: new Set(),
+  };
+  const r = resolveChord(FORWARDED_KEYS, chord, ctx);
+  if (!r) return false;
+  SHELL_KEY_HANDLERS[r.action.id](d, { event: FORWARDED_EVENT, ctx });
+  return true;
+}

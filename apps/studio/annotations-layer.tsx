@@ -1683,8 +1683,8 @@ export function AnnotationsLayer() {
   );
 
   // Menubar bridge (Phase 5.1 Task 10) — listen for postMessages from the
-  // dev-server shell. `selection-clear` + `tool-set` live in canvas-shell
-  // (those providers are above us); we own visibility + annotation-select-all
+  // dev-server shell. `run-action` select.none + `tool-set` live in canvas-shell
+  // (those providers are above us); we own visibility + select.all-annotations
   // because they read this layer's local state.
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1696,7 +1696,12 @@ export function AnnotationsLayer() {
         if (typeof m.visible === 'boolean') setVisible(m.visible);
         return;
       }
-      if (m.dgn === 'annotation-select-all') {
+      // V2-2.4 — Select all annotations rides the `run-action` lane (V2-1.3 §5.7).
+      if (
+        m.dgn === 'run-action' &&
+        (m as { v?: unknown; id?: unknown }).v === 1 &&
+        (m as { id?: unknown }).id === 'select.all-annotations'
+      ) {
         if (annotSel) annotSel.replace(strokes.map((s) => s.id));
         return;
       }
