@@ -1,0 +1,148 @@
+{
+  "$schema": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-components-v1.schema.json",
+  "schemaVersion": 1,
+  "system": "maude-v2",
+  "components": {
+    "Button": {
+      "class": "btn",
+      "export": "Button",
+      "specimen": "preview/components-buttons.tsx",
+      "variants": { "primary": "btn--primary", "secondary": null, "ghost": "btn--ghost", "danger": null },
+      "sizes": { "sm": "btn--sm", "lg": "btn--lg" },
+      "tones": { "x-spark": "btn--spark" },
+      "fallback": { "secondary": "ghost", "danger": "ghost" },
+      "label": "Button"
+    },
+    "IconButton": {
+      "class": "icon-btn",
+      "export": "IconButton",
+      "specimen": "preview/components-buttons.tsx",
+      "variants": { "primary": null, "secondary": null, "ghost": null, "danger": null },
+      "sizes": { "sm": null, "lg": null },
+      "label": "Icon button"
+    },
+    "Input": {
+      "class": "input",
+      "export": "Input",
+      "specimen": "preview/components-inputs.tsx",
+      "sizes": { "sm": null },
+      "label": "Input"
+    },
+    "Field": { "class": "field", "export": "Field", "specimen": "preview/components-inputs.tsx", "label": "Field" },
+    "Switch": { "class": "switch", "export": "Switch", "specimen": "preview/components-toggles.tsx", "label": "Switch" },
+    "Checkbox": {
+      "class": "checkbox",
+      "export": "Checkbox",
+      "specimen": "preview/components-toggles.tsx",
+      "label": "Checkbox"
+    },
+    "Segmented": {
+      "class": "seg",
+      "export": "Segmented",
+      "specimen": "preview/components-toggles.tsx",
+      "sizes": { "sm": null },
+      "label": "Segmented control"
+    },
+    "Tabs": {
+      "class": "seg",
+      "export": "Tabs",
+      "specimen": "preview/components-toggles.tsx",
+      "label": "Tabs (this system switches views with its segmented control)"
+    },
+    "Chip": {
+      "class": "chip",
+      "export": "Chip",
+      "variants": { "accent": "chip--accent", "soft": null },
+      "tones": { "x-spark": "chip--spark" },
+      "fallback": { "soft": "accent" },
+      "label": "Tag"
+    },
+    "Badge": {
+      "class": "chip",
+      "export": "Badge",
+      "variants": { "success": null, "warn": null, "error": null, "info": null, "accent": "chip--accent" },
+      "label": "Badge (this system marks status with its chip)"
+    },
+    "Card": {
+      "class": "card",
+      "export": "Card",
+      "specimen": "preview/components-cards.tsx",
+      "variants": { "raised": null, "interactive": null, "flat": null },
+      "label": "Card"
+    },
+    "Callout": {
+      "class": "callout",
+      "export": "Callout",
+      "specimen": "preview/components-callout.tsx",
+      "variants": { "info": null, "success": null, "warn": null, "error": null },
+      "label": "Callout"
+    },
+    "Dialog": { "class": "dialog", "export": "Dialog", "specimen": "preview/components-dialogs.tsx", "label": "Dialog" },
+    "Tooltip": { "class": "tooltip", "export": "Tooltip", "specimen": "preview/components-tooltips.tsx", "label": "Tooltip" }
+  },
+  "typeRoles": {
+    "title": "t-title",
+    "heading": "t-heading",
+    "subheading": "t-subheading",
+    "body": "t-body",
+    "body-sm": "t-body-sm",
+    "caption": "t-caption",
+    "label": "t-label",
+    "eyebrow": "t-eyebrow",
+    "code": "t-code",
+    "num": "t-num"
+  },
+  "icons": {
+    "family": "maude-v2",
+    "export": "Icon",
+    "map": {
+      "home": "home",
+      "search": "search",
+      "add": null,
+      "close": null,
+      "check": "check",
+      "chevron-up": null,
+      "chevron-down": "chevron",
+      "chevron-left": null,
+      "chevron-right": "submenu",
+      "arrow-up": null,
+      "arrow-down": null,
+      "arrow-left": null,
+      "arrow-right": "arrow",
+      "more": "more",
+      "settings": "settings",
+      "user": null,
+      "users": null,
+      "bell": null,
+      "share": "share",
+      "link": null,
+      "trash": null,
+      "edit": "edit",
+      "copy": null,
+      "download": null,
+      "upload": null,
+      "lock": null,
+      "info": null,
+      "warning": null,
+      "error": null,
+      "success": null,
+      "star": null,
+      "heart": null,
+      "calendar": null,
+      "clock": null,
+      "image": "image",
+      "file": "file",
+      "folder": null,
+      "play": null,
+      "pause": null,
+      "external": null
+    }
+  },
+  "ext": {
+    "Island": { "export": "ext.Island", "class": "island", "label": "Island" },
+    "Dock": { "export": "ext.Dock", "class": "dock", "label": "Dock" },
+    "Ask": { "export": "ext.Ask", "class": "ask", "label": "Ask AI" },
+    "Sticky": { "export": "ext.Sticky", "class": "sticky", "label": "Sticky" },
+    "ListRow": { "export": "ext.ListRow", "class": "row-item", "label": "List row" }
+  }
+}

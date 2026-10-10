@@ -1,0 +1,121 @@
+{
+  "$schema": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-components-v1.schema.json",
+  "schemaVersion": 1,
+  "system": "maude",
+  "components": {
+    "Button": {
+      "class": "btn",
+      "export": "Button",
+      "specimen": "preview/components-buttons.tsx",
+      "variants": { "primary": "btn--primary", "secondary": null, "ghost": "btn--ghost", "danger": "btn--danger" },
+      "sizes": { "sm": "btn--sm", "lg": null },
+      "fallback": { "secondary": "ghost" },
+      "label": "Button"
+    },
+    "IconButton": {
+      "class": "btn btn--icon",
+      "export": "IconButton",
+      "specimen": "preview/components-buttons.tsx",
+      "variants": { "primary": "btn--primary", "secondary": null, "ghost": "btn--ghost", "danger": "btn--danger" },
+      "sizes": { "sm": "btn--sm", "lg": null },
+      "label": "Icon button"
+    },
+    "Input": { "class": "input", "export": "Input", "specimen": "preview/components-inputs.tsx", "sizes": { "sm": null }, "label": "Input" },
+    "Field": { "class": "field", "export": "Field", "specimen": "preview/components-inputs.tsx", "label": "Field" },
+    "Switch": { "class": "switch", "export": "Switch", "specimen": "preview/components-toggles.tsx", "label": "Switch" },
+    "Checkbox": { "class": "checkbox", "export": "Checkbox", "specimen": "preview/components-toggles.tsx", "label": "Checkbox" },
+    "Segmented": { "class": "seg", "export": "Segmented", "sizes": { "sm": null }, "label": "Segmented control" },
+    "Tabs": { "class": "tabbar tab", "export": "Tabs", "label": "Tabs" },
+    "Chip": {
+      "class": "chip",
+      "export": "Chip",
+      "variants": { "accent": null, "soft": null },
+      "label": "Chip"
+    },
+    "Badge": {
+      "class": "tag",
+      "export": "Badge",
+      "variants": { "success": null, "warn": null, "error": null, "info": null, "accent": "tag--accent" },
+      "label": "Badge (this system's tag)"
+    },
+    "Card": {
+      "class": "panel",
+      "export": "Card",
+      "variants": { "raised": null, "interactive": null, "flat": null },
+      "label": "Card (this system's shared panel material)"
+    },
+    "Callout": {
+      "class": "callout",
+      "export": "Callout",
+      "specimen": "preview/components-callout.tsx",
+      "variants": { "info": "callout--info", "success": "callout--success", "warn": "callout--warn", "error": "callout--error" },
+      "label": "Callout"
+    },
+    "Dialog": { "class": "dialog", "export": "Dialog", "specimen": "preview/components-dialogs.tsx", "label": "Dialog" },
+    "Tooltip": { "class": "tooltip", "export": "Tooltip", "specimen": "preview/components-tooltips.tsx", "label": "Tooltip" }
+  },
+  "typeRoles": {
+    "title": "t-title",
+    "heading": "t-heading",
+    "subheading": "t-subheading",
+    "body": "t-body",
+    "body-sm": "t-body-sm",
+    "caption": "t-caption",
+    "label": "t-label",
+    "eyebrow": "t-eyebrow",
+    "code": "t-code",
+    "num": "t-num"
+  },
+  "icons": {
+    "family": "maude",
+    "export": "Icon",
+    "map": {
+      "home": null,
+      "search": null,
+      "add": null,
+      "close": null,
+      "check": null,
+      "chevron-up": null,
+      "chevron-down": null,
+      "chevron-left": null,
+      "chevron-right": null,
+      "arrow-up": null,
+      "arrow-down": null,
+      "arrow-left": null,
+      "arrow-right": null,
+      "more": null,
+      "settings": null,
+      "user": null,
+      "users": null,
+      "bell": null,
+      "share": null,
+      "link": null,
+      "trash": null,
+      "edit": null,
+      "copy": null,
+      "download": null,
+      "upload": null,
+      "lock": "lock",
+      "info": null,
+      "warning": null,
+      "error": null,
+      "success": null,
+      "star": null,
+      "heart": null,
+      "calendar": null,
+      "clock": null,
+      "image": null,
+      "file": null,
+      "folder": null,
+      "play": null,
+      "pause": null,
+      "external": null
+    }
+  },
+  "ext": {
+    "Toolbar": { "export": "ext.Toolbar", "class": "toolbar", "label": "Toolbar" },
+    "InspectorRow": { "export": "ext.InspectorRow", "class": "insp-row", "label": "Inspector row" },
+    "TreeRow": { "export": "ext.TreeRow", "class": "tree-row", "label": "Tree row" },
+    "PresenceDot": { "export": "ext.PresenceDot", "class": "presence-dot", "label": "Presence dot" }
+  }
+}

@@ -138,7 +138,9 @@ if (!existsSync(SRC)) {
   process.exit(2);
 }
 
-const src = readFileSync(SRC, 'utf8');
+// The schema scope selector (`.ds[data-theme="t"]`, V2-1.13 §5.3.12) follows each `.<rootClass>[data-theme]`
+// on its own line; the site never carries `.ds`, so it is dropped before the selector maps run.
+const src = readFileSync(SRC, 'utf8').replace(/,\n[ \t]*\.ds\[data-theme="[a-z0-9-]+"\]/g, '');
 const next = transform(src);
 const dst = existsSync(DST) ? readFileSync(DST, 'utf8') : null;
 
