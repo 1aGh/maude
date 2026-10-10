@@ -1016,7 +1016,7 @@
       "id": "export.rerun-last",
       "label": "Export again",
       "kind": "command",
-      "exec": "canvas",
+      "exec": "shell",
       "effect": "project",
       "agent": {
         "path": "pending",
