@@ -8,7 +8,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { readHubFormatCache, SUPPORTED_FORMAT } from '../format.ts';
+import { CELL_SELF_HUB, formatHubUrl, readHubFormatCache, SUPPORTED_FORMAT } from '../format.ts';
 import {
   decideAnnotationsColdStart,
   decideColdStart,
@@ -116,6 +116,32 @@ describe('learn', () => {
     expect(learnHubFormat({ cfg: {}, paths: { designRoot: dir } }, { formatVersion: 2 })).toBe(
       false
     );
+  });
+
+  test('a hostile epoch (not a safe integer) can neither lower nor freeze the mirror', () => {
+    expect(learnHubFormat(ctx(), { formatVersion: 2, epoch: 1e308 })).toBe(true);
+    expect(readHubFormatCache(dir, HUB)?.epoch).toBe(0); // not recorded
+    expect(learnHubFormat(ctx(), { formatVersion: 1, epoch: Number.POSITIVE_INFINITY })).toBe(
+      false
+    );
+    expect(learnHubFormat(ctx(), { formatVersion: 1, epoch: 1 })).toBe(true); // a real unflip
+  });
+
+  test('in a cell the studio reads its OWN hub’s mirror (cell:self), linked or not', () => {
+    const prev = process.env.MAUDE_WORKSPACE_MODE;
+    process.env.MAUDE_WORKSPACE_MODE = '1';
+    try {
+      const cellCtx = { cfg: {}, paths: { designRoot: dir } };
+      expect(formatHubUrl(cellCtx)).toBe(CELL_SELF_HUB);
+      expect(formatGated(cellCtx)).toBe(false);
+      // What the hub writes for its child (server.mjs onFormat).
+      learnHubFormat(cellCtx, { formatVersion: NEWER });
+      expect(readHubFormatCache(dir, CELL_SELF_HUB)?.formatVersion).toBe(NEWER);
+      expect(formatGated(cellCtx)).toBe(true);
+    } finally {
+      if (prev === undefined) delete process.env.MAUDE_WORKSPACE_MODE;
+      else process.env.MAUDE_WORKSPACE_MODE = prev;
+    }
   });
 
   test('first sight = the mirror is absent or older than the hub (format 1 is never a flip)', () => {

@@ -12,7 +12,7 @@
 //     working on a format-1 project exactly as before.
 
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, describe, test } from 'node:test';
@@ -119,7 +119,7 @@ async function startHub({ checkoutFormat } = {}) {
     await built.server.destroy();
     built.projectStore?.close?.();
   };
-  return { built, http, owner, member, viewer, stop };
+  return { built, http, owner, member, viewer, stop, dataDir, repoDir };
 }
 
 function caller(http, token, format) {
@@ -207,6 +207,34 @@ describe('the doors on a real hub (H4, H5)', () => {
         formatVersion: 2,
       });
       assert.equal(asViewer.status, 403);
+      // An admin-console invite is ROLE-LESS (the save-mode switch counts it as
+      // admin); it must not flip the format. Nor an owner scoped to one canvas.
+      const invite = addToken(hub.dataDir, { label: 'invitee', scope: '*' }).value;
+      assert.equal(
+        (await caller(hub.http, invite).post('/api/project-format', { formatVersion: 2 })).status,
+        403
+      );
+      const scopedOwner = addToken(hub.dataDir, {
+        label: 'scoped-owner',
+        scope: 'ws/local/main/ui-a',
+        role: 'owner',
+      }).value;
+      assert.equal(
+        (await caller(hub.http, scopedOwner).post('/api/project-format', { formatVersion: 2 }))
+          .status,
+        403
+      );
+      // A form post (what a cross-site page can send) is refused before the body.
+      const form = await fetch(`${hub.http}/api/project-format`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${hub.owner}`,
+          'content-type': 'text/plain',
+        },
+        body: '{"formatVersion":2}',
+      });
+      assert.equal(form.status, 415);
+      assert.equal((await (await fetch(`${hub.http}/health`)).json()).formatVersion, 1);
       assert.equal(
         (await fetch(`${hub.http}/api/project-format`, { method: 'POST', body: '{}' })).status,
         401
@@ -303,6 +331,12 @@ describe('the doors on a real hub (H4, H5)', () => {
     try {
       assert.equal((await (await fetch(`${hub.http}/health`)).json()).formatVersion, 2);
       assert.equal((await hub.built.projectStore.state()).formatVersion, 2);
+      // …and hands it to its own studio child (the cell's view-only gate).
+      const mirror = JSON.parse(
+        readFileSync(join(hub.repoDir, '.design', '_state', 'hub-format.json'), 'utf8')
+      );
+      assert.equal(mirror.hub, 'cell:self');
+      assert.equal(mirror.formatVersion, 2);
     } finally {
       await hub.stop();
     }
