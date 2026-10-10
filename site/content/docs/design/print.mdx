@@ -82,8 +82,10 @@ independently from its own `print` prop.
   large-format piece authored at a fraction of its real physical size, like
   a billboard laid out at 1:10 scale) still embeds as a bitmap. The PDF
   card's DPI picker sets that bitmap's capture density; it does not turn the
-  page itself into a raster image, and it defaults to unchanged 1× so a
-  plain "just export a PDF" doesn't silently bloat file size.
+  page itself into a raster image. It defaults to 300 dpi for a print
+  artboard (photos reach the printer at print resolution) and to 1× for
+  everything else, so a plain "just export a PDF" of a web artboard doesn't
+  silently bloat file size; an explicit DPI always wins.
 - **Prefer TTF over OTF** for any custom font on a print artboard — Chromium's
   print pipeline outlines OTF glyphs to paths, which looks correct but loses
   text selectability in the exported PDF.

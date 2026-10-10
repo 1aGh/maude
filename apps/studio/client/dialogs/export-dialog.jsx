@@ -97,11 +97,11 @@ export const PNG_RESOLUTION_DEFAULT = '2x';
 // is always vector (text/shapes never rasterize), but any RASTER content ON
 // the artboard — a dropped photo, a large-format piece authored at a
 // fraction of its real physical size (e.g. a billboard at 1:10 scale) —
-// still embeds as a bitmap whose density this controls. Default "Auto (1×)"
+// still embeds as a bitmap whose density this controls. Default "Auto" (1×, 300 dpi on print artboards — V2-2.8 B5)
 // is today's unchanged behavior; PDF has no legacy scale concept, so unlike
 // PNG_RESOLUTIONS this is DPI-only.
 export const PDF_DPI_OPTIONS = [
-  { id: 'auto', label: 'Auto (1×)', value: undefined },
+  { id: 'auto', label: 'Auto (300 dpi on print artboards)', value: undefined },
   { id: 'dpi150', label: '150 dpi', value: 150 },
   { id: 'dpi300', label: '300 dpi (print)', value: 300 },
   { id: 'dpi600', label: '600 dpi (high-res print)', value: 600 },

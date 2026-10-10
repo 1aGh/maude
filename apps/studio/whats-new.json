@@ -2,6 +2,24 @@
   "$schema": "./whats-new.schema.json",
   "entries": [
     {
+      "id": "fixed-artboard-full-height",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Fixed-size artboards keep their full height",
+      "summary": "A fixed-size artboard no longer loses its bottom 24 px to the label: its page is exactly the size you set, so what you see on the canvas is what you export.",
+      "surface": "design-ui"
+    },
+    {
+      "id": "export-cli-and-print-pdf-dpi",
+      "version": null,
+      "date": null,
+      "kind": "fix",
+      "title": "Export commands and print PDFs do what they say",
+      "summary": "The export commands shown in the Export dialog work as printed: crop marks and bleed apply, numeric options like scale=2 are honoured, a bare zip export just works, and --out can be a folder. PDFs of print artboards now default to 300 dpi image quality.",
+      "surface": "design-ui"
+    },
+    {
       "id": "large-video-drops",
       "version": "1.8.0",
       "date": "2026-10-07",
