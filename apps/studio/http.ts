@@ -146,7 +146,7 @@ import { signInToWorkspace, workspaceDisclosure } from './sync/workspace-signin.
 import { thumbNotFound, thumbResponse, wantResponse } from './thumbs/routes.ts';
 import { createThumbService } from './thumbs/service.ts';
 import { normalizeTreeState } from './tree-state.ts';
-import { readUiPrefs, type UiPrefs, writeUiPrefs } from './ui-prefs.ts';
+import { readUiPrefs, validateUiPrefsPatch, writeUiPrefs } from './ui-prefs.ts';
 import { loadWhatsNew, resolveMaudeVersion } from './whats-new.ts';
 import { isWorkspaceMode, resolveRenderLane } from './workspace-mode.ts';
 import { isLoopbackHost } from './ws.ts';
@@ -5750,36 +5750,11 @@ export function createHttp(
       if (!body || typeof body !== 'object')
         return new Response('body must be a JSON object', { status: 400 });
       // Build a clean patch — only well-typed known keys pass through, so a bad
-      // field is rejected rather than silently resetting a stored value.
-      const patch: Partial<UiPrefs> = {};
-      if ('theme' in body) {
-        if (body.theme !== 'light' && body.theme !== 'dark')
-          return new Response('theme must be light|dark', { status: 400 });
-        patch.theme = body.theme;
-      }
-      for (const k of ['minimap', 'zoom', 'annotations', 'autoOpenInspector'] as const) {
-        if (k in body) {
-          if (typeof body[k] !== 'boolean')
-            return new Response(`${k} must be a boolean`, { status: 400 });
-          patch[k] = body[k] as boolean;
-        }
-      }
-      if ('layersMode' in body) {
-        if (body.layersMode !== 'separate' && body.layersMode !== 'in-inspector')
-          return new Response('layersMode must be separate|in-inspector', { status: 400 });
-        patch.layersMode = body.layersMode;
-      }
-      if ('panelSides' in body) {
-        const ps = body.panelSides;
-        if (!ps || typeof ps !== 'object' || Array.isArray(ps))
-          return new Response('panelSides must be an object', { status: 400 });
-        for (const v of Object.values(ps as Record<string, unknown>)) {
-          if (v !== 'left' && v !== 'right')
-            return new Response('panelSides values must be left|right', { status: 400 });
-        }
-        // writeUiPrefs → coerce keeps only known ids, so unknown keys are dropped.
-        patch.panelSides = ps as UiPrefs['panelSides'];
-      }
+      // field is rejected rather than silently resetting a stored value
+      // (validateUiPrefsPatch in ui-prefs.ts owns the whitelist, V2-2.7).
+      const checked = validateUiPrefsPatch(body);
+      if (!checked.ok) return new Response(checked.error, { status: 400 });
+      const patch = checked.patch;
       try {
         return Response.json(writeUiPrefs(patch), { headers: { 'Cache-Control': 'no-store' } });
       } catch (err) {
