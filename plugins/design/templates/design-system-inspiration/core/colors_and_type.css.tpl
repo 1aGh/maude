@@ -11,7 +11,9 @@
  *
  * Two invariants this template does enforce:
  *   1. `prefers-reduced-motion: reduce` collapses every duration to 1ms (a11y).
- *   2. Tokens used by canvases live under one of the documented family prefixes
+ *   2. Every theme block also lists `.ds[data-theme="…"]` — the schema scope class
+ *      `<DSRoot>` renders, so a canvas can switch systems without renaming its wrapper.
+ *   3. Tokens used by canvases live under one of the documented family prefixes
  *      (--bg-*, --fg-*, --accent*, --border-*, --status-*, --space-*, --type-*,
  *      --lh-*, --radius-*, --shadow-*, --dur-*, --ease-*, --layout-*, --font-*).
  *
@@ -20,7 +22,8 @@
  */
 
 :root,
-.{{root_class}}[data-theme="{{theme_default}}"] {
+.{{root_class}}[data-theme="{{theme_default}}"],
+.ds[data-theme="{{theme_default}}"] {
   /* ─── Surfaces (deepest → highest) ─────────────────────────────────── */
   --bg-0: {{bg_0}};   /* page bg                    */
   --bg-1: {{bg_1}};   /* card / panel bg            */
@@ -103,10 +106,42 @@
   /* ─── Layout ───────────────────────────────────────────────────────── */
   --layout-max-w:  {{layout_max_w}};
   --layout-gutter: {{layout_gutter}};
+
+  /* ─── Schema v1 functional roles (V2-1.13 §5.3.3) ─────────────────────
+   * Values come from discovery like every other token. A system that leaves one
+   * out still renders: the canvas shell derives it from the tokens above (the
+   * registry fallback), and `maude design ds-check` reports it as Missing roles. */
+  --accent-soft: {{accent_soft}};
+  --accent-on-soft: {{accent_on_soft}};
+  --accent-text: {{accent_text}};
+  --focus-ring: {{focus_ring}};
+  --focus-ring-width: {{focus_ring_width}};
+  --focus-ring-offset: {{focus_ring_offset}};
+  --selection: {{selection}};
+  --scrim: {{scrim}};
+  --status-success-fg: {{status_success_fg}};
+  --status-warn-fg: {{status_warn_fg}};
+  --status-error-fg: {{status_error_fg}};
+  --status-info-fg: {{status_info_fg}};
+  --status-success-soft: {{status_success_soft}};
+  --status-warn-soft: {{status_warn_soft}};
+  --status-error-soft: {{status_error_soft}};
+  --status-info-soft: {{status_info_soft}};
+  --status-success-text: {{status_success_text}};
+  --status-warn-text: {{status_warn_text}};
+  --status-error-text: {{status_error_text}};
+  --status-info-text: {{status_info_text}};
+  --weight-regular: {{weight_regular}};
+  --weight-medium: {{weight_medium}};
+  --weight-semibold: {{weight_semibold}};
+  --weight-bold: {{weight_bold}};
+  --tracking-tight: {{tracking_tight}};
+  --tracking-normal: {{tracking_normal}};
+  --tracking-wide: {{tracking_wide}};
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root, .{{root_class}}[data-theme="{{theme_default}}"] {
+  :root, .{{root_class}}[data-theme="{{theme_default}}"], .ds[data-theme="{{theme_default}}"] {
     --dur-flip:  1ms;
     --dur-panel: 1ms;
     --dur-route: 1ms;
