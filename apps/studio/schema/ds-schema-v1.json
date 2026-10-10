@@ -1,0 +1,2029 @@
+{
+  "$schema": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-schema-v1.schema.json",
+  "format": "maude.ds-schema",
+  "schemaVersion": 1,
+  "valueTypes": {
+    "color": {
+      "forms": ["var-ref", "hex", "color-function", "named-color", "light-dark"]
+    },
+    "length": {
+      "forms": ["var-ref", "zero", "dimension", "percentage", "math"]
+    },
+    "length-or-none": {
+      "forms": ["var-ref", "zero", "dimension", "percentage", "math", "none"]
+    },
+    "duration": {
+      "forms": ["var-ref", "time", "math"]
+    },
+    "easing": {
+      "forms": ["var-ref", "easing-keyword", "cubic-bezier", "steps", "linear-function"]
+    },
+    "number": {
+      "forms": ["var-ref", "zero", "number", "math"]
+    },
+    "line-height": {
+      "forms": ["var-ref", "zero", "number", "dimension", "percentage", "normal", "math"]
+    },
+    "font-family": {
+      "forms": ["var-ref", "family-list"]
+    },
+    "shadow": {
+      "forms": ["var-ref", "none", "shadow-layers"]
+    }
+  },
+  "themeRule": {
+    "colorRolesPerTheme": true,
+    "rootCountsForDefaultTheme": true,
+    "lightDarkCountsForBoth": true,
+    "countedRules": ["top-level", "layer"]
+  },
+  "roles": [
+    {
+      "name": "--bg-0",
+      "group": "surfaces",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "page / canvas surface (deepest)",
+      "fallback": null
+    },
+    {
+      "name": "--bg-1",
+      "group": "surfaces",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "card / panel body",
+      "fallback": null
+    },
+    {
+      "name": "--bg-2",
+      "group": "surfaces",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "popover, menu, sheet",
+      "fallback": null
+    },
+    {
+      "name": "--bg-3",
+      "group": "surfaces",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "input well, row hover",
+      "fallback": null
+    },
+    {
+      "name": "--bg-4",
+      "group": "surfaces",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "pressed / selected without accent",
+      "fallback": null
+    },
+    {
+      "name": "--fg-0",
+      "group": "text",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "primary text",
+      "fallback": null
+    },
+    {
+      "name": "--fg-1",
+      "group": "text",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "secondary text",
+      "fallback": null
+    },
+    {
+      "name": "--fg-2",
+      "group": "text",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "tertiary text, meta",
+      "fallback": null
+    },
+    {
+      "name": "--fg-3",
+      "group": "text",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "disabled text, non-text ornament",
+      "fallback": null
+    },
+    {
+      "name": "--border-subtle",
+      "group": "borders",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "hairline between related surfaces",
+      "fallback": null
+    },
+    {
+      "name": "--border-default",
+      "group": "borders",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "default control / card border",
+      "fallback": null
+    },
+    {
+      "name": "--border-strong",
+      "group": "borders",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "emphasised border, dividers that must read",
+      "fallback": null
+    },
+    {
+      "name": "--accent",
+      "group": "accent",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "the action fill: primary button, current selection",
+      "fallback": null
+    },
+    {
+      "name": "--accent-hover",
+      "group": "accent",
+      "origin": "ddr-043-de-facto",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "action fill on hover",
+      "fallback": null
+    },
+    {
+      "name": "--accent-active",
+      "group": "accent",
+      "origin": "ddr-043-de-facto",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "action fill while pressed",
+      "fallback": null
+    },
+    {
+      "name": "--accent-fg",
+      "group": "accent",
+      "origin": "ddr-043-de-facto",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "text and icons on the action fill",
+      "fallback": null
+    },
+    {
+      "name": "--status-success",
+      "group": "status",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "success fill and icon",
+      "fallback": null
+    },
+    {
+      "name": "--status-warn",
+      "group": "status",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "warn fill and icon",
+      "fallback": null
+    },
+    {
+      "name": "--status-error",
+      "group": "status",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "error fill and icon",
+      "fallback": null
+    },
+    {
+      "name": "--status-info",
+      "group": "status",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "info fill and icon",
+      "fallback": null
+    },
+    {
+      "name": "--presence-online",
+      "group": "presence",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "collaborator online dot",
+      "fallback": null,
+      "family": "presence"
+    },
+    {
+      "name": "--presence-away",
+      "group": "presence",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "collaborator away dot",
+      "fallback": null,
+      "family": "presence"
+    },
+    {
+      "name": "--presence-offline",
+      "group": "presence",
+      "origin": "ddr-043",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "collaborator offline dot",
+      "fallback": null,
+      "family": "presence"
+    },
+    {
+      "name": "--shadow-sm",
+      "group": "elevation",
+      "origin": "ddr-043",
+      "type": "shadow",
+      "perTheme": false,
+      "meaning": "low elevation: controls, chips",
+      "fallback": null
+    },
+    {
+      "name": "--shadow-md",
+      "group": "elevation",
+      "origin": "ddr-043",
+      "type": "shadow",
+      "perTheme": false,
+      "meaning": "mid elevation: cards, popovers",
+      "fallback": null
+    },
+    {
+      "name": "--shadow-lg",
+      "group": "elevation",
+      "origin": "ddr-043",
+      "type": "shadow",
+      "perTheme": false,
+      "meaning": "high elevation: dialogs, sheets",
+      "fallback": null
+    },
+    {
+      "name": "--radius-xs",
+      "group": "radius",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "smallest corner: chips, tags",
+      "fallback": null
+    },
+    {
+      "name": "--radius-sm",
+      "group": "radius",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "small controls",
+      "fallback": null
+    },
+    {
+      "name": "--radius-md",
+      "group": "radius",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "default control corner",
+      "fallback": null
+    },
+    {
+      "name": "--radius-lg",
+      "group": "radius",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "cards, panels",
+      "fallback": null
+    },
+    {
+      "name": "--radius-xl",
+      "group": "radius",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "sheets, large islands",
+      "fallback": null
+    },
+    {
+      "name": "--radius-pill",
+      "group": "radius",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "fully rounded",
+      "fallback": null
+    },
+    {
+      "name": "--space-0",
+      "group": "space",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "spacing step 0 of the ordinal ladder",
+      "fallback": null
+    },
+    {
+      "name": "--space-1",
+      "group": "space",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "spacing step 1 of the ordinal ladder",
+      "fallback": null
+    },
+    {
+      "name": "--space-2",
+      "group": "space",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "spacing step 2 of the ordinal ladder",
+      "fallback": null
+    },
+    {
+      "name": "--space-3",
+      "group": "space",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "spacing step 3 of the ordinal ladder",
+      "fallback": null
+    },
+    {
+      "name": "--space-4",
+      "group": "space",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "spacing step 4 of the ordinal ladder",
+      "fallback": null
+    },
+    {
+      "name": "--space-5",
+      "group": "space",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "spacing step 5 of the ordinal ladder",
+      "fallback": null
+    },
+    {
+      "name": "--space-6",
+      "group": "space",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "spacing step 6 of the ordinal ladder",
+      "fallback": null
+    },
+    {
+      "name": "--space-7",
+      "group": "space",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "spacing step 7 of the ordinal ladder",
+      "fallback": null
+    },
+    {
+      "name": "--space-8",
+      "group": "space",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "spacing step 8 of the ordinal ladder",
+      "fallback": null
+    },
+    {
+      "name": "--font-display",
+      "group": "fonts",
+      "origin": "ddr-043",
+      "type": "font-family",
+      "perTheme": false,
+      "meaning": "headings and display text",
+      "fallback": null
+    },
+    {
+      "name": "--font-body",
+      "group": "fonts",
+      "origin": "ddr-043",
+      "type": "font-family",
+      "perTheme": false,
+      "meaning": "running text and UI labels",
+      "fallback": null
+    },
+    {
+      "name": "--font-mono",
+      "group": "fonts",
+      "origin": "ddr-043",
+      "type": "font-family",
+      "perTheme": false,
+      "meaning": "code, numbers in fields",
+      "fallback": null
+    },
+    {
+      "name": "--type-xs",
+      "group": "type",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "font size, step xs",
+      "fallback": null
+    },
+    {
+      "name": "--type-sm",
+      "group": "type",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "font size, step sm",
+      "fallback": null
+    },
+    {
+      "name": "--type-base",
+      "group": "type",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "font size, step base",
+      "fallback": null
+    },
+    {
+      "name": "--type-md",
+      "group": "type",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "font size, step md",
+      "fallback": null
+    },
+    {
+      "name": "--type-lg",
+      "group": "type",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "font size, step lg",
+      "fallback": null
+    },
+    {
+      "name": "--type-xl",
+      "group": "type",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "font size, step xl",
+      "fallback": null
+    },
+    {
+      "name": "--type-2xl",
+      "group": "type",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "font size, step 2xl",
+      "fallback": null
+    },
+    {
+      "name": "--type-3xl",
+      "group": "type",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "font size, step 3xl",
+      "fallback": null
+    },
+    {
+      "name": "--lh-xs",
+      "group": "type",
+      "origin": "ddr-043",
+      "type": "line-height",
+      "perTheme": false,
+      "meaning": "line height paired with --type-xs",
+      "fallback": null
+    },
+    {
+      "name": "--lh-sm",
+      "group": "type",
+      "origin": "ddr-043",
+      "type": "line-height",
+      "perTheme": false,
+      "meaning": "line height paired with --type-sm",
+      "fallback": null
+    },
+    {
+      "name": "--lh-base",
+      "group": "type",
+      "origin": "ddr-043",
+      "type": "line-height",
+      "perTheme": false,
+      "meaning": "line height paired with --type-base",
+      "fallback": null
+    },
+    {
+      "name": "--lh-md",
+      "group": "type",
+      "origin": "ddr-043",
+      "type": "line-height",
+      "perTheme": false,
+      "meaning": "line height paired with --type-md",
+      "fallback": null
+    },
+    {
+      "name": "--lh-lg",
+      "group": "type",
+      "origin": "ddr-043",
+      "type": "line-height",
+      "perTheme": false,
+      "meaning": "line height paired with --type-lg",
+      "fallback": null
+    },
+    {
+      "name": "--lh-xl",
+      "group": "type",
+      "origin": "ddr-043",
+      "type": "line-height",
+      "perTheme": false,
+      "meaning": "line height paired with --type-xl",
+      "fallback": null
+    },
+    {
+      "name": "--lh-2xl",
+      "group": "type",
+      "origin": "ddr-043",
+      "type": "line-height",
+      "perTheme": false,
+      "meaning": "line height paired with --type-2xl",
+      "fallback": null
+    },
+    {
+      "name": "--lh-3xl",
+      "group": "type",
+      "origin": "ddr-043",
+      "type": "line-height",
+      "perTheme": false,
+      "meaning": "line height paired with --type-3xl",
+      "fallback": null
+    },
+    {
+      "name": "--dur-flip",
+      "group": "motion",
+      "origin": "ddr-043",
+      "type": "duration",
+      "perTheme": false,
+      "meaning": "hover, press, toggle",
+      "fallback": null,
+      "reducedMotion": "1ms"
+    },
+    {
+      "name": "--dur-soft",
+      "group": "motion",
+      "origin": "ddr-043",
+      "type": "duration",
+      "perTheme": false,
+      "meaning": "fades, tooltips",
+      "fallback": null,
+      "reducedMotion": "1ms"
+    },
+    {
+      "name": "--dur-panel",
+      "group": "motion",
+      "origin": "ddr-043",
+      "type": "duration",
+      "perTheme": false,
+      "meaning": "panel open / collapse",
+      "fallback": null,
+      "reducedMotion": "1ms"
+    },
+    {
+      "name": "--dur-route",
+      "group": "motion",
+      "origin": "ddr-043",
+      "type": "duration",
+      "perTheme": false,
+      "meaning": "route or canvas change",
+      "fallback": null,
+      "reducedMotion": "1ms"
+    },
+    {
+      "name": "--ease-out",
+      "group": "motion",
+      "origin": "ddr-043",
+      "type": "easing",
+      "perTheme": false,
+      "meaning": "default curve for entering motion",
+      "fallback": null
+    },
+    {
+      "name": "--ease-in-out",
+      "group": "motion",
+      "origin": "ddr-043",
+      "type": "easing",
+      "perTheme": false,
+      "meaning": "curve for moving between two states",
+      "fallback": null
+    },
+    {
+      "name": "--layout-max-w",
+      "group": "layout",
+      "origin": "ddr-043",
+      "type": "length-or-none",
+      "perTheme": false,
+      "meaning": "maximum content width (none = full bleed)",
+      "fallback": null
+    },
+    {
+      "name": "--layout-gutter",
+      "group": "layout",
+      "origin": "ddr-043",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "page side gutter",
+      "fallback": null
+    },
+    {
+      "name": "--accent-soft",
+      "group": "accent",
+      "origin": "v1",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "tinted background: chip, selected row",
+      "fallback": "color-mix(in oklch, var(--accent) 14%, var(--bg-1))"
+    },
+    {
+      "name": "--accent-on-soft",
+      "group": "accent",
+      "origin": "v1",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "text on --accent-soft",
+      "fallback": "var(--accent-text)"
+    },
+    {
+      "name": "--accent-text",
+      "group": "accent",
+      "origin": "v1",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "accent used as text or link on --bg-0..2",
+      "fallback": "var(--accent)"
+    },
+    {
+      "name": "--focus-ring",
+      "group": "focus",
+      "origin": "v1",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "keyboard focus outline colour (a colour, never a shadow)",
+      "fallback": "var(--accent)"
+    },
+    {
+      "name": "--focus-ring-width",
+      "group": "focus",
+      "origin": "v1",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "focus outline width",
+      "fallback": "2px"
+    },
+    {
+      "name": "--focus-ring-offset",
+      "group": "focus",
+      "origin": "v1",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "focus outline offset",
+      "fallback": "2px"
+    },
+    {
+      "name": "--selection",
+      "group": "selection",
+      "origin": "v1",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "text and object selection fill",
+      "fallback": "color-mix(in oklch, var(--accent) 24%, transparent)"
+    },
+    {
+      "name": "--scrim",
+      "group": "overlay",
+      "origin": "v1",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "modal / sheet backdrop",
+      "fallback": "color-mix(in oklch, var(--fg-0) 45%, transparent)"
+    },
+    {
+      "name": "--status-success-fg",
+      "group": "status",
+      "origin": "v1",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "text and icons on the success fill",
+      "fallback": "oklch(from var(--status-success) clamp(0, (0.62 - l) * 1000, 1) 0 0)",
+      "fallbackUnsupported": "var(--accent-fg)"
+    },
+    {
+      "name": "--status-warn-fg",
+      "group": "status",
+      "origin": "v1",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "text and icons on the warn fill",
+      "fallback": "oklch(from var(--status-warn) clamp(0, (0.62 - l) * 1000, 1) 0 0)",
+      "fallbackUnsupported": "var(--accent-fg)"
+    },
+    {
+      "name": "--status-error-fg",
+      "group": "status",
+      "origin": "v1",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "text and icons on the error fill",
+      "fallback": "oklch(from var(--status-error) clamp(0, (0.62 - l) * 1000, 1) 0 0)",
+      "fallbackUnsupported": "var(--accent-fg)"
+    },
+    {
+      "name": "--status-info-fg",
+      "group": "status",
+      "origin": "v1",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "text and icons on the info fill",
+      "fallback": "oklch(from var(--status-info) clamp(0, (0.62 - l) * 1000, 1) 0 0)",
+      "fallbackUnsupported": "var(--accent-fg)"
+    },
+    {
+      "name": "--status-success-soft",
+      "group": "status",
+      "origin": "v1",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "tinted success background",
+      "fallback": "color-mix(in oklch, var(--status-success) 14%, var(--bg-1))"
+    },
+    {
+      "name": "--status-warn-soft",
+      "group": "status",
+      "origin": "v1",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "tinted warn background",
+      "fallback": "color-mix(in oklch, var(--status-warn) 14%, var(--bg-1))"
+    },
+    {
+      "name": "--status-error-soft",
+      "group": "status",
+      "origin": "v1",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "tinted error background",
+      "fallback": "color-mix(in oklch, var(--status-error) 14%, var(--bg-1))"
+    },
+    {
+      "name": "--status-info-soft",
+      "group": "status",
+      "origin": "v1",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "tinted info background",
+      "fallback": "color-mix(in oklch, var(--status-info) 14%, var(--bg-1))"
+    },
+    {
+      "name": "--status-success-text",
+      "group": "status",
+      "origin": "v1",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "success used as text on surfaces",
+      "fallback": "var(--status-success)"
+    },
+    {
+      "name": "--status-warn-text",
+      "group": "status",
+      "origin": "v1",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "warn used as text on surfaces",
+      "fallback": "var(--status-warn)"
+    },
+    {
+      "name": "--status-error-text",
+      "group": "status",
+      "origin": "v1",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "error used as text on surfaces",
+      "fallback": "var(--status-error)"
+    },
+    {
+      "name": "--status-info-text",
+      "group": "status",
+      "origin": "v1",
+      "type": "color",
+      "perTheme": true,
+      "meaning": "info used as text on surfaces",
+      "fallback": "var(--status-info)"
+    },
+    {
+      "name": "--weight-regular",
+      "group": "weight",
+      "origin": "v1",
+      "type": "number",
+      "perTheme": false,
+      "meaning": "regular font weight",
+      "fallback": "400"
+    },
+    {
+      "name": "--weight-medium",
+      "group": "weight",
+      "origin": "v1",
+      "type": "number",
+      "perTheme": false,
+      "meaning": "medium font weight",
+      "fallback": "500"
+    },
+    {
+      "name": "--weight-semibold",
+      "group": "weight",
+      "origin": "v1",
+      "type": "number",
+      "perTheme": false,
+      "meaning": "semibold font weight",
+      "fallback": "600"
+    },
+    {
+      "name": "--weight-bold",
+      "group": "weight",
+      "origin": "v1",
+      "type": "number",
+      "perTheme": false,
+      "meaning": "the system's strongest weight (may equal semibold)",
+      "fallback": "700"
+    },
+    {
+      "name": "--tracking-tight",
+      "group": "tracking",
+      "origin": "v1",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "tight letter spacing",
+      "fallback": "0"
+    },
+    {
+      "name": "--tracking-normal",
+      "group": "tracking",
+      "origin": "v1",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "normal letter spacing",
+      "fallback": "0"
+    },
+    {
+      "name": "--tracking-wide",
+      "group": "tracking",
+      "origin": "v1",
+      "type": "length",
+      "perTheme": false,
+      "meaning": "wide letter spacing",
+      "fallback": "0"
+    }
+  ],
+  "subRoleSuffixes": ["hover", "active", "fg", "soft", "on-soft", "text", "glow"],
+  "slots": [
+    {
+      "kind": "display",
+      "tokenPatterns": ["^--display-([1-9][0-9]?)$"],
+      "companions": ["--display-lh", "--display-tracking", "--display-weight"],
+      "pairing": "rank",
+      "absent": {
+        "use": "--type-3xl",
+        "ai": false
+      }
+    },
+    {
+      "kind": "brand",
+      "tokenPatterns": ["^--brand(?:-([2-9]|[1-9][0-9]))?(?:-fg)?$"],
+      "pairing": "index",
+      "absent": {
+        "ai": true
+      }
+    },
+    {
+      "kind": "palette",
+      "tokenPatterns": ["^--palette-([1-9][0-9]?)(?:-fg)?$"],
+      "companions": ["--palette-ink"],
+      "pairing": "index-mod",
+      "absent": {
+        "ai": true
+      }
+    },
+    {
+      "kind": "chart",
+      "tokenPatterns": ["^--chart-([1-9][0-9]?)$"],
+      "companions": ["--chart-grid", "--chart-axis"],
+      "pairing": "index",
+      "absent": {
+        "ai": true
+      }
+    },
+    {
+      "kind": "texture",
+      "tokenPatterns": ["^--texture-([1-9][0-9]?)-(opacity|size)$"],
+      "classPattern": "^texture-([1-9][0-9]?)$",
+      "roleHints": ["backdrop", "surface", "overlay"],
+      "pairing": "role-then-index",
+      "absent": {
+        "ai": true
+      }
+    },
+    {
+      "kind": "device",
+      "classPattern": "^device-([1-9][0-9]?)$",
+      "roleHints": ["divider", "frame", "ornament", "mascot", "badge"],
+      "pairing": "role-then-index",
+      "absent": {
+        "ai": true
+      }
+    },
+    {
+      "kind": "signature-motion",
+      "tokenPatterns": ["^--(?:dur|ease)-signature-([1-9][0-9]?)$"],
+      "roleHints": ["celebrate", "ambient", "playful", "emphasis"],
+      "pairing": "role-then-index",
+      "absent": {
+        "use": "--dur-route",
+        "ai": false
+      }
+    },
+    {
+      "kind": "accent-n",
+      "tokenPatterns": ["^--accent-([2-9]|1[0-2])(?:-(hover|active|fg|soft|on-soft|text))?$"],
+      "pairing": "index",
+      "absent": {
+        "use": "--accent",
+        "ai": false
+      }
+    },
+    {
+      "kind": "extension",
+      "names": [
+        "--shadow-xl",
+        "--radius-2xl",
+        "--font-serif",
+        "--font-rounded",
+        "--touch-target",
+        "--layout-reading"
+      ],
+      "pairing": "name",
+      "absent": {
+        "ai": false
+      }
+    }
+  ],
+  "own": {
+    "token": "^--x-[a-z0-9]+(-[a-z0-9]+)*$",
+    "class": "^x-[a-z0-9]+(-[a-z0-9]+)*$",
+    "component": "^ext\\.[A-Z][A-Za-z0-9]*$",
+    "localPalette": "^--c-[a-z0-9]+(-[a-z0-9]+)*$"
+  },
+  "aliases": [
+    {
+      "native": "--w-regular",
+      "v1": "--weight-regular",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--w-medium",
+      "v1": "--weight-medium",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--w-semibold",
+      "v1": "--weight-semibold",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--accent-muted",
+      "v1": "--accent-soft",
+      "context": "any",
+      "seenIn": ["maude", "maude-v2"]
+    },
+    {
+      "native": "--accent-tint",
+      "v1": "--selection",
+      "context": "any",
+      "seenIn": ["maude", "maude-v2"]
+    },
+    {
+      "native": "--dur-spring",
+      "v1": "--dur-signature-1",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--ease-spring",
+      "v1": "--ease-signature-1",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--object-yellow",
+      "v1": "--palette-1",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--object-green",
+      "v1": "--palette-2",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--object-lilac",
+      "v1": "--palette-3",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--object-coral",
+      "v1": "--palette-4",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--object-sky",
+      "v1": "--palette-5",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--object-grey",
+      "v1": "--palette-6",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--object-ink",
+      "v1": "--palette-ink",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--spark",
+      "v1": "--x-spark",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--spark-hover",
+      "v1": "--x-spark-hover",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--spark-fg",
+      "v1": "--x-spark-fg",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--spark-text",
+      "v1": "--x-spark-text",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--spark-muted",
+      "v1": "--x-spark-muted",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--island-bg",
+      "v1": "--x-island-bg",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--island-bg-strong",
+      "v1": "--x-island-bg-strong",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--island-blur",
+      "v1": "--x-island-blur",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--island-edge",
+      "v1": "--x-island-edge",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--island-shadow",
+      "v1": "--x-island-shadow",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--canvas-bg",
+      "v1": "--x-canvas-bg",
+      "context": "any",
+      "seenIn": ["maude", "maude-v2"]
+    },
+    {
+      "native": "--canvas-dot",
+      "v1": "--x-canvas-dot",
+      "context": "any",
+      "seenIn": ["maude", "maude-v2"]
+    },
+    {
+      "native": "--canvas-grid",
+      "v1": "--x-canvas-grid",
+      "context": "any",
+      "seenIn": ["maude", "maude-v2"]
+    },
+    {
+      "native": "--control-off",
+      "v1": "--x-control-off",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--presence-agent",
+      "v1": "--x-presence-agent",
+      "context": "any",
+      "seenIn": ["maude", "maude-v2"]
+    },
+    {
+      "native": "--guide",
+      "v1": "--x-guide",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--guide-fg",
+      "v1": "--x-guide-fg",
+      "context": "any",
+      "seenIn": ["maude-v2"]
+    },
+    {
+      "native": "--text",
+      "v1": "--fg-0",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--text-secondary",
+      "v1": "--fg-1",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--text-tertiary",
+      "v1": "--fg-2",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--text-muted",
+      "v1": "--fg-2",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--text-disabled",
+      "v1": "--fg-3",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--surface",
+      "v1": "--bg-1",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--surface-2",
+      "v1": "--bg-2",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--surface-3",
+      "v1": "--bg-3",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--border",
+      "v1": "--border-default",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--radius-full",
+      "v1": "--radius-pill",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--status-warning",
+      "v1": "--status-warn",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--status-success-bg",
+      "v1": "--status-success-soft",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--status-warning-bg",
+      "v1": "--status-warn-soft",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--status-warn-bg",
+      "v1": "--status-warn-soft",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--status-error-bg",
+      "v1": "--status-error-soft",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--status-info-bg",
+      "v1": "--status-info-soft",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--type-4xl",
+      "v1": "--display-1",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--type-5xl",
+      "v1": "--display-2",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--type-6xl",
+      "v1": "--display-3",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--type-7xl",
+      "v1": "--display-4",
+      "context": "any",
+      "seenIn": ["studyfi", "studyfi-v3"]
+    },
+    {
+      "native": "--background",
+      "v1": "--bg-0",
+      "context": {
+        "declares": ["--accent-foreground"]
+      },
+      "seenIn": ["studyfi-web"]
+    },
+    {
+      "native": "--foreground",
+      "v1": "--fg-0",
+      "context": {
+        "declares": ["--accent-foreground"]
+      },
+      "seenIn": ["studyfi-web"]
+    },
+    {
+      "native": "--card",
+      "v1": "--bg-1",
+      "context": {
+        "declares": ["--accent-foreground"]
+      },
+      "seenIn": ["studyfi-web"]
+    },
+    {
+      "native": "--card-foreground",
+      "v1": "--fg-0",
+      "context": {
+        "declares": ["--accent-foreground"]
+      },
+      "seenIn": ["studyfi-web"]
+    },
+    {
+      "native": "--popover",
+      "v1": "--bg-2",
+      "context": {
+        "declares": ["--accent-foreground"]
+      },
+      "seenIn": ["studyfi-web"]
+    },
+    {
+      "native": "--popover-foreground",
+      "v1": "--fg-0",
+      "context": {
+        "declares": ["--accent-foreground"]
+      },
+      "seenIn": ["studyfi-web"]
+    },
+    {
+      "native": "--muted",
+      "v1": "--bg-3",
+      "context": {
+        "declares": ["--accent-foreground"]
+      },
+      "seenIn": ["studyfi-web"]
+    },
+    {
+      "native": "--muted-foreground",
+      "v1": "--fg-2",
+      "context": {
+        "declares": ["--accent-foreground"]
+      },
+      "seenIn": ["studyfi-web"]
+    },
+    {
+      "native": "--secondary",
+      "v1": "--bg-3",
+      "context": {
+        "declares": ["--accent-foreground"]
+      },
+      "seenIn": ["studyfi-web"]
+    },
+    {
+      "native": "--secondary-foreground",
+      "v1": "--fg-0",
+      "context": {
+        "declares": ["--accent-foreground"]
+      },
+      "seenIn": ["studyfi-web"]
+    },
+    {
+      "native": "--primary",
+      "v1": "--accent",
+      "context": {
+        "declares": ["--accent-foreground"]
+      },
+      "seenIn": ["studyfi-web"]
+    },
+    {
+      "native": "--primary-foreground",
+      "v1": "--accent-fg",
+      "context": {
+        "declares": ["--accent-foreground"]
+      },
+      "seenIn": ["studyfi-web"]
+    },
+    {
+      "native": "--accent-foreground",
+      "v1": "--accent-on-soft",
+      "context": {
+        "declares": ["--accent-foreground"]
+      },
+      "seenIn": ["studyfi-web"]
+    },
+    {
+      "native": "--destructive",
+      "v1": "--status-error",
+      "context": {
+        "declares": ["--accent-foreground"]
+      },
+      "seenIn": ["studyfi-web"]
+    },
+    {
+      "native": "--destructive-foreground",
+      "v1": "--status-error-fg",
+      "context": {
+        "declares": ["--accent-foreground"]
+      },
+      "seenIn": ["studyfi-web"]
+    },
+    {
+      "native": "--input",
+      "v1": "--border-default",
+      "context": {
+        "declares": ["--accent-foreground"]
+      },
+      "seenIn": ["studyfi-web"]
+    },
+    {
+      "native": "--ring",
+      "v1": "--focus-ring",
+      "context": {
+        "declares": ["--accent-foreground"]
+      },
+      "seenIn": ["studyfi-web"]
+    },
+    {
+      "native": "--radius",
+      "v1": "--radius-md",
+      "context": {
+        "declares": ["--accent-foreground"]
+      },
+      "seenIn": ["studyfi-web"]
+    }
+  ],
+  "collisions": [
+    {
+      "id": "type-mismatch",
+      "name": "*",
+      "detect": "type",
+      "meaning": "the declared value's type is not the role's type (e.g. --focus-ring as a box-shadow)"
+    },
+    {
+      "id": "accent-shadcn",
+      "name": "--accent",
+      "detect": "signature",
+      "whenDeclared": ["--accent-foreground"],
+      "meaning": "--accent-foreground is also declared, so --accent means a pale hover background (shadcn)",
+      "resolution": {
+        "--accent": "--accent-soft",
+        "--accent-foreground": "--accent-on-soft"
+      }
+    },
+    {
+      "id": "status-fg-as-text",
+      "name": "--status-*-fg",
+      "detect": "judgement",
+      "meaning": "may mean text-on-surface rather than text-on-fill"
+    },
+    {
+      "id": "bg-4-order",
+      "name": "--bg-4",
+      "detect": "judgement",
+      "meaning": "may mean elevated rather than pressed"
+    },
+    {
+      "id": "space-multiples",
+      "name": "--space-N",
+      "detect": "judgement",
+      "meaning": "may be N×4px rather than an ordinal step"
+    },
+    {
+      "id": "ease-out-spring",
+      "name": "--ease-out",
+      "detect": "judgement",
+      "meaning": "an overshoot curve: every panel bounces after a switch"
+    }
+  ],
+  "components": {
+    "core": [
+      {
+        "name": "Button",
+        "export": "Button",
+        "class": "btn",
+        "variants": ["primary", "secondary", "ghost", "danger"],
+        "sizes": ["sm", "lg"],
+        "tone": true,
+        "states": ["hover", "active", "focus-visible", "disabled", "pressed", "busy"],
+        "fallbackCss": ".btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); padding: var(--space-2) var(--space-4); border: 1px solid transparent; border-radius: var(--radius-md); font: var(--weight-medium) var(--type-sm) / var(--lh-sm) var(--font-body); color: var(--fg-0); background: var(--bg-3); cursor: pointer; }\n.btn:hover { background: var(--bg-4); }\n.btn:focus-visible { outline: var(--focus-ring-width) solid var(--focus-ring); outline-offset: var(--focus-ring-offset); }\n.btn:disabled { color: var(--fg-3); cursor: not-allowed; }\n.btn[aria-pressed=\"true\"] { background: var(--accent-soft); color: var(--accent-on-soft); }\n.btn[aria-busy=\"true\"] { cursor: progress; }\n.btn--primary { background: var(--accent); color: var(--accent-fg); }\n.btn--primary:hover { background: var(--accent-hover); }\n.btn--primary:active { background: var(--accent-active); }\n.btn--secondary { background: var(--bg-1); border-color: var(--border-default); }\n.btn--ghost { background: transparent; }\n.btn--danger { background: var(--status-error); color: var(--status-error-fg); }\n.btn--sm { padding: var(--space-1) var(--space-3); font-size: var(--type-xs); }\n.btn--lg { padding: var(--space-3) var(--space-5); font-size: var(--type-base); }"
+      },
+      {
+        "name": "IconButton",
+        "export": "IconButton",
+        "class": "btn",
+        "alsoClasses": ["btn--icon"],
+        "variants": ["primary", "secondary", "ghost", "danger"],
+        "sizes": ["sm", "lg"],
+        "states": ["hover", "active", "focus-visible", "disabled", "pressed", "busy"],
+        "fallbackCss": ".btn--icon { padding: var(--space-2); }"
+      },
+      {
+        "name": "Input",
+        "export": "Input",
+        "class": "input",
+        "alsoClasses": ["textarea", "select"],
+        "sizes": ["sm"],
+        "states": ["focus-visible", "disabled", "invalid"],
+        "fallbackCss": ".input, .textarea, .select { font: var(--weight-regular) var(--type-sm) / var(--lh-sm) var(--font-body); color: var(--fg-0); background: var(--bg-3); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); }\n.input:focus-visible, .textarea:focus-visible, .select:focus-visible { outline: var(--focus-ring-width) solid var(--focus-ring); outline-offset: var(--focus-ring-offset); }\n.input:disabled, .textarea:disabled, .select:disabled { color: var(--fg-3); }\n.input[aria-invalid=\"true\"], .textarea[aria-invalid=\"true\"], .select[aria-invalid=\"true\"] { border-color: var(--status-error); }\n.input--sm { padding: var(--space-1) var(--space-2); font-size: var(--type-xs); }"
+      },
+      {
+        "name": "Field",
+        "export": "Field",
+        "class": "field",
+        "parts": ["__label", "__hint", "__error"],
+        "states": ["invalid"],
+        "fallbackCss": ".field { display: flex; flex-direction: column; gap: var(--space-1); }\n.field__label { font: var(--weight-medium) var(--type-sm) / var(--lh-sm) var(--font-body); color: var(--fg-1); }\n.field__hint { font: var(--weight-regular) var(--type-xs) / var(--lh-xs) var(--font-body); color: var(--fg-2); }\n.field__error { font: var(--weight-regular) var(--type-xs) / var(--lh-xs) var(--font-body); color: var(--status-error-text); }"
+      },
+      {
+        "name": "Switch",
+        "export": "Switch",
+        "class": "switch",
+        "states": ["checked", "disabled", "focus-visible"],
+        "fallbackCss": ".switch { appearance: none; display: inline-flex; align-items: center; padding: var(--space-1); border: 0; border-radius: var(--radius-pill); background: var(--bg-4); cursor: pointer; }\n.switch::after { content: \"\"; display: block; width: var(--space-4); height: var(--space-4); border-radius: var(--radius-pill); background: var(--bg-1); box-shadow: var(--shadow-sm); }\n.switch[aria-checked=\"true\"] { background: var(--accent); justify-content: flex-end; }\n.switch:disabled { cursor: not-allowed; }\n.switch:focus-visible { outline: var(--focus-ring-width) solid var(--focus-ring); outline-offset: var(--focus-ring-offset); }"
+      },
+      {
+        "name": "Checkbox",
+        "export": "Checkbox",
+        "class": "checkbox",
+        "alsoClasses": ["radio"],
+        "states": ["checked", "indeterminate", "disabled", "focus-visible"],
+        "fallbackCss": ".checkbox, .radio { accent-color: var(--accent); }\n.checkbox:focus-visible, .radio:focus-visible { outline: var(--focus-ring-width) solid var(--focus-ring); outline-offset: var(--focus-ring-offset); }"
+      },
+      {
+        "name": "Segmented",
+        "export": "Segmented",
+        "class": "seg",
+        "parts": ["__item"],
+        "sizes": ["sm"],
+        "states": ["pressed", "selected"],
+        "fallbackCss": ".seg { display: inline-flex; gap: var(--space-1); padding: var(--space-1); background: var(--bg-3); border-radius: var(--radius-md); }\n.seg__item { font: var(--weight-medium) var(--type-sm) / var(--lh-sm) var(--font-body); padding: var(--space-1) var(--space-3); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--fg-1); cursor: pointer; }\n.seg__item[aria-pressed=\"true\"], .seg__item[aria-selected=\"true\"] { background: var(--bg-1); color: var(--fg-0); box-shadow: var(--shadow-sm); }\n.seg--sm .seg__item { font-size: var(--type-xs); }"
+      },
+      {
+        "name": "Tabs",
+        "export": "Tabs",
+        "class": "tabs",
+        "alsoClasses": ["tab"],
+        "states": ["selected"],
+        "fallbackCss": ".tabs { display: flex; gap: var(--space-4); border-bottom: 1px solid var(--border-subtle); }\n.tab { font: var(--weight-medium) var(--type-sm) / var(--lh-sm) var(--font-body); padding: var(--space-2) 0; border: 0; border-bottom: 1px solid transparent; background: transparent; color: var(--fg-1); cursor: pointer; }\n.tab[aria-selected=\"true\"] { color: var(--accent-text); border-bottom-color: var(--accent); }"
+      },
+      {
+        "name": "Chip",
+        "export": "Chip",
+        "class": "chip",
+        "variants": ["accent", "soft"],
+        "tone": true,
+        "states": ["pressed", "focus-visible"],
+        "uiName": "Tag",
+        "fallbackCss": ".chip { display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-2); border-radius: var(--radius-pill); background: var(--bg-3); color: var(--fg-1); font: var(--weight-medium) var(--type-xs) / var(--lh-xs) var(--font-body); }\n.chip--accent { background: var(--accent); color: var(--accent-fg); }\n.chip--soft, .chip[aria-pressed=\"true\"] { background: var(--accent-soft); color: var(--accent-on-soft); }\n.chip:focus-visible { outline: var(--focus-ring-width) solid var(--focus-ring); outline-offset: var(--focus-ring-offset); }"
+      },
+      {
+        "name": "Badge",
+        "export": "Badge",
+        "class": "badge",
+        "variants": ["success", "warn", "error", "info", "accent"],
+        "states": [],
+        "fallbackCss": ".badge { display: inline-flex; align-items: center; padding: 0 var(--space-2); border-radius: var(--radius-sm); background: var(--bg-3); color: var(--fg-1); font: var(--weight-semibold) var(--type-xs) / var(--lh-xs) var(--font-body); }\n.badge--success { background: var(--status-success-soft); color: var(--status-success-text); }\n.badge--warn { background: var(--status-warn-soft); color: var(--status-warn-text); }\n.badge--error { background: var(--status-error-soft); color: var(--status-error-text); }\n.badge--info { background: var(--status-info-soft); color: var(--status-info-text); }\n.badge--accent { background: var(--accent-soft); color: var(--accent-on-soft); }"
+      },
+      {
+        "name": "Card",
+        "export": "Card",
+        "class": "card",
+        "variants": ["raised", "interactive", "flat"],
+        "states": ["hover", "focus-visible"],
+        "fallbackCss": ".card { background: var(--bg-1); color: var(--fg-0); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: var(--space-4); }\n.card--raised { box-shadow: var(--shadow-md); }\n.card--flat { border-color: transparent; }\n.card--interactive { cursor: pointer; }\n.card--interactive:hover { border-color: var(--border-default); }\n.card--interactive:focus-visible { outline: var(--focus-ring-width) solid var(--focus-ring); outline-offset: var(--focus-ring-offset); }"
+      },
+      {
+        "name": "Callout",
+        "export": "Callout",
+        "class": "callout",
+        "variants": ["info", "success", "warn", "error"],
+        "states": [],
+        "fallbackCss": ".callout { display: flex; gap: var(--space-3); padding: var(--space-3) var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-2); color: var(--fg-0); font: var(--weight-regular) var(--type-sm) / var(--lh-sm) var(--font-body); }\n.callout--info { background: var(--status-info-soft); border-color: var(--status-info); }\n.callout--success { background: var(--status-success-soft); border-color: var(--status-success); }\n.callout--warn { background: var(--status-warn-soft); border-color: var(--status-warn); }\n.callout--error { background: var(--status-error-soft); border-color: var(--status-error); }"
+      },
+      {
+        "name": "Dialog",
+        "export": "Dialog",
+        "class": "dialog",
+        "parts": ["__title", "__body", "__actions"],
+        "alsoClasses": ["scrim"],
+        "states": ["open"],
+        "fallbackCss": ".dialog { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5); background: var(--bg-2); color: var(--fg-0); border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); }\n.dialog__title { font: var(--weight-semibold) var(--type-xl) / var(--lh-xl) var(--font-display); letter-spacing: var(--tracking-tight); margin: 0; }\n.dialog__body { font: var(--weight-regular) var(--type-base) / var(--lh-base) var(--font-body); color: var(--fg-1); }\n.dialog__actions { display: flex; justify-content: flex-end; gap: var(--space-2); }\n.scrim { position: fixed; inset: 0; background: var(--scrim); }"
+      },
+      {
+        "name": "Tooltip",
+        "export": "Tooltip",
+        "class": "tooltip",
+        "states": ["side"],
+        "fallbackCss": ".tooltip { padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--fg-0); color: var(--bg-0); box-shadow: var(--shadow-md); font: var(--weight-medium) var(--type-xs) / var(--lh-xs) var(--font-body); }"
+      }
+    ],
+    "brand": [
+      {
+        "name": "Logo",
+        "export": "Logo",
+        "requires": ["assets/logos/*", "preview/logo.*"]
+      },
+      {
+        "name": "Icon",
+        "export": "Icon",
+        "requires": ["components.json#icons.map"]
+      },
+      {
+        "name": "Text",
+        "export": "Text",
+        "requires": ["typeRoles.required"]
+      }
+    ],
+    "extended": [
+      {
+        "name": "Menu",
+        "export": "Menu",
+        "class": "menu",
+        "states": []
+      },
+      {
+        "name": "MenuItem",
+        "export": "MenuItem",
+        "class": "menu-item",
+        "states": []
+      },
+      {
+        "name": "Toast",
+        "export": "Toast",
+        "class": "toast",
+        "states": []
+      },
+      {
+        "name": "Table",
+        "export": "Table",
+        "class": "table",
+        "states": []
+      },
+      {
+        "name": "ListRow",
+        "export": "ListRow",
+        "class": "list-row",
+        "states": ["selected"]
+      },
+      {
+        "name": "Avatar",
+        "export": "Avatar",
+        "class": "avatar",
+        "states": []
+      },
+      {
+        "name": "Kbd",
+        "export": "Kbd",
+        "class": "kbd",
+        "states": []
+      },
+      {
+        "name": "Skeleton",
+        "export": "Skeleton",
+        "class": "skeleton",
+        "states": []
+      },
+      {
+        "name": "EmptyState",
+        "export": "EmptyState",
+        "class": "empty-state",
+        "states": []
+      },
+      {
+        "name": "Banner",
+        "export": "Banner",
+        "class": "banner",
+        "states": []
+      },
+      {
+        "name": "Panel",
+        "export": "Panel",
+        "class": "panel",
+        "states": []
+      },
+      {
+        "name": "Sheet",
+        "export": "Sheet",
+        "class": "sheet",
+        "states": []
+      },
+      {
+        "name": "TabBar",
+        "export": "TabBar",
+        "class": "tab-bar",
+        "states": []
+      },
+      {
+        "name": "CommandPalette",
+        "export": "CommandPalette",
+        "class": "command-palette",
+        "states": []
+      }
+    ],
+    "packs": {
+      "marketing": ["FeatureGrid", "Testimonial", "MarketingCard"],
+      "mobile": ["BottomSheet", "PullToRefresh"]
+    }
+  },
+  "states": {
+    "hover": ":hover",
+    "active": ":active",
+    "focus-visible": ":focus-visible",
+    "disabled": ":disabled",
+    "pressed": "[aria-pressed=\"true\"]",
+    "busy": "[aria-busy=\"true\"]",
+    "invalid": "[aria-invalid=\"true\"]",
+    "checked": "[aria-checked=\"true\"], :checked",
+    "indeterminate": ":indeterminate",
+    "selected": "[aria-selected=\"true\"]",
+    "open": "[open]",
+    "side": "[data-side]"
+  },
+  "icons": {
+    "vocabulary": [
+      "home",
+      "search",
+      "add",
+      "close",
+      "check",
+      "chevron-up",
+      "chevron-down",
+      "chevron-left",
+      "chevron-right",
+      "arrow-up",
+      "arrow-down",
+      "arrow-left",
+      "arrow-right",
+      "more",
+      "settings",
+      "user",
+      "users",
+      "bell",
+      "share",
+      "link",
+      "trash",
+      "edit",
+      "copy",
+      "download",
+      "upload",
+      "lock",
+      "info",
+      "warning",
+      "error",
+      "success",
+      "star",
+      "heart",
+      "calendar",
+      "clock",
+      "image",
+      "file",
+      "folder",
+      "play",
+      "pause",
+      "external"
+    ]
+  },
+  "typeRoles": [
+    {
+      "role": "title",
+      "class": "t-title",
+      "required": true,
+      "fallback": {
+        "font-family": "var(--font-display)",
+        "font-size": "var(--type-2xl)",
+        "line-height": "var(--lh-2xl)",
+        "font-weight": "var(--weight-semibold)",
+        "letter-spacing": "var(--tracking-tight)"
+      }
+    },
+    {
+      "role": "heading",
+      "class": "t-heading",
+      "required": true,
+      "fallback": {
+        "font-family": "var(--font-display)",
+        "font-size": "var(--type-xl)",
+        "line-height": "var(--lh-xl)",
+        "font-weight": "var(--weight-semibold)",
+        "letter-spacing": "var(--tracking-tight)"
+      }
+    },
+    {
+      "role": "subheading",
+      "class": "t-subheading",
+      "required": true,
+      "fallback": {
+        "font-family": "var(--font-body)",
+        "font-size": "var(--type-lg)",
+        "line-height": "var(--lh-lg)",
+        "font-weight": "var(--weight-medium)",
+        "letter-spacing": "var(--tracking-normal)"
+      }
+    },
+    {
+      "role": "body",
+      "class": "t-body",
+      "required": true,
+      "fallback": {
+        "font-family": "var(--font-body)",
+        "font-size": "var(--type-base)",
+        "line-height": "var(--lh-base)",
+        "font-weight": "var(--weight-regular)",
+        "letter-spacing": "var(--tracking-normal)"
+      }
+    },
+    {
+      "role": "body-sm",
+      "class": "t-body-sm",
+      "required": true,
+      "fallback": {
+        "font-family": "var(--font-body)",
+        "font-size": "var(--type-sm)",
+        "line-height": "var(--lh-sm)",
+        "font-weight": "var(--weight-regular)",
+        "letter-spacing": "var(--tracking-normal)"
+      }
+    },
+    {
+      "role": "caption",
+      "class": "t-caption",
+      "required": true,
+      "fallback": {
+        "font-family": "var(--font-body)",
+        "font-size": "var(--type-xs)",
+        "line-height": "var(--lh-xs)",
+        "font-weight": "var(--weight-regular)",
+        "letter-spacing": "var(--tracking-normal)"
+      }
+    },
+    {
+      "role": "label",
+      "class": "t-label",
+      "required": true,
+      "fallback": {
+        "font-family": "var(--font-body)",
+        "font-size": "var(--type-sm)",
+        "line-height": "var(--lh-sm)",
+        "font-weight": "var(--weight-medium)",
+        "letter-spacing": "var(--tracking-normal)"
+      }
+    },
+    {
+      "role": "eyebrow",
+      "class": "t-eyebrow",
+      "required": true,
+      "fallback": {
+        "font-family": "var(--font-body)",
+        "font-size": "var(--type-xs)",
+        "line-height": "var(--lh-xs)",
+        "font-weight": "var(--weight-semibold)",
+        "letter-spacing": "var(--tracking-wide)"
+      }
+    },
+    {
+      "role": "code",
+      "class": "t-code",
+      "required": true,
+      "fallback": {
+        "font-family": "var(--font-mono)",
+        "font-size": "var(--type-sm)",
+        "line-height": "var(--lh-sm)",
+        "font-weight": "var(--weight-regular)",
+        "letter-spacing": "0"
+      }
+    },
+    {
+      "role": "num",
+      "class": "t-num",
+      "required": true,
+      "fallback": {
+        "font-variant-numeric": "tabular-nums"
+      }
+    },
+    {
+      "role": "display-N",
+      "class": "t-display-n",
+      "required": false,
+      "whenSlot": "display",
+      "fallback": {
+        "font-family": "var(--font-display)",
+        "font-size": "var(--display-N)",
+        "line-height": "var(--display-lh, var(--lh-3xl))",
+        "font-weight": "var(--display-weight, var(--weight-bold))",
+        "letter-spacing": "var(--display-tracking, var(--tracking-tight))"
+      }
+    }
+  ],
+  "selectors": {
+    "scopeClass": "ds",
+    "themeAttribute": "data-theme"
+  },
+  "canvasRules": [
+    {
+      "id": "S1",
+      "title": "colour literals",
+      "severity": {
+        "default": "warning",
+        "strict": "blocker"
+      },
+      "blocks": [],
+      "autofix": []
+    },
+    {
+      "id": "S2",
+      "title": "var() names",
+      "severity": {
+        "default": "blocker",
+        "strict": "blocker"
+      },
+      "blocks": ["foreign", "undefined"],
+      "autofix": ["alias"]
+    },
+    {
+      "id": "S3",
+      "title": "type literals",
+      "severity": {
+        "default": "warning",
+        "strict": "warning"
+      },
+      "blocks": [],
+      "autofix": []
+    },
+    {
+      "id": "S4",
+      "title": "box literals",
+      "severity": {
+        "default": "warning",
+        "strict": "warning"
+      },
+      "blocks": [],
+      "autofix": []
+    },
+    {
+      "id": "S5",
+      "title": "system imports",
+      "severity": {
+        "default": "blocker",
+        "strict": "blocker"
+      },
+      "blocks": ["kit-module", "other-system"],
+      "autofix": ["own-css"]
+    },
+    {
+      "id": "S6",
+      "title": "theme wrapper",
+      "severity": {
+        "default": "warning",
+        "strict": "warning"
+      },
+      "blocks": [],
+      "autofix": ["wrapper"]
+    },
+    {
+      "id": "S7",
+      "title": "brand identity",
+      "severity": {
+        "default": "warning",
+        "strict": "blocker"
+      },
+      "blocks": [],
+      "autofix": []
+    },
+    {
+      "id": "S8",
+      "title": "fonts",
+      "severity": {
+        "default": "warning",
+        "strict": "warning"
+      },
+      "blocks": [],
+      "autofix": []
+    },
+    {
+      "id": "S9",
+      "title": "meta",
+      "severity": {
+        "default": "blocker",
+        "strict": "blocker"
+      },
+      "blocks": ["meta"],
+      "autofix": []
+    }
+  ],
+  "levels": {
+    "system": ["conformant", "missing-roles", "private-only"],
+    "canvas": ["switchable", "review", "blocked", "pinned"],
+    "exit": {
+      "conformant": 0,
+      "missing-roles": 10,
+      "private-only": 11,
+      "canvas-blocked": 12,
+      "write-refused": 13,
+      "error": 1,
+      "usage": 2
+    }
+  }
+}

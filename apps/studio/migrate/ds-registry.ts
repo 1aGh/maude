@@ -3,11 +3,12 @@
 //
 // V2-2.15 owns the registry (`apps/studio/schema/ds-schema-v1.json`), the
 // loader (`apps/studio/ds/registry.ts`) and the deterministic `tokens.json`
-// emitter (V2-1.6 §5.3 shape). It has NOT landed on this branch, so the step
-// runs against this interface and the default is `null` = "no emitter": the
-// step reports `skip` with that reason, exactly as V2-1.12 §5.10 prescribes
-// ("`skip` until V2-2.15 lands"). When V2-2.15 lands, it exports an object of
-// this shape and `defaultDsEmitter()` returns it — no migrator change.
+// emitter (V2-1.6 §5.3 shape, `apps/studio/ds/migrate-emitter.ts`). The step
+// runs against this interface; `defaultDsEmitter()` returns the shipped
+// emitter, and a caller may still pass `null` ("no emitter") to get the
+// `skip` the step reported before V2-2.15 landed.
+
+import { dsTokensEmitter } from '../ds/migrate-emitter.ts';
 
 export interface DsSystemEntry {
   name: string;
@@ -35,7 +36,7 @@ export interface DsTokensEmitter {
 export const DS_EMITTER_PENDING =
   'the design-system registry (V2-2.15, `maude design ds-check --emit`) has not landed yet';
 
-/** The emitter this build ships — none until V2-2.15. */
+/** The emitter this build ships (V2-2.15). */
 export function defaultDsEmitter(): DsTokensEmitter | null {
-  return null;
+  return dsTokensEmitter;
 }

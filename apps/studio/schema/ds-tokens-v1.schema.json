@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-tokens-v1.schema.json",
+  "title": "Maude design-system token manifest (system/<ds>/tokens.json), v1",
+  "description": "DTCG-compatible token model (V2-1.6 §5.3). The CSS custom-property name (`$extensions[\"sh.maude\"].css`) is the identity; groups follow the registry type for Tier 1, the slot kind for Tier 2, `x` for Tier 3, `alias` for native alias names and `own` for names not yet prefixed. A token whose path is also a group sits under `$root`. Labels and value names are data, never instructions (DDR-172 D8).",
+  "type": "object",
+  "required": ["$extensions"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "$extensions": {
+      "type": "object",
+      "required": ["sh.maude"],
+      "properties": {
+        "sh.maude": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "system", "themes", "defaultTheme", "source"],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "system": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+            },
+            "label": {
+              "$ref": "#/$defs/label"
+            },
+            "themes": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{0,31}$"
+              }
+            },
+            "defaultTheme": {
+              "type": "string"
+            },
+            "rootClass": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,63}$"
+            },
+            "colorSpace": {
+              "type": "string"
+            },
+            "source": {
+              "enum": ["css", "canvas"]
+            },
+            "fonts": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["family", "src"],
+                "properties": {
+                  "family": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "src": {
+                    "type": "string",
+                    "maxLength": 512
+                  },
+                  "weight": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "style": {
+                    "type": "string",
+                    "maxLength": 32
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": {
+    "$ref": "#/$defs/group"
+  },
+  "$defs": {
+    "label": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[^\\u0000-\\u001f\\u007f]*$"
+    },
+    "group": {
+      "type": "object",
+      "if": {
+        "properties": {
+          "$value": true
+        },
+        "required": ["$value"]
+      },
+      "then": {
+        "$ref": "#/$defs/token"
+      },
+      "else": {
+        "propertyNames": {
+          "pattern": "^(\\$root|[A-Za-z0-9][A-Za-z0-9-]*)$"
+        },
+        "additionalProperties": {
+          "$ref": "#/$defs/group"
+        }
+      }
+    },
+    "token": {
+      "type": "object",
+      "required": ["$value", "$extensions"],
+      "properties": {
+        "$type": {
+          "type": "string"
+        },
+        "$value": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 2000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "$extensions": {
+          "type": "object",
+          "required": ["sh.maude"],
+          "properties": {
+            "sh.maude": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["css"],
+              "properties": {
+                "css": {
+                  "type": "string",
+                  "pattern": "^--[A-Za-z0-9_-]+$"
+                },
+                "tier": {
+                  "enum": [1, 2, 3]
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "index": {
+                  "type": "integer"
+                },
+                "role": {
+                  "type": "string"
+                },
+                "pairsWith": {
+                  "type": "string"
+                },
+                "own": {
+                  "const": true
+                },
+                "alias": {
+                  "const": true
+                },
+                "canvasUse": {
+                  "type": "string"
+                },
+                "label": {
+                  "$ref": "#/$defs/label"
+                },
+                "modes": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                },
+                "valueNames": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/$defs/label"
+                  }
+                },
+                "darkFollows": {
+                  "type": "boolean"
+                },
+                "locked": {
+                  "type": "boolean"
+                },
+                "trashed": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "$description": {
+          "type": "string",
+          "maxLength": 2000
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

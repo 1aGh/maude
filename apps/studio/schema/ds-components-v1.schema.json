@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/1aGh/maude/main/apps/studio/schema/ds-components-v1.schema.json",
+  "title": "Maude design-system components manifest (system/<ds>/components.json), v1",
+  "description": "Maps the registry's core components, type roles, icon vocabulary and Tier-2 slots onto one system's own classes (V2-1.13 §5.4). Labels are designer data, never instructions to any agent (DDR-172 D8).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "system", "components"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "system": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+    "components": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[A-Z][A-Za-z]+$" },
+      "additionalProperties": { "$ref": "#/$defs/component" }
+    },
+    "typeRoles": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
+      "additionalProperties": { "type": "string", "pattern": "^t-[a-z0-9-]+$" }
+    },
+    "icons": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["map"],
+      "properties": {
+        "family": { "type": "string", "maxLength": 64 },
+        "export": { "type": "string", "maxLength": 64 },
+        "map": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z]+(-[a-z]+)*$" },
+          "additionalProperties": {
+            "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 64 }, { "type": "null" }]
+          }
+        }
+      }
+    },
+    "slots": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["index"],
+          "properties": {
+            "index": { "type": "integer", "minimum": 1, "maximum": 99 },
+            "class": { "type": "string", "maxLength": 128 },
+            "role": { "type": "string", "maxLength": 32 },
+            "native": { "type": "string", "maxLength": 64 }
+          }
+        }
+      }
+    },
+    "ext": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["export"],
+        "properties": {
+          "export": { "type": "string", "pattern": "^ext\\.[A-Z][A-Za-z0-9]*$" },
+          "class": { "type": "string", "maxLength": 128 },
+          "label": { "$ref": "#/$defs/label" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "label": { "type": "string", "maxLength": 64, "pattern": "^[^\\u0000-\\u001f\\u007f]*$" },
+    "classOrNull": { "anyOf": [{ "type": "string", "maxLength": 128 }, { "type": "null" }] },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class"],
+      "properties": {
+        "class": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "export": { "type": "string", "maxLength": 64 },
+        "specimen": { "type": "string", "maxLength": 256 },
+        "variants": { "type": "object", "additionalProperties": { "$ref": "#/$defs/classOrNull" } },
+        "sizes": { "type": "object", "additionalProperties": { "$ref": "#/$defs/classOrNull" } },
+        "tones": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "maxLength": 128 }
+        },
+        "fallback": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "maxLength": 64 }
+        },
+        "legacyClasses": { "type": "array", "items": { "type": "string", "maxLength": 128 } },
+        "label": { "$ref": "#/$defs/label" }
+      }
+    }
+  }
+}
