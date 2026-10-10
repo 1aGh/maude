@@ -30,6 +30,23 @@ export function arrowEnd(): FieldSpec<ArrowEnd> {
   return {
     required: true,
     eq: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+    // Bound to an element (magnet optional), or a free point. `el` wins when both are given.
+    schema: {
+      anyOf: [
+        {
+          type: 'object',
+          required: ['el'],
+          properties: { el: elId.schema, nx: unit.schema, ny: unit.schema },
+          additionalProperties: false,
+        },
+        {
+          type: 'object',
+          required: ['x', 'y'],
+          properties: { x: coord.schema, y: coord.schema },
+          additionalProperties: false,
+        },
+      ],
+    },
     parse(raw) {
       if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
       const r = raw as Record<string, unknown>;

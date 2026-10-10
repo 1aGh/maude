@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maude.sh/schema/canvas-meta/v2",
+  "title": "Maude canvas sidecar (<Canvas>.meta.json), v2",
+  "description": "Hand-written source (no TS validator owns this file). The strict reading for AI writes (`maude design check --strict`, contract V2-1.11 §5.2): unknown top-level keys are errors. V2-1.12 rules: the file carries NO version field (the project's formatVersion lives in .design/config.json, §5.3); v2 additions are top-level keys only, never under `layout` (R6). `viewport` is never here — the camera is per-person runtime state in _canvas-state/<slug>.view.json (DDR-115). `dsRev` is set by the design-system verbs, never by hand (V2-1.6). Reserved top-level names whose shape lands with their owner — `links` (S3), `dsPins` (S10), `video` (S7) — are rejected until then. A key the write left unchanged is never re-judged, so an older writer's extra keys don't block an edit. Skill: design:design _guide-17.",
+  "type": "object",
+  "required": ["title"],
+  "additionalProperties": false,
+  "properties": {
+    "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "subtitle": { "type": "string", "maxLength": 500 },
+    "brief": { "type": "string", "maxLength": 20000 },
+    "brief_sha": { "type": "string", "maxLength": 128 },
+    "kind": {
+      "description": "Canvas kind (index/extract.ts CANVAS_KINDS); absent = canvas.",
+      "enum": [
+        "canvas",
+        "specimen",
+        "brief-board",
+        "imported-figma",
+        "reconstructed-experimental",
+        "video-comp"
+      ]
+    },
+    "platform": {
+      "description": "Free text in practice (desktop, mobile, \"web + mobile\" …).",
+      "type": "string",
+      "maxLength": 64
+    },
+    "theme": { "type": "string", "maxLength": 64 },
+    "tags": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 64,
+      "items": { "type": "string", "maxLength": 64 }
+    },
+    "status": { "enum": ["draft", "in-review", "ready-for-handoff", "handed-off"] },
+    "handoffCommit": { "type": "string", "maxLength": 64 },
+    "created": { "type": "string", "maxLength": 40, "format": "date-time" },
+    "last_modified": { "type": "string", "maxLength": 40, "format": "date-time" },
+    "sections": {
+      "type": "array",
+      "maxItems": 500,
+      "items": { "$ref": "#/$defs/section" }
+    },
+    "iteration_count": { "type": "integer", "minimum": 0 },
+    "tokens_used": {
+      "type": "array",
+      "maxItems": 2000,
+      "items": { "type": "string", "maxLength": 128 }
+    },
+    "designSystem": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "maxLength": 64 },
+    "dsPinned": { "type": "boolean" },
+    "dsPairing": {
+      "type": "object",
+      "maxProperties": 64,
+      "propertyNames": { "pattern": "^--[a-z][a-z0-9-]*$" },
+      "additionalProperties": { "type": "string", "pattern": "^--[a-z][a-z0-9-]*$" }
+    },
+    "dsRev": {
+      "description": "The design-system revision a left-out canvas follows (V2-1.6 §5.7). Set by verbs only.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "dsPending": { "$ref": "#/$defs/dsPending" },
+    "opt_out_scope": { "enum": ["palette", "aesthetic", "full"] },
+    "css_mode": { "enum": ["inline", "tailwind", "modules", "sibling"] },
+    "data_cd_id_version": { "type": "integer", "minimum": 1 },
+    "source": {
+      "description": "Where an imported canvas came from (import-figma, reconstruct, repo capture) — written by those verbs.",
+      "type": "object",
+      "maxProperties": 32
+    },
+    "figma": {
+      "description": "Figma import bookkeeping — written by `maude design import-figma`.",
+      "type": "object"
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "artboards": {
+          "type": "array",
+          "maxItems": 2000,
+          "items": {
+            "type": "object",
+            "required": ["id", "x", "y"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "$ref": "#/$defs/artboardId" },
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "w": { "type": "number", "exclusiveMinimum": 0 },
+              "h": { "type": "number", "exclusiveMinimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "present": {
+      "description": "Present mode (S3, V2-1.12 §5.1): the artboard order and the ones skipped. Speaker notes are per artboard, in artboardMeta.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "order": {
+          "type": "array",
+          "maxItems": 2000,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/artboardId" }
+        },
+        "skip": {
+          "type": "array",
+          "maxItems": 2000,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/artboardId" }
+        }
+      }
+    },
+    "artboardMeta": {
+      "description": "Per-artboard data, keyed by artboard id (V2-1.12 R6 — never inside layout.artboards[]).",
+      "type": "object",
+      "maxProperties": 2000,
+      "propertyNames": { "$ref": "#/$defs/artboardId" },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "notes": { "type": "string", "maxLength": 20000 },
+          "poster": {
+            "description": "Poster frame (comp frame) of a video artboard (V2-1.10 §5.5).",
+            "type": "integer",
+            "minimum": 0
+          },
+          "snap": { "enum": ["beat", "off"] },
+          "maxFrames": {
+            "description": "C22 \"Allow longer\": this artboard's length cap, up to the exporter ceiling.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 18000
+          },
+          "madeBy": {
+            "description": "Made-by-AI attribution (V2-1.5), stamped by the studio after an AI edit.",
+            "type": "object",
+            "required": ["kind"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": { "enum": ["ai", "person"] },
+              "name": { "type": "string", "maxLength": 64 },
+              "id": { "type": "string", "maxLength": 64 },
+              "at": { "type": "string", "maxLength": 40 }
+            }
+          }
+        }
+      }
+    },
+    "ai_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pinned_decisions": { "type": "array", "items": { "type": "string", "maxLength": 1000 } },
+        "known_quirks": { "type": "array", "items": { "type": "string", "maxLength": 1000 } },
+        "why_this_exists": { "type": "string", "maxLength": 4000 }
+      }
+    }
+  },
+  "$defs": {
+    "artboardId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "section": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "label": { "type": "string", "maxLength": 200 },
+        "title": { "type": "string", "maxLength": 200 },
+        "subtitle": { "type": "string", "maxLength": 500 },
+        "artboards": {
+          "type": "array",
+          "maxItems": 2000,
+          "items": {
+            "type": "object",
+            "required": ["id"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "$ref": "#/$defs/artboardId" },
+              "label": { "type": "string", "maxLength": 200 },
+              "title": { "type": "string", "maxLength": 200 },
+              "subtitle": { "type": "string", "maxLength": 500 },
+              "platform": { "type": "string", "maxLength": 64 },
+              "width": { "type": "number", "exclusiveMinimum": 0 },
+              "height": { "type": "number", "exclusiveMinimum": 0 },
+              "screen_route": { "type": "string", "maxLength": 512 },
+              "note": { "type": "string", "maxLength": 2000 }
+            }
+          }
+        }
+      }
+    },
+    "dsPending": {
+      "description": "Pending in-app design-system edits on the Design system canvas (V2-1.6 §5.9). Token names are checked against the DS registry by ds-check.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "base": { "type": "string", "maxLength": 64 },
+        "tokens": {
+          "type": "object",
+          "propertyNames": { "pattern": "^--[a-z][a-z0-9-]*$" },
+          "additionalProperties": { "type": "object" }
+        },
+        "components": { "type": "object" }
+      }
+    }
+  }
+}

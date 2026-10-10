@@ -91,10 +91,66 @@ describe('checkFile', () => {
     expect(checkFile('ui/C.meta.json', '{nope').errors[0]?.code).toBe('json');
   });
 
-  test('a hand-off declares the contract and the role its name says', () => {
+  test('a hand-off matches maude.agent-handoff/1 for the role its name says (cli/lib/handoff.mjs)', () => {
     const rel = '_runs/r_abcd/handoff/board-reader-0.out.json';
-    expect(checkFile(rel, '{"contract":"maude.agent-handoff/1","role":"out"}').ok).toBe(true);
-    expect(checkFile(rel, '{"contract":"maude.agent-handoff/1","role":"in"}').ok).toBe(false);
+    const out = {
+      contract: 'maude.agent-handoff/1',
+      role: 'out',
+      agent: 'board-reader',
+      status: 'done',
+      summary: 'read the board',
+      changed: [],
+      decisions: [],
+      findings: [],
+      open_questions: [],
+    };
+    expect(checkFile(rel, JSON.stringify(out)).ok).toBe(true);
+    expect(checkFile(rel, JSON.stringify({ ...out, role: 'in' })).ok).toBe(false);
+    const missing = checkFile(rel, '{"contract":"maude.agent-handoff/1","role":"out"}');
+    expect(missing.errors.map((e) => e.code)).toContain('handoff');
+    expect(missing.errors.map((e) => e.what).join(' ')).toContain('"summary"');
+    const extra = checkFile(rel, JSON.stringify({ ...out, verdict: 1 }));
+    expect(extra.errors[0]?.where).toBe(`${rel} › verdict`);
+  });
+
+  test('canvas-meta strict: the v2 schema on the keys the write changed, dsRev unchanged', () => {
+    const before = JSON.stringify({ title: 'C', critic: { iter: 2 }, platform: 'web + mobile' });
+    const ok = JSON.stringify({ title: 'C2', critic: { iter: 2 }, platform: 'web + mobile' });
+    // an older writer's `critic` key, untouched, does not block the edit
+    expect(checkFile('ui/C.meta.json', ok, { strict: true, against: before }).errors).toEqual([]);
+    const codes = (text: string, against: string | null = before) =>
+      checkFile('ui/C.meta.json', text, { strict: true, against }).errors.map((e) => e.code);
+    expect(codes(JSON.stringify({ title: 'C', critic: { iter: 3 } }))).toEqual([
+      'meta-unknown-field',
+    ]);
+    expect(codes(JSON.stringify({ title: 'C', formatVersion: 2 }))).toEqual(['meta-unknown-field']);
+    expect(codes(JSON.stringify({ title: 'C', present: { order: ['a'], notes: 'x' } }))).toEqual([
+      'meta-invalid',
+    ]);
+    expect(
+      codes(JSON.stringify({ title: 'C', artboardMeta: { hero: { maxFrames: 99999 } } }))
+    ).toEqual(['meta-invalid']);
+    expect(codes(JSON.stringify({ title: 'C', dsRev: 'r1' }))).toEqual(['meta-dsrev']);
+    expect(codes(JSON.stringify({ subtitle: 'no title' }), null)).toEqual(['meta-invalid']);
+    // lenient (no --strict) is unchanged: only JSON + viewport
+    expect(checkFile('ui/C.meta.json', JSON.stringify({ critic: 1 })).ok).toBe(true);
+    // a well-formed v2 sidecar passes as a new file
+    const v2 = {
+      title: 'Deck',
+      sections: [
+        {
+          id: 'main',
+          label: 'Main',
+          artboards: [{ id: 'hero', label: 'Hero', width: 1280, height: 820 }],
+        },
+      ],
+      layout: { artboards: [{ id: 'hero', x: 0, y: 0 }] },
+      present: { order: ['hero'], skip: [] },
+      artboardMeta: {
+        hero: { notes: 'Open with the number.', poster: 120, snap: 'beat', maxFrames: 5400 },
+      },
+    };
+    expect(codes(JSON.stringify(v2), null)).toEqual([]);
   });
 
   test('a DS-managed file is refused; runtime and unknown files are skipped', () => {

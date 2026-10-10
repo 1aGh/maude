@@ -5,8 +5,10 @@
 //
 //   apps/studio/actions/keymap.gen.ts          the canvas iframe's slim key table (§5.7)
 //   apps/desktop/src-tauri/menu.actions.json   the native menu, which menu.rs builds from (§5.8)
-//   apps/studio/actions.manifest.json          every action's AI path + every verb's tier
-//                                              (V2-1.11 §5.1, §5.6, §5.7; V2-2.4b)
+//   apps/studio/actions.manifest.json          every action's AI path + every verb's tier + the
+//                                              format schemas (V2-1.11 §5.1, §5.2, §5.6, §5.7)
+//   apps/studio/schema/<name>.vN.schema.json   the GENERATED format schemas (V2-1.11 §5.2) — today
+//                                              annotations.v2 from annotations/registry.ts
 //
 // (The docs page site/content/docs/shortcuts.mdx lands with the v2 "?" in Phase 4 / 7.)
 //
@@ -33,6 +35,13 @@ const { NATIVE_MENU } = await import('../apps/studio/actions/native-menu.ts');
 const { bindingInDocument } = await import('../apps/studio/actions/documents.ts');
 const { AGENT_PATHS } = await import('../apps/studio/actions/agents.ts');
 const { MAUDE_VERBS, verbTier } = await import('../apps/studio/actions/verbs.ts');
+const { FORMAT_SCHEMAS } = await import('../apps/studio/schema/formats.ts');
+const { annotationsJsonSchema } = await import('../apps/studio/annotations/board-schema.ts');
+
+/** The generated schemas, by the `schema` path formats.ts names for them. */
+const GENERATED = {
+  'annotations/board-schema.ts#annotationsJsonSchema': annotationsJsonSchema,
+};
 
 function die(msg) {
   console.error(`gen-actions: ${msg}`);
@@ -129,14 +138,26 @@ function manifest() {
     tier: verbTier(v),
     ...(v.hold ? { hold: v.hold } : {}),
   }));
-  const schemas = [];
+  const schemas = FORMAT_SCHEMAS.map((f) => {
+    const rel = join('apps/studio', f.schema).split('\\').join('/');
+    if (!existsSync(join(ROOT, rel)) && f.source !== 'generated')
+      die(`formats.ts names ${rel} for '${f.format}', which does not exist`);
+    return {
+      format: f.format,
+      schema: rel,
+      ...(f.id ? { id: f.id } : {}),
+      source: f.source,
+      skill: f.skill,
+      ...(f.runtime ? { runtime: true } : {}),
+    };
+  });
   // §5.6: sha256 of the ids + verbs + schemas, first 12 hex — the app↔plugin↔CLI handshake.
   const manifestVersion = createHash('sha256')
     .update(
       JSON.stringify({
         ids: actions.map((a) => a.id),
         verbs: verbs.map((v) => `${v.verb}:${v.tier}`),
-        schemas,
+        schemas: schemas.map((s) => `${s.format}:${s.id ?? s.schema}`),
       })
     )
     .digest('hex')
@@ -156,10 +177,29 @@ function manifest() {
   )}\n`;
 }
 
+// ── apps/studio/schema/*.schema.json: the format schemas a TS validator is the source of ──────
+function generatedSchemas() {
+  return FORMAT_SCHEMAS.filter((f) => f.source === 'generated').map((f) => {
+    const build = GENERATED[f.generator];
+    if (!build)
+      die(
+        `formats.ts: '${f.format}' names generator '${f.generator}', which gen-actions doesn't know`
+      );
+    const schema = build();
+    if (schema.$id !== f.id)
+      die(`${f.generator} builds $id ${schema.$id}, formats.ts says ${f.id}`);
+    return [
+      join('apps/studio', f.schema).split('\\').join('/'),
+      `${JSON.stringify(schema, null, 2)}\n`,
+    ];
+  });
+}
+
 const OUTPUTS = [
   ['apps/studio/actions/keymap.gen.ts', keymap()],
   ['apps/desktop/src-tauri/menu.actions.json', nativeMenu()],
   ['apps/studio/actions.manifest.json', manifest()],
+  ...generatedSchemas(),
 ];
 
 let stale = 0;

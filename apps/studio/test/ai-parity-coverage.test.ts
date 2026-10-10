@@ -8,7 +8,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ACTIONS } from '../actions/index.ts';
@@ -96,9 +96,45 @@ describe('AI parity coverage (§5.7)', () => {
     }
   });
 
-  // 5b (schema per format) lands with the §5.2 schemas; 7 (per-role refusal test per `server`
-  // route) with the V2-1.7/S9 role suite.
-  test.todo('5b. a file action’s format has a schema under apps/studio/schema/');
+  test('5b. a file action’s format has a schema under apps/studio/schema/ and a skill section', () => {
+    const listed = new Map(
+      (
+        manifest as unknown as { schemas: { format: string; schema: string; skill: string }[] }
+      ).schemas.map((s) => [s.format, s])
+    );
+    const formats = new Set<string>();
+    for (const r of rows) {
+      const a = r.agent?.path === 'pending' ? r.agent.want : r.agent;
+      if (a?.path === 'file') formats.add(a.format);
+    }
+    expect(formats.size).toBeGreaterThan(0);
+    for (const format of formats) {
+      const s = listed.get(format);
+      const schemaOk =
+        !!s && s.schema.startsWith('apps/studio/schema/') && existsSync(join(ROOT, s.schema));
+      // the skill section: `plugin:skill#_guide-NN` → that guide file; `plugin:skill#anchor` → a
+      // heading in SKILL.md; no anchor → the SKILL.md names the format's file pattern or the format.
+      let skillOk = false;
+      if (s) {
+        const [plugin, rest] = s.skill.split(':') as [string, string];
+        const [skill, anchor] = (rest ?? '').split('#') as [string, string | undefined];
+        const dir = join(ROOT, 'plugins', plugin, 'skills', skill);
+        if (anchor?.startsWith('_guide-'))
+          skillOk = readdirSync(dir).some(
+            (f) => f.startsWith(`${anchor}-`) || f === `${anchor}.md`
+          );
+        else if (existsSync(join(dir, 'SKILL.md'))) {
+          const md = readFileSync(join(dir, 'SKILL.md'), 'utf8');
+          skillOk = anchor
+            ? md.includes(anchor)
+            : md.includes(format) || md.includes(`.${format}.json`);
+        }
+      }
+      expect({ format, schemaOk, skillOk }).toEqual({ format, schemaOk: true, skillOk: true });
+    }
+  });
+
+  // 7 (per-role refusal test per `server` route) lands with the V2-1.7/S9 role suite.
   test.todo('7. every action with `server` has a per-role refusal test');
 
   test('6. a cli action’s verb is a real `maude` verb in the tier table', () => {

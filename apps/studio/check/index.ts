@@ -9,13 +9,18 @@
 // `errors` block (the hook rolls the write back); `warnings` go back to the model and never block;
 // `infos` land in the run result. One parse per file per call.
 //
-// What each kind checks today (V2-2.4b step 1); the strict formats (§5.2 schemas, validateBoard
-// strict, canvas-meta v2) land in step 3 and slot into the same dispatch:
+// What each kind checks (the §5.2 formats; schemas under apps/studio/schema/):
 //   canvas-tsx   parse (oxc); DCArtboard ids present + unique; V2-1.4 ids against the snapshot
-//                (V2-2.19 checkIds — ./ids.ts adapter, a stub until it lands on feat)
-//   annotations  every lenient-loader drop is an error (strict) / a warning (lenient)
-//   canvas-meta  JSON object; no `viewport` (DDR-115: the camera is runtime state)
-//   handoff      JSON object with the `maude.agent-handoff/1` contract + role (schema in step 4)
+//                (V2-2.19 checkIds — ./ids.ts adapter)
+//   annotations  strict: validateBoard (annotations/validate-board.ts) — every lenient-loader drop,
+//                unknown field / unrepairable value (the generated annotations.v2 schema), unknown
+//                type, author change, a new element not authored by AI, a locked element changed or
+//                removed; lenient: the loader's drops as warnings (unchanged)
+//   canvas-meta  JSON object; no `viewport` (DDR-115); strict: the canvas-meta.v2 schema on the keys
+//                the write changed + `dsRev` unchanged (./meta.ts)
+//   edl/footage  strict: validateEdl / validateFootageAnalysis (footage/schema.ts — the runtime source
+//                the edl.v1 schema mirrors); lenient: parse
+//   handoff      maude.agent-handoff/1 of the role the file name declares (cli/lib/handoff.mjs)
 //   json kinds   parse
 //   runtime `_*` (other than hand-offs), files outside the design root, everything else: skipped
 //
@@ -24,8 +29,11 @@
 
 import { parseSync } from 'oxc-parser';
 
-import { parseBoard } from '../annotations/schema.ts';
+import { validateHandoff } from '../../../cli/lib/handoff.mjs';
+import { validateBoard } from '../annotations/validate-board.ts';
+import { validateEdl, validateFootageAnalysis } from '../footage/schema.ts';
 import { checkIdsAdapter } from './ids.ts';
+import { validateMeta } from './meta.ts';
 
 export type CheckKind =
   | 'canvas-tsx'
@@ -199,20 +207,21 @@ function parseJson(rel: string, text: string, r: CheckResult): unknown {
 }
 
 function checkAnnotations(rel: string, text: string, opts: CheckOptions, r: CheckResult) {
-  const board = parseBoard(text);
-  for (const d of board.dropped) {
-    const where = d.id ? `${rel} › ${d.id}` : rel;
-    const f = finding(
-      'board-drop',
-      where,
-      `the board loader drops this: ${d.reason}`,
-      'write the element in the documented shape (skill design:whiteboard)'
-    );
-    (opts.strict ? r.errors : r.warnings).push(f);
-  }
+  const v = validateBoard(text, { strict: opts.strict === true, against: opts.against });
+  for (const [list, into] of [
+    [v.errors, r.errors],
+    [v.warnings, r.warnings],
+  ] as const)
+    for (const i of list) {
+      const where = `${rel}${i.id ? ` › ${i.id}` : ''}${i.field && i.field !== '/' ? ` ${i.field}` : ''}`;
+      into.push(finding(i.code, where, i.what, i.fix));
+    }
 }
 
-function checkMeta(rel: string, text: string, r: CheckResult) {
+const isObj = (v: unknown): v is Record<string, unknown> =>
+  v !== null && typeof v === 'object' && !Array.isArray(v);
+
+function checkMeta(rel: string, text: string, opts: CheckOptions, r: CheckResult) {
   const doc = parseJson(rel, text, r);
   if (doc === undefined) return;
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) {
@@ -228,22 +237,30 @@ function checkMeta(rel: string, text: string, r: CheckResult) {
         'remove `viewport`'
       )
     );
+  if (!opts.strict) return;
+  let before: unknown = null;
+  try {
+    before = typeof opts.against === 'string' ? JSON.parse(opts.against) : null;
+  } catch {
+    before = null;
+  }
+  for (const i of validateMeta(doc as Record<string, unknown>, isObj(before) ? before : null))
+    r.errors.push(finding(i.code, `${rel} › ${i.field.slice(1) || '/'}`, i.what, i.fix));
 }
 
 function checkHandoff(rel: string, text: string, r: CheckResult) {
-  const doc = parseJson(rel, text, r) as Record<string, unknown> | undefined;
+  const doc = parseJson(rel, text, r);
   if (doc === undefined) return;
   const role = rel.endsWith('.in.json') ? 'in' : 'out';
-  if (!doc || typeof doc !== 'object' || Array.isArray(doc))
-    r.errors.push(finding('handoff-shape', rel, 'a hand-off is a JSON object', 'write an object'));
-  else if (doc.contract !== 'maude.agent-handoff/1' || doc.role !== role)
+  // `rel` is designRoot-relative; `owns` are repo-relative, and the design root is `.design/` (the
+  // same convention bin/_check.mjs resolves the project by).
+  const runDir = `.design/${rel.replace(/handoff\/[^/]+$/, '')}`;
+  const v = validateHandoff(doc, { role, runDir }) as {
+    errors: { where: string; what: string; fix: string }[];
+  };
+  for (const e of v.errors)
     r.errors.push(
-      finding(
-        'handoff-contract',
-        rel,
-        `a .${role}.json hand-off declares contract "maude.agent-handoff/1" and role "${role}"`,
-        `set "contract": "maude.agent-handoff/1", "role": "${role}"`
-      )
+      finding('handoff', `${rel} › ${e.where.replace(/^\//, '') || '/'}`, e.what, e.fix)
     );
 }
 
@@ -255,9 +272,23 @@ export function checkFile(rel: string, text: string, opts: CheckOptions = {}): C
   try {
     if (kind === 'canvas-tsx') checkCanvasTsx(rel, text, opts, r);
     else if (kind === 'annotations') checkAnnotations(rel, text, opts, r);
-    else if (kind === 'canvas-meta') checkMeta(rel, text, r);
+    else if (kind === 'canvas-meta') checkMeta(rel, text, opts, r);
     else if (kind === 'handoff') checkHandoff(rel, text, r);
-    else if (kind === 'ds-managed')
+    else if ((kind === 'edl' || kind === 'footage') && opts.strict) {
+      const doc = parseJson(rel, text, r);
+      if (doc !== undefined)
+        for (const e of (kind === 'edl' ? validateEdl : validateFootageAnalysis)(doc).errors)
+          r.errors.push(
+            finding(
+              kind,
+              `${rel} › ${e.split(':')[0]}`,
+              e,
+              kind === 'edl'
+                ? 'write the EDL in the documented shape (apps/studio/schema/edl.v1.schema.json, skill design:footage-director)'
+                : 'write the analysis in the documented shape (skill design:footage-director)'
+            )
+          );
+    } else if (kind === 'ds-managed')
       r.errors.push(
         finding(
           'ds-managed',
