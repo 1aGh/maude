@@ -67,3 +67,29 @@ describe('whole-artboard selection — data-dc-* readback attrs', () => {
     expect(sel.attrs?.['data-dc-screen']).toBe('ab-1');
   });
 });
+
+// V2-2.8 "fixed artboard loses 24 px" — a FIXED artboard's frame is now its
+// label strip + the declared body, so the Inspector's Height (worldH) takes the
+// label back out and keeps showing the number it always showed. Layout sizes
+// are stubbed: happy-dom has no layout engine.
+describe('whole-artboard selection — Height never counts the label strip', () => {
+  function sized(fixed: boolean, frameH: number, labelH: number) {
+    document.body.innerHTML = `<article class="dc-artboard" data-dc-screen="ab-1" data-dc-kind="digital"${fixed ? ' data-dc-fixed="true"' : ''}><button class="dc-artboard-label sku">Poster</button><div class="dc-artboard-body">x</div></article>`;
+    const el = document.querySelector('[data-dc-screen]') as HTMLElement;
+    const label = el.querySelector('.dc-artboard-label') as HTMLElement;
+    Object.defineProperty(el, 'offsetHeight', { value: frameH });
+    Object.defineProperty(el, 'offsetWidth', { value: 1082 });
+    Object.defineProperty(label, 'offsetHeight', { value: labelH });
+    return hoverTargetToSelection({ el, cdId: null, artboardId: 'ab-1' });
+  }
+
+  test('fixed 1080×1350 with a 24 px label: frame 1376 → Height 1352 (border included, as before)', () => {
+    const sel = sized(true, 1376, 24);
+    expect(sel.worldH).toBe(1352);
+    expect(sel.worldW).toBe(1082);
+  });
+
+  test('a hug artboard is unchanged: Height is its frame', () => {
+    expect(sized(false, 1376, 24).worldH).toBe(1376);
+  });
+});

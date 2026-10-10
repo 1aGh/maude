@@ -2539,17 +2539,59 @@ export function DCArtboard({
   const articleRef = useRef<HTMLElement | null>(null);
   const measured = useArtboardBounds(articleRef as RefObject<HTMLElement | null>);
   useEffect(() => {
-    if (!ctx || fixed) return;
+    // Fixed artboards report too: their frame is label + the declared body,
+    // so the model rect must be the measured frame like a hug board's. Never
+    // a feedback loop — the fixed body height reads the `height` prop, not
+    // rect.h — and never persisted (patchCanvasMeta strips w/h, DDR-027).
+    if (!ctx) return;
     if (dragHook.dragState.kind !== 'idle') return;
     if (measured.height <= 0) return;
     ctx.reportMeasuredHeight(id, Math.round(measured.height));
-  }, [ctx, fixed, dragHook.dragState.kind, measured.height, id]);
+  }, [ctx, dragHook.dragState.kind, measured.height, id]);
+
+  // The design surface (`.dc-artboard-body`) inside the frame, in world px —
+  // offsets are layout values, untouched by the world's pan/zoom transform.
+  // Guides (print bleed/trim/margins, layout grids) describe the DESIGN, so
+  // they are drawn over it, not over the frame with its label strip.
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const [surface, setSurface] = useState<{ dx: number; dy: number; w: number; h: number } | null>(
+    null
+  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the measured frame size is the re-measure trigger; refs are read inside.
+  useLayoutEffect(() => {
+    const a = articleRef.current;
+    const b = bodyRef.current;
+    if (!a || !b) return;
+    const next = {
+      dx: a.clientLeft + b.offsetLeft,
+      dy: a.clientTop + b.offsetTop,
+      w: b.offsetWidth,
+      h: b.offsetHeight,
+    };
+    setSurface((prev) =>
+      prev && prev.dx === next.dx && prev.dy === next.dy && prev.w === next.w && prev.h === next.h
+        ? prev
+        : next
+    );
+  }, [measured.width, measured.height]);
 
   // Phase 2 — background/padding/layout/gap apply to the BODY (content box),
   // not the frame (label header stays chrome-styled). Undefined keys are
   // simply absent from the style object — no engine-CSS default is clobbered.
   const bodyStyle = useMemo<CSSProperties>(() => {
     const st: CSSProperties = {};
+    // V2-2.8 "fixed artboard loses 24 px" — a FIXED artboard's declared height
+    // is its design surface: the body is exactly `height` tall (border-box, so
+    // a padding knob stays inside it) and never flexes. The label strip sits
+    // ABOVE it inside the frame, as before, so nothing on an existing canvas
+    // moves; the frame simply grows by the label at the bottom instead of the
+    // body losing the label's height (which clipped the foot and made the
+    // canvas disagree with the export, where the label is hidden).
+    if (fixed) {
+      st.height = heightFloor;
+      st.flex = 'none';
+      st.boxSizing = 'border-box';
+    }
     if (background) st.background = background;
     // number → px; string → a var(--token) binding (validated server-side).
     if (typeof padding === 'number' || typeof padding === 'string') st.padding = padding;
@@ -2564,7 +2606,7 @@ export function DCArtboard({
       st.display = 'grid';
     }
     return st;
-  }, [background, padding, gap, layout]);
+  }, [fixed, heightFloor, background, padding, gap, layout]);
 
   // Read-back surface for the Inspector's ArtboardKnobs panel — the SAME
   // generic "custom HTML attributes" escape hatch dom-selection.ts already
@@ -2596,11 +2638,11 @@ export function DCArtboard({
         className="dc-artboard"
         data-dc-screen={id}
         ref={articleRef}
-        style={fixed ? { width, height } : { width, height: 'auto', minHeight: heightFloor }}
+        style={fixed ? { width } : { width, height: 'auto', minHeight: heightFloor }}
         {...readBackAttrs}
       >
         <header className="dc-artboard-label sku">{label}</header>
-        <div className="dc-artboard-body" style={bodyStyle}>
+        <div className="dc-artboard-body" ref={bodyRef} style={bodyStyle}>
           {children}
         </div>
       </article>
@@ -2662,9 +2704,11 @@ export function DCArtboard({
           top: liveY,
           width: rect.w,
           // Hug default: height:auto + minHeight floor, content dictates the
-          // box; the ResizeObserver above mirrors the settled size back into
-          // rect.h for other consumers. Fixed: today's exact-height behavior.
-          ...(fixed ? { height: rect.h } : { height: 'auto', minHeight: heightFloor }),
+          // box. Fixed: the BODY carries the exact declared height (bodyStyle)
+          // and the frame hugs label + body. Either way the ResizeObserver
+          // above mirrors the settled frame size back into rect.h for other
+          // consumers (fit, snapping, the minimap, culling).
+          ...(fixed ? { height: 'auto' } : { height: 'auto', minHeight: heightFloor }),
           // Off-screen artboards skip layout+paint. On a large multi-board
           // canvas (e.g. an 18-board moodboard) every board otherwise paints
           // onto one huge .dc-world plane whose device-pixel size exceeds
@@ -2758,7 +2802,7 @@ export function DCArtboard({
             </svg>
           </button>
         ) : null}
-        <div className="dc-artboard-body" style={bodyStyle}>
+        <div className="dc-artboard-body" ref={bodyRef} style={bodyStyle}>
           {children}
         </div>
       </article>
@@ -2775,7 +2819,11 @@ export function DCArtboard({
           content-visibility subtree so guides are never culled/frozen with
           exported content (they're never exported at all). */}
       <ArtboardGuidesOverlay
-        rect={{ x: liveX, y: liveY, w: rect.w, h: rect.h }}
+        rect={
+          surface
+            ? { x: liveX + surface.dx, y: liveY + surface.dy, w: surface.w, h: surface.h }
+            : { x: liveX, y: liveY, w: rect.w, h: rect.h }
+        }
         kind={resolvedKind}
         guides={guides}
         print={print}
@@ -2879,7 +2927,17 @@ function buildCanvasRectsManifest(): CanvasRectsManifest {
   const artboards: ArtboardRect[] = [];
   const artboardEls = Array.from(document.querySelectorAll('[data-dc-screen]'));
   for (const el of artboardEls) {
-    const rect = (el as HTMLElement).getBoundingClientRect();
+    // An artboard's geometry is its DESIGN SURFACE (`.dc-artboard-body`) — the
+    // box that exports, at the size the canvas declares — not the frame with
+    // its label strip and 1 px border around it (V2-2.8: a fixed 1080×1350
+    // artboard reports 1080×1350). Falls back to the element itself for a
+    // `[data-dc-screen]` that has no body (legacy/specimen markup).
+    const body = Array.from(el.children).find((c) => c.classList.contains('dc-artboard-body'));
+    const bodyRect = body ? (body as HTMLElement).getBoundingClientRect() : null;
+    const rect =
+      bodyRect && bodyRect.width > 0 && bodyRect.height > 0
+        ? bodyRect
+        : (el as HTMLElement).getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) continue;
     const id = el.getAttribute('data-dc-screen');
     if (!id) continue;

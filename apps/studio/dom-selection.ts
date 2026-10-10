@@ -481,7 +481,7 @@ export function hoverTargetToSelection(target: HoverTarget, file?: string): Sele
     // The Inspector's artboard-resize fields (Stage D4 tail) need the true
     // JSX-authored width/height to pre-fill correctly regardless of zoom.
     worldW: el instanceof HTMLElement ? Math.round(el.offsetWidth) : undefined,
-    worldH: el instanceof HTMLElement ? Math.round(el.offsetHeight) : undefined,
+    worldH: el instanceof HTMLElement ? Math.round(artboardWorldH(el)) : undefined,
     html: el ? (el.outerHTML ?? '').slice(0, 4000) : '',
     // feature-photo-editor (Task 14) — flag a content-addressed artboard `<img>`
     // so the Inspector can offer the Photo tab. Only a real `assets/<sha8>.<ext>`
@@ -577,4 +577,20 @@ export function openCommentComposer(selection: Selection, clientX: number, clien
       /* parent detached */
     }
   }
+}
+
+/**
+ * World-unit height of a selected element. A FIXED artboard's frame is its
+ * label strip + the declared body (V2-2.8 "fixed artboard loses 24 px"), so the
+ * label is taken back out: the Inspector's Height field keeps showing the
+ * number it always showed, never the label on top of it.
+ */
+export function artboardWorldH(el: HTMLElement): number {
+  if (el.getAttribute('data-dc-fixed') !== 'true' || !el.hasAttribute('data-dc-screen')) {
+    return el.offsetHeight;
+  }
+  const label = Array.from(el.children).find((c) => c.classList.contains('dc-artboard-label')) as
+    | HTMLElement
+    | undefined;
+  return el.offsetHeight - (label ? label.offsetHeight : 0);
 }
