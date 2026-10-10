@@ -10,12 +10,23 @@
 
 const first = (sel) => (Array.isArray(sel) ? sel[0] : sel) ?? null;
 
-/** Is this incoming `selected` frame the echo of our own recent select (to be dropped)? */
-export function isOwnSelectEcho(incoming, previous, lastLocalSelectAt, now = Date.now()) {
-  if (now - lastLocalSelectAt >= 2000) return false;
+/** Is this incoming `selected` frame the echo of our own recent select (to be dropped)?
+ *  `local` = `{ at, sel, file }`: what THIS shell selected (or cleared), when, and on which canvas
+ *  file — recorded at the select itself, because the rendered selection lags the server's
+ *  loopback echo. Inside the window everything about the SAME canvas is dropped, exactly as v1
+ *  did (an echo of an older select must not overwrite a newer drill or multi-select). Only a
+ *  frame about ANOTHER canvas applies (the restore that follows a canvas switch), and so does a
+ *  null after a non-null select of ours (a canvas with nothing parked; our select was never null). */
+export function isOwnSelectEcho(incoming, local, now = Date.now()) {
+  if (!local || now - local.at >= 2000) return false;
   const one = first(incoming);
-  const prev = first(previous);
-  return one != null && prev != null && one.file === prev.file;
+  if (one == null) return first(local.sel) == null;
+  return one.file === local.file;
+}
+
+/** The `local` record for a select (or clear) THIS shell just made on `activePath`. */
+export function localSelectRecord(sel, activePath, now = Date.now()) {
+  return { at: now, sel: sel ?? null, file: first(sel)?.file ?? activePath ?? null };
 }
 
 /** The Export dialog's selection inputs, scoped to the active canvas. */

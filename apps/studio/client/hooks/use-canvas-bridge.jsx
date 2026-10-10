@@ -8,6 +8,7 @@ import { browseFirstRunHint, layersTreeSig } from '../shell/util.js';
 import { resolveToolCursor } from '../../canvas-cursors.ts';
 import { afterRecordableWrites } from '../inspector/css-knobs.jsx';
 import { applyEditRequest } from '../apply-edit-request.ts';
+import { localSelectRecord } from '../selection-scope.js';
 import { PHOTO_ASSET_RE } from '../inspector/inspector-panel.jsx';
 import { sanitizeArtboardText } from '../panels/timeline-comp-target.js';
 import { isNativeApp } from '../github.js';
@@ -27,7 +28,7 @@ export function useCanvasBridge({
   selected,
   setSelected,
   selectedRef,
-  lastLocalSelectAtRef,
+  lastLocalSelectRef,
   scheduleHaloRestore,
   scheduleArtboardResync,
   pendingReorderRef,
@@ -179,13 +180,13 @@ export function useCanvasBridge({
       }
       if (m.dgn === 'select' && m.selection) {
         setPhotoSel(null); // a DOM selection supersedes an annotation-image Photo target
-        lastLocalSelectAtRef.current = Date.now();
+        lastLocalSelectRef.current = localSelectRecord(m.selection, activePath);
         wsSend({ type: 'select', selection: m.selection });
         setSelected(m.selection);
         maybeAutoOpenInspectorOnSelect(m.selection); // Stage C
       } else if (m.dgn === 'select-set') {
         setPhotoSel(null);
-        lastLocalSelectAtRef.current = Date.now();
+        lastLocalSelectRef.current = localSelectRecord(m.selection, activePath);
         // Canvas multi-select. Payload shape:
         //   null              → empty selection
         //   Selection         → length-1 (back-compat with legacy single-element shape)
@@ -210,7 +211,7 @@ export function useCanvasBridge({
         }
       } else if (m.dgn === 'clear-select') {
         setPhotoSel(null);
-        lastLocalSelectAtRef.current = Date.now();
+        lastLocalSelectRef.current = localSelectRecord(null, activePath);
         wsSend({ type: 'clear-select' });
         setSelected(null);
       } else if (m.dgn === 'edit-text' && m.id) {

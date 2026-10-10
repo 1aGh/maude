@@ -329,7 +329,7 @@ function ShellState({ children }) {
     inspectorTab,
     introOpen,
     lastLayersTreeRef,
-    lastLocalSelectAtRef,
+    lastLocalSelectRef,
     layersBusyRef,
     layersBusyTimerRef,
     layersMode,
@@ -731,13 +731,13 @@ function ShellState({ children }) {
             // entirely within a short window of any LOCAL selection send — a
             // genuine cross-canvas restore never follows a local select that
             // closely (it follows a canvas switch).
-            // V2-2.8 P2: only an echo for the SAME canvas file is dropped — a restore for another
-            // canvas (or none, after a switch) applies, or Export targeted the old canvas.
+            // V2-2.8 P2: the window belongs to the canvas it was opened on — a restore for ANOTHER
+            // canvas (the one we just switched to) applies, or Export targeted the old canvas.
             const incoming = m.selected;
             const one = Array.isArray(incoming) ? incoming[0] : incoming;
             const prevSel = selectedRef.current;
             const prevOne = Array.isArray(prevSel) ? prevSel[0] : prevSel;
-            if (isOwnSelectEcho(incoming, prevSel, lastLocalSelectAtRef.current)) return;
+            if (isOwnSelectEcho(incoming, lastLocalSelectRef.current)) return;
             setSelected((prev) => mergeSelClientFields(incoming, prev));
             if (
               one?.id &&
@@ -1003,7 +1003,7 @@ function ShellState({ children }) {
     selected,
     setSelected,
     selectedRef,
-    lastLocalSelectAtRef,
+    lastLocalSelectRef,
     scheduleHaloRestore,
     scheduleArtboardResync,
     pendingReorderRef,
