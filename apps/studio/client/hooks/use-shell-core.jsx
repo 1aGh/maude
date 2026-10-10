@@ -463,6 +463,13 @@ export function useShellCore({}) {
           // decides what the UI offers; the cell (C1) and the dev-server's
           // read-only gate (http.ts) are what actually stop a write.
           readOnly: !!data.readOnly,
+          // V2-1.12 §5.6 — the project's file format, the gate when this build
+          // does not edit it ({ projectFormat, supported, source } | null), and
+          // why `readOnly` holds: 'role' | 'format' | null. FormatGateBanner
+          // (V2-2.18 P1) and the v2 "Update project" dialog read these.
+          formatVersion: data.formatVersion ?? 1,
+          formatGate: data.formatGate ?? null,
+          readOnlyReason: data.readOnlyReason ?? null,
           // Cloud Phase 27 (DDR-209) — the capability that opens the cookieless
           // canvas origin. `canvasUrl()` appends it to every iframe URL. Absent
           // on a desktop, where the canvas origin is loopback and needs none.

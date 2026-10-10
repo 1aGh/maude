@@ -54,6 +54,12 @@ import { createFigmaEndpoints } from './figma/endpoints.ts';
 import { generatedClipAnalysis } from './footage/schema.ts';
 import { createFootageStore, FOOTAGE_MAX_BYTES } from './footage-store.ts';
 import {
+  formatGate,
+  formatGateAllowsWrite,
+  formatRefusalResponse,
+  projectFormat,
+} from './format.ts';
+import {
   type AudioMatch,
   type Candidate,
   rankMatches,
@@ -1585,6 +1591,18 @@ export function createHttp(
     };
   }
 
+  // V2-1.12 §5.6 — the format gate, STAGED: `newerOnly: true` gates only a
+  // project newer than this build. (V2-2.18 1.x compat cut: the outbox and
+  // `maude migrate v2` route tables of V2-2.14/V2-2.16 are v2-only and are
+  // not mounted here — a 1.x build has no "Update project".)
+  const FORMAT_GATE_OPTS = { newerOnly: true } as const;
+  const gateNow = () => formatGate(ctx, FORMAT_GATE_OPTS);
+  /** What a read-only session may still write (the module allowlist). */
+  const readOnlyAllowed = {
+    exact: READ_ONLY_ALLOWED_WRITES as ReadonlySet<string>,
+    patterns: READ_ONLY_ALLOWED_WRITE_PATTERNS as readonly RegExp[],
+  };
+
   const routes = {
     '/_health': () =>
       Response.json({
@@ -1955,7 +1973,14 @@ export function createHttp(
       Response.json({
         ...ctx.cfg,
         canvasOrigin: ctx.canvasOrigin,
+        // V2-1.12 §5.6 — readOnly is the role OR the format gate
+        // (projectReadOnly covers both); the client shows WHY, and
+        // `formatGate` drives the banner. Named one by one: the client
+        // projection names every computed field (config-projection.test.ts).
         readOnly: projectReadOnly(req),
+        formatVersion: projectFormat(ctx).value,
+        formatGate: gateNow(),
+        readOnlyReason: roleReadOnly(req) ? 'role' : gateNow() ? 'format' : null,
         // DDR-247 — the apps allowed to frame this studio for `?embed=1`. The
         // embed view posts its status ONLY to a parent on this list, never to
         // '*'. Public already: the same origins ride in the page's CSP header.
@@ -2251,7 +2276,7 @@ export function createHttp(
         // `.meta.json`, so a read-only session is refused here, in-handler,
         // where the two lanes are distinguishable.
         if (projectReadOnly(req) && 'layout' in body.patch) {
-          return readOnlyRefusalResponse();
+          return readOnlyRefusalFor(req);
         }
         const next = await api.patchCanvasMeta(body.file, body.patch);
         if (!next) return new Response('Not found or rejected', { status: 404 });
@@ -6313,7 +6338,7 @@ export function createHttp(
   // covers all three doors at once: the main-origin `routes` table, the
   // canvas-origin `routes` allowlist in server.ts (it references these same
   // handlers), and the dynamic-path `fetch` fall-through (comment replies).
-  function projectReadOnly(req?: Request): boolean {
+  function roleReadOnly(req?: Request): boolean {
     // ---- Cloud Phase 27 A3/A4 (DDR-209): the role is PER SESSION ----------
     //
     // In a cell this process serves an owner and a viewer at the same time, so
@@ -6332,20 +6357,44 @@ export function createHttp(
     return ctx.cfg.linkedHub ? isHubReadOnly(ctx.cfg.linkedHub.url) : false;
   }
 
+  /**
+   * V2-1.12 §5.6 — read-only for the ROLE, or because this build does not
+   * edit this project's FORMAT (format.ts `formatGate`: a 1.x build on a
+   * format-2 project). Every in-handler `projectReadOnly` check therefore
+   * covers both.
+   */
+  function projectReadOnly(req?: Request): boolean {
+    return roleReadOnly(req) || gateNow() !== null;
+  }
+
+  /** The refusal an in-handler check answers with: the format copy when the
+   *  format is the only reason, else the role copy. */
+  function readOnlyRefusalFor(req: Request): Response {
+    const gate = roleReadOnly(req) ? null : gateNow();
+    return gate ? formatRefusalResponse(gate) : readOnlyRefusalResponse();
+  }
+
   function readOnlyRefusal(req: Request): Response | null {
     if (READ_ONLY_SAFE_METHODS.has(req.method)) return null;
-    if (!projectReadOnly(req)) return null;
+    const role = roleReadOnly(req);
+    const gate = gateNow();
+    if (!role && !gate) return null;
     let pathname: string;
     try {
       pathname = new URL(req.url).pathname;
     } catch {
-      return readOnlyRefusalResponse();
+      return readOnlyRefusalFor(req);
     }
-    if (READ_ONLY_ALLOWED_WRITES.has(pathname)) return null;
+    // The format gate: per-user runtime, export, reports and sign-in still
+    // work; comments are look-only (V2-1.12 §9 Q3).
+    if (gate && !formatGateAllowsWrite(pathname, readOnlyAllowed))
+      return formatRefusalResponse(gate);
+    if (!role) return null;
+    if (readOnlyAllowed.exact.has(pathname)) return null;
     // The dynamic half of the comment lane. An exact-match set cannot express
     // it, and leaving it out would mean a viewer may leave a comment but not
     // reply to one — a distinction nobody promised and nobody wants.
-    if (READ_ONLY_ALLOWED_WRITE_PATTERNS.some((re) => re.test(pathname))) return null;
+    if (readOnlyAllowed.patterns.some((re) => re.test(pathname))) return null;
     return readOnlyRefusalResponse();
   }
 

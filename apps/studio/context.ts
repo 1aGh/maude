@@ -119,6 +119,11 @@ export interface DevServerConfig {
   newComponentDir: string;
   linkedHub?: LinkedHub;
   /**
+   * V2-1.12 (Gate 0 A17) — the project's file format; absent = 1. Written only
+   * by `maude migrate v2` / Update project. The gate is `format.ts`.
+   */
+  formatVersion?: number;
+  /**
    * feature-ai-media-generation (DDR-16x) — BYOK generation preferences.
    * NON-SECRET ONLY: provider keys live in the OS keychain / ~/.config/maude/
    * keys.json (0600), NEVER here. Hot-reloadable via the full in-place cfg swap
