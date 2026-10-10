@@ -1,7 +1,7 @@
 {
   "$comment": "Lead-owned (contract V2-1.11 §5.7). humanMax/pendingMax may only be lowered; raising either, or adding a humanDecisions reason, is a lead change citing a decision id.",
   "humanMax": 51,
-  "pendingMax": 18,
+  "pendingMax": 9,
   "pending": [
     {
       "id": "edit.undo",
@@ -12,48 +12,12 @@
       "package": "S1"
     },
     {
-      "id": "select.all",
-      "package": "V2-2.4b open"
-    },
-    {
-      "id": "select.none",
-      "package": "V2-2.4b open"
-    },
-    {
-      "id": "select.all-annotations",
-      "package": "V2-2.4b open"
-    },
-    {
-      "id": "object.select-child",
-      "package": "V2-2.4b open"
-    },
-    {
-      "id": "object.select-parent",
-      "package": "V2-2.4b open"
-    },
-    {
-      "id": "object.select-next",
-      "package": "V2-2.4b open"
-    },
-    {
       "id": "view.comments",
       "package": "S9"
     },
     {
       "id": "history.open",
       "package": "S1"
-    },
-    {
-      "id": "present.canvas",
-      "package": "V2-2.4b open"
-    },
-    {
-      "id": "view.zoom-to-artboard",
-      "package": "V2-2.4b open"
-    },
-    {
-      "id": "view.jump-artboard",
-      "package": "V2-2.4b open"
     },
     {
       "id": "tool.comment",
