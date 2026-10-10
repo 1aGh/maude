@@ -55,7 +55,8 @@ function tagOf(node: AnyNode): string {
   const n = node.openingElement?.name;
   if (!n) return '?';
   if (n.type === 'JSXIdentifier') return n.name;
-  if (n.type === 'JSXMemberExpression') return `${n.object?.name ?? '?'}.${n.property?.name ?? '?'}`;
+  if (n.type === 'JSXMemberExpression')
+    return `${n.object?.name ?? '?'}.${n.property?.name ?? '?'}`;
   return '?';
 }
 function attrNode(opening: AnyNode, name: string): AnyNode | null {
@@ -212,7 +213,9 @@ function mSwap(rng: Rng, file: string, src: string, ab: string): string | null {
   const pairs: [SimEl, SimEl][] = [];
   for (const e of movable(els, ab)) {
     if (e.locked) continue;
-    const sib = (els[e.parent] as SimEl).kids.map((k) => els[k] as SimEl).filter((x) => x.directChild);
+    const sib = (els[e.parent] as SimEl).kids
+      .map((k) => els[k] as SimEl)
+      .filter((x) => x.directChild);
     const nx = sib[sib.indexOf(e) + 1];
     if (nx && !nx.locked) pairs.push([e, nx]);
   }

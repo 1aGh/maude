@@ -169,6 +169,21 @@ function hasJsxAttr(opening: AnyNode, name: string): boolean {
   return false;
 }
 
+/** The string-literal value of an authored `data-cd-id`, or null (absent / expression). */
+function authoredIdLiteral(opening: AnyNode): string | null {
+  for (const a of Array.isArray(opening?.attributes) ? opening.attributes : []) {
+    if (
+      a?.type === 'JSXAttribute' &&
+      a.name?.type === 'JSXIdentifier' &&
+      a.name.name === 'data-cd-id'
+    ) {
+      const v = a.value;
+      return v?.type === 'Literal' && typeof v.value === 'string' && v.value ? v.value : null;
+    }
+  }
+  return null;
+}
+
 /**
  * Phase 6 (unified-text-editing) — mirror of `applyTextEdit`'s editability
  * test (canvas-edit.ts): the element's children are exactly ONE meaningful
@@ -259,6 +274,16 @@ function walkInjectIds(
       const idx = frame.jsxIndex;
       frame.jsxIndex += 1;
 
+      const locate = (): LocatorEntry => {
+        const at = node.loc?.start ? null : lineColFromByte(source, node.start);
+        return {
+          canvas: canvasAbsPath,
+          line: node.loc?.start?.line ?? (at as { line: number }).line,
+          col: node.loc?.start?.column ?? (at as { col: number }).col,
+          jsxPath: [...frame.jsxPath, elName],
+          componentName: frame.componentName,
+        };
+      };
       if (!hasJsxAttr(opening, 'data-cd-id')) {
         const id = computeId(frame.componentName, idx);
         // Insert " data-cd-id=\"<id>\"" right after the tag name. magic-string's
@@ -268,15 +293,14 @@ function walkInjectIds(
         const insertAt: number | undefined = opening?.name?.end;
         if (typeof insertAt === 'number') {
           s.appendLeft(insertAt, ` data-cd-id="${id}"`);
-          const entry: LocatorEntry = {
-            canvas: canvasAbsPath,
-            line: node.loc?.start?.line ?? lineColFromByte(source, node.start).line,
-            col: node.loc?.start?.column ?? lineColFromByte(source, node.start).col,
-            jsxPath: [...frame.jsxPath, elName],
-            componentName: frame.componentName,
-          };
-          locator[id] = entry;
+          locator[id] = locate();
         }
+      } else {
+        // V2-2.19 (contract V2-1.4 §5.2): an AUTHORED id is the stable identity, so it
+        // gets a locator entry too (the first element wins on a duplicate — the id
+        // check reports the duplicate itself).
+        const authored = authoredIdLiteral(opening);
+        if (authored && !locator[authored]) locator[authored] = locate();
       }
 
       // Phase 6 (unified-text-editing) — build-time editability marker, so

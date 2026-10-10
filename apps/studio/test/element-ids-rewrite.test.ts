@@ -76,7 +76,14 @@ describe('V2-2.19 rewrite fixture keeps every id', () => {
   }
 
   test('a dropped id is caught, and fix=safe puts back only what it can prove', () => {
-    const tally = { dropped: 0, right: 0, wrong: 0, newGotOld: 0, typicalDropped: 0, typicalRight: 0 };
+    const tally = {
+      dropped: 0,
+      right: 0,
+      wrong: 0,
+      newGotOld: 0,
+      typicalDropped: 0,
+      typicalRight: 0,
+    };
     const rng = makeRng(0x2190);
     for (const recipe of RECIPES) {
       for (let trial = 0; trial < 8; trial++) {
@@ -148,68 +155,66 @@ describe('V2-2.19 §6 re-attach on the canvas corpus (T6)', () => {
   const all = process.env.V2_IDS_CORPUS === 'all';
   const files = corpus().filter((f) => all || f.includes('/ui/v2/'));
 
-  test(
-    `${all ? 'whole corpus' : 'v2 canvases'}: zero wrong attachments, typical ≥ 60 %`,
-    () => {
-      type T = { dropped: number; right: number; wrong: number; fresh: number; newGotOld: number };
-      const res: Record<string, T> = {};
-      const rng = makeRng();
-      let ms = 0;
-      let checks = 0;
-      for (const f of files) {
-        const raw = readFileSync(f, 'utf8');
-        const abs = artboardsOf(f, raw);
-        if (!abs.length) continue;
-        let g = 0;
-        const tagged = tagAll(f, raw, 'data-cd-gt', () => `g${g++}`);
-        // the spike stamps every element (ground truth → id), the AI keeps them on kept elements
-        const stamped = tagAll(f, tagged, 'data-cd-id', (e) => (e.gt && !e.cdId ? `e-${e.gt}` : null));
-        const oldIds = idsByGt(f, stamped);
-        for (const recipe of RECIPES) {
-          const ab = pickAb(rng, abs);
-          const next = applyRecipe(rng, f, stamped, ab, recipe);
-          for (const p of [0.1, 0.3, 1.0]) {
-            const key = `${recipe.name} p=${p}`;
-            res[key] ??= { dropped: 0, right: 0, wrong: 0, fresh: 0, newGotOld: 0 };
-            const R = res[key] as T;
-            const { source: partial, droppedGt } = dropIds(rng, f, next, ab, p);
-            const t0 = performance.now();
-            const r = checkIds(partial, { against: stamped, fix: true, path: relative(DESIGN, f) });
-            ms = Math.max(ms, performance.now() - t0);
-            checks++;
-            expect(r.parseError).toBeUndefined();
-            const fixedIds = idsByGt(f, r.fixed as string);
-            const partialIds = idsByGt(f, partial);
-            for (const gt of droppedGt) {
-              R.dropped++;
-              const got = fixedIds.get(gt) ?? null;
-              if (!got) R.fresh++;
-              else if (got === oldIds.get(gt)) R.right++;
-              else R.wrong++;
-            }
-            for (const [gt, id] of fixedIds)
-              if (!droppedGt.has(gt) && partialIds.get(gt) !== id) R.wrong++;
-            R.newGotOld += ((r.fixed as string).match(INSERTED_WITH_ID) ?? []).length;
+  test(`${all ? 'whole corpus' : 'v2 canvases'}: zero wrong attachments, typical ≥ 60 %`, () => {
+    type T = { dropped: number; right: number; wrong: number; fresh: number; newGotOld: number };
+    const res: Record<string, T> = {};
+    const rng = makeRng();
+    let ms = 0;
+    let checks = 0;
+    for (const f of files) {
+      const raw = readFileSync(f, 'utf8');
+      const abs = artboardsOf(f, raw);
+      if (!abs.length) continue;
+      let g = 0;
+      const tagged = tagAll(f, raw, 'data-cd-gt', () => `g${g++}`);
+      // the spike stamps every element (ground truth → id), the AI keeps them on kept elements
+      const stamped = tagAll(f, tagged, 'data-cd-id', (e) =>
+        e.gt && !e.cdId ? `e-${e.gt}` : null
+      );
+      const oldIds = idsByGt(f, stamped);
+      for (const recipe of RECIPES) {
+        const ab = pickAb(rng, abs);
+        const next = applyRecipe(rng, f, stamped, ab, recipe);
+        for (const p of [0.1, 0.3, 1.0]) {
+          const key = `${recipe.name} p=${p}`;
+          res[key] ??= { dropped: 0, right: 0, wrong: 0, fresh: 0, newGotOld: 0 };
+          const R = res[key] as T;
+          const { source: partial, droppedGt } = dropIds(rng, f, next, ab, p);
+          const t0 = performance.now();
+          const r = checkIds(partial, { against: stamped, fix: true, path: relative(DESIGN, f) });
+          ms = Math.max(ms, performance.now() - t0);
+          checks++;
+          expect(r.parseError).toBeUndefined();
+          const fixedIds = idsByGt(f, r.fixed as string);
+          const partialIds = idsByGt(f, partial);
+          for (const gt of droppedGt) {
+            R.dropped++;
+            const got = fixedIds.get(gt) ?? null;
+            if (!got) R.fresh++;
+            else if (got === oldIds.get(gt)) R.right++;
+            else R.wrong++;
           }
+          for (const [gt, id] of fixedIds)
+            if (!droppedGt.has(gt) && partialIds.get(gt) !== id) R.wrong++;
+          R.newGotOld += ((r.fixed as string).match(INSERTED_WITH_ID) ?? []).length;
         }
       }
-      const pct = (a: number, b: number) => (b ? `${((100 * a) / b).toFixed(1)} %` : '—');
-      const lines = Object.entries(res).map(
-        ([k, v]) =>
-          `  ${k.padEnd(14)} dropped=${v.dropped} right ${pct(v.right, v.dropped)} · WRONG ${pct(v.wrong, v.dropped)} · fresh ${pct(v.fresh, v.dropped)} · new-el-got-old-id ${v.newGotOld}`
-      );
-      console.log(
-        `V2-2.19 §6 re-attach — ${files.length} files, ${checks} checks, slowest two-sided check+fix ${ms.toFixed(0)} ms\n${lines.join('\n')}`
-      );
-      for (const v of Object.values(res)) {
-        expect(v.wrong).toBe(0);
-        expect(v.newGotOld).toBe(0);
-      }
-      const typ = Object.entries(res)
-        .filter(([k]) => k.startsWith('typical') && !k.endsWith('p=1'))
-        .reduce((a, [, v]) => ({ d: a.d + v.dropped, r: a.r + v.right }), { d: 0, r: 0 });
-      expect(typ.r / typ.d).toBeGreaterThanOrEqual(0.6);
-    },
-    600_000
-  );
+    }
+    const pct = (a: number, b: number) => (b ? `${((100 * a) / b).toFixed(1)} %` : '—');
+    const lines = Object.entries(res).map(
+      ([k, v]) =>
+        `  ${k.padEnd(14)} dropped=${v.dropped} right ${pct(v.right, v.dropped)} · WRONG ${pct(v.wrong, v.dropped)} · fresh ${pct(v.fresh, v.dropped)} · new-el-got-old-id ${v.newGotOld}`
+    );
+    console.log(
+      `V2-2.19 §6 re-attach — ${files.length} files, ${checks} checks, slowest two-sided check+fix ${ms.toFixed(0)} ms\n${lines.join('\n')}`
+    );
+    for (const v of Object.values(res)) {
+      expect(v.wrong).toBe(0);
+      expect(v.newGotOld).toBe(0);
+    }
+    const typ = Object.entries(res)
+      .filter(([k]) => k.startsWith('typical') && !k.endsWith('p=1'))
+      .reduce((a, [, v]) => ({ d: a.d + v.dropped, r: a.r + v.right }), { d: 0, r: 0 });
+    expect(typ.r / typ.d).toBeGreaterThanOrEqual(0.6);
+  }, 600_000);
 });

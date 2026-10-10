@@ -111,7 +111,8 @@ describe('POST /_api/insert-element', () => {
       expect(res.status).toBe(200);
       const json = (await res.json()) as { ok: boolean; newId: string | null; seq: number };
       expect(json.ok).toBe(true);
-      expect(json.newId).toMatch(/^[0-9a-f]{8}$/);
+      // V2-2.19: the new element is stamped with a readable id (contract V2-1.4 §5.2).
+      expect(json.newId).toBe('div');
       expect(readFileSync(canvasPath, 'utf8')).toContain("background: 'var(--bg-2)'");
 
       // Undo removes the inserted element.
@@ -149,7 +150,8 @@ describe('POST /_api/duplicate-element', () => {
       expect(res.status).toBe(200);
       const json = (await res.json()) as { ok: boolean; newId: string | null; seq: number };
       expect(json.ok).toBe(true);
-      expect(json.newId).toMatch(/^[0-9a-f]{8}$/);
+      // V2-2.19: the copy gets a new readable id (contract V2-1.4 §5.2).
+      expect(json.newId).toBe('a');
       // The first <div>A</div> is now duplicated → A, A, B, C.
       expect(letters(readFileSync(canvasPath, 'utf8'))).toEqual(['A', 'A', 'B', 'C']);
 

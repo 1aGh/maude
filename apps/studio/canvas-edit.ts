@@ -33,6 +33,17 @@ import path from 'node:path';
 
 import MagicString from 'magic-string';
 import { parseSync } from 'oxc-parser';
+import {
+  copyWithoutIds,
+  type ElementId,
+  generateElementId,
+  insertIds,
+  isValidElementId,
+  seedOf,
+  usedIds,
+  walkIdElements,
+  withIdAttr,
+} from './element-ids.ts';
 
 export class CanvasEditError extends Error {
   readonly canvas: string;
@@ -3275,9 +3286,9 @@ export async function editArrayElementString(
 /** Kind of element the insert palette can synthesize. */
 export type InsertKind = 'div' | 'text' | 'image';
 
-/** Synthesize a minimal, self-styled JSX element for an insert. No `data-cd-id`
- *  — the pipeline stamps it on the next transpile (canvas-pipeline stamping is
- *  unconditional). The new element lands selectable + immediately styleable. */
+/** Synthesize a minimal, self-styled JSX element for an insert. The new element
+ *  lands selectable + immediately styleable; `stampSynthElement` gives it its
+ *  stable id (V2-2.19). */
 function synthInsertElement(kind: InsertKind, src?: string): string {
   if (kind === 'text') return `<p style={{ margin: 0 }}>Text</p>`;
   if (kind === 'image') {
@@ -3286,6 +3297,19 @@ function synthInsertElement(kind: InsertKind, src?: string): string {
   }
   // div — a visible neutral placeholder box the user can immediately restyle.
   return `<div style={{ width: 120, height: 80, background: 'var(--bg-2)', borderRadius: 8 }} />`;
+}
+
+/**
+ * V2-2.19 (contract V2-1.4 §4.3 / §5.2): a studio writer that CREATES an element stamps it, so the
+ * new element's id is stable from its first write. The readable id comes from the synthesized
+ * element (`div`, `text`, `img`, then `-2`, `-3` …), unique against every id already in the file.
+ */
+function stampSynthElement(canvasAbsPath: string, source: string, jsx: string): string {
+  const walk = walkIdElements(source, canvasAbsPath);
+  if (!walk.ok) return jsx; // the caller's own parse gate reports it
+  const tag = /^<([A-Za-z][\w.:-]*)/.exec(jsx)?.[1] ?? 'el';
+  const text = /^<[^>]*>([^<]*)</.exec(jsx)?.[1] ?? '';
+  return withIdAttr(jsx, generateElementId({ tag, text }, usedIds(walk.elements)));
 }
 
 /**
@@ -3415,7 +3439,7 @@ export function applyInsertElement(
   }
 
   const indentUnit = detectIndentUnit(source);
-  const newText = synthInsertElement(kind, opts?.src);
+  const newText = stampSynthElement(canvasAbsPath, source, synthInsertElement(kind, opts?.src));
 
   let targetIndent: string;
   let anchor: number;
@@ -3559,7 +3583,7 @@ export function applyInsertElementIntoArtboard(
 
   const rStart = target.start as number;
   const indentUnit = detectIndentUnit(source);
-  const newText = synthInsertElement(kind, opts?.src);
+  const newText = stampSynthElement(canvasAbsPath, source, synthInsertElement(kind, opts?.src));
   const targetIndent = lineStartInfo(source, rStart).indent + indentUnit;
 
   let anchor: number;
@@ -3673,7 +3697,18 @@ export function applyDuplicateElement(
   const elEnd = el.end as number;
   // The clone is the element's own source, placed at the same indent as the next
   // sibling (its internal lines are already indented relative to that level).
-  const cloneText = source.slice(elStart, elEnd);
+  // V2-2.19 (contract V2-1.4 §5.2): a copy always gets a new id and starts unlocked
+  // — every `data-cd-id` / `data-cd-locked` inside it is dropped, and an intrinsic
+  // root gets a fresh readable id (a component usage never renders the attribute,
+  // so it stays unstamped). Descendants stay lazy.
+  const walk = walkIdElements(source, canvasAbsPath);
+  let cloneText = walk.ok
+    ? copyWithoutIds(source, walk.elements, elStart, elEnd)
+    : source.slice(elStart, elEnd);
+  const root = walk.ok ? walk.elements.find((e) => e.start === elStart) : undefined;
+  if (walk.ok && root && /^[a-z]/.test(root.tag)) {
+    cloneText = withIdAttr(cloneText, generateElementId(seedOf(root), usedIds(walk.elements)));
+  }
   const targetIndent = lineStartInfo(source, elStart).indent;
   const insertText = `\n${targetIndent}${cloneText}`;
   const s = new MagicString(source);
@@ -5814,4 +5849,106 @@ export function printUniqueness(
   const counts = new Map<string, number>();
   for (const e of all) counts.set(key(e.print), (counts.get(key(e.print)) ?? 0) + 1);
   return { elements: all.length, unique: all.filter((e) => counts.get(key(e.print)) === 1).length };
+}
+
+// ---------------------------------------------------------------------------
+// V2-2.19 — lazy stamping of stable element ids (contract V2-1.4 §4.3 / §5.2).
+//
+// A durable reference (comment pin, arrow bind, lock, ⌘/ scope, undo record) to an element that has
+// no authored id yet is captured as `{ hint, print }` (`PendingElementRef`); the next write an
+// editor's studio makes to the file stamps every queued element through `stampIds`. Pure: it
+// returns the new source and never touches disk, so the caller decides WHEN to write (never from
+// the file watcher, never while a run or an external editor holds the file).
+
+export interface StampTarget {
+  /** Computed (or authored) id at capture time — a hint, never the key. */
+  hint: string;
+  print: ElementPrint;
+  occurrence?: number;
+}
+
+/**
+ * Stamp a readable `data-cd-id` on every target that has none (contract §5.2). Each target is
+ * found by `hint` when the element there still carries `print`, else by the ONE element carrying
+ * `print`; an ambiguous or missing target is left out of `ids`. An element that already has a
+ * valid authored id returns it unchanged. `reserved` holds ids a durable reference still points
+ * at (detached ones included), so a removed element's comments can't land on a newcomer.
+ * Throws on an expression-valued or malformed `data-cd-id` (refused by every writer).
+ */
+export function stampIds(
+  source: string,
+  targets: StampTarget[],
+  opts: { path?: string; reserved?: Iterable<string> } = {}
+): { source: string; ids: Map<string, ElementId> } {
+  const file = opts.path ?? 'canvas.tsx';
+  const walk = walkIdElements(source, file);
+  if (!walk.ok) {
+    throw new CanvasEditError(`oxc-parser failed on ${file}: ${walk.error}`, {
+      canvas: file,
+      id: '',
+    });
+  }
+  const els = walk.elements;
+  const prints = new Map<boolean, Array<{ id: string; print: ElementPrint }>>();
+  const printsFor = (withText: boolean) => {
+    let p = prints.get(withText);
+    if (!p) {
+      p = printAll(file, source, null, withText);
+      prints.set(withText, p);
+    }
+    return p;
+  };
+  const used = usedIds(els);
+  for (const r of opts.reserved ?? []) used.add(r);
+  const ids = new Map<string, ElementId>();
+  const stamped = new Map<number, ElementId>();
+  for (const t of targets) {
+    const all = printsFor(t.print.text !== undefined);
+    if (all.length !== els.length) break; // walkers disagree — stamp nothing rather than guess
+    let at = all.findIndex((e) => e.id === t.hint && samePrint(e.print, t.print));
+    if (at < 0) {
+      const hits: number[] = [];
+      all.forEach((e, k) => {
+        if (samePrint(e.print, t.print)) hits.push(k);
+      });
+      if (hits.length !== 1) continue;
+      at = hits[0] as number;
+    }
+    const el = els[at] as (typeof els)[number];
+    if (el.idKind === 'expression') {
+      throw new CanvasEditError(
+        `data-cd-id must be a plain string ("…"), line ${el.line} — an expression can't be a stable id`,
+        { canvas: file, id: t.hint }
+      );
+    }
+    if (el.id !== null) {
+      if (!isValidElementId(el.id)) {
+        throw new CanvasEditError(
+          `data-cd-id="${el.id}" (line ${el.line}) is not a valid element id — use lowercase words joined by "-"`,
+          { canvas: file, id: t.hint }
+        );
+      }
+      ids.set(t.hint, el.id);
+      continue;
+    }
+    let id = stamped.get(at);
+    if (!id) {
+      id = generateElementId(seedOf(el), used);
+      stamped.set(at, id);
+    }
+    ids.set(t.hint, id);
+  }
+  if (!stamped.size) return { source, ids };
+  const out = insertIds(
+    source,
+    [...stamped].map(([k, id]) => ({ nameEnd: (els[k] as (typeof els)[number]).nameEnd, id }))
+  );
+  const check = parseSync(file, out, { sourceType: 'module' });
+  if (check.errors && check.errors.length > 0) {
+    throw new CanvasEditError(
+      `stamping ids would produce invalid source (${check.errors[0]?.message ?? 'parse error'}); aborted`,
+      { canvas: file, id: '' }
+    );
+  }
+  return { source: out, ids };
 }

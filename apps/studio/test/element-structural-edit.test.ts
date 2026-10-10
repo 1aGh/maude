@@ -119,15 +119,15 @@ describe('canvas-edit / applyInsertElement', () => {
     const out = applyInsertElement(CANVAS, base, id, 'after', 'div');
     expect(out.source).toContain("background: 'var(--bg-2)'");
     expect(parses(out.source)).toBe(true);
-    expect(out.newId).toMatch(/^[0-9a-f]{8}$/);
-    // The recomputed id matches the pipeline-stamped id of the new <div>.
-    expect(idsOf(out.source).div).toBe(out.newId);
+    // V2-2.19: a writer that creates an element stamps it with a readable id (contract V2-1.4 §5.2).
+    expect(out.newId).toBe('div');
+    expect(out.source).toContain('<div data-cd-id="div" style=');
   });
 
   test('inserts a text node BEFORE the anchor', () => {
     const id = idsOf(base).button as string;
     const out = applyInsertElement(CANVAS, base, id, 'before', 'text');
-    expect(out.source).toContain('<p style={{ margin: 0 }}>Text</p>');
+    expect(out.source).toContain('<p data-cd-id="text" style={{ margin: 0 }}>Text</p>');
     // Order: the <p> precedes the <button> in source.
     expect(out.source.indexOf('<p ')).toBeLessThan(out.source.indexOf('<button'));
     expect(parses(out.source)).toBe(true);
@@ -180,12 +180,12 @@ describe('canvas-edit / applyInsertElementIntoArtboard (empty-artboard fallback)
       /<DCArtboard id="home"[^>]*>[\s\S]*var\(--bg-2\)[\s\S]*<\/DCArtboard>/
     );
     expect(parses(out.source)).toBe(true);
-    expect(out.newId).toMatch(/^[0-9a-f]{8}$/);
+    expect(out.newId).toBe('div');
   });
 
   test('inside-start lands the new element right after the opening tag', () => {
     const out = applyInsertElementIntoArtboard(CANVAS, emptyCanvas, 'home', 'inside-start', 'text');
-    expect(out.source).toContain('<p style={{ margin: 0 }}>Text</p>');
+    expect(out.source).toContain('<p data-cd-id="text" style={{ margin: 0 }}>Text</p>');
     expect(parses(out.source)).toBe(true);
   });
 
