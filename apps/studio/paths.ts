@@ -77,6 +77,14 @@ export const STICKERS_DIR: string = join(DEV_SERVER_ROOT, 'stickers');
 export const MEDIA_DIR: string = join(DEV_SERVER_ROOT, 'media');
 
 /**
+ * `<DEV_SERVER_ROOT>/schema/` — the design-system schema registry
+ * (`ds-schema-v1.json`), its JSON Schemas and the generated fallback layer
+ * (V2-1.13 §5.1). Ships inside `apps/studio/**` like `stickers/`; resolved from
+ * DEV_SERVER_ROOT per DDR-045 — Maude's own data, never the served project's.
+ */
+export const SCHEMA_DIR: string = join(DEV_SERVER_ROOT, 'schema');
+
+/**
  * Absolute path to a bundled plugin's loadable tree (`commands/`, `agents/`,
  * `skills/`, `hooks/`, `.claude-plugin/plugin.json`), or `null` when this layout
  * doesn't ship it. Feeds the ACP session-scoped plugin auto-bootstrap
