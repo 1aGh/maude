@@ -75,7 +75,7 @@ test('ds-check and ds-upgrade are whitelisted `maude design` bin verbs with its 
 // (they talk to the studio and need no helper); the rest are whitelisted bin verbs with a .sh.
 // Each answers `--help` with exit 0 (§5.7 rule 6).
 const V2_24B_SUBCOMMANDS = ['open'];
-const V2_24B_BIN_VERBS = ['check'];
+const V2_24B_BIN_VERBS = ['check', 'place', 'layout-check'];
 test('the V2-2.4b verbs are reachable as `maude design <verb>` and answer --help', () => {
   const src = readFileSync('cli/commands/design.mjs', 'utf8');
   const slice = (name) =>

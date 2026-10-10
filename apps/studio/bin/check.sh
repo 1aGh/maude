@@ -20,7 +20,7 @@ if ! command -v bun >/dev/null 2>&1; then
 fi
 
 case "$1" in
-  --help|-h) sed -n '2,15p' "$0" | sed 's/^# \?//' | sed 's/^check.sh/maude design check/'; exit 0 ;;
+  --help|-h) sed -n '2,15p' "$0" | sed -E 's/^# ?//' | sed 's/^check.sh/maude design check/'; exit 0 ;;
 esac
 
 exec bun run "$SCRIPT_DIR/_check.mjs" "$@"

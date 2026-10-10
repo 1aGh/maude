@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "a3da7801f8fc",
+  "manifestVersion": "ea2bae794600",
   "actions": [
     {
       "id": "search.open",
@@ -1544,6 +1544,18 @@
     {
       "scope": "design",
       "verb": "design check",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design place",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design layout-check",
       "effect": "none",
       "tier": "auto"
     },

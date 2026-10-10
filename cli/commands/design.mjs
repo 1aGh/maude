@@ -154,6 +154,10 @@ const BIN_VERBS = new Set([
   // V2-2.4b (contract V2-1.11 §5.2/§5.3, V2-1.18 §5.3). `check` validates the files Claude writes,
   // by kind (canvas TSX, boards, meta, hand-offs…). Read-only; the PostToolUse hook runs it.
   'check',
+  // V2-2.4b (§5.3). `place` finds a free spot next to an artboard/element; `layout-check` lints
+  // overlapping artboards and clipped elements. Both read the canvas-rects manifest; read-only.
+  'place',
+  'layout-check',
   // feature-canvas-render-performance (Task 1 + 11). `perf` drives a scripted
   // pan/zoom against a live canvas and reports frame-time percentiles plus the
   // React render count during the gesture, delta'd against the previous run of
