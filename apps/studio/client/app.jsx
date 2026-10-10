@@ -163,7 +163,7 @@ import { SystemView } from './system/system-view.jsx';
 import { Viewport } from './shell/viewport.jsx';
 import { StatusBar } from './shell/status-bar.jsx';
 import { CommentsPanel } from './shell/comments-panel.jsx';
-import { CloudRoleBanner, SyncBanner, UpdateBanner } from './shell/banners.jsx';
+import { CloudRoleBanner, FormatGateBanner, SyncBanner, UpdateBanner } from './shell/banners.jsx';
 import { CSS_ALIGN_SELF, CSS_ASPECT_RATIO, CSS_BLEND_MODES, CSS_BORDER_STYLES, CSS_DISPLAYS, CSS_FONTS, CSS_FONT_STYLE, CSS_OBJECT_FIT, CSS_POSITION, CSS_TEXT_TRANSFORM, CSS_UNITLESS, CSS_UNITS, CSS_WEIGHTS, CSS_WHITE_SPACE, GRID_TRACK_UNITS, PROP_LEAD, SCREEN_PRESETS, replacedValue } from './inspector/css-vocab.jsx';
 import { clamp01, cssColorToHex, cssHint, cssSplitUnit, hexToRgb, hsvToRgb, rgbToHex, rgbToHsv } from './inspector/color.js';
 import { mergeSelClientFields } from './inspector/selection.js';
@@ -636,6 +636,7 @@ function App() {
     >
       {firstRun && <OnboardingWizard />}
       <CloudRoleBanner cloud={cfg.cloud} />
+      <FormatGateBanner />
       <UpdateBanner update={updateReady} onDismiss={() => setUpdateReady(null)} />
       <SyncBanner status={syncStatus} />
       {/* First-upgrade consent (Task 2) — global on purpose: a consent that
