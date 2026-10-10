@@ -197,6 +197,9 @@ export const WRITER_REGISTRY: Record<string, WriterEntry> = {
   '/_api/generate/providers': { class: 'read' },
   '/_api/generate/audio-search': { class: 'read' },
   '/_api/export-history': { class: 'read' },
+  '/_api/diagnostics': { class: 'read' }, // V2-2.9: this machine's logs, never written here
+  '/_api/diagnostics/report': { class: 'read' },
+  '/_api/index': { class: 'read' }, // V2-2.17: the in-memory index, persisted only to the user cache
   // --- this machine only
   '/_api/acp/activity': { class: 'local' },
   '/_api/acp/attachment': { class: 'local' },
