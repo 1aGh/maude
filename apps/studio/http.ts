@@ -1168,6 +1168,34 @@ function etagFor(file: { size: number; lastModified: number }): string {
  */
 const INERT_DOCUMENT_CSP = "default-src 'none'; sandbox";
 
+/**
+ * A repo `.html` is a document too, and on the MAIN origin a live one is the
+ * whole privileged surface: same-origin with git push, `/_config`, paid
+ * generation and `/_api/ui-prefs`, so its inline script passes `sameOriginWrite`
+ * and the DNS-rebind guard. The agent can plant one in an auto-approved write and
+ * open it; `node_modules/@1agh/maude/…/_shell.html` is one already, and with
+ * `?canvas=` it renders a canvas here — what the shell's 307 exists to stop
+ * (V2-2.4b gate F1, decision:maude/v2-2.4b-gate-repo-html-opaque-origin).
+ *
+ * `sandbox allow-scripts` without `allow-same-origin` makes the page an OPAQUE
+ * origin: it shares no storage or DOM with the studio and its requests carry
+ * `Origin: null`, which `sameOriginWrite` refuses. `connect-src 'none'` takes
+ * fetch, XHR, EventSource and WebSocket away entirely (the collab and inspector
+ * sockets check no Origin). Scripts, stylesheets and images still load, so a
+ * legacy `.html` canvas — iframed from this origin by `canvasUrl` → `urlOf`, and
+ * wired to the studio only by its frame's `load` event — still renders.
+ * Only `.html` is a document type in MIME; `.htm`/`.xhtml`/`.xml` go out as
+ * `application/octet-stream` + nosniff, which no browser renders.
+ */
+const REPO_HTML_CSP = "sandbox allow-scripts; connect-src 'none'";
+
+/** The CSP a served repo file needs because it is a document, if it is one. */
+function documentCsp(e: string): Record<string, string> {
+  if (e === '.svg') return { 'Content-Security-Policy': INERT_DOCUMENT_CSP };
+  if (e === '.html') return { 'Content-Security-Policy': REPO_HTML_CSP };
+  return {};
+}
+
 async function serveFile(absPath: string, headers: Record<string, string> = {}): Promise<Response> {
   const file = Bun.file(absPath);
   if (!(await file.exists())) return new Response('Not found', { status: 404 });
@@ -1178,7 +1206,7 @@ async function serveFile(absPath: string, headers: Record<string, string> = {}):
       'Content-Type': MIME[e] || 'application/octet-stream',
       'Cache-Control': policy.cacheControl,
       ...(policy.addEtag ? { ETag: etagFor(file) } : {}),
-      ...(e === '.svg' ? { 'Content-Security-Policy': INERT_DOCUMENT_CSP } : {}),
+      ...documentCsp(e),
       ...headers,
     },
   });
@@ -1215,7 +1243,7 @@ async function serveMaterialized(
     'X-Content-Type-Options': 'nosniff',
     // The blob's name IS its sha256 — a stronger validator than size+mtime.
     ...(policy.addEtag ? { ETag: `"${basename(cacheAbs)}"` } : {}),
-    ...(e === '.svg' ? { 'Content-Security-Policy': INERT_DOCUMENT_CSP } : {}),
+    ...documentCsp(e),
   };
   if (RANGE_MEDIA_EXTS.has(e)) return serveMediaFile(cacheAbs, req, headers);
   return new Response(Bun.file(cacheAbs), { headers });
@@ -6492,8 +6520,9 @@ export function createHttp(
           // whether you sniff it or not. See INERT_DOCUMENT_CSP: an SVG
           // NAVIGATED TO is a page with `<script>` in it, executing on this
           // origin, and "the canvas CSP blocks script" above is true only of
-          // the shell — not of the asset served on its own.
-          ...(e === '.svg' ? { 'Content-Security-Policy': INERT_DOCUMENT_CSP } : {}),
+          // the shell — not of the asset served on its own. A repo `.html` is
+          // the same case on the privileged origin (REPO_HTML_CSP).
+          ...documentCsp(e),
         },
       });
     } catch (err) {
