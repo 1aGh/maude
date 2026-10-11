@@ -46,6 +46,13 @@ test('SUB_VERBS names exactly the auto sub-verbs of the tier table', () => {
   assert.deepEqual(Object.keys(SUB_VERBS['ds-upgrade']).sort(), ['analyse', 'plan', 'validate']);
 });
 
+test('a native sub-verb (V2-2.4b history) passes through: its helper parses its own words', () => {
+  assert.deepEqual(subVerbArgs('history', ['list', 'ui/a.tsx', '--json']), {
+    args: ['list', 'ui/a.tsx', '--json'],
+  });
+  assert.equal(SUB_VERBS.history.list.native, true);
+});
+
 test('the dispatcher exits 2 on an escalating flag before spawning the helper', () => {
   const r = spawnSync(
     process.execPath,

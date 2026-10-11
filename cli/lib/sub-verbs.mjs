@@ -9,13 +9,20 @@
 //
 // Lead answer (c), decision:maude/v2-2.4b-held-and-prompting-verbs. Leaf module: no imports.
 
-/** verb → sub-verb → { step: the flag it maps to, plan: whether a plan-file word follows the ds }. */
+/** A verb whose helper takes the sub-verb as its own first word (`history list`): nothing to map,
+ *  the helper itself refuses any word or flag its sub-verb doesn't take. */
+const NATIVE = Object.freeze({ native: true });
+
+/** verb → sub-verb → { step: the flag it maps to, plan: whether a plan-file word follows the ds }
+ *  — or NATIVE. */
 export const SUB_VERBS = {
   'ds-upgrade': {
     analyse: { step: '--analyse', plan: false },
     plan: { step: '--plan-mechanical', plan: false },
     validate: { step: '--validate', plan: true },
   },
+  // V2-2.4b (contract V2-1.11 §5.3). Each sub-verb has its own tier entry.
+  history: { list: NATIVE, show: NATIVE, diff: NATIVE },
 };
 
 const STEP_FLAGS = {
@@ -32,7 +39,7 @@ const VALUE_FLAGS = new Set(['--root']);
 export function subVerbArgs(verb, rest) {
   const map = SUB_VERBS[verb];
   const sub = map && Object.hasOwn(map, rest[0] ?? '') ? map[rest[0]] : null;
-  if (!sub) return { args: rest };
+  if (!sub || sub.native) return { args: rest };
   const name = rest[0];
   const steps = STEP_FLAGS[verb] ?? [];
   const positional = [];

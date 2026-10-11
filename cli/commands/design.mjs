@@ -161,6 +161,9 @@ const BIN_VERBS = new Set([
   // overlapping artboards and clipped elements. Both read the canvas-rects manifest; read-only.
   'place',
   'layout-check',
+  // V2-2.4b (§5.3, V2-1.9 §5.11). `history` lists / shows / diffs this project's versions (the
+  // studio's accepted rows, or its git log for a local project). Sub-verbs are tiered one by one.
+  'history',
   // feature-canvas-render-performance (Task 1 + 11). `perf` drives a scripted
   // pan/zoom against a live canvas and reports frame-time percentiles plus the
   // React render count during the gesture, delta'd against the previous run of
@@ -391,6 +394,8 @@ Lifecycle:
 Studio (talk to the running Maude window — contract V2-1.11 §5.3):
   open <canvas>[#artboard][@element] [--mode edit|preview|present] [--select all|none|annotations]
         Show it in the user's Maude window. Exit 3 when no window shows this project.
+  history list|show|diff [<canvas>] [--json]
+        This project's versions (a synced project's, or its git log). Read-only.
   hook prompt|pre-edit|post-edit|pre-bash|post-bash|stop|subagent-start|session-start
         The design plugin's Claude Code hooks (hook JSON on stdin). Deny-only, fail-open: exit 0.
 

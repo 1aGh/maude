@@ -80,6 +80,11 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('place', 'none'),
   d('layout-check', 'none'),
   d('open', 'none', { note: 'moves the user’s view (POST /_api/ui/open), never a file' }),
+  // V2-2.4b (§5.3, V2-1.9 §5.11). `history` — this project's versions. The read sub-verbs are
+  // auto; any other sub-verb falls to the `history` entry below and prompts.
+  d('history list', 'none'),
+  d('history show', 'none'),
+  d('history diff', 'none'),
   // ── `maude design`, effect project (writes versioned files of this project) ──────────────
   d('annotate', 'project'),
   d('canvas-edit', 'project'),
@@ -114,6 +119,9 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
     note: '`apply` rewrites system files (V2-1.13 §5.10); `stage` and the flag forms prompt too',
   }),
   d('bulk-deletes', 'shared'),
+  d('history', 'destructive', {
+    note: '`restore` puts an old version over Now (as a new version, C5); any sub-verb but list/show/diff prompts',
+  }),
   // ── `maude design`, human ─────────────────────────────────────────────────────────────────
   d('link', 'human'),
   d('adopt', 'human'),

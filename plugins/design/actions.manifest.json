@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "e34ce2159f4b",
+  "manifestVersion": "d83ae62335a0",
   "actions": [
     {
       "id": "search.open",
@@ -1574,6 +1574,24 @@
     },
     {
       "scope": "design",
+      "verb": "design history list",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design history show",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design history diff",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
       "verb": "design annotate",
       "effect": "project",
       "tier": "auto"
@@ -1727,6 +1745,12 @@
       "scope": "design",
       "verb": "design bulk-deletes",
       "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design history",
+      "effect": "destructive",
       "tier": "prompt"
     },
     {
