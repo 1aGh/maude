@@ -16,7 +16,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { agentRouteSpecs } from '../../../apps/studio/routes/agent.ts';
@@ -242,6 +242,34 @@ describe('no studio — fail-open, snapshot + check + rollback still run', () =>
         stdout: '',
       });
     expect(readFileSync(canvasPath(project), 'utf8')).toBe(CANVAS);
+  });
+
+  test('pre-bash: a maude command redirected outside the project → out-of-project (§9 Q3)', async () => {
+    // only classified, never run: the probe path must not appear
+    const probe = join(homedir(), `.maude-poc-${process.pid}`);
+    for (const cmd of [
+      `maude design slug x > ${probe}`,
+      'maude design slug x > ~/.maude-poc',
+      'maude design prep --json | tee $HOME/.maude-poc',
+    ]) {
+      const r = await hook('pre-bash', bash(project, 's3', 'q3', cmd));
+      expect(isDeny(r, 'out-of-project')).toBe(true);
+      expect(r.json.hookSpecificOutput.permissionDecisionReason).toContain(
+        'Write inside the project or the temp dir'
+      );
+    }
+    for (const ok of [
+      'maude design slug x > /dev/null 2>&1',
+      'maude design slug x > out.txt',
+      'maude design slug x > /tmp/maude-q3.txt',
+      'echo x > /etc/maude-not-ours',
+      'X=$(maude design prep --json) && echo "$X" > /etc/maude-not-ours',
+    ])
+      expect(await hook('pre-bash', bash(project, 's3', 'q3', ok))).toMatchObject({
+        status: 0,
+        stdout: '',
+      });
+    expect(existsSync(probe)).toBe(false);
   });
 
   test("post-bash records a write verb's writes (via bash) so Stop checks them", async () => {

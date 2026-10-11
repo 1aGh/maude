@@ -5,7 +5,8 @@
 //                                                                                 → additionalContext or nothing
 //   pre-edit    PreToolUse        snapshot · whole-file-rewrite · POST edit/check   → deny or nothing
 //   post-edit   PostToolUse       check (studio, else local) · rollback · touched   → block or nothing
-//   pre-bash    PreToolUse Bash   use-trash · use-verb · not-a-writer (bash-guard)   → deny or nothing
+//   pre-bash    PreToolUse Bash   use-trash · use-verb · not-a-writer · out-of-project (bash-guard)
+//                                                                                     → deny or nothing
 //   post-bash   PostToolUse Bash  a `maude design` write verb's writes → touched     → nothing
 //   stop        Stop              stop-tier check of the run's files · run/end      → block or nothing
 //               SubagentStop      (same command) hand-off result + the files it owns → block or nothing
@@ -719,7 +720,11 @@ function syncedBoardHint(ctx, rel) {
 function preBash(ctx, input) {
   if (input.tool_name !== 'Bash') return null;
   const command = input.tool_input?.command;
-  const verdict = classifyBash(command, { cwd: ctx.cwd, designRoot: ctx.designRoot });
+  const verdict = classifyBash(command, {
+    cwd: ctx.cwd,
+    designRoot: ctx.designRoot,
+    root: ctx.root,
+  });
   if (verdict) return deny(verdict.reason);
   // a `maude design` write verb: remember when it started, and snapshot the design files it names
   // (post-bash and edit/touched {via:'bash'} bind what changed in this tool call's window)

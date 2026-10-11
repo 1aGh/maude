@@ -1,11 +1,14 @@
 // bash-guard.mjs — the design plugin's Bash rules (contract V2-1.11 §5.4 pre-bash / post-bash,
-// narrowed by V2-1.18 §9 Q5). A best-effort POSIX-shell reader, then three deny codes:
+// narrowed by V2-1.18 §9 Q5). A best-effort POSIX-shell reader, then four deny codes:
 //
 //   use-trash     rm / unlink / rmdir / git rm / find -delete of a versioned .design/** file
 //   use-verb      mv / git mv of a versioned .design/** file
 //   not-a-writer  a non-`maude` writer into .design/**: sed -i, perl -i, tee, > / >>, cp / rsync /
 //                 install / ditto BY DESTINATION, and node -e / python -c / … only when the script
 //                 text writes AND names a .design path
+//
+//   out-of-project  a `maude` command's output redirected (> >> &> 2> >| or a `tee` it feeds) to a
+//                 path outside the repo root and the OS temp dir (§9 Q3) — `outOfProject` below
 //
 // FAIL-OPEN: a command the reader can't follow (unbalanced quotes, an unterminated `$(`), a word it
 // can't see (`$VAR`, `$(…)`, a relative path after `cd $X`) never produces a decision. A read is
@@ -15,15 +18,18 @@
 // Also: which `maude design` verb a command runs (post-bash binds a write verb's writes to the run)
 // and `designWritesSince`, the bounded mtime walk that finds them.
 //
-// Leaf module: node built-ins only.
+// Leaf module: node built-ins only (plus the sibling leaf confine-out.mjs for `realpathDeep`).
 
 import { readdirSync, statSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
+
+import { realpathDeep } from './confine-out.mjs';
 
 // ── the reader ───────────────────────────────────────────────────────────────────────────────
 
 const OP_CHARS = new Set([';', '&', '|', '<', '>', '(', ')', '\n']);
+const ENV_HEADS = new Set(['HOME', 'TMPDIR']);
 const WS = new Set([' ', '\t', '\r']);
 
 class Unparseable extends Error {}
@@ -221,8 +227,11 @@ function lex(src, start, stop, nested) {
   return { tokens, end: i };
 
   // `$…` / `` `…` `` at src[at]: marks the word non-literal, recurses into substitutions.
+  // `word.exp` counts the expansions in a word; `word.env` names a $HOME / $TMPDIR (or ${…}) that
+  // opens it — the one expansion the out-of-project check resolves (see `outTarget`).
   function expansion(at) {
     word.literal = false;
+    word.exp = (word.exp ?? 0) + 1;
     if (src[at] === '`') return sub(at + 1, '`');
     const n = src[at + 1];
     if (n === '(') {
@@ -242,11 +251,14 @@ function lex(src, start, stop, nested) {
         j++;
       }
       if (depth) fail();
+      const name = src.slice(at + 2, j - 1);
+      if (word.text === '' && word.exp === 1 && ENV_HEADS.has(name)) word.env = name;
       return j;
     }
     if (n === "'") {
       // ANSI-C $'…' — a literal string
       word.literal = true;
+      word.exp--;
       let j = at + 2;
       while (j < src.length && src[j] !== "'") j += src[j] === '\\' ? 2 : 1;
       if (j >= src.length) fail();
@@ -257,9 +269,11 @@ function lex(src, start, stop, nested) {
     const m = /^[A-Za-z_][A-Za-z0-9_]*|^[0-9@*#?$!-]/.exec(src.slice(at + 1));
     if (!m) {
       word.literal = true; // a lone `$`
+      word.exp--;
       word.text += '$';
       return at + 1;
     }
+    if (word.text === '' && word.exp === 1 && ENV_HEADS.has(m[0])) word.env = m[0];
     return at + 1 + m[0].length;
   }
 }
@@ -291,10 +305,10 @@ const RESERVED_SKIP = new Set([
 /** Tokens → simple commands: { assigns, words, redirs }. */
 function commandsOf(tokens) {
   const out = [];
-  let cur = { assigns: [], words: [], redirs: [] };
-  const end = () => {
+  let cur = { assigns: [], words: [], redirs: [], pipeIn: false };
+  const end = (piped = false) => {
     const c = cur;
-    cur = { assigns: [], words: [], redirs: [] };
+    cur = { assigns: [], words: [], redirs: [], pipeIn: piped };
     // reserved words at the front
     while (
       c.words.length &&
@@ -310,7 +324,8 @@ function commandsOf(tokens) {
   for (let k = 0; k < tokens.length; k++) {
     const tk = tokens[k];
     if (tk.t === 'op') {
-      end();
+      // `a | b`: b reads a's stdout (pipeIn), which is how `maude … | tee <path>` is seen
+      end(tk.op === '|' || tk.op === '|&');
       continue;
     }
     if (tk.t === 'redir') {
@@ -369,6 +384,8 @@ const MESSAGES = {
     `use-trash: ${rel} is a versioned design file — Bash never deletes it. Move a canvas to the trash: \`maude design trash move "<canvas path>"\` (or ask the person to delete it in Canvases); remove one artboard by deleting its DCArtboard block with Edit.`,
   'use-verb': (rel) =>
     `use-verb: ${rel} is a versioned design file — Bash never moves it. Rename with \`maude design canvas move …\` (or ask the person to move it in Canvases).`,
+  'out-of-project': (path) =>
+    `out-of-project: this \`maude\` command's output would be written to ${path}, outside the project. Write inside the project or the temp dir (or drop the redirection and read the output).`,
   'not-a-writer': (rel) =>
     `not-a-writer: files in .design/ (${rel}) are written with Edit/Write or a \`maude design\` verb, so every change is checked. Edit the file instead.`,
 };
@@ -456,10 +473,13 @@ export function designVerbOf(cmd, verbs) {
 
 /**
  * The pre-bash decision for `command` run in `cwd`: { code, reason } or null (no decision).
- * Pure apart from reading nothing: the paths are judged by name, never stat'ed.
+ * The design-root rules judge paths by name and never stat; only the out-of-project check (given
+ * `root`) realpaths its targets, so a symlink in the project that points out of it is caught.
  */
-export function classifyBash(command, { cwd, designRoot }) {
+export function classifyBash(command, { cwd, designRoot, root }) {
   if (typeof command !== 'string' || !command) return null;
+  const out = root ? outOfProject(command, { cwd, root }) : null;
+  if (out) return out;
   const inDesign = (() => {
     const r = relative(designRoot, resolve(cwd ?? '/'));
     return !(r.startsWith('..') || isAbsolute(r));
@@ -611,6 +631,88 @@ export function classifyBash(command, { cwd, designRoot }) {
         });
       if (text.includes(designRoot)) named.push('.');
       if (named.length) return hit('not-a-writer', { rel: named[0] || '.' });
+    }
+  }
+  return null;
+}
+
+// ── §9 Q3: a `maude` command's redirected output stays in the project or the temp dir ─────────
+
+const OUT_OPS = new Set(['>', '>>', '>|', '&>', '&>>', '<>', '>&']);
+const DEV_SINKS = new Set(['/dev/null', '/dev/stdout', '/dev/stderr']);
+
+const within = (child, dir) => {
+  const rel = relative(dir, child);
+  return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+};
+
+/**
+ * The absolute path a redirection / `tee` operand names, or null when the reader can't know it:
+ * a literal word (`~` already expanded by the lexer; a relative one against the tracked cwd), or
+ * one whose ONLY expansion is a leading `$HOME` / `$TMPDIR` / `${HOME}` / `${TMPDIR}`. Anything
+ * else — `$OUT`, `"$DIR/x"`, `$(mktemp)`, `${HOME:-/etc}`, a relative path after `cd $X` — fails
+ * OPEN like the rest of the guard (decision v2-2.4b-bash-guard-fail-open-reader).
+ */
+function outTarget(word, here) {
+  if (!word?.text) return null;
+  let text;
+  if (word.literal && !word.exp) text = word.text;
+  else if (!word.literal && word.exp === 1 && word.env) {
+    const base = word.env === 'HOME' ? homedir() : process.env.TMPDIR || tmpdir();
+    text = base + word.text;
+  } else return null;
+  if (isAbsolute(text)) return resolve(text);
+  return here ? resolve(here, text) : null;
+}
+
+/**
+ * Q3 (contract V2-1.11 §9, §5.3): `Bash(maude:*)` is auto-approved, so `maude design … > ~/.zshenv`
+ * (or `| tee ~/.zshenv`) would write outside the project unprompted — and `confineOut()` only sees
+ * the verb's own `--out` flags. Deny `>` `>>` `>|` `&>` `&>>` `<>` `>&file` (any fd) on a `maude`
+ * command, and the operands of a `tee` the maude command feeds in the same pipeline, when the path
+ * lands outside the repo root and the OS temp dir (`/tmp` too), symlinks resolved. `/dev/null`,
+ * `/dev/stdout`, `/dev/stderr` pass. A non-maude writer (`echo x > /etc/foo`, `echo "$X" > out`
+ * after `X=$(maude …)`) is Claude Code's own permission business, not this guard's. An invariant
+ * guard, not a permission change: helpers never need it.
+ */
+function outOfProject(command, { cwd, root }) {
+  if (!/\b(?:maude|mdcc)\b/.test(command) || !/>|\btee\b/.test(command)) return null;
+  const cmds = parseBash(command);
+  if (!cmds) return null;
+  let roots = null;
+  const outside = (abs) => {
+    if (DEV_SINKS.has(abs)) return false;
+    roots ??= [...new Set([root, tmpdir(), '/tmp'].map((r) => realpathDeep(r)))];
+    const real = realpathDeep(abs);
+    return !roots.some((r) => within(real, r));
+  };
+  const hit = (abs) => ({ code: 'out-of-project', reason: MESSAGES['out-of-project'](abs) });
+  let here = cwd;
+  let fed = false; // a maude command earlier in this pipeline
+  for (const cmd of cmds) {
+    if (!cmd.pipeIn) fed = false;
+    const e = effective(cmd.words);
+    if (e && (e.name === 'cd' || e.name === 'pushd')) {
+      const to = e.args.find((a) => !isOpt(a));
+      here = !to ? homedir() : to.literal ? resolve(here ?? '/', to.text) : null;
+      continue;
+    }
+    if (maudeWords(cmd)) {
+      fed = true;
+      for (const r of cmd.redirs) {
+        if (!OUT_OPS.has(r.op)) continue;
+        // `2>&1` / `>&2` / `>&-` duplicate a descriptor, they open no file
+        if (r.op === '>&' && r.target?.literal && /^(?:\d+|-)$/.test(r.target.text)) continue;
+        const abs = outTarget(r.target, here);
+        if (abs && outside(abs)) return hit(abs);
+      }
+      continue;
+    }
+    if (fed && e?.name === 'tee') {
+      for (const a of operands(e.args)) {
+        const abs = outTarget(a, here);
+        if (abs && outside(abs)) return hit(abs);
+      }
     }
   }
   return null;

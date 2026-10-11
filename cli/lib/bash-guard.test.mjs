@@ -4,7 +4,7 @@
 // Run: node --test cli/lib/bash-guard.test.mjs
 
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -97,6 +97,125 @@ test('every reason names the next step and never says ask/allow', () => {
     assert.match(r.reason, /^(use-trash|use-verb|not-a-writer): /);
     assert.doesNotMatch(r.reason, /"(ask|allow)"/);
   }
+});
+
+// §9 Q3: a `maude` command's redirected output may land only in the project or the temp dir.
+// `Bash(maude:*)` would otherwise approve `maude design … > ~/.zshenv`, which confineOut() never sees.
+const outCode = (cmd, cwd = ROOT) =>
+  classifyBash(cmd, { cwd, designRoot: DR, root: ROOT })?.code ?? null;
+
+const OUT_DENIED = [
+  'maude design slug x > ~/.maude-poc',
+  'maude design slug x >> /etc/maude-probe',
+  'maude design slug x &> $HOME/.zshenv',
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: shell text, not a template
+  'maude design slug x &>> ${HOME}/.zshenv',
+  'maude design slug x 2> /etc/maude-err.log',
+  'maude design slug x >| /etc/maude-probe',
+  'maude design slug x >& /etc/maude-probe',
+  'maude design slug x 2>&1 > /etc/maude-probe',
+  'maude design slug x > /tmp/../etc/maude-probe',
+  'maude design slug x > ../elsewhere.txt',
+  'maude design slug x | tee /etc/maude-probe',
+  'maude design slug x 2>&1 |& tee -a ~/.bashrc',
+  'maude design slug x | grep . | tee /etc/maude-probe',
+  'cd /etc && maude design slug x > maude-probe',
+  'npx @1agh/maude design slug x > /etc/maude-probe',
+  'node /x/cli/bin/maude.mjs design slug x > /etc/maude-probe',
+  'mdcc design slug x > /etc/maude-probe',
+  'X=$(maude design slug x > /etc/maude-probe)',
+  'ls; maude design prep --json > "/etc/maude probe"',
+];
+
+const OUT_ALLOWED = [
+  'maude design slug x > /dev/null',
+  'maude design slug x 2>/dev/null',
+  'maude design slug x > /dev/stderr',
+  'maude design slug x > /dev/stdout 2>&1',
+  'maude design slug x >&2',
+  'maude design slug x > out.txt',
+  'maude design slug x > /p/notes/x.txt',
+  'maude design slug x > /tmp/x.json',
+  'maude design slug x > $TMPDIR/x.json',
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: shell text, not a template
+  'maude design slug x > ${TMPDIR}/x.json',
+  `maude design slug x > ${tmpdir()}/x.json`,
+  'maude design slug x | tee /tmp/x.json',
+  'maude design slug x | tee out.txt',
+  // a non-maude writer is Claude Code's own permission business, not this guard's
+  'echo x > /etc/foo',
+  'echo x | tee /etc/foo',
+  // the V2-1.18 compound shapes: the maude output is captured, the writer is someone else
+  'X=$(maude design prep --json) && echo "$X" > /etc/out',
+  'X=$(maude design prep --json); echo "$X" | tee /etc/out',
+  // not fed by maude in the same pipeline segment
+  'maude design slug x; echo y | tee /etc/out',
+  'maude design slug x && cat /dev/null > /etc/out',
+  // quoted `>` is text, not a redirection
+  'echo "maude design slug x > /etc/foo"',
+  'maude design annotate ui/C.tsx --text "a > /etc/b" --text \'c >> ~/.zshenv\'',
+  // a heredoc body is data
+  "cat <<'EOF' > /tmp/x.md\nmaude design slug x > /etc/foo\nEOF",
+  'maude design read-annotations ui/C.tsx <<EOF\n> /etc/foo\nEOF',
+  // an input redirection is a read
+  'maude design annotate ui/C.tsx --ops - < /etc/hosts',
+];
+
+// What the reader can't resolve fails OPEN, like the rest of the guard.
+const OUT_UNSEEN = [
+  'maude design slug x > $OUT',
+  'maude design slug x > "$DIR/x.json"',
+  'maude design slug x > $(mktemp)',
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: shell text, not a template
+  'maude design slug x > ${HOME:-/etc}/x',
+  'maude design slug x > $HOME$SUB/x',
+  'maude design slug x | tee $F',
+  'cd $X && maude design slug x > out.txt',
+  'maude design slug x > "/etc/unterminated',
+];
+
+test('out-of-project: a maude command redirected outside the project or temp dir is denied', () => {
+  for (const cmd of OUT_DENIED) assert.equal(outCode(cmd), 'out-of-project', cmd);
+});
+
+test('out-of-project: /dev/*, in-project, temp-dir and non-maude writers pass', () => {
+  for (const cmd of OUT_ALLOWED) assert.equal(outCode(cmd), null, cmd);
+});
+
+test('out-of-project: an unresolvable target fails open', () => {
+  for (const cmd of OUT_UNSEEN) assert.equal(outCode(cmd), null, cmd);
+});
+
+test('out-of-project: symlinks are resolved (a link inside the project out of it is denied)', () => {
+  // the project sits in the temp dir (allowed); its `link` points at /etc (not allowed)
+  const base = mkdtempSync(join(tmpdir(), 'maude-bg-'));
+  try {
+    const project = join(base, 'proj');
+    mkdirSync(join(project, '.design'), { recursive: true });
+    symlinkSync('/etc', join(project, 'link'));
+    const c = (cmd) =>
+      classifyBash(cmd, { cwd: project, designRoot: join(project, '.design'), root: project })
+        ?.code ?? null;
+    assert.equal(c('maude design slug x > link/maude-probe'), 'out-of-project');
+    assert.equal(c('maude design slug x > inside.txt'), null);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('out-of-project: the reason names the fix and never says ask/allow', () => {
+  const r = classifyBash('maude design slug x > /etc/maude-probe', {
+    cwd: ROOT,
+    designRoot: DR,
+    root: ROOT,
+  });
+  assert.match(
+    r.reason,
+    /^out-of-project: .*\/etc\/maude-probe.*Write inside the project or the temp dir/
+  );
+  assert.doesNotMatch(r.reason, /"(ask|allow)"/);
+  // no root → no judgement (fail-open)
+  assert.equal(code('maude design slug x > /etc/maude-probe'), null);
 });
 
 test('designVerbOf reads the verb (and a sub-verb row) from the manifest table', () => {
