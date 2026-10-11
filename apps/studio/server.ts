@@ -437,6 +437,13 @@ function startServer(port: number): BunServer {
             status: 403,
           });
         }
+        // CSWSH (Phase 2 gate): a WS handshake bypasses SOP and every page in the
+        // browser sends a loopback Host to ws://localhost, so on a desktop a drive-by
+        // site could open this realm-'main' (ungated) socket. Same check as /_ws/acp.
+        // Not in a cell: the proxy authenticates and rewrites Host (D4).
+        if (!WORKSPACE && !isSameOriginWs(req)) {
+          return new Response('collab is same-origin only', { status: 403 });
+        }
         const ok = srv.upgrade(req, {
           data: {
             id: crypto.randomUUID(),
@@ -486,6 +493,11 @@ function startServer(port: number): BunServer {
 
       // Legacy inspector WS — JSON frames, designer-facing live tab state.
       if (pathname.startsWith('/_ws')) {
+        // CSWSH (Phase 2 gate) — the shell's own socket; a drive-by Origin is refused
+        // on a desktop like /_ws/acp and collab above (a cell's proxy vouches instead).
+        if (!WORKSPACE && !isSameOriginWs(req)) {
+          return new Response('inspector is same-origin only', { status: 403 });
+        }
         const ok = srv.upgrade(req, {
           data: {
             id: crypto.randomUUID(),
