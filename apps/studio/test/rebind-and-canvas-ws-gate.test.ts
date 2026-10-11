@@ -76,9 +76,9 @@ describe('canvas-listener sockets refuse a cross-origin handshake', () => {
       expect(await get(canvasPort(), path, { Host: host, Origin: 'https://evil.example' })).toBe(
         403
       );
-      expect(await get(canvasPort(), path, { Host: host, Origin: `http://localhost:${port}` })).toBe(
-        403
-      );
+      expect(
+        await get(canvasPort(), path, { Host: host, Origin: `http://localhost:${port}` })
+      ).toBe(403);
     });
     test(`${path}: the canvas iframe's own origin passes the gate`, async () => {
       const host = `localhost:${canvasPort()}`;
