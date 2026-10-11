@@ -11,7 +11,7 @@
 // A plain GET with no Upgrade headers passes a WS gate and then fails the upgrade → 400.
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { join } from 'node:path';
 import type { Subprocess } from 'bun';
@@ -39,6 +39,7 @@ function get(p: number, path: string, headers: Record<string, string>): Promise<
 beforeAll(async () => {
   box = makeSandbox();
   writeFileSync(join(box.root, '.env'), 'SECRET=planted\n');
+  mkdirSync(join(box.designRoot, 'assets'), { recursive: true });
   port = nextPort();
   proc = await bootServer(box.root, port, {
     MAUDE_NO_AUTOBUILD: '1',
@@ -62,6 +63,11 @@ afterAll(async () => {
 describe('DNS rebinding: the repo-file lane answers loopback hosts only', () => {
   test('a rebound Host cannot read /.env', async () => {
     expect(await get(port, '/.env', { Host: `attacker.example:${port}` })).toBe(403);
+  });
+  test('a rebound Host cannot read project media through /assets/ either', async () => {
+    writeFileSync(join(box.designRoot, 'assets', 'planted.png'), 'x');
+    expect(await get(port, '/assets/planted.png', { Host: `attacker.example:${port}` })).toBe(403);
+    expect(await get(port, '/assets/planted.png', { Host: `localhost:${port}` })).toBe(200);
   });
   test('the studio itself still reads repo files', async () => {
     expect(await get(port, '/.env', { Host: `localhost:${port}` })).toBe(200);

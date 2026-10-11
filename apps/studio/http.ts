@@ -6347,6 +6347,8 @@ export function createHttp(
       // the canvas origin). Without this, every src the timeline insert /
       // replace / assemble writers emit 404'd in the Player.
       if (pathname.startsWith('/assets/')) {
+        // DNS rebinding (Phase 2 gate) — the same Host check as the repo-file lane below.
+        if (!isTrustedRequestHost(req)) return new Response('Forbidden', { status: 403 });
         let name = '';
         try {
           name = decodeURIComponent(pathname.slice('/assets/'.length));
