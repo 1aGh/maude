@@ -27,6 +27,7 @@
 // (matches the locator.ts pattern). Two parallel edits against different
 // canvases run in parallel.
 
+import { existsSync, realpathSync } from 'node:fs';
 import { mkdir, open, stat, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -5676,19 +5677,117 @@ function jsKey(prop: string): string {
 //
 // Layout:  bun run canvas-edit.ts --invoke <canvas> <id> <attr> <value>
 
+/** A refusal of the CLI path, with the exit code `canvas-edit.sh` passes through. */
+export class CliRefusal extends Error {
+  constructor(
+    message: string,
+    readonly exitCode: 1 | 2
+  ) {
+    super(message);
+  }
+}
+
+const PICK_CANVAS = "Pick a canvas inside the project's design folder";
+
+/**
+ * V2-2.4b gate — where the CLI may write. `maude design canvas-edit` is an
+ * auto-tier verb (the AI reaches it with no prompt), so the canvas must
+ * resolve — symlinks followed — to a `.tsx`/`.jsx` inside THIS project's
+ * `.design/` (the nearest `.design/config.json` at or above
+ * `$CLAUDE_PROJECT_DIR`, else the cwd), outside its `_*` runtime dirs and
+ * dot-folders. A relative path is tried design-root-relative first (`ui/C.tsx`,
+ * as the verbs take it), then cwd-relative. Returns the real path to edit.
+ */
+export function resolveCliCanvas(
+  arg: string,
+  { cwd = process.cwd(), projectDir = process.env.CLAUDE_PROJECT_DIR } = {}
+): { abs: string; rel: string } {
+  let cur = path.resolve(projectDir || cwd);
+  let root: string | null = null;
+  for (;;) {
+    if (existsSync(path.join(cur, '.design', 'config.json'))) {
+      root = cur;
+      break;
+    }
+    const up = path.dirname(cur);
+    if (up === cur) break;
+    cur = up;
+  }
+  if (!root) throw new CliRefusal(`${PICK_CANVAS} — no .design/ found from ${cwd}.`, 2);
+  const designRoot = realpathSync(path.join(root, '.design'));
+  const candidates = path.isAbsolute(arg)
+    ? [arg]
+    : [path.join(root, '.design', arg), path.resolve(cwd, arg)];
+  const found = candidates.find((c) => existsSync(c));
+  if (!found) throw new CliRefusal(`file not found: ${arg}`, 1);
+  const abs = realpathSync(found);
+  const rel = path.relative(designRoot, abs).split(path.sep).join('/');
+  const segs = rel.split('/');
+  if (
+    !rel ||
+    rel.startsWith('..') ||
+    path.isAbsolute(rel) ||
+    segs[0]?.startsWith('_') ||
+    segs.some((s) => s.startsWith('.')) ||
+    !/\.[jt]sx$/.test(rel)
+  )
+    throw new CliRefusal(
+      `${PICK_CANVAS} (${designRoot}/…, not a _ runtime folder) — ${arg} is outside it.`,
+      2
+    );
+  return { abs, rel };
+}
+
+/**
+ * V2-2.19 — a locked element (`data-cd-locked`), or anything inside one, is the
+ * person's: the CLI refuses it with the same `soft-locked` wording the
+ * pre-edit hook's `edit/check` uses. The innermost element whose span holds the
+ * first changed byte is the edit's target (an attribute edit only rewrites that
+ * element's opening tag); it and its ancestors are checked.
+ */
+export function assertCliEditUnlocked(rel: string, before: string, after: string): void {
+  let at = 0;
+  while (at < before.length && before.charCodeAt(at) === after.charCodeAt(at)) at++;
+  if (at === before.length && before.length === after.length) return;
+  const w = walkIdElements(before, rel);
+  if (!w.ok) return;
+  let target = -1;
+  for (const e of w.elements) if (e.start <= at && at < e.end) target = e.i;
+  for (let i = target; i >= 0; i = w.elements[i]?.parent ?? -1) {
+    const e = w.elements[i];
+    if (!e) break;
+    if (!e.locked) continue;
+    const name = e.id ?? `<${e.tag}>`;
+    const where = e.artboard ? ` in ${e.artboard}` : '';
+    const inside = i === target ? '' : ' (the element is inside it)';
+    throw new CliRefusal(
+      `soft-locked: ${name}${where} is locked${inside} — leave it as it is. ` +
+        'Undo the change to it, or ask the person to unlock it (⇧⌘L). Change the rest without touching it.',
+      1
+    );
+  }
+}
+
 if (import.meta.main) {
   const argv = process.argv.slice(2);
   if (argv[0] === '--invoke' && argv.length === 5) {
-    const [, canvas, id, attr, value] = argv;
-    if (!canvas || !id || !attr || value === undefined) {
+    const [, arg, id, attr, value] = argv;
+    if (!arg || !id || !attr || value === undefined) {
       console.error('canvas-edit: --invoke needs <canvas> <id> <attr> <value>');
       process.exit(2);
     }
     try {
+      const { abs: canvas, rel } = resolveCliCanvas(arg);
+      const before = await Bun.file(canvas).text();
+      assertCliEditUnlocked(rel, before, applyEdit(canvas, before, id, attr, value).source);
       const r = await editAttribute(canvas, id, attr, value);
       console.log(JSON.stringify({ canvas, id, delta: r.delta }));
       process.exit(0);
     } catch (err) {
+      if (err instanceof CliRefusal) {
+        console.error(`canvas-edit: ${err.message}`);
+        process.exit(err.exitCode);
+      }
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`canvas-edit: ${msg}`);
       process.exit(2);
