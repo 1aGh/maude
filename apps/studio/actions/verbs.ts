@@ -88,6 +88,10 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   // `comments list` reads threads. Replying / resolving / adding as the AI are S9's sub-verbs and
   // fall to `comments` below (shared → prompt).
   d('comments list', 'none'),
+  // The Exports panel (S8). `again` re-submits a history entry the way the sheet's "Export again"
+  // row does and writes the file inside the project (--out confined); other sub-verbs prompt.
+  d('exports list', 'none'),
+  d('exports again', 'project', { note: 'writes the export inside the project (--out confined)' }),
   // ── `maude design`, effect project (writes versioned files of this project) ──────────────
   d('annotate', 'project'),
   d('canvas-edit', 'project'),
@@ -126,6 +130,9 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
     note: 'the whole canvas back to an old version, landed as a NEW version over Now (C5)',
   }),
   d('history undo', 'shared', { note: 'undoes an accepted action for everyone (V2-1.5)' }),
+  d('exports', 'external', {
+    note: 'a sub-verb not tiered above (a cloud render lane, a retry) prompts until it gets its own entry',
+  }),
   d('comments', 'shared', {
     note: 'any sub-verb but `list` posts or resolves where others see it (S9: reply/resolve/add --as-ai)',
   }),

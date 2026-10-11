@@ -2,7 +2,7 @@
   "generated": "scripts/gen-actions.mjs — do not edit by hand",
   "format": "maude.actions-manifest",
   "v": 1,
-  "manifestVersion": "587c59978fb9",
+  "manifestVersion": "0d7b2b433d20",
   "actions": [
     {
       "id": "search.open",
@@ -1598,6 +1598,18 @@
     },
     {
       "scope": "design",
+      "verb": "design exports list",
+      "effect": "none",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
+      "verb": "design exports again",
+      "effect": "project",
+      "tier": "auto"
+    },
+    {
+      "scope": "design",
       "verb": "design annotate",
       "effect": "project",
       "tier": "auto"
@@ -1763,6 +1775,12 @@
       "scope": "design",
       "verb": "design history undo",
       "effect": "shared",
+      "tier": "prompt"
+    },
+    {
+      "scope": "design",
+      "verb": "design exports",
+      "effect": "external",
       "tier": "prompt"
     },
     {
