@@ -2,8 +2,8 @@
 // share (V2-1.13 §5.3.2 theme rule, §5.5 `declaredBy`). File access goes through `DsFs` so
 // the migrator (V2-2.14) and tests can feed bytes without a real tree.
 
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, relative } from 'node:path';
 import { type CssRule, ownCustomProperties, scanCssRules, splitSelectorList } from './css-scan.ts';
 
 /** designRoot-relative file access. */
@@ -222,6 +222,52 @@ export function declFor(model: SystemModel, name: string, theme: string): Declar
   let hit: Declaration | null = null;
   for (const d of list) if (d.themes.includes(theme)) hit = d;
   return hit;
+}
+
+const SYSTEM_NAME = /^[\w .-]{1,64}$/;
+
+/** `abs` resolved through every symlink that exists on the way (a not-yet-written leaf keeps its
+ *  lexical tail), so a planted `system/<ds>` → `/elsewhere` link is seen for what it is. */
+function realish(abs: string): string {
+  let head = abs;
+  const tail: string[] = [];
+  for (;;) {
+    try {
+      return join(realpathSync(head), ...tail.reverse());
+    } catch {
+      const up = dirname(head);
+      if (up === head) return abs;
+      tail.push(basename(head));
+      head = up;
+    }
+  }
+}
+
+/**
+ * Why the files `ds-check --emit` / `ds-upgrade --stage|--apply` would write for `cfg` are not
+ * this project's to write, or null. The hub sanitises its copy of `designSystems[]`; a cloned
+ * project's LOCAL `config.json` is not, so its `path` / `tokensCssRel` / `name` could aim the
+ * tokens.json / CSS / staging writes outside `.design/`. A system lives at `system/<ds>/`
+ * (V2-1.13): both the folder and the tokens CSS must resolve — realpath, symlinks followed —
+ * strictly under `<designRoot>/system/`; the CSS must be a `.css`; the name (a staging folder
+ * under `_state/ds-upgrade/`) must be a plain name. One line, for a refusal.
+ */
+export function systemWriteViolation(designRootAbs: string, cfg: SystemConfig): string | null {
+  if (!SYSTEM_NAME.test(cfg.name) || /^\.+$/.test(cfg.name.trim()))
+    return `${JSON.stringify(cfg.name).slice(0, 80)} is not a design-system name`;
+  const base = realish(join(designRootAbs, 'system'));
+  const under = (rel: string) => {
+    if (!rel || isAbsolute(rel) || /[\\\0]/.test(rel) || /(^|\/)\.\.(\/|$)/.test(rel)) return false;
+    const r = relative(base, realish(join(designRootAbs, rel)));
+    return !!r && !r.startsWith('..') && !isAbsolute(r);
+  };
+  if (!under(cfg.path))
+    return `${cfg.name}: ${cfg.path.slice(0, 120)} is outside .design/system/ — refusing to write there`;
+  if (!under(cfg.tokensCssRel))
+    return `${cfg.name}: ${cfg.tokensCssRel.slice(0, 120)} is outside .design/system/ — refusing to write there`;
+  if (!/\.css$/i.test(cfg.tokensCssRel))
+    return `${cfg.name}: ${cfg.tokensCssRel.slice(0, 120)} is not a .css file — refusing to write it`;
+  return null;
 }
 
 /** System config entries from `.design/config.json` (+ project-level knobs). */

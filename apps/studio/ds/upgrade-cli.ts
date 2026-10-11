@@ -10,7 +10,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { EXIT, loadProject, selectSystems, UsageError } from './cli.ts';
 import { indexRegistry, loadRegistry } from './registry.ts';
-import { diskFs, loadSystem } from './system.ts';
+import { diskFs, loadSystem, systemWriteViolation } from './system.ts';
 import {
   applySystemPlan,
   mergeJudged,
@@ -50,6 +50,10 @@ export function runDsUpgrade(
       );
     const project = loadProject(root, env);
     const [cfg] = selectSystems(project, names);
+    // a cloned project's config names the staging folder and the CSS --apply rewrites
+    const outside =
+      step === 'stage' || step === 'apply' ? systemWriteViolation(project.designRoot, cfg) : null;
+    if (outside) return out(EXIT.refused, '', `ds-upgrade: ${outside}\n`);
     const idx = indexRegistry(loadRegistry());
     const fs = diskFs(project.designRoot);
     const model = loadSystem(fs, cfg);

@@ -7,7 +7,13 @@ import { runCanvasModes } from './canvas-cli.ts';
 import { checkSystem, type SystemReport } from './check.ts';
 import { emitTokensJson } from './emit.ts';
 import { indexRegistry, loadRegistry } from './registry.ts';
-import { diskFs, loadSystem, type SystemConfig, systemConfigsFrom } from './system.ts';
+import {
+  diskFs,
+  loadSystem,
+  type SystemConfig,
+  systemConfigsFrom,
+  systemWriteViolation,
+} from './system.ts';
 
 export const EXIT = {
   ok: 0,
@@ -160,6 +166,12 @@ export function emitManifests(
   const refused: string[] = [];
   const pending: { abs: string; text: string; rel: string }[] = [];
   for (const s of systems) {
+    // a cloned project's config names the write targets — they stay under .design/system/
+    const outside = systemWriteViolation(project.designRoot, s);
+    if (outside) {
+      refused.push(outside);
+      continue;
+    }
     const model = loadSystem(fs, s);
     if (model.converted) {
       refused.push(`${s.name}: converted (revisions/head.json) — the app owns tokens.json`);
