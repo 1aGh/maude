@@ -6,6 +6,11 @@
 #   history.sh list [<canvas>] [--limit N] [--json]      # versions, newest first        (read-only)
 #   history.sh show <ref> [<canvas>] [--json]            # one version                   (read-only)
 #   history.sh diff [<canvas>] [--from <ref>] [--json]   # what changed since <ref>      (read-only)
+#   history.sh restore <canvas> <ref>                    # whole canvas → <ref>, as a NEW version
+#   history.sh undo --action <id> [--redo]               # undo one action, as a new version
+#
+# restore / undo change the project (destructive / shared → the AI chat asks first); a local
+# project has neither and says so.
 #
 # Asks the project's running studio: a synced project answers its accepted versions (r<n>), a
 # local one its git log. Exit 0 ok · 1 not found / not available · 2 usage · 3 no studio running.

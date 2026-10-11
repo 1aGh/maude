@@ -21,12 +21,17 @@ import {
 export const USAGE = `usage: maude design history list [<canvas>] [--limit N] [--json] [--root <project>]
        maude design history show <ref> [<canvas>] [--json] [--root <project>]
        maude design history diff [<canvas>] [--from <ref>] [--json] [--root <project>]
+       maude design history restore <canvas> <ref> [--json] [--root <project>]
+       maude design history undo --action <id> [--redo] [--json] [--root <project>]
   <canvas>  design-root-relative (ui/home.tsx), .design/…, or absolute
   <ref>     r<n> (a synced project's version) or a commit sha (a local project's)
   list      the versions, newest first
   show      one version: who, when, what it was, the canvases it touched
   diff      what changed since <ref> (default: the last commit) — local projects
-Read-only. Exit 0 ok · 1 not found / not available · 2 usage · 3 no studio running.
+  restore   the whole canvas back to <ref>, as a NEW version (Now stays in the history) — synced
+  undo      undo (or --redo) one action, as a new version — synced
+list / show / diff read only; restore / undo change the project and ask first.
+Exit 0 ok · 1 not found / refused / not available · 2 usage · 3 no studio running.
 `;
 
 const SHA = /^[0-9a-f]{7,40}$/i;
@@ -180,6 +185,81 @@ async function diff(words) {
   return 0;
 }
 
+// ── writes (prompt tier: `history` is destructive in verbs.ts) ──────────────────────────────
+
+/** `restore <canvas> <ref>` — the WHOLE canvas back to a version, landed as a NEW version (C5):
+ *  Now stays in the history. One-artboard / one-element restore is S1's, so no flag for it. */
+async function restore(words) {
+  const { flags, pos } = parseWords(words, { bool: ['--json'], value: ['--root'] });
+  if (pos.length !== 2) throw new UsageError('restore takes <canvas> <ref>');
+  const [canvas, ref] = /\.(tsx|html)$/i.test(pos[0]) ? pos : [pos[1], pos[0]];
+  const m = REV.exec(ref);
+  if (!m) throw new UsageError(`${ref} is not a version (r<n>)`);
+  const c = await connect('history', flags['--root']);
+  if (c.exit) return c.exit;
+  const repoRel = canvasArg(c.root, canvas);
+  const revision = Number(m[1]);
+  const r = await call(c.studio, '/_api/project/restore', {
+    method: 'POST',
+    json: { path: repoRel, revision },
+  });
+  return landed(r, flags['--json'], {
+    legacy:
+      'restoring a version needs a synced project — this one keeps its history in git, and Maude does not rewrite it',
+    ok: () =>
+      `→ restored ${repoRel.replace(/^\.design\//, '')} to r${revision} as a new version (the version before it stays in the history)`,
+  });
+}
+
+/** `undo --action <id> [--redo]` — undo (or redo) one accepted action as a new version
+ *  (V2-1.5 §5.3; V2-1.9 §5.11 spelling). `--chat <id>` needs the chat-undo route V2-1.5 adds. */
+async function undo(words) {
+  const { flags, pos } = parseWords(words, {
+    bool: ['--json', '--redo'],
+    value: ['--action', '--chat', '--root'],
+  });
+  if (pos.length) throw new UsageError('undo takes --action <id>');
+  if (flags['--chat'] !== undefined) {
+    process.stderr.write(
+      'maude design history undo: undoing a whole chat is not available yet — undo its actions one by one with --action <id>\n'
+    );
+    return 1;
+  }
+  const actionId = flags['--action'];
+  if (!actionId) throw new UsageError('undo takes --action <id>');
+  const c = await connect('history', flags['--root']);
+  if (c.exit) return c.exit;
+  const redo = flags['--redo'] === true;
+  const r = await call(c.studio, '/_api/project/undo', {
+    method: 'POST',
+    json: { actionId, redo },
+  });
+  return landed(r, flags['--json'], {
+    legacy: 'undoing an action needs a synced project',
+    ok: (b) =>
+      `→ ${redo ? 'redid' : 'undid'} ${clean(actionId)}${b.actionId ? ` (new version ${clean(b.actionId)})` : ''}`,
+  });
+}
+
+function landed(r, asJson, say) {
+  if (!r) throw new Error('the studio did not answer');
+  const b = r.body ?? {};
+  if (r.status === 200 && b.ok) {
+    process.stdout.write(asJson ? `${JSON.stringify(b)}\n` : `${say.ok(b)}\n`);
+    return 0;
+  }
+  if (r.status === 200 && b.reason === 'legacy') {
+    process.stderr.write(`maude design history: ${say.legacy}\n`);
+    return 1;
+  }
+  if (r.status === 400) throw new UsageError(clean(r.text).slice(0, 200));
+  const why = b.code ?? b.reason ?? (r.text ? clean(r.text).slice(0, 200) : `HTTP ${r.status}`);
+  process.stderr.write(
+    `maude design history: refused (${clean(why)})${b.queued ? ' — queued' : ''}\n`
+  );
+  return 1;
+}
+
 function notFound(ref, repoRel) {
   process.stderr.write(
     `maude design history: no version ${ref}${repoRel ? ` of ${repoRel.replace(/^\.design\//, '')}` : ''} — \`maude design history list\` lists them\n`
@@ -227,7 +307,7 @@ export function unified({ file, before, now }) {
   return s;
 }
 
-const SUBS = { list, show, diff };
+const SUBS = { list, show, diff, restore, undo };
 
 if (import.meta.main) {
   runVerb('history', USAGE, async (words) => {

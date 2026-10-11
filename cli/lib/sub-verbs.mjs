@@ -22,7 +22,7 @@ export const SUB_VERBS = {
     validate: { step: '--validate', plan: true },
   },
   // V2-2.4b (contract V2-1.11 §5.3). Each sub-verb has its own tier entry.
-  history: { list: NATIVE, show: NATIVE, diff: NATIVE },
+  history: { list: NATIVE, show: NATIVE, diff: NATIVE, restore: NATIVE, undo: NATIVE },
 };
 
 const STEP_FLAGS = {

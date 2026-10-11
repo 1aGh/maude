@@ -119,6 +119,10 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
     note: '`apply` rewrites system files (V2-1.13 §5.10); `stage` and the flag forms prompt too',
   }),
   d('bulk-deletes', 'shared'),
+  d('history restore', 'destructive', {
+    note: 'the whole canvas back to an old version, landed as a NEW version over Now (C5)',
+  }),
+  d('history undo', 'shared', { note: 'undoes an accepted action for everyone (V2-1.5)' }),
   d('history', 'destructive', {
     note: '`restore` puts an old version over Now (as a new version, C5); any sub-verb but list/show/diff prompts',
   }),

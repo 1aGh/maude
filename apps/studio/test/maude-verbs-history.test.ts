@@ -159,3 +159,71 @@ describe('maude design history — usage', () => {
     expect(r.code).toBe(3);
   });
 });
+
+describe('maude design history restore / undo (prompt tier)', () => {
+  const writer =
+    (answer: Record<string, unknown>, status = 200) =>
+    (s: Seen) => {
+      if (s.path === '/_api/project/restore' || s.path === '/_api/project/undo')
+        return json(answer, status);
+      return synced(s);
+    };
+
+  test('restore <canvas> <ref> posts { path, revision }: the whole canvas, as a new version', async () => {
+    studio = fakeStudio(writer({ ok: true, status: 'accepted' }));
+    const r = await studio.run('history', ['restore', 'ui/home.tsx', 'r11']);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain('new version');
+    expect(writes(studio.seen)).toEqual([
+      {
+        method: 'POST',
+        path: '/_api/project/restore',
+        query: {},
+        body: { path: '.design/ui/home.tsx', revision: 11 },
+      },
+    ]);
+  });
+
+  test('restore takes the operands in either order; no --artboard (one-artboard restore is S1)', async () => {
+    studio = fakeStudio(writer({ ok: true, status: 'accepted' }));
+    expect((await studio.run('history', ['restore', '11', 'ui/home.tsx'])).code).toBe(0);
+    expect(writes(studio.seen)[0]?.body).toEqual({ path: '.design/ui/home.tsx', revision: 11 });
+    const r = await studio.run('history', ['restore', 'ui/home.tsx', 'r11', '--artboard', 'a1']);
+    expect(r.code).toBe(2);
+    expect(writes(studio.seen)).toHaveLength(1);
+  });
+
+  test('a local project has no restore: one clear line, exit 1, no git fallback', async () => {
+    studio = fakeStudio(writer({ ok: false, reason: 'legacy' }));
+    const r = await studio.run('history', ['restore', 'ui/home.tsx', 'r3']);
+    expect(r.code).toBe(1);
+    expect(r.stderr.trim().split('\n')).toHaveLength(1);
+    expect(r.stderr).toContain('needs a synced project');
+    expect(studio.seen.filter((s) => s.path.startsWith('/_api/git'))).toEqual([]);
+  });
+
+  test('a refused restore names the reason', async () => {
+    studio = fakeStudio(writer({ ok: false, status: 'rejected', code: 'stale' }, 409));
+    const r = await studio.run('history', ['restore', 'ui/home.tsx', 'r3']);
+    expect(r.code).toBe(1);
+    expect(r.stderr).toContain('stale');
+  });
+
+  test('undo --action <id> [--redo] posts { actionId, redo }', async () => {
+    studio = fakeStudio(writer({ ok: true, status: 'accepted', actionId: 'a_20' }));
+    expect((await studio.run('history', ['undo', '--action', 'a_12'])).code).toBe(0);
+    expect((await studio.run('history', ['undo', '--action', 'a_12', '--redo'])).code).toBe(0);
+    expect(writes(studio.seen).map((s) => s.body)).toEqual([
+      { actionId: 'a_12', redo: false },
+      { actionId: 'a_12', redo: true },
+    ]);
+  });
+
+  test('undo --chat is not available yet (no chat-undo route): exit 1 before any request', async () => {
+    studio = fakeStudio(writer({ ok: true }));
+    const r = await studio.run('history', ['undo', '--chat', 'c1']);
+    expect(r.code).toBe(1);
+    expect(writes(studio.seen)).toEqual([]);
+    expect((await studio.run('history', ['undo'])).code).toBe(2);
+  });
+});

@@ -396,6 +396,8 @@ Studio (talk to the running Maude window — contract V2-1.11 §5.3):
         Show it in the user's Maude window. Exit 3 when no window shows this project.
   history list|show|diff [<canvas>] [--json]
         This project's versions (a synced project's, or its git log). Read-only.
+  history restore <canvas> <ref> · history undo --action <id> [--redo]
+        Restore a canvas / undo an action, each as a NEW version (synced projects). Asks first.
   hook prompt|pre-edit|post-edit|pre-bash|post-bash|stop|subagent-start|session-start
         The design plugin's Claude Code hooks (hook JSON on stdin). Deny-only, fail-open: exit 0.
 
