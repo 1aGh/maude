@@ -58,7 +58,8 @@ import {
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import { classifyBash, designVerbOf, designWritesSince, parseBash } from './bash-guard.mjs';
-import { cleanText, findingLine } from './finding-text.mjs';
+import { realpathDeep } from './confine-out.mjs';
+import { cleanText, fileText, findingLine } from './finding-text.mjs';
 import { DESIGN_REL, findProjectRoot, locateStudio, postStudio } from './studio-locate.mjs';
 
 export const HOOK_EVENTS = [
@@ -411,29 +412,42 @@ const RUN_CONTROL_RE =
  * `fenceOf` is a thunk (agents.json is read only for a sub-agent writing under _runs/).
  */
 function runtimeGuard(input, rel, fenceOf) {
-  if (HARNESS_RE.test(rel)) {
-    const verb = rel.startsWith('_draw/') ? 'draw-proof' : 'photo-bg-remove';
+  // Names compared case-insensitively (F2): on a case-insensitive file system `_RUNS/AGENTS.JSON`
+  // IS `_runs/agents.json`, and a name not on disk yet keeps the case it was typed in. An allow
+  // (`output`, `owns`) stays exact — only the refusals widen.
+  const lc = rel.toLowerCase();
+  if (HARNESS_RE.test(lc)) {
+    const verb = lc.startsWith('_draw/') ? 'draw-proof' : 'photo-bg-remove';
     return {
       code: 'not-a-writer',
-      reason: `not-a-writer: ${DESIGN_REL}/${rel} is a local harness \`maude design ${verb}\` generates — it is never written by hand or by Bash. Run \`maude design ${verb}\` instead.`,
+      reason: `not-a-writer: ${shownRel(rel)} is a local harness \`maude design ${verb}\` generates — it is never written by hand or by Bash. Run \`maude design ${verb}\` instead.`,
     };
   }
-  if (!isSubagent(input) || !(rel === '_runs' || rel.startsWith('_runs/'))) return null;
+  if (!isSubagent(input) || !(lc === '_runs' || lc.startsWith('_runs/'))) return null;
   const f = fenceOf();
   if (f.error) return { code: 'out-of-scope', reason: fenceReason(input, f.error) };
   const repoRel = `${DESIGN_REL}/${rel}`;
   if (f.hs.some((h) => h.doc.output === repoRel)) return null;
-  if (!RUN_CONTROL_RE.test(rel) && f.hs.some((h) => ownsPath(h.doc, repoRel))) return null;
+  if (!RUN_CONTROL_RE.test(lc) && f.hs.some((h) => ownsPath(h.doc, repoRel))) return null;
   const outs = f.hs.map((h) => h.doc.output);
   return {
     code: 'out-of-scope',
-    reason: `out-of-scope: ${input.agent_type ?? 'a sub-agent'} never writes ${repoRel} — the run folder's hand-offs, agents.json and snapshots belong to the main agent and the hooks.${outs.length ? ` Write your result to ${outs.slice(0, 3).join(' or ')}.` : ''}`,
+    reason: `out-of-scope: ${input.agent_type ?? 'a sub-agent'} never writes ${shownRel(rel)} — the run folder's hand-offs, agents.json and snapshots belong to the main agent and the hooks.${outs.length ? ` Write your result to ${outs.slice(0, 3).map(shownPath).join(' or ')}.` : ''}`,
   };
 }
 
 /** The run id the hand-offs carry: stable per session, no studio needed (V2-1.18 §5.1 shape). */
 const runIdOf = (ctx) => `r_${sha(ctx.session).slice(0, 16)}`;
-const repoRelOf = (ctx, abs) => relative(ctx.root, abs).split(sep).join('/');
+/** A design path as a reason names it: plain when it is plain, else cleaned + quoted (F3). */
+const PLAIN_REL_RE = /^[A-Za-z0-9 _./()*-]{1,240}$/;
+const shownPath = (r) => (PLAIN_REL_RE.test(r) ? r : fileText(r, 200));
+const shownRel = (rel) => shownPath(`${DESIGN_REL}/${rel}`);
+/** An artboard id as a reason names it (the studio's AGENT_ID_RE, else cleaned + quoted). */
+const shownId = (id) =>
+  typeof id === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(id) ? id : fileText(id);
+/** The studio's pre-edit deny reason as it is forwarded: one line, capped (F3 second net). */
+export const STUDIO_REASON_MAX = 800;
+export const studioReason = (reason) => cleanText(reason, STUDIO_REASON_MAX);
 
 /** semver `a` < `b` (x.y.z, a prerelease before its release). Unparseable → false. */
 export function versionOlder(a, b) {
@@ -566,14 +580,26 @@ function writeVerbs(ctx, command) {
   return out;
 }
 
-/** The designRoot-relative POSIX path of the tool's target, runtime ones included; null outside. */
+/** The design root as the kernel names it (symlinks followed, on-disk case), once per ctx. */
+const designReal = (ctx) => {
+  ctx.designReal ??= realpathDeep(ctx.designRoot);
+  return ctx.designReal;
+};
+
+/**
+ * The designRoot-relative POSIX path of the tool's target, runtime ones included; null outside.
+ * Classified by the file the kernel opens, not by the text (F2): every existing segment
+ * realpath'd — symlinks followed, `..` popped after them, the on-disk case on a case-insensitive
+ * file system — the missing tail kept as written, relative to the realpath'd design root.
+ */
 function designTarget(ctx, input) {
   const ti = input.tool_input ?? {};
   const p = ti.file_path ?? ti.notebook_path;
-  if (typeof p !== 'string' || !p) return null;
-  const abs = resolve(typeof input.cwd === 'string' ? input.cwd : process.cwd(), p);
-  const rel = relative(ctx.designRoot, abs);
-  if (!rel || rel.startsWith('..') || isAbsolute(rel)) return null;
+  if (typeof p !== 'string' || !p || p.includes('\0')) return null;
+  const cwd = typeof input.cwd === 'string' ? input.cwd : process.cwd();
+  const abs = realpathDeep(isAbsolute(p) ? p : `${cwd}${sep}${p}`);
+  const rel = relative(designReal(ctx), abs);
+  if (!rel || rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) return null;
   const posix = rel.split(sep).join('/');
   const runtime = posix.startsWith('_') || posix.split('/').some((s) => s.startsWith('.'));
   return { abs, rel: posix, runtime };
@@ -694,11 +720,14 @@ async function preEdit(ctx, input) {
   // 0. a sub-agent spawned with a hand-off writes only what it `owns` (V2-1.18 §5.4 (a))
   if (isSubagent(input)) {
     const hs = fenceOf().hs;
-    const repoRel = repoRelOf(ctx, t.abs);
+    const repoRel = `${DESIGN_REL}/${t.rel}`;
     if (hs.length && !hs.some((h) => ownsPath(h.doc, repoRel))) {
-      const owns = [...new Set(hs.flatMap((h) => h.doc.owns))].slice(0, 6).join(', ');
+      const owns = [...new Set(hs.flatMap((h) => h.doc.owns))]
+        .slice(0, 6)
+        .map(shownPath)
+        .join(', ');
       return deny(
-        `out-of-scope: ${input.agent_type ?? 'this agent'} writes only what its hand-off owns (${owns}) — ${repoRel} is not in it. Put the change in your hand-off result and let the main agent apply it.`
+        `out-of-scope: ${input.agent_type ?? 'this agent'} writes only what its hand-off owns (${owns}) — ${shownRel(t.rel)} is not in it. Put the change in your hand-off result and let the main agent apply it.`
       );
     }
   }
@@ -744,7 +773,7 @@ async function preEdit(ctx, input) {
     { timeoutMs: 600 }
   );
   if (r?.status === 200 && r.body?.decision === 'deny' && typeof r.body.reason === 'string')
-    return deny(r.body.reason);
+    return deny(studioReason(r.body.reason));
   return null;
 }
 
@@ -796,12 +825,13 @@ function missingShots(ctx, touched) {
     const shots = shotsOf(ctx, rel, t.at ?? 0);
     if (shots.some((s) => s.all === true)) continue;
     if (!Array.isArray(t.artboards)) {
-      if (!shots.length) missing.push(rel);
+      if (!shots.length) missing.push(shownPath(rel));
       continue;
     }
     const exist = new Set([...src.matchAll(ARTBOARD_ID_RE)].map((m) => m[1]));
     for (const id of t.artboards)
-      if (exist.has(id) && !shots.some((s) => s.artboard === id)) missing.push(`${rel} › ${id}`);
+      if (exist.has(id) && !shots.some((s) => s.artboard === id))
+        missing.push(`${shownPath(rel)} › ${shownId(id)}`);
   }
   return missing;
 }

@@ -15,6 +15,11 @@
 // never denied: `maude design read-annotations x | python3 -c "json.load…"`, `cp .design/x /tmp`.
 // Runtime paths (a `_*` or hidden first segment under the design root) are free.
 //
+// A path is judged by the file the kernel opens (Phase 2 gate F2): realpath'd segment by segment,
+// so a symlink, a `..` walk or a case alias (`.DESIGN` on case-insensitive APFS) is the design
+// root it reaches. RESIDUAL: a node -e / python -c script that reaches the root by another name
+// (a symlink, `path.join('.de', 'sign')`) is not seen — the script is text, not a path.
+//
 // Also: which `maude design` verb a command runs (post-bash binds a write verb's writes to the run)
 // and `designWritesSince`, the bounded mtime walk that finds them.
 //
@@ -379,6 +384,14 @@ const INTERPRETERS = {
 const SCRIPT_WRITES =
   /\b(?:writeFile(?:Sync)?|appendFile(?:Sync)?|createWriteStream|rmSync|unlink(?:Sync)?|rename(?:Sync)?|copyFile(?:Sync)?|cpSync|truncate(?:Sync)?|Bun\.write|write_text|write_bytes|os\.remove|os\.replace|os\.rename|shutil\.\w+|File\.write|FileUtils)\b|\bopen\s*\([^)]*['"][wax+]b?['"]|\bmode\s*=\s*['"][wax+]|\bopen\s*\([^)]*['"]\+?>{1,2}/;
 
+/**
+ * Every command name the rules below judge (wrappers name it later in the same text), and every
+ * redirection operator. A command with none of them can't be denied, so it is never parsed.
+ * Over-matching (a name inside a word) only costs the parse.
+ */
+const JUDGED_RE =
+  />|\b(?:rm|unlink|rmdir|shred|trash|git|find|mv|cp|rsync|install|ditto|tee|g?sed|perl|node|bun|deno|python|ruby)/;
+
 const MESSAGES = {
   'use-trash': (rel) =>
     `use-trash: ${rel} is a versioned design file — Bash never deletes it. Move a canvas to the trash: \`maude design trash move "<canvas path>"\` (or ask the person to delete it in Canvases); remove one artboard by deleting its DCArtboard block with Edit.`,
@@ -392,14 +405,17 @@ const MESSAGES = {
 
 /**
  * The design-root view of one word: { rel, runtime } when it names a path inside the design root,
- * null when it doesn't (or can't be seen).
+ * null when it doesn't (or can't be seen). Judged by the file the kernel opens (Phase 2 gate F2):
+ * the word is joined to the cwd unnormalised and realpath'd segment by segment (confine-out
+ * `realpathDeep` — symlinks followed, `..` popped after them, the on-disk case), then made
+ * relative to the realpath'd design root. `designReal` is that root.
  */
-function designPath(word, cwd, designRoot) {
-  if (!word?.literal || !word.text) return null;
+function designPath(word, cwd, designReal) {
+  if (!word?.literal || !word.text || word.text.includes('\0')) return null;
   if (!isAbsolute(word.text) && !cwd) return null;
-  const abs = resolve(cwd ?? '/', word.text);
-  const rel = relative(designRoot, abs);
-  if (rel.startsWith('..') || isAbsolute(rel)) return null;
+  const abs = realpathDeep(isAbsolute(word.text) ? word.text : `${cwd}${sep}${word.text}`);
+  const rel = relative(designReal, abs);
+  if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) return null;
   const posix = rel.split(sep).join('/');
   const first = posix.split('/')[0] ?? '';
   return { rel: posix || '.', runtime: first.startsWith('_') || first.startsWith('.') };
@@ -473,27 +489,30 @@ export function designVerbOf(cmd, verbs) {
 
 /**
  * The pre-bash decision for `command` run in `cwd`: { code, reason } or null (no decision).
- * The design-root rules judge paths by name and never stat; only the out-of-project check (given
- * `root`) realpaths its targets, so a symlink in the project that points out of it is caught.
+ * Every path is realpath'd before it is judged (`designPath`): the design-root rules see the file
+ * the kernel opens — through a symlink, a `..` walk or a case alias — and the out-of-project check
+ * (given `root`) catches a symlink in the project that points out of it.
  * `guard(rel)` (optional) judges a runtime `_*` path in a write position: `{code, reason}` denies.
  */
 export function classifyBash(command, { cwd, designRoot, root, guard = null }) {
   if (typeof command !== 'string' || !command) return null;
   const out = root ? outOfProject(command, { cwd, root }) : null;
   if (out) return out;
-  const inDesign = (() => {
-    const r = relative(designRoot, resolve(cwd ?? '/'));
-    return !(r.startsWith('..') || isAbsolute(r));
-  })();
-  // fast path: nothing here can name the design root
-  if (!inDesign && !command.includes('.design') && !command.includes(designRoot)) return null;
+  // fast path: no command the rules below judge, and no redirection. Not a `.design` text test —
+  // a symlink, a `..` walk or a case alias (`.DESIGN` on APFS) reaches the root without it (F2).
+  if (!JUDGED_RE.test(command)) return null;
   const cmds = parseBash(command);
   if (!cmds) return null;
+  let designReal = null;
+  const realRoot = () => {
+    designReal ??= realpathDeep(designRoot);
+    return designReal;
+  };
   let here = cwd;
   const hit = (code, p) => p.guard ?? { code, reason: MESSAGES[code](p.rel) };
   // a versioned path — or a runtime one the caller's `guard(rel)` refuses (its verdict wins)
   const versioned = (w) => {
-    const p = designPath(w, here, designRoot);
+    const p = designPath(w, here, realRoot());
     if (!p) return null;
     if (!p.runtime) return p;
     const g = guard?.(p.rel);
@@ -511,7 +530,14 @@ export function classifyBash(command, { cwd, designRoot, root, guard = null }) {
     const { name, args } = e;
     if (name === 'cd' || name === 'pushd') {
       const to = args.find((a) => !isOpt(a));
-      here = !to ? homedir() : to.literal ? resolve(here ?? '/', to.text) : null;
+      // joined, not resolve()d: `link/..` pops from the link's target (realpathDeep, later)
+      here = !to
+        ? homedir()
+        : !to.literal || here === null
+          ? null
+          : isAbsolute(to.text)
+            ? to.text
+            : `${here ?? '/'}${sep}${to.text}`;
       continue;
     }
     if (maudeWords(cmd)) continue; // a maude verb is the checked writer
@@ -529,7 +555,14 @@ export function classifyBash(command, { cwd, designRoot, root, guard = null }) {
       let gitCwd = here;
       while (k < args.length && isOpt(args[k])) {
         if (args[k].text === '-C' && args[k + 1]) {
-          gitCwd = args[k + 1].literal ? resolve(here ?? '/', args[k + 1].text) : null;
+          const d = args[k + 1];
+          gitCwd = !d.literal
+            ? null
+            : isAbsolute(d.text)
+              ? d.text
+              : here === null
+                ? null
+                : `${here ?? '/'}${sep}${d.text}`;
           k += 2;
         } else if (args[k].text === '-c') k += 2;
         else k++;
@@ -628,7 +661,9 @@ export function classifyBash(command, { cwd, designRoot, root, guard = null }) {
       const text = scriptText(cmd, args, flags, lang);
       if (text === null || !SCRIPT_WRITES.test(text)) continue;
       // a .design path the script names, runtime (`.design/_…`) ones excepted unless guarded
-      const all = [...text.matchAll(/\.design(?:\/([^\s'"`),;]*))?/g)].map((m) => m[1] ?? '');
+      // `.design` in any case (a case alias on APFS); a symlink to the root the script reaches
+      // by another name is not seen here — residual, the script is text, not a path
+      const all = [...text.matchAll(/\.design(?:\/([^\s'"`),;]*))?/gi)].map((m) => m[1] ?? '');
       const runtime = (after) => {
         const first = after.split('/')[0] ?? '';
         return first.startsWith('_') || first.startsWith('.');
@@ -638,7 +673,9 @@ export function classifyBash(command, { cwd, designRoot, root, guard = null }) {
         if (g) return g;
       }
       const named = all.filter((after) => !runtime(after));
-      if (text.includes(designRoot)) named.push('.');
+      const lc = text.toLowerCase();
+      if (lc.includes(designRoot.toLowerCase()) || lc.includes(realRoot().toLowerCase()))
+        named.push('.');
       if (named.length) return hit('not-a-writer', { rel: named[0] || '.' });
     }
   }

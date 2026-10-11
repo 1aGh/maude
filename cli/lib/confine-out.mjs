@@ -27,18 +27,25 @@ import { findProjectRoot } from './studio-locate.mjs';
 export const OUTPUT_FLAGS = ['--out', '--out-dir', '--output'];
 
 const LINK_HOPS = 40;
+/**
+ * realpath(3): unlike the JS `realpathSync`, it returns the ON-DISK case on a case-insensitive
+ * file system (`.DESIGN` → `.design`), so a guard that classifies the result by name sees the
+ * file the kernel opens (Phase 2 gate F2). Same result as realpathSync everywhere else.
+ */
+const realpath = realpathSync.native;
 /** Outside every root: what an unresolvable path (a symlink loop) resolves to. */
 const UNRESOLVABLE = `${sep}\0unresolvable`;
 
 /**
  * The path `p` names, resolved as the kernel walks it: each existing segment realpath'd before the
  * next one (so `link/..` pops from the link's TARGET), a dangling symlink followed to the target a
- * write would create, a missing tail kept as written. `p` must NOT be normalised first — resolve()
+ * write would create, a missing tail kept as written (an existing segment in its on-disk case —
+ * `realpath` above). `p` must NOT be normalised first — resolve()
  * / join() collapse `link/..` lexically, which is the bug this exists for. Relative → against cwd.
  */
 export function realpathDeep(p, hops = 0) {
   const abs = isAbsolute(p) ? p : `${process.cwd()}${sep}${p}`;
-  let cur = realpathSync(sep);
+  let cur = realpath(sep);
   for (const seg of abs.split(/[\\/]+/)) {
     if (!seg || seg === '.') continue;
     if (seg === '..') {
@@ -47,7 +54,7 @@ export function realpathDeep(p, hops = 0) {
     }
     const next = join(cur, seg);
     try {
-      cur = realpathSync(next);
+      cur = realpath(next);
       continue;
     } catch {
       /* missing, dangling or unreadable */
