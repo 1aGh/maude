@@ -68,6 +68,10 @@ export const ELEMENT_ID_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 export const ELEMENT_ID_MAX = 48;
 /** The pipeline's computed id shape (canvas-pipeline.ts `computeId`). */
 export const COMPUTED_ID_RE = /^[0-9a-f]{8}$/;
+/** The studio's artboard-id rule (routes/agent.ts AGENT_ID_RE — a test holds them equal). A
+ *  finding's `where` names an artboard by its id only when the literal passes it; otherwise the
+ *  location is the element's line, so file text never reaches a hook's block reason there. */
+export const ARTBOARD_WHERE_RE = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
 /** Every attribute with this prefix is canvas-only: never printed, never exported. */
 export const CANVAS_ONLY_PREFIX = 'data-cd-';
 
@@ -874,7 +878,9 @@ export function checkIds(source: string, opts: CheckIdsOptions = {}): CheckIdsRe
           `Removed ${nameOf(o)} (${idWord(id)}). Anything that pointed at it detaches.`,
           'Nothing to do if the removal was intended.',
           id,
-          o.artboard ? `${path}#${o.artboard}` : `${path}:${o.line}:${o.col}`,
+          o.artboard && ARTBOARD_WHERE_RE.test(o.artboard)
+            ? `${path}#${o.artboard}`
+            : `${path}:${o.line}:${o.col}`,
           'info'
         );
       }
@@ -891,7 +897,9 @@ export function checkIds(source: string, opts: CheckIdsOptions = {}): CheckIdsRe
             `${nameOf(o)} is locked and was removed — put it back.`,
             'Restore it as it was, or ask the person to unlock it (⇧⌘L) first.',
             o.id,
-            o.artboard ? `${path}#${o.artboard}` : `${path}:${o.line}:${o.col}`
+            o.artboard && ARTBOARD_WHERE_RE.test(o.artboard)
+              ? `${path}#${o.artboard}`
+              : `${path}:${o.line}:${o.col}`
           );
         } else if (!n.locked) {
           push(
