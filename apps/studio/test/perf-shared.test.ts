@@ -79,8 +79,17 @@ describe('T3 — long frames survive validation and the median', () => {
 async function runHarness(
   pan: number,
   zoom: number,
-  { idleFlushes = 30, hidden = false }: { idleFlushes?: number; hidden?: boolean } = {}
+  {
+    idleFlushes = 30,
+    hidden = false,
+  }: {
+    /** frames per 500 ms idle window; a list gives one value per window (the last repeats) */
+    idleFlushes?: number | number[];
+    hidden?: boolean;
+  } = {}
 ) {
+  const idleSeq = Array.isArray(idleFlushes) ? idleFlushes : [idleFlushes];
+  let idleWindow = 0;
   const win = new Window({ url: 'http://localhost/' });
   const doc = win.document;
   doc.body.innerHTML = '<div class="dc-canvas"><div class="dc-world"></div></div>';
@@ -137,9 +146,10 @@ async function runHarness(
   w.setTimeout = (fn: () => void, ms: number) => {
     if (ms === 500) {
       // The occlusion guard's idle window: `idleFlushes` frames in 500 ms.
-      idleLeft = idleFlushes;
+      const n = idleSeq[Math.min(idleWindow++, idleSeq.length - 1)];
+      idleLeft = n;
       idleDone = fn;
-      if (idleFlushes === 0) setTimeout(fn, 0);
+      if (n === 0) setTimeout(fn, 0);
       return 1;
     }
     if (ms === 900) {
@@ -203,5 +213,21 @@ describe('T3 — the in-page harness counts long frames from rAF deltas', () => 
     expect(r).toMatchObject({ occluded: true });
     // Either signal alone is enough: hidden at any rate, or visible but starved.
     expect(r.visibility === 'hidden' || r.idleHz < 50).toBe(true);
+  });
+
+  // V2-2.20 acceptance, 2026-10-11 (AC power, unlocked): resizing the iframe from
+  // pinned to full width re-rasters 21 boards at 2×, and the guard read 40 Hz in
+  // the first 500 ms — a BUSY page, not a hidden one. A busy page settles within
+  // a few windows; a frozen one never does, so only the frozen one is refused.
+  test('a visible page that is busy for a while (40 Hz, then 60 Hz) settles and runs the gesture', async () => {
+    const r = await runHarness(10, 8, { idleFlushes: [20, 20, 20, 30] });
+    expect(r.occluded).toBeUndefined();
+    expect(r.idleHz).toBe(60);
+    expect(r.zoomApplied).toBe(true);
+  });
+
+  test('a visible page that never reaches 50 Hz is still refused, with its best reading', async () => {
+    const r = await runHarness(10, 8, { idleFlushes: [2, 20, 10] });
+    expect(r).toMatchObject({ occluded: true, visibility: 'visible', idleHz: 40 });
   });
 });

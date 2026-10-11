@@ -13,6 +13,8 @@ export const LONG_FRAME_MS = 50;
 export const JANK_FRAME_MS = 25;
 /** Idle rAF rate below which the page counts as occluded / throttled (locked screen, hidden window). */
 export const OCCLUDED_HZ = 50;
+/** 500 ms idle windows the occlusion guard reads before refusing (a busy page settles, a frozen one never does). */
+export const IDLE_WINDOWS = 20;
 
 // ── Idle rAF probe (the WebKit cross-origin-frame throttle check) ────────────
 //
@@ -250,18 +252,26 @@ export function harnessSource({ pan, zoom, injectCss, fitAll, setFlags }) {
     // describe nothing a user sees. Count rAF callbacks over 500 ms of idle
     // (timers still run when rAF is frozen) and stop before the gesture when
     // the page is hidden or delivers fewer than OCCLUDED_HZ frames a second.
+    // A page that is only BUSY (a resized iframe re-rastering a fit-all canvas)
+    // settles within a few windows; a frozen one never does, so the guard reads
+    // up to IDLE_WINDOWS windows and refuses only when none of them reaches the
+    // rate, reporting the best one.
     const visibility = String(doc.visibilityState || 'unknown');
-    let idleFrames = 0;
-    let idleOn = true;
-    const idleTick = () => {
-      if (!idleOn) return;
-      idleFrames += 1;
+    let idleHz = 0;
+    for (let w = 0; visibility !== 'hidden' && w < ${IDLE_WINDOWS}; w++) {
+      let idleFrames = 0;
+      let idleOn = true;
+      const idleTick = () => {
+        if (!idleOn) return;
+        idleFrames += 1;
+        win.requestAnimationFrame(idleTick);
+      };
       win.requestAnimationFrame(idleTick);
-    };
-    win.requestAnimationFrame(idleTick);
-    await new Promise((r) => win.setTimeout(r, 500));
-    idleOn = false;
-    const idleHz = idleFrames * 2;
+      await new Promise((r) => win.setTimeout(r, 500));
+      idleOn = false;
+      idleHz = Math.max(idleHz, idleFrames * 2);
+      if (idleHz >= ${OCCLUDED_HZ}) break;
+    }
     if (visibility === 'hidden' || idleHz < ${OCCLUDED_HZ}) {
       running = false;
       win.__maudePerfResult = { occluded: true, visibility, idleHz };
