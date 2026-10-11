@@ -196,14 +196,10 @@
       "label": "Undo",
       "kind": "command",
       "exec": "canvas",
-      "effect": "none",
+      "effect": "shared",
       "agent": {
-        "path": "pending",
-        "package": "S1",
-        "want": {
-          "path": "cli",
-          "verb": "maude design history"
-        }
+        "path": "cli",
+        "verb": "maude design history undo --action <id>"
       }
     },
     {
@@ -211,14 +207,10 @@
       "label": "Redo",
       "kind": "command",
       "exec": "canvas",
-      "effect": "none",
+      "effect": "shared",
       "agent": {
-        "path": "pending",
-        "package": "S1",
-        "want": {
-          "path": "cli",
-          "verb": "maude design history"
-        }
+        "path": "cli",
+        "verb": "maude design history undo --action <id> --redo"
       }
     },
     {
@@ -405,12 +397,8 @@
       "fromCanvas": true,
       "effect": "none",
       "agent": {
-        "path": "pending",
-        "package": "S9",
-        "want": {
-          "path": "cli",
-          "verb": "maude design comments"
-        }
+        "path": "cli",
+        "verb": "maude design comments list"
       }
     },
     {
@@ -421,12 +409,8 @@
       "fromCanvas": true,
       "effect": "none",
       "agent": {
-        "path": "pending",
-        "package": "S1",
-        "want": {
-          "path": "cli",
-          "verb": "maude design history"
-        }
+        "path": "cli",
+        "verb": "maude design history list"
       }
     },
     {
@@ -652,12 +636,8 @@
       "exec": "canvas",
       "effect": "none",
       "agent": {
-        "path": "pending",
-        "package": "S9",
-        "want": {
-          "path": "cli",
-          "verb": "maude design comments"
-        }
+        "path": "cli",
+        "verb": "maude design comments list"
       }
     },
     {
@@ -891,14 +871,10 @@
       "label": "Undo timeline edit",
       "kind": "command",
       "exec": "shell",
-      "effect": "none",
+      "effect": "shared",
       "agent": {
-        "path": "pending",
-        "package": "S1",
-        "want": {
-          "path": "cli",
-          "verb": "maude design history"
-        }
+        "path": "cli",
+        "verb": "maude design history undo --action <id>"
       }
     },
     {
@@ -906,14 +882,10 @@
       "label": "Redo timeline edit",
       "kind": "command",
       "exec": "shell",
-      "effect": "none",
+      "effect": "shared",
       "agent": {
-        "path": "pending",
-        "package": "S1",
-        "want": {
-          "path": "cli",
-          "verb": "maude design history"
-        }
+        "path": "cli",
+        "verb": "maude design history undo --action <id> --redo"
       }
     },
     {
@@ -969,12 +941,8 @@
       "exec": "shell",
       "effect": "none",
       "agent": {
-        "path": "pending",
-        "package": "S9",
-        "want": {
-          "path": "cli",
-          "verb": "maude design comments"
-        }
+        "path": "cli",
+        "verb": "maude design comments list"
       }
     },
     {
@@ -1019,12 +987,8 @@
       "exec": "shell",
       "effect": "project",
       "agent": {
-        "path": "pending",
-        "package": "S8",
-        "want": {
-          "path": "cli",
-          "verb": "maude design exports again"
-        }
+        "path": "cli",
+        "verb": "maude design exports again <id>"
       }
     },
     {

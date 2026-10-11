@@ -23,11 +23,7 @@ const file = (
 const cli = (verb: string): AgentPath => ({ path: 'cli', verb });
 const human = (because: HumanReason, note?: string): AgentPath =>
   note ? { path: 'human', because, note } : { path: 'human', because };
-const pending = (pkg: string, want: AgentPath): ActionDefAI['agent'] => ({
-  path: 'pending',
-  package: pkg,
-  want,
-});
+// No `pending` helper: pendingMax reached 0 at the V2-2.4b gate and stays 0 (§5.7 rule 2).
 
 // `maude design open` moves the user's view through the same registry actions (client/ui-open.js).
 const NAV = (note: string): ActionDefAI => ({
@@ -43,14 +39,15 @@ const BOARD = (how: string): ActionDefAI => ({
   effect: 'project',
   agent: file('annotations', 'design:whiteboard', how),
 });
-const HISTORY: ActionDefAI = {
-  effect: 'none',
-  agent: pending('S1', cli('maude design history')),
-};
-const COMMENTS: ActionDefAI = {
-  effect: 'none',
-  agent: pending('S9', cli('maude design comments')),
-};
+// V2-2.4b — the last pending paths (§5.7 rule 2: pendingMax 0). `maude design open` moves the view
+// but opens no panel, so the panels' paths are the read verbs (V2-1.9 §5.11: history.open →
+// `history list`). Undo/redo have no "the newest step" for an agent: it undoes ONE accepted action
+// by id, as a new version (V2-1.9 §5.11 `history undo`, shared → prompt).
+const UNDO = (redo: boolean): ActionDefAI => ({
+  effect: 'shared',
+  agent: cli(`maude design history undo --action <id>${redo ? ' --redo' : ''}`),
+});
+const COMMENTS: ActionDefAI = { effect: 'none', agent: cli('maude design comments list') };
 const HELP: ActionDefAI = { effect: 'none', agent: human('onboarding') };
 
 export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
@@ -75,8 +72,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'artboard.new-a4': TSX('Add a DCArtboard kind="print" sized A4'),
   'artboard.new-letter': TSX('Add a DCArtboard kind="print" sized Letter'),
   // ── edit / select / object ──
-  'edit.undo': HISTORY,
-  'edit.redo': HISTORY,
+  'edit.undo': UNDO(false),
+  'edit.redo': UNDO(true),
   'edit.copy': PREF('the clipboard is the user’s; read the source instead'),
   'select.all': NAV('<canvas> --select all'),
   'select.none': NAV('<canvas> --select none'),
@@ -94,7 +91,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'view.hidden-files': PREF(),
   'view.design-system': PREF('read system/<ds>/ for the design system itself'),
   'view.comments': COMMENTS,
-  'history.open': HISTORY,
+  'history.open': { effect: 'none', agent: cli('maude design history list') },
   'view.inspector': PREF('read the element’s JSX for its properties'),
   'view.timeline-keep-open': PREF(),
   'view.annotations': PREF(),
@@ -135,8 +132,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'timeline.to-end': PREF('playback'),
   'timeline.prev-keyframe': PREF('playback'),
   'timeline.next-keyframe': PREF('playback'),
-  'timeline.undo': HISTORY,
-  'timeline.redo': HISTORY,
+  'timeline.undo': UNDO(false),
+  'timeline.redo': UNDO(true),
   'timeline.split': TSX('Split the clip into two sequences at the frame', 'design:video-comp'),
   'timeline.zoom-in': PREF(),
   'timeline.zoom-out': PREF(),
@@ -148,7 +145,7 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'export.canvas-dialog': { effect: 'none', agent: cli('maude design export') },
   'export.rerun-last': {
     effect: 'project',
-    agent: pending('S8', cli('maude design exports again')),
+    agent: cli('maude design exports again <id>'),
   },
   'share.open': { effect: 'shared', agent: human('links') },
   'share.copy-link': { effect: 'none', agent: human('links') },
