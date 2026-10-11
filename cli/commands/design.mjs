@@ -164,6 +164,9 @@ const BIN_VERBS = new Set([
   // V2-2.4b (§5.3, V2-1.9 §5.11). `history` lists / shows / diffs this project's versions (the
   // studio's accepted rows, or its git log for a local project). Sub-verbs are tiered one by one.
   'history',
+  // V2-2.4b (§5.3). `comments list` reads this project's comment threads. Read-only here; replying
+  // and resolving (S9) will be their own prompt-tier sub-verbs.
+  'comments',
   // feature-canvas-render-performance (Task 1 + 11). `perf` drives a scripted
   // pan/zoom against a live canvas and reports frame-time percentiles plus the
   // React render count during the gesture, delta'd against the previous run of
@@ -398,6 +401,8 @@ Studio (talk to the running Maude window — contract V2-1.11 §5.3):
         This project's versions (a synced project's, or its git log). Read-only.
   history restore <canvas> <ref> · history undo --action <id> [--redo]
         Restore a canvas / undo an action, each as a NEW version (synced projects). Asks first.
+  comments list [<canvas>] [--open | --all] [--mine] [--json]
+        This project's comment threads. Read-only.
   hook prompt|pre-edit|post-edit|pre-bash|post-bash|stop|subagent-start|session-start
         The design plugin's Claude Code hooks (hook JSON on stdin). Deny-only, fail-open: exit 0.
 

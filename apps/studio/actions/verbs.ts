@@ -85,6 +85,9 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
   d('history list', 'none'),
   d('history show', 'none'),
   d('history diff', 'none'),
+  // `comments list` reads threads. Replying / resolving / adding as the AI are S9's sub-verbs and
+  // fall to `comments` below (shared → prompt).
+  d('comments list', 'none'),
   // ── `maude design`, effect project (writes versioned files of this project) ──────────────
   d('annotate', 'project'),
   d('canvas-edit', 'project'),
@@ -123,6 +126,9 @@ export const MAUDE_VERBS: readonly VerbDef[] = [
     note: 'the whole canvas back to an old version, landed as a NEW version over Now (C5)',
   }),
   d('history undo', 'shared', { note: 'undoes an accepted action for everyone (V2-1.5)' }),
+  d('comments', 'shared', {
+    note: 'any sub-verb but `list` posts or resolves where others see it (S9: reply/resolve/add --as-ai)',
+  }),
   d('history', 'destructive', {
     note: '`restore` puts an old version over Now (as a new version, C5); any sub-verb but list/show/diff prompts',
   }),
