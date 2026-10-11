@@ -42,6 +42,53 @@ const ENV_HEADS = new Set(['HOME', 'TMPDIR']);
 const WS = new Set([' ', '\t', '\r']);
 
 class Unparseable extends Error {}
+
+const ANSI_C_SIMPLE = {
+  a: '\x07',
+  b: '\b',
+  e: '\x1b',
+  E: '\x1b',
+  f: '\f',
+  n: '\n',
+  r: '\r',
+  t: '\t',
+  v: '\v',
+  '\\': '\\',
+  "'": "'",
+  '"': '"',
+  '?': '?',
+};
+/** The body of a bash ANSI-C `$'…'` string, decoded the way bash decodes it (\xHH, \NNN octal,
+ *  \uHHHH, \UHHHHHHHH, \cX, the single-letter escapes); an unknown escape stays as written. */
+function decodeAnsiC(body) {
+  let out = '';
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i];
+    if (c !== '\\' || i + 1 >= body.length) {
+      out += c;
+      continue;
+    }
+    const n = body[++i];
+    if (n in ANSI_C_SIMPLE) out += ANSI_C_SIMPLE[n];
+    else if (n === 'x' || n === 'u' || n === 'U') {
+      const max = n === 'x' ? 2 : n === 'u' ? 4 : 8;
+      const m = new RegExp(`^[0-9a-fA-F]{1,${max}}`).exec(body.slice(i + 1));
+      if (!m) out += `\\${n}`;
+      else {
+        const cp = Number.parseInt(m[0], 16);
+        out += cp <= 0x10ffff ? String.fromCodePoint(cp) : '';
+        i += m[0].length;
+      }
+    } else if (n >= '0' && n <= '7') {
+      const m = /^[0-7]{1,3}/.exec(body.slice(i));
+      out += String.fromCharCode(Number.parseInt(m[0], 8) & 0xff);
+      i += m[0].length - 1;
+    } else if (n === 'c' && i + 1 < body.length) {
+      out += String.fromCharCode(body.charCodeAt(++i) & 0x1f);
+    } else out += `\\${n}`;
+  }
+  return out;
+}
 const fail = () => {
   throw new Unparseable();
 };
@@ -271,7 +318,8 @@ function lex(src, start, stop, nested) {
       let j = at + 2;
       while (j < src.length && src[j] !== "'") j += src[j] === '\\' ? 2 : 1;
       if (j >= src.length) fail();
-      word.text += src.slice(at + 2, j);
+      // bash runs the DECODED word (`$'\x72m'` is `rm`), so the guard judges it decoded too
+      word.text += decodeAnsiC(src.slice(at + 2, j));
       word.quoted = true;
       return j + 1;
     }

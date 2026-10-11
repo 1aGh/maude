@@ -134,6 +134,22 @@ test("command names are the parsed, case-folded binary (RM, r''m, r\\m, GIT, LN)
   for (const cmd of NAMED_ALLOWED) assert.equal(code(cmd), null, cmd);
 });
 
+// Phase 2 gate (final verify) — bash decodes ANSI-C `$'…'` escapes before it runs a word, so
+// the guard must judge the decoded text: `$'\x72m'` is `rm`, `$'\x2edesign'` is `.design`.
+test("ANSI-C $'…' words are judged decoded (\\xHH, \\NNN octal, \\uHHHH)", () => {
+  for (const cmd of [
+    "$'\\x72m' -f .design/ui/X.tsx",
+    "$'\\162m' .design/ui/X.tsx",
+    "$'\\u0072m' .design/ui/X.tsx",
+    "rm $'\\x2edesign/ui/X.tsx'",
+    "$'m\\x76' .design/ui/X.tsx .design/ui/Y.tsx",
+  ])
+    assert.notEqual(code(cmd), null, cmd);
+  // a decoded word that is not a guarded write stays allowed
+  assert.equal(code("echo $'\\x72m .design/ui/X.tsx'"), null);
+  assert.equal(code("cat $'\\x2edesign/ui/X.tsx'"), null);
+});
+
 test('a hard link from a guarded runtime file is judged (ln source and destination)', () => {
   const guard = (rel) =>
     rel.startsWith('_runs/') ? { code: 'out-of-scope', reason: `out-of-scope: ${rel}` } : null;
