@@ -203,7 +203,25 @@ TMP_HARNESS="" # renamed away — nothing left for cleanup() to remove
 echo "→ harness canvas: ${HARNESS_TSX#$REPO/}" >&2
 
 REL="_photo/$SLUG.bgremove.tsx"
-URL="http://localhost:$PORT/_canvas-shell.html?canvas=$REL"
+# V2-2.4b gate — the harness renders on the CANVAS origin (`canvasOrigin` in
+# _server.json), never the main one: the main origin 307s every canvas shell
+# to the read-only capture origin, and this harness needs the canvas origin's
+# canvas-safe `/_api/asset` + `/_api/photo-edit` writes — nothing more. Only a
+# loopback origin is accepted. With the origin split off there is no canvas
+# origin and everything renders on the main origin, as before.
+CANVAS_ORIGIN=""
+if command -v jq >/dev/null 2>&1; then
+  CANVAS_ORIGIN=$(jq -r '.canvasOrigin // empty' "$STATE" 2>/dev/null)
+else
+  CANVAS_ORIGIN=$(sed -nE 's/.*"canvasOrigin"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/p' "$STATE" | head -n1)
+fi
+if [ -z "$CANVAS_ORIGIN" ]; then
+  CANVAS_ORIGIN="http://localhost:$PORT"
+elif [[ ! "$CANVAS_ORIGIN" =~ ^http://(localhost|127\.0\.0\.1):[0-9]+$ ]]; then
+  echo "photo-bg-remove.sh: canvasOrigin in $STATE is not a loopback origin ('$CANVAS_ORIGIN')" >&2
+  exit 1
+fi
+URL="$CANVAS_ORIGIN/_canvas-shell.html?canvas=$REL"
 SEL="[data-photo-bgremove-status]"
 
 echo "→ driving $URL (session $SESSION)" >&2

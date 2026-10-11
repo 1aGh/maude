@@ -8,7 +8,15 @@
 // stopped it).
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -67,5 +75,63 @@ describe('photo-bg-remove.sh --asset validation', () => {
     // (exit 1), proving the regex accepted the shape and let it through.
     expect(res.code).toBe(1);
     expect(res.err).toContain('asset not found');
+  });
+});
+
+// V2-2.4b gate — the harness must never render on the MAIN origin (where a
+// planted `_photo/<slug>.bgremove.tsx` reached git push, `/_config`, paid
+// generation). It opens on the canvas origin, whose canvas-safe asset +
+// photo-edit writes are all it needs. A fake agent-browser records the URL.
+describe('photo-bg-remove.sh opens its harness on the canvas origin', () => {
+  function drive(server: Record<string, unknown>) {
+    const sandbox = mkdtempSync(join(tmpdir(), 'photo-bg-remove-origin-'));
+    const design = join(sandbox, '.design');
+    mkdirSync(join(design, 'assets'), { recursive: true });
+    writeFileSync(join(design, 'assets', 'deadbeef.png'), 'png');
+    writeFileSync(join(design, '_server.json'), JSON.stringify(server));
+    const log = join(sandbox, 'ab.log');
+    const ab = join(sandbox, 'fake-ab.sh');
+    writeFileSync(
+      ab,
+      [
+        '#!/usr/bin/env bash',
+        'case "$*" in',
+        `  *" open "*) printf '%s\\n' "\${@: -1}" >> "${log}" ;;`,
+        '  *" data-photo-bgremove-result"*) echo assets/cafef00d.png ;;',
+        '  *" data-photo-bgremove-status"*) echo done ;;',
+        'esac',
+        'exit 0',
+        '',
+      ].join('\n')
+    );
+    chmodSync(ab, 0o755);
+    const proc = Bun.spawnSync(['bash', BIN, '--asset', 'assets/deadbeef.png', '--root', sandbox], {
+      env: { ...process.env, MAUDE_AGENT_BROWSER: ab, AGENT_BROWSER_EXECUTABLE_PATH: '/x' },
+    });
+    const opened = existsSync(log) ? readFileSync(log, 'utf8').trim() : '';
+    rmSync(sandbox, { recursive: true, force: true });
+    return { code: proc.exitCode, opened };
+  }
+
+  test('split on: the canvas origin from _server.json', () => {
+    const res = drive({ port: 4399, canvasOrigin: 'http://localhost:51234' });
+    expect(res.code).toBe(0);
+    expect(res.opened).toBe(
+      'http://localhost:51234/_canvas-shell.html?canvas=_photo/deadbeef.bgremove.tsx'
+    );
+  });
+
+  test('split off (no canvasOrigin): the main origin, as before', () => {
+    const res = drive({ port: 4399 });
+    expect(res.code).toBe(0);
+    expect(res.opened).toBe(
+      'http://localhost:4399/_canvas-shell.html?canvas=_photo/deadbeef.bgremove.tsx'
+    );
+  });
+
+  test('a non-loopback canvasOrigin is refused before any navigation', () => {
+    const res = drive({ port: 4399, canvasOrigin: 'https://evil.example' });
+    expect(res.code).toBe(1);
+    expect(res.opened).toBe('');
   });
 });
