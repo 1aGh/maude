@@ -490,7 +490,9 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
             artboards: validIds([
               ...new Set(locked.map((x) => x.element.artboard).filter((a): a is string => !!a)),
             ]),
-            // f.what names the element by its label (element-ids `nameOf`: cleaned, quoted)
+            // f.what is element-ids' own sentence; every file-derived fragment in it (the label,
+            // a component tag name, a bad id, data-cd-* values) is cleaned and quoted there
+            // (`nameOf` / `roleOf` / `idAttr`), and the whole reason is cleaned + capped here
             reason: reasonOf(
               `soft-locked: ${f.id !== undefined ? idText(f.id) : fileText(f.element.label)}${where} is locked — ${cleanText(f.what, 300)} ${cleanText(f.fix, 200)} Change the rest without touching it.`
             ),

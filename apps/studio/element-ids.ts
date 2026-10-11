@@ -14,7 +14,7 @@
 
 import MagicString from 'magic-string';
 import { parseSync } from 'oxc-parser';
-import { cleanText } from '../../cli/lib/finding-text.mjs';
+import { cleanText, fileText } from '../../cli/lib/finding-text.mjs';
 
 // biome-ignore lint/suspicious/noExplicitAny: oxc-parser AST nodes are heterogeneous.
 type AnyNode = any;
@@ -729,10 +729,21 @@ const ROLE: Record<string, string> = {
   video: 'Video',
   DCArtboard: 'Artboard',
 };
+// The role word for a tag. A component's name is file text — a JSX name may carry `-`
+// (`<Lock-is-stale-…>`) — so it is quoted like a label (Phase 2 gate round 3); own keys only
+// (`<constructor>` is not Object).
+const roleWord = (k: string) => (Object.hasOwn(ROLE, k) ? ROLE[k] : undefined);
 function roleOf(tag: string): string {
   const last = tag.includes('.') ? (tag.split('.').pop() as string) : tag;
-  return ROLE[tag] ?? ROLE[last] ?? (/^[A-Z]/.test(tag) ? tag : 'Element');
+  const role = roleWord(tag) ?? roleWord(last);
+  if (role) return role;
+  return /^[A-Z]/.test(last) ? `Component ${fileText(tag)}` : 'Element';
 }
+// A file-derived id in a message: bare when it is a valid id (a strict charset); an invalid one is
+// never echoed — the line names the element (check/index.ts drops the raw id the same way).
+const idWord = (id: string) => (isValidElementId(id) ? id : 'an invalid id');
+/** `data-cd-id="…"` for a valid id; `data-cd-id=(an invalid id)` for anything else. */
+const idAttr = (id: string) => `data-cd-id=${isValidElementId(id) ? `"${id}"` : '(an invalid id)'}`;
 // A label is file text (a planted canvas's aria / alt / text): one line, ≤ 40, and JSON-quoted
 // when it names an element in a message — findings and deny reasons reach the model (Phase 2 gate).
 function labelOf(e: IdElement): string {
@@ -806,7 +817,7 @@ export function checkIds(source: string, opts: CheckIdsOptions = {}): CheckIdsRe
       push(
         'id-format',
         e,
-        `data-cd-id="${e.id}" (line ${e.line}) is not a valid element id.`,
+        `${idAttr(e.id)} (line ${e.line}) is not a valid element id.`,
         'Use lowercase words joined by "-" (at most 48 characters, never 8 hex characters).',
         e.id
       );
@@ -822,7 +833,7 @@ export function checkIds(source: string, opts: CheckIdsOptions = {}): CheckIdsRe
     push(
       'id-duplicate',
       first,
-      `data-cd-id="${id}" is on ${n} elements (lines ${list.map((e) => e.line).join(', ')}).`,
+      `${idAttr(id)} is on ${n} elements (lines ${list.map((e) => e.line).join(', ')}).`,
       'Give the copy a new id or drop it — an id names one element.',
       id
     );
@@ -852,15 +863,15 @@ export function checkIds(source: string, opts: CheckIdsOptions = {}): CheckIdsRe
         push(
           'id-lost',
           n,
-          `${nameOf(n)} (line ${n.line}) lost data-cd-id="${id}".`,
-          `Put data-cd-id="${id}" back on it — comments, locks and arrows point at it.`,
+          `${nameOf(n)} (line ${n.line}) lost ${idAttr(id)}.`,
+          `Put ${idAttr(id)} back on it — comments, locks and arrows point at it.`,
           id
         );
       } else {
         push(
           'id-removed',
           o,
-          `Removed ${nameOf(o)} (${id}). Anything that pointed at it detaches.`,
+          `Removed ${nameOf(o)} (${idWord(id)}). Anything that pointed at it detaches.`,
           'Nothing to do if the removal was intended.',
           id,
           o.artboard ? `${path}#${o.artboard}` : `${path}:${o.line}:${o.col}`,
@@ -895,11 +906,13 @@ export function checkIds(source: string, opts: CheckIdsOptions = {}): CheckIdsRe
         }
       }
       if (n && newFirst.get(o.id) === n && cdKey(n) !== cdKey(o)) {
-        const before = cdKey(o) || 'none';
+        // attribute values are file text: quoted (and cleaned) like a label
+        const cdText = (e: IdElement) => (cdKey(e) ? fileText(cdKey(e), 120) : 'none');
+        const before = cdText(o);
         push(
           'cd-attr-changed',
           n,
-          `${nameOf(n)} (line ${n.line}) changed its canvas-only attributes (${before} → ${cdKey(n) || 'none'}).`,
+          `${nameOf(n)} (line ${n.line}) changed its canvas-only attributes (${before} → ${cdText(n)}).`,
           `Keep every data-cd-* attribute exactly as it was: ${before}.`,
           o.id
         );
