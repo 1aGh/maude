@@ -5,11 +5,13 @@
 //     writers added — `artboards`, `critic`, `envelope` … — and an AI edit elsewhere must not
 //     have to delete a peer's data to pass);
 //   - `dsRev` is set by the design-system verbs only (V2-1.6), so a write may not change it.
-// `viewport` has its own, clearer finding in check/index.ts (DDR-115).
+// `viewport` has its own, clearer finding in check/index.ts (DDR-115). A key or value from the file
+// reaches a finding only through `fileText` / `cleanText` (cli/lib/finding-text.mjs).
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { cleanText, fileText } from '../../../cli/lib/finding-text.mjs';
 import { compileSchema } from '../../../cli/lib/json-schema-lite.mjs';
 import { jsonEq } from '../annotations/fields.ts';
 import { SCHEMA_DIR } from '../paths.ts';
@@ -55,13 +57,13 @@ export function validateMeta(
         ? {
             code: 'meta-unknown-field',
             field,
-            what: `"${key}" is not a .meta.json field`,
+            what: `${fileText(key)} is not a .meta.json field`,
             fix: 'remove it — the fields are in apps/studio/schema/canvas-meta.v2.schema.json (skill design:design _guide-17)',
           }
         : {
             code: 'meta-invalid',
             field,
-            what: `${field.slice(1).replaceAll('/', '.') || 'the sidecar'} ${e.message}`,
+            what: `${field.length > 1 ? fileText(field.slice(1).replaceAll('/', '.')) : 'the sidecar'} ${cleanText(e.message, 120)}`,
             fix: 'write the value the schema allows (skill design:design _guide-17)',
           }
     );
@@ -71,7 +73,7 @@ export function validateMeta(
       code: 'meta-dsrev',
       field: '/dsRev',
       what: '`dsRev` is set by the design-system verbs, never by an edit (V2-1.6)',
-      fix: `restore it${before && Object.hasOwn(before, 'dsRev') ? ` to ${JSON.stringify(before.dsRev)}` : ' (remove it)'} — follow or leave a system with \`maude design ds …\``,
+      fix: `restore it${before && Object.hasOwn(before, 'dsRev') ? ` to ${cleanText(JSON.stringify(before.dsRev), 60)}` : ' (remove it)'} — follow or leave a system with \`maude design ds …\``,
     });
   return out;
 }

@@ -203,6 +203,42 @@ test('out-of-project: symlinks are resolved (a link inside the project out of it
   }
 });
 
+test('out-of-project: `..` after a symlink and a dangling link resolve as the kernel does', () => {
+  // `link/..` is the PARENT OF THE TARGET (/usr), not the project; a dangling link creates its
+  // target. A lexical resolve() before realpath said "inside" to both.
+  const base = mkdtempSync(join(tmpdir(), 'maude-bg-'));
+  try {
+    const project = join(base, 'proj');
+    mkdirSync(join(project, '.design', 'ui'), { recursive: true });
+    symlinkSync('/usr/bin', join(project, 'link'));
+    symlinkSync(`/etc/maude-dangling-${process.pid}`, join(project, 'dang'));
+    const c = (cmd) =>
+      classifyBash(cmd, { cwd: project, designRoot: join(project, '.design'), root: project })
+        ?.code ?? null;
+    assert.equal(c('maude design slug x > link/../maude-probe'), 'out-of-project');
+    assert.equal(c(`maude design slug x > ${project}/link/../../maude-probe`), 'out-of-project');
+    assert.equal(c('maude design slug x > dang'), 'out-of-project');
+    assert.equal(c('maude design slug x | tee link/../maude-probe'), 'out-of-project');
+    // `..` inside the project stays inside
+    assert.equal(c('maude design slug x > .design/../out.txt'), null);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a guard judges runtime paths in write positions (reads and unguarded paths pass)', () => {
+  const guard = (rel) =>
+    rel.startsWith('_runs/') ? { code: 'out-of-scope', reason: `out-of-scope: ${rel}` } : null;
+  const g = (cmd) => classifyBash(cmd, { cwd: ROOT, designRoot: DR, guard })?.code ?? null;
+  assert.equal(g('rm .design/_runs/s/agents.json'), 'out-of-scope');
+  assert.equal(g('echo x > .design/_runs/s/handoff/a.in.json'), 'out-of-scope');
+  assert.equal(g('cp /tmp/x .design/_runs/s/agents.json'), 'out-of-scope');
+  assert.equal(g(`python3 -c "open('.design/_runs/s/agents.json','w')"`), 'out-of-scope');
+  assert.equal(g('cat .design/_runs/s/agents.json'), null);
+  assert.equal(g('rm .design/_history/x'), null);
+  assert.equal(code('rm .design/_runs/s/agents.json'), null); // no guard: today's rules
+});
+
 test('out-of-project: the reason names the fix and never says ask/allow', () => {
   const r = classifyBash('maude design slug x > /etc/maude-probe', {
     cwd: ROOT,

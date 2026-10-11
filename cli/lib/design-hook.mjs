@@ -28,12 +28,18 @@
 //                            screenshot gate; <designRoot>/_runs/shots.jsonl when no session is known)
 //   bash/<tool_use_id>.json  a write verb's start ({at, snaps}) — post-bash binds what changed since
 //   stop-last.json           the last Stop block (so a re-stop with the same list lets it end)
-//   agents.json              sub-agent starts: agent_id → {type, at, handoffs} (SubagentStart)
+//   agents.json              sub-agent starts: agent_id → {type, at, handoffs: [{rel, sha}]}
+//                            (SubagentStart records each hand-off with its content hash; the
+//                            agent is held to THAT copy — gone or changed → its writes are denied)
 //   handoff/*.in.json        maude.agent-handoff/1 role "in", written by the main agent before a
 //                            spawn: a sub-agent of that type writes ONLY its `owns` (V2-1.18)
+// A sub-agent never writes the run folder's control files (agents.json, *.in.json, the hooks'
+// snapshots): under _runs/ it writes only its hand-off `output` and what it `owns`. Nobody — the
+// main agent included — writes the local harnesses (_draw/*.proof.tsx, _photo/*.bgremove.tsx):
+// their verbs generate them from their own process.
 // and <designRoot>/_runs/sessions/<session>.json marks a session whose run folder was named.
 //
-// Leaf module: node built-ins + studio-locate.mjs + bash-guard.mjs.
+// Leaf module: node built-ins + studio-locate.mjs + bash-guard.mjs + finding-text.mjs.
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -43,6 +49,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
   unlinkSync,
@@ -51,6 +58,7 @@ import {
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import { classifyBash, designVerbOf, designWritesSince, parseBash } from './bash-guard.mjs';
+import { cleanText, findingLine } from './finding-text.mjs';
 import { DESIGN_REL, findProjectRoot, locateStudio, postStudio } from './studio-locate.mjs';
 
 export const HOOK_EVENTS = [
@@ -205,6 +213,12 @@ export function validateHandoff(doc, { role } = {}) {
         'is not a non-empty array of repo-relative paths',
         'List the paths this agent may write.'
       );
+    else if (!doc.owns.every(globFits))
+      err(
+        'owns',
+        `has a glob over ${GLOB_MAX_CHARS} chars or with more than ${GLOB_MAX_WILDCARDS} wildcards`,
+        'Name the paths more plainly.'
+      );
     if (typeof doc.output !== 'string' || !REL_PATH_RE.test(doc.output))
       err('output', 'is not a repo-relative path', 'Name where the agent writes its result.');
   }
@@ -252,28 +266,73 @@ export function validateHandoff(doc, { role } = {}) {
   return { ok: errors.length === 0, role: r, errors };
 }
 
-const globRe = (glob) =>
-  new RegExp(
-    `^${glob
-      .split(/(\*\*\/|\*\*|\*|\?)/)
-      .map((t) =>
-        t === '**/'
-          ? '(?:.*/)?'
-          : t === '**'
-            ? '.*'
-            : t === '*'
-              ? '[^/]*'
-              : t === '?'
-                ? '[^/]'
-                : t.replace(/[.+^${}()|[\]\\]/g, '\\$&')
-      )
-      .join('')}$`
-  );
+/** An `owns` glob the hook will match: short, few wildcards (the main agent writes them). */
+const GLOB_MAX_CHARS = 256;
+const GLOB_MAX_WILDCARDS = 8;
+const GLOB_TOKEN = /(\*\*\/|\*\*|\*|\?)/;
+const globFits = (g) =>
+  typeof g === 'string' &&
+  g.length <= GLOB_MAX_CHARS &&
+  (g.match(/\*\*\/|\*\*|\*|\?/g) ?? []).length <= GLOB_MAX_WILDCARDS;
+
+/**
+ * `path` against `glob` (`*` one segment, `**` across, `**` + `/` zero or more segments, `?` one
+ * char) as a set-of-states walk: O(path × glob), never a backtracking RegExp over agent text.
+ */
+export function globMatch(glob, path) {
+  const S = 1;
+  const DS = 2;
+  const DSS = 3;
+  const Q = 4;
+  const toks = [];
+  for (const part of glob.split(GLOB_TOKEN))
+    if (part === '**/') toks.push(DSS);
+    else if (part === '**') toks.push(DS);
+    else if (part === '*') toks.push(S);
+    else if (part === '?') toks.push(Q);
+    else for (const ch of part) toks.push(ch);
+  const T = toks.length; // the accept state; T + 1 + i = "inside the `**` + `/` at i"
+  const close = (set, i) => {
+    if (i >= T) {
+      set.add(T);
+      return;
+    }
+    if (set.has(i)) return;
+    set.add(i);
+    if (toks[i] === S || toks[i] === DS) close(set, i + 1);
+    else if (toks[i] === DSS) {
+      set.add(T + 1 + i);
+      close(set, i + 1);
+    }
+  };
+  let cur = new Set();
+  close(cur, 0);
+  for (const c of path) {
+    const next = new Set();
+    for (const st of cur) {
+      if (st === T) continue;
+      if (st > T) {
+        next.add(st);
+        if (c === '/') close(next, st - T);
+        continue;
+      }
+      const k = toks[st];
+      if (k === S) {
+        if (c !== '/') close(next, st);
+      } else if (k === DS) close(next, st);
+      else if (k === Q) {
+        if (c !== '/') close(next, st + 1);
+      } else if (k === c) close(next, st + 1);
+    }
+    if (!next.size) return false;
+    cur = next;
+  }
+  return cur.has(T);
+}
 /** Does the hand-off's `owns` cover `repoRel` (POSIX, repo-relative)? `*` one segment, `**` across. */
 export function ownsPath(doc, repoRel) {
   return (
-    Array.isArray(doc?.owns) &&
-    doc.owns.some((g) => typeof g === 'string' && globRe(g).test(repoRel))
+    Array.isArray(doc?.owns) && doc.owns.some((g) => globFits(g) && globMatch(g, String(repoRel)))
   );
 }
 
@@ -288,13 +347,88 @@ function handoffsFor(ctx, agentType) {
   }
   const want = bareAgent(agentType);
   const out = [];
-  for (const f of names) {
-    const doc = readJson(join(dir, f), null);
+  for (const f of names.sort()) {
+    const text = readOr(join(dir, f));
+    const doc = parseOr(text);
     if (doc?.role !== 'in' || bareAgent(doc.agent) !== want) continue;
     if (!validateHandoff(doc, { role: 'in' }).ok) continue;
-    out.push({ rel: `_runs/${ctx.session}/handoff/${f}`, doc });
+    out.push({ rel: `_runs/${ctx.session}/handoff/${f}`, doc, text });
   }
   return out;
+}
+
+const parseOr = (text) => {
+  try {
+    return text === null ? null : JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
+const isSubagent = (input) => Boolean(input.agent_id || input.agent_type);
+
+/**
+ * The fence a sub-agent is held to: `{ hs: [{rel, doc}], error }`. The hand-offs SubagentStart
+ * recorded (path + content hash), re-read and re-hashed — one gone or changed is an `error` and
+ * every write the agent makes is denied (fail closed). No record (SubagentStart did not run: an
+ * older plugin, a lost write race) → the directory as it is now, the pre-record behaviour.
+ */
+function agentFence(ctx, input) {
+  const id = hookKey(input.agent_id);
+  const rec = id ? readJson(join(ctx.run, 'agents.json'), {})?.[id] : null;
+  if (!rec || typeof rec !== 'object')
+    return { hs: handoffsFor(ctx, input.agent_type), error: null };
+  if (!Array.isArray(rec.handoffs)) return { hs: [], error: 'its spawn record lists no hand-offs' };
+  const hs = [];
+  for (const h of rec.handoffs) {
+    const rel = typeof h?.rel === 'string' ? h.rel : '';
+    const m = /^_runs\/([^/]+)\/handoff\/[^/]+\.in\.json$/.exec(rel);
+    if (!m || m[1] !== ctx.session || typeof h.sha !== 'string')
+      return { hs: [], error: 'its spawn record is not one the hooks wrote' };
+    const text = readOr(join(ctx.designRoot, rel));
+    if (text === null)
+      return { hs: [], error: `${DESIGN_REL}/${rel}, the hand-off it was spawned with, is gone` };
+    if (sha(text) !== h.sha)
+      return { hs: [], error: `${DESIGN_REL}/${rel} changed after it was spawned` };
+    const doc = parseOr(text);
+    if (!validateHandoff(doc, { role: 'in' }).ok)
+      return { hs: [], error: `${DESIGN_REL}/${rel} is no longer a valid hand-off` };
+    hs.push({ rel, doc });
+  }
+  return { hs, error: null };
+}
+
+const fenceReason = (input, error) =>
+  `out-of-scope: ${input.agent_type ?? 'this agent'} can't write — ${error}. Stop here and report it in your hand-off result; the main agent re-spawns you with a new hand-off.`;
+
+/** The local harnesses Maude's own verbs generate (V2-2.8 isLocalHarness): never an AI write. */
+const HARNESS_RE = /^_(?:draw\/[^/]+\.proof|photo\/[^/]+\.bgremove)\.tsx$/;
+/** Run-folder files (and the dirs that hold them) only the hooks and the main agent write. */
+const RUN_CONTROL_RE =
+  /^_runs(?:\/[^/]+)?(?:\/handoff)?\/?$|^_runs\/(?:[^/]+\/)*(?:agents\.json[^/]*|handoff\/[^/]+\.in\.json)$/;
+
+/**
+ * The guard for a runtime (`_*`) design path a tool would write: `{ code, reason }` or null.
+ * `fenceOf` is a thunk (agents.json is read only for a sub-agent writing under _runs/).
+ */
+function runtimeGuard(input, rel, fenceOf) {
+  if (HARNESS_RE.test(rel)) {
+    const verb = rel.startsWith('_draw/') ? 'draw-proof' : 'photo-bg-remove';
+    return {
+      code: 'not-a-writer',
+      reason: `not-a-writer: ${DESIGN_REL}/${rel} is a local harness \`maude design ${verb}\` generates — it is never written by hand or by Bash. Run \`maude design ${verb}\` instead.`,
+    };
+  }
+  if (!isSubagent(input) || !(rel === '_runs' || rel.startsWith('_runs/'))) return null;
+  const f = fenceOf();
+  if (f.error) return { code: 'out-of-scope', reason: fenceReason(input, f.error) };
+  const repoRel = `${DESIGN_REL}/${rel}`;
+  if (f.hs.some((h) => h.doc.output === repoRel)) return null;
+  if (!RUN_CONTROL_RE.test(rel) && f.hs.some((h) => ownsPath(h.doc, repoRel))) return null;
+  const outs = f.hs.map((h) => h.doc.output);
+  return {
+    code: 'out-of-scope',
+    reason: `out-of-scope: ${input.agent_type ?? 'a sub-agent'} never writes ${repoRel} — the run folder's hand-offs, agents.json and snapshots belong to the main agent and the hooks.${outs.length ? ` Write your result to ${outs.slice(0, 3).join(' or ')}.` : ''}`,
+  };
 }
 
 /** The run id the hand-offs carry: stable per session, no studio needed (V2-1.18 §5.1 shape). */
@@ -390,9 +524,12 @@ function subagentStart(ctx, input) {
   agents[id] = {
     type: typeof input.agent_type === 'string' ? input.agent_type : null,
     at: Date.now(),
-    handoffs: handoffsFor(ctx, input.agent_type).map((h) => h.rel),
+    handoffs: handoffsFor(ctx, input.agent_type).map((h) => ({ rel: h.rel, sha: sha(h.text) })),
   };
-  writeAt(p, JSON.stringify(agents));
+  // tmp + rename: a torn agents.json would read as "no record" for every agent
+  const tmp = `${p}.${process.pid}.tmp`;
+  writeAt(tmp, JSON.stringify(agents));
+  renameSync(tmp, p);
   return null;
 }
 
@@ -429,8 +566,8 @@ function writeVerbs(ctx, command) {
   return out;
 }
 
-/** The designRoot-relative POSIX path of the tool's target, or null (outside / runtime). */
-function targetOf(ctx, input) {
+/** The designRoot-relative POSIX path of the tool's target, runtime ones included; null outside. */
+function designTarget(ctx, input) {
   const ti = input.tool_input ?? {};
   const p = ti.file_path ?? ti.notebook_path;
   if (typeof p !== 'string' || !p) return null;
@@ -438,8 +575,13 @@ function targetOf(ctx, input) {
   const rel = relative(ctx.designRoot, abs);
   if (!rel || rel.startsWith('..') || isAbsolute(rel)) return null;
   const posix = rel.split(sep).join('/');
-  if (posix.startsWith('_') || posix.split('/').some((s) => s.startsWith('.'))) return null;
-  return { abs, rel: posix };
+  const runtime = posix.startsWith('_') || posix.split('/').some((s) => s.startsWith('.'));
+  return { abs, rel: posix, runtime };
+}
+/** The designRoot-relative POSIX path of the tool's target, or null (outside / runtime). */
+function targetOf(ctx, input) {
+  const t = designTarget(ctx, input);
+  return t && !t.runtime ? { abs: t.abs, rel: t.rel } : null;
 }
 
 const snapRel = (ctx, toolUseId) => `_runs/${ctx.session}/snap/${toolUseId}`;
@@ -459,8 +601,6 @@ function loadSnapshot(ctx, rel) {
   if (existsSync(`${abs}.new`)) return { existed: false, content: null, rel };
   return null;
 }
-
-const findingLine = (e) => `error [${e.code}] ${e.where} · ${e.what} · ${e.fix}`;
 
 /**
  * `maude design check` of one designRoot file → { ok, errors } or null (could not run: fail open).
@@ -538,11 +678,22 @@ async function prompt(ctx, input) {
 
 async function preEdit(ctx, input) {
   if (!EDIT_TOOLS.has(input.tool_name)) return null;
-  const t = targetOf(ctx, input);
-  if (!t) return null;
+  const d = designTarget(ctx, input);
+  if (!d) return null;
+  let fence = null;
+  const fenceOf = () => {
+    fence ??= agentFence(ctx, input);
+    return fence;
+  };
+  if (isSubagent(input) && fenceOf().error) return deny(fenceReason(input, fence.error));
+  if (d.runtime) {
+    const g = runtimeGuard(input, d.rel, fenceOf);
+    return g ? deny(g.reason) : null;
+  }
+  const t = { abs: d.abs, rel: d.rel };
   // 0. a sub-agent spawned with a hand-off writes only what it `owns` (V2-1.18 §5.4 (a))
-  if (input.agent_id || input.agent_type) {
-    const hs = handoffsFor(ctx, input.agent_type);
+  if (isSubagent(input)) {
+    const hs = fenceOf().hs;
     const repoRel = repoRelOf(ctx, t.abs);
     if (hs.length && !hs.some((h) => ownsPath(h.doc, repoRel))) {
       const owns = [...new Set(hs.flatMap((h) => h.doc.owns))].slice(0, 6).join(', ');
@@ -720,10 +871,16 @@ function syncedBoardHint(ctx, rel) {
 function preBash(ctx, input) {
   if (input.tool_name !== 'Bash') return null;
   const command = input.tool_input?.command;
+  let fence = null;
+  const fenceOf = () => {
+    fence ??= agentFence(ctx, input);
+    return fence;
+  };
   const verdict = classifyBash(command, {
     cwd: ctx.cwd,
     designRoot: ctx.designRoot,
     root: ctx.root,
+    guard: (rel) => runtimeGuard(input, rel, fenceOf),
   });
   if (verdict) return deny(verdict.reason);
   // a `maude design` write verb: remember when it started, and snapshot the design files it names
@@ -786,11 +943,13 @@ async function postBash(ctx, input) {
 
 /** SubagentStop: the hand-off result, then the stop-tier check of the run's files it owns. */
 async function subagentStop(ctx, input, self) {
-  const hs = handoffsFor(ctx, input.agent_type);
-  if (!hs.length) return null; // spawned without a hand-off: nothing to hold it to
+  const fence = agentFence(ctx, input);
+  const hs = fence.hs;
   const id = hookKey(input.agent_id);
-  const started = (id && readJson(join(ctx.run, 'agents.json'), {})[id]?.at) || 0;
   const problems = [];
+  if (fence.error) problems.push(`handoff-changed: ${fence.error} — say so in your result.`);
+  else if (!hs.length) return null; // spawned without a hand-off: nothing to hold it to
+  const started = (id && readJson(join(ctx.run, 'agents.json'), {})[id]?.at) || 0;
   // its result: one of its hand-offs' `output` files, written after it started, valid as "out"
   const outs = hs
     .map((h) => ({ rel: h.doc.output, abs: resolve(ctx.root, h.doc.output) }))
@@ -802,14 +961,16 @@ async function subagentStop(ctx, input, self) {
       return false;
     }
   });
-  if (!fresh.length)
+  if (!fresh.length && !fence.error)
     problems.push(
       `handoff-missing: write your result (${HANDOFF_CONTRACT}, role "out") to ${outs.map((o) => o.rel).join(' or ')} before you finish.`
     );
   for (const o of fresh) {
     const v = validateHandoff(readJson(o.abs, null), { role: 'out' });
     for (const e of v.errors)
-      problems.push(`handoff-invalid ${o.rel} · ${e.where} ${e.what} · ${e.fix}`);
+      problems.push(
+        `handoff-invalid ${cleanText(o.rel, 200)} · ${cleanText(e.where, 80)} ${cleanText(e.what, 200)} · ${cleanText(e.fix, 200)}`
+      );
   }
   const touched = readJson(join(ctx.run, 'touched.json'), {});
   const studio = await locateStudio(ctx.root, { timeoutMs: LOCATE_MS });

@@ -5,13 +5,13 @@
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { outputArgs, outputViolation } from './confine-out.mjs';
+import { allowedRoots, outputArgs, outputViolation } from './confine-out.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const MAUDE = join(ROOT, 'cli', 'bin', 'maude.mjs');
@@ -21,7 +21,11 @@ const MAUDE = join(ROOT, 'cli', 'bin', 'maude.mjs');
 function project() {
   const base = join(ROOT, 'node_modules', '.cache');
   mkdirSync(base, { recursive: true });
-  return realpathSync(mkdtempSync(join(base, 'confine-out-')));
+  const p = realpathSync(mkdtempSync(join(base, 'confine-out-')));
+  // a Maude project root (findProjectRoot), so its parent — this repo — is not the root
+  mkdirSync(join(p, '.design'), { recursive: true });
+  writeFileSync(join(p, '.design', 'config.json'), '{}');
+  return p;
 }
 
 test('outputArgs finds --out, --out-dir, --output in both forms', () => {
@@ -66,6 +70,39 @@ test('a symlink inside the project that points out of it is refused', () => {
     symlinkSync(homedir(), join(p, 'home-link'));
     assert.notEqual(
       outputViolation(['--out', 'home-link/.zshenv'], { cwd: p, projectDir: '' }),
+      null
+    );
+  } finally {
+    rmSync(p, { recursive: true, force: true });
+  }
+});
+
+test('`..` after a symlink and a dangling link resolve as the kernel does', () => {
+  const p = project();
+  try {
+    symlinkSync('/usr/bin', join(p, 'bin-link'));
+    symlinkSync(`/etc/maude-dangling-${process.pid}`, join(p, 'dang'));
+    for (const v of ['bin-link/../maude-probe', 'dang', `${p}/bin-link/../../x`])
+      assert.notEqual(outputViolation(['--out', v], { cwd: p, projectDir: '' }), null, v);
+    assert.equal(outputViolation(['--out', '.design/../x'], { cwd: p, projectDir: '' }), null);
+  } finally {
+    rmSync(p, { recursive: true, force: true });
+  }
+});
+
+test('the roots are the project root (not the cwd) and the temp dir (§5.3)', () => {
+  const p = project();
+  try {
+    mkdirSync(join(p, 'sub'), { recursive: true });
+    // from a subdirectory, the whole project is in bounds
+    assert.equal(
+      outputViolation(['--out', '../x.png'], { cwd: join(p, 'sub'), projectDir: '' }),
+      null
+    );
+    // a cwd that is no project is not a root: `--out x` from ~ would land in ~
+    assert.ok(!allowedRoots({ cwd: homedir(), projectDir: '' }).includes(realpathSync(homedir())));
+    assert.notEqual(
+      outputViolation(['--out', '.zshenv'], { cwd: homedir(), projectDir: '' }),
       null
     );
   } finally {

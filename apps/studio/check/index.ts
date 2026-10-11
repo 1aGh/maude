@@ -24,13 +24,20 @@
 //   json kinds   parse
 //   runtime `_*` (other than hand-offs), files outside the design root, everything else: skipped
 //
+// Text that came out of the checked file (an artboard id, a .meta.json key, a board element id,
+// a hand-off field) reaches the model in the hook's block reason, so it is quoted and capped where
+// the finding is built (cli/lib/finding-text.mjs `fileText`), an artboard id that is not an id is
+// named by its line only, and every finding is cleaned once more on the way out (`cleanFinding`).
+//
 // Bun only (oxc-parser). No fs: callers read the bytes, so the hook can check exactly what was
 // written and the studio's warm validator can check a body it was sent.
 
 import { parseSync } from 'oxc-parser';
 
+import { cleanFinding, cleanText, fileText, findingLine } from '../../../cli/lib/finding-text.mjs';
 import { validateHandoff } from '../../../cli/lib/handoff.mjs';
 import { validateBoard } from '../annotations/validate-board.ts';
+import { isValidElementId } from '../element-ids.ts';
 import { validateEdl, validateFootageAnalysis } from '../footage/schema.ts';
 import { checkIdsAdapter } from './ids.ts';
 import { validateMeta } from './meta.ts';
@@ -97,6 +104,9 @@ export function kindOf(rel: string): CheckKind {
   return 'skip';
 }
 
+/** The studio's artboard-id rule (routes/agent.ts AGENT_ID_RE — a test holds them equal). */
+export const ARTBOARD_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
+
 const finding = (code: string, where: string, what: string, fix: string, line?: number): Finding =>
   line === undefined ? { code, where, what, fix } : { code, where, what, fix, line };
 
@@ -152,7 +162,7 @@ function checkCanvasTsx(rel: string, text: string, opts: CheckOptions, r: CheckR
       finding(
         'parse',
         `${rel}:${line}`,
-        `the file does not parse: ${e.message ?? 'syntax error'}`,
+        `the file does not parse: ${cleanText(e.message ?? 'syntax error', 160)}`,
         'fix the syntax error this edit introduced',
         line
       )
@@ -160,6 +170,17 @@ function checkCanvasTsx(rel: string, text: string, opts: CheckOptions, r: CheckR
     return;
   }
   const seen = new Map<string, number>();
+  let before: Set<string> | null = null; // the snapshot's artboard ids, parsed only when needed
+  const hadBefore = (id: string) => {
+    if (before === null) {
+      before = new Set();
+      if (typeof opts.against === 'string') {
+        const p = parseSync(rel, opts.against, { sourceType: 'module', lang: 'tsx' });
+        if (!p.errors.length) for (const a of artboardsOf(p.program)) if (a.id) before.add(a.id);
+      }
+    }
+    return before.has(id);
+  };
   for (const ab of artboardsOf(parsed.program)) {
     const line = lineAt(text, ab.start);
     if (ab.id === null) {
@@ -174,13 +195,27 @@ function checkCanvasTsx(rel: string, text: string, opts: CheckOptions, r: CheckR
       );
       continue;
     }
+    if (!ARTBOARD_ID_RE.test(ab.id)) {
+      // never echo it: the id is file text, and this one is not an id. One the snapshot already
+      // had (a peer's, a clone's) is a warning — the model never sees warnings in a block reason.
+      (hadBefore(ab.id) ? r.warnings : r.errors).push(
+        finding(
+          'artboard-id-format',
+          `${rel}:${line}`,
+          `the DCArtboard id on line ${line} is not a valid id`,
+          'write id="kebab-name" (letters, digits, - _ . : — at most 128) on the DCArtboard',
+          line
+        )
+      );
+      continue;
+    }
     const first = seen.get(ab.id);
     if (first !== undefined)
       r.errors.push(
         finding(
           'artboard-duplicate',
-          `${rel}:${line} #${ab.id}`,
-          `two artboards have id="${ab.id}" (the first is on line ${first})`,
+          `${rel}:${line} #${cleanText(ab.id, 60)}`,
+          `two artboards have id=${fileText(ab.id)} (the first is on line ${first})`,
           'give this artboard its own id',
           line
         )
@@ -189,7 +224,16 @@ function checkCanvasTsx(rel: string, text: string, opts: CheckOptions, r: CheckR
   }
   const ids = checkIdsAdapter(text, { against: opts.against ?? undefined, path: rel });
   for (const f of ids.findings) {
-    const out: Finding = { code: f.code, where: f.where, what: f.what, fix: f.fix, line: f.line };
+    // an element id that is not an id is file text: drop it, the line names the element
+    const raw = typeof f.id === 'string' && !isValidElementId(f.id) ? f.id : null;
+    const strip = (s: string) => (raw ? s.split(raw).join('(an invalid id)') : s);
+    const out: Finding = {
+      code: f.code,
+      where: strip(f.where),
+      what: strip(f.what),
+      fix: f.fix,
+      line: f.line,
+    };
     if (f.element) out.element = f.element;
     (f.severity === 'error' ? r.errors : r.infos).push(out);
   }
@@ -213,7 +257,7 @@ function checkAnnotations(rel: string, text: string, opts: CheckOptions, r: Chec
     [v.warnings, r.warnings],
   ] as const)
     for (const i of list) {
-      const where = `${rel}${i.id ? ` › ${i.id}` : ''}${i.field && i.field !== '/' ? ` ${i.field}` : ''}`;
+      const where = `${rel}${i.id ? ` › ${fileText(i.id)}` : ''}${i.field && i.field !== '/' ? ` ${fileText(i.field)}` : ''}`;
       into.push(finding(i.code, where, i.what, i.fix));
     }
 }
@@ -245,7 +289,7 @@ function checkMeta(rel: string, text: string, opts: CheckOptions, r: CheckResult
     before = null;
   }
   for (const i of validateMeta(doc as Record<string, unknown>, isObj(before) ? before : null))
-    r.errors.push(finding(i.code, `${rel} › ${i.field.slice(1) || '/'}`, i.what, i.fix));
+    r.errors.push(finding(i.code, `${rel} › ${fileText(i.field.slice(1) || '/')}`, i.what, i.fix));
 }
 
 function checkHandoff(rel: string, text: string, r: CheckResult) {
@@ -260,7 +304,12 @@ function checkHandoff(rel: string, text: string, r: CheckResult) {
   };
   for (const e of v.errors)
     r.errors.push(
-      finding('handoff', `${rel} › ${e.where.replace(/^\//, '') || '/'}`, e.what, e.fix)
+      finding(
+        'handoff',
+        `${rel} › ${fileText(e.where.replace(/^\//, '') || '/')}`,
+        cleanText(e.what, 200),
+        cleanText(e.fix, 200)
+      )
     );
 }
 
@@ -281,8 +330,8 @@ export function checkFile(rel: string, text: string, opts: CheckOptions = {}): C
           r.errors.push(
             finding(
               kind,
-              `${rel} › ${e.split(':')[0]}`,
-              e,
+              `${rel} › ${fileText(e.split(':')[0])}`,
+              cleanText(e, 200),
               kind === 'edl'
                 ? 'write the EDL in the documented shape (apps/studio/schema/edl.v1.schema.json, skill design:footage-director)'
                 : 'write the analysis in the documented shape (skill design:footage-director)'
@@ -303,6 +352,9 @@ export function checkFile(rel: string, text: string, opts: CheckOptions = {}): C
       finding('internal', rel, `the check itself failed: ${(e as Error).message}`, 'report a bug')
     );
   }
+  r.errors = r.errors.map(cleanFinding);
+  r.warnings = r.warnings.map(cleanFinding);
+  r.infos = r.infos.map(cleanFinding);
   r.ok = r.errors.length === 0;
   r.ms = Math.round((performance.now() - t0) * 10) / 10;
   return r;
@@ -316,6 +368,6 @@ export function formatFindings(results: readonly CheckResult[]): string {
       ['error', r.errors],
       ['warning', r.warnings],
     ] as const)
-      for (const f of list) lines.push(`${label} [${f.code}] ${f.where} · ${f.what} · ${f.fix}`);
+      for (const f of list) lines.push(findingLine(f, label));
   return lines.join('\n');
 }

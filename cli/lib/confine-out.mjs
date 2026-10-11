@@ -9,35 +9,60 @@
 //   - flags: --out, --out-dir, --output, in both `--flag value` and `--flag=value` forms;
 //   - a relative path is resolved against the cwd AND against `--root` when given, and both
 //     candidates must pass (helpers differ in which one they use);
-//   - the allowed roots are the cwd, $CLAUDE_PROJECT_DIR and the OS temp dir (plus /tmp), each
-//     realpath'd, and the candidate is realpath'd through its deepest existing ancestor, so a
-//     symlink inside the project that points out of it does not pass.
+//   - the allowed roots are the project root of the cwd (findProjectRoot — not the cwd itself: a
+//     cwd of ~ is no root), the project root of `--root`, $CLAUDE_PROJECT_DIR and the OS temp dir
+//     (plus /tmp), each realpath'd;
+//   - the candidate is resolved the way the kernel opens it, segment by segment: a symlink is
+//     followed before a later `..` pops (so `link/..` is the parent of the link's target, not the
+//     project), and a dangling link resolves to the target it would create.
 //
-// Leaf module: node built-ins only (helper-deps.mjs stages runtime-spawned imports).
+// Leaf module: node built-ins + studio-locate.mjs (helper-deps.mjs stages runtime-spawned imports).
 
-import { existsSync, realpathSync } from 'node:fs';
+import { lstatSync, readlinkSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+
+import { findProjectRoot } from './studio-locate.mjs';
 
 export const OUTPUT_FLAGS = ['--out', '--out-dir', '--output'];
 
-/** realpath of `p`, walking up to the deepest existing ancestor for a path that doesn't exist yet. */
-export function realpathDeep(p) {
-  let cur = resolve(p);
-  const tail = [];
-  for (;;) {
-    if (existsSync(cur)) {
-      try {
-        return join(realpathSync(cur), ...tail.reverse());
-      } catch {
-        return join(cur, ...tail.reverse());
-      }
+const LINK_HOPS = 40;
+/** Outside every root: what an unresolvable path (a symlink loop) resolves to. */
+const UNRESOLVABLE = `${sep}\0unresolvable`;
+
+/**
+ * The path `p` names, resolved as the kernel walks it: each existing segment realpath'd before the
+ * next one (so `link/..` pops from the link's TARGET), a dangling symlink followed to the target a
+ * write would create, a missing tail kept as written. `p` must NOT be normalised first — resolve()
+ * / join() collapse `link/..` lexically, which is the bug this exists for. Relative → against cwd.
+ */
+export function realpathDeep(p, hops = 0) {
+  const abs = isAbsolute(p) ? p : `${process.cwd()}${sep}${p}`;
+  let cur = realpathSync(sep);
+  for (const seg of abs.split(/[\\/]+/)) {
+    if (!seg || seg === '.') continue;
+    if (seg === '..') {
+      cur = dirname(cur);
+      continue;
     }
-    const parent = dirname(cur);
-    if (parent === cur) return join(cur, ...tail.reverse());
-    tail.push(basename(cur));
-    cur = parent;
+    const next = join(cur, seg);
+    try {
+      cur = realpathSync(next);
+      continue;
+    } catch {
+      /* missing, dangling or unreadable */
+    }
+    let link = null;
+    try {
+      link = lstatSync(next).isSymbolicLink() ? readlinkSync(next) : null;
+    } catch {
+      /* missing */
+    }
+    if (link === null) cur = next;
+    else if (hops >= LINK_HOPS) return UNRESOLVABLE;
+    else cur = realpathDeep(isAbsolute(link) ? link : `${cur}${sep}${link}`, hops + 1);
   }
+  return cur;
 }
 
 function inside(child, root) {
@@ -45,12 +70,19 @@ function inside(child, root) {
   return rel === '' || (!rel.startsWith(`..${sep}`) && rel !== '..' && !isAbsolute(rel));
 }
 
-/** The realpath'd roots an output may land under. */
+/** The realpath'd roots an output may land under (`root`: the verb's `--root`, when given). */
 export function allowedRoots({
   cwd = process.cwd(),
   projectDir = process.env.CLAUDE_PROJECT_DIR,
+  root = null,
 } = {}) {
-  const roots = [cwd, projectDir, tmpdir(), '/tmp'].filter(Boolean);
+  const roots = [
+    findProjectRoot(cwd),
+    root ? findProjectRoot(resolve(cwd, root)) : null,
+    projectDir,
+    tmpdir(),
+    '/tmp',
+  ].filter(Boolean);
   return [...new Set(roots.map((r) => realpathDeep(r)))];
 }
 
@@ -82,16 +114,18 @@ function flagValue(args, name) {
  */
 export function outputViolation(args, opts = {}) {
   const cwd = opts.cwd ?? process.cwd();
+  const root = flagValue(args, '--root');
   const roots = allowedRoots({
     cwd,
     projectDir: opts.projectDir ?? process.env.CLAUDE_PROJECT_DIR,
+    root,
   });
-  const root = flagValue(args, '--root');
   for (const { flag, value } of outputArgs(args)) {
     if (value === '' || value === '-') continue; // empty / stdout
     const bases = isAbsolute(value) ? [cwd] : [cwd, ...(root ? [resolve(cwd, root)] : [])];
     for (const base of bases) {
-      const resolved = realpathDeep(resolve(base, value));
+      // joined, not resolve()d: `..` must pop after the symlinks before it are followed
+      const resolved = realpathDeep(isAbsolute(value) ? value : `${base}${sep}${value}`);
       if (!roots.some((r) => inside(resolved, r))) return { flag, value, resolved };
     }
   }

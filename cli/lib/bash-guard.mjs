@@ -475,8 +475,9 @@ export function designVerbOf(cmd, verbs) {
  * The pre-bash decision for `command` run in `cwd`: { code, reason } or null (no decision).
  * The design-root rules judge paths by name and never stat; only the out-of-project check (given
  * `root`) realpaths its targets, so a symlink in the project that points out of it is caught.
+ * `guard(rel)` (optional) judges a runtime `_*` path in a write position: `{code, reason}` denies.
  */
-export function classifyBash(command, { cwd, designRoot, root }) {
+export function classifyBash(command, { cwd, designRoot, root, guard = null }) {
   if (typeof command !== 'string' || !command) return null;
   const out = root ? outOfProject(command, { cwd, root }) : null;
   if (out) return out;
@@ -489,10 +490,14 @@ export function classifyBash(command, { cwd, designRoot, root }) {
   const cmds = parseBash(command);
   if (!cmds) return null;
   let here = cwd;
-  const hit = (code, p) => ({ code, reason: MESSAGES[code](p.rel) });
+  const hit = (code, p) => p.guard ?? { code, reason: MESSAGES[code](p.rel) };
+  // a versioned path — or a runtime one the caller's `guard(rel)` refuses (its verdict wins)
   const versioned = (w) => {
     const p = designPath(w, here, designRoot);
-    return p && !p.runtime ? p : null;
+    if (!p) return null;
+    if (!p.runtime) return p;
+    const g = guard?.(p.rel);
+    return g ? { ...p, guard: g } : null;
   };
   for (const cmd of cmds) {
     // redirections into the design root, whoever produces the bytes
@@ -622,13 +627,17 @@ export function classifyBash(command, { cwd, designRoot, root }) {
     if (flags) {
       const text = scriptText(cmd, args, flags, lang);
       if (text === null || !SCRIPT_WRITES.test(text)) continue;
-      // a .design path the script names, runtime (`.design/_…`) ones excepted
-      const named = [...text.matchAll(/\.design(?:\/([^\s'"`),;]*))?/g)]
-        .map((m) => m[1] ?? '')
-        .filter((after) => {
-          const first = after.split('/')[0] ?? '';
-          return !(first.startsWith('_') || first.startsWith('.'));
-        });
+      // a .design path the script names, runtime (`.design/_…`) ones excepted unless guarded
+      const all = [...text.matchAll(/\.design(?:\/([^\s'"`),;]*))?/g)].map((m) => m[1] ?? '');
+      const runtime = (after) => {
+        const first = after.split('/')[0] ?? '';
+        return first.startsWith('_') || first.startsWith('.');
+      };
+      for (const after of all) {
+        const g = runtime(after) && guard ? guard(after.replace(/\/+$/, '')) : null;
+        if (g) return g;
+      }
+      const named = all.filter((after) => !runtime(after));
       if (text.includes(designRoot)) named.push('.');
       if (named.length) return hit('not-a-writer', { rel: named[0] || '.' });
     }
@@ -661,8 +670,9 @@ function outTarget(word, here) {
     const base = word.env === 'HOME' ? homedir() : process.env.TMPDIR || tmpdir();
     text = base + word.text;
   } else return null;
-  if (isAbsolute(text)) return resolve(text);
-  return here ? resolve(here, text) : null;
+  // not resolve()d: `link/..` pops from the link's target, and realpathDeep follows it first
+  if (isAbsolute(text)) return text;
+  return here ? `${here}${sep}${text}` : null;
 }
 
 /**
@@ -681,7 +691,7 @@ function outOfProject(command, { cwd, root }) {
   if (!cmds) return null;
   let roots = null;
   const outside = (abs) => {
-    if (DEV_SINKS.has(abs)) return false;
+    if (DEV_SINKS.has(abs)) return false; // written exactly so: never a link game
     roots ??= [...new Set([root, tmpdir(), '/tmp'].map((r) => realpathDeep(r)))];
     const real = realpathDeep(abs);
     return !roots.some((r) => within(real, r));
