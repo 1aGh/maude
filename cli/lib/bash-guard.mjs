@@ -3,9 +3,13 @@
 //
 //   use-trash     rm / unlink / rmdir / git rm / find -delete of a versioned .design/** file
 //   use-verb      mv / git mv of a versioned .design/** file
-//   not-a-writer  a non-`maude` writer into .design/**: sed -i, perl -i, tee, > / >>, cp / rsync /
-//                 install / ditto BY DESTINATION, and node -e / python -c / … only when the script
-//                 text writes AND names a .design path
+//   not-a-writer  a non-`maude` writer into .design/**: sed -i/-I, perl -i, tee, > / >>, cp / rsync /
+//                 install / ditto / ln BY DESTINATION (a hard link's sources too), git checkout /
+//                 restore of a path, and node -e / python -c / … only when the script text writes
+//                 AND names a .design path
+//
+// Command names are the PARSED words, basename'd and case-folded (`nameOf`): `r''m`, `r\m`, `RM`
+// (APFS) all run rm. Every command is parsed — a text pre-filter can't see those names.
 //
 //   out-of-project  a `maude` command's output redirected (> >> &> 2> >| or a `tee` it feeds) to a
 //                 path outside the repo root and the OS temp dir (§9 Q3) — `outOfProject` below
@@ -384,14 +388,6 @@ const INTERPRETERS = {
 const SCRIPT_WRITES =
   /\b(?:writeFile(?:Sync)?|appendFile(?:Sync)?|createWriteStream|rmSync|unlink(?:Sync)?|rename(?:Sync)?|copyFile(?:Sync)?|cpSync|truncate(?:Sync)?|Bun\.write|write_text|write_bytes|os\.remove|os\.replace|os\.rename|shutil\.\w+|File\.write|FileUtils)\b|\bopen\s*\([^)]*['"][wax+]b?['"]|\bmode\s*=\s*['"][wax+]|\bopen\s*\([^)]*['"]\+?>{1,2}/;
 
-/**
- * Every command name the rules below judge (wrappers name it later in the same text), and every
- * redirection operator. A command with none of them can't be denied, so it is never parsed.
- * Over-matching (a name inside a word) only costs the parse.
- */
-const JUDGED_RE =
-  />|\b(?:rm|unlink|rmdir|shred|trash|git|find|mv|cp|rsync|install|ditto|tee|g?sed|perl|node|bun|deno|python|ruby)/;
-
 const MESSAGES = {
   'use-trash': (rel) =>
     `use-trash: ${rel} is a versioned design file — Bash never deletes it. Move a canvas to the trash: \`maude design trash move "<canvas path>"\` (or ask the person to delete it in Canvases); remove one artboard by deleting its DCArtboard block with Edit.`,
@@ -421,14 +417,25 @@ function designPath(word, cwd, designReal) {
   return { rel: posix || '.', runtime: first.startsWith('_') || first.startsWith('.') };
 }
 
-/** The effective command: wrappers (`sudo`, `env A=b`, `command`) stripped. */
+/**
+ * A command word as the binary that runs (Phase 2 gate round 3): the PARSED word (quotes and
+ * backslashes already gone — `r''m`, `r\\m`, `"rm"` are `rm`), basename'd and case-folded, because
+ * APFS (case-insensitive by default) runs `/bin/rm` for `RM`. Folding on a case-sensitive file
+ * system only judges a name that would not run — harmless.
+ */
+const nameOf = (text) => basename(text).toLowerCase();
+
+/**
+ * The effective command: wrappers (`sudo`, `env A=b`, `command`) stripped. `name` is folded
+ * (`nameOf`); `raw` is the word as written — `cd` / `pushd` are shell BUILTINS, matched exactly:
+ * `CD x` runs macOS's /usr/bin/cd in a child and leaves this shell where it was.
+ */
 function effective(words) {
   let k = 0;
   while (k < words.length) {
     const w = words[k];
     if (!w.literal) return null;
-    const name = basename(w.text);
-    if (!WRAPPERS.has(name)) break;
+    if (!WRAPPERS.has(nameOf(w.text))) break;
     k++;
     // env's own flags and NAME=value words
     while (
@@ -439,7 +446,7 @@ function effective(words) {
       k++;
   }
   if (k >= words.length || !words[k].literal) return null;
-  return { name: basename(words[k].text), args: words.slice(k + 1) };
+  return { name: nameOf(words[k].text), raw: words[k].text, args: words.slice(k + 1) };
 }
 
 const isOpt = (w) => w.literal && /^-/.test(w.text) && w.text !== '-';
@@ -496,13 +503,15 @@ export function designVerbOf(cmd, verbs) {
  */
 export function classifyBash(command, { cwd, designRoot, root, guard = null }) {
   if (typeof command !== 'string' || !command) return null;
-  const out = root ? outOfProject(command, { cwd, root }) : null;
-  if (out) return out;
-  // fast path: no command the rules below judge, and no redirection. Not a `.design` text test —
-  // a symlink, a `..` walk or a case alias (`.DESIGN` on APFS) reaches the root without it (F2).
-  if (!JUDGED_RE.test(command)) return null;
+  // Always parsed — no text pre-filter (Phase 2 gate round 3): the shell removes quotes and
+  // backslashes and APFS folds case, so `r''m`, `r\m` and `RM` run rm with no `rm` in the text,
+  // and a symlink / `..` / `.DESIGN` reaches the root with no `.design` in it (F2). The rules judge
+  // the parsed, case-folded names (`nameOf`); the lexer is linear and paths are realpath'd only
+  // for a judged word, so the cost is the parse (the budget test in bash-guard.test.mjs).
   const cmds = parseBash(command);
   if (!cmds) return null;
+  const out = root ? outOfProject(cmds, { cwd, root }) : null;
+  if (out) return out;
   let designReal = null;
   const realRoot = () => {
     designReal ??= realpathDeep(designRoot);
@@ -527,8 +536,8 @@ export function classifyBash(command, { cwd, designRoot, root, guard = null }) {
     }
     const e = effective(cmd.words);
     if (!e) continue;
-    const { name, args } = e;
-    if (name === 'cd' || name === 'pushd') {
+    const { name, raw, args } = e;
+    if (raw === 'cd' || raw === 'pushd') {
       const to = args.find((a) => !isOpt(a));
       // joined, not resolve()d: `link/..` pops from the link's target (realpathDeep, later)
       here = !to
@@ -567,17 +576,29 @@ export function classifyBash(command, { cwd, designRoot, root, guard = null }) {
         } else if (args[k].text === '-c') k += 2;
         else k++;
       }
-      const subName = args[k]?.literal ? args[k].text : null;
-      if (subName !== 'rm' && subName !== 'mv') continue;
+      // folded too: on APFS git finds `git-RM` in its exec-path as git-rm
+      const subName = args[k]?.literal ? args[k].text.toLowerCase() : null;
+      const after = args.slice(k + 1);
+      const srcs =
+        subName === 'rm'
+          ? operands(after)
+          : subName === 'mv'
+            ? operands(after).slice(0, -1)
+            : subName === 'checkout'
+              ? checkoutPaths(after)
+              : subName === 'restore'
+                ? restorePaths(after)
+                : [];
+      if (!srcs.length) continue;
+      const gitCode =
+        subName === 'rm' ? 'use-trash' : subName === 'mv' ? 'use-verb' : 'not-a-writer';
       const saved = here;
       here = gitCwd;
-      const rest = operands(args.slice(k + 1));
-      const srcs = subName === 'mv' ? rest.slice(0, -1) : rest;
       for (const a of srcs) {
         const p = versioned(a);
         if (p) {
           here = saved;
-          return hit(subName === 'rm' ? 'use-trash' : 'use-verb', p);
+          return hit(gitCode, p);
         }
       }
       here = saved;
@@ -589,7 +610,7 @@ export function classifyBash(command, { cwd, designRoot, root, guard = null }) {
           a.literal &&
           (a.text === '-delete' ||
             ((a.text === '-exec' || a.text === '-execdir') &&
-              ['rm', 'unlink', 'shred'].includes(basename(args[j + 1]?.text ?? ''))))
+              ['rm', 'unlink', 'shred'].includes(nameOf(args[j + 1]?.text ?? ''))))
       );
       if (!deletes) continue;
       for (const a of args) {
@@ -619,6 +640,29 @@ export function classifyBash(command, { cwd, designRoot, root, guard = null }) {
       if (p) return hit('not-a-writer', p);
       continue;
     }
+    if (name === 'ln') {
+      // BY DESTINATION, like cp — and a HARD link's sources too: it gives a design (or guarded
+      // run) file's inode a second name realpath can't see through, so editing that name writes
+      // the file unjudged. A symlink is followed by realpath: only its destination counts.
+      const t = targetDir(args);
+      const symbolic = args.some(
+        (a) => a.literal && (a.text === '--symbolic' || /^-[a-zA-Z]*s/.test(a.text))
+      );
+      const srcs = t || ops.length < 2 ? ops : ops.slice(0, -1);
+      // `ln x` (one operand) links ./basename(x)
+      const dest =
+        t ??
+        (ops.length >= 2
+          ? ops[ops.length - 1]
+          : ops[0]?.literal
+            ? { ...ops[0], text: basename(ops[0].text) }
+            : null);
+      for (const a of [dest, ...(symbolic ? [] : srcs)]) {
+        const p = versioned(a);
+        if (p) return hit('not-a-writer', p);
+      }
+      continue;
+    }
     if (name === 'tee') {
       for (const a of ops) {
         const p = versioned(a);
@@ -628,7 +672,8 @@ export function classifyBash(command, { cwd, designRoot, root, guard = null }) {
     }
     const sedInPlace =
       (name === 'sed' || name === 'gsed') &&
-      args.some((a) => a.literal && (/^-[nrsuzE]*i/.test(a.text) || /^--in-place/.test(a.text)));
+      // BSD sed's -I is in-place too
+      args.some((a) => a.literal && (/^-[nrsuzE]*[iI]/.test(a.text) || /^--in-place/.test(a.text)));
     const perlInPlace =
       name === 'perl' && args.some((a) => a.literal && /^-[pnlawsTtWXcU0-9]*i/.test(a.text));
     if (sedInPlace || perlInPlace) {
@@ -722,10 +767,7 @@ function outTarget(word, here) {
  * after `X=$(maude …)`) is Claude Code's own permission business, not this guard's. An invariant
  * guard, not a permission change: helpers never need it.
  */
-function outOfProject(command, { cwd, root }) {
-  if (!/\b(?:maude|mdcc)\b/.test(command) || !/>|\btee\b/.test(command)) return null;
-  const cmds = parseBash(command);
-  if (!cmds) return null;
+function outOfProject(cmds, { cwd, root }) {
   let roots = null;
   const outside = (abs) => {
     if (DEV_SINKS.has(abs)) return false; // written exactly so: never a link game
@@ -739,7 +781,7 @@ function outOfProject(command, { cwd, root }) {
   for (const cmd of cmds) {
     if (!cmd.pipeIn) fed = false;
     const e = effective(cmd.words);
-    if (e && (e.name === 'cd' || e.name === 'pushd')) {
+    if (e && (e.raw === 'cd' || e.raw === 'pushd')) {
       const to = e.args.find((a) => !isOpt(a));
       here = !to ? homedir() : to.literal ? resolve(here ?? '/', to.text) : null;
       continue;
@@ -794,6 +836,48 @@ function targetDir(args) {
     if (m) return { ...a, text: m[1] };
   }
   return null;
+}
+
+/** Non-option args where the options in `takesArg` consume the next word (`--` ends options). */
+function pathArgs(args, takesArg) {
+  const out = [];
+  let opts = true;
+  for (let j = 0; j < args.length; j++) {
+    const a = args[j];
+    if (opts && a.literal && a.text === '--') {
+      opts = false;
+      continue;
+    }
+    if (opts && isOpt(a)) {
+      if (takesArg.has(a.text)) j++;
+      continue;
+    }
+    out.push(a);
+  }
+  return out;
+}
+
+/**
+ * The paths `git checkout` overwrites in the work tree: everything after `--`; else the operands
+ * minus a leading ref (an operand whose last segment has no `.`: `main`, `HEAD~1`, `origin/x`).
+ * A branch switch (`-b` / `-B` / `--orphan`, or a lone ref) names no path. RESIDUAL: a bare
+ * directory or extensionless file with no `--` reads as a ref.
+ */
+function checkoutPaths(args) {
+  const dd = args.findIndex((a) => a.literal && a.text === '--');
+  if (dd !== -1) return args.slice(dd + 1);
+  if (args.some((a) => a.literal && /^(?:-[bB]|--orphan(?:=.*)?)$/.test(a.text))) return [];
+  const ops = operands(args);
+  const ref = ops[0] && !(ops[0].literal && basename(ops[0].text).includes('.'));
+  return ref ? ops.slice(1) : ops;
+}
+
+/** The paths `git restore` writes in the work tree — none for `--staged` without `--worktree`. */
+function restorePaths(args) {
+  const flag = (re) => args.some((a) => a.literal && re.test(a.text));
+  if (flag(/^(?:--staged|-[A-Za-z]*S[A-Za-z]*)$/) && !flag(/^(?:--worktree|-[A-Za-z]*W[A-Za-z]*)$/))
+    return [];
+  return pathArgs(args, new Set(['-s', '--source']));
 }
 
 // ── which files a verb wrote ─────────────────────────────────────────────────────────────────

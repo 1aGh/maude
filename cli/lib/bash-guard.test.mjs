@@ -86,6 +86,74 @@ test('fail-open: a word or command it cannot follow gives no decision', () => {
   assert.equal(parseBash('X=$(echo a'), null);
 });
 
+// Phase 2 gate round 3: a command name is judged as the binary that runs — the parsed word
+// (quotes and backslashes removed), basename'd and case-folded (APFS finds `RM` as `rm`).
+const NAMED = [
+  ['RM .design/ui/X.tsx', 'use-trash'],
+  ["r''m .design/ui/X.tsx", 'use-trash'],
+  ['r\\m .design/ui/X.tsx', 'use-trash'],
+  ['"rm" .design/ui/X.tsx', 'use-trash'],
+  ['/BIN/RM .design/ui/X.tsx', 'use-trash'],
+  ['SUDO RM .design/ui/X.tsx', 'use-trash'],
+  ['UNLINK .design/ui/X.tsx', 'use-trash'],
+  ['MV .design/ui/X.tsx .design/ui/Y.tsx', 'use-verb'],
+  ["m''v .design/ui/X.tsx .design/ui/Y.tsx", 'use-verb'],
+  ['CP /tmp/x.tsx .design/ui/X.tsx', 'not-a-writer'],
+  ['TEE .design/ui/X.tsx', 'not-a-writer'],
+  ["SED -i '' s/a/b/ .design/ui/X.tsx", 'not-a-writer'],
+  ["sed -I '' s/a/b/ .design/ui/X.tsx", 'not-a-writer'],
+  ["PERL -pi -e 's/a/b/' .design/ui/X.tsx", 'not-a-writer'],
+  ["NODE -e \"require('fs').writeFileSync('.design/ui/X.tsx','x')\"", 'not-a-writer'],
+  ["Python3 -c \"open('.design/ui/X.tsx','w')\"", 'not-a-writer'],
+  ['GIT RM .design/ui/X.tsx', 'use-trash'],
+  ['g\\it r\\m .design/ui/X.tsx', 'use-trash'],
+  ['GIT -C . checkout -- .design/x.tsx', 'not-a-writer'],
+  ['git checkout HEAD~1 -- .design/ui/X.tsx', 'not-a-writer'],
+  ['git restore .design/ui/X.tsx', 'not-a-writer'],
+  ['git restore --source=HEAD~2 --worktree .design/ui/X.tsx', 'not-a-writer'],
+  ['FIND .design/ui -delete', 'use-trash'],
+  ['find .design/ui -exec RM {} +', 'use-trash'],
+  ['LN -f /tmp/x .design/ui/X.tsx', 'not-a-writer'],
+  ['ln /tmp/x .design/ui/X.tsx', 'not-a-writer'],
+  ['ln .design/ui/X.tsx /tmp/x', 'not-a-writer'],
+  ['ln -t .design/ui /tmp/x', 'not-a-writer'],
+  ['INSTALL /tmp/x .design/ui/X.tsx', 'not-a-writer'],
+];
+
+const NAMED_ALLOWED = [
+  'git checkout main',
+  'git checkout -b feature/x',
+  'git restore --staged .design/ui/X.tsx',
+  'GIT status .design',
+  'ln -s .design/ui/X.tsx /tmp/x',
+  'LS .design/ui',
+];
+
+test("command names are the parsed, case-folded binary (RM, r''m, r\\m, GIT, LN)", () => {
+  for (const [cmd, want] of NAMED) assert.equal(code(cmd), want, cmd);
+  for (const cmd of NAMED_ALLOWED) assert.equal(code(cmd), null, cmd);
+});
+
+test('a hard link from a guarded runtime file is judged (ln source and destination)', () => {
+  const guard = (rel) =>
+    rel.startsWith('_runs/') ? { code: 'out-of-scope', reason: `out-of-scope: ${rel}` } : null;
+  const g = (cmd) => classifyBash(cmd, { cwd: ROOT, designRoot: DR, guard })?.code ?? null;
+  assert.equal(g('ln -f .design/ui/Draft.tsx .design/_runs/s/agents.json'), 'out-of-scope');
+  assert.equal(g('ln .design/_runs/s/agents.json /tmp/owned.json'), 'out-of-scope');
+  assert.equal(g('ln -s /tmp/x /tmp/y'), null);
+});
+
+test('the pre-bash budget: the whole fixture set classifies in a few ms per command', () => {
+  const all = [...DENIED, ...NAMED].map(([c]) => c).concat(ALLOWED, NAMED_ALLOWED, UNSEEN);
+  for (const c of all) code(c); // warm up
+  const runs = 20;
+  const t0 = performance.now();
+  for (let k = 0; k < runs; k++) for (const c of all) code(c);
+  const per = (performance.now() - t0) / (runs * all.length);
+  console.log(`pre-bash classify: ${per.toFixed(3)} ms / command over ${all.length} fixtures`);
+  assert.ok(per < 2, `${per} ms per command`);
+});
+
 test('relative paths follow the hook cwd', () => {
   assert.equal(code('rm C.tsx', '/p/.design/ui'), 'use-trash');
   assert.equal(code('rm C.tsx', '/p'), null);
