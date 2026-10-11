@@ -13,7 +13,17 @@ import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { outputViolation, violationMessage } from '../../../cli/lib/confine-out.mjs';
 import { replayExportJob } from '../exporters/replay.ts';
-import { call, clean, connect, parseWords, runVerb, UsageError } from './_studio-verb.mjs';
+import {
+  call,
+  clean,
+  connect,
+  field,
+  parseWords,
+  runVerb,
+  UsageError,
+  untrustedJson,
+  writeUntrusted,
+} from './_studio-verb.mjs';
 
 export const USAGE = `usage: maude design exports list [--json] [--root <project>]
        maude design exports again <id | index> [--out <file|folder/>] [--no-wait] [--json] [--root <project>]
@@ -38,20 +48,25 @@ async function list(words) {
   if (c.exit) return c.exit;
   const h = await history(c.studio);
   if (flags['--json']) {
-    process.stdout.write(`${JSON.stringify({ history: h })}\n`);
+    process.stdout.write(`${JSON.stringify(untrustedJson({ history: h }))}\n`);
     return 0;
   }
-  if (h.length === 0) process.stdout.write('no exports yet\n');
-  h.forEach((e, i) => {
-    process.stdout.write(
-      `${i}  ${clean(e.id ?? '-')}  ${String(e.at ?? '')
-        .replace('T', ' ')
-        .slice(
-          0,
-          16
-        )}  ${clean(e.format)}  ${clean(e.scope)}  ${clean(e.filename)}${e.status === 'failed' ? '  failed' : ''}${e.deliveredInBrowser ? '  (saved in the browser)' : ''}\n`
-    );
-  });
+  if (h.length === 0) {
+    process.stdout.write('no exports yet\n');
+    return 0;
+  }
+  // the history can be a committed file from a cloned repo: every field is untrusted
+  const when = (e) =>
+    field(e.at ?? '')
+      .replace('T', ' ')
+      .slice(0, 16);
+  const text = h
+    .map(
+      (e, i) =>
+        `${i}  ${field(e.id ?? '-')}  ${when(e)}  ${field(e.format)}  ${field(e.scope)}  ${field(e.filename)}${e.status === 'failed' ? '  failed' : ''}${e.deliveredInBrowser ? '  (saved in the browser)' : ''}\n`
+    )
+    .join('');
+  writeUntrusted(text);
   return 0;
 }
 
@@ -90,7 +105,7 @@ async function again(words) {
   const jobId = String(posted.body.jobId);
   if (flags['--no-wait']) {
     process.stdout.write(
-      flags['--json'] ? `${JSON.stringify({ jobId, job })}\n` : `→ queued ${jobId}\n`
+      flags['--json'] ? `${JSON.stringify(untrustedJson({ jobId, job }))}\n` : `→ queued ${jobId}\n`
     );
     return 0;
   }
@@ -114,7 +129,9 @@ async function again(words) {
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, dl);
   process.stdout.write(
-    flags['--json'] ? `${JSON.stringify({ jobId, job, path: target })}\n` : `→ ${target}\n`
+    flags['--json']
+      ? `${JSON.stringify(untrustedJson({ jobId, job, path: target }))}\n`
+      : `→ ${target}\n`
   );
   return 0;
 }

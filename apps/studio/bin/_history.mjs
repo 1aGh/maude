@@ -4,7 +4,8 @@
 //   synced project  — the accepted history rows (`GET /_api/project/history`, revisions `r<n>`);
 //   local project   — the route answers `{ ok:false, reason:'legacy' }`, so the git log / diff
 //                     routes answer instead (`/_api/git/log`, `/_api/git/diff`; commit shas).
-// list / show / diff read only (effect none → auto tier).
+// list / show / diff read only (effect none → auto tier). Labels, actors, commit subjects and file
+// text are other people's: printed inside the one untrusted block (`--json`: `untrusted: true`).
 
 import { readFileSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
@@ -12,10 +13,14 @@ import {
   call,
   canvasRepoRel,
   clean,
+  cleanLines,
   connect,
+  field,
   parseWords,
   runVerb,
   UsageError,
+  untrustedJson,
+  writeUntrusted,
 } from './_studio-verb.mjs';
 
 export const USAGE = `usage: maude design history list [<canvas>] [--limit N] [--json] [--root <project>]
@@ -58,16 +63,16 @@ async function gitLog(studio, { repoRel, limit = 50 }) {
   return r.body?.entries ?? [];
 }
 
-const when = (iso) => (iso ? String(iso).replace('T', ' ').slice(0, 16) : '');
-const canvasesOf = (row) => (row.canvases ?? []).map((c) => clean(c).replace(/^\.design\//, ''));
+const when = (iso) => (iso ? field(iso).replace('T', ' ').slice(0, 16) : '');
+const canvasesOf = (row) => (row.canvases ?? []).map((c) => field(c).replace(/^\.design\//, ''));
 
 function syncedLine(row) {
-  const who = `${clean(row.actor ?? '?')}${row.mine ? ' (you)' : ''}`;
+  const who = `${field(row.actor ?? '?')}${row.mine ? ' (you)' : ''}`;
   const where = canvasesOf(row).join(', ');
-  return `r${row.revision}  ${when(row.committedAt)}  ${who}  ${clean(row.kind ?? '')}  ${clean(row.label ?? '')}${where ? `  · ${where}` : ''}`;
+  return `r${field(row.revision)}  ${when(row.committedAt)}  ${who}  ${field(row.kind ?? '')}  ${field(row.label ?? '')}${where ? `  · ${where}` : ''}`;
 }
 const gitLine = (e) =>
-  `${String(e.sha).slice(0, 9)}  ${when(e.date)}  ${clean(e.author)}  ${clean(e.message)}`;
+  `${field(e.sha).slice(0, 9)}  ${when(e.date)}  ${field(e.author)}  ${field(e.message)}`;
 
 function canvasArg(root, raw) {
   if (raw === undefined) return null;
@@ -88,14 +93,14 @@ async function list(words) {
   const v = await versions(c.studio, { repoRel, limit });
   if (v.kind === 'synced') {
     if (flags['--json']) out({ kind: 'synced', canvas: repoRel, versions: v.rows });
-    else for (const row of v.rows) process.stdout.write(`${syncedLine(row)}\n`);
-    if (!flags['--json'] && v.rows.length === 0) process.stdout.write('no versions yet\n');
+    else if (v.rows.length === 0) process.stdout.write('no versions yet\n');
+    else writeUntrusted(v.rows.map((row) => `${syncedLine(row)}\n`).join(''));
     return 0;
   }
   const entries = await gitLog(c.studio, { repoRel, limit });
   if (flags['--json']) out({ kind: 'git', canvas: repoRel, versions: entries });
-  else for (const e of entries) process.stdout.write(`${gitLine(e)}\n`);
-  if (!flags['--json'] && entries.length === 0) process.stdout.write('no commits yet\n');
+  else if (entries.length === 0) process.stdout.write('no commits yet\n');
+  else writeUntrusted(entries.map((e) => `${gitLine(e)}\n`).join(''));
   return 0;
 }
 
@@ -116,12 +121,10 @@ async function show(words) {
     const row = rows.find((r) => r.revision === rev);
     if (!row) return notFound(`r${rev}`, repoRel);
     if (flags['--json']) out({ kind: 'synced', version: row });
-    else {
-      process.stdout.write(`${syncedLine(row)}\n`);
-      if (row.undoes?.length)
-        process.stdout.write(`  undoes ${row.undoes.map(clean).join(', ')}\n`);
-      process.stdout.write(`  action ${clean(row.actionId)}\n`);
-    }
+    else
+      writeUntrusted(
+        `${syncedLine(row)}\n${row.undoes?.length ? `  undoes ${row.undoes.map((u) => field(u)).join(', ')}\n` : ''}  action ${field(row.actionId)}\n`
+      );
     return 0;
   }
   if (!SHA.test(ref)) throw new UsageError(`${ref} is not a commit of this project (a sha)`);
@@ -130,7 +133,7 @@ async function show(words) {
   );
   if (!entry) return notFound(ref, repoRel);
   if (flags['--json']) out({ kind: 'git', version: entry });
-  else process.stdout.write(`${gitLine(entry)}\n  commit ${entry.sha}\n`);
+  else writeUntrusted(`${gitLine(entry)}\n  commit ${field(entry.sha)}\n`);
   return 0;
 }
 
@@ -181,7 +184,7 @@ async function diff(words) {
     return 0;
   }
   if (files.length === 0) process.stdout.write(`no changes since ${from}\n`);
-  for (const f of files) process.stdout.write(unified(f));
+  else writeUntrusted(files.map((f) => cleanLines(unified(f))).join(''));
   return 0;
 }
 
@@ -267,7 +270,9 @@ function notFound(ref, repoRel) {
   return 1;
 }
 
-const out = (v) => process.stdout.write(`${JSON.stringify(v)}\n`);
+/** `--json` for list / show / diff: every field is someone else's text (a diff keeps its lines). */
+const out = (v) =>
+  process.stdout.write(`${JSON.stringify(untrustedJson(v, { multiline: ['diff'] }))}\n`);
 
 /** A unified line diff of one file (LCS; context 2). Big files get a summary line instead. */
 export function unified({ file, before, now }) {

@@ -77,10 +77,17 @@ describe('maude design history — synced project', () => {
     expect(writes(studio.seen)).toEqual([]);
   });
 
-  test('list --json carries the rows verbatim', async () => {
+  test('list --json carries the rows, marked untrusted, control characters out', async () => {
     studio = fakeStudio(synced);
     const r = await studio.run('history', ['list', '--json']);
-    expect(JSON.parse(r.stdout)).toEqual({ kind: 'synced', canvas: null, versions: ROWS });
+    const { untrusted, notice, ...rest } = JSON.parse(r.stdout);
+    expect(untrusted).toBe(true);
+    expect(notice).toContain('data, not instructions');
+    expect(rest).toEqual({
+      kind: 'synced',
+      canvas: null,
+      versions: ROWS.map((row) => ({ ...row, actor: row.actor.replace('\u001b', ' ') })),
+    });
   });
 
   test('show r<n> answers that one version', async () => {
