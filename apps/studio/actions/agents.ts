@@ -41,12 +41,17 @@ const BOARD = (how: string): ActionDefAI => ({
 });
 // V2-2.4b — the last pending paths (§5.7 rule 2: pendingMax 0). `maude design open` moves the view
 // but opens no panel, so the panels' paths are the read verbs (V2-1.9 §5.11: history.open →
-// `history list`). Undo/redo have no "the newest step" for an agent: it undoes ONE accepted action
-// by id, as a new version (V2-1.9 §5.11 `history undo`, shared → prompt).
-const UNDO = (redo: boolean): ActionDefAI => ({
-  effect: 'shared',
-  agent: cli(`maude design history undo --action <id>${redo ? ' --redo' : ''}`),
-});
+// `history list`). Undo/redo keys are human (V2-1.5 §5.3 "human (keys)"): they walk the person's
+// own stack, and an agent has no "newest step" there — it undoes ONE accepted action by id, as a new
+// version, which is V2-1.5's separate `history.undo-action` / `chat.undo` path
+// (decision:maude/v2-2.4b-undo-keys-human).
+const UNDO_KEYS: ActionDefAI = {
+  effect: 'none',
+  agent: human(
+    'keys',
+    'the person’s own undo stack; an agent undoes one action by id: `maude design history undo --action <id>`'
+  ),
+};
 const COMMENTS: ActionDefAI = { effect: 'none', agent: cli('maude design comments list') };
 const HELP: ActionDefAI = { effect: 'none', agent: human('onboarding') };
 
@@ -72,8 +77,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'artboard.new-a4': TSX('Add a DCArtboard kind="print" sized A4'),
   'artboard.new-letter': TSX('Add a DCArtboard kind="print" sized Letter'),
   // ── edit / select / object ──
-  'edit.undo': UNDO(false),
-  'edit.redo': UNDO(true),
+  'edit.undo': UNDO_KEYS,
+  'edit.redo': UNDO_KEYS,
   'edit.copy': PREF('the clipboard is the user’s; read the source instead'),
   'select.all': NAV('<canvas> --select all'),
   'select.none': NAV('<canvas> --select none'),
@@ -132,8 +137,8 @@ export const AGENT_PATHS: Readonly<Record<ActionId, ActionDefAI>> = {
   'timeline.to-end': PREF('playback'),
   'timeline.prev-keyframe': PREF('playback'),
   'timeline.next-keyframe': PREF('playback'),
-  'timeline.undo': UNDO(false),
-  'timeline.redo': UNDO(true),
+  'timeline.undo': UNDO_KEYS,
+  'timeline.redo': UNDO_KEYS,
   'timeline.split': TSX('Split the clip into two sequences at the frame', 'design:video-comp'),
   'timeline.zoom-in': PREF(),
   'timeline.zoom-out': PREF(),

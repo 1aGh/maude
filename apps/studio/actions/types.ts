@@ -177,7 +177,10 @@ export type HumanReason =
   | 'report-bug'
   | 'view-pref'
   | 'native-window'
-  | 'onboarding';
+  | 'onboarding'
+  // V2-1.5 §5.3: ⌘Z / ⇧⌘Z walk the person's own undo stack; an agent undoes one action by id
+  // (`maude design history undo --action <id>`) — decision:maude/v2-2.4b-undo-keys-human
+  | 'keys';
 
 export type AgentPath =
   | { path: 'file'; format: FormatId; skill: SkillRef; how: string }

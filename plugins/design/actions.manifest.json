@@ -196,10 +196,11 @@
       "label": "Undo",
       "kind": "command",
       "exec": "canvas",
-      "effect": "shared",
+      "effect": "none",
       "agent": {
-        "path": "cli",
-        "verb": "maude design history undo --action <id>"
+        "path": "human",
+        "because": "keys",
+        "note": "the person’s own undo stack; an agent undoes one action by id: `maude design history undo --action <id>`"
       }
     },
     {
@@ -207,10 +208,11 @@
       "label": "Redo",
       "kind": "command",
       "exec": "canvas",
-      "effect": "shared",
+      "effect": "none",
       "agent": {
-        "path": "cli",
-        "verb": "maude design history undo --action <id> --redo"
+        "path": "human",
+        "because": "keys",
+        "note": "the person’s own undo stack; an agent undoes one action by id: `maude design history undo --action <id>`"
       }
     },
     {
@@ -871,10 +873,11 @@
       "label": "Undo timeline edit",
       "kind": "command",
       "exec": "shell",
-      "effect": "shared",
+      "effect": "none",
       "agent": {
-        "path": "cli",
-        "verb": "maude design history undo --action <id>"
+        "path": "human",
+        "because": "keys",
+        "note": "the person’s own undo stack; an agent undoes one action by id: `maude design history undo --action <id>`"
       }
     },
     {
@@ -882,10 +885,11 @@
       "label": "Redo timeline edit",
       "kind": "command",
       "exec": "shell",
-      "effect": "shared",
+      "effect": "none",
       "agent": {
-        "path": "cli",
-        "verb": "maude design history undo --action <id> --redo"
+        "path": "human",
+        "because": "keys",
+        "note": "the person’s own undo stack; an agent undoes one action by id: `maude design history undo --action <id>`"
       }
     },
     {

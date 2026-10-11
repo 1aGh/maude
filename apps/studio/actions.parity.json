@@ -1,9 +1,10 @@
 {
   "$comment": "Lead-owned (contract V2-1.11 §5.7). humanMax/pendingMax may only be lowered; raising either, or adding a humanDecisions reason, is a lead change citing a decision id.",
-  "humanMax": 51,
+  "humanMax": 55,
   "pendingMax": 0,
   "pending": [],
   "humanDecisions": {
+    "keys": "decision:maude/v2-2.4b-undo-keys-human",
     "links": "decision:maude/v2-V2-1.11-ai-operability",
     "native-window": "decision:maude/v2-V2-1.11-ai-operability",
     "onboarding": "decision:maude/v2-V2-1.11-ai-operability",

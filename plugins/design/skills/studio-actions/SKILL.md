@@ -33,7 +33,7 @@ Validate a file yourself with `maude design check <file> --strict [--against <be
 
 ## Capabilities
 
-115 capabilities: 37 by file, 27 by verb, 51 the person's only, 0 not yet.
+115 capabilities: 37 by file, 23 by verb, 55 the person's only, 0 not yet.
 
 ### Edit a file (37)
 
@@ -77,7 +77,7 @@ Validate a file yourself with `maude design check <file> --strict [--against <be
 | Text | `tool.text` | `annotations` | Add a text element to the canvas’s .annotations.json | `design:whiteboard` |
 | Ungroup | `annotation.ungroup` | `annotations` | Clear the elements’ group id | `design:whiteboard` |
 
-### Run a verb (27)
+### Run a verb (23)
 
 | Capability | Action id | Verb | Tier |
 | --- | --- | --- | --- |
@@ -94,8 +94,6 @@ Validate a file yourself with `maude design check <file> --strict [--against <be
 | Go to artboard | `view.jump-artboard` | `maude design open <canvas>#<artboard>` | auto |
 | Handoff to production | `handoff.open` | `maude design handoff` | auto |
 | Present the canvas | `present.canvas` | `maude design open <canvas> --mode present` | auto |
-| Redo | `edit.redo` | `maude design history undo --action <id> --redo` | prompt |
-| Redo timeline edit | `timeline.redo` | `maude design history undo --action <id> --redo` | prompt |
 | Refresh canvases | `canvases.refresh` | `maude design index` | auto |
 | Search | `search.open` | `maude design index` | auto |
 | Search canvases | `canvases.search` | `maude design index` | auto |
@@ -104,12 +102,10 @@ Validate a file yourself with `maude design check <file> --strict [--against <be
 | Select first child | `object.select-child` | `maude design open <canvas>@<element>` | auto |
 | Select next sibling | `object.select-next` | `maude design open <canvas>@<element>` | auto |
 | Select parent | `object.select-parent` | `maude design open <canvas>@<element>` | auto |
-| Undo | `edit.undo` | `maude design history undo --action <id>` | prompt |
-| Undo timeline edit | `timeline.undo` | `maude design history undo --action <id>` | prompt |
 | Version history | `history.open` | `maude design history list` | auto |
 | Zoom to artboard | `view.zoom-to-artboard` | `maude design open <canvas>#<artboard>` | auto |
 
-### Only the person (51)
+### Only the person (55)
 
 | Capability | Action id | Why |
 | --- | --- | --- |
@@ -146,6 +142,8 @@ Validate a file yourself with `maude design check <file> --strict [--against <be
 | Play / pause | `timeline.play` | view-pref — playback |
 | Previous keyframe | `timeline.prev-keyframe` | view-pref — playback |
 | Print guides | `view.print-guides` | view-pref |
+| Redo | `edit.redo` | keys — the person’s own undo stack; an agent undoes one action by id: `maude design history undo --action <id>` |
+| Redo timeline edit | `timeline.redo` | keys — the person’s own undo stack; an agent undoes one action by id: `maude design history undo --action <id>` |
 | Reload canvas | `canvas.reload` | view-pref — reloads the user’s view; the studio reloads on every file change |
 | Report a bug… | `help.report-bug` | report-bug |
 | Select | `tool.select` | view-pref — a pointer mode |
@@ -156,6 +154,8 @@ Validate a file yourself with `maude design check <file> --strict [--against <be
 | Step back | `ui.step-back` | view-pref — the user’s navigation history |
 | Take the tour | `help.tour` | onboarding |
 | Theme | `settings.theme` | view-pref |
+| Undo | `edit.undo` | keys — the person’s own undo stack; an agent undoes one action by id: `maude design history undo --action <id>` |
+| Undo timeline edit | `timeline.undo` | keys — the person’s own undo stack; an agent undoes one action by id: `maude design history undo --action <id>` |
 | Watch the intro | `help.intro` | onboarding |
 | What's new | `help.whats-new` | onboarding |
 | Zoom controls | `view.zoom-controls` | view-pref |
