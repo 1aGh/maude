@@ -13,6 +13,7 @@
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { designWritesSince } from '../../../cli/lib/bash-guard.mjs';
+import { cleanText, fileText } from '../../../cli/lib/finding-text.mjs';
 import {
   type AgentRuns,
   artboardSpans,
@@ -22,6 +23,7 @@ import {
   RUN_OUTCOMES,
   type RunActor,
   type RunBracket,
+  type RunConflict,
   type RunOutcome,
   type RunScope,
 } from '../agent-runs.ts';
@@ -196,6 +198,38 @@ export function parseRunScope(raw: unknown): RunScope | null {
   return { canvas, artboards: [...new Set(r.artboards as string[])] };
 }
 const whoName = (a: RunActor) => (a === 'maude-chat' ? 'the Maude chat' : 'a Claude Code session');
+
+// Phase 2 gate F3: a deny reason reaches the model as a PreToolUse reason, with harness authority,
+// and a cloned / linked canvas plants the artboard ids and element labels it names. So a reason is
+// built only from values that are either within a strict charset (an id by AGENT_ID_RE, a plain
+// path) or cleaned + capped + JSON-quoted (cli/lib/finding-text.mjs, the check findings' rules).
+const SAFE_REL_RE = /^[A-Za-z0-9 _./()-]{1,200}$/;
+/** An artboard / element id as a reason names it. */
+const idText = (id: unknown) =>
+  typeof id === 'string' && AGENT_ID_RE.test(id) ? id : fileText(id);
+/** A designRoot-relative path as a reason names it. */
+const relText = (rel: unknown) =>
+  typeof rel === 'string' && SAFE_REL_RE.test(rel) ? rel : fileText(rel, 200);
+const idsText = (ids: string[]) =>
+  `${ids.slice(0, 6).map(idText).join(', ')}${ids.length > 6 ? ` (+${ids.length - 6})` : ''}`;
+/** Artboard ids a claim or a response may carry: the id rule only. */
+const validIds = (ids: string[]) => ids.filter((a) => AGENT_ID_RE.test(a));
+/** The longest reason the studio sends (the hook cleans and caps again). */
+const REASON_MAX = 800;
+const reasonOf = (s: string) => cleanText(s, REASON_MAX);
+
+function busyReason(c: RunConflict, rel: string, wholeFile: boolean): string {
+  const ab = c.artboard === '*' ? 'every artboard' : idText(c.artboard);
+  return (
+    `artboard-busy: ${c.artboard === '*' ? `${relText(rel)} is` : `${ab} is`} busy — ${whoName(c.who)} is changing it` +
+    `${c.label ? ` (${fileText(c.label, 80)})` : ''}` +
+    `${wholeFile ? ` (this change reaches every artboard of ${relText(rel)})` : ''}. ` +
+    `Work on the other artboards without touching code they share; ${c.artboard === '*' ? 'the canvas' : ab} is free again when that run ends. ` +
+    (c.artboard === '*'
+      ? 'Or wait for that run to end.'
+      : `Or duplicate the ${ab} DCArtboard beside it with a new id and edit the copy.`)
+  );
+}
 
 /** The bytes of a designRoot file (realpath-contained), or null when absent / outside. */
 function readDesignFile(deps: AgentRouteDeps, rel: string): string | null {
@@ -415,7 +449,11 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
             ? { scope: 'file' as const, artboards: [] }
             : null;
       if (!reach) return json(200, NONE);
-      const target = reach.scope === 'file' ? ('*' as const) : reach.artboards;
+      // an artboard whose id is not an id can't be named in a claim: the change claims the canvas
+      const target =
+        reach.scope === 'file' || validIds(reach.artboards).length < reach.artboards.length
+          ? ('*' as const)
+          : reach.artboards;
       // G-AI-6: a ⌘/ selection-scoped run changes only its selection
       const sc = runs.get(session)?.scope;
       if (sc) {
@@ -430,11 +468,12 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
           return json(200, {
             decision: 'deny',
             code: 'out-of-scope',
-            artboards: outside,
-            reason:
-              `out-of-scope: this chat is about ${sc.canvas}${allowed ? ` › ${allowed.join(', ')}` : ''} (the selection it started from) — ` +
-              `${offCanvas ? `${rel} is outside it` : `this change reaches ${outside.length ? outside.join(', ') : 'code every artboard shares'}`}. ` +
-              'Change only what is in the selection, or ask the person to widen it.',
+            artboards: validIds(outside),
+            reason: reasonOf(
+              `out-of-scope: this chat is about ${relText(sc.canvas)}${allowed ? ` › ${idsText(allowed)}` : ''} (the selection it started from) — ` +
+                `${offCanvas ? `${relText(rel)} is outside it` : `this change reaches ${outside.length ? idsText(outside) : 'code every artboard shares'}`}. ` +
+                'Change only what is in the selection, or ask the person to widen it.'
+            ),
           });
       }
       // A10 / V2-2.19: a locked element (data-cd-locked) is the person's — never the AI's
@@ -444,14 +483,17 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
         );
         if (locked.length) {
           const f = locked[0];
-          const where = f.element.artboard ? ` in ${f.element.artboard}` : '';
+          const where = f.element.artboard ? ` in ${idText(f.element.artboard)}` : '';
           return json(200, {
             decision: 'deny',
             code: 'soft-locked',
-            artboards: [
+            artboards: validIds([
               ...new Set(locked.map((x) => x.element.artboard).filter((a): a is string => !!a)),
-            ],
-            reason: `soft-locked: ${f.id ?? f.element.label}${where} is locked — ${f.what} ${f.fix} Change the rest without touching it.`,
+            ]),
+            // f.what names the element by its label (element-ids `nameOf`: cleaned, quoted)
+            reason: reasonOf(
+              `soft-locked: ${f.id !== undefined ? idText(f.id) : fileText(f.element.label)}${where} is locked — ${cleanText(f.what, 300)} ${cleanText(f.fix, 200)} Change the rest without touching it.`
+            ),
           });
         }
       }
@@ -462,13 +504,8 @@ function hookRouteSpecs(deps: AgentRouteDeps): RouteSpec[] {
           decision: 'deny',
           code: 'artboard-busy',
           who: whoName(c.who),
-          artboards: [c.artboard],
-          reason:
-            `artboard-busy: ${c.artboard} is busy — ${whoName(c.who)} is changing it` +
-            `${c.label ? ` ("${c.label}")` : ''}` +
-            `${reach.scope === 'file' ? ` (this change reaches every artboard of ${rel})` : ''}. ` +
-            `Work on the other artboards without touching code they share; ${c.artboard} is free again when that run ends. ` +
-            `Or duplicate the ${c.artboard} DCArtboard beside it with a new id and edit the copy.`,
+          artboards: validIds([c.artboard]),
+          reason: reasonOf(busyReason(c, rel, reach.scope === 'file' || target === '*')),
         });
       runs.claim(session, rel, target);
       return json(200, NONE);

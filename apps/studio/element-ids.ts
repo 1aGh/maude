@@ -8,12 +8,13 @@
 // watcher. Canvas-only metadata is the rest of the `data-cd-*` namespace on the same element
 // (`data-cd-locked`, `data-cd-hidden`); exporters strip the whole prefix.
 //
-// LEAF MODULE: imports only `oxc-parser` and `magic-string`, so the `maude design check` helper
-// (runtime-spawned, staged by apps/desktop/scripts/helper-deps.mjs) can load it without the
-// studio. Everything here is synchronous and pure.
+// LEAF MODULE: imports only `oxc-parser`, `magic-string` and the leaf cli/lib/finding-text.mjs,
+// so the `maude design check` helper (runtime-spawned, staged by
+// apps/desktop/scripts/helper-deps.mjs) can load it without the studio. Everything here is synchronous and pure.
 
 import MagicString from 'magic-string';
 import { parseSync } from 'oxc-parser';
+import { cleanText } from '../../cli/lib/finding-text.mjs';
 
 // biome-ignore lint/suspicious/noExplicitAny: oxc-parser AST nodes are heterogeneous.
 type AnyNode = any;
@@ -732,13 +733,14 @@ function roleOf(tag: string): string {
   const last = tag.includes('.') ? (tag.split('.').pop() as string) : tag;
   return ROLE[tag] ?? ROLE[last] ?? (/^[A-Z]/.test(tag) ? tag : 'Element');
 }
+// A label is file text (a planted canvas's aria / alt / text): one line, ≤ 40, and JSON-quoted
+// when it names an element in a message — findings and deny reasons reach the model (Phase 2 gate).
 function labelOf(e: IdElement): string {
-  const l = e.dcElement || e.text || e.aria || e.className.split(/\s+/)[0] || '';
-  return l.length > 40 ? `${l.slice(0, 39)}…` : l;
+  return cleanText(e.dcElement || e.text || e.aria || e.className.split(/\s+/)[0] || '', 40);
 }
 function nameOf(e: IdElement): string {
   const l = labelOf(e);
-  return l ? `${roleOf(e.tag)} "${l}"` : roleOf(e.tag);
+  return l ? `${roleOf(e.tag)} ${JSON.stringify(l)}` : roleOf(e.tag);
 }
 function printKey(e: IdElement): string {
   return `${e.component}|${e.tag}|${e.chain.join('>')}|${e.attrs.map(([k, v]) => `${k}=${v}`).join('|')}|${e.text}`;

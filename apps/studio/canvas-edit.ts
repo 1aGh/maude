@@ -34,6 +34,7 @@ import path from 'node:path';
 
 import MagicString from 'magic-string';
 import { parseSync } from 'oxc-parser';
+import { fileText } from '../../cli/lib/finding-text.mjs';
 import {
   attrRemovalSpan,
   copyWithoutIds,
@@ -5738,6 +5739,9 @@ export function resolveCliCanvas(
   return { abs, rel };
 }
 
+/** An id a refusal names bare (routes/agent.ts AGENT_ID_RE — a test holds them equal). */
+export const MESSAGE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
+
 /**
  * V2-2.19 — a locked element (`data-cd-locked`), or anything inside one, is the
  * person's: the CLI refuses it with the same `soft-locked` wording the
@@ -5757,8 +5761,10 @@ export function assertCliEditUnlocked(rel: string, before: string, after: string
     const e = w.elements[i];
     if (!e) break;
     if (!e.locked) continue;
-    const name = e.id ?? `<${e.tag}>`;
-    const where = e.artboard ? ` in ${e.artboard}` : '';
+    // file text (a planted id / artboard id): cleaned, capped and quoted unless it is an id
+    const idText = (s: string) => (MESSAGE_ID_RE.test(s) ? s : fileText(s));
+    const name = e.id ? idText(e.id) : `<${e.tag}>`;
+    const where = e.artboard ? ` in ${idText(e.artboard)}` : '';
     const inside = i === target ? '' : ' (the element is inside it)';
     throw new CliRefusal(
       `soft-locked: ${name}${where} is locked${inside} — leave it as it is. ` +
