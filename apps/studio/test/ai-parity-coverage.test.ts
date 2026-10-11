@@ -11,7 +11,12 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { AGENT_PATHS } from '../actions/agents.ts';
 import { ACTIONS } from '../actions/index.ts';
+import type { ActionDefAI, Role } from '../actions/types.ts';
+import { ROLE_RANK } from '../actions/types.ts';
+import { ROLES } from '../actions/uniqueness.ts';
+import { ROLE_REFUSALS, type RoleRefusal, refusalKey } from './_role-refusals.ts';
 
 const ROOT = join(import.meta.dir, '..', '..', '..');
 const STUDIO = join(ROOT, 'apps', 'studio');
@@ -34,6 +39,62 @@ const readJson = <T>(rel: string): T => JSON.parse(readFileSync(join(STUDIO, rel
 const manifest = readJson<Manifest>('actions.manifest.json');
 const parity = readJson<Parity>('actions.parity.json');
 const rows = manifest.actions.filter((r) => r.kind !== 'place');
+
+// ── rule 7: an action with `server` has a per-role refusal test ───────────────────────────────
+// A refusal test is RECOGNISED by its row in test/_role-refusals.ts: the V2-1.7/S9 role suite
+// iterates that table to generate one refusal case per (route, refused role), so a row IS a test
+// once a suite consumes the table. The rule asserts (a) every `server` route has a row, (b) the row
+// refuses every role ranked below the action's minRole, (c) a non-empty table has a consumer — a
+// test file other than this one that imports `_role-refusals`.
+type ServerAction = { id: string; server: NonNullable<ActionDefAI['server']>; minRole?: Role };
+
+function refusalGaps(
+  actions: readonly ServerAction[],
+  table: readonly RoleRefusal[],
+  consumers: readonly string[]
+): string[] {
+  const gaps: string[] = [];
+  const byKey = new Map(table.map((r) => [refusalKey(r.method, r.route), r]));
+  for (const a of actions) {
+    const key = refusalKey(a.server.method, a.server.route);
+    const row = byKey.get(key);
+    if (!row) {
+      gaps.push(
+        `${a.id}: no per-role refusal test for ${key} (add a row to test/_role-refusals.ts)`
+      );
+      continue;
+    }
+    const below = ROLES.filter((r) => a.minRole && ROLE_RANK[r] < ROLE_RANK[a.minRole]);
+    const missing = below.filter((r) => !row.refused.includes(r));
+    if (missing.length) gaps.push(`${a.id}: ${key} must also refuse ${missing.join(', ')}`);
+  }
+  if (table.length && !consumers.length)
+    gaps.push('test/_role-refusals.ts has rows but no role suite imports it');
+  return gaps;
+}
+
+/** Every registered action whose AI entry (or definition) declares `server`. */
+function serverActions(): ServerAction[] {
+  const out: ServerAction[] = [];
+  for (const def of ACTIONS) {
+    const ai = (AGENT_PATHS as Record<string, ActionDefAI | undefined>)[def.id];
+    const d = def as unknown as { server?: ActionDefAI['server']; visible?: { minRole?: Role } };
+    const server = ai?.server ?? d.server;
+    if (server) out.push({ id: def.id, server, minRole: ai?.minRole ?? d.visible?.minRole });
+  }
+  return out;
+}
+
+/** Test files (not this one) that import the refusal table. */
+function refusalConsumers(): string[] {
+  const dir = join(STUDIO, 'test');
+  return readdirSync(dir).filter(
+    (f) =>
+      /\.test\.(?:ts|tsx|mjs)$/.test(f) &&
+      f !== 'ai-parity-coverage.test.ts' &&
+      /from ['"]\.\/_role-refusals(?:\.ts)?['"]/.test(readFileSync(join(dir, f), 'utf8'))
+  );
+}
 
 describe('AI parity coverage (§5.7)', () => {
   test('the manifest is current — gen-actions --check', () => {
@@ -134,8 +195,37 @@ describe('AI parity coverage (§5.7)', () => {
     }
   });
 
-  // 7 (per-role refusal test per `server` route) lands with the V2-1.7/S9 role suite.
-  test.todo('7. every action with `server` has a per-role refusal test');
+  test('7. every action with `server` has a per-role refusal test (rule 12)', () => {
+    expect(refusalGaps(serverActions(), ROLE_REFUSALS, refusalConsumers())).toEqual([]);
+  });
+
+  test('7 bites: a planted `server` action without a refusal row fails', () => {
+    const planted: ServerAction = {
+      id: 'fixture.server-write',
+      server: { route: '/_api/fixture-write', method: 'POST' },
+      minRole: 'edit',
+    };
+    const row: RoleRefusal = {
+      method: 'POST',
+      route: '/_api/fixture-write',
+      refused: ['view', 'comment'],
+    };
+    const suite = ['fixture-roles.test.ts'];
+    // no row → red, whatever the table holds today
+    expect(refusalGaps([planted], ROLE_REFUSALS, suite)).toEqual([
+      'fixture.server-write: no per-role refusal test for POST /_api/fixture-write (add a row to test/_role-refusals.ts)',
+    ]);
+    // a row that lets a role below minRole through → red
+    expect(refusalGaps([planted], [{ ...row, refused: ['view'] }], suite)).toEqual([
+      'fixture.server-write: POST /_api/fixture-write must also refuse comment',
+    ]);
+    // a row nobody runs → red
+    expect(refusalGaps([planted], [row], [])).toEqual([
+      'test/_role-refusals.ts has rows but no role suite imports it',
+    ]);
+    // a row a suite runs → green
+    expect(refusalGaps([planted], [row], suite)).toEqual([]);
+  });
 
   test('6. a cli action’s verb is a real `maude` verb in the tier table', () => {
     const verbs = new Set(manifest.verbs.map((v) => v.verb));
