@@ -327,9 +327,7 @@ export function cspForCanvasShell(
  * main origin at all — the main origin 307s them to the read-only capture
  * origin, which serves the strict canvas CSP (`cspForCanvasShell`, DDR-232).
  * This policy now applies only where a capture still renders on the main
- * origin: with the split OFF (`MAUDE_CANVAS_ORIGIN_SPLIT=0`). (Maude's own
- * local `_draw/` / `_photo/` harnesses stay on the main origin too, but only
- * as bare `?canvas=` requests — one carrying `hide-chrome` is redirected.)
+ * origin: with the split OFF (`MAUDE_CANVAS_ORIGIN_SPLIT=0`).
  *
  * Original rationale: the export rendered the (untrusted, DDR-054) canvas on
  * the MAIN origin — where the normal
@@ -6300,10 +6298,10 @@ export function createHttp(
         // V2-2.8 S9 (V2-1.16 L21) — only the MAIN listener reaches this branch
         // (the canvas and capture listeners answer the shell themselves, in
         // server.ts). While the split is on, every request here goes to the
-        // read-only capture origin, bar Maude's own local harnesses (see
-        // captureRedirect) — so what follows serves only those, and every
-        // shell when the split is OFF.
-        const toCapture = captureRedirect(req, url);
+        // read-only capture origin, Maude's own local harnesses included (see
+        // captureRedirect) — so what follows serves a shell only when the
+        // split is OFF.
+        const toCapture = captureRedirect(url);
         if (toCapture) return toCapture;
         // The segregated canvas origin (server.ts) calls serveCanvasShell(true)
         // directly with CSP always on; on the legacy main origin the CSP stays
@@ -6541,35 +6539,23 @@ export function createHttp(
    * URL will load and redirecting "only the dangerous ones" fails open on any
    * input the prediction misreads (V2-2.8 security review).
    *
-   * The ONE exception (a named residual): Maude's own local harnesses, matched
-   * exactly — `maude design draw-proof` (`_draw/<slug>.proof.tsx`) and
-   * `photo-bg-remove` (`_photo/<slug>.bgremove.tsx`), with no parameter beyond
-   * `canvas` and the server's own `designRel`. They live under DDR-115
-   * runtime dirs the canvas-safe table refuses, and are generated on this
-   * machine (never synced), so they keep rendering here exactly as before —
-   * but only when the helper itself navigated there: Fetch Metadata `none`
-   * (a browser-initiated `goto`/`open`) or absent (a non-browser client). A
-   * page — another site, or a canvas on the canvas origin (same-site) —
-   * steering a browser to a leftover harness URL is redirected like the rest.
-   * Nothing is redirected when the split is off or in a cell (no capture
-   * listener; a cell's proxy never routes the main-origin shell).
+   * NO exceptions — Maude's own local harnesses included (V2-2.4b gate). They
+   * used to stay here on direct navigation as "generated on this machine", but
+   * the AI agent is on this machine too: it can write `_draw/x.proof.tsx`
+   * itself and open it with an auto-approved verb, and even a helper-generated
+   * proof mounts model-authored SVG. `maude design draw-proof` therefore
+   * renders on the capture origin like every other capture, and
+   * `photo-bg-remove` opens its harness on the canvas origin directly (it
+   * needs that origin's canvas-safe asset + photo-edit writes). Both reach
+   * their module through the exact `LOCAL_HARNESS` shape `isCanvasSafeRoute`
+   * admits under the runtime dirs. Nothing is redirected when the split is off
+   * or in a cell (no capture listener; a cell's proxy never routes the
+   * main-origin shell).
    */
   const LOCAL_HARNESS =
     /^_(?:draw\/[a-z0-9_][a-z0-9._-]*\.proof|photo\/[a-z0-9_][a-z0-9._-]*\.bgremove)\.tsx$/;
-  function isLocalHarness(req: Request, url: URL): boolean {
-    const site = req.headers.get('sec-fetch-site');
-    if (site !== null && site !== 'none') return false;
-    const params = [...url.searchParams.keys()];
-    if (params.some((k) => k !== 'canvas' && k !== 'designRel')) return false;
-    const canvases = url.searchParams.getAll('canvas');
-    if (canvases.length !== 1 || !LOCAL_HARNESS.test(canvases[0] ?? '')) return false;
-    const own = ctx.paths.designRel.replace(/^\/+|\/+$/g, '');
-    const asked = url.searchParams.getAll('designRel');
-    return asked.length === 0 || (asked.length === 1 && asked[0] === own);
-  }
-  function captureRedirect(req: Request, url: URL): Response | null {
+  function captureRedirect(url: URL): Response | null {
     if (!ctx.captureOrigin) return null;
-    if (isLocalHarness(req, url)) return null;
     return new Response(null, {
       status: 307,
       headers: {
@@ -6717,6 +6703,11 @@ export function createHttp(
       // "aggregate, not a specimen". It 403'd, so every canvas rendered with
       // its component styles missing and looked broken in a way that pointed
       // nowhere near this line.
+      // …except Maude's two generated harness modules, by their exact shape
+      // (draw-proof on the capture origin, photo-bg-remove on the canvas
+      // origin — see LOCAL_HARNESS). Untrusted code on an untrusted origin,
+      // like any canvas: nothing else under `_draw/` / `_photo/` is served.
+      if (LOCAL_HARNESS.test(rest)) return true;
       if (rest.split('/')[0].startsWith('_')) return false;
       return CANVAS_ASSET_EXTS.has(ext(safe));
     }
