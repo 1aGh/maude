@@ -643,6 +643,12 @@ function startCanvasServer(
         if (!isLoopbackHost(req.headers.get('host')) && !vouchedRole) {
           return new Response('cross-machine collab requires Phase 9 hub deploy', { status: 403 });
         }
+        // CSWSH (Phase 2 gate) — the canvas iframe keeps its own origin
+        // (`allow-same-origin`), so only a page ON this canvas origin passes; a drive-by
+        // site could otherwise read the Y-doc and write comments/annotations here.
+        if (!WORKSPACE && !isSameOriginWs(req)) {
+          return new Response('collab is same-origin only', { status: 403 });
+        }
         const ok = srv.upgrade(req, {
           data: {
             id: crypto.randomUUID(),
@@ -665,8 +671,12 @@ function startCanvasServer(
       }
 
       // HMR-only socket — canvas iframes listen for `canvas-hmr` here. Carries
-      // NO privileged inspector feed and ignores inbound messages (ws.ts).
+      // NO privileged inspector feed and ignores inbound messages (ws.ts) — but its
+      // frames name files (→ collab slugs), so a drive-by Origin is refused too.
       if (pathname.startsWith('/_ws')) {
+        if (!WORKSPACE && !isSameOriginWs(req)) {
+          return new Response('canvas socket is same-origin only', { status: 403 });
+        }
         const ok = srv.upgrade(req, {
           data: {
             id: crypto.randomUUID(),

@@ -6157,6 +6157,10 @@ export function createHttp(
       }
 
       // Fall-through: serve user repo files (designRoot + everything under repoRoot).
+      // DNS rebinding (Phase 2 gate): a rebound page talks to this port with its own
+      // name in Host, and this lane serves `/.env`, `/.git/config`, `/.ai/**` — the same
+      // loopback-or-vouched-cell check the API routes use (`isTrustedRequestHost`).
+      if (!isTrustedRequestHost(req)) return new Response('Forbidden', { status: 403 });
       const fp = safePathUnderRoot(req.url, ctx.paths.repoRoot);
       if (!fp) return new Response('Forbidden', { status: 403 });
 
