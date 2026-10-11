@@ -4,9 +4,13 @@
 // A finding's `where` / `what` reach the model as a PostToolUse / Stop `decision: block` reason —
 // with harness authority, on every edit. A cloned or peer canvas can plant text in an artboard
 // id, a `.meta.json` key or a hand-off field, so every string that came out of a file is:
-//   - stripped of control, line/paragraph-separator, zero-width and bidi characters (no newline
-//     can start a line of its own in the reason);
-//   - capped (FILE_TEXT_MAX, with an ellipsis);
+//   - stripped of everything invisible — every format character (Cf: zero-width, bidi, soft
+//     hyphen, word joiner, invisible operators, the Unicode Tags block that smuggles ASCII), every
+//     default-ignorable code point (variation selectors, fillers, the unassigned Tags), surrogates,
+//     private use and unassigned code points — so the model reads only what a person sees;
+//   - controls and line/paragraph separators turned into one space (no newline can start a line
+//     of its own in the reason);
+//   - capped in CODE POINTS after stripping (FILE_TEXT_MAX, with an ellipsis; never splits a pair);
 //   - JSON-quoted, so it reads as data.
 // `fileText` is that, applied where findings are built; `cleanFinding` / `findingLine` are the
 // second net for the hook (every field stripped and capped, whoever built the finding).
@@ -16,15 +20,25 @@
 export const FILE_TEXT_MAX = 60;
 const FIELD_MAX = { where: 200, what: 400, fix: 400 };
 
-// C0 + DEL + C1, U+2028/2029, zero-width (200B–200F), bidi embeddings/isolates, BOM
-// biome-ignore lint/suspicious/noControlCharactersInRegex: matching control characters is the point
-const UNSAFE = /[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2066-\u2069\ufeff]+/g;
+// Principled classes, not a hand list (Phase 2 gate round 3: the list missed the Tags block,
+// U+2060–2064, variation selectors, U+00AD, U+180E, U+FFF9–FFFB, U+1D173–1D17A …).
+// Invisible → removed: Cf + Default_Ignorable_Code_Point + Cs (lone surrogates) + Co + Cn.
+const INVISIBLE = /[\p{Cf}\p{Default_Ignorable_Code_Point}\p{Cs}\p{Co}\p{Cn}]+/gu;
+// A break → one space: Cc (C0, DEL, C1 — newline, CR and tab included) + Zl + Zp (U+2028/2029).
+const BREAK = /[\p{Cc}\p{Zl}\p{Zp}]+/gu;
 
-/** `s` with every unsafe character run replaced by one space, cut to `max` chars (with "…"). */
+/**
+ * `s` with every invisible character removed and every control / separator run replaced by one
+ * space, cut to `max` CODE POINTS (the last one "…").
+ */
 export function cleanText(s, max) {
-  const t = String(s ?? '').replace(UNSAFE, ' ');
-  if (t.length <= max) return t;
-  return `${t.slice(0, Math.max(0, max - 1))}…`;
+  const t = String(s ?? '')
+    .replace(INVISIBLE, '')
+    .replace(BREAK, ' ');
+  if (t.length <= max) return t; // code units ≥ code points
+  const cps = [...t];
+  if (cps.length <= max) return t;
+  return `${cps.slice(0, Math.max(0, max - 1)).join('')}…`;
 }
 
 /** A file-derived string as it may appear in a finding: cleaned, ≤ FILE_TEXT_MAX, JSON-quoted. */
