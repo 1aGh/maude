@@ -42,7 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           # node:sqlite (used by the tests to stand in for the D1 binding) and
           # node --test both need a current Node; the Worker itself runs on
