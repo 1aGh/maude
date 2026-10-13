@@ -750,7 +750,7 @@
     font-size: var(--type-xs);
     color: var(--fg-1);
   }
-  .home-root .btn.home-projopen {
+  .home-root .btn.home-projopen:not([disabled]) {
     color: var(--fg-0);
     font-weight: var(--w-medium);
   }
