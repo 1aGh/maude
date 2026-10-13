@@ -24,11 +24,10 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { homedir } from 'node:os';
 import { basename, dirname, join, relative, sep } from 'node:path';
-
 import { deleteHubCredential, saveHubCredential } from '../sync/hub-link.ts';
 import { getHubToken, normalizeUrl } from '../sync/hubs-config.ts';
+import { cloudConfigPath } from './config-path.ts';
 
 /**
  * Where Maude Cloud lives, resolved PER CALL rather than at module load.
@@ -88,10 +87,6 @@ interface CloudFile {
   token: string;
   email?: string;
   connectedAt: number;
-}
-
-function cloudConfigPath(): string {
-  return process.env.MAUDE_CLOUD_CONFIG ?? join(homedir(), '.config', 'maude', 'cloud.json');
 }
 
 function readCloudFile(): CloudFile | null {

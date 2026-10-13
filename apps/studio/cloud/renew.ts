@@ -25,11 +25,9 @@
 // matched project — never to an address read from repo-committed state.
 
 import { existsSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
-
 import { saveHubCredential } from '../sync/hub-link.ts';
 import { getHubRecord, normalizeUrl } from '../sync/hubs-config.ts';
+import { cloudConfigPath } from './config-path.ts';
 
 export interface RenewedCredential {
   token: string;
@@ -52,10 +50,6 @@ export type RenewResult =
 /** Mirrors cloud/endpoints.ts — resolved per call so tests/desktop can set it late. */
 function cloudUrl(): string {
   return (process.env.MAUDE_CLOUD_URL ?? 'https://cloud.maude.sh').replace(/\/+$/, '');
-}
-
-function cloudConfigPath(): string {
-  return process.env.MAUDE_CLOUD_CONFIG ?? join(homedir(), '.config', 'maude', 'cloud.json');
 }
 
 /** The account credential, or null when this machine is signed out. */
