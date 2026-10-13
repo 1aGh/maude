@@ -39,6 +39,7 @@ export type KeyClass =
   | 'dropped' // read by 1.x, migrates nothing by decision
   | 'dead' // no writer anywhere (reader fallback only, or a comment)
   | 'canvas-origin' // lives on the canvas origin; the shell cannot reach it
+  | 'home-origin' // lives on the Home window's origin (V2-3.3); never a 1.x key
   | 'marker'; // the v2 migration's own per-origin marker
 
 export interface KeyRule {
@@ -152,6 +153,10 @@ export const KEY_CLASS: Readonly<Record<string, KeyRule>> = {
     class: 'dead',
     note: 'Pre-#124 seed for tree state; reader only, no writer.',
   },
+  'maude-home-page-secret': {
+    class: 'home-origin',
+    note: 'Home origin, sessionStorage: a devtools-only fallback read when the shell delivers no page secret (V2-3.6); no writer in the code, not a pref.',
+  },
   'maude-browse-hint-seen': {
     class: 'dead',
     note: 'Only named in a comment (shell/constants.js); superseded by mode-hint.',
@@ -176,7 +181,7 @@ const FAMILY_PREFIX = 'maude-cloud-role-seen:';
 export function isLegacyKey(key: string): boolean {
   if (key.startsWith(FAMILY_PREFIX)) return true;
   const r = KEY_CLASS[key];
-  return !!r && r.class !== 'marker' && r.class !== 'canvas-origin';
+  return !!r && r.class !== 'marker' && r.class !== 'canvas-origin' && r.class !== 'home-origin';
 }
 
 /** What 1.x defaulted to when a field was absent. Equal to ui-prefs.ts `UI_PREFS_DEFAULTS` (tested). */
