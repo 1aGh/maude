@@ -6,6 +6,7 @@ import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
+import { pinCurrentWindow } from '../helpers/windows';
 
 /**
  * Plan T21/T22 — a designer who was added to a project opens the desktop app,
@@ -98,11 +99,9 @@ describe('team-project (native-desktop)', () => {
     // a 5 s timeout — a menu opened by one command has closed by the next.
     // This app has one window: name it once (an explicit switch stops the
     // per-command focus probe).
-    await (browser as unknown as { tauri?: { switchWindow(label: string): Promise<void> } }).tauri
-      ?.switchWindow('main')
-      .catch((error: unknown) =>
-        console.warn(`[team-project] window pin failed: ${String(error)}`)
-      );
+    await pinCurrentWindow().catch((error: unknown) =>
+      console.warn(`[team-project] window pin failed: ${String(error)}`)
+    );
   });
 
   it('1 · first run offers the invited-project door', async () => {

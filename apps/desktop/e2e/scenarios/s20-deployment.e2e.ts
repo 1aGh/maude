@@ -5,6 +5,7 @@ import { $, $$, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
+import { pinCurrentWindow } from '../helpers/windows';
 
 /**
  * S20 — the invited designer, on a deployment that is actually live.
@@ -187,9 +188,9 @@ describe('s20-deployment (native-desktop)', () => {
     if (!S20) this.skip();
     startReport(`S20 — an invited designer works on ${S20?.label ?? 'the deployment'}`);
     await browser.setTimeout({ script: 60_000 });
-    await (browser as unknown as { tauri?: { switchWindow(label: string): Promise<void> } }).tauri
-      ?.switchWindow('main')
-      .catch((error: unknown) => console.warn(`[s20] window pin failed: ${String(error)}`));
+    await pinCurrentWindow().catch((error: unknown) =>
+      console.warn(`[s20] window pin failed: ${String(error)}`)
+    );
   });
 
   it('1 · first run offers the invited-project door', async () => {
@@ -319,9 +320,7 @@ describe('s20-deployment (native-desktop)', () => {
   it('5 · quit and reopen: the app comes back to the project on its own', async () => {
     const t = S20 as NonNullable<typeof S20>;
     await browser.reloadSession();
-    await (browser as unknown as { tauri?: { switchWindow(label: string): Promise<void> } }).tauri
-      ?.switchWindow('main')
-      .catch(() => {});
+    await pinCurrentWindow().catch(() => {});
     await waitForSidecar();
     // No door, no folder picker: the project is simply there again.
     await (await $(tid('canvas-list'))).waitForDisplayed({ timeout: 300_000 });
