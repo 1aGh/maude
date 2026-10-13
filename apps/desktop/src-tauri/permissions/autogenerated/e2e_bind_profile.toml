@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-e2e-bind-profile"
+description = "Enables the e2e_bind_profile command without any pre-configured scope."
+commands.allow = ["e2e_bind_profile"]
+
+[[permission]]
+identifier = "deny-e2e-bind-profile"
+description = "Denies the e2e_bind_profile command without any pre-configured scope."
+commands.deny = ["e2e_bind_profile"]

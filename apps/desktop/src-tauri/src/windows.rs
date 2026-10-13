@@ -265,7 +265,9 @@ impl WindowBook {
     }
 
     /// "The displayed project" (replaces `SidecarState.project_root`): the
-    /// project of the front window.
+    /// project of the front window. Test-only since V2-3.5 (the notify poller
+    /// now targets "not focused", `notify::poll_targets`).
+    #[cfg(test)]
     pub fn displayed_root(&self) -> Option<String> {
         self.front_label().and_then(|l| self.root_of(&l))
     }
@@ -756,6 +758,8 @@ pub fn on_focused(app: &AppHandle, label: &str) {
     };
     if let Some(root) = &root {
         crate::sidecar::mark_shown(app, root, tick);
+        // The person is looking at it now: out of the Dock badge (V2-3.5).
+        crate::notify::project_focused(app, root);
     }
     schedule_session_save(app);
     crate::home::state_changed(app);
@@ -1466,6 +1470,25 @@ pub async fn e2e_open_root(
     #[cfg(not(debug_assertions))]
     {
         let _ = (app, webview, root);
+        Err("debug builds only".into())
+    }
+}
+
+/// Debug-only e2e helper (V2-3.5 `project-tabs-identity`): bind a folder to
+/// an account profile through `app_state::bind_profile` — the binding entry
+/// point V2-3.1 left with no UI caller yet. The project's running server keeps
+/// its old profile until it is restarted (env is never hot-swapped), so the
+/// scenario closes and reopens the tab. Granted only by
+/// capabilities/e2e-webdriver.json; a release build answers Err.
+#[tauri::command]
+pub fn e2e_bind_profile(app: AppHandle, root: String, profile: String) -> Result<(), String> {
+    #[cfg(debug_assertions)]
+    {
+        crate::app_state::bind_profile(&app, &root, &profile)
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = (app, root, profile);
         Err("debug builds only".into())
     }
 }

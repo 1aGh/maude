@@ -243,6 +243,13 @@ pub fn resolve_profile<R: tauri::Runtime>(
     Ok(crate::app_state::profile_for(app, &caller.root))
 }
 
+/// `MAUDE_E2E_GITHUB_SIGNED_IN_PROFILES` (debug builds only): is `profile` in
+/// the comma-separated list?
+#[cfg(debug_assertions)]
+fn e2e_signed_in(list: &str, profile: &str) -> bool {
+    list.split(',').map(str::trim).any(|p| !p.is_empty() && p == profile)
+}
+
 /// Whether the calling window's project profile has a GitHub token stored. Drives the IdentityBar's signed-in state. Returns only a boolean —
 /// never the token.
 ///
@@ -260,6 +267,14 @@ pub async fn github_is_signed_in(app: tauri::AppHandle, webview: tauri::Webview)
     // every WebDriver script time out: a scenario suite that looks like a code
     // failure and isn't. A test run has no keychain token to find anyway.
     // Gated on `debug_assertions`, so the shipped `.app` always reads for real.
+    #[cfg(debug_assertions)]
+    if let Ok(list) = std::env::var("MAUDE_E2E_GITHUB_SIGNED_IN_PROFILES") {
+        // V2-3.5 `project-tabs-identity`: a stubbed per-profile sign-in state
+        // (comma-separated profile ids), resolved for the CALLING window
+        // exactly as the real read is — no keychain touched.
+        return resolve_profile(&app, &webview)
+            .is_ok_and(|p| e2e_signed_in(&list, &p));
+    }
     #[cfg(debug_assertions)]
     if std::env::var_os("MAUDE_E2E_NO_KEYCHAIN").is_some() {
         return false;
@@ -362,6 +377,15 @@ pub(crate) mod test_store {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn e2e_signed_in_stub_is_per_profile() {
+        assert!(e2e_signed_in("default", "default"));
+        assert!(e2e_signed_in("e2e-a, default", "default"));
+        assert!(!e2e_signed_in("default", "e2e-b"));
+        assert!(!e2e_signed_in("", ""), "an empty list signs no one in");
+        assert!(!e2e_signed_in("default-x", "default"), "exact ids only");
+    }
 
     #[test]
     fn two_profiles_round_trip_independently() {

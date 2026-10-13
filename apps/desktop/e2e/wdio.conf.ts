@@ -35,6 +35,8 @@ const DEDICATED: Record<string, string> = {
   'onboarding.e2e.ts': 'pnpm test:e2e:desktop:onboarding',
   // Two projects (primary + secondary), one tab each.
   'project-tabs.e2e.ts': 'pnpm test:e2e:desktop:tabs',
+  // The same two projects, a throwaway profile registry + a stubbed sign-in.
+  'project-tabs-identity.e2e.ts': 'pnpm --filter @maude/desktop-e2e e2e:tabs-identity',
   'shell-parity.e2e.ts': 'pnpm test:e2e:desktop:parity',
   // Needs the canvas-origin split ON, which this config forces OFF below.
   'sidecar-respawn-canvas-switch.e2e.ts': 'pnpm test:e2e:desktop:sidecar-respawn',
