@@ -737,6 +737,9 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
                             }
                         }
                     };
+                    // N-M3: the dead child's port vouches for nothing from now on —
+                    // the respawn's own info file records the next origin.
+                    crate::windows::on_server_died(&app, &supervised_root, attempt > MAX_RESTARTS);
                     if attempt > MAX_RESTARTS {
                         log_line(&format!(
                             "[maude] sidecar gave up after {MAX_RESTARTS} restarts ({supervised_root})"
@@ -877,7 +880,7 @@ fn report_sidecar_gave_up(app: &AppHandle, project_root: &str) {
     // fallback below widens that to a full path. Capping and stripping here
     // costs nothing and keeps the two OS-facing surfaces honest about the same
     // input.
-    let name = crate::notify::sanitize_notify_field(
+    let name = crate::notify::sanitize_title(
         &std::path::Path::new(project_root)
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
@@ -931,6 +934,9 @@ pub fn switch_project(app: &AppHandle, label: &str, new_root: PathBuf, open: Opt
                     log_line(&format!("[maude] switch: no window {label} — ignoring"));
                     return;
                 }
+                // N-M5: what was parked for the label while it showed the old
+                // project (a link, an intent, a navigate) is not the new one's.
+                crate::windows::drop_parked_for(label);
                 None
             }
         }
@@ -1080,6 +1086,18 @@ pub(crate) fn read_shell_origin(info_file: &Path) -> Option<String> {
         return None;
     }
     Some(parsed.origin().ascii_serialization())
+}
+
+/// The canvas origin the same app-owned info file names (N-M2), loopback only.
+pub(crate) fn read_shell_canvas_origin(info_file: &Path) -> Option<String> {
+    #[derive(serde::Deserialize)]
+    struct Info {
+        #[serde(rename = "canvasOrigin")]
+        canvas_origin: Option<String>,
+    }
+    let info: Info = serde_json::from_slice(&std::fs::read(info_file).ok()?).ok()?;
+    let parsed = info.canvas_origin?.parse::<tauri::Url>().ok()?;
+    crate::server_json::is_loopback_url(&parsed).then(|| parsed.origin().ascii_serialization())
 }
 
 /// One client for every probe: loopback only, so no proxy (an `HTTP_PROXY` in

@@ -98,9 +98,33 @@ const MAX_NOTIFY_FIELD_LEN: usize = 200;
 pub(crate) fn sanitize_notify_field(s: &str) -> String {
     let cleaned: String = s
         .chars()
-        .filter(|c| !c.is_control() || *c == '\n' || *c == '\t')
+        .filter(|c| (!c.is_control() || *c == '\n' || *c == '\t') && !is_bidi_control(*c))
         .collect();
     cleaned.chars().take(MAX_NOTIFY_FIELD_LEN).collect()
+}
+
+/// The bidi embedding / override / isolate controls (U+202A–202E,
+/// U+2066–2069) and the bare marks (U+200E/200F, U+061C). They are `Cf`, not
+/// `Cc`, so `is_control` keeps them — and they can make an OS-drawn name read
+/// as something else (V2-3.6 W3).
+fn is_bidi_control(c: char) -> bool {
+    matches!(
+        c,
+        '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}' | '\u{200E}' | '\u{200F}' | '\u{061C}'
+    )
+}
+
+/// A project-supplied name for a ONE-LINE native surface — a window title, a
+/// dialog's "{name}" (V2-3.6 W3): `sanitize_notify_field`, with every control
+/// (newline, tab, CR) turned into a space and runs of whitespace collapsed.
+pub(crate) fn sanitize_title(s: &str) -> String {
+    let spaced: String = s
+        .chars()
+        .filter(|c| !is_bidi_control(*c))
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect();
+    let one_line = spaced.split_whitespace().collect::<Vec<_>>().join(" ");
+    one_line.chars().take(MAX_NOTIFY_FIELD_LEN).collect()
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -790,6 +814,18 @@ mod tests {
     fn sanitize_strips_control_characters_but_keeps_newlines_and_tabs() {
         let s = sanitize_notify_field("hello\x00\x07world\nline2\tindented");
         assert_eq!(s, "helloworld\nline2\tindented");
+    }
+
+    /// W3: a title is one line with no bidi controls; a notification body
+    /// keeps its newlines but loses the bidi controls too.
+    #[test]
+    fn titles_are_one_line_and_bidi_free() {
+        assert_eq!(
+            sanitize_title("Acme\n\r\tBrand\u{202E}gpj.exe\u{2066}x\u{2069}"),
+            "Acme Brandgpj.exex"
+        );
+        assert_eq!(sanitize_title("  a   b  "), "a b");
+        assert_eq!(sanitize_notify_field("a\u{202E}b\nc"), "ab\nc");
     }
 
     #[test]

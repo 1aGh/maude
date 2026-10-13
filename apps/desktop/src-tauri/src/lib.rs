@@ -159,9 +159,11 @@ async fn resolve_dev_server_url(webview: tauri::Webview) -> Result<serde_json::V
     // states"): from the app-local splash or Home itself, never a `p-*` label.
     if webview.label() == windows::HOME_LABEL {
         home::caller_home(&webview, true)?;
-        return home::wait_home_url(webview.app_handle(), std::time::Duration::from_millis(RECOVERY_WAIT_MS))
-            .await
-            .map(serde_json::Value::String);
+        let url = home::wait_home_url(webview.app_handle(), std::time::Duration::from_millis(RECOVERY_WAIT_MS)).await?;
+        // The splash is about to go there itself: the Home origin is the one
+        // its navigations may reach (N-M2) — from app-owned state only.
+        home::stamp_home_origin(webview.app_handle(), &url);
+        return Ok(serde_json::Value::String(url));
     }
     // The splash runs on the app-local origin; a page already on its server
     // may ask too (a reload).
@@ -170,6 +172,11 @@ async fn resolve_dev_server_url(webview: tauri::Webview) -> Result<serde_json::V
         return Ok(serde_json::json!({ "resting": true, "name": name }));
     }
     let url = sidecar::wait_for_shell_url(webview.app_handle(), &caller.root, RECOVERY_WAIT_MS).await?;
+    // The splash navigates itself there: record that origin (from the live
+    // child's app-owned info file) as this window's, or the guard refuses it (N-M2/N-M3).
+    if !windows::stamp_server_origin(webview.app_handle(), &caller.label, &caller.root, &url) {
+        return Err("This window moved on to another project.".to_string());
+    }
     Ok(serde_json::Value::String(format!("{url}/")))
 }
 
@@ -731,7 +738,6 @@ pub fn run() {
 
             // maude:// links (Phase 17). macOS delivers through the plugin;
             // the state is parked until the client asks for it.
-            app.manage(deep_link::PendingDeepLink::default());
             app.manage(picked_media::PickedMediaRegistry::default());
             {
                 use tauri_plugin_deep_link::DeepLinkExt;
