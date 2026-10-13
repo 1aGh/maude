@@ -22,20 +22,25 @@ import {
   openProject,
   openProjectFolder,
   prepareCloud,
+  prepareCloudLink,
   relinkProject,
   saveRecentSearch,
   search,
   setPin,
   shellListen,
   shellState,
+  takePendingDeepLink,
   thumbObjectUrl,
 } from './home-api.js';
+import { parseMaudeLink } from '../share-link.js';
 import { HIcon, HMark, HSpark, ProjectSquare } from './home-icons.jsx';
 import {
   buildHomeModel,
   canvasCount,
   cloudRoleWord,
   indexQuery,
+  linkProfile,
+  localPidForLink,
   relativeTime,
   rowSlug,
   thumbUrl,
@@ -197,12 +202,43 @@ function useHomeData() {
   return { native, shell, index, clouds, status, reload: loadAll, patchPin };
 }
 
+// ── maude:// links (V2-3.5) ───────────────────────────────────────────────────────────────────
+// Rust routes a link to Home when no project tab can take it (deep_link.rs). The link that LAUNCHED
+// the app is parked for this window (take once); links while running arrive as events. One slot,
+// like the project window's CloudBar: a second link never replaces one the person is reading.
+function useDeepLink(native) {
+  const [link, setLink] = useState(null);
+  useEffect(() => {
+    if (!native) return undefined;
+    const take = (url) => {
+      const parsed = parseMaudeLink(url);
+      if (parsed) setLink((current) => current ?? parsed);
+    };
+    takePendingDeepLink()
+      .then((url) => typeof url === 'string' && take(url))
+      .catch(() => {});
+    let alive = true;
+    let off = null;
+    shellListen('maude://deep-link', take).then((fn) => {
+      if (alive) off = fn;
+      else fn();
+    });
+    return () => {
+      alive = false;
+      off?.();
+    };
+  }, [native]);
+  return [link, setLink];
+}
+
 // ── page ─────────────────────────────────────────────────────────────────────────────────────
 export function HomeApp() {
   const theme = useSystemTheme();
   const data = useHomeData();
   const [filterPid, setFilterPid] = useState('');
   const [notice, setNotice] = useState(null);
+  const [link, setLink] = useDeepLink(data.native);
+  const [linkBusy, setLinkBusy] = useState(false);
   const searchRef = useRef(null);
 
   const model = useMemo(
@@ -282,6 +318,17 @@ export function HomeApp() {
     [fail]
   );
 
+  // A project not on this Mac yet, once prepared: its own copy → a tab (`managed_project_open`
+  // resolves the copy's folder, `open_project` opens it). Cloud rows and connect links share it.
+  const openPrepared = useCallback(async (prep, name) => {
+    if (!prep.ok || !prep.json?.ok) {
+      setNotice(prep.json?.error || `${name} could not be opened. Try again in a moment.`);
+      return;
+    }
+    const root = await managedProjectOpen(prep.json);
+    if (typeof root === 'string' && root) await openProject({ root });
+  }, []);
+
   const openCloud = useCallback(
     async (row) => {
       try {
@@ -289,19 +336,48 @@ export function HomeApp() {
           if (row.url) await openCloudUrl(row.url);
           return;
         }
-        const prep = await prepareCloud(row.profile, row.url, row.projectId);
-        if (!prep.ok || !prep.json?.ok) {
-          setNotice(prep.json?.error || `${row.name} could not be opened. Try again in a moment.`);
-          return;
-        }
-        const root = await managedProjectOpen(prep.json);
-        if (typeof root === 'string' && root) await openProject({ root });
+        await openPrepared(await prepareCloud(row.profile, row.url, row.projectId), row.name);
       } catch (e) {
         fail(e);
       }
     },
-    [fail]
+    [fail, openPrepared]
   );
+
+  // A file link whose project IS here (its tab failed to open from the link) opens like a
+  // Pinned card; one for a project this Mac doesn't have gets the calm note below.
+  const linkPid =
+    link?.kind === 'file' && data.shell ? localPidForLink(data.shell, link.project) : null;
+  useEffect(() => {
+    if (!linkPid || link?.kind !== 'file') return;
+    setLink(null);
+    open(linkPid, link.rel);
+  }, [linkPid, link, open, setLink]);
+  const linkNote = link?.kind === 'file' && data.status !== 'loading' && !linkPid;
+
+  // A connect link: the project window's "Open <project>" answer — its own copy on this Mac.
+  // There is no folder here to connect, so that half of CloudBar's decision has no Home form.
+  const openLink = useCallback(async () => {
+    if (link?.kind !== 'connect') return;
+    setLinkBusy(true);
+    try {
+      const prep = await prepareCloudLink(linkProfile(data.shell, data.clouds, link.project), link);
+      await openPrepared(prep, link.project);
+    } catch (e) {
+      fail(e);
+    } finally {
+      setLinkBusy(false);
+      setLink(null);
+    }
+  }, [link, data.shell, data.clouds, openPrepared, fail, setLink]);
+  useEffect(() => {
+    if (link?.kind !== 'connect') return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setLink(null);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [link, setLink]);
 
   const hasProjects = model.groups.some((g) => g.rows.length);
   return (
@@ -334,6 +410,14 @@ export function HomeApp() {
             Home can't read its list of canvases right now. Your projects are safe.
             <button type="button" className="btn btn--sm" onClick={data.reload}>
               Retry
+            </button>
+          </p>
+        ) : null}
+        {linkNote ? (
+          <p className="home-callout" role="status" data-testid="home-link-note">
+            That link is for a project that isn't on this Mac.
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setLink(null)}>
+              Dismiss
             </button>
           </p>
         ) : null}
@@ -493,6 +577,43 @@ export function HomeApp() {
           </div>
         </section>
       </main>
+
+      {link?.kind === 'connect' ? (
+        <div
+          className="home-link-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Open ${link.project}?`}
+        >
+          <div className="home-link-scrim" aria-hidden="true" onClick={() => setLink(null)} />
+          <div className="island home-link-dialog" data-testid="home-link-dialog">
+            <h2>Open {link.project}?</h2>
+            <p>
+              {link.project} isn't on this Mac yet. It opens in its own copy here. Nothing else
+              changes.
+            </p>
+            <div className="home-link-foot">
+              <button
+                type="button"
+                className="btn"
+                data-testid="home-link-dismiss"
+                onClick={() => setLink(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn--primary"
+                data-testid="home-link-open"
+                disabled={linkBusy}
+                onClick={openLink}
+              >
+                {linkBusy ? 'Opening…' : `Open ${link.project}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -553,6 +674,42 @@ const STATE_WORD = {
     </>
   ),
 };
+
+// A project tab's live state (shell_state `ai` + `place`), canvas 11's words: AI working (a spark
+// while it runs) · Needs you (it is waiting on a decision — the one that asks for you wins) ·
+// Resting (its server is stopped; the tab wakes it). A resting tab never has AI (rest policy).
+function RowLive({ row }) {
+  const ai = row.ai;
+  if (ai?.awaiting > 0)
+    return (
+      <span
+        className="chip home-prow-ai"
+        data-testid={`home-project-ai-${row.pid}`}
+        data-ai="awaiting"
+      >
+        Needs you
+      </span>
+    );
+  if (ai?.running > 0)
+    return (
+      <span
+        className="chip chip--spark home-prow-ai"
+        data-testid={`home-project-ai-${row.pid}`}
+        data-ai="running"
+      >
+        <HSpark size={9} />
+        AI working
+      </span>
+    );
+  if (row.place === 'resting')
+    return (
+      <span className="home-prow-rest" data-testid={`home-project-resting-${row.pid}`}>
+        <span className="home-prow-ring" aria-hidden="true" />
+        Resting
+      </span>
+    );
+  return null;
+}
 
 function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenCloud }) {
   const { profile, cloud } = group;
@@ -645,6 +802,7 @@ function ProfileGroup({ group, showHeader, canOpen, onOpen, onRelink, onOpenClou
                         ))}
                     </span>
                   </span>
+                  <RowLive row={r} />
                 </button>
               )}
             </li>

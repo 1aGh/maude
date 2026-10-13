@@ -116,3 +116,37 @@ export function parseFileDeepLink(raw) {
   const rel = readOpenParam({ search: m[2] });
   return rel ? { project: m[1], rel } : null;
 }
+
+/**
+ * Parse a maude://open/<project>?code=mhc_… deep link. Untrusted input — a
+ * drive-by page can navigate to maude:// — so nothing here is acted on
+ * without the person pressing Connect, and the code is only ever exchanged
+ * against the app's own configured Maude Cloud address.
+ * (Moved here from panels/CloudBar.jsx in V2-3.5, which re-exports it.)
+ */
+export function parseDeepLink(url) {
+  const m = /^maude:\/\/open\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?\?(.*)$/.exec(String(url ?? ''));
+  if (!m) return null;
+  // The platform caps a project id at 40 chars (deriveProjectId), but that bound
+  // lives server-side and a drive-by maude:// link never passes through it — so
+  // without this, arbitrary attacker text renders in the dialog's heading, prose
+  // and aria-label. Nothing longer can name a real project anyway.
+  if (m[1].length > 40) return null;
+  const params = new URLSearchParams(m[2]);
+  if (params.has('open') || params.getAll('code').length !== 1) return null;
+  const code = params.get('code') ?? '';
+  if (!/^mhc_[0-9a-f]{16,128}$/.test(code)) return null;
+  return { project: m[1], code };
+}
+
+/**
+ * Either `maude://` link a window can be handed: a connect link (`?code=`) or a file link
+ * (`?open=`), tagged by `kind`. The one reader the project window (CloudBar) and Home share.
+ * null = nothing to act on.
+ */
+export function parseMaudeLink(url) {
+  const connect = parseDeepLink(url);
+  if (connect) return { ...connect, kind: 'connect' };
+  const file = parseFileDeepLink(url);
+  return file ? { ...file, kind: 'file' } : null;
+}

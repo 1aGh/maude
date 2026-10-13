@@ -14,10 +14,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { localIdentityMatches, parseFileDeepLink } from '../share-link.js';
+import { localIdentityMatches, parseMaudeLink } from '../share-link.js';
 import FileDeepLinkDialog from './file-deep-link-dialog.jsx';
 import { safeName, syncPresentation } from '../../sync/presentation.ts';
-import { invoke, isNativeApp, listen, openCloudUrl, openTeamProject } from '../github.js';
+import { invoke, isNativeApp, listenHere, openCloudUrl, openTeamProject } from '../github.js';
 
 const api = async (path, init) => {
   const res = await fetch(path, init);
@@ -106,26 +106,8 @@ export function openExternal(url) {
   }
 }
 
-/**
- * Parse a maude://open/<project>?code=mhc_… deep link. Untrusted input — a
- * drive-by page can navigate to maude:// — so nothing here is acted on
- * without the person pressing Connect, and the code is only ever exchanged
- * against the app's own configured Maude Cloud address.
- */
-export function parseDeepLink(url) {
-  const m = /^maude:\/\/open\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?\?(.*)$/.exec(String(url ?? ''));
-  if (!m) return null;
-  // The platform caps a project id at 40 chars (deriveProjectId), but that bound
-  // lives server-side and a drive-by maude:// link never passes through it — so
-  // without this, arbitrary attacker text renders in the dialog's heading, prose
-  // and aria-label. Nothing longer can name a real project anyway.
-  if (m[1].length > 40) return null;
-  const params = new URLSearchParams(m[2]);
-  if (params.has('open') || params.getAll('code').length !== 1) return null;
-  const code = params.get('code') ?? '';
-  if (!/^mhc_[0-9a-f]{16,128}$/.test(code)) return null;
-  return { project: m[1], code };
-}
+// The connect-link grammar lives with the file-link one (share-link.js); re-exported for callers.
+export { parseDeepLink } from '../share-link.js';
 
 /**
  * A viewer's browser home for a project — the project's OWN address.
@@ -493,13 +475,7 @@ export default function CloudBar({
   useEffect(() => {
     if (!isNativeApp()) return undefined;
     const consume = (url) => {
-      const connect = parseDeepLink(url);
-      const file = connect ? null : parseFileDeepLink(url);
-      const parsed = connect
-        ? { ...connect, kind: 'connect' }
-        : file
-          ? { ...file, kind: 'file' }
-          : null;
+      const parsed = parseMaudeLink(url);
       if (!parsed) return;
       // NEVER replace a link the person is already looking at. The dialog is a
       // single slot, so an overwrite would swap the code out from under a
@@ -512,7 +488,9 @@ export default function CloudBar({
       .then((url) => url && consume(url))
       .catch(() => {});
     let unlisten = null;
-    listen('maude://deep-link', consume).then((fn) => {
+    // This window's own events only: Rust parks and emits a link for ONE window (`emit_to`), and
+    // a global listener would show every tab the link meant for another (V2-3.5).
+    listenHere('maude://deep-link', consume).then((fn) => {
       unlisten = fn;
     });
     return () => unlisten?.();

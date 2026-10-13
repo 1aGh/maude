@@ -92,6 +92,10 @@ type Call = { url: string; method: string; headers: Record<string, string>; body
 let calls: Call[] = [];
 let invokes: Array<{ cmd: string; args: unknown }> = [];
 let listeners: Record<string, (e: { payload: unknown }) => void> = {};
+// per-test shell answers (cmd → value or fn(args)); consulted before the defaults
+let shellAnswers: Record<string, unknown> = {};
+let shellOverride: typeof SHELL | null = null;
+let windowListeners: Record<string, (e: { payload: unknown }) => void> = {};
 let originalFetch: typeof fetch;
 
 function answer(url: string): unknown {
@@ -132,6 +136,14 @@ function answer(url: string): unknown {
       ],
     };
   if (u.pathname === '/_home/pins') return { ok: true, pins: [] };
+  if (u.pathname === '/_home/cloud/prepare')
+    return {
+      ok: true,
+      serverUrl: 'https://alligators.cloud.maude.sh',
+      projectId: 'alligators',
+      name: 'alligators',
+      canvasGroups: [],
+    };
   return { error: 'nope' };
 }
 
@@ -162,7 +174,11 @@ function installTauri(label = 'home') {
     core: {
       invoke: async (cmd: string, args: unknown) => {
         invokes.push({ cmd, args });
-        if (cmd === 'shell_state') return SHELL;
+        if (cmd in shellAnswers) {
+          const a = shellAnswers[cmd];
+          return typeof a === 'function' ? (a as (x: unknown) => unknown)(args) : a;
+        }
+        if (cmd === 'shell_state') return shellOverride ?? SHELL;
         if (cmd === 'open_project') return { label: 'p-x', opened: 'existing' };
         return null;
       },
@@ -207,6 +223,9 @@ beforeEach(() => {
   calls = [];
   invokes = [];
   listeners = {};
+  windowListeners = {};
+  shellAnswers = {};
+  shellOverride = null;
   installFetch();
 });
 afterEach(() => {
@@ -334,6 +353,152 @@ describe('Home page in the desktop app', () => {
   });
 });
 
+// V2-3.5 — Rust routes a maude:// link Home's way when no project tab can take it (deep_link.rs).
+const CODE = `mhc_${'ab12'.repeat(8)}`;
+const CONNECT = `maude://open/alligators?code=${CODE}`;
+const FILE_UNKNOWN = 'maude://open/brno-open?open=ui/Pozvanka.tsx';
+
+describe('Home reads maude:// links', () => {
+  beforeEach(() => installTauri('home'));
+
+  test('the link parked at launch is taken on boot (connect → the open-its-own-copy decision)', async () => {
+    shellAnswers.take_pending_deep_link = CONNECT;
+    mount();
+    await flush();
+    expect(invokes.some((i) => i.cmd === 'take_pending_deep_link')).toBe(true);
+    expect($('home-link-dialog')?.textContent).toContain('Open alligators?');
+    expect($('home-link-open')?.textContent).toBe('Open alligators');
+  });
+
+  test('a link while running arrives as the event; a second never replaces the one shown', async () => {
+    mount();
+    await flush();
+    expect($('home-link-dialog')).toBeNull();
+    await act(async () => listeners['maude://deep-link']?.({ payload: CONNECT }));
+    await flush();
+    expect($('home-link-dialog')).not.toBeNull();
+    await act(async () =>
+      listeners['maude://deep-link']?.({
+        payload: `maude://open/someone-else?code=${CODE}`,
+      })
+    );
+    await flush();
+    expect($('home-link-dialog')?.textContent).toContain('alligators');
+    expect($('home-link-dialog')?.textContent).not.toContain('someone-else');
+    act(() => $('home-link-dismiss')?.click());
+    await flush();
+    expect($('home-link-dialog')).toBeNull();
+  });
+
+  test('a file link for a project not on this Mac shows the calm note — nothing opens', async () => {
+    shellAnswers.take_pending_deep_link = FILE_UNKNOWN;
+    mount();
+    await flush();
+    expect($('home-link-note')?.textContent).toContain(
+      "That link is for a project that isn't on this Mac."
+    );
+    expect($('home-link-note')?.getAttribute('role')).toBe('status');
+    expect(invokes.some((i) => i.cmd === 'open_project')).toBe(false);
+    // junk is not a link: nothing shown
+    await act(async () =>
+      listeners['maude://deep-link']?.({ payload: 'maude://open/../x?open=a' })
+    );
+    await flush();
+    expect($('home-link-dialog')).toBeNull();
+  });
+
+  test('a file link for a project that IS here opens it at the canvas', async () => {
+    shellAnswers.take_pending_deep_link = 'maude://open/alligators-brand?open=ui/Plakat.tsx';
+    mount();
+    await flush();
+    const op = invokes.find((i) => i.cmd === 'open_project');
+    expect(op?.args).toEqual({ pid: P1, target: { canvas: 'ui/Plakat.tsx' } });
+    expect($('home-link-note')).toBeNull();
+  });
+
+  test('connect link end to end: /_home/cloud/prepare → managed_project_open → open_project({root})', async () => {
+    shellAnswers.take_pending_deep_link = CONNECT;
+    shellAnswers.managed_project_open = '/Users/me/Maude/alligators';
+    mount();
+    await flush();
+    act(() => $('home-link-open')?.click());
+    await flush();
+    const prep = calls.find((c) => c.url === '/_home/cloud/prepare');
+    expect(prep?.method).toBe('POST');
+    expect(prep?.headers['x-maude-home']).toBe('1');
+    expect(prep?.body).toEqual({ profile: 'default', projectId: 'alligators', code: CODE });
+    const chain = invokes
+      .map((i) => i.cmd)
+      .filter((c) => c === 'managed_project_open' || c === 'open_project');
+    expect(chain).toEqual(['managed_project_open', 'open_project']);
+    expect(invokes.find((i) => i.cmd === 'managed_project_open')?.args).toEqual({
+      serverUrl: 'https://alligators.cloud.maude.sh',
+      projectId: 'alligators',
+      name: 'alligators',
+      canvasGroups: [],
+    });
+    expect(invokes.find((i) => i.cmd === 'open_project')?.args).toEqual({
+      root: '/Users/me/Maude/alligators',
+    });
+    expect($('home-link-dialog')).toBeNull();
+  });
+
+  test('links are heard on THIS window only (a global listener hears links meant for a tab)', async () => {
+    const w = window as unknown as { __TAURI__: Record<string, unknown> };
+    w.__TAURI__.webviewWindow = {
+      getCurrentWebviewWindow: () => ({
+        listen: async (name: string, cb: (e: { payload: unknown }) => void) => {
+          windowListeners[name] = cb;
+          return () => {
+            delete windowListeners[name];
+          };
+        },
+      }),
+    };
+    mount();
+    await flush();
+    expect(Object.keys(windowListeners).sort()).toEqual(
+      ['index://changed', 'maude://deep-link', 'shell://state'].sort()
+    );
+    expect(listeners['maude://deep-link']).toBeUndefined();
+  });
+});
+
+describe('Home shows each tab’s live state', () => {
+  beforeEach(() => installTauri('home'));
+
+  test('AI working · Needs you · Resting chips on project rows', async () => {
+    shellOverride = {
+      ...SHELL,
+      projects: [
+        { ...SHELL.projects[0], ai: { running: 1, awaiting: 0 } },
+        { ...SHELL.projects[1], place: 'resting' },
+      ],
+    };
+    mount();
+    await flush();
+    expect($(`home-project-ai-${P1}`)?.textContent).toBe('AI working');
+    expect($(`home-project-ai-${P1}`)?.getAttribute('data-ai')).toBe('running');
+    expect($(`home-project-resting-${P2}`)?.textContent).toBe('Resting');
+    expect($(`home-project-ai-${P2}`)).toBeNull();
+    // the one that asks for you wins
+    await act(async () =>
+      listeners['shell://state']?.({
+        payload: {
+          ...SHELL,
+          projects: [
+            { ...SHELL.projects[0], ai: { running: 1, awaiting: 1 } },
+            { ...SHELL.projects[1], place: 'tab' },
+          ],
+        },
+      })
+    );
+    await flush();
+    expect($(`home-project-ai-${P1}`)?.textContent).toBe('Needs you');
+    expect($(`home-project-resting-${P2}`)).toBeNull();
+  });
+});
+
 describe('Home page in a browser (no shell)', () => {
   test('renders the index read-only from ?pids= and never throws', async () => {
     window.history.replaceState(null, '', `/?pids=${P1}`);
@@ -383,7 +548,7 @@ describe('home-api', () => {
       ([name, fn]) =>
         typeof fn === 'function' &&
         !['homeFetch', 'inShell', 'shellInvoke', 'shellListen'].includes(name) &&
-        !/^(shellState|openProject|openProjectFolder|relinkProject|managedProjectOpen|openCloudUrl)$/.test(
+        !/^(shellState|openProject|openProjectFolder|relinkProject|managedProjectOpen|openCloudUrl|takePendingDeepLink)$/.test(
           name
         )
     );
@@ -394,6 +559,7 @@ describe('home-api', () => {
         'getIndex',
         'getRecentSearches',
         'prepareCloud',
+        'prepareCloudLink',
         'saveRecentSearch',
         'search',
         'setPin',
