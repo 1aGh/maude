@@ -43,9 +43,49 @@ export function realClasses(el: Element | null): string {
     .join(' ');
 }
 
+// Display values that sit in a line of text; every other value (block, flex, grid, list-item,
+// table…) starts a new line in rendered text, so it is a word boundary. '' is what a detached
+// element reports — no layout information, so no boundary is invented.
+const INLINE_DISPLAY = /^$|^(inline|contents|ruby|ruby-text)$|^inline-/;
+
+/**
+ * The text of `el` as it reads when rendered — for an element whose contents are NOT rendered yet,
+ * where `innerText` is '' (Chromium: a `content-visibility: auto` board before its first rendering
+ * update — the window a select-by-id can land in right after a soft-reload remount — or one scrolled
+ * out of view). `textContent` alone glues block neighbours together ("HeroCharacterization…"), so the
+ * same selection read different depending on whether it landed before or after the first paint.
+ * Walks the tree instead: a space at every block boundary and `<br>`, nothing for `display:none`.
+ */
+function unrenderedText(el: Element): string {
+  let out = '';
+  const walk = (n: Node): void => {
+    if (n.nodeType === 3) {
+      out += n.nodeValue ?? '';
+      return;
+    }
+    if (n.nodeType !== 1) return;
+    const e = n as Element;
+    const tag = e.nodeName;
+    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEMPLATE' || tag === 'NOSCRIPT') return;
+    if (tag === 'BR') {
+      out += ' ';
+      return;
+    }
+    const display = getComputedStyle(e).display;
+    if (display === 'none' && e !== el) return; // the root keeps its text (textContent before)
+    const block = !INLINE_DISPLAY.test(display);
+    if (block) out += ' ';
+    for (let c = e.firstChild; c; c = c.nextSibling) walk(c);
+    if (block) out += ' ';
+  };
+  walk(el);
+  return out;
+}
+
 export function shortText(el: Element | null, max: number): string {
   if (!el) return '';
-  const t = ((el as HTMLElement).innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+  const raw = (el as HTMLElement).innerText || (el.textContent ? unrenderedText(el) : '');
+  const t = raw.replace(/\s+/g, ' ').trim();
   return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 }
 
