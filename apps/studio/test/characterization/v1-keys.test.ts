@@ -180,6 +180,10 @@ async function bootLane(n: number, root: string, gen = 0): Promise<Lane> {
       MAUDE_NO_AUTOBUILD: '1',
       MAUDE_SYNC_IN_CI: '1',
       TZ: 'UTC',
+      // The goldens were taken with no local Ollama answering; a host Ollama changes the AI
+      // readiness rows in Settings (2026-10-13: 359 → 354 nodes). Port 9 (discard) on loopback
+      // refuses fast, so the run never depends on what this Mac has running.
+      OLLAMA_HOST: '127.0.0.1:9',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
