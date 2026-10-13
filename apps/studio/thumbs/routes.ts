@@ -26,7 +26,12 @@ export function thumbNotFound(): Response {
   });
 }
 
-export function thumbResponse(svc: ThumbService | null, key: string | undefined): Response {
+/** `svc` is anything that answers "is this key mine" + "its bytes" — the project's ThumbService,
+ *  or the Home server's per-pid snapshot check (home/index-reader.ts, V2-3.3). */
+export function thumbResponse(
+  svc: Pick<ThumbService, 'serves' | 'read'> | null,
+  key: string | undefined
+): Response {
   if (!svc || typeof key !== 'string' || !KEY_RE.test(key) || !svc.serves(key))
     return thumbNotFound();
   const bytes = svc.read(key);

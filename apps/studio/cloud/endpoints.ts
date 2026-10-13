@@ -39,7 +39,7 @@ import { getHubToken, normalizeUrl } from '../sync/hubs-config.ts';
  * the assertion failed 410), and the desktop shell could not set the env
  * after the module graph was already warm.
  */
-function cloudUrl(): string {
+export function cloudUrl(): string {
   return (process.env.MAUDE_CLOUD_URL ?? 'https://cloud.maude.sh').replace(/\/+$/, '');
 }
 
@@ -90,12 +90,11 @@ interface CloudFile {
   connectedAt: number;
 }
 
-function cloudConfigPath(): string {
+export function cloudConfigPath(): string {
   return process.env.MAUDE_CLOUD_CONFIG ?? join(homedir(), '.config', 'maude', 'cloud.json');
 }
 
-function readCloudFile(): CloudFile | null {
-  const p = cloudConfigPath();
+function readCloudFile(p = cloudConfigPath()): CloudFile | null {
   if (!existsSync(p)) return null;
   try {
     const parsed = JSON.parse(readFileSync(p, 'utf8'));
@@ -106,8 +105,7 @@ function readCloudFile(): CloudFile | null {
   return null;
 }
 
-function writeCloudFile(file: CloudFile): void {
-  const p = cloudConfigPath();
+function writeCloudFile(file: CloudFile, p = cloudConfigPath()): void {
   const dir = dirname(p);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
   writeFileSync(p, `${JSON.stringify(file, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
@@ -138,6 +136,12 @@ async function cloudFetch(
 interface Ctx {
   paths: { repoRoot: string; designRoot: string };
   /**
+   * Which device session this endpoint set speaks for (V2-3.3): the Home server prepares a
+   * project with ONE profile's `cloud.json`. Absent = `cloudConfigPath()`, as every project
+   * server has always read it.
+   */
+  cloudConfigPath?: string;
+  /**
    * The live sync runtime's owner (server.ts → sync/supervisor.ts). Optional:
    * unit tests and any non-serving embedder construct a Ctx without one, and a
    * missing supervisor degrades to exactly the old behaviour — linked on disk,
@@ -163,6 +167,7 @@ interface Ctx {
 }
 
 export function createCloudEndpoints(ctx: Ctx) {
+  const cfgFile = () => ctx.cloudConfigPath ?? cloudConfigPath();
   return {
     /**
      * Signed in? Who? And WHICH folder is asking? Cheap — reads two files,
@@ -176,7 +181,7 @@ export function createCloudEndpoints(ctx: Ctx) {
      * config.json) — no credential material widens by being reported here.
      */
     status(): CloudEndpointResult {
-      const file = readCloudFile();
+      const file = readCloudFile(cfgFile());
       return {
         status: 200,
         json: {
@@ -229,12 +234,15 @@ export function createCloudEndpoints(ctx: Ctx) {
           json: { ok: false, error: 'The code expired. Start the sign-in again.' },
         };
       }
-      writeCloudFile({
-        url: cloudUrl(),
-        token: r.body.token,
-        email: r.body.account?.email ?? undefined,
-        connectedAt: Date.now(),
-      });
+      writeCloudFile(
+        {
+          url: cloudUrl(),
+          token: r.body.token,
+          email: r.body.account?.email ?? undefined,
+          connectedAt: Date.now(),
+        },
+        cfgFile()
+      );
       return {
         status: 200,
         json: { ok: true, pending: false, email: r.body.account?.email ?? null },
@@ -244,7 +252,7 @@ export function createCloudEndpoints(ctx: Ctx) {
     /** Forget the local credential. (Revocation lives on /account.) */
     signout(): CloudEndpointResult {
       try {
-        unlinkSync(cloudConfigPath());
+        unlinkSync(cfgFile());
       } catch {
         /* already gone */
       }
@@ -253,7 +261,7 @@ export function createCloudEndpoints(ctx: Ctx) {
 
     /** The signed-in account's projects, states included. */
     async projects(): Promise<CloudEndpointResult> {
-      const file = readCloudFile();
+      const file = readCloudFile(cfgFile());
       if (!file)
         return { status: 401, json: { ok: false, error: 'Sign in to Maude Cloud first.' } };
       const r = await cloudFetch('/api/projects', {
@@ -281,7 +289,7 @@ export function createCloudEndpoints(ctx: Ctx) {
      * second step for the person to discover.
      */
     async attach(projectId: string): Promise<CloudEndpointResult> {
-      const file = readCloudFile();
+      const file = readCloudFile(cfgFile());
       if (!file)
         return { status: 401, json: { ok: false, error: 'Sign in to Maude Cloud first.' } };
       if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(projectId ?? ''))) {
@@ -316,7 +324,7 @@ export function createCloudEndpoints(ctx: Ctx) {
      * project's own copy and switches to it.
      */
     async openManaged(projectId: string): Promise<CloudEndpointResult> {
-      const file = readCloudFile();
+      const file = readCloudFile(cfgFile());
       if (!file)
         return { status: 401, json: { ok: false, error: 'Sign in to Maude Cloud first.' } };
       if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(projectId ?? ''))) {

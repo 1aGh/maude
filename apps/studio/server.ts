@@ -62,6 +62,14 @@ installLogRing();
 // builds on first boot; opt out with MAUDE_NO_AUTOBUILD=1.
 await bootSelfHeal();
 
+// V2-3.3 (contract V2-1.1 §5.3) — `--home` is the project-less Home server: its own module and
+// route table, no createContext(). Only the explicit flag gets here; project mode below still
+// fails loud without `.design/`. A top-level await keeps everything after it from running.
+if (process.argv.includes('--home')) {
+  (await import('./home/main.ts')).runHome();
+  await new Promise<never>(() => {});
+}
+
 const ctx = createContext();
 
 // V2-2.9 (T23) — persist the per-source diagnostics (server · sync · ai · export) under

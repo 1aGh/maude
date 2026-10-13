@@ -485,7 +485,7 @@ function withProjectConfig(cfg: DevServerConfig, repoRoot: string): DevServerCon
   };
 }
 
-function loadConfig(repoRoot: string): DevServerConfig {
+export function loadConfig(repoRoot: string): DevServerConfig {
   const configPath = path.join(repoRoot, '.design', 'config.json');
   let raw: string;
   try {
