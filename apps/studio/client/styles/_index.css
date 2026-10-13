@@ -35,4 +35,6 @@
 @import url("./5-maude-overrides.css");
 /* Phase 31 (DDR-123) — ACP chat sidepanel (chat-* inside the Assistant st-rpanel). */
 @import url("./6-acp-chat.css");
+/* V2-3.3 — the Home page, scoped under `.maude-v2.home-root` (maude-v2 tokens only). */
+@import url("../home/home.css");
 @import url("./5-utilities.css");
