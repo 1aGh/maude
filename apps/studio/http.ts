@@ -1657,6 +1657,7 @@ export function createHttp(
         if (reloadConfig(ctx)) ctx.bus.emit('config-updated');
       },
     },
+    pins: { designRoot: ctx.paths.designRoot },
   }).map(guardTableRoute);
   const laneRoutes = mountRoutes(tableSpecs);
   // V2-2.17 — the project index (contract V2-1.17): built now, updated per fs event, persisted

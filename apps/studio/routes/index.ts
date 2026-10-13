@@ -16,6 +16,7 @@
 
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { createOutboxRoutes } from './outbox.ts';
+import { createPinsRoutes, type PinsRouteDeps } from './pins.ts';
 import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-format.ts';
 import type { RouteSpec } from './table.ts';
 
@@ -23,6 +24,7 @@ export interface RouteDeps {
   outbox: Parameters<typeof createOutboxRoutes>[0];
   projectFormat: ProjectFormatDeps;
   agent: AgentRouteDeps;
+  pins: PinsRouteDeps;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
@@ -31,5 +33,6 @@ export function allSpecs(deps: RouteDeps): RouteSpec[] {
     ...createOutboxRoutes(deps.outbox),
     ...createProjectFormatRoutes(deps.projectFormat),
     ...agentRouteSpecs(deps.agent),
+    ...createPinsRoutes(deps.pins),
   ];
 }

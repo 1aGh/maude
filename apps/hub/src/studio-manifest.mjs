@@ -239,6 +239,9 @@ export const STUDIO_ROUTES = Object.freeze({
   '/_api/project/format': { safe: 'read', unsafe: null },
   '/_api/project/migrate': REFUSED,
   '/_api/outbox': REFUSED,
+  // V2-3.3 — a pin is ONE person's view state in `_canvas-state/`, and a cell's is shared by
+  // every member: refused rather than letting one member's pins become everyone's.
+  '/_api/pins': REFUSED,
   // Preparing a device for offline work is a desktop's; a cell IS the copy.
   '/_api/sync/offline': REFUSED,
 
