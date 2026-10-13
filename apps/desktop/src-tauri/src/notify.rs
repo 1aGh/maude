@@ -35,8 +35,8 @@ use crate::sidecar::SidecarState;
 
 /// How often the poller walks the non-current pool instances. Slow on purpose
 /// (Design Decisions table — "this competes with `git status`"): the visible
-/// project doesn't need it, and at most `MAX_INSTANCES - 1` = 2 instances are
-/// ever polled.
+/// project doesn't need it, and at most `running_cap() - 1` = 4 instances are
+/// ever polled (more only while the cap overflows).
 const POLL_INTERVAL_MS: u64 = 6_000;
 
 /// Bound on the activity probe, mirroring `sidecar.rs`'s
@@ -318,27 +318,24 @@ fn project_display_name(project_root: &str) -> String {
         .unwrap_or_else(|| "your project".to_string())
 }
 
+/// The activity endpoint of the server whose app-owned info file is
+/// `info_file` (V2-1.1 decision 8, §5.8 item 6). The address comes ONLY from
+/// that file — loopback-validated, rebuilt from the origin so no path or flag
+/// survives — never from the in-project `_server.json`, which a prompt-injected
+/// agent or a planted file could point at a fake responder.
+pub(crate) fn activity_url(info_file: &std::path::Path) -> Option<String> {
+    crate::sidecar::read_shell_origin(info_file).map(|o| format!("{o}/_api/acp/activity"))
+}
+
 /// Probe one non-current instance's activity endpoint and fire on transition.
-///
-/// Reuses `has_running_chat`'s URL handling VERBATIM (Pattern, plan Task 5):
-/// parse `_server.json`'s url, require `is_loopback_url`, rebuild from
-/// `origin().ascii_serialization()`, `--` before the url in curl's argv. See
-/// `sidecar.rs::has_running_chat`'s doc comment for the full A1 rationale this
-/// mirrors — `_server.json` is untrusted project content.
+/// `--` before the url in curl's argv stays as belt-and-braces (the A1 finding
+/// this poller was hardened against).
 async fn poll_one(app: &AppHandle, project_root: &str) {
-    let design_root = PathBuf::from(project_root).join(".design");
-    let Some(base) = crate::server_json::read_server_url(&design_root) else {
+    let Some(url) = crate::sidecar::shell_info_file(app, project_root)
+        .and_then(|f| activity_url(&f))
+    else {
         return;
     };
-    let Ok(parsed) = base.parse::<tauri::Url>() else {
-        eprintln!("[maude] notify: refusing to probe unparseable _server.json url: {base}");
-        return;
-    };
-    if !crate::server_json::is_loopback_url(&parsed) {
-        eprintln!("[maude] notify: refusing non-loopback _server.json url (DDR-109): {parsed}");
-        return;
-    }
-    let url = format!("{}/_api/acp/activity", parsed.origin().ascii_serialization());
     let out = crate::win_process::hidden_command("curl")
         .args([
             "-s",
@@ -442,8 +439,9 @@ pub fn spawn_activity_poller(app: &AppHandle) {
             }
             // "Current" = the project of the FOCUSED window (V2-3.2; was
             // `project_root`). Every other running instance — in a background
-            // tab or with no window — is this poller's. SEAM (V2-3.2 part b):
-            // poll through the authenticated `/_api/shell/status`.
+            // tab or with no window — is this poller's, at the address its
+            // app-owned info file names (decision 8). A resting tab has no
+            // instance, so it is never polled.
             let current = sidecar_state
                 .windows
                 .lock()
@@ -553,5 +551,119 @@ mod tests {
     #[test]
     fn sanitize_is_a_no_op_on_an_ordinary_short_string() {
         assert_eq!(sanitize_notify_field("Claude finished"), "Claude finished");
+    }
+
+    // ── probe_auth (V2-1.1 decision 8, §5.8 item 6, §7 "Probe auth") ────────
+
+    use crate::sidecar::{probe_status, ShellProbe};
+    use std::sync::atomic::AtomicUsize;
+    use std::sync::Arc;
+
+    /// A loopback HTTP responder on an ephemeral port. `answer(token_header)`
+    /// picks (status, body); every request bumps `hits`.
+    fn responder(
+        answer: impl Fn(Option<String>) -> (u16, &'static str) + Send + 'static,
+    ) -> (u16, Arc<AtomicUsize>) {
+        let server = tiny_http::Server::http("127.0.0.1:0").expect("bind a loopback port");
+        let port = server.server_addr().to_ip().expect("an ip listener").port();
+        let hits = Arc::new(AtomicUsize::new(0));
+        let h = hits.clone();
+        std::thread::spawn(move || {
+            for req in server.incoming_requests() {
+                h.fetch_add(1, Ordering::SeqCst);
+                let token = req
+                    .headers()
+                    .iter()
+                    .find(|x| x.field.equiv("x-maude-shell"))
+                    .map(|x| x.value.as_str().to_string());
+                let (code, body) = answer(token);
+                let _ = req.respond(tiny_http::Response::from_string(body).with_status_code(code));
+            }
+        });
+        (port, hits)
+    }
+
+    fn scratch(tag: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!(
+            "maude-probe-auth-{tag}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    const IDLE: &str = r#"{"version":"x","ai":{"running":0,"awaiting":0},"unsent":0,"jobs":0}"#;
+    const BUSY: &str = r#"{"version":"x","ai":{"running":1,"awaiting":0},"unsent":0,"jobs":0}"#;
+
+    #[tokio::test]
+    async fn probe_auth_a_planted_server_json_is_never_believed() {
+        // The impostor a prompt-injected agent would plant: `_server.json` in the
+        // project naming a responder that says "idle" (rest me, kill my chat).
+        let (fake_port, fake_hits) = responder(|_| (200, IDLE));
+        let project = scratch("project");
+        std::fs::create_dir_all(project.join(".design")).unwrap();
+        std::fs::write(
+            project.join(".design").join("_server.json"),
+            format!(r#"{{"pid":1,"port":{fake_port},"url":"http://127.0.0.1:{fake_port}"}}"#),
+        )
+        .unwrap();
+
+        // The real server: answers only to this spawn's token.
+        let token = "a".repeat(64);
+        let want = token.clone();
+        let (real_port, real_hits) = responder(move |got| match got {
+            Some(t) if t == want => (200, BUSY),
+            _ => (401, r#"{"error":"shell-token"}"#),
+        });
+        let app_owned = scratch("app");
+        let info_file = app_owned.join("lproj-0000.json");
+        std::fs::write(
+            &info_file,
+            format!(r#"{{"pid":2,"port":{real_port},"url":"http://127.0.0.1:{real_port}","started":"t","mode":"project"}}"#),
+        )
+        .unwrap();
+
+        // The info file + token is believed.
+        let probe = ShellProbe {
+            info_file: info_file.clone(),
+            token: token.clone(),
+        };
+        let status = probe_status(&probe).await.expect("the real server answers");
+        assert_eq!(status.ai.running, 1);
+        assert!(status.busy());
+        // The notify poller's target comes from the same file.
+        assert_eq!(
+            activity_url(&info_file).as_deref(),
+            Some(format!("http://127.0.0.1:{real_port}/_api/acp/activity").as_str())
+        );
+
+        // A wrong token is not an answer (401 → None), not "idle".
+        let wrong = ShellProbe {
+            info_file: info_file.clone(),
+            token: "b".repeat(64),
+        };
+        assert_eq!(probe_status(&wrong).await, None);
+
+        // No info file → no probe at all; it never falls back to `_server.json`.
+        let gone = ShellProbe {
+            info_file: app_owned.join("missing.json"),
+            token: token.clone(),
+        };
+        assert_eq!(probe_status(&gone).await, None);
+        assert_eq!(activity_url(&app_owned.join("missing.json")), None);
+
+        // An info file that names somewhere off the box is refused (DDR-109).
+        let off_box = app_owned.join("off-box.json");
+        std::fs::write(&off_box, r#"{"url":"http://evil.example:80"}"#).unwrap();
+        assert_eq!(activity_url(&off_box), None);
+
+        assert_eq!(fake_hits.load(Ordering::SeqCst), 0, "the impostor was never asked");
+        assert_eq!(real_hits.load(Ordering::SeqCst), 2, "token probe + wrong-token probe");
+        let _ = std::fs::remove_dir_all(project);
+        let _ = std::fs::remove_dir_all(app_owned);
     }
 }

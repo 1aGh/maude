@@ -115,23 +115,23 @@ const RECOVERY_WAIT_MS: u64 = 5_000;
 ///
 /// SECURITY (DDR-109 §1): takes NO input from the page. The root comes from the
 /// calling window's role in `SidecarState.windows` (so an in-tab switch is
-/// respected) and the URL from that project's own `_server.json`, validated
-/// loopback-only right here. The page
+/// respected) and the URL from that instance's APP-OWNED info file (V2-1.1
+/// decision 8 — never the in-project `_server.json`), validated loopback-only
+/// in `sidecar::read_shell_origin`. A RESTING window gets `{resting, name}`
+/// instead and its splash waits for focus to wake it. The page
 /// receives an already-validated `http://localhost:*` / `http://127.0.0.1:*`
 /// string and can never steer the navigate — this is not an open-navigate
 /// primitive, and must not become one.
 #[tauri::command]
-async fn resolve_dev_server_url(webview: tauri::Webview) -> Result<String, String> {
+async fn resolve_dev_server_url(webview: tauri::Webview) -> Result<serde_json::Value, String> {
     // The splash runs on the app-local origin; a page already on its server
-    // may ask too (a reload). SEAM (V2-3.2 part b): a resting window answers
-    // `{ resting: true, name }` here.
-    let project_root = PathBuf::from(windows::caller_project(&webview, true)?.root);
-    let url = server_json::wait_for_server(project_root.join(".design"), RECOVERY_WAIT_MS).await?;
-    match url.parse::<tauri::Url>() {
-        Ok(parsed) if server_json::is_loopback_url(&parsed) => Ok(parsed.to_string()),
-        Ok(parsed) => Err(format!("refusing non-loopback url (DDR-109): {parsed}")),
-        Err(e) => Err(format!("invalid server url {url}: {e}")),
+    // may ask too (a reload).
+    let caller = windows::caller_project(&webview, true)?;
+    if let Some(name) = windows::resting_name(webview.app_handle(), &caller.label) {
+        return Ok(serde_json::json!({ "resting": true, "name": name }));
     }
+    let url = sidecar::wait_for_shell_url(webview.app_handle(), &caller.root, RECOVERY_WAIT_MS).await?;
+    Ok(serde_json::Value::String(format!("{url}/")))
 }
 
 /// Native folder picker for "pull a local copy" — returns the chosen parent dir,
@@ -630,10 +630,9 @@ pub fn run() {
             // app-state (`open_window_for_root`, not `open_project_window`): boot
             // never wrote the registry, and the welcome project must not count as
             // a remembered project.
-            if let Err(e) = windows::open_window_for_root(&handle, &project_root.to_string_lossy(), None)
-            {
-                sidecar::log_line(&format!("[maude] FATAL: could not open the project window: {e}"));
-            }
+            // V2-3.2 part b: a saved multi-tab session reopens every tab instead
+            // (§5.2 "Relaunch"); only its front tab spawns.
+            windows::boot_windows(&handle, &project_root.to_string_lossy());
 
 
             // 3. SIGTERM/SIGINT → kill sidecar + exit.
