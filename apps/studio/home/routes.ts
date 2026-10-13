@@ -4,10 +4,21 @@
 //
 // Guards (V2-1.1 §5.3 "Guards", §5.8 items 1, 2, 5):
 //   - every request: a loopback Host (DNS rebinding); OPTIONS → 405 with no CORS headers, ever
-//   - every non-static route: `x-maude-home: 1` (a custom header forces a CORS preflight from any
-//     other origin — and the preflight is the 405 above), Fetch Metadata `Sec-Fetch-Site` absent /
-//     `same-origin` / `none`, and on a POST an `Origin` (when sent) naming this very host; JSON
-//     bodies ≤ 64 KB; `Cache-Control: no-store` on everything but pictures
+//   - every non-static route: an `x-maude-home` header (a custom header forces a CORS preflight
+//     from any other origin — and the preflight is the 405 above), Fetch Metadata `Sec-Fetch-Site`
+//     absent / `same-origin` / `none`, and on a POST an `Origin` (when sent) naming this very host;
+//     JSON bodies ≤ 64 KB; `Cache-Control: no-store` on everything but pictures
+//   - every page route (kind `home`): the header's VALUE is the per-spawn Home PAGE secret
+//     (`$MAUDE_HOME_PAGE_SECRET`, compared in constant time — V2-3.6 H1). Rust hands it to the Home
+//     window alone (`home_session()`, label `home` + the Home origin, re-checked in Rust). Without
+//     it, any local process could call Home with a plain header — the agent included, through its
+//     auto-allowed `maude design curl-local` — and read every profile's cloud listing and every
+//     project's index, or write another project's `_pins.json`. The secret is never the internal
+//     bearer: an equal pair is refused at construction (fail closed). `/_health` is guarded too —
+//     nothing polls it without the page (Rust watches the info file). In a plain browser (no Tauri)
+//     the page has no `home_session`, so Home only answers there when the developer started the
+//     server with `MAUDE_HOME_PAGE_SECRET=<hex>` and put the same value in the page's
+//     `sessionStorage['maude-home-page-secret']` (client/home/home-api.js).
 //   - `/_home/internal/*` (Rust only): a constant-time `Authorization: Bearer $MAUDE_HOME_TOKEN`,
 //     refused outright when the request carries `Origin` or `Sec-Fetch-Site` — a browser never
 //     gets in, even holding the token
@@ -45,6 +56,8 @@ export interface HomeDeps {
   stateDir: string;
   /** MAUDE_HOME_TOKEN — null = no internal route answers */
   token: string | null;
+  /** MAUDE_HOME_PAGE_SECRET — null = no page route answers (V2-3.6 H1) */
+  pageSecret: string | null;
   version: string;
   cloudOrigin: string;
   formatSupported: number;
@@ -77,17 +90,26 @@ function originMatchesHost(req: Request): boolean {
   }
 }
 
+/** Constant-time string equality: hash both sides (equal length for timingSafeEqual, no length oracle). */
+function secretEquals(got: string, want: string): boolean {
+  const a = createHash('sha256').update(got).digest();
+  const b = createHash('sha256').update(want).digest();
+  return timingSafeEqual(a, b);
+}
+
 function bearerOk(req: Request, token: string | null): boolean {
   if (!token) return false;
   const got = req.headers.get('authorization') ?? '';
   const m = /^Bearer ([^\s]+)$/.exec(got);
   if (!m) return false;
-  // hash both sides: equal length for timingSafeEqual, and no length oracle
-  const a = createHash('sha256')
-    .update(m[1] as string)
-    .digest();
-  const b = createHash('sha256').update(token).digest();
-  return timingSafeEqual(a, b);
+  return secretEquals(m[1] as string, token);
+}
+
+/** The page route's capability: `x-maude-home: <page secret>` (V2-3.6 H1). */
+function pageSecretOk(req: Request, secret: string | null): boolean {
+  if (!secret) return false;
+  const got = req.headers.get(HOME_HEADER);
+  return got != null && got !== '' && secretEquals(got, secret);
 }
 
 async function readBody(
@@ -380,6 +402,8 @@ async function serveStatic(pathname: string): Promise<Response> {
 /** The Home server's whole `fetch`: guards first, then the table. */
 export function createHomeFetch(deps: HomeDeps): (req: Request) => Promise<Response> {
   const table = homeRouteTable(deps);
+  // fail closed: a page secret that IS the internal bearer would let the bearer open page routes
+  const pageSecret = deps.pageSecret && deps.pageSecret !== deps.token ? deps.pageSecret : null;
   return async (req) => {
     // a preflight is never answered — the custom header makes every cross-origin call need one
     if (req.method === 'OPTIONS') return new Response('Method Not Allowed', { status: 405 });
@@ -401,12 +425,13 @@ export function createHomeFetch(deps: HomeDeps): (req: Request) => Promise<Respo
     if (!candidates.length) return refuse(404, 'Not found');
     const kind = (candidates[0] as HomeRoute).kind;
     // the header first: without it nothing below runs, whatever the path
-    if (req.headers.get(HOME_HEADER) !== '1') return refuse(403, 'home header required');
+    if (!req.headers.get(HOME_HEADER)) return refuse(403, 'home header required');
     if (kind === 'internal') {
       if (req.headers.has('origin') || req.headers.has('sec-fetch-site'))
         return refuse(403, 'internal route');
       if (!bearerOk(req, deps.token)) return refuse(403, 'internal route');
     } else {
+      if (!pageSecretOk(req, pageSecret)) return refuse(403, 'home header required');
       if (!sameOriginSite(req)) return refuse(403, 'cross-origin rejected');
       if (req.method !== 'GET' && !originMatchesHost(req))
         return refuse(403, 'cross-origin rejected');

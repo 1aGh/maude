@@ -7,6 +7,8 @@
 //   MAUDE_HOME_STATE_DIR   Home-only state (home.json)              default ~/.maude/home
 //   MAUDE_INDEX_DIR        the machine index (V2-1.17)              default ~/.maude/index/v1
 //   MAUDE_HOME_TOKEN       the internal bearer, 32 random bytes hex  absent → internal routes refuse
+//   MAUDE_HOME_PAGE_SECRET the Home PAGE secret, 32 random bytes hex, never the bearer (V2-3.6 H1)
+//                          absent → every page route refuses (home_session() hands it to Home)
 //   MAUDE_SHELL_INFO_FILE  where to write {pid, port, url, started, mode:'home'}  (0600, atomic)
 //   MAUDE_CLOUD_URL        the control plane                        default https://cloud.maude.sh
 //   XDG_CONFIG_HOME        passthrough (profile cloud.json lookup)
@@ -65,9 +67,14 @@ export function startHomeServer(opts: { argv?: string[]; env?: NodeJS.ProcessEnv
     env.MAUDE_HOME_TOKEN && /^[0-9a-f]{64}$/i.test(env.MAUDE_HOME_TOKEN)
       ? env.MAUDE_HOME_TOKEN
       : null;
+  const pageSecret =
+    env.MAUDE_HOME_PAGE_SECRET && /^[0-9a-f]{64}$/i.test(env.MAUDE_HOME_PAGE_SECRET)
+      ? env.MAUDE_HOME_PAGE_SECRET
+      : null;
   const fetch = createHomeFetch({
     stateDir: env.MAUDE_HOME_STATE_DIR || path.join(homedir(), '.maude', 'home'),
     token,
+    pageSecret,
     version: resolveMaudeVersion(),
     cloudOrigin: originOf(cloudUrl()),
     formatSupported: SUPPORTED_FORMAT,
@@ -108,6 +115,10 @@ export function startHomeServer(opts: { argv?: string[]; env?: NodeJS.ProcessEnv
   if (infoFile) writeInfoFile(infoFile, info);
   if (!token)
     console.warn('[home] MAUDE_HOME_TOKEN unset or malformed — internal routes refuse every call');
+  if (!pageSecret || pageSecret === token)
+    console.warn(
+      '[home] MAUDE_HOME_PAGE_SECRET unset or malformed — page routes refuse every call'
+    );
   console.log(`[home] Maude Home on ${info.url}`);
 
   let stopped = false;

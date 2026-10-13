@@ -13,6 +13,16 @@
 // (`MAUDE_HOME_TOKEN`). Home commands are granted by a RUNTIME capability added
 // once the port is known (`add_home_capability`) and re-checked here, label AND
 // origin, on every call (`check_home`, decision 7 / §5.8 item 3).
+//
+// V2-3.6 H1: the Home PAGE routes need a second per-spawn secret
+// (`MAUDE_HOME_PAGE_SECRET`, never equal to the bearer), sent by the page as the
+// `x-maude-home` value. Only the Home window on the Home origin can read it
+// (`home_session`). Before this the page routes' whole gate was the constant
+// header `x-maude-home: 1`, which any local process — the agent's auto-allowed
+// `maude design curl-local` included — could send. Both secrets travel in the
+// child's env; a same-user `ps -Eww` can read them. That is the accepted residual
+// (V2-3.6 M4): the agent runs as the same OS user and could read any app-owned
+// file as well.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -63,6 +73,8 @@ pub const HOME_PERMISSIONS: &[&str] = &[
     "allow-send-notification",
     // V2-3.5: a link for a project this machine doesn't know is parked for Home.
     "allow-take-pending-deep-link",
+    // V2-3.6 H1: the page secret for the Home server's page routes.
+    "allow-home-session",
 ];
 
 // ── The Home server record ──────────────────────────────────────────────────
@@ -75,6 +87,9 @@ pub struct HomeInstance {
     pub url: Option<String>,
     /// The internal bearer (32 random bytes, hex), minted per spawn.
     pub token: String,
+    /// The page secret (32 random bytes, hex, never `token`), minted per spawn —
+    /// what `home_session` hands the Home window (V2-3.6 H1).
+    pub page_secret: String,
     pub info_file: PathBuf,
     pub child: Option<CommandChild>,
     pub budget: RestartBudget,
@@ -178,6 +193,18 @@ fn mint_token() -> Result<String, String> {
     Ok(buf.iter().map(|b| format!("{b:02x}")).collect())
 }
 
+/// `(internal bearer, page secret)` for one spawn — two independent draws, and
+/// never equal (the Home server refuses an equal pair anyway).
+fn mint_secrets() -> Result<(String, String), String> {
+    let bearer = mint_token()?;
+    loop {
+        let page = mint_token()?;
+        if page != bearer {
+            return Ok((bearer, page));
+        }
+    }
+}
+
 /// What the Home server's info file must say to count as THIS child bound:
 /// `mode:'home'`, the child's pid, and `url == http://127.0.0.1:<port>`.
 pub fn parse_info(bytes: &[u8], pid: u32) -> Option<(u16, String)> {
@@ -210,7 +237,7 @@ pub fn spawn_home(app: &AppHandle) -> Result<(), String> {
     let info_file = run_dir.join("home-server.json");
     // A dead child's record must not satisfy the wait below.
     let _ = std::fs::remove_file(&info_file);
-    let token = mint_token()?;
+    let (token, page_secret) = mint_secrets()?;
 
     let mut args = vec!["--home".to_string()];
     if let Some(p) = crate::app_state::load(app).home_port {
@@ -228,6 +255,7 @@ pub fn spawn_home(app: &AppHandle) -> Result<(), String> {
             state_dir.to_string_lossy().to_string(),
         )
         .env("MAUDE_HOME_TOKEN", token.clone())
+        .env("MAUDE_HOME_PAGE_SECRET", page_secret.clone())
         .env(
             "MAUDE_SHELL_INFO_FILE",
             info_file.to_string_lossy().to_string(),
@@ -254,6 +282,7 @@ pub fn spawn_home(app: &AppHandle) -> Result<(), String> {
                 h.port = None;
                 h.url = None;
                 h.token = token;
+                h.page_secret = page_secret;
                 h.info_file = info_file.clone();
                 h.spawned_at = Instant::now();
                 h.child.replace(child)
@@ -263,6 +292,7 @@ pub fn spawn_home(app: &AppHandle) -> Result<(), String> {
                     port: None,
                     url: None,
                     token,
+                    page_secret,
                     info_file: info_file.clone(),
                     child: Some(child),
                     budget: RestartBudget::default(),
@@ -399,6 +429,15 @@ fn endpoint(app: &AppHandle) -> Option<(String, String)> {
     let slot = state.home.lock().unwrap_or_else(|e| e.into_inner());
     let h = slot.as_ref()?;
     Some((h.url.clone()?, h.token.clone()))
+}
+
+/// The bound Home server's page secret (`None` while it is (re)starting).
+fn page_secret<R: Runtime>(app: &AppHandle<R>) -> Option<String> {
+    let state = app.try_state::<SidecarState>()?;
+    let slot = state.home.lock().unwrap_or_else(|e| e.into_inner());
+    let h = slot.as_ref()?;
+    h.port?;
+    Some(h.page_secret.clone())
 }
 
 pub fn home_port<R: Runtime>(app: &AppHandle<R>) -> Option<u16> {
@@ -938,6 +977,42 @@ pub fn shell_state(app: AppHandle, webview: tauri::Webview) -> Result<ShellState
     Ok(current_shell_state(&app))
 }
 
+/// What `home_session()` answers: the Home page secret.
+#[derive(Debug, Serialize)]
+pub struct HomeSession {
+    pub secret: String,
+}
+
+/// Pure half of `home_session`: the caller gate first (`home` on the Home
+/// origin — never the app-local splash, never a project window), then the
+/// secret of the server that origin belongs to.
+pub fn session_for(
+    label: &str,
+    url: Option<&tauri::Url>,
+    home_port: Option<u16>,
+    secret: Option<&str>,
+) -> Result<HomeSession, String> {
+    check_home(label, url, home_port, false)?;
+    secret
+        .map(|s| HomeSession {
+            secret: s.to_string(),
+        })
+        .ok_or_else(|| "Maude Home is still starting.".to_string())
+}
+
+/// `home_session()` — Home only (V2-3.6 H1): the page secret the Home page
+/// sends as `x-maude-home` on every request to the Home server.
+#[tauri::command]
+pub fn home_session(app: AppHandle, webview: tauri::Webview) -> Result<HomeSession, String> {
+    let secret = page_secret(&app);
+    session_for(
+        webview.label(),
+        webview.url().ok().as_ref(),
+        home_port(&app),
+        secret.as_deref(),
+    )
+}
+
 /// `new_home_tab()` (⌘T, Back to Home) — focus Home or open it as a tab of the
 /// calling window. Either role — also from a tab still on its splash (it only
 /// opens or focuses Home; nothing is read or written for the caller).
@@ -1095,6 +1170,48 @@ mod tests {
             false
         )
         .is_ok());
+    }
+
+    // V2-3.6 H1 — the page secret is the Home server's page-route capability; only the
+    // Home window on the Home origin may read it.
+    #[test]
+    fn home_session_answers_only_home_on_the_home_origin() {
+        let home = url("http://127.0.0.1:4500/");
+        let secret = "ef".repeat(32);
+        let s = Some(secret.as_str());
+        // A project window — even one that navigated to the Home URL — gets nothing.
+        assert!(session_for("p-l0123456789abcdef", Some(&home), Some(4500), s).is_err());
+        // Home showing a project server / another port / the app-local splash gets nothing.
+        for other in [
+            "http://localhost:4399/",
+            "http://127.0.0.1:4501/",
+            "tauri://localhost/index.html",
+        ] {
+            assert!(session_for("home", Some(&url(other)), Some(4500), s).is_err());
+        }
+        // Not bound yet, or no secret minted yet.
+        assert!(session_for("home", Some(&home), None, s).is_err());
+        assert!(session_for("home", Some(&home), Some(4500), None).is_err());
+        // The real thing.
+        assert_eq!(
+            session_for("home", Some(&home), Some(4500), s)
+                .unwrap()
+                .secret,
+            secret
+        );
+    }
+
+    #[test]
+    fn the_page_secret_is_never_the_internal_bearer() {
+        for _ in 0..32 {
+            let (bearer, page) = mint_secrets().unwrap();
+            assert_ne!(bearer, page);
+            for t in [&bearer, &page] {
+                assert_eq!(t.len(), 64);
+                assert!(t.chars().all(|c| c.is_ascii_hexdigit()));
+            }
+        }
+        assert!(HOME_PERMISSIONS.contains(&"allow-home-session"));
     }
 
     #[derive(Default)]

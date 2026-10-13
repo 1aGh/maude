@@ -10,6 +10,7 @@ import { spawn } from 'bun';
 
 const SERVER = join(import.meta.dir, '..', 'server.ts');
 const TOKEN = 'ef'.repeat(32);
+const PAGE_SECRET = 'cd'.repeat(32);
 
 async function waitFor(file: string, ms = 20_000) {
   const end = Date.now() + ms;
@@ -36,6 +37,7 @@ describe('Home mode boot', () => {
         MAUDE_HOME_STATE_DIR: state,
         MAUDE_INDEX_DIR: join(state, 'index'),
         MAUDE_HOME_TOKEN: TOKEN,
+        MAUDE_HOME_PAGE_SECRET: PAGE_SECRET,
         MAUDE_SHELL_INFO_FILE: info,
         MAUDE_CLOUD_URL: 'http://127.0.0.1:9',
       },
@@ -49,16 +51,20 @@ describe('Home mode boot', () => {
       expect(typeof rec.started).toBe('string');
       expect(statSync(info).mode & 0o777).toBe(0o600);
 
-      const health = await fetch(`${rec.url}/_health`, { headers: { 'x-maude-home': '1' } });
+      const page = { headers: { 'x-maude-home': PAGE_SECRET } };
+      // V2-3.6 H1: the env's page secret is what opens a page route; a plain `1` does not
+      expect((await fetch(`${rec.url}/_health`, { headers: { 'x-maude-home': '1' } })).status).toBe(
+        403
+      );
+      const health = await fetch(`${rec.url}/_health`, page);
       expect(await health.json()).toMatchObject({ ok: true, mode: 'home' });
-      const cfg = (await (
-        await fetch(`${rec.url}/_config`, { headers: { 'x-maude-home': '1' } })
-      ).json()) as Record<string, unknown>;
+      const cfg = (await (await fetch(`${rec.url}/_config`, page)).json()) as Record<
+        string,
+        unknown
+      >;
       expect(cfg).toMatchObject({ mode: 'home', shell: 'home', cloudOrigin: 'http://127.0.0.1:9' });
       // a project route does not exist here
-      expect(
-        (await fetch(`${rec.url}/_api/ui-prefs`, { headers: { 'x-maude-home': '1' } })).status
-      ).toBe(404);
+      expect((await fetch(`${rec.url}/_api/ui-prefs`, page)).status).toBe(404);
       // the page loads (static lane)
       expect((await fetch(`${rec.url}/`)).headers.get('content-type')).toContain('text/html');
 

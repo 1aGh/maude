@@ -12,6 +12,8 @@ import { pidOf } from '../index/snapshot.ts';
 import { writeThumb } from '../thumbs/store.ts';
 
 export const TOKEN = 'ab'.repeat(32);
+/** The per-spawn Home PAGE secret (V2-3.6 H1) — what `home_session()` hands the Home window. */
+export const PAGE_SECRET = 'ef'.repeat(32);
 
 /** Point the machine index at a fresh temp dir (indexDir() reads the env on every call). */
 export function freshIndexDir(): string {
@@ -114,6 +116,7 @@ export function homeDeps(over: Partial<HomeDeps> = {}): HomeDeps {
   return {
     stateDir: mkdtempSync(join(tmpdir(), 'maude-home-state-')),
     token: TOKEN,
+    pageSecret: PAGE_SECRET,
     version: '9.9.9-test',
     cloudOrigin: 'https://cloud.example.test',
     formatSupported: 2,
@@ -134,7 +137,7 @@ export function homeReq(
     ...init,
     headers: {
       host: HOST,
-      'x-maude-home': '1',
+      'x-maude-home': PAGE_SECRET,
       'sec-fetch-site': 'same-origin',
       ...(init.headers ?? {}),
     },

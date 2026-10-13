@@ -1,20 +1,67 @@
 // client/home/home-api.js — every request the Home page makes, and the native shell bridge.
 //
 // HTTP: the Home server (`maude-server --home`, apps/studio/home/routes.ts) answers no route without
-// the header `x-maude-home: 1` (V2-1.1 §5.3 — a custom header forces a CORS preflight from any other
-// origin, and the Home server answers every preflight 405). So EVERY fetch on this page goes through
-// `homeFetch`, `/_config` included. A failure never throws to the caller: it comes back as
-// `{ ok: false, status, json: null }` and the page shows its offline words.
+// the header `x-maude-home` (V2-1.1 §5.3 — a custom header forces a CORS preflight from any other
+// origin, and the Home server answers every preflight 405). Its VALUE is the per-spawn Home PAGE
+// secret (V2-3.6 H1): any local process can send a header, so a constant `1` let the agent's
+// `maude design curl-local` read every profile's cloud listing. The page gets the secret once from
+// Rust — `home_session()`, which only the `home` window on the Home origin may call — and sends it
+// on every request. So EVERY fetch on this page goes through `homeFetch`, `/_config` included. A
+// failure never throws to the caller: it comes back as `{ ok: false, status, json: null }` and the
+// page shows its offline words.
+//
+// In a plain browser (development, no Tauri) there is no `home_session`: start the Home server with
+// `MAUDE_HOME_PAGE_SECRET=<64 hex>` and put the same value in this origin's
+// `sessionStorage['maude-home-page-secret']` (devtools). Without it nothing is sent, every helper
+// answers `{ ok: false, status: 403 }`, and a loopback browser falls back to the project shell.
 //
 // Shell: Rust's commands (V2-1.1 §5.4) reached through `window.__TAURI__`. Outside the desktop app
 // (the page opened in a browser for development) `inShell()` is false, `shellInvoke` resolves
 // `null` and `shellListen` is a no-op — the page shows the index without shell actions.
 
 export const HOME_HEADER = 'x-maude-home';
+export const DEV_SECRET_KEY = 'maude-home-page-secret';
+
+let secretP = null; // Promise<string|null> — one home_session() per page load
+
+async function loadSecret() {
+  if (inShell()) {
+    try {
+      const r = await tauri().core.invoke('home_session');
+      return typeof r?.secret === 'string' && r.secret ? r.secret : null;
+    } catch {
+      return null;
+    }
+  }
+  try {
+    return globalThis.sessionStorage?.getItem(DEV_SECRET_KEY) || null;
+  } catch {
+    return null;
+  }
+}
+
+/** The Home page secret, or null (refused / not in the app). A miss is not remembered. */
+export function homeSecret() {
+  if (!secretP) {
+    const p = loadSecret();
+    secretP = p;
+    p.then((s) => {
+      if (!s && secretP === p) secretP = null;
+    });
+  }
+  return secretP;
+}
+
+/** Tests only: forget the cached secret. */
+export function resetHomeSecret() {
+  secretP = null;
+}
 
 /** fetch with the Home header; never throws. */
 export async function homeFetch(path, opts = {}) {
-  const headers = { ...(opts.headers || {}), [HOME_HEADER]: '1' };
+  const secret = await homeSecret();
+  if (!secret) return { ok: false, status: 403, json: null };
+  const headers = { ...(opts.headers || {}), [HOME_HEADER]: secret };
   if (opts.body != null) headers['Content-Type'] = 'application/json';
   let res;
   try {
@@ -64,7 +111,9 @@ export function thumbObjectUrl(src) {
   if (hit) return hit;
   const p = (async () => {
     try {
-      const res = await fetch(src, { headers: { [HOME_HEADER]: '1' } });
+      const secret = await homeSecret();
+      if (!secret) return null;
+      const res = await fetch(src, { headers: { [HOME_HEADER]: secret } });
       if (!res.ok) return null;
       const blob = await res.blob();
       if (!blob.size || typeof URL.createObjectURL !== 'function') return null;

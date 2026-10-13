@@ -7,7 +7,7 @@
 //
 // Data (§5.6): 1 `shell_state` → 2 `/_home/index?pids&running` → 3 `/_home/cloud?profile` per profile
 // → 4 the merge (home-model.js) → 5 live: `shell://state` and `index://changed` re-run 1–2 for the
-// changed pids only. Every fetch goes through home-api.js (`x-maude-home: 1`). Outside the desktop
+// changed pids only. Every fetch goes through home-api.js (`x-maude-home: <page secret>`). Outside the desktop
 // app nothing here throws: the shell calls resolve null and the page shows the index read-only.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';

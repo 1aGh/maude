@@ -1,5 +1,5 @@
-// home-page — the Home page client (V2-3.3) in a live DOM: every request carries `x-maude-home: 1`
-// (the Home server answers nothing without it, V2-1.1 §5.3), the shell bridge is called with the
+// home-page — the Home page client (V2-3.3) in a live DOM: every request carries `x-maude-home: <page secret>`
+// (from `home_session()`, V2-3.6 H1 — the Home server answers nothing without it, V2-1.1 §5.3), the shell bridge is called with the
 // §5.4 argument shapes, `index://changed` refetches only the changed pids, and outside the desktop
 // app the page renders the index without throwing.
 
@@ -91,6 +91,11 @@ const SHELL = {
 type Call = { url: string; method: string; headers: Record<string, string>; body: unknown };
 let calls: Call[] = [];
 let invokes: Array<{ cmd: string; args: unknown }> = [];
+// V2-3.6 H1 — the Home page secret `home_session()` hands the Home window; its calls are counted
+// apart from `invokes` (they are plumbing, not a shell action the page took)
+const SECRET = 'ef'.repeat(32);
+let sessions = 0;
+let sessionAnswer: (() => unknown) | null = null;
 let listeners: Record<string, (e: { payload: unknown }) => void> = {};
 // per-test shell answers (cmd → value or fn(args)); consulted before the defaults
 let shellAnswers: Record<string, unknown> = {};
@@ -173,6 +178,10 @@ function installTauri(label = 'home') {
   w.__TAURI__ = {
     core: {
       invoke: async (cmd: string, args: unknown) => {
+        if (cmd === 'home_session') {
+          sessions++;
+          return sessionAnswer ? sessionAnswer() : { secret: SECRET };
+        }
         invokes.push({ cmd, args });
         if (cmd in shellAnswers) {
           const a = shellAnswers[cmd];
@@ -222,6 +231,9 @@ const $ = (id: string) => host.querySelector(`[data-testid="${id}"]`) as HTMLEle
 beforeEach(() => {
   calls = [];
   invokes = [];
+  sessions = 0;
+  sessionAnswer = null;
+  api.resetHomeSecret();
   listeners = {};
   windowListeners = {};
   shellAnswers = {};
@@ -233,12 +245,16 @@ afterEach(() => {
   host?.remove();
   globalThis.fetch = originalFetch;
   removeTauri();
+  api.resetHomeSecret();
+  try {
+    sessionStorage.removeItem(api.DEV_SECRET_KEY);
+  } catch {}
 });
 
 describe('Home page in the desktop app', () => {
   beforeEach(() => installTauri('home'));
 
-  test('every request carries x-maude-home: 1', async () => {
+  test('every request carries x-maude-home: <the page secret>, fetched once', async () => {
     mount();
     await flush();
     const input = $('home-search') as HTMLInputElement;
@@ -266,7 +282,20 @@ describe('Home page in the desktop app', () => {
       expect(paths.has(p)).toBe(true);
     // pictures are fetched WITH the header (an <img src> could not send it), shown as blob: URLs
     expect(paths.has(`/_home/thumb/${P1}/aa11.jpg`)).toBe(true);
-    for (const c of calls) expect(c.headers['x-maude-home']).toBe('1');
+    for (const c of calls) expect(c.headers['x-maude-home']).toBe(SECRET);
+    expect(sessions).toBe(1);
+  });
+
+  test('a refused home_session sends no request at all (and is asked again later)', async () => {
+    sessionAnswer = () => {
+      throw new Error('Only the Home window can do that.');
+    };
+    expect(await api.getConfig()).toEqual({ ok: false, status: 403, json: null });
+    expect(await api.thumbObjectUrl(`/_home/thumb/${P1}/refused.jpg`)).toBeNull();
+    expect(calls.length).toBe(0);
+    sessionAnswer = null;
+    expect((await api.getConfig()).ok).toBe(true);
+    expect(calls[0]?.headers['x-maude-home']).toBe(SECRET);
   });
 
   test('builds the page from shell_state + /_home/index (running = place:tab)', async () => {
@@ -425,7 +454,7 @@ describe('Home reads maude:// links', () => {
     await flush();
     const prep = calls.find((c) => c.url === '/_home/cloud/prepare');
     expect(prep?.method).toBe('POST');
-    expect(prep?.headers['x-maude-home']).toBe('1');
+    expect(prep?.headers['x-maude-home']).toBe(SECRET);
     expect(prep?.body).toEqual({ profile: 'default', projectId: 'alligators', code: CODE });
     const chain = invokes
       .map((i) => i.cmd)
@@ -500,7 +529,8 @@ describe('Home shows each tab’s live state', () => {
 });
 
 describe('Home page in a browser (no shell)', () => {
-  test('renders the index read-only from ?pids= and never throws', async () => {
+  test('renders the index read-only from ?pids= (with the hand-set dev secret) and never throws', async () => {
+    sessionStorage.setItem(api.DEV_SECRET_KEY, SECRET);
     window.history.replaceState(null, '', `/?pids=${P1}`);
     mount();
     await flush();
@@ -525,7 +555,8 @@ describe('shell mode', () => {
     expect(calls.length).toBe(0);
   });
 
-  test('loopback browser asks /_config WITH the Home header and renders Home on mode:home', async () => {
+  test('loopback browser asks /_config WITH the hand-set dev secret and renders Home on mode:home', async () => {
+    sessionStorage.setItem(api.DEV_SECRET_KEY, SECRET);
     let got: string | null = null;
     bootShellMode((m: string) => {
       got = m;
@@ -533,7 +564,17 @@ describe('shell mode', () => {
     await flush();
     expect(got).toBe('home');
     expect(calls[0]?.url).toBe('/_config');
-    expect(calls[0]?.headers['x-maude-home']).toBe('1');
+    expect(calls[0]?.headers['x-maude-home']).toBe(SECRET);
+  });
+
+  test('loopback browser without a dev secret sends nothing and renders the project shell', async () => {
+    let got: string | null = null;
+    bootShellMode((m: string) => {
+      got = m;
+    });
+    await flush();
+    expect(got).toBe('project');
+    expect(calls.length).toBe(0);
   });
 
   test('a non-loopback host (a cloud cell) is a project with no request', () => {
@@ -543,11 +584,19 @@ describe('shell mode', () => {
 });
 
 describe('home-api', () => {
-  test('every HTTP helper sends x-maude-home: 1 (none can be added without it)', async () => {
+  test('every HTTP helper sends x-maude-home: <secret> (none can be added without it)', async () => {
+    sessionStorage.setItem(api.DEV_SECRET_KEY, SECRET);
     const http = Object.entries(api).filter(
       ([name, fn]) =>
         typeof fn === 'function' &&
-        !['homeFetch', 'inShell', 'shellInvoke', 'shellListen'].includes(name) &&
+        ![
+          'homeFetch',
+          'homeSecret',
+          'resetHomeSecret',
+          'inShell',
+          'shellInvoke',
+          'shellListen',
+        ].includes(name) &&
         !/^(shellState|openProject|openProjectFolder|relinkProject|managedProjectOpen|openCloudUrl|takePendingDeepLink)$/.test(
           name
         )
@@ -568,7 +617,7 @@ describe('home-api', () => {
     );
     for (const [, fn] of http) await (fn as (...a: unknown[]) => Promise<unknown>)('a', 'b', 'c');
     expect(calls.length).toBe(http.length);
-    for (const c of calls) expect(c.headers['x-maude-home']).toBe('1');
+    for (const c of calls) expect(c.headers['x-maude-home']).toBe(SECRET);
   });
 
   test('outside the app the shell bridge resolves null and never throws', async () => {
