@@ -1260,6 +1260,27 @@ async fn enforce_cap(app: &AppHandle) {
             }
             c.status = shell_status(app, &c.root).await;
         }
+        log_line(&format!(
+            "[maude] cap {cap}, {} running, focused {focused:?}: {}",
+            running.len(),
+            candidates
+                .iter()
+                .map(|c| format!(
+                    "{}@{}={}",
+                    c.label.as_deref().unwrap_or("(no window)"),
+                    c.recency,
+                    match &c.status {
+                        None => "unknown".to_string(),
+                        Some(s) if s.busy() => format!(
+                            "busy(ai {}+{}, unsent {}, jobs {})",
+                            s.ai.running, s.ai.awaiting, s.unsent, s.jobs
+                        ),
+                        Some(_) => "idle".to_string(),
+                    }
+                ))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
         match pick_rest(running.len(), cap, focused.as_deref(), candidates) {
             RestPick::UnderCap => return,
             RestPick::Overflow => {
@@ -1375,6 +1396,15 @@ pub fn log_shutdown(line: &str) {
 pub(crate) fn log_line(line: &str) {
     use std::io::Write;
     let _ = writeln!(std::io::stderr(), "{line}");
+    // Debug builds only: a desktop e2e launches the app through WebDriver, which
+    // drops its stderr — `MAUDE_E2E_SHELL_LOG=<file>` keeps the shell's own
+    // decisions (rest, wake, overflow) readable after a run.
+    #[cfg(debug_assertions)]
+    if let Some(p) = std::env::var_os("MAUDE_E2E_SHELL_LOG") {
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(p) {
+            let _ = writeln!(f, "{line}");
+        }
+    }
 }
 
 /// `log_line` without the trailing newline — for mirroring sidecar output that

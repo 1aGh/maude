@@ -15,6 +15,14 @@ const { primary, secondary } = lifecycleFixtureOnce();
 process.env.MAUDE_PROJECT_ROOT = primary;
 process.env.MAUDE_E2E_SECONDARY_ROOT = secondary;
 process.env.MAUDE_USE_SYSTEM_GIT = '1';
+// V2-3.2 part b: a cap of 2 (debug builds only) so three projects reach resting.
+process.env.MAUDE_E2E_RUNNING_CAP = '2';
+// The shell's own decision log (rest / wake / overflow), next to the run's evidence.
+process.env.MAUDE_E2E_SHELL_LOG ??= resolve(
+  HERE,
+  '../../../.ai/device/scenario-runs/project-tabs',
+  `shell-${new Date().toISOString().slice(0, 16).replace(/[T:]/g, '-')}.log`
+);
 
 const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '');
 process.env.MAUDE_E2E_RUN_DIR = resolve(

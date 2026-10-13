@@ -1,4 +1,6 @@
-import { release } from 'node:os';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { release, tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { $, browser, expect } from '@wdio/globals';
 
 import { capture, startReport } from '../helpers/evidence';
@@ -28,6 +30,61 @@ const tid = (s: string) => `[data-testid="${s}"]`;
 const DATA_STORES = process.platform === 'darwin' && Number(release().split('.')[0]) >= 23;
 /** The shell's grace before a closed window's server stops (windows.rs CLOSE_GRACE). */
 const GRACE_MS = 10_000;
+/** wdio.tabs.conf.ts runs the app with MAUDE_E2E_RUNNING_CAP=2 (V2-3.2 part b). */
+const RESTING_LINE = 'Opens when you come back to it.';
+
+/** A third project: the same minimal `.design/` the shell scaffolds (lib.rs). */
+function makeThirdProject(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'maude-e2e-third-'));
+  mkdirSync(join(dir, '.design', 'ui'), { recursive: true });
+  mkdirSync(join(dir, '.design', 'system'), { recursive: true });
+  writeFileSync(
+    join(dir, '.design', 'config.json'),
+    JSON.stringify({ name: 'third', designRoot: '.design', designSystems: [] }, null, 2)
+  );
+  return dir;
+}
+
+/** What a tab's document shows, read WITHOUT focusing it (a WebDriver switch only). */
+async function splashOf(label: string): Promise<{ name: string; status: string; url: string }> {
+  await browser.switchToWindow(label);
+  return browser
+    .execute(() => ({
+      name: document.querySelector('[data-testid="splash-name"]')?.textContent ?? '',
+      status: document.querySelector('[data-testid="splash-status"]')?.textContent ?? '',
+      url: location.href,
+    }))
+    .catch(() => ({ name: '', status: '', url: '' }));
+}
+
+/**
+ * Wait until one of `candidates` shows the resting splash; returns it. WHICH tab
+ * rests follows the shell's focus bookkeeping, and under WebDriver the app is often
+ * not the active app (a SecurityAgent prompt was frontmost in every run), so native
+ * focus events are not reliable enough to name the victim here — the LRU order is
+ * pinned by `cargo test sidecar::rest_policy`. This asserts the observable rule:
+ * over the cap, a non-focused idle tab rests and shows its name + the resting line.
+ */
+async function waitAnyResting(
+  candidates: string[]
+): Promise<{ label: string; name: string; url: string }> {
+  let hit: { label: string; name: string; url: string } | null = null;
+  await browser.waitUntil(
+    async () => {
+      for (const label of candidates) {
+        const seen = await splashOf(label);
+        if (seen.status === RESTING_LINE) {
+          hit = { label, name: seen.name, url: seen.url };
+          return true;
+        }
+      }
+      return false;
+    },
+    { timeout: 30_000, interval: 500, timeoutMsg: `none of ${candidates} showed the resting splash` }
+  );
+  console.log(`[tabs] resting: ${JSON.stringify(hit)}`);
+  return hit as unknown as { label: string; name: string; url: string };
+}
 
 async function triggerText(): Promise<string> {
   const t = await $(tid('repo-switcher-trigger'));
@@ -69,6 +126,15 @@ async function waitBranchOnce(branch: string): Promise<void> {
     },
     { timeout: 120_000, interval: 500, timeoutMsg: `repo-switcher-trigger never showed ${branch}` }
   );
+}
+
+function alive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function healthy(url: string): Promise<boolean> {
@@ -182,5 +248,56 @@ describe('project-tabs (native-desktop)', () => {
     await focusTab(tabA);
     await waitBranch('main');
     await capture('5-b-closed-a-still-live');
+  });
+
+  // ── V2-3.2 part b: running cap (2 here) + resting tabs ─────────────────────
+  // By pid, not URL: the port a rested server frees is taken by the next server
+  // that binds (the third project boots while the rest happens), so its URL
+  // answering again proves nothing.
+  const pids: Record<string, number> = {};
+  const branchOf: Record<string, string> = {};
+  let rested = '';
+
+  it('a third running project rests an idle tab: server gone, resting splash', async () => {
+    await focusTab(tabA);
+    pids[tabA] = readServerInfo(PRIMARY).pid;
+    branchOf[tabA] = 'main';
+    const b = await openTab(SECONDARY);
+    const tabB2 = b.label;
+    await waitWindow(tabB2);
+    await focusTab(tabB2);
+    await waitBranch('feat/nav-redesign');
+    pids[tabB2] = readServerInfo(SECONDARY).pid;
+    branchOf[tabB2] = 'feat/nav-redesign';
+
+    const c = await openTab(makeThirdProject());
+    expect(c.opened).toBe('new');
+    await waitWindow(c.label);
+    expect(await labels()).toHaveLength(3);
+
+    const hit = await waitAnyResting([tabA, tabB2]);
+    rested = hit.label;
+    expect(hit.url).toContain('index.html');
+    expect(hit.name.length).toBeGreaterThan(0);
+    expect(hit.name).not.toBe('Maude'); // the project's name, not the app's
+    await browser.waitUntil(async () => !alive(pids[rested] as number), {
+      timeout: 15_000,
+      interval: 250,
+      timeoutMsg: "the rested tab's server process was still running",
+    });
+    const other = rested === tabA ? tabB2 : tabA;
+    expect(alive(pids[other] as number)).toBe(true);
+    await capture('6-resting-splash');
+  });
+
+  it('focusing the resting tab wakes it, and the cap rests another', async () => {
+    await focusTab(rested);
+    await waitBranch(branchOf[rested] as string);
+    await capture('7-woken');
+    const others = (await labels()).filter((l) => l !== rested);
+    const next = await waitAnyResting(others);
+    expect(next.label).not.toBe(rested);
+    await focusTab(rested);
+    await waitBranch(branchOf[rested] as string);
   });
 });
