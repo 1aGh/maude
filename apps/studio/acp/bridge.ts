@@ -1096,13 +1096,9 @@ export class AcpBridge {
     // their subscription rather than the SDK's embedded runtime.
     env.CLAUDE_CODE_EXECUTABLE = agentClaude;
     // Least-privilege: the adapter child never talks to the dev-server's GitHub
-    // token bridge (only apps/studio/github/token.ts does), so drop the loopback
-    // keychain-bridge handle from its env. Keeps a hijacked-PATH `claude` (which
-    // would require pre-existing RCE) from reading the user's GitHub token.
-    // biome-ignore lint/performance/noDelete: security env-scrub — the key must be fully removed from the child's env, not set to `undefined` (which can leak through as `X=` on spawn).
-    delete env.MAUDE_TOKEN_ENDPOINT;
-    // biome-ignore lint/performance/noDelete: security env-scrub — see above; `delete` is the intentional primitive here.
-    delete env.MAUDE_TOKEN_KEY;
+    // token bridge (only apps/studio/github/token.ts does). scrubAgentEnv above
+    // drops its loopback handle (MAUDE_TOKEN_*) with every other shell secret —
+    // one strip for the bridge, the probe and login-state alike (V2-3.6 M4).
     // Model + effort are no longer env-at-spawn (Task A3) — the adapter starts
     // on its own default and `establishSession`/`applyDesiredConfigOnce` live-
     // applies the user's persisted picks via `setSessionConfigOption` once the

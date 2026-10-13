@@ -53,6 +53,26 @@ const PROVIDER_REDIRECT_RE = /^(ANTHROPIC_|CLAUDE_CODE_USE_|AWS_BEARER_TOKEN_BED
 const GENERATION_KEY_CUSTODY_RE = /^MAUDE_GEN_KEY/i;
 
 /**
+ * V2-3.6 M4 — the desktop shell's per-spawn secrets, one prefix each, so a new var under a
+ * prefix is scrubbed without a code change:
+ *   • `MAUDE_TOKEN_*` — the GitHub token bridge's loopback endpoint + access key (sidecar.rs).
+ *     Only the dev-server's github/token.ts talks to the bridge; an agent holding the key could
+ *     ask it for the profile's GitHub OAuth token.
+ *   • `MAUDE_SHELL_*` — the shell probe token + its info-file path (V2-3.4, V2-1.1 decision 8).
+ *   • `MAUDE_HOME_*` — the Home server's internal bearer, its page secret (V2-3.6 H1) and its
+ *     state dir. A project server never receives them; scrubbed anyway, so no spawn path can
+ *     hand them on.
+ * This is the ONE place these are stripped — bridge.ts, probe.ts and login-state.ts all spawn
+ * through scrubAgentEnv (acp-env.test.ts pins that none strips locally).
+ *
+ * Accepted residual: the secrets still sit in the PARENT process's environment, and macOS
+ * `ps -Eww -p <pid>` shows another process's original env to any same-user process — so an
+ * agent that gets a `ps` approved can read them there. The agent runs as the same OS user and
+ * could read any app-owned file as well; fd/pipe delivery was not taken in V2-3.6.
+ */
+const SHELL_SECRET_RE = /^MAUDE_(TOKEN|SHELL|HOME)_/i;
+
+/**
  * Return a copy of `source` with the billing/provider-redirect keys removed and
  * any `undefined` values dropped (Bun.spawn's `env` wants Record<string,string>).
  * Pure — never mutates the input, so `process.env` stays intact for the parent.
@@ -68,10 +88,10 @@ export function scrubAgentEnv(
     // The cell materializer's loopback credential is the studio's alone — an
     // agent it spawns has no business filling the cache (Phase 1 review L3).
     if (key === 'MAUDE_MATERIALIZE_TOKEN') continue;
-    // V2-3.4 — the desktop shell's per-spawn probe token + its info-file path (V2-1.1
-    // decision 8) belong to this server alone. The profile env (MAUDE_PROFILE_ID,
-    // MAUDE_CLOUD_CONFIG, HUBS_CONFIG_PATH) deliberately passes: a tab's agent runs as the tab.
-    if (key === 'MAUDE_SHELL_TOKEN' || key === 'MAUDE_SHELL_INFO_FILE') continue;
+    // V2-3.4 / V2-3.6 M4 — the desktop shell's per-spawn secrets belong to this server alone.
+    // The profile env (MAUDE_PROFILE_ID, MAUDE_CLOUD_CONFIG, HUBS_CONFIG_PATH) deliberately
+    // passes: a tab's agent runs as the tab.
+    if (SHELL_SECRET_RE.test(key)) continue;
     out[key] = value;
   }
   return out;
