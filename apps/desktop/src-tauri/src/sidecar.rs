@@ -1176,6 +1176,9 @@ pub struct RestCandidate {
     /// windowless) — the same `SidecarState.tick` clock, so they compare.
     pub recency: u64,
     pub status: Option<ShellStatus>,
+    /// Still booting: its child has not written an address to its info file
+    /// yet, so it has no status to read (V2-3.6 L2).
+    pub booting: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1185,6 +1188,10 @@ pub enum RestPick {
     Rest { root: String, label: Option<String> },
     /// Over the cap and every candidate is busy: allow it (today's rule).
     Overflow,
+    /// Over the cap, nothing restable YET, but a candidate is still booting:
+    /// a booting server counts toward the cap, so look again once it binds
+    /// instead of leaving the burst over the cap until the next spawn (V2-3.6 L2).
+    Wait,
 }
 
 /// The rest policy, pure. Over the cap, the candidates are every running
@@ -1203,6 +1210,7 @@ pub fn pick_rest(
     }
     candidates.retain(|c| c.label.is_none() || c.label.as_deref() != focused_label);
     candidates.sort_by_key(|c| (c.label.is_some(), c.recency));
+    let booting = candidates.iter().any(|c| c.booting);
     candidates
         .into_iter()
         .find(|c| c.status.as_ref().is_some_and(|s| !s.busy()))
@@ -1210,8 +1218,12 @@ pub fn pick_rest(
             root: c.root,
             label: c.label,
         })
-        .unwrap_or(RestPick::Overflow)
+        .unwrap_or(if booting { RestPick::Wait } else { RestPick::Overflow })
 }
+
+/// How long `enforce_cap` keeps looking again for booting servers to bind
+/// (one second apart) before it allows the overflow.
+const CAP_BOOT_WAIT: u32 = 60;
 
 /// Serializes `enforce_cap` runs: two spawns in quick succession must not both
 /// pick a victim when resting one was enough.
@@ -1229,6 +1241,7 @@ pub(crate) fn spawn_enforce_cap(app: &AppHandle) {
 async fn enforce_cap(app: &AppHandle) {
     let _serial = CAP_LOCK.lock().await;
     let state = app.state::<SidecarState>();
+    let mut waits = 0u32;
     loop {
         if state.shutting_down.load(Ordering::SeqCst) {
             return;
@@ -1260,6 +1273,7 @@ async fn enforce_cap(app: &AppHandle) {
                         label,
                         recency,
                         status: None,
+                        booting: false,
                     }
                 })
                 .collect();
@@ -1270,7 +1284,11 @@ async fn enforce_cap(app: &AppHandle) {
             if c.label.is_some() && c.label == focused {
                 continue;
             }
-            c.status = shell_status(app, &c.root).await;
+            // No address in its info file yet = still booting (L2).
+            c.booting = shell_origin(app, &c.root).is_none();
+            if !c.booting {
+                c.status = shell_status(app, &c.root).await;
+            }
         }
         log_line(&format!(
             "[maude] cap {cap}, {} running, focused {focused:?}: {}",
@@ -1298,6 +1316,17 @@ async fn enforce_cap(app: &AppHandle) {
             RestPick::Overflow => {
                 log_line(&format!(
                     "[maude] {} servers running (cap {cap}) and every candidate is busy — allowing the overflow",
+                    running.len()
+                ));
+                return;
+            }
+            RestPick::Wait if waits < CAP_BOOT_WAIT => {
+                waits += 1;
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+            RestPick::Wait => {
+                log_line(&format!(
+                    "[maude] {} servers running (cap {cap}); one never finished booting — allowing the overflow",
                     running.len()
                 ));
                 return;
@@ -1691,6 +1720,7 @@ mod tests {
             label: label.map(str::to_string),
             recency,
             status,
+            booting: false,
         }
     }
 
@@ -1699,6 +1729,32 @@ mod tests {
             root: root.to_string(),
             label: label.map(str::to_string),
         }
+    }
+
+    /// V2-3.6 L2: a burst of opens leaves servers still booting. They count
+    /// toward the cap: with nothing restable yet the policy waits for them to
+    /// bind instead of overflowing until some later spawn.
+    #[test]
+    fn rest_policy_counts_booting_servers_toward_the_cap() {
+        let mut booting = cand("/boot", Some("p-boot"), 1, None);
+        booting.booting = true;
+        let c = vec![booting.clone(), cand("/f", Some("p-f"), 2, idle())];
+        assert_eq!(pick_rest(2, 1, Some("p-f"), c), RestPick::Wait);
+        // Once it has bound and reports idle, it is the one rested.
+        let mut bound = booting;
+        bound.booting = false;
+        bound.status = idle();
+        assert_eq!(
+            pick_rest(2, 1, Some("p-f"), vec![bound, cand("/f", Some("p-f"), 2, idle())]),
+            rested("/boot", Some("p-boot"))
+        );
+        // A FOCUSED booting tab is never the reason to wait (it cannot rest).
+        let mut focused = cand("/f", Some("p-f"), 2, None);
+        focused.booting = true;
+        assert_eq!(
+            pick_rest(2, 1, Some("p-f"), vec![cand("/a", Some("p-a"), 1, None), focused]),
+            RestPick::Overflow
+        );
     }
 
     #[test]

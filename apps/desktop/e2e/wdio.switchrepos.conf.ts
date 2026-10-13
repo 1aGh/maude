@@ -14,6 +14,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const { primary, secondary } = lifecycleFixtureOnce();
 process.env.MAUDE_PROJECT_ROOT = primary;
 process.env.MAUDE_E2E_SECONDARY_ROOT = secondary;
+// "Open another folder…" (V2-3.6 M3): the picker returns the secondary repo.
+process.env.MAUDE_E2E_PICK_DIR = secondary;
 process.env.MAUDE_USE_SYSTEM_GIT = '1';
 
 const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '');

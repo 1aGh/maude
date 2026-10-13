@@ -2,20 +2,17 @@ import { execFileSync } from 'node:child_process';
 import { $, browser, expect } from '@wdio/globals';
 import type {} from '@wdio/tauri-service';
 import { capture, startReport } from '../helpers/evidence';
+import { invokeTauri } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
 import { pinCurrentWindow } from '../helpers/windows';
 
 const tid = (id: string) => `[data-testid="${id}"]`;
+/** The shell delivers the link to THIS window (parked + `maude://deep-link`),
+ *  exactly as it delivers one routed here. Pages can no longer `emit` events
+ *  (V2-3.6 M5), so the debug-only `e2e_deliver_deep_link` does the delivery. */
 async function arrive(url: string) {
-  await browser.execute((value: string) => {
-    const tauri = (
-      window as unknown as {
-        __TAURI__: { event: { emit(name: string, payload: string): Promise<void> } };
-      }
-    ).__TAURI__;
-    return tauri.event.emit('maude://deep-link', value);
-  }, url);
+  await invokeTauri('e2e_deliver_deep_link', { url });
 }
 async function active(path: string) {
   await browser.waitUntil(

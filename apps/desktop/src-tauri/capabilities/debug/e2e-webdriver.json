@@ -1,0 +1,23 @@
+{
+  "$schema": "../../gen/schemas/desktop-schema.json",
+  "identifier": "e2e-webdriver",
+  "description": "Desktop E2E only (debug builds register the plugin; see lib.rs). Split out of `default` and limited to macOS + Linux because tauri-plugin-wdio-webdriver (<=1.4.0) pins webview2-com 0.38 / windows 0.61 and does not compile against Tauri 2.12's webview2-com 0.39 on Windows (v1.7.0 desktop release failure). tauri-build skips validating a capability whose `platforms` excludes the target, so the Windows build no longer needs the plugin's permission to exist. V2-3.2: windows are `home` + `p-*` (contract V2-1.1 §5.4; `c-*` cell tabs are in no capability), plus the debug-only window helpers in windows.rs (`window_labels`, `e2e_focus_window`, `e2e_close_window`) — their bodies are compiled only under `debug_assertions` and a release build answers Err, but they are still granted ONLY here, never in default.json. V2-3.6 L3: this file lives in `capabilities/debug/`, which build.rs leaves out of a release build (`RELEASE_CAPABILITIES`), so none of these grants exist in a shipped app; it also carries `e2e_deliver_deep_link` (pages can no longer emit, M5) and the `profiles_*` grants the identity scenario needs.",
+  "windows": ["home", "p-*"],
+  "platforms": ["macOS", "linux"],
+  "remote": {
+    "urls": ["http://localhost:*", "http://127.0.0.1:*"]
+  },
+  "permissions": [
+    "wdio-webdriver:default",
+    "allow-window-labels",
+    "allow-e2e-focus-window",
+    "allow-e2e-close-window",
+    "allow-e2e-open-root",
+    "allow-e2e-bind-profile",
+    "allow-e2e-notification-click",
+    "allow-e2e-deliver-deep-link",
+    "allow-profiles-list",
+    "allow-profiles-create",
+    "allow-profiles-delete"
+  ]
+}

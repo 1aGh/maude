@@ -189,12 +189,76 @@ fn now_ms() -> u64 {
 /// Returns the local path. Idempotent: a second open of the same project reuses
 /// the same copy — pending work in it is never replaced.
 ///
+/// What a caller may do with `managed_project_open` (V2-3.6 M3, contract
+/// V2-1.1 §5.8 item 3: the command is Home's).
+#[derive(Debug, PartialEq)]
+pub enum ManagedGate {
+    Allow,
+    /// A project window naming a server it has no standing with: the person
+    /// confirms the host in a NATIVE dialog (a page cannot click it).
+    Confirm,
+}
+
+/// Pure policy. Home may open any validated (server, project). A project
+/// window — the v1 team-project dialog, the onboarding door and the
+/// CloudBar handoff still call it there — may open without asking only a copy
+/// this computer already keeps (`known`) or a project on the configured Maude
+/// Cloud / its zone (`in_cloud`, where the person's own account decides
+/// membership). Anything else — a self-hosted hub typed into the dialog, or
+/// a page naming its own server — needs the person's native confirmation.
+pub fn managed_gate(
+    caller: &crate::windows::Caller,
+    server: &str,
+    id: &str,
+    known: &[ManagedProject],
+    in_cloud: bool,
+) -> ManagedGate {
+    match caller {
+        crate::windows::Caller::Home => ManagedGate::Allow,
+        crate::windows::Caller::Project(_)
+            if in_cloud || known.iter().any(|p| p.server_url == server && p.project_id == id) =>
+        {
+            ManagedGate::Allow
+        }
+        crate::windows::Caller::Project(_) => ManagedGate::Confirm,
+    }
+}
+
+/// The native "open a team project on <host>?" confirmation, parented to the
+/// calling window. Debug builds honour `MAUDE_E2E_CONFIRM_TEAM_SERVER=1` (a
+/// native dialog is not DOM-reachable); a release build never reads it.
+async fn confirm_team_server(webview: &tauri::Webview, server: &str) -> bool {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+    #[cfg(debug_assertions)]
+    if std::env::var("MAUDE_E2E_CONFIRM_TEAM_SERVER").as_deref() == Ok("1") {
+        return true;
+    }
+    let host = server.split("://").nth(1).unwrap_or(server).to_string();
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    webview
+        .app_handle()
+        .dialog()
+        .message(format!(
+            "Open a team project from {host}? Its canvases will sync with that server."
+        ))
+        .title("Open team project")
+        .parent(&webview.window())
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "Open".to_string(),
+            "Cancel".to_string(),
+        ))
+        .show(move |ok| {
+            let _ = tx.send(ok);
+        });
+    rx.await.unwrap_or(false)
+}
+
 /// From Home (V2-3.3, contract §5.4): ONLY creates/locates the copy and returns
 /// its folder — the page then calls `open_project({root})`, which opens it as a
 /// tab. From a project window (the pre-Home cloud picker): also switches that
-/// window in-tab, as before.
+/// window in-tab, as before — narrowed by `managed_gate` (V2-3.6 M3).
 #[tauri::command]
-pub fn managed_project_open(
+pub async fn managed_project_open(
     app: tauri::AppHandle,
     webview: tauri::Webview,
     server_url: String,
@@ -202,12 +266,25 @@ pub fn managed_project_open(
     name: String,
     canvas_groups: Vec<String>,
 ) -> Result<String, String> {
-    let caller = match crate::windows::caller_any(&webview, false)? {
+    let who = crate::windows::caller_any(&webview, false)?;
+    let server = validate_server_url(&server_url)?;
+    let id = validate_project_id(&project_id)?;
+    let known = load_index(&app).projects;
+    let gate = managed_gate(&who, &server, &id, &known, crate::oauth::in_cloud_zone(&server));
+    if gate == ManagedGate::Confirm {
+        if !confirm_team_server(&webview, &server).await {
+            return Err("Opening the team project was cancelled.".to_string());
+        }
+        // The window may have moved while the dialog was up: it must still be
+        // the same caller on its own origin.
+        if crate::windows::caller_any(&webview, false)? != who {
+            return Err("This window changed while you were deciding.".to_string());
+        }
+    }
+    let caller = match who {
         crate::windows::Caller::Home => None,
         crate::windows::Caller::Project(c) => Some(c),
     };
-    let server = validate_server_url(&server_url)?;
-    let id = validate_project_id(&project_id)?;
     let display: String = name.trim().chars().filter(|c| !c.is_control()).take(120).collect();
     let display = if display.is_empty() { id.clone() } else { display };
     let key = managed_key(&server, &id);
@@ -252,6 +329,46 @@ pub fn managed_projects_list(app: tauri::AppHandle) -> Vec<ManagedProject> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// V2-3.6 M3: from a `p-*` window, an arbitrary (server, project) is never
+    /// opened silently — only a known copy or the configured cloud's zone.
+    #[test]
+    fn managed_project_open_is_refused_silently_from_a_project_window() {
+        use crate::windows::{Caller, CallerProject};
+        let project = Caller::Project(CallerProject {
+            label: "p-l0123456789abcdef".into(),
+            pid: "l0123456789abcdef".into(),
+            root: "/tmp/a".into(),
+        });
+        let known = vec![ManagedProject {
+            key: "k".into(),
+            server_url: "https://hub.example".into(),
+            project_id: "kept".into(),
+            name: "Kept".into(),
+            path: "/tmp/kept".into(),
+            last_opened: 0,
+        }];
+        // A page naming its own server: the person must confirm natively.
+        assert_eq!(
+            managed_gate(&project, "http://127.0.0.1:6666", "x", &known, false),
+            ManagedGate::Confirm
+        );
+        assert_eq!(
+            managed_gate(&project, "https://hub.example", "other", &known, false),
+            ManagedGate::Confirm,
+            "a known server does not vouch for a new project id"
+        );
+        assert_eq!(managed_gate(&project, "https://hub.example", "kept", &known, false), ManagedGate::Allow);
+        assert_eq!(
+            managed_gate(&project, "https://acme.cloud.maude.sh", "x", &[], true),
+            ManagedGate::Allow
+        );
+        // Home is the command's owner (contract §5.8 item 3).
+        assert_eq!(managed_gate(&Caller::Home, "https://evil.example", "x", &[], false), ManagedGate::Allow);
+        assert!(crate::oauth::in_cloud_zone("https://acme.cloud.maude.sh"));
+        assert!(!crate::oauth::in_cloud_zone("https://evil.example"));
+        assert!(!crate::oauth::in_cloud_zone("http://127.0.0.1:6666"));
+    }
 
     #[test]
     fn server_urls_are_https_or_loopback_http_and_never_carry_credentials() {

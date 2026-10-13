@@ -462,6 +462,13 @@ fn cloud_url_allowed(url: &str, base: &reqwest::Url) -> Option<reqwest::Url> {
     None
 }
 
+/// Is a validated server origin (`scheme://host[:port]`) the configured Maude
+/// Cloud or a host in its zone? (V2-3.6 M3: the team servers a project window
+/// may open a managed copy of without asking.)
+pub(crate) fn in_cloud_zone(server: &str) -> bool {
+    cloud_url_allowed(server, &cloud_base()).is_some()
+}
+
 /// `#[tauri::command]` — open a Maude Cloud URL (device-activation page, share
 /// view, dashboard) in the OS browser. Zone-locked in Rust against the address
 /// resolved at call time; the webview's argument never widens what is allowed.

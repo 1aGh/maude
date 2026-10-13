@@ -529,9 +529,22 @@ pub fn app_get_last_project(app: tauri::AppHandle) -> Option<String> {
     last_project(&app).map(|p| p.to_string_lossy().to_string())
 }
 
+/// V2-3.6 M3: remembering a folder REGISTERS it, and a registered folder is
+/// one `open_local_project` accepts — so this is gated the same way: the
+/// calling project window, and a registered project or that window's pick.
 #[tauri::command]
-pub fn app_set_last_project(app: tauri::AppHandle, path: String) {
-    set_last_project(&app, &PathBuf::from(path));
+pub fn app_set_last_project(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    path: String,
+) -> Result<(), String> {
+    let caller = windows::caller_project(&webview, false)?;
+    let p = PathBuf::from(path);
+    if !p.is_dir() || !windows::local_project_allowed(&app, &caller.label, &p) {
+        return Err("That folder can’t be remembered from here.".to_string());
+    }
+    set_last_project(&app, &p);
+    Ok(())
 }
 
 #[tauri::command]

@@ -180,7 +180,7 @@ async fn pick_directory(
     app: tauri::AppHandle,
     webview: tauri::Webview,
 ) -> Result<Option<String>, String> {
-    windows::caller_project(&webview, false)?;
+    let caller = windows::caller_project(&webview, false)?;
     // E2E (debug builds only): a native folder picker can't be DOM-driven, so the
     // harness injects the chosen path via MAUDE_E2E_PICK_DIR instead of opening the OS
     // dialog. Gated on `debug_assertions`, so it is NEVER compiled into the release
@@ -188,6 +188,7 @@ async fn pick_directory(
     #[cfg(debug_assertions)]
     if let Ok(p) = std::env::var("MAUDE_E2E_PICK_DIR") {
         if !p.is_empty() {
+            windows::remember_pick(&caller.label, &p);
             return Ok(Some(p));
         }
     }
@@ -199,7 +200,13 @@ async fn pick_directory(
             .map(|p| p.to_string_lossy().to_string());
         let _ = tx.send(path);
     });
-    rx.await.map_err(|_| "Folder picker closed unexpectedly.".to_string())
+    let picked = rx.await.map_err(|_| "Folder picker closed unexpectedly.".to_string())?;
+    // The one folder (and its direct children) this window may now open or
+    // remember without it being a registered project (V2-3.6 M3).
+    if let Some(p) = &picked {
+        windows::remember_pick(&caller.label, p);
+    }
+    Ok(picked)
 }
 
 /// Native "Save As…" for an export payload — opens a save dialog seeded with the
@@ -230,7 +237,10 @@ async fn save_export(
     // The CALLING window's project (V2-3.2): with two tabs, an export from tab
     // B must download from B's server, not from whichever tab is in front.
     let caller = windows::caller_project(&webview, false)?;
-    let download_url = export_download_url(&caller.root, &job_id)?;
+    // The origin comes from the app-owned info file of THAT project's running
+    // child (V2-1.1 decision 8), never the in-project `_server.json` (V2-3.6 M1).
+    let info_file = sidecar::shell_info_file(&app, &caller.root);
+    let download_url = export_download_url(info_file.as_deref(), &job_id)?;
 
     // E2E (debug builds only): a native save dialog can't be DOM-driven, so the
     // harness injects the destination via MAUDE_E2E_SAVE_PATH. Gated on
@@ -262,24 +272,52 @@ async fn save_export(
     }
 }
 
-/// Resolve the `/_api/export-jobs/download` URL for `job_id` against `root`'s
-/// running dev-server sidecar (via `_server.json`). Validates the id
-/// looks like the `crypto.randomUUID()` the server actually generates
-/// (`exporters/jobs.ts`) before it's interpolated into a URL — defense in depth,
-/// since this string arrives from the (trusted, main-origin-only) studio client
-/// rather than the untrusted canvas iframe, but a Rust command has no other gate
-/// of its own on what it's handed.
-fn export_download_url(project_root: &str, job_id: &str) -> Result<String, String> {
+/// The one route `save_export` may fetch (V2-3.6 M1): a fixed path on the
+/// project's own loopback origin, with only the validated id varying.
+const EXPORT_DOWNLOAD_PATH: &str = "/_api/export-jobs/download";
+
+/// Resolve the `/_api/export-jobs/download` URL for `job_id` against the origin
+/// the app-owned shell info file names (`sidecar::read_shell_origin`, loopback
+/// only — DDR-109). `None` = no running child of ours for that project.
+/// Validates the id looks like the `crypto.randomUUID()` the server actually
+/// generates (`exporters/jobs.ts`) before it's interpolated into a URL —
+/// defense in depth, since this string arrives from the studio client, and a
+/// Rust command has no other gate of its own on what it's handed.
+fn export_download_url(info_file: Option<&std::path::Path>, job_id: &str) -> Result<String, String> {
     let looks_like_id = !job_id.is_empty()
         && job_id.len() <= 64
         && job_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-');
     if !looks_like_id {
         return Err("Invalid export job id.".to_string());
     }
-    let design_root = PathBuf::from(project_root).join(".design");
-    let base_url = server_json::read_server_url(&design_root)
-        .ok_or_else(|| "Couldn't reach the local Maude server to fetch the export.".to_string())?;
-    Ok(format!("{base_url}/_api/export-jobs/download?id={job_id}"))
+    let unreachable = || "Couldn't reach the local Maude server to fetch the export.".to_string();
+    let origin = sidecar::read_shell_origin(info_file.ok_or_else(unreachable)?).ok_or_else(unreachable)?;
+    let url: tauri::Url = format!("{origin}{EXPORT_DOWNLOAD_PATH}?id={job_id}")
+        .parse()
+        .map_err(|_| unreachable())?;
+    // Belt and braces: the assembled URL is loopback and on the one route.
+    if !server_json::is_loopback_url(&url) || url.path() != EXPORT_DOWNLOAD_PATH {
+        return Err(unreachable());
+    }
+    Ok(url.to_string())
+}
+
+/// The export download client: loopback only, so no proxy (an `HTTP_PROXY` in
+/// the login env must never see the request) and no redirects (a 3xx must not
+/// carry the fetch off the project's own server — V2-3.6 M1). No timeout: a
+/// print PDF can take a while to stream.
+fn export_client() -> Result<&'static reqwest::Client, String> {
+    static CLIENT: std::sync::OnceLock<Option<reqwest::Client>> = std::sync::OnceLock::new();
+    CLIENT
+        .get_or_init(|| {
+            reqwest::Client::builder()
+                .no_proxy()
+                .redirect(reqwest::redirect::Policy::none())
+                .build()
+                .ok()
+        })
+        .as_ref()
+        .ok_or_else(|| "Couldn't start the export download.".to_string())
 }
 
 /// Stream a finished export job's bytes from the dev-server straight to `dest`
@@ -289,7 +327,9 @@ async fn stream_download_to_file(url: &str, dest: &std::path::Path) -> Result<()
     use futures_util::StreamExt;
     use tokio::io::AsyncWriteExt;
 
-    let resp = reqwest::get(url)
+    let resp = export_client()?
+        .get(url)
+        .send()
         .await
         .map_err(|e| format!("Couldn't reach the local Maude server: {e}"))?;
     if !resp.status().is_success() {
@@ -421,6 +461,12 @@ fn open_local_project(
     if !p.is_dir() {
         return Err("That project folder doesn’t exist.".to_string());
     }
+    // V2-3.6 M3: a project page cannot switch its tab to an arbitrary folder —
+    // only a registered project (recents, a resolved link) or the folder the
+    // last picker shown to THIS window returned (or what it created inside it).
+    if !windows::local_project_allowed(&app, &caller.label, &p) {
+        return Err("Choose that folder with “Open another folder…” first.".to_string());
+    }
     // The dev-server fails loud on a project with no `.design/` (load-bearing,
     // CLAUDE.md). Refuse the switch HERE so a non-Maude folder shows a clear message
     // instead of crash-looping the sidecar (3 respawns → blank). The client also
@@ -430,6 +476,8 @@ fn open_local_project(
     }
     // Remember it as the last project (so a relaunch reopens it) + switch in-process.
     app_state::set_last_project(&app, &p);
+    // The pick is spent once it opened something (it is registered now).
+    windows::PICKED_FOLDER.take(&caller.label);
     sidecar::switch_project(&app, &caller.label, p, open);
     Ok(())
 }
@@ -600,6 +648,8 @@ pub fn run() {
             crash_reporter::list_crash_logs,
             crash_reporter::read_crash_log,
             deep_link::take_pending_deep_link,
+            deep_link::take_link_opened,
+            deep_link::e2e_deliver_deep_link,
             project_resolve::resolve_project_for_link,
             notify::send_notification,
             managed::managed_project_open,
@@ -892,5 +942,80 @@ mod tests {
         );
         // MAUDE_FORCE_ONBOARDING (debug, the onboarding lane): the welcome project.
         assert_eq!(boot_plan(None, true, None, welcome), BootPlan::Project(p("/welcome")));
+    }
+
+    fn scratch(tag: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!(
+            "maude-lib-{tag}-{}-{:?}",
+            std::process::id(),
+            std::time::SystemTime::now()
+        ));
+        std::fs::create_dir_all(d.join(".design")).unwrap();
+        d
+    }
+
+    /// V2-3.6 M1: the download origin is the app-owned info file's, loopback
+    /// only, on the one export route — a planted `_server.json` plays no part.
+    #[test]
+    fn save_export_url_comes_from_the_info_file_and_is_loopback_only() {
+        let project = scratch("export-url");
+        std::fs::write(
+            project.join(".design/_server.json"),
+            r#"{"pid":1,"port":443,"url":"https://evil.example"}"#,
+        )
+        .unwrap();
+        let info = project.join("info.json");
+        std::fs::write(&info, r#"{"url":"http://localhost:4403","port":4403}"#).unwrap();
+        assert_eq!(
+            export_download_url(Some(&info), "0b6c-41f2").unwrap(),
+            "http://localhost:4403/_api/export-jobs/download?id=0b6c-41f2"
+        );
+        // No running child of ours ⇒ no download, whatever `_server.json` says.
+        assert!(export_download_url(None, "0b6c-41f2").is_err());
+        // An info file off loopback is refused too (DDR-109).
+        std::fs::write(&info, r#"{"url":"https://evil.example"}"#).unwrap();
+        assert!(export_download_url(Some(&info), "0b6c-41f2").is_err());
+        // The id cannot reshape the URL.
+        std::fs::write(&info, r#"{"url":"http://localhost:4403"}"#).unwrap();
+        for bad in ["", "a/../b", "x?y", "x#y", "a&id=b", &"a".repeat(65)] {
+            assert!(export_download_url(Some(&info), bad).is_err(), "{bad}");
+        }
+        let _ = std::fs::remove_dir_all(&project);
+    }
+
+    /// Serve one canned HTTP response on a loopback port; returns the port.
+    fn serve_once(response: String) -> u16 {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            if let Ok((mut s, _)) = listener.accept() {
+                let mut buf = [0u8; 4096];
+                let _ = s.read(&mut buf);
+                let _ = s.write_all(response.as_bytes());
+            }
+        });
+        port
+    }
+
+    /// V2-3.6 M1: a 3xx from the project's server must not carry the fetch
+    /// elsewhere — the redirect target's bytes never reach the chosen file.
+    #[test]
+    fn save_export_download_refuses_a_redirect() {
+        let evil = serve_once(
+            "HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\nevil".to_string(),
+        );
+        let first = serve_once(format!(
+            "HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1:{evil}/x\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        ));
+        let dir = scratch("export-redirect");
+        let dest = dir.join("out.pdf");
+        let res = tauri::async_runtime::block_on(stream_download_to_file(
+            &format!("http://127.0.0.1:{first}/_api/export-jobs/download?id=a"),
+            &dest,
+        ));
+        assert!(res.is_err(), "a redirect must fail the download, got {res:?}");
+        assert!(std::fs::read(&dest).map(|b| b != b"evil").unwrap_or(true));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

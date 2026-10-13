@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-take-link-opened"
+description = "Enables the take_link_opened command without any pre-configured scope."
+commands.allow = ["take_link_opened"]
+
+[[permission]]
+identifier = "deny-take-link-opened"
+description = "Denies the take_link_opened command without any pre-configured scope."
+commands.deny = ["take_link_opened"]

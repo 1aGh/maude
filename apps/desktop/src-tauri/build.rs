@@ -4,8 +4,18 @@ fn main() {
     // custom-command invokes from a remote (non-local) origin unless the resolved ACL
     // allows the command; declaring them here generates per-command `allow-*`
     // permissions the capability references.
+    //
+    // V2-3.6 L3: debug-only capabilities live in `capabilities/debug/` (the e2e
+    // WebDriver one). A release build reads only the top-level files, so that
+    // capability — and every grant in it — is not compiled into a shipped app.
+    // A custom pattern needs its own rerun-if-changed (tauri-build docs).
+    let mut attributes = tauri_build::Attributes::new();
+    if std::env::var("PROFILE").as_deref() == Ok("release") {
+        println!("cargo:rerun-if-changed=capabilities");
+        attributes = attributes.capabilities_path_pattern(RELEASE_CAPABILITIES);
+    }
     tauri_build::try_build(
-        tauri_build::Attributes::new().app_manifest(
+        attributes.app_manifest(
             tauri_build::AppManifest::new().commands(&[
                 "github_sign_in",
                 "github_open_verification",
@@ -55,7 +65,7 @@ fn main() {
                 "take_tabs_restored",
                 "take_pending_navigate",
                 // Debug-only e2e helpers: Err stubs in release, granted only by
-                // capabilities/e2e-webdriver.json (never default.json).
+                // capabilities/debug/e2e-webdriver.json (never default.json; not compiled into a release build).
                 "window_labels",
                 "e2e_focus_window",
                 "e2e_close_window",
@@ -63,8 +73,17 @@ fn main() {
                 // V2-3.5 (windows.rs, notify.rs), same rule.
                 "e2e_bind_profile",
                 "e2e_notification_click",
+                // V2-3.6 M5: e2e delivers a deep link through the shell (pages
+                // can no longer emit events).
+                "e2e_deliver_deep_link",
+                // V2-3.6 L1: the "Opened from a link" toast of a NEW tab.
+                "take_link_opened",
             ]),
         ),
     )
     .expect("failed to run tauri-build");
 }
+
+/// Release builds compile only the top-level capability files (V2-3.6 L3).
+/// `windows.rs` `capabilities_grant_no_emit_no_profiles_and_no_debug_commands` pins it.
+const RELEASE_CAPABILITIES: &str = "./capabilities/*.json";

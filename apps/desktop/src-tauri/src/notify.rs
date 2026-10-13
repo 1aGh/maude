@@ -317,17 +317,23 @@ fn apply_badge(app: &AppHandle) {
 
 /// Debug-only e2e helper: the click handler of `root`'s notification (native
 /// notifications are not DOM-reachable). Granted only by
-/// capabilities/e2e-webdriver.json; a release build answers Err.
+/// capabilities/debug/e2e-webdriver.json; a release build answers Err.
 #[tauri::command]
-pub fn e2e_notification_click(app: AppHandle, root: String) -> Result<(), String> {
+pub fn e2e_notification_click(
+    app: AppHandle,
+    webview: tauri::Webview,
+    root: String,
+) -> Result<(), String> {
     #[cfg(debug_assertions)]
     {
+        // V2-3.6 L3: even in debug, only a window on its own origin.
+        crate::windows::caller_any(&webview, false)?;
         on_click(&app, &root);
         Ok(())
     }
     #[cfg(not(debug_assertions))]
     {
-        let _ = (app, root);
+        let _ = (app, webview, root);
         Err("debug builds only".into())
     }
 }

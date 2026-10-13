@@ -1406,12 +1406,68 @@ pub fn park_navigate_for_new(opened: &Opened, target: Option<&OpenTarget>) {
     }
 }
 
+/// The folder the last native picker shown to a window returned (V2-3.6 M3),
+/// canonicalized. `open_local_project` / `app_set_last_project` accept a path
+/// from a project page only when it is a registered project or this pick (or
+/// a direct child of it — "create here" / "clone here" make `<pick>/<name>`).
+pub static PICKED_FOLDER: Parked<PathBuf> = Parked::new();
+
+/// Record a picker result for `label`.
+pub fn remember_pick(label: &str, picked: &str) {
+    if let Ok(p) = std::fs::canonicalize(picked) {
+        PICKED_FOLDER.park(label, p);
+    }
+}
+
+/// Both paths exist and name the same directory.
+pub fn same_dir(a: &Path, b: &Path) -> bool {
+    matches!((std::fs::canonicalize(a), std::fs::canonicalize(b)), (Ok(x), Ok(y)) if x == y)
+}
+
+/// Pure half of `local_project_allowed`: `path` is a registered project, or
+/// the canonical `picked` folder itself, or a direct child of it.
+pub fn local_path_allowed(registered: bool, picked: Option<&Path>, path: &Path) -> bool {
+    if registered {
+        return true;
+    }
+    let (Some(picked), Ok(path)) = (picked, std::fs::canonicalize(path)) else {
+        return false;
+    };
+    path == picked || path.parent() == Some(picked)
+}
+
+/// May a project page in `label` open/remember `path`? (V2-3.6 M3: never an
+/// arbitrary folder.) Reads the registry and PEEKS at the pick — the caller
+/// consumes it with `PICKED_FOLDER.take` once the open has succeeded, so a
+/// refused attempt (no `.design/` yet) can be retried after setup.
+pub fn local_project_allowed(app: &AppHandle, label: &str, path: &Path) -> bool {
+    // The `MAUDE_PROJECT_ROOT` launch override is deliberately kept out of the
+    // registry (lib.rs boot), but it is the folder the person launched the app
+    // at — read from this process's own launch env, which no page can change.
+    let boot_root = std::env::var("MAUDE_PROJECT_ROOT")
+        .ok()
+        .filter(|r| !r.is_empty())
+        .is_some_and(|r| same_dir(Path::new(&r), path));
+    let registered = boot_root
+        || crate::app_state::load(app)
+            .projects
+            .contains_key(&pid_for_root(&path.to_string_lossy()));
+    let picked = PICKED_FOLDER.take(label);
+    let ok = local_path_allowed(registered, picked.as_deref(), path);
+    if let Some(p) = picked {
+        PICKED_FOLDER.park(label, p);
+    }
+    ok
+}
+
 /// Everything parked for `label` dies with the window: a later window that
 /// reuses the label must not inherit it.
 pub fn drop_parked_for(label: &str) {
     crate::home::take_intent(label);
     TABS_RESTORED.take(label);
     PENDING_NAVIGATE.take(label);
+    crate::deep_link::LINK_OPENED.take(label);
+    PICKED_FOLDER.take(label);
 }
 
 /// `take_tabs_restored()` — the restore count parked for THIS window, once.
@@ -1518,7 +1574,7 @@ pub async fn open_project(
 /// Debug-only e2e helper: `open_project` by folder from a PROJECT window (the
 /// `{root}` form is Home-only in the real command). The same open path —
 /// registry upsert, open once, tab after the caller. Granted only by
-/// capabilities/e2e-webdriver.json; a release build answers Err.
+/// capabilities/debug/e2e-webdriver.json; a release build answers Err.
 #[tauri::command]
 pub async fn e2e_open_root(
     app: AppHandle,
@@ -1546,16 +1602,23 @@ pub async fn e2e_open_root(
 /// point V2-3.1 left with no UI caller yet. The project's running server keeps
 /// its old profile until it is restarted (env is never hot-swapped), so the
 /// scenario closes and reopens the tab. Granted only by
-/// capabilities/e2e-webdriver.json; a release build answers Err.
+/// capabilities/debug/e2e-webdriver.json; a release build answers Err.
 #[tauri::command]
-pub fn e2e_bind_profile(app: AppHandle, root: String, profile: String) -> Result<(), String> {
+pub fn e2e_bind_profile(
+    app: AppHandle,
+    webview: tauri::Webview,
+    root: String,
+    profile: String,
+) -> Result<(), String> {
     #[cfg(debug_assertions)]
     {
+        // V2-3.6 L3: even in debug, only a window on its own origin.
+        caller_any(&webview, false)?;
         crate::app_state::bind_profile(&app, &root, &profile)
     }
     #[cfg(not(debug_assertions))]
     {
-        let _ = (app, root, profile);
+        let _ = (app, webview, root, profile);
         Err("debug builds only".into())
     }
 }
@@ -2043,7 +2106,7 @@ mod tests {
     fn capability_windows_match_the_window_model() {
         let read = |s: &str| serde_json::from_str::<serde_json::Value>(s).unwrap();
         let default = read(include_str!("../capabilities/default.json"));
-        let e2e = read(include_str!("../capabilities/e2e-webdriver.json"));
+        let e2e = read(include_str!("../capabilities/debug/e2e-webdriver.json"));
         assert_eq!(default["windows"], serde_json::json!(["p-*"]));
         assert_eq!(e2e["windows"], serde_json::json!(["home", "p-*"]));
         let perms = |v: &serde_json::Value| -> Vec<String> {
@@ -2071,6 +2134,110 @@ mod tests {
             );
         }
         assert!(perms(&default).iter().any(|p| p == "allow-open-project"));
+    }
+
+    /// V2-3.6 M3: a project page switches its tab only to a registered
+    /// project or the folder its last picker returned (or a direct child).
+    #[test]
+    fn open_local_project_refuses_an_unregistered_unpicked_path() {
+        let base = std::env::temp_dir().join(format!(
+            "maude-open-local-{}-{:?}",
+            std::process::id(),
+            std::time::SystemTime::now()
+        ));
+        let picked = base.join("picked");
+        let child = picked.join("new-project");
+        let grand = child.join("deeper");
+        let other = base.join("elsewhere");
+        let lookalike = base.join("picked-evil");
+        for d in [&grand, &other, &lookalike] {
+            std::fs::create_dir_all(d).unwrap();
+        }
+        let pick = std::fs::canonicalize(&picked).unwrap();
+        // Unregistered and nothing picked: refused.
+        assert!(!local_path_allowed(false, None, &other));
+        // Registered: allowed (recents, a resolved link).
+        assert!(local_path_allowed(true, None, &other));
+        // The pick itself and what "create/clone here" makes inside it.
+        assert!(local_path_allowed(false, Some(&pick), &picked));
+        assert!(local_path_allowed(false, Some(&pick), &child));
+        assert!(local_path_allowed(false, Some(&pick), &picked.join("new-project/../new-project")));
+        // Not deeper, not beside it, not a prefix lookalike.
+        assert!(!local_path_allowed(false, Some(&pick), &grand));
+        assert!(!local_path_allowed(false, Some(&pick), &other));
+        assert!(!local_path_allowed(false, Some(&pick), &lookalike));
+        assert!(!local_path_allowed(false, Some(&pick), &base.join("missing")));
+        // The launch override root is compared as a directory, not a string.
+        assert!(same_dir(&picked, &child.join("..")));
+        assert!(!same_dir(&picked, &lookalike));
+        assert!(!same_dir(&picked, &base.join("missing")));
+        // The slot is per window.
+        remember_pick("p-pick-a", &picked.to_string_lossy());
+        assert!(PICKED_FOLDER.take("p-pick-b").is_none());
+        assert_eq!(PICKED_FOLDER.take("p-pick-a"), Some(pick));
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// V2-3.6 M2 / M5 / L3: what the shipped capabilities may never grant.
+    #[test]
+    fn capabilities_grant_no_emit_no_profiles_and_no_debug_commands() {
+        let read = |s: &str| serde_json::from_str::<serde_json::Value>(s).unwrap();
+        let perms = |v: &serde_json::Value| -> Vec<String> {
+            v["permissions"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|p| p.as_str().map(str::to_string))
+                .collect()
+        };
+        let default = perms(&read(include_str!("../capabilities/default.json")));
+        let splash = perms(&read(include_str!("../capabilities/home-splash.json")));
+        let e2e = perms(&read(include_str!("../capabilities/debug/e2e-webdriver.json")));
+        let home: Vec<String> = crate::home::HOME_PERMISSIONS.iter().map(|p| p.to_string()).collect();
+        // M5: no page may emit into another window. `core:default` and
+        // `core:event:default` both carry emit + emit-to.
+        let emitters = [
+            "core:default",
+            "core:event:default",
+            "core:event:allow-emit",
+            "core:event:allow-emit-to",
+        ];
+        for (name, set) in [("default", &default), ("home-splash", &splash), ("home", &home), ("e2e", &e2e)] {
+            for e in emitters {
+                assert!(!set.iter().any(|p| p == e), "{name} grants {e}");
+            }
+        }
+        for listen in ["core:event:allow-listen", "core:event:allow-unlisten"] {
+            assert!(default.iter().any(|p| p == listen), "project windows still listen");
+            assert!(home.iter().any(|p| p == listen), "Home still listens");
+        }
+        // M2: profile management is not a project-page power.
+        for p in ["allow-profiles-list", "allow-profiles-create", "allow-profiles-delete"] {
+            assert!(!default.contains(&p.to_string()), "{p} in default.json");
+            assert!(!home.contains(&p.to_string()), "{p} granted to Home without a UI");
+            assert!(e2e.contains(&p.to_string()), "{p}: the identity e2e needs it");
+        }
+        // L3: every debug-only command is granted ONLY by the debug capability,
+        // and a release build does not compile that file at all.
+        let debug_only = [
+            "wdio-webdriver:default",
+            "allow-window-labels",
+            "allow-e2e-focus-window",
+            "allow-e2e-close-window",
+            "allow-e2e-open-root",
+            "allow-e2e-bind-profile",
+            "allow-e2e-notification-click",
+            "allow-e2e-deliver-deep-link",
+        ];
+        for p in debug_only {
+            assert!(e2e.contains(&p.to_string()), "{p} belongs to the e2e capability");
+            for (name, set) in [("default", &default), ("home-splash", &splash), ("home", &home)] {
+                assert!(!set.contains(&p.to_string()), "{p} in {name}");
+            }
+        }
+        let build = include_str!("../build.rs");
+        assert!(build.contains(r#"const RELEASE_CAPABILITIES: &str = "./capabilities/*.json";"#));
+        assert!(build.contains("capabilities_path_pattern(RELEASE_CAPABILITIES)"));
     }
 
     #[test]

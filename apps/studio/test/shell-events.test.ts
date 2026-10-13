@@ -18,6 +18,7 @@ afterAll(() => {
 import { invoke, listenHere } from '../client/github.js';
 import {
   applyShellNavigate,
+  linkOpenedWords,
   navigatePlan,
   openedExistingWords,
   startShellEvents,
@@ -113,6 +114,22 @@ describe('shell events reach this window', () => {
     // the event arriving too (page was up in time) never toasts twice
     here['shell://tabs-restored']?.({ payload: { count: 20 } });
     expect(s.toasts.length).toBe(1);
+  });
+
+  test('a link that opened this NEW tab is pulled once and toasted (V2-3.6 L1)', async () => {
+    answers.take_link_opened = { name: 'Alligators brand' };
+    const s = start();
+    await tick();
+    expect(invokes).toContain('take_link_opened');
+    expect(s.toasts).toEqual(['Opened Alligators brand from a link.']);
+    expect(linkOpenedWords('x')).toBe('Opened x from a link.');
+  });
+
+  test('a link-opened note with no usable name toasts nothing', async () => {
+    answers.take_link_opened = { name: '' };
+    const s = start();
+    await tick();
+    expect(s.toasts).toEqual([]);
   });
 
   test('a shell without take_tabs_restored still toasts from the event', async () => {
