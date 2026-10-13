@@ -624,6 +624,18 @@ pub fn run() {
             }
             if event.id().as_ref() == menu::MENU_OPEN_PROJECT {
                 pick_and_open_folder(app, None);
+                return;
+            }
+            // File › New Home Tab ⌘T / Back to Home (V2-3.3). The item itself comes
+            // from the action registry (`home.open` → menu.actions.json, lead-owned);
+            // until it lands this arm is unreachable.
+            if event.id().as_ref() == "new_home_tab" {
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = home::ensure_home_window(&app, None) {
+                        sidecar::log_line(&format!("[maude] could not open Home: {e}"));
+                    }
+                });
             }
         })
         .setup(|app| {

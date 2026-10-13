@@ -893,10 +893,11 @@ pub fn shell_state(app: AppHandle, webview: tauri::Webview) -> Result<ShellState
 }
 
 /// `new_home_tab()` (⌘T, Back to Home) — focus Home or open it as a tab of the
-/// calling window. Either role.
+/// calling window. Either role — also from a tab still on its splash (it only
+/// opens or focuses Home; nothing is read or written for the caller).
 #[tauri::command]
 pub async fn new_home_tab(app: AppHandle, webview: tauri::Webview) -> Result<(), String> {
-    windows::caller_any(&webview, false)?;
+    windows::caller_any(&webview, true)?;
     ensure_home_window(&app, Some(webview.label())).map(|_| ())
 }
 

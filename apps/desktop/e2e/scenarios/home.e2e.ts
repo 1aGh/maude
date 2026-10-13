@@ -1,0 +1,188 @@
+import { $, browser, expect } from '@wdio/globals';
+
+import { capture, startReport } from '../helpers/evidence';
+import { invokeTauri } from '../helpers/native';
+import { focusTab, labels, newHomeTab, pinCurrentWindow, waitWindow } from '../helpers/windows';
+
+/**
+ * V2-3.3 — the Home window (contract V2-1.1 §7 `home.e2e.ts`, decisions 2/3, §5.4).
+ *
+ *  1. A first launch with an empty app-state opens `home` (no welcome-project sidecar).
+ *  2. Opening the two fixture projects from Home replaces the Home tab each time; ⌘T
+ *     (`new_home_tab`) brings Home back.
+ *  3. Home lists both projects' recent canvases, with their pictures.
+ *  4. Picking a recent canvas of a CLOSED project opens it as a new tab and closes Home.
+ *  5. Opening an OPEN project from Home focuses its existing tab (`opened: 'existing'`,
+ *     `shell://opened-existing`) — no second window.
+ *
+ * Fixtures: wdio.home.conf.ts → fixtures/seed-home-index.ts.
+ */
+interface Fixture {
+  name: string;
+  root: string;
+  pid: string;
+  rel: string;
+}
+const FIXTURES = JSON.parse(process.env.MAUDE_E2E_HOME_FIXTURES ?? '[]') as Fixture[];
+const [ALPHA, BETA] = FIXTURES;
+const KEY: Record<string, string> = { alpha: 'a'.repeat(64), beta: 'b'.repeat(64) };
+const HOME = 'home';
+const tid = (s: string) => `[data-testid="${s}"]`;
+const slug = (rel: string) =>
+  rel
+    .replace(/\.(tsx|jsx|html)$/, '')
+    .replace(/[^a-z0-9]+/gi, '-')
+    .toLowerCase()
+    .replace(/^-+|-+$/g, '');
+const rowId = (f: Fixture) => `home-recent-row-${f.pid}-${slug(f.rel)}`;
+const label = (f: Fixture) => `p-${f.pid}`;
+
+/** Select a tab once it has left the splash for its server — a script running across
+ *  that navigate dies with a bare "JavaScript exception". */
+async function onServer(tab: string): Promise<void> {
+  await waitWindow(tab);
+  await browser.switchToWindow(tab);
+  await browser.waitUntil(
+    async () => {
+      try {
+        return await browser.execute(
+          () => location.protocol === 'http:' && document.readyState === 'complete'
+        );
+      } catch {
+        return false; // mid-navigation
+      }
+    },
+    { timeout: 120_000, interval: 250, timeoutMsg: `${tab} never reached its server` }
+  );
+  await focusTab(tab);
+}
+
+async function onHome(): Promise<void> {
+  await onServer(HOME);
+  await (await $(tid('home-root'))).waitForDisplayed({ timeout: 90_000 });
+}
+
+/** `invoke` that resolves the shell's error text instead of a bare WebDriver exception. */
+async function tryInvoke(cmd: string, args: Record<string, unknown> = {}) {
+  return browser.execute(
+    (c: string, a: Record<string, unknown>) =>
+      // biome-ignore lint/suspicious/noExplicitAny: __TAURI__ is an injected global
+      (window as any).__TAURI__.core.invoke(c, a).then(
+        (ok: unknown) => ({ ok }),
+        (err: unknown) => ({ err: String(err) })
+      ),
+    cmd,
+    args
+  ) as Promise<{ ok?: unknown; err?: string }>;
+}
+
+/** `open_project({root})` from Home; Home must close once the project tab is key. */
+async function openFromHome(f: Fixture): Promise<unknown> {
+  await onHome();
+  const r = await tryInvoke('open_project', { root: f.root });
+  console.log(`[home] open_project(${f.name}) → ${JSON.stringify(r)}`);
+  await waitWindow(label(f));
+  await waitWindow(HOME, false);
+  await onServer(label(f));
+  return r.ok ?? r;
+}
+
+async function hasPicture(id: string): Promise<boolean> {
+  return browser.execute((sel: string) => {
+    const img = document.querySelector(sel)?.querySelector('img');
+    return !!img && img.complete && img.naturalWidth > 0;
+  }, tid(id));
+}
+
+/** What the page sees for a row's picture — for the failure message. */
+async function pictureState(f: Fixture) {
+  return browser.execute(
+    async (sel: string, src: string, pid: string) => {
+      const img = document.querySelector(sel)?.querySelector('img');
+      const h = { headers: { 'x-maude-home': '1' } };
+      try {
+        const r = await fetch(src, h);
+        const i = await fetch(`/_home/index?pids=${pid}`, h);
+        const p = (await i.json()).projects?.[0];
+        return {
+          img: img ? `${img.complete}/${img.naturalWidth}` : null,
+          thumb: r.status,
+          index: { state: p?.state, cover: p?.canvases?.[0]?.cover ?? null },
+        };
+      } catch (e) {
+        return { error: String(e) };
+      }
+    },
+    tid(rowId(f)),
+    `/_home/thumb/${f.pid}/${KEY[f.name]}.jpg`,
+    f.pid
+  );
+}
+
+describe('home (native-desktop)', () => {
+  before(async () => {
+    startReport('home (native-desktop)');
+    expect(FIXTURES.length).toBe(2);
+    await browser.setTimeout({ script: 60_000 });
+    const first = await pinCurrentWindow();
+    console.log(`[home] boot window ${first}; handles ${JSON.stringify(await labels())}`);
+  });
+
+  it('1 · a first launch with an empty app-state opens the Home window', async () => {
+    expect(await labels()).toEqual([HOME]);
+    await onHome();
+    expect(await browser.getUrl()).toMatch(/^http:\/\/127\.0\.0\.1:\d+\//);
+    // Home commands answer here (the runtime `home` capability + the Rust re-check).
+    const st = await tryInvoke('shell_state');
+    expect(st.ok).toMatchObject({ projects: [], recent: [] });
+    await capture('01-home-first-launch');
+  });
+
+  it('2 · opening a project from Home replaces the Home tab; new_home_tab brings Home back', async () => {
+    expect(await openFromHome(ALPHA)).toEqual({ label: label(ALPHA), opened: 'new' });
+    expect(await labels()).toEqual([label(ALPHA)]);
+    await newHomeTab();
+    expect(await openFromHome(BETA)).toEqual({ label: label(BETA), opened: 'new' });
+    expect((await labels()).sort()).toEqual([label(ALPHA), label(BETA)].sort());
+    // A project window may not read Home's state (capability + label/origin re-check).
+    expect((await tryInvoke('shell_state')).err).toBeTruthy();
+    await newHomeTab();
+    await onHome();
+    await capture('02-home-back');
+  });
+
+  it('3 · Home lists both projects’ recent canvases, with pictures', async () => {
+    for (const f of [ALPHA, BETA]) {
+      await (await $(tid(rowId(f)))).waitForDisplayed({ timeout: 60_000 });
+      try {
+        await browser.waitUntil(() => hasPicture(rowId(f)), { timeout: 30_000 });
+      } catch {
+        throw new Error(`${rowId(f)} shows no picture: ${JSON.stringify(await pictureState(f))}`);
+      }
+    }
+    await capture('03-home-recent-rows');
+  });
+
+  it('4 · picking a closed project’s canvas opens it as a new tab and closes Home', async () => {
+    await invokeTauri('e2e_close_window', { label: label(ALPHA), destroy: false });
+    await waitWindow(label(ALPHA), false);
+    await onHome();
+    await (await $(tid(rowId(ALPHA)))).click();
+    await waitWindow(label(ALPHA), true, 30_000);
+    await waitWindow(HOME, false);
+    await onServer(label(ALPHA));
+    expect((await labels()).sort()).toEqual([label(ALPHA), label(BETA)].sort());
+    await capture('04-picked-closed-project');
+  });
+
+  it('5 · opening an open project from Home focuses its tab instead of opening another', async () => {
+    await newHomeTab();
+    await onHome();
+    const r = await tryInvoke('open_project', { pid: ALPHA.pid });
+    expect(r).toEqual({ ok: { label: label(ALPHA), opened: 'existing' } });
+    await waitWindow(HOME, false);
+    await onServer(label(ALPHA));
+    expect((await labels()).sort()).toEqual([label(ALPHA), label(BETA)].sort());
+    await capture('05-open-project-focused');
+  });
+});
