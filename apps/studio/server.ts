@@ -40,6 +40,7 @@ import { createInspectRegistry } from './inspect.ts';
 import { startHeapWatch } from './mem.ts';
 import { canvasOriginRoutes } from './routes/canvas-origin.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
+import { writeShellInfoFile } from './shell/info-file.ts';
 import { sharedDocEnabled } from './sync/cell-pairing.ts';
 import { createSyncSupervisor } from './sync/supervisor.ts';
 import { stopAllThumbs } from './thumbs/service.ts';
@@ -823,6 +824,7 @@ const captureServer =
   CANVAS_ORIGIN_SPLIT && !WORKSPACE ? startCanvasServer(0, { capture: true }) : null;
 if (captureServer) ctx.captureOrigin = `http://localhost:${captureServer.port}`;
 
+const startedAt = new Date().toISOString();
 await Bun.write(
   ctx.paths.serverInfoFile,
   JSON.stringify(
@@ -835,7 +837,7 @@ await Bun.write(
       // public `canvasOrigin` name above. A co-located reverse proxy (the cell's
       // hub) forwards canvas-origin traffic here; nothing else needs it.
       ...(canvasServer ? { canvasPort: canvasServer.port } : {}),
-      started: new Date().toISOString(),
+      started: startedAt,
       project: ctx.cfg.name,
       config_source: ctx.cfg._source,
     },
@@ -843,6 +845,17 @@ await Bun.write(
     2
   )
 );
+// V2-1.1 decision 8 — the same facts, to the desktop shell's own info file when it asked for one
+// (MAUDE_SHELL_INFO_FILE; atomic, 0600). Its probes read only that file + call the token-gated
+// /_api/shell/status, so a planted _server.json is never believed. _server.json is unchanged.
+writeShellInfoFile({
+  pid: process.pid,
+  port: server.port ?? 0, // a TCP listener always has one; the type allows a unix socket
+  url: `http://localhost:${server.port}`,
+  ...(canvasOrigin ? { canvasOrigin } : {}),
+  started: startedAt,
+  mode: 'project',
+});
 
 fsWatch.start();
 startHeapWatch();

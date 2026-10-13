@@ -92,4 +92,24 @@ describe('scrubAgentEnv — subscription guardrail', () => {
     // The subscription guardrail still fires.
     expect('ANTHROPIC_API_KEY' in out).toBe(false);
   });
+
+  // V2-3.4 — a tab's AI session runs as that tab's account profile (so `maude design link` lands
+  // there), but the shell's probe token is the studio's alone: an agent holding it could answer
+  // the shell's "is AI running?" for the server it was spawned by.
+  test('keeps the profile env, scrubs the shell probe token', () => {
+    const out = scrubAgentEnv({
+      MAUDE_PROFILE_ID: 'work',
+      MAUDE_PROFILE_LABEL: 'Work',
+      MAUDE_CLOUD_CONFIG: '/Users/x/.config/maude/profiles/work/cloud.json',
+      HUBS_CONFIG_PATH: '/Users/x/.config/maude/profiles/work/hubs.json',
+      MAUDE_SHELL_TOKEN: 'per-spawn-shell-token',
+      MAUDE_SHELL_INFO_FILE: '/Users/x/Library/Application Support/maude/shell/p-1.json',
+    });
+    expect(out.MAUDE_PROFILE_ID).toBe('work');
+    expect(out.MAUDE_PROFILE_LABEL).toBe('Work');
+    expect(out.MAUDE_CLOUD_CONFIG).toContain('/profiles/work/');
+    expect(out.HUBS_CONFIG_PATH).toContain('/profiles/work/');
+    expect('MAUDE_SHELL_TOKEN' in out).toBe(false);
+    expect('MAUDE_SHELL_INFO_FILE' in out).toBe(false);
+  });
 });

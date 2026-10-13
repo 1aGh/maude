@@ -138,6 +138,7 @@ import { allSpecs } from './routes/index.ts';
 import { checkRouteTable, mountRoutes, type RouteSpec } from './routes/table.ts';
 import { getRuntimeBundle, packageForSlug } from './runtime-bundle.ts';
 import { currentSession } from './session-scope.ts';
+import { resolveProfile } from './shell/profile.ts';
 import { sanitizeForLog } from './sync/cell-pairing.ts';
 import { linkHub } from './sync/hub-link.ts';
 import { getHubRecord, isHubReadOnly } from './sync/hubs-config.ts';
@@ -1813,6 +1814,8 @@ export function createHttp(
         if (reloadConfig(ctx)) ctx.bus.emit('config-updated');
       },
     },
+    // V2-3.4 — GET /_api/shell/status (routes/shell.ts): the desktop shell's token-gated probe.
+    shell: { outbox, exportJobs, generateJobs },
   }).map(guardTableRoute);
   const laneRoutes = mountRoutes(tableSpecs);
   // V2-2.17 — the project index (contract V2-1.17): built now, updated per fs event, persisted
@@ -2303,6 +2306,9 @@ export function createHttp(
         // dialogs on it so a cell without a render service says WHY a format
         // is unavailable instead of firing a request the proxy 404s.
         exportLane: resolveRenderLane(),
+        // V2-3.4 — WHICH account profile this server runs as (shell/profile.ts): set per tab by
+        // the desktop shell, validated + sanitized; absent env ⇒ { id: 'default' }.
+        profile: resolveProfile(),
         // Cloud Phase 27 (DDR-209) — the capability that opens the cookieless
         // canvas origin, minted per session by the proxy. Absent on a desktop,
         // where the canvas origin is loopback and needs none. `canvasUrl()`

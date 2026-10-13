@@ -14,22 +14,29 @@
 // `origin: 'canvas'` is the only way onto the canvas origins; http.ts and
 // routes/canvas-origin.ts derive both allowlists from it.
 
+import { createAgentRuns } from '../agent-runs.ts';
 import { type AgentRouteDeps, agentRouteSpecs } from './agent.ts';
 import { createOutboxRoutes } from './outbox.ts';
 import { createProjectFormatRoutes, type ProjectFormatDeps } from './project-format.ts';
+import { createShellRoutes, type ShellRouteDeps } from './shell.ts';
 import type { RouteSpec } from './table.ts';
 
 export interface RouteDeps {
   outbox: Parameters<typeof createOutboxRoutes>[0];
   projectFormat: ProjectFormatDeps;
   agent: AgentRouteDeps;
+  /** V2-3.4 — the desktop shell's probe; its run count reads the agent table's registry */
+  shell: Omit<ShellRouteDeps, 'runs'>;
 }
 
 /** Every table route, in mount order. http.ts wraps each in `guardTableRoute`. */
 export function allSpecs(deps: RouteDeps): RouteSpec[] {
+  // ONE run registry: the hook routes write it, the shell status counts it (V2-3.4).
+  deps.agent.runs ??= createAgentRuns(deps.agent.bracket);
   return [
     ...createOutboxRoutes(deps.outbox),
     ...createProjectFormatRoutes(deps.projectFormat),
     ...agentRouteSpecs(deps.agent),
+    ...createShellRoutes({ ...deps.shell, runs: deps.agent.runs }),
   ];
 }
