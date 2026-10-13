@@ -6,6 +6,7 @@ import { $, browser, expect } from '@wdio/globals';
 
 import { capture, startReport } from '../helpers/evidence';
 import { createFixtureGuard } from '../helpers/fixture-guard';
+import { invokeTauri } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
 
 /**
@@ -41,11 +42,6 @@ const tid = (s: string) => `[data-testid="${s}"]`;
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE_CONFIG = join(HERE, '..', 'fixtures', 'project', '.design', 'config.json');
 const STUB_CODE = `mhc_${'a'.repeat(64)}`;
-
-/** Only the sliver of the Tauri global this scenario reaches for. */
-interface TauriGlobal {
-  event: { emit: (name: string, payload: unknown) => void };
-}
 
 const fixtures = createFixtureGuard('cloud-attach', [FIXTURE_CONFIG]);
 
@@ -154,17 +150,11 @@ describe('cloud-attach — sign-in, picker, attach, deep-link decision (stubbed)
    *  assertions were green but the screenshots were unreadable. */
   const settled = () => browser.pause(450);
 
-  /** Emit the same event the Rust deep-link handler emits — the UI cannot tell
-   *  the difference, which is the point. */
+  /** Have the shell deliver the link to this window — the same park + event
+   *  the Rust deep-link handler uses, so the UI cannot tell the difference.
+   *  (Pages can no longer `emit`, V2-3.6 M5.) */
   const arrive = (project: string) =>
-    browser.execute(
-      (p: string, code: string) => {
-        const tauri = (window as unknown as { __TAURI__: TauriGlobal }).__TAURI__;
-        tauri.event.emit('maude://deep-link', `maude://open/${p}?code=${code}`);
-      },
-      project,
-      STUB_CODE
-    );
+    invokeTauri('e2e_deliver_deep_link', { url: `maude://open/${project}?code=${STUB_CODE}` });
 
   it('4 · a maude:// deep link explains both sides, then the one-time code attaches', async () => {
     // The fixture folder IS `project` — an exact identity match, the only

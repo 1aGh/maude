@@ -24,9 +24,9 @@
 // no window is navigated anywhere but through the DDR-109 loopback guard
 // (§5.8 item 7).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Emitter, EventTarget, Manager};
 
@@ -173,9 +173,82 @@ pub fn accept(app: &AppHandle, url: &str) {
     });
 }
 
+/// Link-driven NEW tabs allowed inside `LINK_OPEN_WINDOW` (V2-3.6 L1). Any web
+/// page can fire `maude://open/<slug>`, and a new tab spawns a server; past
+/// the budget a link for a closed project goes to Home (its note offers the
+/// open) instead of spawning. Focusing an already-open tab is never limited.
+const MAX_LINK_OPENS: usize = 3;
+const LINK_OPEN_WINDOW: Duration = Duration::from_secs(60);
+
+/// Sliding-window budget of link-driven tab opens. Pure, so it is testable.
+pub struct LinkOpenBudget {
+    recent: VecDeque<Instant>,
+}
+
+impl LinkOpenBudget {
+    pub const fn new() -> Self {
+        Self {
+            recent: VecDeque::new(),
+        }
+    }
+
+    /// Records an open at `now`; false once the window's budget is spent.
+    pub fn allow(&mut self, now: Instant) -> bool {
+        while let Some(&first) = self.recent.front() {
+            if now.duration_since(first) >= LINK_OPEN_WINDOW {
+                self.recent.pop_front();
+            } else {
+                break;
+            }
+        }
+        if self.recent.len() >= MAX_LINK_OPENS {
+            return false;
+        }
+        self.recent.push_back(now);
+        true
+    }
+}
+
+static LINK_OPENS: Mutex<LinkOpenBudget> = Mutex::new(LinkOpenBudget::new());
+
+/// What `take_link_opened` answers: the project a link opened as a NEW tab
+/// (its "Opened <name> from a link." toast — the page did not exist yet when
+/// the link arrived, so it is parked like `take_tabs_restored`).
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct LinkOpened {
+    pub name: String,
+}
+
+pub static LINK_OPENED: crate::windows::Parked<LinkOpened> = crate::windows::Parked::new();
+
+/// `take_link_opened()` — the link-open note parked for THIS window, once.
+#[tauri::command]
+pub fn take_link_opened(webview: tauri::Webview) -> Result<Option<LinkOpened>, String> {
+    let caller = crate::windows::caller_project(&webview, false)?;
+    Ok(LINK_OPENED.take(&caller.label))
+}
+
 fn route_now(app: &AppHandle, url: &str) {
     let st = crate::app_state::load(app);
-    let route = plan_route(url, |p| crate::project_resolve::resolve_known(&st, p));
+    let mut route = plan_route(url, |p| crate::project_resolve::resolve_known(&st, p));
+    // L1: a closed project costs a server; over the budget, Home decides.
+    if let LinkRoute::Project { root, address } = &route {
+        let open = crate::windows::label_for_root(app, root).is_some();
+        let allowed = open
+            || LINK_OPENS
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .allow(Instant::now());
+        if !allowed {
+            crate::sidecar::log_line(&format!(
+                "[maude] deep link: {MAX_LINK_OPENS} link-opened tabs in {}s — sending this one to Home",
+                LINK_OPEN_WINDOW.as_secs()
+            ));
+            route = LinkRoute::Home {
+                url: address.url.clone(),
+            };
+        }
+    }
     let mut existing = false;
     let label = deliver_label(&route, |root| {
         let LinkRoute::Project { address, .. } = &route else {
@@ -183,6 +256,14 @@ fn route_now(app: &AppHandle, url: &str) {
         };
         crate::windows::open_window_for_root(app, root, None, address.canvas.as_deref()).map(|o| {
             existing = matches!(o, crate::windows::Opened::Existing(_));
+            if let crate::windows::Opened::New(label) = &o {
+                LINK_OPENED.park(
+                    label,
+                    LinkOpened {
+                        name: crate::windows::project_display_name(root),
+                    },
+                );
+            }
             // A NEW tab's `?open=` carries the canvas only; the artboard is
             // parked for it (`take_pending_navigate`).
             crate::windows::park_navigate_for_new(
@@ -239,9 +320,56 @@ pub fn take_pending_deep_link(
     state.take(webview.label())
 }
 
+/// Debug-only e2e helper (V2-3.6 M5): deliver a `maude://` link to the CALLING
+/// window exactly as `route_now` delivers one routed there — parked for its
+/// label, `maude://deep-link` emitted to it only. Scenarios used to fake this
+/// with a page-side `event.emit`, which pages can no longer do. Granted only by
+/// capabilities/debug/e2e-webdriver.json; a release build answers Err.
+#[tauri::command]
+pub fn e2e_deliver_deep_link(
+    app: AppHandle,
+    webview: tauri::Webview,
+    url: String,
+) -> Result<(), String> {
+    #[cfg(debug_assertions)]
+    {
+        crate::windows::caller_any(&webview, false)?;
+        if !url.starts_with("maude://") {
+            return Err("not a maude:// link".into());
+        }
+        let label = webview.label().to_string();
+        if let Some(state) = app.try_state::<PendingDeepLink>() {
+            state.park(&label, &url);
+        }
+        app.emit_to(EventTarget::AnyLabel { label }, "maude://deep-link", url)
+            .map_err(|e| e.to_string())
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = (app, webview, url);
+        Err("debug builds only".into())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// V2-3.6 L1: a burst of links for closed projects opens at most
+    /// `MAX_LINK_OPENS` tabs per window of time; the budget refills.
+    #[test]
+    fn link_spawns_are_capped_per_minute() {
+        let mut b = LinkOpenBudget::new();
+        let t0 = Instant::now();
+        for i in 0..MAX_LINK_OPENS {
+            assert!(b.allow(t0 + Duration::from_secs(i as u64)), "open {i}");
+        }
+        assert!(!b.allow(t0 + Duration::from_secs(5)), "over the budget");
+        assert!(!b.allow(t0 + Duration::from_secs(30)));
+        // The first open ages out: one more is allowed, then refused again.
+        assert!(b.allow(t0 + LINK_OPEN_WINDOW));
+        assert!(!b.allow(t0 + LINK_OPEN_WINDOW + Duration::from_millis(1)));
+    }
 
     fn resolver(p: &str) -> Option<String> {
         (p == "alligators").then(|| "/work/alligators".to_string())

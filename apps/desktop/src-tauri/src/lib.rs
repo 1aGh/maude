@@ -180,7 +180,7 @@ async fn pick_directory(
     app: tauri::AppHandle,
     webview: tauri::Webview,
 ) -> Result<Option<String>, String> {
-    windows::caller_project(&webview, false)?;
+    let caller = windows::caller_project(&webview, false)?;
     // E2E (debug builds only): a native folder picker can't be DOM-driven, so the
     // harness injects the chosen path via MAUDE_E2E_PICK_DIR instead of opening the OS
     // dialog. Gated on `debug_assertions`, so it is NEVER compiled into the release
@@ -188,6 +188,7 @@ async fn pick_directory(
     #[cfg(debug_assertions)]
     if let Ok(p) = std::env::var("MAUDE_E2E_PICK_DIR") {
         if !p.is_empty() {
+            windows::remember_pick(&caller.label, &p);
             return Ok(Some(p));
         }
     }
@@ -199,7 +200,13 @@ async fn pick_directory(
             .map(|p| p.to_string_lossy().to_string());
         let _ = tx.send(path);
     });
-    rx.await.map_err(|_| "Folder picker closed unexpectedly.".to_string())
+    let picked = rx.await.map_err(|_| "Folder picker closed unexpectedly.".to_string())?;
+    // The one folder (and its direct children) this window may now open or
+    // remember without it being a registered project (V2-3.6 M3).
+    if let Some(p) = &picked {
+        windows::remember_pick(&caller.label, p);
+    }
+    Ok(picked)
 }
 
 /// Native "Save As…" for an export payload — opens a save dialog seeded with the
@@ -454,6 +461,12 @@ fn open_local_project(
     if !p.is_dir() {
         return Err("That project folder doesn’t exist.".to_string());
     }
+    // V2-3.6 M3: a project page cannot switch its tab to an arbitrary folder —
+    // only a registered project (recents, a resolved link) or the folder the
+    // last picker shown to THIS window returned (or what it created inside it).
+    if !windows::local_project_allowed(&app, &caller.label, &p) {
+        return Err("Choose that folder with “Open another folder…” first.".to_string());
+    }
     // The dev-server fails loud on a project with no `.design/` (load-bearing,
     // CLAUDE.md). Refuse the switch HERE so a non-Maude folder shows a clear message
     // instead of crash-looping the sidecar (3 respawns → blank). The client also
@@ -463,6 +476,8 @@ fn open_local_project(
     }
     // Remember it as the last project (so a relaunch reopens it) + switch in-process.
     app_state::set_last_project(&app, &p);
+    // The pick is spent once it opened something (it is registered now).
+    windows::PICKED_FOLDER.take(&caller.label);
     sidecar::switch_project(&app, &caller.label, p, open);
     Ok(())
 }
@@ -632,6 +647,8 @@ pub fn run() {
             crash_reporter::list_crash_logs,
             crash_reporter::read_crash_log,
             deep_link::take_pending_deep_link,
+            deep_link::take_link_opened,
+            deep_link::e2e_deliver_deep_link,
             project_resolve::resolve_project_for_link,
             notify::send_notification,
             managed::managed_project_open,

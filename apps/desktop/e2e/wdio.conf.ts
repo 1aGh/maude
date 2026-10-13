@@ -91,6 +91,10 @@ process.env.NO_OPEN = '1';
 // fails looking exactly like a broken bundle. Honored only under
 // `debug_assertions` (keychain.rs), so no shipped build is affected.
 process.env.MAUDE_E2E_NO_KEYCHAIN = '1';
+// A native dialog is not DOM-reachable either: managed_project_open's
+// "Open a team project from <host>?" confirm (V2-3.6 M3) answers Open under
+// `debug_assertions` only (managed.rs).
+process.env.MAUDE_E2E_CONFIRM_TEAM_SERVER = '1';
 // The service's direct-eval client reads this env var independently of
 // embeddedPort. Keep both aligned and allow concurrent worktrees to choose a port.
 process.env.TAURI_WEBDRIVER_PORT ??= '4455';

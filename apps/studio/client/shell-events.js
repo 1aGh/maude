@@ -7,6 +7,7 @@
 //                                         artboard runs `view.zoom-to-artboard` (ui-open.js)
 //   shell://opened-existing {name}       toast "<name> is open in this window."
 //   shell://tabs-restored {count}        toast "<count> tabs reopened. Each one starts when you open it."
+//   take_link_opened {name}              toast "Opened <name> from a link." (a link opened this NEW tab)
 //
 // Rust emits tabs-restored while the restored front tab is still on its splash, before this page
 // exists to hear it, and a NEW tab opened from a link gets its canvas as `?open=` but no artboard.
@@ -26,6 +27,7 @@ const okArtboard = (a) =>
   ![...a].some((c) => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127);
 
 export const openedExistingWords = (name) => `${name} is open in this window.`;
+export const linkOpenedWords = (name) => `Opened ${name} from a link.`;
 export const tabsRestoredWords = (count) =>
   `${count} tabs reopened. Each one starts when you open it.`;
 
@@ -108,6 +110,11 @@ export function startShellEvents({ invoke, listen, toast, onNavigate }) {
       .catch(() => {});
   ask('take_tabs_restored', restored);
   ask('take_pending_navigate', navigate);
+  // V2-3.6 L1: a link opened this project as a NEW tab (parked, like the restore count).
+  ask('take_link_opened', (p) => {
+    const name = cleanName(p?.name);
+    if (alive && name) toast(linkOpenedWords(name));
+  });
   return () => {
     alive = false;
     for (const off of offs.splice(0)) off();

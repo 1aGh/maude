@@ -31,7 +31,11 @@ const triggerHas = (s: string) => async () => {
     return false; // element stale mid-reload / re-navigation — keep polling
   }
 };
-async function switchTo(path: string, expectBranch: string): Promise<void> {
+async function switchTo(path: string, expectBranch: string, pick = false): Promise<void> {
+  // V2-3.6 M3: a project page may only switch to a registered project or the
+  // folder its last picker returned — "Open another folder…" is pick, then
+  // open. The conf points MAUDE_E2E_PICK_DIR at the secondary repo.
+  if (pick) expect(await invokeTauri('pick_directory')).toBe(path);
   // The respawn interrupts the execute/async response, so the invoke may reject even
   // though the switch succeeds — swallow it, then reconnect to the re-navigated webview.
   await invokeTauri('open_local_project', { path }).catch(() => undefined);
@@ -56,7 +60,14 @@ describe('git-switch-repos (native-desktop)', function () {
     await browser.waitUntil(triggerHas('main'), { timeout: 120_000 });
     await capture('1-on-primary-repo-main');
 
-    await switchTo(SECONDARY, 'feat/nav-redesign');
+    // V2-3.6 M3: a folder that is neither registered nor picked is refused.
+    const refused = await invokeTauri('open_local_project', { path: '/tmp' }).then(
+      () => 'opened',
+      (e: unknown) => String(e)
+    );
+    expect(refused).toContain('Open another folder');
+
+    await switchTo(SECONDARY, 'feat/nav-redesign', true);
     expect(await triggerText()).toContain('feat/nav-redesign');
     await capture('2-switched-to-secondary-repo');
 

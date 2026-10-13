@@ -358,20 +358,58 @@ pub fn set_github_login(id: &str, login: &str) {
 
 // ── Tauri commands ──────────────────────────────────────────────────────────
 
-#[tauri::command]
-pub fn profiles_list() -> Vec<Profile> {
+/// Every profile, for the shell itself (Home's `shell_state`) — not a command.
+pub fn list_all() -> Vec<Profile> {
     list_in(&registry_file())
 }
 
+/// At most this many profiles (V2-3.6 M2: `profiles_create` in a loop must not
+/// grow profiles.json without bound).
+pub const MAX_PROFILES: usize = 16;
+
+/// Who may manage profiles (V2-3.6 M2). Profile management reads every
+/// profile's GitHub login and cloud e-mail and can delete another account's
+/// token, so it is Home's power, never a project page's. `allow_project` is
+/// `cfg!(debug_assertions)` at the call site: the debug-only e2e capability
+/// grants these to `p-*` for `project-tabs-identity`, and a release build has
+/// neither that capability nor this exception.
+pub fn profiles_gate(caller: &crate::windows::Caller, allow_project: bool) -> Result<(), String> {
+    match caller {
+        crate::windows::Caller::Home => Ok(()),
+        crate::windows::Caller::Project(_) if allow_project => Ok(()),
+        crate::windows::Caller::Project(_) => Err("Only the Home window can manage accounts.".to_string()),
+    }
+}
+
+fn gate(webview: &tauri::Webview) -> Result<(), String> {
+    profiles_gate(&crate::windows::caller_any(webview, false)?, cfg!(debug_assertions))
+}
+
 #[tauri::command]
-pub fn profiles_create(label: String) -> Result<Profile, String> {
-    create_in(&registry_file(), &label)
+pub fn profiles_list(webview: tauri::Webview) -> Result<Vec<Profile>, String> {
+    gate(&webview)?;
+    Ok(list_in(&registry_file()))
+}
+
+#[tauri::command]
+pub fn profiles_create(webview: tauri::Webview, label: String) -> Result<Profile, String> {
+    gate(&webview)?;
+    let file = registry_file();
+    if list_in(&file).len() >= MAX_PROFILES {
+        return Err(format!("You can keep up to {MAX_PROFILES} accounts."));
+    }
+    create_in(&file, &label)
 }
 
 /// `async`: it also clears the profile's keychain slot, and a keychain call can
 /// park on a macOS access prompt (see keychain.rs `github_is_signed_in`).
 #[tauri::command]
-pub async fn profiles_delete(app: tauri::AppHandle, id: String) -> Result<(), String> {
+pub async fn profiles_delete(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    id: String,
+) -> Result<(), String> {
+    gate(&webview)?;
     delete_in(&registry_file(), &id, |pid| {
         crate::app_state::is_profile_bound(&app, pid)
     })?;
@@ -520,5 +558,20 @@ mod tests {
         let ids: Vec<String> = list_in(&file).into_iter().map(|p| p.id).collect();
         assert_eq!(ids, vec!["default", "ok"]);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// V2-3.6 M2: profile management is refused from a project page in a
+    /// release build; Home may; the debug e2e exception is explicit.
+    #[test]
+    fn profiles_are_refused_from_a_project_window() {
+        use crate::windows::{Caller, CallerProject};
+        let project = Caller::Project(CallerProject {
+            label: "p-l0123456789abcdef".into(),
+            pid: "l0123456789abcdef".into(),
+            root: "/tmp/a".into(),
+        });
+        assert!(profiles_gate(&project, false).is_err());
+        assert!(profiles_gate(&Caller::Home, false).is_ok());
+        assert!(profiles_gate(&project, true).is_ok(), "the debug e2e lane");
     }
 }

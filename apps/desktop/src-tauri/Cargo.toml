@@ -67,7 +67,8 @@ tauri-plugin-notification = "2"
 # driving the real WKWebView in scenario tests. Registered ONLY under
 # `#[cfg(debug_assertions)]` in lib.rs, so the shipped release `.app` never runs it
 # (the crate is a compile-time dep so its `wdio-webdriver:default` permission — in
-# capabilities/e2e-webdriver.json — still resolves in both profiles, but `init()` is never called
+# capabilities/debug/e2e-webdriver.json — resolves in debug builds; since V2-3.6 L3 a release build
+# does not compile that capability at all, see build.rs — and `init()` is never called
 # in release). See .ai/plans/feature-desktop-e2e-scenario-harness.md + the
 # `desktop-e2e` skill.
 # NOT on Windows: <=1.4.0 pins webview2-com 0.38 /

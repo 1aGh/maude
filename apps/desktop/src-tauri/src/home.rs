@@ -50,7 +50,9 @@ const KEY_WAIT: Duration = Duration::from_secs(3);
 /// entry must resolve: Tauri `unwrap`s the runtime resolve, so an unknown name
 /// would panic at bind time (`every_home_permission_exists` pins it).
 pub const HOME_PERMISSIONS: &[&str] = &[
-    "core:event:default",
+    // listen/unlisten only — never emit / emit-to (V2-3.6 M5).
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
     "allow-shell-state",
     "allow-open-project",
     "allow-open-project-folder",
@@ -672,7 +674,7 @@ pub fn build_shell_state(
 
 fn current_shell_state(app: &AppHandle) -> ShellState {
     let st = crate::app_state::load(app);
-    let profiles = crate::profiles::profiles_list()
+    let profiles = crate::profiles::list_all()
         .into_iter()
         .map(|p| ShellProfile {
             id: p.id,
