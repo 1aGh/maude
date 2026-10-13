@@ -23,16 +23,27 @@
 // ⇧⌘N, so `tauri/canvas/chrome Meta+n` now prevents the default and opens the composer. No other
 // case changed (two full runs on the Phase 3 gate tree).
 //
+// Settling (V2-3 gate): a snapshot is taken once two reads 250 ms apart agree AND no GET the case
+// fired is still open (`trackNetwork`): a fetch that has not answered is a DOM change that has not
+// happened yet (Settings' scout card, the inspector's edit-scope row), and under load it answers
+// after the quiet window a plain two-equal-reads test accepts. The golden is DEALT over
+// GOLDEN_LANES servers: which case runs first on a fresh server (its canvas bundle still cold) or
+// after a quiet one (the server restores the previous case's selection, so the canvas pans to reveal
+// it) shows in the bodies, e.g. the `@world translate` of the zoom cases, so a whole-suite
+// comparison or refresh only runs at that lane count.
+//
 //   cd apps/studio && bun test test/characterization/v1-keys.test.ts
 //     V1_KEYS_UPDATE=1   rewrite the golden
 //     V1_KEYS_ONLY=<p>   only cases whose id starts with <p> (comma list; no golden check)
-//     V1_KEYS_LANES=<n>  parallel servers (default 4)
+//     V1_KEYS_LANES=<n>  parallel servers (default 4; any other count needs V1_KEYS_ONLY)
 //   Diagnostics (a body with any of these never matches the golden):
 //     V1_KEYS_DUMP=1        list every hashed shell/canvas line, not only the salient ones
 //     V1_KEYS_BODY_OUT=<f>  also write the whole body to <f>
 //     V1_KEYS_LATE=1        re-snapshot the shell 1.5 s before the key and 2 s after it, and list
 //                           any late change. It shifts the key's timing, so other cases can move
 //                           too: use it to look for late DOM, not to compare against the golden.
+//     V1_KEYS_JITTER=<ms>   a slow server on demand: once the page has booted, every GET it makes
+//                           answers up to <ms> late. The settled bodies must still match the golden.
 //
 // The server serves whatever apps/studio/dist/client.bundle.js holds: to test the SOURCE client,
 // build it first (`MAUDE_SKIP_RUNTIME_BUILD=1 bun run build.ts --release`) and restore dist/ after.
@@ -58,7 +69,8 @@ const STUDIO = join(import.meta.dir, '..', '..');
 const GOLDEN = join(import.meta.dir, 'v1', 'keys.txt');
 const UPDATE = process.env.V1_KEYS_UPDATE === '1';
 const ONLY = process.env.V1_KEYS_ONLY ? process.env.V1_KEYS_ONLY.split(',') : null;
-const LANES = Math.max(1, Number(process.env.V1_KEYS_LANES ?? 4));
+const GOLDEN_LANES = 4;
+const LANES = Math.max(1, Number(process.env.V1_KEYS_LANES ?? GOLDEN_LANES));
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -586,6 +598,8 @@ function buildCases(): Case[] {
 type Browser = import('playwright').Browser;
 type Page = import('playwright').Page;
 type Frame = import('playwright').Frame;
+type BrowserContext = import('playwright').BrowserContext;
+type Request = import('playwright').Request;
 
 // The studio's websocket keeps the network busy forever, so "networkidle" is useless here; a
 // fixed pause plus `stable()` (two equal snapshots in a row) is what settles a step.
@@ -739,13 +753,45 @@ async function snapDoc(target: Page | Frame, lane: Lane): Promise<DocSnap | null
   }
 }
 
-/** Snapshot until two in a row agree (≤ ~3 s) — async effects (a fetch, a timer) have landed. */
-async function stable(target: Page | Frame, lane: Lane): Promise<DocSnap | null> {
+/** The reads one case has in flight (shell + canvas frames). A fetch that has not answered yet is a
+ *  DOM change that has not happened yet: Settings' scout card, the inspector's edit-scope and source
+ *  rows all arrive that way, and a server under load answers late. Two equal snapshots 250 ms apart
+ *  do not see it coming, they only see "nothing changed so far". */
+interface Net {
+  pending(): string[];
+}
+function trackNetwork(context: BrowserContext): Net {
+  const open = new Map<Request, string>();
+  context.on('request', (r) => {
+    // Only READS: a write is recorded as a write (and a keepalive POST never "finishes" in the
+    // protocol's eyes), a stream is open by design. What a document waits on is data coming in.
+    if (r.method() !== 'GET' || r.resourceType() === 'eventsource') return;
+    const path = r
+      .url()
+      .replace(/^https?:\/\/[^/]+/, '')
+      .split('?')[0];
+    open.set(r, `GET ${path}`);
+  });
+  const done = (r: Request) => void open.delete(r);
+  context.on('requestfinished', done);
+  context.on('requestfailed', done);
+  return { pending: () => [...open.values()] };
+}
+/** The longest a document waits for the reads it fired (the server and the machine are shared with the
+ *  other lanes and with everything else running). A read still open after this is a hang, and the
+ *  snapshot is taken as it stands. */
+const NET_WAIT_MS = 20_000;
+
+/** Snapshot until two in a row agree (≤ ~3 s) and no read is in flight: async effects (a fetch, a
+ *  timer) have landed. Reads that are still open extend the wait up to NET_WAIT_MS. */
+async function stable(target: Page | Frame, lane: Lane, net: Net): Promise<DocSnap | null> {
   let prev = await snapDoc(target, lane);
-  for (let i = 0; i < 12; i++) {
+  const t0 = Date.now();
+  for (let i = 0; i < 12 || (net.pending().length && Date.now() - t0 < NET_WAIT_MS); i++) {
     await sleep(250);
     const next = await snapDoc(target, lane);
-    if (next && prev && next.lines.join('\n') === prev.lines.join('\n')) return next;
+    if (next && prev && next.lines.join('\n') === prev.lines.join('\n') && !net.pending().length)
+      return next;
     prev = next;
   }
   return prev;
@@ -893,6 +939,15 @@ async function runCase(browser: Browser, lane: Lane, c: Case): Promise<string> {
         writes.push(`${m} ?`);
       }
     });
+    const net = trackNetwork(context);
+    let jitter = false;
+    if (process.env.V1_KEYS_JITTER) {
+      const max = Number(process.env.V1_KEYS_JITTER);
+      await context.route(/\/_api\//, async (route) => {
+        if (jitter && route.request().method() === 'GET') await sleep(Math.random() * max);
+        await route.fallback();
+      });
+    }
     const page = await context.newPage();
     await page.goto(lane.url, { waitUntil: 'load', timeout: 60_000 });
     await page.waitForFunction(
@@ -903,13 +958,14 @@ async function runCase(browser: Browser, lane: Lane, c: Case): Promise<string> {
       }
     );
     await settle(page, 600);
-    await stable(page, lane);
+    await stable(page, lane, net);
+    jitter = true;
     await runSetup(page, lane, c);
     await placeFocus(page, lane, c);
 
     await quiet(page, canvasFrame(page, lane));
     const frame0 = canvasFrame(page, lane);
-    const shellBefore = await stable(page, lane);
+    const shellBefore = await stable(page, lane, net);
     const LATE: string[] = [];
     if (process.env.V1_KEYS_LATE === '1') {
       await sleep(1500);
@@ -920,14 +976,14 @@ async function runCase(browser: Browser, lane: Lane, c: Case): Promise<string> {
         for (const l of d.added) LATE.push(`    LATE-before+ ${l}`);
       }
     }
-    const canvasBefore = frame0 ? await stable(frame0, lane) : null;
+    const canvasBefore = frame0 ? await stable(frame0, lane, net) : null;
     await clearRec(page);
     await clearRec(frame0);
     recording = true;
     await page.keyboard.press(c.keys);
     await settle(page, 400);
     // Let async effects land: wait until two snapshots in a row agree (bounded).
-    const shellAfter = await stable(page, lane);
+    const shellAfter = await stable(page, lane, net);
     if (process.env.V1_KEYS_LATE === '1') {
       await sleep(2000);
       const again = await snapDoc(page, lane);
@@ -938,7 +994,7 @@ async function runCase(browser: Browser, lane: Lane, c: Case): Promise<string> {
       }
     }
     const frame1 = canvasFrame(page, lane);
-    const canvasAfter = frame1 ? await stable(frame1, lane) : null;
+    const canvasAfter = frame1 ? await stable(frame1, lane, net) : null;
     recording = false;
     const shellRec = await readRec(page);
     const canvasRec = await readRec(frame1);
@@ -984,6 +1040,10 @@ test(
       ids.add(c.id);
     }
     const cases = ONLY ? all.filter((c) => ONLY.some((p) => c.id.startsWith(p))) : all;
+    if (!ONLY && LANES !== GOLDEN_LANES)
+      throw new Error(
+        `the golden is dealt over ${GOLDEN_LANES} lanes (V1_KEYS_LANES=${LANES}): which case runs on a fresh vs a used server is part of it. Use V1_KEYS_LANES=${GOLDEN_LANES}, or V1_KEYS_ONLY=<prefix> for a partial run.`
+      );
     const root = mkdtempSync(join(tmpdir(), 'maude-v1-keys-'));
     const lanes: Lane[] = [];
     const browser = await chromium.launch({ headless: true });
