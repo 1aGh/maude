@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-shell-state"
+description = "Enables the shell_state command without any pre-configured scope."
+commands.allow = ["shell_state"]
+
+[[permission]]
+identifier = "deny-shell-state"
+description = "Denies the shell_state command without any pre-configured scope."
+commands.deny = ["shell_state"]

@@ -263,6 +263,28 @@ impl AppState {
     pub fn is_profile_bound(&self, id: &str) -> bool {
         self.projects.values().any(|e| e.profile == id)
     }
+
+    /// Rebind `old_pid`'s entry to `new_root` (the project moved): same name,
+    /// profile and history under the pid of its new realpath; the MRU keeps its
+    /// place. Refuses a folder that is already another registered project.
+    pub fn relink(&mut self, old_pid: &str, new_root: &str) -> Result<String, String> {
+        let new_pid = windows::pid_for_root(new_root);
+        if new_pid != old_pid && self.projects.contains_key(&new_pid) {
+            return Err("That folder is already one of your projects.".to_string());
+        }
+        let mut entry = self
+            .projects
+            .remove(old_pid)
+            .ok_or_else(|| "That project isn't in your list any more.".to_string())?;
+        entry.root = new_root.to_string();
+        self.projects.insert(new_pid.clone(), entry);
+        for p in self.recent.iter_mut() {
+            if p == old_pid {
+                *p = new_pid.clone();
+            }
+        }
+        Ok(new_pid)
+    }
 }
 
 /// Parse + normalise: the JSON (or the legacy marker), migrate v1 → v2, age out
@@ -340,19 +362,33 @@ fn update<T>(app: &tauri::AppHandle, f: impl FnOnce(&mut AppState, u64) -> T) ->
     out
 }
 
-/// Register (or touch) a project in the registry WITHOUT making it the last
-/// project — the upsert other tasks (V2-3.2 `open_project`, Home) call when a
-/// project window opens. Returns its pid.
-#[allow(dead_code)] // first caller lands in V2-3.2 (open_project)
+/// Register (or touch) a project in the registry when a window opens it
+/// (`open_project`, Home, File › Open Project…): `lastOpenedAt` + the MRU head
+/// that Home's `ShellState.recent` reads (V2-3.3). The session is left alone —
+/// the tab set is part b's. Returns its pid.
 pub fn upsert_project(app: &tauri::AppHandle, root: &Path) -> String {
     let root = root.to_string_lossy().to_string();
-    update(app, |st, now| {
-        let pid = st.upsert(&root, now);
-        if let Some(e) = st.projects.get_mut(&pid) {
-            e.last_opened_at = now;
-        }
-        pid
-    })
+    update(app, |st, now| st.open(&root, now))
+}
+
+/// Remember the port the Home server bound (contract §5.5 `homePort`), so the
+/// next launch asks for the same origin first.
+pub fn set_home_port(app: &tauri::AppHandle, port: u16) {
+    if load(app).home_port == Some(port) {
+        return;
+    }
+    update(app, |st, _| st.home_port = Some(port));
+}
+
+/// "Find the folder…" (`relink_project`): point registry entry `old_pid` at
+/// `new_root`. Returns the new pid.
+pub fn relink_project(
+    app: &tauri::AppHandle,
+    old_pid: &str,
+    new_root: &Path,
+) -> Result<String, String> {
+    let root = new_root.to_string_lossy().to_string();
+    update(app, |st, _| st.relink(old_pid, &root))
 }
 
 /// The account profile bound to `root` (missing ⇒ `default`).
@@ -421,7 +457,10 @@ pub fn is_first_run(app: &tauri::AppHandle) -> bool {
     {
         return false;
     }
-    last_project(app).is_none()
+    // V2-3.3: a launch opens Home, and every project Home opens is registered
+    // before its window exists — a registered project is never a first run (the
+    // wizard must not cover a project the person just picked).
+    last_project(app).is_none() && load(app).projects.is_empty()
 }
 
 /// Remember `path` as the last project: registry upsert, MRU head, one-tab session

@@ -57,12 +57,21 @@ export async function focusTab(label: string): Promise<void> {
   });
 }
 
-/** `open_project({root})` from the current window: a new tab after it, or the
- *  existing one focused (open once). Returns what the shell answered. */
+/** Open a project folder from the current window: a new tab after it, or the
+ *  existing one focused (open once). Returns what the shell answered. Since
+ *  V2-3.3 `open_project({root})` is Home-only (contract V2-1.1 §5.8 item 3), so
+ *  a project window goes through the debug-only `e2e_open_root`, which runs the
+ *  same open path (registry upsert, open once, tab after the caller). */
 export async function openTab(
   root: string
 ): Promise<{ label: string; opened: 'new' | 'existing' }> {
-  return invokeTauri('open_project', { root });
+  return invokeTauri('e2e_open_root', { root });
+}
+
+/** `new_home_tab()` from the current window (⌘T): focus Home or open it as a
+ *  tab after this one. */
+export async function newHomeTab(): Promise<void> {
+  await invokeTauri('new_home_tab', {});
 }
 
 /**

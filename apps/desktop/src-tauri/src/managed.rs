@@ -189,8 +189,10 @@ fn now_ms() -> u64 {
 /// Returns the local path. Idempotent: a second open of the same project reuses
 /// the same copy — pending work in it is never replaced.
 ///
-/// Switches the CALLING window in-tab (V2-3.2; Home takes this over in V2-3.3,
-/// contract §5.4).
+/// From Home (V2-3.3, contract §5.4): ONLY creates/locates the copy and returns
+/// its folder — the page then calls `open_project({root})`, which opens it as a
+/// tab. From a project window (the pre-Home cloud picker): also switches that
+/// window in-tab, as before.
 #[tauri::command]
 pub fn managed_project_open(
     app: tauri::AppHandle,
@@ -200,7 +202,10 @@ pub fn managed_project_open(
     name: String,
     canvas_groups: Vec<String>,
 ) -> Result<String, String> {
-    let caller = crate::windows::caller_project(&webview, false)?;
+    let caller = match crate::windows::caller_any(&webview, false)? {
+        crate::windows::Caller::Home => None,
+        crate::windows::Caller::Project(c) => Some(c),
+    };
     let server = validate_server_url(&server_url)?;
     let id = validate_project_id(&project_id)?;
     let display: String = name.trim().chars().filter(|c| !c.is_control()).take(120).collect();
@@ -227,8 +232,10 @@ pub fn managed_project_open(
     idx.projects.truncate(50);
     save_index(&app, &idx);
 
-    crate::app_state::set_last_project(&app, &dir);
-    crate::sidecar::switch_project(&app, &caller.label, dir.clone(), None);
+    if let Some(caller) = caller {
+        crate::app_state::set_last_project(&app, &dir);
+        crate::sidecar::switch_project(&app, &caller.label, dir.clone(), None);
+    }
     Ok(dir.to_string_lossy().to_string())
 }
 

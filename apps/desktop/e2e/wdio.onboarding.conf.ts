@@ -43,6 +43,12 @@ for (const f of ['app-state.json', 'last-project.txt']) {
 process.env.MAUDE_E2E_PICK_DIR = mkdtempSync(join(tmpdir(), 'maude-onboarding-'));
 // Door A target: a deterministic fake GitHub login (no browser / network / keychain).
 process.env.MAUDE_E2E_FAKE_GITHUB_LOGIN = 'e2e-user';
+// V2-3.3: a first launch with an empty app-state now opens Home (no welcome
+// project). The debug-only MAUDE_FORCE_ONBOARDING keeps the old first-run boot
+// — the welcome project's window with the OnboardingWizard over it — so this
+// lane still drives the wizard. Never honored in a release build (lib.rs
+// `resolve_boot_plan`, app_state.rs `is_first_run`).
+process.env.MAUDE_FORCE_ONBOARDING = '1';
 
 const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '');
 process.env.MAUDE_E2E_RUN_DIR = resolve(

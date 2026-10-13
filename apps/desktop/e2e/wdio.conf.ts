@@ -9,9 +9,10 @@
  * Run: `pnpm test:e2e:desktop:build` (one-time / on source change) then
  *      `pnpm test:e2e:desktop`.
  */
-import { existsSync, readdirSync, realpathSync } from 'node:fs';
+import { existsSync, readdirSync, realpathSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join, resolve } from 'node:path';
+import { homedir } from 'node:os';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -29,6 +30,8 @@ const DEDICATED: Record<string, string> = {
   'git-branch-switcher.e2e.ts': 'pnpm test:e2e:desktop:git',
   'git-lifecycle.e2e.ts': 'pnpm test:e2e:desktop:lifecycle',
   'git-switch-repos.e2e.ts': 'pnpm test:e2e:desktop:switchrepos',
+  // An empty app-state (first launch = Home) + a seeded machine index.
+  'home.e2e.ts': 'pnpm test:e2e:desktop:home',
   'onboarding.e2e.ts': 'pnpm test:e2e:desktop:onboarding',
   // Two projects (primary + secondary), one tab each.
   'project-tabs.e2e.ts': 'pnpm test:e2e:desktop:tabs',
@@ -93,6 +96,32 @@ if (process.env.MAUDE_CANVAS_ORIGIN_SPLIT === undefined) {
   process.env.MAUDE_CANVAS_ORIGIN_SPLIT = '0';
 }
 
+// ── A clean e2e identity per run ───────────────────────────────────────────
+// Since V2-3.2 every window has a stable label → its own WebKit data store
+// (`data_store_identifier`), and app-state v2 remembers a preferred port per
+// project. A fixture project therefore gets the SAME origin and the SAME store
+// on every run, and UI state an earlier run left behind (a collapsed file panel)
+// silently changes the next one — the "repo-branch switcher never renders" reds.
+// The product keeps that per-project state on purpose; the HARNESS starts clean:
+// once in the launcher (below) and again before each session's app launch
+// (`beforeSession`) — never at module load in a worker, which re-evaluates this
+// file while an app may be running — and only ever inside the
+// `com.maude.app.e2e` bundle-id dirs. MAUDE_E2E_KEEP_STATE=1 opts out.
+export const E2E_BUNDLE_ID = 'com.maude.app.e2e';
+export function resetE2eAppState(): void {
+  const home = homedir();
+  const targets = [
+    join(home, 'Library', 'WebKit', E2E_BUNDLE_ID, 'WebsiteDataStore'),
+    join(home, 'Library', 'Application Support', E2E_BUNDLE_ID, 'app-state.json'),
+    join(home, 'Library', 'Application Support', E2E_BUNDLE_ID, 'last-project.txt'),
+  ];
+  for (const t of targets) {
+    if (!t.split(sep).includes(E2E_BUNDLE_ID)) throw new Error(`refusing to reset ${t}`);
+    rmSync(t, { recursive: true, force: true });
+  }
+}
+if (!process.env.WDIO_WORKER_ID && !process.env.MAUDE_E2E_KEEP_STATE) resetE2eAppState();
+
 // Per-run evidence root (consumed by helpers/evidence.ts) — SAME place as
 // `/flow:scenario`: .ai/device/scenario-runs/<scenario>/<YYYY-MM-DD-HHMM>/
 // (gitignored run-output tree; the committed spec lives in .ai/scenarios/).
@@ -135,6 +164,11 @@ function resolveAppPath(): string {
 export const config: WebdriverIO.Config = {
   runner: 'local',
   beforeSession() {
+    // Every spec file gets its own app launch (a new session) — and, since the
+    // stores outlive the app, its own clean e2e identity: the default lane runs a
+    // dozen specs against the SAME fixture project, so a panel one spec collapsed
+    // was still collapsed in the next. Runs before this session's app starts.
+    if (!process.env.MAUDE_E2E_KEEP_STATE) resetE2eAppState();
     // The runner can install a newer Undici global dispatcher before WebDriver
     // loads its own copy. Mixing their header representations fails POST /session
     // with UND_ERR_INVALID_ARG (invalid content-length header) on Node 24.

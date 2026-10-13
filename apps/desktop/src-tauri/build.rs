@@ -41,11 +41,20 @@ fn main() {
                 "profiles_delete",
                 // V2-3.2 window model (windows.rs).
                 "open_project",
+                // V2-3.3 Home window (home.rs, lib.rs). The Home-only ones are
+                // granted by the RUNTIME `home` capability (home::HOME_PERMISSIONS).
+                "shell_state",
+                "new_home_tab",
+                "take_pending_intent",
+                "index_search",
+                "relink_project",
+                "open_project_folder",
                 // Debug-only e2e helpers: Err stubs in release, granted only by
                 // capabilities/e2e-webdriver.json (never default.json).
                 "window_labels",
                 "e2e_focus_window",
                 "e2e_close_window",
+                "e2e_open_root",
             ]),
         ),
     )
