@@ -202,10 +202,11 @@ fn notify_check_failed(handle: &AppHandle, err: &str) {
 /// could loop-restart the app as a DoS. With it, the worst an injected call can do is
 /// nothing.
 #[tauri::command]
-pub fn restart_to_update(app: AppHandle) {
+pub fn restart_to_update(app: AppHandle, webview: tauri::Webview) -> Result<(), String> {
+    crate::windows::caller_project(&webview, false)?;
     if !UPDATE_STAGED.load(Ordering::Relaxed) {
         eprintln!("[maude] restart_to_update ignored — no update staged");
-        return;
+        return Ok(());
     }
     eprintln!("[maude] restart_to_update — killing sidecar and relaunching into the update");
     crate::sidecar::kill_server(&app);

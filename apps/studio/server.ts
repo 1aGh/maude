@@ -23,6 +23,7 @@ import { ASSET_MAX_VIDEO_BYTES, createApi } from './api.ts';
 import { bootSelfHeal } from './boot-self-heal.ts';
 import { isSandboxArmed } from './canvas-build-sandbox.ts';
 import { createCanvasListWatch } from './canvas-list-watch.ts';
+import { canvasTopLevelRefusal, topLevelGuardedRoutes } from './canvas-top-level.ts';
 import { type AiActivityEntry, createAiActivity } from './collab/ai-activity.ts';
 import { createGitLifecycle } from './collab/git-lifecycle.ts';
 import { createCollab } from './collab/index.ts';
@@ -37,6 +38,7 @@ import { createGitWatch } from './git/watch.ts';
 import { createHttp } from './http.ts';
 import { flushAllIndexes } from './index/service.ts';
 import { createInspectRegistry } from './inspect.ts';
+import { listenLoopback, V4_LOOPBACK } from './loopback-listen.ts';
 import { startHeapWatch } from './mem.ts';
 import { canvasOriginRoutes } from './routes/canvas-origin.ts';
 import { normalizeSessionKey, runInSession, SESSION_HEADER } from './session-scope.ts';
@@ -401,10 +403,12 @@ if (isWorkspaceMode()) {
   console.log('[studio] workspace mode — sync + git + assets only (DDR-193 containment invariant)');
 }
 
-function startServer(port: number): BunServer {
+// V2-3.6 NEW-1 — `hostname` is 127.0.0.1 or ::1: every localhost listener is
+// bound on BOTH families through listenLoopback (loopback-listen.ts).
+function startServer(port: number, hostname = V4_LOOPBACK): BunServer {
   return Bun.serve<WsData, never>({
     port,
-    hostname: '127.0.0.1',
+    hostname,
     development: process.env.NODE_ENV !== 'production',
     maxRequestBodySize: MAX_REQUEST_BODY,
     routes: SERVER_ROUTES,
@@ -599,7 +603,7 @@ function readOnlyRoutes<R extends Record<string, unknown>>(routes: R): R {
 
 function startCanvasServer(
   port: number,
-  { capture = false }: { capture?: boolean } = {}
+  { capture = false, hostname = V4_LOOPBACK }: { capture?: boolean; hostname?: string } = {}
 ): BunServer {
   // Hard allowlist of route-table endpoints (Bun matches `routes` before
   // `fetch`) — routes/canvas-origin.ts (V2-2.5 moved the literal there verbatim,
@@ -607,14 +611,16 @@ function startCanvasServer(
   const routes = canvasOriginRoutes(http);
   return Bun.serve<WsData, never>({
     port,
-    hostname: '127.0.0.1',
+    hostname,
     development: process.env.NODE_ENV !== 'production',
     // DDR-088 follow-up — bound the pre-handler request buffer on the UNTRUSTED
     // canvas origin (the asset upload lives here). See MAX_REQUEST_BODY.
     maxRequestBodySize: MAX_REQUEST_BODY,
     // The capture origin serves the SAME route table, each entry behind a
     // GET/HEAD gate — never a third allowlist (V2-2.8 S9).
-    routes: capture ? readOnlyRoutes(routes) : routes,
+    // V2-3.6 N-M2 — the interactive canvas origin refuses a top-level document
+    // (canvas-top-level.ts); the capture origin is loaded top-level by design.
+    routes: capture ? readOnlyRoutes(routes) : topLevelGuardedRoutes(routes),
     async fetch(req, srv) {
       const pathname = new URL(req.url).pathname;
 
@@ -622,6 +628,9 @@ function startCanvasServer(
       // anything else is consulted.
       if (capture) {
         const refused = captureRefusal(req);
+        if (refused) return refused;
+      } else {
+        const refused = canvasTopLevelRefusal(req);
         if (refused) return refused;
       }
 
@@ -715,7 +724,7 @@ let server: BunServer;
   for (let i = 0; i < MAX_TRIES; i++) {
     const tryPort = BASE_PORT + i;
     try {
-      bound = startServer(tryPort);
+      bound = listenLoopback((h, p) => startServer(p, h), tryPort);
       if (i > 0) {
         console.log(`[port] ${BASE_PORT} busy, using ${tryPort} instead.`);
       }
@@ -808,7 +817,9 @@ const CANVAS_ORIGIN_SPLIT = !/^(0|false|off|no)$/i.test(
 // not merely protective — it is the boundary between one tenant's executing
 // canvas and everything else on that host, which is the strongest reason any
 // deployment has ever had to keep it on.
-const canvasServer = CANVAS_ORIGIN_SPLIT ? startCanvasServer(0) : null;
+const canvasServer = CANVAS_ORIGIN_SPLIT
+  ? listenLoopback((hostname, p) => startCanvasServer(p, { hostname }), 0)
+  : null;
 // D4 — PUBLIC IDENTITY COMES FROM CONFIGURATION, NEVER FROM THE REQUEST.
 //
 // The loopback origin is what this process BINDS; behind a reverse proxy it is
@@ -829,7 +840,9 @@ if (canvasOrigin) ctx.canvasOrigin = canvasOrigin;
 // interactive canvases (a named residual). Not advertised in `_server.json`:
 // callers reach it through the main origin's 307.
 const captureServer =
-  CANVAS_ORIGIN_SPLIT && !WORKSPACE ? startCanvasServer(0, { capture: true }) : null;
+  CANVAS_ORIGIN_SPLIT && !WORKSPACE
+    ? listenLoopback((hostname, p) => startCanvasServer(p, { capture: true, hostname }), 0)
+    : null;
 if (captureServer) ctx.captureOrigin = `http://localhost:${captureServer.port}`;
 
 const startedAt = new Date().toISOString();

@@ -451,7 +451,13 @@ pub(crate) fn send_system_notice(app: &AppHandle, title: &str, body: &str) {
 /// quietly, the same way the poller's cap does, not surface as a JS error the
 /// caller has no useful way to handle.
 #[tauri::command]
-pub fn send_notification(app: AppHandle, title: String, body: String) -> Result<(), String> {
+pub fn send_notification(
+    app: AppHandle,
+    webview: tauri::Webview,
+    title: String,
+    body: String,
+) -> Result<(), String> {
+    crate::windows::caller_any(&webview, false)?;
     let state = app.state::<NotifyPollState>();
     {
         let mut bucket = state.command_notify.lock().expect("notify mutex poisoned");

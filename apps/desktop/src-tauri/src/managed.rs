@@ -378,12 +378,16 @@ pub fn bound_copies(app: &tauri::AppHandle) -> Vec<(String, String)> {
 
 /// The projects this computer keeps a managed copy of, most recent first.
 #[tauri::command]
-pub fn managed_projects_list(app: tauri::AppHandle) -> Vec<ManagedProject> {
-    load_index(&app)
+pub fn managed_projects_list(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+) -> Result<Vec<ManagedProject>, String> {
+    crate::windows::caller_any(&webview, false)?;
+    Ok(load_index(&app)
         .projects
         .into_iter()
         .filter(|p| Path::new(&p.path).join(".design").is_dir())
-        .collect()
+        .collect())
 }
 
 #[cfg(test)]

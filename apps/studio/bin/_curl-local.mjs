@@ -83,27 +83,57 @@ import { parseIPv4, parseIPv6 } from './_fetch-asset.mjs';
 // Home server. The real gate is the Home page secret the server requires on every page route.
 const APP_IDENTIFIERS = Object.freeze(['com.maude.app', 'com.maude.app.e2e']);
 
-/** The info files a running Home server may have written (prod + e2e identifiers). */
-export function homeInfoFiles(env = process.env, platform = process.platform) {
+/** `<app data>/run/<name>` for every app identifier (prod + e2e). */
+function appRunFiles(name, env = process.env, platform = process.platform) {
   const home = env.HOME || homedir();
   let base;
   if (platform === 'darwin') base = join(home, 'Library', 'Application Support');
   else if (platform === 'win32') base = env.APPDATA || join(home, 'AppData', 'Roaming');
   else base = env.XDG_DATA_HOME || join(home, '.local', 'share');
-  return APP_IDENTIFIERS.map((id) => join(base, id, 'run', 'home-server.json'));
+  return APP_IDENTIFIERS.map((id) => join(base, id, 'run', name));
 }
 
-/** True iff one of `files` is a Home record naming `port`. A missing/garbled file says no. */
-export function isHomePort(port, files = homeInfoFiles()) {
+/** True iff one of `files` is a `mode` record naming `port`. A missing/garbled file says no. */
+function recordNamesPort(port, files, mode) {
   for (const f of files) {
     try {
       const rec = JSON.parse(readFileSync(f, 'utf8'));
-      if (rec && rec.mode === 'home' && Number(rec.port) === port) return true;
+      if (rec && rec.mode === mode && Number(rec.port) === port) return true;
     } catch {
       /* not there / not ours */
     }
   }
   return false;
+}
+
+/** The info files a running Home server may have written (prod + e2e identifiers). */
+export function homeInfoFiles(env = process.env, platform = process.platform) {
+  return appRunFiles('home-server.json', env, platform);
+}
+
+/** True iff one of `files` is a Home record naming `port`. */
+export function isHomePort(port, files = homeInfoFiles()) {
+  return recordNamesPort(port, files, 'home');
+}
+
+// V2-3.6 M4 — the desktop's GitHub-token bridge (keychain.rs) answers any loopback caller that
+// presents a per-spawn key, and that key is in the sidecar's env (`MAUDE_TOKEN_KEY`), which a
+// same-user `ps -Eww` prints. This helper is auto-allowed for the agent, so it must never be
+// the second half of that theft: it refuses the `X-Maude-Token-Key` header (any case, any
+// spelling, no CR/LF smuggling — see parseRequestArgv) AND the bridge's port, which the app
+// writes to `<app data>/run/token-bridge.json` (keychain.rs `write_bridge_port_file`).
+// RESIDUAL (accepted under P3 — the AI chat keeps Claude Code's default permission behaviour):
+// an approved ARBITRARY Bash command as the same OS user can still read the env and call the
+// bridge with plain curl. That needs the person's approval; this verb does not.
+
+/** The records a running app may have written for its token bridge (prod + e2e identifiers). */
+export function tokenBridgeFiles(env = process.env, platform = process.platform) {
+  return appRunFiles('token-bridge.json', env, platform);
+}
+
+/** True iff one of `files` is a token-bridge record naming `port`. */
+export function isTokenBridgePort(port, files = tokenBridgeFiles()) {
+  return recordNamesPort(port, files, 'token-bridge');
 }
 
 /** True iff this parsed 4-byte IPv4 is in the loopback range 127.0.0.0/8. */
@@ -248,6 +278,17 @@ export function parseRequestArgv(argv) {
         }
         out.method = m;
       } else if (a === '--header') {
+        // V2-3.6 M4: no line break may ride in a header — it would let one `--header` smuggle a
+        // second one (e.g. the token-bridge key) past every check below.
+        if (/[\r\n]/.test(value)) {
+          throw new CurlLocalArgvError('--header may not contain a line break; refused');
+        }
+        // V2-3.6 M4: the token-bridge key is the sidecar's alone (see tokenBridgeFiles).
+        if (/^\s*x-maude-token-key\s*[:;]/i.test(value)) {
+          throw new CurlLocalArgvError(
+            '--header x-maude-token-key is the desktop token bridge’s key; refused'
+          );
+        }
         // V2-3.6 H1 (defence in depth): `x-maude-home` carries the Home server's page capability.
         // Only the Home window holds it; this helper never speaks for Home, in any spelling.
         if (/^\s*x-maude-home\s*[:;]/i.test(value)) {
@@ -267,6 +308,9 @@ export function parseRequestArgv(argv) {
       } else if (a === '--data') {
         out.data = value;
       } else if (a === '--user-agent') {
+        if (/[\r\n]/.test(value)) {
+          throw new CurlLocalArgvError('--user-agent may not contain a line break; refused');
+        }
         out.userAgent = value;
       } else if (a === '--max-time') {
         const n = Number(value);
@@ -380,6 +424,10 @@ async function main() {
       : 80;
   if (isHomePort(port)) {
     process.stderr.write('curl-local: that port is Maude Home; refused\n');
+    process.exit(3);
+  }
+  if (isTokenBridgePort(port)) {
+    process.stderr.write('curl-local: that port is the desktop token bridge; refused\n');
     process.exit(3);
   }
   const curlArgs = buildCurlArgs(req, pinIp, port);

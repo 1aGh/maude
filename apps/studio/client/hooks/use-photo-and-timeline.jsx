@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { persistUiPrefs, shellToast } from '../shell/util.js';
+import { installDropGuard } from '../shell/drop-guard.js';
 import {
   ANNOT_STORE,
   LAYERS_MODE_STORE,
@@ -170,26 +171,12 @@ export function usePhotoAndTimeline({
     [postToActiveCanvas]
   );
 
-  // DDR-150 dogfood #7 — a file dragged from Finder and dropped on a shell area
-  // with no drop target used to make the browser NAVIGATE AWAY to the file
-  // (file:// replaces the app). Document-level guard: always cancel the default
-  // for file drags; the TimelinePanel's own onDrop (bubbling before this) still
-  // receives the drop first — this only blocks the browser fallback.
-  useEffect(() => {
-    const isFileDrag = (e) => Array.from(e.dataTransfer?.types ?? []).includes('Files');
-    const onDocDragOver = (e) => {
-      if (isFileDrag(e)) e.preventDefault();
-    };
-    const onDocDrop = (e) => {
-      if (isFileDrag(e)) e.preventDefault();
-    };
-    document.addEventListener('dragover', onDocDragOver);
-    document.addEventListener('drop', onDocDrop);
-    return () => {
-      document.removeEventListener('dragover', onDocDragOver);
-      document.removeEventListener('drop', onDocDrop);
-    };
-  }, []);
+  // DDR-150 dogfood #7 + V2-3.6 N-M2 — a file OR a link dropped on a shell area
+  // with no drop target used to make the browser NAVIGATE the top frame to it.
+  // Document-level guard (shell/drop-guard.js): cancel the default of every
+  // drag except text into an editable field; the TimelinePanel's own onDrop
+  // (bubbling before this) still receives the drop first.
+  useEffect(() => installDropGuard(document), []);
 
   // DDR-150 P3 Task 9 — timeline keyboard shortcuts. The transport's keys are
   // registry actions now (V2-2.4: actions/defs/timeline.ts, handled by

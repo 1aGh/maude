@@ -287,7 +287,8 @@ pub async fn github_sign_in(app: AppHandle, webview: tauri::Webview) -> Result<S
 
 /// `#[tauri::command]` — re-open the verification URL (the modal's "Open it again").
 #[tauri::command]
-pub fn github_open_verification(url: String) -> Result<(), String> {
+pub fn github_open_verification(webview: tauri::Webview, url: String) -> Result<(), String> {
+    crate::windows::caller_project(&webview, false)?;
     // Only ever the GitHub device-verification URL — refuse anything else so this
     // can't be turned into an arbitrary-URL opener from the webview.
     if url != "https://github.com/login/device" {
@@ -302,7 +303,8 @@ pub fn github_open_verification(url: String) -> Result<(), String> {
 /// reject whitespace — the untrusted webview can't turn this into an arbitrary-URL
 /// opener (DDR-054 posture, same rationale as `github_open_verification`).
 #[tauri::command]
-pub fn open_github_url(url: String) -> Result<(), String> {
+pub fn open_github_url(webview: tauri::Webview, url: String) -> Result<(), String> {
+    crate::windows::caller_project(&webview, false)?;
     // Host-locked to github.com (the trailing `/` closes the URL authority — no
     // `@`/label host-smuggle), length-capped, and rejecting bytes that could re-open
     // the authority (`@`, `\`) or that Rust std's Windows launcher has historically
@@ -473,7 +475,8 @@ pub(crate) fn in_cloud_zone(server: &str) -> bool {
 /// view, dashboard) in the OS browser. Zone-locked in Rust against the address
 /// resolved at call time; the webview's argument never widens what is allowed.
 #[tauri::command]
-pub async fn open_cloud_url(url: String) -> Result<(), String> {
+pub async fn open_cloud_url(webview: tauri::Webview, url: String) -> Result<(), String> {
+    crate::windows::caller_any(&webview, false)?;
     // Launch the PARSED url, never the caller's string — see cloud_url_allowed.
     let validated = cloud_url_allowed(&url, &cloud_base())
         .ok_or_else(|| "Refusing to open a URL outside Maude Cloud.".to_string())?;
