@@ -6,7 +6,8 @@ import { remapDirPrefix, revealPath } from '../tree-expansion.js';
 import { buildShareLinks, normalizeOpenPath, readOpenParam, withOpenParam } from '../share-link.js';
 import { basename, displayName, previewKind, shellToast } from '../shell/util.js';
 import { notify } from '../../notifications.tsx';
-import { isNativeApp } from '../github.js';
+import { invoke, isNativeApp, listenHere } from '../github.js';
+import { applyShellNavigate, startShellEvents } from '../shell-events.js';
 
 export function useTabs({
   groups,
@@ -107,6 +108,32 @@ export function useTabs({
     const rel = readOpenParam(location, cfg.designRel);
     if (rel) openLinkedFile(rel, 'none');
   }, [treeLoaded, cfg.cloud, cfg.designRel, openLinkedFile]);
+
+  // V2-3.3 / V2-3.5 — the shell's own events for this window (client/shell-events.js):
+  // `shell://navigate` takes the same road as `?open=` above (openLinkedFile) plus `maude design
+  // open`'s artboard focus (ui-open.js); opened-existing / tabs-restored are toasts. The handlers
+  // are subscribed once, so they read the live tree and openers through this ref.
+  const shellNavRef = useRef(null);
+  shellNavRef.current = {
+    get paths() {
+      return groups.flatMap((g) => g.paths || []);
+    },
+    designRel: cfg.designRel,
+    activePath,
+    openLinkedFile,
+    openTab,
+    frameFor: (f) => iframesRef.current.get(f),
+    setPresent: () => {},
+  };
+  useEffect(() => {
+    if (!treeLoaded || cfg.cloud === undefined || !isNativeApp()) return undefined;
+    return startShellEvents({
+      invoke,
+      listen: listenHere,
+      toast: (title) => notify({ title, kind: 'info' }),
+      onNavigate: (p) => applyShellNavigate(p, shellNavRef.current),
+    });
+  }, [treeLoaded, cfg.cloud]);
 
   useEffect(() => {
     if (!treeLoaded || cfg.cloud === undefined) return;
