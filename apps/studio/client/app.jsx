@@ -62,6 +62,8 @@ import SyncPanel from './panels/SyncPanel.jsx';
 import CloudBar from './panels/CloudBar.jsx';
 import { buildShareLinks, normalizeOpenPath, readOpenParam, withOpenParam } from './share-link.js';
 import { isEmbedLocation } from './embed.js';
+import { HomeApp } from './home/home-app.jsx';
+import { bootShellMode } from './home/shell-mode.js';
 import EmbedView from './embed-view.jsx';
 import { ShareDialog, copyShareLink } from './share-dialog.jsx';
 import IdentityBar from './panels/IdentityBar.jsx';
@@ -3110,6 +3112,7 @@ function App() {
 
 // DDR-247 — `?embed=1` is a different root, not a mode of <App>: nothing the
 // shell does (prefs, address bar, panels) runs inside another app's frame.
-createRoot(document.getElementById('root')).render(
-  isEmbedLocation(location) ? <EmbedView /> : <App />
-);
+// V2-3.3 — so is Home (`/_config.mode === 'home'`, client/home/shell-mode.js).
+const root = createRoot(document.getElementById('root'));
+if (isEmbedLocation(location)) root.render(<EmbedView />);
+else bootShellMode((mode) => root.render(mode === 'home' ? <HomeApp /> : <App />));

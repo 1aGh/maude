@@ -7191,5 +7191,187 @@
     "consumers": ["apps/studio/whats-new.json"],
     "v2": "historical",
     "dangling": true
+  },
+  {
+    "hook": "home-root",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Home page root (`.maude-v2`, `data-theme` follows the Mac). Rendered instead of the project shell when `/_config.mode === 'home'`.",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "HomeApp"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-search",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "Home Search field (`role=\"combobox\"`); ⌘K focuses it. Searches `/_home/search` over every registered project; empty + focused lists Recent searches.",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "HomeSearch"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-search-row-<pid>-<slug>[-<artboard>]",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One Search result (`role=\"option\"`); `<slug>` as `canvas-row-<slug>` (from the canvas rel), `-<artboard>` for an artboard hit. ↵ / click → `open_project({pid, target})`.",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "HomeSearch"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-recent-row-<pid>-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A Recent canvases card (newest `openedAt` first); `<pid>` = `l` + 16 hex, `<slug>` = the canvas rel by the `canvas-row-<slug>` rule. Click → `open_project({pid, target:{canvas}})`. Disabled outside the desktop app.",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "HomeApp"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-recent-filter",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "The Recent canvases project filter (`<select>`, \"All projects\" + each project with recent rows). Shown with two or more such projects.",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "HomeApp"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-pin-<pid>-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Pin toggle on a Recent canvases card (`aria-pressed` = pinned) → `POST /_home/pins {pid, canvas, pinned}`.",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "PinButton"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-pinned-row-<pid>-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A Pinned card (most recently pinned first). Click → `open_project({pid, target:{canvas}})`.",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "HomeApp"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-pinned-unpin-<pid>-<slug>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Unpin toggle on a Pinned card (the same pin toggle; a separate id so it never collides with the Recent card of the same canvas).",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "PinButton"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-project-row-<pid>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A local project row in Projects (`data-place` = tab / resting / closed). Click → `open_project({pid})`. A project whose folder moved renders a non-button row with \"<name> isn't where it was.\" and `home-relink-<pid>`.",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "ProfileGroup"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-relink-<pid>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "\"Find the folder…\" on a project that isn't where it was → `relink_project({pid})`.",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "ProfileGroup"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-cloud-row-<projectId>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "A cloud project with no copy on this Mac (\"not on this Mac yet\").",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "ProfileGroup"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-cloud-open-<projectId>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "Open on a cloud row: Can edit / Can comment → `/_home/cloud/prepare` → `managed_project_open` → `open_project({root})`; Can view → `open_cloud_url`.",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "ProfileGroup"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-profile-<id>",
+    "kind": "testid",
+    "pattern": true,
+    "meaning": "One account group in Projects (`<id>` = the shell profile id, e.g. `default`).",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "ProfileGroup"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
+  },
+  {
+    "hook": "home-open-folder",
+    "kind": "testid",
+    "pattern": false,
+    "meaning": "\"Open project… ⌘O\" at the foot of Projects → `open_project_folder`.",
+    "producer": {
+      "file": "apps/studio/client/home/home-app.jsx",
+      "symbol": "HomeApp"
+    },
+    "region": "home",
+    "consumers": [],
+    "v2": "new"
   }
 ]
