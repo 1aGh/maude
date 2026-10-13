@@ -27,6 +27,17 @@ export function listen(event, handler) {
   return tauri().event.listen(event, (e) => handler(e.payload));
 }
 
+/** Subscribe to an event addressed to THIS window only (V2-3.2: one window per
+ *  project). A global `event.listen` also receives an `emit_to` aimed at another
+ *  window, so with two tabs signing in, each would show the other's code. Falls
+ *  back to the global listener on a shell without the webviewWindow API. */
+function listenHere(event, handler) {
+  const t = tauri();
+  const current = t.webviewWindow?.getCurrentWebviewWindow?.();
+  if (!current) return listen(event, handler);
+  return current.listen(event, (e) => handler(e.payload));
+}
+
 // ── Tauri shell commands ──────────────────────────────────────────────────────
 /** Run the device flow; resolves to the login (public handle) on success. */
 export const signIn = () => invoke('github_sign_in');
@@ -47,13 +58,14 @@ export const openGitHubUrl = (url) => invoke('open_github_url', { url });
  *  a visible link the person can use by hand. */
 export const openCloudUrl = (url) => invoke('open_cloud_url', { url });
 /** Show the device code as soon as the shell has it. Returns an unlisten promise. */
-export const onDeviceCode = (cb) => listen('github://device-code', cb);
-/** Fire when sign-in completes (any surface) so other surfaces can flip live. cb(login). */
-export const onSignedIn = (cb) => listen('github://signed-in', cb);
-/** Fire when the native File ▸ New Project… menu item is chosen. Returns an unlisten promise. */
-export const onMenuNewProject = (cb) => listen('menu://new-project', cb);
-/** Fire when the native Help ▸ Report a Bug… menu item is chosen. Returns an unlisten promise. */
-export const onMenuReportBug = (cb) => listen('menu://report-bug', cb);
+export const onDeviceCode = (cb) => listenHere('github://device-code', cb);
+/** Fire when sign-in completes in THIS window so its other surfaces can flip live. cb(login). */
+export const onSignedIn = (cb) => listenHere('github://signed-in', cb);
+/** Fire when the native File ▸ New Project… menu item is chosen (sent to the front
+ *  window only). Returns an unlisten promise. */
+export const onMenuNewProject = (cb) => listenHere('menu://new-project', cb);
+/** Fire when the native Help ▸ Report a Bug… menu item is chosen (front window only). */
+export const onMenuReportBug = (cb) => listenHere('menu://report-bug', cb);
 
 // ── dev-server endpoints ────────────────────────────────────────────────────────
 async function api(path, opts = {}) {

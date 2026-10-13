@@ -128,6 +128,16 @@ fn recover<R: Runtime>(webview: &Webview<R>) {
         return;
     };
     let target = recovery_target(webview.url().ok().as_ref(), &live);
+    // The shell is navigating this window: record the origin its commands are
+    // answered for (V2-3.2 `windows::check_caller`) — a respawn may have moved
+    // the server to another port since the last navigate.
+    if let Some(state) = webview.app_handle().try_state::<SidecarState>() {
+        state
+            .windows
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .set_origin(webview.label(), &live.origin().ascii_serialization());
+    }
     if let Err(e) = webview.navigate(target) {
         log_line(&format!(
             "[maude] navigate after web process crash failed: {e}"
@@ -135,15 +145,17 @@ fn recover<R: Runtime>(webview: &Webview<R>) {
     }
 }
 
-/// The current project's server url — only when `_server.json` names the pid of
-/// the sidecar child WE spawned for that project and the url is loopback.
+/// The crashed window's OWN project's server url (V2-3.2: the root of this
+/// webview's window role, not "the displayed project" — a background tab can
+/// crash too) — only when `_server.json` names the pid of the sidecar child WE
+/// spawned for that project and the url is loopback.
 fn live_server_url<R: Runtime>(webview: &Webview<R>) -> Option<Url> {
     let state = webview.app_handle().try_state::<SidecarState>()?;
     let root = state
-        .project_root
+        .windows
         .lock()
         .unwrap_or_else(|p| p.into_inner())
-        .clone();
+        .root_of(webview.label())?;
     let child_pid = {
         let instances = state.instances.lock().unwrap_or_else(|p| p.into_inner());
         instances.get(&root)?.child.as_ref()?.pid()

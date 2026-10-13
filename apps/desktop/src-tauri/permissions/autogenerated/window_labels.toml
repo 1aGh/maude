@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-window-labels"
+description = "Enables the window_labels command without any pre-configured scope."
+commands.allow = ["window_labels"]
+
+[[permission]]
+identifier = "deny-window-labels"
+description = "Denies the window_labels command without any pre-configured scope."
+commands.deny = ["window_labels"]

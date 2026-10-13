@@ -39,6 +39,13 @@ fn main() {
                 "profiles_list",
                 "profiles_create",
                 "profiles_delete",
+                // V2-3.2 window model (windows.rs).
+                "open_project",
+                // Debug-only e2e helpers: Err stubs in release, granted only by
+                // capabilities/e2e-webdriver.json (never default.json).
+                "window_labels",
+                "e2e_focus_window",
+                "e2e_close_window",
             ]),
         ),
     )

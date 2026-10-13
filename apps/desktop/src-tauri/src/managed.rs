@@ -188,14 +188,19 @@ fn now_ms() -> u64 {
 /// Open (creating on first use) the managed copy of a project and switch to it.
 /// Returns the local path. Idempotent: a second open of the same project reuses
 /// the same copy — pending work in it is never replaced.
+///
+/// Switches the CALLING window in-tab (V2-3.2; Home takes this over in V2-3.3,
+/// contract §5.4).
 #[tauri::command]
 pub fn managed_project_open(
     app: tauri::AppHandle,
+    webview: tauri::Webview,
     server_url: String,
     project_id: String,
     name: String,
     canvas_groups: Vec<String>,
 ) -> Result<String, String> {
+    let caller = crate::windows::caller_project(&webview, false)?;
     let server = validate_server_url(&server_url)?;
     let id = validate_project_id(&project_id)?;
     let display: String = name.trim().chars().filter(|c| !c.is_control()).take(120).collect();
@@ -223,7 +228,7 @@ pub fn managed_project_open(
     save_index(&app, &idx);
 
     crate::app_state::set_last_project(&app, &dir);
-    crate::sidecar::switch_project(&app, dir.clone(), None);
+    crate::sidecar::switch_project(&app, &caller.label, dir.clone(), None);
     Ok(dir.to_string_lossy().to_string())
 }
 

@@ -75,3 +75,9 @@ tauri-plugin-notification = "2"
 # the v1.7.0 Windows .msi build. Desktop E2E runs on macOS only (WKWebView).
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 tauri-plugin-wdio-webdriver = "1.2.0"
+
+# V2-3.2: windows.rs attaches a new project window as a tab of the calling one
+# (`addTabbedWindow:ordered:` through objc2 `msg_send!`). Already in the lock via
+# tao/wry, so no new crate is downloaded.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"

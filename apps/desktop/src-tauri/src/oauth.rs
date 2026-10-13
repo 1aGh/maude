@@ -199,9 +199,8 @@ fn http_client() -> Result<reqwest::Client, String> {
 /// it does NOT do yet: Tauri also delivers an `emit_to` to every JS listener
 /// registered with target `Any` — which is what today's global
 /// `window.__TAURI__.event.listen` in `client/github.js` registers — in EVERY
-/// window. So the current client still receives these events (nothing breaks),
-/// and two-window isolation becomes real when the client switches to a
-/// window-scoped listener (old T10 / V2-3.2).
+/// window. V2-3.2 moved `client/github.js` to window-scoped listeners
+/// (`getCurrentWebviewWindow().listen`), which is what makes the isolation real.
 fn caller_target(label: &str) -> EventTarget {
     EventTarget::AnyLabel {
         label: label.to_string(),
@@ -217,21 +216,18 @@ fn caller_target(label: &str) -> EventTarget {
 /// 3. Store the token in `profile`'s keychain slot (never on disk) and return
 ///    the **login**.
 ///
-/// `profile`: `None` = the profile bound to the displayed project (today's
-/// parameterless client call); `Some(id)` = sign in INTO that profile. All poll
-/// state (device code, interval, back-off) is local to this call — never a
-/// static — so two windows signing into two profiles at once cannot cross wires.
+/// The profile is the CALLING window's project binding (V2-3.2, contract §5.4:
+/// resolved from the `Webview`, never from an argument — the `Some(profile)`
+/// arm is gone). All poll state (device code, interval, back-off) is local to
+/// this call — never a static — so two windows signing into two profiles at
+/// once cannot cross wires.
 #[tauri::command]
-pub async fn github_sign_in(
-    app: AppHandle,
-    window: tauri::Window,
-    profile: Option<String>,
-) -> Result<String, String> {
-    let profile = crate::keychain::resolve_profile(&app, profile)?;
+pub async fn github_sign_in(app: AppHandle, webview: tauri::Webview) -> Result<String, String> {
+    let profile = crate::keychain::resolve_profile(&app, &webview)?;
     if !crate::profiles::exists(&profile) {
         return Err("That account profile doesn't exist.".to_string());
     }
-    let target = caller_target(window.label());
+    let target = caller_target(webview.label());
 
     // E2E (debug builds only): the device flow opens the system browser + polls GitHub —
     // neither DOM-drivable nor deterministic. With MAUDE_E2E_FAKE_GITHUB_LOGIN set, show a

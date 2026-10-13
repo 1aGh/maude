@@ -4,6 +4,7 @@ import type {} from '@wdio/tauri-service';
 import { capture, startReport } from '../helpers/evidence';
 import { waitForSidecar } from '../helpers/sidecar';
 import { canvasRow } from '../helpers/tree';
+import { pinCurrentWindow } from '../helpers/windows';
 
 const tid = (id: string) => `[data-testid="${id}"]`;
 async function arrive(url: string) {
@@ -30,7 +31,7 @@ describe('share-link — addresses, row sharing, same-project open and foreign-p
     // This scenario only uses the main window. Explicit selection suppresses
     // the service's per-command auto-focus probe, whose mock bridge disappears
     // when the shell navigates from the bundled page to the loopback studio.
-    await browser.tauri.switchWindow('main');
+    await pinCurrentWindow();
     await (await canvasRow('canvas-row-ui-smoke')).waitForDisplayed({ timeout: 30_000 });
   });
 

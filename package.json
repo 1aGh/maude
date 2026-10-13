@@ -49,6 +49,7 @@
     "prepublishOnly": "bash scripts/check-version-parity.sh && bash apps/studio/bin/check-runtime-bundles.sh",
     "test:e2e:desktop:lifecycle": "pnpm --filter @maude/desktop-e2e e2e:lifecycle",
     "test:e2e:desktop:switchrepos": "pnpm --filter @maude/desktop-e2e e2e:switchrepos",
+    "test:e2e:desktop:tabs": "pnpm --filter @maude/desktop-e2e e2e:tabs",
     "test:e2e:desktop:onboarding": "pnpm --filter @maude/desktop-e2e e2e:onboarding",
     "test:e2e:desktop:acp-cold-start": "pnpm --filter @maude/desktop-e2e e2e:acp-cold-start",
     "test:e2e:desktop:parity": "pnpm --filter @maude/desktop-e2e e2e:parity",

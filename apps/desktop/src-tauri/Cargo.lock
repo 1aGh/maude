@@ -2322,6 +2322,7 @@ dependencies = [
  "futures-util",
  "getrandom 0.2.17",
  "keyring",
+ "objc2",
  "open",
  "reqwest 0.12.28",
  "serde",

@@ -30,6 +30,8 @@ const DEDICATED: Record<string, string> = {
   'git-lifecycle.e2e.ts': 'pnpm test:e2e:desktop:lifecycle',
   'git-switch-repos.e2e.ts': 'pnpm test:e2e:desktop:switchrepos',
   'onboarding.e2e.ts': 'pnpm test:e2e:desktop:onboarding',
+  // Two projects (primary + secondary), one tab each.
+  'project-tabs.e2e.ts': 'pnpm test:e2e:desktop:tabs',
   'shell-parity.e2e.ts': 'pnpm test:e2e:desktop:parity',
   // Needs the canvas-origin split ON, which this config forces OFF below.
   'sidecar-respawn-canvas-switch.e2e.ts': 'pnpm test:e2e:desktop:sidecar-respawn',
@@ -154,8 +156,14 @@ export const config: WebdriverIO.Config = {
   // user-switched, and the service then skips the focus check for good.
   // beforeSuite, not before: the service attaches `browser.tauri` in its own
   // `before`, which runs after a config-level one.
+  //
+  // V2-3.2: there is no `main` window. Every window is Rust-created as
+  // `p-<pid>`, and no `windowLabel` capability is sent, so the embedded
+  // WebDriver session starts on the FIRST window that exists — the boot
+  // project's (plugin session.rs `wait_for_window`). Pin whatever that is
+  // (helpers/windows.ts `pinCurrentWindow` is the same call for specs).
   async beforeSuite() {
-    await browser.tauri.switchWindow('main');
+    await browser.tauri.switchWindow(await browser.getWindowHandle());
   },
   tsConfigPath: join(HERE, 'tsconfig.json'),
 

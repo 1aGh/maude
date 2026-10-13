@@ -22,6 +22,7 @@ import { $, browser } from '@wdio/globals';
 import { unresolvedRequirements } from '../../../../scripts/dev/sync-e2e/surface-requirements.mjs';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
+import { pinCurrentWindow } from '../helpers/windows';
 
 const runPath = process.env.MAUDE_SURFACE_CONFIG;
 if (!runPath) throw new Error('Missing isolated surface configuration');
@@ -787,9 +788,9 @@ describe('multiplayer surface baseline (real hub + native webview + independent 
     // every native command paid it, and a three-row run no longer fit 15
     // minutes. This app has one window: name it once, and the service stops
     // re-deciding (an explicit switch suppresses the auto-focus).
-    await (browser as unknown as { tauri?: { switchWindow(label: string): Promise<void> } }).tauri
-      ?.switchWindow('main')
-      .catch((error: unknown) => console.warn(`[surface] window pin failed: ${String(error)}`));
+    await pinCurrentWindow().catch((error: unknown) =>
+      console.warn(`[surface] window pin failed: ${String(error)}`)
+    );
     let closingBrowser = false;
     // The public server handle exposes process termination without DEBUG logs
     // (which include capability-bearing URLs). Keep its RPC loopback-only.

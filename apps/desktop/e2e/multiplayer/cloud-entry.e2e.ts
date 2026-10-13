@@ -4,6 +4,7 @@ import { $, browser, expect } from '@wdio/globals';
 import { capture, startReport } from '../helpers/evidence';
 import { isNativeShell } from '../helpers/native';
 import { waitForSidecar } from '../helpers/sidecar';
+import { pinCurrentWindow } from '../helpers/windows';
 
 const run = JSON.parse(process.env.MAUDE_CLOUD_ENTRY_RUN ?? 'null') as {
   controlUrl: string;
@@ -34,9 +35,7 @@ async function probe(query: string, operation = 'read', value: unknown = null) {
 describe('S01 cloud entry on a clean Linux native profile', () => {
   it('approves a real device login, picks the invited project and creates a canvas through its UI', async () => {
     startReport('S01 actual cloud entry — Linux native debug');
-    await (
-      browser as unknown as { tauri?: { switchWindow(label: string): Promise<void> } }
-    ).tauri?.switchWindow('main');
+    await pinCurrentWindow();
     await waitForSidecar();
     expect(await isNativeShell()).toBe(true);
     const cloudTarget = await browser.execute(async () => {

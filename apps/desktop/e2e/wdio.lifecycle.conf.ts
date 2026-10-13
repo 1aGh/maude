@@ -10,12 +10,12 @@
  */
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { makeLifecycleFixture } from './fixtures/make-lifecycle-fixture';
+import { lifecycleFixtureOnce } from './fixtures/make-lifecycle-fixture';
 import { config as base } from './wdio.conf';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
-const { primary, secondary } = makeLifecycleFixture();
+const { primary, secondary } = lifecycleFixtureOnce();
 process.env.MAUDE_PROJECT_ROOT = primary;
 process.env.MAUDE_E2E_SECONDARY_ROOT = secondary;
 // Force system git so push/pull/fetch authenticate via the developer's credential
