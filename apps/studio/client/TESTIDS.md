@@ -574,6 +574,27 @@ No hooks. Nothing outside the components in this region targets their DOM (`Help
 | `.dc-participants / .dc-participant(--agent)` | selector | Participants chrome (avatars; `--agent` = the AI participant). | `participants-chrome.tsx` · `ParticipantsChrome` | e2e-mp:surface, test:canvas-hide-chrome | stable — re-emit |
 | `.dc-cursor / .dc-peer-selection / [data-peer-gesture]` | selector | Remote cursors, peer selection outlines, and peer gesture previews. | `cursors-overlay.tsx` · `Cursor`<br>`cursors-overlay.tsx` · `PeerSelection`<br>`cursors-overlay.tsx` · `PeerAnnotationGesture` | e2e-mp:surface, test-e2e:annotations-ui.e2e.mjs, test:peer-selection-follows-camera, test:presence-gesture-preview | stable — re-emit |
 
+### home
+
+The Home window page (V2-3.3, `client/home/`). New v2 hooks, not part of the v1 inventory; the V2-3.3 e2e targets them.
+
+| Hook | Kind | Meaning | Producer | Consumers | v2 |
+| --- | --- | --- | --- | --- | --- |
+| `home-root` | testid | The Home page root (`.maude-v2`, `data-theme` follows the Mac). Rendered instead of the project shell when `/_config.mode === 'home'`. | `client/home/home-app.jsx` · `HomeApp` | — | new in v2 (V2-3.3) |
+| `home-search` | testid | Home Search field (`role="combobox"`); ⌘K focuses it. Searches `/_home/search` over every registered project; empty + focused lists Recent searches. | `client/home/home-app.jsx` · `HomeSearch` | — | new in v2 (V2-3.3) |
+| `home-search-row-<pid>-<slug>[-<artboard>]` | testid (pattern) | One Search result (`role="option"`); `<slug>` as `canvas-row-<slug>` (from the canvas rel), `-<artboard>` for an artboard hit. ↵ / click → `open_project({pid, target})`. | `client/home/home-app.jsx` · `HomeSearch` | — | new in v2 (V2-3.3) |
+| `home-recent-row-<pid>-<slug>` | testid (pattern) | A Recent canvases card (newest `openedAt` first); `<pid>` = `l` + 16 hex, `<slug>` = the canvas rel by the `canvas-row-<slug>` rule. Click → `open_project({pid, target:{canvas}})`. Disabled outside the desktop app. | `client/home/home-app.jsx` · `HomeApp` | — | new in v2 (V2-3.3) |
+| `home-recent-filter` | testid | The Recent canvases project filter (`<select>`, "All projects" + each project with recent rows). Shown with two or more such projects. | `client/home/home-app.jsx` · `HomeApp` | — | new in v2 (V2-3.3) |
+| `home-pin-<pid>-<slug>` | testid (pattern) | Pin toggle on a Recent canvases card (`aria-pressed` = pinned) → `POST /_home/pins {pid, canvas, pinned}`. | `client/home/home-app.jsx` · `PinButton` | — | new in v2 (V2-3.3) |
+| `home-pinned-row-<pid>-<slug>` | testid (pattern) | A Pinned card (most recently pinned first). Click → `open_project({pid, target:{canvas}})`. | `client/home/home-app.jsx` · `HomeApp` | — | new in v2 (V2-3.3) |
+| `home-pinned-unpin-<pid>-<slug>` | testid (pattern) | Unpin toggle on a Pinned card (the same pin toggle; a separate id so it never collides with the Recent card of the same canvas). | `client/home/home-app.jsx` · `PinButton` | — | new in v2 (V2-3.3) |
+| `home-project-row-<pid>` | testid (pattern) | A local project row in Projects (`data-place` = tab / resting / closed). Click → `open_project({pid})`. A project whose folder moved renders a non-button row with "<name> isn't where it was." and `home-relink-<pid>`. | `client/home/home-app.jsx` · `ProfileGroup` | — | new in v2 (V2-3.3) |
+| `home-relink-<pid>` | testid (pattern) | "Find the folder…" on a project that isn't where it was → `relink_project({pid})`. | `client/home/home-app.jsx` · `ProfileGroup` | — | new in v2 (V2-3.3) |
+| `home-cloud-row-<projectId>` | testid (pattern) | A cloud project with no copy on this Mac ("not on this Mac yet"). | `client/home/home-app.jsx` · `ProfileGroup` | — | new in v2 (V2-3.3) |
+| `home-cloud-open-<projectId>` | testid (pattern) | Open on a cloud row: Can edit / Can comment → `/_home/cloud/prepare` → `managed_project_open` → `open_project({root})`; Can view → `open_cloud_url`. | `client/home/home-app.jsx` · `ProfileGroup` | — | new in v2 (V2-3.3) |
+| `home-profile-<id>` | testid (pattern) | One account group in Projects (`<id>` = the shell profile id, e.g. `default`). | `client/home/home-app.jsx` · `ProfileGroup` | — | new in v2 (V2-3.3) |
+| `home-open-folder` | testid | "Open project… ⌘O" at the foot of Projects → `open_project_folder`. | `client/home/home-app.jsx` · `HomeApp` | — | new in v2 (V2-3.3) |
+
 ### other
 
 | Hook | Kind | Meaning | Producer | Consumers | v2 |
