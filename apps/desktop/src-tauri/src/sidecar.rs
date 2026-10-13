@@ -109,6 +109,43 @@ pub struct SidecarInstance {
     /// Monotonic tick of when this instance was last the DISPLAYED project —
     /// drives least-recently-shown eviction.
     pub last_shown: u64,
+    /// The identity profile the CURRENT child was spawned on (V2-3.1). Read at
+    /// spawn from `app_state::profile_for`; a rebinding takes effect only on the
+    /// next spawn — env is never hot-swapped.
+    pub profile_id: String,
+    /// The per-spawn token-bridge key the CURRENT child holds (keychain.rs
+    /// `mint_key`). Revoked the moment that child is shut down, dies, or is
+    /// replaced, so a key never outlives its process (plan T3 gotcha).
+    pub bridge_key: Option<String>,
+}
+
+/// The identity env for one spawn (V2-3.1, plan T6). `default` sets only the id
+/// and label: the server's own path defaults ARE the default profile's files
+/// (hubs-config.ts, cloud/endpoints.ts), and leaving them unset keeps a
+/// pre-profiles install byte-identical. Any other profile points the server at its
+/// own `cloud.json` / `hubs.json`.
+fn profile_env(
+    profile_id: &str,
+    label: &str,
+    paths: Option<&crate::profiles::ProfilePaths>,
+) -> Vec<(&'static str, String)> {
+    let mut env = vec![
+        ("MAUDE_PROFILE_ID", profile_id.to_string()),
+        ("MAUDE_PROFILE_LABEL", label.to_string()),
+    ];
+    if profile_id != crate::profiles::DEFAULT_ID {
+        if let Some(p) = paths {
+            env.push((
+                "MAUDE_CLOUD_CONFIG",
+                p.cloud_config.to_string_lossy().into_owned(),
+            ));
+            env.push((
+                "HUBS_CONFIG_PATH",
+                p.hubs_config.to_string_lossy().into_owned(),
+            ));
+        }
+    }
+    env
 }
 
 /// Managed state holding the live sidecar pool + supervision flags.
@@ -417,15 +454,34 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
         if auto_setup { "1" } else { "0" },
     );
 
-    // Loopback GitHub-token bridge (DDR-108): the dev-server's /_api/github/*
-    // endpoints fetch the keychain token from this endpoint at request time, with
-    // the per-launch key. Absent in non-Tauri `maude design serve` → those
-    // endpoints degrade to "sign in via the desktop app".
-    if let Some((endpoint, key)) = crate::keychain::bridge_env() {
-        command = command
-            .env("MAUDE_TOKEN_ENDPOINT", endpoint)
-            .env("MAUDE_TOKEN_KEY", key);
+    // Identity profile (V2-3.1): which GitHub / Cloud account this project talks
+    // as. Resolved per spawn from the project's registry binding (missing ⇒
+    // `default`), so a respawn after a rebinding picks the new account up.
+    let profile_id = crate::app_state::profile_for(app, &project_root);
+    let profile_paths = crate::profiles::paths(&profile_id).ok();
+    for (k, v) in profile_env(
+        &profile_id,
+        &crate::profiles::label_of(&profile_id),
+        profile_paths.as_ref(),
+    ) {
+        command = command.env(k, v);
     }
+
+    // Loopback GitHub-token bridge (DDR-108): the dev-server's /_api/github/*
+    // endpoints fetch the keychain token from this endpoint at request time. The
+    // key is minted FOR THIS SPAWN and maps to this project's profile only — it
+    // replaces the old one-key-per-launch shared by every server, which let any
+    // project's server read the one token there was. Absent in non-Tauri `maude
+    // design serve` → those endpoints degrade to "sign in via the desktop app".
+    let bridge_key = match crate::keychain::bridge_env(&profile_id) {
+        Some((endpoint, key)) => {
+            command = command
+                .env("MAUDE_TOKEN_ENDPOINT", endpoint)
+                .env("MAUDE_TOKEN_KEY", key.clone());
+            Some(key)
+        }
+        None => None,
+    };
 
     // In a packaged .app the sidecar binary sits alone in Contents/MacOS/ with no
     // apps/studio/ up-tree, so paths.ts walk-up can't find the runtime. Point it at
@@ -477,9 +533,16 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
         }
     }
 
-    let (mut rx, child) = command
-        .spawn()
-        .map_err(|e| format!("sidecar spawn failed: {e}"))?;
+    let (mut rx, child) = match command.spawn() {
+        Ok(spawned) => spawned,
+        Err(e) => {
+            // No process holds the freshly minted key — it must not stay live.
+            if let Some(k) = &bridge_key {
+                crate::keychain::revoke_key(k);
+            }
+            return Err(format!("sidecar spawn failed: {e}"));
+        }
+    };
 
     eprintln!(
         "[maude] dev-server sidecar spawned (pid {}) --root {}",
@@ -494,7 +557,15 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
             restarts: 0,
             last_shown: tick,
             spawned_at: Instant::now(),
+            profile_id: profile_id.clone(),
+            bridge_key: None,
         });
+        // The previous child's key (a respawn, or a racing double spawn) dies
+        // with that child; the new one carries its own.
+        if let Some(old_key) = std::mem::replace(&mut entry.bridge_key, bridge_key) {
+            crate::keychain::revoke_key(&old_key);
+        }
+        entry.profile_id = profile_id.clone();
         // CORRECTNESS (security-auditor A5) — `or_insert` overwrites an EXISTING
         // entry's `child`, and the first cut did exactly that: a racing second
         // `spawn_for` for the same root would drop a live CommandChild on the
@@ -576,6 +647,12 @@ pub fn spawn_for(app: &AppHandle, project_root: &str) -> Result<(), String> {
                                 let uptime = inst.spawned_at.elapsed();
                                 inst.restarts = next_restart_count(inst.restarts, uptime);
                                 inst.child = None;
+                                // The dead child's bridge key goes with it,
+                                // BEFORE any respawn — the respawn mints its own
+                                // (and on give-up nothing should hold one).
+                                if let Some(k) = inst.bridge_key.take() {
+                                    crate::keychain::revoke_key(&k);
+                                }
                                 log_line(&format!(
                                     "[maude] dev-server was up {}s before it died — restart {}/{}",
                                     uptime.as_secs(),
@@ -1003,7 +1080,15 @@ fn shutdown_instance(app: &AppHandle, root: &str) {
     let state = app.state::<SidecarState>();
     let child = {
         let mut pool = state.instances.lock().expect("sidecar mutex poisoned");
-        pool.remove(root).and_then(|inst| inst.child)
+        pool.remove(root).and_then(|inst| {
+            // Revoke first: the moment this instance leaves the pool its key
+            // must stop working, even while the child is still in its SIGTERM
+            // grace period below.
+            if let Some(k) = &inst.bridge_key {
+                crate::keychain::revoke_key(k);
+            }
+            inst.child
+        })
     };
     if let Some(child) = child {
         terminate(child);
@@ -1100,7 +1185,12 @@ pub fn kill_server(app: &AppHandle) {
         let children: Vec<(String, CommandChild)> = {
             let mut pool = state.instances.lock().expect("sidecar mutex poisoned");
             pool.drain()
-                .filter_map(|(root, inst)| inst.child.map(|c| (root, c)))
+                .filter_map(|(root, inst)| {
+                    if let Some(k) = &inst.bridge_key {
+                        crate::keychain::revoke_key(k);
+                    }
+                    inst.child.map(|c| (root, c))
+                })
                 .collect()
         };
         for (root, child) in children {
@@ -1115,6 +1205,32 @@ pub fn kill_server(app: &AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn profile_env_default_keeps_the_servers_own_paths() {
+        let paths = crate::profiles::ProfilePaths {
+            cloud_config: PathBuf::from("/c/cloud.json"),
+            hubs_config: PathBuf::from("/c/hubs.json"),
+        };
+        fn keys(env: &[(&'static str, String)]) -> Vec<&'static str> {
+            env.iter().map(|(k, _)| *k).collect()
+        }
+        let d = profile_env("default", "Default", Some(&paths));
+        assert_eq!(keys(&d), vec!["MAUDE_PROFILE_ID", "MAUDE_PROFILE_LABEL"]);
+        let w = profile_env("work", "Work", Some(&paths));
+        assert_eq!(
+            keys(&w),
+            vec![
+                "MAUDE_PROFILE_ID",
+                "MAUDE_PROFILE_LABEL",
+                "MAUDE_CLOUD_CONFIG",
+                "HUBS_CONFIG_PATH"
+            ]
+        );
+        assert_eq!(w[0].1, "work");
+        assert_eq!(w[2].1, "/c/cloud.json");
+        assert_eq!(w[3].1, "/c/hubs.json");
+    }
 
     #[test]
     fn a_server_that_dies_during_startup_spends_the_budget() {

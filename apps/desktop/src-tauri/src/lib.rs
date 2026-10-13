@@ -25,11 +25,13 @@ mod notify;
 mod oauth;
 mod picked_media;
 mod prefs;
+mod profiles;
 mod project_resolve;
 mod server_json;
 mod sidecar;
 mod updater;
 mod win_process;
+mod windows;
 // WKWebView-only: recover from a crashed web content process instead of a white window.
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 mod web_process;
@@ -464,6 +466,9 @@ pub fn run() {
             notify::send_notification,
             managed::managed_project_open,
             managed::managed_projects_list,
+            profiles::profiles_list,
+            profiles::profiles_create,
+            profiles::profiles_delete,
         ])
         .menu(menu::build_menu)
         .on_menu_event(|app, event| {

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-profiles-delete"
+description = "Enables the profiles_delete command without any pre-configured scope."
+commands.allow = ["profiles_delete"]
+
+[[permission]]
+identifier = "deny-profiles-delete"
+description = "Denies the profiles_delete command without any pre-configured scope."
+commands.deny = ["profiles_delete"]

@@ -38,6 +38,9 @@
     "allow-send-notification",
     "allow-managed-project-open",
     "allow-managed-projects-list",
+    "allow-profiles-list",
+    "allow-profiles-create",
+    "allow-profiles-delete",
     "deep-link:default"
   ]
 }

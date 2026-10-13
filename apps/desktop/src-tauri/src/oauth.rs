@@ -22,7 +22,7 @@
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, EventTarget};
 use tokio::time::sleep;
 
 /// The Maude GitHub OAuth App client id. NOT a secret. Replace the placeholder
@@ -157,7 +157,7 @@ async fn poll_for_token(
             }
             other => {
                 // Don't surface raw GitHub error codes to a non-technical user.
-                eprintln!("[maude] github device-flow error: {:?}", other);
+                crate::sidecar::log_line(&format!("[maude] github device-flow error: {other:?}"));
                 return Err("Sign-in didn't finish. Please try again.".to_string());
             }
         }
@@ -192,14 +192,47 @@ fn http_client() -> Result<reqwest::Client, String> {
         .map_err(|_| "Couldn't start the sign-in client.".to_string())
 }
 
+/// Where sign-in progress goes: the CALLING window only (V2-3.1, plan T4).
+///
+/// `AnyLabel` matches a `Window`, `Webview` or `WebviewWindow` listener carrying
+/// that label, so it reaches whichever scoped `listen` the client uses. Note what
+/// it does NOT do yet: Tauri also delivers an `emit_to` to every JS listener
+/// registered with target `Any` — which is what today's global
+/// `window.__TAURI__.event.listen` in `client/github.js` registers — in EVERY
+/// window. So the current client still receives these events (nothing breaks),
+/// and two-window isolation becomes real when the client switches to a
+/// window-scoped listener (old T10 / V2-3.2).
+fn caller_target(label: &str) -> EventTarget {
+    EventTarget::AnyLabel {
+        label: label.to_string(),
+    }
+}
+
 /// `#[tauri::command]` — the whole device flow, awaited by the webview.
 ///
-/// 1. POST for a device+user code → emit `github://device-code` so the modal shows
-///    the code, and open the browser at the verification URL.
+/// 1. POST for a device+user code → emit `github://device-code` to the calling
+///    window so its modal shows the code, and open the browser at the
+///    verification URL.
 /// 2. Poll until authorized (or expired/denied).
-/// 3. Store the token in the OS keychain (never on disk) and return the **login**.
+/// 3. Store the token in `profile`'s keychain slot (never on disk) and return
+///    the **login**.
+///
+/// `profile`: `None` = the profile bound to the displayed project (today's
+/// parameterless client call); `Some(id)` = sign in INTO that profile. All poll
+/// state (device code, interval, back-off) is local to this call — never a
+/// static — so two windows signing into two profiles at once cannot cross wires.
 #[tauri::command]
-pub async fn github_sign_in(app: AppHandle) -> Result<String, String> {
+pub async fn github_sign_in(
+    app: AppHandle,
+    window: tauri::Window,
+    profile: Option<String>,
+) -> Result<String, String> {
+    let profile = crate::keychain::resolve_profile(&app, profile)?;
+    if !crate::profiles::exists(&profile) {
+        return Err("That account profile doesn't exist.".to_string());
+    }
+    let target = caller_target(window.label());
+
     // E2E (debug builds only): the device flow opens the system browser + polls GitHub —
     // neither DOM-drivable nor deterministic. With MAUDE_E2E_FAKE_GITHUB_LOGIN set, show a
     // deterministic device-code modal, "authorize" after a beat, then report the fake
@@ -208,7 +241,8 @@ pub async fn github_sign_in(app: AppHandle) -> Result<String, String> {
     #[cfg(debug_assertions)]
     if let Ok(login) = std::env::var("MAUDE_E2E_FAKE_GITHUB_LOGIN") {
         if !login.is_empty() {
-            let _ = app.emit(
+            let _ = app.emit_to(
+                target.clone(),
                 "github://device-code",
                 DeviceCodeEvent {
                     user_code: "E2E-CODE".to_string(),
@@ -217,7 +251,7 @@ pub async fn github_sign_in(app: AppHandle) -> Result<String, String> {
                 },
             );
             sleep(Duration::from_millis(2500)).await;
-            let _ = app.emit("github://signed-in", &login);
+            let _ = app.emit_to(target, "github://signed-in", &login);
             return Ok(login);
         }
     }
@@ -227,8 +261,9 @@ pub async fn github_sign_in(app: AppHandle) -> Result<String, String> {
 
     let dc = request_device_code(&client, &client_id).await?;
 
-    // Show the code in the UI (the device-code modal listens for this).
-    let _ = app.emit(
+    // Show the code in the calling window (its device-code modal listens).
+    let _ = app.emit_to(
+        target.clone(),
         "github://device-code",
         DeviceCodeEvent {
             user_code: dc.user_code.clone(),
@@ -238,17 +273,19 @@ pub async fn github_sign_in(app: AppHandle) -> Result<String, String> {
     );
     // Best-effort: open the verification page in the system browser.
     if let Err(e) = open::that(&dc.verification_uri) {
-        eprintln!("[maude] could not open browser for device flow: {e}");
+        crate::sidecar::log_line(&format!("[maude] could not open browser for device flow: {e}"));
     }
 
     let token = poll_for_token(&client, &client_id, &dc.device_code, dc.interval).await?;
 
-    // The token is a secret → keychain only.
-    crate::keychain::set_token(&token)
+    // The token is a secret → this profile's keychain slot only (DDR-108/132).
+    crate::keychain::set_token(&profile, &token)
         .map_err(|e| format!("Signed in, but couldn't save it securely: {e}"))?;
 
     let login = fetch_login(&client, &token).await?;
-    let _ = app.emit("github://signed-in", &login);
+    // The public handle only — display data for the profile chip.
+    crate::profiles::set_github_login(&profile, &login);
+    let _ = app.emit_to(target, "github://signed-in", &login);
     Ok(login)
 }
 
@@ -448,7 +485,19 @@ pub async fn open_cloud_url(url: String) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{cloud_base, cloud_url_allowed, DEFAULT_CLOUD_URL};
+    use super::{caller_target, cloud_base, cloud_url_allowed, DEFAULT_CLOUD_URL};
+
+    #[test]
+    fn sign_in_events_target_the_calling_window_label() {
+        // Not `Any`/`App` (app-wide): only listeners carrying this label match a
+        // scoped filter. See `caller_target` for what a global JS listener sees.
+        assert_eq!(
+            caller_target("p-l6ff9cde02f1b516d"),
+            tauri::EventTarget::AnyLabel {
+                label: "p-l6ff9cde02f1b516d".to_string()
+            }
+        );
+    }
 
     fn base(s: &str) -> reqwest::Url {
         reqwest::Url::parse(s).unwrap()
