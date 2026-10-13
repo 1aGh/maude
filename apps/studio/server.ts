@@ -23,6 +23,7 @@ import { ASSET_MAX_VIDEO_BYTES, createApi } from './api.ts';
 import { bootSelfHeal } from './boot-self-heal.ts';
 import { isSandboxArmed } from './canvas-build-sandbox.ts';
 import { createCanvasListWatch } from './canvas-list-watch.ts';
+import { canvasTopLevelRefusal, topLevelGuardedRoutes } from './canvas-top-level.ts';
 import { type AiActivityEntry, createAiActivity } from './collab/ai-activity.ts';
 import { createGitLifecycle } from './collab/git-lifecycle.ts';
 import { createCollab } from './collab/index.ts';
@@ -617,7 +618,9 @@ function startCanvasServer(
     maxRequestBodySize: MAX_REQUEST_BODY,
     // The capture origin serves the SAME route table, each entry behind a
     // GET/HEAD gate — never a third allowlist (V2-2.8 S9).
-    routes: capture ? readOnlyRoutes(routes) : routes,
+    // V2-3.6 N-M2 — the interactive canvas origin refuses a top-level document
+    // (canvas-top-level.ts); the capture origin is loaded top-level by design.
+    routes: capture ? readOnlyRoutes(routes) : topLevelGuardedRoutes(routes),
     async fetch(req, srv) {
       const pathname = new URL(req.url).pathname;
 
@@ -625,6 +628,9 @@ function startCanvasServer(
       // anything else is consulted.
       if (capture) {
         const refused = captureRefusal(req);
+        if (refused) return refused;
+      } else {
+        const refused = canvasTopLevelRefusal(req);
         if (refused) return refused;
       }
 
