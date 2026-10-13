@@ -11,8 +11,12 @@ export const CANVAS_ACTIONS: ActionDef[] = [
     icon: 'plus',
     exec: 'shell',
     // v1: bare N opens the new-brief-board composer (the browser never delivers ⌘N). The v2 key
-    // is ⌘N (native menu, C3) — Phase 4 moves it under rule 13.
-    keys: [kb('N', 'global', { inText: false, when: SHELL_NOT_TYPING })],
+    // is ⌘N: the desktop File ▸ New Canvas accelerator (C3, V2-3.4 — primary, so the menu takes
+    // it; AppKit owns it, the menu sends `menu://action`). Phase 4 retires bare N under rule 13.
+    keys: [
+      kb('⌘N', 'global', { inText: true, when: { shell: ['desktop'] } }),
+      kb('N', 'global', { inText: false, when: SHELL_NOT_TYPING }),
+    ],
     legacy: { palette: 'New canvas…', menu: 'New canvas…', sheet: 'New brief board' },
   },
   {

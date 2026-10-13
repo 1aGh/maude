@@ -32,19 +32,35 @@
       "items": [
         {
           "kind": "item",
-          "id": "new_project",
-          "action": "project.new",
-          "label": "New Project…",
-          "exec": "native",
+          "id": "new_canvas",
+          "action": "canvas.new",
+          "label": "New Canvas",
+          "exec": "shell",
           "accel": "CmdOrCtrl+N"
         },
         {
           "kind": "item",
-          "id": "open_project",
+          "id": "new_project",
+          "action": "project.new",
+          "label": "New Project…",
+          "exec": "shell",
+          "accel": "CmdOrCtrl+Shift+N"
+        },
+        {
+          "kind": "item",
+          "id": "open_project_folder",
           "action": "project.open",
           "label": "Open Project…",
           "exec": "native",
           "accel": "CmdOrCtrl+O"
+        },
+        {
+          "kind": "item",
+          "id": "new_home_tab",
+          "action": "home.open",
+          "label": "New Home Tab",
+          "exec": "native",
+          "accel": "CmdOrCtrl+T"
         }
       ]
     },
@@ -80,6 +96,29 @@
         {
           "kind": "predefined",
           "name": "select_all"
+        }
+      ]
+    },
+    {
+      "title": "Window",
+      "windows_menu": true,
+      "items": [
+        {
+          "kind": "predefined",
+          "name": "minimize"
+        },
+        {
+          "kind": "predefined",
+          "name": "zoom"
+        },
+        {
+          "kind": "separator",
+          "macos": true
+        },
+        {
+          "kind": "predefined",
+          "name": "bring_all_to_front",
+          "macos": true
         }
       ]
     },

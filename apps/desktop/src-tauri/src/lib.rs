@@ -45,7 +45,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::Mutex;
 
-use tauri::{Manager, RunEvent, WindowEvent};
+use tauri::{Emitter, EventTarget, Manager, RunEvent, WindowEvent};
 use tauri_plugin_dialog::DialogExt;
 
 use sidecar::SidecarState;
@@ -605,36 +605,60 @@ pub fn run() {
         ])
         .menu(menu::build_menu)
         .on_menu_event(|app, event| {
-            if event.id().as_ref() == menu::MENU_NEW_PROJECT {
-                // File ▸ New Project… — hand off to the webview, which owns the
-                // create-project dialog (name + visibility → POST create-project →
-                // git init + design scaffold → open). IdentityBar listens for this.
-                windows::emit_to_front(app, "menu://new-project", ());
-                return;
-            }
-            if event.id().as_ref() == menu::MENU_REPORT_BUG {
-                // Help ▸ Report a Bug… — hand off to the webview's dialog, which
+            // The focused window (no fallback) — where a menu action lands.
+            let focused = || {
+                app.try_state::<SidecarState>().and_then(|s| {
+                    menu::action_target(&s.windows.lock().unwrap_or_else(|e| e.into_inner()))
+                })
+            };
+            let Some(route) = menu::route(event.id().as_ref()) else {
+                return; // a predefined item: AppKit handled it
+            };
+            let id = match route {
+                // exec:'shell' (V2-1.3 §5.8): the focused window's webview runs the
+                // action by registry id — File ▸ New Canvas (`canvas.new`) and
+                // New Project… (`project.new`: a project window opens IdentityBar's
+                // create dialog; on Home it is the create sheet once Home has one —
+                // V2-1.1 §5.9's target is "focus/open Home, then emit to it"). No
+                // focused window → nothing (never a background tab).
+                menu::MenuRoute::Action(action) => {
+                    if let Some(label) = focused() {
+                        let _ = app.emit_to(
+                            EventTarget::AnyLabel { label },
+                            menu::MENU_ACTION_EVENT,
+                            serde_json::json!({ "id": action }),
+                        );
+                    }
+                    return;
+                }
+                menu::MenuRoute::Native(id) => id,
+            };
+            if id == menu::MENU_REPORT_BUG {
+                // Help ▸ Report a Bug… (keeps its own event until the webview's
+                // `menu://action` dispatcher runs `help.report-bug`) — hand off to the webview's dialog, which
                 // owns capture + consent (feature-bug-report-button).
                 windows::emit_to_front(app, "menu://report-bug", ());
                 return;
             }
-            if event.id().as_ref() == menu::MENU_CHECK_UPDATES {
+            if id == menu::MENU_CHECK_UPDATES {
                 // Maude ▸ Check for Updates… — force a check now with explicit
                 // dialog feedback (the background loop is otherwise silent).
                 updater::check_now_interactive(app.clone());
                 return;
             }
-            if event.id().as_ref() == menu::MENU_OPEN_PROJECT {
-                pick_and_open_folder(app, None);
+            // File ▸ Open Project… ⌘O — the `open_project_folder` flow; the new tab
+            // goes after the focused window, as from the command.
+            if id == menu::MENU_OPEN_PROJECT_FOLDER {
+                pick_and_open_folder(app, focused());
                 return;
             }
-            // File › New Home Tab ⌘T / Back to Home (V2-3.3). The item itself comes
-            // from the action registry (`home.open` → menu.actions.json, lead-owned);
-            // until it lands this arm is unreachable.
-            if event.id().as_ref() == "new_home_tab" {
+            // File ▸ New Home Tab ⌘T (`home.open`) — the `new_home_tab` flow: focus
+            // Home, or open it as a tab of the focused window.
+            if id == menu::MENU_NEW_HOME_TAB {
                 let app = app.clone();
+                let caller = focused();
                 tauri::async_runtime::spawn(async move {
-                    if let Err(e) = home::ensure_home_window(&app, None) {
+                    if let Err(e) = home::ensure_home_window(&app, caller.as_deref()) {
                         sidecar::log_line(&format!("[maude] could not open Home: {e}"));
                     }
                 });

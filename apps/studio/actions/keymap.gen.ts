@@ -12,6 +12,11 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
     keys: [{ chord: '⌘K', layer: 'global', inText: true }],
   },
   {
+    id: 'canvas.new',
+    exec: 'shell',
+    keys: [{ chord: '⌘N', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+  },
+  {
     id: 'canvas.reload',
     exec: 'shell',
     fromCanvas: true,
@@ -606,12 +611,17 @@ export const CANVAS_KEYMAP: readonly KeyedAction[] = [
   },
   {
     id: 'project.new',
-    exec: 'native',
-    keys: [{ chord: '⌘N', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+    exec: 'shell',
+    keys: [{ chord: '⇧⌘N', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
   },
   {
     id: 'project.open',
     exec: 'native',
     keys: [{ chord: '⌘O', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
+  },
+  {
+    id: 'home.open',
+    exec: 'native',
+    keys: [{ chord: '⌘T', layer: 'global', inText: true, when: { shell: ['desktop'] } }],
   },
 ];
