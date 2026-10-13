@@ -392,7 +392,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.log(`v1 manifest: ${entries.length} entry points → ${relative(REPO, OUT)}`);
   } else if (mode === '--check') {
     const frozen = new Set(JSON.parse(readFileSync(OUT, 'utf8')).entries.map((e) => e.id));
-    const added = entries.filter((e) => !frozen.has(e.id) && !e.file.includes('/client/v2/'));
+    // v2-native surfaces are not v1 entry points: client/v2/** and the Phase 3 Home page
+    // (client/home/**, rendered only in the v2 Home window — decision maude/v2-3-home-not-v1).
+    const isV2 = (f) => f.includes('/client/v2/') || f.includes('/client/home/');
+    const added = entries.filter((e) => !frozen.has(e.id) && !isV2(e.file));
     for (const e of added) console.log(`NEW  ${e.id}  (${e.label})`);
     console.log(
       added.length
