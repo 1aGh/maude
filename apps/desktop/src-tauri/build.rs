@@ -49,6 +49,9 @@ fn main() {
                 "index_search",
                 "relink_project",
                 "open_project_folder",
+                // V2-3 patches (windows.rs): one-shot values parked per label.
+                "take_tabs_restored",
+                "take_pending_navigate",
                 // Debug-only e2e helpers: Err stubs in release, granted only by
                 // capabilities/e2e-webdriver.json (never default.json).
                 "window_labels",
