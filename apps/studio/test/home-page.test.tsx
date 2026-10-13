@@ -245,6 +245,8 @@ describe('Home page in the desktop app', () => {
       '/_home/pins',
     ])
       expect(paths.has(p)).toBe(true);
+    // pictures are fetched WITH the header (an <img src> could not send it), shown as blob: URLs
+    expect(paths.has(`/_home/thumb/${P1}/aa11.jpg`)).toBe(true);
     for (const c of calls) expect(c.headers['x-maude-home']).toBe('1');
   });
 
@@ -270,8 +272,6 @@ describe('Home page in the desktop app', () => {
     ]);
     expect($(`home-project-row-${P1}`)?.textContent).toContain('in a tab');
     expect($(`home-project-row-${P2}`)?.textContent).toContain('this Mac only');
-    const img = $(`home-recent-row-${P1}-ui-uniformy-2027`)?.querySelector('img');
-    expect(img?.getAttribute('src')).toBe(`/_home/thumb/${P1}/aa11.jpg`);
   });
 
   test('picking a canvas calls open_project({pid, target:{canvas}}); Open project… calls open_project_folder', async () => {
@@ -397,6 +397,7 @@ describe('home-api', () => {
         'saveRecentSearch',
         'search',
         'setPin',
+        'thumbObjectUrl',
       ].sort()
     );
     for (const [, fn] of http) await (fn as (...a: unknown[]) => Promise<unknown>)('a', 'b', 'c');

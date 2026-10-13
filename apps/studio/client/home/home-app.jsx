@@ -28,6 +28,7 @@ import {
   setPin,
   shellListen,
   shellState,
+  thumbObjectUrl,
 } from './home-api.js';
 import { HIcon, HMark, HSpark, ProjectSquare } from './home-icons.jsx';
 import {
@@ -496,12 +497,26 @@ export function HomeApp() {
   );
 }
 
+/** A Home picture: fetched with the Home header (home-api `thumbObjectUrl`), shown as a blob URL. */
 function Thumb({ src, className }) {
+  const [url, setUrl] = useState(null);
   const [broken, setBroken] = useState(false);
-  if (!src || broken) return <span className={`home-thumb home-thumb--empty ${className}`} />;
+  useEffect(() => {
+    let alive = true;
+    setUrl(null);
+    setBroken(false);
+    if (src)
+      thumbObjectUrl(src).then((u) => {
+        if (alive) setUrl(u);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [src]);
+  if (!url || broken) return <span className={`home-thumb home-thumb--empty ${className}`} />;
   return (
     <span className={`home-thumb ${className}`}>
-      <img src={src} alt="" loading="lazy" decoding="async" onError={() => setBroken(true)} />
+      <img src={url} alt="" decoding="async" onError={() => setBroken(true)} />
     </span>
   );
 }

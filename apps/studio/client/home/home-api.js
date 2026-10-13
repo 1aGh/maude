@@ -47,6 +47,41 @@ export const setPin = (pid, canvas, pinned) => post('/_home/pins', { pid, canvas
 export const prepareCloud = (profile, server, projectId) =>
   post('/_home/cloud/prepare', { profile, server, projectId });
 
+// Pictures: `/_home/thumb/<pid>/<key>.jpg` is guarded like every other route, and an <img src>
+// cannot send a header — so the page fetches the bytes (with the header) and shows a blob: URL.
+// A key names immutable bytes, so one object URL per picture lives for the page (capped).
+const THUMB_CAP = 400;
+const thumbCache = new Map(); // src → Promise<string|null>
+
+/** A blob: URL for a Home picture, or null (missing, refused, offline). Never throws. */
+export function thumbObjectUrl(src) {
+  if (!src) return Promise.resolve(null);
+  const hit = thumbCache.get(src);
+  if (hit) return hit;
+  const p = (async () => {
+    try {
+      const res = await fetch(src, { headers: { [HOME_HEADER]: '1' } });
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      if (!blob.size || typeof URL.createObjectURL !== 'function') return null;
+      return URL.createObjectURL(blob);
+    } catch {
+      return null;
+    }
+  })();
+  thumbCache.set(src, p);
+  if (thumbCache.size > THUMB_CAP) {
+    const [oldest, url] = thumbCache.entries().next().value;
+    thumbCache.delete(oldest);
+    url.then((u) => u && URL.revokeObjectURL?.(u));
+  }
+  // a failed fetch is not remembered: the next render may find the picture
+  p.then((u) => {
+    if (!u && thumbCache.get(src) === p) thumbCache.delete(src);
+  });
+  return p;
+}
+
 // ── the native shell ───────────────────────────────────────────────────────────────────────────
 function tauri() {
   return typeof window !== 'undefined' ? window.__TAURI__ || null : null;
