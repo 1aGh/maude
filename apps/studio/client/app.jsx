@@ -137,7 +137,6 @@ import {
   appIsFirstRun,
   invoke,
   isNativeApp,
-  onMenuReportBug,
   onUpdateReady,
   pickedMediaSource,
   pickMediaFile,

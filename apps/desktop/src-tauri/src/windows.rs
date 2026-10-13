@@ -1196,21 +1196,6 @@ pub fn reveal_front(app: &AppHandle) {
     }
 }
 
-/// Emit to the front window only — a shell-level event (the native menu)
-/// belongs to the window the person is looking at, not every tab.
-pub fn emit_to_front<S: Serialize + Clone>(app: &AppHandle, event: &str, payload: S) {
-    let label = app.try_state::<SidecarState>().and_then(|s| {
-        s.windows
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .front_label()
-    });
-    let _ = match label {
-        Some(label) => app.emit_to(EventTarget::AnyLabel { label }, event, payload),
-        None => app.emit(event, payload),
-    };
-}
-
 // ── Caller resolution (contract §5.4) ───────────────────────────────────────
 
 /// The project window a command was invoked from.

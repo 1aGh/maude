@@ -65,9 +65,6 @@ export const onSignedIn = (cb) => listenHere('github://signed-in', cb);
  *  (`menu://action {id}`, sent to the focused window only — V2-1.3 §5.8). cb(actionId).
  *  Returns an unlisten promise. */
 export const onMenuAction = (cb) => listenHere('menu://action', (p) => cb(p?.id));
-/** RETIRED (V2-3.4): no sender — Help ▸ Report a Bug… is `menu://action`. Kept only
- *  for app.jsx's unused import; delete both together. */
-export const onMenuReportBug = (cb) => listenHere('menu://report-bug', cb);
 
 // ── dev-server endpoints ────────────────────────────────────────────────────────
 async function api(path, opts = {}) {
