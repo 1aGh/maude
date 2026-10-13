@@ -1,11 +1,14 @@
 // Active-canvas state, selected-element tracking, and HTML injection
 // (inspector overlay + canvas runtime). See plan Task 7 + DDR-007.
 
+import { lstatSync } from 'node:fs';
 import path from 'node:path';
 
 import { CHORD_OF_EVENT_JS, canvasForwards } from './actions/forward.ts';
 import type { Context } from './context.ts';
+import { isCanvasKey, stampRecent } from './home/user-state.ts';
 import { normalizeSessionKey, sessionFile } from './session-scope.ts';
+import { isWorkspaceMode } from './workspace-mode.ts';
 
 export interface SelectedElement {
   file: string;
@@ -222,6 +225,28 @@ export function createInspect(
     return Array.isArray(parked) ? parked.map(gate) : gate(parked);
   }
 
+  /**
+   * V2-1.1 §5.5 — "last opened" for Home's Recent canvases, stamped at the same moment
+   * `_active.json` changes. `file` reached us from the canvas through the inspector relay, so it
+   * becomes a key only as a real canvas file under the design root. A desktop's own person only: a
+   * cell's `_canvas-state/` is shared by every member.
+   */
+  function stampOpened(file: string) {
+    if (!file || isWorkspaceMode()) return;
+    const prefix = `${ctx.paths.designRel}/`;
+    if (!file.startsWith(prefix)) return;
+    const rel = file.slice(prefix.length);
+    if (!isCanvasKey(rel)) return;
+    // a real file, not a symlink: the key names what the file tree and the index list
+    const st = lstatSync(path.join(ctx.paths.designRoot, rel), { throwIfNoEntry: false });
+    if (!st?.isFile()) return;
+    try {
+      stampRecent(ctx.paths.designRoot, rel);
+    } catch (e) {
+      console.error('  warn: failed to save _recent.json:', e instanceof Error ? e.message : e);
+    }
+  }
+
   function setActive(file: string) {
     if (typeof file !== 'string') return;
     if (state.active === file) return;
@@ -235,6 +260,7 @@ export function createInspect(
     state.selected = file ? restoreFor(file) : null;
     state.last_change = new Date().toISOString();
     scheduleSave();
+    stampOpened(file);
     ctx.bus.emit('active', state.active, { session: sessionKey });
     // Clients (StatusBar, shell halo, chat context chip) must see the restored
     // selection, not assume the pre-switch null.

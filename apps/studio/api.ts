@@ -30,6 +30,7 @@ import { renderBriefBoard, validateCanvasName, validateFolderName } from './canv
 import { rewriteRelativeImports } from './canvas-imports.ts';
 import { canvasSlugFromRel } from './canvas-slug.ts';
 import { isAnnotationId, isWorldPoint } from './comment-anchor.ts';
+import { dropPin, rekeyUserState } from './home/user-state.ts';
 import { atomicWrite } from './sync/atomic-write.ts';
 import { dedupeCommentsById } from './sync/comment-identity.ts';
 import { isRuntimeStateRel } from './sync/file-membership.ts';
@@ -3707,6 +3708,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       `${JSON.stringify({ canvas: rel, slug, deletedAt: new Date().toISOString(), trashed }, null, 2)}\n`
     );
 
+    // V2-1.1 §5.5 — a trashed canvas drops its pin (a restore does not bring it back).
+    try {
+      dropPin(paths.designRoot, rel);
+    } catch {
+      /* best-effort */
+    }
+
     // Phase 30 — live tree refresh for other local tabs (see createCanvas).
     ctx.bus.emit('canvas-list-update', { action: 'removed', rel, slug });
     // A SEPARATE EVENT, DELIBERATELY. `canvas-list-update` is emitted by this
@@ -4330,6 +4338,13 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
       /* best-effort — a stale locator entry re-derives on next transpile */
     }
 
+    // V2-3.3 — its pin and "last opened" (`_canvas-state/_pins.json`, `_recent.json`) follow it.
+    try {
+      rekeyUserState(paths.designRoot, [[rel, toRel]]);
+    } catch {
+      /* best-effort — a lost pin is not worth failing a move that already happened */
+    }
+
     // Retarget `_active.json` (active canvas / open tabs / selection) if this
     // canvas was referenced anywhere in it.
     const fromFile = path.posix.join(paths.designRel, rel);
@@ -4646,6 +4661,16 @@ export function createApi(ctx: Context, hooks: ApiHooks): Api {
         fromRel,
         fromSlug,
       });
+    }
+
+    // V2-3.3 — every nested canvas's pin and "last opened" follow it, in one rewrite per file.
+    try {
+      rekeyUserState(
+        paths.designRoot,
+        canvasRels.map((fromRel) => [fromRel, toRelDir + fromRel.slice(relDir.length)])
+      );
+    } catch {
+      /* best-effort */
     }
 
     return { ok: true, fromRel: relDir, toRel: toRelDir, fromSlug: '', toSlug: '', moved };

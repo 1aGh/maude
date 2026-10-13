@@ -91,9 +91,17 @@ async function bootstrapOf(url: string, token: string): Promise<Record<string, u
   }
 }
 
+/** What preparing needs from its caller: a project server passes its Context; the Home server
+ *  (V2-3.3), which serves no project, passes nothing but the profile's `cloud.json`. */
+export interface PrepareCtx {
+  cfg?: { linkedHub?: { url?: string } | null };
+  syncControl?: Context['syncControl'];
+}
+
 export async function prepareManagedProject(
-  ctx: Context,
-  input: PrepareInput
+  ctx: PrepareCtx,
+  input: PrepareInput,
+  opts: { cloudConfigPath?: string } = {}
 ): Promise<PrepareResult> {
   let serverUrl: string;
   let projectId: string | null = null;
@@ -101,7 +109,11 @@ export async function prepareManagedProject(
   let name: string | null = null;
 
   if (input.kind === 'cloud' || input.kind === 'handoff') {
-    const cloud = createCloudEndpoints(ctx);
+    // openManaged / openManagedCode read no project path — only the device session
+    const cloud = createCloudEndpoints({
+      paths: { repoRoot: '', designRoot: '' },
+      cloudConfigPath: opts.cloudConfigPath,
+    });
     const r =
       input.kind === 'cloud'
         ? await cloud.openManaged(input.projectId)
