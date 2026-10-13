@@ -1,10 +1,10 @@
 // hooks/use-palette-and-panels.jsx — moved verbatim out of client/app.jsx (Maude v2 plan V2-0.2, move-only split).
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { ACTIONS_BY_ID } from '../../actions/index.ts';
 import { V1_PALETTE } from '../../actions/legacy.ts';
 import { copyShareLink } from '../share-dialog.jsx';
-import { isNativeApp } from '../github.js';
+import { isNativeApp, onMenuAction } from '../github.js';
 import { DOCK_PANELS, PANEL_SIDES_DEFAULTS } from '../shell/dock.jsx';
 import { EMPTY_GROUPS, SYSTEM_TAB } from '../shell/constants.js';
 import { openCount } from '../shell/util.js';
@@ -204,6 +204,19 @@ export function usePaletteAndPanels({
     localProjectName,
     cfg.designRel,
   ]);
+
+  // Native menu items whose registry action runs in the webview (`menu://action {id}`,
+  // V2-1.3 §5.8 — File ▸ New Canvas, Help ▸ Report a Bug…) run the palette's row for that
+  // id. `project.new` is IdentityBar's (its dialog state lives there).
+  const paletteRef = useRef(paletteActions);
+  paletteRef.current = paletteActions;
+  useEffect(() => {
+    if (!isNativeApp()) return undefined;
+    const p = onMenuAction((id) => paletteRef.current.find((a) => a.id === id)?.run?.());
+    return () => {
+      p?.then?.((fn) => fn?.());
+    };
+  }, []);
 
   // feature-configurable-panel-docking — resolve, for each slot, the panels
   // assigned to it and which one is active (the open one). Layers is only a

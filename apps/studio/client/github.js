@@ -61,10 +61,12 @@ export const openCloudUrl = (url) => invoke('open_cloud_url', { url });
 export const onDeviceCode = (cb) => listenHere('github://device-code', cb);
 /** Fire when sign-in completes in THIS window so its other surfaces can flip live. cb(login). */
 export const onSignedIn = (cb) => listenHere('github://signed-in', cb);
-/** Fire when the native File ▸ New Project… menu item is chosen (sent to the front
- *  window only). Returns an unlisten promise. */
-export const onMenuNewProject = (cb) => listenHere('menu://new-project', cb);
-/** Fire when the native Help ▸ Report a Bug… menu item is chosen (front window only). */
+/** Fire when a native menu item whose registry action runs in the webview is chosen
+ *  (`menu://action {id}`, sent to the focused window only — V2-1.3 §5.8). cb(actionId).
+ *  Returns an unlisten promise. */
+export const onMenuAction = (cb) => listenHere('menu://action', (p) => cb(p?.id));
+/** RETIRED (V2-3.4): no sender — Help ▸ Report a Bug… is `menu://action`. Kept only
+ *  for app.jsx's unused import; delete both together. */
 export const onMenuReportBug = (cb) => listenHere('menu://report-bug', cb);
 
 // ── dev-server endpoints ────────────────────────────────────────────────────────

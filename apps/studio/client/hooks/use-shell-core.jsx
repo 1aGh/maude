@@ -25,7 +25,7 @@ import {
   isModuleCanvasPath,
 } from '../shell/constants.js';
 import { useTreeExpansion } from '../tree-expansion.js';
-import { appIsFirstRun, isNativeApp, onMenuReportBug, onUpdateReady } from '../github.js';
+import { appIsFirstRun, isNativeApp, onUpdateReady } from '../github.js';
 import { useSetupReadiness } from '../panels/SetupChecklist.jsx';
 import { activeComp, resolveCompTarget } from '../panels/timeline-comp-target.js';
 import { useWhatsNew } from '../whats-new.jsx';
@@ -606,16 +606,8 @@ export function useShellCore({}) {
   const sectionsExpanded = treeExp.state.sections;
   const [helpOpen, setHelpOpen] = useState(false);
   const [reportBugOpen, setReportBugOpen] = useState(false);
-
-  // Native Help ▸ Report a Bug… (menu.rs emits `menu://report-bug`) — same
-  // lane as IdentityBar's File ▸ New Project… subscription.
-  useEffect(() => {
-    if (!isNativeApp()) return;
-    const p = onMenuReportBug(() => setReportBugOpen(true));
-    return () => {
-      p.then((un) => un()).catch(() => {});
-    };
-  }, []);
+  // Native Help ▸ Report a Bug… arrives as `menu://action {id:'help.report-bug'}` and
+  // runs the palette's row (use-palette-and-panels.jsx, V2-3.4).
   const [readinessOpen, setReadinessOpen] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
   const [quickSetupOpen, setQuickSetupOpen] = useState(false);

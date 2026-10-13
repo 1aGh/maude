@@ -7,7 +7,7 @@
 // V2-3.4 (C3): File = New Canvas ⌘N · New Project… ⇧⌘N · Open Project… ⌘O · New Home Tab ⌘T,
 // plus a Window menu. A click routes by the item's registry `exec` (§5.8): `shell` items emit
 // `menu://action {id}` to the focused window (the webview runs the action), `native` items have
-// an arm in lib.rs. `menu://new-project` is retired.
+// an arm in lib.rs. `menu://new-project` and `menu://report-bug` are retired.
 
 use serde::Deserialize;
 use tauri::menu::{
@@ -24,24 +24,19 @@ pub const MENU_NEW_HOME_TAB: &str = "new_home_tab";
 /// Menu-item id for the Maude ▸ Check for Updates… action (manual update check).
 pub const MENU_CHECK_UPDATES: &str = "check_updates";
 
-/// Menu-item id for the Help ▸ Report a Bug… action (feature-bug-report-button). Its registry
-/// action is `exec:'shell'`, but it keeps its own `menu://report-bug` event until the webview's
-/// `menu://action` dispatcher runs `help.report-bug` (V2-1.3 §5.8 retires that event too).
-pub const MENU_REPORT_BUG: &str = "report_bug";
-
 /// The one event every `exec:'shell'` item sends, payload `{id: <registry id>}`, to the focused
-/// window only (V2-1.3 §5.8). The webview runs the action by id.
+/// window only (V2-1.3 §5.8). The webview runs the action by id — File ▸ New Canvas, New
+/// Project… and Help ▸ Report a Bug… (`menu://new-project` and `menu://report-bug` retired).
 pub const MENU_ACTION_EVENT: &str = "menu://action";
 
 /// Every item id lib.rs's `on_menu_event` has its own arm for. The slice may route no other id
 /// natively. Test-only: lib.rs matches the `MENU_*` constants directly, so keep this list in step
 /// with its arms.
 #[cfg(test)]
-pub const HANDLED_MENU_IDS: [&str; 4] = [
+pub const HANDLED_MENU_IDS: [&str; 3] = [
     MENU_OPEN_PROJECT_FOLDER,
     MENU_NEW_HOME_TAB,
     MENU_CHECK_UPDATES,
-    MENU_REPORT_BUG,
 ];
 
 /// The generated slice, embedded at compile time.
@@ -102,8 +97,8 @@ pub enum MenuRoute {
 }
 
 /// The route for a clicked menu-item id, from the generated slice: `exec:'shell'` → `Action`,
-/// otherwise `Native` (and the Report-a-Bug carve-out above). `None` for an id the slice does
-/// not name — a predefined item, which AppKit handles itself.
+/// otherwise `Native`. `None` for an id the slice does not name — a predefined item, which
+/// AppKit handles itself.
 pub fn route(menu_id: &str) -> Option<MenuRoute> {
     spec()
         .menus
@@ -112,7 +107,7 @@ pub fn route(menu_id: &str) -> Option<MenuRoute> {
         .find_map(|i| match i {
             ItemSpec::Item {
                 id, action, exec, ..
-            } if id == menu_id => Some(if exec == "shell" && id != MENU_REPORT_BUG {
+            } if id == menu_id => Some(if exec == "shell" {
                 MenuRoute::Action(action)
             } else {
                 MenuRoute::Native(id)
@@ -274,6 +269,10 @@ mod tests {
             route("new_project"),
             Some(MenuRoute::Action("project.new".into()))
         );
+        assert_eq!(
+            route("report_bug"),
+            Some(MenuRoute::Action("help.report-bug".into()))
+        );
         // exec:'native' → lib.rs's arm (the open_project_folder / new_home_tab commands' flows).
         assert_eq!(
             route("open_project_folder"),
@@ -284,8 +283,8 @@ mod tests {
             Some(MenuRoute::Native(MENU_NEW_HOME_TAB.into()))
         );
         assert_eq!(
-            route("report_bug"),
-            Some(MenuRoute::Native(MENU_REPORT_BUG.into()))
+            route("check_updates"),
+            Some(MenuRoute::Native(MENU_CHECK_UPDATES.into()))
         );
         // v1's ids are gone.
         assert_eq!(route("open_project"), None);
@@ -293,20 +292,19 @@ mod tests {
     }
 
     #[test]
-    fn menu_new_project_event_is_retired() {
-        // Nothing in the slice or this file's routing names the v1 event any more; New Project…
-        // travels as `menu://action {id:'project.new'}`.
-        assert!(!MENU_ACTIONS_JSON.contains("new-project"));
-        assert_ne!(MENU_ACTION_EVENT, "menu://new-project");
-        let lib = include_str!("lib.rs");
-        assert!(
-            !lib.contains("menu://new-project"),
-            "lib.rs still emits menu://new-project"
-        );
-        assert!(
-            !include_str!("windows.rs").contains("menu://new-project"),
-            "windows.rs still emits menu://new-project"
-        );
+    fn menu_new_project_and_report_bug_events_are_retired() {
+        // Nothing in the shell sends the v1 events any more; New Project… and Report a Bug…
+        // travel as `menu://action {id}`.
+        for (name, src) in [
+            ("menu.actions.json", MENU_ACTIONS_JSON),
+            ("lib.rs", include_str!("lib.rs")),
+            ("windows.rs", include_str!("windows.rs")),
+            ("home.rs", include_str!("home.rs")),
+        ] {
+            for retired in ["menu://new-project", "menu://report-bug"] {
+                assert!(!src.contains(retired), "{name} still sends {retired}");
+            }
+        }
     }
 
     #[test]

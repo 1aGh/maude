@@ -616,8 +616,9 @@ pub fn run() {
             };
             let id = match route {
                 // exec:'shell' (V2-1.3 §5.8): the focused window's webview runs the
-                // action by registry id — File ▸ New Canvas (`canvas.new`) and
-                // New Project… (`project.new`: a project window opens IdentityBar's
+                // action by registry id — File ▸ New Canvas (`canvas.new`), Help ▸
+                // Report a Bug… (`help.report-bug`, the dialog owns capture + consent)
+                // and New Project… (`project.new`: a project window opens IdentityBar's
                 // create dialog; on Home it is the create sheet once Home has one —
                 // V2-1.1 §5.9's target is "focus/open Home, then emit to it"). No
                 // focused window → nothing (never a background tab).
@@ -633,13 +634,6 @@ pub fn run() {
                 }
                 menu::MenuRoute::Native(id) => id,
             };
-            if id == menu::MENU_REPORT_BUG {
-                // Help ▸ Report a Bug… (keeps its own event until the webview's
-                // `menu://action` dispatcher runs `help.report-bug`) — hand off to the webview's dialog, which
-                // owns capture + consent (feature-bug-report-button).
-                windows::emit_to_front(app, "menu://report-bug", ());
-                return;
-            }
             if id == menu::MENU_CHECK_UPDATES {
                 // Maude ▸ Check for Updates… — force a check now with explicit
                 // dialog feedback (the background loop is otherwise silent).
