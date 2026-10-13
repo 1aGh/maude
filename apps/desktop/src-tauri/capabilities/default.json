@@ -28,6 +28,8 @@
     "allow-relink-project",
     "allow-index-search",
     "allow-take-pending-intent",
+    "allow-take-tabs-restored",
+    "allow-take-pending-navigate",
     "allow-app-is-first-run",
     "allow-app-get-last-project",
     "allow-app-set-last-project",

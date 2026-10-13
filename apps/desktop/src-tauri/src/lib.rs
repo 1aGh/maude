@@ -578,6 +578,8 @@ pub fn run() {
             home::shell_state,
             home::new_home_tab,
             home::take_pending_intent,
+            windows::take_tabs_restored,
+            windows::take_pending_navigate,
             home::index_search,
             home::relink_project,
             windows::window_labels,

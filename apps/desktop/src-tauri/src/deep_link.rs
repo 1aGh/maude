@@ -183,6 +183,15 @@ fn route_now(app: &AppHandle, url: &str) {
         };
         crate::windows::open_window_for_root(app, root, None, address.canvas.as_deref()).map(|o| {
             existing = matches!(o, crate::windows::Opened::Existing(_));
+            // A NEW tab's `?open=` carries the canvas only; the artboard is
+            // parked for it (`take_pending_navigate`).
+            crate::windows::park_navigate_for_new(
+                &o,
+                Some(&crate::windows::OpenTarget {
+                    canvas: address.canvas.clone(),
+                    artboard: address.artboard.clone(),
+                }),
+            );
             o.label().to_string()
         })
     });

@@ -956,9 +956,10 @@ pub fn on_destroyed(app: &AppHandle, label: &str) {
         label,
     );
     schedule_session_save(app);
-    // An intent parked for this window dies with it (a later window with the
-    // same label must not inherit it), and Home's tab list changed.
-    crate::home::take_intent(label);
+    // What was parked for this window (intent, restore count, navigate) dies
+    // with it (a later window with the same label must not inherit it), and
+    // Home's tab list changed.
+    drop_parked_for(label);
     crate::home::state_changed(app);
     let Some(root) = root else { return };
     crate::sidecar::log_line(&format!(
@@ -1174,6 +1175,9 @@ fn restore_session(app: &AppHandle, plan: &RestorePlan, after: Option<&str>) {
     navigate_when_up(app, front.clone(), front_root, None);
     let count = plan.tabs.len();
     crate::sidecar::log_line(&format!("[maude] {count} tabs reopened — only {front} runs"));
+    // The front tab is still on its splash: the event below reaches no page.
+    // Parked too, for the page to take once it mounts.
+    TABS_RESTORED.park(&front, TabsRestored { count });
     let _ = app.emit_to(
         EventTarget::AnyLabel { label: front },
         "shell://tabs-restored",
@@ -1348,6 +1352,83 @@ pub fn validate_target(t: OpenTarget) -> Result<OpenTarget, String> {
     Ok(OpenTarget { canvas, artboard })
 }
 
+// ── One-shot values parked per window label (V2-3 patches) ──────────────────
+//
+// An event emitted at a window before its page has mounted is lost (the
+// restored front tab is still on its splash when `shell://tabs-restored`
+// fires; a new tab's artboard has no place in `?open=`). The value is parked
+// for that label instead, and the page takes it once on mount — the
+// `home::take_intent` pattern. It dies with the window (`drop_parked_for`).
+
+/// One value per window label; a window takes only its own, once.
+pub struct Parked<T>(Mutex<Option<HashMap<String, T>>>);
+
+impl<T> Parked<T> {
+    pub const fn new() -> Self {
+        Parked(Mutex::new(None))
+    }
+
+    pub fn park(&self, label: &str, value: T) {
+        self.0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get_or_insert_with(HashMap::new)
+            .insert(label.to_string(), value);
+    }
+
+    pub fn take(&self, label: &str) -> Option<T> {
+        self.0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_mut()?
+            .remove(label)
+    }
+}
+
+/// What `take_tabs_restored` answers: how many tabs the session restore
+/// reopened (the front tab's "N tabs reopened" note).
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+pub struct TabsRestored {
+    pub count: usize,
+}
+
+static TABS_RESTORED: Parked<TabsRestored> = Parked::new();
+static PENDING_NAVIGATE: Parked<OpenTarget> = Parked::new();
+
+/// Park `target` for a NEW window when it names an artboard — the canvas
+/// alone already rides in the first navigate's `?open=`; the artboard has no
+/// place there.
+pub fn park_navigate_for_new(opened: &Opened, target: Option<&OpenTarget>) {
+    if let (Opened::New(label), Some(t)) = (opened, target) {
+        if t.artboard.is_some() {
+            PENDING_NAVIGATE.park(label, t.clone());
+        }
+    }
+}
+
+/// Everything parked for `label` dies with the window: a later window that
+/// reuses the label must not inherit it.
+pub fn drop_parked_for(label: &str) {
+    crate::home::take_intent(label);
+    TABS_RESTORED.take(label);
+    PENDING_NAVIGATE.take(label);
+}
+
+/// `take_tabs_restored()` — the restore count parked for THIS window, once.
+#[tauri::command]
+pub fn take_tabs_restored(webview: tauri::Webview) -> Result<Option<TabsRestored>, String> {
+    let caller = caller_project(&webview, false)?;
+    Ok(TABS_RESTORED.take(&caller.label))
+}
+
+/// `take_pending_navigate()` — the `{canvas, artboard}` a NEW window was
+/// opened for, parked for THIS window, once.
+#[tauri::command]
+pub fn take_pending_navigate(webview: tauri::Webview) -> Result<Option<OpenTarget>, String> {
+    let caller = caller_project(&webview, false)?;
+    Ok(PENDING_NAVIGATE.take(&caller.label))
+}
+
 /// Which folder an `open_project` call names, and whether this caller may name
 /// it (§5.4 Check, §5.8 item 3). Pure, so the gate is testable.
 ///   - `{root}` is Home-only (a project window passes a pid).
@@ -1415,6 +1496,7 @@ pub async fn open_project(
     let canvas = target.as_ref().and_then(|t| t.canvas.clone());
     let opened = open_project_window(&app, &path, Some(webview.label()), canvas.as_deref())?;
     let label = opened.label().to_string();
+    park_navigate_for_new(&opened, target.as_ref());
     if let Some(intent) = intent {
         crate::home::park_intent(&app, &label, intent);
     }
@@ -2113,5 +2195,68 @@ mod tests {
 
         // Nothing left → no restore (the boot opens its fallback project).
         assert_eq!(plan_restore(&session, &projects, |_| false), None);
+    }
+
+    // ── V2-3 patches: one-shot values parked per window label ──────────────
+    // The statics are process-wide and tests run in parallel: each test uses
+    // its own labels.
+
+    #[test]
+    fn tabs_restored_is_one_shot_and_answers_only_its_own_window() {
+        TABS_RESTORED.park("p-tr-front", TabsRestored { count: 3 });
+        assert_eq!(TABS_RESTORED.take("p-tr-other"), None);
+        assert_eq!(TABS_RESTORED.take("p-tr-front"), Some(TabsRestored { count: 3 }));
+        assert_eq!(TABS_RESTORED.take("p-tr-front"), None);
+    }
+
+    #[test]
+    fn pending_navigate_is_parked_for_a_new_window_with_an_artboard_only() {
+        let full = OpenTarget {
+            canvas: Some("ui/a.tsx".into()),
+            artboard: Some("hero".into()),
+        };
+        park_navigate_for_new(&Opened::New("p-nav-new".into()), Some(&full));
+        assert_eq!(PENDING_NAVIGATE.take("p-nav-other"), None);
+        assert_eq!(PENDING_NAVIGATE.take("p-nav-new"), Some(full.clone()));
+        assert_eq!(PENDING_NAVIGATE.take("p-nav-new"), None);
+        // An existing window hears `shell://navigate` instead.
+        park_navigate_for_new(&Opened::Existing("p-nav-old".into()), Some(&full));
+        assert_eq!(PENDING_NAVIGATE.take("p-nav-old"), None);
+        // A canvas alone already rides in `?open=`.
+        let canvas_only = OpenTarget {
+            canvas: Some("ui/a.tsx".into()),
+            artboard: None,
+        };
+        park_navigate_for_new(&Opened::New("p-nav-canvas".into()), Some(&canvas_only));
+        assert_eq!(PENDING_NAVIGATE.take("p-nav-canvas"), None);
+        park_navigate_for_new(&Opened::New("p-nav-none".into()), None);
+        assert_eq!(PENDING_NAVIGATE.take("p-nav-none"), None);
+    }
+
+    #[test]
+    fn parked_values_die_with_their_window() {
+        let t = OpenTarget {
+            canvas: None,
+            artboard: Some("hero".into()),
+        };
+        TABS_RESTORED.park("p-gone", TabsRestored { count: 2 });
+        PENDING_NAVIGATE.park("p-gone", t.clone());
+        crate::home::park_intent_for_test(
+            "p-gone",
+            crate::home::OpenIntent {
+                kind: "create-canvas".into(),
+                prompt: "x".into(),
+                project_hint: None,
+            },
+        );
+        TABS_RESTORED.park("p-stays", TabsRestored { count: 2 });
+        PENDING_NAVIGATE.park("p-stays", t.clone());
+        drop_parked_for("p-gone");
+        assert_eq!(TABS_RESTORED.take("p-gone"), None);
+        assert_eq!(PENDING_NAVIGATE.take("p-gone"), None);
+        assert_eq!(crate::home::take_intent("p-gone"), None);
+        // Another window's values are untouched.
+        assert_eq!(TABS_RESTORED.take("p-stays"), Some(TabsRestored { count: 2 }));
+        assert_eq!(PENDING_NAVIGATE.take("p-stays"), Some(t));
     }
 }

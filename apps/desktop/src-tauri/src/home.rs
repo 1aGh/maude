@@ -771,6 +771,16 @@ pub fn park_intent(app: &AppHandle, label: &str, intent: OpenIntent) {
     );
 }
 
+/// `park_intent` without the nudge (no `AppHandle` in a unit test).
+#[cfg(test)]
+pub(crate) fn park_intent_for_test(label: &str, intent: OpenIntent) {
+    INTENTS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get_or_insert_with(HashMap::new)
+        .insert(label.to_string(), intent);
+}
+
 pub fn take_intent(label: &str) -> Option<OpenIntent> {
     INTENTS
         .lock()

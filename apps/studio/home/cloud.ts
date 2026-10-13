@@ -19,6 +19,8 @@ import { cloudConfigPath, cloudUrl } from '../cloud/endpoints.ts';
 import { type PrepareResult, prepareManagedProject } from '../managed-projects.ts';
 
 export const PROFILE_RE = /^[a-z0-9-]{1,32}$/;
+/** A maude:// handoff code — the same grammar `cloud/endpoints.ts` `openManagedCode` checks. */
+export const HANDOFF_CODE_RE = /^mhc_[0-9a-f]{16,128}$/;
 export const CLOUD_CACHE_MS = 60_000;
 const MAX_CLOUD_BYTES = 1024 * 1024;
 const MAX_ROWS = 500;
@@ -193,9 +195,12 @@ export function createHomeCloud(opts: { now?: () => number } = {}): HomeCloud {
   }
 
   /**
-   * `{ profile, server?, projectId }` → the project route's own `prepareManagedProject` (kind
-   * `cloud`), with THAT profile's device token. `server` is not trusted for anything: the token is
-   * only ever sent to the configured control plane, which names the project's server itself.
+   * `{ profile, server?, projectId, code? }` → the project route's own `prepareManagedProject`,
+   * with THAT profile's `cloud.json`: kind `cloud` (the device token), or — with a maude://
+   * handoff `code` — kind `handoff`, `projectId` as the link's claimed project (a mismatch is the
+   * shared code's own 409). `server` is not trusted for anything: the token and the code are only
+   * ever sent to the configured control plane, which names the project's server itself. The code
+   * rides in that POST body only — never a URL, never a log line.
    */
   async function prepare(body: Record<string, unknown>): Promise<PrepareResult> {
     const profile = typeof body.profile === 'string' ? body.profile : '';
@@ -204,6 +209,16 @@ export function createHomeCloud(opts: { now?: () => number } = {}): HomeCloud {
     if (!cfgPath) return { ok: false, error: 'unknown profile', status: 400 };
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(projectId))
       return { ok: false, error: 'unknown project', status: 400 };
+    if (body.code !== undefined) {
+      const code = body.code;
+      if (typeof code !== 'string' || !HANDOFF_CODE_RE.test(code))
+        return { ok: false, error: 'That link is not valid.', status: 400 };
+      return prepareManagedProject(
+        {},
+        { kind: 'handoff', code, claimedProject: projectId },
+        { cloudConfigPath: cfgPath }
+      );
+    }
     return prepareManagedProject({}, { kind: 'cloud', projectId }, { cloudConfigPath: cfgPath });
   }
 

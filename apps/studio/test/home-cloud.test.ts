@@ -14,6 +14,8 @@ let plane: ReturnType<typeof Bun.serve>;
 let hasHome = true;
 let down = false;
 const seen: Array<{ path: string; auth: string | null }> = [];
+/** every request's full URL and body — a handoff code must ride only in a POST body */
+const raw: Array<{ url: string; method: string; body: string }> = [];
 const saved = {
   url: process.env.MAUDE_CLOUD_URL,
   cfg: process.env.MAUDE_CLOUD_CONFIG,
@@ -24,9 +26,10 @@ beforeAll(() => {
   plane = Bun.serve({
     hostname: '127.0.0.1',
     port: 0,
-    fetch(req) {
+    async fetch(req) {
       const path = new URL(req.url).pathname;
       seen.push({ path, auth: req.headers.get('authorization') });
+      raw.push({ url: req.url, method: req.method, body: await req.text() });
       if (down) return new Response('boom', { status: 503 });
       if (req.headers.get('authorization') === 'Bearer mpt_revoked')
         return new Response('no', { status: 401 });
@@ -183,5 +186,65 @@ describe('/_home/cloud', () => {
     // the stub has no /projects/open → the shared code's own refusal, after asking with mpt_work
     expect(r.status).toBe(502);
     expect(seen).toEqual([{ path: '/projects/open', auth: 'Bearer mpt_work' }]);
+  });
+
+  const CODE = `mhc_${'ab12'.repeat(8)}`;
+
+  test('prepare with a handoff code takes the handoff lane; the code rides only in a POST body', async () => {
+    down = false;
+    seen.length = 0;
+    raw.length = 0;
+    const logged: string[] = [];
+    const spies = (['log', 'info', 'warn', 'error', 'debug'] as const).map((k) => {
+      const orig = console[k];
+      console[k] = (...a: unknown[]) => {
+        logged.push(a.map(String).join(' '));
+      };
+      return () => {
+        console[k] = orig;
+      };
+    });
+    let r: Response;
+    try {
+      r = await homeFetch()(
+        homeReq('/_home/cloud/prepare', {
+          method: 'POST',
+          body: JSON.stringify({ profile: 'work', projectId: 'alligators', code: CODE }),
+        })
+      );
+    } finally {
+      for (const undo of spies) undo();
+    }
+    // the stub has no /auth/handoff/exchange → the shared handoff code's own "link expired" (410)
+    expect(r.status).toBe(410);
+    expect(seen.map((s) => s.path)).toEqual(['/auth/handoff/exchange']);
+    expect(raw[0]?.method).toBe('POST');
+    expect(JSON.parse(raw[0]?.body ?? '{}')).toEqual({ code: CODE });
+    for (const q of raw) expect(q.url).not.toContain(CODE);
+    expect(logged.join('\n')).not.toContain(CODE);
+    expect(await r.text()).not.toContain(CODE);
+  });
+
+  test('prepare refuses a malformed handoff code with 400 before any network call', async () => {
+    seen.length = 0;
+    const f = homeFetch();
+    for (const code of [
+      'mhc_short',
+      `mhc_${'AB12'.repeat(8)}`,
+      `mpt_${'ab12'.repeat(8)}`,
+      `${CODE}x`,
+      `mhc_${'a'.repeat(129)}`,
+      42,
+      '',
+    ]) {
+      const r = await f(
+        homeReq('/_home/cloud/prepare', {
+          method: 'POST',
+          body: JSON.stringify({ profile: 'work', projectId: 'alligators', code }),
+        })
+      );
+      expect(r.status).toBe(400);
+    }
+    expect(seen).toHaveLength(0);
   });
 });
