@@ -576,6 +576,7 @@ pub fn run() {
             windows::e2e_open_root,
             open_project_folder,
             home::shell_state,
+            home::home_session,
             home::new_home_tab,
             home::take_pending_intent,
             windows::take_tabs_restored,

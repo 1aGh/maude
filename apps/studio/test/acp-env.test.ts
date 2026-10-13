@@ -2,6 +2,8 @@
 // panel on the user's Pro/Max subscription instead of metered API billing.
 
 import { describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { SUBSCRIPTION_SCRUBBED_ENV_KEYS, scrubAgentEnv } from '../acp/env.ts';
 
@@ -111,5 +113,48 @@ describe('scrubAgentEnv — subscription guardrail', () => {
     expect(out.HUBS_CONFIG_PATH).toContain('/profiles/work/');
     expect('MAUDE_SHELL_TOKEN' in out).toBe(false);
     expect('MAUDE_SHELL_INFO_FILE' in out).toBe(false);
+  });
+
+  // V2-3.6 M4 — every per-spawn shell secret, in ONE scrub. The probe and login-state spawns of
+  // `claude` used only scrubAgentEnv(), and only the bridge deleted MAUDE_TOKEN_*, so a probe child
+  // still held the GitHub token bridge's key. A future var under the same prefixes is caught too.
+  test('scrubs every per-spawn shell secret (M4) and keeps the agent env it needs', () => {
+    const SECRETS = [
+      'MAUDE_TOKEN_ENDPOINT', // GitHub token bridge (sidecar.rs)
+      'MAUDE_TOKEN_KEY',
+      'MAUDE_TOKEN_SOMETHING_NEW',
+      'MAUDE_SHELL_TOKEN', // shell probe token (V2-3.4)
+      'MAUDE_SHELL_INFO_FILE',
+      'MAUDE_SHELL_SOMETHING_NEW',
+      'MAUDE_HOME_TOKEN', // Home internal bearer (home.rs)
+      'MAUDE_HOME_PAGE_SECRET', // Home page secret (V2-3.6 H1)
+      'MAUDE_HOME_STATE_DIR',
+      'MAUDE_MATERIALIZE_TOKEN',
+      'MAUDE_GEN_KEY_ENDPOINT',
+      'MAUDE_GEN_KEY_KEY',
+      'maude_token_key', // case-insensitive
+    ];
+    const KEPT = {
+      PATH: '/usr/bin',
+      MAUDE_PROFILE_ID: 'work',
+      MAUDE_CLOUD_CONFIG: '/x/cloud.json',
+      HUBS_CONFIG_PATH: '/x/hubs.json',
+      MAUDE_INDEX_DIR: '/x/index',
+      MAUDE_TOKENISER: 'not-a-prefix-match', // MAUDE_TOKEN_ needs the underscore
+    };
+    const out = scrubAgentEnv({
+      ...KEPT,
+      ...Object.fromEntries(SECRETS.map((k) => [k, 'secret'])),
+    });
+    for (const k of SECRETS) expect([k, k in out]).toEqual([k, false]);
+    expect(out).toEqual(KEPT);
+  });
+
+  test('bridge, probe and login-state all spawn through scrubAgentEnv, with no local strips', () => {
+    const src = (f: string) => readFileSync(join(import.meta.dir, '..', 'acp', f), 'utf8');
+    for (const f of ['bridge.ts', 'probe.ts', 'login-state.ts']) {
+      expect([f, /scrubAgentEnv\(/.test(src(f))]).toEqual([f, true]);
+      expect([f, /delete env\.MAUDE_/.test(src(f))]).toEqual([f, false]);
+    }
   });
 });

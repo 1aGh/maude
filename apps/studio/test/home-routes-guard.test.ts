@@ -10,6 +10,7 @@ import {
   homeDeps,
   homeFetch,
   homeReq,
+  PAGE_SECRET,
   rustReq,
   TOKEN,
 } from './_home-fixtures.ts';
@@ -162,6 +163,53 @@ describe('Home route guards (§5.8 item 1)', () => {
       })
     );
     expect(r2.status).toBe(413);
+  });
+});
+
+// V2-3.6 H1 — `x-maude-home: 1` was the whole gate on a page route, and any local process can send
+// a header (the agent's auto-allowed `maude design curl-local` sends no Fetch Metadata and no
+// Origin, exactly the shape the old guard let through). The page route now needs the per-spawn
+// Home PAGE secret, which only the Home window can obtain (`home_session()`, Rust-gated).
+describe('the Home page secret (V2-3.6 H1)', () => {
+  /** What a local process sends: no Sec-Fetch-Site, no Origin, a chosen `x-maude-home`. */
+  const local = (s: { method: string; path: string }, home?: string) =>
+    new Request(`http://${HOST}${s.path}`, {
+      method: s.method,
+      headers: { host: HOST, ...(home === undefined ? {} : { 'x-maude-home': home }) },
+      ...(s.method === 'POST' ? { body: '{}' } : {}),
+    });
+
+  test('no secret, `1`, or a wrong secret → 403 on every page route', async () => {
+    for (const s of PAGE)
+      for (const home of [undefined, '1', 'cd'.repeat(32), `${PAGE_SECRET}x`, ''])
+        expect([s.path, home, (await fetchHome(local(s, home))).status]).toEqual([
+          s.path,
+          home,
+          403,
+        ]);
+  });
+
+  test('the internal bearer used as the page secret → 403', async () => {
+    for (const s of PAGE)
+      expect([s.path, (await fetchHome(local(s, TOKEN))).status]).toEqual([s.path, 403]);
+  });
+
+  test('the correct secret → 200', async () => {
+    for (const path of ['/_health', '/_config', '/_home/recent-searches', '/_home/index?pids='])
+      expect([path, (await fetchHome(local({ method: 'GET', path }, PAGE_SECRET))).status]).toEqual(
+        [path, 200]
+      );
+  });
+
+  test('a page secret equal to the internal bearer is never accepted (fail closed)', async () => {
+    const f = homeFetch({ pageSecret: TOKEN });
+    expect((await f(local({ method: 'GET', path: '/_config' }, TOKEN))).status).toBe(403);
+  });
+
+  test('with no page secret configured, no page route answers', async () => {
+    const f = homeFetch({ pageSecret: null });
+    for (const home of ['1', PAGE_SECRET, ''])
+      expect((await f(local({ method: 'GET', path: '/_config' }, home))).status).toBe(403);
   });
 });
 

@@ -1,7 +1,8 @@
 // client/home/shell-mode.js — which root the one client bundle renders: the project shell or Home.
 //
 // The Home server (`maude-server --home`) answers `/_config` with `mode: 'home'`, but only to a
-// request carrying `x-maude-home: 1` (V2-1.1 §5.3), and it serves the same index.html as a project.
+// request carrying `x-maude-home: <page secret>` (V2-1.1 §5.3, V2-3.6 H1 — home-api.js), and it
+// serves the same index.html as a project.
 // So the page decides like this, never delaying the project shell where it can know without asking:
 //   - in the desktop app the webview's label is known synchronously: `home` asks `/_config` (with
 //     the header) and renders Home; any other label (`p-<pid>`, the legacy `main`) is a project;

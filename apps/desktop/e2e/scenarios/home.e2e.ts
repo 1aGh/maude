@@ -99,8 +99,12 @@ async function pictureState(f: Fixture) {
   return browser.execute(
     async (sel: string, src: string, pid: string) => {
       const img = document.querySelector(sel)?.querySelector('img');
-      const h = { headers: { 'x-maude-home': '1' } };
       try {
+        // V2-3.6 H1: Home's routes want the page secret, which only home_session() hands out
+        type Invoke = (cmd: string) => Promise<{ secret: string }>;
+        const w = window as unknown as { __TAURI__: { core: { invoke: Invoke } } };
+        const { secret } = await w.__TAURI__.core.invoke('home_session');
+        const h = { headers: { 'x-maude-home': secret } };
         const r = await fetch(src, h);
         const i = await fetch(`/_home/index?pids=${pid}`, h);
         const p = (await i.json()).projects?.[0];
