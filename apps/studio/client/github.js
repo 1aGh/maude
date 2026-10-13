@@ -151,7 +151,6 @@ export async function openTeamProject(input) {
 /** True on a fresh install with no usable last project → show the onboarding wizard. */
 export const appIsFirstRun = () => invoke('app_is_first_run');
 export const appGetLastProject = () => invoke('app_get_last_project');
-export const appSetLastProject = (path) => invoke('app_set_last_project', { path });
 export const appRecentProjects = () => invoke('app_recent_projects');
 
 // ── Tauri shell commands for "pull a local copy" ────────────────────────────────
