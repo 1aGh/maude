@@ -1419,6 +1419,11 @@ pub fn remember_pick(label: &str, picked: &str) {
     }
 }
 
+/// Both paths exist and name the same directory.
+pub fn same_dir(a: &Path, b: &Path) -> bool {
+    matches!((std::fs::canonicalize(a), std::fs::canonicalize(b)), (Ok(x), Ok(y)) if x == y)
+}
+
 /// Pure half of `local_project_allowed`: `path` is a registered project, or
 /// the canonical `picked` folder itself, or a direct child of it.
 pub fn local_path_allowed(registered: bool, picked: Option<&Path>, path: &Path) -> bool {
@@ -1436,9 +1441,17 @@ pub fn local_path_allowed(registered: bool, picked: Option<&Path>, path: &Path) 
 /// consumes it with `PICKED_FOLDER.take` once the open has succeeded, so a
 /// refused attempt (no `.design/` yet) can be retried after setup.
 pub fn local_project_allowed(app: &AppHandle, label: &str, path: &Path) -> bool {
-    let registered = crate::app_state::load(app)
-        .projects
-        .contains_key(&pid_for_root(&path.to_string_lossy()));
+    // The `MAUDE_PROJECT_ROOT` launch override is deliberately kept out of the
+    // registry (lib.rs boot), but it is the folder the person launched the app
+    // at — read from this process's own launch env, which no page can change.
+    let boot_root = std::env::var("MAUDE_PROJECT_ROOT")
+        .ok()
+        .filter(|r| !r.is_empty())
+        .is_some_and(|r| same_dir(Path::new(&r), path));
+    let registered = boot_root
+        || crate::app_state::load(app)
+            .projects
+            .contains_key(&pid_for_root(&path.to_string_lossy()));
     let picked = PICKED_FOLDER.take(label);
     let ok = local_path_allowed(registered, picked.as_deref(), path);
     if let Some(p) = picked {
@@ -2154,6 +2167,10 @@ mod tests {
         assert!(!local_path_allowed(false, Some(&pick), &other));
         assert!(!local_path_allowed(false, Some(&pick), &lookalike));
         assert!(!local_path_allowed(false, Some(&pick), &base.join("missing")));
+        // The launch override root is compared as a directory, not a string.
+        assert!(same_dir(&picked, &child.join("..")));
+        assert!(!same_dir(&picked, &lookalike));
+        assert!(!same_dir(&picked, &base.join("missing")));
         // The slot is per window.
         remember_pick("p-pick-a", &picked.to_string_lossy());
         assert!(PICKED_FOLDER.take("p-pick-b").is_none());
