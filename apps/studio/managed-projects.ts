@@ -101,7 +101,9 @@ export interface PrepareCtx {
 export async function prepareManagedProject(
   ctx: PrepareCtx,
   input: PrepareInput,
-  opts: { cloudConfigPath?: string } = {}
+  /** `hubsConfigPath`: where the hub credential is stored and read back (N-H1 — Home prepares
+   *  for one profile at a time, so never the process-global file for another profile). */
+  opts: { cloudConfigPath?: string; hubsConfigPath?: string } = {}
 ): Promise<PrepareResult> {
   let serverUrl: string;
   let projectId: string | null = null;
@@ -113,6 +115,7 @@ export async function prepareManagedProject(
     const cloud = createCloudEndpoints({
       paths: { repoRoot: '', designRoot: '' },
       cloudConfigPath: opts.cloudConfigPath,
+      hubsConfigPath: opts.hubsConfigPath,
     });
     const r =
       input.kind === 'cloud'
@@ -146,12 +149,12 @@ export async function prepareManagedProject(
     } catch {
       return { ok: false, error: "That doesn't look like a workspace address.", status: 400 };
     }
-    if (!getHubRecord(serverUrl)?.token) {
+    if (!getHubRecord(serverUrl, opts.hubsConfigPath)?.token) {
       return { ok: false, error: 'Sign in to that workspace first.', status: 401 };
     }
   }
 
-  const token = getHubRecord(serverUrl)?.token;
+  const token = getHubRecord(serverUrl, opts.hubsConfigPath)?.token;
   if (!token)
     return { ok: false, error: 'The sign-in could not be saved on this computer.', status: 500 };
   const boot = await bootstrapOf(serverUrl, token);

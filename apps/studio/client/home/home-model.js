@@ -7,7 +7,8 @@
 //   recent          canvas rows with an `openedAt`, newest first (optionally one project only)
 //   recentProjects  the projects that have recent rows (the Recent filter's choices)
 //   groups          Projects by profile: local registry entries ∪ cloud projects that have no copy
-//                   on this Mac (matched by hub URL or by managed key)
+//                   on this Mac — "has a copy" = the shell's own binding (`shell.projects[].hub`,
+//                   a managed copy's server), never a project's self-claimed linkedHub (N-M4)
 // No I/O, no React, no Date.now() unless `now` is omitted — the S6 Home extends this, so it stays a
 // plain module with fixtures in test/home-page-model.test.ts.
 
@@ -132,7 +133,11 @@ export function buildHomeModel({ shell = null, index = null, clouds = null, filt
   const localRows = registry.map((p) => {
     const ix = indexed.get(p.pid);
     const gone = ix?.state === 'gone';
+    // `hub` (display + the 'mac' word) is the project's own linkedHub — a HINT it wrote itself.
+    // `boundHub` is the shell's record of a copy it made (V2-3.6 N-M4): the only proof that a
+    // cloud project is on this Mac.
     const hub = normHubUrl(p.linkedHub?.url ?? ix?.project?.linkedHub?.url);
+    const boundHub = normHubUrl(p.hub);
     // 'mac' = "this Mac only" — true only of a project with no hub; a linked one that is not in a
     // tab is plain 'closed' (no state word)
     const inTab = p.place === 'tab' || p.place === 'resting';
@@ -151,6 +156,7 @@ export function buildHomeModel({ shell = null, index = null, clouds = null, filt
       stale: !!ix?.stale,
       formatGate: p.formatGate ?? null,
       hub,
+      boundHub,
       folder: (p.root || '').split('/').filter(Boolean).pop() ?? '',
       cover: firstCover(ix),
     };
@@ -161,16 +167,17 @@ export function buildHomeModel({ shell = null, index = null, clouds = null, filt
     return ia - ib || a.name.localeCompare(b.name);
   });
 
-  const hubs = new Set(localRows.map((r) => r.hub).filter(Boolean));
-  const folders = new Set(localRows.map((r) => r.folder).filter(Boolean));
+  // one profile's copy never hides another profile's cloud row
+  const bound = new Set(
+    localRows.filter((r) => r.boundHub).map((r) => `${r.profile} ${r.boundHub}`)
+  );
   const cloudRows = [];
   for (const listing of clouds ?? []) {
     if (!listing?.signedIn || typeof listing.profile !== 'string') continue;
     for (const cp of listing.projects ?? []) {
       if (!cp || typeof cp.id !== 'string') continue;
       const hub = normHubUrl(cp.url);
-      if (hub && hubs.has(hub)) continue;
-      if (cp.url && folders.has(managedKey(cp.url, cp.id))) continue;
+      if (hub && bound.has(`${listing.profile} ${hub}`)) continue;
       cloudRows.push({
         kind: 'cloud',
         pid: null,

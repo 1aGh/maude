@@ -24,7 +24,7 @@
 // no window is navigated anywhere but through the DDR-109 loopback guard
 // (§5.8 item 7).
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -32,28 +32,38 @@ use tauri::{AppHandle, Emitter, EventTarget, Manager};
 
 use crate::windows::HOME_LABEL;
 
-/// Parked links, one per window label. A window takes only its own, once.
-#[derive(Default)]
-pub struct PendingDeepLink(pub Mutex<HashMap<String, String>>);
+/// Parked links, one per window label. A window takes only its own, once —
+/// and only while it shows the project it was parked for: everything parked
+/// for a label dies with the window AND with an in-tab switch
+/// (`windows::drop_parked_for`, V2-3.6 N-M5).
+pub struct PendingDeepLink(crate::windows::Parked<String>);
+
+impl Default for PendingDeepLink {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl PendingDeepLink {
+    pub const fn new() -> Self {
+        PendingDeepLink(crate::windows::Parked::new())
+    }
+
     /// Park `url` for `label`. A newer link for the same window replaces the
     /// older one still unread there — the client's own dialog never swaps a
     /// link the person is already reading (CloudBar keeps the first).
     pub fn park(&self, label: &str, url: &str) {
-        self.0
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .insert(label.to_string(), url.to_string());
+        self.0.park(label, url.to_string());
     }
 
     pub fn take(&self, label: &str) -> Option<String> {
-        self.0
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .remove(label)
+        self.0.take(label)
     }
 }
+
+/// THE parked links (a static like every other parked value, so
+/// `drop_parked_for` can clear it without an `AppHandle`).
+pub static PENDING_LINKS: PendingDeepLink = PendingDeepLink::new();
 
 /// What a `maude://` link names, as far as ROUTING needs to know. The client
 /// re-validates the whole link (`parseDeepLink` / `parseFileDeepLink`).
@@ -68,6 +78,9 @@ pub struct LinkAddress {
     /// client's file-link grammar has none — the artboard rides in
     /// `shell://navigate` instead).
     pub url: String,
+    /// It carries a `?code=` (a connect link, V2-3.5): routed by the app's
+    /// own hub binding only (N-M4).
+    pub connect: bool,
 }
 
 /// Parse `maude://open/<project>[/]?<query>[#<artboard>]`. `None` = a link
@@ -85,7 +98,11 @@ pub fn parse_link(url: &str) -> Option<LinkAddress> {
         return None;
     }
     let mut canvas = None;
+    let mut connect = false;
     for (k, v) in parsed.query_pairs() {
+        if k == "code" {
+            connect = true;
+        }
         if k == "open" {
             if canvas.is_some() {
                 return None;
@@ -111,6 +128,7 @@ pub fn parse_link(url: &str) -> Option<LinkAddress> {
         canvas,
         artboard,
         url,
+        connect,
     })
 }
 
@@ -123,9 +141,21 @@ pub enum LinkRoute {
     Home { url: String },
 }
 
-pub fn plan_route(url: &str, resolve: impl Fn(&str) -> Option<String>) -> LinkRoute {
+/// `resolve`: any remembered folder (file links). `resolve_connect`: only the
+/// folder the app itself bound to that hub — a connect link's one-shot code
+/// goes there or to Home, never to a folder that merely claims the hub in its
+/// own committed config (V2-3.6 N-M4).
+pub fn plan_route(
+    url: &str,
+    resolve: impl Fn(&str) -> Option<String>,
+    resolve_connect: impl Fn(&str) -> Option<String>,
+) -> LinkRoute {
     match parse_link(url) {
-        Some(address) => match resolve(&address.project) {
+        Some(address) => match if address.connect {
+            resolve_connect(&address.project)
+        } else {
+            resolve(&address.project)
+        } {
             Some(root) => LinkRoute::Project { root, address },
             None => LinkRoute::Home { url: address.url },
         },
@@ -230,7 +260,12 @@ pub fn take_link_opened(webview: tauri::Webview) -> Result<Option<LinkOpened>, S
 
 fn route_now(app: &AppHandle, url: &str) {
     let st = crate::app_state::load(app);
-    let mut route = plan_route(url, |p| crate::project_resolve::resolve_known(&st, p));
+    let legacy = crate::managed::bound_copies(app);
+    let mut route = plan_route(
+        url,
+        |p| crate::project_resolve::resolve_known(&st, p),
+        |p| crate::project_resolve::resolve_connect(&st, &legacy, p),
+    );
     // L1: a closed project costs a server; over the budget, Home decides.
     if let LinkRoute::Project { root, address } = &route {
         let open = crate::windows::label_for_root(app, root).is_some();
@@ -295,9 +330,7 @@ fn route_now(app: &AppHandle, url: &str) {
         }
     }
     crate::sidecar::log_line(&format!("[maude] deep link routed to {label}"));
-    if let Some(state) = app.try_state::<PendingDeepLink>() {
-        state.park(&label, &payload);
-    }
+    PENDING_LINKS.park(&label, &payload);
     let target = || EventTarget::AnyLabel {
         label: label.clone(),
     };
@@ -311,13 +344,16 @@ fn route_now(app: &AppHandle, url: &str) {
 
 /// One-shot consume of the link parked for the CALLING window — a re-mounted
 /// panel cannot re-ask a question the person already answered, and no window
-/// can read a link that was routed to another.
+/// can read a link that was routed to another. The caller is the window's
+/// label ON its recorded origin (Home: the Home origin) — a page that took
+/// the window's top frame elsewhere reads nothing (N-M5).
 #[tauri::command]
-pub fn take_pending_deep_link(
-    state: tauri::State<'_, PendingDeepLink>,
-    webview: tauri::Webview,
-) -> Option<String> {
-    state.take(webview.label())
+pub fn take_pending_deep_link(webview: tauri::Webview) -> Result<Option<String>, String> {
+    let label = match crate::windows::caller_any(&webview, false)? {
+        crate::windows::Caller::Home => HOME_LABEL.to_string(),
+        crate::windows::Caller::Project(c) => c.label,
+    };
+    Ok(PENDING_LINKS.take(&label))
 }
 
 /// Debug-only e2e helper (V2-3.6 M5): deliver a `maude://` link to the CALLING
@@ -338,9 +374,7 @@ pub fn e2e_deliver_deep_link(
             return Err("not a maude:// link".into());
         }
         let label = webview.label().to_string();
-        if let Some(state) = app.try_state::<PendingDeepLink>() {
-            state.park(&label, &url);
-        }
+        PENDING_LINKS.park(&label, &url);
         app.emit_to(EventTarget::AnyLabel { label }, "maude://deep-link", url)
             .map_err(|e| e.to_string())
     }
@@ -377,7 +411,7 @@ mod tests {
 
     #[test]
     fn deep_link_a_known_project_routes_to_its_window_with_canvas_and_artboard() {
-        let r = plan_route("maude://open/alligators?open=ui/Hero.tsx#cover", resolver);
+        let r = plan_route("maude://open/alligators?open=ui/Hero.tsx#cover", resolver, |_| None);
         let LinkRoute::Project { root, address } = &r else {
             panic!("expected a project route, got {r:?}")
         };
@@ -400,7 +434,7 @@ mod tests {
             "maude://connect?code=mhc_00",
             "maude://",
         ] {
-            let r = plan_route(url, resolver);
+            let r = plan_route(url, resolver, resolver);
             assert!(matches!(r, LinkRoute::Home { .. }), "{url} → {r:?}");
             assert_eq!(
                 deliver_label(&r, |_| panic!("must not open")),
@@ -413,12 +447,21 @@ mod tests {
     #[test]
     fn deep_link_a_connect_link_routes_by_its_project_without_a_canvas() {
         let code = format!("mhc_{}", "a".repeat(64));
-        let r = plan_route(&format!("maude://open/alligators?code={code}"), resolver);
+        let link = format!("maude://open/alligators?code={code}");
+        let r = plan_route(&link, resolver, resolver);
         let LinkRoute::Project { address, .. } = r else {
             panic!()
         };
         assert_eq!(address.canvas, None);
-        assert_eq!(address.url, format!("maude://open/alligators?code={code}"));
+        assert!(address.connect);
+        assert_eq!(address.url, link);
+        // N-M4: a folder that only CLAIMS the hub (the general resolver) gets
+        // no code — with no app-owned binding the link goes to Home.
+        let r = plan_route(&link, resolver, |_| None);
+        assert!(matches!(r, LinkRoute::Home { .. }), "{r:?}");
+        // A file link is not a connect link.
+        let r = plan_route("maude://open/alligators?open=ui/A.tsx", resolver, |_| None);
+        assert!(matches!(&r, LinkRoute::Project { address, .. } if !address.connect));
     }
 
     #[test]

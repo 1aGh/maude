@@ -264,6 +264,47 @@ impl AppState {
         self.projects.values().any(|e| e.profile == id)
     }
 
+    /// `roots` (the v1 recents) narrowed to projects bound to `profile` — an
+    /// unregistered root counts as `default`, as `profile_for` reads it.
+    pub fn recents_in_profile(&self, profile: &str, roots: Vec<String>) -> Vec<String> {
+        roots
+            .into_iter()
+            .filter(|r| self.profile_for(r) == profile)
+            .collect()
+    }
+
+    /// N-H1: register a managed copy Maude itself made, ON the profile it was
+    /// prepared for, with the app-owned `(server, projectId)` it was made for —
+    /// the registry's own record of which hub this folder belongs to (N-M4
+    /// reads it; the folder's committed `config.json` claim is never proof).
+    pub fn bind_managed(
+        &mut self,
+        root: &str,
+        profile: &str,
+        server: &str,
+        project_id: &str,
+        now: u64,
+    ) -> String {
+        let pid = self.upsert(root, now);
+        if let Some(e) = self.projects.get_mut(&pid) {
+            e.profile = profile.to_string();
+            e.managed = Some(serde_json::json!({ "server": server, "projectId": project_id }));
+        }
+        pid
+    }
+
+    /// The hub a registered project is bound to by the APP (a managed copy),
+    /// never by its own files.
+    pub fn managed_server_of(&self, pid: &str) -> Option<String> {
+        self.projects
+            .get(pid)?
+            .managed
+            .as_ref()?
+            .get("server")?
+            .as_str()
+            .map(str::to_string)
+    }
+
     /// Rebind `old_pid`'s entry to `new_root` (the project moved): same name,
     /// profile and history under the pid of its new realpath; the MRU keeps its
     /// place. Refuses a folder that is already another registered project.
@@ -415,6 +456,25 @@ pub fn bind_profile(app: &tauri::AppHandle, root: &str, id: &str) -> Result<(), 
     Ok(())
 }
 
+/// `AppState::bind_managed` through the lock. The profile must be valid and
+/// registered (default always is).
+pub fn bind_managed(
+    app: &tauri::AppHandle,
+    root: &Path,
+    profile: &str,
+    server: &str,
+    project_id: &str,
+) -> Result<String, String> {
+    profiles::validate_id(profile)?;
+    if profile != profiles::DEFAULT_ID && !profiles::exists(profile) {
+        return Err("That account profile doesn't exist.".to_string());
+    }
+    let root = root.to_string_lossy().to_string();
+    Ok(update(app, |st, now| {
+        st.bind_managed(&root, profile, server, project_id, now)
+    }))
+}
+
 /// Whether any registered project is bound to `id` (profiles_delete refuses then).
 pub fn is_profile_bound(app: &tauri::AppHandle, id: &str) -> bool {
     load(app).is_profile_bound(id)
@@ -524,9 +584,19 @@ pub fn app_is_first_run(app: tauri::AppHandle) -> bool {
     is_first_run(&app)
 }
 
+/// V2-3.6 N-M1: the calling project window's own profile only — a page never
+/// learns where another profile's projects live.
 #[tauri::command]
-pub fn app_get_last_project(app: tauri::AppHandle) -> Option<String> {
-    last_project(&app).map(|p| p.to_string_lossy().to_string())
+pub fn app_get_last_project(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+) -> Result<Option<String>, String> {
+    let caller = windows::caller_project(&webview, false)?;
+    let st = load(&app);
+    let profile = st.profile_for(&caller.root);
+    Ok(last_project(&app)
+        .map(|p| p.to_string_lossy().to_string())
+        .filter(|p| st.profile_for(p) == profile))
 }
 
 /// V2-3.6 M3: remembering a folder REGISTERS it, and a registered folder is
@@ -547,9 +617,16 @@ pub fn app_set_last_project(
     Ok(())
 }
 
+/// The recents list the repo switcher shows (V2-3.6 N-M1): the calling
+/// project window's own profile only, never another profile's paths.
 #[tauri::command]
-pub fn app_recent_projects(app: tauri::AppHandle) -> Vec<String> {
-    recent_projects(&app)
+pub fn app_recent_projects(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+) -> Result<Vec<String>, String> {
+    let caller = windows::caller_project(&webview, false)?;
+    let st = load(&app);
+    Ok(st.recents_in_profile(&st.profile_for(&caller.root), recent_projects(&app)))
 }
 
 #[cfg(test)]
@@ -683,6 +760,42 @@ mod tests {
         // A tampered on-disk id never reaches a path or the keychain.
         st.projects.get_mut(&pid).unwrap().profile = "../evil".into();
         assert_eq!(st.profile_for("/x/p"), "default");
+    }
+
+    /// N-H1 (audit 2): a managed copy Home made for profile Y is registered ON Y,
+    /// with the app-owned (server, project) it was made for — before anything
+    /// spawns it — and a later plain open keeps both.
+    #[test]
+    fn a_managed_copy_is_bound_to_the_profile_it_was_made_for() {
+        let mut st = AppState::default();
+        let pid = st.bind_managed("/data/projects/work@a.test--p", "work", "https://a.test", "p", 1);
+        let e = &st.projects[&pid];
+        assert_eq!(e.profile, "work");
+        assert_eq!(
+            e.managed,
+            Some(serde_json::json!({ "server": "https://a.test", "projectId": "p" }))
+        );
+        st.open("/data/projects/work@a.test--p", 2);
+        assert_eq!(st.profile_for("/data/projects/work@a.test--p"), "work");
+        assert_eq!(st.managed_server_of(&pid).as_deref(), Some("https://a.test"));
+        // A plain local folder carries no app-owned hub binding.
+        let local = st.upsert("/x/local", 3);
+        assert_eq!(st.managed_server_of(&local), None);
+    }
+
+    /// N-M1 (audit 2): a project page's recents hold its own profile's paths only.
+    #[test]
+    fn recents_answer_only_the_callers_profile() {
+        let mut st = AppState::default();
+        let w = st.upsert("/x/work-a", 1);
+        st.projects.get_mut(&w).unwrap().profile = "work".into();
+        st.upsert("/x/home-b", 2);
+        let roots = vec!["/x/work-a".to_string(), "/x/home-b".to_string(), "/x/unknown".to_string()];
+        assert_eq!(st.recents_in_profile("work", roots.clone()), vec!["/x/work-a".to_string()]);
+        assert_eq!(
+            st.recents_in_profile("default", roots),
+            vec!["/x/home-b".to_string(), "/x/unknown".to_string()]
+        );
     }
 
     #[test]

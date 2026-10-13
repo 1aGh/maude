@@ -99,6 +99,46 @@ pub fn managed_key(server_url: &str, project_id: &str) -> String {
     format!("{}--{}", clean(&host), clean(project_id))
 }
 
+/// The copy's folder name for `profile` (N-H1): two profiles never share one
+/// copy (each holds its own hub credential). Default keeps the 1.x key; any
+/// other profile prefixes `<id>@` — `@` never appears in `managed_key`.
+pub fn managed_key_for(profile: &str, server_url: &str, project_id: &str) -> String {
+    let key = managed_key(server_url, project_id);
+    if profile == crate::profiles::DEFAULT_ID {
+        key
+    } else {
+        format!("{profile}@{key}")
+    }
+}
+
+/// Which profile a managed open is for (N-H1). Home names the profile it
+/// prepared for (`None` = default); it must be a valid, existing id. A project
+/// window always gets its OWN profile and may not name another.
+pub fn managed_profile(
+    caller: &crate::windows::Caller,
+    requested: Option<&str>,
+    caller_profile: impl Fn(&str) -> String,
+    exists: impl Fn(&str) -> bool,
+) -> Result<String, String> {
+    let id = match caller {
+        crate::windows::Caller::Home => requested
+            .unwrap_or(crate::profiles::DEFAULT_ID)
+            .to_string(),
+        crate::windows::Caller::Project(c) => {
+            let own = caller_profile(&c.root);
+            if requested.is_some_and(|r| r != own) {
+                return Err("This window can only open projects for its own account.".to_string());
+            }
+            own
+        }
+    };
+    crate::profiles::validate_id(&id)?;
+    if !exists(&id) {
+        return Err("That account profile doesn't exist.".to_string());
+    }
+    Ok(id)
+}
+
 fn managed_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     app.path()
         .app_data_dir()
@@ -265,10 +305,17 @@ pub async fn managed_project_open(
     project_id: String,
     name: String,
     canvas_groups: Vec<String>,
+    profile: Option<String>,
 ) -> Result<String, String> {
     let who = crate::windows::caller_any(&webview, false)?;
     let server = validate_server_url(&server_url)?;
     let id = validate_project_id(&project_id)?;
+    let profile = managed_profile(
+        &who,
+        profile.as_deref(),
+        |root| crate::app_state::profile_for(&app, root),
+        |p| p == crate::profiles::DEFAULT_ID || crate::profiles::exists(p),
+    )?;
     let known = load_index(&app).projects;
     let gate = managed_gate(&who, &server, &id, &known, crate::oauth::in_cloud_zone(&server));
     if gate == ManagedGate::Confirm {
@@ -287,7 +334,7 @@ pub async fn managed_project_open(
     };
     let display: String = name.trim().chars().filter(|c| !c.is_control()).take(120).collect();
     let display = if display.is_empty() { id.clone() } else { display };
-    let key = managed_key(&server, &id);
+    let key = managed_key_for(&profile, &server, &id);
     let dir = managed_root(&app)?.join(&key);
     std::fs::create_dir_all(&dir).map_err(|e| format!("Couldn't create the project folder: {e}"))?;
     write_managed_config(&dir, &server, &id, &display, &canvas_groups, now_ms())
@@ -299,8 +346,8 @@ pub async fn managed_project_open(
         0,
         ManagedProject {
             key,
-            server_url: server,
-            project_id: id,
+            server_url: server.clone(),
+            project_id: id.clone(),
             name: display,
             path: dir.to_string_lossy().to_string(),
             last_opened: now_ms(),
@@ -308,12 +355,25 @@ pub async fn managed_project_open(
     );
     idx.projects.truncate(50);
     save_index(&app, &idx);
+    // N-H1: bound to the profile it was prepared for BEFORE anything opens it,
+    // so its server spawns with that profile's hub/cloud files and token key.
+    crate::app_state::bind_managed(&app, &dir, &profile, &server, &id)?;
 
     if let Some(caller) = caller {
         crate::app_state::set_last_project(&app, &dir);
         crate::sidecar::switch_project(&app, &caller.label, dir.clone(), None);
     }
     Ok(dir.to_string_lossy().to_string())
+}
+
+/// `(path, server)` of every managed copy in the app-owned index — the
+/// routing half of N-M4 for copies made before the registry carried a binding.
+pub fn bound_copies(app: &tauri::AppHandle) -> Vec<(String, String)> {
+    load_index(app)
+        .projects
+        .into_iter()
+        .map(|p| (p.path, p.server_url))
+        .collect()
 }
 
 /// The projects this computer keeps a managed copy of, most recent first.
@@ -368,6 +428,35 @@ mod tests {
         assert!(crate::oauth::in_cloud_zone("https://acme.cloud.maude.sh"));
         assert!(!crate::oauth::in_cloud_zone("https://evil.example"));
         assert!(!crate::oauth::in_cloud_zone("http://127.0.0.1:6666"));
+    }
+
+    /// N-H1 (audit 2): Home names the profile it prepared for (validated, and it
+    /// must exist); a project window always gets its OWN profile and cannot name
+    /// another; two profiles never share one copy.
+    #[test]
+    fn the_managed_copy_belongs_to_one_validated_profile() {
+        use crate::windows::{Caller, CallerProject};
+        let exists = |id: &str| id == "default" || id == "work";
+        let own = |_: &str| "work".to_string();
+        assert_eq!(managed_profile(&Caller::Home, Some("work"), own, exists).unwrap(), "work");
+        assert_eq!(managed_profile(&Caller::Home, None, own, exists).unwrap(), "default");
+        assert!(managed_profile(&Caller::Home, Some("gone"), own, exists).is_err());
+        assert!(managed_profile(&Caller::Home, Some("../x"), own, exists).is_err());
+        let project = Caller::Project(CallerProject {
+            label: "p-l0123456789abcdef".into(),
+            pid: "l0123456789abcdef".into(),
+            root: "/tmp/a".into(),
+        });
+        assert_eq!(managed_profile(&project, None, own, exists).unwrap(), "work");
+        assert_eq!(managed_profile(&project, Some("work"), own, exists).unwrap(), "work");
+        assert!(managed_profile(&project, Some("default"), own, exists).is_err());
+
+        let d = managed_key_for("default", "https://acme.cloud.maude.sh", "alligators");
+        let w = managed_key_for("work", "https://acme.cloud.maude.sh", "alligators");
+        assert_eq!(d, "acme.cloud.maude.sh--alligators", "default keeps the 1.x key");
+        assert_eq!(w, "work@acme.cloud.maude.sh--alligators");
+        assert_ne!(d, w);
+        assert!(!w.contains('/'));
     }
 
     #[test]

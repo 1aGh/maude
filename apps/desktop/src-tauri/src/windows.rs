@@ -114,6 +114,10 @@ pub struct WindowEntry {
     /// rewrite (decision 8's concern, without waiting for part b's info file).
     /// `None` until the first navigate, and again after an in-tab switch.
     pub origin: Option<String>,
+    /// The canvas origin the same app-owned info file named (N-M2): the one
+    /// other loopback origin this window's navigations may reach — the
+    /// cross-origin canvas iframe. Set and cleared with `origin`.
+    pub canvas_origin: Option<String>,
     /// The tab is RESTING (§5.2 "Rest (cap)"): its server was stopped to keep
     /// the running count at the cap; it shows the splash until focus wakes it.
     /// Live only, never on disk (decision 5).
@@ -162,6 +166,7 @@ impl WindowBook {
                 role,
                 last_focused: tick,
                 origin: None,
+                canvas_origin: None,
                 resting: false,
                 closing: false,
             },
@@ -173,6 +178,42 @@ impl WindowBook {
         if let Some(e) = self.entries.get_mut(label) {
             e.origin = Some(origin.to_string());
         }
+    }
+
+    /// Record the canvas origin of the server `label` was just sent to.
+    pub fn set_canvas_origin(&mut self, label: &str, canvas: Option<&str>) {
+        if let Some(e) = self.entries.get_mut(label) {
+            e.canvas_origin = canvas.map(str::to_string);
+        }
+    }
+
+    /// The window no longer vouches for any server origin (its server died,
+    /// or it is resting): nothing but the splash is "its" page until the shell
+    /// records a fresh origin from a live child's info file (N-M3).
+    pub fn clear_origin(&mut self, label: &str) {
+        if let Some(e) = self.entries.get_mut(label) {
+            e.origin = None;
+            e.canvas_origin = None;
+        }
+    }
+
+    /// `clear_origin` for the window showing `root`; returns its label.
+    pub fn forget_origin_of_root(&mut self, root: &str) -> Option<String> {
+        let label = self.label_for_root(root)?;
+        self.clear_origin(&label);
+        Some(label)
+    }
+
+    /// What `label`'s navigations are judged against (N-M2): its role and the
+    /// origins the shell recorded for it.
+    pub fn nav_view(&self, label: &str) -> Option<(NavRole, Option<String>, Option<String>)> {
+        let e = self.entries.get(label)?;
+        let role = match e.role {
+            Role::Home => NavRole::Home,
+            Role::Project { .. } => NavRole::Project,
+            Role::Cell { .. } => NavRole::Cell,
+        };
+        Some((role, e.origin.clone(), e.canvas_origin.clone()))
     }
 
     pub fn remove(&mut self, label: &str) -> Option<WindowEntry> {
@@ -224,6 +265,7 @@ impl WindowBook {
                 };
                 // The old project's origin no longer vouches for this window.
                 e.origin = None;
+                e.canvas_origin = None;
                 true
             }
             None => false,
@@ -458,7 +500,7 @@ pub fn open_in(
     };
     let spec = WindowSpec {
         label: label.clone(),
-        title: crate::notify::sanitize_notify_field(name),
+        title: crate::notify::sanitize_title(name),
         caller: caller.map(str::to_string),
     };
     if let Err(e) = host.create(&spec) {
@@ -473,7 +515,8 @@ pub fn open_in(
 /// The name a window title (and the "is open" notice) shows: the project's
 /// `projectLabel ?? name` from `.design/config.json`, else its folder name. The
 /// value comes from the untrusted project, so it is sanitized
-/// (`notify::sanitize_notify_field`, contract §5.2 "Title") — AppKit draws it.
+/// (`notify::sanitize_title`, contract §5.2 "Title" — one line, no bidi
+/// controls) — AppKit draws it.
 pub fn project_display_name(root: &str) -> String {
     let from_config = std::fs::read(Path::new(root).join(".design").join("config.json"))
         .ok()
@@ -493,7 +536,7 @@ pub fn project_display_name(root: &str) -> String {
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| root.to_string())
     });
-    crate::notify::sanitize_notify_field(&name)
+    crate::notify::sanitize_title(&name)
 }
 
 /// `data_store_identifier` exists from macOS 14 (WKWebsiteDataStore
@@ -534,6 +577,155 @@ fn macos_supports_data_store() -> bool {
     })
 }
 
+// ── Navigation guard (V2-3.6 N-M2, contract §5.8 item 7) ─────────────────────
+
+/// The kind of window a navigation is judged for.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum NavRole {
+    Home,
+    Project,
+    /// `c-*` cell tabs (not built yet): https inside the configured cloud zone.
+    Cell,
+}
+
+/// A loopback (or unspecified) host on any scheme — what an agent or another
+/// local listener can bind.
+fn loopbackish(url: &tauri::Url) -> bool {
+    let Some(host) = url.host_str() else {
+        return false;
+    };
+    let host = host.trim_start_matches('[').trim_end_matches(']').to_ascii_lowercase();
+    match host.parse::<std::net::IpAddr>() {
+        Ok(ip) => ip.is_loopback() || ip.is_unspecified(),
+        Err(_) => host == "localhost" || host.ends_with(".localhost"),
+    }
+}
+
+/// THE rule for every navigation of a shell-built window (`on_navigation`).
+/// WKWebView asks it for subframes too (the canvas iframe, an embed inside a
+/// canvas) and does not say which frame, so this is the union a page may
+/// legitimately load anywhere; `top_level_allowed` narrows the main frame.
+/// - the app-local splash, `about:blank` / `about:srcdoc`;
+/// - the origin the shell recorded for this window (`origin`), and a `blob:`
+///   minted by it;
+/// - a project tab also: its own server's canvas origin (`canvas`), `data:`
+///   and remote https (subframe content — a remote origin gets no IPC, the
+///   capability lists loopback only); NEVER another loopback origin;
+/// - Home: nothing else; a cell tab: https inside the cloud zone.
+pub fn navigation_allowed(
+    role: NavRole,
+    url: &tauri::Url,
+    origin: Option<&str>,
+    canvas: Option<&str>,
+) -> bool {
+    if is_app_local(url) {
+        return true;
+    }
+    let target = match url.scheme() {
+        "about" => return matches!(url.path(), "blank" | "srcdoc"),
+        "data" => return role == NavRole::Project,
+        "blob" => match tauri::Url::parse(url.path()) {
+            Ok(inner) => inner,
+            Err(_) => return false,
+        },
+        "http" | "https" => url.clone(),
+        _ => return false,
+    };
+    if !matches!(target.scheme(), "http" | "https") {
+        return false;
+    }
+    let o = target.origin().ascii_serialization();
+    if origin == Some(o.as_str()) {
+        return true;
+    }
+    match role {
+        NavRole::Home => false,
+        NavRole::Project if loopbackish(&target) => canvas == Some(o.as_str()),
+        NavRole::Project => target.scheme() == "https",
+        NavRole::Cell => {
+            target.scheme() == "https" && !loopbackish(&target) && crate::oauth::in_cloud_zone(&o)
+        }
+    }
+}
+
+/// The main frame (`on_page_load` Started — WKWebView reports it for the main
+/// frame only): the splash, `about:blank`, or the window's own recorded
+/// origin. A page that took the top frame anywhere else is sent back to the
+/// splash.
+pub fn top_level_allowed(role: NavRole, url: &tauri::Url, origin: Option<&str>) -> bool {
+    if is_app_local(url) || (url.scheme() == "about" && url.path() == "blank") {
+        return true;
+    }
+    if !matches!(url.scheme(), "http" | "https") {
+        return false;
+    }
+    let o = url.origin().ascii_serialization();
+    origin == Some(o.as_str())
+        || (role == NavRole::Cell
+            && url.scheme() == "https"
+            && !loopbackish(url)
+            && crate::oauth::in_cloud_zone(&o))
+}
+
+/// `navigation_allowed` / `top_level_allowed` against the live book. A label
+/// the book does not know (yet) may show only the splash.
+fn nav_check<R: Runtime>(app: &AppHandle<R>, label: &str, url: &tauri::Url, top: bool) -> bool {
+    let view = app
+        .try_state::<SidecarState>()
+        .and_then(|s| s.windows.lock().unwrap_or_else(|e| e.into_inner()).nav_view(label));
+    let Some((role, origin, canvas)) = view else {
+        return is_app_local(url);
+    };
+    if top {
+        top_level_allowed(role, url, origin.as_deref())
+    } else {
+        navigation_allowed(role, url, origin.as_deref(), canvas.as_deref())
+    }
+}
+
+/// Send `label` to the app-local splash (a refused top-level page, a server
+/// that gave up).
+pub fn show_splash<R: Runtime>(app: &AppHandle<R>, label: &str) {
+    if let Some(w) = app.get_webview_window(label) {
+        if let Err(e) = w.navigate(splash_url()) {
+            crate::sidecar::log_line(&format!("[maude] could not show the splash in {label}: {e}"));
+        }
+    }
+}
+
+/// A project's server died (N-M3): its window stops vouching for the dead
+/// server's origin at once — a listener that binds the freed port is never
+/// "the project" — and, when the supervisor gave up, shows the splash. The
+/// respawn's own info file records the next origin (`navigate_to_server`).
+pub fn on_server_died(app: &AppHandle, root: &str, gave_up: bool) {
+    let label = app.try_state::<SidecarState>().and_then(|s| {
+        s.windows
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .forget_origin_of_root(root)
+    });
+    if let (Some(label), true) = (label, gave_up) {
+        show_splash(app, &label);
+    }
+}
+
+/// Record the server origin a window is being sent to, from the app-owned
+/// info file of `root`'s running child — with that file's canvas origin —
+/// but only while the window still shows `root` and is awake. The one place
+/// an origin becomes trusted (navigate, and the splash's own recovery).
+pub fn stamp_server_origin(app: &AppHandle, label: &str, root: &str, origin: &str) -> bool {
+    let canvas = crate::sidecar::shell_info_file(app, root)
+        .and_then(|f| crate::sidecar::read_shell_canvas_origin(&f));
+    let state = app.state::<SidecarState>();
+    let mut book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
+    if !book.may_navigate(label, root) {
+        return false;
+    }
+    book.set_origin(label, origin);
+    book.set_canvas_origin(label, canvas.as_deref());
+    true
+}
+
 /// The Tauri side of `WindowHost`.
 pub struct TauriHost<'a> {
     pub app: &'a AppHandle,
@@ -570,6 +762,33 @@ impl WindowHost for TauriHost<'_> {
                 .inner_size(1280.0, 800.0)
                 .min_inner_size(1024.0, 680.0)
                 .disable_drag_drop_handler();
+        // N-M2: every navigation of every shell-built window passes the guard;
+        // a main frame that still lands elsewhere goes back to the splash; a
+        // page never opens a window of its own.
+        let (nav_app, nav_label) = (self.app.clone(), spec.label.clone());
+        let (load_app, load_label) = (self.app.clone(), spec.label.clone());
+        builder = builder
+            .on_navigation(move |url| {
+                let ok = nav_check(&nav_app, &nav_label, url, false);
+                if !ok {
+                    crate::sidecar::log_line(&format!(
+                        "[maude] {nav_label}: refused a navigation to {}",
+                        url.origin().ascii_serialization()
+                    ));
+                }
+                ok
+            })
+            .on_page_load(move |_w, payload| {
+                if payload.event() == tauri::webview::PageLoadEvent::Started
+                    && !nav_check(&load_app, &load_label, payload.url(), true)
+                {
+                    crate::sidecar::log_line(&format!(
+                        "[maude] {load_label}: the page left its origin — back to the splash"
+                    ));
+                    show_splash(&load_app, &load_label);
+                }
+            })
+            .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny);
         #[cfg(target_os = "macos")]
         {
             // Every window joins one tab group (decision 2), whatever the
@@ -636,17 +855,13 @@ pub fn navigate_to_server(app: &AppHandle, label: &str, root: &str, url: &str, o
         Ok(mut parsed) if crate::server_json::is_loopback_url(&parsed) => {
             // Check-and-stamp under one lock: the window must still show
             // `root`, and the origin it is sent to becomes the one its
-            // commands are answered for (`check_caller`).
-            {
-                let state = app.state::<SidecarState>();
-                let mut book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
-                if !book.may_navigate(label, root) {
-                    crate::sidecar::log_line(&format!(
-                        "[maude] {label} no longer shows {root}, or is resting — not navigating"
-                    ));
-                    return;
-                }
-                book.set_origin(label, &parsed.origin().ascii_serialization());
+            // commands are answered for (`check_caller`) and its navigations
+            // may reach (N-M2).
+            if !stamp_server_origin(app, label, root, &parsed.origin().ascii_serialization()) {
+                crate::sidecar::log_line(&format!(
+                    "[maude] {label} no longer shows {root}, or is resting — not navigating"
+                ));
+                return;
             }
             if let Some(rel) = open {
                 parsed.query_pairs_mut().append_pair("open", rel);
@@ -819,11 +1034,12 @@ fn splash_url() -> tauri::Url {
 /// kept — the tab still says which project it is.
 pub fn rest_window(app: &AppHandle, label: &str, root: &str) {
     let state = app.state::<SidecarState>();
-    let marked = state
-        .windows
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .set_resting(label, true);
+    let marked = {
+        let mut book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
+        // Its server is about to stop: the port it held vouches for nothing (N-M3).
+        book.clear_origin(label);
+        book.set_resting(label, true)
+    };
     crate::sidecar::shutdown_instance(app, root);
     if !marked {
         return;
@@ -833,7 +1049,7 @@ pub fn rest_window(app: &AppHandle, label: &str, root: &str) {
         if let Err(e) = w.navigate(splash_url()) {
             crate::sidecar::log_line(&format!("[maude] could not rest {label}: {e}"));
         }
-        let _ = w.set_title(&crate::notify::sanitize_notify_field(&title));
+        let _ = w.set_title(&crate::notify::sanitize_title(&title));
     }
 }
 
@@ -1460,13 +1676,16 @@ pub fn local_project_allowed(app: &AppHandle, label: &str, path: &Path) -> bool 
     ok
 }
 
-/// Everything parked for `label` dies with the window: a later window that
-/// reuses the label must not inherit it.
+/// Everything parked for `label` dies with the window — a later window that
+/// reuses the label must not inherit it — and with an in-tab switch, so the
+/// project the label shows next cannot take what was parked for the last one
+/// (N-M5: the deep link too, `?code=` and all).
 pub fn drop_parked_for(label: &str) {
     crate::home::take_intent(label);
     TABS_RESTORED.take(label);
     PENDING_NAVIGATE.take(label);
     crate::deep_link::LINK_OPENED.take(label);
+    crate::deep_link::PENDING_LINKS.take(label);
     PICKED_FOLDER.take(label);
 }
 
@@ -2400,6 +2619,83 @@ mod tests {
         assert_eq!(PENDING_NAVIGATE.take("p-nav-none"), None);
     }
 
+    /// N-M2 (audit 2): the guard admits the splash and the window's own
+    /// origins — never another loopback listener, a file, or (for Home and the
+    /// main frame) a remote page.
+    #[test]
+    fn the_navigation_guard_admits_only_the_windows_own_origins() {
+        use NavRole::*;
+        let u = |s: &str| s.parse::<tauri::Url>().unwrap();
+        let (o, c) = (Some("http://localhost:4399"), Some("http://localhost:4400"));
+        let nav = |r, s: &str| navigation_allowed(r, &u(s), o, c);
+        assert!(nav(Project, "tauri://localhost/index.html"));
+        assert!(nav(Project, "http://tauri.localhost/index.html"));
+        assert!(nav(Project, "http://localhost:4399/?open=ui%2Fa.tsx"));
+        assert!(nav(Project, "http://localhost:4400/_canvas-shell.html"), "its canvas iframe");
+        assert!(nav(Project, "blob:http://localhost:4399/0f1e"));
+        assert!(nav(Project, "about:blank"));
+        assert!(nav(Project, "about:srcdoc"));
+        assert!(!nav(Project, "http://localhost:5555/"), "an agent's listener");
+        assert!(!nav(Project, "http://127.0.0.1:4399/"), "the unrecorded twin");
+        assert!(!nav(Project, "https://localhost:4399/"));
+        assert!(!nav(Project, "http://[::1]:4399/"));
+        assert!(!nav(Project, "blob:http://localhost:5555/0f1e"));
+        assert!(!nav(Project, "file:///etc/passwd"));
+        assert!(!nav(Project, "maude://open/x"));
+        assert!(!nav(Project, "http://evil.example/"));
+        assert!(!nav(Project, "about:config"));
+        // Remote https is subframe content only (an embed inside a canvas).
+        assert!(nav(Project, "https://www.youtube.com/embed/x"));
+        assert!(!top_level_allowed(Project, &u("https://www.youtube.com/embed/x"), o));
+        assert!(!top_level_allowed(Project, &u("http://localhost:4400/"), o));
+        assert!(!top_level_allowed(Project, &u("data:text/html,x"), o));
+        assert!(top_level_allowed(Project, &u("http://localhost:4399/x"), o));
+        assert!(top_level_allowed(Project, &u("tauri://localhost/index.html"), o));
+        // Home: its own origin and the splash, nothing else.
+        let h = Some("http://127.0.0.1:4500");
+        assert!(navigation_allowed(Home, &u("http://127.0.0.1:4500/"), h, None));
+        assert!(navigation_allowed(Home, &u("tauri://localhost/index.html"), h, None));
+        assert!(!navigation_allowed(Home, &u("http://localhost:4500/"), h, None));
+        assert!(!navigation_allowed(Home, &u("http://127.0.0.1:4501/"), h, None));
+        assert!(!navigation_allowed(Home, &u("https://www.youtube.com/"), h, None));
+        assert!(!navigation_allowed(Home, &u("data:text/html,x"), h, None));
+        // A cell tab (one rule, built later): https in the cloud zone.
+        assert!(navigation_allowed(Cell, &u("https://acme.cloud.maude.sh/x"), None, None));
+        assert!(top_level_allowed(Cell, &u("https://acme.cloud.maude.sh/x"), None));
+        assert!(!navigation_allowed(Cell, &u("https://evil.example/"), None, None));
+        assert!(!navigation_allowed(Cell, &u("http://localhost:4399/"), None, None));
+    }
+
+    /// N-M3 (audit 2): a dead server's port vouches for nothing — the window's
+    /// recorded origins are cleared, so neither a caller check nor a reload on
+    /// that port is answered until a fresh info file names the next one.
+    #[test]
+    fn a_dead_servers_origin_is_no_longer_the_windows() {
+        let mut book = WindowBook::default();
+        let label = label_for_pid(&pid_for_root("/tmp/nm3"));
+        book.insert(
+            &label,
+            Role::Project {
+                pid: pid_for_root("/tmp/nm3"),
+                root: "/tmp/nm3".into(),
+            },
+            0,
+        );
+        book.set_origin(&label, "http://localhost:4399");
+        book.set_canvas_origin(&label, Some("http://localhost:4400"));
+        let page = "http://localhost:4399/".parse::<tauri::Url>().unwrap();
+        assert!(check_caller(&book, &label, Some(&page), false).is_ok());
+        assert_eq!(book.forget_origin_of_root("/tmp/nm3"), Some(label.clone()));
+        assert!(check_caller(&book, &label, Some(&page), false).is_err());
+        let (role, origin, canvas) = book.nav_view(&label).unwrap();
+        assert!(!navigation_allowed(role, &page, origin.as_deref(), canvas.as_deref()));
+        let iframe = "http://localhost:4400/".parse::<tauri::Url>().unwrap();
+        assert!(!navigation_allowed(role, &iframe, origin.as_deref(), canvas.as_deref()));
+        let splash = "tauri://localhost/index.html".parse::<tauri::Url>().unwrap();
+        assert!(navigation_allowed(role, &splash, origin.as_deref(), canvas.as_deref()));
+        assert!(top_level_allowed(role, &splash, origin.as_deref()));
+    }
+
     #[test]
     fn parked_values_die_with_their_window() {
         let t = OpenTarget {
@@ -2416,12 +2712,20 @@ mod tests {
                 project_hint: None,
             },
         );
+        // N-M5: a connect link (its `?code=`) parked for the window too.
+        crate::deep_link::PENDING_LINKS.park("p-gone", "maude://open/a?code=mhc_00");
         TABS_RESTORED.park("p-stays", TabsRestored { count: 2 });
         PENDING_NAVIGATE.park("p-stays", t.clone());
+        crate::deep_link::PENDING_LINKS.park("p-stays", "maude://open/b");
         drop_parked_for("p-gone");
         assert_eq!(TABS_RESTORED.take("p-gone"), None);
         assert_eq!(PENDING_NAVIGATE.take("p-gone"), None);
         assert_eq!(crate::home::take_intent("p-gone"), None);
+        assert_eq!(crate::deep_link::PENDING_LINKS.take("p-gone"), None);
+        assert_eq!(
+            crate::deep_link::PENDING_LINKS.take("p-stays").as_deref(),
+            Some("maude://open/b")
+        );
         // Another window's values are untouched.
         assert_eq!(TABS_RESTORED.take("p-stays"), Some(TabsRestored { count: 2 }));
         assert_eq!(PENDING_NAVIGATE.take("p-stays"), Some(t));

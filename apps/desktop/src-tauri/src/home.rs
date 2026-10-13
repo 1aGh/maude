@@ -349,6 +349,15 @@ fn supervise(app: AppHandle, mut rx: tauri::async_runtime::Receiver<CommandEvent
                     h.url = None;
                     let uptime = h.spawned_at.elapsed();
                     on_death(&mut h.budget, uptime, &TauriSpawner { app: app.clone() });
+                    drop(slot);
+                    // N-M3: the dead Home's port is not "the Home origin" for
+                    // the window's navigations any more; `on_bound` records the
+                    // next. (Taken after the Home lock is released.)
+                    state
+                        .windows
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .clear_origin(HOME_LABEL);
                     break;
                 }
                 _ => {}
@@ -410,15 +419,18 @@ fn on_bound(app: &AppHandle, pid: u32, port: u16, url: String) {
     navigate_home(app);
 }
 
-/// The runtime capability for the Home window at the Home origin (+ its
-/// `localhost` twin). `local(false)`: on the app-local splash the window gets
-/// only the static `home-splash` capability (resolve_dev_server_url).
+/// The runtime capability for the Home window at the Home origin — the exact
+/// `127.0.0.1` listener Home binds, not its `localhost` twin (a same-user
+/// `[::1]:<port>` listener would answer that name; V2-3.6 W2). `local(false)`:
+/// on the app-local splash the window gets only the static `home-splash`
+/// capability (resolve_dev_server_url). A capability for a port Home no
+/// longer owns cannot be removed (Tauri has no API), but the window can never
+/// reach that port: the navigation guard admits the recorded origin only.
 pub fn home_capability(id: &str, port: u16) -> CapabilityBuilder {
     let mut b = CapabilityBuilder::new(id)
         .window(HOME_LABEL)
         .local(false)
-        .remote(format!("http://127.0.0.1:{port}/*"))
-        .remote(format!("http://localhost:{port}/*"));
+        .remote(format!("http://127.0.0.1:{port}/*"));
     for p in HOME_PERMISSIONS {
         b = b.permission(*p);
     }
@@ -479,12 +491,10 @@ pub fn kill(app: &AppHandle) {
 
 // ── The caller gate (decision 7, §5.8 item 3) ──────────────────────────────
 
-/// The Home origin is `http://127.0.0.1:<port>`; its `localhost` twin is the
-/// same listener (the runtime capability grants both).
+/// The Home origin is exactly `http://127.0.0.1:<port>` (W2: not the
+/// `localhost` twin — Home binds 127.0.0.1 only).
 fn on_home_origin(url: &tauri::Url, port: u16) -> bool {
-    url.scheme() == "http"
-        && url.port() == Some(port)
-        && matches!(url.host_str(), Some("127.0.0.1") | Some("localhost"))
+    url.scheme() == "http" && url.port() == Some(port) && url.host_str() == Some("127.0.0.1")
 }
 
 /// Pure half of `caller_home`: the label is `home` AND the window's current URL
@@ -536,13 +546,7 @@ pub fn navigate_home(app: &AppHandle) {
     };
     match url.parse::<tauri::Url>() {
         Ok(parsed) if crate::server_json::is_loopback_url(&parsed) => {
-            if let Some(state) = app.try_state::<SidecarState>() {
-                state
-                    .windows
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner())
-                    .set_origin(HOME_LABEL, &parsed.origin().ascii_serialization());
-            }
+            stamp_home_origin(app, &url);
             if let Err(e) = window.navigate(parsed) {
                 log_line(&format!("[maude] Home navigate failed: {e}"));
             }
@@ -550,6 +554,28 @@ pub fn navigate_home(app: &AppHandle) {
         _ => log_line(&format!(
             "[maude] refusing non-loopback Home url (DDR-109): {url}"
         )),
+    }
+}
+
+/// Record the bound Home server's origin as the Home window's (the one its
+/// navigations may reach, N-M2). Only the app-owned `endpoint` url counts;
+/// anything else is ignored.
+pub fn stamp_home_origin(app: &AppHandle, url: &str) {
+    if endpoint(app).map(|(u, _)| u).as_deref() != Some(url) {
+        return;
+    }
+    let Ok(parsed) = url.parse::<tauri::Url>() else {
+        return;
+    };
+    if !crate::server_json::is_loopback_url(&parsed) {
+        return;
+    }
+    if let Some(state) = app.try_state::<SidecarState>() {
+        state
+            .windows
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .set_origin(HOME_LABEL, &parsed.origin().ascii_serialization());
     }
 }
 
@@ -633,6 +659,12 @@ pub struct ShellProject {
     /// first probe answers.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ai: Option<ShellAi>,
+    /// The hub the APP bound this project to — a managed copy's server, from
+    /// the registry (or the app-owned managed index for an older copy). Never
+    /// the project's own `linkedHub` claim: Home trusts only this to say a
+    /// cloud project is "on this Mac" (V2-3.6 N-M4).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hub: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize)]
@@ -673,6 +705,7 @@ pub fn build_shell_state(
     profiles: Vec<ShellProfile>,
     name_of: impl Fn(&str, &str) -> String,
     ai_of: impl Fn(&str) -> Option<ShellAi>,
+    legacy_hub: impl Fn(&str) -> Option<String>,
 ) -> ShellState {
     let mut entries: Vec<_> = st.projects.iter().collect();
     entries.sort_by(|a, b| {
@@ -693,6 +726,7 @@ pub fn build_shell_state(
                 focused: label.is_some() && book.focused() == label.as_deref(),
                 // Running tabs only: a resting or closed project has no server.
                 ai: if place == "tab" { ai_of(&e.root) } else { None },
+                hub: st.managed_server_of(pid).or_else(|| legacy_hub(&e.root)),
                 label,
             }
         })
@@ -721,6 +755,7 @@ fn current_shell_state(app: &AppHandle) -> ShellState {
             email: p.cloud_email,
         })
         .collect();
+    let copies = crate::managed::bound_copies(app);
     let state = app.state::<SidecarState>();
     let book = state.windows.lock().unwrap_or_else(|e| e.into_inner());
     build_shell_state(
@@ -731,7 +766,7 @@ fn current_shell_state(app: &AppHandle) -> ShellState {
             if Path::new(root).is_dir() {
                 windows::project_display_name(root)
             } else {
-                crate::notify::sanitize_notify_field(name)
+                crate::notify::sanitize_title(name)
             }
         },
         |root| {
@@ -739,6 +774,12 @@ fn current_shell_state(app: &AppHandle) -> ShellState {
                 running: a.running,
                 awaiting: a.awaiting,
             })
+        },
+        |root| {
+            copies
+                .iter()
+                .find(|(path, _)| windows::pid_for_root(path) == windows::pid_for_root(root))
+                .map(|(_, server)| server.clone())
         },
     )
 }
@@ -1082,23 +1123,45 @@ fn index_dir() -> Option<PathBuf> {
     }
 }
 
+/// Who may relink `pid` (V2-3.6 N-M6): Home any registered project; a
+/// project window only its OWN — the new folder inherits the entry's profile,
+/// so a page must never rebind another project (another profile's) to a
+/// folder the person picks without knowing what for.
+pub fn relink_allowed(caller: &windows::Caller, pid: &str) -> Result<(), String> {
+    match caller {
+        windows::Caller::Home => Ok(()),
+        windows::Caller::Project(c) if c.pid == pid => Ok(()),
+        windows::Caller::Project(_) => {
+            Err("A project window can only find the folder of its own project.".to_string())
+        }
+    }
+}
+
 /// `relink_project({pid})` — "Find the folder…": pick where the project moved
-/// to, rebind its registry entry and carry its index entry over. Either role.
-/// Resolves the new pid, or `null` when the picker was cancelled.
+/// to, rebind its registry entry and carry its index entry over. Home, or a
+/// project window for itself (`relink_allowed`). The picker is a sheet on the
+/// calling window, titled with the project it is for. Resolves the new pid,
+/// or `null` when the picker was cancelled.
 #[tauri::command]
 pub async fn relink_project(
     app: AppHandle,
     webview: tauri::Webview,
     pid: String,
 ) -> Result<Option<String>, String> {
-    windows::caller_any(&webview, false)?;
-    if !crate::app_state::load(&app).projects.contains_key(&pid) {
-        return Err("That project isn't in your list.".to_string());
-    }
+    let who = windows::caller_any(&webview, false)?;
+    relink_allowed(&who, &pid)?;
+    let name = match crate::app_state::load(&app).projects.get(&pid) {
+        Some(e) => crate::notify::sanitize_title(&e.name),
+        None => return Err("That project isn't in your list.".to_string()),
+    };
     let (tx, rx) = tokio::sync::oneshot::channel();
-    app.dialog().file().pick_folder(move |f| {
-        let _ = tx.send(f.and_then(|f| f.as_path().map(Path::to_path_buf)));
-    });
+    app.dialog()
+        .file()
+        .set_parent(&webview.window())
+        .set_title(format!("Find the folder for {name}"))
+        .pick_folder(move |f| {
+            let _ = tx.send(f.and_then(|f| f.as_path().map(Path::to_path_buf)));
+        });
     let Some(folder) = rx
         .await
         .map_err(|_| "The folder picker closed unexpectedly.".to_string())?
@@ -1128,6 +1191,38 @@ mod tests {
 
     fn url(s: &str) -> tauri::Url {
         s.parse().unwrap()
+    }
+
+    /// N-M6 (audit 2): a project window relinks only itself; Home any.
+    /// N-M4: ShellState names a project's hub only from the app's own binding.
+    #[test]
+    fn shell_state_hub_is_the_apps_binding_never_the_projects_claim() {
+        let mut st = AppState::default();
+        let copy = st.bind_managed("/data/c", "default", "https://a.cloud.maude.sh", "a", 2);
+        let plain = st.upsert("/x/claims-a-hub", 1);
+        let book = WindowBook::default();
+        let legacy = |root: &str| (root == "/data/old").then(|| "https://b.cloud.maude.sh".to_string());
+        st.upsert("/data/old", 3);
+        let s = build_shell_state(&st, &book, Vec::new(), |_, n| n.to_string(), |_| None, legacy);
+        let hub = |pid: &str| s.projects.iter().find(|p| p.pid == pid).unwrap().hub.clone();
+        assert_eq!(hub(&copy).as_deref(), Some("https://a.cloud.maude.sh"));
+        assert_eq!(hub(&plain), None);
+        assert_eq!(
+            hub(&windows::pid_for_root("/data/old")).as_deref(),
+            Some("https://b.cloud.maude.sh")
+        );
+    }
+
+    #[test]
+    fn relink_is_home_or_the_project_itself() {
+        let me = windows::Caller::Project(windows::CallerProject {
+            label: "p-laaaaaaaaaaaaaaaa".into(),
+            pid: "laaaaaaaaaaaaaaaa".into(),
+            root: "/tmp/me".into(),
+        });
+        assert!(relink_allowed(&windows::Caller::Home, "lbbbbbbbbbbbbbbbb").is_ok());
+        assert!(relink_allowed(&me, "laaaaaaaaaaaaaaaa").is_ok());
+        assert!(relink_allowed(&me, "lbbbbbbbbbbbbbbbb").is_err());
     }
 
     #[test]
@@ -1163,15 +1258,16 @@ mod tests {
         let splash = url("tauri://localhost/index.html");
         assert!(check_home("home", Some(&splash), Some(4500), false).is_err());
         assert!(check_home("home", Some(&splash), Some(4500), true).is_ok());
-        // The real thing, and its localhost twin.
-        assert!(check_home("home", Some(&home), Some(4500), false).is_ok());
+        // The real thing — and NOT its localhost twin (W2: a same-user
+        // `[::1]:4500` listener would answer that name).
+        assert!(check_home("home", Some(&url("http://127.0.0.1:4500/x?y")), Some(4500), false).is_ok());
         assert!(check_home(
             "home",
             Some(&url("http://localhost:4500/x?y")),
             Some(4500),
             false
         )
-        .is_ok());
+        .is_err());
     }
 
     // V2-3.6 H1 — the page secret is the Home server's page-route capability; only the
@@ -1330,7 +1426,7 @@ mod tests {
             2,
         );
         book.focus("p-lb", 3);
-        let s = build_shell_state(&st, &book, Vec::new(), |_, n| n.to_string(), |_| None);
+        let s = build_shell_state(&st, &book, Vec::new(), |_, n| n.to_string(), |_| None, |_| None);
         let pids: Vec<_> = s.projects.iter().map(|p| p.pid.as_str()).collect();
         assert_eq!(pids, vec!["la", "lb", "lw"], "newest first");
         let b = &s.projects[1];
@@ -1375,7 +1471,7 @@ mod tests {
                 awaiting: 2,
             })
         };
-        let s = build_shell_state(&st, &book, Vec::new(), |_, n| n.to_string(), ai);
+        let s = build_shell_state(&st, &book, Vec::new(), |_, n| n.to_string(), ai, |_| None);
         let by = |pid: &str| s.projects.iter().find(|p| p.pid == pid).unwrap().clone();
         let (a, b, w) = (by("la"), by("lb"), by("lw"));
         assert_eq!((a.place, a.label.as_deref()), ("resting", Some("p-la")));
