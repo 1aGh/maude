@@ -18,6 +18,10 @@
 // canvas focus no longer also runs the iframe's `rerunLast()`, so `browser/in-canvas/canvas` and
 // `browser/in-canvas-text/canvas` Meta+Shift+E lose the `export-history-request` / `-result`
 // messages; the keydown, the writes and the shell's Export sheet are byte-identical.
+// Approved delta (V2-3.4, decision:maude/v2-3.4-cmd-n-new-canvas — Gate 0 C3 File menu): in the
+// desktop shell ⌘N is New Canvas (`canvas.new`, the brief-board composer) and New Project moved to
+// ⇧⌘N, so `tauri/canvas/chrome Meta+n` now prevents the default and opens the composer. No other
+// case changed (two full runs on the Phase 3 gate tree).
 //
 //   cd apps/studio && bun test test/characterization/v1-keys.test.ts
 //     V1_KEYS_UPDATE=1   rewrite the golden

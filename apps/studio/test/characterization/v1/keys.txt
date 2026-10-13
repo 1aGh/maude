@@ -2655,11 +2655,17 @@
     + button .st-docktab [data-testid="dock-tab-inspector"] [role="tab"] [aria-selected="false"] [type="button"] "Inspector"
   canvas: =
 ## tauri/canvas/chrome Meta+n
-  keydown: shell ⌘key="Meta" default · shell ⌘key="n" default
+  keydown: shell ⌘key="Meta" default · shell ⌘key="n" PREVENTED
   to-shell: (none)
   to-canvas: (none)
   writes: (none)
-  shell: =
+  shell: +5 -2 #eddf68b64d
+    - @focus body
+    - button .st-iconbtn [aria-label="New blank brief board"] [aria-expanded="false"] [type="button"]
+    + @focus input[aria-label="New brief board name"][type="text"][placeholder="brief board name…"]
+    + button .st-iconbtn [aria-label="New blank brief board"] [aria-expanded="true"] [type="button"]
+    + button .st-newboard-go [aria-label="Create brief board"] [type="button"] [disabled] "↵"
+    + input [aria-label="New brief board name"] [type="text"] [placeholder="brief board name…"]
   canvas: =
 ## tauri/canvas/chrome Meta+Comma
   keydown: shell ⌘key="Meta" default · shell ⌘key="," PREVENTED
